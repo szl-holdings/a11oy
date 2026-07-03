@@ -9,6 +9,7 @@ that active local runtime/test paths are present in this checkout.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -16,6 +17,130 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAP_PATH = REPO_ROOT / "docs" / "anatomy-formula-runtime-map.json"
 THEOREM_MANIFEST_PATH = REPO_ROOT / "docs" / "theorem-runtime-manifest.json"
+
+# --- stub / fake-runtime detection -----------------------------------------
+#
+# A `runtimeFile` that claims verified-runtime must resolve to REAL code, not a
+# placeholder. History: amaru's /codex-loop aliased `@workspace/codex-kernel`
+# (in organs/amaru/web/vite.config.ts) to a divergent look-alike stub under
+# src/_stubs/ with a home-grown non-crypto `simpleHash`/`fullHash` and no proof
+# ledger — a "verified" surface backed by a fake. The old validator only did a
+# JSON-shape + Path.exists() check and could never have caught it.
+#
+# So: a runtimeFile may be a repo-relative path OR a TS module specifier that we
+# resolve through the same alias tables the bundler uses (vite.config.ts
+# resolve.alias + tsconfig compilerOptions.paths). Whatever it resolves to is
+# then screened for stub markers.
+
+# Substrings that only appear in the fake kernel, never in the attested one
+# (which uses hashString / hashJson / chainHash). Precise on purpose so real
+# gate code is never mislabelled.
+STUB_CONTENT_DENYLIST = (
+    "simpleHash",
+    "fullHash",
+    "FAKE_KERNEL",
+    "MOCK_KERNEL",
+    "mocked-receipt",
+)
+# A module whose meaningful (comment/space-stripped) body is shorter than this
+# is treated as an empty/near-empty stub (e.g. `export {};`).
+STUB_MIN_MEANINGFUL_CHARS = 24
+
+
+def _strip_ts_noise(text: str) -> str:
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = re.sub(r"//[^\n]*", "", text)
+    return re.sub(r"\s+", "", text)
+
+
+def is_stub_module(path: Path) -> str | None:
+    """Return a human-readable reason if `path` looks like a stub, else None."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    stripped = text.strip()
+    if stripped in ("", "export {};", "export {}", "module.exports = {};"):
+        return "empty stub"
+    meaningful = _strip_ts_noise(text)
+    if len(meaningful) < STUB_MIN_MEANINGFUL_CHARS:
+        return "near-empty stub"
+    for marker in STUB_CONTENT_DENYLIST:
+        if marker in text:
+            return f"contains stub/fake marker {marker!r}"
+    return None
+
+
+def _resolve_alias_target(config_dir: Path, target: str) -> Path | None:
+    candidate = (config_dir / target).resolve()
+    if candidate.is_file():
+        return candidate
+    ts = candidate.with_suffix(".ts")
+    if ts.is_file():
+        return ts
+    index = candidate / "index.ts"
+    if index.is_file():
+        return index
+    return None
+
+
+def _parse_vite_aliases(repo_root: Path) -> dict[str, Path]:
+    """Parse `resolve.alias` entries from every organs/*/web/vite.config.ts.
+
+    Matches: '<alias>': path.resolve(import.meta.dirname, '<target>')."""
+    aliases: dict[str, Path] = {}
+    pattern = re.compile(
+        r"""['"]([^'"]+)['"]\s*:\s*path\.resolve\(\s*import\.meta\.dirname\s*,\s*['"]([^'"]+)['"]\s*\)"""
+    )
+    for config in repo_root.glob("organs/*/web/vite.config.ts"):
+        try:
+            text = config.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for alias, target in pattern.findall(text):
+            resolved = _resolve_alias_target(config.parent, target)
+            if resolved is not None:
+                aliases.setdefault(alias, resolved)
+    return aliases
+
+
+def _parse_tsconfig_paths(repo_root: Path) -> dict[str, Path]:
+    aliases: dict[str, Path] = {}
+    for tsconfig in repo_root.glob("organs/*/web/tsconfig*.json"):
+        try:
+            raw = tsconfig.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        # tolerate trailing commas / comments only loosely — best effort
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        paths = (data.get("compilerOptions", {}) or {}).get("paths", {}) or {}
+        for alias, targets in paths.items():
+            if not targets:
+                continue
+            key = alias.rstrip("/*")
+            resolved = _resolve_alias_target(tsconfig.parent, str(targets[0]).rstrip("*"))
+            if resolved is not None:
+                aliases.setdefault(key, resolved)
+    return aliases
+
+
+def resolve_runtime_target(runtime_file: str, repo_root: Path) -> Path | None:
+    """Resolve a runtimeFile to a concrete file: first as a repo-relative path,
+    then as a TS module specifier via vite/tsconfig alias tables."""
+    direct = repo_root / runtime_file
+    if direct.exists():
+        return direct
+    aliases = {**_parse_tsconfig_paths(repo_root), **_parse_vite_aliases(repo_root)}
+    if runtime_file in aliases:
+        return aliases[runtime_file]
+    # allow `<alias>/sub/path` style specifiers
+    for alias, base in aliases.items():
+        if runtime_file.startswith(alias + "/"):
+            return base
+    return None
 
 ALLOWED_CLAIM_STATUSES = {
     "verified-runtime",
@@ -121,10 +246,28 @@ def main() -> int:
                 )
 
             runtime_file = formula.get("runtimeFile")
-            if runtime_file and not (REPO_ROOT / runtime_file).exists():
-                errors.append(
-                    f"{repo}/{formula.get('formula', '<formula>')}: runtimeFile does not exist: {runtime_file}"
-                )
+            if runtime_file:
+                fname = formula.get("formula", "<formula>")
+                resolved = resolve_runtime_target(runtime_file, REPO_ROOT)
+                if resolved is None:
+                    errors.append(
+                        f"{repo}/{fname}: runtimeFile does not exist and no vite/tsconfig alias resolves it: {runtime_file}"
+                    )
+                else:
+                    stub_reason = is_stub_module(resolved)
+                    if stub_reason is not None:
+                        rel = resolved
+                        try:
+                            rel = resolved.relative_to(REPO_ROOT)
+                        except ValueError:
+                            pass
+                        # A verified-runtime claim backed by a stub is the exact
+                        # amaru-fake failure mode — hard fail. Non-verified
+                        # statuses are still flagged (a stub can never be the
+                        # runtime for any live claim).
+                        errors.append(
+                            f"{repo}/{fname}: runtimeFile {runtime_file!r} resolves to a stub ({stub_reason}): {rel}"
+                        )
 
     required_repos = {"a11oy", "lutar-lean", "ouroboros-thesis", "agi-forecast"}
     missing_repos = sorted(required_repos - repos)

@@ -357,6 +357,46 @@
       ]
     },
     {
+      "repo": "codex-kernel",
+      "anatomyRole": "reflex arc: replay-grade governed-loop primitive — bounded iterate -> validate -> hash-chain -> converge/halt, feeding each signed receipt back as the next decision's precondition",
+      "formulaRuntime": [
+        {
+          "formula": "OuroborosGovernedCycle",
+          "runtimeFile": "szl_agentic_loop.py",
+          "theoremRuntimeManifestId": "RUNTIME-A6-HASH-CHAIN-INTEGRITY",
+          "claimStatus": "verified-runtime"
+        },
+        {
+          "formula": "CodexKernelDeterministicReplay",
+          "runtimeFile": null,
+          "theoremRuntimeManifestId": "RUNTIME-A5-DETERMINISTIC-REPLAY",
+          "claimStatus": "release-payload"
+        }
+      ],
+      "theoremAnchors": [
+        "https://github.com/szl-holdings/platform/releases/tag/v1.0.0-codex-kernel",
+        "Lutar.Gate.DeterministicReplay (A5)",
+        "th_v18_14c_hash_audit_integrity (A6)"
+      ],
+      "receiptSurface": [
+        "POST /api/a11oy/v1/agent/cycle -> signed cycle receipt chaining per-iteration final hashes with prev-hash linkage (szl_agentic_loop.py)",
+        "amaru /codex-loop ProofLedger.digest() over the vendored @workspace/codex-kernel@1.0.0"
+      ],
+      "testEvidence": [
+        "tests/test_ouroboros_closed_loop.py",
+        "platform packages/codex-kernel test suite (18/18 upstream, attested v1.0.0)"
+      ],
+      "udsStage": "component-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "verified-runtime",
+      "autonomousLearningRole": "bounded_self_reference_converge_or_halt",
+      "gaps": [
+        "Convergence is the engineering stop condition, NOT a proof: final_status 'converged' is ADVISORY, Lambda-uniqueness remains Conjecture 1 — never a convergence theorem.",
+        "The codex-kernel chain hash is FNV-1a-128 (non-cryptographic): tamper-evident replay per EU AI Act Art. 12, NOT collision-resistant. Cryptographic sealing lives on the DSSE/Khipu receipt path, not the loop hash.",
+        "The attested kernel is vendored into amaru web (single canonical copy) via PR #667; this map cites the upstream release, not a local package path."
+      ]
+    },
+    {
       "repo": "szl-trust",
       "anatomyRole": "public trust layer: run artifacts and replay evidence",
       "formulaRuntime": [],
