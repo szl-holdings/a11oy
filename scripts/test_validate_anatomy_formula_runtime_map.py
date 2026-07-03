@@ -108,11 +108,15 @@ def _minimal_valid_map() -> dict:
             "anatomyRole": f"{repo} role",
             "formulaRuntime": formulas or [],
             "theoremAnchors": [],
-            "receiptSurface": [],
+            # a receipt surface + live_route so a verified-runtime organ clears
+            # RULE 2 (field presence; route grep is skipped when the temp repo
+            # has no router files) and RULE 3 (receipt advisory).
+            "receiptSurface": ["szl-receipt"],
             "testEvidence": [],
             "udsStage": "component-supporting",
             "hfStage": "referenced-from-a11oy-mirror",
             "claimStatus": "verified-runtime",
+            "live_route": "/api/a11oy/v1/agent/cycle",
             "autonomousLearningRole": "observer",
             "gaps": [],
         }
@@ -254,6 +258,174 @@ class StubDetectionSelfTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertIsNone(validator.is_stub_module(real))
+
+
+class OwnRepoRule1SelfTest(unittest.TestCase):
+    """RULE 1 (own-repo / no-borrowing): a cross-repo organ that claims
+    verified-runtime while pointing its runtimeFile at a11oy's shared hub gate
+    tree (packages/*) is BORROWING a hub file to look wired — must fail. The
+    same organ pointing at its OWN subtree, or downgraded to wired-shared, must
+    pass."""
+
+    def _run_in_temp_repo(self, layout: dict[str, str], mp: dict) -> int:
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            for rel, content in layout.items():
+                dst = root_path / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(content, encoding="utf-8")
+            (root_path / "docs").mkdir(parents=True, exist_ok=True)
+            (root_path / "docs" / "anatomy-formula-runtime-map.json").write_text(
+                json.dumps(mp), encoding="utf-8"
+            )
+            (root_path / "docs" / "theorem-runtime-manifest.json").write_text(
+                json.dumps({"entries": []}), encoding="utf-8"
+            )
+            orig = (validator.REPO_ROOT, validator.MAP_PATH, validator.THEOREM_MANIFEST_PATH)
+            validator.REPO_ROOT = root_path
+            validator.MAP_PATH = root_path / "docs" / "anatomy-formula-runtime-map.json"
+            validator.THEOREM_MANIFEST_PATH = root_path / "docs" / "theorem-runtime-manifest.json"
+            try:
+                with redirect_stdout(io.StringIO()):
+                    return validator.main()
+            finally:
+                validator.REPO_ROOT, validator.MAP_PATH, validator.THEOREM_MANIFEST_PATH = orig
+
+    _REAL_GATE = (
+        "export function evaluateGate(input) {\n"
+        "  return { ok: hashString(JSON.stringify(input)) !== '' };\n"
+        "}\n"
+        "export { hashString } from './hash.js';\n"
+    )
+
+    def _map_with_rosie(self, runtime_file: str, status: str) -> dict:
+        mp = _minimal_valid_map()
+        rosie = {
+            "repo": "rosie",
+            "anatomyRole": "rosie role",
+            "formulaRuntime": [
+                {
+                    "formula": "PolicyGate",
+                    "runtimeFile": runtime_file,
+                    "theoremRuntimeManifestId": None,
+                    "claimStatus": status,
+                }
+            ],
+            "theoremAnchors": [],
+            "receiptSurface": ["szl-receipt"],
+            "testEvidence": [],
+            "udsStage": "component-supporting",
+            "hfStage": "referenced-from-a11oy-mirror",
+            "claimStatus": status,
+            "autonomousLearningRole": "observer",
+            "gaps": [],
+        }
+        if status == "verified-runtime":
+            rosie["live_route"] = "/api/a11oy/v1/agent/cycle"
+        mp["organs"].append(rosie)
+        return mp
+
+    def test_borrowed_hub_file_verified_fails(self):
+        """rosie claims verified-runtime but its runtimeFile lands in a11oy's
+        shared packages/ gate tree -> borrowed -> FAIL."""
+        mp = self._map_with_rosie(
+            "packages/policy/decision_gate.ts", "verified-runtime"
+        )
+        layout = {"packages/policy/decision_gate.ts": self._REAL_GATE}
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 1)
+
+    def test_borrowed_hub_file_downgraded_passes(self):
+        """The SAME borrowed reference, honestly labelled wired-shared, passes:
+        a non-verified status may reference the shared gate."""
+        mp = self._map_with_rosie(
+            "packages/policy/decision_gate.ts", "wired-shared"
+        )
+        layout = {"packages/policy/decision_gate.ts": self._REAL_GATE}
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 0)
+
+    def test_own_subtree_verified_passes(self):
+        """rosie pointing verified-runtime at its OWN organs/rosie subtree (not
+        a borrowed hub file) passes RULE 1."""
+        mp = self._map_with_rosie(
+            "organs/rosie/policy/decision_gate.ts", "verified-runtime"
+        )
+        layout = {"organs/rosie/policy/decision_gate.ts": self._REAL_GATE}
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 0)
+
+    def test_a11oy_own_hub_gate_verified_passes(self):
+        """The hub itself OWNS packages/*, so an a11oy organ pointing there is
+        not borrowing -> verified-runtime is legitimate."""
+        mp = _minimal_valid_map()
+        mp["organs"][0]["formulaRuntime"] = [
+            {
+                "formula": "PolicyGate",
+                "runtimeFile": "packages/policy/decision_gate.ts",
+                "theoremRuntimeManifestId": None,
+                "claimStatus": "verified-runtime",
+            }
+        ]
+        layout = {"packages/policy/decision_gate.ts": self._REAL_GATE}
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 0)
+
+
+class LiveRouteRule2SelfTest(unittest.TestCase):
+    """RULE 2 (earned status needs a live route): a verified-runtime organ must
+    declare a `live_route`, and — when router code is present — that route must
+    be registered there."""
+
+    def _run_in_temp_repo(self, layout: dict[str, str], mp: dict) -> int:
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            for rel, content in layout.items():
+                dst = root_path / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(content, encoding="utf-8")
+            (root_path / "docs").mkdir(parents=True, exist_ok=True)
+            (root_path / "docs" / "anatomy-formula-runtime-map.json").write_text(
+                json.dumps(mp), encoding="utf-8"
+            )
+            (root_path / "docs" / "theorem-runtime-manifest.json").write_text(
+                json.dumps({"entries": []}), encoding="utf-8"
+            )
+            orig = (validator.REPO_ROOT, validator.MAP_PATH, validator.THEOREM_MANIFEST_PATH)
+            validator.REPO_ROOT = root_path
+            validator.MAP_PATH = root_path / "docs" / "anatomy-formula-runtime-map.json"
+            validator.THEOREM_MANIFEST_PATH = root_path / "docs" / "theorem-runtime-manifest.json"
+            try:
+                with redirect_stdout(io.StringIO()):
+                    return validator.main()
+            finally:
+                validator.REPO_ROOT, validator.MAP_PATH, validator.THEOREM_MANIFEST_PATH = orig
+
+    def test_missing_live_route_fails(self):
+        """A verified-runtime organ with no live_route field must fail."""
+        mp = _minimal_valid_map()
+        del mp["organs"][0]["live_route"]
+        self.assertEqual(run_validator(mp), 1)
+
+    def test_live_route_not_in_router_fails(self):
+        """When router code IS present but does not register the declared route,
+        the claim is not earned -> fail."""
+        mp = _minimal_valid_map()
+        mp["organs"][0]["live_route"] = "/api/a11oy/v1/ghost/endpoint"
+        layout = {
+            "serve.py": (
+                "app.add_api_route('/api/a11oy/v1/gates', gates_handler)\n"
+            )
+        }
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 1)
+
+    def test_live_route_served_passes(self):
+        """A verified-runtime organ whose declared route IS registered in the
+        served router passes RULE 2. Route hub segment is templated in code."""
+        mp = _minimal_valid_map()
+        mp["organs"][0]["live_route"] = "/api/a11oy/v1/agent/cycle"
+        layout = {
+            "szl_agentic_loop.py": (
+                "routes = [Route('/api/%s/v1/agent/cycle' % ns, cycle_handler)]\n"
+            )
+        }
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 0)
 
 
 if __name__ == "__main__":

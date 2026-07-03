@@ -87,6 +87,8 @@
       "udsStage": "operator-proof-point",
       "hfStage": "generated-diligence-mirror",
       "claimStatus": "verified-runtime",
+      "live_route": "/api/a11oy/v1/gates",
+      "receipt": "packages/receipt-substrate/src/index.ts",
       "autonomousLearningRole": "dream_and_propose_only",
       "gaps": [
         "Dedicated autonomous-learning runtime harness remains staged.",
@@ -181,7 +183,7 @@
           "formula": "Khipu receipt DAG / SummationInvariant",
           "runtimeFile": "packages/policy/src/gates/summationInvariant_gate.ts",
           "theoremRuntimeManifestId": "RUNTIME-SUMMATION-INVARIANT",
-          "claimStatus": "verified-runtime"
+          "claimStatus": "wired-shared"
         }
       ],
       "theoremAnchors": [
@@ -197,10 +199,11 @@
       ],
       "udsStage": "component-supporting",
       "hfStage": "referenced-from-a11oy-mirror",
-      "claimStatus": "verified-runtime",
+      "claimStatus": "wired-shared",
       "autonomousLearningRole": "receipt_chain_and_anti_replay",
       "gaps": [
-        "Upstream Rosie runtime evidence should be cited before claiming Rosie-specific production behavior."
+        "Upstream Rosie runtime evidence should be cited before claiming Rosie-specific production behavior.",
+        "runtimeFile references the shared a11oy packages/policy gate, not Rosie's own upstream runtime; honest status is wired-shared until an own-repo runtime path is cited."
       ]
     },
     {
@@ -211,7 +214,7 @@
           "formula": "QECLineage",
           "runtimeFile": "packages/qec-integrity/src/qec_lineage.ts",
           "theoremRuntimeManifestId": "RUNTIME-QEC-LINEAGE",
-          "claimStatus": "verified-runtime"
+          "claimStatus": "wired-shared"
         }
       ],
       "theoremAnchors": [
@@ -226,10 +229,11 @@
       ],
       "udsStage": "component-supporting",
       "hfStage": "referenced-from-a11oy-mirror",
-      "claimStatus": "verified-runtime",
+      "claimStatus": "wired-shared",
       "autonomousLearningRole": "promotion_receipt_anchor",
       "gaps": [
-        "Cardano/external anchoring should be claimed only from upstream release evidence."
+        "Cardano/external anchoring should be claimed only from upstream release evidence.",
+        "runtimeFile references the shared a11oy packages/qec-integrity witness, not Amaru's own upstream runtime; honest status is wired-shared until an own-repo runtime path is cited."
       ]
     },
     {
@@ -240,7 +244,7 @@
           "formula": "AdversarialRobustness",
           "runtimeFile": "packages/policy/src/gates/adversarialRobustness_gate.ts",
           "theoremRuntimeManifestId": "RUNTIME-ADVERSARIAL-ROBUSTNESS",
-          "claimStatus": "verified-runtime"
+          "claimStatus": "wired-shared"
         }
       ],
       "theoremAnchors": [
@@ -255,10 +259,11 @@
       ],
       "udsStage": "component-supporting",
       "hfStage": "referenced-from-a11oy-mirror",
-      "claimStatus": "verified-runtime",
+      "claimStatus": "wired-shared",
       "autonomousLearningRole": "drift_evaluator_not_promoter",
       "gaps": [
-        "Upstream Sentra incident evidence should be cited before claiming live remediation."
+        "Upstream Sentra incident evidence should be cited before claiming live remediation.",
+        "runtimeFile references the shared a11oy packages/policy gate, not Sentra's own upstream runtime; honest status is wired-shared until an own-repo runtime path is cited."
       ]
     },
     {
@@ -389,6 +394,8 @@
       "udsStage": "component-supporting",
       "hfStage": "referenced-from-a11oy-mirror",
       "claimStatus": "verified-runtime",
+      "live_route": "/api/a11oy/v1/agent/cycle",
+      "receipt": "szl_agentic_loop.py",
       "autonomousLearningRole": "bounded_self_reference_converge_or_halt",
       "gaps": [
         "Convergence is the engineering stop condition, NOT a proof: final_status 'converged' is ADVISORY, Lambda-uniqueness remains Conjecture 1 — never a convergence theorem.",

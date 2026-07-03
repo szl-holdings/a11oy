@@ -144,6 +144,11 @@ def resolve_runtime_target(runtime_file: str, repo_root: Path) -> Path | None:
 
 ALLOWED_CLAIM_STATUSES = {
     "verified-runtime",
+    # `wired-shared`: the organ references a SHARED a11oy hub gate/witness file for
+    # compatibility, but its own production runtime lives upstream and is not
+    # verified in this checkout. This is the honest label for a cross-repo organ
+    # that would otherwise borrow an a11oy `packages/*` gate to look verified.
+    "wired-shared",
     "release-payload",
     "lean-backed-current-green",
     "lean-backed-needs-upstream-ci",
@@ -154,6 +159,126 @@ ALLOWED_CLAIM_STATUSES = {
     "roadmap",
 }
 
+# --- RULE 1: own-repo / no-borrowing ---------------------------------------
+#
+# Cross-repo organs (rosie, amaru, sentra, ...) historically claimed
+# `verified-runtime` while pointing `runtimeFile` at a11oy's OWN shared gate
+# tree (packages/policy/*_gate.ts, packages/qec-integrity/*.ts). Path.exists()
+# passed because the file is a11oy's — the organ borrowed a hub file to look
+# wired. A verified-runtime claim must resolve to code the organ actually owns:
+# its own subtree under organs/<repo>/ (for in-repo subtree organs) or its own
+# upstream repo (a genuinely cross-repo file we cannot borrow from here). A
+# runtimeFile that lands in a11oy's shared hub library tree is "borrowed".
+SHARED_HUB_LIBRARY_DIRS = ("packages",)
+
+# --- RULE 2: earned status needs a live route ------------------------------
+#
+# Files that actually register the served HTTP routes. A `verified-runtime`
+# organ must declare a `live_route`, and that route must appear in one of these
+# routers (offline grep — no network calls). Route literals are namespace
+# templated in code (Route("/api/%s/v1/agent/cycle" % ns, ...)), so the hub
+# segment is matched flexibly.
+ROUTER_FILE_CANDIDATES = (
+    "serve.py",
+    "szl_agentic_loop.py",
+    "szl_ken.py",
+)
+ROUTER_GLOB_CANDIDATES = (
+    "organs/*/serve.py",
+    "*_router.py",
+)
+
+# --- RULE 3: receipt-flow (advisory) ---------------------------------------
+#
+# A verified-runtime organ SHOULD emit/record a receipt (szl-receipt / szl-lake
+# / a DSSE sign path). Advisory only: if no receipt evidence is found the map is
+# annotated `receipt: none` (warning) so the body honestly shows which organs
+# are receipted — it never hard-fails.
+RECEIPT_MARKERS = (
+    "receipt",
+    "dsse",
+    "szl-receipt",
+    "szl-lake",
+    "sign",
+    "khipu",
+)
+
+
+def _organ_own_subtree(repo: str, repo_root: Path) -> Path | None:
+    subtree = repo_root / "organs" / repo
+    return subtree if subtree.is_dir() else None
+
+
+def is_borrowed_hub_file(resolved: Path, repo: str, repo_root: Path) -> bool:
+    """True if a non-a11oy organ's runtimeFile lands in a11oy's shared hub
+    library tree instead of the organ's own subtree/repo (RULE 1 borrowing)."""
+    if repo == "a11oy":
+        return False  # the hub owns its shared gates
+    try:
+        rel = resolved.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        # Resolves outside this checkout -> a genuinely cross-repo own file,
+        # not something borrowed from a11oy here.
+        return False
+    own = _organ_own_subtree(repo, repo_root)
+    if own is not None:
+        try:
+            resolved.resolve().relative_to(own.resolve())
+            return False  # under the organ's own subtree -> not borrowed
+        except ValueError:
+            pass
+    return rel.parts and rel.parts[0] in SHARED_HUB_LIBRARY_DIRS
+
+
+def _router_files(repo_root: Path) -> list[Path]:
+    files: list[Path] = []
+    for name in ROUTER_FILE_CANDIDATES:
+        p = repo_root / name
+        if p.is_file():
+            files.append(p)
+    for pattern in ROUTER_GLOB_CANDIDATES:
+        for p in repo_root.glob(pattern):
+            if p.is_file() and "node_modules" not in p.parts:
+                files.append(p)
+    return files
+
+
+def _route_regex(live_route: str) -> re.Pattern[str]:
+    """Match a declared route allowing the hub segment to be templated in code:
+    literal `a11oy`, printf `%s`, f-string `{ns}`/`{flagship}`, JS `'+NS+'`, or
+    `<ns>`.  e.g. Route("/api/%s/v1/agent/cycle" % ns) matches
+    live_route="/api/a11oy/v1/agent/cycle"."""
+    escaped = re.escape(live_route)
+    hub_alt = r"(?:a11oy|%s|\{[^}]+\}|'\s*\+\s*[A-Za-z_]+\s*\+\s*'|<[^>]+>)"
+    # re.escape leaves bare word chars (incl. "a11oy") untouched.
+    escaped = escaped.replace("a11oy", hub_alt, 1)
+    return re.compile(escaped)
+
+
+def route_is_served(live_route: str, repo_root: Path) -> bool | None:
+    """Return True/False if `live_route` is/ isn't found in the served router
+    code, or None when there are no router files to grep (offline bare repo)."""
+    routers = _router_files(repo_root)
+    if not routers:
+        return None
+    pattern = _route_regex(live_route)
+    for router in routers:
+        try:
+            text = router.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if pattern.search(text):
+            return True
+    return False
+
+
+def organ_has_receipt(organ: dict) -> bool:
+    receipt = organ.get("receipt")
+    if isinstance(receipt, str) and receipt.strip() and receipt.strip().lower() != "none":
+        return True
+    haystack = " ".join(organ.get("receiptSurface", []) or []).lower()
+    return any(marker in haystack for marker in RECEIPT_MARKERS)
+
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -161,6 +286,7 @@ def load_json(path: Path) -> dict:
 
 def main() -> int:
     errors: list[str] = []
+    warnings: list[str] = []
     data = load_json(MAP_PATH)
     theorem_manifest = load_json(THEOREM_MANIFEST_PATH)
     theorem_ids = {entry["id"] for entry in theorem_manifest.get("entries", [])}
@@ -268,6 +394,54 @@ def main() -> int:
                         errors.append(
                             f"{repo}/{fname}: runtimeFile {runtime_file!r} resolves to a stub ({stub_reason}): {rel}"
                         )
+                    # RULE 1 (own-repo / no-borrowing): a verified-runtime claim
+                    # must resolve to code the organ OWNS, never a borrowed a11oy
+                    # shared hub gate. Non-verified statuses (e.g. wired-shared)
+                    # may honestly reference a shared gate.
+                    claims_verified = (
+                        formula_status == "verified-runtime"
+                        or status == "verified-runtime"
+                    )
+                    if claims_verified and is_borrowed_hub_file(resolved, repo, REPO_ROOT):
+                        rel = resolved
+                        try:
+                            rel = resolved.relative_to(REPO_ROOT)
+                        except ValueError:
+                            pass
+                        errors.append(
+                            f"{repo}/{fname}: verified-runtime borrows a11oy hub file {rel} "
+                            f"(not under organs/{repo}/ or its own repo); point at the organ's "
+                            f"own runtime or downgrade to 'wired-shared'"
+                        )
+
+        # RULE 2 (earned status needs a live route): a verified-runtime organ
+        # must declare a `live_route`, and — when router code is present in this
+        # checkout — that route must actually be registered there. Missing or
+        # unserved => the claim is not earned; downgrade to wired-shared/roadmap.
+        if status == "verified-runtime":
+            live_route = organ.get("live_route")
+            if not (isinstance(live_route, str) and live_route.strip()):
+                errors.append(
+                    f"{repo}: verified-runtime organ must declare a served 'live_route' "
+                    f"(none found); downgrade to 'wired-shared' if there is no live endpoint"
+                )
+            else:
+                served = route_is_served(live_route, REPO_ROOT)
+                if served is False:
+                    errors.append(
+                        f"{repo}: live_route {live_route!r} is not registered in any served "
+                        f"router ({', '.join(ROUTER_FILE_CANDIDATES)}, organs/*/serve.py); "
+                        f"downgrade this organ or fix the route"
+                    )
+
+            # RULE 3 (receipt-flow, advisory): warn — never fail — when a
+            # verified-runtime organ shows no receipt/DSSE path, so the map
+            # honestly annotates which organs are receipted.
+            if not organ_has_receipt(organ):
+                warnings.append(
+                    f"{repo}: verified-runtime organ has no receipt evidence "
+                    f"(receipt: none) — add a szl-receipt/DSSE path or a `receipt` field"
+                )
 
     required_repos = {"a11oy", "lutar-lean", "ouroboros-thesis", "agi-forecast"}
     missing_repos = sorted(required_repos - repos)
@@ -280,6 +454,8 @@ def main() -> int:
             print(f"  - {error}")
         return 1
 
+    for warning in warnings:
+        print(f"  ! (advisory) {warning}")
     print(f"Validated {MAP_PATH.relative_to(REPO_ROOT)} ({len(organs)} organs)")
     return 0
 
