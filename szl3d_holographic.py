@@ -34,6 +34,8 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "frontier", "title": "Frontier", "owner": "Dev0"},
     {"id": "neuromorphic", "title": "Neuromorphic", "owner": "Dev0"},
     {"id": "interpretability", "title": "Interpretability", "owner": "Dev0"},
+    {"id": "worldmodel", "title": "World Model", "owner": "Dev0"},
+    {"id": "qec", "title": "Topological QEC", "owner": "Dev0"},
     {"id": "energy", "title": "Energy", "owner": "Dev1"},
     {"id": "fabric", "title": "Compute Fabric", "owner": "Dev2"},
     {"id": "pnt", "title": "PNT", "owner": "Dev3"},
