@@ -560,3 +560,28 @@ jobs:
         # and the Ed25519 round-trip — turning a future naive "just import
         # szl-receipt" refactor into a red gate.
         run: python3 -m unittest tests.test_sign_cert_dsse_parity -v
+
+  python-v4-fleet-federation:
+    name: V4 fleet peer-health federates live standalone Spaces, honestly (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install pytest (the probe is monkeypatched — no real network, no httpx)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Federation + honesty guard for szl_v4_fleet PEER_HEALTH_URLS
+        # FEDERATION HONESTY GUARD (audit 2026-07-03): immune-standalone and yarqa
+        # are genuinely-live standalone Spaces (/healthz=200) that were proxied as
+        # surfaces but absent from PEER_HEALTH_URLS, so fleet health never probed
+        # them. This guard locks that both are now probed, that the additive change
+        # left the existing peers intact, and — critically — that _probe_peer
+        # reports up:false on any 5xx/timeout/transport error with NO fabricated
+        # green. A future regression that drops a peer or hard-wires a fake up
+        # becomes a red gate. Fully offline: httpx is monkeypatched.
+        run: pytest test_v4_fleet_federation.py -q
