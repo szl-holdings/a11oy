@@ -28,7 +28,7 @@ import szl_joules_truth as J
 
 # A fixed "now" makes every freshness test deterministic.
 NOW = 1_000_000.0
-FRESH_TS = NOW - 5.0                       # 5s old — within the 120s window
+FRESH_TS = NOW - 5.0                       # 5s old — within the 30s window
 STALE_TS = NOW - (J.FRESHNESS_WINDOW_S + 60.0)   # well outside the window
 FUTURE_TS = NOW + 10_000.0                 # implausible future reading
 
@@ -52,6 +52,30 @@ def test_stale_sample_is_sample():
 def test_future_timestamp_rejected():
     future = {**REAL_FRESH, "exporter_last_seen_ts": FUTURE_TS}
     assert J.joules_label(future, now=NOW) == "sample"
+
+
+def test_freshness_window_matches_canonical_operator_value():
+    # The freshness window is the CANONICAL 30s operator value, shared verbatim by
+    # szl_energy_operator, joule_billing, and the published energy_core kernel.
+    # (Was 120.0 — an internal honesty inconsistency that let joules_truth label a
+    #  31-120s reading MEASURED while operator/billing/kernel treated it as stale.)
+    import szl_energy_operator as O
+    import joule_billing as B
+    assert J.FRESHNESS_WINDOW_S == 30.0
+    assert float(O.MAX_NVML_AGE_S) == J.FRESHNESS_WINDOW_S
+    assert float(B.MAX_NVML_AGE_S) == J.FRESHNESS_WINDOW_S
+
+
+def test_reading_aged_31_to_120s_is_now_sample():
+    # The exact honesty gap this fix closes: a reading older than the canonical 30s
+    # window must read SAMPLE, not MEASURED — consistent with operator + billing.
+    for age in (31.0, 60.0, 119.0, 120.0):
+        aged = {**REAL_FRESH, "exporter_last_seen_ts": NOW - age}
+        assert J.joules_label(aged, now=NOW) == "sample", f"age={age}s must be sample"
+    # And a reading within the window is still measured (boundary sanity).
+    for age in (5.0, 29.0, 30.0):
+        fresh = {**REAL_FRESH, "exporter_last_seen_ts": NOW - age}
+        assert J.joules_label(fresh, now=NOW) == "measured", f"age={age}s must be measured"
 
 
 def test_no_sample_is_sample():
