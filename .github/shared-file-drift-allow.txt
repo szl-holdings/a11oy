@@ -107,3 +107,11 @@ szl_agentic_loop.py        # a11oy unified-receipt + cognitive DRIFT/COUNTERFACT
 #     copy still carries the old window; reconcile by applying the same 30s value in
 #     killinchu, then remove this entry.
 szl_joules_truth.py        # a11oy FRESHNESS_WINDOW_S 120.0->canonical 30s honesty fix (PR #672); killinchu sync pending
+
+# --- 2026-07-03: a11oy honesty fix (FIX 4) — szl_rag.py had a dead
+#     register_rag_routes()/render_rag_html() surface that was never mounted
+#     (a11oy_org_rag.py is the ONE live RAG engine). a11oy drops the dead
+#     mount and marks the module library-only so there is a single RAG surface.
+#     killinchu's copy still carries the old register_rag_routes; reconcile by
+#     applying the same drop in killinchu, then remove this entry.
+szl_rag.py                 # a11oy library-only + dead register_rag_routes drop (FIX 4); killinchu sync pending
