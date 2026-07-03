@@ -6270,6 +6270,55 @@ except Exception as _rag_e:  # pragma: no cover - additive, defensive
 # === END GOVERNED RAG ===
 
 # ===========================================================================
+# MEASURED PHYSICAL-BOUNDS ENERGY CERTIFICATE (ADDITIVE, honest, root-cause).
+# Serves the founder-captured physical_bounds_certificate.json that already ships
+# in the image (single source of truth — READ the file, never hardcode numbers).
+# GET /api/a11oy/v1/energy/physical-bounds. Registered here (module load, BEFORE
+# the /api/a11oy/{path:path} Node proxy + SPA catch-all defined at the file tail —
+# same ordering as the RAG routes above) so it resolves locally to real JSON and
+# is NOT shadowed into the SPA HTML shell. If the certificate is missing/unreadable
+# at runtime the endpoint returns an HONEST 503/UNAVAILABLE with a reason — the
+# joules are NEVER fabricated. The cert is founder-captured (2026-06-14), NOT a
+# per-request live measurement; the payload labels it exactly as that.
+try:
+    import szl_physical_bounds as _szl_pb
+
+    @app.get("/api/a11oy/v1/energy/physical-bounds")
+    async def _energy_physical_bounds():
+        payload = _szl_pb.physical_bounds_payload()
+        if payload is None:
+            _cert, _reason = _szl_pb.load_certificate()
+            return JSONResponse(
+                gov_envelope(
+                    {"label": "UNAVAILABLE",
+                     "energy_joules": None,
+                     "reason": _reason,
+                     "honesty": ("physical_bounds_certificate.json is not readable at "
+                                 "runtime; no MEASURED joules fabricated (honest UNAVAILABLE "
+                                 "beats fake green).")},
+                    status="UNAVAILABLE",
+                    reason=_reason,
+                ),
+                status_code=503,
+            )
+        return JSONResponse(
+            gov_envelope(
+                payload,
+                status="REAL",
+                citations=[{"endpoint": "physical_bounds_certificate.json (founder-captured, on-metal NVML)",
+                            "data": {"label": payload.get("label"),
+                                     "energy_joules": payload.get("energy_joules"),
+                                     "captured": payload.get("captured")}}],
+            )
+        )
+
+    print("[a11oy] physical-bounds cert mounted: GET /api/a11oy/v1/energy/physical-bounds "
+          "(MEASURED founder-captured reference; honest 503/UNAVAILABLE if absent)", flush=True)
+except Exception as _pb_e:  # pragma: no cover - additive, defensive
+    print("[a11oy] physical-bounds cert NOT mounted (" + repr(_pb_e) + "); SPA + API unaffected", flush=True)
+# === END PHYSICAL-BOUNDS CERT ===
+
+# ===========================================================================
 # SELF-CONTAINED WARHACKER DEMO (ADDITIVE, 2026-06-05). a11oy runs the 5 demo
 # scenarios IN-IMAGE — no external service calls. Registered BEFORE the legacy
 # warhacker module mount below so these neutral, self-contained routes WIN.
