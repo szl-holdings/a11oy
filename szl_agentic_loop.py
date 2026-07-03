@@ -119,6 +119,20 @@ try:
 except Exception:  # pragma: no cover - additive fallback, honest no-op
     _LTC = None
 
+# SGH STRUCTURED-GRAPH CONTROL (ADDITIVE 2026-07-03): an OPTIONAL, own-code
+# reimplementation of the *pattern* from "From Agent Loops to Structured Graphs"
+# (arXiv:2604.11378 — a cs.AI POSITION PAPER, no code). It WRAPS the governed
+# cycle with an explicit node state machine PLAN→EXECUTE→VERIFY→RECOVER→HALT over
+# an immutable plan DAG, with STRICT bounded escalation. Import-guarded like every
+# optional dep — absent module => honest no-op. Gated at request time by env
+# A11OY_SGH=1; default OFF => the cycle result is byte-identical to today.
+# ADVISORY ONLY: never claimed "provably terminating/sound", never overrides the
+# gate, never moves Lambda off Conjecture 1, never touches locked-8.
+try:
+    import szl_sgh_scheduler as _SGH
+except Exception:  # pragma: no cover - additive fallback, honest no-op
+    _SGH = None
+
 
 def _energy_fields_for_receipt() -> dict:
     """Honest per-turn energy attestation for the unified receipt. Delegates to
@@ -1195,7 +1209,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return {"trust_delta": abs(ct - pt),
                 "decision_changed": prev_run.get("decision") != cur_run.get("decision")}
 
-    def _do_governed_cycle(*, budget, eps=0.01, **run_kwargs):
+    def _do_governed_cycle_core(*, budget, eps=0.01, **run_kwargs):
         """OUROBOROS closed loop over the single governed pass.
 
         Runs `_do_run` up to `budget` times, feeding each iteration's SIGNED
@@ -1352,6 +1366,37 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             "signer": signer_label,
             "doctrine": "v11",
         }
+
+    def _do_governed_cycle(*, budget, eps=0.01, **run_kwargs):
+        """Governed cycle entry point.
+
+        DEFAULT PATH (A11OY_SGH unset): returns the core cycle result UNCHANGED
+        — byte-identical to before this layer existed.
+
+        OPTIONAL SGH LAYER (env A11OY_SGH=1 and szl_sgh_scheduler importable):
+        WRAPS the core cycle with an explicit, inspectable node state machine
+        (PLAN→EXECUTE→VERIFY→RECOVER→HALT) over an IMMUTABLE plan DAG, with
+        STRICT bounded escalation. The SGH trace is exposed additively under the
+        'sgh' key; every existing field is preserved. ADVISORY / experimental —
+        the machine is BOUNDED (always halts) but NEVER claimed provably
+        terminating; it NEVER overrides the gate or moves Λ off Conjecture 1.
+        Any failure (missing module / raised error) is an honest no-op that
+        returns the untouched core result."""
+        sgh_max_recover = run_kwargs.pop("sgh_max_recover", 2)
+        core = _do_governed_cycle_core(budget=budget, eps=eps, **run_kwargs)
+        import os
+        if os.environ.get("A11OY_SGH") != "1" or _SGH is None:
+            return core
+        try:
+            def _reexecute():
+                return _do_governed_cycle_core(budget=budget, eps=eps, **run_kwargs)
+            wrapped = _SGH.wrap_governed_cycle(
+                core, _reexecute, sha_fn=_sha, max_recover=sgh_max_recover)
+            out = dict(core)
+            out["sgh"] = {k: v for k, v in wrapped.items() if k != "cycle"}
+            return out
+        except Exception:  # pragma: no cover - SGH must never take the cycle down
+            return core
 
     # ---- MCP JSON-RPC handler (canonical live MCP) ----
     async def _mcp_post(request: Request):
