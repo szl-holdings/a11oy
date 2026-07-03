@@ -17,6 +17,7 @@ import {
   type DresdenSimConfig,
   dresdenSteps,
   type KernelRunResult,
+  ProofLedger,
   replay,
   runLoop,
   serializeTraceJsonl,
@@ -37,7 +38,16 @@ import {
 interface RunBundle {
   result: KernelRunResult<VenusState>;
   jsonl: string;
-  replayed: ReturnType<typeof replay>;
+  replayed: ReturnType<typeof replay<VenusState>>;
+  ledgerDigest: string;
+}
+
+/** Rebuild the append-only ProofLedger from the committed entries to obtain
+ *  its canonical digest (covers every governance field of every entry). */
+function ledgerDigestOf(result: KernelRunResult<VenusState>): string {
+  const ledger = new ProofLedger();
+  for (const entry of result.ledger) ledger.append(entry);
+  return ledger.digest();
 }
 
 function executeRun(
@@ -58,12 +68,12 @@ function executeRun(
     steps: dresdenSteps(cfg),
   });
   const jsonl = serializeTraceJsonl(result.trace);
-  const replayed = replay(
+  const replayed = replay<VenusState>(
     DRESDEN_INITIAL_STATE,
     result.trace,
     result.summary.final_state_hash,
   );
-  return { result, jsonl, replayed };
+  return { result, jsonl, replayed, ledgerDigest: ledgerDigestOf(result) };
 }
 
 function severityChip(sev: 'pass' | 'soft_fail' | 'hard_fail') {
@@ -273,6 +283,8 @@ function PostureCard({
         <dd className="font-mono text-[11px]">
           {shortHash(summary.final_state_hash)}
         </dd>
+        <dt className="text-muted-foreground">ledger_digest</dt>
+        <dd className="font-mono text-[11px]">{shortHash(bundle.ledgerDigest)}</dd>
         <dt className="text-muted-foreground">replay</dt>
         <dd
           className={

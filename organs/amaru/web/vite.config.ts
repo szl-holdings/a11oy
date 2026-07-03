@@ -19,7 +19,7 @@ export default defineConfig({
       '@workspace/a11oy-orchestration/client': path.resolve(import.meta.dirname, 'src/_stubs/a11oy-orchestration/index.ts'),
       '@workspace/ouroboros/react': path.resolve(import.meta.dirname, 'src/_stubs/ouroboros-react/index.tsx'),
       '@workspace/ouroboros': path.resolve(import.meta.dirname, 'src/_stubs/ouroboros/index.ts'),
-      '@workspace/codex-kernel': path.resolve(import.meta.dirname, 'src/_stubs/codex-kernel/index.ts'),
+      '@workspace/codex-kernel': path.resolve(import.meta.dirname, 'src/vendor/codex-kernel/index.ts'),
       '@szl-holdings/szl-doctrine/panels': path.resolve(import.meta.dirname, 'src/_stubs/szl-doctrine-panels/index.tsx'),
       '@szl-holdings/szl-doctrine': path.resolve(import.meta.dirname, 'src/_stubs/szl-doctrine/index.ts'),
       '@szl-holdings/shared-ui/ui/badge': path.resolve(import.meta.dirname, 'src/_stubs/shared-ui/badge.tsx'),
