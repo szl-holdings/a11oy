@@ -1788,17 +1788,18 @@ except Exception as _otel_e:
 # --- end OTel setup ---
 
 # ── ADDITIVE: vsp-otel — Verifiable Span Provenance (Yachay; Perplexity Computer Agent) ──
-# Adopts the szl-holdings/vsp-otel operational layer: real OTLP/gRPC export to the
-# OTel Collector + DSSE/Khipu span binding (szl.mesh.receipt_hash on every span).
-# Fail-safe: install() degrades to an HONEST no-op if vsp_otel / the OTel SDK are
-# absent, and returns a status object describing exactly what was wired. Set
-# OTEL_EXPORTER_OTLP_ENDPOINT to point organs at the collector.
+# Adopts the szl-holdings/vsp-otel operational layer: W3C-traceparent propagation
+# (always, in-process) plus OTLP/gRPC span export that is GATED on the operator
+# setting OTEL_EXPORTER_OTLP_ENDPOINT. When that env var is unset there is no
+# collector to export to (prod is a single HF Space), so the tracer stays honestly
+# in-process-only — spans are NOT claimed to be exported. install() records the
+# exact exporter status on app._vsp_otel_exporter; we log it verbatim.
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
 try:
     import vsp_otel.middleware as _vsp_otel
-    _vsp_status = _vsp_otel.install(app)
+    _vsp_otel.install(app)
     import sys as _vsp_sys
-    print(f"[a11oy] vsp-otel VSP installed: {_vsp_status.note}", file=_vsp_sys.stderr)
+    print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
 except Exception as _vsp_e:
     import sys as _vsp_sys
     print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
@@ -3168,12 +3169,14 @@ async def evidence() -> JSONResponse:
 @app.post("/api/a11oy/v1/ouroboros/run-all")
 async def ouroboros_run_all() -> JSONResponse:
     """
-    Ouroboros Run-All endpoint — executes 32-module self-test suite.
-    Returns {tests_run, tests_pass, tests_fail, duration_ms, receipts: [...]}.
+    Ouroboros Run-All endpoint — executes the 32-module self-test suite.
+    Returns {tests_run, tests_pass, tests_fail, tests_blocked, verdict, receipts: [...]}.
     Doctrine v10/v11: 749 declarations / 14 axioms / 163 sorries.
-    Note: per per-repo audit, ouroboros 32/32 self-tests already passed in sandbox.
-    This endpoint runs a lightweight wrapper that reports the canonical known-good results
-    from the OUROBOROS_RUN_ALL.py execution.
+
+    HONEST-STATUS: results come ONLY from a real OUROBOROS_RUN_ALL.py run. If the
+    runner is absent, crashes, or a module yields no parseable Status line, that
+    module is reported BLOCKED/UNAVAILABLE with a reason — never a fabricated GREEN.
+    The aggregate verdict is GREEN only when every module genuinely passes.
     """
     import time as _time
 
@@ -3231,47 +3234,77 @@ async def ouroboros_run_all() -> JSONResponse:
             ouroboros_path = _c
             break
 
+    # Doctrine v11 HONEST-STATUS: a caught exception or a module absent from the
+    # runner's output MUST surface as BLOCKED/UNAVAILABLE with a reason — NEVER a
+    # fabricated GREEN. A truthful BLOCKED beats a fake green. The aggregate verdict
+    # is GREEN only when every module is genuinely GREEN.
+    blocked = 0
     if ouroboros_path:
-        # Real execution path
+        # Real execution path — parse the runner's per-module Status lines.
         try:
             proc = subprocess.run(
                 ["python3", ouroboros_path],
                 capture_output=True, text=True, timeout=120,
             )
             stdout = proc.stdout
-            # Parse output to extract per-module results
             import re
             for mod_info in _OUROBOROS_MODULES:
                 m = mod_info["module"]
                 pattern = re.compile(rf"\[{re.escape(m)}\].*?Status:\s*(GREEN|RED[^\n]*|ERROR[^\n]*)", re.DOTALL)
                 match = pattern.search(stdout)
-                status = "GREEN"
                 if match:
                     st = match.group(1).strip()
-                    status = "GREEN" if st == "GREEN" else "RED" if "RED" in st else "ERROR"
-                receipts.append({"module": m, "status": status, "duration_ms": 0, "doi": _MODULE_DOIS.get(m, "")})
+                    status = "GREEN" if st == "GREEN" else "RED" if "RED" in st else "BLOCKED"
+                    reason = None if status == "GREEN" else st
+                else:
+                    # Module produced no parseable Status line — do NOT assume pass.
+                    status = "UNAVAILABLE"
+                    reason = ("no Status line in runner output "
+                              f"(exit={proc.returncode}); result unknown — not assumed green")
+                rec = {"module": m, "status": status, "duration_ms": 0, "doi": _MODULE_DOIS.get(m, "")}
+                if reason is not None:
+                    rec["reason"] = reason
+                receipts.append(rec)
             tests_pass = sum(1 for r in receipts if r["status"] == "GREEN")
-            tests_fail = len(receipts) - tests_pass
+            tests_fail = sum(1 for r in receipts if r["status"] == "RED")
+            blocked = sum(1 for r in receipts if r["status"] in ("BLOCKED", "UNAVAILABLE"))
         except Exception as exc:
-            # Fall back to known-good
-            for mod_info in _OUROBOROS_MODULES:
-                receipts.append({"module": mod_info["module"], "status": "GREEN", "duration_ms": 0, "doi": _MODULE_DOIS.get(mod_info["module"], "")})
-            tests_pass = len(receipts)
+            # Runner crashed/timed out — every module is BLOCKED with the reason.
+            receipts = [{
+                "module": mod_info["module"], "status": "BLOCKED", "duration_ms": 0,
+                "doi": _MODULE_DOIS.get(mod_info["module"], ""),
+                "reason": f"ouroboros runner failed: {type(exc).__name__}: {exc}",
+            } for mod_info in _OUROBOROS_MODULES]
+            tests_pass = 0
             tests_fail = 0
+            blocked = len(receipts)
     else:
-        # Known-good fallback (per per-repo audit: 32/32 passed)
-        for mod_info in _OUROBOROS_MODULES:
-            receipts.append({"module": mod_info["module"], "status": "GREEN", "duration_ms": 0, "doi": _MODULE_DOIS.get(mod_info["module"], "")})
-        tests_pass = len(receipts)
+        # Runner file absent in this runtime — cannot self-test, so every module is
+        # UNAVAILABLE. This is the honest half-state, never a fabricated 32/32.
+        receipts = [{
+            "module": mod_info["module"], "status": "UNAVAILABLE", "duration_ms": 0,
+            "doi": _MODULE_DOIS.get(mod_info["module"], ""),
+            "reason": ("OUROBOROS_RUN_ALL.py not present in this runtime "
+                       f"(searched {_OUROBOROS_CANDIDATES}); self-test not executed"),
+        } for mod_info in _OUROBOROS_MODULES]
+        tests_pass = 0
         tests_fail = 0
+        blocked = len(receipts)
 
     duration_ms = round((_time.time() - t0) * 1000)
+    if tests_fail > 0:
+        verdict = "RED"
+    elif blocked > 0:
+        verdict = "BLOCKED"
+    else:
+        verdict = "GREEN"
     return JSONResponse({
         "tests_run": len(receipts),
         "tests_pass": tests_pass,
         "tests_fail": tests_fail,
+        "tests_blocked": blocked,
         "duration_ms": duration_ms,
-        "verdict": "GREEN" if tests_fail == 0 else "RED",
+        "verdict": verdict,
         "doctrine": "v11",
         "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "receipts": receipts,
@@ -5161,7 +5194,81 @@ async def a11oy_mcp_call_inline(request: Request):
     known = {"a11oy_gate", "lambda_score", "khipu_sign", "khipu_verify"}
     if tool_name not in known:
         return JSONResponse({"error": f"Tool '{tool_name}' not found"}, status_code=404)
-    return JSONResponse({"tool": tool_name, "status": "ok", "doctrine": "v11", "kernel_commit": "c7c0ba17"})
+
+    # HONEST-STATUS (Doctrine v11): each tool executes its REAL in-process
+    # implementation. If that implementation cannot be reached in this runtime we
+    # return {"status":"unavailable","reason":...} — NEVER a fabricated {"status":"ok"}.
+    _meta = {"doctrine": "v11", "kernel_commit": "c7c0ba17"}
+
+    if tool_name == "a11oy_gate":
+        # Real govern gate: the immune organ's deny-by-default verdict (threat
+        # signature scan + Λ-floor), which also signs a Khipu receipt.
+        try:
+            import szl_immune as _imm
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "status": "unavailable",
+                                 "reason": f"govern gate not importable: {_e}", **_meta}, status_code=503)
+        try:
+            verdict = _imm._build_verdict(args if isinstance(args, dict) else {"action": args})
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "status": "error", "error": str(_e), **_meta}, status_code=400)
+        return JSONResponse({"tool": tool_name, "status": "ok", "result": verdict, **_meta})
+
+    if tool_name == "lambda_score":
+        # Real Λ compute: weighted geometric mean over the supplied axes (A4
+        # zero-absorption). Λ-uniqueness stays Conjecture 1 — advisory, never a theorem.
+        try:
+            import szl_org_lambda as _lam
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "status": "unavailable",
+                                 "reason": f"lambda engine not importable: {_e}", **_meta}, status_code=503)
+        axes = args.get("axes") if isinstance(args, dict) else None
+        if not isinstance(axes, list) or not axes:
+            return JSONResponse({"tool": tool_name, "status": "error",
+                                 "error": "expected non-empty 'axes' list of floats in [0,1]", **_meta}, status_code=400)
+        weights = args.get("weights") if isinstance(args.get("weights"), list) else None
+        try:
+            score = _lam.weighted_geomean(axes, weights)
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "status": "error", "error": str(_e), **_meta}, status_code=400)
+        return JSONResponse({"tool": tool_name, "status": "ok", "lambda_score": score,
+                             "axes": axes, "weights": weights,
+                             "lambda_uniqueness": "Conjecture 1 — NOT a theorem", **_meta})
+
+    if tool_name == "khipu_sign":
+        # Real receipt emit into the in-process hash-chained Khipu DAG. The DSSE
+        # cryptographic signature stays an honest placeholder (not wired here);
+        # the chain digest + prev-link ARE real and tamper-evident.
+        try:
+            import szl_khipu as _khipu
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "status": "unavailable",
+                                 "reason": f"khipu store not importable: {_e}", **_meta}, status_code=503)
+        organ = (args.get("organ") if isinstance(args, dict) else None) or "mcp"
+        action = (args.get("action") if isinstance(args, dict) else None) or "mcp.sign"
+        payload = args.get("payload") if isinstance(args.get("payload"), dict) else (args if isinstance(args, dict) else {})
+        try:
+            receipt = _khipu.get_dag(organ, ns="a11oy").emit(action, payload)
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "status": "error", "error": str(_e), **_meta}, status_code=400)
+        return JSONResponse({"tool": tool_name, "status": "ok", "receipt": receipt, **_meta})
+
+    # khipu_verify — real verifier: recompute the seal digest + re-walk prev-links.
+    try:
+        import szl_khipu_verify as _kv
+    except Exception as _e:
+        return JSONResponse({"tool": tool_name, "status": "unavailable",
+                             "reason": f"khipu verifier not importable: {_e}", **_meta}, status_code=503)
+    digest = (args.get("digest") if isinstance(args, dict) else None) or ""
+    if not digest:
+        return JSONResponse({"tool": tool_name, "status": "error",
+                             "error": "expected 'digest' of a Khipu receipt to verify", **_meta}, status_code=400)
+    organ = args.get("organ") if isinstance(args, dict) else None
+    try:
+        result = _kv.verify_digest(digest, organ)
+    except Exception as _e:
+        return JSONResponse({"tool": tool_name, "status": "error", "error": str(_e), **_meta}, status_code=400)
+    return JSONResponse({"tool": tool_name, "status": "ok", "result": result, **_meta})
 
 
 # Must be before @app.api_route("/api/a11oy/{path:path}") to avoid proxy intercept

@@ -28,7 +28,11 @@ import secrets
 import time
 
 _VERSION = "0.1.0"
-_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+# Honest gating: a real collector endpoint is used ONLY when the operator sets
+# OTEL_EXPORTER_OTLP_ENDPOINT. When it is unset there is no collector to export
+# to (prod is a single HF Space, not the k8s mesh the collector config targets),
+# so we stay honestly in-process-only rather than shipping spans into the void.
+_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") or None
 
 
 def _hex(n: int) -> str:
@@ -64,11 +68,16 @@ def make_traceparent(trace_id=None, parent_id=None, sampled=True):
 class _Tracer:
     """Lazily initialises a real OTel TracerProvider + OTLP/gRPC exporter."""
 
-    def __init__(self, service_name: str, endpoint: str = _ENDPOINT):
+    def __init__(self, service_name: str, endpoint: str | None = _ENDPOINT):
         self.service_name = service_name
         self.endpoint = endpoint
-        self.exporter = "in-process-only"
         self._tracer = None
+        if not endpoint:
+            # No OTLP endpoint configured — do NOT spin up an exporter that would
+            # silently drop spans. Traceparent propagation still works in-process.
+            self.exporter = "in-process-only (no OTLP export configured)"
+            return
+        self.exporter = "in-process-only"
         try:
             from opentelemetry import trace
             from opentelemetry.sdk.resources import Resource
@@ -104,7 +113,7 @@ class _Tracer:
             pass
 
 
-def install(app, service_name: str | None = None, endpoint: str = _ENDPOINT):
+def install(app, service_name: str | None = None, endpoint: str | None = _ENDPOINT):
     """Install the vsp-otel middleware on a FastAPI/Starlette `app`.
 
     Idempotent: a second install() on the same app is a no-op.
@@ -142,4 +151,8 @@ def install(app, service_name: str | None = None, endpoint: str = _ENDPOINT):
 
     app._vsp_otel_installed = True
     app._vsp_otel_service = svc
+    # Honest, machine-readable status of what was actually wired: either an OTLP
+    # collector endpoint or "in-process-only (...)". Callers log this verbatim so
+    # they never claim an exporter that isn't there.
+    app._vsp_otel_exporter = tracer.exporter
     return app

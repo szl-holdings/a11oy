@@ -1,7 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v10/v11
 """
-szl_rag — shared agentic-RAG service, deployed identically on every live-Python SZL Space.
+szl_rag — LIBRARY-ONLY shared RAG helpers (embedding model + FAISS lookup).
+
+SURFACE STATUS (Doctrine v11): this module is NOT a mounted RAG surface. The ONE
+live agentic-RAG surface is `a11oy_org_rag.py` (wired at serve.py + a11oy_agent_loop.py).
+szl_rag is consumed as a LIBRARY — e.g. a11oy_org_rag pulls its BAAI/bge embedding
+model via `szl_rag._ensure_loaded()` and szl_brain reads `get_model_weight_sha256()`.
+The former `register_rag_routes()` FastAPI mount was dead (never called by any Space)
+and has been removed so there is exactly one RAG route surface.
 
 Pipeline (per Space, organ-filtered):
     embed(query)  ->  FAISS lookup (organ index)  ->  top-k chunks (similarity + source)
@@ -557,136 +564,3 @@ def rag(query: str, space: str, top_k: int = 5, with_response: bool = False,
     # honesty: the answer must cite chunk_ids — we surface them explicitly too.
     out["cited_chunk_ids"] = [r["chunk_id"] for r in out["chunks"]]
     return out
-
-
-# ---------------------------------------------------------------------------
-# FastAPI route registration — additive, mounted before any catch-all.
-# ---------------------------------------------------------------------------
-def register_rag_routes(app, space: str, pages_dir: str | None = None) -> None:
-    """Attach /api/<space>/v1/rag (POST+GET) and /rag UI (GET) to a FastAPI app."""
-    from fastapi import Request
-    from fastapi.responses import JSONResponse, HTMLResponse
-
-    base = f"/api/{space}/v1/rag"
-
-    @app.get(base)
-    async def _rag_status() -> JSONResponse:  # noqa
-        return JSONResponse(status(space))
-
-    @app.post(base)
-    async def _rag_query(request: Request) -> JSONResponse:  # noqa
-        try:
-            body = await request.json()
-        except Exception:
-            return JSONResponse({"ok": False, "error": "invalid JSON body",
-                                 "example": {"query": "...", "top_k": 5,
-                                             "with_response": False,
-                                             "axis_scores": "[13 floats, optional]",
-                                             "rerank": "none (default) | rrf"}},
-                                status_code=400)
-        query = (body.get("query") or "").strip()
-        if not query:
-            return JSONResponse({"ok": False, "error": "missing 'query'"}, status_code=400)
-        # OPTIONAL, additive: rerank defaults to "none" -> byte-identical to
-        # pre-RRF behavior. "rrf" applies BM25+vector Reciprocal Rank Fusion.
-        result = rag(
-            query=query,
-            space=space,
-            top_k=body.get("top_k", 5),
-            with_response=bool(body.get("with_response", False)),
-            axis_scores=body.get("axis_scores"),
-            rerank=(body.get("rerank") or "none"),
-        )
-        return JSONResponse(result)
-
-    @app.get("/rag")
-    async def _rag_ui() -> HTMLResponse:  # noqa
-        return HTMLResponse(render_rag_html(space))
-
-
-# ---------------------------------------------------------------------------
-# /rag UI — single self-contained HTML page (search box + results + LLM toggle).
-# ---------------------------------------------------------------------------
-def render_rag_html(space: str) -> str:
-    organ = SPACE_ORGAN.get(space, "all")
-    return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{space} — /rag · Agentic-RAG ({organ})</title>
-<style>
-:root{{--bg:#0b0e14;--fg:#e6e9ef;--mut:#8b94a7;--acc:#5ad1c4;--card:#141925;--bd:#222a3a}}
-*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--fg);
-font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}}
-.wrap{{max-width:920px;margin:0 auto;padding:28px 20px 80px}}
-h1{{font-size:22px;margin:0 0 2px}}.sub{{color:var(--mut);font-size:13px;margin:0 0 18px}}
-.bar{{display:flex;gap:8px;flex-wrap:wrap;align-items:center}}
-input[type=text]{{flex:1;min-width:240px;background:var(--card);color:var(--fg);
-border:1px solid var(--bd);border-radius:10px;padding:11px 13px;font-size:15px}}
-input[type=number]{{width:74px;background:var(--card);color:var(--fg);
-border:1px solid var(--bd);border-radius:10px;padding:11px 9px}}
-button{{background:var(--acc);color:#04211d;border:0;border-radius:10px;padding:11px 18px;
-font-weight:600;cursor:pointer}}label.tog{{color:var(--mut);font-size:13px;
-display:flex;align-items:center;gap:6px;cursor:pointer}}
-.meta{{color:var(--mut);font-size:12px;margin:14px 0 6px}}
-.card{{background:var(--card);border:1px solid var(--bd);border-radius:12px;
-padding:14px 16px;margin:10px 0}}
-.card h3{{margin:0 0 4px;font-size:14px}}.card .src{{color:var(--acc);font-size:12px}}
-.card .sim{{float:right;color:var(--mut);font-size:12px}}
-.card pre{{white-space:pre-wrap;word-break:break-word;margin:8px 0 0;font-size:13px;
-color:#c7cede;max-height:230px;overflow:auto}}
-.ans{{background:#10241f;border:1px solid #1f4a40}}
-.err{{background:#241016;border:1px solid #4a1f28;color:#ffb3c0}}
-.pill{{display:inline-block;background:#1c2436;border:1px solid var(--bd);
-border-radius:999px;padding:2px 9px;font-size:11px;color:var(--mut);margin-right:6px}}
-a{{color:var(--acc)}}
-</style></head><body><div class="wrap">
-<h1>{space} · /rag <span class="pill">organ: {organ}</span></h1>
-<p class="sub">Agentic-RAG over <a href="https://huggingface.co/datasets/{DATASET_REPO}" target="_blank">{DATASET_REPO}</a>
-· BGE-base-en-v1.5 (768-dim) · FAISS · Doctrine {DOCTRINE}.
-LLM responses cite chunk IDs; Λ-receipt signature = PLACEHOLDER.</p>
-<div class="bar">
-  <input id="q" type="text" placeholder="Ask the {organ} corpus…"
-   value="What does this Space prove and how is it governed?">
-  <input id="k" type="number" min="1" max="20" value="5" title="top_k">
-  <label class="tog"><input id="resp" type="checkbox"> LLM answer</label>
-  <button id="go">Search</button>
-</div>
-<div class="meta" id="meta"></div>
-<div id="out"></div>
-<script>
-const API="/api/{space}/v1/rag";
-const out=document.getElementById('out'),meta=document.getElementById('meta');
-function esc(s){{return (s||'').replace(/[&<>]/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;'}}[c]));}}
-async function run(){{
-  const q=document.getElementById('q').value.trim();if(!q)return;
-  const k=parseInt(document.getElementById('k').value)||5;
-  const wr=document.getElementById('resp').checked;
-  meta.textContent='Searching…';out.innerHTML='';
-  try{{
-    const r=await fetch(API,{{method:'POST',headers:{{'Content-Type':'application/json'}},
-      body:JSON.stringify({{query:q,top_k:k,with_response:wr}})}});
-    const d=await r.json();
-    if(!d.ok){{meta.textContent='';out.innerHTML=
-      '<div class="card err"><h3>Honest error</h3><pre>'+esc(d.honest_error||d.error)+
-      '\\n\\n'+esc(d.detail||'')+'</pre></div>';return;}}
-    meta.textContent='organ='+d.organ+' · '+d.count+' chunks · top_k='+d.top_k;
-    let html='';
-    if(d.generation){{
-      const g=d.generation;
-      html+='<div class="card ans"><h3>LLM answer'+(g.tier_used?(' · '+g.tier_used):'')+
-        '</h3><pre>'+esc(g.answer||g.honest_error||'')+'</pre>'+
-        '<div class="src">cited chunk_ids: '+esc((d.cited_chunk_ids||[]).join(', '))+'</div></div>';
-    }}
-    for(const c of d.chunks){{
-      html+='<div class="card"><span class="sim">sim '+c.similarity.toFixed(3)+'</span>'+
-        '<h3>'+esc(c.title)+'</h3>'+
-        '<div class="src">'+esc(c.source)+' · '+esc(c.chunk_id)+' · ['+esc(c.organ_tag)+']</div>'+
-        '<pre>'+esc(c.text)+'</pre></div>';
-    }}
-    out.innerHTML=html;
-  }}catch(e){{meta.textContent='';out.innerHTML='<div class="card err"><pre>'+esc(''+e)+'</pre></div>';}}
-}}
-document.getElementById('go').onclick=run;
-document.getElementById('q').addEventListener('keydown',e=>{{if(e.key==='Enter')run();}});
-run();
-</script></div></body></html>"""

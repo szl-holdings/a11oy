@@ -5,6 +5,13 @@
 # vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
 # resolves offline (no PyPI dependency at build time) — honest, no-mock.
 vsp-otel>=0.1
+# OpenTelemetry SDK + OTLP/gRPC exporter — the dependency closure that makes
+# vsp-otel's server spans actually EXPORTABLE. Without these _Tracer no-ops and
+# every span goes nowhere (shelfware). Export is GATED on OTEL_EXPORTER_OTLP_ENDPOINT:
+# when unset, vsp_otel stays honestly in-process-only (no collector is claimed);
+# when set, spans export OTLP/gRPC to that endpoint.
+opentelemetry-sdk>=1.20
+opentelemetry-exporter-otlp>=1.20
 # ADDITIVE (Formulas → Ecosystem, Opus 4.8 2026-06-03): real BLS12-381 aggregate
 # signatures over the Khipu chain (a11oy.formulas.bls_aggregate). Optional at runtime —
 # the module returns an HONEST error + ECDSA fallback if absent (never a fake 'verified').
