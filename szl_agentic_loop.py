@@ -107,6 +107,18 @@ try:
 except Exception:  # pragma: no cover - additive fallback, honest no-op
     _BANACH = None
 
+# LTC BOUNDED-DYNAMICS NOTE (ADDITIVE 2026-07-03): an OPTIONAL, own-code
+# reimplementation of the Liquid Time-Constant Networks *pattern* (arXiv
+# 2006.04439, Apache-2.0) providing a bounded-dynamics stability ESTIMATE over
+# the cycle's observed trust-delta sequence. Import-guarded like every optional
+# dep — absent module => honest no-op (the cycle still halts by budget / gate).
+# ADVISORY ONLY: "LTC-derived · advisory · experimental" — never a proof, never
+# overrides the gate, never moves Lambda off Conjecture 1, never touches locked-8.
+try:
+    import szl_ltc_dynamics as _LTC
+except Exception:  # pragma: no cover - additive fallback, honest no-op
+    _LTC = None
+
 
 def _energy_fields_for_receipt() -> dict:
     """Honest per-turn energy attestation for the unified receipt. Delegates to
@@ -1210,6 +1222,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         prev_hash = None   # precondition for iteration 0 (None -> byte-identical seed)
         prev_run = None
         prev_delta = None
+        delta_history = []   # scalar trust-deltas feeding the advisory LTC note
         final_status = "budget_exhausted"
         banach_note = None
         for i in range(budget):
@@ -1262,6 +1275,26 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                                    "note": "banach guard raised — honest no-op (advisory)"}
             if delta is not None:
                 prev_delta = delta["trust_delta"]
+                delta_history.append(delta["trust_delta"])
+
+        # (e) LTC bounded-dynamics note (ADVISORY) — an own-code LTC-pattern
+        # stability ESTIMATE over the observed trust-delta sequence. Optional and
+        # graceful: absent module => honest inert no-op. It NEVER changes
+        # final_status, NEVER overrides the gate, and is NOT the halting reason.
+        if _LTC is not None:
+            try:
+                ltc_note = _LTC.ltc_stability_note(delta_history)
+            except Exception:  # pragma: no cover - advisory note never crashes the loop
+                ltc_note = {"ltc_bounded": False, "ltc_stability_estimate": None,
+                            "label": "LTC-derived · advisory · experimental",
+                            "measurable": False,
+                            "note": "LTC note raised — honest no-op (advisory)"}
+        else:
+            ltc_note = {"ltc_bounded": None, "ltc_stability_estimate": None,
+                        "label": "LTC-derived · advisory · experimental",
+                        "available": False,
+                        "note": ("szl_ltc_dynamics not importable — advisory LTC "
+                                 "bounded-dynamics note skipped (honest no-op).")}
 
         cycle_payload = {
             "cycle": True,
@@ -1314,6 +1347,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                              {"available": _BANACH is not None,
                               "note": ("advisory Banach guard not engaged (unavailable or "
                                        "insufficient iterations) — honest no-op")}),
+            "ltc_stability_note": ltc_note,
             "iterations": iterations,
             "signer": signer_label,
             "doctrine": "v11",
