@@ -26,9 +26,5 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {
-    "static/3d/selftest/fabric_smoke.mjs": "ahead=github, pending Forge redeploy of main commit 1c356bb (PR #503, the SAFE-NOW private-IP leak CI gate). #503 scrubbed two private tailnet endpoints (http://100.125.77.31:11434, http://100.76.58.50:11434) out of the mocked LIVE_PAYLOAD in this headless smoke-test fixture, replacing them with honest 'sovereign-gpu (scrubbed)' / 'tailnet-gpu (scrubbed)' labels (smoke-test pass count unchanged). GitHub main holds the scrubbed file; the live HF Space still serves the pre-scrub copy until the box redeploys the Docker image. Pre-existing main drift, NOT introduced by the contrast/defer/Server-header hardening commit. Remove this entry once the box redeploys main and the OIDs reconcile.",
-    "govern_showcase.html": "ahead=huggingface, direct HF edit detected. Added to hf-sync mirror set on 2026-06-30 (CI sweep Dev C) so future GitHub edits auto-propagate. Founder review required: if the HF edit is intentional, pull the HF version to GitHub and remove this entry; otherwise the next hf-sync push will reconcile GitHub\u2192HF. Do NOT leave this entry permanently.",
-    "a11oy_landing.html": "ahead=github, a11oy_landing.html added to hf-sync mirror set on 2026-06-30 (CI sweep Dev C). Next hf-sync push (triggered by any main push to a11oy_landing.html or govern_showcase.html) will reconcile GitHub\u2192HF. Remove this entry once the OIDs match."
-  }
+  "accepted_divergences": {}
 }
