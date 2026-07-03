@@ -99,5 +99,162 @@ class AnatomyMapGuardSelfTest(unittest.TestCase):
         self.assertEqual(run_validator(m), 1)
 
 
+def _minimal_valid_map() -> dict:
+    """A map that passes every check EXCEPT whatever a test deliberately breaks,
+    so a single failure isolates the rule under test."""
+    def organ(repo: str, formulas: list | None = None) -> dict:
+        return {
+            "repo": repo,
+            "anatomyRole": f"{repo} role",
+            "formulaRuntime": formulas or [],
+            "theoremAnchors": [],
+            "receiptSurface": [],
+            "testEvidence": [],
+            "udsStage": "component-supporting",
+            "hfStage": "referenced-from-a11oy-mirror",
+            "claimStatus": "verified-runtime",
+            "autonomousLearningRole": "observer",
+            "gaps": [],
+        }
+
+    return {
+        "schemaVersion": 1,
+        "generatedBy": "test",
+        "observedAt": "2026-07-03",
+        "canonicalHub": "a11oy",
+        "canonicalRule": "test",
+        "autonomousLearningDoctrine": {
+            "promotionModel": "human_promotion_required",
+            "forbiddenModes": ["self_approve", "self_promote", "deploy", "publish"],
+        },
+        "organs": [
+            organ("a11oy"),
+            organ("lutar-lean"),
+            organ("ouroboros-thesis"),
+            organ("agi-forecast"),
+        ],
+    }
+
+
+class StubDetectionSelfTest(unittest.TestCase):
+    """Prove the validator catches the amaru-fake pattern: a verified-runtime
+    organ whose runtimeFile resolves (via a vite alias) to a look-alike stub
+    with a home-grown non-crypto `simpleHash` and no proof ledger."""
+
+    def _run_in_temp_repo(self, layout: dict[str, str], mp: dict) -> int:
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            for rel, content in layout.items():
+                dst = root_path / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(content, encoding="utf-8")
+            (root_path / "docs").mkdir(parents=True, exist_ok=True)
+            (root_path / "docs" / "anatomy-formula-runtime-map.json").write_text(
+                json.dumps(mp), encoding="utf-8"
+            )
+            (root_path / "docs" / "theorem-runtime-manifest.json").write_text(
+                json.dumps({"entries": []}), encoding="utf-8"
+            )
+            orig = (validator.REPO_ROOT, validator.MAP_PATH, validator.THEOREM_MANIFEST_PATH)
+            validator.REPO_ROOT = root_path
+            validator.MAP_PATH = root_path / "docs" / "anatomy-formula-runtime-map.json"
+            validator.THEOREM_MANIFEST_PATH = root_path / "docs" / "theorem-runtime-manifest.json"
+            try:
+                with redirect_stdout(io.StringIO()):
+                    return validator.main()
+            finally:
+                validator.REPO_ROOT, validator.MAP_PATH, validator.THEOREM_MANIFEST_PATH = orig
+
+    # The exact amaru-fake vite alias -> _stubs look-alike.
+    _FAKE_VITE = (
+        "export default {\n"
+        "  resolve: {\n"
+        "    alias: {\n"
+        "      '@workspace/codex-kernel': path.resolve(import.meta.dirname, "
+        "'src/_stubs/codex-kernel/index.ts'),\n"
+        "    },\n"
+        "  },\n"
+        "};\n"
+    )
+    _FAKE_STUB = (
+        "export function simpleHash(s) { let h = 0; for (const c of s) "
+        "h = (h * 31 + c.charCodeAt(0)) | 0; return h; }\n"
+        "export function runLoop() { return { stop_reason: 'hard_fail_limit' }; }\n"
+    )
+    _REAL_KERNEL = (
+        "export { hashString, chainHash, hashJson } from './hash.js';\n"
+        "export { ProofLedger } from './ledger.js';\n"
+        "export { runLoop } from './kernel.js';\n"
+    )
+
+    def test_alias_resolving_to_simplehash_stub_fails(self):
+        mp = _minimal_valid_map()
+        mp["organs"][0]["formulaRuntime"] = [
+            {
+                "formula": "CodexKernelReplay",
+                "runtimeFile": "@workspace/codex-kernel",
+                "theoremRuntimeManifestId": None,
+                "claimStatus": "verified-runtime",
+            }
+        ]
+        layout = {
+            "organs/amaru/web/vite.config.ts": self._FAKE_VITE,
+            "organs/amaru/web/src/_stubs/codex-kernel/index.ts": self._FAKE_STUB,
+        }
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 1)
+
+    def test_empty_export_stub_direct_path_fails(self):
+        mp = _minimal_valid_map()
+        mp["organs"][0]["formulaRuntime"] = [
+            {
+                "formula": "DeadStub",
+                "runtimeFile": "organs/sentra/stubs/codex-kernel/index.ts",
+                "theoremRuntimeManifestId": None,
+                "claimStatus": "verified-runtime",
+            }
+        ]
+        layout = {"organs/sentra/stubs/codex-kernel/index.ts": "export {};\n"}
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 1)
+
+    def test_alias_resolving_to_real_kernel_passes(self):
+        """Positive control: the SAME alias pointing at the real (vendored)
+        kernel must NOT trip stub detection."""
+        mp = _minimal_valid_map()
+        mp["organs"][0]["formulaRuntime"] = [
+            {
+                "formula": "CodexKernelReplay",
+                "runtimeFile": "@workspace/codex-kernel",
+                "theoremRuntimeManifestId": None,
+                "claimStatus": "verified-runtime",
+            }
+        ]
+        real_vite = self._FAKE_VITE.replace(
+            "src/_stubs/codex-kernel/index.ts", "src/vendor/codex-kernel/index.ts"
+        )
+        layout = {
+            "organs/amaru/web/vite.config.ts": real_vite,
+            "organs/amaru/web/src/vendor/codex-kernel/index.ts": self._REAL_KERNEL,
+        }
+        self.assertEqual(self._run_in_temp_repo(layout, mp), 0)
+
+    def test_is_stub_module_unit(self):
+        with tempfile.TemporaryDirectory() as d:
+            empty = Path(d) / "empty.ts"
+            empty.write_text("export {};\n", encoding="utf-8")
+            self.assertIsNotNone(validator.is_stub_module(empty))
+
+            fake = Path(d) / "fake.ts"
+            fake.write_text("export function simpleHash(){return 0}\n", encoding="utf-8")
+            self.assertIsNotNone(validator.is_stub_module(fake))
+
+            real = Path(d) / "real.ts"
+            real.write_text(
+                "export function chainHash(a,b,c){return hashString(`${a}|${b}|${c}`)}\n"
+                "export class ProofLedger { append(){} digest(){return 'x'} }\n",
+                encoding="utf-8",
+            )
+            self.assertIsNone(validator.is_stub_module(real))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
