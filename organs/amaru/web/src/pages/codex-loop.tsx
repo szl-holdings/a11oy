@@ -12,6 +12,11 @@
 
 import { useMemo, useState } from 'react';
 import {
+  HolographicLoopGraph,
+  type HoloDecision,
+  type HoloTransition,
+} from '@/components/HolographicLoopGraph';
+import {
   DRESDEN_DEFAULT_CONFIG,
   DRESDEN_INITIAL_STATE,
   type DresdenSimConfig,
@@ -509,6 +514,29 @@ function LoopPropertiesPanel() {
   const enabledCycle = resp?.cycle === true;
   const offState = state === 'done' && !enabledCycle;
 
+  // Derive the holographic layer's inputs from REAL receipts only. Every value
+  // below traces back to an emitted /agent/cycle field — nothing synthesized.
+  const holoTransitions: HoloTransition[] = (sgh?.node_state_trace ?? [])
+    .map((row, i) => ({
+      seq: typeof row.seq === 'number' ? row.seq : i,
+      from: typeof row.from_state === 'string' ? row.from_state : '',
+      to: typeof row.to_state === 'string' ? row.to_state : '',
+      hash: typeof row.hash === 'string' ? row.hash : '',
+    }))
+    .filter((t) => t.from !== '' || t.to !== '');
+  const holoPlanNodes: string[] = (sgh?.plan_dag?.nodes ?? [])
+    .map((n) =>
+      n && typeof n === 'object' && 'id' in n
+        ? String((n as { id: unknown }).id)
+        : '',
+    )
+    .filter((id) => id !== '');
+  const holoDecisions: HoloDecision[] = trace.map((t) => ({
+    iteration: t.iteration,
+    decision: t.decision,
+    trust: t.trust_score,
+  }));
+
   return (
     <section className="rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/[0.03] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -567,6 +595,29 @@ function LoopPropertiesPanel() {
           <p className="mt-1 text-amber-200/80">
             {resp?.note ??
               'The Ouroboros closed loop is disabled on this Space. Enable A11OY_OUROBOROS=1 (and A11OY_SGH=1 for the explicit node state machine) to populate these properties from live receipts.'}
+          </p>
+        </div>
+      )}
+
+      {state === 'done' && enabledCycle && (
+        <div className="mt-4 space-y-2">
+          <HolographicLoopGraph
+            transitions={holoTransitions}
+            planNodes={holoPlanNodes}
+            decisions={holoDecisions}
+            finalStatus={resp?.final_status}
+            chainVerified={chain.ok}
+            height={300}
+          />
+          <p className="text-[10px] leading-relaxed text-muted-foreground">
+            HOLO.SYS is an aesthetic layer over the SAME real receipts shown in
+            the cards below — node glow marks states the live{' '}
+            <span className="font-mono">node_state_trace</span> actually visited,
+            edges are its real transitions, the ring counts real{' '}
+            <span className="font-mono">plan_dag</span> nodes, and the terminal
+            tint keys off the real <span className="font-mono">final_status</span>.
+            Nothing is fabricated. Inspiration: arXiv:2604.11378 · demonstration +
+            attestation · advisory · NOT a formal proof.
           </p>
         </div>
       )}
