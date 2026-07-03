@@ -285,6 +285,25 @@ def _ollama_generate(prompt: str, eng: dict) -> tuple[str, dict]:
     }
 
 
+def _with_pb_reference(energy: dict) -> dict:
+    """Attach the founder-captured MEASURED physical-bounds reference to an energy
+    block when the shipped certificate is READABLE. This is a point-in-time on-metal
+    reading (2026-06-14), NOT this request's live joules — its own label says so, and
+    the per-request `joules`/`label` keep their honest meaning. If the cert cannot be
+    read the reference is simply absent (never a fabricated MEASURED). Single source
+    of truth: szl_physical_bounds reads the file; numbers are never hardcoded here."""
+    try:
+        import szl_physical_bounds as _szl_pb
+        ref = _szl_pb.energy_reference_block()
+        if ref is not None and isinstance(energy, dict):
+            energy["physical_bounds_reference"] = ref
+    except Exception as _pb_e:  # pragma: no cover - additive, defensive
+        import sys as _pb_sys
+        print(f"[a11oy] physical-bounds reference skipped (non-fatal): {_pb_e!r}",
+              file=_pb_sys.stderr)
+    return energy
+
+
 def govern_infer(prompt: str, *, vertical: str = "general",
                  declared: str = "PUBLIC", severity: float = 0.0,
                  effort: str | None = None) -> dict:
@@ -333,7 +352,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             if eng is None:
                 return {"decision": decision, "answer": None,
                         "governance": _pub_gov(g, cb), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
-                        "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "no live engine"}},
+                        "energy": _with_pb_reference({"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "no live engine"}}),
                         "honesty": "governance allowed the turn but NO mesh engine was reachable; "
                                    "no answer and no joules fabricated."}
             served_by = eng.get("name")
@@ -347,7 +366,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
                     _inflight_dec(eng["name"])
                     return {"decision": decision, "answer": None,
                             "governance": _pub_gov(g, cb), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
-                            "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "engine failed, no failover"}},
+                            "energy": _with_pb_reference({"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "engine failed, no failover"}}),
                             "honesty": "governance allowed the turn but the chosen engine failed and no "
                                        "failover engine was live; no answer and no joules fabricated."}
                 served_by = alt.get("name") + " (failover)"
@@ -386,6 +405,11 @@ def govern_infer(prompt: str, *, vertical: str = "general",
                   "evidence": {"served_by": served_by, "reason": why,
                                "before": ev_before, "after": ev_after,
                                "note": "joule NOT fabricated; not attributed across nodes"}}
+
+    # Cite the founder-captured MEASURED physical-bounds reference (honest label;
+    # NOT this request's live joules). Absent when the cert is unreadable — never
+    # a fabricated MEASURED. See _with_pb_reference.
+    energy = _with_pb_reference(energy)
 
     honesty = {
         "allow":  "Governance allowed the turn; answer returned with a signed receipt. "
