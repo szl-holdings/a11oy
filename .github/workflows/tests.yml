@@ -503,3 +503,31 @@ jobs:
         # claimStatus, a pattern transform with no SZL/A11oy origin, dropped license caveat) and
         # PASSES on the committed manifest. Pure stdlib (unittest), no network. Run by file path.
         run: python3 scripts/test_validate_public_pattern_manifest.py
+
+  python-szl-dsse-parity:
+    name: DSSE PAE parity — szl_dsse cosign-family, diverges from szl-receipt (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install test deps (cryptography exercises the sign->verify round-trip)
+        run: |
+          python -m pip install --upgrade pip
+          # PAE + divergence locks are pure stdlib; cryptography enables the real
+          # ECDSA-P256 round-trip assertion (skipped gracefully if unavailable).
+          pip install cryptography
+      - name: Lock szl_dsse DSSE PAE family + divergence from szl-receipt
+        # RECEIPT-BUS UNIFICATION GUARD (audit 2026-07-03): the estate has two
+        # incompatible DSSE PAE families. szl_dsse.py uses the DSSE-v1 SPEC /
+        # cosign form (ASCII-decimal lengths) and is bound to the published
+        # SZLHOLDINGS cosign.pub; szl-receipt uses a NON-standard struct-packed
+        # little-endian PAE. Their signatures are NOT cross-verifiable, so
+        # delegating szl_dsse to szl-receipt would break cosign verify-blob for
+        # existing Khipu receipts. This guard locks szl_dsse's PAE, its byte
+        # divergence from szl-receipt, and the honest UNSIGNED path — turning a
+        # future naive "just import szl-receipt" refactor into a red gate.
+        run: python3 -m unittest tests.test_szl_dsse_parity -v
