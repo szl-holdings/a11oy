@@ -91,6 +91,33 @@ jobs:
         # tier=experimental/live-data are reported but allowed. Λ stays Conjecture 1.
         run: pytest tests/test_formula_registry_guard.py -q
 
+  python-lambda-kernel-parity:
+    name: Λ parity — flagship inline vs published universal kernel (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (test + szl_formulas are stdlib-only; no torch)
+        run: |
+          python -m pip install --upgrade pip
+          # The flagship Λ path (szl_formulas.lambda_aggregate) is pure-stdlib and the
+          # test re-derives the published szl-lambda-gate kernel's OWN canonical
+          # reference in-file — so NO torch and NO Hugging Face Hub download are needed.
+          pip install pytest
+      - name: Assert flagship Λ has not drifted from the published kernel
+        # WIRING-DRIFT GUARD: the universal HF kernel szl-lambda-gate is a torch port of
+        # a canonical pure-Python Λ reference; the flagship keeps its own stdlib inline
+        # copy (adding torch + a Hub download to the live Λ gate would be a regression).
+        # This test pins the inline copy to the published kernel's math across the shared
+        # valid domain (incl. zero-pin edge cases + the 13-axis Yuyay preset), so any
+        # future divergence between the flagship Λ and the published universal kernel
+        # becomes a red gate instead of a fifth silent copy. Λ stays Conjecture 1.
+        run: pytest tests/test_lambda_kernel_parity.py -q
+
   python-demo-critical-routes:
     name: Demo-critical route-table regression guard (pytest)
     runs-on: ubuntu-latest

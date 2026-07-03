@@ -361,6 +361,8 @@
   },
   {
     "id": "Q1-LG-01",
+    "wiring": "parity-tested",
+    "wiring_note": "Flagship serves its own pure-stdlib inline \u039b (szl_formulas.lambda_aggregate, on the live request path via serve.py/szl_org_lambda/szl_lambda_tripwire/agent loop). This torch/HF-Hub kernel is NOT imported there \u2014 adding torch>=2.5 + a get_kernel() network download to the live \u039b gate would be a regression. Instead the inline copy is PINNED to this published kernel by tests/test_lambda_kernel_parity.py (CI job python-lambda-kernel-parity), which re-derives the kernel's own canonical reference and asserts byte-level numeric agreement (max ULP diff <1.7e-16, exact zero-pin). Single canonical Python source of truth; drift is a red gate. \u039b = Conjecture 1 (advisory).",
     "name": "Λ weighted-geomean aggregator (runtime, szl-lambda-gate)",
     "meaning": "Runtime PyTorch implementation of the Λ aggregator: weighted geometric mean via log-sum-exp with non-compensatory zero-routing (any zero axis ⇒ Λ=0). Includes A1–A4 runtime self-checks.",
     "math": "Λ(x;w) = ∏ xᵢ^wᵢ = exp(Σ wᵢ ln xᵢ); zero-routing: ∃ xᵢ=0 ⇒ Λ=0; weights uniform 1/k by default",
@@ -386,6 +388,8 @@
   },
   {
     "id": "Q1-LG-02",
+    "wiring": "available-unused",
+    "wiring_note": "The torch conjunctive gate is not imported by any flagship serving path; the flagship mirrors the 13-axis floors/axes as advisory metadata inline (szl_formulas.axis_floors, DEFAULT_AXIS_COUNT=13). Not force-wired. The underlying \u039b aggregator is parity-tested (Q1-LG-01).",
     "name": "Yuyay 13-axis conjunctive gate + per-axis floors (szl-lambda-gate)",
     "meaning": "The published yuyay_v3 conjunctive AND gate: 13 named axes each with a floor; gate passes iff EVERY axis meets its floor (deny-by-default). Two 'sacred' axes at 0.95, eleven at 0.90.",
     "math": "gate_pass ⇔ ∀i: xᵢ ≥ floorᵢ; YUYAY_FLOORS = (0.95,0.95, 0.90×11); axes: moralGrounding, measurabilityHonesty, empiricalGrounding, logicalConsistency, sourceTransparency, reproducibility, licenseHygiene, scopeDiscipline, claimCalibration, evalAwareness, deceptionKeywords, conflictingDirectives, reversalDirective",
@@ -466,6 +470,8 @@
   },
   {
     "id": "Q1-NORM-01",
+    "wiring": "available-unused",
+    "wiring_note": "Governed RMSNorm/LayerNorm is a torch ML-normalization kernel; the flagship has NO norm consumer on any serving path, so per doctrine it is honestly registered available-but-unused rather than force-wired behind a fabricated consumer.",
     "name": "Governed normalization reference kernels (szl-governed-norm)",
     "meaning": "Pure-PyTorch reference implementations of RMSNorm, LayerNorm, and fused add+RMSNorm, computed in float32. Honest: makes NO speed/perf claims — reference correctness only.",
     "math": "rms_norm(x) = x / sqrt(mean(x²)+eps) · γ; layer_norm(x) = (x-μ)/sqrt(σ²+eps)·γ+β; fused_add_rms_norm(x,res) = rms_norm(x+res)",
@@ -496,6 +502,8 @@
   },
   {
     "id": "Q1-NORM-02",
+    "wiring": "available-unused",
+    "wiring_note": "Governed-norm receipt chain ships with the norm kernel (Q1-NORM-01); no flagship route imports it. Available-but-unused.",
     "name": "Governed-norm receipt chain (hash-chained, optional DSSE)",
     "meaning": "Hash-chained receipt ledger for norm operations: each receipt body is digested and linked to the previous head; optional DSSE signing when a key is present. Tensor digests rounded to 6 decimals for reproducibility.",
     "math": "head' = SHA256(canonical_json(body ∪ {prev: head})); tensor_digest = SHA256(round(t,6)); chain verify walks links",
@@ -516,6 +524,8 @@
   },
   {
     "id": "Q1-METER-01",
+    "wiring": "available-unused",
+    "wiring_note": "Torch-universal governed-inference energy meter; no live flagship route imports it. The flagship serves its own inline energy accounting (szl_energy_operator/szl_joules_truth/szl_energy_*). Available-but-unused; not force-wired.",
     "name": "Energy meter — NVML counter or trapezoidal power integral (governed-inference-meter)",
     "meaning": "Measures GPU energy for an inference: prefers NVML total-energy counter (millijoules); falls back to integrating power samples (milliwatts) over wall-time via the trapezoidal rule. Honest probe records WHY NVML is unavailable; degradation is unmeasured/disclosed.",
     "math": "E = ΔnvmlTotalEnergy (mJ) if counter available; else E ≈ Σ ½(Pᵢ+Pᵢ₊₁)(tᵢ₊₁-tᵢ) (trapezoidal integral of power samples)",
@@ -536,6 +546,8 @@
   },
   {
     "id": "Q1-METER-02",
+    "wiring": "available-unused",
+    "wiring_note": "Fail-closed policy gate + receipt chain shipped with governed-inference-meter (Q1-METER-01); no flagship importer. Available-but-unused.",
     "name": "Fail-closed advisory policy gate + receipt chain (governed-inference-meter)",
     "meaning": "Advisory inference policy gate evaluated fail-closed (deny on error), with allow_all/deny_all primitives; plus a hash-chained receipt ledger (optional DSSE signing) mirroring the governed-norm chain.",
     "math": "evaluate(gate,ctx) → PolicyResult, fail-closed (exception ⇒ deny); head' = SHA256(canonical_json(body+prev))",
@@ -2461,6 +2473,8 @@
   },
   {
     "id": "Q3-ENE-01",
+    "wiring": "available-unused",
+    "wiring_note": "szl-energy-core (pure-stdlib, pip-installable) is a faithful clean-room extraction of the flagship's OWN szl_energy_operator/szl_joules_truth. It is NOT imported: energy_core's freshness window is 30s (operator MAX_NVML_AGE_S) whereas the flagship's szl_joules_truth label window is 120s, so swapping it in would CHANGE live joules-label behavior. Divergence REPORTED, not papered over; flagship inline stays canonical. No fabricated joules on either side (no NVML => UNAVAILABLE).",
     "name": "MEASURED-joule accounting (NVML cumulative-energy delta)",
     "meaning": "Joules are obtained ONLY from a real NVML cumulative-energy counter delta across a job's wall window. No GPU/NVML → UNAVAILABLE_NO_NVML with joules=None; a stale (>30s) reading → SAMPLE; never a fabricated joule.",
     "math": "joules = energy_after − energy_before (nvmlDeviceGetTotalEnergyConsumption, mJ→J) ONLY when both readings real & fresh (age in [0,30s]); else label UNAVAILABLE_NO_NVML (no GPU) or SAMPLE (stale), joules=None; FRESHNESS_WINDOW_S=30.0",
@@ -2486,6 +2500,8 @@
   },
   {
     "id": "Q3-ENE-02",
+    "wiring": "available-unused",
+    "wiring_note": "Cheapest-watt placement lives in the szl-energy-core extraction (Q3-ENE-01); not imported by the flagship serving path. Available-but-unused.",
     "name": "Cheapest-watt placement (cost/J-per-token minimization)",
     "meaning": "Given per-node measured joules/tokens/grid price, computes MEASURED energy-intensity (J/token), converts to cost-per-token via the live grid price, and picks the node minimizing cost (or J/token when no price). With <2 comparable MEASURED nodes the decision is 'no_choice' — never invents an alternative.",
     "math": "J/token = joules_measured/tokens (both>0, else UNKNOWN, never ranked); cost/token = (J/token / 3.6e9 J/kWh) × (price_per_MWh / 1000); chosen = argmin cost/token (or argmin J/token if no grid price); if comparable_MEASURED < 2 → decision='no_choice'; saving vs most-expensive comparable declined node",
@@ -2511,6 +2527,8 @@
   },
   {
     "id": "Q3-ENE-03",
+    "wiring": "available-unused",
+    "wiring_note": "gCO2-from-joules is MEASURED-only carbon accounting in szl-energy-core; carbon remains ROADMAP in the flagship and the kernel is not imported. Available-but-unused.",
     "name": "Honest gCO2 from joules (carbon-aware, MEASURED-only)",
     "meaning": "Grams CO2 = kWh × grid carbon intensity, emitted ONLY when joules are genuinely MEASURED (>0) AND a real grid carbon intensity is supplied; otherwise None with a truthful label. Carbon is never modeled-as-fact or assumed from a default grid mix.",
     "math": "gCO2 = (joules / 3.6e6 J/kWh) × grid_intensity_gCO2_per_kWh, ONLY if label==MEASURED & joules>0 & finite grid intensity≥0; else None + label UNAVAILABLE / UNAVAILABLE_NO_GRID_INTENSITY",
@@ -2536,6 +2554,8 @@
   },
   {
     "id": "Q3-ENE-04",
+    "wiring": "available-unused",
+    "wiring_note": "Attestable energy receipt + hash chain ships with szl-energy-attest; the flagship uses its own receipt path (szl_energy_ledger/szl-receipt). Not imported. Available-but-unused.",
     "name": "Attestable energy receipt + hash chain (offline-verifiable)",
     "meaning": "Each unit of governed compute mints a canonical receipt whose body re-hashes to payload_digest and chains via prev→digest. Anyone can re-walk the chain offline with stdlib only; a hand-edited joule number breaks the chain. Hash function auto-detected from each receipt's own digest prefix.",
     "math": "payload_digest = sha_canon(body of 11 fields); digest = sha_canon({prev, payload_digest}); next.prev = digest; genesis prev = 64 zeros. canon source: szl_energy_core→SHA3-256 ('sha3-256:'), szl_cheapest_watt→SHA-256 ('sha256:'), else local SHA-256. verify_chain → (ok, length, first_break_index=-1 if clean)",
@@ -2561,6 +2581,8 @@
   },
   {
     "id": "Q3-ENE-05",
+    "wiring": "available-unused",
+    "wiring_note": "DeGCert guarantee-of-origin is CLAIMED / honest-N/A in the kernel and has no flagship consumer. Available-but-unused.",
     "name": "DeGCert / energy guarantee-of-origin certificate (CLAIMED — honest-N/A)",
     "meaning": "The task brief references a 'DeGCert' energy-certificate concept for szl-energy-attest. No such term, function, or schema exists anywhere in the repository.",
     "math": "N/A — not implemented",
