@@ -46,8 +46,10 @@ SAMPLE = "sample"       # the honest default — off-box / no real meter / stale
 
 # A real exporter reading older than this many seconds is treated as stale and
 # DOWNGRADED to "sample". Doctrine: a measurement we cannot currently observe is
-# not a measurement we may claim right now.
-FRESHNESS_WINDOW_S = 120.0
+# not a measurement we may claim right now. 30.0s is the CANONICAL operator value,
+# shared with szl_energy_operator.MAX_NVML_AGE_S, joule_billing.MAX_NVML_AGE_S, and
+# the published kernel szl-energy-attest/energy_core FRESHNESS_WINDOW_S.
+FRESHNESS_WINDOW_S = 30.0
 
 
 def _coerce_float(value: Any) -> Optional[float]:
