@@ -70,6 +70,12 @@ PEER_HEALTH_URLS: Dict[str, str] = {
     "amaru":     "https://szlholdings-a11oy.hf.space/api/a11oy/v1/health",
     "rosie":     "https://szlholdings-a11oy.hf.space/api/a11oy/v1/health",
     "killinchu": "https://szlholdings-killinchu.hf.space/api/killinchu/healthz",
+    # Genuinely-live standalone Spaces (probed live 2026-07-03: /healthz = 200).
+    # These are surfaces, NOT flagship codenames — deliberately absent from
+    # QUECHUA_NAMES / _ROLE_TO_CODENAME (no G5 concern). Additive peer-health
+    # only; the honest _probe_peer reports up:false on any timeout/4xx/5xx.
+    "immune-standalone": "https://szlholdings-immune.hf.space/healthz",
+    "yarqa":             "https://szlholdings-yarqa.hf.space/healthz",
 }
 
 ISO = lambda: datetime.now(timezone.utc).isoformat()
@@ -109,6 +115,7 @@ async def _probe_peer(ns: str, url: str) -> Dict[str, Any]:
             return {
                 "flagship":    ns,
                 "quechua":     QUECHUA_NAMES.get(ns, ns),
+                "up":          ok,  # honest: True ONLY on a real 200, never fabricated
                 "status":      "ok" if ok else "degraded",
                 "http_code":   resp.status_code,
                 "doctrine":    body.get("doctrine"),
@@ -123,6 +130,7 @@ async def _probe_peer(ns: str, url: str) -> Dict[str, Any]:
         return {
             "flagship": ns,
             "quechua": QUECHUA_NAMES.get(ns, ns),
+            "up": False,  # honest: any timeout/connect error is down, never fabricated up
             "status": "unreachable",
             "error": str(exc)[:120],
             "url": url,
