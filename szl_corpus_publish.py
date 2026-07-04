@@ -119,17 +119,21 @@ def _canon(obj: Any) -> bytes:
 # Verify-before-publish gate
 # --------------------------------------------------------------------------- #
 # The published corpus advertises that every ecdsa-p256-dsse-pae receipt verifies
-# against ONE pinned cosign.pub — the same key the CI re-verify guard checks
-# (.github/hf-corpus-guards.json -> cosign_pub_pem). Incident #325: two receipts
-# signed by a transient/rotated key (matching the live org cosign.pub, not the
-# pinned one) were published and could no longer re-verify. To make that
-# impossible going forward, the producer now re-verifies each signed envelope
-# against the SAME pinned key before publishing; an envelope that does not verify
-# is skipped (honestly, like an UNSIGNED one) — never published.
+# against the DOCUMENTED TRUSTED KEYSET the CI re-verify guard checks
+# (.github/hf-corpus-guards.json -> trusted_keys). Incident #325: two receipts
+# signed by a transient ephemeral-pod key (NOT a documented org key) were
+# published and could no longer re-verify. Root cause: the gate verified against
+# a SINGLE pinned key, so during an org cosign-key rotation an envelope signed by
+# any other key could slip in (either wrongly rejected, or — when the pin lagged
+# the rotation — published against a stale pin and then failing re-verify). The
+# gate now re-verifies each signed envelope against the SAME multi-key trust set
+# the guard uses; an envelope that verifies under NONE of the trusted keys is
+# skipped (honestly, like an UNSIGNED one) — never published. This makes a
+# transient/untrusted-key receipt impossible to publish going forward.
 #
-# The pinned PEM is read from the guard config so producer and guard share one
+# The trusted PEMs are read from the guard config so producer and guard share one
 # source of truth; the embedded copy is only a fallback for a runtime that does
-# not ship the .github config. Keep it in sync with that file's cosign_pub_pem.
+# not ship the .github config. Keep it in sync with that file's trusted_keys.
 _CORPUS_COSIGN_PUB_PEM_FALLBACK = (
     "-----BEGIN PUBLIC KEY-----\n"
     "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/Jlv9FnwJ13l4QIZpr4IbTBUtVZ2\n"
@@ -138,26 +142,35 @@ _CORPUS_COSIGN_PUB_PEM_FALLBACK = (
 )
 
 
-def _corpus_verify_pub_pem() -> str:
-    """Return the pinned cosign.pub the corpus re-verifies against. Reads the CI
-    guard config (single source of truth) and falls back to the embedded copy."""
+def _corpus_trusted_pub_pems() -> List[str]:
+    """Return the DOCUMENTED trusted-key PEMs the corpus re-verifies against.
+    Reads the CI guard config (single source of truth): the multi-key
+    trusted_keys set, falling back to the legacy single cosign_pub_pem, then to
+    the embedded copy. A receipt must verify under one of these to publish."""
     cfg_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         ".github", "hf-corpus-guards.json")
     try:
         with open(cfg_path, "r", encoding="utf-8") as fh:
-            pem = json.load(fh).get("cosign_pub_pem")
-        if isinstance(pem, str) and "BEGIN PUBLIC KEY" in pem:
-            return pem
+            cfg = json.load(fh)
+        pems = [k.get("pem") for k in (cfg.get("trusted_keys") or [])
+                if isinstance(k, dict) and isinstance(k.get("pem"), str)
+                and "BEGIN PUBLIC KEY" in k.get("pem")]
+        if pems:
+            return pems
+        single = cfg.get("cosign_pub_pem")
+        if isinstance(single, str) and "BEGIN PUBLIC KEY" in single:
+            return [single]
     except Exception:
         pass
-    return _CORPUS_COSIGN_PUB_PEM_FALLBACK
+    return [_CORPUS_COSIGN_PUB_PEM_FALLBACK]
 
 
-def _ecdsa_envelope_verifies(env: Dict[str, Any], pub_pem: str) -> bool:
+def _ecdsa_envelope_verifies(env: Dict[str, Any], pub_pems: List[str]) -> bool:
     """True iff at least one of the envelope's signatures verifies over its DSSE
-    PAE against pub_pem. Conservative: any error (incl. missing cryptography)
-    returns False so an envelope we cannot vouch for is NOT published."""
+    PAE against at least one of the trusted pub_pems. Conservative: any error
+    (incl. missing cryptography) returns False so an envelope we cannot vouch for
+    is NOT published."""
     try:
         import base64
         from cryptography.hazmat.primitives.serialization import load_pem_public_key
@@ -170,14 +183,18 @@ def _ecdsa_envelope_verifies(env: Dict[str, Any], pub_pem: str) -> bool:
         body = base64.b64decode(env.get("payload", "") or b"")
         pt = str(env.get("payloadType", ""))
         pae = b"DSSEv1 %d %s %d %s" % (len(pt.encode()), pt.encode(), len(body), body)
-        pub = load_pem_public_key(pub_pem.encode("utf-8"))
-        for s in env.get("signatures") or []:
+        for pub_pem in pub_pems:
             try:
-                pub.verify(base64.b64decode(s.get("sig", "") or ""), pae,
-                           ec.ECDSA(hashes.SHA256()))
-                return True
-            except InvalidSignature:
+                pub = load_pem_public_key(pub_pem.encode("utf-8"))
+            except Exception:
                 continue
+            for s in env.get("signatures") or []:
+                try:
+                    pub.verify(base64.b64decode(s.get("sig", "") or ""), pae,
+                               ec.ECDSA(hashes.SHA256()))
+                    return True
+                except InvalidSignature:
+                    continue
         return False
     except Exception:
         return False
@@ -185,12 +202,13 @@ def _ecdsa_envelope_verifies(env: Dict[str, Any], pub_pem: str) -> bool:
 
 def _publishable_against_corpus_key(env: Dict[str, Any], scheme: str) -> bool:
     """Verify-before-publish gate. ecdsa-p256-dsse-pae receipts are published only
-    if they verify against the pinned corpus cosign.pub, so a transient/rotated-key
-    envelope can never enter the corpus and later fail re-verify. sigstore-keyless
-    receipts are not gated here (verified via their Fulcio cert at re-verify time)."""
+    if they verify against the DOCUMENTED trusted keyset (historical + current org
+    keys), so a transient/rotated/untrusted-key envelope can never enter the
+    corpus and later fail re-verify. sigstore-keyless receipts are not gated here
+    (verified via their Fulcio cert at re-verify time)."""
     if scheme != "ecdsa-p256-dsse-pae":
         return True
-    return _ecdsa_envelope_verifies(env, _corpus_verify_pub_pem())
+    return _ecdsa_envelope_verifies(env, _corpus_trusted_pub_pems())
 
 
 # --------------------------------------------------------------------------- #

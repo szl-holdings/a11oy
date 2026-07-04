@@ -2,12 +2,15 @@
 # Signed-off-by: Forge (Replit task agent) <forge@szl-holdings>
 """Re-verify guard for the a11oy verifiable-corpus signed receipts.
 
-Self-contained against the published records + the pinned public key, so it does
-NOT depend on an expiring artifact. For every receipt it re-checks:
+Self-contained against the published records + a DOCUMENTED MULTI-KEY TRUST SET,
+so it does NOT depend on an expiring artifact AND survives an org cosign-key
+rotation without breaking history. For every receipt it re-checks:
   * content-address integrity: id == sha256(canon({source,kind,content=payload}))
     (fail-loud on any tampered byte),
   * the DSSE signature still verifies over its PAE:
-      - ecdsa-p256-dsse-pae : signatures[].sig vs the pinned cosign.pub,
+      - ecdsa-p256-dsse-pae : signatures[].sig vs the trusted keyset (the record
+        must verify under the specific documented key it was signed with —
+        historical CI key OR current org key; see the key_rotation ledger),
       - sigstore-keyless-dsse: the bundle's dsseEnvelope sig vs its leaf cert,
         with the cert SAN matching the szl-holdings identity regex,
   * head-consistency: head.count == #records, head.last_id == last record id,
@@ -17,7 +20,8 @@ NOT depend on an expiring artifact. For every receipt it re-checks:
 
 This complements rekor-recheck.yml (which re-checks Rekor transparency-log
 inclusion); here we re-check the embedded signatures + integrity from the
-published corpus alone.
+published corpus alone. The trust set + rotation history are documented in
+docs/KEY_ROTATION.md and the guard config's trusted_keys / key_rotation blocks.
 
 Exit: 0 ok/soft-pass | 1 tamper/sig-fail/floor/head-mismatch | 2 auth/unreachable.
 
@@ -53,9 +57,34 @@ def _ecdsa_verify(pub, sig: bytes, msg: bytes) -> None:
     pub.verify(sig, msg, ec.ECDSA(hashes.SHA256()))
 
 
-def verify_record_signature(rec, *, pubkey_pem, identity_regex):
+def key_fingerprint(pem: str) -> str:
+    """The per-record key fingerprint the receipts themselves carry in
+    verify.public_key_sha256: sha256 over the stripped PEM text. Lets the guard
+    name WHICH trusted key verified a receipt, honestly and per-record."""
+    import hashlib
+    return hashlib.sha256(pem.strip().encode("utf-8")).hexdigest()
+
+
+def _pem_list(pubkey_pems, pubkey_pem):
+    """Normalise the caller's key input to a list of trusted PEMs. Accepts a
+    multi-key trust set (pubkey_pems) or a single pinned key (pubkey_pem, kept
+    for backward-compatibility with the offline self-test)."""
+    if pubkey_pems:
+        return [p for p in pubkey_pems if p]
+    return [pubkey_pem] if pubkey_pem else []
+
+
+def verify_record_signature(rec, *, pubkey_pems=None, pubkey_pem=None,
+                            identity_regex):
     """Return (ok:bool, reason:str). Raises nothing for a bad signature —
-    a failed verify is a finding, not an exception."""
+    a failed verify is a finding, not an exception.
+
+    ecdsa-p256-dsse-pae receipts are verified against the DOCUMENTED MULTI-KEY
+    TRUST SET: a receipt passes iff its signature verifies under EXACTLY the key
+    it was signed with, and that key is one of the trusted, documented keys
+    (historical CI key + current org key). The reason names which trusted key
+    verified it, so a rotation is auditable per-record rather than hidden behind
+    a single pin."""
     payload = rec.get("payload", {})
     scheme = payload.get("scheme")
     env = payload.get("envelope")
@@ -66,17 +95,24 @@ def verify_record_signature(rec, *, pubkey_pem, identity_regex):
         if scheme == "ecdsa-p256-dsse-pae":
             body = base64.b64decode(env["payload"])
             pae = common.dsse_pae(env["payloadType"], body)
-            pub = _load_pub(pubkey_pem)
+            pems = _pem_list(pubkey_pems, pubkey_pem)
+            if not pems:
+                return False, "no trusted keys configured"
             sigs = env.get("signatures") or []
             if not sigs:
                 return False, "no signatures"
             from cryptography.exceptions import InvalidSignature
-            for s in sigs:
-                try:
-                    _ecdsa_verify(pub, base64.b64decode(s["sig"]), pae)
-                except InvalidSignature:
-                    return False, "ecdsa signature does not verify"
-            return True, "ecdsa-p256 ok"
+            for pem in pems:
+                pub = _load_pub(pem)
+                for s in sigs:
+                    try:
+                        _ecdsa_verify(pub, base64.b64decode(s["sig"]), pae)
+                        return True, ("ecdsa-p256 ok via trusted key %s"
+                                      % key_fingerprint(pem)[:12])
+                    except InvalidSignature:
+                        continue
+            return False, ("ecdsa signature does not verify under any of the "
+                           "%d trusted key(s)" % len(pems))
 
         if scheme == "sigstore-keyless-dsse":
             from cryptography import x509
@@ -121,11 +157,26 @@ def verify_record_signature(rec, *, pubkey_pem, identity_regex):
 # --------------------------------------------------------------------------- #
 # Core checker (stdlib; verify_fn injectable)                                  #
 # --------------------------------------------------------------------------- #
-def check_corpus(records, head, *, pubkey_pem, identity_regex, min_receipts,
-                 allowed_schemes, verify_fn=verify_record_signature):
-    """Return (exit_code, report:dict)."""
+def check_corpus(records, head, *, pubkey_pem=None, pubkey_pems=None,
+                 identity_regex, min_receipts, allowed_schemes,
+                 quarantine=None, verify_fn=verify_record_signature):
+    """Return (exit_code, report:dict).
+
+    Trust model: every published receipt must verify under the DOCUMENTED
+    MULTI-KEY TRUST SET (pubkey_pems / trusted_keys) — the key it was actually
+    signed with. A small, explicitly DOCUMENTED quarantine set (Incident #325
+    ephemeral-pod orphans) is the only exception: those records are not counted
+    as verified, are reported as quarantined orphans, and STILL fail loudly on
+    tamper, on a signing-key that is not the documented orphan key, or if they
+    unexpectedly verify under a trusted key. This is documentation of a known
+    accepted orphan, NOT a blind allow-list of bad ids and NOT a skip-on-fail."""
     findings = []
+    quarantined = []
+    verified = 0
     n = len(records)
+    q = quarantine or {}
+    q_uids = set(q.get("receipt_uids") or [])
+    q_expected = q.get("expected_key_sha256")
     if n == 0:
         if min_receipts <= 0:
             return EXIT_OK, {"checked": 0, "soft_pass": True, "findings": []}
@@ -169,10 +220,32 @@ def check_corpus(records, head, *, pubkey_pem, identity_regex, min_receipts,
         if allowed_schemes and scheme not in allowed_schemes:
             findings.append("record %d disallowed scheme %r" % (i, scheme))
             continue
-        ok, reason = verify_fn(rec, pubkey_pem=pubkey_pem,
+        ok, reason = verify_fn(rec, pubkey_pems=pubkey_pems,
+                               pubkey_pem=pubkey_pem,
                                identity_regex=identity_regex)
+        # Documented Incident #325 quarantine: content-address is already proven
+        # intact above (this record is NOT tamper). It must NOT verify under a
+        # trusted key (else it isn't an orphan and should not be quarantined),
+        # and its signing key must be the documented ephemeral-pod key.
+        if uid is not None and uid in q_uids:
+            declared = (payload.get("verify") or {}).get("public_key_sha256")
+            if ok:
+                findings.append(
+                    "record %d (%s) is quarantined but unexpectedly VERIFIES "
+                    "under a trusted key (%s) — remove it from quarantine"
+                    % (i, rid[:12], reason))
+            elif q_expected and declared != q_expected:
+                findings.append(
+                    "record %d (%s) quarantine key mismatch: declared signing "
+                    "key %s != documented orphan key %s"
+                    % (i, rid[:12], str(declared)[:12], str(q_expected)[:12]))
+            else:
+                quarantined.append(uid)
+            continue
         if not ok:
             findings.append("record %d (%s) signature: %s" % (i, rid[:12], reason))
+        else:
+            verified += 1
 
     # head consistency
     if head is not None:
@@ -184,7 +257,12 @@ def check_corpus(records, head, *, pubkey_pem, identity_regex, min_receipts,
             findings.append("head.last_id != last record id")
 
     code = EXIT_VIOLATION if findings else EXIT_OK
-    return code, {"checked": n, "soft_pass": False, "findings": findings}
+    report = {"checked": n, "verified": verified, "soft_pass": False,
+              "findings": findings}
+    if quarantined:
+        report["quarantined"] = quarantined
+        report["quarantine_incident"] = q.get("incident")
+    return code, report
 
 
 # --------------------------------------------------------------------------- #
@@ -235,22 +313,39 @@ def main(argv=None):
         print("REVERIFY ERROR — unreachable: %s" % e)
         return EXIT_ERROR
 
-    # cross-check pinned pubkey against the live URL when reachable (advisory).
-    pub_pem = cfg["cosign_pub_pem"]
-    pub_note = "pinned"
+    # DOCUMENTED MULTI-KEY TRUST SET: verify each receipt against the key it was
+    # actually signed with, drawn from a documented set (historical CI key +
+    # current org key). Falls back to the single pinned key for a config that
+    # predates the trust set. See key_rotation ledger for why both are trusted.
+    trusted = cfg.get("trusted_keys") or []
+    trusted_pems = [k.get("pem") for k in trusted if k.get("pem")]
+    if not trusted_pems:
+        trusted_pems = [cfg["cosign_pub_pem"]]
+    trusted_fps = {key_fingerprint(p) for p in trusted_pems}
+
+    # cross-check the live org cosign.pub against the trust set when reachable
+    # (advisory). After a rotation the live key legitimately differs from the
+    # historical pin; the honest check is whether the live key is IN the trust
+    # set, not whether it equals a single pin.
+    pub_note = "trusted keyset (%d key(s))" % len(trusted_pems)
     try:
         live = common.fetch_text(cfg["cosign_pub_url"], None)
-        if live and live.strip() and live.strip() != pub_pem.strip():
-            pub_note = "WARNING: pinned cosign.pub differs from live URL"
+        if live and live.strip():
+            if key_fingerprint(live) in trusted_fps:
+                pub_note += "; live cosign.pub is in the trust set"
+            else:
+                pub_note += ("; WARNING: live cosign.pub (%s) is NOT in the "
+                             "trust set" % key_fingerprint(live)[:12])
     except (AuthError, Unreachable):
-        pub_note = "pinned (live cross-check unreachable)"
+        pub_note += " (live cross-check unreachable)"
 
     code, report = check_corpus(
         records, head,
-        pubkey_pem=pub_pem,
+        pubkey_pems=trusted_pems,
         identity_regex=cfg.get("sigstore_identity_regex", ""),
         min_receipts=int(rv.get("min_receipts", 0)),
         allowed_schemes=rv.get("allowed_schemes"),
+        quarantine=cfg.get("quarantine"),
     )
     report["pubkey"] = pub_note
     summary = {"guard": "hf-corpus-reverify", "exit": code, "report": report}
@@ -260,8 +355,12 @@ def main(argv=None):
         with open(args.summary_out, "w", encoding="utf-8") as fh:
             fh.write(text + "\n")
     if code == EXIT_OK:
-        print("REVERIFY OK — %d receipt(s) re-verified (or soft-pass)."
-              % report.get("checked", 0))
+        q = report.get("quarantined") or []
+        qnote = (" (%d documented orphan(s) quarantined per Incident %s)"
+                 % (len(q), report.get("quarantine_incident"))) if q else ""
+        print("REVERIFY OK — %d/%d receipt(s) re-verified under the trusted "
+              "keyset%s." % (report.get("verified", 0),
+                             report.get("checked", 0), qnote))
     else:
         print("REVERIFY VIOLATION — %s" % "; ".join(report["findings"]))
     return code

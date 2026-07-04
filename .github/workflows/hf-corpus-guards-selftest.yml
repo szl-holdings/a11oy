@@ -20,6 +20,8 @@ on:
       - 'scripts/szl_corpus_guard_common.py'
       - 'scripts/check_hf_corpus_*.py'
       - 'scripts/test_check_hf_corpus_*.py'
+      - 'scripts/test_szl_corpus_publish_gate.py'
+      - 'szl_corpus_publish.py'
       - '.github/hf-corpus-guards.json'
       - '.github/workflows/hf-corpus-guards-selftest.yml'
   pull_request:
@@ -27,6 +29,8 @@ on:
       - 'scripts/szl_corpus_guard_common.py'
       - 'scripts/check_hf_corpus_*.py'
       - 'scripts/test_check_hf_corpus_*.py'
+      - 'scripts/test_szl_corpus_publish_gate.py'
+      - 'szl_corpus_publish.py'
       - '.github/hf-corpus-guards.json'
       - '.github/workflows/hf-corpus-guards-selftest.yml'
   workflow_dispatch: {}
@@ -66,3 +70,6 @@ jobs:
 
       - name: Self-test — card-honesty guard
         run: python3 scripts/test_check_hf_corpus_card_honesty.py
+
+      - name: Self-test — corpus publish gate (Incident #325 root-cause)
+        run: python3 scripts/test_szl_corpus_publish_gate.py

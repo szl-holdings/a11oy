@@ -69,11 +69,11 @@ def head_for(records):
 SCHEMES = ["ecdsa-p256-dsse-pae", "sigstore-keyless-dsse"]
 
 
-def run(records, head, min_receipts=2, verify_fn=stub_ok):
+def run(records, head, min_receipts=2, verify_fn=stub_ok, quarantine=None):
     return rv.check_corpus(records, head, pubkey_pem="PEM",
                            identity_regex="^https://github.com/szl-holdings/.*",
                            min_receipts=min_receipts, allowed_schemes=SCHEMES,
-                           verify_fn=verify_fn)
+                           quarantine=quarantine, verify_fn=verify_fn)
 
 
 def main():
@@ -132,7 +132,9 @@ def main():
     check("disallowed scheme -> VIOLATION",
           code == EXIT_VIOLATION and any("scheme" in f for f in rep["findings"]))
 
+    quarantine_paths()
     real_crypto_path()
+    real_multi_key_path()
     fetch_corpus_shard_path()
 
     print()
@@ -180,6 +182,108 @@ def fetch_corpus_shard_path():
           all("receipts/receipts/" not in u for u in requested))
     check("fetch_corpus enumerates the real shard -> 1 record",
           len(records) == 1)
+
+
+def q_payload(uid, key_sha256):
+    p = good_payload(uid)
+    p["verify"] = {"scheme": "ecdsa-p256-dsse-pae",
+                   "public_key_sha256": key_sha256}
+    return p
+
+
+ORPHAN_KEY = "76199818b3b626f4854385ecb868e288696a2981dced3cec600c948eb9ac65a7"
+
+
+def quarantine_paths():
+    """Documented Incident #325 quarantine: an orphan that verifies under NO
+    trusted key is a PASS iff it is explicitly quarantined AND its declared
+    signing key is the documented orphan key AND its content is intact — but it
+    is reported as quarantined (not counted verified), and any deviation from
+    that documented shape fails loudly. This is documentation, not a blind
+    allow-list."""
+    orphan = make_rec("a11oy", "release-receipt", q_payload("orphan1", ORPHAN_KEY))
+    good = make_rec("a11oy", "release-receipt", good_payload("g1"))
+    recs = [orphan, good]
+    quar = {"incident": "#325", "expected_key_sha256": ORPHAN_KEY,
+            "receipt_uids": ["orphan1"]}
+
+    # orphan fails signature but is documented -> OK + reported; the non-orphan
+    # good record still verifies (selective stub: only the orphan uid fails).
+    def stub_only_orphan_fails(rec, **kw):
+        uid = rec.get("payload", {}).get("receipt_uid")
+        return (False, "orphan sig-fail") if uid == "orphan1" else (True, "ok")
+    code, rep = run(recs, head_for(recs), verify_fn=stub_only_orphan_fails,
+                    quarantine=quar)
+    check("documented orphan (sig-fail) -> OK, not a finding",
+          code == EXIT_OK and rep.get("quarantined") == ["orphan1"]
+          and rep.get("verified") == 1 and not rep["findings"])
+
+    # WITHOUT the quarantine entry the same orphan is a hard VIOLATION
+    code, rep = run(recs, head_for(recs), verify_fn=stub_bad)
+    check("undocumented orphan (sig-fail) -> VIOLATION",
+          code == EXIT_VIOLATION and any("signature" in f for f in rep["findings"]))
+
+    # quarantined record that UNEXPECTEDLY verifies under a trusted key -> VIOLATION
+    code, rep = run(recs, head_for(recs), verify_fn=stub_ok, quarantine=quar)
+    check("quarantined record that verifies -> VIOLATION",
+          code == EXIT_VIOLATION
+          and any("unexpectedly VERIFIES" in f for f in rep["findings"]))
+
+    # quarantined record whose declared key != documented orphan key -> VIOLATION
+    mism = make_rec("a11oy", "release-receipt",
+                    q_payload("orphan1", "deadbeef" * 8))
+    code, rep = run([mism, good], head_for([mism, good]),
+                    verify_fn=stub_bad, quarantine=quar)
+    check("quarantine key mismatch -> VIOLATION",
+          code == EXIT_VIOLATION
+          and any("quarantine key mismatch" in f for f in rep["findings"]))
+
+    # tampered quarantined record (content-address) -> VIOLATION (tamper still wins)
+    tam = [orphan, good]
+    tam[0] = dict(orphan, payload=dict(orphan["payload"]))
+    tam[0]["payload"]["receipt_uid"] = "orphan1"  # id was computed for orphan1
+    tam[0]["id"] = "0" * 64  # force id mismatch
+    code, rep = run(tam, head_for(tam), verify_fn=stub_bad, quarantine=quar)
+    check("tampered quarantined record -> VIOLATION",
+          code == EXIT_VIOLATION and any("tamper" in f for f in rep["findings"]))
+
+
+def real_multi_key_path():
+    """Real ECDSA: a receipt signed by key B verifies against a multi-key trust
+    set {A,B} and NOT against {A} alone — proving per-record rotation support."""
+    try:
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+    except Exception:
+        print("  skip- real multi-key path (cryptography not installed)")
+        return
+
+    def pem_of(k):
+        return k.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+
+    key_a = ec.generate_private_key(ec.SECP256R1())
+    key_b = ec.generate_private_key(ec.SECP256R1())
+    pem_a, pem_b = pem_of(key_a), pem_of(key_b)
+
+    body = b'{"rotated":true}'
+    ptype = "application/vnd.in-toto+json"
+    pae = common.dsse_pae(ptype, body)
+    sig_b = key_b.sign(pae, ec.ECDSA(hashes.SHA256()))
+    env = {"payloadType": ptype, "payload": base64.b64encode(body).decode(),
+           "signatures": [{"sig": base64.b64encode(sig_b).decode()}]}
+    rec = {"payload": {"scheme": "ecdsa-p256-dsse-pae", "envelope": env}}
+
+    ok, reason = rv.verify_record_signature(rec, pubkey_pems=[pem_a, pem_b],
+                                            identity_regex="")
+    check("multi-key set {A,B} verifies a key-B receipt", ok)
+    fp_b = rv.key_fingerprint(pem_b)[:12]
+    check("reason names the verifying trusted key", fp_b in reason)
+
+    ok2, _ = rv.verify_record_signature(rec, pubkey_pems=[pem_a],
+                                        identity_regex="")
+    check("single-key set {A} rejects a key-B receipt", not ok2)
 
 
 def real_crypto_path():
