@@ -12,8 +12,10 @@ remote services.
 - **`organs/amaru/`** — ingested source of the **reasoning** organ (Amaru). Includes
   `serve.py`, `amaru_cortex_console.py`, `amaru_proof_tabs.py`,
   `amaru_formula_endpoints.py`, `sidecar/`, and `src/amaru/`.
-- **`organs/rosie/`** — ingested source of the **operator** organ (Rosie). Includes
-  `app.py`, `src/rosie/`, `packages/`, and `szl_router/`.
+- **Rosie (operator) — no `organs/rosie/` ingest.** Rosie has **no** ingested source
+  tree in this repo; its runtime is served **in-process** by the root-level
+  `szl_rosie_companion.py`. The organ-source ingest under `organs/` is **amaru + sentra
+  only**; a standalone Rosie source ingest is pending.
 - **`mcp/`** — shared **MCP** (Model Context Protocol) infra: `mcp_server.py`,
   `test_mcp_stdio.py`, MCP client config, and integration docs.
 - **`infra/`** — pointer READMEs to the canonical szl-holdings repos. Full external
@@ -42,7 +44,7 @@ top-level directories listed above.
 ## Doctrine (unchanged, kept honest)
 
 - **Λ-uniqueness = Conjecture 1** (machine-checked FALSE unconditionally; a conjecture, NOT a proven theorem). Khipu BFT = Conjecture 2.
-- **8 locked-proven formulas** {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel `c7c0ba17` (749 declarations / 14 unique axioms / 163 sorries). Source of truth: `.github/.github/data/lean_numbers.json` (`locked_formula_count: 8`) + `lutar-lean@main`.
+- **8 locked-proven formulas** {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel `c7c0ba17` (749 declarations / 14 unique axioms / 163 sorries). Source of truth: the in-repo `DOCTRINE_LOCK` (`locked_formula_count: 8`, `szl_be_hardening.py`) + the kernel measurement at `proofs/lutar-lean/.github/data/lean_numbers.json`, pinned to `lutar-lean@c7c0ba17`.
 - Supply-chain posture: **SLSA L1 honest** (L2 attested only on the a11oy/killinchu container images; L3/FedRAMP/Iron Bank/CMMC = roadmap, not claimed).
 - Honesty doctrine **v11** — never overclaim.
 
