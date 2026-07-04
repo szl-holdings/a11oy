@@ -29,7 +29,7 @@ system is one endpoint instead of N scattered probes.
   "organs_healthy": 5, "organs_total": 6,
   "energy": { "window": "off-peak", "source": "nvml", "joules": { "value": 1234.5, "label": "measured" }, "within_bound": true, "reachable": true },
   "swarm":  { "nodes": 4, "served_by": "anchor", "reachable": true },
-  "doctrine": { "lambda": "Conjecture 1", "locked": 8, "half_state": "forbidden", "version": "v11/v12" }
+  "doctrine": { "lambda": "Conjecture 1", "locked": 8, "half_state": "forbidden", "version": "v11" }
 }
 ```
 
@@ -51,7 +51,7 @@ Each sub-probe is an independent in-process GET with a timeout, run concurrently
 The aggregate **never fails** because one organ is down — that organ simply shows
 `reachable:false`.
 
-## Honesty by construction (Doctrine v11/v12)
+## Honesty by construction (Doctrine v11)
 
 - **Never fabricate a status.** Every probe degrades honestly: a timeout, a
   connection refusal, or any non-2xx becomes `{"reachable": false, "status": …}`.

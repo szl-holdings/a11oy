@@ -15,7 +15,7 @@ read from:
       doctrine:{lambda:"Conjecture 1", locked:8, half_state:"forbidden"}
     }
 
-HONESTY (Doctrine v11/v12), enforced by construction:
+HONESTY (Doctrine v11), enforced by construction:
   - NEVER fabricate a status. Every sub-probe runs with a timeout and degrades to
     {"reachable": false, "status": "unreachable", "error": ...}. A missing organ
     is reported as down — never bluffed green.
@@ -58,7 +58,7 @@ DOCTRINE: dict[str, Any] = {
     "lambda": "Conjecture 1",          # the Λ-uniqueness killer formula is a CONJECTURE, said plainly
     "locked": 8,                       # the locked-8 round9 organ formulas, untouched
     "half_state": "forbidden",         # claiming sovereign while a non-sovereign router served = forbidden
-    "version": "v11/v12",
+    "version": "v11",                  # doctrine LOCK version — matches DOCTRINE="v11" (szl_be_hardening) and /honest
 }
 
 # ---------------------------------------------------------------------------
