@@ -1,8 +1,45 @@
 {
-  "_comment": "Config for the HF verifiable-corpus guard layer (freshness + re-verify + card-honesty) over BOTH flagship public datasets. max_age_hours = each stream's expected cadence (a11oy prefixes append only on real signing events -> generous outer bound; the min_records floor is what catches an emptied dataset). killinchu intel is a live ~daily stream -> tight window. cosign_pub_pem is pinned so re-verify is self-contained and does not depend on an expiring artifact; cosign_pub_url is cross-checked when reachable.",
+  "_comment": "Config for the HF verifiable-corpus guard layer (freshness + re-verify + card-honesty) over BOTH flagship public datasets. max_age_hours = each stream's expected cadence (a11oy prefixes append only on real signing events -> generous outer bound; the min_records floor is what catches an emptied dataset). killinchu intel is a live ~daily stream -> tight window. trusted_keys is a DOCUMENTED multi-key trust set so re-verify is self-contained (no expiring artifact) AND survives an org cosign key rotation without breaking historical receipts: every published receipt must verify under EXACTLY ONE trusted, documented key (the one it was actually signed with). cosign_pub_url is cross-checked against the trust set when reachable. See key_rotation for the rotation ledger and quarantine for the documented Incident #325 orphans.",
   "hf_resolve_base": "https://huggingface.co/datasets/{repo_id}/resolve/main/{path}",
   "cosign_pub_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/Jlv9FnwJ13l4QIZpr4IbTBUtVZ2\ni+O7Jai/s7xsdXvOjmZGYhd36VxNQQahTSjWoYpPrSNhXbt/n7lsgi61xA==\n-----END PUBLIC KEY-----\n",
   "cosign_pub_url": "https://raw.githubusercontent.com/szl-holdings/.github/main/cosign.pub",
+  "trusted_keys": [
+    {
+      "role": "historical-ci-signer",
+      "fingerprint_sha256": "421a1422ebb2516aaf08358e5c4b75aed4f5e1ecd76ac9e2a2e7a9879c067e1e",
+      "valid_from": "2026-06-12",
+      "valid_to": "2026-06-23",
+      "note": "Original CI-pinned szl-holdings cosign key. Signed the first 63 published ecdsa-p256-dsse-pae receipts (2026-06-12..2026-06-23). Retained in the trust set so history stays verifiable after the 2026-06 rotation.",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/Jlv9FnwJ13l4QIZpr4IbTBUtVZ2\ni+O7Jai/s7xsdXvOjmZGYhd36VxNQQahTSjWoYpPrSNhXbt/n7lsgi61xA==\n-----END PUBLIC KEY-----\n"
+    },
+    {
+      "role": "current-org-signer",
+      "fingerprint_sha256": "d3028f8aecd0841f684e1c7fd7b06de7a211dc6fc09c34163003798b391bcf71",
+      "valid_from": "2026-06-27",
+      "valid_to": null,
+      "note": "Current szl-holdings org cosign.pub (published at cosign_pub_url and embedded in szl_dsse.COSIGN_PUBLIC_PEM). Signs receipts from 2026-06-27 onward (the newest 38 as of this ledger). This is the ONLY key new receipts may be signed with going forward.",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyq9ALpZuegbE67GRpWp8FfGSX1IJ\nbt5gw4jQ3RuBuIYIZchnfn9XLZf5KKw+zRfq5EJ8S+5cqwai5Wz0FDSyyA==\n-----END PUBLIC KEY-----\n"
+    }
+  ],
+  "key_rotation": [
+    {
+      "event": "cosign-key-rotation",
+      "from_fingerprint_sha256": "421a1422ebb2516aaf08358e5c4b75aed4f5e1ecd76ac9e2a2e7a9879c067e1e",
+      "to_fingerprint_sha256": "d3028f8aecd0841f684e1c7fd7b06de7a211dc6fc09c34163003798b391bcf71",
+      "observed_between": ["2026-06-23", "2026-06-27"],
+      "reason": "The szl-holdings org rotated its cosign signing key. Both keys are legitimate, documented org signers; receipts signed under the prior key remain valid and verifiable. The re-verify guard trusts BOTH keys (per-record, against the key each receipt was actually signed with) rather than a single pin, so the rotation does NOT invalidate the 63 historical receipts nor the 38 new ones. Content-address integrity is intact for all 104 records (0 tamper); this was a key rotation, not a compromise.",
+      "incident": "#325"
+    }
+  ],
+  "quarantine": {
+    "incident": "#325",
+    "expected_key_sha256": "76199818b3b626f4854385ecb868e288696a2981dced3cec600c948eb9ac65a7",
+    "reason": "Two receipts were signed by a transient ephemeral CI-pod key (fingerprint 76199818b3b6...) that is NOT a documented szl-holdings org key and is therefore NOT in the trust set. Content-address integrity is intact (verified: NOT tamper) and their content is genuine, but their signature cannot be attributed to a trusted org key. Per Incident #325 they are DOCUMENTED ORPHANS: quarantined (kept, not deleted; excluded from the trusted-verify set), NOT silently allow-listed. The re-verify guard reports them explicitly as quarantined orphans and still fails loudly if either one is tampered, if its signing key is not the documented ephemeral key, or if it unexpectedly starts verifying under a trusted key.",
+    "receipt_uids": [
+      "4bfa222fdfb9707d173a59fa1405ab04dbf728b4ad99cf2b37b34512966a7dc8",
+      "b88484d37568e3d057eeceb9259356f68cc541b76ef7536e1431fb10aafae241"
+    ]
+  },
   "sigstore_identity_regex": "^https://github.com/szl-holdings/.*",
   "datasets": {
     "a11oy-verifiable-corpus": {
