@@ -4673,6 +4673,25 @@ async def _a11oy_pr_llm_tiers_v2():
         "honesty": "szl_brain unavailable; honest stub catalog returned.",
     })
 
+def _a11oy_mesh_honest_fallback(honesty=None) -> dict:
+    """Honest mesh-state stub: D/E/F live in-process, G/H explicitly not_served.
+    Shared by the szl_wire-unavailable branch and the sanitize crash path so the
+    crash path never overclaims G/H as live (Doctrine v11 honest labels)."""
+    return {
+        "wires": {"D": "live_in_process", "E": "live", "F": "live",
+                  "G": "not_served_on_this_build", "H": "not_served_on_this_build"},
+        "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
+        "doctrine": "v11",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "honesty": honesty or (
+            "szl_wire unavailable; honest stub mesh state returned. "
+            "Wire D is in-process only (cross-Space broker NOT wired). "
+            "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
+            "served on this build (endpoints return 404); do not claim G/H live."),
+    }
+
+
 def _a11oy_sanitize_mesh(state: dict) -> dict:
     """Rewrite internal mesh wire edges to generic a11oy capability names so no
     internal service codenames or *.hf.space URLs are ever user-visible. The
@@ -4706,11 +4725,9 @@ def _a11oy_sanitize_mesh(state: dict) -> dict:
             return o
         return _clean(s)
     except Exception:
-        return {
-            "wires": {"D": "live_in_process", "E": "live", "F": "live"},
-            "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
-            "doctrine": "v11",
-        }
+        return _a11oy_mesh_honest_fallback(
+            "mesh sanitize failed; honest stub returned — Wires G/H NOT served on "
+            "this build (endpoints return 404); do not claim G/H live.")
 
 
 @app.get("/api/a11oy/v1/mesh/state")
@@ -4718,18 +4735,7 @@ async def _a11oy_pr_mesh_state_v2():
     """Mesh wire status (generic a11oy capability names). Doctrine v11."""
     if _A11OY_WIRE_OK:
         return JSONResponse(_a11oy_sanitize_mesh(_a11oy_pr_wire.mesh_status()))
-    return JSONResponse({
-        "wires": {"D": "live_in_process", "E": "live", "F": "live",
-                  "G": "not_served_on_this_build", "H": "not_served_on_this_build"},
-        "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
-        "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
-        "honesty": "szl_wire unavailable; honest stub mesh state returned. "
-                   "Wire D is in-process only (cross-Space broker NOT wired). "
-                   "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
-                   "served on this build (endpoints return 404); do not claim G/H live.",
-    })
+    return JSONResponse(_a11oy_mesh_honest_fallback())
 
 print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,honest,audit-log,brain,llm/tiers,mesh/state}", file=sys.stderr)
 # ===========================================================================
@@ -9920,186 +9926,6 @@ try:
 except Exception as _ig_e:
     print(f"[a11oy] betterwithage ingestion mount skipped ({_ig_e!r}); SPA + existing routes unaffected", file=sys.stderr)
 # --- end betterwithage ingestion mount ---
-
-# ===========================================================================
-# PARITY RESTORATION BLOCK (2026-06-02, Yachay CTO / Perplexity Computer Agent)
-# Adds 6 missing routes per PARITY_GAP_MATRIX_2026-06-02_2050Z.md:
-#   /api/a11oy/v1/lambda    — 13-axis Λ geometric-mean (Conjecture 1, NOT theorem)
-#   /api/a11oy/v1/honest    — honest doctrine disclosure
-#   /api/a11oy/v1/audit-log — in-memory audit log ring buffer
-#   /api/a11oy/v1/brain     — unified brain payload (szl_brain)
-#   /api/a11oy/v1/llm/tiers — 7-tier LLM router catalog
-#   /api/a11oy/v1/mesh/state — mesh wire status
-# All registered BEFORE the /{full_path:path} SPA catch-all. ADDITIVE ONLY.
-# Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1 (NOT a theorem). c7c0ba17.
-# Signed-off-by: Yachay <yachay@szlholdings.ai>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ===========================================================================
-import collections as _pr_col
-import threading as _pr_thr
-import math as _pr_math
-
-_A11OY_AUDIT_LOCK = _pr_thr.Lock()
-_A11OY_AUDIT_LOG: _pr_col.deque = _pr_col.deque(maxlen=200)
-
-# Import shared substrate (already loaded at module level in most cases)
-try:
-    import szl_brain as _a11oy_pr_brain
-    _A11OY_BRAIN_OK = True
-except Exception:
-    _A11OY_BRAIN_OK = False
-
-try:
-    import szl_wire as _a11oy_pr_wire
-    _A11OY_WIRE_OK = True
-except Exception:
-    _A11OY_WIRE_OK = False
-
-_A11OY_AXIS_NAMES = [
-    "soundness", "calibration", "robustness", "provenance", "consent", "reversibility",
-    "transparency", "fairness", "containment", "attestation", "freshness", "authority", "auditability",
-]
-
-@app.get("/api/a11oy/v1/lambda")
-async def _a11oy_pr_lambda():
-    """13-axis Λ geometric-mean. Λ = Conjecture 1 (NOT a theorem). Doctrine v11 LOCKED."""
-    axes = [0.92, 0.90, 0.95, 0.91, 0.94, 0.90, 0.92, 0.91, 0.93, 0.92, 0.93, 0.90, 0.92]
-    floor = 0.90
-    clamped = [min(1.0, max(1e-9, float(x))) for x in axes]
-    L = _pr_math.exp(sum(_pr_math.log(x) for x in clamped) / len(clamped))
-    return JSONResponse({
-        "trust_axes": 13,
-        "axes": [{"name": n, "score": s} for n, s in zip(_A11OY_AXIS_NAMES, axes)],
-        "lambda": round(L, 6), "lambda_floor": floor, "pass": L >= floor,
-        "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
-        "uniqueness": "Conjecture 1 — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
-        "policy_gates": 46, "anchor_formula_gates": 44,
-        "doctrine": "v11",
-    })
-
-@app.get("/api/a11oy/v1/honest")
-async def _a11oy_pr_honest():
-    """Honest doctrine disclosure — parity with the sibling flagships. Doctrine v11."""
-    # ADDITIVE (Formulas → Ecosystem, 2026-06-03): this is the LAST-registered /honest
-    # (it wins ordering), so the formula + SLSA surface lives HERE too. HONEST STATUS
-    # (locked by .compliance/SLSA_LEVEL.md): the deployed a11oy image (uds-v0.2.0) is
-    # cosign-signed and publicly verifiable (Rekor logIndex 1710578865) — that is
-    # SLSA Build L1 honest. L2 (an isolated, attested build-service PROVENANCE for the
-    # deployed image, verifiable downstream) is roadmap via Wire D and NOT yet claimed;
-    # GHCR verification shows the cosign-signed image (L1) only, no verified provenance
-    # attestation tag on the image. L3 not claimed. Report exactly what Rekor confirms.
-    try:
-        _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
-    except Exception:
-        _wired = []
-    return JSONResponse({
-        "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
-        "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
-        "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
-        "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
-        "slsa_evidence": {
-            "level": "L2",
-            "image_tag": "uds-v0.2.0",
-            "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
-            "builder": "GitHub-hosted Actions (isolated build service, cosign keyless)",
-            "fulcio_issuer": "sigstore.dev (public-good)",
-            "rekor_log_index": 1710578865,
-            "verified_via": "cosign verify + live public Rekor inclusion for the image SIGNATURE + signed slsa.dev/provenance attestation (actions/attest-build-provenance@v2), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance",
-            "l3_status": "NOT claimed (no hermetic, fully-isolated reproducible build attestation).",
-        },
-        "formulas_wired": _wired,
-        "formulas_count": len(_wired),
-        "formulas_status": globals().get("_a11oy_formulas_status", "unknown"),
-        "formulas_index": "/api/a11oy/v1/formulas/index",
-        "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation per module",
-        "formulas_honest_notes": [
-            "HNSW endpoint is an honest retrieval-tier delegate stub (the retrieval tier owns retrieval).",
-            "BLS returns an honest backend-availability flag; real aggregate-verify only when py_ecc present.",
-        ],
-        "role": "Brand Orchestration / gates",
-        "hatun_willay": True,
-    })
-
-@app.get("/api/a11oy/v1/audit-log")
-async def _a11oy_pr_audit_log(limit: int = 50):
-    """In-memory audit log ring buffer — parity with the sibling flagships. Doctrine v11."""
-    limit = min(limit, 200)
-    with _A11OY_AUDIT_LOCK:
-        entries = list(_A11OY_AUDIT_LOG)[:limit]
-    return JSONResponse({
-        "entries": entries,
-        "total_buffered": len(_A11OY_AUDIT_LOG),
-        "limit": limit,
-        "doctrine": "v11",
-        "note": "In-memory ring buffer (maxlen=200). Resets on Space rebuild (honest disclosure).",
-    })
-
-@app.get("/api/a11oy/v1/brain")
-async def _a11oy_pr_brain_route():
-    """Unified brain payload — a11oy brand-orchestration role. Doctrine v11 LOCKED."""
-    if _A11OY_BRAIN_OK:
-        return JSONResponse(_a11oy_pr_brain.brain_payload("a11oy"))
-    return JSONResponse({
-        "space": "a11oy", "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
-        "policy_gates": 46, "anchor_formula_gates": 44,
-        "role": "Brand Orchestration / gates",
-        "lambda_floor": 0.90,
-        "honesty": "szl_brain unavailable in this build; honest stub returned.",
-    })
-
-@app.get("/api/a11oy/v1/llm/tiers")
-async def _a11oy_pr_llm_tiers():
-    """7-tier LLM router catalog — parity with the sibling flagships. Doctrine v11."""
-    if _A11OY_BRAIN_OK:
-        return JSONResponse({
-            "count": len(_a11oy_pr_brain.TIERS),
-            "tiers": _a11oy_pr_brain.TIERS,
-            "doctrine": "v11",
-        })
-    return JSONResponse({
-        "count": 7,
-        "tiers": [
-            {"tier": 1, "name": "haiku_3", "note": "fastest, cheapest"},
-            {"tier": 2, "name": "sonnet_3_5", "note": "balanced"},
-            {"tier": 3, "name": "opus_4_5", "note": "high-capability"},
-            {"tier": 4, "name": "r1", "note": "reasoning-grade"},
-            {"tier": 5, "name": "o3", "note": "frontier reasoning"},
-            {"tier": 6, "name": "gemini_2_flash", "note": "multimodal"},
-            {"tier": 7, "name": "sovereign_local", "note": "air-gap fallback"},
-        ],
-        "doctrine": "v11",
-        "honesty": "szl_brain unavailable; honest stub catalog returned.",
-    })
-
-@app.get("/api/a11oy/v1/mesh/state")
-async def _a11oy_pr_mesh_state():
-    """Mesh wire status (generic a11oy capability names). Doctrine v11."""
-    if _A11OY_WIRE_OK:
-        return JSONResponse(_a11oy_sanitize_mesh(_a11oy_pr_wire.mesh_status()))
-    return JSONResponse({
-        "wires": {"D": "live_in_process", "E": "live", "F": "live",
-                  "G": "not_served_on_this_build", "H": "not_served_on_this_build"},
-        "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
-        "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
-        "honesty": "szl_wire unavailable; honest stub mesh state returned. "
-                   "Wire D is in-process only (cross-Space broker NOT wired). "
-                   "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
-                   "served on this build (endpoints return 404); do not claim G/H live.",
-    })
-
-print("[a11oy] PARITY BLOCK registered: /api/a11oy/v1/{lambda,honest,audit-log,brain,llm/tiers,mesh/state}", file=sys.stderr)
-# ===========================================================================
-# END PARITY RESTORATION BLOCK
-# ===========================================================================
 
 
 # P3 FIX: /api/health JSON probe (Upgrade Hammer — Doctrine v11 LOCKED 749/14/163)
