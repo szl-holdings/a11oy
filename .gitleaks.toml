@@ -22,6 +22,12 @@
 #   • test-fixture private keys under testdata/ (*.test.key) — mock keys
 #   • Python TYPE ANNOTATIONS naming a key class (e.g. `private_key:
 #     "Ed25519PrivateKey"`) — these are forward-ref type hints, NOT key material
+#   • SHA-256 fingerprints of PUBLIC cosign keys (the a11oy verifiable-corpus
+#     key-rotation trust set + documented ephemeral-orphan key). A sha256 digest
+#     of a public PEM is public by definition — not key material. Only exempted
+#     when the value is exactly 64 lowercase-hex chars (a sha256 digest) AND the
+#     surrounding name says sha256 / fingerprint / orphan_key. See
+#     docs/KEY_ROTATION.md and .github/hf-corpus-guards.json.
 #
 # Real credentials (tokens, private keys, cloud secrets) remain fully detected.
 
@@ -48,6 +54,11 @@ regexes = [
   # Python type ANNOTATION naming a key class (forward-ref string hint), NOT a
   # secret: e.g. `private_key: "Ed25519PrivateKey"` in a function signature.
   '''(?i)private_key\s*:\s*["']Ed25519PrivateKey["']''',
+  # SHA-256 fingerprints of PUBLIC cosign keys (corpus key-rotation trust set +
+  # documented ephemeral-orphan key). Exempted ONLY when the value is exactly a
+  # 64-hex sha256 digest AND the name says sha256 / fingerprint / orphan_key —
+  # a public-key digest is not a credential. Real 64-hex tokens are not named so.
+  '''(?i)(sha256|fingerprint|orphan_key)["']?\s*[:=]\s*["'][0-9a-f]{64}["']''',
 ]
 
 # Test fixtures legitimately carry mock key identifiers and stub signatures.
