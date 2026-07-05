@@ -29,10 +29,57 @@ a11oy's own existing files (`serve.py`, `pages/`, `vsp_otel/`, top-level `szl_*.
 etc.) are left intact. The ingested organ source is added strictly under the new
 top-level directories listed above.
 
+## Vertical & organ consolidation (live)
+
+Two distinct consolidation layers exist and must not be conflated: the **live vertical
+governance** (real traffic) and the **dormant `organs/` source ingest** (provenance
+copy, not yet wired).
+
+1. **Vertical governance (LIVE, wired).** Terra/Counsel/Sentra intelligence is
+   consolidated as governed a11oy **verticals**, mounted in-process by
+   `a11oy_vertical_feeds.register(app, ns="a11oy")` (imported in `serve.py`, ~line
+   10635) under `/api/a11oy/v1/vert/*`, ahead of the Node proxy + SPA catch-all. The
+   consolidation map is `_VERT_CONSOLIDATION` in `a11oy_vertical_feeds.py`. Each bare
+   vertical path returns an honest summary (`live: true`, `consolidated_from`, live
+   `sources`) via the governed_turn path — this is **live-wired**, not a source dump.
+
+   | Vertical | Absorbs (legacy) | Verify URL | Live data sources |
+   | --- | --- | --- | --- |
+   | `realestate` | **Terra** | `GET /api/a11oy/v1/vert/realestate` → `{"consolidated_from":"Terra","live":true}` | NYC HPD litigations, NYC DOB violations, Treasury rates |
+   | `legal` | **Counsel** | `GET /api/a11oy/v1/vert/legal` → `consolidated_from:"Counsel"` | Federal Register, CourtListener |
+   | `cyber` | **Sentra** | `GET /api/a11oy/v1/vert/cyber` → `consolidated_from:"Sentra"` | CISA KEV, NVD CVE, GitHub/HF activity |
+
+   (Native, non-absorbing verticals `defense` and `finance` also live here; they
+   consolidate no legacy organ.)
+
+2. **Amaru = reasoning organ (LIVE in-process), NOT a vertical.** Amaru is registered
+   in-process via `a11oy_amaru_feeds.register(app)` (`serve.py`, ~line 11028), serving
+   the user-visible **"Provenance & Trust Anchor"** layer under
+   `/api/a11oy/v1/provenance/*`. It is deliberately **not** a vertical:
+   `GET /api/a11oy/v1/vert/amaru` correctly returns `{"error":"unknown vertical"}` —
+   that 404 is honest, because Amaru is the reasoning/provenance co-pilot, not a
+   market vertical.
+
+### Live vs. dormant — do not conflate
+
+- The **vertical governance** above (via `a11oy_vertical_feeds`) is the LIVE home of
+  the Terra/Counsel/Sentra intelligence; it serves real traffic from the live sources
+  listed, independent of any legacy backend.
+- The **`organs/sentra/` and `organs/amaru/` source trees** (see "What lives where")
+  remain a **source-only ingest** — a dormant duplicate of the legacy organ code,
+  **not yet wired** into the runtime. `organs/sentra/` is superseded at runtime by the
+  live `cyber` vertical; `organs/amaru/` is superseded by the live in-process Amaru
+  registration. Keep the ingest for provenance/history; do not mistake it for the live
+  path.
+- `serve.py` (~line 5848) documents by design that there is **no**
+  `/api/rosie|sentra|amaru` proxy path — these are consolidated **in-process**, not
+  proxied. That honesty stands.
+
 ## Honest status (no overclaiming)
 
-- This is a **source-only ingest** for consolidation. The organ code has been copied
-  into a11oy; it has **NOT** yet been merged into a single runtime or wired together.
+- The `organs/` trees are a **source-only ingest** for consolidation. That organ code
+  has been copied into a11oy but **NOT** merged into a single runtime or wired together
+  (the live path is the vertical/organ registration above, not these trees).
   The commit is *"ingest organ source for consolidation"*, not *"merged and wired"*.
 - The **live Hugging Face Spaces** for sentra, amaru, and rosie currently run as
   backends that a11oy's UI calls. They remain the live backends for now and will be
