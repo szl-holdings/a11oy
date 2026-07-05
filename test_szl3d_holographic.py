@@ -3,17 +3,19 @@
 # Sign-off: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """test_szl3d_holographic — self-tests for the shared szl3d 3D toolkit (Dev0 foundation).
 
-These prove the doctrine-critical + contract properties the other 9 holographic surface
+These prove the doctrine-critical + contract properties the holographic surface
 devs depend on, WITHOUT needing a browser (the browser-level renderer/bloom/badge checks
 live in static/3d/selftest/index.html and are asserted to exist + cover those cases here):
 
-  * the register module imports + its in-module _selftest passes (toolkit, 9 surfaces,
-    vendor libs present; path-traversal-safe; 0 runtime CDN in authored code)
+  * the register module imports + its in-module _selftest passes (toolkit, all
+    manifest surfaces, vendor libs present; path-traversal-safe; 0 runtime CDN in
+    authored code) — surface counts are derived from the SURFACES manifest, never hardcoded
   * three.js r170 is vendored (both WebGL2 + WebGPU builds) with the recorded sha256s
   * the renderer factory advertises WebGPU-with-WebGL2-fallback + a bloom pipeline
   * the live poller handles 404 / degraded and drives a LIVE badge; honesty label is read
   * all 4 doctrine honesty-label chips (MEASURED/MODELED/SAMPLE/STRUCTURAL-ONLY) render
-  * the holographic shell hosts a 9-slot tab-switcher that lazy-loads surface modules
+  * the holographic shell hosts a tab-switcher that lazy-loads surface modules (the 9
+    estate surfaces are always present; the frontier tier adds more)
   * NO external CDN URL is fetch-shaped anywhere in our authored 3d code/HTML
   * the selftest harness declares >= 15 checks
 """
@@ -37,14 +39,25 @@ def test_module_selftest_passes():
     m._selftest()
 
 
+# The 9 original estate surfaces — a permanent subset of the SURFACES manifest.
+# The full manifest has grown (frontier tier + estate); assert against the live
+# registry so the count never goes stale again.
+_ESTATE_SURFACE_IDS = {
+    "energy", "fabric", "pnt", "counter-uas", "governance",
+    "pinn", "router", "anatomy", "estate"}
+
+
 def test_info_surface_contract():
     i = m.info()
     assert i["vendor"]["three_revision"] == "r170"
-    assert len(i["surfaces"]) == 9
+    # derive from the SURFACES manifest (single source of truth) — never hardcode
+    assert len(i["surfaces"]) == len(m.SURFACES)
     assert i["doctrine"]["runtime_cdn"] == 0
     assert "WebGL2" in i["doctrine"]["webgpu"] or "WebGL2" in i["doctrine"]["webgpu"].replace("-", " ")
-    assert set(s["id"] for s in i["surfaces"]) == {
-        "energy", "fabric", "pnt", "counter-uas", "governance", "pinn", "router", "anatomy", "estate"}
+    # the info payload must expose exactly the ids declared in the manifest ...
+    assert set(s["id"] for s in i["surfaces"]) == {s["id"] for s in m.SURFACES}
+    # ... and the 9 original estate surfaces must always remain present.
+    assert _ESTATE_SURFACE_IDS <= set(s["id"] for s in i["surfaces"])
 
 
 def test_register_is_additive_and_returns_routes():
@@ -54,7 +67,8 @@ def test_register_is_additive_and_returns_routes():
     app = _FakeApp()
     out = m.register(app, ns="a11oy")
     assert out["count"] >= 3
-    assert out["surfaces"] == 9
+    # derive from the SURFACES manifest so this never goes stale as surfaces grow
+    assert out["surfaces"] == len(m.SURFACES)
     assert any(r == "/static/3d/{path:path}" or r == "/static/3d/{path}" for r in app.routes)
     assert "/holographic" in app.routes
     assert "/a11oy/holographic" in app.routes
