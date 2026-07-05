@@ -76,8 +76,12 @@ def test_shell_wires_all_nine_slots():
     for s in SLOTS:
         assert f"/static/3d/surfaces/{s}.js" in html, f"shell does not wire surface {s}"
     info = m.info()
-    assert len(info["surfaces"]) == 9
-    assert {sf["id"] for sf in info["surfaces"]} == set(SLOTS)
+    # The full manifest now carries the Dev0 frontier tier on top of the 9 estate
+    # slots — derive the count from the manifest so it never goes stale, and assert
+    # the 9 estate slots remain a subset of it.
+    assert len(info["surfaces"]) == len(m.SURFACES)
+    surface_ids = {sf["id"] for sf in info["surfaces"]}
+    assert set(SLOTS) <= surface_ids
 
 
 def test_all_nine_syntactically_valid_js():
