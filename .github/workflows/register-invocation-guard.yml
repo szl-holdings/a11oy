@@ -1,0 +1,87 @@
+name: Register-Invocation Guard
+
+# Root-cause fix for the recurring DEAD-TAB pattern in szl-holdings/a11oy: a
+# module is COPY'd into the image and DEFINES a top-level `def register(app, ...)`
+# (the a11oy surface-wiring contract), but serve.py NEVER imports+calls it — so
+# the surface's live routes silently 404 even though the module ships and its own
+# unit test (which calls register() on a throwaway app) stays GREEN.
+#
+# This is the INVERSE of the COPY-Completeness Guard:
+#   * copy-completeness-guard  checks:  imported        ⇒ COPY'd
+#   * THIS guard               checks:  COPY'd-register ⇒ called
+#
+# Both the 18 killinchu dead tabs AND the Counter-UAS dead tab
+# (szl_counter_uas_proxy.py — COPY'd, defines register(), was never called in
+# serve.py → all 5 /api/a11oy/v1/counter-uas/* endpoints 404'd live) died from
+# EXACTLY this inverse gap. A STATIC serve.py check (not a unit test) is the only
+# thing that catches it — the unit test can't, by construction.
+#
+# Runs on every PR + push to main; no external secrets required.
+#
+# NOTES FOR BRANCH PROTECTION
+# ----------------------------
+# Starting NON-REQUIRED (advisory) so it lands as a baseline like the
+# COPY-Completeness Guard did. Once the pre-existing backlog entries in
+# .github/register-invocation-allowlist.txt are wired-or-retired, promote
+# "Register invocation / unwired-register check" to a REQUIRED status check in
+# GitHub → Settings → Branches → Branch protection rules → main. Even while
+# advisory, it FAILS LOUDLY (red X) on any NEW unwired register().
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'serve.py'
+      - 'wayra_serve.py'
+      - 'ayni_os_serve.py'
+      - 'kipu_qillqaq_serve.py'
+      - '.github/scripts/register_invocation.py'
+      - '.github/register-invocation-allowlist.txt'
+      - '**.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'serve.py'
+      - 'wayra_serve.py'
+      - 'ayni_os_serve.py'
+      - 'kipu_qillqaq_serve.py'
+      - '.github/scripts/register_invocation.py'
+      - '.github/register-invocation-allowlist.txt'
+      - '**.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unwired-register:
+    name: Register invocation / unwired-register check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Run register-invocation guard
+        run: |
+          python3 .github/scripts/register_invocation.py \
+            --root . \
+            --entrypoints serve.py wayra_serve.py ayni_os_serve.py kipu_qillqaq_serve.py \
+            --allowlist .github/register-invocation-allowlist.txt
+        # Exit 1 = a module defines register() but is neither wired nor allow-listed.
+        # Exit 0 = every register()-defining module is wired or documented-exempt.
+
+      - name: Run built-in self-test (guard catches an unwired register())
+        # Verifies the guard itself has no false-negative blind spot: creates a
+        # synthetic module with an unwired register(), asserts the guard flags it,
+        # then cleans up. Must PASS (exit 0) for the CI step to pass.
+        run: |
+          python3 .github/scripts/register_invocation.py --missing-test

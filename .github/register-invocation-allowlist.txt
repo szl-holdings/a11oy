@@ -1,0 +1,70 @@
+# register-invocation-allowlist.txt
+# ---------------------------------------------------------------------------
+# DOCUMENTED exemptions for the register-invocation CI guard
+# (.github/scripts/register_invocation.py).
+#
+# The guard fails if a root-level *.py module defines a top-level `def register(`
+# but serve.py (or the other entrypoints) never imports+calls it — the DEAD-TAB
+# class that silently 404'd the Counter-UAS surface and the 18 killinchu tabs.
+#
+# Every line here is an INTENTIONAL exemption and MUST carry a reason after `#`
+# (a line with no reason is a hard error — no exemption is ever silent). Prune an
+# entry the moment its module is wired (the guard warns on stale entries).
+#
+# Format:   <module_name>   # <reason it is intentionally not wired via serve.py's register()>
+# ---------------------------------------------------------------------------
+
+# --- WIRED VIA A DYNAMIC IMPORT LOOP (serve.py uses __import__(var).register(...),
+#     which a STATIC AST check cannot resolve to a concrete module — documented
+#     guard limitation, not a dead tab). Verified live via the loop at serve.py. ---
+szl_chaski                  # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
+szl_wallpa                  # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
+szl_wasi_rikuq              # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
+szl_khipu_os_routes         # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
+szl_abacus_verify           # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_budget_router           # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_consensus_clusters      # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_decision_uncertainty    # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_gor_audit               # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_governance_gateway      # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_mission_ledger          # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_sovereign_search        # wired via a string-name dynamic register loop in serve.py (dynamic import)
+a11oy_uds_portability_nav   # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
+a11oy_waqay_nav             # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
+a11oy_willay_nav            # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
+a11oy_yupay_nav             # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
+
+# --- REGISTERED BY AN AGGREGATOR / PARENT MODULE (not directly by serve.py) ---
+szl_anatomy_loop            # registered by szl_dark_surfaces_register.register(), which IS wired in serve.py (#341)
+szl_mbse_cosim              # registered by szl_mbse.register() (szl_mbse IS wired in serve.py); mbse cosim is its real-endpoint child
+
+# --- ROUTES SERVED INLINE IN serve.py; the module-level register() is superseded ---
+szl_compliance_mesh         # routes mounted DIRECTLY inline in serve.py (front-moved) — register() intentionally bypassed per the documented compliance-mesh block
+szl_v4_fleet                # register() is documented dead code after uvicorn.run(); /api/a11oy/v4/fleet is re-served by an explicit inline @app.get route in serve.py
+
+# --- WIRED / CONSUMED BY NON-ENTRYPOINT MODULES (register() is a library helper
+#     invoked by another surface, not by an entrypoint) ---
+szl_khipu_consensus         # register()/helpers consumed by szl_agentic_loop, szl_elite_console, szl_willay_gateway (not an entrypoint surface)
+szl_mbse_nav                # nav-injection helper invoked by szl_mbse_cosim's page wiring, not directly by an entrypoint
+szl_qhawaq                  # register()/helpers consumed by szl_nemo_agents (not an entrypoint surface)
+szl_waqay                   # register()/helpers consumed by a11oy_org_rag, szl_nemo_agents, szl_yupay (not an entrypoint surface)
+szl_willay_gateway          # register()/helpers consumed by szl_nemo_agents, szl_waqay (not an entrypoint surface)
+szl_yupay                   # register()/helpers consumed by szl_nemo_agents, szl_uds_portability (not an entrypoint surface)
+szl_uds_portability         # register()/helpers consumed by szl_yupay; UDS portability nav is wired via a11oy_uds_portability_nav
+szl_scitt                   # SCITT register()/helpers consumed by szl_governed_api (governed-inference), which IS wired in serve.py
+szl_deepdive_gaps           # register() belongs to the organs/amaru sub-service entrypoint (organs/amaru/serve.py), not the a11oy root entrypoint
+szl_prod_hardening          # HTTP-hardening helpers consumed by szl_observability (which IS wired); not a standalone surface
+szl_receipt_substrate       # imported by serve.py for helper symbols; substrate wiring is applied via other wired surfaces, not a standalone register()
+szl_a11oy_live_feeds        # imported by serve.py for feed helpers; feed surfaces are mounted via the wired live/vertical feed registrars
+
+# --- PRE-EXISTING UNWIRED register() (baseline tech-debt, NOT introduced by this PR).
+#     These predate the guard and are the SAME dead-tab class as Counter-UAS. They
+#     are allow-listed HONESTLY as a documented backlog so the guard can land as a
+#     baseline (like copy-completeness did) WITHOUT masking future regressions:
+#     any NEW unwired register() still fails loudly. Each SHOULD be wired or
+#     retired in follow-up (see PUSHFIX_COUNTERUAS_RESULT.md). Do not add to this
+#     block casually — a genuinely new dead tab must be fixed, not exempted. ---
+lean_wire                   # PRE-EXISTING unwired: /api/a11oy/v1/lean-verify not mounted in serve.py — backlog, wire-or-retire (follow-up)
+szl_contracting             # PRE-EXISTING unwired: /api/a11oy/v1/contracting not mounted in serve.py — backlog, wire-or-retire (follow-up)
+szl_nemotron_corpus         # PRE-EXISTING unwired: /api/a11oy/v1/nemo (corpus) not mounted in serve.py — backlog, wire-or-retire (follow-up)
+szl_sapa_patch              # PRE-EXISTING unwired: SAPA energy-per-goal surface not mounted in serve.py — backlog, wire-or-retire (follow-up)

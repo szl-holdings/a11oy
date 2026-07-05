@@ -1265,6 +1265,41 @@ try:
 except Exception as _szl_cuas_e:  # pragma: no cover
     print(f"[a11oy] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
 
+# ── SZL Counter-UAS same-origin LIVE bridge (counter-uas-proxy) — REGRESSION RESTORE.
+# szl_counter_uas_proxy.py is COPY'd in-image + defines register(), but its wiring was
+# never added to serve.py, so all 5 /api/a11oy/v1/counter-uas/{evaluate,telemetry,
+# cued-tracks,air-picture,gates} endpoints 404'd LIVE (the /holographic Counter-UAS
+# surface rendered DEGRADED) while killinchu upstream serves them 200 — the SAME dead-
+# tab class that killed the 18 killinchu tabs. This is a same-origin proxy to the
+# killinchu decision+evidence organ (Doctrine v11: WIRE TO LIVE DATA, never fabricate;
+# honest {"degraded": true} envelope on any upstream failure). register() uses
+# app.add_api_route, which APPENDS to the router tail — so the routes lose to the
+# /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-alls and 404.
+# FRONT-MOVE the just-added counter-uas routes to the router HEAD so they win ordered
+# matching (same proven pattern as the governed-inverse-PINN block above). Additive,
+# try/except-guarded — a11oy boots even if this bridge is broken; it NEVER raises into
+# app startup. Λ = Conjecture 1 (advisory); killinchu SENSES & EVIDENCES (no defeat).
+try:
+    import szl_counter_uas_proxy as _szl_counter_uas
+    _cuas_proxy_status = _szl_counter_uas.register(app, ns="a11oy")
+    # ROUTE-ORDERING FIX (no bandaid): front-move the just-added counter-uas proxy
+    # routes to the HEAD of the router so they resolve LOCALLY ahead of the
+    # /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-alls.
+    try:
+        _cuas_prefix = "/api/a11oy/v1/counter-uas"
+        _cuas_moved = [r for r in app.router.routes
+                       if str(getattr(r, "path", "")).startswith(_cuas_prefix)]
+        for _r in _cuas_moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_cuas_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Counter-UAS proxy routes front-moved to router head: {len(_cuas_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _cuas_move_e:  # pragma: no cover
+        print(f"[a11oy] Counter-UAS proxy front-move skipped (routes still registered): {_cuas_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Counter-UAS same-origin live bridge registered: {_cuas_proxy_status}", file=__import__("sys").stderr)
+except Exception as _szl_cuas_proxy_e:  # pragma: no cover
+    print(f"[a11oy] Counter-UAS live bridge NOT registered (a11oy continues): {_szl_cuas_proxy_e!r}", file=__import__("sys").stderr)
+
 # ── SZL allometric / metabolic scaling (scaling-formula-patch) — WBE network
 # scaling (West-Brown-Enquist 1997) + Banavar transport exponent + MTE temperature
 # (Brown 2004) + Demetrius-Tuszynski proton-motive-force quantum-metabolism bridge

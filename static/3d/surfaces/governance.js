@@ -31,6 +31,10 @@
 // straight off the JSON. The legacy assurance routes are still polled (optional) and light
 // up automatically if the Forge mesh ever returns 200, but the tab no longer depends on them.
 //
+// SURFACE CONTRACT (same as its 8 siblings): each live endpoint above is polled via
+// ctx.live.poll (bound to _live = ctx.live in mount()); values are never hardcoded and
+// carry the honest STRUCTURAL-ONLY placeholder label until the live poll confirms them.
+//
 // TEACHING POINT (doctrine): a SIGNATURE is NOT proof of safety — CVE-2026-45321
 // (Mini Shai-Hulud): 84 @tanstack/* npm versions shipped VALID SLSA L3 / Sigstore
 // provenance; provenance flagged ZERO; behaviour caught all 84. Λ = Conjecture 1
@@ -609,6 +613,7 @@ function _buildOverlay(ctx) {
 // ===========================================================================
 function startPolls(ctx) {
   // 1) restraint posture (LIVE) -> doctrine lock, 6-rung ladder spec, Λ floor, codenames=0.
+  //    _live is ctx.live (aliased in mount()); the surface contract idiom is ctx.live.poll.
   _handles.push(_live.poll(EP.info, 15000, (json, meta) => {
     _state.info = meta;
     _applyPosture(json);
