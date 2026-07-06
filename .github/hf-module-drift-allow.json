@@ -26,5 +26,7 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {}
+  "accepted_divergences": {
+    "requirements.txt": "GitHub requirements.txt declares the mesh tracing dep closure (vsp-otel, opentelemetry-sdk/exporter-otlp >=1.43.0, py_ecc, sigstore >=4.3.0), but the Space build installs deps via the Dockerfile pip install RUNs and hf-sync only mirrors the Dockerfile COPY sources \u2014 it never syncs requirements.txt. So this file is advisory on GitHub and permanently diverges from the older Space copy; dependabot bumps here must not fail the drift guard. Accepted divergence (Doctrine v11: Dockerfile is the real dep source)."
+  }
 }
