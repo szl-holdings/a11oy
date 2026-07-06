@@ -277,7 +277,7 @@ signed-receipt moat is shown across three cross-referenced surfaces:
 | --- | --- | --- |
 | GitHub canonical source | <https://github.com/szl-holdings/a11oy#orbital-frontier-showcase> | source of truth |
 | HF orbital showcase Space | `https://huggingface.co/spaces/SZLHOLDINGS/orbital` (source in [`spaces/orbital/`](../../spaces/orbital/)) | MODELED roadmap |
-| Live orbital surface | <https://a11oy.net/orbital> | REAL page · MODELED data |
+| Live orbital surface | <https://a-11-oy.com/orbital> | REAL page · MODELED data |
 | UDS signed mesh bundle | `oci://ghcr.io/szl-holdings/szl-uds-bundle` (this artifact: `a11oy-uds`) | REAL, deployable |
 
 The orbital tier is **MODELED — no on-orbit hardware**; the UDS bundle and ground

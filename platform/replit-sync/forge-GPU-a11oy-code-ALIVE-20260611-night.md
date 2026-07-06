@@ -40,16 +40,16 @@ docker exec a11oy-ollama ollama pull qwen2.5-coder:32b
 # Ollama exposes an OpenAI-compatible path at http://localhost:11434/v1
 ```
 
-### THEN — point the a11oy.net deployment at it (the env wiring is the whole job)
+### THEN — point the a-11-oy.com deployment at it (the env wiring is the whole job)
 On the Hetzner a11oy container/pod env (NOT the HF Space — the Space can't reach the private GPU, it stays on router, which is correct):
 ```
 A11OY_MODEL_BASE_URL=http://127.0.0.1:8000/v1     # vLLM  (or http://127.0.0.1:11434/v1 for Ollama)
 A11OY_GPU_LABEL=NVIDIA RTX 5000 @ Hetzner
 # (optional) A11OY_LOCAL_MODEL_CMD only if you front it with a CLI rather than an HTTP endpoint
 ```
-Restart the a11oy.net service. Then verify:
+Restart the a-11-oy.com service. Then verify:
 ```
-curl -s https://a11oy.net/api/a11oy/code/healthz | jq '.inference, .backend, .gpu, .sovereign'
+curl -s https://a-11-oy.com/api/a11oy/code/healthz | jq '.inference, .backend, .gpu, .sovereign'
 # expect: inference no longer "hf-router"; backend "generative"; gpu "NVIDIA RTX 5000 @ Hetzner"; sovereign true
 ```
 Run one real governed turn through `/api/a11oy/code/run` and confirm the receipt shows the local model + a real completion (not the deterministic fallback).
@@ -57,7 +57,7 @@ Run one real governed turn through `/api/a11oy/code/run` and confirm the receipt
 ## DOCTRINE (honor exactly)
 - Open-weight models ONLY (no GPT/Claude/Gemini). Qwen/Llama/DeepSeek are fine and already in the roster.
 - The GPU label must be TRUE — only set `A11OY_GPU_LABEL` when the model is actually served on that GPU. Never label sovereign/local if it's still routing.
-- HF Space stays on hf-router (honest — it has no GPU); only a11oy.net (Hetzner) goes sovereign-local. The healthz on each will honestly differ.
+- HF Space stays on hf-router (honest — it has no GPU); only a-11-oy.com (Hetzner) goes sovereign-local. The healthz on each will honestly differ.
 - Trust never 100%; Λ=Conjecture 1; locked-proven=8; killinchu effector SIMULATED; no fabricated output (the engine already refuses to fake generative text — keep that).
 - Don't commit any key. The model endpoint is localhost-only on the box; don't expose port 8000/11434 publicly.
 

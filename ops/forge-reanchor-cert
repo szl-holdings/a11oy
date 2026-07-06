@@ -4,7 +4,7 @@
 # Sigstore Rekor transparency log, end to end, idempotently.
 #
 # WHY THIS EXISTS:
-#   The live a11oy.net site serves the cert from SZL_PINN_ARTIFACT_DIR
+#   The live a-11-oy.com site serves the cert from SZL_PINN_ARTIFACT_DIR
 #   (/opt/szl/a11oy-data, the container bind mount). Whenever a NEW measurement
 #   is produced (run_measured_pinn.py / forge_pinn_measure.py), the cert bytes
 #   change and any prior DSSE + transparency anchor no longer cover them. This

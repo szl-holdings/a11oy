@@ -6,9 +6,9 @@
 # surface pulls a resource from an external host. Honest: prints exact host+page.
 # Usage: ops/scan_cdn.sh [BASE]
 set -uo pipefail
-BASE="${1:-${A11OY_BASE:-https://a11oy.net}}"
+BASE="${1:-${A11OY_BASE:-https://a-11-oy.com}}"
 UA="cdn-scan/1.0"
-ALLOW="a11oy.net killinchu.net alloyszlholdings.com"
+ALLOW="a-11-oy.com killinchu.net alloyszlholdings.com"
 SURF="/ /warhacker /fabric /energy /counter-uas /fleet-c2 /holo /living-anatomy /hologram /pnt /agentic-gpu"
 viol=0
 for p in $SURF; do

@@ -23,7 +23,7 @@ good="$tmp/good.html"
 cat > "$good" <<'EOF'
 <header>
   <nav class="extlinks">
-    <a class="flag" href="https://a11oy.net/" target="_blank">a11oy.net</a>
+    <a class="flag" href="https://a-11-oy.com/" target="_blank">a-11-oy.com</a>
     <!-- service-status-link-patch -->
     <a class="flag" href="https://szl-holdings.github.io/a11oy/" target="_blank" rel="noopener noreferrer" title="a11oy live service-status board">&#9679; Service status</a>
   </nav>

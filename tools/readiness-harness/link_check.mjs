@@ -38,7 +38,7 @@ const TYPOS = [
   [/github\.com\/szl-holding(?![s\w-])/gi, 'GitHub URL typo: org is "szl-holdings"'],
   [/\bSZLHOLDING(?![S\w])/g, 'HF org typo: "SZLHOLDING" should be "SZLHOLDINGS"'],
   [/huggingface\.co\/SZLHOLDING(?![S\w])/g, 'HF URL typo: org is "SZLHOLDINGS"'],
-  [/a11oy\.ne\b(?!t)/g, 'domain typo: "a11oy.ne" should be "a11oy.net"'],
+  [/a11oy\.ne\b(?!t)/g, 'domain typo: "a11oy.ne" should be "a-11-oy.com"'],
   [/szl-holdings\.githu\b(?!b)/g, 'Pages URL typo: "githu" should be "github"'],
 ];
 

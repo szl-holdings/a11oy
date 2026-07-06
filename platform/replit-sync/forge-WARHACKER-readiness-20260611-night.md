@@ -7,7 +7,7 @@ A CTO/PM audit + 2 Opus 4.8 devs hardened the whole estate tab-by-tab against th
 **a11oy** (served `/console`, SPA = `console/index.html`):
 1. `command`↔`udsMesh` health contradiction reconciled — honest "1/5 external organ services on HF demo; in-image capability mesh 6/6" label. (Dev A `console.html` e6b97e9b/432a77c0)
 2. `deploy` PACKAGE chain now names OCI artifact `ghcr.io/szl-holdings/a11oy-bundle:0.5.0` (PENDING PUBLISH) + organ image `uds-v0.2.0` digest `45fa2365…`.
-3. Deploy-target legend: Cloud (HF) LIVE / Hetzner a11oy.net 167.233.50.75 LIVE / edge·airgap ROADMAP.
+3. Deploy-target legend: Cloud (HF) LIVE / Hetzner a-11-oy.com 167.233.50.75 LIVE / edge·airgap ROADMAP.
 4. KaTeX 0-CDN fonts — all 18 probed (woff2/woff/ttf) now 200 via `_vendor_blobs.py` (was 404 for woff/ttf).
 5. **Stale "Only 5 formulas" → honest "Only 8 formulas are formally proven (locked)" in the served `console/index.html` honesty panel (line 648).** Commit `5d0e4307`, HF `04dfff1f`, byte-identical `eefe9d59`, live-verified.
 

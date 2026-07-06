@@ -20,7 +20,7 @@ You added `szl_sovereign_compute.py` but it was never wired:
 - summary: "MANAGED/STUB — not yet on our GPU", sovereign_any: false
 
 ## The auto-flip is staged end-to-end
-The moment you bring up vLLM on the RTX 5000 and set on the a11oy.net deploy:
+The moment you bring up vLLM on the RTX 5000 and set on the a-11-oy.com deploy:
 - `A11OY_MODEL_BASE_URL=http://127.0.0.1:8000/v1`
 - `A11OY_GPU_LABEL=NVIDIA RTX 5000 @ Hetzner`
 …then `_sovereign_inference_state()` emits `inference:self-hosted-gpu, sovereign:true, gpu:<label>`, and this pane **auto-flips brain -> LIVE-SOVEREIGN** with zero further code change. (Embeddings flip too if you also set `A11OY_EMBED_BASE_URL` to a self-hosted TEI/vLLM `/embeddings` endpoint.)

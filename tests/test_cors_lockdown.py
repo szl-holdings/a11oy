@@ -3,7 +3,7 @@
 CORS used to be wide-open (``allow_origins=["*"]``), letting any website's browser
 JS read every a11oy API response cross-origin. ``serve.py`` now restricts the
 Access-Control-Allow-Origin allow-list to the known a11oy / killinchu / HF origins
-(+ localhost and a regex for ``szlholdings-*.hf.space`` / ``*.a11oy.net``).
+(+ localhost and a regex for ``szlholdings-*.hf.space`` / ``*.a-11-oy.com``).
 
 Crucially this must NOT break public read endpoints: CORS only governs
 CROSS-ORIGIN *browser JS* reads, so same-origin loads, server-to-server calls and
@@ -32,17 +32,17 @@ import serve  # noqa: E402
 API = "/api/a11oy/v1/honest"
 
 ALLOWED_ORIGINS = [
-    "https://a11oy.net",
-    "https://killinchu.a11oy.net",
+    "https://a-11-oy.com",
+    "https://killinchu.a-11-oy.com",
     "https://szlholdings-a11oy.hf.space",
     "https://szlholdings-killinchu.hf.space",
-    "https://immune.a11oy.net",   # via the *.a11oy.net regex
+    "https://immune.a-11-oy.com",   # via the *.a-11-oy.com regex
 ]
 
 DISALLOWED_ORIGINS = [
     "https://evil.example.com",
     "http://attacker.test",
-    "https://a11oy.net.evil.com",   # suffix-spoof must NOT match the regex
+    "https://a-11-oy.com.evil.com",   # suffix-spoof must NOT match the regex
 ]
 
 

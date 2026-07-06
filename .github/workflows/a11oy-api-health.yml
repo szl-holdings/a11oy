@@ -62,7 +62,7 @@ jobs:
           set +e
           python3 scripts/check_a11oy_api_health.py \
             --target "hf=https://szlholdings-a11oy.hf.space" \
-            --target "box=https://a11oy.net" \
+            --target "box=https://a-11-oy.com" \
             --summary-file /tmp/a11oy-api-health.json | tee /tmp/probe.log
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"

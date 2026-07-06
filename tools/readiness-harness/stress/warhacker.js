@@ -11,14 +11,14 @@
 // stress-targets.json next to this file; we fall back to a baked core list if it
 // is absent so the suite always runs.
 //
-//   k6 run -e A11OY_BASE=https://a11oy.net warhacker.js
-//   k6 run -e A11OY_BASE=https://a11oy.net -e PROFILE=soak warhacker.js
+//   k6 run -e A11OY_BASE=https://a-11-oy.com warhacker.js
+//   k6 run -e A11OY_BASE=https://a-11-oy.com -e PROFILE=soak warhacker.js
 
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
 
-const BASE = (__ENV.A11OY_BASE || "https://a11oy.net").replace(/\/$/, "");
+const BASE = (__ENV.A11OY_BASE || "https://a-11-oy.com").replace(/\/$/, "");
 const PROFILE = __ENV.PROFILE || "smoke";
 
 const lies = new Counter("lies");

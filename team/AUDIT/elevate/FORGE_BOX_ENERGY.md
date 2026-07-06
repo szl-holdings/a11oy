@@ -1,6 +1,6 @@
 # FORGE_BOX_ENERGY.md — Sovereign GPU box order (Lane C: Sovereign Inference + Energy)
 
-> **FOUNDER-APPROVAL-GATED.** The sovereign GPU box (a11oy.net; Hetzner, RTX 5000,
+> **FOUNDER-APPROVAL-GATED.** The sovereign GPU box (a-11-oy.com; Hetzner, RTX 5000,
 > `betterwithage`; vLLM/Ollama behind Tailscale) is dispatched ONLY via the Forge.
 > Dev C does **NOT** ssh into or modify the box. This file is the exact, copy-pasteable
 > set of commands/config the **CTO compiles into the Forge order**. Nothing here runs

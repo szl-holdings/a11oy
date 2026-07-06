@@ -28,15 +28,15 @@ node link_check.mjs                    # typo gate (fast, offline)
 node link_check.mjs --reach            # + external link reachability
 
 # 3. throttled API probe -> readiness-verdict.json + "Lies?" verdict
-node probe_runner.mjs --base https://a11oy.net
-node probe_runner.mjs --base https://a11oy.net --soft   # report, never fail
+node probe_runner.mjs --base https://a-11-oy.com
+node probe_runner.mjs --base https://a-11-oy.com --soft   # report, never fail
 
 # 4. live tab sweep (needs a running console)
-A11OY_BASE=https://a11oy.net npx playwright test tab_sweeper.spec.ts
+A11OY_BASE=https://a-11-oy.com npx playwright test tab_sweeper.spec.ts
 
 # 5. stress (manual; needs k6 installed)
-k6 run -e A11OY_BASE=https://a11oy.net stress/warhacker.js
-k6 run -e A11OY_BASE=https://a11oy.net -e PROFILE=soak stress/warhacker.js
+k6 run -e A11OY_BASE=https://a-11-oy.com stress/warhacker.js
+k6 run -e A11OY_BASE=https://a-11-oy.com -e PROFILE=soak stress/warhacker.js
 ```
 
 ## "Lies?" verdict rules (probe)

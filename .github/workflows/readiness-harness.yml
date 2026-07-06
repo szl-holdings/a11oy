@@ -30,7 +30,7 @@ on:
       base:
         description: 'Base URL to probe / sweep / stress'
         required: false
-        default: 'https://a11oy.net'
+        default: 'https://a-11-oy.com'
 
 permissions:
   contents: read
@@ -53,7 +53,7 @@ jobs:
           node-version: 22
       - name: Contract matrix drift gate (tabs.json == console)
         run: python3 "$HARNESS/gen_tabs_matrix.py" --check
-      - name: Typo / link gate (szl-holdings, a11oy.net, github)
+      - name: Typo / link gate (szl-holdings, a-11-oy.com, github)
         run: node "$HARNESS/link_check.mjs"
       - name: Probe runner syntax check
         run: node -c "$HARNESS/probe_runner.mjs"
@@ -71,7 +71,7 @@ jobs:
         # are reported honestly in the verdict + summary). Endpoint implementation
         # is out of scope for the harness; the verdict is the deliverable.
         run: |
-          BASE="${{ github.event.inputs.base || 'https://a11oy.net' }}"
+          BASE="${{ github.event.inputs.base || 'https://a-11-oy.com' }}"
           node "$HARNESS/probe_runner.mjs" --base "$BASE" --samples 1 --concurrency 2 --retries 2 --soft
       - name: Verdict -> job summary
         if: always()
@@ -114,7 +114,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y k6
       - name: Smoke profile
         run: |
-          BASE="${{ github.event.inputs.base || 'https://a11oy.net' }}"
+          BASE="${{ github.event.inputs.base || 'https://a-11-oy.com' }}"
           k6 run -e A11OY_BASE="$BASE" -e PROFILE=smoke "$HARNESS/stress/warhacker.js"
 
   sweep:
@@ -135,5 +135,5 @@ jobs:
       - name: Sweep every tab of the live console
         working-directory: tools/readiness-harness
         run: |
-          BASE="${{ github.event.inputs.base || 'https://a11oy.net' }}"
+          BASE="${{ github.event.inputs.base || 'https://a-11-oy.com' }}"
           A11OY_BASE="$BASE" npx playwright test tab_sweeper.spec.ts

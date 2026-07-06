@@ -1,8 +1,8 @@
-# FORGE — START NOW. Founder order: execute PATH A (make a11oy.net GENUINELY sovereign). 2026-06-12 21:32 EDT, T-4 to Warhacker.
+# FORGE — START NOW. Founder order: execute PATH A (make a-11-oy.com GENUINELY sovereign). 2026-06-12 21:32 EDT, T-4 to Warhacker.
 **This is a direct GO order from the founder (Stephen).** Not optional, not "when you get to it." Begin immediately and reply with STATUS. The box (Hetzner / betterwithage GPU / Tailscale / Docker / sudo) is yours — CI and the CTO agent CANNOT run `a11oy-rebuild`, so only you can close this.
 
 ## STATE (re-verified live 21:32 EDT, browser, cache-busted) — STILL the half-state
-a11oy.net `/api/a11oy/code/healthz`: `sovereign:true`, `inference:"self-hosted-gpu"`, `gpu:"NVIDIA GPU @ betterwithage (Tailscale) - Ollama llama3.1:8b"` — BUT `key_resolution = {base_url:"https://router.huggingface.co/v1", env_used:"HF_TOKEN", honest_note:"resolved via fallback HF_TOKEN (provider=hf-router)"}`. The banner claims sovereign; governed turns still hit the HF Router. This overclaim has been live ALL DAY. Close it tonight by making it REAL. a11oy main HEAD = 966aa634.
+a-11-oy.com `/api/a11oy/code/healthz`: `sovereign:true`, `inference:"self-hosted-gpu"`, `gpu:"NVIDIA GPU @ betterwithage (Tailscale) - Ollama llama3.1:8b"` — BUT `key_resolution = {base_url:"https://router.huggingface.co/v1", env_used:"HF_TOKEN", honest_note:"resolved via fallback HF_TOKEN (provider=hf-router)"}`. The banner claims sovereign; governed turns still hit the HF Router. This overclaim has been live ALL DAY. Close it tonight by making it REAL. a11oy main HEAD = 966aa634.
 
 ## DO THIS, IN ORDER (Path A — genuinely sovereign)
 
@@ -23,7 +23,7 @@ curl -s http://127.0.0.1:8000/v1/models
 ```
 
 ### 2. Point a11oy at the LOCAL endpoint + label the GPU, then apply the serving-path patch
-Set the env on the a11oy.net deploy (its .env / compose / systemd EnvironmentFile):
+Set the env on the a-11-oy.com deploy (its .env / compose / systemd EnvironmentFile):
 ```bash
 A11OY_MODEL_BASE_URL=http://127.0.0.1:11434/v1     # Ollama  (vLLM: http://127.0.0.1:8000/v1)
 A11OY_GPU_LABEL="NVIDIA RTX 5000 @ Hetzner (betterwithage)"
@@ -36,7 +36,7 @@ Keep it byte-identical if the touched module is shared (edit a11oy + killinchu i
 
 ### 3. PROVE it (all must hold — paste the outputs into your STATUS reply)
 ```bash
-curl -s https://a11oy.net/api/a11oy/code/healthz | jq '.sovereign,.inference,.gpu,.key_resolution.base_url,.key_resolution.env_used,.key_resolution.honest_note'
+curl -s https://a-11-oy.com/api/a11oy/code/healthz | jq '.sovereign,.inference,.gpu,.key_resolution.base_url,.key_resolution.env_used,.key_resolution.honest_note'
 # REQUIRED: sovereign=true, inference="self-hosted-gpu", base_url = the LOCAL endpoint (NOT router.huggingface.co), env_used != "HF_TOKEN"
 ```
 AND run ONE governed proof turn through `POST /api/a11oy/code/chat/stream` and confirm `event:route` shows `model` = your local tag AND there is **NO cost_usd** (local inference = free). Only when base_url is local AND a real turn is served by the GPU is `sovereign:true` TRUE.

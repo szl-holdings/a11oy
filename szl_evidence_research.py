@@ -53,7 +53,7 @@ _ARXIV = "https://export.arxiv.org/api/query"
 _OPENALEX = "https://api.openalex.org/works"
 _GH_REPO = "https://api.github.com/repos/"
 # OpenAlex "polite pool" wants a contact; overridable via env, never a secret.
-_MAILTO = os.environ.get("SZL_EVIDENCE_MAILTO", "research@a11oy.net")
+_MAILTO = os.environ.get("SZL_EVIDENCE_MAILTO", "research@a-11-oy.com")
 
 # ---------------------------------------------------------------------------
 # Curated claim -> evidence map. Every URL below is a real, resolvable source:

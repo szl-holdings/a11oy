@@ -25,7 +25,7 @@ tags:
 > Λ = Conjecture 1 (OPEN); sovereign = false on this path. Doctrine v11 LOCKED.
 
 This is a **public, login-free static showcase** that mirrors the live
-[`a11oy.net/orbital`](https://a11oy.net/orbital) surface: SZL's governed
+[`a-11-oy.com/orbital`](https://a-11-oy.com/orbital) surface: SZL's governed
 energy-receipt + signed-provenance moat, extended to space compute as a roadmap
 design.
 
@@ -65,7 +65,7 @@ JSON under [`./data/`](./data) — clearly labeled `SAMPLE` in the UI and captur
 
 | Surface | Link | Status |
 | --- | --- | --- |
-| Live orbital surface (canonical) | <https://a11oy.net/orbital> | REAL page · MODELED data |
+| Live orbital surface (canonical) | <https://a-11-oy.com/orbital> | REAL page · MODELED data |
 | a11oy application Space | <https://huggingface.co/spaces/SZLHOLDINGS/a11oy> | LIVE app |
 | GitHub canonical source | <https://github.com/szl-holdings/a11oy#orbital-frontier-showcase> | source of truth |
 | UDS signed mesh bundle | `oci://ghcr.io/szl-holdings/szl-uds-bundle` | cosign-signed, Rekor-anchored |

@@ -23,7 +23,7 @@ WHY (the observability gap this closes):
   unreachable. That, and only that, is "a home node just dropped".
 
 WHAT THIS DOES (no new always-on poller; piggybacks the EXISTING probe):
-  1. GET the hardened compute-pool surface from the BOX target (a11oy.net) — the
+  1. GET the hardened compute-pool surface from the BOX target (a-11-oy.com) — the
      box is the Tailscale peer, so it is the ONLY vantage point where the
      tailnet GPU nodes are genuinely reachable. (The HF Space is off-tailnet and
      reports every GPU node unreachable by construction; probing it would be a
@@ -55,7 +55,7 @@ HONESTY / DOCTRINE v11 (binding, by construction):
 
 Usage:
   check_sovereign_node_drop.py \
-      --target https://a11oy.net \
+      --target https://a-11-oy.com \
       --prev-snapshot /path/to/prev.json   # absent/empty on first run -> all "never-seen"
       --write-snapshot /path/to/next.json \
       --summary-file /tmp/node-drop.json \
@@ -205,7 +205,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         description="Honest sovereign-GPU node-drop detector (reachable->unreachable transition)."
     )
-    ap.add_argument("--target", default="https://a11oy.net",
+    ap.add_argument("--target", default="https://a-11-oy.com",
                     help="Base URL of the BOX (tailnet peer) serving the hardened compute-pool.")
     ap.add_argument("--prev-snapshot", default="",
                     help="Path to the previous sweep snapshot JSON (absent on first run).")
