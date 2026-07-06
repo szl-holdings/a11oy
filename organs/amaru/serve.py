@@ -1405,7 +1405,7 @@ except Exception as _ke:
 # === INGESTION_BLOCK_BETTERWITHAGE (amaru; Yachay CTO + Perplexity Computer Agent 2026-06-02) ===
 # === Constellation 3D tab. ADDITIVE only. Registered BEFORE the SPA catch-all (resolves LOCAL). ===
 # === 2026-06-15: the original betterwithage/khipu-constellation static Space went 401-dead       ===
-# === (white-screen iframe). Repointed to the LIVE a11oy 3D estate at a11oy.net/holographic        ===
+# === (white-screen iframe). Repointed to the LIVE a11oy 3D estate at a-11-oy.com/holographic        ===
 # === (curl-verified 200) so the tab renders real content instead of a blank/auth-walled iframe.  ===
 # === Doctrine v11: honest live source beats a dead embed; no fabricated 'LIVE' claim.            ===
 from fastapi.responses import HTMLResponse as _IngestHTMLResponse
@@ -1419,10 +1419,10 @@ _CONSTELLATION_3D_HTML = """<!DOCTYPE html>
 iframe{width:100%;height:calc(100vh - 56px);border:0}</style></head>
 <body>
 <div class="topbar">
-<div><strong>amaru . Khipu Constellation 3D</strong> <span style="color:#7f8db0">- live 3D estate (a11oy.net/holographic)</span> <span class="badge">source LIVE</span></div>
-<div><a href="/">back</a> <a href="https://a11oy.net/holographic" target="_blank">open full view</a></div>
+<div><strong>amaru . Khipu Constellation 3D</strong> <span style="color:#7f8db0">- live 3D estate (a-11-oy.com/holographic)</span> <span class="badge">source LIVE</span></div>
+<div><a href="/">back</a> <a href="https://a-11-oy.com/holographic" target="_blank">open full view</a></div>
 </div>
-<iframe src="https://a11oy.net/holographic" allow="cross-origin-isolated; fullscreen" loading="lazy"></iframe>
+<iframe src="https://a-11-oy.com/holographic" allow="cross-origin-isolated; fullscreen" loading="lazy"></iframe>
 </body></html>"""
 
 @app.get("/constellation-3d")

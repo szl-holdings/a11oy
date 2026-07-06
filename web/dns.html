@@ -47,12 +47,12 @@ ol{margin:6px 0 6px 18px;padding:0}ol li{margin:4px 0}
 <table>
 <tr><th>Host / record</th><th>Type</th><th>Target</th><th>TTL</th><th>Status</th><th>Notes / action</th></tr>
 <tr>
-  <td><code>immune.a11oy.net</code></td>
+  <td><code>immune.a-11-oy.com</code></td>
   <td>A</td>
   <td><code>167.233.50.75</code></td>
   <td>300</td>
   <td><span class="b amber">PENDING</span> <span class="b red">BLOCKED</span></td>
-  <td>Box side is staged: nginx vhost added (<code>nginx -t</code> OK), container listening, TLS to be issued by certbot <i>after</i> the A-record resolves. Add the A-record at the registrar for <code>a11oy.net</code>. Registrar API is disabled at the account level (Namecheap error 1011102), so it must be added <b>by hand in the registrar dashboard</b> — see step list below. No outage in the meantime: immune is served on Hugging Face.</td>
+  <td>Box side is staged: nginx vhost added (<code>nginx -t</code> OK), container listening, TLS to be issued by certbot <i>after</i> the A-record resolves. Add the A-record at the registrar for <code>a-11-oy.com</code>. Registrar API is disabled at the account level (Namecheap error 1011102), so it must be added <b>by hand in the registrar dashboard</b> — see step list below. No outage in the meantime: immune is served on Hugging Face.</td>
 </tr>
 </table>
 </div>
@@ -89,11 +89,11 @@ ol{margin:6px 0 6px 18px;padding:0}ol li{margin:4px 0}
 <h2>3 · How to add a record</h2>
 <div class="card">
 <ol>
-<li>Sign in to the registrar that holds the domain (a11oy.net is on Namecheap).</li>
+<li>Sign in to the registrar that holds the domain (a-11-oy.com is on Namecheap).</li>
 <li>Open <b>Domain List → Manage → Advanced DNS</b>.</li>
 <li>Add a new record: <b>Type</b> = A, <b>Host</b> = the left-most label (e.g. <code>immune</code>), <b>Value</b> = the target IP, <b>TTL</b> = Automatic (or 300).</li>
-<li>Save. Allow a few minutes to propagate, then verify with <code>dig immune.a11oy.net +short</code> (should return the target IP).</li>
-<li>Once it resolves, issue TLS on the box: <code>certbot --nginx -d immune.a11oy.net</code>.</li>
+<li>Save. Allow a few minutes to propagate, then verify with <code>dig immune.a-11-oy.com +short</code> (should return the target IP).</li>
+<li>Once it resolves, issue TLS on the box: <code>certbot --nginx -d immune.a-11-oy.com</code>.</li>
 </ol>
 <p class="note">The registrar API is disabled on this account (Namecheap returns error 1011102, "API Key is invalid or API access has not been enabled"), so these records can't be added programmatically right now — they must be added by hand in the dashboard, or API access re-enabled in the registrar account settings.</p>
 </div>

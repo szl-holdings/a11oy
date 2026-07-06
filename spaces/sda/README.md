@@ -31,7 +31,7 @@ descriptions and a verified-permissive lineage.
 3. **A live COP visual** — an elegant canvas Common Operating Picture: fused tracks as blips, an anomaly
    overlay coloured by score, a per-track anomaly-score panel, and a sensor-fusion convergence diagram.
    It reads the live killinchu `/api/killinchu/v1/mosaic/cop` endpoint when reachable (re-labels **LIVE**),
-   and the **sovereign GPU fabric** via `a11oy.net /v1/compute-pool` with an honest **SNAPSHOT** fallback;
+   and the **sovereign GPU fabric** via `a-11-oy.com /v1/compute-pool` with an honest **SNAPSHOT** fallback;
    otherwise it shows clearly labelled **demo data**.
 4. **The moat** — a **verified verdict receipt** panel showing the honest DSSE-shaped fields (method,
    inputs hash, anomaly score, fused track id, Λ verdict allow/advisory/deny, conformal CI, walltime,

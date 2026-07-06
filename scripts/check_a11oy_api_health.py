@@ -28,7 +28,7 @@ and no third-party GitHub Action (org policy: github-owned/verified actions only
 Usage:
   check_a11oy_api_health.py \
       --target hf=https://szlholdings-a11oy.hf.space \
-      [--target box=https://a11oy.net] \
+      [--target box=https://a-11-oy.com] \
       [--summary-file out.json] [--attempts 5] [--sleep 15] [--timeout 20]
 """
 from __future__ import annotations

@@ -712,7 +712,16 @@ async function runBVIR() {
   }
 
   // Step 5: Hash-chain check
-  const receiptDigest   = receipt.digest || receipt.payload_digest || '';
+  // IMPORTANT: keep the receipt's DECLARED payload digest separate from the
+  // chain/receipt id. receipt.digest is the chain id; receipt.payload_digest is
+  // the digest the receipt DECLARES for its payload. The MATCH/MISMATCH chip must
+  // compare the recomputed payload sha256 against the DECLARED payload digest only,
+  // never against the chain id (that comparison is meaningless and would show a
+  // spurious red MISMATCH next to a genuinely VERIFIED signature).
+  const declaredPayloadDigest = String(receipt.payload_digest || '').toLowerCase();
+  const hasDeclaredDigest      = declaredPayloadDigest.length > 0;
+  const payloadDigestMatches   = hasDeclaredDigest &&
+        (payloadDigestComputed.toLowerCase() === declaredPayloadDigest);
   const chainPrev       = receipt.prev || '(genesis)';
   const chainDigest     = receipt.digest || '';
 
@@ -743,13 +752,44 @@ async function runBVIR() {
     </div>`;
   }
 
+  // Two clearly separate, non-contradictory results:
+  //   (1) signature verify   -> shown in the verdict banner above
+  //   (2) payload-digest match -> computed sha256 vs the receipt's DECLARED payload_digest
+  // When the receipt declares no payload_digest we show an honest neutral state,
+  // NEVER a red MISMATCH.
+  let digestChipClass, digestChipText, digestValClass;
+  if (!hasDeclaredDigest) {
+    digestChipClass = 'chip-dim';
+    digestChipText  = 'NO DECLARED DIGEST';
+    digestValClass  = '';
+  } else if (payloadDigestMatches) {
+    digestChipClass = 'chip-ok';
+    digestChipText  = 'MATCH';
+    digestValClass  = 'hash-match';
+  } else {
+    digestChipClass = 'chip-err';
+    digestChipText  = 'MISMATCH';
+    digestValClass  = 'hash-mismatch';
+  }
+
   verdictHTML += `
     <div style="margin-bottom:12px">
       <div class="hash-row">
-        <span class="hash-label">Payload digest:</span>
-        <span class="hash-val ${payloadDigestComputed === receiptDigest.substring(0,64) ? 'hash-match':'hash-mismatch'}">${payloadDigestComputed.substring(0,32)}…</span>
-        <span class="chip ${payloadDigestComputed === receiptDigest.substring(0,64) ? 'chip-ok':'chip-err'}">${payloadDigestComputed === receiptDigest.substring(0,64) ? 'MATCH':'MISMATCH'}</span>
+        <span class="hash-label">Signature verify:</span>
+        <span class="chip ${verified ? 'chip-ok' : (dsse.signed === false ? 'chip-dim' : 'chip-err')}">${verified ? 'VERIFIED' : (dsse.signed === false ? 'UNSIGNED' : 'FAILED')}</span>
       </div>
+      <div class="hash-row">
+        <span class="hash-label">Payload digest:</span>
+        <span class="hash-val ${digestValClass}">${payloadDigestComputed.substring(0,32)}…</span>
+        <span class="chip ${digestChipClass}">${digestChipText}</span>
+      </div>
+      ${hasDeclaredDigest ? `<div class="hash-row">
+        <span class="hash-label">Declared digest:</span>
+        <span class="hash-val">${escHTML(declaredPayloadDigest.substring(0,32))}…</span>
+      </div>` : `<div class="hash-row">
+        <span class="hash-label">Declared digest:</span>
+        <span class="hash-val" style="color:var(--text-dim)">(none declared — nothing to compare against)</span>
+      </div>`}
       <div class="hash-row">
         <span class="hash-label">PAE SHA-256:</span>
         <span class="hash-val">${paeSHA.substring(0,32)}…</span>
@@ -787,6 +827,8 @@ async function runBVIR() {
     'dsse.payloadType': dsse.payloadType,
     'verify.public_key_url': pubKeyURL,
     'verify.computed_payload_sha256': payloadDigestComputed.substring(0,32) + '…',
+    'verify.declared_payload_digest': hasDeclaredDigest ? declaredPayloadDigest.substring(0,32) + '…' : null,
+    'verify.payload_digest_match': hasDeclaredDigest ? (payloadDigestMatches ? 'MATCH' : 'MISMATCH') : 'no declared digest to compare',
     'verify.pae_sha256': paeSHA.substring(0,32) + '…',
     'verify.result': verified ? (isDemoKey ? 'VERIFIED ✓ (demo-signing-key — not production cosign)' : 'VERIFIED ✓') : (dsse.signed === false ? 'UNSIGNED (no private key in runtime)' : 'FAILED: ' + verifyError),
     'energy.label': (data.energy||{}).label,

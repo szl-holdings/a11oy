@@ -13,7 +13,7 @@ is to govern it from GitHub, not supersede it.
 
 **Deploy model:** the Space `Dockerfile` is whole-context (`COPY . /app`, `python -m
 http.server 7860`). It is **pure static** (no backing API of its own; it reads other live
-endpoints — killinchu `/api/killinchu/v1/mosaic/cop`, `a11oy.net /v1/compute-pool` — when
+endpoints — killinchu `/api/killinchu/v1/mosaic/cop`, `a-11-oy.com /v1/compute-pool` — when
 reachable, else labelled demo/snapshot data). Because it is whole-context, the org
 reusable per-file-`COPY` deployer deliberately **skips** it; this folder is the governed
 source and the Space is rebuilt from its own contents. A tree-hash drift-check (compare

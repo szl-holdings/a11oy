@@ -13,7 +13,7 @@
 // lie is found, unless --soft is passed.
 //
 // No external deps — Node >= 18 global fetch only.
-//   node probe_runner.mjs --base https://a11oy.net [--samples 5] [--concurrency 3]
+//   node probe_runner.mjs --base https://a-11-oy.com [--samples 5] [--concurrency 3]
 //                         [--soft] [--out readiness-verdict.json]
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -29,7 +29,7 @@ function arg(name, def) {
   return v && !v.startsWith("--") ? v : true;
 }
 
-const BASE = String(arg("base", process.env.A11OY_BASE || "https://a11oy.net")).replace(/\/$/, "");
+const BASE = String(arg("base", process.env.A11OY_BASE || "https://a-11-oy.com")).replace(/\/$/, "");
 const SAMPLES = parseInt(arg("samples", "5"), 10);
 const CONCURRENCY = parseInt(arg("concurrency", "2"), 10);
 const TIMEOUT_MS = parseInt(arg("timeout", "15000"), 10);

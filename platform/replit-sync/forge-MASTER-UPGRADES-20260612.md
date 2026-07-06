@@ -8,8 +8,8 @@
 
 ### 1. Bring a11oy-Code ALIVE on the RTX 5000 (already ordered — `forge-GPU-a11oy-code-ALIVE-20260611-night.md`)
 - vLLM serving `Qwen/Qwen2.5-Coder-32B-Instruct-AWQ` (or Llama-3.1-8B unquantized) on the GPU, OpenAI-compatible.
-- On the **a11oy.net (Hetzner) deployment** set: `A11OY_MODEL_BASE_URL=http://127.0.0.1:8000/v1` + `A11OY_GPU_LABEL=NVIDIA RTX 5000 @ Hetzner`. Restart.
-- Verify: `curl https://a11oy.net/api/a11oy/code/healthz | jq '.inference,.backend,.gpu,.sovereign'` → expect NOT "hf-router", `backend:"generative"`, `gpu:"NVIDIA RTX 5000 @ Hetzner"`, `sovereign:true`.
+- On the **a-11-oy.com (Hetzner) deployment** set: `A11OY_MODEL_BASE_URL=http://127.0.0.1:8000/v1` + `A11OY_GPU_LABEL=NVIDIA RTX 5000 @ Hetzner`. Restart.
+- Verify: `curl https://a-11-oy.com/api/a11oy/code/healthz | jq '.inference,.backend,.gpu,.sovereign'` → expect NOT "hf-router", `backend:"generative"`, `gpu:"NVIDIA RTX 5000 @ Hetzner"`, `sovereign:true`.
 - **The engine GPU-label code is already shipped & live (commit `63fca023`/`f691f8a7`, byte-identical).** This is pure ops + 2 env vars.
 - *Impact:* sovereign local-GPU governed agent = the literal cloud→edge story. **#1 wow.**
 

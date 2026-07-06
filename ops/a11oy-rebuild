@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# a11oy-rebuild — rebuild the a11oy.net Docker image from the PUBLISHED GitHub
+# a11oy-rebuild — rebuild the a-11-oy.com Docker image from the PUBLISHED GitHub
 # source of truth (szl-holdings/a11oy), discarding any local working-tree drift,
 # then recreate the running container. Idempotent and safe to re-run.
 #
 # WHY THIS EXISTS:
 #   The box build tree (/opt/szl/a11oy) is routinely BEHIND GitHub main (stale
 #   remote-tracking ref + hand-patched files). The Docker image used to be built
-#   straight from that drifting tree, so the live a11oy.net image could silently
+#   straight from that drifting tree, so the live a-11-oy.com image could silently
 #   diverge from the published source. This wrapper guarantees every rebuild
 #   starts from a clean checkout of origin/main, so the running container always
 #   reflects what is published. DO NOT hand-patch the tree and `docker build`

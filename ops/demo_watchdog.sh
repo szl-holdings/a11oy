@@ -8,7 +8,7 @@
 # Usage: ops/demo_watchdog.sh [BASE]
 #   env: WATCHDOG_INTERVAL (default 30), WATCHDOG_NTFY_URL (optional)
 set -uo pipefail
-BASE="${1:-${A11OY_BASE:-https://a11oy.net}}"
+BASE="${1:-${A11OY_BASE:-https://a-11-oy.com}}"
 INTERVAL="${WATCHDOG_INTERVAL:-30}"
 NTFY="${WATCHDOG_NTFY_URL:-}"
 UA="demo-watchdog/1.0"

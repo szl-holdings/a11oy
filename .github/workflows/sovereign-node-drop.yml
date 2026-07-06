@@ -11,7 +11,7 @@
 # unreachable.
 #
 # This monitor piggybacks the EXISTING probe (it adds NO always-on poller): every
-# 30 min it GETs the hardened surface from the BOX (a11oy.net — the Tailscale
+# 30 min it GETs the hardened surface from the BOX (a-11-oy.com — the Tailscale
 # peer, the only vantage point where the tailnet GPU nodes are genuinely
 # reachable; the HF Space is off-tailnet and would false-alarm), diffs each
 # SOVEREIGN GPU node's reachable flag against the previous sweep persisted on the
@@ -107,7 +107,7 @@ jobs:
         run: |
           set +e
           python3 scripts/check_sovereign_node_drop.py \
-            --target "https://a11oy.net" \
+            --target "https://a-11-oy.com" \
             --prev-snapshot /tmp/prev.json \
             --write-snapshot /tmp/next.json \
             --summary-file /tmp/node-drop.json | tee /tmp/drop.log

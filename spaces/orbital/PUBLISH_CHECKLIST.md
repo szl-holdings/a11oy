@@ -2,7 +2,7 @@
 
 This directory (`spaces/orbital/`) is the **complete, ready-to-push** content for a
 dedicated public Hugging Face **static** Space that mirrors the live
-`a11oy.net/orbital` MODELED orbital-compute showcase.
+`a-11-oy.com/orbital` MODELED orbital-compute showcase.
 
 The sandbox that prepared this **could not push to Hugging Face directly** (no
 `hugging_face` connector in the build env). The founder/parent agent should push
@@ -44,7 +44,7 @@ api.upload_folder(
     repo_id=repo_id,
     repo_type="space",
     folder_path="spaces/orbital",
-    commit_message="publish MODELED orbital-compute roadmap showcase (mirrors a11oy.net/orbital)",
+    commit_message="publish MODELED orbital-compute roadmap showcase (mirrors a-11-oy.com/orbital)",
 )
 print("published:", "https://huggingface.co/spaces/" + repo_id)
 PY

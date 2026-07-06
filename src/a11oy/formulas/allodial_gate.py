@@ -170,25 +170,25 @@ if __name__ == "__main__":
     checks = 0
 
     # 1. local_node_serving=True → sovereign:true, half_state:false
-    r = sovereign_verdict("a11oy-node-0", "https://a11oy.net", True)
+    r = sovereign_verdict("a11oy-node-0", "https://a-11-oy.com", True)
     assert r["sovereign"] is True, "local serving must yield sovereign:true"
     assert r["half_state"] is False, "local serving must not be a half-state"
     checks += 2
 
     # 2. Banner sovereign (non-external served_by) + local_node_serving=False → half_state:true, sovereign:false
-    r2 = sovereign_verdict("a11oy-node-0", "https://a11oy.net", False)
+    r2 = sovereign_verdict("a11oy-node-0", "https://a-11-oy.com", False)
     assert r2["sovereign"] is False, "external routing must yield sovereign:false"
     assert r2["half_state"] is True, "banner+no-local-serving must be half_state:true"
     checks += 2
 
     # 3. Explicit external router + local_node_serving=False → sovereign:false, half_state:false (honest)
-    r3 = sovereign_verdict("external-router", "https://a11oy.net", False)
+    r3 = sovereign_verdict("external-router", "https://a-11-oy.com", False)
     assert r3["sovereign"] is False, "explicit external must yield sovereign:false"
     assert r3["half_state"] is False, "explicit external with no claim must not be half-state"
     checks += 2
 
     # 4. CDN variant: served_by contains "cloudflare", local_node_serving=False
-    r4 = sovereign_verdict("cloudflare-cdn", "https://a11oy.net", False)
+    r4 = sovereign_verdict("cloudflare-cdn", "https://a-11-oy.com", False)
     assert r4["half_state"] is False, "known external CDN must not be half-state"
     assert r4["sovereign"] is False, "CDN serving must yield sovereign:false"
     checks += 2

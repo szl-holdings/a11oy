@@ -1,7 +1,7 @@
 {
   "harness": "a11oy-readiness probe",
   "doctrine": "v11",
-  "base": "https://a11oy.net",
+  "base": "https://a-11-oy.com",
   "checkedAt": "2026-06-09T16:05:31.805Z",
   "summary": {
     "endpoints": 38,

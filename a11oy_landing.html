@@ -11,7 +11,7 @@
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
   Receipts are signed on write, never on GET. Every claim deep-links a live surface to check.
   DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
-  preserved verbatim below. KANCHAY palette. No purple. No a11oy.net.
+  preserved verbatim below. KANCHAY palette. No purple. No a11oy.net (sunset domain).
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
 <html lang="en">
@@ -134,6 +134,7 @@
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   .stat .k{font-size:1.55rem;font-weight:600;font-family:var(--mono);line-height:1.1;color:var(--ink)}
   .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
+  .stat .l .stat-note{display:block;text-transform:none;letter-spacing:0;font-size:10px;color:var(--ghost);opacity:.8;margin-top:2px;font-weight:400}
   .stat .k.proof{color:var(--proof)}
   .stat .k.gray{color:var(--gray)}
 
@@ -304,7 +305,7 @@
       <div class="hero-stats">
         <div class="stat">
           <div class="k proof" id="hs-receipts">—</div>
-          <div class="l">Signed receipts <span id="hs-receipts-chip"></span></div>
+          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction</span></div>
         </div>
         <div class="stat">
           <div class="k gray" id="hs-lambda">Conjecture 1</div>
@@ -312,7 +313,7 @@
         </div>
         <div class="stat">
           <div class="k" id="hs-proven">8</div>
-          <div class="l">Locked Lean-proven theorems</div>
+          <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
         </div>
       </div>
     </div>
@@ -619,7 +620,13 @@
     $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : liveChip(alg || "sha3_256");
     if(alg) $("chain-alg").textContent = alg;
     $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
-    if(head){ const h = String(head); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
+    // Normalize head to the receipt id STRING. Some feeds (e.g. org/overview)
+    // return last_receipt as an object ({receipt_id, ...}); passing that straight
+    // to String() rendered a literal "[object Object]" in the LAST RECEIPT ID slot.
+    const headId = (head && typeof head === "object")
+      ? (head.receipt_id || head.id || head.digest || "")
+      : head;
+    if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
     else { $("chain-head").textContent = "N/A"; }
   }
 

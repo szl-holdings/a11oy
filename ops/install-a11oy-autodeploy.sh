@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install-a11oy-autodeploy.sh — one-shot installer (run ONCE on the Hetzner box).
-# Sets up automatic a11oy.net redeploy: a small systemd timer polls GitHub main
+# Sets up automatic a-11-oy.com redeploy: a small systemd timer polls GitHub main
 # every 3 minutes and runs `a11oy-rebuild` only when origin/main has actually
 # moved. Idempotent: safe to re-run; it just rewrites the unit files.
 #
@@ -37,7 +37,7 @@ REMOTE_SHA=\$(git ls-remote origin "refs/heads/\$BRANCH" 2>/dev/null | awk '{pri
 [ -z "\$REMOTE_SHA" ] && { echo "[autodeploy] cannot reach origin; skip"; exit 0; }
 LAST=\$(cat "\$STATE_FILE" 2>/dev/null || echo "")
 if [ "\$REMOTE_SHA" = "\$LAST" ]; then exit 0; fi
-echo "[autodeploy] origin/\$BRANCH moved \$LAST -> \$REMOTE_SHA ; rebuilding a11oy.net"
+echo "[autodeploy] origin/\$BRANCH moved \$LAST -> \$REMOTE_SHA ; rebuilding a-11-oy.com"
 if "\$REBUILD_BIN"; then echo "\$REMOTE_SHA" > "\$STATE_FILE"; echo "[autodeploy] OK, deployed \$REMOTE_SHA"
 else echo "[autodeploy] a11oy-rebuild FAILED for \$REMOTE_SHA (will retry next tick)"; exit 1; fi
 EOF
@@ -46,7 +46,7 @@ chmod +x /usr/local/bin/a11oy-autodeploy-check
 # --- systemd service + timer (every 3 min) -----------------------------------
 cat > /etc/systemd/system/a11oy-autodeploy.service <<'EOF'
 [Unit]
-Description=a11oy.net auto-deploy (rebuild when GitHub main moves)
+Description=a-11-oy.com auto-deploy (rebuild when GitHub main moves)
 After=network-online.target docker.service
 Wants=network-online.target
 [Service]
@@ -56,7 +56,7 @@ EOF
 
 cat > /etc/systemd/system/a11oy-autodeploy.timer <<'EOF'
 [Unit]
-Description=Poll GitHub main every 3 min and redeploy a11oy.net on change
+Description=Poll GitHub main every 3 min and redeploy a-11-oy.com on change
 [Timer]
 OnBootSec=2min
 OnUnitActiveSec=3min

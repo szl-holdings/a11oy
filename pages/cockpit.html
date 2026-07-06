@@ -197,7 +197,16 @@
     var allUp = (d.organs_healthy!=null && d.organs_total!=null && d.organs_healthy===d.organs_total);
     var eJ = (energy.joules&&energy.joules.value!=null)?energy.joules.value:null;
     var eLabel = (energy.joules&&energy.joules.label)?energy.joules.label:"sample";
-    var eHonest = (eJ!=null)?'<span class="honest live">MEASURED</span>':'<span class="honest sample">'+esc(eLabel).toUpperCase()+'</span>';
+    // Honesty (Doctrine v11): the backend engine/status endpoint is the single source of
+    // truth for the MEASURED/SAMPLE label — it only says "measured" when a fresh on-box NVML
+    // exporter sample exists (szl_joules_truth), and never upgrades to measured otherwise.
+    // Do NOT infer MEASURED merely because a joules VALUE is present: that produced a
+    // contradiction where the cockpit showed MEASURED while the header and /energy showed
+    // SAMPLE for the same metric. Trust the source label.
+    var eMeasured = (eLabel.toLowerCase()==="measured");
+    var eHonest = eMeasured
+      ? '<span class="honest live">MEASURED</span>'
+      : '<span class="honest sample">'+esc(eLabel).toUpperCase()+'</span>';
 
     grid.innerHTML = ''+
     '<div class="card big"><div class="scan"></div><h2>Organism health</h2>'+
@@ -214,7 +223,7 @@
     '</div>'+
 
     '<div class="card small"><h2>Energy &nbsp;'+eHonest+'</h2>'+
-      '<div class="metric" style="font-size:24px">'+(eJ!=null?esc(eJ)+' <span class="unit">J</span>':'<span class="unit">no measured sample</span>')+'</div>'+
+      '<div class="metric" style="font-size:24px">'+(eJ!=null?esc(eJ)+' <span class="unit">J'+(eMeasured?'':' ('+esc(eLabel)+')')+'</span>':'<span class="unit">no measured sample</span>')+'</div>'+
       '<div class="kv"><span class="k">within bound</span><span class="v">'+esc(energy.within_bound==null?"—":energy.within_bound)+'</span></div>'+
       '<div class="kv"><span class="k">source</span><span class="v">'+esc(energy.source!=null?energy.source:"—")+'</span></div>'+
     '</div>'+

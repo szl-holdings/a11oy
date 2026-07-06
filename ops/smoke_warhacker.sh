@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ops/smoke_warhacker.sh - golden-path demo smoke for a11oy.net (+ killinchu).
+# ops/smoke_warhacker.sh - golden-path demo smoke for a-11-oy.com (+ killinchu).
 # Honest by design: every web surface is checked for HTTP 200 AND a content
 # marker actually present in the served body, so a white-screen or wrong-page
 # fallback (200 with empty/wrong content) is caught, never passed. Energy/mesh
@@ -8,10 +8,10 @@
 # GENESIS; jtoken carries an honest label; compute-pool has >=1 reachable node;
 # PNT pillars wired). Never fabricates a pass. Finishes well under 5 min.
 # Exit 0 = all green (demo go); non-zero = at least one RED.
-# Usage: ops/smoke_warhacker.sh [BASE]        (default https://a11oy.net)
+# Usage: ops/smoke_warhacker.sh [BASE]        (default https://a-11-oy.com)
 set -uo pipefail
-BASE="${1:-${A11OY_BASE:-https://a11oy.net}}"
-KILL="${KILLINCHU_BASE:-https://killinchu.a11oy.net}"
+BASE="${1:-${A11OY_BASE:-https://a-11-oy.com}}"
+KILL="${KILLINCHU_BASE:-https://killinchu.a-11-oy.com}"
 TIMEOUT="${SMOKE_TIMEOUT:-20}"
 UA="warhacker-smoke/1.0"
 PASS=0; FAIL=0; REDS=""
@@ -45,7 +45,7 @@ PY
 )"
   verdict="${out%%|*}"; info="${out#*|}"
   if [ "$verdict" = OK ]; then green "$1" "$info"; else red "$1" "$info"; fi; }
-echo "== a11oy.net web surfaces ($BASE) =="
+echo "== a-11-oy.com web surfaces ($BASE) =="
 page "root /"           "/"               "Governed-AI Command Platform"
 page "warhacker"        "/warhacker"      "Mission Surfaces"
 page "fabric/tawantin"  "/fabric"         "TAWANTIN"

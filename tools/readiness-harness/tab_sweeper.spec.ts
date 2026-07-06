@@ -12,7 +12,7 @@
 // The matrix is the single source of truth, so adding a tab to tabs.json
 // automatically adds it to this sweep. Set A11OY_BASE to point at a deploy.
 //
-//   A11OY_BASE=https://a11oy.net npx playwright test tab_sweeper.spec.ts
+//   A11OY_BASE=https://a-11-oy.com npx playwright test tab_sweeper.spec.ts
 
 import { test, expect, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const matrix = JSON.parse(readFileSync(join(HERE, "tabs.json"), "utf8"));
-const BASE = (process.env.A11OY_BASE || "https://a11oy.net").replace(/\/$/, "");
+const BASE = (process.env.A11OY_BASE || "https://a-11-oy.com").replace(/\/$/, "");
 
 // raw "this is fake" words that must never appear as bare visible text
 const BANNED = ["lorem ipsum", "fabricated data", "mock data", "placeholder text", "todo:", "coming soon"];

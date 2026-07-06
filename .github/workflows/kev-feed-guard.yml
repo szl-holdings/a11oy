@@ -98,7 +98,7 @@ jobs:
       - name: Probe /vert/cyber/feed and assert kev freshness=live
         id: probe
         env:
-          TARGETS: "hf=https://szlholdings-a11oy.hf.space box=https://a11oy.net"
+          TARGETS: "hf=https://szlholdings-a11oy.hf.space box=https://a-11-oy.com"
         run: |
           set +e
           python3 - "$TARGETS" <<'PY' | tee /tmp/kev-probe.log

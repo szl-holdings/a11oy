@@ -10,14 +10,14 @@ An Opus 4.8 dev just WIRED the real serving path (no bandaid). a11oy main HEAD =
 1. Serve an open-weight model on the betterwithage GPU, OpenAI-compatible:
    - Ollama: `ollama pull qwen2.5-coder:7b` (code) + keep `llama3.1:8b` (general); `curl -s http://127.0.0.1:11434/v1/models` must list them.
    - or vLLM: `docker run -d --restart=always --gpus all -p 8000:8000 -v ~/.cache/huggingface:/root/.cache/huggingface vllm/vllm-openai:latest --model Qwen/Qwen2.5-Coder-7B-Instruct --max-model-len 16384 --served-model-name qwen2.5-coder-7b`; `curl -s http://127.0.0.1:8000/v1/models`.
-2. Set on the a11oy.net deploy env (.env / compose / systemd EnvironmentFile):
+2. Set on the a-11-oy.com deploy env (.env / compose / systemd EnvironmentFile):
    `A11OY_MODEL_BASE_URL=http://127.0.0.1:11434/v1`   (vLLM: http://127.0.0.1:8000/v1)
    `A11OY_GPU_LABEL="NVIDIA RTX 5000 @ Hetzner (betterwithage)"`
    (optional exact tags) `A11OY_LOCAL_CODE_MODEL=qwen2.5-coder:7b`  `A11OY_LOCAL_GENERAL_MODEL=llama3.1:8b`
 3. `sudo a11oy-rebuild`   <-- the only sudo step; CI/agent cannot do this.
 
 ## PROVE (paste into forge-STATUS):
-`curl -s https://a11oy.net/api/a11oy/code/healthz | jq '.sovereign,.inference,.gpu,.key_resolution.base_url,.key_resolution.env_used'`
+`curl -s https://a-11-oy.com/api/a11oy/code/healthz | jq '.sovereign,.inference,.gpu,.key_resolution.base_url,.key_resolution.env_used'`
 REQUIRED: sovereign=true, inference="self-hosted-gpu", base_url = the LOCAL endpoint (NOT router.huggingface.co), env_used != "HF_TOKEN".
 AND one `/api/a11oy/code/chat/stream` turn: event:route model = your local tag, NO cost_usd.
 

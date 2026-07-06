@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Config for the a11oy readiness tab sweeper. Point A11OY_BASE at a live deploy
-// (defaults to https://a11oy.net). No webServer is started — the sweeper checks a
+// (defaults to https://a-11-oy.com). No webServer is started — the sweeper checks a
 // real running console, never a mock.
 export default defineConfig({
   testDir: ".",
@@ -16,7 +16,7 @@ export default defineConfig({
     ? [["list"], ["json", { outputFile: "sweeper-report.json" }]]
     : [["list"]],
   use: {
-    baseURL: process.env.A11OY_BASE || "https://a11oy.net",
+    baseURL: process.env.A11OY_BASE || "https://a-11-oy.com",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     actionTimeout: 15_000,

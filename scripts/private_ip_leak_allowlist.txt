@@ -10,12 +10,12 @@
 # ----------------------------------------------------------------------------
 
 # DNS & subdomains roadmap page intentionally documents the PUBLIC self-hosted
-# Hetzner box IP as the planned A record (e.g. immune.a11oy.net A 167.233.50.75).
+# Hetzner box IP as the planned A record (e.g. immune.a-11-oy.com A 167.233.50.75).
 # This is a public server IP shown by design on a roadmap page — not a private leak.
 web/dns.html:167.233.50.75
 
 # Console "self-hosted" LIVE badge shows the same PUBLIC box IP next to the
-# a11oy.net hostname. Public-facing, intentional, user-visible label.
+# a-11-oy.com hostname. Public-facing, intentional, user-visible label.
 pages/console.html:167.233.50.75
 
 # Third-party Ollama API usage examples in the cookbook dataset use the standard
