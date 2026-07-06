@@ -64,7 +64,6 @@ szl_a11oy_live_feeds        # imported by serve.py for feed helpers; feed surfac
 #     any NEW unwired register() still fails loudly. Each SHOULD be wired or
 #     retired in follow-up (see PUSHFIX_COUNTERUAS_RESULT.md). Do not add to this
 #     block casually — a genuinely new dead tab must be fixed, not exempted. ---
-lean_wire                   # PRE-EXISTING unwired: /api/a11oy/v1/lean-verify not mounted in serve.py — backlog, wire-or-retire (follow-up)
 szl_contracting             # PRE-EXISTING unwired: /api/a11oy/v1/contracting not mounted in serve.py — backlog, wire-or-retire (follow-up)
 szl_nemotron_corpus         # PRE-EXISTING unwired: /api/a11oy/v1/nemo (corpus) not mounted in serve.py — backlog, wire-or-retire (follow-up)
 szl_sapa_patch              # PRE-EXISTING unwired: SAPA energy-per-goal surface not mounted in serve.py — backlog, wire-or-retire (follow-up)
