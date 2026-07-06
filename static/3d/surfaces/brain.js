@@ -37,6 +37,8 @@ const EP_FIRE   = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbra
 const EP_REPAIR = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/repair?down=F1&steps=12";
 // wave-17: multi-timescale plasticity probe (Hebb/BCM/STDP/EWC per-tier learning rates)
 const EP_PLAST  = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/plasticity?seed=42&rounds=30";
+// wave-18: write-back memory loop (HEART/BLOOD hash-chain + A-MEM reconsolidation)
+const EP_MEM    = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/memory?seed=42&sessions=5";
 
 // tier -> colour. proof-teal for the proven core, lattice-blue for verified/experimental,
 // violet-blue for borrowed fusions, GREY for conjectures (never green).
@@ -69,6 +71,7 @@ const S = {
   nodesFired: null, conjGreen: null, state: "init",
   lesion: null, bodyHealth: null, lam2Before: null, lam2After: null, connectedAfter: null,
   lockedFrozen: null, plastScore: null, ewcCore: null,
+  beats: null, chainOk: null, reconsGain: null,
 };
 
 // deterministic layout: concentric shells by tier (locked core -> outward),
@@ -106,6 +109,7 @@ function mount(ctx) {
   _polls.push(ctx.live.poll(EP_FIRE, 5000, _onFire, { onState: (m) => { S.state = m.state; _paintOverlay(); } }));
   _polls.push(ctx.live.poll(EP_REPAIR, 0, _onRepair, {}));
   _polls.push(ctx.live.poll(EP_PLAST, 0, _onPlast, {}));
+  _polls.push(ctx.live.poll(EP_MEM, 0, _onMem, {}));
 
   if (!_frameReg && _stage.onFrame) { _stage.onFrame(_animate); _frameReg = true; }
 }
@@ -230,6 +234,15 @@ function _onPlast(j) {
   _paintOverlay();
 }
 
+function _onMem(j) {
+  if (!j) return;
+  const p = j.payload || j;
+  S.beats = p.beats_written != null ? p.beats_written : null;
+  S.chainOk = p.chain_intact != null ? p.chain_intact : null;
+  S.reconsGain = p.reconsolidation_gain != null ? p.reconsolidation_gain : null;
+  _paintOverlay();
+}
+
 // =============================================================================
 // overlay HUD
 // =============================================================================
@@ -260,6 +273,11 @@ function _buildOverlay(ctx) {
     _row("Locked canon frozen", "brain-frozen") +
     _row("Plasticity score", "brain-plast") +
     _row("EWC core protection", "brain-ewc") +
+    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Memory (write-back loop)</div>' +
+    _row("Receipt beats written", "brain-beats") +
+    _row("Hash chain intact", "brain-chain") +
+    _row("Reconsolidation gain", "brain-recons") +
     '<div id="brain-tiers" style="margin-top:6px;font-size:10.5px;color:#8fb3bd"></div>' +
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">' +
       _leg(C_LOCKED, "proven-8") + _leg(C_SEMANT, "verified") + _leg(C_BORROW, "borrowed") + _leg(C_CONJ, "conjecture (gray)") +
@@ -298,6 +316,9 @@ function _paintOverlay() {
   _set("brain-frozen", d || (S.lockedFrozen != null ? (S.lockedFrozen ? "yes (never drifts)" : "NO \u2014 alert") : "\u2014"));
   _set("brain-plast", d || (S.plastScore != null ? S.plastScore.toFixed(3) : "\u2014"));
   _set("brain-ewc", d || (S.ewcCore != null ? S.ewcCore.toFixed(5) : "\u2014"));
+  _set("brain-beats", d || (S.beats != null ? String(S.beats) : "\u2014"));
+  _set("brain-chain", d || (S.chainOk != null ? (S.chainOk ? "yes (tamper-evident)" : "NO \u2014 alert") : "\u2014"));
+  _set("brain-recons", d || (S.reconsGain != null ? (S.reconsGain >= 0 ? "+" : "") + S.reconsGain + " nodes" : "\u2014"));
   if (S.tierCounts) {
     const t = S.tierCounts;
     _set("brain-tiers", "tiers: locked " + (t.locked || 0) + " · semantic " + (t.semantic || 0) +
@@ -348,7 +369,8 @@ function unmount() {
   S.lockedCount = S.rewardPerK = S.rewardFinal = S.nodesFired = S.conjGreen = null;
   S.lesion = S.bodyHealth = S.lam2Before = S.lam2After = S.connectedAfter = null;
   S.lockedFrozen = S.plastScore = S.ewcCore = null;
+  S.beats = S.chainOk = S.reconsGain = null;
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST, EP_MEM], mount, unmount };
