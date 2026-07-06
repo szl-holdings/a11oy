@@ -82,6 +82,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "pinn", "title": "PINN", "owner": "Dev6"},
     {"id": "router", "title": "Router", "owner": "Dev7"},
     {"id": "anatomy", "title": "Anatomy", "owner": "Dev8"},
+    {"id": "anatomy_body", "title": "Anatomy · Living Body", "owner": "Dev8"},
     {"id": "estate", "title": "Estate", "owner": "Dev9"},
 ]
 
