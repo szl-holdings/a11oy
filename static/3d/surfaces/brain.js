@@ -35,6 +35,8 @@ const EP_GRAPH  = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbra
 const EP_FIRE   = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/fire?seed=42&K=10";
 // wave-16: self-repair probe (lesion F1, a known articulation point, and heal)
 const EP_REPAIR = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/repair?down=F1&steps=12";
+// wave-17: multi-timescale plasticity probe (Hebb/BCM/STDP/EWC per-tier learning rates)
+const EP_PLAST  = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/plasticity?seed=42&rounds=30";
 
 // tier -> colour. proof-teal for the proven core, lattice-blue for verified/experimental,
 // violet-blue for borrowed fusions, GREY for conjectures (never green).
@@ -66,6 +68,7 @@ const S = {
   lockedCount: null, rewardPerK: null, rewardFinal: null,
   nodesFired: null, conjGreen: null, state: "init",
   lesion: null, bodyHealth: null, lam2Before: null, lam2After: null, connectedAfter: null,
+  lockedFrozen: null, plastScore: null, ewcCore: null,
 };
 
 // deterministic layout: concentric shells by tier (locked core -> outward),
@@ -102,6 +105,7 @@ function mount(ctx) {
   _polls.push(ctx.live.poll(EP_GRAPH, 0, _onGraph, { badge: _badge, onState: (m) => { S.state = m.state; _paintOverlay(); } }));
   _polls.push(ctx.live.poll(EP_FIRE, 5000, _onFire, { onState: (m) => { S.state = m.state; _paintOverlay(); } }));
   _polls.push(ctx.live.poll(EP_REPAIR, 0, _onRepair, {}));
+  _polls.push(ctx.live.poll(EP_PLAST, 0, _onPlast, {}));
 
   if (!_frameReg && _stage.onFrame) { _stage.onFrame(_animate); _frameReg = true; }
 }
@@ -217,6 +221,15 @@ function _onRepair(j) {
   _paintOverlay();
 }
 
+function _onPlast(j) {
+  if (!j) return;
+  const p = j.payload || j;
+  S.lockedFrozen = p.locked_edges_unchanged != null ? p.locked_edges_unchanged : null;
+  S.plastScore = p.plasticity_score != null ? p.plasticity_score : null;
+  S.ewcCore = p.ewc_core_protection_penalty != null ? p.ewc_core_protection_penalty : null;
+  _paintOverlay();
+}
+
 // =============================================================================
 // overlay HUD
 // =============================================================================
@@ -242,6 +255,11 @@ function _buildOverlay(ctx) {
     _row("Body health (healed)", "brain-bodyhealth") +
     _row("Connectivity \u03bb2 aft.", "brain-lam2") +
     _row("Still one mind?", "brain-connected") +
+    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Plasticity (multi-timescale)</div>' +
+    _row("Locked canon frozen", "brain-frozen") +
+    _row("Plasticity score", "brain-plast") +
+    _row("EWC core protection", "brain-ewc") +
     '<div id="brain-tiers" style="margin-top:6px;font-size:10.5px;color:#8fb3bd"></div>' +
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">' +
       _leg(C_LOCKED, "proven-8") + _leg(C_SEMANT, "verified") + _leg(C_BORROW, "borrowed") + _leg(C_CONJ, "conjecture (gray)") +
@@ -277,6 +295,9 @@ function _paintOverlay() {
   _set("brain-bodyhealth", d || (S.bodyHealth != null ? (S.bodyHealth * 100).toFixed(1) + "%" : "\u2014"));
   _set("brain-lam2", d || (S.lam2After != null ? (S.lam2Before != null ? S.lam2Before.toFixed(3) + " \u2192 " : "") + S.lam2After.toFixed(3) : "\u2014"));
   _set("brain-connected", d || (S.connectedAfter != null ? (S.connectedAfter ? "yes" : "no \u2014 cut-vertex") : "\u2014"));
+  _set("brain-frozen", d || (S.lockedFrozen != null ? (S.lockedFrozen ? "yes (never drifts)" : "NO \u2014 alert") : "\u2014"));
+  _set("brain-plast", d || (S.plastScore != null ? S.plastScore.toFixed(3) : "\u2014"));
+  _set("brain-ewc", d || (S.ewcCore != null ? S.ewcCore.toFixed(5) : "\u2014"));
   if (S.tierCounts) {
     const t = S.tierCounts;
     _set("brain-tiers", "tiers: locked " + (t.locked || 0) + " · semantic " + (t.semantic || 0) +
@@ -326,7 +347,8 @@ function unmount() {
   S.label = null; S.nodes = []; S.edges = []; S.tierCounts = null;
   S.lockedCount = S.rewardPerK = S.rewardFinal = S.nodesFired = S.conjGreen = null;
   S.lesion = S.bodyHealth = S.lam2Before = S.lam2After = S.connectedAfter = null;
+  S.lockedFrozen = S.plastScore = S.ewcCore = null;
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST], mount, unmount };
