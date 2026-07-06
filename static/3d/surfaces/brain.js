@@ -31,8 +31,10 @@
 const ID    = "brain";
 const TITLE = "Formula-Graph Brain";
 
-const EP_GRAPH = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/graph";
-const EP_FIRE  = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/fire?seed=42&K=10";
+const EP_GRAPH  = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/graph";
+const EP_FIRE   = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/fire?seed=42&K=10";
+// wave-16: self-repair probe (lesion F1, a known articulation point, and heal)
+const EP_REPAIR = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/repair?down=F1&steps=12";
 
 // tier -> colour. proof-teal for the proven core, lattice-blue for verified/experimental,
 // violet-blue for borrowed fusions, GREY for conjectures (never green).
@@ -63,6 +65,7 @@ const S = {
   label: null, nodes: [], edges: [], tierCounts: null,
   lockedCount: null, rewardPerK: null, rewardFinal: null,
   nodesFired: null, conjGreen: null, state: "init",
+  lesion: null, bodyHealth: null, lam2Before: null, lam2After: null, connectedAfter: null,
 };
 
 // deterministic layout: concentric shells by tier (locked core -> outward),
@@ -98,6 +101,7 @@ function mount(ctx) {
   // Pull the real graph once, then poll the firing snapshot.
   _polls.push(ctx.live.poll(EP_GRAPH, 0, _onGraph, { badge: _badge, onState: (m) => { S.state = m.state; _paintOverlay(); } }));
   _polls.push(ctx.live.poll(EP_FIRE, 5000, _onFire, { onState: (m) => { S.state = m.state; _paintOverlay(); } }));
+  _polls.push(ctx.live.poll(EP_REPAIR, 0, _onRepair, {}));
 
   if (!_frameReg && _stage.onFrame) { _stage.onFrame(_animate); _frameReg = true; }
 }
@@ -202,6 +206,17 @@ function _animate() {
   });
 }
 
+function _onRepair(j) {
+  if (!j) return;
+  const p = j.payload || j;
+  S.lesion = p.lesion != null ? p.lesion : null;
+  S.bodyHealth = p.body_health_excl_lesion != null ? p.body_health_excl_lesion : null;
+  S.lam2Before = p.fiedler_lambda2_before != null ? p.fiedler_lambda2_before : null;
+  S.lam2After = p.fiedler_lambda2_after != null ? p.fiedler_lambda2_after : null;
+  S.connectedAfter = p.still_connected_after_lesion != null ? p.still_connected_after_lesion : null;
+  _paintOverlay();
+}
+
 // =============================================================================
 // overlay HUD
 // =============================================================================
@@ -221,6 +236,12 @@ function _buildOverlay(ctx) {
     _row("Firing reward (final)", "brain-reward") +
     _row("Proven nodes fired", "brain-fired") +
     _row("Conjectures shown green", "brain-conjgreen") +
+    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Self-repair (lesion &rarr; heal)</div>' +
+    _row("Lesioned node", "brain-lesion") +
+    _row("Body health (healed)", "brain-bodyhealth") +
+    _row("Connectivity \u03bb2 aft.", "brain-lam2") +
+    _row("Still one mind?", "brain-connected") +
     '<div id="brain-tiers" style="margin-top:6px;font-size:10.5px;color:#8fb3bd"></div>' +
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">' +
       _leg(C_LOCKED, "proven-8") + _leg(C_SEMANT, "verified") + _leg(C_BORROW, "borrowed") + _leg(C_CONJ, "conjecture (gray)") +
@@ -252,6 +273,10 @@ function _paintOverlay() {
   _set("brain-reward", d || (S.rewardFinal != null ? (S.rewardFinal * 100).toFixed(1) + "% mass" : "—"));
   _set("brain-fired", d || (S.nodesFired != null ? String(S.nodesFired) : "—"));
   _set("brain-conjgreen", d || (S.conjGreen != null ? (S.conjGreen + " (must be 0)") : "—"));
+  _set("brain-lesion", d || (S.lesion != null ? String(S.lesion) : "\u2014"));
+  _set("brain-bodyhealth", d || (S.bodyHealth != null ? (S.bodyHealth * 100).toFixed(1) + "%" : "\u2014"));
+  _set("brain-lam2", d || (S.lam2After != null ? (S.lam2Before != null ? S.lam2Before.toFixed(3) + " \u2192 " : "") + S.lam2After.toFixed(3) : "\u2014"));
+  _set("brain-connected", d || (S.connectedAfter != null ? (S.connectedAfter ? "yes" : "no \u2014 cut-vertex") : "\u2014"));
   if (S.tierCounts) {
     const t = S.tierCounts;
     _set("brain-tiers", "tiers: locked " + (t.locked || 0) + " · semantic " + (t.semantic || 0) +
@@ -300,7 +325,8 @@ function unmount() {
   _stage = _THREE = _ctx = null;
   S.label = null; S.nodes = []; S.edges = []; S.tierCounts = null;
   S.lockedCount = S.rewardPerK = S.rewardFinal = S.nodesFired = S.conjGreen = null;
+  S.lesion = S.bodyHealth = S.lam2Before = S.lam2After = S.connectedAfter = null;
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR], mount, unmount };
