@@ -1,9 +1,18 @@
-# Consolidation: a11oy is the platform home
+# Consolidation: a11oy is a product front-end over the platform spine
 
-Per CEO directive, **a11oy** (`github.com/szl-holdings/a11oy`) is the TRUE consolidated
-home of the SZL platform. This repository ingests the real source of the other organs
-and shared infrastructure so that a11oy is self-contained — not merely a UI that calls
-remote services.
+> **Corrected 2026-07-06 per [DECISION-0001 — canonical spine](https://github.com/szl-holdings/.github/blob/main/decisions/DECISION-0001-canonical-spine.md).**
+> An earlier version of this file called a11oy "the TRUE consolidated home of the SZL
+> platform." That was inaccurate: it conflated the shared **platform code spine**
+> (`szl-holdings/platform` — substrate/runtime/agentic/MCP) with a **product
+> front-end**. Per DECISION-0001, **platform** is the canonical code spine, and
+> **a11oy** and **killinchu** are product front-ends that **depend on shared
+> packages, not forks**. Sites: `a-11-oy.com` = the a11oy platform product,
+> `a11oy.net` = killinchu.
+
+This repository is the **a11oy product front-end**. It ingests source from other organs
+for provenance/history so a11oy can be understood as a self-contained product surface —
+not merely a UI that calls remote services — but it is **not** the canonical home of the
+platform spine; the spine is `szl-holdings/platform`, per DECISION-0001.
 
 ## What lives where
 
