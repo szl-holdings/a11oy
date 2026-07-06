@@ -23,20 +23,36 @@
  :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--gold:#e8c074;--green:#2fd07a;--cream:#eef3f6;--para:#9fb1bf;}
  *{box-sizing:border-box}
  html,body{margin:0;height:100%}
- body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;overflow:hidden}
+ /* Flex column so the 3D stage always fills whatever space the header leaves,
+    no matter how far the badges/links wrap on a narrow phone. dvh tracks the mobile
+    address-bar collapse; svh/100vh are fallbacks for older engines. */
+ body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  overflow:hidden;display:flex;flex-direction:column;height:100vh;height:100svh;height:100dvh}
  header{padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#08101a,#05070d);
-  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:0 0 auto}
  h1{font-size:16px;margin:0;letter-spacing:.4px}
  .badge{display:inline-block;font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace;padding:2px 7px;border-radius:6px;
-  border:1px solid var(--line);color:var(--gold);background:#10171f}
+  border:1px solid var(--line);color:var(--gold);background:#10171f;white-space:nowrap}
  #backend{color:var(--teal)}
  #count{color:var(--green)}
- #stage-wrap{position:relative;width:100vw;height:calc(100vh - 50px)}
+ #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
  #stage{position:absolute;inset:0}
- #stage canvas{display:block;width:100%;height:100%}
+ #stage canvas{display:block;width:100%;height:100%;touch-action:none}
  #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
   text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace}
  a{color:var(--teal);text-decoration:none}
+
+ /* ---- Mobile / touch (<=640px) ---------------------------------------- */
+ @media (max-width:640px){
+  header{padding:8px 12px;gap:8px}
+  h1{font-size:14px;flex:1 1 100%}
+  .badge{font-size:9.5px;padding:2px 6px}
+  /* Give the 3D stage a guaranteed usable share of the screen on phones. */
+  #stage-wrap{min-height:52vh}
+ }
+ @media (max-width:640px) and (orientation:landscape){
+  #stage-wrap{min-height:60vh}
+ }
 </style>
 </head>
 <body>
