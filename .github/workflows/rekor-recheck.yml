@@ -285,9 +285,15 @@ jobs:
       # Fires ONLY when a published receipt no longer verifies (same condition
       # the incident issue uses); the all-pass path sends nothing. Posts to a
       # Slack-compatible incoming webhook via curl (no third-party action, so it
-      # stays within the org's github-owned/verified-actions-only policy). If no
-      # webhook secret is configured it logs a notice and soft-skips — the red
-      # run + incident issue still stand.
+      # stays within the org's github-owned/verified-actions-only policy).
+      #
+      # FAIL-LOUD (issue #541): this step only runs when there IS a real receipt
+      # failure to page about, so a dead alert channel here is a SILENT ALARM on a
+      # receipts company. If the webhook is unset/empty, unreachable (curl
+      # timeout / transport error), or returns non-2xx (e.g. HTTP 502), this step
+      # exits NON-ZERO with an ::error:: — the alert-DELIVERY step must never read
+      # green when a genuine failure could not be paged. Doctrine: never let a
+      # dead alarm read as green.
       - name: Alert the team directly on re-check failure
         if: ${{ always() && (steps.recheck.outputs.failed != '0' || steps.recheck.outputs.exit_code == '1') }}
         env:
@@ -306,8 +312,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
-            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the rolling rekor-recheck incident issue still stand."
-            exit 0
+            echo "::error::receipt-alert channel UNAVAILABLE — SLACK_WEBHOOK_URL is unset/empty while a published governance receipt is FAILING re-check. The failure will NOT page. Failing this step loudly (a dead alarm must never read green); the rolling rekor-recheck incident issue still stands. Re-set the SLACK_WEBHOOK_URL secret to the a11oy-uptime ntfy webhook."
+            exit 1
           fi
 
           if [ -n "${ISSUE_URL}" ]; then
@@ -342,12 +348,17 @@ jobs:
           payload=$(jq -n --arg text "$text" '{text: $text}')
 
           echo "Posting receipt-failure alert to Slack webhook..."
+          curl_rc=0
           code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
                    -X POST -H 'Content-Type: application/json' \
-                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}") || curl_rc=$?
+          if [ "${curl_rc}" -ne 0 ]; then
+            echo "::error::receipt-alert channel UNREACHABLE — curl transport error (exit ${curl_rc}, e.g. timeout/DNS/connection refused) while paging a FAILING receipt. The failure did NOT page; failing loudly. Re-check/rotate the SLACK_WEBHOOK_URL webhook."
+            exit 1
+          fi
           echo "Webhook responded HTTP ${code}."
           if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
-            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            echo "::error::receipt-alert channel UNAVAILABLE — webhook POST did not return 2xx (HTTP ${code}): $(cat /tmp/slack_resp.txt). A FAILING receipt did NOT page; failing loudly (dead alarm must not read green). Rotate the SLACK_WEBHOOK_URL webhook."
             exit 1
           fi
           echo "Direct alert delivered."
