@@ -266,6 +266,10 @@ def govern_posture(deadline_s: float = MESH_PROBE_DEADLINE_S) -> dict:
             "role": _role_for_engine(eng, i),
             "model": eng.get("model"),
             "gpu_model": _gpu_model_token(eng.get("name") or ""),
+            # The NVML joule-meter engine label this node reports (e.g. 'omen' for the
+            # tower, 'betterwithage' for the laptop) — used to attribute live watts/joules
+            # from the MERGED multi-meter scrape by engine name (see build_mesh).
+            "exporter": eng.get("exporter"),
             "is_glm": bool(eng.get("is_glm")),
             "live": live_by_idx.get(i),
         })
@@ -339,15 +343,54 @@ def build_live() -> dict:
 # ---------------------------------------------------------------------------
 # /energy/mesh — per-node energy + governance posture for the 3D view.
 # ---------------------------------------------------------------------------
+def _merged_engine_readings() -> dict:
+    """Per-engine live watts + cumulative joules from the MERGED multi-meter scrape.
+
+    Reuses szl_energy_operator._fetch_joule_meter(), which scrapes EVERY meter in
+    A11OY_JOULE_METER_URLS (e.g. the tower's meter.a-11-oy.com AND the laptop's
+    meter2.a-11-oy.com) and merges their engines[] into one dict. Returns a map keyed
+    by lower-cased engine name ('omen', 'betterwithage') → {watts, joules}, so a mesh
+    node can be attributed its OWN engine's live NVML numbers the same way the operator
+    does (_exporter_sample_for_node). Honest (Doctrine v11): an unreachable meter simply
+    contributes no engine, so that node stays null/UNAVAILABLE — never fabricated; watts
+    are read only from a GPU flagged live, else None."""
+    try:
+        import szl_energy_operator as _op
+        meter = _op._fetch_joule_meter()
+    except Exception:  # noqa: BLE001 — operator/meter absent => empty map, honest fallback
+        return {}
+    out: dict = {}
+    for e in (meter or {}).get("engines", []) or []:
+        name = str(e.get("engine") or "").strip().lower()
+        if not name:
+            continue
+        watts = None
+        for g in (e.get("gpus") or []):
+            if g.get("live") and isinstance(g.get("power_w"), (int, float)):
+                watts = float(g["power_w"])
+                break
+        joules = e.get("joules")
+        out[name] = {
+            "watts": watts,
+            "joules": float(joules) if isinstance(joules, (int, float)) else None,
+        }
+    return out
+
+
 def build_mesh() -> dict:
     snap = meter_snapshot()
     reachable = bool(snap.get("reachable"))
     posture = govern_posture()
     gpus = snap.get("gpus") or [] if reachable else []
+    # Live NVML per-engine readings from the MERGED multi-meter scrape (both the tower's
+    # and the laptop's meters). This is what lets the laptop node pull its own engine's
+    # watts/joules instead of showing null when its meter is a SEPARATE URL from METER_URL.
+    engine_map = _merged_engine_readings()
 
-    # Honest attribution: match a meter GPU to a mesh node by GPU model token (e.g. the
+    # Fallback attribution: match a meter GPU to a mesh node by GPU model token (e.g. the
     # node "…RTX 4060 Ti…" gets the meter GPU whose name label contains "RTX 4060 Ti").
-    # A node with no model match keeps null watts/joules (UNAVAILABLE), never a guess.
+    # Only used when the node has no engine reading. A node with neither keeps null
+    # watts/joules (UNAVAILABLE), never a guess.
     def _match_gpu(gpu_model):
         if not gpu_model:
             return None
@@ -360,9 +403,19 @@ def build_mesh() -> dict:
     nodes = []
     watt_vals = []
     for n in (posture.get("nodes") or []):
-        g = _match_gpu(n.get("gpu_model"))
-        watts = g.get("watts") if g else None
-        joules = g.get("joules") if g else None
+        # Primary: attribute by the node's own NVML engine name from the merged meters
+        # ('omen' → tower, 'betterwithage' → laptop). Same mapping the operator uses.
+        exporter = str(n.get("exporter") or "").strip().lower()
+        reading = engine_map.get(exporter) if exporter else None
+        if reading is not None:
+            watts = reading.get("watts")
+            joules = reading.get("joules")
+            source = "NVML"
+        else:
+            g = _match_gpu(n.get("gpu_model"))
+            watts = g.get("watts") if g else None
+            joules = g.get("joules") if g else None
+            source = "NVML" if g else "mesh-posture"
         if isinstance(watts, (int, float)):
             watt_vals.append(watts)
         nodes.append({
@@ -372,7 +425,7 @@ def build_mesh() -> dict:
             "watts": watts,
             "joules": joules,
             "joules_label": LABEL_MEASURED if isinstance(joules, (int, float)) else LABEL_UNAVAILABLE,
-            "source": "NVML" if g else "mesh-posture",
+            "source": source,
         })
 
     # Normalized 0..1 draw for visualization (relative to the busiest live node this tick).
@@ -381,21 +434,31 @@ def build_mesh() -> dict:
         w = node["watts"]
         node["draw"] = (round(w / max_w, 6) if (isinstance(w, (int, float)) and max_w > 0) else None)
 
-    label = LABEL_MEASURED if reachable else LABEL_UNAVAILABLE
+    # Totals from the per-node attributed readings (honest sum of what we actually
+    # metered this tick); fall back to the single-meter snapshot when nothing attributed.
+    node_watts = [nd["watts"] for nd in nodes if isinstance(nd["watts"], (int, float))]
+    node_joules = [nd["joules"] for nd in nodes if isinstance(nd["joules"], (int, float))]
+    any_reading = bool(node_watts) or bool(node_joules) or reachable
+    total_watts = (round(sum(node_watts), 6) if node_watts
+                   else (snap.get("total_watts") if reachable else None))
+    total_joules = (round(sum(node_joules), 6) if node_joules
+                    else (snap.get("total_joules") if reachable else None))
+    label = LABEL_MEASURED if any_reading else LABEL_UNAVAILABLE
     return {
         "ts": _now_iso(),
         "label": label,
         "nodes": nodes,
         "node_count": len(nodes),
         "live_count": posture.get("live_count", 0),
-        "total_watts": snap.get("total_watts") if reachable else None,
-        "total_joules": snap.get("total_joules") if reachable else None,
+        "total_watts": total_watts,
+        "total_joules": total_joules,
         "joules_label": label,
         "meter_url": METER_URL,
         "meter_status": snap.get("status"),
         "draw_basis": "watts normalized 0..1 vs the busiest live node this tick (null when no live watts)",
-        "note": ("per-node watts/joules attributed by GPU-model match to the live NVML exporter; "
-                 "unmatched nodes are UNAVAILABLE, never fabricated"),
+        "note": ("per-node watts/joules attributed by NVML engine name from the MERGED "
+                 "multi-meter scrape ('omen' → tower, 'betterwithage' → laptop), GPU-model "
+                 "match as fallback; unmatched nodes are UNAVAILABLE, never fabricated"),
         "doctrine": "v11 — honest empty-states; joules MEASURED only with a real exporter reading.",
     }
 
@@ -783,6 +846,56 @@ def _selftest() -> dict:
     assert "nodes" in mesh and isinstance(mesh["nodes"], list)
     assert mesh["label"] in (LABEL_MEASURED, LABEL_UNAVAILABLE)
     out["mesh_shape"] = True
+
+    # (f) Mesh per-node attribution by NVML engine name from the MERGED multi-meter map:
+    # the laptop node ('betterwithage') pulls its OWN live watts/joules exactly like the
+    # tower node ('omen'). When its engine is absent (meter2 down) it stays null —
+    # UNAVAILABLE, never fabricated. This is the regression this fix guards.
+    _lap = "Sovereign GPU 1 (laptop · RTX 5050 · Blackwell)"
+    _tow = "Sovereign GPU 2 (tower · RTX 4060 Ti · anchor)"
+    _prev_posture = globals()["govern_posture"]
+    _prev_readings = globals()["_merged_engine_readings"]
+    try:
+        # Deterministic posture (no network) with both nodes' engine labels wired.
+        globals()["govern_posture"] = lambda *a, **k: {
+            "available": True, "live_count": 2, "nodes": [
+                {"name": _tow, "role": "anchor", "gpu_model": "RTX 4060 Ti",
+                 "exporter": "omen", "is_glm": False, "live": True},
+                {"name": _lap, "role": "blackwell", "gpu_model": "RTX 5050",
+                 "exporter": "betterwithage", "is_glm": False, "live": True},
+            ]}
+        # Reachable-but-empty single meter so the GPU-model fallback yields nothing
+        # (proves attribution comes from the engine map, and null is honest when absent).
+        with _snap_lock:
+            _snap_cache["data"] = {"gpus": [], "total_watts": 0.0, "total_joules": None,
+                                   "reachable": True, "status": "ok"}
+            _snap_cache["ts"] = time.time()
+
+        # Both engines present in the merged meters → both nodes MEASURED from their own engine.
+        globals()["_merged_engine_readings"] = lambda: {
+            "omen": {"watts": 13.53, "joules": 15896.0},
+            "betterwithage": {"watts": 8.0, "joules": 37000.0},
+        }
+        m2 = build_mesh()
+        by = {nd["name"]: nd for nd in m2["nodes"]}
+        assert by[_lap]["watts"] == 8.0 and by[_lap]["joules"] == 37000.0, by[_lap]
+        assert by[_lap]["joules_label"] == LABEL_MEASURED and by[_lap]["source"] == "NVML", by[_lap]
+        assert by[_tow]["watts"] == 13.53 and by[_tow]["joules"] == 15896.0, by[_tow]
+
+        # Laptop engine absent (meter2 unreachable) → null, NEVER fabricated; tower unaffected.
+        globals()["_merged_engine_readings"] = lambda: {"omen": {"watts": 13.53, "joules": 15896.0}}
+        m3 = build_mesh()
+        by3 = {nd["name"]: nd for nd in m3["nodes"]}
+        assert by3[_lap]["watts"] is None and by3[_lap]["joules"] is None, by3[_lap]
+        assert by3[_lap]["joules_label"] == LABEL_UNAVAILABLE, by3[_lap]
+        assert by3[_tow]["watts"] == 13.53, by3[_tow]
+    finally:
+        globals()["govern_posture"] = _prev_posture
+        globals()["_merged_engine_readings"] = _prev_readings
+        with _snap_lock:
+            _snap_cache["data"] = None
+            _snap_cache["ts"] = 0.0
+    out["mesh_laptop_attribution"] = True
 
     out["ok"] = all(v is True for v in out.values())
     return out
