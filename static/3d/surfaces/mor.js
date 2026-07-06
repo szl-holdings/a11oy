@@ -326,9 +326,9 @@ function _buildOverlay() {
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
   sub.innerHTML =
     'ONE shared transformer block is applied a <b>variable number of times per token</b>: a lightweight ' +
-    'router gives each token a recursion <b>depth</b> (1\\u2026N loops of the <i>same</i> weights). ' +
+    'router gives each token a recursion <b>depth</b> (1…N loops of the <i>same</i> weights). ' +
     'Easy tokens exit early; hard tokens recurse deeper. Cells below are coloured by depth ' +
-    '(blue = shallow \\u2192 teal = deep); height = compute spent. ' +
+    '(blue = shallow → teal = deep); height = compute spent. ' +
     'Honesty label <b>MODELED</b> (deterministic depth-routing simulation; NOT the MoR model). 0 runtime CDN.';
   _overlay.appendChild(sub);
 
@@ -337,9 +337,9 @@ function _buildOverlay() {
   dist.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.5;border:1px solid #26333f;border-radius:7px;padding:7px 9px;background:#0a1117";
   dist.innerHTML =
     '<b style="color:#3af4c8">Not the &lsquo;router&rsquo; organ.</b> ' +
-    'The <b>router</b> organ is parameter <b>SELECTION</b> \\u2014 it dispatches each token to one of several ' +
+    'The <b>router</b> organ is parameter <b>SELECTION</b> — it dispatches each token to one of several ' +
     '<i>different, independently-parameterized</i> models/experts (<i>which</i> weights). ' +
-    '<b>Mixture-of-Recursions</b> is parameter <b>REUSE</b> \\u2014 it loops <i>one</i> shared block a variable ' +
+    '<b>Mixture-of-Recursions</b> is parameter <b>REUSE</b> — it loops <i>one</i> shared block a variable ' +
     'number of times per token (<i>how many times</i> the same weights). One weight set here; only the depth changes.';
   _overlay.appendChild(dist);
 

@@ -67,7 +67,7 @@ const ENDPOINTS = [...Object.values(EP), ...Object.values(EP_PENDING)];
 
 // Palette (matches the holographic shell tokens).
 const C = {
-  accent: 0xb08fff, teal: 0x39d3c4, gold: 0xe8c074, red: 0xff6b6b,
+  accent: 0x8a6bff, teal: 0x39d3c4, gold: 0xe8c074, red: 0xff6b6b,
   green: 0x2fd07a, gray: 0x8a97a3, blue: 0x6fb1ff, cream: 0xeef3f6,
 };
 // Honest framework-status colors (IMPLEMENTED/PARTIAL/ROADMAP) for the heatmap.
@@ -500,7 +500,7 @@ function _buildForceGraph() {
     .nodeColor((n) => "#" + (STATUS_COLOR[n.status] || C.gray).toString(16).padStart(6, "0"))
     .nodeVal((n) => n.val || 3)
     .nodeOpacity(0.92)
-    .linkColor(() => "rgba(176,143,255,0.4)")
+    .linkColor(() => "rgba(138,107,255,0.4)")
     .linkDirectionalParticles(1)
     .linkDirectionalParticleSpeed(0.006)
     .width(_graphPanel.clientWidth || 360)
@@ -568,7 +568,7 @@ function _buildOverlay(ctx) {
 
   _hud.gate = el("div",
     "pointer-events:auto;margin-top:1px;padding:7px 9px;border:1px solid #2a2440;border-radius:8px;" +
-    "background:rgba(176,143,255,.07);color:#cdbdf2;font:10px ui-monospace,Menlo,monospace;line-height:1.55");
+    "background:rgba(138,107,255,.07);color:#cdbdf2;font:10px ui-monospace,Menlo,monospace;line-height:1.55");
   _hud.gate.textContent = "governance gate: awaiting /restraint/evaluate…";
   _overlay.appendChild(_hud.gate);
 

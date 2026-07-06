@@ -498,7 +498,7 @@ function _updateBoundsLadder(g) {
     { name: "Landauer floor", y: 0.0, color: 0x2fd07a, note: "kT·ln2 — the job is " + _human(F.landauerMult) + "× above" },
     { name: "MEASURED job", y: _clamp01(_logSpan(F.landauerMult, 1)), color: 0xe8c074, note: "5112 J DERIVED (P×t MEASURED)" },
     { name: "Margolus-Levitin", y: _ceilHeight(F.mlFrac), color: 0x6fb1ff, note: "rate ceiling — job at " + _sci(F.mlFrac) + " of max" },
-    { name: "Bremermann", y: _ceilHeight(F.bremFrac), color: 0x9b8cff, note: "c²/h ceiling — job at " + _sci(F.bremFrac) },
+    { name: "Bremermann", y: _ceilHeight(F.bremFrac), color: 0x8a6bff, note: "c²/h ceiling — job at " + _sci(F.bremFrac) },
     { name: "Bekenstein", y: _ceilHeight(F.bekFrac), color: 0xff9d5c, note: "info ceiling — job at " + _sci(F.bekFrac) },
   ];
   rungs.forEach((rg) => {
