@@ -163,8 +163,14 @@ jobs:
       # (checked=0) path and self-test-only PR/push runs never reach this job, so
       # they cannot page. Posts to a Slack-compatible incoming webhook via curl
       # (no third-party action, staying within the org's github-owned-actions-only
-      # policy); ntfy renders the {text} payload. If no webhook secret is
-      # configured it logs a notice and soft-skips — the red run still stands.
+      # policy); ntfy renders the {text} payload.
+      #
+      # FAIL-LOUD (issue #541): this step only runs on a real audit failure, so a
+      # dead alert channel here is a SILENT ALARM. If the webhook is unset/empty,
+      # unreachable (curl timeout / transport error), or returns non-2xx (e.g.
+      # HTTP 502), this step exits NON-ZERO with an ::error:: — the alert-DELIVERY
+      # step must never read green when a genuine failure could not be paged.
+      # Doctrine: never let a dead alarm read as green.
       - name: Alert the team on summary-guard failure
         if: ${{ failure() && (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch') }}
         env:
@@ -176,8 +182,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
-            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands."
-            exit 0
+            echo "::error::receipt-alert channel UNAVAILABLE — SLACK_WEBHOOK_URL is unset/empty while the release-receipt summary guard is FAILING. The failure will NOT page. Failing this step loudly (a dead alarm must never read green); the red run still stands. Re-set the SLACK_WEBHOOK_URL secret to the a11oy-uptime ntfy webhook."
+            exit 1
           fi
 
           if [ -n "${TARGET_RID}" ] && [ "${TARGET_RID}" != "null" ]; then
@@ -197,12 +203,17 @@ jobs:
           payload=$(jq -n --arg text "$text" '{text: $text}')
 
           echo "Posting summary-guard failure alert to webhook..."
+          curl_rc=0
           code=$(curl -sS -o /tmp/alert_resp.txt -w '%{http_code}' \
                    -X POST -H 'Content-Type: application/json' \
-                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}") || curl_rc=$?
+          if [ "${curl_rc}" -ne 0 ]; then
+            echo "::error::receipt-alert channel UNREACHABLE — curl transport error (exit ${curl_rc}, e.g. timeout/DNS/connection refused) while paging a summary-guard failure. The failure did NOT page; failing loudly. Re-check/rotate the SLACK_WEBHOOK_URL webhook."
+            exit 1
+          fi
           echo "Webhook responded HTTP ${code}."
           if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
-            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/alert_resp.txt)"
+            echo "::error::receipt-alert channel UNAVAILABLE — webhook POST did not return 2xx (HTTP ${code}): $(cat /tmp/alert_resp.txt). A summary-guard failure did NOT page; failing loudly (dead alarm must not read green). Rotate the SLACK_WEBHOOK_URL webhook."
             exit 1
           fi
           echo "Direct alert delivered."
