@@ -2186,9 +2186,22 @@ try:
     app.add_api_route("/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
 
-    # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
+    # /code consolidation fix (2026-07-06, founder-directed full green light):
+    # a11oy_code_v4.py is absent, so the guarded `import a11oy_code_v4` in serve.py
+    # silently fails and /code falls through to the SPA catch-all, which serves a
+    # stale shell stuck on "loading…" (every tab dead). Until the code-IDE module
+    # is restored, /code (and its legacy aliases /api, /about-shell) 307-redirect to
+    # the WORKING command center at /console. Registered BEFORE the SPA catch-all so
+    # the explicit route wins ordered matching. Read-path-safe: pure redirect, no
+    # receipt, no signing. 307 preserves method + is non-permanent (easy to revert
+    # once the real /code IDE ships).
+    async def _ptg_code_to_console() -> Response:
+        return _PTG_Redirect(url="/console", status_code=307)
+    app.add_api_route("/code", _ptg_code_to_console, methods=["GET"], include_in_schema=False)
+
+    # /chat + /a11oy/chat -> /console (previously pointed at the broken /code).
     async def _ptg_chat_to_code() -> Response:
-        return _PTG_Redirect(url="/code", status_code=302)
+        return _PTG_Redirect(url="/console", status_code=302)
     app.add_api_route("/chat",       _ptg_chat_to_code, methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/chat", _ptg_chat_to_code, methods=["GET"], include_in_schema=False)
 
