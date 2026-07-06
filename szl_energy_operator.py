@@ -524,17 +524,62 @@ _EMBED_TEXTS = [
 # ---------------------------------------------------------------------------
 # Exporter sampling — reuse the EXISTING betterwithage joule-meter path.
 # ---------------------------------------------------------------------------
-def _fetch_joule_meter(timeout: float = 4.0) -> Optional[dict]:
-    """Fetch the live NVML joule-meter JSON, or None on any failure (honest)."""
+def _joule_meter_urls() -> list[str]:
+    """All joule-meter URLs to scrape. A11OY_JOULE_METER_URLS (comma-separated) is the
+    multi-node form (e.g. omen's meter.a-11-oy.com + the laptop's meter2.a-11-oy.com);
+    falls back to the single A11OY_JOULE_METER_URL. De-duped, order preserved."""
+    multi = (os.environ.get("A11OY_JOULE_METER_URLS") or "").strip()
+    urls = [u.strip() for u in multi.split(",") if u.strip()] if multi else [_JOULE_METER_URL]
+    seen, out = set(), []
+    for u in urls:
+        if u and u not in seen:
+            seen.add(u); out.append(u)
+    return out
+
+
+def _fetch_one_meter(url: str, timeout: float) -> Optional[dict]:
     try:
         # Browser-like UA so a Cloudflare-fronted meter (e.g. meter.a-11-oy.com)
         # does not 403 the request behind bot protection. Honest self-probe.
-        req = urllib.request.Request(
-            _JOULE_METER_URL, headers={"User-Agent": _PROBE_UA})
+        req = urllib.request.Request(url, headers={"User-Agent": _PROBE_UA})
         with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:  # noqa: BLE001 — unreachable meter => no sample, stay honest
         return None
+
+
+def _fetch_joule_meter(timeout: float = 4.0) -> Optional[dict]:
+    """Fetch the live NVML joule-meter JSON, or None on any failure (honest).
+
+    Multi-node: scrapes every URL from _joule_meter_urls() and MERGES their engines[]
+    into one meter dict, so per-node lookups (_exporter_sample_for_node) see every GPU
+    in the mesh from a single call. Honest by design (Doctrine v11): an unreachable
+    meter contributes nothing (never faked); a duplicate engine name keeps the first
+    seen (no double-count). Single-URL config → original behaviour, unchanged.
+    """
+    urls = _joule_meter_urls()
+    if len(urls) == 1:
+        return _fetch_one_meter(urls[0], timeout)
+    merged_engines: list[dict] = []
+    total = 0.0
+    seen_names: set = set()
+    any_ok = False
+    for u in urls:
+        d = _fetch_one_meter(u, timeout)
+        if not isinstance(d, dict):
+            continue
+        any_ok = True
+        for e in (d.get("engines") or []):
+            name = str(e.get("engine") or "").lower()
+            if not name or name in seen_names:
+                continue
+            seen_names.add(name)
+            merged_engines.append(e)
+            if isinstance(e.get("joules"), (int, float)):
+                total += float(e["joules"])
+    if not any_ok:
+        return None
+    return {"engines": merged_engines, "totals": {"joules": round(total, 3)}}
 
 
 def _exporter_sample_for_node(meter: Optional[dict], exporter_node: str,
