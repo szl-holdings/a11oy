@@ -55,6 +55,7 @@ let _raf = null, _frameCb = null;
 let _lastJson = null, _lastMeta = null;
 let _t = 0;
 let _hud = {};             // references to live HUD value spans
+let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
 let _selected = null;
 let _ray = null, _pointer = null, _onClick = null, _onMove = null;
 let _domEl = null;
@@ -154,7 +155,7 @@ function _buildOverlay() {
   card.appendChild(_row("nodes reachable", "v_reach"));
   card.appendChild(_row("GPU nodes live", "v_gpu"));
   card.appendChild(_row("sovereign GPU live", "v_sov"));
-  card.appendChild(_row("chaski 2nd-lung", "v_chaski"));
+  card.appendChild(_row("secondary lung", "v_chaski"));
   card.appendChild(_row("reach probe", "v_label"));
   ov.appendChild(card);
 
@@ -169,7 +170,44 @@ function _buildOverlay() {
   legend.style.pointerEvents = "none";
   ov.appendChild(legend);
 
+  // "what this means" plain-language toggle (matches the research surfaces).
+  const pl = document.createElement("button");
+  pl.textContent = "◑ what this means";
+  pl.title = "Toggle plain-language explanation for investors & consumers.";
+  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;" +
+    "border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content;pointer-events:auto";
+  pl.addEventListener("click", () => {
+    _plain = !_plain;
+    pl.style.background = _plain ? "#0f2a20" : "#08140f";
+    _applyPlain();
+  });
+  ov.appendChild(pl);
+
+  const pd = document.createElement("div");
+  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;" +
+    "border-radius:7px;padding:7px 9px;display:none;pointer-events:none";
+  _plainEl = pd;
+  ov.appendChild(pd);
+
   return { ov, badge };
+}
+
+function _applyPlain() {
+  const pd = _plainEl;
+  if (!pd) return;
+  pd.style.display = _plain ? "block" : "none";
+  if (!_plain) return;
+  pd.innerHTML =
+    "<b>What this means:</b> This is a live map of the actual machines that make up the " +
+    "compute pool — each glowing node is one server. Every few seconds the app runs a " +
+    "real network probe (a <b>TCP reachability check</b>) against each node and colours it by " +
+    "what came back: teal = a GPU node answered, gold = it is owned (‘sovereign’) hardware, " +
+    "blue = third-party hosted, red ring = it did not answer this sweep. The counts in the panel " +
+    "(<b>nodes reachable</b>, <b>GPU nodes live</b>) are therefore <b>MEASURED</b> — a real probe " +
+    "result, not a cached guess. The links between nodes show the pool’s <b>structure only</b>; " +
+    "we do <b>not</b> claim to measure the bandwidth flowing over them. The ‘secondary lung’ row " +
+    "reports whether a designated failover node is currently reachable, so you can see at a glance " +
+    "if the backup capacity is online.";
 }
 
 function _buildPanel() {
@@ -297,6 +335,21 @@ function _renderPanel(node) {
 // 3D mesh construction
 // ----------------------------------------------------------------------------
 function _clearMesh() {
+  // Dispose all GPU resources (geometry + materials + any canvas textures) before
+  // dropping the group, so repeated mount/unmount cycles don't leak VRAM.
+  if (_root) {
+    _root.traverse((o) => {
+      if (o.geometry && o.geometry.dispose) { try { o.geometry.dispose(); } catch (_) {} }
+      if (o.material) {
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach((m) => {
+          if (!m) return;
+          if (m.map && m.map.dispose) { try { m.map.dispose(); } catch (_) {} }
+          if (m.dispose) { try { m.dispose(); } catch (_) {} }
+        });
+      }
+    });
+  }
   if (_root && _stage) _stage.scene.remove(_root);
   _root = null; _nodeMeshes = []; _edges = [];
   _hubMesh = null; _healthRing = null; _healthFill = null;
@@ -691,6 +744,7 @@ function unmount() {
   _nodeMeshes = []; _edges = []; _root = null; _hubMesh = null;
   _healthRing = null; _healthFill = null; _frameCb = null; _ray = null;
   _pointer = null; _onClick = null; _onMove = null; _domEl = null;
+  _plain = false; _plainEl = null;
   _ctx = null; _stage = null; _THREE = null; _lastJson = null; _selected = null;
 }
 

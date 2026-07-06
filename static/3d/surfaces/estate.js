@@ -45,6 +45,7 @@ const C = {
 let _stage = null, _THREE = null, _ctx = null;
 let _root = null, _overlay = null, _frameFn = null;
 let _hud = {};                 // live HUD chip/value rows
+let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
 let _scene = null;             // built scene-object refs the frame loop animates
 const _anim = {};              // eased animation targets
 const _handles = [];           // every poll handle (stopped on unmount)
@@ -263,7 +264,44 @@ function buildHud() {
   const legend = _ctx.label.legend(); legend.style.opacity = "0.85"; legend.style.marginTop = "2px";
   _overlay.appendChild(legend);
 
+  // "what this means" plain-language toggle (matches the research surfaces).
+  const pl = document.createElement("button");
+  pl.textContent = "◑ what this means";
+  pl.title = "Toggle plain-language explanation for investors & consumers.";
+  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;" +
+    "border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content;margin-top:4px";
+  pl.addEventListener("click", () => {
+    _plain = !_plain;
+    pl.style.background = _plain ? "#0f2a20" : "#08140f";
+    _applyPlain();
+  });
+  _overlay.appendChild(pl);
+
+  const pd = document.createElement("div");
+  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;" +
+    "border-radius:7px;padding:7px 9px;display:none;margin-top:4px";
+  _plainEl = pd;
+  _overlay.appendChild(pd);
+
   (_ctx.container || document.body).appendChild(_overlay);
+}
+
+function _applyPlain() {
+  const pd = _plainEl;
+  if (!pd) return;
+  pd.style.display = _plain ? "block" : "none";
+  if (!_plain) return;
+  pd.innerHTML =
+    "<b>What this means:</b> This is a single command view that pulls together five separate " +
+    "live feeds at once — <b>governance</b> (which formulas are locked-proven, the Λ safety " +
+    "aggregator, and the CHAPAQ verdict), <b>energy</b> (grid price, renewable share, and any " +
+    "measured joules), <b>compute fabric</b> (how many machines are reachable right now), " +
+    "<b>PNT bounds</b> (which physical-limit pillars are wired), and the <b>anatomy loop</b> " +
+    "(the governed agent’s heartbeat). Each row carries its own honesty chip: <b>MEASURED</b> " +
+    "means a real sensor/probe delta, <b>MODELED</b>/<b>SAMPLE</b> mean a simulation or a stand-in, " +
+    "and anything not live is shown as <b>NO-LIVE-DATA</b> rather than a made-up number. The " +
+    "locked-8 count is always exactly 8 and Λ is a <b>conjecture</b> clamped below 1.0 — nothing " +
+    "here is inflated or fabricated.";
 }
 
 function _setRow(key, text, label) {
@@ -492,7 +530,7 @@ function unmount() {
     }
   } catch (_) {}
   try { if (_stage) _stage.setBloom(false); } catch (_) {}
-  _root = null; _overlay = null; _scene = null; _frameFn = null; _hud = {}; _stage = null; _THREE = null; _ctx = null;
+  _root = null; _overlay = null; _scene = null; _frameFn = null; _hud = {}; _plain = false; _plainEl = null; _stage = null; _THREE = null; _ctx = null;
 }
 
 export default { id: ID, title: TITLE, endpoints: [EP_KPI, EP_ENERGY, EP_FABRIC, EP_PNT, EP_LOOP], mount, unmount };
