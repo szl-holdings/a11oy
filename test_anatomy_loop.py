@@ -51,12 +51,27 @@ def _extract_body(resp):
 def test_register_wires_loop_route():
     app = _FakeApp()
     registered = loop.register(app, ns="a11oy")
-    assert registered == ["/api/a11oy/v1/anatomy/loop"], registered
-    assert len(app.routes) == 1
-    path, fn, methods = app.routes[0]
-    assert path == "/api/a11oy/v1/anatomy/loop"
-    assert "GET" in methods
-    return fn
+    # Layer 2 adds the /anatomy/vitals living-state read alongside /anatomy/loop.
+    assert registered == ["/api/a11oy/v1/anatomy/loop",
+                          "/api/a11oy/v1/anatomy/vitals"], registered
+    assert len(app.routes) == 2
+    by_path = {path: (fn, methods) for path, fn, methods in app.routes}
+    assert "/api/a11oy/v1/anatomy/loop" in by_path
+    assert "/api/a11oy/v1/anatomy/vitals" in by_path
+    loop_fn, loop_methods = by_path["/api/a11oy/v1/anatomy/loop"]
+    assert "GET" in loop_methods
+    assert "GET" in by_path["/api/a11oy/v1/anatomy/vitals"][1]
+    return loop_fn
+
+
+def _vitals_fn():
+    """Return the registered /anatomy/vitals handler (offline, on a fake app)."""
+    app = _FakeApp()
+    loop.register(app, ns="a11oy")
+    for path, fn, _methods in app.routes:
+        if path == "/api/a11oy/v1/anatomy/vitals":
+            return fn
+    raise AssertionError("vitals route not registered")
 
 
 def test_loop_invariants():
@@ -236,16 +251,168 @@ def test_loop_caches_real_posture_no_reprobe():
     return calls["n"]
 
 
+# ---------------------------------------------------------------------------
+# LAYER 2 — the living-anatomy vitals: 8 systems, labels everywhere, honest UNAVAIL.
+# ---------------------------------------------------------------------------
+_VERBATIM_LABELS = {"MEASURED", "MODELED", "SAMPLE", "UNAVAILABLE"}
+_VERBATIM_BANDS = {"healthy", "degraded", "down", "unavailable"}
+
+
+def test_vitals_eight_systems_all_labeled():
+    """The living state projects the 52 organs into 8 systems, each fully labeled.
+
+    Every system carries a VERBATIM label + a health BAND (a word, never colour-only),
+    and every organ inside carries its own label + band. The projection is MODELED.
+    """
+    out = _extract_body(_vitals_fn()(None))
+    assert out["kind"] == "living-anatomy-vitals", out["kind"]
+    assert out["ns"] == "a11oy" and out["doctrine"] == "v11"
+
+    systems = out["systems"]
+    assert len(systems) == 8, f"expected 8 anatomical systems, got {len(systems)}"
+
+    seen_organ_ids = set()
+    total_organs = 0
+    for sysm in systems:
+        assert sysm["label"] == "MODELED", sysm            # the projection is MODELED
+        assert sysm["band"] in _VERBATIM_BANDS, sysm
+        assert isinstance(sysm["system"], str) and sysm["system"]
+        assert sysm["organs"], f"system {sysm['system']} has no organs"
+        assert sysm["organs_total"] == len(sysm["organs"])
+        for organ in sysm["organs"]:
+            assert organ["label"] in _VERBATIM_LABELS, organ   # a label ALWAYS present
+            assert organ["band"] in _VERBATIM_BANDS, organ     # a band ALWAYS present
+            assert isinstance(organ["live"], bool)
+            assert organ["id"] not in seen_organ_ids, f"duplicate organ {organ['id']}"
+            seen_organ_ids.add(organ["id"])
+            total_organs += 1
+
+    # All 52 surface organs are projected exactly once.
+    assert total_organs == 52, f"expected 52 organs projected, got {total_organs}"
+    assert out["summary"]["organs_total"] == 52
+    assert out["summary"]["systems"] == 8
+    return out
+
+
+def test_vitals_dead_organ_is_unavailable_not_faked():
+    """An organ with no live probe wired is UNAVAILABLE — never a fabricated OK.
+
+    agentcoh (Multi-Agent Memory Coherence) has no in-process probe off-box; it MUST
+    surface as UNAVAILABLE / unavailable, with an honest note and live False.
+    """
+    out = test_vitals_eight_systems_all_labeled()
+    found = None
+    for sysm in out["systems"]:
+        for organ in sysm["organs"]:
+            if organ["id"] == "agentcoh":
+                found = organ
+    assert found is not None, "agentcoh organ must be projected"
+    assert found["label"] == "UNAVAILABLE", found
+    assert found["band"] == "unavailable", found
+    assert found["live"] is False, found
+    # honest, not faked: nothing claims a MEASURED value for a dead organ.
+    assert "MEASURED" not in json.dumps(found), found
+    return found
+
+
+def test_vitals_lungs_and_metabolism_present_and_labeled():
+    """LUNGS (the 2 GPU meters) + the Layer-1 metabolism are present and labeled.
+
+    Off-box the meter is unreachable, so the lungs honestly carry UNAVAILABLE (never a
+    fabricated breath), and the metabolism block carries the reservoir/intake/circulation
+    the loop produced — each with its own label.
+    """
+    out = test_vitals_eight_systems_all_labeled()
+    lungs = out["metal"]["lungs"]
+    assert lungs["label"] in _VERBATIM_LABELS, lungs
+    assert lungs["band"] in _VERBATIM_BANDS, lungs
+    assert "breaths" in lungs and isinstance(lungs["breaths"], list)
+    # off-box (no live meter) -> honestly UNAVAILABLE, no fabricated watts/joules.
+    assert lungs["label"] == "UNAVAILABLE", lungs
+    for breath in lungs["breaths"]:
+        if breath.get("joules_label") != "MEASURED":
+            assert breath.get("capacity_joules") is None, breath  # never fabricated
+
+    metab = out["metabolism"]
+    # reservoir energy fill carries a VERBATIM energy label (Layer 1).
+    assert metab["reservoir"]["energy_label"] in _VERBATIM_LABELS, metab["reservoir"]
+    # circulation carries a VERBATIM label; intake_rate too.
+    assert metab["circulation"]["label"] in _VERBATIM_LABELS, metab["circulation"]
+    assert metab["intake_rate"]["label"] in _VERBATIM_LABELS, metab["intake_rate"]
+    # Ayni still balances at the assembled level.
+    assert metab["ayni"]["balanced"] is True, metab["ayni"]
+    return out
+
+
+def test_vitals_reservoir_reflects_measured_meter_when_present():
+    """When the merged meter reports MEASURED joules, the reservoir fills MEASURED.
+
+    We inject a live posture (so intake is NOT degraded) and a fake merged-meter read;
+    the reservoir must show the summed joule total labeled 'MEASURED-as-of-<ts>', and
+    degrade to SAMPLE/UNAVAILABLE (never fabricated) when the meter is absent.
+    """
+    fn = test_register_wires_loop_route()
+
+    # (a) MEASURED path: live posture + a real merged-meter reading present.
+    orig_inproc = loop._try_in_process_posture
+    orig_probe = loop._probe_merged_meter_joules
+    if loop._VITALS_CACHE is not None:
+        loop._VITALS_CACHE.invalidate(key="reservoir_measured")
+    if loop._INTAKE_CACHE is not None:
+        loop._INTAKE_CACHE.invalidate()
+    if loop._INTAKE_BREAKER is not None:
+        loop._INTAKE_BREAKER.reset()
+    try:
+        loop._try_in_process_posture = lambda: {
+            "ok": True, "posture": "live", "grid_price_eur_mwh": -12.5,
+            "wasted_energy_available": True, "source": "test live posture"}
+        loop._probe_merged_meter_joules = lambda: {
+            "joules": 4200.5, "label": f"{loop.LABEL_MEASURED}-as-of-2026-07-06T00:00:00+00:00",
+            "as_of": "2026-07-06T00:00:00+00:00", "source": "test merged meter",
+            "engines": {"omen": 2100.0, "betterwithage": 2100.5}}
+        out = _extract_body(fn(None))
+    finally:
+        loop._try_in_process_posture = orig_inproc
+        loop._probe_merged_meter_joules = orig_probe
+        if loop._VITALS_CACHE is not None:
+            loop._VITALS_CACHE.invalidate(key="reservoir_measured")
+        if loop._INTAKE_CACHE is not None:
+            loop._INTAKE_CACHE.invalidate()
+
+    res = out["reservoir"]
+    assert res["energy_joules"] == 4200.5, res
+    assert res["energy_label"].startswith("MEASURED-as-of-"), res
+    assert res["energy_as_of"] is not None, res
+
+    # (b) DEGRADED path: sleeping node -> reservoir never fabricates a measured joule.
+    with _slow_gpu_probe(hang_s=1.5):
+        if loop._VITALS_CACHE is not None:
+            loop._VITALS_CACHE.invalidate(key="reservoir_measured")
+        out2 = _extract_body(fn(None))
+    res2 = out2["reservoir"]
+    assert res2["energy_label"] in ("SAMPLE", "UNAVAILABLE"), res2
+    assert not str(res2["energy_label"]).startswith("MEASURED"), res2
+    return res
+
+
 if __name__ == "__main__":
     result = test_loop_invariants()
     fast = test_loop_fast_when_gpu_probe_slow()
     failfast = test_loop_failfast_when_breaker_open()
     cached = test_loop_caches_real_posture_no_reprobe()
-    print("PASS — anatomy loop self-test (incl. latency regression guard)")
+    vitals = test_vitals_eight_systems_all_labeled()
+    test_vitals_dead_organ_is_unavailable_not_faked()
+    test_vitals_lungs_and_metabolism_present_and_labeled()
+    reservoir_measured = test_vitals_reservoir_reflects_measured_meter_when_present()
+    print("PASS — anatomy loop self-test (incl. latency guard + Layer 2 living vitals)")
     print(json.dumps({
         "latency_sleeping_node_s": round(fast, 4),
         "latency_breaker_open_s": round(failfast, 6) if failfast is not None else None,
         "real_probes_with_cache": cached,
+        "systems": vitals["summary"]["systems"],
+        "organs_total": vitals["summary"]["organs_total"],
+        "organs_live": vitals["summary"]["organs_live"],
+        "reservoir_measured_joules": reservoir_measured["energy_joules"],
     }, indent=2))
     print(json.dumps({
         "joules_label": result["joules_label"],

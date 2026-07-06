@@ -124,6 +124,35 @@ DOCTRINE = "v11"
 SAMPLE_LABEL = "sample"        # default — off-box, no real power meter wired
 MEASURED_LABEL = "measured"    # ONLY when a real metered source is present
 
+# VERBATIM honesty vocabulary (doctrine v11) for the reservoir energy + the 8
+# software systems. These MUST match szl_frontier_manifest / szl_energy_live exactly
+# so no reader ever sees a novel/soft label. Never upgraded; a dead source is
+# UNAVAILABLE, never faked.
+LABEL_MEASURED = "MEASURED"
+LABEL_SAMPLE = "SAMPLE"
+LABEL_MODELED = "MODELED"
+LABEL_UNAVAILABLE = "UNAVAILABLE"
+
+# Health bands per system — always a LABEL string (never colour-only).
+BAND_HEALTHY = "healthy"
+BAND_DEGRADED = "degraded"
+BAND_DOWN = "down"
+BAND_UNAVAILABLE = "unavailable"
+
+# A 20 s TTL cache for the assembled living state + the live merged-meter reservoir
+# reading. SAME TTLCache class the intake probe already uses (szl_backend_hardening),
+# so the vitals endpoint is a handful of cache reads, never a per-request fan-out to
+# 52 organ endpoints. Guarded: absent helper -> compute fresh every call (honest).
+try:  # pragma: no cover - exercised via the offline tests with the helper present
+    from szl_backend_hardening import TTLCache as _TTLCache2
+    _VITALS_CACHE = _TTLCache2(ttl=20.0)
+except Exception:  # pragma: no cover - defensive
+    _VITALS_CACHE = None
+
+# Last-seen signed joule-ledger totals, so the circulation loop can be driven by
+# REAL measured-billable joule DELTAS between cycles (never a fabricated flow).
+_LAST_LEDGER = {"joules": None, "jobs": None}
+
 # Physics floors/ceilings for a bounded WORK credit (NOT free energy):
 #   Bekenstein software bound  : a window of N bytes carries at most N*8 bits.
 #   Landauer minimum           : erasing one bit costs at least kT ln 2 joules.
@@ -347,18 +376,52 @@ def _read_intake() -> dict:
     # grid price is only carried through if the live feed actually supplied one;
     # absence -> None (never a fabricated figure).
     grid_price = raw.get("grid_price_eur_mwh", None)
+    grid = _extract_grid_intake(raw)
     return {
         "ok": bool(raw.get("ok", False)),
         "posture": raw.get("posture", "unknown"),
         "degraded": False,                 # a live posture was actually reached
         "gpu_state": raw.get("gpu_state", "awake"),  # node posture, passed through if reported
         "grid_price_eur_mwh": grid_price,
+        "negative_price": grid["negative_price"],   # MEASURED public-feed posture
+        "renewable_pct": grid["renewable_pct"],     # MEASURED share of load, else None
         "wasted_energy_available": bool(raw.get("wasted_energy_available", False)),
         "joules_label": joules_label,
         "joules_evidence": joules_evidence,   # self-verifying: present iff measured
         "source": raw.get("source", "live harvest posture"),
         "feed_measured_any": feed_measured_any,
     }
+
+
+def _extract_grid_intake(raw: dict) -> dict:
+    """Pull the live grid harvest posture (metabolic INTAKE rate) out of the posture
+    payload we ALREADY fetched — we do NOT re-implement or re-scrape the feed.
+
+    Returns {negative_price, renewable_pct}. negative_price is the MEASURED
+    public-feed posture (aWATTar negative-price / curtailed window). renewable_pct is
+    scanned best-effort out of the per-feed readings (Energy-Charts renewable share of
+    load); absent/unparseable -> None (never fabricated)."""
+    posture = str(raw.get("posture", "") or "").lower()
+    negative_price = bool(
+        raw.get("wasted_energy_available", False)
+        or "negative" in posture
+        or bool(raw.get("soak_hard", False))
+    )
+    renewable_pct = None
+    for reading in (raw.get("readings") or []):
+        if not isinstance(reading, dict):
+            continue
+        name = " ".join(str(reading.get(k, "")) for k in ("name", "feed", "source")).lower()
+        if "renewable" not in name and "share" not in name:
+            continue
+        for vk in ("value", "share", "measured_value", "pct", "percent"):
+            v = reading.get(vk)
+            if isinstance(v, (int, float)):
+                renewable_pct = round(float(v), 3)
+                break
+        if renewable_pct is not None:
+            break
+    return {"negative_price": negative_price, "renewable_pct": renewable_pct}
 
 
 # ---------------------------------------------------------------------------
@@ -526,6 +589,156 @@ def _ayni_balance(intake_credits: int, output_credits: int, stored_credits: int,
 
 
 # ---------------------------------------------------------------------------
+# LAYER 1 — make the metabolism CIRCULATE. Feed MEASURED joules into the
+# reservoir, the live grid posture as the intake rate, and drive the loop from
+# signed joule-ledger DELTAS. We REUSE the already-shipped accessors; we never
+# re-scrape a meter and never fabricate a joule.
+# ---------------------------------------------------------------------------
+def _ledger_snapshot() -> dict:
+    """Cheap, in-process read of the signed joule-ledger totals + chain status.
+
+    Reuses szl_energy_ledger (a local hash-linked receipt chain — NO network). Its
+    joules_measured_billable is the sum of REAL NVML deltas (measured-billable).
+    Guarded: a missing/broken ledger degrades to available:false, never a fabricated
+    total."""
+    try:
+        import szl_energy_ledger as L
+        led = L.get_ledger()
+        totals = led.totals()
+        chain = led.verify()
+        return {
+            "available": True,
+            "jobs": totals.get("jobs"),
+            "joules": totals.get("joules_measured_billable"),
+            "kwh_total": totals.get("kwh_total"),
+            "chain_ok": bool(chain.get("ok")),
+        }
+    except Exception as exc:  # noqa: BLE001 — honest degrade
+        return {"available": False, "reason": type(exc).__name__}
+
+
+def _probe_merged_meter_joules():
+    """Live MEASURED joule total from the MERGED multi-meter scrape (both GPU meters).
+
+    Reuses szl_energy_live._merged_engine_readings() -> szl_energy_operator
+    ._fetch_joule_meter() (reads A11OY_JOULE_METER_URLS). Hard-bounded by the shipped
+    short-timeout probe so it can never hang the loop; returns None when no meter is
+    reachable (the reservoir then degrades honestly, never fabricates)."""
+    def _do():
+        import szl_energy_live as el
+        engines = el._merged_engine_readings() or {}
+        vals = [v.get("joules") for v in engines.values()
+                if isinstance(v.get("joules"), (int, float))]
+        if not vals:
+            return None
+        total = round(sum(vals), 6)
+        if total <= 0:
+            return None
+        ts = _now()
+        return {
+            "joules": total,
+            "label": f"{LABEL_MEASURED}-as-of-{ts}",
+            "as_of": ts,
+            "source": "merged joule meter (A11OY_JOULE_METER_URLS: both GPU NVML exporters)",
+            "engines": {k: v.get("joules") for k, v in engines.items()},
+        }
+    try:
+        if _probe_with_timeout is not None:
+            env = _probe_with_timeout(_do, timeout=0.5)
+            return env.get("result") if env.get("reachable") else None
+        return _do()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _reservoir_energy(ledger_snap: dict, intake_degraded: bool) -> dict:
+    """The metabolism RESERVOIR fill. Fills off-box from MEASURED joules — honestly.
+
+    Priority (doctrine v11, never fake / never zero-when-data-exists):
+      1. LIVE merged-meter MEASURED joule total -> label 'MEASURED-as-of-<ts>'.
+         Attempted only when a live posture was reached (so the offline/degraded/
+         latency paths never pay a meter probe), cached 20 s.
+      2. else the signed joule-ledger measured-billable total, shown honestly as
+         SAMPLE (a historical total, not a fresh reading).
+      3. else UNAVAILABLE (value None, 'not fabricated').
+    """
+    if not intake_degraded:
+        cached = _VITALS_CACHE.peek(key="reservoir_measured") if _VITALS_CACHE is not None else None
+        if isinstance(cached, dict) and cached.get("joules") is not None:
+            return dict(cached)
+        live = _probe_merged_meter_joules()
+        if isinstance(live, dict) and live.get("joules") is not None:
+            if _VITALS_CACHE is not None:
+                try:
+                    _VITALS_CACHE.get_or_compute(lambda: dict(live), key="reservoir_measured")
+                except Exception:
+                    pass
+            return dict(live)
+    if (ledger_snap.get("available")
+            and isinstance(ledger_snap.get("jobs"), int) and ledger_snap["jobs"] > 0
+            and isinstance(ledger_snap.get("joules"), (int, float)) and ledger_snap["joules"] > 0):
+        return {
+            "joules": round(float(ledger_snap["joules"]), 6),
+            "label": LABEL_SAMPLE,
+            "as_of": None,
+            "source": "signed joule-ledger (measured-billable total, historical)",
+            "note": ("degraded: no fresh live-meter reading; historical signed-ledger "
+                     "measured-billable total shown as SAMPLE, never upgraded"),
+        }
+    return {
+        "joules": None,
+        "label": LABEL_UNAVAILABLE,
+        "as_of": None,
+        "source": "no live meter and no signed-ledger total reachable",
+        "note": "not fabricated",
+    }
+
+
+def _circulation(ledger_snap: dict, soaked: bool) -> dict:
+    """Drive the circulation from REAL signed joule-ledger DELTAS between cycles.
+
+    Off-box the ledger carries the persistent signed history (jobs + measured-billable
+    joules), so the loop is no longer idle: `flowing` is True when work actually moved
+    (a positive joule delta, or an existing signed history), or when this cycle soaked
+    a wasted-work window. Deltas are computed against the last-seen totals — never a
+    fabricated flow. label is MEASURED only when the chain verifies."""
+    global _LAST_LEDGER
+    available = bool(ledger_snap.get("available"))
+    jobs = ledger_snap.get("jobs")
+    joules = ledger_snap.get("joules")
+    chain_ok = bool(ledger_snap.get("chain_ok"))
+    delta_joules = None
+    delta_jobs = None
+    if available and isinstance(joules, (int, float)):
+        last_j = _LAST_LEDGER.get("joules")
+        if isinstance(last_j, (int, float)) and joules >= last_j:
+            delta_joules = round(joules - last_j, 6)
+        last_jobs = _LAST_LEDGER.get("jobs")
+        if isinstance(last_jobs, int) and isinstance(jobs, int) and jobs >= last_jobs:
+            delta_jobs = jobs - last_jobs
+        _LAST_LEDGER = {"joules": joules, "jobs": jobs}
+    has_history = available and isinstance(jobs, int) and jobs > 0
+    flowing = bool(soaked) or bool(delta_joules and delta_joules > 0) or has_history
+    if available and chain_ok and has_history:
+        label = LABEL_MEASURED
+    elif available:
+        label = LABEL_SAMPLE
+    else:
+        label = LABEL_UNAVAILABLE
+    return {
+        "flowing": flowing,
+        "label": label,
+        "ledger_jobs": jobs if available else None,
+        "ledger_joules_measured_billable": joules if available else None,
+        "chain_ok": chain_ok if available else None,
+        "delta_joules_since_last_cycle": delta_joules,
+        "delta_jobs_since_last_cycle": delta_jobs,
+        "note": ("circulation driven by signed joule-ledger deltas (measured-billable); "
+                 "flowing reflects real signed history/deltas, never a fabricated flow"),
+    }
+
+
+# ---------------------------------------------------------------------------
 # The loop: run ONE circulation cycle and return its live state. Crash-proof.
 # ---------------------------------------------------------------------------
 def run_loop(ns: str = "a11oy") -> dict:
@@ -539,7 +752,15 @@ def run_loop(ns: str = "a11oy") -> dict:
         soak = _samay_soak(intake)
         metab = _kallpa_metabolize(soak)
         beat = _heart_beat(metab)
-        flowing = bool(soak.get("soaked", False))
+
+        # LAYER 1 — CIRCULATE: drive the loop from REAL signed joule-ledger deltas so
+        # it is no longer idle off-box, and fill the reservoir from MEASURED joules.
+        ledger_snap = _ledger_snapshot()
+        circulation = _circulation(ledger_snap, soaked=bool(soak.get("soaked", False)))
+        reservoir_energy = _reservoir_energy(ledger_snap, intake_degraded=bool(intake.get("degraded", False)))
+
+        # Organs flow when this cycle soaked OR when real signed work is circulating.
+        flowing = bool(soak.get("soaked", False)) or bool(circulation.get("flowing", False))
         organs = _yarqa_disperse(beat, flowing)
 
         credits = int(metab.get("work_credits", 0))
@@ -579,13 +800,32 @@ def run_loop(ns: str = "a11oy") -> dict:
                 "joules_label": intake.get("joules_label", SAMPLE_LABEL),
                 "joules_evidence": intake.get("joules_evidence", {}),
             },
+            # LAYER 1 — the live grid harvest posture as the metabolic INTAKE RATE
+            # (MEASURED public feed; absent sub-fields stay None, never fabricated).
+            "intake_rate": {
+                "grid_price_eur_mwh": intake.get("grid_price_eur_mwh"),
+                "negative_price": bool(intake.get("negative_price", False)),
+                "renewable_pct": intake.get("renewable_pct"),
+                "posture": intake.get("posture"),
+                "label": (LABEL_MEASURED if (not intake.get("degraded", False)
+                          and intake.get("grid_price_eur_mwh") is not None) else LABEL_UNAVAILABLE),
+                "source": "harvest/posture public grid feed (aWATTar price + Energy-Charts renewable share)",
+            },
             "organs": organs,
             "beats_last_cycle": int(beats_last_cycle),
             "reservoir": {
                 "work_credits": reservoir.get("work_credits", 0),
                 "joules_label": SAMPLE_LABEL,
                 "stored": bool(reservoir.get("stored", False)),
+                # LAYER 1 — the reservoir FILL: last MEASURED merged-meter joule total
+                # (MEASURED-as-of-<ts>), degrading to the signed-ledger total (SAMPLE),
+                # then UNAVAILABLE. Never fabricated, never zero-when-data-exists.
+                "energy_joules": reservoir_energy.get("joules"),
+                "energy_label": reservoir_energy.get("label"),
+                "energy_as_of": reservoir_energy.get("as_of"),
+                "energy_source": reservoir_energy.get("source"),
             },
+            "circulation": circulation,
             "last_receipt_id": prov.get("last_receipt_id", ""),
             "ayni": {
                 "balanced": bool(ayni.get("balanced", False)),
@@ -640,6 +880,390 @@ def run_loop(ns: str = "a11oy") -> dict:
 
 
 # ---------------------------------------------------------------------------
+# LAYER 2 — wire the organs + the 8 anatomical SYSTEMS into ONE living state.
+#
+# This is a MODELED physiological VIEW over real telemetry. We never claim SZL is
+# literally alive; every value carries a VERBATIM honesty label and a health BAND
+# (a label string, never colour-only). We REUSE the already-shipped surfaces:
+#   LUNGS   = the 2 GPU meters (szl_energy_live.build_mesh, per-engine)
+#   IMMUNE  = the receipt/guard organ status (szl_immune._status)
+#   FABRIC/ = the frontier manifest tiles (szl_frontier_manifest.build_manifest,
+#   GOVERN.   cached 20 s — we do NOT fan out to 52 organ endpoints)
+#   ANATOMY = this loop's own beat
+# All other organs have no live in-process probe wired -> UNAVAILABLE (honest),
+# never a fabricated OK. The whole assembly is cached 20 s in _VITALS_CACHE.
+# ---------------------------------------------------------------------------
+
+# The 52 organs (szl3d_holographic.SURFACES) projected into 8 anatomical systems.
+# The PROJECTION is MODELED; each organ's live vitals carry their OWN real label.
+# Every organ id below appears EXACTLY once; the set is the full 52-organ surface.
+_SYSTEMS = (
+    ("nervous", "Nervous — cognition, attention, memory, reasoning", (
+        "neuromorphic", "interpretability", "worldmodel", "episodic", "ssm", "genie",
+        "ringattn", "kvcache", "mla", "blt", "nsa", "kan", "steering", "titans", "mor",
+        "goat", "kla", "hrm", "aimc", "nested", "matgran", "graphmem", "elf",
+    )),
+    ("respiratory", "Respiratory — intake, decoding throughput (the LUNGS breathe here)", (
+        "specdecode", "dllm", "moe", "testtime", "inplacettt", "flowmatch",
+    )),
+    ("circulatory", "Circulatory — energy routing + flow", (
+        "energy", "router", "pfield", "s3search", "slidesparse",
+    )),
+    ("immune", "Immune — uncertainty, safety, attestation, defense", (
+        "qhall", "sement", "rauq", "ccattest", "counter-uas",
+    )),
+    ("skeletal", "Skeletal — formal structure, math, quantization", (
+        "formalmath", "qec", "ternary", "catq",
+    )),
+    ("muscular", "Muscular — orchestration, agent action", (
+        "agentcoh", "grpo",
+    )),
+    ("governance", "Governance — control, provenance, physical priors", (
+        "governance", "pinn", "frontier",
+    )),
+    ("integumentary", "Integumentary — compute fabric, estate, anatomy, PNT", (
+        "fabric", "estate", "anatomy", "pnt",
+    )),
+)
+
+
+def _organ_titles() -> dict:
+    """id -> human title from the single source of truth (szl3d_holographic.SURFACES).
+
+    Guarded: if the surface list is not importable we fall back to the id as its own
+    title — never fabricated, just unadorned."""
+    try:
+        import szl3d_holographic as H
+        return {s["id"]: s.get("title", s["id"]) for s in getattr(H, "SURFACES", [])}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _band_from(label: str, ok: bool) -> str:
+    """Map a VERBATIM honesty label + a liveness flag to a health BAND (a label).
+
+    Never colour-only: the band is itself an honest word. UNAVAILABLE -> unavailable;
+    a live measured/modeled source that is ok -> healthy; a reachable-but-degraded
+    source -> degraded; an explicit failure -> down."""
+    if label == LABEL_UNAVAILABLE:
+        return BAND_UNAVAILABLE
+    if not ok:
+        return BAND_DOWN
+    if label in (LABEL_MEASURED, LABEL_MODELED):
+        return BAND_HEALTHY
+    return BAND_DEGRADED  # SAMPLE / historical -> honestly not fully healthy
+
+
+def _live_vitals_index(mesh: dict, manifest: dict, immune: dict, loop_state: dict) -> dict:
+    """Build the id -> {label, band, live, detail} index of the organs we CAN probe.
+
+    Every entry is derived from a REAL surface read. Organs not present here have no
+    live probe wired and default to UNAVAILABLE in _project_systems (honest)."""
+    idx: dict = {}
+
+    # energy organ <- the GPU mesh (LUNGS). MEASURED only when a meter is reachable.
+    mesh_label = mesh.get("label") if isinstance(mesh, dict) else None
+    if mesh_label in (LABEL_MEASURED, LABEL_UNAVAILABLE):
+        live = mesh_label == LABEL_MEASURED
+        idx["energy"] = {
+            "label": mesh_label,
+            "band": _band_from(mesh_label, ok=live),
+            "live": live,
+            "detail": {
+                "total_watts": mesh.get("total_watts"),
+                "total_joules": mesh.get("total_joules"),
+                "live_count": mesh.get("live_count"),
+                "node_count": mesh.get("node_count"),
+            },
+        }
+
+    # fabric + governance + frontier <- the frontier manifest tiles (cached 20 s).
+    tiles = (manifest.get("capabilities") if isinstance(manifest, dict) else None) or []
+    by_cat = {}
+    for t in tiles:
+        if isinstance(t, dict):
+            by_cat.setdefault(t.get("category", ""), t)
+    fabric_t = by_cat.get("fabric")
+    if isinstance(fabric_t, dict):
+        ok = bool(fabric_t.get("ok", True))
+        reachable = fabric_t.get("nodes_reachable")
+        total = fabric_t.get("nodes_total")
+        band = _band_from(fabric_t.get("label", LABEL_UNAVAILABLE), ok=ok)
+        if (isinstance(reachable, int) and isinstance(total, int)
+                and total > 0 and reachable < total and band == BAND_HEALTHY):
+            band = BAND_DEGRADED  # some nodes down -> honestly degraded
+        idx["fabric"] = {
+            "label": fabric_t.get("label", LABEL_UNAVAILABLE),
+            "band": band, "live": ok,
+            "detail": {"nodes_reachable": reachable, "nodes_total": total,
+                       "gpu_reachable": fabric_t.get("gpu_reachable")},
+        }
+    gov_t = by_cat.get("governance")
+    if isinstance(gov_t, dict):
+        ok = bool(gov_t.get("ok", True))
+        idx["governance"] = {
+            "label": gov_t.get("label", LABEL_UNAVAILABLE),
+            "band": _band_from(gov_t.get("label", LABEL_UNAVAILABLE), ok=ok),
+            "live": ok,
+            "detail": {"signed_receipts": gov_t.get("signed_receipts"),
+                       "lambda": gov_t.get("lambda_")},
+        }
+    if isinstance(manifest, dict) and manifest.get("summary"):
+        summ = manifest["summary"]
+        deg = summ.get("degraded_tiles") or []
+        ok = len(deg) == 0
+        idx["frontier"] = {
+            "label": LABEL_MODELED,   # the roll-up is a modeled view over real tiles
+            "band": BAND_HEALTHY if ok else BAND_DEGRADED,
+            "live": True,
+            "detail": {"tiles": summ.get("tiles"), "degraded_tiles": deg},
+        }
+
+    # immune organs <- the guard/receipt status. deny-by-default egress gate.
+    if isinstance(immune, dict) and immune.get("ok"):
+        khipu = immune.get("khipu") or {}
+        chain_ok = bool(khipu.get("chain_verified"))
+        vit = {
+            "label": LABEL_MEASURED if chain_ok else LABEL_SAMPLE,
+            "band": BAND_HEALTHY if chain_ok else BAND_DEGRADED,
+            "live": True,
+            "detail": {"deny_rate": immune.get("deny_rate"),
+                       "verdicts_this_process": immune.get("verdicts_this_process"),
+                       "chain_depth": khipu.get("chain_depth"),
+                       "chain_verified": chain_ok},
+        }
+        # sement/rauq/qhall are the self-check uncertainty organs the immune guard fronts.
+        for oid in ("sement", "rauq", "qhall", "ccattest"):
+            idx[oid] = dict(vit)
+
+    # anatomy organ <- this very loop's beat (self-referential, honest).
+    if isinstance(loop_state, dict) and loop_state.get("ok"):
+        flowing = bool(loop_state.get("beats_last_cycle"))
+        idx["anatomy"] = {
+            "label": LABEL_MEASURED if flowing else LABEL_SAMPLE,
+            "band": BAND_HEALTHY if flowing else BAND_DEGRADED,
+            "live": True,
+            "detail": {"beats_last_cycle": loop_state.get("beats_last_cycle"),
+                       "circulation_flowing": bool((loop_state.get("circulation") or {}).get("flowing"))},
+        }
+    return idx
+
+
+def _project_systems(vitals_idx: dict, titles: dict) -> list:
+    """Project the 52 organs into the 8 systems, each organ carrying an honest label.
+
+    An organ with a live probe carries its real vital; an organ WITHOUT one is
+    UNAVAILABLE (band unavailable) — honest, never faked. The system band is the
+    worst honest band among its organs (down < degraded < unavailable < healthy is
+    NOT the order — we use: any down -> down; else any degraded -> degraded; else if
+    every organ unavailable -> unavailable; else healthy)."""
+    systems = []
+    for sys_id, sys_desc, organ_ids in _SYSTEMS:
+        organs = []
+        for oid in organ_ids:
+            v = vitals_idx.get(oid)
+            if v is None:
+                organs.append({
+                    "id": oid,
+                    "title": titles.get(oid, oid),
+                    "label": LABEL_UNAVAILABLE,
+                    "band": BAND_UNAVAILABLE,
+                    "live": False,
+                    "detail": {"note": "no live in-process probe wired — UNAVAILABLE, not faked"},
+                })
+            else:
+                organs.append({
+                    "id": oid, "title": titles.get(oid, oid),
+                    "label": v["label"], "band": v["band"],
+                    "live": bool(v["live"]), "detail": v.get("detail", {}),
+                })
+        live_n = sum(1 for o in organs if o["live"])
+        bands = {o["band"] for o in organs}
+        if BAND_DOWN in bands:
+            sys_band = BAND_DOWN
+        elif BAND_DEGRADED in bands:
+            sys_band = BAND_DEGRADED
+        elif bands == {BAND_UNAVAILABLE}:
+            sys_band = BAND_UNAVAILABLE
+        else:
+            sys_band = BAND_HEALTHY
+        systems.append({
+            "system": sys_id,
+            "name": sys_desc,
+            "label": LABEL_MODELED,   # the organ->system PROJECTION is a modeled view
+            "band": sys_band,
+            "organs_total": len(organs),
+            "organs_live": live_n,
+            "organs": organs,
+        })
+    return systems
+
+
+def _build_lungs(mesh: dict) -> dict:
+    """LUNGS = the 2 GPU meters. Breathing rate ∝ live watts, capacity ∝ joules.
+
+    Read straight from szl_energy_live.build_mesh per-engine (omen->tower RTX 4060 Ti,
+    betterwithage->laptop RTX 5050). MEASURED only from a reachable NVML exporter;
+    a null watts/joules stays UNAVAILABLE — never a fabricated breath."""
+    nodes = (mesh.get("nodes") if isinstance(mesh, dict) else None) or []
+    breaths = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        watts = n.get("watts")
+        joules = n.get("joules")
+        jl = n.get("joules_label", LABEL_UNAVAILABLE)
+        breaths.append({
+            "name": n.get("name"),
+            "role": n.get("role"),
+            "live": n.get("live"),
+            "breathing_rate_watts": watts,          # ∝ live power draw (MEASURED or None)
+            "capacity_joules": joules,              # ∝ metered joules (MEASURED or None)
+            "joules_label": jl,
+            "source": n.get("source"),
+        })
+    label = mesh.get("label", LABEL_UNAVAILABLE) if isinstance(mesh, dict) else LABEL_UNAVAILABLE
+    return {
+        "breaths": breaths,
+        "total_watts": mesh.get("total_watts") if isinstance(mesh, dict) else None,
+        "total_joules": mesh.get("total_joules") if isinstance(mesh, dict) else None,
+        "label": label,
+        "band": _band_from(label, ok=(label == LABEL_MEASURED)),
+        "note": ("breathing rate ∝ live watts, capacity ∝ joules; MEASURED only from a "
+                 "reachable NVML exporter, else UNAVAILABLE — never fabricated"),
+    }
+
+
+def _safe_mesh() -> dict:
+    """szl_energy_live.build_mesh under a short hard timeout — never hang the vitals read."""
+    def _do():
+        import szl_energy_live as el
+        return el.build_mesh()
+    try:
+        if _probe_with_timeout is not None:
+            env = _probe_with_timeout(_do, timeout=0.8)
+            res = env.get("result") if env.get("reachable") else None
+            return res if isinstance(res, dict) else {"label": LABEL_UNAVAILABLE, "nodes": []}
+        out = _do()
+        return out if isinstance(out, dict) else {"label": LABEL_UNAVAILABLE, "nodes": []}
+    except Exception:  # noqa: BLE001
+        return {"label": LABEL_UNAVAILABLE, "nodes": []}
+
+
+def _safe_manifest() -> dict:
+    try:
+        import szl_frontier_manifest as M
+        out = M.build_manifest()
+        return out if isinstance(out, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _safe_immune() -> dict:
+    try:
+        import szl_immune as I
+        out = I._status()
+        return out if isinstance(out, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _assemble_living_state(ns: str) -> dict:
+    """Compose the ONE honest living-anatomy object (uncached inner build)."""
+    loop_state = run_loop(ns=ns)
+    mesh = _safe_mesh()
+    manifest = _safe_manifest()
+    immune = _safe_immune()
+    titles = _organ_titles()
+
+    vitals_idx = _live_vitals_index(mesh, manifest, immune, loop_state)
+    systems = _project_systems(vitals_idx, titles)
+    lungs = _build_lungs(mesh)
+
+    organs_total = sum(s["organs_total"] for s in systems)
+    organs_live = sum(s["organs_live"] for s in systems)
+    band_counts: dict = {}
+    for s in systems:
+        band_counts[s["band"]] = band_counts.get(s["band"], 0) + 1
+
+    return {
+        "ok": True,
+        "kind": "living-anatomy-vitals",
+        "ns": ns,
+        "doctrine": DOCTRINE,
+        "view": ("MODELED physiological projection over REAL telemetry — a body-systems "
+                 "VIEW; SZL is never claimed to be literally alive"),
+        "metal": {
+            # LUNGS = the 2 GPU meters (breathing rate ∝ watts, capacity ∝ joules).
+            "lungs": lungs,
+        },
+        "systems": systems,
+        # The metabolism (Layer 1): reservoir fill + grid intake rate + circulation.
+        "metabolism": {
+            "reservoir": loop_state.get("reservoir", {}),
+            "intake_rate": loop_state.get("intake_rate", {}),
+            "circulation": loop_state.get("circulation", {}),
+            "beats_last_cycle": loop_state.get("beats_last_cycle", 0),
+            "ayni": loop_state.get("ayni", {}),
+        },
+        "summary": {
+            "systems": len(systems),
+            "organs_total": organs_total,
+            "organs_live": organs_live,
+            "system_band_counts": band_counts,
+            "labels_legend": {
+                LABEL_MEASURED: "real metered/probed value",
+                LABEL_MODELED: "modeled view derived from real telemetry",
+                LABEL_SAMPLE: "historical/illustrative, not a fresh reading",
+                LABEL_UNAVAILABLE: "no live probe reachable — honest, not faked",
+            },
+            "bands_legend": {
+                BAND_HEALTHY: "live + labeled measured/modeled",
+                BAND_DEGRADED: "reachable but partial/historical",
+                BAND_DOWN: "an expected live source failed",
+                BAND_UNAVAILABLE: "no live probe wired",
+            },
+        },
+        "honesty": (
+            "MODELED physiological view over real telemetry; every value carries a "
+            "VERBATIM label + a health BAND (always a word, never colour-only); organs "
+            "without a live probe are UNAVAILABLE (never faked); joules MEASURED only from "
+            "a reachable NVML exporter; Ayni balances; Λ = Conjecture 1; locked-8 unchanged "
+            "(these systems are a VIEW, not locked-8 additions); no free-energy; SZL is "
+            "never claimed literally alive."
+        ),
+        "computed_at": _now(),
+    }
+
+
+def build_living_state(ns: str = "a11oy") -> dict:
+    """Assemble the living-anatomy vitals, cached 20 s (crash-proof, honest degrade).
+
+    Cached via the SAME TTLCache the intake probe uses, so a GET is a handful of cache
+    reads — never a per-request fan-out to 52 organ endpoints. Any fault degrades to an
+    honest, doctrine-clean response; it can NEVER raise into the app."""
+    try:
+        if _VITALS_CACHE is not None:
+            return _VITALS_CACHE.get_or_compute(lambda: _assemble_living_state(ns),
+                                                key=f"living_state:{ns}")
+        return _assemble_living_state(ns)
+    except Exception as exc:  # noqa: BLE001 — never raise into the app
+        return {
+            "ok": False,
+            "kind": "living-anatomy-vitals",
+            "ns": ns,
+            "doctrine": DOCTRINE,
+            "view": "MODELED physiological projection over real telemetry",
+            "metal": {"lungs": {"breaths": [], "label": LABEL_UNAVAILABLE, "band": BAND_UNAVAILABLE}},
+            "systems": [],
+            "metabolism": {},
+            "summary": {"systems": 0, "organs_total": 0, "organs_live": 0},
+            "honesty": f"degraded honestly ({type(exc).__name__}); UNAVAILABLE only; nothing fabricated",
+            "computed_at": _now(),
+        }
+
+
+# ---------------------------------------------------------------------------
 # HTTP handler + registration (matches szl_energy_provenance / szl_heart_blood).
 # ---------------------------------------------------------------------------
 def _h_loop(req):
@@ -660,8 +1284,13 @@ def register(app, ns="a11oy"):
         from starlette.responses import JSONResponse
         return JSONResponse(run_loop(ns=ns))
 
+    def _vitals_handler(req=None):
+        from starlette.responses import JSONResponse
+        return JSONResponse(build_living_state(ns=ns))
+
     handlers = [
         (f"{base}/loop", _loop_handler),
+        (f"{base}/vitals", _vitals_handler),
     ]
     add_api_route = getattr(app, "add_api_route", None)
     for path, fn in handlers:
