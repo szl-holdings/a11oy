@@ -19,26 +19,55 @@
  :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf;}
  *{box-sizing:border-box}
  html,body{margin:0;height:100%}
- body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;overflow:hidden}
+ /* Flex column so the 3D stage always fills the space left over by the header +
+    tab strip, no matter how far they wrap. dvh (dynamic viewport height) tracks
+    the mobile address-bar collapse; svh/100vh are fallbacks for older engines. */
+ body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  overflow:hidden;display:flex;flex-direction:column;height:100vh;height:100svh;height:100dvh}
  header{padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#08101a,#05070d);
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:0 0 auto}
  h1{font-size:16px;margin:0;letter-spacing:.4px}
  .badge{display:inline-block;font:10.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
-  border:1px solid var(--line);color:var(--gold);background:#10171f}
+  border:1px solid var(--line);color:var(--gold);background:#10171f;white-space:nowrap}
  #backend{color:var(--teal)}
- .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);background:#070d15}
+ /* Desktop: tabs wrap. Mobile (below): one horizontally-scrollable row so the
+    ~50 tabs don't build a tall wall that shoves the 3D stage off-screen. */
+ .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);
+  background:#070d15;flex:0 0 auto}
  .tab{font:11.5px ui-monospace,monospace;padding:6px 12px;border-radius:7px;border:1px solid var(--line);
-  background:#0a121b;color:var(--para);cursor:pointer;letter-spacing:.3px;transition:.12s}
+  background:#0a121b;color:var(--para);cursor:pointer;letter-spacing:.3px;transition:.12s;white-space:nowrap}
  .tab:hover{border-color:var(--teal);color:var(--cream)}
  .tab[aria-selected="true"]{background:#12202b;color:var(--cream);border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
- #stage-wrap{position:relative;width:100vw;height:calc(100vh - 96px)}
+ #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
  #stage{position:absolute;inset:0}
- #stage canvas{display:block;width:100%;height:100%}
+ #stage canvas{display:block;width:100%;height:100%;touch-action:none}
  #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
   text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace}
- footer{position:fixed;bottom:0;left:0;right:0;padding:6px 14px;border-top:1px solid var(--line);
-  background:#070d15;color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6}
+ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
+  background:#070d15;color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6;
+  white-space:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
  a{color:var(--teal);text-decoration:none}
+
+ /* ---- Mobile / touch (<=640px) ---------------------------------------- */
+ @media (max-width:640px){
+  header{padding:8px 12px;gap:8px}
+  h1{font-size:14px;flex:1 1 100%}
+  /* Keep only the essential badges visible; hide the noisier ones on small screens. */
+  header .badge{font-size:9.5px;padding:2px 6px}
+  #three-rev-badge,#cdn-badge{display:none}
+  /* Horizontal scroll strip for the tabs, with the active tab kept in view. */
+  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+   padding:7px 10px;scrollbar-width:thin}
+  .tabs::-webkit-scrollbar{height:4px}
+  .tabs::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .tab{padding:7px 11px;font-size:11px;flex:0 0 auto}
+  footer{font-size:9px;padding:5px 10px}
+  /* Give the 3D stage a guaranteed usable share of the screen on phones. */
+  #stage-wrap{min-height:52vh}
+ }
+ @media (max-width:640px) and (orientation:landscape){
+  #stage-wrap{min-height:60vh}
+ }
 </style>
 </head>
 <body>
@@ -46,8 +75,8 @@
  <h1>◇ Holographic Estate</h1>
  <span class="badge" id="backend">renderer: …</span>
  <button class="badge" id="gpu-toggle" title="Toggle WebGPU compute path (falls back to WebGL2 if the browser/driver can't provide a WebGPU device). WebGPU is not production-safe on all platforms — doctrine." style="cursor:pointer;background:#10171f">⚡ WebGPU: off</button>
- <span class="badge">three r<span id="three-rev">…</span></span>
- <span class="badge">0 runtime CDN</span>
+ <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
+ <span class="badge" id="cdn-badge">0 runtime CDN</span>
  <span class="badge">Λ = Conjecture 1</span>
  <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
 </header>
@@ -229,7 +258,11 @@ SURFACES.forEach((s) => {
   const b = document.createElement("button");
   b.className = "tab"; b.textContent = s.title; b.dataset.id = s.id;
   b.setAttribute("role", "tab"); b.setAttribute("aria-selected", "false");
-  b.addEventListener("click", () => selectSurface(s.id));
+  b.addEventListener("click", () => {
+    selectSurface(s.id);
+    // On the mobile horizontal tab strip, keep the tapped tab in view.
+    try { b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (_) {}
+  });
   tabsEl.appendChild(b);
 });
 
