@@ -38,7 +38,7 @@ const EP_LOOP   = "/api/a11oy/v1/anatomy/loop";        // PINN volume glance / r
 
 // palette (matches the other surfaces' accents so the estate reads as the union)
 const C = {
-  energy: 0xe8c074, fabric: 0x39d3c4, pnt: 0x6fb1ff, gov: 0xb07bff,
+  energy: 0xe8c074, fabric: 0x39d3c4, pnt: 0x6fb1ff, gov: 0x8a6bff,
   pinn: 0x2fd07a, slate: 0x8a97a3, cream: 0xeef3f6, dim: 0x46586a, red: 0xff6b6b,
 };
 
@@ -61,7 +61,7 @@ function _norm(raw) {
   const u = String(raw).toUpperCase();
   if (u.indexOf("MEASURED") >= 0) return "MEASURED";
   if (u.indexOf("MODELED") >= 0 || u.indexOf("MODEL") >= 0) return "MODELED";
-  if (u.indexOf("LIVE") >= 0) return "MEASURED";
+  if (u.indexOf("LIVE") >= 0) return "LIVE";
   if (u.indexOf("SAMPLE") >= 0) return "SAMPLE";
   return "STRUCTURAL-ONLY";
 }
@@ -479,7 +479,18 @@ function unmount() {
   for (const h of _handles) { try { h && h.stop && h.stop(); } catch (_) {} }
   _handles.length = 0;
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
-  try { if (_root && _stage) _stage.scene.remove(_root); } catch (_) {}
+  try {
+    if (_root) {
+      _root.traverse((o) => {
+        if (o.geometry && o.geometry.dispose) o.geometry.dispose();
+        if (o.material) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          ms.forEach((m) => { if (m && m.map && m.map.dispose) m.map.dispose(); if (m && m.dispose) m.dispose(); });
+        }
+      });
+      if (_stage) _stage.scene.remove(_root);
+    }
+  } catch (_) {}
   try { if (_stage) _stage.setBloom(false); } catch (_) {}
   _root = null; _overlay = null; _scene = null; _frameFn = null; _hud = {}; _stage = null; _THREE = null; _ctx = null;
 }
