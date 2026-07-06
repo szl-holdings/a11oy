@@ -43,7 +43,7 @@ fetch('/api/a11oy/v1/hub/security-posture').then(r=>r.json()).then(d=>{
  (d.scorecard||[]).forEach(s=>{const cls=s.grade.startsWith('GREEN')?'g':s.grade.includes('RED')?'r':'a';
   const tr=document.createElement('tr');tr.innerHTML=`<td>${s.domain}</td><td><span class="pill ${cls}">${s.grade}</span></td><td>${s.note}</td>`;tb.appendChild(tr);});
 }).catch(()=>{document.getElementById('sb').innerHTML='<tr><td colspan=3>posture endpoint unavailable</td></tr>';});
-</script><p class="sub">Source: security_compliance/CURRENT_SECURITY_POSTURE.md</p>
+</script>
 </main>
 <footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
 </body></html>
