@@ -51,7 +51,17 @@ from fastapi.responses import JSONResponse
 
 # --- shared Dev B modules (imported, never re-implemented) ---
 import szl_tau_eval as _tau
-import szl_calibration as _cal
+# POC (szl-substrate extraction): prefer the shared package as the single source
+# of truth for szl_calibration; fall back to the local vendored copy so nothing
+# breaks if the package is not installed. See szl-holdings/szl-substrate
+# MIGRATION.md. This file is a11oy-only, so the edit does not affect the
+# a11oy<->killinchu shared-source drift guard.
+try:
+    from szl_substrate import szl_calibration as _cal  # single source of truth
+    _cal_source = "szl-substrate"
+except Exception:  # pragma: no cover
+    import szl_calibration as _cal  # fall back to local vendored copy
+    _cal_source = "local-vendored"
 import szl_conformal as _conf
 import szl_colang_policy as _pol
 import szl_ietf_receipt as _ietf
