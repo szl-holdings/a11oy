@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 SZL Holdings — a11oy · Doctrine v11 (0 runtime CDN)
+# REPORT-ONLY (non-blocking) initially: a11oy has ~43 legacy runtime-CDN references
+# across organ consoles. This guard inventories every violation on each PR so they can
+# be vendored incrementally, WITHOUT breaking CI on day one. Flip `enforcement: block`
+# (set FAIL_ON_FIND=1) once the count reaches zero.
+name: no-runtime-cdn-guard
+on:
+  pull_request:
+    paths:
+      - '**/*.html'
+      - '**/*.js'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.html'
+      - '**/*.js'
+permissions:
+  contents: read
+jobs:
+  no-runtime-cdn:
+    runs-on: ubuntu-latest
+    env:
+      FAIL_ON_FIND: "0"   # report-only; set to "1" to enforce once fleet is vendored
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Inventory runtime CDN references in served assets
+        run: |
+          set -uo pipefail
+          pattern='(href|src)="https?://[^"]*(cdnjs|googleapis|gstatic|unpkg|jsdelivr|ajax\.googleapis|cdn\.jsdelivr)'
+          # exclude vendored bundles (already same-origin) and node_modules
+          matches=$(grep -rEn "$pattern" --include=*.html --include=*.js . \
+            2>/dev/null | grep -vE '/vendor/|/node_modules/' || true)
+          count=$(printf "%s" "$matches" | grep -c . || true)
+          echo "Runtime-CDN references found: $count"
+          if [ -n "$matches" ]; then
+            echo "$matches"
+            echo "::warning::$count runtime-CDN reference(s) violate Doctrine v11 (0 runtime CDN). Vendor them same-origin under /vendor or /static."
+          fi
+          if [ "${FAIL_ON_FIND}" = "1" ] && [ "$count" -gt 0 ]; then
+            echo "::error::FAIL_ON_FIND=1 and $count violation(s) present."
+            exit 1
+          fi
+          echo "OK (report-only): guard ran; enforcement disabled until fleet is vendored."
