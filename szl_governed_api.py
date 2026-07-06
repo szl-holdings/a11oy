@@ -58,9 +58,11 @@ except Exception:  # pragma: no cover
 # Override the whole mesh with SZL_MESH_JSON='[{"name":..,"ollama":..,"meter":..,"model":..}]'.
 _DEFAULT_MESH = [
     {"name": "Sovereign GPU 2 (tower · RTX 4060 Ti · anchor)",
-     "ollama": "https://gpu.a-11-oy.com",  "meter": "https://meter.a-11-oy.com",  "model": "llama3.1:8b"},
+     "ollama": "https://gpu.a-11-oy.com",  "meter": "https://meter.a-11-oy.com",  "model": "llama3.1:8b",
+     "exporter": "omen"},
     {"name": "Sovereign GPU 1 (laptop · RTX 5050 · Blackwell)",
-     "ollama": "https://gpu2.a-11-oy.com", "meter": "https://meter2.a-11-oy.com", "model": "qwen2.5:3b"},
+     "ollama": "https://gpu2.a-11-oy.com", "meter": "https://meter2.a-11-oy.com", "model": "qwen2.5:3b",
+     "exporter": "betterwithage"},
 ]
 try:
     MESH = json.loads(os.environ["SZL_MESH_JSON"]) if os.environ.get("SZL_MESH_JSON") else _DEFAULT_MESH
