@@ -625,6 +625,21 @@ try:
 except Exception as _szl_fm_e:  # pragma: no cover
     print(f"[a11oy] Frontier manifest NOT registered: {_szl_fm_e!r}", file=__import__("sys").stderr)
 
+# zkML Proof-of-Inference ("Cryptographic Receipts") — GET /api/a11oy/v1/frontier/zkinfer
+# returns the CRYPTOGRAPHIC-PROOF trust branch of verifiable inference (counterpart to the
+# TEE branch, ccattest): literature-parameterized zkML proof-cost models (prover time / proof
+# size / verify time vs model size × seq length, every value citing its arXiv ID / DOI), a
+# cryptographic-vs-TEE trust-model matrix, and ONE real commit→prove→verify micro-artifact
+# computed in-process (MEASURED for that narrow claim only; HONEST-STUB on failure). Top label
+# MODELED (explicitly NOT VERIFIED). Adds NOTHING to the locked-8; Λ stays Conjecture 1; trust
+# ceiling 0.97, never 100%. Additive, try/except-guarded, same register() pattern.
+try:
+    import szl_frontier_zkinfer as _szl_frontier_zkinfer
+    _szl_frontier_zkinfer.register(app, ns="a11oy")
+    print("[a11oy] Frontier zkinfer registered: /api/a11oy/v1/frontier/zkinfer (MODELED zkML proof-of-inference)", file=__import__("sys").stderr)
+except Exception as _szl_zk_e:  # pragma: no cover
+    print(f"[a11oy] Frontier zkinfer NOT registered: {_szl_zk_e!r}", file=__import__("sys").stderr)
+
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
 # envelope binding every guarantee for a single governed action: the REAL immune verdict

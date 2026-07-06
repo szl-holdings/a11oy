@@ -94,6 +94,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "ctxready", "title": "Context-Ready Transformer", "owner": "Wave15"},
     {"id": "opera", "title": "OPERA Perplexity-Reward Alignment", "owner": "Wave15"},
     {"id": "brain", "title": "Formula-Graph Brain", "owner": "Wave15"},
+    {"id": "zkinfer", "title": "zkML Proof-of-Inference (Cryptographic Receipts)", "owner": "Wave18"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
