@@ -43,10 +43,19 @@ try:
 except Exception:  # pragma: no cover - fastapi absent only where register() is never called
     Request = HTMLResponse = JSONResponse = None  # type: ignore
 
+# POC (szl-substrate extraction): prefer the shared package as the single source
+# of truth; fall back to the local vendored copy so nothing breaks if the package
+# is not installed in this runtime. See szl-holdings/szl-substrate MIGRATION.md.
 try:
-    import szl_dsse as _dsse  # type: ignore
+    from szl_substrate import szl_dsse as _dsse  # type: ignore  # single source of truth
+    _dsse_source = "szl-substrate"
 except Exception:  # pragma: no cover
-    _dsse = None  # honest UNSIGNED fallback
+    try:
+        import szl_dsse as _dsse  # type: ignore  # fall back to local vendored copy
+        _dsse_source = "local-vendored"
+    except Exception:
+        _dsse = None  # honest UNSIGNED fallback
+        _dsse_source = "unavailable"
 
 from ayllu import __version__ as _AYLLU_VERSION
 from ayllu import backend as _backend

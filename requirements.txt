@@ -22,3 +22,12 @@ py_ecc>=8.0.0
 # with `id-token: write` can mint a real signature; every other runtime keeps the
 # HONEST dsse_envelope() placeholder (DsseSigningUnavailable, never a fake sig).
 sigstore>=4.3.0
+# ADDITIVE (szl-substrate extraction POC): the shared substrate package is the
+# single source of truth for modules duplicated across a11oy + killinchu
+# (szl-holdings/szl-substrate). a11oy_autoreview.py (szl_calibration) and
+# a11oy_ayllu.py (szl_dsse) now PREFER `from szl_substrate import ...` and fall
+# back to the local vendored copy if the package is absent — so the HF Space
+# build (which per-file COPYs the local copies and has no PyPI egress) keeps
+# working UNCHANGED. Uncomment to install the package where egress is available;
+# private repo, so installed via git. The guarded fallback makes this OPTIONAL.
+# szl-substrate @ git+https://github.com/szl-holdings/szl-substrate@main
