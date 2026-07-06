@@ -78,6 +78,7 @@ let _root = null;                 // THREE.Group holding everything we add to th
 let _handles = [];                // poll handles to stop on unmount
 let _overlay = null, _graphPanel = null, _graph = null, _hud = {};
 let _frameCb = null, _fgScript = null;
+let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
 const _state = {};                // last meta per endpoint (for HUD)
 
 // ---------------------------------------------------------------------------
@@ -595,6 +596,21 @@ function _buildOverlay(ctx) {
   _hud.status.textContent = "wiring live governance gate (restraint info + evaluate + honest)…";
   _overlay.appendChild(_hud.status);
 
+  // "what this means" plain-language toggle (matches the research surfaces).
+  const pl = el("button", "pointer-events:auto;font:11px ui-monospace,monospace;padding:5px 11px;" +
+    "border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content;margin-top:2px");
+  pl.textContent = "◑ what this means";
+  pl.title = "Toggle plain-language explanation for investors & consumers.";
+  pl.addEventListener("click", () => {
+    _plain = !_plain;
+    pl.style.background = _plain ? "#0f2a20" : "#08140f";
+    _applyPlain();
+  });
+  _overlay.appendChild(pl);
+  _plainEl = el("div", "pointer-events:auto;font-size:10.5px;color:#c9d6df;line-height:1.55;" +
+    "border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none;margin-top:2px");
+  _overlay.appendChild(_plainEl);
+
   // SBOM graph panel (bottom-right), hosts the GUAC-style force-directed graph
   _graphPanel = el("div",
     "position:absolute;right:14px;bottom:42px;width:min(40vw,380px);height:min(34vh,260px);z-index:5;" +
@@ -606,6 +622,24 @@ function _buildOverlay(ctx) {
   const host = ctx.container || document.body;
   host.appendChild(_overlay);
   host.appendChild(_graphPanel);
+}
+
+function _applyPlain() {
+  const pd = _plainEl;
+  if (!pd) return;
+  pd.style.display = _plain ? "block" : "none";
+  if (!_plain) return;
+  pd.innerHTML =
+    "<b>What this means:</b> This surface shows the app’s own <b>governance gate</b> in action. " +
+    "Before an AI action runs, it is checked against a doctrine ‘restraint ladder’ that decides " +
+    "whether to <b>allow</b> the action or <b>descend</b> to a safer, more restricted rung. Here we " +
+    "run a real sample task through that live gate and show which rung held, an advisory <b>Λ</b> " +
+    "score, and a cryptographically <b>signed receipt</b> of the decision. The key honesty point, " +
+    "shown in red: a valid <b>signature is not proof of safety</b> — a real supply-chain attack " +
+    "(CVE-2026-45321) shipped 84 packages with perfectly valid provenance, and only " +
+    "behaviour-analysis caught them. So Λ is labelled a <b>conjecture</b> and advisory governance, " +
+    "never ‘proven safe’. The dependency graph and compliance grid below trace to live endpoints, " +
+    "or show <b>NO-LIVE-DATA</b> when a backend is still pending — never a fabricated pass.";
 }
 
 // ===========================================================================
@@ -835,7 +869,7 @@ function unmount() {
   try { if (_root && _stage) { disposeObj(_root); _stage.scene.remove(_root); } } catch (_) {}
   _root = null;
   [_overlay, _graphPanel].forEach((n) => { try { if (n && n.parentNode) n.parentNode.removeChild(n); } catch (_) {} });
-  _overlay = null; _graphPanel = null; _hud = {};
+  _overlay = null; _graphPanel = null; _hud = {}; _plain = false; _plainEl = null;
   _stage = null; _THREE = null; _label = null; _live = null;
   for (const k in _state) delete _state[k];
 }
