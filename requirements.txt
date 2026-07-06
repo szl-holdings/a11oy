@@ -10,7 +10,7 @@ vsp-otel>=0.1
 # every span goes nowhere (shelfware). Export is GATED on OTEL_EXPORTER_OTLP_ENDPOINT:
 # when unset, vsp_otel stays honestly in-process-only (no collector is claimed);
 # when set, spans export OTLP/gRPC to that endpoint.
-opentelemetry-sdk>=1.20
+opentelemetry-sdk>=1.43.0
 opentelemetry-exporter-otlp>=1.43.0
 # ADDITIVE (Formulas → Ecosystem, Opus 4.8 2026-06-03): real BLS12-381 aggregate
 # signatures over the Khipu chain (a11oy.formulas.bls_aggregate). Optional at runtime —
