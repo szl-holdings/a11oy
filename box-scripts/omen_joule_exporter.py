@@ -26,6 +26,15 @@ HONESTY (doctrine — never fabricate a joule):
 RUN (on OMEN):  python omen_joule_exporter.py     # serves on 0.0.0.0:9471
 Then tunnel port 9471 and point A11OY_JOULE_METER_URL at the tunnel /.
 
+MULTI-NODE AGGREGATION (real fix, not a bandaid):
+  Set PEER_EXPORTERS to a comma-separated list of OTHER nodes' exporter URLs
+  (e.g. the laptop's tailnet exporter). This node then serves its OWN NVML engine
+  PLUS every reachable peer's engines merged into one `engines[]` list, so a single
+  scrape of THIS exporter (the one behind meter.a-11-oy.com) returns every GPU in the
+  mesh. Honest by design: an unreachable peer simply does not appear (never faked);
+  a peer engine whose name duplicates a local engine is dropped (local wins).
+    export PEER_EXPORTERS=http://100.x.y.z:9471/     # laptop 'betterwithage' over tailnet
+
 Pure stdlib — no pip installs. Requires nvidia-smi on PATH (ships with the driver).
 """
 import json
@@ -33,11 +42,15 @@ import os
 import subprocess
 import threading
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("OMEN_EXPORTER_PORT", "9471"))
 ENGINE_NAME = os.environ.get("OMEN_ENGINE_NAME", "omen")
 SAMPLE_EVERY_S = float(os.environ.get("OMEN_SAMPLE_EVERY_S", "2.0"))
+# Comma-separated peer exporter URLs to merge (empty = single-node behaviour, unchanged).
+PEER_EXPORTERS = [u.strip() for u in os.environ.get("PEER_EXPORTERS", "").split(",") if u.strip()]
+PEER_TIMEOUT_S = float(os.environ.get("PEER_TIMEOUT_S", "3.0"))
 
 # Cumulative joules per GPU index, integrated from real power samples.
 _state_lock = threading.Lock()
@@ -98,7 +111,8 @@ def _sampler():
                 }
 
 
-def _meter_json():
+def _local_engine():
+    """This node's own NVML engine dict (+ its cumulative joules total)."""
     with _state_lock:
         gpus = []
         total = 0.0
@@ -113,12 +127,50 @@ def _meter_json():
                 "joules": round(j, 3),
                 "live": bool(s.get("live")),
             })
+    return {"engine": ENGINE_NAME, "joules": round(total, 3), "gpus": gpus}, total
+
+
+def _fetch_peer_engines():
+    """Fetch each PEER_EXPORTER's engines[]. Unreachable peers are skipped (honest —
+    never fabricated). Returns (engines_list, joules_sum) for all reachable peers."""
+    engines, jsum = [], 0.0
+    for url in PEER_EXPORTERS:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "omen-joule-exporter/peer"})
+            with urllib.request.urlopen(req, timeout=PEER_TIMEOUT_S) as r:  # noqa: S310
+                data = json.loads(r.read().decode("utf-8", "replace"))
+            for e in (data.get("engines") or []):
+                if not isinstance(e, dict) or not e.get("engine"):
+                    continue
+                engines.append(e)
+                if isinstance(e.get("joules"), (int, float)):
+                    jsum += float(e["joules"])
+        except Exception:
+            # Peer down/unreachable => omit it. Never fake a joule. (Doctrine v11)
+            continue
+    return engines, jsum
+
+
+def _meter_json():
+    local, local_total = _local_engine()
+    engines = [local]
+    total = local_total
+    seen = {str(local["engine"]).lower()}
+    if PEER_EXPORTERS:
+        peer_engines, _ = _fetch_peer_engines()
+        for e in peer_engines:
+            name = str(e.get("engine")).lower()
+            if name in seen:
+                continue  # local wins on name collision; never double-count
+            seen.add(name)
+            engines.append(e)
+            if isinstance(e.get("joules"), (int, float)):
+                total += float(e["joules"])
     return {
-        "engines": [
-            {"engine": ENGINE_NAME, "joules": round(total, 3), "gpus": gpus}
-        ],
+        "engines": engines,
         "totals": {"joules": round(total, 3)},
-        "exporter": "omen-joule-exporter (real NVML via nvidia-smi)",
+        "exporter": "omen-joule-exporter (real NVML via nvidia-smi)"
+                    + (" + %d peer(s)" % len(PEER_EXPORTERS) if PEER_EXPORTERS else ""),
         "ts": time.time(),
     }
 
@@ -151,7 +203,8 @@ def main():
             _last_sample[idx] = {"power_w": power_w, "name": name,
                                  "live": power_w is not None, "ts": time.time()}
     httpd = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print("omen-joule-exporter serving on 0.0.0.0:%d (engine=%s)" % (PORT, ENGINE_NAME))
+    peers = (" + peers: %s" % ", ".join(PEER_EXPORTERS)) if PEER_EXPORTERS else ""
+    print("omen-joule-exporter serving on 0.0.0.0:%d (engine=%s)%s" % (PORT, ENGINE_NAME, peers))
     httpd.serve_forever()
 
 
