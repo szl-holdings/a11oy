@@ -1,0 +1,32 @@
+name: bundle-integrity-guard
+# Doctrine v11 guard: the committed console/ Vite bundle must be internally
+# self-consistent — no chunk may import/re-export/dynamic-import/preload a hashed
+# chunk name that is absent from console/assets/. A re-hashed entry/layout chunk
+# whose importers were not updated dangles -> 404 -> every lazy /code SPA tab hangs
+# on "loading...". This scan fails the PR/push so that can never ship again.
+# See .github/scripts/check_bundle_integrity.py.
+on:
+  pull_request:
+    paths:
+      - 'console/**'
+      - '.github/scripts/check_bundle_integrity.py'
+      - '.github/workflows/bundle-integrity-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'console/**'
+      - '.github/scripts/check_bundle_integrity.py'
+      - '.github/workflows/bundle-integrity-guard.yml'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: console bundle-integrity scan
+        run: python3 .github/scripts/check_bundle_integrity.py console/assets
