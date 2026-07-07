@@ -29,6 +29,8 @@
 // Surface export shape: export default { id, title, endpoints, mount(ctx), unmount() }
 //   ctx = { stage, container, live, label, THREE, szl3d }
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "flower";
 const TITLE = "The Flower Brain";
 
@@ -84,7 +86,7 @@ const PETAL_R0 = 0.9;   // inner radius where a petal starts
 const PETAL_DR = 0.62;  // radial step per tier-depth ring within a petal
 
 let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
-let _frameReg = false, _polls = [], _badge = null, _plain = false;
+let _frameReg = false, _polls = [], _badge = null, _plain = false, _show = null;
 
 let _pistil = null;          // the immutable proven-core mesh at the center
 let _petalGroups = {};       // petalKey -> THREE.Group (rotates/scales on bloom)
@@ -123,9 +125,9 @@ function mount(ctx) {
   _stage.scene.add(_group);
   _t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
 
+  _badge = ctx.live.createBadge();
   _buildOverlay(ctx);
   _buildScaffold();               // pistil + 8 empty petal groups (render before live data)
-  _badge = ctx.live.createBadge();
 
   // Pull the real graph once, then poll the bloom snapshot every 5s.
   _polls.push(ctx.live.poll(EP_GRAPH, 0, _onGraph, {
@@ -401,14 +403,13 @@ function _animate() {
 // overlay HUD
 // =============================================================================
 function _buildOverlay(ctx) {
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#3af4c8", badge: _badge,
+    chips: [{ label: "MODELED", name: "label" }],
+  });
   _overlay = document.createElement("div");
-  _overlay.style.cssText =
-    "position:absolute;top:12px;left:12px;max-width:360px;font:12px/1.5 ui-monospace,Menlo,monospace;" +
-    "color:#cfe3ea;background:rgba(15,32,39,0.82);border:1px solid #1b3a44;border-radius:10px;padding:12px 14px;" +
-    "pointer-events:auto;backdrop-filter:blur(3px);z-index:20;";
+  _overlay.style.cssText = "font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;";
   _overlay.innerHTML =
-    '<div style="font-weight:700;letter-spacing:.03em;color:#eaf6f9;font-size:13px">The Flower Brain ' +
-      '<span id="flower-label" style="float:right;font-size:10px;padding:1px 7px;border-radius:8px;background:#123;color:#3af4c8;border:1px solid #1b3a44">MODELED</span></div>' +
     '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Everything SZL built as one 8-petal bloom — the proven-8 pistil at the center, petals open with cluster health.</div>' +
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
     _row("Overall bloom", "flower-bloom") +
@@ -425,7 +426,7 @@ function _buildOverlay(ctx) {
     '<div style="margin-top:8px"><button id="flower-plain" style="font:11px ui-monospace;background:#0f2027;color:#9fc;' +
       'border:1px solid #1b3a44;border-radius:6px;padding:3px 8px;cursor:pointer">Plain language</button></div>' +
     '<div id="flower-plainbox" style="display:none;margin-top:8px;font-size:10.5px;color:#bcd;line-height:1.55"></div>';
-  (ctx.container || document.body).appendChild(_overlay);
+  _show.body.appendChild(_overlay);
   const btn = _overlay.querySelector("#flower-plain");
   if (btn) btn.addEventListener("click", () => { _plain = !_plain; _applyPlain(); });
 }
@@ -446,7 +447,7 @@ function _paintOverlay() {
   const deg = missing || (S.state === "degraded");
   const nd = "NO-LIVE-DATA";
 
-  _set("flower-label", S.label || "MODELED");
+  if (_show) _show.setChip("label", S.label || "MODELED");
   if (missing && !S.nodes.length) {
     _set("flower-bloom", nd);
     _set("flower-locked", "8 (proven pistil, offline)");
@@ -520,7 +521,7 @@ function _applyPlain() {
 // =============================================================================
 function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {} _show = null;
   try {
     if (_group && _stage) {
       _group.traverse((o) => {

@@ -36,6 +36,8 @@
 // Surface export shape mirrors loopforge.js / harness.js exactly:
 //   export default { id, title, endpoints, mount, unmount }
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "evalarena";
 const TITLE = "Eval Arena";
 
@@ -55,7 +57,7 @@ const C_EDGE   = 0x1b3a44;
 const RING_R = 3.0, ARC_R = 5.4, CORE_R = 0.62;
 
 let _stage=null,_THREE=null,_ctx=null,_group=null,_overlay=null;
-let _frameReg=false,_polls=[],_badge=null,_plain=false,_t0=0;
+let _frameReg=false,_polls=[],_badge=null,_plain=false,_t0=0,_show=null;
 let _ring=null,_ringGlow=null,_core=null,_caseGroup=null,_caseMeshes=[];
 
 const S = {
@@ -79,11 +81,9 @@ function mount(ctx){
   try{ if(_stage.controls&&_stage.controls.target){ _stage.controls.target.set(0,1.0,0); _stage.controls.update(); } }catch(_){}
   try{ _stage.setBloom&&_stage.setBloom(true); }catch(_){}
   _t0=(typeof performance!=="undefined"?performance.now():Date.now());
+  _badge=ctx.live.createBadge();
   _buildOverlay(ctx);
   _buildScaffold();
-  _badge=ctx.live.createBadge();
-  const brow=_overlay&&_overlay.querySelector("#ea-badgerow");
-  if(brow&&_badge&&_badge.el) brow.appendChild(_badge.el);
 
   // POST /eval/run — the CORE poll. Body carries {suite, model_id}.
   _polls.push(ctx.live.poll(EP_RUN, 8000, _onRun, {
@@ -196,13 +196,14 @@ function _animate(){
 }
 
 function _buildOverlay(ctx){
+  _show=createShowcase(ctx,{
+    id:ID, title:TITLE, accent:"#3af4c8", badge:_badge,
+    chips:[{label:"MODELED", name:"label"}],
+  });
   _overlay=document.createElement("div");
-  _overlay.style.cssText="position:absolute;top:12px;left:12px;max-width:378px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;background:rgba(10,17,23,0.86);border:1px solid #1b3a44;border-radius:10px;padding:12px 14px;pointer-events:auto;backdrop-filter:blur(3px);z-index:20;max-height:calc(100% - 24px);overflow:auto;";
+  _overlay.style.cssText="font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;";
   _overlay.innerHTML=
-    '<div style="font-weight:700;letter-spacing:.03em;color:#eaf6f9;font-size:13px">Eval Arena <span id="ea-label" style="float:right;font-size:10px;padding:1px 7px;border-radius:8px;background:#123;color:#3af4c8;border:1px solid #1b3a44">MODELED</span></div>'+
     '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Governed eval / red-team arena. Each eval CASE flies at the central <b>Λ-gate</b>: passing cases glow teal and cross the ring; red-team (should-refuse) cases correctly refused glow gold; failures dim and fall. Every run mints a <b>signed receipt</b> ingested to /llm/forum. Λ is advisory (Conjecture 1) — never green.</div>'+
-    '<div id="ea-badgerow" style="margin-top:8px"></div>'+
-    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
     _row("Suite","ea-suite")+_row("Model routed","ea-model")+
     _row("Cases passed","ea-cases")+_row("Accuracy","ea-acc")+
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
@@ -222,7 +223,7 @@ function _buildOverlay(ctx){
     '</div>'+
     '<div id="ea-plainbox" style="display:none;margin-top:8px;font-size:10.5px;color:#bcd;line-height:1.55"></div>'+
     '<div id="ea-infobox" style="display:none;margin-top:8px;font-size:10px;color:#bcd;line-height:1.55"></div>';
-  (ctx.container||document.body).appendChild(_overlay);
+  _show.body.appendChild(_overlay);
   const pb=_overlay.querySelector("#ea-plain"); if(pb) pb.addEventListener("click",()=>{_plain=!_plain;_applyPlain();});
   const ib=_overlay.querySelector("#ea-info");
   if(ib) ib.addEventListener("click",()=>{ const box=_overlay.querySelector("#ea-infobox");
@@ -238,7 +239,7 @@ function _pct(x){ return x==null?"—":(x<=1?(x*100).toFixed(1)+"%":String(x)); 
 function _paintOverlay(){
   if(!_overlay)return;
   const missing=(S.state==="missing"||S.state==="error"); const deg=missing||(S.state==="degraded");
-  _set("ea-label",S.label||"MODELED");
+  if(_show) _show.setChip("label",S.label||"MODELED");
   if(missing&&!S.cases.length){
     ["ea-suite","ea-model","ea-cases","ea-acc","ea-correct","ea-refuse","ea-honest","ea-control","ea-lambda","ea-sign","ea-forum"]
       .forEach((id)=>_set(id,"NO-LIVE-DATA"));
@@ -270,7 +271,7 @@ function _infoHTML(){
 
 function unmount(){
   _polls.forEach((p)=>{ try{p.stop();}catch(_){} }); _polls=[];
-  try{ if(_overlay&&_overlay.parentNode) _overlay.parentNode.removeChild(_overlay); }catch(_){}
+  try{ if(_show) _show.destroy(); }catch(_){} _show=null;
   try{ if(_group&&_stage){ _group.traverse((o)=>{ if(o.geometry&&o.geometry.dispose)o.geometry.dispose();
     if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach((m)=>{if(m.dispose)m.dispose();});} }); _stage.scene.remove(_group); } }catch(_){}
   _group=_overlay=null; _ring=_ringGlow=_core=_caseGroup=null; _caseMeshes=[];
