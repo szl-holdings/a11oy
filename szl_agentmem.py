@@ -74,6 +74,7 @@ import hashlib
 from datetime import datetime, timezone
 
 from starlette.routing import Route
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 CITATIONS = {
@@ -254,7 +255,7 @@ def _ii(req, key, default):
         return default
 
 
-def _h_agentmem(req):
+def _h_agentmem(req: Request):
     seed       = _ii(req, "seed", 42)
     n_memories = max(8, min(_ii(req, "n_memories", 256), 4096))
     query_k    = max(1, min(_ii(req, "query_k", 16), 256))
