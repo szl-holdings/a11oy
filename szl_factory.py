@@ -192,7 +192,11 @@ def _brain_state() -> Dict[str, Any]:
                                  "(retrieve->quarantine->tool_call->policy_check->kernel_check->emit).")
     # The PLAN->ACT->VERIFY agent FSM, if present (honest about its guards).
     try:
-        import a11oy_agent_loop as _al  # type: ignore  # noqa: F401
+        # Prefer the installable shared substrate; fall back to the local copy.
+        try:
+            from szl_substrate import a11oy_agent_loop as _al  # type: ignore  # noqa: F401
+        except Exception:
+            import a11oy_agent_loop as _al  # type: ignore  # noqa: F401
         out["agent_loop"] = {
             "module": "a11oy_agent_loop",
             "fsm": "INTAKE->PLAN->RETRIEVE->ACT->OBSERVE->VERIFY->(REFLECT->ACT)->FINALIZE|HALT",

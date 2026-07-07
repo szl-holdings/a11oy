@@ -277,7 +277,10 @@ def _waqay_status() -> dict:
     trust = 0.99
     n_receipts = None
     try:
-        import szl_waqay as w
+        try:
+            from szl_substrate import szl_waqay as w  # prefer shared substrate
+        except Exception:
+            import szl_waqay as w                      # fall back to local copy
         doc = dict(getattr(w, "DOCTRINE", {}))
         trust = getattr(w, "TRUST_CEILING", 0.99)
         n_receipts = len(getattr(w, "_RECEIPTS", []))
@@ -319,7 +322,10 @@ def _yupay_status() -> dict:
     trust = 0.97
     n_receipts = None
     try:
-        import szl_yupay as y
+        try:
+            from szl_substrate import szl_yupay as y  # prefer shared substrate
+        except Exception:
+            import szl_yupay as y                      # fall back to local copy
         doc = dict(getattr(y, "DOCTRINE", {}))
         at = getattr(y, "AUDIT_TASK", {})
         task = {"id": at.get("id"), "issues_known": len(at.get("known_issues", []))}
@@ -418,12 +424,18 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
     except Exception as e:  # noqa: BLE001
         result["errors"]["szl_qhawaq_import"] = repr(e)
     try:
-        import szl_waqay as _w
+        try:
+            from szl_substrate import szl_waqay as _w  # prefer shared substrate
+        except Exception:
+            import szl_waqay as _w                      # fall back to local copy
         _wire("szl_waqay", lambda: _w.register(app, ns=ns))
     except Exception as e:  # noqa: BLE001
         result["errors"]["szl_waqay_import"] = repr(e)
     try:
-        import szl_yupay as _y
+        try:
+            from szl_substrate import szl_yupay as _y  # prefer shared substrate
+        except Exception:
+            import szl_yupay as _y                      # fall back to local copy
         _wire("szl_yupay", lambda: _y.register(app, ns=ns))
     except Exception as e:  # noqa: BLE001
         result["errors"]["szl_yupay_import"] = repr(e)

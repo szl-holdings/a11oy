@@ -60,7 +60,12 @@ _MODELED_LABEL = "MODELED/SIMULATED \u2014 not physical hardware"
 # ---------------------------------------------------------------------------
 def _cosim() -> Optional[Any]:
     try:
-        import szl_mbse_cosim as _c  # type: ignore
+        # Prefer the installable shared substrate; fall back to the local
+        # vendored copy if the package is absent (guarded — never crashes).
+        try:
+            from szl_substrate import szl_mbse_cosim as _c  # type: ignore
+        except Exception:
+            import szl_mbse_cosim as _c  # type: ignore
         return _c
     except Exception:
         return None

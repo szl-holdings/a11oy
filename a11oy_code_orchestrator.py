@@ -68,7 +68,12 @@ from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 # never break the existing orchestrator routes (Zero-Bandaid: degrade honestly).
 # ---------------------------------------------------------------------------
 try:
-    import a11oy_agent_loop as _agent  # governed FSM
+    # Prefer the installable shared substrate; fall back to the local vendored
+    # copy if the package is absent (guarded — the outer except is the final net).
+    try:
+        from szl_substrate import a11oy_agent_loop as _agent  # governed FSM
+    except Exception:
+        import a11oy_agent_loop as _agent  # governed FSM
 except Exception as _exc:  # pragma: no cover
     _agent = None
     _AGENT_IMPORT_ERROR = str(_exc)
