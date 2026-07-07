@@ -39,10 +39,9 @@
 const ID    = "kan";
 const TITLE = "Kolmogorov-Arnold Network · Per-Edge Splines (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the KAN organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/kan/fit?seed=42&hidden=3&knots=7&epochs=60";
+// Endpoint is served SAME-ORIGIN by the flagship (szl_kan.py), a deterministic
+// from-scratch KAN fit. Same-origin avoids CORS and cross-Space fault coupling.
+const EP = "/api/a11oy/v1/kan/fit?seed=42&hidden=3&knots=7&epochs=120";
 
 // data-viz hues — purple BANNED
 const C_EDGE     = 0x5b8dee;  // lattice-blue (KAN edge-spline curves)

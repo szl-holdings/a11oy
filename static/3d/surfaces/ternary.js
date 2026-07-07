@@ -7,7 +7,7 @@
 // weight matrix as a 3D lattice of ternary cells: weights that ternarize to +1
 // glow proof-teal (add), -1 glow lattice-blue (subtract), and 0 fade to grey
 // (skip / structured sparsity). A HUD shows the three MEASURED metrics from the
-// live snapshot at /api/killinchu/v1/ternary/quantize:
+// live snapshot at /api/a11oy/v1/ternary/quantize:
 //   (1) COMPRESSION (bits/weight + x-shrink), (2) FIDELITY (the MEASURED,
 //   non-zero rel_l2 / cosine error — reported, NOT hidden), (3) ARITHMETIC
 //   PROFILE (float multiplies eliminated). Honesty label "MODELED" is read
@@ -47,10 +47,10 @@
 const ID    = "ternary";
 const TITLE = "Native 1.58-bit Ternary-Weight LM · BitNet b1.58 (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin for the flagship).
-// This keeps the ternary organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/ternary/quantize?seed=42&rows=32&cols=32&batch=16&act_bits=8";
+// Endpoint is served SAME-ORIGIN by the flagship (szl_ternary.py), a deterministic
+// BitNet b1.58 ternarization with MEASURED matmul fidelity. Same-origin avoids
+// CORS and cross-Space fault coupling.
+const EP = "/api/a11oy/v1/ternary/quantize?seed=42&rows=32&cols=32&batch=16&act_bits=8";
 
 // data-viz hues — purple BANNED
 const C_POS      = 0x3af4c8;  // proof-teal (+1 weight -> add)

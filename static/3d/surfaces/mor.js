@@ -7,7 +7,7 @@
 // how many times the SAME shared weights were looped over it, 1..max_depth),
 // plus a HUD showing compute_saved vs a fixed-max-depth recursive baseline and
 // the MODELED quality-retained proxy. Live snapshot comes from
-// /api/killinchu/v1/mor/route. Honesty label "MODELED" is read VERBATIM from
+// /api/a11oy/v1/mor/route. Honesty label "MODELED" is read VERBATIM from
 // the JSON and displayed as-is; it is never upgraded.
 //
 // >>> DISTINCT FROM THE 'router' ORGAN <<<
@@ -46,10 +46,10 @@
 const ID    = "mor";
 const TITLE = "Mixture-of-Recursions · Adaptive Per-Token Depth (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the MoR organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mor/route?seed=42&tokens=256&max_depth=4&threshold=0.5";
+// Endpoint is served SAME-ORIGIN by the flagship (szl_mor.py), a deterministic
+// adaptive depth-routing simulation. Same-origin avoids CORS and cross-Space
+// fault coupling.
+const EP = "/api/a11oy/v1/mor/route?seed=42&tokens=256&max_depth=4&threshold=0.5";
 
 // data-viz hues — purple BANNED. Depth ramp: shallow(blue) -> mid(violet-blue)
 // -> deep(proof-teal). Greys reserved for degraded / no-live state.
