@@ -28,6 +28,7 @@ on:
       - 'kipu_qillqaq_serve.py'
       - 'Dockerfile'
       - '.github/scripts/copy_completeness.py'
+      - 'tests/test_copy_completeness_transitive.py'
       - '**.py'
   pull_request:
     branches: [main]
@@ -61,14 +62,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run COPY-completeness guard
+      - name: Run COPY-completeness guard (TRANSITIVE closure)
         run: |
+          # Default mode follows the TRANSITIVE local-import closure, so a module
+          # imported by a registered submodule (e.g. szl_energy_measured via
+          # a11oy_harvest_endpoints) is ALSO required in the Dockerfile COPY set.
+          # This closes the recurring "forgot to COPY module X" class that bit
+          # a11oy 3x while the old direct-only guard stayed green.
           python3 .github/scripts/copy_completeness.py \
             --dockerfile Dockerfile \
             --root . \
             --entrypoints serve.py wayra_serve.py ayni_os_serve.py kipu_qillqaq_serve.py
         # Exit 1 = missing modules detected → fails the build.
-        # Exit 0 = all locally-imported root modules are present in COPY.
+        # Exit 0 = every module REACHABLE from an entrypoint is present in COPY.
 
       - name: Run built-in self-test (guard catches deliberate omission)
         # This verifies the guard itself has no false-negative blind spots.
@@ -79,3 +85,10 @@ jobs:
             --dockerfile Dockerfile \
             --root . \
             --missing-test
+
+      - name: Run transitive-closure regression tests (pytest)
+        # Proves the guard CATCHES a deliberately-missing transitive COPY
+        # (the szl_energy_measured class) and does NOT flag covered modules.
+        run: |
+          pip install --quiet pytest
+          python3 -m pytest tests/test_copy_completeness_transitive.py -q
