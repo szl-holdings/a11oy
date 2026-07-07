@@ -643,3 +643,35 @@ jobs:
         # future edit that regresses a frontier endpoint into the 422 / silent-degrade
         # class becomes a red gate here instead of a silent live failure.
         run: pytest tests/test_frontier_endpoints.py -q
+
+  python-guarded-import-liveness:
+    name: Guarded-import liveness — no silent no-op dead first-party imports (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (guard is pure stdlib — AST scan, no framework)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: No dead guarded imports (silent-no-op feature regressions)
+        # SILENT-NO-OP DEAD-IMPORT GUARD (audit 2026-07-07): serve.py wires optional
+        # features behind `try: import <mod>; <mod>.register(app); except: print(...)`.
+        # That is correct for RESILIENCE but makes a BROKEN/NEVER-CREATED feature
+        # INVISIBLE — if <mod>.py does not exist the import raises, one stderr line
+        # prints, the feature silently does not register, and NO test fails. This
+        # actually shipped: a11oy_code_v4 / a11oy_about_security / szl_thesis_about
+        # (+ ~a dozen v3/v4 tabs) were guarded-imported for modules that NEVER existed
+        # in git history, while nav files linked /about/thesis into a silent dead end.
+        # a11oy_guarded_import_guard.py AST-scans for guarded imports of first-party
+        # (szl_*/a11oy_*) modules whose file is absent and NOT ledgered in
+        # .guarded-import-allowlist, turning a silent dead feature into a red gate.
+        # The genuinely-optional installed-package pattern (szl_substrate, ...) is
+        # allowlisted. Fully offline. Λ = Conjecture 1. Doctrine v11 LOCKED.
+        run: |
+          python3 a11oy_guarded_import_guard.py .
+          pytest tests/test_guarded_import_guard.py -q
