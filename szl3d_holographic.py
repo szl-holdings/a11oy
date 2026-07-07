@@ -107,6 +107,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "aigov", "title": "AI Governance Conformance · Λ-Advisory Readiness (crosswalk)", "owner": "WaveF"},
     {"id": "fmverif", "title": "Proof-Carrying Inference (Machine-Checkable Certificates)", "owner": "WaveF"},
     {"id": "supplychain", "title": "Model-Artifact Provenance (SLSA / in-toto / Rekor / C2PA)", "owner": "WaveF"},
+    {"id": "hybridssm", "title": "HybridSSM · Attention vs State-Space vs Hybrid Frontier (synthesis)", "owner": "WaveF"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
