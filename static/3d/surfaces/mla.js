@@ -39,6 +39,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "mla";
 const TITLE = "Multi-Head Latent Attention · KV-Compression Simulator (live)";
 
@@ -60,9 +62,8 @@ const COL_GAP      = 2.4;   // world-units between the full-KV and latent column
 const MAX_FULL_H   = 8.0;   // world-units — height of the full-KV column at scale=1
 const MIN_LATENT_H = 0.15;  // world-units — floor height so the latent column never vanishes
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor       = null;
@@ -260,110 +261,40 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "KV compression", name: "mla" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'Per-token Key/Value vectors across all heads are jointly <b>down-projected</b> to a ' +
+      'shared low-rank <b>latent</b> vector (only this gets cached), then <b>up-projected</b> ' +
+      'back on demand. The tall <b>lattice-blue</b> column is the full/uncompressed KV cache; ' +
+      'the short <b>proof-teal</b> column is the compressed latent cache; the faint grey ghost ' +
+      'shows the reconstruction. Honesty label <b>MODELED</b> (deterministic low-rank ' +
+      'down/up-projection simulation; NOT trained DeepSeek weights). 0 runtime CDN.',
+    citations:
+      "DeepSeek-V2 arXiv:2405.04434 (introduces MLA) \u00b7 DeepSeek-V3 arXiv:2412.19437 (adopts MLA). MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["mla-seqlen"]   = _show.addField("seq_len (positions)");
+  _el["mla-heads"]    = _show.addField("n_heads \u00d7 d_head");
+  _el["mla-dlatent"]  = _show.addField("d_latent (compressed width)");
+  _el["mla-mhacache"] = _show.addField("mha_cache_size (elements)");
+  _el["mla-mlacache"] = _show.addField("mla_cache_size (elements)");
+  _el["mla-ratio"]    = _show.addField("compression_ratio \u2014 MODELED");
+  _el["mla-err"]      = _show.addField("reconstruction_error (mean L2)");
+  _el["mla-label"]    = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Per-token Key/Value vectors across all heads are jointly <b>down-projected</b> to a ' +
-    'shared low-rank <b>latent</b> vector (only this gets cached), then <b>up-projected</b> ' +
-    'back on demand. The tall <b>lattice-blue</b> column is the full/uncompressed KV cache; ' +
-    'the short <b>proof-teal</b> column is the compressed latent cache; the faint grey ghost ' +
-    'shows the reconstruction. Honesty label <b>MODELED</b> (deterministic low-rank ' +
-    'down/up-projection simulation; NOT trained DeepSeek weights). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "multi-head latent attention";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("mla-seqlen",  "seq_len (positions)"));
-  grid.appendChild(kpiRow("mla-heads",   "n_heads \u00d7 d_head"));
-  grid.appendChild(kpiRow("mla-dlatent", "d_latent (compressed width)"));
-  grid.appendChild(kpiRow("mla-mhacache","mha_cache_size (elements)"));
-  grid.appendChild(kpiRow("mla-mlacache","mla_cache_size (elements)"));
-  grid.appendChild(kpiRow("mla-ratio",   "compression_ratio \u2014 MODELED"));
-  grid.appendChild(kpiRow("mla-err",     "reconstruction_error (mean L2)"));
-  grid.appendChild(kpiRow("mla-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "DeepSeek-V2 arXiv:2405.04434 (introduces MLA) \u00b7 DeepSeek-V3 arXiv:2412.19437 (adopts MLA). MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "mla-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const ratio = S.ratio    != null ? S.ratio.toFixed(2) + "\u00d7" : "loading\u2026";
   const err   = S.reconErr != null ? S.reconErr.toFixed(3) : "loading\u2026";
   const dl    = S.dLatent  != null ? String(S.dLatent) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Normally, a model must remember a separate \u201ckey\u201d and " +
     "\u201cvalue\u201d vector for every attention head, for every word it has generated so far " +
     "\u2014 this memory (the KV cache) grows huge for long conversations. <b>Multi-Head Latent " +
@@ -374,7 +305,7 @@ function _applyPlain() {
     "(<b>" + err + "</b> average error) since a random squeeze loses some detail. In real " +
     "DeepSeek-V2/V3 models, that squeeze is <i>trained</i> to keep the mismatch tiny; this " +
     "view uses an untrained, deterministic squeeze to demonstrate the compression math " +
-    "honestly \u2014 it is a <b>MODELED</b> simulation, not a run of DeepSeek's actual model.";
+    "honestly \u2014 it is a <b>MODELED</b> simulation, not a run of DeepSeek's actual model.");
 }
 
 function _tok(s) {
@@ -399,7 +330,7 @@ function _paintOverlay() {
   _set("mla-err",      t || fx(S.reconErr, 4));
   // honesty label verbatim — never upgraded
   _set("mla-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("mla", S.label || "MODELED", { text: "KV compression" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -407,7 +338,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -420,10 +351,10 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _fullCol = null; _latentCol = null; _ghostCol = null; _linkLine = null;
   _fullTargetH = 0.4; _latentTargetH = 0.4; _ghostTargetH = 0.4;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.seqLen = S.nHeads = S.dHead = S.dLatent = null;
   S.mhaCache = S.mlaCache = S.ratio = S.reconErr = null;

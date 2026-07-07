@@ -45,6 +45,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "pfield";
 const TITLE = "PFIELD · Pressure-Field Stigmergic Coordination (live)";
 
@@ -69,9 +71,8 @@ const ABL_LEN    = 6.0;    // world-length of the ablation bar pair along X
 const AGENT_ORBIT = 5.4;   // radius agents orbit the artifact at (visual only)
 const MAX_AGENTS = 32;     // cap on agent motes rendered
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -373,112 +374,42 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#3af4c8",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "pressure-field coordination", name: "pf" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'Instead of a planner messaging executors, N agents coordinate <b>implicitly</b> through a ' +
+      'shared constraint-grid artifact: each agent reads a local <b>pressure</b> (constraint-violation ' +
+      'count), takes the pressure-reducing edit, and a <b>temporal-decay</b> schedule keeps stale ' +
+      'pressure from locking the system in \u2014 <b>zero inter-agent messages</b> (stigmergy). Shown ' +
+      'against sequential + hierarchical baselines. Honesty label <b>MODELED</b> (deterministic ' +
+      'simulation; NOT real agents). 0 runtime CDN.',
+    citations:
+      "Rodriguez 2026 \u00b7 Pressure Fields + Temporal Decay \u00b7 arXiv:2601.08129. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["pf-agents"]  = _show.addField("n_agents \u00d7 grid");
+  _el["pf-decay"]   = _show.addField("temporal decay (per step)");
+  _el["pf-steps"]   = _show.addField("pfield steps-to-converge \u2014 MODELED");
+  _el["pf-msgs"]    = _show.addField("pfield inter-agent messages");
+  _el["pf-seq"]     = _show.addField("sequential steps-to-converge \u2014 MODELED");
+  _el["pf-hier"]    = _show.addField("hierarchical steps / messages \u2014 MODELED");
+  _el["pf-match"]   = _show.addField("pfield matches hierarchical?");
+  _el["pf-runaway"] = _show.addField("no-decay pressure runaway \u2014 MODELED");
+  _el["pf-label"]   = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Instead of a planner messaging executors, N agents coordinate <b>implicitly</b> through a ' +
-    'shared constraint-grid artifact: each agent reads a local <b>pressure</b> (constraint-violation ' +
-    'count), takes the pressure-reducing edit, and a <b>temporal-decay</b> schedule keeps stale ' +
-    'pressure from locking the system in \u2014 <b>zero inter-agent messages</b> (stigmergy). Shown ' +
-    'against sequential + hierarchical baselines. Honesty label <b>MODELED</b> (deterministic ' +
-    'simulation; NOT real agents). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "pressure-field coordination";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("pf-agents",   "n_agents \u00d7 grid"));
-  grid.appendChild(kpiRow("pf-decay",    "temporal decay (per step)"));
-  grid.appendChild(kpiRow("pf-steps",    "pfield steps-to-converge \u2014 MODELED"));
-  grid.appendChild(kpiRow("pf-msgs",     "pfield inter-agent messages"));
-  grid.appendChild(kpiRow("pf-seq",      "sequential steps-to-converge \u2014 MODELED"));
-  grid.appendChild(kpiRow("pf-hier",     "hierarchical steps / messages \u2014 MODELED"));
-  grid.appendChild(kpiRow("pf-match",    "pfield matches hierarchical?"));
-  grid.appendChild(kpiRow("pf-runaway",  "no-decay pressure runaway \u2014 MODELED"));
-  grid.appendChild(kpiRow("pf-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Rodriguez 2026 \u00b7 Pressure Fields + Temporal Decay \u00b7 arXiv:2601.08129. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "pf-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const na  = S.nAgents  != null ? String(S.nAgents) : "loading\u2026";
   const pfs = S.stepsConv != null ? String(S.stepsConv) : "loading\u2026";
   const hms = S.hierMsgs != null ? String(S.hierMsgs) : "loading\u2026";
   const rw  = S.runawayX != null ? S.runawayX.toFixed(0) + "x" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Getting many AI agents to work together usually needs a <i>boss</i> agent " +
     "that hands out tasks and collects results \u2014 lots of back-and-forth messages that pile up as you add " +
     "workers. This approach skips the boss entirely. All <b>" + na + " agents</b> scribble on one shared " +
@@ -487,7 +418,7 @@ function _applyPlain() {
     "another. Here it finishes in about <b>" + pfs + " rounds with zero messages</b>, matching the boss-based " +
     "method that needed roughly <b>" + hms + " messages</b>. One catch: the pressure has to <b>fade over time</b>, " +
     "or it snowballs \u2014 turning decay off makes the pressure blow up about <b>" + rw + "</b>. This view is a " +
-    "<b>MODELED</b> deterministic simulation of that coordination math, not a run of real AI agents.";
+    "<b>MODELED</b> deterministic simulation of that coordination math, not a run of real AI agents.");
 }
 
 function _tok(s) {
@@ -513,7 +444,7 @@ function _paintOverlay() {
   _set("pf-runaway", t || (S.runawayX != null ? (S.runawayX.toFixed(1) + "\u00d7 without decay") : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("pf-label",   t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("pf", S.label || "MODELED", { text: "pressure-field coordination" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -536,7 +467,7 @@ function _disposeCells() {
 
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -549,10 +480,10 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _cells = []; _cellSide = 0; _agents = [];
   _ablDecay = null; _ablNoDecay = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.nAgents = S.grid = S.decay = S.steps = null;
   S.solved = S.stepsConv = S.finalViol = S.peakPress = S.messages = null;

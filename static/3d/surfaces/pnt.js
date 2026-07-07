@@ -29,6 +29,8 @@
 // ctx = { stage, container, live, label, THREE, szl3d }. Frame callbacks accumulate on the
 // shared stage and are NOT removed on unmount, so every onFrame closure guards on _alive.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "pnt";
 const TITLE = "PNT · Quantum Nav";
 const ENDPOINT = "/api/a11oy/v1/pnt/sensor";
@@ -49,7 +51,7 @@ let _alive = false;
 const _handles = [];        // every live-poll handle (stopped on unmount)
 const _objs = [];           // every scene object we add (removed on unmount)
 const _disposables = [];    // geometries/materials/textures to dispose
-let _overlay = null, _hud = null;
+let _hud = null, _show = null;
 const _spin = [];           // { obj, sx, sy } per-frame rotators
 const _frameFns = [];       // per-frame animators invoked while _alive
 
@@ -83,44 +85,31 @@ function _lineMat(hex, opacity) {
 }
 
 // ----------------------------------------------------------------------------
-// HUD (DOM overlay) — every readout chip carries its honesty label.
+// HUD (folded into the shared showcase body) — every readout chip carries its
+// honesty label. The compact chrome (title bar + honesty pills + legend) is
+// provided by the shared showcase; the KPI rows nest statically inside its body.
 // ----------------------------------------------------------------------------
 function _buildOverlay(ctx) {
-  _overlay = document.createElement("div");
-  _overlay.className = "szl3d-surface-overlay szl3d-pnt-overlay";
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "5",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)", pointerEvents: "none",
+  const badge = ctx.live.createBadge();
+
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE + "  ·  modeled on Q-CTRL Ironstone Opal + Advanced Navigation",
+    accent: "#5b8dee",
+    badge,
+    chips: [{ label: _sensorLabel || "MODELED", text: "quantum sensor", name: "sensor" }],
+    legend: true,
+    description:
+      "MODELED closed-form physics — <b>NOT flown hardware</b>, not a real flight. " +
+      "Sensor cert is VERIFIED (MODELED) · UNSIGNED (STRUCTURAL-ONLY). Every value below " +
+      "traces to a live /api/a11oy/v1/pnt/* endpoint; nothing is hardcoded.",
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px";
-  h.textContent = TITLE + "  ·  modeled on Q-CTRL Ironstone Opal + Advanced Navigation";
-  _overlay.appendChild(h);
-
-  const honesty = document.createElement("div");
-  honesty.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.45;" +
-    "background:#0a1117;border:1px solid #1d2a36;border-radius:7px;padding:6px 9px;max-width:430px";
-  honesty.innerHTML =
-    "MODELED closed-form physics — <b>NOT flown hardware</b>, not a real flight. " +
-    "Sensor cert is VERIFIED (MODELED) · UNSIGNED (STRUCTURAL-ONLY). Every value below " +
-    "traces to a live /api/a11oy/v1/pnt/* endpoint; nothing is hardcoded.";
-  _overlay.appendChild(honesty);
-
-  const badge = ctx.live.createBadge();
-  _overlay.appendChild(badge.el);
-
+  // KPI rows live in a plain static container nested inside the collapsible body
+  // (no absolute chrome of its own — the showcase owns the card/panel styling).
   _hud = document.createElement("div");
-  _hud.style.cssText = "display:flex;flex-direction:column;gap:5px;font:11px ui-monospace,Menlo,monospace;color:#cfe0ea";
-  _overlay.appendChild(_hud);
+  _hud.style.cssText = "position:static;display:flex;flex-direction:column;gap:5px;font:11px ui-monospace,Menlo,monospace;color:#cfe0ea";
+  _show.body.appendChild(_hud);
 
-  const legend = ctx.label.legend();
-  legend.style.opacity = "0.85";
-  legend.style.marginTop = "2px";
-  _overlay.appendChild(legend);
-
-  (ctx.container || document.body).appendChild(_overlay);
   return badge;
 }
 
@@ -520,6 +509,7 @@ function _onSensor(json, meta) {
   _sensor = json;
   const lab = meta.label || (json && json.label) || "MODELED";
   _sensorLabel = lab;
+  if (_show) _show.setChip("sensor", lab, { text: "quantum sensor" });
   const cf = (json && json.closed_form_stdlib) || {};
   _setRow(_rows.keff, _fmtSci(cf.k_eff_per_m), lab);
   _setRow(_rows.phase, _fmtSci(cf.shot_noise_phase_rad), lab);
@@ -622,7 +612,8 @@ function unmount() {
   _alive = false;
   for (const h of _handles) { try { h.stop(); } catch (_) {} }
   _handles.length = 0;
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
+  _show = null;
   if (_stage) {
     for (const o of _objs) { try { _stage.scene.remove(o); } catch (_) {} }
   }
@@ -634,7 +625,7 @@ function unmount() {
   _ellipsoidC = _ellipsoidQ = _crlbMesh = _crlbBeacon = _sqlPlane = null;
   _verdictOrb = _drift = _keffRing = _phaseDial = _asdCol = _foMHalo = null;
   _sensor = _coast = _resil = _limits = null; _sensorLabel = null;
-  _overlay = _hud = _stage = _THREE = _label = null;
+  _hud = _stage = _THREE = _label = null;
 }
 
 // STRUCTURAL-ONLY is carried in the ladder billboards: the pillar names are present as

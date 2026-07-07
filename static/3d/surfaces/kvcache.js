@@ -39,6 +39,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "kvcache";
 const TITLE = "KV-Cache H2O Eviction · Heavy-Hitter Oracle (live)";
 
@@ -60,9 +62,8 @@ const MAX_TOKENS = 160;    // cap on tokens rendered in the row (perf)
 const ROW_Y      = 0.4;    // resting height of a kept token
 const EVICT_Y    = -1.6;   // dropped height of an evicted token
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -256,112 +257,42 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#3af4c8",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "h2o eviction", name: "kv" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'A decoding stream accumulates a KV cache entry per token. <b>H2O</b> (Heavy-Hitter Oracle) ' +
+      'keeps a bounded cache by retaining the top cumulative-attention-mass \u201cheavy hitters\u201d ' +
+      'plus a sliding recent <b>window</b>, instead of evicting purely by recency. HUD compares ' +
+      'H2O against a sliding-window-only baseline and the full-cache (no eviction) oracle. ' +
+      'Honesty label <b>MODELED</b> (deterministic simulation on a synthetic attention trace; NOT a ' +
+      'real KV cache or trained model). 0 runtime CDN.',
+    citations:
+      "H2O \u2014 Zhang et al. arXiv:2306.14048 \u00b7 StreamingLLM \u2014 Xiao et al. arXiv:2309.17453. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["kv-seqlen"]   = _show.addField("seq_len (decoded tokens)");
+  _el["kv-capacity"] = _show.addField("capacity (KV-cache slots)");
+  _el["kv-window"]   = _show.addField("window (recent tokens reserved)");
+  _el["kv-memratio"] = _show.addField("memory_ratio (capacity/seq_len)");
+  _el["kv-h2o"]      = _show.addField("H2O mass_retained \u2014 MODELED");
+  _el["kv-sliding"]  = _show.addField("sliding-window mass_retained");
+  _el["kv-full"]     = _show.addField("full-cache mass_retained (oracle)");
+  _el["kv-gain"]     = _show.addField("H2O vs sliding gain");
+  _el["kv-evicted"]  = _show.addField("evicted_count");
+  _el["kv-label"]    = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A decoding stream accumulates a KV cache entry per token. <b>H2O</b> (Heavy-Hitter Oracle) ' +
-    'keeps a bounded cache by retaining the top cumulative-attention-mass \u201cheavy hitters\u201d ' +
-    'plus a sliding recent <b>window</b>, instead of evicting purely by recency. HUD compares ' +
-    'H2O against a sliding-window-only baseline and the full-cache (no eviction) oracle. ' +
-    'Honesty label <b>MODELED</b> (deterministic simulation on a synthetic attention trace; NOT a ' +
-    'real KV cache or trained model). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "kv-cache h2o eviction";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("kv-seqlen",   "seq_len (decoded tokens)"));
-  grid.appendChild(kpiRow("kv-capacity", "capacity (KV-cache slots)"));
-  grid.appendChild(kpiRow("kv-window",   "window (recent tokens reserved)"));
-  grid.appendChild(kpiRow("kv-memratio", "memory_ratio (capacity/seq_len)"));
-  grid.appendChild(kpiRow("kv-h2o",      "H2O mass_retained \u2014 MODELED"));
-  grid.appendChild(kpiRow("kv-sliding",  "sliding-window mass_retained"));
-  grid.appendChild(kpiRow("kv-full",     "full-cache mass_retained (oracle)"));
-  grid.appendChild(kpiRow("kv-gain",     "H2O vs sliding gain"));
-  grid.appendChild(kpiRow("kv-evicted",  "evicted_count"));
-  grid.appendChild(kpiRow("kv-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "H2O \u2014 Zhang et al. arXiv:2306.14048 \u00b7 StreamingLLM \u2014 Xiao et al. arXiv:2309.17453. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "kv-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const mem     = S.memoryRatio         != null ? (S.memoryRatio * 100).toFixed(1) + "%" : "loading\u2026";
   const h2oPct  = S.h2oMassRetained     != null ? (S.h2oMassRetained * 100).toFixed(1) + "%" : "loading\u2026";
   const slidPct = S.slidingMassRetained != null ? (S.slidingMassRetained * 100).toFixed(1) + "%" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> A language model keeps a running \u201cnotebook\u201d (the KV cache) of " +
     "every word it has generated so it can pay attention back to earlier words. That notebook grows " +
     "forever unless something is thrown away. Here the notebook is capped at just <b>" + mem + "</b> " +
@@ -370,7 +301,7 @@ function _applyPlain() {
     "out to matter most so far (the \u201cheavy hitters\u201d), plus the most recent few \u2014 and keeps " +
     "<b>" + h2oPct + "</b> of the important information at the SAME notebook size. This view is a " +
     "<b>MODELED</b> deterministic simulation of that keep/discard rule on a synthetic attention trace, " +
-    "not a run of a real trained model or KV cache.";
+    "not a run of a real trained model or KV cache.");
 }
 
 function _tok(s) {
@@ -398,7 +329,7 @@ function _paintOverlay() {
   _set("kv-evicted",  t || (S.evictedCount != null ? String(S.evictedCount) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("kv-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("kv", S.label || "MODELED", { text: "h2o eviction" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -406,7 +337,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -419,9 +350,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _spine = null; _tokenMesh = []; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.seqLen = S.capacity = S.window = S.memoryRatio = null;
   S.h2oMassRetained = S.slidingMassRetained = S.fullMassRetained = null;

@@ -43,6 +43,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "muon";
 const TITLE = "Muon Orthogonalized-Momentum Optimizer";
 
@@ -68,9 +70,8 @@ const HEAT_GAP   = 0.17;   // heatmap cell pitch
 const HEAT_MAX   = 24;     // cap cells per axis rendered (perf)
 const BAR_W      = 0.9;    // condition-number bar width
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -379,115 +380,45 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "orthogonalization", name: "muon" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
     'Muon (\u201cMomentUm Orthogonalized by Newton\u2013Schulz\u201d) replaces a momentum update matrix ' +
     'with the nearest <b>semi-orthogonal</b> matrix (UV\u1d40 from its SVD) via a hand-tuned <b>quintic ' +
     'Newton\u2013Schulz</b> recurrence X<sub>k+1</sub> = a\u00b7X + b\u00b7(XX\u1d40)X + c\u00b7(XX\u1d40)\u00b2X ' +
     '(a=3.4445, b=\u22124.7750, c=2.0315). This <b>flattens the singular-value spectrum</b> toward the ' +
     'non-convergent <b>[0.68, 1.13]</b> band so no direction dominates the step. Panels: singular-value ' +
     'trajectory, before/after matrix heatmap, condition-number bars (raw vs orthogonalized). Honesty label ' +
-    '<b>MODELED</b> (deterministic mechanism reproduction on a toy matrix; trains nothing). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "muon orthogonalized-momentum optimizer";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("mu-dims",   "momentum matrix (m \u00d7 n)"));
-  grid.appendChild(kpiRow("mu-ns",     "Newton\u2013Schulz iterations"));
-  grid.appendChild(kpiRow("mu-coeffs", "quintic coefficients (a / b / c)"));
-  grid.appendChild(kpiRow("mu-rank",   "singular values tracked (rank)"));
-  grid.appendChild(kpiRow("mu-condr",  "condition \u03ba \u2014 RAW"));
-  grid.appendChild(kpiRow("mu-condo",  "condition \u03ba \u2014 ORTHOGONALIZED"));
-  grid.appendChild(kpiRow("mu-condi",  "spectral-flattening factor"));
-  grid.appendChild(kpiRow("mu-band",   "convergence band"));
-  grid.appendChild(kpiRow("mu-frac",   "final \u03c3 inside band (MEASURED)"));
-  grid.appendChild(kpiRow("mu-svrange","final \u03c3 range (min \u2192 max)"));
-  grid.appendChild(kpiRow("mu-label",  "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Muon \u2014 Keller Jordan et al. (kellerjordan.github.io/posts/muon) \u00b7 Moonshot AI \u201cMuon is Scalable for LLM Training\u201d arXiv:2502.16982 \u00b7 github.com/KellerJordan/Muon. MODELED \u00b7 Newton\u2013Schulz demo, not a trained model.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
+    '<b>MODELED</b> (deterministic mechanism reproduction on a toy matrix; trains nothing). 0 runtime CDN.',
+    citations:
+      "Muon \u2014 Keller Jordan et al. (kellerjordan.github.io/posts/muon) \u00b7 Moonshot AI \u201cMuon is Scalable for LLM Training\u201d arXiv:2502.16982 \u00b7 github.com/KellerJordan/Muon. MODELED \u00b7 Newton\u2013Schulz demo, not a trained model.",
+    plain: { html: _plainHtml },
   });
-  _overlay.appendChild(pl);
 
-  const pd = document.createElement("div");
-  pd.id = "mu-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  _el["mu-dims"]    = _show.addField("momentum matrix (m \u00d7 n)");
+  _el["mu-ns"]      = _show.addField("Newton\u2013Schulz iterations");
+  _el["mu-coeffs"]  = _show.addField("quintic coefficients (a / b / c)");
+  _el["mu-rank"]    = _show.addField("singular values tracked (rank)");
+  _el["mu-condr"]   = _show.addField("condition \u03ba \u2014 RAW");
+  _el["mu-condo"]   = _show.addField("condition \u03ba \u2014 ORTHOGONALIZED");
+  _el["mu-condi"]   = _show.addField("spectral-flattening factor");
+  _el["mu-band"]    = _show.addField("convergence band");
+  _el["mu-frac"]    = _show.addField("final \u03c3 inside band (MEASURED)");
+  _el["mu-svrange"] = _show.addField("final \u03c3 range (min \u2192 max)");
+  _el["mu-label"]   = _show.addField("honesty label");
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const cr   = S.condRaw    != null ? S.condRaw.toFixed(1)    : "loading\u2026";
   const co   = S.condOrtho  != null ? S.condOrtho.toFixed(2)  : "loading\u2026";
   const imp  = S.condImp    != null ? S.condImp.toFixed(1) + "\u00d7" : "loading\u2026";
   const frac = S.fracInBand != null ? (S.fracInBand * 100).toFixed(0) + "%" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> When a model learns, each update is a grid of numbers (a \u201cmatrix\u201d). Some " +
     "directions in that grid can be far bigger than others, so the step lurches. Muon first <b>rebalances</b> " +
     "the update so every direction has roughly equal weight \u2014 like normalizing the volume across a mixing " +
@@ -498,7 +429,7 @@ function _applyPlain() {
     "<b>0.68\u20131.13</b> range the method aims for. This view is a <b>MODELED</b> deterministic reproduction " +
     "of that rebalancing MECHANISM on a small synthetic matrix \u2014 it <b>trains no model</b> and runs no GPU " +
     "kernel. The \u201c\u2248 2\u00d7 faster training vs. AdamW\u201d headline is a <b>claim about real training " +
-    "runs</b> (Keller Jordan / Moonshot AI) that the estate does not independently verify.";
+    "runs</b> (Keller Jordan / Moonshot AI) that the estate does not independently verify.");
 }
 
 function _tok(s) {
@@ -527,7 +458,7 @@ function _paintOverlay() {
   _set("mu-svrange", t || ((S.svMinFinal != null && S.svMaxFinal != null) ? (fx(S.svMinFinal, 3) + " \u2192 " + fx(S.svMaxFinal, 3)) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("mu-label",   t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("muon", S.label || "MODELED", { text: "orthogonalization" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -535,7 +466,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -548,12 +479,12 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null;
   _trajGroup = null;
   _heatRaw = []; _heatOrtho = []; _heatGroup = null;
   _barRaw = null; _barOrtho = null; _barGroup = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.m = S.n = S.nsSteps = null;
   S.coA = S.coB = S.coC = null;

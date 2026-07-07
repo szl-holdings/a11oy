@@ -41,6 +41,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "matgran";
 const TITLE = "Matryoshka Representation Granularity · Prefix-Truncation Simulator (live)";
 
@@ -64,9 +66,8 @@ const MAX_BAR_H  = 7.0;    // world-units — bar height at accuracy = 1.0
 const MIN_BAR_H  = 0.12;   // world-units — floor height so a bar never vanishes
 const SAVE_H     = 4.0;    // world-units — storage-saving marker height at saving = 1.0
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor    = null;
@@ -266,106 +267,36 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#d7b96b",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "nested embedding", name: "mg" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'One embedding is trained so its <b>front prefixes</b> are each usable embeddings ' +
+      '\u2014 truncate to the first 2/4/8/16/32 dims to trade accuracy for storage with no ' +
+      'retraining. The <b>lattice-blue</b> bars are the <b>nested</b> (front-loaded) embedding\u2019s ' +
+      'accuracy at each prefix; the <b>grey</b> bars are a <b>non-nested</b> control (same directions, ' +
+      'shuffled); the <b>proof-teal</b> markers are the storage saving at each prefix. Nested stays ' +
+      'accurate under truncation; non-nested collapses. Honesty label <b>MODELED</b> ' +
+      '(deterministic toy sim; NOT a trained encoder). 0 runtime CDN.',
+    citations:
+      "MIPIC arXiv:2604.24374 (refines nested reps) \u00b7 MRL arXiv:2205.13147 (foundational). MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["mg-D"]        = _show.addField("D (full width)");
+  _el["mg-prefixes"] = _show.addField("prefixes evaluated");
+  _el["mg-nested"]   = _show.addField("nested acc @ prefixes");
+  _el["mg-nonnest"]  = _show.addField("non-nested acc @ prefixes");
+  _el["mg-saving"]   = _show.addField("storage saving @ prefixes");
+  _el["mg-full"]     = _show.addField("full_accuracy (d = D)");
+  _el["mg-label"]    = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'One embedding is trained so its <b>front prefixes</b> are each usable embeddings ' +
-    '\u2014 truncate to the first 2/4/8/16/32 dims to trade accuracy for storage with no ' +
-    'retraining. The <b>lattice-blue</b> bars are the <b>nested</b> (front-loaded) embedding\u2019s ' +
-    'accuracy at each prefix; the <b>grey</b> bars are a <b>non-nested</b> control (same directions, ' +
-    'shuffled); the <b>proof-teal</b> markers are the storage saving at each prefix. Nested stays ' +
-    'accurate under truncation; non-nested collapses. Honesty label <b>MODELED</b> ' +
-    '(deterministic toy sim; NOT a trained encoder). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "matryoshka representation granularity";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:62%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("mg-D",       "D (full width)"));
-  grid.appendChild(kpiRow("mg-prefixes","prefixes evaluated"));
-  grid.appendChild(kpiRow("mg-nested",  "nested acc @ prefixes"));
-  grid.appendChild(kpiRow("mg-nonnest", "non-nested acc @ prefixes"));
-  grid.appendChild(kpiRow("mg-saving",  "storage saving @ prefixes"));
-  grid.appendChild(kpiRow("mg-full",    "full_accuracy (d = D)"));
-  grid.appendChild(kpiRow("mg-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "MIPIC arXiv:2604.24374 (refines nested reps) \u00b7 MRL arXiv:2205.13147 (foundational). MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "mg-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   let lowGain = "loading\u2026";
   if (Array.isArray(S.curve) && S.curve.length) {
     const c0 = S.curve[0];
@@ -374,7 +305,7 @@ function _applyPlain() {
                 "% vs non-nested " + (c0.non_nested_accuracy * 100).toFixed(0) + "%";
     }
   }
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> An embedding is a list of numbers that captures the meaning of " +
     "something (a word, an image). Normally, if you want a shorter, cheaper embedding you have " +
     "to train a whole new model. <b>Matryoshka</b> embeddings are trained so the FIRST few " +
@@ -389,7 +320,7 @@ function _applyPlain() {
     "self-distillation over real models. It shows WHY prefix-nested embeddings degrade " +
     "gracefully versus a non-nested control; it does NOT reproduce MIPIC\u2019s STS/NLI/" +
     "classification results or MRL\u2019s ImageNet speed-ups, and the \u201cself-distillation\u201d " +
-    "step is a one-pass toy stand-in. Not a run of MIPIC or MRL.";
+    "step is a one-pass toy stand-in. Not a run of MIPIC or MRL.");
 }
 
 function _tok(s) {
@@ -424,7 +355,7 @@ function _paintOverlay() {
   _set("mg-full",    t || (S.fullAcc != null ? S.fullAcc.toFixed(3) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("mg-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("mg", S.label || "MODELED", { text: "nested embedding" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -432,7 +363,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -445,11 +376,11 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null;
   _nestBars = []; _nonBars = []; _saveMk = [];
   _nestTargetH = []; _nonTargetH = []; _saveTargetH = [];
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.D = S.prefixes = S.curve = S.fullAcc = null;
   S.state = "init";

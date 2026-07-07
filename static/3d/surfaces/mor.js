@@ -43,6 +43,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "mor";
 const TITLE = "Mixture-of-Recursions · Adaptive Per-Token Depth (live)";
 
@@ -65,9 +67,8 @@ const ROWS       = 16;    // heatmap rows  (COLS*ROWS = 256 = default token coun
 const CELL       = 0.62;  // world-units between heatmap cells
 const MAX_CELLS  = COLS * ROWS;
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor    = null;
@@ -308,122 +309,47 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "adaptive depth", name: "mor" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
     'ONE shared transformer block is applied a <b>variable number of times per token</b>: a lightweight ' +
     'router gives each token a recursion <b>depth</b> (1…N loops of the <i>same</i> weights). ' +
     'Easy tokens exit early; hard tokens recurse deeper. Cells below are coloured by depth ' +
     '(blue = shallow → teal = deep); height = compute spent. ' +
-    'Honesty label <b>MODELED</b> (deterministic depth-routing simulation; NOT the MoR model). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  // explicit router-vs-mor distinction banner
-  const dist = document.createElement("div");
-  dist.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.5;border:1px solid #26333f;border-radius:7px;padding:7px 9px;background:#0a1117";
-  dist.innerHTML =
+    'Honesty label <b>MODELED</b> (deterministic depth-routing simulation; NOT the MoR model). 0 runtime CDN.' +
+    '<br><br>' +
     '<b style="color:#3af4c8">Not the &lsquo;router&rsquo; organ.</b> ' +
     'The <b>router</b> organ is parameter <b>SELECTION</b> — it dispatches each token to one of several ' +
     '<i>different, independently-parameterized</i> models/experts (<i>which</i> weights). ' +
     '<b>Mixture-of-Recursions</b> is parameter <b>REUSE</b> — it loops <i>one</i> shared block a variable ' +
-    'number of times per token (<i>how many times</i> the same weights). One weight set here; only the depth changes.';
-  _overlay.appendChild(dist);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "mixture-of-recursions";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("mor-tokens",   "tokens routed"));
-  grid.appendChild(kpiRow("mor-maxdepth", "max_depth (loops of ONE block)"));
-  grid.appendChild(kpiRow("mor-meandepth","mean recursion depth"));
-  grid.appendChild(kpiRow("mor-saved",    "compute_saved vs fixed-depth \u2014 MODELED"));
-  grid.appendChild(kpiRow("mor-speedup",  "speedup_vs_fixed \u2014 MODELED"));
-  grid.appendChild(kpiRow("mor-kv",       "KV-cache footprint vs uniform"));
-  grid.appendChild(kpiRow("mor-quality",  "quality_retained (proxy)"));
-  grid.appendChild(kpiRow("mor-shared",   "shared block? (parameter REUSE)"));
-  grid.appendChild(kpiRow("mor-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Bae et al. arXiv:2507.10524 (Mixture-of-Recursions) \u00b7 github.com/raymin0223/mixture_of_recursions. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
+    'number of times per token (<i>how many times</i> the same weights). One weight set here; only the depth changes.',
+    citations:
+      "Bae et al. arXiv:2507.10524 (Mixture-of-Recursions) \u00b7 github.com/raymin0223/mixture_of_recursions. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
-  _overlay.appendChild(pl);
 
-  const pd = document.createElement("div");
-  pd.id = "mor-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  _el["mor-tokens"]    = _show.addField("tokens routed");
+  _el["mor-maxdepth"]  = _show.addField("max_depth (loops of ONE block)");
+  _el["mor-meandepth"] = _show.addField("mean recursion depth");
+  _el["mor-saved"]     = _show.addField("compute_saved vs fixed-depth \u2014 MODELED");
+  _el["mor-speedup"]   = _show.addField("speedup_vs_fixed \u2014 MODELED");
+  _el["mor-kv"]        = _show.addField("KV-cache footprint vs uniform");
+  _el["mor-quality"]   = _show.addField("quality_retained (proxy)");
+  _el["mor-shared"]    = _show.addField("shared block? (parameter REUSE)");
+  _el["mor-label"]     = _show.addField("honesty label");
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const md      = S.maxDepth  != null ? String(S.maxDepth) : "loading\u2026";
   const mean    = S.meanDepth != null ? S.meanDepth.toFixed(2) : "loading\u2026";
   const savedPc = S.savedFrac != null ? (S.savedFrac * 100).toFixed(1) + "%" : "loading\u2026";
   const spd     = S.speedup   != null ? S.speedup.toFixed(2) + "\u00d7" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> A normal model runs every word through the <i>same</i> amount of work. " +
     "Mixture-of-Recursions reuses <b>one</b> block of the model and simply <b>loops it more times " +
     "for hard words and fewer times for easy words</b> (up to <b>" + md + "</b> loops). On average each " +
@@ -432,7 +358,7 @@ function _applyPlain() {
     "because only the genuinely hard words get the deep treatment. " +
     "<b>Key difference from a &lsquo;router&rsquo;:</b> a router picks <i>which</i> of several different " +
     "models to use; MoR reuses <i>one</i> model and only changes <i>how many times</i> it runs. " +
-    "This view is a <b>MODELED</b> simulation of the depth-routing math, not a run of the real MoR model.";
+    "This view is a <b>MODELED</b> simulation of the depth-routing math, not a run of the real MoR model.");
 }
 
 function _tok(s) {
@@ -459,7 +385,7 @@ function _paintOverlay() {
   _set("mor-shared",    t || (S.sharedBlock === true ? "yes (ONE reused block)" : S.sharedBlock === false ? "no" : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("mor-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("mor", S.label || "MODELED", { text: "adaptive depth" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -467,7 +393,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -480,9 +406,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _cellMesh = []; _column = null; _colBars = []; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.tokens = S.maxDepth = S.threshold = null;
   S.perToken = S.histogram = S.meanDepth = S.savedFrac = null;

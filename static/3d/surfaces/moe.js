@@ -46,6 +46,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "moe";
 const TITLE = "MoE Sparse-Upcycling Router Simulator (live)";
 
@@ -66,9 +68,8 @@ const CELL_X = 1.1;          // world-units per expert column
 const CELL_Z = 1.3;          // world-units per routing round row
 const MAX_BAR_H = 5.0;       // world-units of max bar height (cumulative load axis)
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor = null;
@@ -260,110 +261,40 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "router load", name: "moe" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
     'A <b>top-K softmax router</b> dispatches each synthetic token to its highest-weight ' +
     'experts. The heat-surface shows <b>cumulative expert load</b> building up across ' +
     'routing rounds (X = expert, Z = round, Y = cumulative load). <b style="color:#5b8dee">Blue</b> ' +
     'peaks are <b>under-loaded</b> experts (below mean); <b style="color:#3af4c8">teal</b> peaks are ' +
     '<b>balanced/at-or-above-mean</b>. Honesty label <b>MODELED</b> (deterministic router ' +
     'simulation — no trained MoE, never claimed as DeepSeekMoE/Gemma-MoE/any production ' +
-    'router). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#5b8dee;box-shadow:0 0 7px #5b8dee";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#5b8dee;letter-spacing:.3px";
-  nm.textContent = "moe-router";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("moe-tokens",  "tokens routed"));
-  grid.appendChild(kpiRow("moe-experts", "experts N"));
-  grid.appendChild(kpiRow("moe-topk",    "top-K per token"));
-  grid.appendChild(kpiRow("moe-cv",      "load_balance_cv"));
-  grid.appendChild(kpiRow("moe-minmax",  "min / max expert load"));
-  grid.appendChild(kpiRow("moe-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Komatsuzaki et al. arXiv:2212.05055 (Sparse Upcycling) \u00b7 Dai et al. arXiv:2401.06066 (DeepSeekMoE) \u00b7 github.com/amazon-science/expert-upcycling (Expert Upcycling). MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
+    'router). 0 runtime CDN.',
+    citations:
+      "Komatsuzaki et al. arXiv:2212.05055 (Sparse Upcycling) \u00b7 Dai et al. arXiv:2401.06066 (DeepSeekMoE) \u00b7 github.com/amazon-science/expert-upcycling (Expert Upcycling). MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
-  _overlay.appendChild(pl);
 
-  const pd = document.createElement("div");
-  pd.id = "moe-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  _el["moe-tokens"]  = _show.addField("tokens routed");
+  _el["moe-experts"] = _show.addField("experts N");
+  _el["moe-topk"]    = _show.addField("top-K per token");
+  _el["moe-cv"]      = _show.addField("load_balance_cv");
+  _el["moe-minmax"]  = _show.addField("min / max expert load");
+  _el["moe-label"]   = _show.addField("honesty label");
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const tokens = S.tokens != null ? String(S.tokens) : "loading\u2026";
   const experts = S.experts != null ? String(S.experts) : "loading\u2026";
   const topk = S.topk != null ? String(S.topk) : "loading\u2026";
   const cv = S.loadCV != null ? S.loadCV.toFixed(3) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> A Mixture-of-Experts (MoE) layer has many small \u2018expert\u2019 " +
     "sub-networks, but only sends each token to a handful of them (here: top-<b>" + topk +
     "</b> out of <b>" + experts + "</b> experts) \u2014 this is what makes MoE models cheap to " +
@@ -377,7 +308,7 @@ function _applyPlain() {
     "= some experts are getting hammered while others sit idle). " +
     "Plain: this is a toy, fully-deterministic stand-in for the router-fairness problem " +
     "real MoE systems have to solve \u2014 it is a <b>MODELED</b> simulation, not a trained " +
-    "MoE and not a benchmark of any named production model.";
+    "MoE and not a benchmark of any named production model.");
 }
 
 function _tok(s) {
@@ -404,7 +335,7 @@ function _paintOverlay() {
   }
   // honesty label verbatim — never upgraded
   _set("moe-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("moe", S.label || "MODELED", { text: "router load" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -412,7 +343,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -426,9 +357,9 @@ export function unmount() {
     }
   } catch (_) {}
   if (_barGeo && _barGeo.dispose) { try { _barGeo.dispose(); } catch (_) {} }
-  _group = _overlay = null;
+  _group = _show = null;
   _bars = []; _barGeo = null; _floor = null; _labelGroup = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.tokens = S.experts = S.topk = null;
   S.routingTable = S.loadCounts = S.loadCV = null;
