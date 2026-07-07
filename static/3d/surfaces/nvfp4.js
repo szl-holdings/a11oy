@@ -48,6 +48,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "nvfp4";
 const TITLE = "NVFP4 4-bit Training Format";
 
@@ -64,9 +66,8 @@ const C_ZERO    = 0x5a6570;  // grey (zero baseline / neutral)
 const C_DIM     = 0x42505d;  // grey (degraded / no-live-data)
 const C_GRID    = 0x1b3a44;  // floor / link colour
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor    = null;
@@ -355,125 +356,54 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE + " (live)", accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "FP4 arithmetic", name: "nv" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'A synthetic tensor with a few injected <b>outliers</b> is quantized to 4-bit float (<b>FP4 E2M1</b>) three ways, ' +
+      'then dequantized: <b>naive</b> (one global scale) vs <b>MXFP4</b> (32-elem blocks, power-of-two scale) vs ' +
+      '<b>NVFP4</b> (16-elem blocks, <b>E4M3</b> FP8 block scale + <b>FP32</b> global \u2014 <b>two-level</b>). Bars show ' +
+      'the MEASURED reconstruction <b>MSE</b> per scheme (shown, NOT hidden). The line plot contrasts <b>deterministic</b> ' +
+      'round-to-nearest (drifts) vs <b>stochastic</b> rounding (near zero) over repeated roundings. Honesty label ' +
+      '<b>MODELED</b> \u2014 arithmetic demonstration only, no GPU kernel executed. 0 runtime CDN.',
+    citations:
+      "NVFP4 \u2014 Agrusa, Rouhani, Micikevicius, Patwary, Shoeybi et al. (NVIDIA) arXiv:2509.25149 \u00b7 MXFP4/OCP arXiv:2310.10537 \u00b7 TetraJet arXiv:2502.20853. MODELED \u00b7 arithmetic-only \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE + " (live)";
-  _overlay.appendChild(h);
+  _el["nv-size"]  = _show.addField("tensor (size \u00d7 size)");
+  _el["nv-outl"]  = _show.addField("injected outliers");
+  _el["nv-amax"]  = _show.addField("tensor max |value|");
+  _el["nv-naive"] = _show.addField("MSE \u2014 naive-FP4 (global scale)");
+  _el["nv-mx"]    = _show.addField("MSE \u2014 MXFP4 (32-blk pow2)");
+  _el["nv-nv"]    = _show.addField("MSE \u2014 NVFP4 (16-blk E4M3+FP32)");
+  _el["nv-best"]  = _show.addField("best scheme (lowest MSE)");
+  _el["nv-rn"]    = _show.addField("rounding demo \u2014 N roundings");
+  _el["nv-det"]   = _show.addField("cumulative bias \u2014 deterministic");
+  _el["nv-stoch"] = _show.addField("cumulative bias \u2014 stochastic");
+  _el["nv-label"] = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A synthetic tensor with a few injected <b>outliers</b> is quantized to 4-bit float (<b>FP4 E2M1</b>) three ways, ' +
-    'then dequantized: <b>naive</b> (one global scale) vs <b>MXFP4</b> (32-elem blocks, power-of-two scale) vs ' +
-    '<b>NVFP4</b> (16-elem blocks, <b>E4M3</b> FP8 block scale + <b>FP32</b> global \u2014 <b>two-level</b>). Bars show ' +
-    'the MEASURED reconstruction <b>MSE</b> per scheme (shown, NOT hidden). The line plot contrasts <b>deterministic</b> ' +
-    'round-to-nearest (drifts) vs <b>stochastic</b> rounding (near zero) over repeated roundings. Honesty label ' +
-    '<b>MODELED</b> \u2014 arithmetic demonstration only, no GPU kernel executed. 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "nvfp4 4-bit training format";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("nv-size",    "tensor (size \u00d7 size)"));
-  grid.appendChild(kpiRow("nv-outl",    "injected outliers"));
-  grid.appendChild(kpiRow("nv-amax",    "tensor max |value|"));
-  grid.appendChild(kpiRow("nv-naive",   "MSE \u2014 naive-FP4 (global scale)"));
-  grid.appendChild(kpiRow("nv-mx",      "MSE \u2014 MXFP4 (32-blk pow2)"));
-  grid.appendChild(kpiRow("nv-nv",      "MSE \u2014 NVFP4 (16-blk E4M3+FP32)"));
-  grid.appendChild(kpiRow("nv-best",    "best scheme (lowest MSE)"));
-  grid.appendChild(kpiRow("nv-rn",      "rounding demo \u2014 N roundings"));
-  grid.appendChild(kpiRow("nv-det",     "cumulative bias \u2014 deterministic"));
-  grid.appendChild(kpiRow("nv-stoch",   "cumulative bias \u2014 stochastic"));
-  grid.appendChild(kpiRow("nv-label",   "honesty label"));
-  card.appendChild(grid);
-
-  // scaling-pipeline legend (two-level)
-  const pipe = document.createElement("div");
-  pipe.style.cssText = "font-size:10px;color:#9fb1bf;line-height:1.5;border-top:1px solid #1d2a36;padding-top:6px";
-  pipe.innerHTML =
+  // scaling-pipeline legend (two-level) \u2014 appended into the collapsible body
+  _show.appendBody(
+    "<div style='font-size:10px;color:#9fb1bf;line-height:1.5'>" +
     "<b style='color:#c9d6df'>two-level scaling pipeline:</b><br>" +
     "tensor <span style='color:#8a6bff'>\u25a0</span> \u2192 FP32 global scale <span style='color:#8a6bff'>\u25c8</span> " +
-    "\u2192 E4M3 block scale <span style='color:#5b8dee'>\u25c8</span> \u2192 FP4 value <span style='color:#3af4c8'>\u2b21</span>";
-  card.appendChild(pipe);
+    "\u2192 E4M3 block scale <span style='color:#5b8dee'>\u25c8</span> \u2192 FP4 value <span style='color:#3af4c8'>\u2b21</span>" +
+    "</div>");
 
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "NVFP4 \u2014 Agrusa, Rouhani, Micikevicius, Patwary, Shoeybi et al. (NVIDIA) arXiv:2509.25149 \u00b7 MXFP4/OCP arXiv:2310.10537 \u00b7 TetraJet arXiv:2502.20853. MODELED \u00b7 arithmetic-only \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "nv-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const nvMse    = _schemeByName("NVFP4");
   const naiveMse = _schemeByName("naive-FP4");
   const nvTxt    = (nvMse && typeof nvMse.mse === "number")       ? nvMse.mse.toExponential(2)    : "loading\u2026";
   const naiveTxt = (naiveMse && typeof naiveMse.mse === "number") ? naiveMse.mse.toExponential(2) : "loading\u2026";
   const detTxt   = S.detFinal   != null ? S.detFinal.toFixed(2)   : "loading\u2026";
   const stochTxt = S.stochFinal != null ? S.stochFinal.toFixed(2) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Training big models in only 4 bits per number saves memory and speeds up the math, " +
     "but 4 bits is very coarse \u2014 so how you pick the <i>scale</i> matters enormously. The <b>naive</b> approach uses " +
     "one scale for the whole tensor; a single large \u201coutlier\u201d value then crushes precision for everything else " +
@@ -484,7 +414,7 @@ function _applyPlain() {
     "<b>stochastic</b> rounding \u2014 flipping a weighted coin each time \u2014 cancels out (stays near <b>" + stochTxt + "</b>). " +
     "This view is <b>MODELED</b>: a deterministic arithmetic demonstration on a tiny synthetic tensor, with the error " +
     "MEASURED and shown. <b>No GPU kernel runs here</b>, and it does not reproduce NVIDIA's 12-billion-parameter, " +
-    "10-trillion-token training run or its speed claims \u2014 those are NVIDIA's, not independently verified.";
+    "10-trillion-token training run or its speed claims \u2014 those are NVIDIA's, not independently verified.");
 }
 
 function _tok(s) {
@@ -515,7 +445,7 @@ function _paintOverlay() {
   _set("nv-stoch", t || (typeof S.stochFinal === "number" ? S.stochFinal.toFixed(3) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("nv-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("nv", S.label || "MODELED", { text: "FP4 arithmetic" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -523,7 +453,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -536,9 +466,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _bars = []; _detLine = null; _stochLine = null; _biasZero = null; _pipe = [];
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.size = S.outliers = S.tensorAmax = S.bestScheme = null;
   S.fp4Levels = S.schemes = null;

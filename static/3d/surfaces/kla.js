@@ -37,6 +37,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "kla";
 const TITLE = "Kaczmarz Linear Attention · Projection State-Update (live)";
 
@@ -61,9 +63,8 @@ const KLA_Z       = -1.4;  // Z lane for the KLA track
 const GATED_Z     = 1.4;   // Z lane for the gated baseline track
 const MAX_H       = 6.0;   // max bar height (world units) at max error
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor    = null;
@@ -307,111 +308,41 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "projection update", name: "kla" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
     'A linear-attention layer stores memory as a matrix <b>S</b>. Each new key-value pair ' +
     '(<b>k</b>,<b>v</b>) defines a constraint <b>S·k = v</b>; <b>KLA</b> updates the state by ' +
     'the orthogonal <b>Kaczmarz projection</b> onto that constraint ' +
     '(step = lr·(v \\u2212 S·k) k<sup>T</sup>/(k·k)) \\u2014 a <i>principled</i> scalar replacing ' +
     'the <b>ad-hoc gate</b> of gated linear attention. Teal track = KLA, grey track = gated ' +
     'baseline; bar height = reconstruction error. ' +
-    'Honesty label <b>MODELED</b> (deterministic projection simulation; NOT a trained model). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "kaczmarz linear attention";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("kla-dim",       "state dim (S is dim\\u00d7dim)"));
-  grid.appendChild(kpiRow("kla-steps",     "key-value pairs streamed"));
-  grid.appendChild(kpiRow("kla-klaerr",    "KLA recon error \\u2014 MODELED"));
-  grid.appendChild(kpiRow("kla-gatederr",  "gated recon error (baseline)"));
-  grid.appendChild(kpiRow("kla-improve",   "improvement_ratio (gated\\u00f7kla)"));
-  grid.appendChild(kpiRow("kla-klaconv",   "KLA convergence step"));
-  grid.appendChild(kpiRow("kla-gatedconv", "gated convergence step"));
-  grid.appendChild(kpiRow("kla-label",     "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Kaczmarz Linear Attention arXiv:2605.08587 (orthogonal projection state-update vs ad-hoc gate). MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
+    'Honesty label <b>MODELED</b> (deterministic projection simulation; NOT a trained model). 0 runtime CDN.',
+    citations:
+      "Kaczmarz Linear Attention arXiv:2605.08587 (orthogonal projection state-update vs ad-hoc gate). MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
-  _overlay.appendChild(pl);
 
-  const pd = document.createElement("div");
-  pd.id = "kla-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  _el["kla-dim"]       = _show.addField("state dim (S is dim\\u00d7dim)");
+  _el["kla-steps"]     = _show.addField("key-value pairs streamed");
+  _el["kla-klaerr"]    = _show.addField("KLA recon error \\u2014 MODELED");
+  _el["kla-gatederr"]  = _show.addField("gated recon error (baseline)");
+  _el["kla-improve"]   = _show.addField("improvement_ratio (gated\\u00f7kla)");
+  _el["kla-klaconv"]   = _show.addField("KLA convergence step");
+  _el["kla-gatedconv"] = _show.addField("gated convergence step");
+  _el["kla-label"]     = _show.addField("honesty label");
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const imp = S.improve != null ? S.improve.toFixed(2) + "\u00d7" : "loading\u2026";
   const ke  = S.klaErr != null ? S.klaErr.toFixed(3) : "loading\u2026";
   const ge  = S.gatedErr != null ? S.gatedErr.toFixed(3) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> A fast \\u201clinear attention\\u201d model remembers things in a running " +
     "memory <b>M</b> instead of re-reading the whole past every time. When a new fact arrives, older " +
     "systems just <i>fade</i> the memory by a hand-tuned amount (an \\u201cad-hoc gate\\u201d) and hope " +
@@ -421,7 +352,7 @@ function _applyPlain() {
     "Here KLA rebuilds the stream of facts with error <b>" + ke + "</b> versus the old gate\\u2019s <b>" + ge + "</b>, " +
     "about a <b>" + imp + "</b> improvement, and it locks in sooner. Plain: a principled dial replaces a " +
     "guessed one, so the model remembers more accurately. This view is a <b>MODELED</b> simulation of " +
-    "the projection math (arXiv:2605.08587), not a run of a trained model.";
+    "the projection math (arXiv:2605.08587), not a run of a trained model.");
 }
 
 function _tok(s) {
@@ -446,7 +377,7 @@ function _paintOverlay() {
   _set("kla-gatedconv", t || (S.gatedConv != null ? String(S.gatedConv) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("kla-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("kla", S.label || "MODELED", { text: "projection update" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -454,7 +385,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -467,10 +398,10 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _spine = null; _plane = null;
   _klaBars = []; _gatedBars = []; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.dim = S.steps = S.lr = S.tol = null;
   S.klaErr = S.gatedErr = S.klaConv = S.gatedConv = S.improve = null;

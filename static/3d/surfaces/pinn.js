@@ -33,6 +33,8 @@
 // The shell shares ONE Stage across surfaces; we add objects to ctx.stage.scene, register
 // per-frame work via ctx.stage.onFrame, and on unmount stop every poll + remove what we added.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "pinn";
 const TITLE = "PINN Thermal/Field";
 
@@ -49,7 +51,7 @@ const VOX = 48;
 let _ctx = null, _stage = null, _THREE = null;
 let _group = null;             // root group holding all scene objects we add
 let _handles = [];             // poll handles to stop on unmount
-let _overlay = null;           // DOM HUD
+let _show = null;              // shared showcase controller (owns the DOM chrome)
 let _frameReg = null;          // our onFrame closure (guards on null after unmount)
 let _disposables = [];         // geometries / materials / textures to dispose
 
@@ -544,30 +546,35 @@ function _human(x) {
 // interactive controls (iso threshold / splats / arrows / residual displacement).
 // ---------------------------------------------------------------------------
 function _buildHUD() {
+  // Compact chrome (title bar + honesty pills + legend + description/citations) is
+  // provided by the shared showcase; the cert/bounds/residual/control panels fold into
+  // its collapsible body. Create the live badge FIRST so the showcase can host it.
+  const badge = _ctx.live.createBadge();
+
+  _show = createShowcase(_ctx, {
+    id: ID, title: "PINN Thermal/Field  ·  ray-march volume + MEASURED+SIGNED cert",
+    accent: "#5b8dee",
+    badge,
+    chips: [{ label: F.certLabel || "SAMPLE", text: "field", name: "cert" }],
+    legend: true,
+    description:
+      "Modeled on Kitware VTK.js/VolView + three.js TSL compute. " +
+      "Field render is MODELED (analytic PINN surrogate seeded by MEASURED telemetry). " +
+      "Certificate is MEASURED + SIGNED.",
+    citations:
+      "Doctrine v11 · Λ = Conjecture 1 (advisory) · field MODELED, cert MEASURED+SIGNED · " +
+      "no fabricated field numbers · WebGPU→WebGL2 fallback · 0 runtime CDN",
+  });
+
+  // KPI/panel container — plain + static so it nests cleanly inside the showcase body
+  // (no absolute chrome / card of its own; the showcase owns the panel styling).
   const wrap = document.createElement("div");
   wrap.className = "szl3d-pinn-hud";
   Object.assign(wrap.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
+    position: "static",
     display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%, 440px)", maxHeight: "calc(100% - 28px)", overflow: "auto",
     font: "12px ui-monospace,SFMono-Regular,Menlo,monospace", color: "#cfe0ea",
   });
-
-  const title = document.createElement("div");
-  title.style.cssText = "font:600 14px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px";
-  title.textContent = "◇ PINN Thermal/Field  ·  ray-march volume + MEASURED+SIGNED cert";
-  wrap.appendChild(title);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.45";
-  sub.textContent = "Modeled on Kitware VTK.js/VolView + three.js TSL compute. " +
-    "Field render is MODELED (analytic PINN surrogate seeded by MEASURED telemetry). " +
-    "Certificate is MEASURED + SIGNED.";
-  wrap.appendChild(sub);
-
-  // live badge row (filled by poll)
-  const badge = _ctx.live.createBadge();
-  wrap.appendChild(badge.el);
 
   // backend indicator
   const back = document.createElement("div");
@@ -618,19 +625,7 @@ function _buildHUD() {
   }));
   wrap.appendChild(ctrls);
 
-  // ---- honesty legend ----
-  const legend = _ctx.label.legend();
-  legend.style.opacity = "0.85";
-  wrap.appendChild(legend);
-
-  const foot = document.createElement("div");
-  foot.style.cssText = "color:#7d8a96;font-size:10px;line-height:1.4";
-  foot.textContent = "Doctrine v11 · Λ = Conjecture 1 (advisory) · field MODELED, cert MEASURED+SIGNED · " +
-    "no fabricated field numbers · WebGPU→WebGL2 fallback · 0 runtime CDN";
-  wrap.appendChild(foot);
-
-  (_ctx.container || document.body).appendChild(wrap);
-  _overlay = wrap;
+  _show.body.appendChild(wrap);
   return { wrap, badge, cert, bounds, resid, back };
 }
 
@@ -733,6 +728,8 @@ function _onCert(json, meta) {
   _updateBoundsLadder(_ladder);
   _renderCertHUD();
   _renderBoundsHUD();
+  // route the FIELD honesty label (verbatim: MODELED / SAMPLE) through the showcase pill
+  if (_show) _show.setChip("cert", F.certLabel || "SAMPLE", { text: "field" });
 }
 
 function _rebuildFieldGeometry(hot) {
@@ -964,9 +961,9 @@ function unmount() {
   // stop polls
   _handles.forEach((h) => { try { h.stop(); } catch (_) {} });
   _handles = [];
-  // remove our DOM
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
-  _overlay = null; _hud = null;
+  // tear down the shared showcase (it owns all of our DOM chrome now)
+  try { if (_show) _show.destroy(); } catch (_) {}
+  _show = null; _hud = null;
   // neutralize our frame callback (the shell keeps its callback list; we guard on _group)
   _frameReg = null;
   // remove our scene group + dispose resources

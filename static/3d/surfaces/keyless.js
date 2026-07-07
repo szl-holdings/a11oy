@@ -39,6 +39,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "keyless";
 const TITLE = "Keyless Attention (Value-Only Cache)";
 
@@ -60,9 +62,8 @@ const HEAT_GAP   = 0.17;   // heatmap cell pitch
 const HEAT_MAX   = 8;      // cap cells per axis rendered (matches head trim)
 const BAR_W      = 0.9;    // cache-bar width
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -323,115 +324,45 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "value-only cache", name: "kl" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'Keyless Attention <b>eliminates the key projection</b> entirely: a value-space <b>routing matrix R</b> ' +
+      'replaces W<sub>k</sub>, so logits are formed as softmax((Q\u00b7R)\u00b7V\u1d40/\u221ad) and the decode ' +
+      'cache stores <b>values only</b>. Standard QKV attention caches both K and V (2\u00b7L\u00b7d); keyless caches ' +
+      'V alone (L\u00b7d) \u2014 an <b>exactly 50%</b> reduction. Panels: cache-size bars (standard vs keyless), ' +
+      'attention-map heatmaps (standard vs keyless), and an output-fidelity bar (mean per-token cosine similarity ' +
+      'between the two outputs). Honesty label <b>MODELED</b> (deterministic mechanism reproduction on a toy ' +
+      'sequence; trains nothing). 0 runtime CDN.',
+    citations:
+      "Keyless Attention \u2014 Xin Gao, \u201cValue-Space Routing and Value-Only Caching for Efficient Transformers\u201d arXiv:2606.21848 (arxiv.org/abs/2606.21848). MODELED \u00b7 mechanism demo on a toy sequence, not a trained transformer.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["kl-dims"]      = _show.addField("sequence (L \u00d7 d)");
+  _el["kl-m"]         = _show.addField("factorization depth m");
+  _el["kl-entstd"]    = _show.addField("cache entries \u2014 STANDARD (K+V)");
+  _el["kl-entkey"]    = _show.addField("cache entries \u2014 KEYLESS (V-only)");
+  _el["kl-bytestd"]   = _show.addField("cache bytes \u2014 STANDARD");
+  _el["kl-bytekey"]   = _show.addField("cache bytes \u2014 KEYLESS");
+  _el["kl-reduction"] = _show.addField("KV-cache reduction");
+  _el["kl-cosmean"]   = _show.addField("output fidelity \u2014 mean cosine (MEASURED)");
+  _el["kl-cosmin"]    = _show.addField("output fidelity \u2014 min cosine");
+  _el["kl-mse"]       = _show.addField("output MSE (standard vs keyless)");
+  _el["kl-label"]     = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Keyless Attention <b>eliminates the key projection</b> entirely: a value-space <b>routing matrix R</b> ' +
-    'replaces W<sub>k</sub>, so logits are formed as softmax((Q\u00b7R)\u00b7V\u1d40/\u221ad) and the decode ' +
-    'cache stores <b>values only</b>. Standard QKV attention caches both K and V (2\u00b7L\u00b7d); keyless caches ' +
-    'V alone (L\u00b7d) \u2014 an <b>exactly 50%</b> reduction. Panels: cache-size bars (standard vs keyless), ' +
-    'attention-map heatmaps (standard vs keyless), and an output-fidelity bar (mean per-token cosine similarity ' +
-    'between the two outputs). Honesty label <b>MODELED</b> (deterministic mechanism reproduction on a toy ' +
-    'sequence; trains nothing). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "keyless attention \u00b7 value-only cache";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("kl-dims",     "sequence (L \u00d7 d)"));
-  grid.appendChild(kpiRow("kl-m",        "factorization depth m"));
-  grid.appendChild(kpiRow("kl-entstd",   "cache entries \u2014 STANDARD (K+V)"));
-  grid.appendChild(kpiRow("kl-entkey",   "cache entries \u2014 KEYLESS (V-only)"));
-  grid.appendChild(kpiRow("kl-bytestd",  "cache bytes \u2014 STANDARD"));
-  grid.appendChild(kpiRow("kl-bytekey",  "cache bytes \u2014 KEYLESS"));
-  grid.appendChild(kpiRow("kl-reduction","KV-cache reduction"));
-  grid.appendChild(kpiRow("kl-cosmean",  "output fidelity \u2014 mean cosine (MEASURED)"));
-  grid.appendChild(kpiRow("kl-cosmin",   "output fidelity \u2014 min cosine"));
-  grid.appendChild(kpiRow("kl-mse",      "output MSE (standard vs keyless)"));
-  grid.appendChild(kpiRow("kl-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Keyless Attention \u2014 Xin Gao, \u201cValue-Space Routing and Value-Only Caching for Efficient Transformers\u201d arXiv:2606.21848 (arxiv.org/abs/2606.21848). MODELED \u00b7 mechanism demo on a toy sequence, not a trained transformer.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "kl-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const red  = S.reduction != null ? S.reduction.toFixed(1) + "%" : "loading\u2026";
   const cos  = S.cosMean   != null ? S.cosMean.toFixed(3)         : "loading\u2026";
   const bs   = S.kvBytesStd != null ? S.kvBytesStd + " B"         : "loading\u2026";
   const bk   = S.kvBytesKey != null ? S.kvBytesKey + " B"         : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> To generate text fast, a model keeps a running memory of every earlier word \u2014 " +
     "the \u201cKV cache.\u201d Normally it stores two things per word (a <b>key</b> and a <b>value</b>). Keyless " +
     "Attention throws away the key entirely and reroutes the lookup through the values themselves, so it only " +
@@ -441,7 +372,7 @@ function _applyPlain() {
     "deterministic reproduction of that cache-halving MECHANISM on a tiny synthetic sequence \u2014 it <b>trains " +
     "no model</b> and runs no GPU kernel. The paper\u2019s headline that keyless matches or beats standard " +
     "attention on <b>real</b> models (GPT-2, Pythia, Qwen2, Llama 3.2) is a <b>claim about real training runs</b> " +
-    "the estate does not independently verify.";
+    "the estate does not independently verify.");
 }
 
 function _tok(s) {
@@ -469,7 +400,7 @@ function _paintOverlay() {
   _set("kl-mse",       t || fx(S.mse, 4));
   // honesty label verbatim — never upgraded
   _set("kl-label",     t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("kl", S.label || "MODELED", { text: "value-only cache" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -477,7 +408,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -490,11 +421,11 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null;
   _heatStd = []; _heatKeyless = []; _heatGroup = null;
   _barStd = null; _barKeyless = null; _barFid = null; _barGroup = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.L = S.d = S.m = null;
   S.bytesPer = S.kvEntStd = S.kvEntKey = S.kvBytesStd = S.kvBytesKey = null;

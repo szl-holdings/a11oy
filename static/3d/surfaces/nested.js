@@ -50,6 +50,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "nested";
 const TITLE = "Nested Learning · Continuum Memory System (live)";
 
@@ -73,9 +75,8 @@ const RING_SEG    = 64;                // ring outline segments
 const MAX_BLOCKS  = 96;                // cap on forgetting-curve markers rendered
 const CURVE_SPAN  = 12.0;              // world-units the forgetting curve spans along X
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -352,111 +353,41 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "CMS schedule", name: "nl" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'A model as a stack of memory levels updating at <b>different clocks</b> (fast/medium/slow), with ' +
+      'the <b>optimizer itself as associative memory</b>. On a toy continual-learning stream, the slow ' +
+      '<b>protected core</b> (a surprise-gated timescale) <b>retains earlier tasks</b> where a single-clock ' +
+      'baseline overwrites and <b>forgets</b> them. ' +
+      'Honesty label <b>MODELED</b> (deterministic scheduling simulation; NOT the Hope architecture). 0 runtime CDN.',
+    citations:
+      "Behrouz, Razaviyayn, Zhong & Mirrokni 2025 (Google Research) \u00b7 Nested Learning: The Illusion of Deep Learning Architectures \u00b7 NeurIPS 2025 \u00b7 arXiv:2512.24695 \u00b7 research.google/blog Nested Learning. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["ne-tasks"]    = _show.addField("continual-learning tasks");
+  _el["ne-clocks"]   = _show.addField("clocks k_fast / k_med / k_slow");
+  _el["ne-gate"]     = _show.addField("slow-core surprise gate");
+  _el["ne-retbase"]  = _show.addField("task-A retained \u2014 single-clock");
+  _el["ne-retcms"]   = _show.addField("task-A retained \u2014 CMS (MODELED)");
+  _el["ne-delta"]    = _show.addField("retention gain (CMS \u2212 baseline)");
+  _el["ne-writes"]   = _show.addField("slow-core writes CMS / baseline");
+  _el["ne-surprise"] = _show.addField("mean / peak surprise");
+  _el["ne-momentum"] = _show.addField("momentum (optimizer-as-memory)");
+  _el["ne-label"]    = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A model as a stack of memory levels updating at <b>different clocks</b> (fast/medium/slow), with ' +
-    'the <b>optimizer itself as associative memory</b>. On a toy continual-learning stream, the slow ' +
-    '<b>protected core</b> (a surprise-gated timescale) <b>retains earlier tasks</b> where a single-clock ' +
-    'baseline overwrites and <b>forgets</b> them. ' +
-    'Honesty label <b>MODELED</b> (deterministic scheduling simulation; NOT the Hope architecture). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "nested learning / continuum memory system";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("ne-tasks",   "continual-learning tasks"));
-  grid.appendChild(kpiRow("ne-clocks",  "clocks k_fast / k_med / k_slow"));
-  grid.appendChild(kpiRow("ne-gate",    "slow-core surprise gate"));
-  grid.appendChild(kpiRow("ne-retbase", "task-A retained \u2014 single-clock"));
-  grid.appendChild(kpiRow("ne-retcms",  "task-A retained \u2014 CMS (MODELED)"));
-  grid.appendChild(kpiRow("ne-delta",   "retention gain (CMS \u2212 baseline)"));
-  grid.appendChild(kpiRow("ne-writes",  "slow-core writes CMS / baseline"));
-  grid.appendChild(kpiRow("ne-surprise","mean / peak surprise"));
-  grid.appendChild(kpiRow("ne-momentum","momentum (optimizer-as-memory)"));
-  grid.appendChild(kpiRow("ne-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Behrouz, Razaviyayn, Zhong & Mirrokni 2025 (Google Research) \u00b7 Nested Learning: The Illusion of Deep Learning Architectures \u00b7 NeurIPS 2025 \u00b7 arXiv:2512.24695 \u00b7 research.google/blog Nested Learning. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "ne-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const rBase = S.retainBase != null ? (S.retainBase * 100).toFixed(0) + "%" : "loading\u2026";
   const rCms  = S.retainCms  != null ? (S.retainCms  * 100).toFixed(0) + "%" : "loading\u2026";
   const dPct  = S.retDelta   != null ? "+" + (S.retDelta * 100).toFixed(0) + " points" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> When an AI learns a new skill it often <b>forgets the old one</b> " +
     "(\u201ccatastrophic forgetting\u201d). Nested Learning treats the model as a <b>stack of memories that " +
     "update at different speeds</b> \u2014 a fast one that chases whatever it is learning right now, and " +
@@ -470,7 +401,7 @@ function _applyPlain() {
     "tasks, hand-set clocks), <b>not the \u201cHope\u201d model</b>. The paper was noted publicly to lack full " +
     "ablations in its first version, so this only shows the <b>scheduling mechanism</b> reduces forgetting " +
     "on a controlled stream \u2014 it does <b>not</b> reproduce Hope's language-modeling or needle-in-haystack " +
-    "results or its claimed wins over Titans / Transformers.";
+    "results or its claimed wins over Titans / Transformers.");
 }
 
 function _tok(s) {
@@ -507,7 +438,7 @@ function _paintOverlay() {
   _set("ne-momentum", t || fx(S.momentum, 2));
   // honesty label verbatim — never upgraded
   _set("ne-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("nl", S.label || "MODELED", { text: "CMS schedule" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -515,7 +446,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -528,9 +459,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _rings = []; _tiers = []; _baseMarks = []; _cmsMarks = []; _core = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.numTasks = S.blockLen = S.nTokens = null;
   S.kFast = S.kMed = S.kSlow = S.gate = null;

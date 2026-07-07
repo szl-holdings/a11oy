@@ -41,6 +41,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "opera";
 const TITLE = "OPERA Perplexity-Reward Alignment";
 
@@ -63,9 +65,8 @@ const CURVE_MAXN = 6;      // max curves rendered (matches head trim)
 const CURVE_MAXP = 64;     // max points per curve
 const BAR_W      = 0.8;    // reward-bar width
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -357,114 +358,44 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#3af4c8",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "intrinsic perplexity reward", name: "op" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'OPERA replaces an unreliable <b>LLM-as-a-judge</b> reward (prone to stylistic bias and positional ' +
+      'inconsistency) with an <b>intrinsic reward from perplexity dynamics</b>: the uncertainty reduction ' +
+      '(perplexity <b>drop</b>) at <b>critical reflective states</b> of a reasoning trace. Panels: per-trace ' +
+      'perplexity curves (drops at reflective steps = where reward accrues), reward\u2013correlation bars ' +
+      '(OPERA vs noisy judge against the ground-truth logical-consistency label), and reward-stability bars ' +
+      '(variance; the judge is the taller/unstable one). Honesty label <b>MODELED</b> (deterministic mechanism ' +
+      'reproduction on toy traces; trains nothing). 0 runtime CDN.',
+    citations:
+      "OPERA \u2014 Wenxuan Jiang et al., \u201cAligning Open-Ended Reasoning via Objective Perplexity-based Reinforcement Learning\u201d arXiv:2606.25757 (arxiv.org/abs/2606.25757). MODELED \u00b7 intrinsic perplexity-reward mechanism demo on toy traces, not a trained model or real RL rollout.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["op-dims"]      = _show.addField("traces \u00d7 steps");
+  _el["op-refl"]      = _show.addField("reflective steps");
+  _el["op-oreward"]   = _show.addField("OPERA reward \u2014 mean (MEASURED)");
+  _el["op-jreward"]   = _show.addField("judge reward \u2014 mean (MEASURED)");
+  _el["op-corropera"] = _show.addField("corr(OPERA, consistency)");
+  _el["op-corrjudge"] = _show.addField("corr(judge, consistency)");
+  _el["op-ovar"]      = _show.addField("OPERA reward variance");
+  _el["op-jvar"]      = _show.addField("judge reward variance (higher=unstable)");
+  _el["op-cons"]      = _show.addField("consistency rate (ground truth)");
+  _el["op-label"]     = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'OPERA replaces an unreliable <b>LLM-as-a-judge</b> reward (prone to stylistic bias and positional ' +
-    'inconsistency) with an <b>intrinsic reward from perplexity dynamics</b>: the uncertainty reduction ' +
-    '(perplexity <b>drop</b>) at <b>critical reflective states</b> of a reasoning trace. Panels: per-trace ' +
-    'perplexity curves (drops at reflective steps = where reward accrues), reward\u2013correlation bars ' +
-    '(OPERA vs noisy judge against the ground-truth logical-consistency label), and reward-stability bars ' +
-    '(variance; the judge is the taller/unstable one). Honesty label <b>MODELED</b> (deterministic mechanism ' +
-    'reproduction on toy traces; trains nothing). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "opera \u00b7 intrinsic perplexity reward";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("op-dims",     "traces \u00d7 steps"));
-  grid.appendChild(kpiRow("op-refl",     "reflective steps"));
-  grid.appendChild(kpiRow("op-oreward",  "OPERA reward \u2014 mean (MEASURED)"));
-  grid.appendChild(kpiRow("op-jreward",  "judge reward \u2014 mean (MEASURED)"));
-  grid.appendChild(kpiRow("op-corropera","corr(OPERA, consistency)"));
-  grid.appendChild(kpiRow("op-corrjudge","corr(judge, consistency)"));
-  grid.appendChild(kpiRow("op-ovar",     "OPERA reward variance"));
-  grid.appendChild(kpiRow("op-jvar",     "judge reward variance (higher=unstable)"));
-  grid.appendChild(kpiRow("op-cons",     "consistency rate (ground truth)"));
-  grid.appendChild(kpiRow("op-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "OPERA \u2014 Wenxuan Jiang et al., \u201cAligning Open-Ended Reasoning via Objective Perplexity-based Reinforcement Learning\u201d arXiv:2606.25757 (arxiv.org/abs/2606.25757). MODELED \u00b7 intrinsic perplexity-reward mechanism demo on toy traces, not a trained model or real RL rollout.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "op-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const co = S.corrOpera != null ? S.corrOpera.toFixed(2) : "loading\u2026";
   const cj = S.corrJudge != null ? S.corrJudge.toFixed(2) : "loading\u2026";
   const jv = S.judgeVar  != null ? S.judgeVar.toFixed(2)  : "loading\u2026";
   const ov = S.operaVar  != null ? S.operaVar.toFixed(2)  : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> To train a model on open-ended tasks (like creative writing) you need a " +
     "<b>reward</b> \u2014 a score for how good an answer is. A common trick is to ask another AI to be the " +
     "\u201cjudge,\u201d but judges are swayed by <b>style and ordering</b>, so their scores are noisy and " +
@@ -477,7 +408,7 @@ function _applyPlain() {
     "deterministic reproduction of that reward MECHANISM on tiny synthetic traces \u2014 it <b>trains no " +
     "model</b> and runs no reinforcement learning. The paper\u2019s headline that OPERA on <b>Qwen3-8B</b> " +
     "reaches SOTA and rivals Gemini2.5 / MiniMax-M2.5 is a <b>claim about real training runs</b> " +
-    "the estate does not independently verify.";
+    "the estate does not independently verify.");
 }
 
 function _tok(s) {
@@ -504,7 +435,7 @@ function _paintOverlay() {
   _set("op-cons",      t || (S.consRate != null ? (100.0 * S.consRate).toFixed(1) + "%" : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("op-label",     t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("op", S.label || "MODELED", { text: "intrinsic perplexity reward" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -512,7 +443,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -525,13 +456,13 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null;
   _curveGroup = null; _curves = [];
   _reflGroup = null; _reflMarks = [];
   _barGroup = null;
   _barCorrOpera = _barCorrJudge = _barVarOpera = _barVarJudge = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.traces = S.steps = S.reflective = null;
   S.operaReward = S.operaVar = S.judgeReward = S.judgeVar = null;

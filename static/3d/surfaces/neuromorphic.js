@@ -35,6 +35,8 @@
 // 0 RUNTIME CDN. Vendored three.js r170 via page importmap.
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "neuromorphic";
 const TITLE = "Neuromorphic · Spiking Neural Compute (live)";
 
@@ -52,9 +54,8 @@ const GRID_DIM  = 4;
 const N_NEURONS = GRID_DIM * GRID_DIM * GRID_DIM;  // 64
 const SPACING   = 1.15;  // world units between nodes
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _nodes = [];        // Array<THREE.Mesh>  — one per neuron
@@ -91,13 +92,13 @@ export function mount(ctx) {
   _buildFloor();
   _buildLattice();
   _buildHub();
-  _buildOverlay();
 
   if (!_frameReg) { _stage.onFrame(_onFrame); _frameReg = true; }
 
   _badge = ctx.live.createBadge();
   _polls.push(ctx.live.poll(EP, 4000, _onSpikes, { badge: _badge, onState: (m) => { S.state = m.state; _paintOverlay(); } }));
 
+  _buildOverlay();
   return { id: ID, started: true };
 }
 
@@ -264,109 +265,38 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,420px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [
+      { label: "MODELED", text: "LIF spikes", name: "spk" },
+      { label: "MODELED", text: "energy est.", name: "energy" },
+    ],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      '<b>LIF (Leaky Integrate-and-Fire)</b> neuron population \u2014 64 nodes on a 3D lattice, ' +
+      'each pulsing from a live deterministic simulation. Honesty label <b>MODELED</b> ' +
+      '(simulation, not measured silicon). Energy estimate cites Intel Loihi\u00a02 ' +
+      '(Davies\u00a0et\u00a0al.\u00a02021\u00a0JPROC). 0\u00a0runtime\u00a0CDN.',
+    citations:
+      "Gerstner & Kistler \"Spiking Neuron Models\" (2002) \u00b7 Intel Loihi\u00a02 Davies\u00a0et\u00a0al.\u00a02021 DOI:10.1109/JPROC.2021.3067593 \u00b7 Lava\u00a0OSS github.com/lava-nc/lava (BSD-3) \u00b7 Neftci\u00a0et\u00a0al.\u00a0arXiv:1901.09948 \u00b7 BrainScaleS. MODELED \u00b7 not\u00a0claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["nm-hz"]     = _show.addField("mean firing rate (Hz)");
+  _el["nm-sparse"] = _show.addField("event sparsity");
+  _el["nm-energy"] = _show.addField("energy / spike (pJ) \u2014 MODELED");
+  _el["nm-spikes"] = _show.addField("total spikes");
+  _el["nm-label"]  = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    '<b>LIF (Leaky Integrate-and-Fire)</b> neuron population — 64 nodes on a 3D lattice, ' +
-    'each pulsing from a live deterministic simulation. Honesty label <b>MODELED</b> ' +
-    '(simulation, not measured silicon). Energy estimate cites Intel Loihi\u00a02 ' +
-    '(Davies\u00a0et\u00a0al.\u00a02021\u00a0JPROC). 0\u00a0runtime\u00a0CDN.';
-  _overlay.appendChild(sub);
-
-  // badge row
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  // KPI card
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = `width:9px;height:9px;border-radius:50%;background:#5b8dee;box-shadow:0 0 7px #5b8dee`;
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#5b8dee;letter-spacing:.3px";
-  nm.textContent = "neuromorphic";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("nm-hz",      "mean firing rate (Hz)"));
-  grid.appendChild(kpiRow("nm-sparse",  "event sparsity"));
-  grid.appendChild(kpiRow("nm-energy",  "energy / spike (pJ) \u2014 MODELED"));
-  grid.appendChild(kpiRow("nm-spikes",  "total spikes"));
-  grid.appendChild(kpiRow("nm-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Gerstner & Kistler \"Spiking Neuron Models\" (2002) \u00b7 Intel Loihi\u00a02 Davies\u00a0et\u00a0al.\u00a02021 DOI:10.1109/JPROC.2021.3067593 \u00b7 Lava\u00a0OSS github.com/lava-nc/lava (BSD-3) \u00b7 Neftci\u00a0et\u00a0al.\u00a0arXiv:1901.09948 \u00b7 BrainScaleS. MODELED \u00b7 not\u00a0claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  // plain-language toggle
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  // plain-language div (hidden by default)
-  const pd = document.createElement("div");
-  pd.id = "nm-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const hz = S.mean_hz != null ? S.mean_hz.toFixed(2) + " Hz" : "loading\u2026";
   const sp = S.sparsity != null ? (S.sparsity * 100).toFixed(1) + "% idle slots" : "loading\u2026";
   const ep = S.energy_pj != null ? S.energy_pj + " pJ/spike (MODELED, citing Loihi\u00a02)" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> A simulated population of 64 spiking neurons is firing " +
     "at roughly <b>" + hz + "</b> on average. " +
     "Neuromorphic chips fire only on events \u2014 <b>" + sp + "</b> means most circuits " +
@@ -374,7 +304,7 @@ function _applyPlain() {
     "Energy per spike is <b>" + ep + "</b> \u2014 this is a <b>MODELED</b> estimate from " +
     "Intel\u2019s published Loihi\u00a02 specs, not a measured chip reading. " +
     "Plain: spiking neural chips could be far more energy-efficient than dense matrix " +
-    "multiplication, but this number comes from a simulation, not a running chip.";
+    "multiplication, but this number comes from a simulation, not a running chip.");
 }
 
 function _tok(s) {
@@ -396,7 +326,11 @@ function _paintOverlay() {
   _set("nm-spikes", t || (S.total_spikes != null ? String(S.total_spikes) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("nm-label",  t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) {
+    _show.setChip("spk", S.label || "MODELED", { text: "LIF spikes" });
+    _show.setChip("energy", S.energy_label || "MODELED", { text: "energy est." });
+    _show.refreshPlain();
+  }
 }
 
 // =============================================================================
@@ -404,7 +338,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -417,9 +351,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _nodes = []; _edgeLines = null; _hubSphere = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.mean_hz = S.sparsity = S.energy_pj = S.total_spikes = null;
   S.spike_counts = S.membrane_v = S.energy_label = null;
