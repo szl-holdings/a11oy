@@ -84,18 +84,18 @@ DOCTRINE = {"version": "v11", "counts": "749/14/163", "lambda": "Conjecture 1",
             "locked_proven": 8}
 
 CITATIONS = [
-    {"key": "circuit_tracing",
+    {"id": "circuit_tracing",
      "cite": ("Ameisen, Lindsey, Pearce, Gurnee et al. (2025) Circuit Tracing: Revealing "
               "Computational Graphs in Language Models. Transformer Circuits Thread."),
      "url": "https://transformer-circuits.pub/2025/attribution-graphs/methods.html"},
-    {"key": "biology",
+    {"id": "biology",
      "cite": "Anthropic (2025) On the Biology of a Large Language Model (companion).",
      "url": "https://transformer-circuits.pub/2025/attribution-graphs/biology.html"},
-    {"key": "marks_sfc",
+    {"id": "marks_sfc",
      "cite": ("Marks, Rager, Michaud, Belinkov, Bau, Mueller (2024) Sparse Feature "
               "Circuits: Discovering and Editing Interpretable Causal Graphs in LMs."),
      "url": "https://arxiv.org/abs/2406.02395"},
-    {"key": "cunningham_sae",
+    {"id": "cunningham_sae",
      "cite": ("Cunningham, Ewart, Riggs, Huben, Sharkey (2023) Sparse Autoencoders Find "
               "Highly Interpretable Features in Language Models."),
      "url": "https://arxiv.org/abs/2309.08600"},

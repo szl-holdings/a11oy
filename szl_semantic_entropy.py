@@ -75,16 +75,16 @@ DOCTRINE = {"version": "v11", "counts": "749/14/163", "lambda": "Conjecture 1",
             "locked_proven": 8}
 
 CITATIONS = [
-    {"key": "farquhar_nature_2024",
+    {"id": "farquhar_nature_2024",
      "cite": ("Farquhar, Kossen, Kuhn & Gal (2024) Detecting hallucinations in large "
               "language models using semantic entropy. Nature 630, 625-630. "
               "DOI 10.1038/s41586-024-07421-0"),
      "url": "https://www.nature.com/articles/s41586-024-07421-0"},
-    {"key": "kuhn_semantic_uncertainty_2023",
+    {"id": "kuhn_semantic_uncertainty_2023",
      "cite": ("Kuhn, Gal & Farquhar (2023) Semantic Uncertainty: Linguistic Invariances "
               "for Uncertainty Estimation in NLG."),
      "url": "https://arxiv.org/abs/2302.09664"},
-    {"key": "wang_effective_rank_2025",
+    {"id": "wang_effective_rank_2025",
      "cite": ("Wang, Wei, Yue & Sun (2025) Revisiting Hallucination Detection with "
               "Effective Rank-based Uncertainty."),
      "url": "https://arxiv.org/abs/2510.08389"},

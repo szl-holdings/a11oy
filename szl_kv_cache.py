@@ -75,15 +75,15 @@ DOCTRINE = {"version": "v11", "counts": "749/14/163", "lambda": "Conjecture 1",
             "locked_proven": 8}
 
 CITATIONS = [
-    {"key": "h2o_2023",
+    {"id": "h2o_2023",
      "cite": ("Zhang, Sheng, Zhou et al. (2023) H2O: Heavy-Hitter Oracle for Efficient "
               "Generative Inference of Large Language Models."),
      "url": "https://arxiv.org/abs/2306.14048"},
-    {"key": "streamingllm_2023",
+    {"id": "streamingllm_2023",
      "cite": ("Xiao, Tian, Chen, Han, Lewis (2023) Efficient Streaming Language Models "
               "with Attention Sinks (StreamingLLM)."),
      "url": "https://arxiv.org/abs/2309.17453"},
-    {"key": "longformer_2020",
+    {"id": "longformer_2020",
      "cite": "Beltagy, Peters, Cohan (2020) Longformer: The Long-Document Transformer.",
      "url": "https://arxiv.org/abs/2004.05150"},
 ]
