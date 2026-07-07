@@ -11216,6 +11216,41 @@ except Exception as _al_e:
 # ============================================================================
 
 # ============================================================================
+# COMPOSITE VERIFY TRANSCRIPT (Wave Q, Dev 4) — szl_verify_transcript.py DEEPENS
+# the public "Verify a Receipt" flow (Wave N #806, szl_public_verify.py). A SINGLE
+# public request builds a real composite verifiable transcript that chains the
+# existing honest surfaces the governed agent loop already folds together —
+# brain-context -> governed agent-loop run -> eval-arena self-eval -> energy
+# allocation -> DSSE-signed composite receipt — then INDEPENDENTLY re-folds the
+# hash chain and returns PER-LINK honest labels. brain_digest + energy_digest +
+# the whole run_chain_digest ARE recomputable from the embedded blocks (VERIFIED);
+# per-step act digests are NOT (pre-images absent) -> honest UNAVAILABLE, never
+# faked. The DSSE receipt link DELEGATES to szl_public_verify (#806), genuinely
+# deepening it. Data labels are pass-through: MEASURED ONLY where a live meter
+# emitted it, else MODELED/SAMPLE/UNAVAILABLE — NEVER fabricated. Endpoints
+# GET|POST /api/a11oy/v1/verify/transcript ; POST /verify/transcript/recheck ;
+# GET /verify/transcript/health. Reuses the host's REAL in-image signer
+# (_a11oy_sign_receipt). Routes insert BEFORE the SPA catch-all; try/except
+# guarded so a missing dependency can NEVER take the Space down. Lambda =
+# Conjecture 1 (advisory, never green); nothing touches the locked-8.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_verify_transcript as _szl_verify_transcript
+    import sys as _vt_sys
+    _vt_status = _szl_verify_transcript.register(app, ns="a11oy",
+                                                 sign_fn=_a11oy_sign_receipt)
+    print(f"[a11oy] Composite verify transcript registered: {_vt_status}", file=_vt_sys.stderr)
+except Exception as _vt_e:
+    import sys as _vt_sys, traceback as _vt_tb
+    print(f"[a11oy] Composite verify transcript FAILED (non-fatal): {_vt_e!r}", file=_vt_sys.stderr)
+    _vt_tb.print_exc(file=_vt_sys.stderr)
+# ============================================================================
+# END: COMPOSITE VERIFY TRANSCRIPT — a11oy
+# ============================================================================
+
+# ============================================================================
 # SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
 # AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
 # Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /

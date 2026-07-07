@@ -1403,6 +1403,8 @@ COPY szl_sovereign_flywheel.py ./szl_sovereign_flywheel.py
 # (already COPY'd, built from brain/harvest — also COPY'd). Additive; Λ = Conjecture 1;
 # nothing to locked-8; no gate weakened; honest UNAVAILABLE when the vault is empty.
 COPY szl_brain_corpus.py ./szl_brain_corpus.py
+# Wave Q Dev 4: composite verify-transcript surface (DEEPENS #806 public verify).
+COPY szl_verify_transcript.py ./szl_verify_transcript.py
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
