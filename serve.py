@@ -1482,6 +1482,24 @@ try:
 except Exception as _szl_agentmem_e:  # pragma: no cover
     print(f"[a11oy] AgentMem recall NOT registered: {_szl_agentmem_e!r}", file=__import__("sys").stderr)
 
+# (vqc-wire) — GOVERNED VQC / QML: a REAL parameter-shift Hybrid Variational
+# Quantum Circuit, SIMULATION-ONLY (pure-stdlib deterministic state-vector sim,
+# a few qubits). Pipeline: feature map -> ansatz -> measurement -> classical head
+# -> loss -> REAL parameter-shift gradient step; returns a small training-loss
+# curve + a SIGNED receipt (real ECDSA-P256 in-Space via szl_dsse; honest
+# UNSIGNED-LOCAL locally). HONESTY IS THE FEATURE: labeled SIMULATED/MODELED and
+# STATES there is NO demonstrated quantum advantage for classical-data ML today
+# (barren plateaus McClean 2018; dequantization Cerezo arXiv:2312.09121; Sheoran
+# Sci. Rep. 2025). Cites PennyLane, Qiskit ML, the parameter-shift rule
+# (Mitarai 2018 arXiv:1803.00745; Schuld 2019 arXiv:1811.11184). Λ = Conjecture 1
+# (gray, never green; trust capped at 0.97). Registered BEFORE the SPA catch-all.
+try:
+    import szl_vqc as _szl_vqc
+    _szl_vqc.register(app, ns="a11oy")
+    print("[a11oy] Governed VQC registered: /api/a11oy/v1/vqc/run", file=__import__("sys").stderr)
+except Exception as _szl_vqc_e:  # pragma: no cover
+    print(f"[a11oy] Governed VQC NOT registered: {_szl_vqc_e!r}", file=__import__("sys").stderr)
+
 # ── WAVE-25 Loop Forge (loopforge, 67th surface): kernel-gated bounded-recursion
 # agentic loop + MODELED J-lens workspace readout over the REAL flower/brain node
 # set. MODELED demonstration on a REAL topology — NOT a trained model, NOT a real
