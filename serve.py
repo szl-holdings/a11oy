@@ -10526,8 +10526,9 @@ except Exception as _loop_e:
     import sys as _loop_sys, traceback as _loop_tb
     print(f"[a11oy] governed agent loop FAILED (non-fatal): {_loop_e!r}", file=_loop_sys.stderr)
     _loop_tb.print_exc(file=_loop_sys.stderr)
-    _LOOP_DIAG = {"status": "FAILED", "error": repr(_loop_e),
-                  "traceback": _loop_tb.format_exc()}
+    # Served on /api/a11oy/v1/agent/_diag — honest error label only; the full
+    # traceback goes to stderr above, never into the API response.
+    _LOOP_DIAG = {"status": "FAILED", "error": repr(_loop_e)}
 # ============================================================================
 # END: GOVERNED AGENT LOOP — a11oy
 # ============================================================================
@@ -10693,8 +10694,9 @@ except Exception as _alloy_e:
     import sys as _alloy_sys, traceback as _alloy_tb
     print(f"[a11oy] open-weight alloy model layer FAILED (non-fatal): {_alloy_e!r}", file=_alloy_sys.stderr)
     _alloy_tb.print_exc(file=_alloy_sys.stderr)
-    _ALLOY_DIAG = {"status": "FAILED", "error": repr(_alloy_e),
-                   "traceback": _alloy_tb.format_exc()}
+    # Served on the alloy _diag route — honest error label only; the full
+    # traceback goes to stderr above, never into the API response.
+    _ALLOY_DIAG = {"status": "FAILED", "error": repr(_alloy_e)}
 # ============================================================================
 # END: OPEN-WEIGHT ALLOY MODEL LAYER — a11oy
 # ============================================================================
@@ -10807,8 +10809,9 @@ except Exception as _code_e:
     import sys as _code_sys, traceback as _code_tb
     print(f"[a11oy] a11oy Code FAILED (non-fatal): {_code_e!r}", file=_code_sys.stderr)
     _code_tb.print_exc(file=_code_sys.stderr)
-    _A11OY_CODE_DIAG = {"status": "FAILED", "error": repr(_code_e),
-                        "traceback": _code_tb.format_exc()}
+    # Served on the a11oy-code _diag route — honest error label only; the full
+    # traceback goes to stderr above, never into the API response.
+    _A11OY_CODE_DIAG = {"status": "FAILED", "error": repr(_code_e)}
 
 # ---------------------------------------------------------------------------
 # a11oy CODE — GOVERNED RUN-LOOP orchestrator (2026-07-06). Additive layer that
