@@ -1514,6 +1514,23 @@ try:
 except Exception as _szl_atlas_e:  # pragma: no cover
     print(f"[a11oy] Atlas NOT registered: {_szl_atlas_e!r}", file=__import__("sys").stderr)
 
+# (edgefusion-wire) — EDGEFUSION: SZL cross-axis SYNTHESIS surface — energy-
+# proportional, Λ-gated multi-sensor edge fusion with a signed-fusion-receipt-per-
+# write design. MODELED multi-sensor scene + inverse-variance fusion + parametric
+# joules model; the SZL synthesis (Λ trust gate + receipt-per-write chain) is
+# CONJECTURE (Λ = Conjecture 1, gray, never green; trust capped at 0.97; energy
+# MODELED not MEASURED — no meter; RECEIPT-ON-WRITE, nothing minted on this GET).
+# Cites BEVFusion (arXiv:2205.13542), TransFuser (arXiv:2205.15997), VINS-Fusion
+# (HKUST-Aerial-Robotics), MLPerf Power (arXiv:2410.12032), CarbonCall
+# (arXiv:2504.20348), snnTorch (arXiv:2109.12894), Loihi (IEEE Micro 2018).
+# Registered BEFORE the SPA catch-all so /api/... is JSON.
+try:
+    import szl_edgefusion as _szl_edgefusion
+    _szl_edgefusion.register(app, ns="a11oy")
+    print("[a11oy] EdgeFusion registered: /api/a11oy/v1/frontier/edgefusion", file=__import__("sys").stderr)
+except Exception as _szl_edgefusion_e:  # pragma: no cover
+    print(f"[a11oy] EdgeFusion NOT registered: {_szl_edgefusion_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
