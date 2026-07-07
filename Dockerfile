@@ -163,6 +163,13 @@ COPY knowledge.json ./static/knowledge.json
 # registers live. (dockerfile-copy-guard verifies these sources exist on main.)
 COPY a11oy_ayllu.py ./
 COPY ayllu/ ./ayllu/
+# routers/ — Wave-K Dev4 serve.py decomposition (first bounded slice). serve.py
+# imports `from routers import lambda_bounty|research_3d|frontier_reads` (guarded)
+# and calls each register(app) BEFORE the SPA catch-all. This Dockerfile uses no
+# `COPY . .`, so the WHOLE package dir MUST be per-dir COPY'd or the guarded
+# imports fall back and the moved route groups (lambda-bounty intake, research-3D
+# reads, frontier reads) silently 404 live. REFACTOR-ONLY: identical paths/order.
+COPY routers/ ./routers/
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.

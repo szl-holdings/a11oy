@@ -4849,117 +4849,21 @@ async def _a11oy_pr_lambda_v2():
 # land in the repo via the bounty-webhook GitHub Action. ADDITIVE ONLY.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # ===========================================================================
-import hashlib as _lb_hashlib
-import hmac as _lb_hmac
-import re as _lb_re
-
-_LB_SIGN_KEY = os.environ.get("LAMBDA_BOUNTY_HMAC_KEY", "dev-key-not-for-prod")
-_LB_HMAC_IS_DEV = _LB_SIGN_KEY == "dev-key-not-for-prod"
-_LB_PR_RE = _lb_re.compile(r"^https://github\.com/szl-holdings/lambda-bounty/pull/\d+$")
-_LB_ALLOWED_AXIOMS = ("propext", "Quot.sound", "Classical.choice")
-_LB_LEDGER: _pr_col.deque = _pr_col.deque(maxlen=500)
-_LB_LEDGER_LOCK = _pr_thr.Lock()
-_LB_CONJECTURE = {
-    "id": "Conjecture 1",
-    "formula": "F23",
-    "status": "OPEN — NOT a theorem",
-    "statement": "Any two 9-axis aggregators satisfying A1 idempotence, A2 monotonicity, "
-                 "A3 symmetry, A4 zero-absorption agree on every input.",
-    "arbiter": "verify-proof CI on a PR to szl-holdings/lambda-bounty (sole, no-bypass)",
-}
-
-
-def _lb_now() -> str:
-    import datetime as _dt
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _lb_validate(payload: dict) -> list:
-    errs = []
-    for k in ("submitter", "pr_url", "lean_toolchain", "axiom_print", "sorry_free_claim"):
-        if k not in payload:
-            errs.append(f"missing required field: {k}")
-    if "pr_url" in payload and not _LB_PR_RE.match(str(payload.get("pr_url", ""))):
-        errs.append("pr_url must be https://github.com/szl-holdings/lambda-bounty/pull/<n>")
-    if payload.get("lean_toolchain") not in (None, "leanprover/lean4:v4.13.0"):
-        errs.append("lean_toolchain must be leanprover/lean4:v4.13.0")
-    if payload.get("sorry_free_claim") is not True:
-        errs.append("sorry_free_claim must be true (CI verifies independently)")
-    sub = payload.get("submitter")
-    if not isinstance(sub, dict) or not sub.get("name"):
-        errs.append("submitter.name is required")
-    ap = payload.get("axiom_print", "")
-    if ap and "sorryAx" in str(ap):
-        errs.append("axiom_print contains sorryAx — proof is incomplete")
-    return errs
-
-
-def _lb_prev_hash() -> str:
-    if not _LB_LEDGER:
-        return "genesis"
-    return _LB_LEDGER[-1].get("hash", "genesis")
-
-
-def _lb_make_receipt(payload: dict, accepted: bool, errors: list) -> dict:
-    body = {
-        "receipt_type": "lambda_bounty_intake",
-        "conjecture": "Conjecture 1 (F23 Λ-aggregator uniqueness)",
-        "ts": _lb_now(),
-        "submitter": (payload.get("submitter") or {}).get("name", "?"),
-        "pr_url": payload.get("pr_url"),
-        "accepted_intake": accepted,
-        "errors": errors,
-        "eligibility_note": "Intake acknowledgement only. Award eligibility = verify-proof CI green on the PR.",
-        "prev": _lb_prev_hash(),
-    }
-    digest = _lb_hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
-    sig = _lb_hmac.new(_LB_SIGN_KEY.encode(), digest.encode(), _lb_hashlib.sha256).hexdigest()
-    body["hash"] = digest
-    body["hmac_sha256"] = sig
-    body["hmac_key"] = "dev-key-placeholder (set LAMBDA_BOUNTY_HMAC_KEY for a real signature)" if _LB_HMAC_IS_DEV else "env-provided"
-    return body
-
-
-@app.get("/api/lambda-bounty/healthz")
-async def _lb_healthz():
-    """Λ-bounty intake liveness + live Conjecture-1 status. Λ = NOT a theorem."""
-    return JSONResponse({"status": "ok", "service": "lambda-bounty-intake",
-                         "conjecture": _LB_CONJECTURE, "doctrine": "v11",
-                         "receipts_buffered": len(_LB_LEDGER)})
-
-
-@app.post("/api/lambda-bounty/submit")
-async def _lb_submit(request: Request):
-    """Validate a Conjecture-1 submission payload, emit a hash-chained Khipu
-    intake receipt. 200 + receipt (accepted) or 422 + errors (rejected); a
-    receipt is appended either way. Eligibility is decided ONLY by verify-proof
-    CI on the PR — this never declares a winner."""
-    try:
-        payload = await request.json()
-    except Exception:
-        return JSONResponse({"error": "invalid JSON"}, status_code=400)
-    if not isinstance(payload, dict):
-        return JSONResponse({"error": "payload must be a JSON object"}, status_code=400)
-    errors = _lb_validate(payload)
-    accepted = len(errors) == 0
-    receipt = _lb_make_receipt(payload, accepted, errors)
-    with _LB_LEDGER_LOCK:
-        _LB_LEDGER.append(receipt)
-    return JSONResponse(status_code=(200 if accepted else 422), content={
-        "accepted_intake": accepted, "errors": errors, "receipt": receipt,
-        "next_step": "Open a PR to szl-holdings/lambda-bounty; verify-proof CI is the sole arbiter.",
-    })
-
-
-@app.get("/api/lambda-bounty/receipts")
-async def _lb_receipts():
-    """Append-only intake receipt ledger as NDJSON. In-memory ring buffer
-    (maxlen=500); resets on Space rebuild (honest disclosure). Durable receipts
-    are committed to the repo by the bounty-webhook GitHub Action."""
-    from fastapi.responses import PlainTextResponse as _LBPlain
-    with _LB_LEDGER_LOCK:
-        lines = "\n".join(json.dumps(r) for r in _LB_LEDGER)
-    return _LBPlain(lines, media_type="application/x-ndjson")
+# ---------------------------------------------------------------------------
+# Wave-K Dev4 refactor: the Λ-bounty intake route group moved VERBATIM to
+# routers/lambda_bounty.py. serve.py imports + calls its register(app) HERE (at
+# the SAME position it used to occupy — BEFORE the SPA /{full_path:path}
+# catch-all) via the established guarded try/except so a missing/broken group can
+# NEVER take down the SPA. REFACTOR-ONLY: same paths, same methods, same order.
+# ---------------------------------------------------------------------------
+try:
+    from routers import lambda_bounty as _lb_router
+    _lb_reg = _lb_router.register(app)
+    print(f"[a11oy] routers.lambda_bounty registered (Wave-K Dev4 split): {_lb_reg}",
+          file=__import__("sys").stderr)
+except Exception as _lb_e:  # pragma: no cover — guarded; never take down the SPA
+    print(f"[a11oy] routers.lambda_bounty NOT registered: {_lb_e!r}; SPA + API unaffected",
+          file=__import__("sys").stderr)
 
 
 # ============================================================================
@@ -7397,30 +7301,23 @@ def _r3d_consensus_votes_payload() -> dict:
                     "locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
 
-@app.get("/api/a11oy/v1/router/metrics")
-@app.get("/v1/router/metrics")
-async def _r3d_router_metrics() -> JSONResponse:
-    return JSONResponse(_r3d_router_metrics_payload())
-
-@app.get("/api/a11oy/v1/chaski/routing-graph")
-@app.get("/v1/chaski/routing-graph")
-@app.get("/api/chaski/routing-graph")
-async def _r3d_routing_graph() -> JSONResponse:
-    return JSONResponse(_r3d_routing_graph_payload())
-
-@app.get("/api/a11oy/v1/reason/loop-depth")
-@app.get("/v1/reason/loop-depth")
-async def _r3d_loop_depth() -> JSONResponse:
-    return JSONResponse(_r3d_loop_depth_payload())
-
-@app.get("/api/a11oy/v1/consensus/votes")
-@app.get("/v1/consensus/votes")
-async def _r3d_consensus_votes() -> JSONResponse:
-    return JSONResponse(_r3d_consensus_votes_payload())
-
-print("[a11oy] research-3d endpoints registered BEFORE proxy: /api/a11oy/v1/"
-      "{router/metrics,chaski/routing-graph,reason/loop-depth,consensus/votes}",
-      file=sys.stderr)
+# ---------------------------------------------------------------------------
+# Wave-K Dev4 refactor: the research-3D read route group (router/metrics,
+# chaski/routing-graph, reason/loop-depth, consensus/votes) moved VERBATIM to
+# routers/research_3d.py. The deterministic payload builders _r3d_*_payload()
+# REMAIN at serve.py module scope (defined just above); the router reaches them
+# via `import serve`. register(app) is called HERE (same position — BEFORE the
+# /api/a11oy/{path:path} proxy + SPA catch-all) via the guarded pattern.
+# REFACTOR-ONLY: same paths, same methods, same payloads, same order.
+# ---------------------------------------------------------------------------
+try:
+    from routers import research_3d as _r3d_router
+    _r3d_reg = _r3d_router.register(app)
+    print(f"[a11oy] routers.research_3d registered (Wave-K Dev4 split): {_r3d_reg}",
+          file=sys.stderr)
+except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the SPA
+    print(f"[a11oy] routers.research_3d NOT registered: {_r3d_e!r}; SPA + API unaffected",
+          file=sys.stderr)
 
 
 @app.get("/api/a11oy/v1/ledger")
@@ -8141,69 +8038,24 @@ _A11OY_FORECAST = {
 }
 
 
-@app.get("/api/a11oy/v1/forecast-baseline")
-@app.get("/v1/forecast-baseline")
-async def a11oy_forecast_baseline_v2() -> JSONResponse:
-    return JSONResponse(_A11OY_FORECAST)
-
-
-# ---- Vertical-pack registry (GAP-5): 13 verticals, live/stub. "Cyber Resilience"
-# label avoids the literal forbidden string. NO amaru/sentra/rosie. ----
-_A11OY_VERTICALS = [
-    {"id": "platform", "title": "Platform / AgentOps", "purpose": "Release Gate Intelligence", "status": "live", "owner": "eng-vp@szl"},
-    {"id": "pulse", "title": "Pulse", "purpose": "Founder Operating Channel", "status": "live", "owner": "ceo@szl"},
-    {"id": "finance", "title": "Finance / Capital Weather", "purpose": "Capital Weather", "status": "live", "owner": "cfo@szl"},
-    {"id": "decision_ledger", "title": "Decision Debt Ledger", "purpose": "Decision Debt Ledger", "status": "live", "owner": "cpo@szl"},
-    {"id": "terra", "title": "Acquisition Time Machine", "purpose": "Acquisition Time Machine", "status": "live", "owner": "ceo@szl"},
-    {"id": "voyage", "title": "Voyage Risk Exchange", "purpose": "Voyage Risk Exchange", "status": "live", "owner": "coo@szl"},
-    {"id": "counsel", "title": "Matter Flight Recorder", "purpose": "Matter Flight Recorder", "status": "live", "owner": "general-counsel@szl"},
-    {"id": "growth", "title": "Marketing / Growth", "purpose": "Proof-To-Pipeline Engine", "status": "live", "owner": "cmo@szl"},
-    {"id": "cyber", "title": "Cyber Resilience", "purpose": "Cyber Resilience Command", "status": "live", "owner": "ciso@szl"},
-    {"id": "firestorm", "title": "Firestorm Ops", "purpose": "Crisis Operations Command", "status": "stub", "owner": "coo@szl"},
-    {"id": "nuroforge", "title": "NuroForge", "purpose": "AI Agent Forge", "status": "stub", "owner": "cto@szl"},
-    {"id": "infra", "title": "Meridian Infra", "purpose": "Infrastructure Intelligence", "status": "stub", "owner": "eng-vp@szl"},
-    {"id": "graph", "title": "Constellation Graph", "purpose": "Cross-Domain Intelligence Graph", "status": "stub", "owner": "cto@szl"},
-]
-
-
-@app.get("/api/a11oy/v1/vertical-packs")
-@app.get("/v1/vertical-packs")
-async def a11oy_vertical_packs_v2() -> JSONResponse:
-    live = sum(1 for v in _A11OY_VERTICALS if v["status"] == "live")
-    return JSONResponse({"total": len(_A11OY_VERTICALS), "live": live,
-                         "stub": len(_A11OY_VERTICALS) - live,
-                         "verticals": _A11OY_VERTICALS,
-                         "honesty": "Live = shipping pack; stub = scaffolded, roadmap."})
-
-
-# ---- Business Observability (5 domains) on REAL in-image data (no fabricated KPIs) ----
-@app.get("/api/a11oy/v1/observability/business")
-@app.get("/v1/observability/business")
-async def a11oy_business_observability_v2() -> JSONResponse:
-    ch = _a11oy_build_chain(24)
-    domains = [
-        {"id": "coverage", "name": "Coverage",
-         "measure": "knowledge ontology + vertical policies",
-         "value": "10 policies · axioms→theorems→formulas graph", "status": "real"},
-        {"id": "connectivity", "name": "Connectivity",
-         "measure": "in-image capability mesh + MCP tools",
-         "value": "%d capabilities · 4 MCP tools" % len(_A11OY_CAPS), "status": "real"},
-        {"id": "cognitive", "name": "Cognitive",
-         "measure": "reasoning + orchestration + Λ scoring",
-         "value": "13-axis trust vector · Λ=0.919 (Conjecture 1)", "status": "real"},
-        {"id": "executive", "name": "Executive Interfaces",
-         "measure": "operator tabs + Ask & Act",
-         "value": "command tabs + grounded operator", "status": "real"},
-        {"id": "impact", "name": "Impact",
-         "measure": "signed decision receipts (hash-chained)",
-         "value": "%d signed spans · chain verified" % ch["depth"], "status": "real"},
-    ]
-    return JSONResponse({
-        "domains": domains,
-        "honesty": ("Capability domains on real in-image data. We do NOT reproduce "
-                    "any third-party marketing percentages as our own."),
-        "lambda_status": "Conjecture 1 (advisory)",
-    })
+# ---------------------------------------------------------------------------
+# Wave-K Dev4 refactor: the frontier read route group (forecast-baseline,
+# vertical-packs, observability/business) moved VERBATIM to
+# routers/frontier_reads.py. The genuinely-local _A11OY_VERTICALS registry moved
+# with it; the shared serve-scope state (_A11OY_FORECAST / _a11oy_build_chain /
+# _A11OY_CAPS) stays here and the router reaches it via `import serve`.
+# register(app) is called HERE (same position — BEFORE the /api/a11oy/{path:path}
+# proxy + SPA catch-all) via the guarded pattern.
+# REFACTOR-ONLY: same paths, same methods, same payloads, same order.
+# ---------------------------------------------------------------------------
+try:
+    from routers import frontier_reads as _fr_router
+    _fr_reg = _fr_router.register(app)
+    print(f"[a11oy] routers.frontier_reads registered (Wave-K Dev4 split): {_fr_reg}",
+          file=sys.stderr)
+except Exception as _fr_e:  # pragma: no cover — guarded; never take down the SPA
+    print(f"[a11oy] routers.frontier_reads NOT registered: {_fr_e!r}; SPA + API unaffected",
+          file=sys.stderr)
 
 
 
