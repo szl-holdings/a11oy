@@ -1,0 +1,24 @@
+{
+  "id": "szl-honest-operator",
+  "name": "SZL Honest Operator",
+  "version": "1.0.0",
+  "target_models": ["claude_opus_4_8", "claude_sonnet_4_6", "gpt_5_4", "openrouter_auto", "sovereign_local"],
+  "system_prompt_ref": {
+    "type": "env|path",
+    "env": "SZL_HARNESS_OPERATOR_PROMPT",
+    "default_body_path": "harness_profiles/bodies/szl-honest-operator.md"
+  },
+  "provenance": {
+    "author": "Stephen P. Lutar Jr.",
+    "source": "SZL original. Grounded-execution disposition (prove-before-done) authored in SZL's own governed voice from SZL Doctrine v11.",
+    "inspiration_urls": [],
+    "license": "SZL-internal | MIT",
+    "sha256": "9d78c32a9bcd64251b9e9952963cd75f4952782cc2731d2383d82aa13a7b2dab",
+    "not_verbatim_of": "any third-party leaked prompt"
+  },
+  "tags": ["execution", "grounded", "evidence-ledger", "communication-floor", "governed"],
+  "honesty_label": "MODELED",
+  "capability_claim": "transfers execution disposition only; does NOT raise the model's capability ceiling",
+  "lambda_posture": "advisory (Conjecture 1); apply is Lambda-gated, never asserts 'green'",
+  "effort_default": "high"
+}

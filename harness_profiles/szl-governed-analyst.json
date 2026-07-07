@@ -1,0 +1,24 @@
+{
+  "id": "szl-governed-analyst",
+  "name": "SZL Governed Analyst",
+  "version": "1.0.0",
+  "target_models": ["gemini_3_1_pro", "gpt_5_4", "claude_sonnet_4_6", "claude_opus_4_8", "perplexity_sonar_pro"],
+  "system_prompt_ref": {
+    "type": "env|path",
+    "env": "SZL_HARNESS_ANALYST_PROMPT",
+    "default_body_path": "harness_profiles/bodies/szl-governed-analyst.md"
+  },
+  "provenance": {
+    "author": "Stephen P. Lutar Jr.",
+    "source": "SZL original. Honest research/analysis disposition authored in SZL's own governed voice from SZL Doctrine v11.",
+    "inspiration_urls": [],
+    "license": "SZL-internal | MIT",
+    "sha256": "b5d212cd26b24c34e2cab49633064ede96e4cdd591c7a6b5639ab6ea7e8e698a",
+    "not_verbatim_of": "any third-party leaked prompt"
+  },
+  "tags": ["analysis", "evenhanded", "cite-sources", "no-confabulation", "governed"],
+  "honesty_label": "MODELED",
+  "capability_claim": "transfers analytical disposition only; does NOT raise the model's capability ceiling",
+  "lambda_posture": "advisory (Conjecture 1); apply is Lambda-gated, never asserts 'green'",
+  "effort_default": "high"
+}

@@ -1502,6 +1502,23 @@ try:
 except Exception as _szl_loopforge_metrics_e:  # pragma: no cover
     print(f"[a11oy] Loop Forge metrics NOT registered: {_szl_loopforge_metrics_e!r}", file=__import__("sys").stderr)
 
+# (harness-wire) — GOVERNED MODEL HARNESS: makes "run model X with behavior
+# profile Y" a first-class, governed, receipted operation. Behavior transfer is
+# MODELED (changes disposition, NOT capability) and is honestly labeled as such.
+# Routes through szl_llm_registry with the profile's system layer, Λ-gated
+# (Λ = Conjecture 1, gray, never green), returns output + a SIGNED receipt
+# (real ECDSA-P256 DSSE in-Space, honest UNSIGNED marker locally) and ingests
+# the receipt into /llm/forum. Profile bodies are hashed + integrity-checked and
+# NEVER leaked over the API (metadata + sha256 + availability only). Registered
+# BEFORE the Node proxy + SPA catch-all so /api/... stays JSON. Wave G additionally
+# wires an OPTIONAL harness_profile_id into the /code run-loop + /llm/route.
+try:
+    import szl_model_harness as _szl_model_harness
+    _szl_model_harness.register(app, ns="a11oy")
+    print("[a11oy] Model harness registered: /api/a11oy/v1/harness/{profiles,apply}", file=__import__("sys").stderr)
+except Exception as _szl_model_harness_e:  # pragma: no cover
+    print(f"[a11oy] Model harness NOT registered: {_szl_model_harness_e!r}", file=__import__("sys").stderr)
+
 # ── WAVE-27 Atlas (atlas, front-door surface): unifies all 67 surfaces into ONE
 # organism using the Flower Brain's 8 real clusters as the taxonomy. MODELED map;
 # every surface classified exactly once (coverage 1.0), kernel pistil (locked-8)
