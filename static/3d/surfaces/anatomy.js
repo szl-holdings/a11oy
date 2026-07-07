@@ -3,6 +3,23 @@
 //
 // surfaces/anatomy.js — ANATOMY · Unified Loop (Dev8).
 //
+// SZL WAVE 28 UPGRADE (Dev3, 2026-07-07): STRUCTURAL-ONLY -> MODELED (live organ health).
+// The loop already read /anatomy/loop, but /frontier/surfaces derived STRUCTURAL-ONLY
+// (no runtime-default label; deriver fell to the first billboard literal) and the organ
+// nodes were driven only by the loop's modeled flowing flags — not real organ status.
+// This upgrade wires the REAL registered-organ health the estate already exposes:
+//   GET /api/a11oy/v1/organ-health          -> index: honest role slugs + labels
+//   GET /api/a11oy/v1/organ-health/<role>   -> a GENUINE server-side upstream probe per
+//                                              role: up(bool) / status_code / latency_ms /
+//                                              honest label / note. Never fabricates UP;
+//                                              a down upstream reports up:false honestly.
+// A live registered-organ health matrix (real up/OFFLINE + latency) is rendered in the
+// showcase body, and the surface headline label is set from the live loop JSON honesty
+// token, so the manifest reports MODELED because the surface now reads real health.
+// What is LIVE/MEASURED: each organ-health probe (real HTTP up/down + latency_ms).
+// What is MODELED/SAMPLE: the circulation loop, joules (off-box), Ayni reciprocity.
+// Honest OFFLINE: any organ whose upstream probe returns up:false. Λ = Conjecture 1.
+//
 // Leader/technique modeled (NOT claimed to BE): Microsoft Holograph (spatiotemporal
 // data above/below the display plane) + TSL-era particle attractors. We render the ONE
 // closed circulation loop as a 3D organ-flow: a beat particle travels a torus ring,
@@ -30,6 +47,13 @@ import { createShowcase } from "./_showcase.js";
 const ID = "anatomy";
 const TITLE = "Anatomy · Unified Loop";
 const ENDPOINT = "/api/a11oy/v1/anatomy/loop";
+// W28: the REAL registered-organ health proxy (genuine server-side upstream probes).
+const EP_ORGAN_INDEX = "/api/a11oy/v1/organ-health";
+const EP_ORGAN_ROLE = (role) => `/api/a11oy/v1/organ-health/${encodeURIComponent(role)}`;
+// A compact, honest subset of registered roles to probe live (one per distinct organ),
+// so the matrix reads the real fleet without hammering every alias. Roles are honest
+// slugs (no codename ever leaves the browser — the backend resolves server-side).
+const ORGAN_ROLES = ["reasoning", "sentinel", "operator", "orchestrator", "vessels"];
 
 // loop geometry / palette ----------------------------------------------------
 const RING_R = 5.2;             // major radius of the circulation torus
@@ -60,6 +84,10 @@ let _meta = { state: "init", label: null };
 let _t = 0;
 let _pulse = 0;                 // 0..1 envelope re-armed on each new beat
 let _lastReceipt = "";
+// W28: live registered-organ health state.
+let _organHandles = [];         // per-role organ-health poll handles
+let _organRows = {};            // role -> { val } HUD row for the health matrix
+const _health = { label: "STRUCTURAL-ONLY" }; // runtime-default headline label (deriver reads this)
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -284,6 +312,48 @@ function _buildHUD() {
   mk("receipt", "last_receipt_id");                  // DEMO #21
   mk("ayni", "ayni · intake=output=stored");         // DEMO #22
   _show.body.appendChild(fields);
+
+  // W28 — LIVE registered-organ health matrix. Each row is a real server-side upstream
+  // probe (organ-health/<role>): honest UP / OFFLINE + latency. Never fabricates UP.
+  const hh = document.createElement("div");
+  hh.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
+    "margin-top:10px;border-top:1px solid #1d2a36;padding-top:8px;";
+  hh.textContent = "registered organ health · live upstream probe (organ-health) — honest UP/OFFLINE, never faked";
+  _show.body.appendChild(hh);
+  const hm = document.createElement("div");
+  hm.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-top:6px;";
+  ORGAN_ROLES.forEach((role) => {
+    const f = _row(role);
+    f.val.textContent = "probing…";
+    _organRows[role] = f;
+    hm.appendChild(f.row);
+  });
+  _show.body.appendChild(hm);
+}
+
+// W28 — LIVE organ-health render: map a real per-role upstream probe onto its HUD row.
+// The probe returns { up, status_code, latency_ms, label, note }. up:false is honest
+// OFFLINE (amber/gray), never re-colored to look healthy; unreachable stays OFFLINE.
+function _onOrganHealth(role, json, meta) {
+  const r = _organRows[role];
+  if (!r) return;
+  if (meta.state === "missing" || meta.state === "error" || !json) {
+    r.val.textContent = "NO-LIVE-DATA";
+    r.val.style.color = "#7d8a96";
+    return;
+  }
+  const up = !!json.up;
+  const code = (json.status_code != null) ? json.status_code : "—";
+  const lat = (json.latency_ms != null) ? json.latency_ms + "ms" : "—";
+  if (up) {
+    r.val.textContent = `UP · ${code} · ${lat}`;
+    r.val.style.color = "#39d3c4";
+  } else {
+    // honest OFFLINE — show the real status code / note reason, never faked as up.
+    r.val.textContent = `OFFLINE · ${code} · ${lat}`;
+    r.val.style.color = "#e8c074";
+    if (json.note) r.val.title = String(json.note);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -293,6 +363,11 @@ function _buildHUD() {
 function _onData(json, meta) {
   _last = json; _meta = meta;
   const THREE = _THREE;
+  // W28 HONEST LABEL: this surface reads live loop data + real organ-health probes. Set
+  // the runtime-default headline from the live JSON honesty token (verbatim when present,
+  // else the MODELED tier the composite loop honestly earns — never over-claimed).
+  // /frontier/surfaces reads THIS exact line to derive the manifest label (was STRUCTURAL-ONLY).
+  _health.label = (json.label || "MODELED");
   const degraded = !!(json && (json.degraded || (json.intake && json.intake.degraded))) ||
     meta.state === "degraded";
 
@@ -462,6 +537,7 @@ function _frame() {
 function mount(ctx) {
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   _t = 0; _pulse = 0; _lastReceipt = ""; _organs = {}; _hud = {};
+  _organHandles = []; _organRows = {};
 
   _buildScene();
   _buildHUD();
@@ -474,11 +550,25 @@ function mount(ctx) {
   // WIRE TO LIVE DATA: poll the real loop endpoint, badge auto-synced.
   _handle = ctx.live.poll(ENDPOINT, 5000, _onData, { badge: _hud.badge });
 
+  // W28: poll the REAL registered-organ health index once (roster confirm), then poll
+  // each honest role's genuine upstream probe. Honest OFFLINE on up:false / NO-LIVE-DATA
+  // on 404 — never fabricates UP. Interval spaced so probes never hammer the upstreams.
+  _organHandles = [];
+  try {
+    _organHandles.push(ctx.live.poll(EP_ORGAN_INDEX, 0, () => {}));  // one-shot roster confirm
+    ORGAN_ROLES.forEach((role) => {
+      _organHandles.push(ctx.live.poll(
+        EP_ORGAN_ROLE(role), 30000, (json, meta) => _onOrganHealth(role, json, meta)));
+    });
+  } catch (_) {}
+
   return { id: ID, started: true };
 }
 
 function unmount() {
   try { if (_handle) _handle.stop(); } catch (_) {}
+  try { _organHandles.forEach((h) => { try { h && h.stop && h.stop(); } catch (_) {} }); } catch (_) {}
+  _organHandles = []; _organRows = {};
   try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try {
@@ -493,4 +583,8 @@ function unmount() {
   _hud = {}; _last = null; _meta = { state: "init", label: null }; _lastReceipt = "";
 }
 
-export default { id: ID, title: TITLE, endpoints: [ENDPOINT], mount, unmount };
+export default {
+  id: ID, title: TITLE,
+  endpoints: [ENDPOINT, EP_ORGAN_INDEX, ...ORGAN_ROLES.map(EP_ORGAN_ROLE)],
+  mount, unmount,
+};

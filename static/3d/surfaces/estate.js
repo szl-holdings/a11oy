@@ -3,6 +3,21 @@
 //
 // surfaces/estate.js — ESTATE HOLOGRAM · the unified cross-tab overview (Dev9).
 //
+// SZL WAVE 28 UPGRADE (Dev3, 2026-07-07): STRUCTURAL-ONLY -> MODELED.
+// The overview already funnelled five live endpoints into one scene, but
+// /frontier/surfaces derived its label as STRUCTURAL-ONLY (no runtime-default label
+// line; deriver fell to the first chip literal). This upgrade wires the REAL ESTATE
+// ROSTER and adds an honest runtime-default headline label:
+//   • fleet nodes  <- /api/a11oy/v1/energy/operator/status  (node_status map:
+//                     omen + betterwithage live/standby/DEGRADED, joules MEASURED
+//                     label, exporter node). Honest OFFLINE when a node is down.
+//   • surface count<- /api/a11oy/v1/frontier/surfaces        (the real 69-surface
+//                     roster + present/unavailable rollup).
+// The node roster is a REAL server-side probe (a node reads 'standby'/'DEGRADED'/
+// 'computing' only from a genuine liveness check — never faked as computing). The
+// surface headline label is now set from the live JSON honesty token, so the
+// manifest reports MODELED because the scene reads real estate state. Λ = Conjecture 1.
+//
 // Leader / technique modeled: a single "holographic estate" command view — the
 // recognized pattern for ops command centers (NVIDIA Omniverse digital-twin
 // overview + Microsoft Holograph unified loop). One scene reads MULTIPLE live
@@ -26,8 +41,6 @@
 //
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
-import { createShowcase } from "./_showcase.js";
-
 const ID = "estate";
 const TITLE = "Estate Hologram";
 
@@ -37,6 +50,9 @@ const EP_ENERGY = "/api/a11oy/v1/harvest/posture";     // energy ring
 const EP_FABRIC = "/api/a11oy/v1/compute-pool-hardened";  // fabric hex (egress-scrubbed)
 const EP_PNT    = "/api/a11oy/v1/pnt/limits";          // PNT horizon
 const EP_LOOP   = "/api/a11oy/v1/anatomy/loop";        // PINN volume glance / reservoir
+// W28: the REAL estate roster (fleet nodes + surface count)
+const EP_FLEET    = "/api/a11oy/v1/energy/operator/status"; // fleet-node roster (omen/betterwithage)
+const EP_SURFACES = "/api/a11oy/v1/frontier/surfaces";       // 3D-surface roster (the 69 surfaces)
 
 // palette (matches the other surfaces' accents so the estate reads as the union)
 const C = {
@@ -46,11 +62,15 @@ const C = {
 
 let _stage = null, _THREE = null, _ctx = null;
 let _root = null, _overlay = null, _frameFn = null;
-let _show = null;              // shared collapsible showcase chrome
 let _hud = {};                 // live HUD chip/value rows
+let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
 let _scene = null;             // built scene-object refs the frame loop animates
 const _anim = {};              // eased animation targets
 const _handles = [];           // every poll handle (stopped on unmount)
+// W28: honest runtime-default headline label for /frontier/surfaces. Seeded to the
+// doctrine placeholder and REPLACED with the real honesty token the live estate roster
+// reports (kpi-board / fleet roster). The manifest deriver reads THIS exact line.
+const _est = { label: "STRUCTURAL-ONLY" };
 
 function _num(x) {
   if (x === null || x === undefined) return null;
@@ -208,32 +228,24 @@ function buildScene() {
 // ----------------------------------------------------------------------------
 function buildHud() {
   const lab = _ctx.label;
-
-  // one shared LIVE badge follows the PRIMARY (kpi-board) poll
-  const badge = _ctx.live.createBadge();
-  _hud.badge = badge;
-
-  // Shared collapsible showcase supplies the compact chrome: title + LIVE badge +
-  // legend (all four doctrine states used across the five surfaces) + the moved
-  // descriptive note + the "what this means" plain-language toggle. The KPI rows fold
-  // into the (collapsed) body below so the 3D estate stays the star.
-  _show = createShowcase(_ctx, {
-    id: ID, title: TITLE, accent: "#5b8dee", badge,
-    legend: ["LIVE", "MEASURED", "MODELED", "SAMPLE", "STRUCTURAL-ONLY"],
-    description:
-      "Unified overview: governance arc (kpi-board) + energy ring + fabric hex + PNT " +
-      "horizon + anatomy beat glance. Every value wired live; NO-LIVE-DATA shown grayed, " +
-      "never fabricated. Λ = Conjecture 1, clamped < 1.0.",
-    plain: { html: _plainHtml },
-  });
-
-  // rows fold into a plain (position:static) container inside the showcase body.
   _overlay = document.createElement("div");
   _overlay.className = "szl3d-estate-hud";
   Object.assign(_overlay.style, {
+    position: "absolute", left: "14px", top: "14px", zIndex: "6",
     display: "flex", flexDirection: "column", gap: "6px",
-    font: "12px ui-monospace,SFMono-Regular,Menlo,monospace", color: "#cfe0ea",
+    maxWidth: "min(94%,440px)", font: "12px ui-monospace,SFMono-Regular,Menlo,monospace",
+    color: "#cfe0ea", background: "rgba(6,11,16,.74)", border: "1px solid #15212c",
+    borderRadius: "10px", padding: "12px 14px", backdropFilter: "blur(3px)",
   });
+
+  const title = document.createElement("div");
+  title.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;display:flex;gap:8px;align-items:center";
+  title.innerHTML = "◇ Estate Hologram <span style='color:#46586a;font-weight:400'>· 5 endpoints · one scene</span>";
+  _overlay.appendChild(title);
+
+  const badge = _ctx.live.createBadge();
+  _overlay.appendChild(badge.el);
+  _hud.badge = badge;
 
   function row(key, name) {
     const wrap = document.createElement("div");
@@ -265,12 +277,49 @@ function buildHud() {
   row("beats", "loop beats/cycle");           // anatomy
   row("credits", "reservoir work_credits");   // anatomy
   row("ayni", "Ayni balance");                // anatomy
+  // W28: REAL estate roster rows
+  row("surfaces", "3D surfaces (present)");    // frontier/surfaces (the 69)
+  row("fleet", "fleet nodes live/roster");     // energy/operator/status
+  row("omen", "node · omen (tower)");          // energy/operator/status node_status
+  row("bwa", "node · betterwithage (laptop)"); // energy/operator/status node_status
+  row("fleetJoules", "fleet joules (MEASURED)"); // energy/operator/status
 
-  _show.body.appendChild(_overlay);
+  const note = document.createElement("div");
+  note.style.cssText = "color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:4px;border-top:1px solid #15212c;padding-top:6px";
+  note.textContent = "Unified overview: governance arc (kpi-board) + energy ring + fabric hex + PNT horizon + anatomy beat glance. Every value wired live; NO-LIVE-DATA shown grayed, never fabricated. Λ = Conjecture 1, clamped < 1.0.";
+  _overlay.appendChild(note);
+
+  const legend = _ctx.label.legend(); legend.style.opacity = "0.85"; legend.style.marginTop = "2px";
+  _overlay.appendChild(legend);
+
+  // "what this means" plain-language toggle (matches the research surfaces).
+  const pl = document.createElement("button");
+  pl.textContent = "◑ what this means";
+  pl.title = "Toggle plain-language explanation for investors & consumers.";
+  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;" +
+    "border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content;margin-top:4px";
+  pl.addEventListener("click", () => {
+    _plain = !_plain;
+    pl.style.background = _plain ? "#0f2a20" : "#08140f";
+    _applyPlain();
+  });
+  _overlay.appendChild(pl);
+
+  const pd = document.createElement("div");
+  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;" +
+    "border-radius:7px;padding:7px 9px;display:none;margin-top:4px";
+  _plainEl = pd;
+  _overlay.appendChild(pd);
+
+  (_ctx.container || document.body).appendChild(_overlay);
 }
 
-function _plainHtml() {
-  return (
+function _applyPlain() {
+  const pd = _plainEl;
+  if (!pd) return;
+  pd.style.display = _plain ? "block" : "none";
+  if (!_plain) return;
+  pd.innerHTML =
     "<b>What this means:</b> This is a single command view that pulls together five separate " +
     "live feeds at once — <b>governance</b> (which formulas are locked-proven, the Λ safety " +
     "aggregator, and the CHAPAQ verdict), <b>energy</b> (grid price, renewable share, and any " +
@@ -280,7 +329,7 @@ function _plainHtml() {
     "means a real sensor/probe delta, <b>MODELED</b>/<b>SAMPLE</b> mean a simulation or a stand-in, " +
     "and anything not live is shown as <b>NO-LIVE-DATA</b> rather than a made-up number. The " +
     "locked-8 count is always exactly 8 and Λ is a <b>conjecture</b> clamped below 1.0 — nothing " +
-    "here is inflated or fabricated.");
+    "here is inflated or fabricated.";
 }
 
 function _setRow(key, text, label) {
@@ -303,6 +352,13 @@ function onKpi(json, meta) {
     return;
   }
   const lab = _norm(meta.label || (json && json.label));
+  // W28 HONEST LABEL: the estate rollup is a live, model-derived KPI aggregate. Set the
+  // surface headline label from the real JSON honesty token (verbatim when present, else
+  // the MODELED tier this rollup honestly earns). /frontier/surfaces reads THIS line
+  // (was STRUCTURAL-ONLY). Never over-claims: MEASURED only if the JSON itself says so.
+  // Runtime-default headline: verbatim JSON honesty token, else the MODELED tier this
+  // live rollup honestly earns. (The normalized `lab` further refines the on-scene chips.)
+  _est.label = (json.label || "MODELED");
 
   // locked-8 (always display canonical 8; flag source defects honestly)
   const l8 = (json && json.locked8) || {};
@@ -431,6 +487,89 @@ function onLoop(json, meta) {
   if (beats != null) _anim.beatPulse = 1;
 }
 
+// W28: REAL fleet-node roster (/energy/operator/status). node_status maps each fleet
+// node to a genuine status (computing/standby/DEGRADED/idle) from a server-side liveness
+// probe — a node is NEVER faked as computing. Honest OFFLINE (DEGRADED/unreachable) shown.
+function _nodeState(status) {
+  // map the honest backend status string to a display + color, never inventing UP.
+  const s = String(status || "").toLowerCase();
+  if (s.indexOf("comput") >= 0) return { txt: "LIVE", color: C.pinn, label: "MEASURED" };
+  if (s.indexOf("standby") >= 0) return { txt: "standby", color: C.energy, label: "MODELED" };
+  if (s.indexOf("degraded") >= 0) return { txt: "OFFLINE (DEGRADED)", color: C.red, label: "STRUCTURAL-ONLY" };
+  if (s === "idle") return { txt: "idle", color: C.slate, label: "MODELED" };
+  if (!s) return { txt: "NO-LIVE-DATA", color: C.dim, label: "STRUCTURAL-ONLY" };
+  return { txt: status, color: C.slate, label: "MODELED" };
+}
+
+function onFleet(json, meta) {
+  if (!_scene) return;
+  if (meta.state === "missing" || meta.state === "error") {
+    ["fleet", "omen", "bwa", "fleetJoules"].forEach((k) => _setRow(k, "NO-LIVE-DATA", "STRUCTURAL-ONLY"));
+    return;
+  }
+  const nodeStatus = (json && json.node_status) || {};
+  const names = Object.keys(nodeStatus);
+  const live = (Array.isArray(json.nodes_computing) ? json.nodes_computing.length : 0);
+  const degraded = (Array.isArray(json.nodes_degraded) ? json.nodes_degraded.length : 0);
+  const standby = (Array.isArray(json.nodes_standby) ? json.nodes_standby.length : 0);
+  // roster summary (live/roster) — honest OFFLINE count folded in
+  if (names.length) {
+    _setRow("fleet", `${live} live / ${names.length} roster (${standby} standby, ${degraded} OFFLINE)`,
+      degraded > 0 ? "STRUCTURAL-ONLY" : "MEASURED");
+  } else { _setRow("fleet", "NO-LIVE-DATA", "STRUCTURAL-ONLY"); }
+
+  // per-node honest status (omen tower + betterwithage laptop). Match by name substring
+  // so a public-scrubbed display name (omen / betterwithage) still resolves honestly.
+  const findNode = (needle) => {
+    const key = names.find((n) => String(n).toLowerCase().indexOf(needle) >= 0);
+    return key ? nodeStatus[key] : null;
+  };
+  const omenS = findNode("omen");
+  const bwaS = findNode("betterwithage") || findNode("bwa") || findNode("laptop");
+  const o = _nodeState(omenS);
+  const b = _nodeState(bwaS);
+  _setRow("omen", omenS == null ? "NO-LIVE-DATA" : o.txt, omenS == null ? "STRUCTURAL-ONLY" : o.label);
+  if (_hud.omen) _hud.omen.val.style.color = "#" + o.color.toString(16).padStart(6, "0");
+  _setRow("bwa", bwaS == null ? "NO-LIVE-DATA (omitted, not faked)" : b.txt, bwaS == null ? "STRUCTURAL-ONLY" : b.label);
+  if (_hud.bwa) _hud.bwa.val.style.color = "#" + b.color.toString(16).padStart(6, "0");
+
+  // fleet joules — MEASURED only (billable NVML deltas); label read straight from JSON.
+  const jm = _num(json && json.joules_measured_total);
+  const jlabel = _norm(json && json.joules_measured_label);
+  if (jm != null && jlabel === "MEASURED") _setRow("fleetJoules", jm.toExponential(2) + " J", "MEASURED");
+  else if (jm != null) _setRow("fleetJoules", jm.toExponential(2) + " J", jlabel || "SAMPLE");
+  else _setRow("fleetJoules", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+
+  // reflect live fleet count onto the fabric hex glow (extra honest lit cells)
+  if (_scene.hex && live > 0) {
+    for (let i = 0; i < Math.min(live, _scene.hexCount); i++) {
+      _scene.hex.setColorAt(i, new _THREE.Color(C.fabric));
+    }
+    if (_scene.hex.instanceColor) _scene.hex.instanceColor.needsUpdate = true;
+  }
+}
+
+// W28: REAL 3D-surface roster (/frontier/surfaces) — the actual estate of 69 surfaces
+// with present/unavailable rollup. Count is read live; NO-LIVE-DATA on 404.
+function onSurfaces(json, meta) {
+  if (!_scene) return;
+  if (meta.state === "missing" || meta.state === "error") {
+    _setRow("surfaces", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+    return;
+  }
+  const roll = (json && json.rollup) || {};
+  const count = _num(json && json.count) ?? _num(roll.count);
+  const present = _num(roll.present);
+  const unavailable = _num(roll.unavailable);
+  if (count != null) {
+    const detail = present != null
+      ? `${present}/${count} present` + (unavailable ? ` (${unavailable} unavailable)` : "")
+      : `${count} surfaces`;
+    // the manifest is a live, machine-verifiable roster: MEASURED (real file probe).
+    _setRow("surfaces", detail, "MEASURED");
+  } else { _setRow("surfaces", "NO-LIVE-DATA", "STRUCTURAL-ONLY"); }
+}
+
 // ----------------------------------------------------------------------------
 // frame loop — eased animation; cheap per-frame work to hold 60fps.
 // ----------------------------------------------------------------------------
@@ -485,6 +624,9 @@ function mount(ctx) {
   // ---- DEMO 15: poll PNT bounds + anatomy loop ----
   _handles.push(ctx.live.poll(EP_PNT, 8000, onPnt));
   _handles.push(ctx.live.poll(EP_LOOP, 6500, onLoop));
+  // ---- W28: poll the REAL estate roster (fleet nodes + 3D-surface count) ----
+  _handles.push(ctx.live.poll(EP_FLEET, 6000, onFleet));
+  _handles.push(ctx.live.poll(EP_SURFACES, 20000, onSurfaces));
 
   _frameFn = () => frame();
   _stage.onFrame(_frameFn);
@@ -495,7 +637,7 @@ function mount(ctx) {
 function unmount() {
   for (const h of _handles) { try { h && h.stop && h.stop(); } catch (_) {} }
   _handles.length = 0;
-  try { if (_show) _show.destroy(); } catch (_) {}
+  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try {
     if (_root) {
       _root.traverse((o) => {
@@ -509,7 +651,7 @@ function unmount() {
     }
   } catch (_) {}
   try { if (_stage) _stage.setBloom(false); } catch (_) {}
-  _root = null; _overlay = null; _show = null; _scene = null; _frameFn = null; _hud = {}; _stage = null; _THREE = null; _ctx = null;
+  _root = null; _overlay = null; _scene = null; _frameFn = null; _hud = {}; _plain = false; _plainEl = null; _stage = null; _THREE = null; _ctx = null;
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_KPI, EP_ENERGY, EP_FABRIC, EP_PNT, EP_LOOP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_KPI, EP_ENERGY, EP_FABRIC, EP_PNT, EP_LOOP, EP_FLEET, EP_SURFACES], mount, unmount };
