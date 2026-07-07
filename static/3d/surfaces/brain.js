@@ -43,6 +43,8 @@ const EP_MEM    = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbra
 const EP_VITALS = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/vitals?seed=42&rounds=12";
 // wave-20: evolutionary self-improvement (MAP-Elites/DGM archive; kernel gate disposes)
 const EP_EVOLVE = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/evolve?seed=42&generations=15";
+// wave-21: one authoritative energy signal (szl-energy-attest; MEASURED or honest UNAVAILABLE)
+const EP_ENERGY = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/vitals/energy";
 
 // tier -> colour. proof-teal for the proven core, lattice-blue for verified/experimental,
 // violet-blue for borrowed fusions, GREY for conjectures (never green).
@@ -76,6 +78,7 @@ const S = {
   lesion: null, bodyHealth: null, lam2Before: null, lam2After: null, connectedAfter: null,
   lockedFrozen: null, plastScore: null, ewcCore: null,
   beats: null, chainOk: null, reconsGain: null,
+  energyStatus: null, energyJoules: null,
   driveFinal: null, viability: null, inBand: null, setpointCount: null,
   lockedUntouched: null, failClosed: null,
   archiveCells: null, archiveCellsPossible: null, modeledPromotions: null,
@@ -118,6 +121,7 @@ function mount(ctx) {
   _polls.push(ctx.live.poll(EP_REPAIR, 0, _onRepair, {}));
   _polls.push(ctx.live.poll(EP_PLAST, 0, _onPlast, {}));
   _polls.push(ctx.live.poll(EP_MEM, 0, _onMem, {}));
+  _polls.push(ctx.live.poll(EP_ENERGY, 0, _onEnergy, {}));
   _polls.push(ctx.live.poll(EP_VITALS, 0, _onVitals, {}));
   _polls.push(ctx.live.poll(EP_EVOLVE, 0, _onEvolve, {}));
 
@@ -279,6 +283,15 @@ function _onEvolve(j) {
   _paintOverlay();
 }
 
+function _onEnergy(j) {
+  if (!j) return;
+  const p = j.payload || j;
+  const e = p.energy || {};
+  S.energyStatus = e.status != null ? e.status : null;
+  S.energyJoules = e.joules != null ? e.joules : null;
+  _paintOverlay();
+}
+
 // =============================================================================
 // overlay HUD
 // =============================================================================
@@ -314,6 +327,7 @@ function _buildOverlay(ctx) {
     _row("Receipt beats written", "brain-beats") +
     _row("Hash chain intact", "brain-chain") +
     _row("Reconsolidation gain", "brain-recons") +
+    _row("Energy (authoritative)", "brain-energy") +
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
     '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Homeostasis (self-regulation)</div>' +
     _row("Drive (final)", "brain-drive") +
@@ -367,6 +381,7 @@ function _paintOverlay() {
   _set("brain-beats", d || (S.beats != null ? String(S.beats) : "\u2014"));
   _set("brain-chain", d || (S.chainOk != null ? (S.chainOk ? "yes (tamper-evident)" : "NO \u2014 alert") : "\u2014"));
   _set("brain-recons", d || (S.reconsGain != null ? (S.reconsGain >= 0 ? "+" : "") + S.reconsGain + " nodes" : "\u2014"));
+  _set("brain-energy", d || (S.energyStatus != null ? (S.energyStatus === "MEASURED" ? (S.energyJoules + " J") : "UNAVAILABLE (honest)") : "\u2014"));
   _set("brain-drive", d || (S.driveFinal != null ? S.driveFinal.toFixed(4) + (S.failClosed ? " (fail-closed)" : "") : "\u2014"));
   _set("brain-inband", d || (S.inBand != null && S.setpointCount != null ? S.inBand + " / " + S.setpointCount : "\u2014"));
   _set("brain-viab", d || (S.viability != null ? S.viability + " cycles" : "\u2014"));
@@ -426,6 +441,7 @@ function unmount() {
   S.lesion = S.bodyHealth = S.lam2Before = S.lam2After = S.connectedAfter = null;
   S.lockedFrozen = S.plastScore = S.ewcCore = null;
   S.beats = S.chainOk = S.reconsGain = null;
+  S.energyStatus = S.energyJoules = null;
   S.driveFinal = S.viability = S.inBand = S.setpointCount = null;
   S.lockedUntouched = S.failClosed = null;
   S.archiveCells = S.archiveCellsPossible = S.modeledPromotions = null;
@@ -433,4 +449,4 @@ function unmount() {
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST, EP_MEM, EP_VITALS, EP_EVOLVE], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST, EP_MEM, EP_VITALS, EP_ENERGY, EP_EVOLVE], mount, unmount };
