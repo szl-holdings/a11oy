@@ -1780,10 +1780,11 @@ def register(app, sign_fn, verify_fn=None):
         try:
             return JSONResponse(fn(mode, host))
         except Exception as e:
-            import traceback
+            # Honest error label only — never leak a stack trace into an API
+            # response (the full traceback is available in the structured logs).
             return JSONResponse({"ok": False, "problem": problem, "mode": mode,
-                                 "error": "%s: %s" % (type(e).__name__, e),
-                                 "trace": traceback.format_exc()[-1200:]}, status_code=500)
+                                 "error": "%s: %s" % (type(e).__name__, e)},
+                                status_code=500)
 
     def _both(suffix):
         return ["/api/a11oy/v1/" + suffix, "/v1/" + suffix]
@@ -3332,10 +3333,11 @@ def register25(app, sign_fn, verify_fn=None):
         try:
             return JSONResponse(fn(mode, host))
         except Exception as e:
-            import traceback
+            # Honest error label only — never leak a stack trace into an API
+            # response (the full traceback is available in the structured logs).
             return JSONResponse({"ok": False, "problem": problem, "demo": demo, "mode": mode,
-                                 "error": "%s: %s" % (type(e).__name__, e),
-                                 "trace": traceback.format_exc()[-1400:]}, status_code=500)
+                                 "error": "%s: %s" % (type(e).__name__, e)},
+                                status_code=500)
 
     def _both(suffix):
         return ["/api/a11oy/v1/" + suffix, "/v1/" + suffix]
