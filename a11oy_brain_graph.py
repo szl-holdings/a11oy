@@ -52,6 +52,7 @@ Doctrine v11 honesty:
 """
 
 import datetime
+import glob
 import json
 import os
 import re
@@ -76,8 +77,24 @@ CANONICAL_DOMAIN = "a-11-oy.com"
 FIELD_LAYER = -1
 _HARVEST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "brain", "harvest")
-_HARVEST_FILES = ("architectures.jsonl", "governance.jsonl",
-                  "energy_defense.jsonl")
+
+# Person/author kinds are the arXiv co-author MULTIPLIER (one node per unique
+# paper author). They are real named researchers on real papers, but counting
+# them as "distinct work" overstates the graph — pass-2's harvest report
+# disclosed ~56% of nodes are these. distinct_artifacts EXCLUDES them so the
+# honest headline (distinct repos+papers+orgs+datasets+…) is never conflated
+# with the raw node total. See pass2_deepening_REPORT.md.
+_PERSON_KINDS = frozenset({"person", "author"})
+
+
+def _harvest_files() -> list:
+    """Basenames of every committed harvest JSONL, sorted for determinism.
+
+    Globs brain/harvest/*.jsonl so a newly committed harvest pass (e.g.
+    pass2_deepening.jsonl) is picked up automatically — no code change needed to
+    add a file, and the Dockerfile COPYs the whole brain/harvest dir."""
+    return sorted(os.path.basename(p)
+                  for p in glob.glob(os.path.join(_HARVEST_DIR, "*.jsonl")))
 
 # --------------------------------------------------------------------------- #
 # STATIC SNAPSHOT — 34 active szl-holdings repos.
@@ -134,7 +151,7 @@ def _iter_harvest_records():
       * bare     : node has {kind}; edge has {rel} + {src}/{dst}.
     kind is "node" or "edge". Missing/corrupt files are skipped honestly (the
     estate graph still builds; the harvest section reports available=False)."""
-    for fname in _HARVEST_FILES:
+    for fname in _harvest_files():
         path = os.path.join(_HARVEST_DIR, fname)
         if not os.path.isfile(path):
             continue
@@ -158,8 +175,7 @@ def _iter_harvest_records():
 
 def harvest_available() -> bool:
     """True if at least one committed harvest file is present at runtime."""
-    return any(os.path.isfile(os.path.join(_HARVEST_DIR, f))
-               for f in _HARVEST_FILES)
+    return bool(_harvest_files())
 
 
 # --------------------------------------------------------------------------- #
@@ -371,6 +387,16 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     for link in links:
         rel_counts[link["rel"]] = rel_counts.get(link["rel"], 0) + 1
 
+    # ---- HONEST composition: total vs distinct artifacts ------------------ #
+    # The raw node_count is dominated by arXiv co-author person nodes (a real
+    # but multiplying construction). distinct_artifacts is the honest headline:
+    # every node that is NOT a person/author — i.e. repos + papers + orgs +
+    # datasets + benchmarks + labs + standards + axes + surfaces + formulas +
+    # topics + endpoints + estate. Never present the raw total as if it were all
+    # distinct work.
+    person_node_count = sum(kind_counts.get(k, 0) for k in _PERSON_KINDS)
+    distinct_artifacts = len(nodes) - person_node_count
+
     return {
         "label": "MODELED",
         "endpoint": graph_ep,
@@ -405,16 +431,28 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
             "harvest": {"count": harvested_added,
                         "deduped_against_estate": harvest_dupes,
                         "available": harvest_available(),
-                        "files": list(_HARVEST_FILES),
+                        "files": _harvest_files(),
                         "layer": FIELD_LAYER,
                         "source": "brain/harvest/*.jsonl (real field leaders; "
                                   "every node carries a verified url + source)"},
         },
         "node_count": len(nodes),
         "link_count": len(links),
+        # HONEST headline: distinct real artifacts (repos+papers+orgs+datasets+
+        # …) vs the raw total, which is inflated by arXiv co-author person nodes.
+        "distinct_artifacts": distinct_artifacts,
+        "person_node_count": person_node_count,
+        "artifact_note": (
+            f"node_count {len(nodes)} includes {person_node_count} arXiv "
+            f"co-author person nodes (a real but multiplying construction); "
+            f"distinct_artifacts {distinct_artifacts} is the honest count of "
+            f"non-person nodes (repos+papers+orgs+datasets+benchmarks+…). Never "
+            f"present the raw total as if it were all distinct work."),
         "summary": {
             "node_count": len(nodes),
             "link_count": len(links),
+            "distinct_artifacts": distinct_artifacts,
+            "person_node_count": person_node_count,
             "estate_node_count": estate_node_count,
             "estate_link_count": estate_link_count,
             "harvest_node_count": harvested_added,
@@ -449,18 +487,20 @@ def get_brain_graph(ns: str = "a11oy", *, refresh: bool = False) -> dict:
     return _CACHE[ns]
 
 
-def _matches(node: dict, layer, axis, source) -> bool:
+def _matches(node: dict, layer, axis, source, kind) -> bool:
     if layer is not None and node.get("layer") != layer:
         return False
     if axis is not None and node.get("axis") != axis:
         return False
     if source is not None and node.get("source") != source:
         return False
+    if kind is not None and node.get("kind") != kind:
+        return False
     return True
 
 
 def filtered_graph(ns: str = "a11oy", *, layer=None, axis=None, source=None,
-                   summary: bool = False) -> dict:
+                   kind=None, summary: bool = False) -> dict:
     """A view over the cached merged graph.
 
     - summary=True  drops the heavy nodes/links arrays (counts + breakdowns only)
@@ -469,7 +509,8 @@ def filtered_graph(ns: str = "a11oy", *, layer=None, axis=None, source=None,
       the links wholly within that subset). node_count/link_count on a filtered
       view are the ACTUAL sizes of the returned subset — still never fabricated."""
     graph = get_brain_graph(ns)
-    filtering = layer is not None or axis is not None or source is not None
+    filtering = (layer is not None or axis is not None or source is not None
+                 or kind is not None)
 
     if not filtering:
         view = dict(graph)
@@ -479,15 +520,21 @@ def filtered_graph(ns: str = "a11oy", *, layer=None, axis=None, source=None,
             view["mode"] = "summary"
         return view
 
-    keep_nodes = [n for n in graph["nodes"] if _matches(n, layer, axis, source)]
+    keep_nodes = [n for n in graph["nodes"]
+                  if _matches(n, layer, axis, source, kind)]
     keep_ids = {n["id"] for n in keep_nodes}
     keep_links = [l for l in graph["links"]
                   if l["source"] in keep_ids and l["target"] in keep_ids]
 
     view = dict(graph)
-    view["filter"] = {"layer": layer, "axis": axis, "source": source}
+    view["filter"] = {"layer": layer, "axis": axis, "source": source,
+                      "kind": kind}
     view["node_count"] = len(keep_nodes)
     view["link_count"] = len(keep_links)
+    view["distinct_artifacts"] = sum(
+        1 for n in keep_nodes if n.get("kind") not in _PERSON_KINDS)
+    view["person_node_count"] = sum(
+        1 for n in keep_nodes if n.get("kind") in _PERSON_KINDS)
     view["full_node_count"] = graph["node_count"]
     view["full_link_count"] = graph["link_count"]
     if summary:
@@ -506,19 +553,21 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     Pure read; harvests the real estate + committed field-leader JSONL into a
     layered node/link graph (cached). Signs nothing (receipt-on-write, never on
     GET). Query params: ?layer=<int> ?axis=<token> ?source=<token>
-    ?summary=1 (counts only)."""
+    ?kind=<token> ?summary=1 (counts only)."""
 
     @app.get(f"/api/{ns}/v1/brain/graph")
     async def brain_graph(layer: int = None, axis: str = None,
-                          source: str = None,
+                          source: str = None, kind: str = None,
                           summary: bool = False) -> JSONResponse:  # noqa: ANN202
         return JSONResponse(filtered_graph(
-            ns, layer=layer, axis=axis, source=source, summary=summary))
+            ns, layer=layer, axis=axis, source=source, kind=kind,
+            summary=summary))
 
     g = get_brain_graph(ns)
     return (f"brain-graph mounted: GET /api/{ns}/v1/brain/graph "
             f"(MODELED estate + HARVESTED field leaders; {g['node_count']} nodes, "
-            f"{g['link_count']} links; cached; ?layer=/?axis=/?source=/?summary=1; "
+            f"{g['distinct_artifacts']} distinct artifacts, {g['link_count']} "
+            f"links; cached; ?layer=/?axis=/?source=/?kind=/?summary=1; "
             "honest merged counts; 0 sign-on-read)")
 
 
@@ -533,8 +582,12 @@ def _selftest() -> None:
     assert g["node_count"] == len(g["nodes"]), "node_count must equal len(nodes)"
     assert g["link_count"] == len(g["links"]), "link_count must equal len(links)"
     assert g["node_count"] != 8893, "must NOT be the leaked fabricated 8,893"
-    # real source counts
-    assert g["sources"]["surfaces"]["count"] == 64, "expected 64 frontier surfaces"
+    # real source counts. Surfaces are read LIVE from holographic.html (the one
+    # source of truth), so pin the structural invariant, not a magic number that
+    # drifts every time a surface is added: estate = 70 fixed scaffold (1 estate
+    # + 4 endpoints + 8 topics + 23 formulas + 34 repos) + N live surfaces.
+    surf_count = g["sources"]["surfaces"]["count"]
+    assert surf_count >= 64, f"expected >=64 frontier surfaces, got {surf_count}"
     assert g["sources"]["formulas"]["count"] == 23, "expected 23 PURIQ formulas"
     assert g["sources"]["repos"]["count"] == 34, "expected 34 active org repos"
     assert g["summary"]["locked_flagged"] == 8, "exactly 8 locked formulas flagged"
@@ -549,13 +602,33 @@ def _selftest() -> None:
     for r in ("formula-surface", "repo-surface", "surface-endpoint"):
         assert r in rels, f"required relation {r} missing"
 
+    # ---- HONEST composition (distinct artifacts vs person multiplier) ------ #
+    persons = sum(1 for n in g["nodes"] if n.get("kind") in _PERSON_KINDS)
+    assert g["person_node_count"] == persons, "person_node_count must be real len()"
+    assert g["distinct_artifacts"] == g["node_count"] - persons, \
+        "distinct_artifacts must be node_count minus person/author nodes"
+    assert g["distinct_artifacts"] == g["summary"]["distinct_artifacts"], \
+        "distinct_artifacts must match between top-level and summary"
+    assert g["distinct_artifacts"] <= g["node_count"], "artifacts <= total"
+    # distinct_artifacts must never be presented as the raw total
+    assert g["distinct_artifacts"] == g["node_count"] - g["person_node_count"]
+
     # ---- harvested field-leader merge (honest, deduped, layered) ---------- #
     if harvest_available():
         est_n = g["summary"]["estate_node_count"]
         har_n = g["summary"]["harvest_node_count"]
-        assert est_n == 134, f"estate must stay 134, got {est_n}"
+        assert est_n == 70 + surf_count, \
+            f"estate = 70 scaffold + {surf_count} live surfaces, got {est_n}"
         assert har_n > 1000, f"expected thousands of harvested nodes, got {har_n}"
         assert g["node_count"] == est_n + har_n, "merged node_count must add up"
+        # pass-2 must be picked up by the glob loader (not a fixed file list)
+        assert "pass2_deepening.jsonl" in g["sources"]["harvest"]["files"], \
+            "pass-2 harvest file must be discovered by the *.jsonl glob"
+        # with pass-2 merged the graph clears the ~8,000 goal, but on TOTAL
+        # nodes — the honest distinct-artifact count is much lower and disclosed
+        assert har_n > 8000, f"pass-1+2 harvest should exceed 8,000, got {har_n}"
+        assert g["person_node_count"] > g["distinct_artifacts"], \
+            "pass-2 disclosed persons dominate — must not hide behind the total"
         # field ring present and beyond input
         assert "-1" in g["summary"]["by_layer"], "field layer (-1) must be present"
         assert FIELD_LAYER < 0, "field ring must sit beyond the input layer"
@@ -587,9 +660,20 @@ def _selftest() -> None:
         axv = filtered_graph("a11oy", axis=top_axis)
         assert axv["node_count"] > 0 and axv["node_count"] < g["node_count"], \
             "axis filter must return a proper subset"
+        # kind filter returns a proper single-kind subset
+        top_kind = max(g["summary"]["by_kind"].items(), key=lambda kv: kv[1])[0]
+        kv = filtered_graph("a11oy", kind=top_kind)
+        assert all(n["kind"] == top_kind for n in kv["nodes"]), "kind filter leak"
+        assert kv["node_count"] == g["summary"]["by_kind"][top_kind], \
+            "kind filter count must match by_kind"
         print(f"a11oy_brain_graph: ALL OK — MERGED {g['node_count']} nodes "
-              f"({est_n} estate + {har_n} harvested), {g['link_count']} links; "
+              f"({est_n} estate + {har_n} harvested; "
+              f"{g['distinct_artifacts']} distinct artifacts + "
+              f"{g['person_node_count']} arXiv co-author persons), "
+              f"{g['link_count']} links; "
+              f"files={g['sources']['harvest']['files']}; "
               f"by_layer={g['summary']['by_layer']}; "
+              f"by_kind={g['summary']['by_kind']}; "
               f"by_source={len(g['summary']['by_source'])} sources; "
               f"by_axis={len(g['summary']['by_axis'])} axes; locked_flagged=8")
     else:
