@@ -1371,6 +1371,18 @@ COPY harness_profiles/ ./harness_profiles/
 # Λ = Conjecture 1 (advisory). Real DSSE in-Space, honest UNSIGNED-LOCAL locally.
 COPY szl_agent_loop_governed.py ./szl_agent_loop_governed.py
 COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
+# WAVE-Q FRONTIER (feat/frontier-q-cryptopipeline, Dev 2): szl_crypto_pipeline.py
+# registers GET /api/a11oy/v1/cryptopipeline/transcript — the end-to-end AI-lifecycle
+# (data→train→infer→unlearn) hash-commit chain composing into ONE verifiable transcript
+# (surface id `cryptopipeline`). Commit/link/root hashing is REAL; per-stage zk proofs
+# are SIMULATED (no SNARK). Chains GUARDED read-only to the DSSE/durable-ledger spine
+# (never signs on the GET). MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`)
+# or the guarded import in serve.py falls back and the endpoint 404s (merged-but-not-
+# live). The cryptopipeline.js surface also ships via `COPY static/3d/ ./static/3d/`
+# above; copied explicitly here too so the tab can never go dark. Additive; label
+# MODELED, UNSIGNED-LOCAL locally. Λ = Conjecture 1; adds nothing to the locked-8.
+COPY szl_crypto_pipeline.py ./szl_crypto_pipeline.py
+COPY static/3d/surfaces/cryptopipeline.js ./static/3d/surfaces/cryptopipeline.js
 # BRAIN FEED for the governed loop (Wave P · Dev 4, 2026-07-07): szl_agentloop_brain.py is
 # the thin GUARDED bridge szl_agent_loop_governed.py imports to make the loop Brain-POWERED —
 # (a) it pulls advisory context from the Brain vault (corpus="brain") and (e) requests a

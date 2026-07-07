@@ -12121,6 +12121,39 @@ except Exception as _wq_e1:  # additive: never break the Space
 
 
 # ============================================================================
+# WAVE-Q FRONTIER (feat/frontier-q-cryptopipeline, Dev 2): a11oy-NATIVE cited
+# backend for a NEW surface `cryptopipeline` — the linkable cryptographic-proof
+# chain across the FULL AI lifecycle (data-sourcing → training → inference →
+# unlearning), each stage emitting a REAL SHA-256 content commitment + a linkable
+# proof that composes into ONE end-to-end verifiable transcript (hash-linked chain
+# + Merkle-style transcript root). The commit/link/root hashing is REAL and
+# recomputable; the per-stage zk PROOF objects are SIMULATED (NO SNARK generated
+# or checked). Distinct from zkinfer/attestinfer (inference-only). Chains GUARDED,
+# READ-ONLY to the DSSE / durable-ledger spine (advisory availability only — never
+# signs or writes on this GET; doctrine v11 receipt-on-write, not on-read).
+# Deterministic, stdlib-only, try/except-guarded, returns a renderable 200 with an
+# honest MODELED label + UNSIGNED-LOCAL receipt. Registered BEFORE the SPA
+# catch-all; register() uses @app.get (APPENDS) so we front-move to router
+# position 0 (reuses _wn_frontmove). Cites arXiv:2503.22573 (end-to-end pipeline
+# verifiability), 2404.16109 (zkLLM), 2409.12055 (Artemis commit-and-prove zkML),
+# 1706.10268 (SafetyNets). Λ = Conjecture 1; adds NOTHING to the locked-8.
+# ============================================================================
+try:
+    import sys as _wq_sys
+    # NOTE: explicit per-module import + <module>.register(app, ...) — the a11oy
+    # surface-wiring contract the register-invocation guard statically verifies.
+    import szl_crypto_pipeline as _szl_crypto_pipeline
+    _wq_s1 = _szl_crypto_pipeline.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/cryptopipeline/transcript")
+    print(f"[a11oy] WAVE-Q FRONTIER szl_crypto_pipeline registered (front-moved): {_wq_s1}", file=_wq_sys.stderr)
+except Exception as _wq_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-Q FRONTIER szl_crypto_pipeline NOT registered (non-fatal): {_wq_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-Q FRONTIER (crypto-pipeline end-to-end verifiable transcript)
+# ============================================================================
+
+
+# ============================================================================
 # REVENUE LAYER (feat/revenue-layer): ADDITIVE honest revenue ESTIMATORS.
 # Doctrine v11 LOCKED — revenue figures demand maximum honesty; no fabricated
 # numbers. Every output labeled ESTIMATE or PRICING_HYPOTHESIS, computed from
