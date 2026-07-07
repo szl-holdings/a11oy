@@ -165,7 +165,7 @@ def _ii(req, key, default):
         return default
 
 
-def _h_recall(req):
+def _h_recall(req: Request):
     seed     = _ii(req, "seed", 42)
     n_tokens = max(8, min(_ii(req, "n_tokens", 512), 4096))
     window   = max(1, min(_ii(req, "window", 64), n_tokens))

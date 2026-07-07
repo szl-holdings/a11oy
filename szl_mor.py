@@ -141,7 +141,7 @@ def _fi(req, key, default):
         return float(default)
 
 
-def _h_route(req):
+def _h_route(req: Request):
     seed      = _ii(req, "seed", 42)
     tokens    = max(1, min(_ii(req, "tokens", 256), 1024))
     max_depth = max(1, min(_ii(req, "max_depth", 4), 16))

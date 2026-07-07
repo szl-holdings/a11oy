@@ -182,7 +182,7 @@ def _ii(req, key, default):
         return default
 
 
-def _h_quantize(req):
+def _h_quantize(req: Request):
     seed     = _ii(req, "seed", 42)
     rows     = max(2, min(_ii(req, "rows", 32), 128))
     cols     = max(2, min(_ii(req, "cols", 32), 128))
