@@ -1,0 +1,45 @@
+# Guarded-import liveness allowlist  (enforced by a11oy_guarded_import_guard.py)
+# ---------------------------------------------------------------------------
+# A guarded import (`try: import <mod> ... except: ...`) of a FIRST-PARTY
+# module (szl_* / a11oy_*) whose file does NOT exist in the repo is, by default,
+# a SILENT NO-OP DEAD FEATURE and FAILS the guard. List a module here ONLY with
+# an explicit reason. Two legitimate categories:
+#
+#   [OPTIONAL-PKG]   installed as a Python PACKAGE (or a cross-repo module), not
+#                    a repo file — the guarded import is the correct
+#                    "prefer installed, else vendored/fallback" pattern.
+#   [DEAD-STUB]      a `.register(app)` block for a module that NEVER existed in
+#                    git history and whose feature is NOT served by any other
+#                    module (verified by booting serve.py). Kept here as a
+#                    REVIEWED LEDGER (instead of an invisible stderr no-op) so it
+#                    is tracked for removal/implementation — NOT hidden.
+#
+# Format:  <module>  # [CATEGORY] reason
+# ---------------------------------------------------------------------------
+
+# --- [OPTIONAL-PKG] genuinely-optional installed package / cross-repo deps ---
+szl_substrate          # [OPTIONAL-PKG] the consolidation package: `try: from szl_substrate import X; except: import X` — installed pkg is the single source of truth, local vendored copy is the byte-identical fallback (Wave-G/H migration pattern). Not a repo file by design.
+szl_otel               # [OPTIONAL-PKG] OpenTelemetry setup shim; absence => a real no-op _szl_otel_setup() fallback is defined. Optional observability dep.
+szl_router             # [OPTIONAL-PKG] optional in-Space LLM router; absence => honest "no key wired" default (no MEASURED row fabricated). szl_yupay.py.
+szl_agent_loop_banach  # [OPTIONAL-PKG] optional Banach fixed-point accelerator for the agent loop; absence => the loop uses its plain iteration path.
+szl_connectors         # [OPTIONAL-PKG] optional connector base (http_json); absence => a11oy_markets.py falls back to a local urllib implementation.
+
+# --- [DEAD-STUB] never-existed .register() blocks; feature ABSENT at runtime ---
+# These are surfaced here (not silently swallowed) so they are tracked. Each
+# should be either implemented or have its serve.py block + any dangling nav
+# link removed. Verified ABSENT in the assembled route table (serve.py boot).
+a11oy_code_v4                 # [DEAD-STUB] /code tab v4 — never existed; /code is served by a11oy_code_orchestrator/a11oy_code instead. serve.py:4214.
+a11oy_about_security          # [DEAD-STUB] /about + /security register — never existed; /about is ABSENT at runtime. serve.py:4207.
+szl_thesis_about              # [DEAD-STUB] /about/thesis page — never existed; /about/thesis is ABSENT yet linked in a11oy_uds_portability_nav.py & a11oy_waqay_nav.py. serve.py:2066.
+a11oy_v4_persistent_homology  # [DEAD-STUB] v4 persistent-homology (A15) tab — never existed; ABSENT. serve.py:3027.
+a11oy_v4_predict              # [DEAD-STUB] v4 predict surface — never existed; ABSENT. serve.py:3037.
+a11oy_v4_thesis_primitives    # [DEAD-STUB] v4 thesis primitives — never existed; ABSENT. serve.py:3047.
+szl_brain_v3                  # [DEAD-STUB] brain v3 register — never existed; ABSENT. serve.py:3075.
+szl_kernels_organ             # [DEAD-STUB] /api/a11oy/v3/kernels/* (9 living kernels) — never existed; ABSENT. serve.py:4026.
+a11oy_ontology                # [DEAD-STUB] Typed Ontology + Object Explorer — never existed; ABSENT. serve.py:4122.
+a11oy_derivation              # [DEAD-STUB] derivation surface — never existed; ABSENT. serve.py:4132/4166.
+a11oy_explorer                # [DEAD-STUB] object explorer — never existed; ABSENT. serve.py:4142.
+szl_demo                      # [DEAD-STUB] investor /demo register — never existed; /demo served elsewhere. serve.py:4188.
+szl_formula_ops               # [DEAD-STUB] /formulas-ops UI mount — never existed; ABSENT. serve.py:2478.
+a11oy_defense_feed            # [DEAD-STUB] /api/internal/a11oy/defense/* — never existed; ABSENT. serve.py:10173.
+a11oy_ingestion               # [DEAD-STUB] betterwithage ingestion routes — never existed; ABSENT. serve.py:10198.
