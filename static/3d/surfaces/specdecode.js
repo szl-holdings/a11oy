@@ -38,6 +38,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "specdecode";
 const TITLE = "Self-Speculative Decoding · Draft-then-Verify (live)";
 
@@ -59,7 +61,7 @@ const TOKEN_GAP   = 0.85;  // world-units between tokens within a step (Y, draft
 const MAX_STEPS   = 10;    // number of recent steps rendered along the pipeline
 const MAX_TOKENS  = 12;    // cap on draft_len rendered per step (perf)
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
 
@@ -265,19 +267,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "draft-then-verify", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -287,12 +282,7 @@ function _buildOverlay() {
     '(accept if p<sub>draft</sub> \u2264 p<sub>target</sub>, else w.p. p<sub>target</sub>/p<sub>draft</sub>). ' +
     'Output distribution is <b>lossless</b> \u2014 identical to plain autoregressive decoding, just faster. ' +
     'Honesty label <b>MODELED</b> (deterministic accept/reject simulation; NOT Medusa/EAGLE). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -328,14 +318,13 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("sd-meanacc",  "mean accepted tokens/step"));
   grid.appendChild(kpiRow("sd-speedup",  "speedup_factor \u2014 MODELED"));
   grid.appendChild(kpiRow("sd-lossless", "lossless?"));
-  grid.appendChild(kpiRow("sd-label",    "honesty label"));
   card.appendChild(grid);
 
   const fn = document.createElement("div");
   fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
   fn.textContent = "Leviathan et al. arXiv:2211.17192 (speculative decoding) \u00b7 Medusa github.com/FasterDecoding/Medusa \u00b7 EAGLE arXiv:2401.15077. MODELED \u00b7 not claimed-as.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "\u25d1 what this means";
@@ -346,15 +335,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "sd-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -399,7 +387,7 @@ function _paintOverlay() {
   _set("sd-speedup",  t || (S.speedup != null ? S.speedup.toFixed(3) + "\u00d7" : "\u2014"));
   _set("sd-lossless", t || (S.lossless === true ? "yes (rejection-sampling identity)" : S.lossless === false ? "no" : "\u2014"));
   // honesty label verbatim — never upgraded
-  _set("sd-label", t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "draft-then-verify" });
   if (_plain) _applyPlain();
 }
 
@@ -408,7 +396,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -421,7 +409,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _spine = null; _tokenMesh = []; _stepLinks = []; _marker = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _stage = _THREE = _ctx = null;

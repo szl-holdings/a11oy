@@ -42,6 +42,8 @@
 // DOCTRINE v11: adds NOTHING to the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17;
 //   Λ stays Conjecture 1; introduces no theorem. Degrades grey on 404/error; label shown.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "zkinfer";
 const TITLE = "zkML Proof-of-Inference · Cryptographic Receipts (live)";
 
@@ -61,7 +63,7 @@ const N_LAYERS   = 7;        // stacked model-layer planes
 const LAYER_GAP  = 1.4;      // world-units between layers along z
 const LAYER_W    = 3.2;      // plane width/height
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null, _plain = false;
 
 // geometry handles
@@ -398,18 +400,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial", color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "zkML proof", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -420,12 +416,7 @@ function _buildOverlay() {
     'vendor in the trust base</b>. Orthogonal to the estate’s TEE branch (ccattest). ' +
     'Honesty label <b>MODELED</b> — literature-parameterized cost model, explicitly ' +
     '<b>NOT VERIFIED</b>; no live LLM-scale proof is produced. 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -453,7 +444,6 @@ function _buildOverlay() {
     _el[id] = v;
     r.appendChild(l); r.appendChild(v); return r;
   }
-  grid.appendChild(kpiRow("zk-label",  "honesty label (top)"));
   grid.appendChild(kpiRow("zk-anchor", "prover time · zkLLM 13B (MODELED)"));
   grid.appendChild(kpiRow("zk-proof",  "proof size (MODELED, succinct)"));
   grid.appendChild(kpiRow("zk-micro",  "commit→verify roundtrip"));
@@ -469,7 +459,7 @@ function _buildOverlay() {
     "ZKML EuroSys’24 DOI 10.1145/3627703.3650088 · South et al. arXiv:2402.02675 · " +
     "Peng et al. survey arXiv:2502.18535. MODELED · not verified.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "◑ what this means";
@@ -480,15 +470,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "zk-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -526,7 +515,7 @@ function _fmtTime(s) { return s == null ? "—" : (s >= 60 ? (s / 60).toFixed(1)
 
 function _paintOverlay() {
   const t = _tok(S.state);
-  _set("zk-label",  t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "zkML proof" });
   _set("zk-anchor", t || (S.anchorTime != null ? "< " + _fmtTime(S.anchorTime) : "—"));
   _set("zk-proof",  t || (S.proofKb != null ? "< " + S.proofKb + " kB" : "—"));
   _set("zk-micro",  t || (S.microLabel ? (S.microLabel + (S.verifyOk === true ? " · verify_ok" : "")) : "—"));
@@ -541,7 +530,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -554,7 +543,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _layers = []; _packet = null; _verifier = null; _ribbon = null; _pillars = []; _floor = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false; _pulseT = -1;
   _stage = _THREE = _ctx = null;

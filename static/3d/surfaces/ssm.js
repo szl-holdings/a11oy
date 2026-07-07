@@ -46,6 +46,8 @@
 // 0 RUNTIME CDN. Vendored three.js r170 via page importmap.
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "ssm";
 const TITLE = "State-Space Model · Selective Scan (live, Mamba-3-style)";
 
@@ -65,7 +67,7 @@ const MAX_STEPS = 64;   // ribbon vertex cap (matches endpoint seq_len ceiling i
 const RIBBON_LEN_WORLD = 14;  // world-units the ribbon spans along its axis
 const RIBBON_SEP = 3.2;       // world-units separating the two ribbons (real vs complex)
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
 
@@ -296,19 +298,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "selective scan", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -319,12 +314,7 @@ function _buildOverlay() {
     '<b>complex-valued</b> state (decay + rotation \u2014 the Mamba-3 addition). Honesty label ' +
     '<b>MODELED</b> (a simulation of the recurrence \u2014 no trained checkpoint, no measured GPU ' +
     'benchmark). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -361,14 +351,13 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("ssm-flopsq",   "compute FLOPs \u2014 O(L\u00b2) attention"));
   grid.appendChild(kpiRow("ssm-flopss",   "compute FLOPs \u2014 O(L) SSM scan"));
   grid.appendChild(kpiRow("ssm-ratio",    "throughput ratio (quad / ssm)"));
-  grid.appendChild(kpiRow("ssm-label",    "honesty label"));
   card.appendChild(grid);
 
   const fn = document.createElement("div");
   fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
   fn.textContent = "Gu & Dao arXiv:2312.00752 (Mamba) \u00b7 Dao & Gu arXiv:2405.21060 (Mamba-2) \u00b7 Lahoti et al. arXiv:2603.15569 (Mamba-3, complex-valued state tracking) \u00b7 github.com/state-spaces/mamba. MODELED \u00b7 not claimed-as.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "\u25d1 what this means";
@@ -379,15 +368,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "ssm-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -437,7 +425,7 @@ function _paintOverlay() {
   _set("ssm-flopss",   t || fexp(S.flopsSSM));
   _set("ssm-ratio",    t || (S.throughputRatio != null ? S.throughputRatio.toFixed(2) + "\u00d7" : "\u2014"));
   // honesty label verbatim — never upgraded
-  _set("ssm-label",    t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "selective scan" });
   if (_plain) _applyPlain();
 }
 
@@ -446,7 +434,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -459,7 +447,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _realLine = _complexLine = _realDots = _complexDots = _gapBar = _gapBarBg = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _stage = _THREE = _ctx = null;
