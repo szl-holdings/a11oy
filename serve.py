@@ -1482,6 +1482,26 @@ try:
 except Exception as _szl_agentmem_e:  # pragma: no cover
     print(f"[a11oy] AgentMem recall NOT registered: {_szl_agentmem_e!r}", file=__import__("sys").stderr)
 
+# ── WAVE-25 Loop Forge (loopforge, 67th surface): kernel-gated bounded-recursion
+# agentic loop + MODELED J-lens workspace readout over the REAL flower/brain node
+# set. MODELED demonstration on a REAL topology — NOT a trained model, NOT a real
+# Jacobian, NOT alive/conscious. The MODELED kernel-acceptance oracle mirrors the
+# discipline of lutar-lean kernel c7c0ba17 (cited, re-verified in CI/dev, NOT run
+# in-Space); writer != judge is structurally enforced; Lambda stays Conjecture 1
+# (never green). Additive, pure-stdlib, guarded, registered before the SPA catch-all.
+try:
+    import szl_kc_loop_forge as _szl_kc_loop_forge
+    _szl_kc_loop_forge.register(app, ns="a11oy")
+    print("[a11oy] Loop Forge registered: /api/a11oy/v1/loopforge/{manifest,run,archive,workspace,horizon,metrics}", file=__import__("sys").stderr)
+except Exception as _szl_loopforge_e:  # pragma: no cover
+    print(f"[a11oy] Loop Forge NOT registered: {_szl_loopforge_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_loop_forge_metrics as _szl_kc_loop_forge_metrics
+    _szl_kc_loop_forge_metrics.register(app, ns="a11oy")
+    print("[a11oy] Loop Forge metrics registered: /api/a11oy/v1/loopforge/metrics-ext", file=__import__("sys").stderr)
+except Exception as _szl_loopforge_metrics_e:  # pragma: no cover
+    print(f"[a11oy] Loop Forge metrics NOT registered: {_szl_loopforge_metrics_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
