@@ -6,9 +6,13 @@
 Doctrine (binding):
   - NO free-energy / over-unity. Harvests ALREADY-WASTED grid energy (negative-price /
     curtailed-renewable windows on PUBLIC free feeds). Does NOT create energy.
-  - joules_label ALWAYS "sample" off-box. The API NEVER emits joules_label other than
-    "sample". The box is the only place that flips it to "measured" (on-box NVML).
-    This API does NOT run on the box.
+  - joules honesty via the single source of truth (szl_joules_truth). /plan and /receipt
+    NEVER claim MEASURED (they have no live NVML reading) so their joules_label stays
+    "sample". /posture drives the `energy` 3D surface and consults the ENERGY MEASURED
+    channel (szl_energy_measured): it emits joules_label "measured" ONLY when a LIVE
+    remote NVML joule meter responds live THIS request via A11OY_JOULE_METER_URLS (the
+    same harness JPT/One-Bit use), with monotonic-reset detection and provenance;
+    otherwise honest STRUCTURAL-ONLY ("sample") with a clear reason. NEVER fabricates a joule.
   - All feeds are FREE and PUBLIC — no token, no key, open data.
   - Reactive turns are NEVER gated by harvest posture.
   - Λ = Conjecture 1 (NEVER a theorem). Locked-8 untouched.
@@ -81,9 +85,65 @@ except Exception:  # pragma: no cover - defensive: doctrine default is always sa
     def _joules_truth_evidence(_exporter_sample, now=None):  # type: ignore
         return {}
 
-# This off-box API never has a real NVML exporter sample. Passing None to the
-# single source of truth ALWAYS yields ("sample", {}) — doctrine-clean + verifiable.
+# This off-box API never has a real NVML exporter sample of its OWN. Passing None to
+# the single source of truth ALWAYS yields ("sample", {}) — doctrine-clean + verifiable.
+# It is the honest fallback for /plan and /receipt (which never claim MEASURED) and for
+# /posture whenever no live meter reading is available this request.
 _NO_EXPORTER_SAMPLE = None
+
+# ENERGY-surface MEASURED channel. The /harvest/posture body drives the `energy`
+# (Energy · Harvest) 3D surface HUD (joules_label / joules_evidence). Off-box this API
+# has no NVML of its own, but it CAN read the LIVE remote NVML joule meter (engine
+# 'omen' at meter.a-11-oy.com) the SAME way the JPT and One-Bit organs do — via the
+# A11OY_JOULE_METER_URLS env. szl_energy_measured.measured_channel() performs that live
+# read with monotonic-reset detection and lets szl_joules_truth (the single source of
+# truth) decide MEASURED vs sample. When no meter env is set or no meter responds live
+# THIS request, it returns an honest STRUCTURAL-ONLY channel with a clear reason and NO
+# fabricated joule. Guarded so a missing module can never crash the endpoint.
+try:
+    from szl_energy_measured import measured_channel as _energy_measured_channel
+    _ENERGY_MEASURED_OK = True
+except Exception as _energy_measured_err:  # pragma: no cover - honest STRUCTURAL fallback
+    _ENERGY_MEASURED_OK = False
+    _ENERGY_MEASURED_ERR = repr(_energy_measured_err)
+
+    def _energy_measured_channel(now=None, meter_urls=None, timeout=None):  # type: ignore
+        # Module absent -> honest STRUCTURAL-ONLY, never a fabricated measured claim.
+        return {
+            "joules_label": "sample",
+            "measured": False,
+            "joules_evidence": {},
+            "reason": ("szl_energy_measured unavailable (%s) — STRUCTURAL-ONLY, "
+                       "no joule fabricated" % _ENERGY_MEASURED_ERR),
+            "provenance": {"meter_url": None, "engine": None, "exporter": None,
+                           "meter_ts": None, "fetched_at": None,
+                           "method": "module unavailable"},
+            "power_w": None, "joules_before": None, "joules_after": None,
+            "meter_urls": [],
+        }
+
+
+def _energy_joules_channel() -> dict:
+    """Consult the ENERGY-surface MEASURED channel for the posture body.
+
+    Returns a doctrine-stable dict. MEASURED only when a live remote NVML meter
+    responds live THIS request (and szl_joules_truth agrees); otherwise an honest
+    STRUCTURAL-ONLY channel with a machine-readable reason + whatever provenance we
+    have. NEVER raises, NEVER fabricates a joule.
+    """
+    try:
+        return _energy_measured_channel()
+    except Exception as exc:  # pragma: no cover - degrade honestly
+        return {
+            "joules_label": "sample",
+            "measured": False,
+            "joules_evidence": {},
+            "reason": "energy measured channel raised (%s) — STRUCTURAL-ONLY, no joule fabricated"
+                      % _safe_err(exc),
+            "provenance": {"meter_url": None, "engine": None, "exporter": None,
+                           "meter_ts": None, "fetched_at": None, "method": "exception"},
+            "power_w": None, "joules_before": None, "joules_after": None, "meter_urls": [],
+        }
 
 # ---------------------------------------------------------------------------
 # Feed citation table (used in /index response)
@@ -136,8 +196,11 @@ _FEED_CITATIONS = [
 _DOCTRINE_NOTE = (
     "Doctrine (binding): harvests ALREADY-WASTED grid energy only (negative-price / "
     "curtailed-renewable windows). NO free-energy / over-unity claim. "
-    "joules_label ALWAYS 'sample' off-box — MEASURED requires on-box NVML, which this "
-    "API does not run on. Real data only; if a feed is down, reachable:false is reported "
+    "joules honesty is decided by szl_joules_truth: /posture emits joules_label 'measured' "
+    "ONLY when a LIVE remote NVML joule meter responds live THIS request via "
+    "A11OY_JOULE_METER_URLS (with monotonic-reset detection + provenance); otherwise honest "
+    "STRUCTURAL-ONLY ('sample'), never a fabricated joule. /plan and /receipt never claim "
+    "MEASURED. Real data only; if a feed is down, reachable:false is reported "
     "honestly. Reactive turns are NEVER gated. Λ = Conjecture 1. Locked-8 untouched."
 )
 
@@ -197,6 +260,26 @@ def handle_posture() -> dict:
         return _unavailable_response("posture")
     try:
         p = current_harvest_posture()
+        # ENERGY-surface joules channel. Reads the LIVE remote NVML joule meter (engine
+        # 'omen') via A11OY_JOULE_METER_URLS this request, with monotonic-reset detection,
+        # and lets szl_joules_truth decide MEASURED vs sample. MEASURED ONLY when a meter
+        # responds live THIS request; otherwise honest STRUCTURAL-ONLY with a reason and
+        # NO fabricated joule. Every number carries provenance (meter url, engine, ts).
+        ec = _energy_joules_channel()
+        measured = bool(ec.get("measured")) and ec.get("joules_label") == "measured"
+        if measured:
+            joules_note = (
+                "joules_label 'measured' — a LIVE remote NVML meter (engine %s) responded "
+                "live THIS request via A11OY_JOULE_METER_URLS; cumulative joules climbing, "
+                "monotonic-reset checked. Provenance carried below. %s"
+                % (ec.get("provenance", {}).get("engine"), ec.get("reason", ""))
+            )
+        else:
+            joules_note = (
+                "joules_label 'sample' (STRUCTURAL-ONLY) — no live NVML meter reading this "
+                "request; MEASURED requires a live meter delta via A11OY_JOULE_METER_URLS. "
+                "No joule fabricated. reason: %s" % ec.get("reason", "no meter reading")
+            )
         return {
             "ok": True,
             "posture": p.posture,
@@ -209,14 +292,19 @@ def handle_posture() -> dict:
             "timestamp_utc": p.timestamp_utc,
             "citation": p.citation,
             "doctrine": p.doctrine,
-            # joules honesty via the single source of truth. Off-box there is no real
-            # exporter sample -> label "sample", evidence {} (never fabricated).
-            "joules_label": _joules_truth_label(_NO_EXPORTER_SAMPLE),
-            "joules_evidence": _joules_truth_evidence(_NO_EXPORTER_SAMPLE),
-            "joules_note": (
-                "joules_label is always 'sample' off-box; "
-                "MEASURED requires on-box NVML — this API does not run on the box"
-            ),
+            # joules honesty via the ENERGY MEASURED channel -> szl_joules_truth (single
+            # source of truth). MEASURED only from a live meter reading this request;
+            # otherwise honest STRUCTURAL-ONLY. evidence is {} unless measured.
+            "joules_label": ec.get("joules_label", "sample"),
+            "joules_evidence": ec.get("joules_evidence", {}),
+            "joules_measured": measured,
+            "joules_reason": ec.get("reason"),
+            "joules_provenance": ec.get("provenance", {}),
+            "joules_power_w": ec.get("power_w"),
+            "joules_before": ec.get("joules_before"),
+            "joules_after": ec.get("joules_after"),
+            "joules_meter_urls": ec.get("meter_urls", []),
+            "joules_note": joules_note,
         }
     except Exception as exc:
         # Never 500: return honest degraded response
@@ -548,7 +636,9 @@ if __name__ == "__main__":
     print(f"measured_any : {live_measured}")
     print(f"wasted_avail : {posture_resp.get('wasted_energy_available', False)}")
     print(f"soak_hard    : {posture_resp.get('soak_hard', False)}")
-    print(f"joules_label : sample (invariant — never changes in this API)")
+    print(f"joules_label : {posture_resp.get('joules_label','sample')} "
+          f"(measured={posture_resp.get('joules_measured')}; "
+          f"reason={str(posture_resp.get('joules_reason'))[:60]})")
     print(f"doctrine     : {posture_resp.get('doctrine', _DOCTRINE_NOTE)[:80]}...")
     print("=" * 70)
     print(f"\nok:true checks:{checks}")

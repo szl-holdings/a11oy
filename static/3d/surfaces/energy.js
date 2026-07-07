@@ -24,10 +24,15 @@
 // THE FUNNEL (founder's explicit ask — centerpiece): visualize OUR real harvested joules
 // as a live-filling reservoir, fed from the MEASURED exporter (joules_evidence.
 // joules_measured_total / power_w_sample), with negative-price windows soaking in real
-// time. HONEST NOTE: off-box this API emits joules_label="sample" and joules_evidence={}
-// (MEASURED requires on-box NVML). So off-box the reservoir shows its structure + the
-// honest SAMPLE/NO-LIVE-DATA posture and does NOT invent a fill height; on-box, when a
-// real fresh exporter sample arrives, the same geometry fills from the MEASURED joules.
+// time. HONEST NOTE: the joules reservoir fills from a MEASURED reading via TWO honest
+// paths, and ONLY those: (1) the per-node /energy/mesh aggregate when a node's own NVML
+// meter read live, and (2) /harvest/posture's joules channel, which now reads the LIVE
+// remote NVML joule meter (engine 'omen') via A11OY_JOULE_METER_URLS this request and is
+// gated by szl_joules_truth — so posture carries joules_label="measured" + joules_evidence
+// ONLY when that meter responds live THIS request (with monotonic-reset detection). When
+// NEITHER path has a live meter this request, posture honestly emits joules_label="sample"
+// and joules_evidence={}: the reservoir shows its structure + the honest SAMPLE/
+// STRUCTURAL-ONLY posture and does NOT invent a fill height. We NEVER fabricate a joule.
 //
 // LIVE ENDPOINTS:
 //   /api/a11oy/v1/energy/mesh      — PER-NODE live NVML energy from the MERGED multi-meter
@@ -183,7 +188,11 @@ function _meshNodes(json) {
   });
 }
 
-// joules evidence — MEASURED only on-box; off-box {} (we render the honest empty posture)
+// joules evidence read STRAIGHT off the posture JSON. MEASURED when the posture joules
+// channel got a LIVE meter reading this request (remote NVML via A11OY_JOULE_METER_URLS,
+// gated by szl_joules_truth) -> joules_label="measured" + joules_evidence{joules_measured_total,
+// exporter_node, power_w_sample}. Otherwise joules_label="sample" + joules_evidence={} and
+// we render the honest empty posture — never a fabricated joule.
 function _getJoules(json) {
   const ev = (json && json.joules_evidence) || {};
   const total = _num(ev.joules_measured_total);
@@ -598,10 +607,10 @@ function buildHUD() {
   _overlay.appendChild(_hud.nodeBox);
   _hud.nodeRows = {};
 
-  // doctrine note (the off-box joules honesty reality)
+  // doctrine note (the joules honesty reality: measured only on a live meter read)
   const note = document.createElement("div");
   note.style.cssText = "color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:4px;border-top:1px solid #15212c;padding-top:6px";
-  note.textContent = "Per-node joules/watts are MEASURED live from the merged NVML meters (tower meter.a-11-oy.com + laptop meter2.a-11-oy.com) via /energy/mesh; a node with no live meter shows OFFLINE — never a fabricated watt or joule. When /energy/mesh is missing the funnel falls back to the harvest-posture structure (STRUCTURAL-ONLY), never inventing a fill. Modeled on Electricity Maps + deck.gl; rendered in three.js (see manifest).";
+  note.textContent = "Per-node joules/watts are MEASURED live from the merged NVML meters (tower meter.a-11-oy.com + laptop meter2.a-11-oy.com) via /energy/mesh; a node with no live meter shows OFFLINE — never a fabricated watt or joule. When /energy/mesh is missing, the funnel falls back to /harvest/posture's joules channel, which reads the LIVE remote NVML joule meter (engine 'omen') via A11OY_JOULE_METER_URLS this request (szl_joules_truth-gated, monotonic-reset checked): joules_label='measured' with provenance ONLY when the meter responds live this request, else honest STRUCTURAL-ONLY with no invented fill. Modeled on Electricity Maps + deck.gl; rendered in three.js (see manifest).";
   _overlay.appendChild(note);
 
   _show.body.appendChild(_overlay);
@@ -826,12 +835,14 @@ function onPosture(json, meta) {
     _anim.negCountT = nw.count;
   } else { _setRow("neg", "NO-LIVE-DATA", "STRUCTURAL-ONLY"); _anim.negCountT = 0; }
 
-  // THE FUNNEL — joules. MEASURED only on-box; off-box honest sample posture, no fill.
+  // THE FUNNEL — joules. MEASURED when the posture joules channel got a LIVE remote NVML
+  // meter reading this request (szl_joules_truth-gated); else honest sample posture, no fill.
   // IMPORTANT (Dev2, binding): when /energy/mesh has delivered a MEASURED aggregate this
   // session (_meshMeasured), the LIVE merged-meter reading is the source of truth for the
   // reservoir fill, the power gauge, the joules/power HUD rows, and the reservoir billboard.
-  // The off-box posture carries NO NVML sample (joules_evidence={}, joules_label=sample), so
-  // we must NOT let it overwrite the honest mesh-measured values with an empty SAMPLE posture.
+  // The posture joules channel is itself honest (MEASURED only on a live remote-meter read
+  // this request), but when the per-node mesh is already MEASURED it is the finer-grained
+  // source of truth, so we must NOT let posture overwrite the mesh-measured values.
   // We therefore GUARD every reservoir/gauge/joules write below behind !_meshMeasured.
   const j = _getJoules(json);
   const jlabel = j.label || (json.joules_label ? String(json.joules_label).toUpperCase() : "STRUCTURAL-ONLY");
@@ -853,9 +864,9 @@ function onPosture(json, meta) {
       _setRow("joules", j.total.toFixed(0) + " J (" + (j.node || "exporter") + ")", "MEASURED");
       _scene.RES.fluidMat.color.setHex(C.green); _scene.RES.fluidMat.emissive.setHex(C.green);
     } else {
-      // off-box / no fresh sample: honest — reservoir stays empty, label sample/structural
+      // no live meter reading this request: honest — reservoir stays empty, label sample/structural
       _anim.fillT = 0;
-      _setRow("joules", jlabel === "SAMPLE" ? "sample (no on-box NVML)" : "NO-LIVE-DATA", jlabel === "SAMPLE" ? "SAMPLE" : "STRUCTURAL-ONLY");
+      _setRow("joules", jlabel === "SAMPLE" ? "sample (no live meter this request)" : "NO-LIVE-DATA", jlabel === "SAMPLE" ? "SAMPLE" : "STRUCTURAL-ONLY");
       _scene.RES.fluidMat.color.setHex(C.blue); _scene.RES.fluidMat.emissive.setHex(C.blue);
     }
 
