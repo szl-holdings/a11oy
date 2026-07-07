@@ -51,6 +51,17 @@ from datetime import datetime, timezone
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+# Guarded import of the REAL in-request physics-informed residual module (a11oy-only).
+# Additive: if it is unavailable the /residual/evaluate route still fails-open honestly
+# rather than 500-ing the surface. Register the failure to stderr per doctrine.
+try:
+    import szl_pinn_residual as _szl_pinn_residual  # noqa: N816
+except Exception as _e:  # noqa: BLE001 — organ stays honest even if the module is absent
+    _szl_pinn_residual = None
+    __import__("sys").stderr.write(
+        "[szl_pinn_bounds] szl_pinn_residual import failed (residual/evaluate will "
+        "fail-open): %s\n" % (str(_e)[:160]))
+
 # --------------------------------------------------------------------------- #
 # Fundamental physical constants (SI, CODATA-style) — identical to the engine. #
 # --------------------------------------------------------------------------- #
@@ -821,6 +832,39 @@ def _h_thermal(req: Request):
     })
 
 
+def _evaluate_residual_payload(params):
+    """Compute the REAL in-request physics-informed residual (fail-open, honest).
+
+    Delegates to szl_pinn_residual.evaluate_residual — a bounded, pure-stdlib PINN
+    trained this request on a BVP with a closed-form solution, so the returned PDE
+    residual and rel-L2 error are auditable, MODELED (never MEASURED, never fabricated),
+    and the payload cites the physical_bounds_certificate. If the module is unavailable
+    we return an honest AWAITING status rather than a fabricated number.
+    """
+    if _szl_pinn_residual is None:
+        return {
+            "status": "AWAITING_RESIDUAL_MODULE",
+            "label": "STRUCTURAL-ONLY",
+            "note": ("szl_pinn_residual is not importable in this runtime; the in-request "
+                     "residual is unavailable here (honest \u2014 no fabricated value)."),
+            "lambda_note": LAMBDA_NOTE,
+        }
+    try:
+        payload = _szl_pinn_residual.evaluate_residual(params if isinstance(params, dict) else {})
+    except Exception as exc:  # pragma: no cover — never 500 the surface
+        return {
+            "service": "pinn-residual",
+            "label": "STRUCTURAL-ONLY",
+            "status": "COMPUTE_FAIL_OPEN",
+            "error": "residual compute fail-open: %s" % (str(exc)[:160]),
+            "lambda_note": LAMBDA_NOTE,
+        }
+    # Carry the pinn organ's Λ-advisory note alongside the residual module's provenance.
+    if isinstance(payload, dict):
+        payload.setdefault("lambda_note", LAMBDA_NOTE)
+    return payload
+
+
 def register(app, ns="a11oy"):
     """Wire the PINN/bounds mesh onto the app under /api/<ns>/v1/pinn/*.
 
@@ -840,6 +884,7 @@ def register(app, ns="a11oy"):
         (f"{base}/residual", _h_residual),
         (f"{base}/thermal", _h_thermal),
     ]
+    residual_eval_path = f"{base}/residual/evaluate"
     add_api_route = getattr(app, "add_api_route", None)
     for path, fn in handlers:
         if callable(add_api_route):
@@ -847,11 +892,42 @@ def register(app, ns="a11oy"):
         else:
             from starlette.routing import Route
             app.router.routes.append(Route(path, fn))
+
+    # POST /residual/evaluate — the REAL in-request physics-informed residual.
+    # A POST handler taking a raw Request must be registered so the ASGI router passes
+    # the Request positionally: on fastapi 0.137.2 add_api_route can misread an annotated
+    # `request` as a required query param (422). We annotate request as fastapi.Request
+    # and prefer app.router.add_route (no FastAPI signature analysis), falling back to
+    # add_api_route — matching the sibling jpt organ.
+    try:
+        from fastapi import Request as _FastAPIRequest
+    except Exception:  # noqa: BLE001 — bare Starlette app
+        _FastAPIRequest = Request
+
+    async def _h_residual_evaluate(request: _FastAPIRequest):  # noqa: ANN202 — POST; optional JSON params
+        params = {}
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                params = body
+        except Exception:  # noqa: BLE001 — empty/invalid body => defaults
+            params = {}
+        return JSONResponse(_evaluate_residual_payload(params))
+
+    if callable(add_api_route):
+        try:
+            app.router.add_route(residual_eval_path, _h_residual_evaluate, methods=["POST"])
+        except Exception:  # noqa: BLE001 — fall back to FastAPI route
+            app.add_api_route(residual_eval_path, _h_residual_evaluate, methods=["POST"])
+    else:
+        from starlette.routing import Route
+        app.router.routes.append(Route(residual_eval_path, _h_residual_evaluate, methods=["POST"]))
+
     try:
         _anchor_signature_in_khipu()
     except Exception:
         pass
-    return [p for p, _ in handlers]
+    return [p for p, _ in handlers] + [residual_eval_path]
 
 
 def _selftest() -> dict:
