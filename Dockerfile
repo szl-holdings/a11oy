@@ -655,6 +655,14 @@ COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_me
 # MUST be per-file COPY'd or /api/a11oy/v1/tee/status + tee_attestation receipt field
 # fall back to honest UNAVAILABLE stubs. Pattern: dstack-capsule Apache-2.0 arXiv 2606.03323.
 COPY szl_tee_attest.py ./
+# WAVE-H TEAM 3: attested-inference deepening (2026-07-07) — imported by serve.py (guarded);
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/attest/infer
+# falls through to the SPA (404). Binds a MODELED device-attestation quote to a Λ-gated inference
+# RECEIPT + SLSA provenance; DSSE real ECDSA-P256 in-Space / UNSIGNED-LOCAL locally. Reuses the
+# already-COPY'd szl_tee_attest + szl_dsse + szl_org_lambda. Leaders (clean-room PATTERN): NVIDIA
+# H100/H200 CC+NRAS, AMD SEV-SNP, Intel TDX, in-toto/SLSA, Sigstore/Rekor, Confidential Containers.
+# The attestinfer.js surface ships via the existing `COPY static/3d/ ./static/3d/`. Λ = Conjecture 1.
+COPY szl_attested_inference.py ./
 # DEV2 Build 2: EU AI Act Art.53 signed energy disclosure (2026-06-30) — imported by
 # serve.py (guarded); MUST be per-file COPY'd or /api/a11oy/v1/energy/eu-disclosure +
 # energy_eu_disclosure receipt field fall back to honest UNAVAILABLE stubs.

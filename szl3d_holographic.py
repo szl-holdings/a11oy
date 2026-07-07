@@ -47,6 +47,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "moe", "title": "MoE Router", "owner": "Dev0"},
     {"id": "formalmath", "title": "Formal-Math Retrieval", "owner": "Dev0"},
     {"id": "ccattest", "title": "Confidential-Compute Attest", "owner": "Dev0"},
+    {"id": "attestinfer", "title": "Attested Inference", "owner": "WaveH-Team3"},
     {"id": "ringattn", "title": "Ring Attention", "owner": "Dev0"},
     {"id": "grpo", "title": "GRPO Reward Dynamics", "owner": "Dev0"},
     {"id": "kvcache", "title": "KV-Cache H2O", "owner": "Dev0"},
