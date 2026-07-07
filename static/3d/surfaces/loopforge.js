@@ -6,6 +6,8 @@
 // J-lens-analogue WORKSPACE READOUT of the loop's own pre-commit state.
 // See DEV3_REPORT.md for the full write-up. ZERO PURPLE. Vendored three via ctx.THREE.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "loopforge";
 const TITLE = "Loop Forge";
 
@@ -30,7 +32,7 @@ function _flagClass(k){ if(k==null) return {color:C_FLAG,label:"flag"}; const s=
 const HUB_R=0.6, RING_R=3.0, BRANCH_IN=0.9, ARCHIVE_R=4.3, TOKEN_R=2.0, FLAG_LANE_Y=2.7;
 
 let _stage=null,_THREE=null,_ctx=null,_group=null,_overlay=null;
-let _frameReg=false,_polls=[],_badge=null,_plain=false;
+let _frameReg=false,_polls=[],_badge=null,_plain=false,_show=null;
 let _hub=null,_ring=null,_ringGlow=null,_branchGroup=null,_tokenGroup=null,_flagGroup=null;
 let _branchMeshes=[],_tokenMeshes=[],_flagMeshes=[],_t0=0;
 
@@ -45,10 +47,8 @@ function mount(ctx){
   _ctx=ctx;_stage=ctx.stage;_THREE=ctx.THREE;
   _group=new _THREE.Group();_stage.scene.add(_group);
   _t0=(typeof performance!=="undefined"?performance.now():Date.now());
-  _buildOverlay(ctx);_buildScaffold();
   _badge=ctx.live.createBadge();
-  const brow=_overlay&&_overlay.querySelector("#lf-badgerow");
-  if(brow&&_badge&&_badge.el) brow.appendChild(_badge.el);
+  _buildOverlay(ctx);_buildScaffold();
   _polls.push(ctx.live.poll(EP_RUN,6000,_onRun,{ badge:_badge, onState:(m)=>{S.state=m.state;_paintOverlay();},
     fetchInit:{ method:"POST", headers:{"accept":"application/json","content-type":"application/json"}, body:"{}" } }));
   _polls.push(ctx.live.poll(EP_ARCHIVE,7000,_onArchive,{ onState:(m)=>{S.state=m.state;_paintOverlay();} }));
@@ -217,13 +217,14 @@ function _animate(){
   _group.rotation.y=t*0.06;
 }
 function _buildOverlay(ctx){
+  _show=createShowcase(ctx,{
+    id:ID, title:TITLE, accent:"#3af4c8", badge:_badge,
+    chips:[{label:"MODELED", name:"label"}],
+  });
   _overlay=document.createElement("div");
-  _overlay.style.cssText="position:absolute;top:12px;left:12px;max-width:376px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;background:rgba(10,17,23,0.86);border:1px solid #1b3a44;border-radius:10px;padding:12px 14px;pointer-events:auto;backdrop-filter:blur(3px);z-index:20;max-height:calc(100% - 24px);overflow:auto;";
+  _overlay.style.cssText="font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;";
   _overlay.innerHTML=
-    '<div style="font-weight:700;letter-spacing:.03em;color:#eaf6f9;font-size:13px">Loop Forge <span id="lf-label" style="float:right;font-size:10px;padding:1px 7px;border-radius:8px;background:#123;color:#3af4c8;border:1px solid #1b3a44">MODELED</span></div>'+
     '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Kernel-gated agentic loop. Proposer branches bloom from the HEART/BLOOD hub; the kernel gate ring accepts (gold, archived) or rejects (grey, falls away). The orbiting cloud is the workspace readout of the "silent" candidate tokens; the raised lane surfaces safety flags <b>before commit</b>.</div>'+
-    '<div id="lf-badgerow" style="margin-top:8px"></div>'+
-    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
     '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:3px">Kernel-gate invariants</div>'+
     '<div id="lf-inv" style="font-size:11px;color:#eaf6f9"></div>'+
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
@@ -242,7 +243,7 @@ function _buildOverlay(ctx){
     '</div>'+
     '<div id="lf-plainbox" style="display:none;margin-top:8px;font-size:10.5px;color:#bcd;line-height:1.55"></div>'+
     '<div id="lf-infobox" style="display:none;margin-top:8px;font-size:10px;color:#bcd;line-height:1.55"></div>';
-  (ctx.container||document.body).appendChild(_overlay);
+  _show.body.appendChild(_overlay);
   const pb=_overlay.querySelector("#lf-plain"); if(pb) pb.addEventListener("click",()=>{_plain=!_plain;_applyPlain();});
   const ib=_overlay.querySelector("#lf-info");
   if(ib) ib.addEventListener("click",()=>{ const box=_overlay.querySelector("#lf-infobox");
@@ -266,7 +267,7 @@ function _paintOverlay(){
   if(!_overlay)return;
   const missing=(S.state==="missing"||S.state==="error"); const deg=missing||(S.state==="degraded");
   const nd="NO-LIVE-DATA"; const d=deg?"—":null;
-  _set("lf-label",S.label||"MODELED");
+  if(_show) _show.setChip("label",S.label||"MODELED");
   const inv=_overlay.querySelector("#lf-inv");
   if(inv) inv.innerHTML=_check("writer ≠ judge",S.writerNeJudge,true)+_check("kernel outside loop",S.kernelOutsideLoop,true)+_checkZero("conjecture rendered green",S.conjGreen);
   if(missing&&!S.branches.length){
@@ -300,7 +301,7 @@ function _infoHTML(){
 }
 function unmount(){
   _polls.forEach((p)=>{ try{p.stop();}catch(_){} }); _polls=[];
-  try{ if(_overlay&&_overlay.parentNode) _overlay.parentNode.removeChild(_overlay); }catch(_){}
+  try{ if(_show) _show.destroy(); }catch(_){} _show=null;
   try{ if(_group&&_stage){ _group.traverse((o)=>{ if(o.geometry&&o.geometry.dispose)o.geometry.dispose();
     if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach((m)=>{if(m.dispose)m.dispose();});} }); _stage.scene.remove(_group); } }catch(_){}
   _group=_overlay=null; _hub=_ring=_ringGlow=null; _branchGroup=_tokenGroup=_flagGroup=null;
