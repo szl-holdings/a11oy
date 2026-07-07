@@ -736,6 +736,27 @@ try:
 except Exception as _szl_kv2_e:  # pragma: no cover
     print(f"[a11oy] Universal Khipu verifier NOT registered: {_szl_kv2_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# PUBLIC "Verify a Receipt" flow (Wave N) — the trust-us -> verify-the-receipt demo.
+# szl_public_verify lets ANY visitor (investor/auditor/skeptic) PASTE a DSSE/SZL
+# receipt (or a receipt id) at /verify and get an INDEPENDENT verdict computed by
+# POST /api/a11oy/v1/verify/receipt {envelope|receipt_id}. It runs three honest
+# checks: (1) ECDSA-P256 signature vs the PUBLISHED SZLHOLDINGS cosign.pub (reuses
+# szl_dsse.verify_envelope), (2) re-hash the payload and compare to the digest the
+# payload DECLARES about itself (payload_digest) — NOT the chain seal id (the old
+# simultaneous VERIFIED+MISMATCH bug is NOT reintroduced), (3) walk/validate the
+# hash-chain to genesis (reuses szl_khipu_verify.verify_digest). Each check is
+# labelled VERIFIED / MISMATCH / UNSIGNED-LOCAL / UNAVAILABLE; nothing is fabricated;
+# Shareable links: /verify?receipt=<id> and /verify?envelope=<base64url>. Reuses
+# szl_dsse + szl_khipu_verify only — no new dep, no CDN. Λ = Conjecture 1; adds
+# NOTHING to the locked-8. Additive, try/except-guarded, registered BEFORE the SPA
+# catch-all so /api/a11oy/v1/verify/receipt resolves locally.
+try:
+    import szl_public_verify as _szl_public_verify
+    _szl_public_verify.register(app, ns="a11oy")
+    print("[a11oy] Public verify-a-receipt registered: POST /api/a11oy/v1/verify/receipt {envelope|receipt_id}", file=__import__("sys").stderr)
+except Exception as _szl_pv_e:  # pragma: no cover
+    print(f"[a11oy] Public verify-a-receipt NOT registered: {_szl_pv_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Prove-Our-Whole-Stack attestation surface — GET /attest (KANCHAY verifier UI) +
 # GET /api/a11oy/v1/attest/{receipt_hash}: a single 6-factor provenance chain for any
 # decision receipt (DSSE+khipu chain, Rekor, Lean Theorem U, energy cert, 3-of-4 witness
@@ -2588,6 +2609,19 @@ try:
     # Registered BEFORE the SPA catch-all so the explicit route wins.
     app.add_api_route("/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
+
+    # PUBLIC "Verify a Receipt" page (Wave N) — the trust-us -> verify-the-receipt
+    # surface. web/verify-receipt.html is a no-login paste box + PASS/FAIL panel that
+    # POSTs to /api/a11oy/v1/verify/receipt (szl_public_verify) and shows each check
+    # honestly (VERIFIED / MISMATCH / UNSIGNED-LOCAL / UNAVAILABLE). It honours the
+    # shareable links /verify?receipt=<id> and /verify?envelope=<base64url> by
+    # auto-verifying on load. Standalone sovereign page (0 runtime CDN, system fonts);
+    # web/verify-receipt.html is per-file COPY'd in the Dockerfile (same baked-only
+    # pattern as web/determinacy.html). Registered BEFORE the SPA catch-all so the
+    # explicit route wins instead of falling through to the SPA shell.
+    app.add_api_route("/verify", _ptg_serve("verify-receipt.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/verify", _ptg_serve("verify-receipt.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/verify-receipt", _ptg_serve("verify-receipt.html"), methods=["GET"], include_in_schema=False)
 
     # /code GOVERNED RUN-LOOP surface (2026-07-06, founder: "code orchestration needs
     # to be fully operational"). The prior band-aid 307-redirected /code -> /console

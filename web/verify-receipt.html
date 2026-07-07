@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<!--
+  a11oy · VERIFY A RECEIPT — the public "trust-us -> verify-the-receipt" flow.
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+
+  PUBLIC, NO-LOGIN. Paste a DSSE/SZL receipt (JSON or base64url share link) OR a
+  receipt id, and get an INDEPENDENT cryptographic verdict from this browser page,
+  computed server-side by POST /api/a11oy/v1/verify/receipt against the PUBLISHED
+  SZLHOLDINGS cosign public key. Every check is shown HONESTLY:
+    VERIFIED  — the check ran and passed
+    MISMATCH  — the check ran and FAILED (bad signature / tampered payload / broken chain)
+    UNSIGNED-LOCAL — the envelope carries no signature (nothing to verify; not faked)
+    UNAVAILABLE — the check could not be RUN here (no key / receipt not in this process's DAG)
+
+  0 runtime CDN: system fonts only, no external scripts. Nothing is fabricated:
+  the verdict is exactly what the server-side crypto computed. Λ = Conjecture 1
+  (never a theorem); this surface adds NOTHING to the locked-8 (749/14/163 @ c7c0ba17);
+  trust ceiling never 100%. Shareable links: /verify?receipt=<id> and
+  /verify?envelope=<base64url(JSON envelope)>.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Verify a Receipt — don't trust us, verify it</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:20px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:1000px}
+  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+  .nav a{color:var(--acc2);text-decoration:none}
+  .nav a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  section{margin:0 0 24px}
+  .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px}
+  p{margin:0 0 12px}
+  .hook{font-size:24px;line-height:1.35;font-weight:700;margin:6px 0 12px}
+  .hook .em{color:var(--acc)}
+  .lede{font-size:14px;color:#cdd8e6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:0 0 14px}
+  a{color:var(--acc2)}
+  code{color:var(--acc2);font-size:12px;word-break:break-all}
+  label{display:block;color:var(--mut);font-size:12px;margin:12px 0 4px}
+  textarea,input[type=text]{width:100%;background:var(--panel2);color:var(--ink);
+       border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+       font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+  textarea{min-height:150px;resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  button{background:var(--acc);color:#04201d;border:0;border-radius:8px;padding:10px 18px;
+       font:600 13px/1 ui-monospace,Menlo,monospace;cursor:pointer;letter-spacing:.3px}
+  button.ghost{background:transparent;color:var(--acc2);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:default}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line);white-space:nowrap;font-weight:600}
+  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.mut{color:var(--mut);border-color:var(--line);background:var(--panel2)}
+  .verdict{font-size:30px;font-weight:800;letter-spacing:.5px;margin:4px 0 2px}
+  .verdict.pass{color:var(--ok)} .verdict.fail{color:var(--err)}
+  .verdict.partial,.verdict.inconclusive{color:var(--warn)}
+  .checks{display:grid;gap:10px;margin-top:12px}
+  .chk{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel2)}
+  .chk .h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .chk .name{font-weight:600}
+  .chk .detail{color:var(--mut);font-size:12px;margin-top:6px}
+  .kv{color:var(--mut);font-size:11px;margin-top:6px;word-break:break-all}
+  .kv b{color:var(--ink);font-weight:600}
+  .share{margin-top:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:8px;background:var(--panel2)}
+  .share .l{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+  .muted{color:var(--mut);font-size:12px}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+      overflow:auto;font-size:11px;color:#bcd;max-height:280px}
+  .hide{display:none}
+  .foot{color:var(--mut);font-size:11px;border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Verify a Receipt <span class="pill ok">PUBLIC · NO LOGIN</span></h1>
+  <div class="sub">Don't trust us — <b>verify the receipt</b>. Paste a DSSE/SZL receipt (JSON or a
+     <code>?envelope=</code> share link) or a receipt id. This page runs the checks against the
+     <b>published SZLHOLDINGS cosign public key</b> and shows each result honestly. Nothing is fabricated.</div>
+  <div class="nav">
+    <a href="/">← home</a>
+    <a href="/signature-is-not-proof">signature-is-not-proof</a>
+    <a href="/determinacy">determinacy</a>
+    <a href="/attest">attest</a>
+    <a href="https://github.com/szl-holdings/.github/blob/main/cosign.pub" target="_blank" rel="noopener">cosign.pub ↗</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <section>
+    <div class="hook">A signature you can't check is <span class="em">just a claim</span>.<br/>
+      Here you can <span class="em">check it yourself.</span></div>
+    <p class="lede">This is the "trust-us → verify-the-receipt" surface. Paste an SZL DSSE receipt below.
+      The verifier: (1) checks the <b>ECDSA-P256</b> signature against our public cosign key, (2)
+      re-hashes the payload and compares it to the digest the payload <b>declares about itself</b>
+      (not the chain id), and (3) walks the hash-chain to genesis if the receipt is in this
+      process's ledger. Each check is labelled VERIFIED / MISMATCH / UNSIGNED-LOCAL / UNAVAILABLE.</p>
+  </section>
+
+  <section class="card">
+    <label for="env">DSSE / SZL receipt envelope (paste JSON, or a base64url share payload)</label>
+    <textarea id="env" placeholder='{"payloadType":"application/vnd.szl.khipu+json","payload":"...","signatures":[{"sig":"...","keyid":"szlholdings-cosign"}]}'></textarea>
+    <label for="rid">…or a receipt id / seal digest (walks the hash-chain)</label>
+    <input id="rid" type="text" placeholder="e.g. a 64-hex Khipu seal digest"/>
+    <div class="row">
+      <button id="go">Verify</button>
+      <button id="clear" class="ghost">Clear</button>
+      <span id="status" class="muted"></span>
+    </div>
+  </section>
+
+  <section id="result" class="card hide">
+    <div class="eyebrow">Result</div>
+    <div id="verdict" class="verdict">—</div>
+    <div id="verdictNote" class="muted"></div>
+    <div id="checks" class="checks"></div>
+
+    <div id="share" class="share hide">
+      <div class="muted"><b>Shareable verify links</b> — hand these to an investor/auditor to re-verify themselves:</div>
+      <div class="l"><span class="pill mut">by receipt id</span> <code id="shareId">—</code>
+        <button class="ghost" data-copy="shareId">copy</button></div>
+      <div class="l"><span class="pill mut">self-contained</span> <code id="shareEnv">—</code>
+        <button class="ghost" data-copy="shareEnv">copy</button></div>
+    </div>
+
+    <details style="margin-top:12px">
+      <summary class="muted">raw verifier response</summary>
+      <pre id="raw"></pre>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="eyebrow">How to read the honest labels</div>
+    <p class="muted"><span class="pill ok">VERIFIED</span> the check ran and passed. &nbsp;
+      <span class="pill err">MISMATCH</span> the check ran and FAILED (bad signature, tampered payload, or broken chain). &nbsp;
+      <span class="pill warn">UNSIGNED-LOCAL</span> the envelope carries no signature — nothing to verify (never faked). &nbsp;
+      <span class="pill mut">UNAVAILABLE</span> the check could not be RUN here (no runtime key, or the receipt isn't in this process's in-memory ledger).</p>
+    <div class="foot">
+      Λ = <b>Conjecture 1</b> (never a theorem). This verifier adds <b>nothing</b> to the locked-8
+      (749/14/163 @ kernel c7c0ba17). Trust ceiling is never 100%. The signature is checked against the
+      public key at <a href="https://github.com/szl-holdings/.github/blob/main/cosign.pub" target="_blank" rel="noopener">szl-holdings/.github/cosign.pub</a>,
+      byte-compatible with <code>cosign verify-blob</code>. In-memory Khipu chains reset on a Space restart,
+      so a hash-chain check can honestly read UNAVAILABLE for an older receipt id.
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var API = "/api/a11oy/v1/verify/receipt";
+
+  function pillClass(status){
+    if(status === "VERIFIED") return "ok";
+    if(status === "MISMATCH") return "err";
+    if(status === "UNSIGNED-LOCAL") return "warn";
+    return "mut"; // UNAVAILABLE / unknown
+  }
+  function verdictClass(v){
+    v = (v||"").toUpperCase();
+    if(v === "PASS") return "pass";
+    if(v === "FAIL") return "fail";
+    if(v === "PARTIAL") return "partial";
+    return "inconclusive";
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+  function kvline(label, val){
+    if(val === undefined || val === null || val === "") return "";
+    return '<div class="kv"><b>'+esc(label)+':</b> '+esc(val)+'</div>';
+  }
+
+  function renderCheck(c){
+    var st = c.status || "UNAVAILABLE";
+    var extra = "";
+    extra += kvline("keyid_expected", c.keyid_expected);
+    extra += kvline("pub_fingerprint_sha256", c.pub_fingerprint_sha256);
+    extra += kvline("declared_payload_digest", c.declared_payload_digest);
+    extra += kvline("recomputed_payload_sha256", c.recomputed_payload_sha256);
+    extra += kvline("organ", c.organ);
+    extra += kvline("seq", c.seq);
+    extra += kvline("digest_matches", c.digest_matches);
+    extra += kvline("chain_to_genesis_verified", c.chain_to_genesis_verified);
+    extra += kvline("links_checked", c.links_checked);
+    extra += kvline("broken_link", c.broken_link);
+    var names = {signature:"1 · ECDSA-P256 signature",
+                 payload_digest:"2 · payload re-hash vs declared digest",
+                 hash_chain:"3 · hash-chain to genesis"};
+    return '<div class="chk"><div class="h"><span class="name">'+esc(names[c.check]||c.check)+
+      '</span><span class="pill '+pillClass(st)+'">'+esc(st)+'</span></div>'+
+      '<div class="detail">'+esc(c.detail||"")+'</div>'+extra+'</div>';
+  }
+
+  function origin(){ return window.location.origin; }
+
+  function renderResult(res){
+    $("result").classList.remove("hide");
+    var v = res.verdict || "INCONCLUSIVE";
+    var vd = $("verdict");
+    vd.textContent = v;
+    vd.className = "verdict " + verdictClass(v);
+    $("verdictNote").textContent = res.ok === false
+      ? (res.detail || "no input")
+      : ("input: " + (res.input||"?") + (res.payloadType ? "  ·  payloadType: "+res.payloadType : ""));
+    var wrap = $("checks");
+    wrap.innerHTML = "";
+    (res.checks||[]).forEach(function(c){ wrap.insertAdjacentHTML("beforeend", renderCheck(c)); });
+
+    // Shareable links
+    var sl = res.shareable_link || {};
+    var hasShare = sl.by_receipt_id || sl.by_envelope;
+    if(hasShare){
+      $("share").classList.remove("hide");
+      $("shareId").textContent  = sl.by_receipt_id ? (origin()+sl.by_receipt_id) : "(no receipt id in envelope)";
+      $("shareEnv").textContent = sl.by_envelope  ? (origin()+sl.by_envelope)  : "(envelope too large for a URL)";
+    } else {
+      $("share").classList.add("hide");
+    }
+    $("raw").textContent = JSON.stringify(res, null, 2);
+    $("result").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  function doVerify(body){
+    $("status").textContent = "verifying…";
+    $("go").disabled = true;
+    fetch(API, {method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(body)})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(x){ $("status").textContent = ""; $("go").disabled=false; renderResult(x.j); })
+      .catch(function(e){ $("status").textContent = "network error: "+e; $("go").disabled=false; });
+  }
+
+  function readInputs(){
+    var env = $("env").value.trim();
+    var rid = $("rid").value.trim();
+    var body = {};
+    if(env) body.envelope = env;
+    if(rid) body.receipt_id = rid;
+    return body;
+  }
+
+  $("go").addEventListener("click", function(){
+    var body = readInputs();
+    if(!body.envelope && !body.receipt_id){
+      $("status").textContent = "paste an envelope or a receipt id first";
+      return;
+    }
+    doVerify(body);
+  });
+  $("clear").addEventListener("click", function(){
+    $("env").value=""; $("rid").value=""; $("result").classList.add("hide");
+    $("status").textContent=""; history.replaceState(null,"","/verify");
+  });
+
+  // copy buttons
+  document.addEventListener("click", function(e){
+    var t = e.target;
+    if(t && t.getAttribute && t.getAttribute("data-copy")){
+      var txt = $(t.getAttribute("data-copy")).textContent;
+      if(navigator.clipboard) navigator.clipboard.writeText(txt);
+      var old = t.textContent; t.textContent="copied"; setTimeout(function(){t.textContent=old;},1200);
+    }
+  });
+
+  // Auto-verify from a shareable link: /verify?receipt=<id> or /verify?envelope=<b64url>
+  (function fromQuery(){
+    var q = new URLSearchParams(window.location.search);
+    var receipt = q.get("receipt");
+    var envelope = q.get("envelope");
+    if(envelope){
+      $("env").value = envelope;
+      doVerify({envelope: envelope});
+    } else if(receipt){
+      $("rid").value = receipt;
+      doVerify({receipt_id: receipt});
+    }
+  })();
+})();
+</script>
+</body>
+</html>

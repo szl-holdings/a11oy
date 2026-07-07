@@ -62,6 +62,7 @@
   "web/restraint.html",
   "web/sda.html",
   "web/signature-is-not-proof.html",
-  "web/v4_fleet_panel.html"
+  "web/v4_fleet_panel.html",
+  "web/verify-receipt.html"
  ]
 }
