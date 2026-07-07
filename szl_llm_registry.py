@@ -115,7 +115,7 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "tier": 2,
         "tier_name": "math_logic",
         "context_window": 128_000,
-        "use_case": "Math / structured logic / Λ-gate eval / theorem citation",
+        "use_case": "Math / structured logic / Λ-gate eval (Λ = Conjecture 1, never a theorem) / theorem citation",
         "why": "Best at structured reasoning + math; used for Lean theorem validation",
         "routing_condition": "Λ ∈ [0.75, 0.90) or task_hint='math'",
         "api_env_var": "OPENAI_API_KEY",

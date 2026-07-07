@@ -125,3 +125,15 @@ szl_rag.py                 # a11oy library-only + dead register_rag_routes drop 
 #     Additive; locked-8 @ c7c0ba17 untouched; Λ = Conjecture 1. Reconcile if
 #     killinchu ever federates the same siblings.
 szl_v4_fleet.py            # a11oy immune-standalone/yarqa peer-health federation + honest up field; killinchu sync pending
+
+# --- 2026-07-07 (Wave G, harness-wire): a11oy additively wires an OPTIONAL
+#     harness_profile_id into /api/a11oy/v1/llm/route. When set, routing delegates
+#     to szl_model_harness.apply (the governed behavior-transfer harness: profile
+#     system layer + the SAME Λ-gate) and returns a signed harness receipt naming
+#     the profile (id+version+sha256, model_id, Λ axes, provenance); when unset the
+#     route is byte-identical to today (default path unchanged). The harness module
+#     + its /code run-loop wire-in are a11oy-only, so this file legitimately
+#     diverges. Additive; behavior transfer is MODELED (disposition only, not
+#     capability); Λ = Conjecture 1 (advisory); locked-8 @ c7c0ba17 untouched.
+#     Reconcile if killinchu adopts the model harness.
+szl_llm_registry.py        # a11oy Wave G harness_profile_id wire-in on /llm/route (default path byte-identical); killinchu sync pending
