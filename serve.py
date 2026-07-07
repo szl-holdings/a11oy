@@ -11811,6 +11811,68 @@ except Exception as _interp_e:  # pragma: no cover
 
 
 # ============================================================================
+# WAVE-N FRONTIER BATCH (feat/frontier-wave-n, Dev4): three a11oy-NATIVE cited
+# SOTA backends for frontier surfaces that previously lacked a self-hosted twin
+# (or read only an isolated killinchu Space cross-origin). Each is deterministic,
+# stdlib-only, try/except-guarded, and returns a renderable 200 with an honest
+# MODELED label + receipt. Registered BEFORE the SPA catch-all; each register()
+# uses @app.get (APPENDS), so we front-move the single route to router position 0
+# so it wins over the /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA
+# catch-all (same proven pattern as Interpretability above).
+#   1) szl_circuit_graphs   -> /api/a11oy/v1/circuits/attribution   (surface: circuits.js)
+#        Attribution-graph / circuit tracing. Cites Ameisen/Lindsey et al. (2025)
+#        Circuit Tracing (transformer-circuits.pub/2025/attribution-graphs) + Marks
+#        et al. (2024) Sparse Feature Circuits (arXiv:2406.02395).
+#   2) szl_semantic_entropy -> /api/a11oy/v1/uq/semantic-entropy    (surface: sement.js)
+#        Semantic-entropy UQ feeding Λ an ADVISORY ABSTAIN gate. Cites Farquhar,
+#        Kossen, Kuhn & Gal (2024) Nature 630, 625-630 (DOI 10.1038/s41586-024-07421-0).
+#   3) szl_kv_cache         -> /api/a11oy/v1/kvcache/h2o-evict      (surface: kvcache.js)
+#        KV-cache / long-context efficiency. Real H2O (Zhang et al. arXiv:2306.14048)
+#        + StreamingLLM (Xiao et al. arXiv:2309.17453) eviction over a seeded trace.
+# Λ = Conjecture 1 throughout; nothing added to the locked-8; trust never 100%.
+# ============================================================================
+def _wn_frontmove(route_path: str) -> None:
+    """Front-move a just-appended route to router position 0 so it beats the
+    /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all."""
+    for _r in [_rt for _rt in app.router.routes
+               if getattr(_rt, "path", None) == route_path]:
+        app.router.routes.remove(_r)
+        app.router.routes.insert(0, _r)
+
+try:
+    import sys as _wn_sys
+    # NOTE: explicit per-module import + <module>.register(app, ...) — the a11oy
+    # surface-wiring contract the register-invocation guard statically verifies.
+    import szl_circuit_graphs as _szl_circuit_graphs
+    _wn_s1 = _szl_circuit_graphs.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/circuits/attribution")
+    print(f"[a11oy] WAVE-N FRONTIER szl_circuit_graphs registered (front-moved): {_wn_s1}", file=_wn_sys.stderr)
+except Exception as _wn_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-N FRONTIER szl_circuit_graphs NOT registered (non-fatal): {_wn_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    import sys as _wn_sys
+    import szl_semantic_entropy as _szl_semantic_entropy
+    _wn_s2 = _szl_semantic_entropy.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/uq/semantic-entropy")
+    print(f"[a11oy] WAVE-N FRONTIER szl_semantic_entropy registered (front-moved): {_wn_s2}", file=_wn_sys.stderr)
+except Exception as _wn_e2:  # additive: never break the Space
+    print(f"[a11oy] WAVE-N FRONTIER szl_semantic_entropy NOT registered (non-fatal): {_wn_e2!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    import sys as _wn_sys
+    import szl_kv_cache as _szl_kv_cache
+    _wn_s3 = _szl_kv_cache.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/kvcache/h2o-evict")
+    print(f"[a11oy] WAVE-N FRONTIER szl_kv_cache registered (front-moved): {_wn_s3}", file=_wn_sys.stderr)
+except Exception as _wn_e3:  # additive: never break the Space
+    print(f"[a11oy] WAVE-N FRONTIER szl_kv_cache NOT registered (non-fatal): {_wn_e3!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-N FRONTIER BATCH (circuits / semantic-entropy / kv-cache)
+# ============================================================================
+
+
+# ============================================================================
 # REVENUE LAYER (feat/revenue-layer): ADDITIVE honest revenue ESTIMATORS.
 # Doctrine v11 LOCKED — revenue figures demand maximum honesty; no fabricated
 # numbers. Every output labeled ESTIMATE or PRICING_HYPOTHESIS, computed from

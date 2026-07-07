@@ -56,9 +56,13 @@ import { createShowcase } from "./_showcase.js";
 const ID    = "sement";
 const TITLE = "Semantic-Entropy · Effective-Rank Epistemic Uncertainty (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin for the flagship origin).
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/sement/estimate?seed=42&K=40&n_clusters=5&threshold=0.6";
+// PRIMARY endpoint is the a11oy-NATIVE self-hosted twin (same-origin, szl_semantic_entropy.py):
+// the Farquhar et al. (Nature 2024) semantic-entropy method simulated on synthetic toy
+// regimes, feeding Λ (Conjecture 1) an ADVISORY ABSTAIN gate (label MODELED, read
+// verbatim). The isolated killinchu Space stays a guarded cross-origin FALLBACK so a
+// fault in either path never darkens the other.
+const EP  = "/api/a11oy/v1/uq/semantic-entropy?seed=42&K=40&threshold=0.6";
+const EP_FALLBACK = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/sement/estimate?seed=42&K=40&n_clusters=5&threshold=0.6";
 
 // data-viz hues — purple BANNED
 const C_CONF   = 0x5b8dee;  // lattice-blue (confident regime / naive-entropy bar)
@@ -441,4 +445,4 @@ export function unmount() {
   _pulse.fill(0);
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP, EP_FALLBACK], mount, unmount };
