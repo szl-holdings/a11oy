@@ -1519,6 +1519,26 @@ try:
 except Exception as _szl_model_harness_e:  # pragma: no cover
     print(f"[a11oy] Model harness NOT registered: {_szl_model_harness_e!r}", file=__import__("sys").stderr)
 
+# ── GOVERNED EVAL / RED-TEAM ARENA (evalarena, Wave H, Team 2). szl_eval_arena.py
+# serves POST /api/a11oy/v1/eval/run (+ /eval/suites, /eval/suites/{id}, /eval/health):
+# a deterministic honest eval suite (correctness + refusal/safety + honesty-label
+# adherence + Λ-axis scoring) over a model routed via szl_llm_registry (honest
+# MODELED/UNAVAILABLE if no key), returning per-case + aggregate + a SIGNED DSSE
+# receipt (real ECDSA-P256 in-Space via szl_dsse; honest UNSIGNED-LOCAL locally)
+# ingested to /llm/forum. Optionally evals a Wave-F behavior profile via
+# harness_profile_id (szl_model_harness, if present). Studies the eval leaders
+# (OpenAI Evals, Anthropic evals, HELM, EleutherAI lm-evaluation-harness, UK AISI
+# Inspect, NVIDIA garak, promptfoo) and folds the GOVERNED version. Additive,
+# pure-stdlib, try/except-guarded, registered BEFORE the SPA catch-all (mirrors the
+# AgentMem / Loop-Forge blocks above). Λ = Conjecture 1 (gray, never green);
+# trust ceiling 0.97; nothing touches the locked-8.
+try:
+    import szl_eval_arena as _szl_eval_arena
+    _szl_eval_arena.register(app, ns="a11oy")
+    print("[a11oy] Eval Arena registered: /api/a11oy/v1/eval/{run,suites,health}", file=__import__("sys").stderr)
+except Exception as _szl_eval_arena_e:  # pragma: no cover
+    print(f"[a11oy] Eval Arena NOT registered: {_szl_eval_arena_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # ── WAVE-27 Atlas (atlas, front-door surface): unifies all 67 surfaces into ONE
 # organism using the Flower Brain's 8 real clusters as the taxonomy. MODELED map;
 # every surface classified exactly once (coverage 1.0), kernel pistil (locked-8)
