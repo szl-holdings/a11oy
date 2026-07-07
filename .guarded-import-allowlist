@@ -23,6 +23,7 @@ szl_otel               # [OPTIONAL-PKG] OpenTelemetry setup shim; absence => a r
 szl_router             # [OPTIONAL-PKG] optional in-Space LLM router; absence => honest "no key wired" default (no MEASURED row fabricated). szl_yupay.py.
 szl_agent_loop_banach  # [OPTIONAL-PKG] optional Banach fixed-point accelerator for the agent loop; absence => the loop uses its plain iteration path.
 szl_connectors         # [OPTIONAL-PKG] optional connector base (http_json); absence => a11oy_markets.py falls back to a local urllib implementation.
+szl_kc_onebit          # [OPTIONAL-PKG] killinchu canonical live-meter transport (read_live_meter); shared szl_kc_jpt.py prefers it when importable else falls through to its own raw urllib meter parse. onebit is killinchu-only (absent in a11oy by design) — correct cross-repo prefer-else-fallback, not a dead feature.
 
 # --- [DEAD-STUB] never-existed .register() blocks; feature ABSENT at runtime ---
 # These are surfaced here (not silently swallowed) so they are tracked. Each
