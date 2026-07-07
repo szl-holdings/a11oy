@@ -15,6 +15,8 @@ _localtest.py
 # Runtime-persisted energy ledger (hash-chained receipts written at run time; NOT shipped)
 szl_energy_ledger.jsonl
 *.ledger.jsonl
+# Governed-brain write-back overlay (append-only receipts written at run time; NOT shipped)
+.szl_brain_overlay.jsonl
 # Runtime energy-operator ledger/state (Dev 1) — persisted counts, never committed
 artifacts/energy_operator_ledger.json
 artifacts/energy_operator_ledger.json.tmp

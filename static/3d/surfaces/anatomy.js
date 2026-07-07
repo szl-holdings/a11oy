@@ -66,6 +66,12 @@ const C_DEGRADED = 0x8a97a3;    // gray — honest degraded
 const C_AYNI = 0x39d3c4;        // teal — reciprocity balanced
 const C_AYNI_OFF = 0xe8c074;    // amber — out of balance
 const C_RESERVOIR = 0x6fb1ff;   // blue — SAMPLE work-credit tank
+// WAVE 2 — GOVERNED LIVING-BRAIN belief-tier palette (blue/violet-blue/teal/greys;
+// PURPLE BANNED). Verbatim doctrine labels, never re-coloured to look "proven".
+const C_TIER_CONJ = 0x8a97a3;   // grey  — CONJECTURE (advisory, never truth)
+const C_TIER_CORR = 0x5b8dee;   // violet-blue — CORROBORATED
+const C_TIER_LOAD = 0x39d3c4;   // teal  — LOAD-BEARING (hub)
+const C_QUARANTINE = 0xe8c074;  // amber — QUARANTINED (honest, not written)
 
 // The three YARQA dispersal organs, in canonical loop order around the ring.
 const ORGAN_ANGLES = { WAQAYCHAQ: Math.PI * 0.5, KAMAY: Math.PI * 1.1666, RIKUY: Math.PI * 1.8333 };
@@ -78,6 +84,11 @@ let _organs = {};               // name -> { group, core, halo, sprite }
 let _reservoir = null, _reservoirFill = null, _reservoirMat = null;
 let _ayniGroup = null, _ayniBeam = null, _ayniL = null, _ayniR = null;
 let _beatComet = null;          // the single traveling beat
+// WAVE 2 — governed brain-loop cognition core (glows with reinforced-edge count,
+// coloured by the dominant live belief tier). MODELED — a derived view, not truth.
+let _cognition = null, _cognitionMat = null, _cognitionHalo = null, _cognitionHaloMat = null;
+let _brainGlow = 0;             // target glow from real reinforced_edges count
+let _brainTierColor = C_TIER_CONJ;
 let _hud = {};                  // DOM HUD field refs
 let _last = null;               // last live JSON
 let _meta = { state: "init", label: null };
@@ -261,6 +272,34 @@ function _buildScene() {
   grid.position.y = -5.2;
   grid.material.transparent = true; grid.material.opacity = 0.4;
   _root.add(grid);
+
+  // DEMO #23 — WAVE 2 COGNITION CORE: the harvested brain as an ACTIVE ORGAN that
+  // DRIVES metered inference. Its glow scales with the REAL reinforced-edge count
+  // from /anatomy/loop.brain.health; its colour is the dominant live belief tier
+  // (grey CONJECTURE / blue CORROBORATED / teal LOAD-BEARING). MODELED, not truth.
+  const cogGeo = new THREE.IcosahedronGeometry(0.85, 2);
+  _cognitionMat = new THREE.MeshStandardMaterial({
+    color: C_TIER_CONJ, emissive: C_TIER_CONJ, emissiveIntensity: 0.3,
+    metalness: 0.4, roughness: 0.35, transparent: true, opacity: 0.9, wireframe: true,
+  });
+  _cognition = new THREE.Mesh(cogGeo, _cognitionMat);
+  _cognition.position.set(0, 2.6, 0);
+  _root.add(_cognition);
+
+  const cogHaloGeo = new THREE.RingGeometry(1.1, 1.35, 56);
+  _cognitionHaloMat = new THREE.MeshBasicMaterial({
+    color: C_TIER_CONJ, transparent: true, opacity: 0.0, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  _cognitionHalo = new THREE.Mesh(cogHaloGeo, _cognitionHaloMat);
+  _cognitionHalo.position.copy(_cognition.position);
+  _root.add(_cognitionHalo);
+  try {
+    const cb = _ctx.label.billboard(THREE, "MODELED",
+      { text: "COGNITION · brain drives metered inference", scale: 0.42,
+        position: [0, 3.8, 0] });
+    _root.add(cb);
+  } catch (_) {}
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +368,50 @@ function _buildHUD() {
     hm.appendChild(f.row);
   });
   _show.body.appendChild(hm);
+
+  // WAVE 2 — GOVERNED LIVING-BRAIN loop readout (read live from /anatomy/loop.brain).
+  const bh = document.createElement("div");
+  bh.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
+    "margin-top:10px;border-top:1px solid #1d2a36;padding-top:8px;";
+  bh.textContent = "governed brain loop · brain DRIVES metered inference (POST /anatomy/pulse) — " +
+    "graph grows ONLY via receipted inference; salience is Λ-advisory (≤0.97), never truth";
+  _show.body.appendChild(bh);
+
+  const bf = document.createElement("div");
+  bf.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-top:6px;";
+  const mkb = (key, lbl) => { const f = _row(lbl); _hud[key] = f.val; bf.appendChild(f.row); };
+  mkb("brainGraph", "brain · source graph");
+  mkb("brainReceipts", "brain · receipts (chain)");
+  mkb("brainEdges", "brain · reinforced edges");
+  mkb("brainAudit", "brain · self-audit demotions");
+  _show.body.appendChild(bf);
+
+  // belief-tier pills — verbatim doctrine labels, colour-coded, never upgraded.
+  const pillsWrap = document.createElement("div");
+  pillsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;";
+  const mkpill = (key, label, color) => {
+    const p = document.createElement("span");
+    p.style.cssText = "font:10px ui-monospace,Menlo,monospace;padding:2px 8px;border-radius:10px;" +
+      "border:1px solid " + _hex(color) + ";color:" + _hex(color) + ";background:rgba(0,0,0,0.25);";
+    p.textContent = label + " · 0";
+    _hud[key] = p;
+    pillsWrap.appendChild(p);
+  };
+  mkpill("pillConj", "CONJECTURE", C_TIER_CONJ);
+  mkpill("pillCorr", "CORROBORATED", C_TIER_CORR);
+  mkpill("pillLoad", "LOAD-BEARING", C_TIER_LOAD);
+  mkpill("pillQuar", "QUARANTINED", C_QUARANTINE);
+  _show.body.appendChild(pillsWrap);
+
+  // top-k Λ-advisory salience list (honest empty when the brain graph is unavailable).
+  _hud.salienceList = document.createElement("div");
+  _hud.salienceList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:8px;" +
+    "font:10px ui-monospace,Menlo,monospace;color:#9fb1bf;";
+  _hud.salienceList.textContent = "salience · NO-LIVE-DATA";
+  _show.body.appendChild(_hud.salienceList);
 }
+
+function _hex(c) { return "#" + ("000000" + (c >>> 0).toString(16)).slice(-6); }
 
 // W28 — LIVE organ-health render: map a real per-role upstream probe onto its HUD row.
 // The probe returns { up, status_code, latency_ms, label, note }. up:false is honest
@@ -461,6 +543,71 @@ function _onData(json, meta) {
     _hud.ayni.style.color = ok ? "#39d3c4" : "#e8c074";
   }
 
+  // ---- WAVE 2: GOVERNED LIVING-BRAIN loop (read live from json.brain) -----
+  const brain = (json && json.brain) || {};
+  const health = brain.health || {};
+  const belief = health.belief || {};
+  const byTier = belief.by_tier || {};
+  const conj = Number(byTier.CONJECTURE || 0);
+  const corr = Number(byTier.CORROBORATED || 0);
+  const load = Number(byTier["LOAD-BEARING"] || 0);
+  const quar = Number(belief.quarantined || 0);
+  const edges = Number(health.reinforced_edges || 0);
+  const avail = !!brain.available;
+
+  if (_hud.brainGraph) {
+    _hud.brainGraph.textContent = avail
+      ? `${health.source_node_count || 0} nodes  (${health.label || "MODELED"})`
+      : "NO-LIVE-DATA";
+    _hud.brainGraph.style.color = avail ? "#eef3f6" : "#7d8a96";
+  }
+  if (_hud.brainReceipts) {
+    const ok = health.chain_ok;
+    _hud.brainReceipts.textContent = avail
+      ? `${health.receipts || 0}  ${ok ? "✓ chain-ok" : "✗ chain-broken"}`
+      : "NO-LIVE-DATA";
+    _hud.brainReceipts.style.color = !avail ? "#7d8a96" : (ok ? "#39d3c4" : "#e8c074");
+  }
+  if (_hud.brainEdges) _hud.brainEdges.textContent = avail ? String(edges) : "NO-LIVE-DATA";
+  if (_hud.brainAudit) {
+    const d = Number(health.self_audit_demotions || 0);
+    _hud.brainAudit.textContent = avail ? String(d) : "NO-LIVE-DATA";
+    _hud.brainAudit.style.color = d > 0 ? "#e8c074" : "#eef3f6";
+  }
+  if (_hud.pillConj) _hud.pillConj.textContent = `CONJECTURE · ${conj}`;
+  if (_hud.pillCorr) _hud.pillCorr.textContent = `CORROBORATED · ${corr}`;
+  if (_hud.pillLoad) _hud.pillLoad.textContent = `LOAD-BEARING · ${load}`;
+  if (_hud.pillQuar) _hud.pillQuar.textContent = `QUARANTINED · ${quar}`;
+
+  // dominant belief tier drives the cognition-core colour (honest, never upgraded).
+  _brainTierColor = load > 0 ? C_TIER_LOAD : (corr > 0 ? C_TIER_CORR : C_TIER_CONJ);
+  // glow scales with the REAL reinforced-edge count (log-mapped; 0 -> dark honestly).
+  _brainGlow = (avail && edges > 0) ? Math.min(1, Math.log10(1 + edges) / 2) : 0;
+
+  const sal = Array.isArray(brain.salience) ? brain.salience : [];
+  if (_hud.salienceList) {
+    if (!avail || sal.length === 0) {
+      _hud.salienceList.textContent = "salience · NO-LIVE-DATA";
+    } else {
+      _hud.salienceList.textContent = "";
+      const head = document.createElement("div");
+      head.style.color = "#7d8a96";
+      head.textContent = "top load-bearing salience · Λ-advisory (≤0.97)";
+      _hud.salienceList.appendChild(head);
+      sal.slice(0, 5).forEach((s) => {
+        const r = document.createElement("div");
+        r.style.cssText = "display:flex;justify-content:space-between;gap:10px;";
+        const t = document.createElement("span");
+        t.textContent = String(s.title || s.id || "—").slice(0, 34);
+        const v = document.createElement("span");
+        v.style.color = "#39d3c4";
+        v.textContent = (s.salience != null ? Number(s.salience).toFixed(3) : "—");
+        r.appendChild(t); r.appendChild(v);
+        _hud.salienceList.appendChild(r);
+      });
+    }
+  }
+
   // ---- live honesty chips (verbatim label; never upgraded) ---------------
   if (_show) {
     _show.setChip("joules", joulesLabel, { text: "joules" });
@@ -527,6 +674,25 @@ function _frame() {
     }
   }
 
+  // WAVE 2 cognition core — glow eased toward the real reinforced-edge load, tinted
+  // by the dominant belief tier; slow spin so it reads as a live "thinking" organ.
+  if (_cognition && _cognitionMat) {
+    _cognition.rotation.y += 0.006;
+    _cognition.rotation.x += 0.003;
+    const g = degraded ? 0 : _brainGlow;
+    const pulse = 0.5 + 0.5 * Math.sin(_t * 2.2);
+    _cognitionMat.color.setHex(_brainTierColor);
+    _cognitionMat.emissive.setHex(_brainTierColor);
+    _cognitionMat.emissiveIntensity = 0.2 + 0.9 * g * (0.6 + 0.4 * pulse);
+    const s = 1 + 0.12 * g * pulse;
+    _cognition.scale.setScalar(s);
+    if (_cognitionHaloMat) {
+      _cognitionHaloMat.color.setHex(_brainTierColor);
+      _cognitionHaloMat.opacity = g * (0.15 + 0.35 * pulse);
+    }
+    if (_cognitionHalo) _cognitionHalo.rotation.z += 0.01;
+  }
+
   // gentle whole-loop rotation for the Holograph "above/below plane" feel
   if (_root) _root.rotation.y += degraded ? 0.0008 : 0.0022;
 }
@@ -578,6 +744,8 @@ function unmount() {
   _ctx = null; _stage = null; _THREE = null; _handle = null;
   _root = null; _overlay = null; _show = null; _ring = null; _ringMat = null;
   _beats = null; _beatMat = null; _beatPhase = null; _beatComet = null;
+  _cognition = null; _cognitionMat = null; _cognitionHalo = null; _cognitionHaloMat = null;
+  _brainGlow = 0; _brainTierColor = C_TIER_CONJ;
   _organs = {}; _reservoir = null; _reservoirFill = null; _reservoirMat = null;
   _ayniGroup = null; _ayniBeam = null; _ayniL = null; _ayniR = null;
   _hud = {}; _last = null; _meta = { state: "init", label: null }; _lastReceipt = "";

@@ -63,6 +63,7 @@ an honest SAMPLE snapshot — always labeled.
 """
 import json
 import math
+import time
 import urllib.request
 from datetime import datetime, timezone
 
@@ -148,6 +149,23 @@ try:  # pragma: no cover - exercised via the offline tests with the helper prese
     _VITALS_CACHE = _TTLCache2(ttl=20.0)
 except Exception:  # pragma: no cover - defensive
     _VITALS_CACHE = None
+
+# GOVERNED LIVING-BRAIN loop (Wave 2). The energy loop is the CIRCULATION; the
+# brain loop is the COGNITION that DRIVES metered inference. We pull the brain's
+# real salience read + governed loop-health into this intake so the /anatomy/loop
+# manifest reflects a brain that is an ACTIVE ORGAN, not a picture. Guarded: a
+# missing/broken brainloop degrades to an honest empty — never takes down the loop.
+try:  # pragma: no cover - exercised offline with the module present
+    import szl_anatomy_brainloop as _brainloop
+except Exception:  # pragma: no cover - defensive
+    _brainloop = None
+
+# The governed-brain read (top-k PageRank salience + receipt-replay self-audit) is
+# O(graph); the loop endpoint is polled often. Cache it behind a short TTL so a
+# healthy poll does not re-run PageRank every tick, and so the fail-fast path
+# (breaker OPEN / degraded intake) never pays the graph-read latency.
+_BRAIN_INTAKE_CACHE: dict = {"ts": 0.0, "ns": None, "data": None}
+_BRAIN_INTAKE_TTL_S = 15.0
 
 # Last-seen signed joule-ledger totals, so the circulation loop can be driven by
 # REAL measured-billable joule DELTAS between cycles (never a fabricated flow).
@@ -741,6 +759,34 @@ def _circulation(ledger_snap: dict, soaked: bool) -> dict:
 # ---------------------------------------------------------------------------
 # The loop: run ONE circulation cycle and return its live state. Crash-proof.
 # ---------------------------------------------------------------------------
+def _brain_intake(ns: str = "a11oy") -> dict:
+    """Governed living-brain read for the loop intake: top-k salience (Λ-advisory)
+    + governed loop-health. Pure READ (no receipt). Honest empty when unavailable."""
+    if _brainloop is None:
+        return {"available": False, "label": LABEL_UNAVAILABLE,
+                "reason": "brainloop module not importable",
+                "salience": [], "health": {}}
+    now = time.monotonic()
+    cache = _BRAIN_INTAKE_CACHE
+    if (cache["data"] is not None and cache["ns"] == ns
+            and (now - cache["ts"]) < _BRAIN_INTAKE_TTL_S):
+        return cache["data"]
+    try:
+        data = {
+            "available": True,
+            "label": LABEL_MODELED,
+            "salience": _brainloop.salience_topk(k=8, ns=ns),
+            "health": _brainloop.loop_health(ns=ns),
+            "note": ("brain DRIVES metered inference via POST /anatomy/pulse; "
+                     "salience is Λ-advisory (<=0.97), never truth."),
+        }
+    except Exception as exc:  # never raise into the loop
+        data = {"available": False, "label": LABEL_UNAVAILABLE,
+                "reason": f"{type(exc).__name__}", "salience": [], "health": {}}
+    cache.update({"ts": now, "ns": ns, "data": data})
+    return data
+
+
 def run_loop(ns: str = "a11oy") -> dict:
     """Run one closed-loop circulation cycle and return its honest live state.
 
@@ -811,6 +857,14 @@ def run_loop(ns: str = "a11oy") -> dict:
                           and intake.get("grid_price_eur_mwh") is not None) else LABEL_UNAVAILABLE),
                 "source": "harvest/posture public grid feed (aWATTar price + Energy-Charts renewable share)",
             },
+            # WAVE 2 — the brain as an ACTIVE ORGAN driving metered inference:
+            # top-k load-bearing salience (Λ-advisory) + governed loop-health.
+            # Skipped on a degraded/fail-fast intake (breaker OPEN): we do NOT run
+            # heavy cognition when the loop itself is degraded — honest UNAVAILABLE.
+            "brain": (_brain_intake(ns) if not intake.get("degraded", False)
+                      else {"available": False, "label": LABEL_UNAVAILABLE,
+                            "reason": "intake degraded — brain read skipped on fast-path",
+                            "salience": [], "health": {}}),
             "organs": organs,
             "beats_last_cycle": int(beats_last_cycle),
             "reservoir": {
@@ -868,6 +922,9 @@ def run_loop(ns: str = "a11oy") -> dict:
                  "note": "EXPERIMENTAL tier — never claimed proven"}
                 for n, r in _ORGAN_SPECS
             ],
+            "brain": {"available": False, "label": LABEL_UNAVAILABLE,
+                      "reason": f"loop degraded ({type(exc).__name__})",
+                      "salience": [], "health": {}},
             "beats_last_cycle": 0,
             "reservoir": {"work_credits": 0, "joules_label": SAMPLE_LABEL, "stored": False},
             "last_receipt_id": "",
