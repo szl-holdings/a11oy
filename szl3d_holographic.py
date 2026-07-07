@@ -101,6 +101,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "loopforge", "title": "Loop Forge", "owner": "Wave25"},
     {"id": "edgefusion", "title": "EdgeFusion · Λ-Gated Energy-Proportional Sensor Fusion (synthesis)", "owner": "Wave19"},
     {"id": "evalarena", "title": "Eval Arena · Governed Eval / Red-Team", "owner": "WaveH-Team2"},
+    {"id": "vqc", "title": "Governed VQC · Parameter-Shift Hybrid QML (SIMULATED)", "owner": "WaveH"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
