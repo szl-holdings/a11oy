@@ -52,6 +52,16 @@ SAMPLE_EVERY_S = float(os.environ.get("OMEN_SAMPLE_EVERY_S", "2.0"))
 PEER_EXPORTERS = [u.strip() for u in os.environ.get("PEER_EXPORTERS", "").split(",") if u.strip()]
 PEER_TIMEOUT_S = float(os.environ.get("PEER_TIMEOUT_S", "3.0"))
 
+# Per-inference model energy reading written by ollama_energy_probe.py. Merged into the
+# meter payload as a top-level models[] entry so the a11oy energy surface can show the
+# GLM node's MEASURED joules/token. Purely additive — engines/totals are unchanged.
+OLLAMA_ENERGY_JSON = os.environ.get(
+    "OLLAMA_ENERGY_JSON",
+    os.path.join(os.path.expanduser("~"), ".a11oy_ollama_energy.json"),
+)
+# A reading older than this (seconds) is stale => emitted as UNAVAILABLE, null number.
+OLLAMA_ENERGY_MAX_AGE_S = float(os.environ.get("OLLAMA_ENERGY_MAX_AGE_S", "300"))
+
 # Cumulative joules per GPU index, integrated from real power samples.
 _state_lock = threading.Lock()
 _cum_joules = {}          # gpu_index -> cumulative joules (float)
@@ -151,6 +161,65 @@ def _fetch_peer_engines():
     return engines, jsum
 
 
+def _read_models():
+    """Read the ollama_energy_probe.py reading (OLLAMA_ENERGY_JSON) and return a
+    top-level models[] list for the meter payload. Honest by construction:
+      * file missing / unreadable / unparseable  => [] (no model surfaced, never faked)
+      * reading older than OLLAMA_ENERGY_MAX_AGE_S => model surfaced with label
+        UNAVAILABLE and joules_per_token=null (stale=true), never a stale number
+      * fresh reading whose own label is UNAVAILABLE (NVML couldn't read on the box)
+        => surfaced verbatim as UNAVAILABLE with null number
+      * fresh MEASURED / MEASURED_SHARED_BOUNDED => number surfaced with its verbatim
+        label and source (labels are NEVER upgraded here).
+    """
+    path = OLLAMA_ENERGY_JSON
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return []  # no probe reading on this box => surface no model (honest)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            r = json.load(f)
+    except (OSError, ValueError):
+        return []  # unreadable/corrupt => never fabricate
+
+    name = r.get("model")
+    if not name:
+        return []
+    age = time.time() - mtime
+    stale = age > OLLAMA_ENERGY_MAX_AGE_S
+    label = r.get("label") or "UNAVAILABLE"
+    if stale or label == "UNAVAILABLE":
+        # Stale or the probe itself couldn't measure => no number, honest UNAVAILABLE.
+        return [{
+            "name": name,
+            "joules_per_token": None,
+            "energy_joules": None,
+            "label": "UNAVAILABLE",
+            "source": r.get("source"),
+            "ts": r.get("ts"),
+            "stale": bool(stale),
+        }]
+    return [{
+        "name": name,
+        "joules_per_token": r.get("joules_per_token"),
+        "energy_joules": r.get("energy_joules"),
+        "energy_joules_idle_subtracted": r.get("energy_joules_idle_subtracted"),
+        "output_tokens": r.get("output_tokens"),
+        "avg_watts": r.get("avg_watts"),
+        "idle_watts": r.get("idle_watts"),
+        "duration_s": r.get("duration_s"),
+        "measurement_method": r.get("measurement_method"),
+        "exclusive": r.get("exclusive"),
+        "gpu_index": r.get("gpu_index"),
+        "gpu_name": r.get("gpu_name"),
+        "label": label,           # verbatim — never upgraded
+        "source": r.get("source"),
+        "ts": r.get("ts"),
+        "stale": False,
+    }]
+
+
 def _meter_json():
     local, local_total = _local_engine()
     engines = [local]
@@ -166,13 +235,19 @@ def _meter_json():
             engines.append(e)
             if isinstance(e.get("joules"), (int, float)):
                 total += float(e["joules"])
-    return {
+    payload = {
         "engines": engines,
         "totals": {"joules": round(total, 3)},
         "exporter": "omen-joule-exporter (real NVML via nvidia-smi)"
                     + (" + %d peer(s)" % len(PEER_EXPORTERS) if PEER_EXPORTERS else ""),
         "ts": time.time(),
     }
+    # Additive: per-inference model energy from ollama_energy_probe.py, if present.
+    # Absent => key omitted entirely (engines/totals stay byte-compatible).
+    models = _read_models()
+    if models:
+        payload["models"] = models
+    return payload
 
 
 class Handler(BaseHTTPRequestHandler):
