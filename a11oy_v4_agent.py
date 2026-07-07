@@ -75,7 +75,10 @@ except ImportError:
 
 # Optional: DSSE signing (honest UNSIGNED if unavailable)
 try:
-    import szl_dsse as _dsse
+    try:
+        from szl_substrate import szl_dsse as _dsse  # single source of truth (installed pkg)
+    except Exception:
+        import szl_dsse as _dsse  # local vendored fallback (byte-identical)
 except Exception:
     _dsse = None  # type: ignore
 

@@ -315,7 +315,10 @@ def _sign_receipt(verdict: Dict[str, Any], prompt_digest: str,
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     try:
-        import szl_dsse
+        try:
+            from szl_substrate import szl_dsse  # single source of truth (installed pkg)
+        except Exception:
+            import szl_dsse  # local vendored fallback (byte-identical)
         env = szl_dsse.sign_payload(payload, payload_type="application/vnd.szl.willay.verdict+json")
     except Exception as e:  # honest: never fabricate a signature
         env = {"signed": False, "honesty": f"signer-unavailable: {e}", "payload": payload}
@@ -418,7 +421,10 @@ def gated_turn(prompt: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, 
 
 def verify_receipt(envelope: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        import szl_dsse
+        try:
+            from szl_substrate import szl_dsse  # single source of truth (installed pkg)
+        except Exception:
+            import szl_dsse  # local vendored fallback (byte-identical)
         return szl_dsse.verify_envelope(envelope)
     except Exception as e:
         return {"verified": False, "reason": f"verifier-unavailable: {e}"}
