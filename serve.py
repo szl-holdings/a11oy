@@ -2201,18 +2201,23 @@ try:
     app.add_api_route("/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
 
-    # /code consolidation fix (2026-07-06, founder-directed full green light):
-    # a11oy_code_v4.py is absent, so the guarded `import a11oy_code_v4` in serve.py
-    # silently fails and /code falls through to the SPA catch-all, which serves a
-    # stale shell stuck on "loading…" (every tab dead). Until the code-IDE module
-    # is restored, /code (and its legacy aliases /api, /about-shell) 307-redirect to
-    # the WORKING command center at /console. Registered BEFORE the SPA catch-all so
-    # the explicit route wins ordered matching. Read-path-safe: pure redirect, no
-    # receipt, no signing. 307 preserves method + is non-permanent (easy to revert
-    # once the real /code IDE ships).
-    async def _ptg_code_to_console() -> Response:
-        return _PTG_Redirect(url="/console", status_code=307)
-    app.add_api_route("/code", _ptg_code_to_console, methods=["GET"], include_in_schema=False)
+    # /code GOVERNED RUN-LOOP surface (2026-07-06, founder: "code orchestration needs
+    # to be fully operational"). The prior band-aid 307-redirected /code -> /console
+    # because the missing a11oy_code_v4.py guarded import (serve.py ~3989) left /code
+    # falling through to a stale SPA shell. That redirect is now REMOVED: /code renders
+    # a real, operational governed run-loop VIEW (web/code.html) that binds ONLY to the
+    # REAL engine endpoints already mounted below (a11oy_code_engine.register at ~10516:
+    # /api/a11oy/v1/code/turn|run|verify|capabilities|models) PLUS the additive
+    # a11oy_code_runloop orchestrator (/plan, /runstep, /approve, /runloop/health).
+    # The view is HONEST: plan = MODELED decomposition; each step's P1-P6 chain, the
+    # deny-by-default policy gate, the Lambda kernel check (advisory, Conjecture 1) and
+    # the DSSE receipt are LIVE from the engine; signatures are REAL ECDSA-P256 in-Space
+    # and an honest UNSIGNED marker locally. NO orchestration theater. Registered BEFORE
+    # the SPA catch-all so the explicit route wins ordered matching; served as a
+    # standalone sovereign page (0 runtime CDN) — NOT the SPA shell. web/code.html is
+    # per-file COPY'd in the Dockerfile. /chat + /a11oy/chat still -> /console.
+    app.add_api_route("/code", _ptg_serve("code.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/code", _ptg_serve("code.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /console (previously pointed at the broken /code).
     async def _ptg_chat_to_code() -> Response:
@@ -2222,7 +2227,8 @@ try:
 
     import sys as _ptg_sys
     print("[a11oy] PER-TAB GENIUS surfaces registered FIRST: /conduction /bridge /agent /predict "
-          "/papers /feedback-loop (Three.js r128, sovereign); /chat+/a11oy/chat -> 302 /code", file=_ptg_sys.stderr)
+          "/papers /feedback-loop (Three.js r128, sovereign); /code -> governed run-loop view "
+          "(web/code.html, real engine); /chat+/a11oy/chat -> 302 /console", file=_ptg_sys.stderr)
 except Exception as _ptg_e:  # never crash the app — additive only
     import sys as _ptg_sys, traceback as _ptg_tb
     print(f"[a11oy] PER-TAB GENIUS surfaces NOT registered: {_ptg_e!r}", file=_ptg_sys.stderr)
@@ -10546,6 +10552,31 @@ except Exception as _code_e:
     _code_tb.print_exc(file=_code_sys.stderr)
     _A11OY_CODE_DIAG = {"status": "FAILED", "error": repr(_code_e),
                         "traceback": _code_tb.format_exc()}
+
+# ---------------------------------------------------------------------------
+# a11oy CODE — GOVERNED RUN-LOOP orchestrator (2026-07-06). Additive layer that
+# backs the /code VIEW (web/code.html): turns a task into a MODELED plan and runs
+# each step through the REAL engine above (a11oy_code_engine.governed_turn — the
+# P1-P6 6-receipt loop with a signed DSSE receipt), surfacing the Lambda-gate
+# (advisory, Conjecture 1) per step and a durable HumanApprovalGate
+# (szl_agentic_loop.approval_interrupt) on state-changing steps. Reuses the host's
+# REAL signer/verifier (same as the engine). Routes:
+#   POST /api/a11oy/v1/code/plan | runstep | approve ; GET /runloop/health.
+# Inserted BEFORE the SPA catch-all; try/except guarded so it can NEVER take down
+# the SPA. HONEST: plan = MODELED, execution + gate + receipt = LIVE. No theater.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_code_runloop as _a11oy_runloop
+    import sys as _rl_sys
+    _rl_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
+    _rl_status = _a11oy_runloop.register(app, "a11oy", _a11oy_sign_receipt, verify_fn=_rl_verify)
+    print(f"[a11oy] a11oy Code governed run-loop registered: {_rl_status}", file=_rl_sys.stderr)
+except Exception as _rl_e:
+    import sys as _rl_sys, traceback as _rl_tb
+    print(f"[a11oy] a11oy Code run-loop FAILED (non-fatal): {_rl_e!r}", file=_rl_sys.stderr)
+    _rl_tb.print_exc(file=_rl_sys.stderr)
 # ============================================================================
 # END: a11oy CODE — a11oy
 # ============================================================================
