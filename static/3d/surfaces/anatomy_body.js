@@ -28,6 +28,8 @@
 //
 // CONTRACT: ES module default-exporting { id, title, endpoints[], mount(ctx), unmount() }.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "anatomy_body";
 const TITLE = "Anatomy · Living Body";
 const ENDPOINT = "/api/a11oy/v1/anatomy/vitals";
@@ -53,7 +55,7 @@ const BODY_R = 7.0;          // ring radius the 8 systems sit on
 const LUNG_Y = 3.2;          // lungs sit high on the torso
 
 let _ctx = null, _stage = null, _THREE = null, _handle = null;
-let _root = null, _overlay = null;
+let _root = null, _overlay = null, _show = null;
 let _lungs = [];             // [{ group, mesh, mat, sprite, rateWatts, live }]
 let _heart = null, _heartMat = null;
 let _ring = null, _ringMat = null, _beatComet = null;
@@ -99,7 +101,7 @@ function _buildScene() {
   key.position.set(7, 11, 9);
   _root.add(key);
 
-  _buildLungs();
+  // lungs are built lazily from live breaths[] on first data (see _ensureLungs)
   _buildHeartAndRing();
   _buildSystems();
 
@@ -236,36 +238,30 @@ function _row(label) {
 }
 
 function _buildHUD() {
-  _overlay = document.createElement("div");
-  _overlay.className = "szl3d-surface-overlay";
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "5",
-    display: "flex", flexDirection: "column", gap: "9px",
-    maxWidth: "min(94%,460px)", padding: "12px 14px",
-    background: "rgba(8,14,20,.74)", border: "1px solid #1d2a36", borderRadius: "10px",
-    backdropFilter: "blur(3px)",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;";
-  h.textContent = "◇ " + TITLE;
-  _overlay.appendChild(h);
-
   const badge = _ctx.live.createBadge();
   _hud.badge = badge;
-  _overlay.appendChild(badge.el);
+
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge,
+    chips: [
+      { label: "MEASURED", text: "lungs", name: "lungs" },
+      { label: "SAMPLE", text: "joules", name: "joules" },
+      { label: "UNAVAILABLE", text: "organs", name: "organ" },
+    ],
+    legend: true,
+  });
 
   // top-level `view` disclaimer — rendered VERBATIM from the JSON when it arrives.
   _hud.view = document.createElement("div");
   _hud.view.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
-    "border-left:3px solid #5b8dee;padding-left:8px;";
+    "border-left:3px solid #5b8dee;padding-left:8px;margin-bottom:8px;";
   _hud.view.textContent = "MODELED physiological projection over REAL telemetry — a body-systems " +
     "VIEW; SZL is never claimed to be literally alive.";
-  _overlay.appendChild(_hud.view);
+  _show.body.appendChild(_hud.view);
 
   // live field readout
   const fields = document.createElement("div");
-  fields.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-top:2px;";
+  fields.style.cssText = "display:flex;flex-direction:column;gap:5px;";
   const mk = (key, lbl) => { const f = _row(lbl); _hud[key] = f.val; fields.appendChild(f.row); };
   mk("lungs", "lungs · total_watts");
   mk("breathing", "lungs · breathing (∝ watts)");
@@ -274,39 +270,22 @@ function _buildHUD() {
   mk("reservoir", "reservoir · energy_joules");
   mk("systemsLive", "systems · healthy / total");
   mk("organsLive", "organs_live / organs_total");
-  _overlay.appendChild(fields);
+  _show.body.appendChild(fields);
 
   // MODELED next-harvest-window panel (derived from metabolism.intake_rate). Never
   // MEASURED; if intake_rate.label is UNAVAILABLE we say so and invent NO window.
   _hud.harvest = document.createElement("div");
   _hud.harvest.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#cdd8e0;line-height:1.5;" +
-    "border-left:3px solid #8a6bff;padding-left:8px;margin-top:2px;";
+    "border-left:3px solid #8a6bff;padding-left:8px;margin-top:8px;";
   _hud.harvest.textContent = "MODELED next-harvest-window · awaiting intake_rate…";
-  _overlay.appendChild(_hud.harvest);
+  _show.body.appendChild(_hud.harvest);
 
-  // honesty chips
-  const chips = document.createElement("div");
-  chips.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center;";
-  _hud.lungsChip = _ctx.label.chip("MEASURED", { text: "lungs" });
-  _hud.joulesChip = _ctx.label.chip("SAMPLE", { text: "joules" });
-  _hud.organChip = _ctx.label.chip("UNAVAILABLE", { text: "organs" });
-  chips.appendChild(_hud.lungsChip);
-  chips.appendChild(_hud.joulesChip);
-  chips.appendChild(_hud.organChip);
-  _overlay.appendChild(chips);
-
-  const legend = _ctx.label.legend();
-  legend.style.opacity = "0.85"; legend.style.marginTop = "4px";
-  _overlay.appendChild(legend);
-
-  // honesty footer — Ayni + Λ, always visible
+  // honesty footer — Ayni + Λ
   const foot = document.createElement("div");
-  foot.style.cssText = "font:10px ui-monospace,Menlo,monospace;color:#7d8a96;line-height:1.5;margin-top:2px;";
+  foot.style.cssText = "font:10px ui-monospace,Menlo,monospace;color:#7d8a96;line-height:1.5;margin-top:8px;";
   foot.textContent = "Ayni reciprocal, never net-positive (no free energy / over-unity) · " +
     "Λ = Conjecture 1, not a theorem · joules MEASURED only from a reachable NVML exporter, else UNAVAILABLE.";
-  _overlay.appendChild(foot);
-
-  (_ctx.container || document.body).appendChild(_overlay);
+  _show.body.appendChild(foot);
 }
 
 // ---------------------------------------------------------------------------
@@ -349,7 +328,7 @@ function _onData(json, meta) {
       ? Number(b.breathing_rate_watts).toFixed(1) + "W" : "UNAVAILABLE");
     _hud.breathing.textContent = liveN + "/" + breaths.length + " breathing · " + parts.join(" · ");
   }
-  if (_hud.lungsChip) _ctx.label.updateChip(_hud.lungsChip, String(lungs.label || "UNAVAILABLE"), { text: "lungs" });
+  if (_show) _show.setChip("lungs", String(lungs.label || "UNAVAILABLE"), { text: "lungs" });
 
   // ---- CIRCULATION / HEART ----------------------------------------------
   const metab = json.metabolism || {};
@@ -384,7 +363,7 @@ function _onData(json, meta) {
     _hud.reservoir.textContent = (ej === null || ej === undefined ? "NO-LIVE-DATA" : ej) +
       "  (" + String(reservoir.energy_label || "UNAVAILABLE") + ")";
   }
-  if (_hud.joulesChip) _ctx.label.updateChip(_hud.joulesChip, String(reservoir.energy_label || "SAMPLE"), { text: "joules" });
+  if (_show) _show.setChip("joules", String(reservoir.energy_label || "SAMPLE"), { text: "joules" });
 
   // ---- SYSTEMS / ORGANS band FSM ----------------------------------------
   const systems = Array.isArray(json.systems) ? json.systems : [];
@@ -418,8 +397,8 @@ function _onData(json, meta) {
     _hud.organsLive.textContent = String(summary.organs_live != null ? summary.organs_live : "?") +
       " / " + String(summary.organs_total != null ? summary.organs_total : "?");
   }
-  if (_hud.organChip) {
-    _ctx.label.updateChip(_hud.organChip, "UNAVAILABLE",
+  if (_show) {
+    _show.setChip("organ", "UNAVAILABLE",
       { text: "organs " + String(summary.organs_live || 0) + "/" + String(summary.organs_total || 0) + " live" });
   }
 
@@ -522,11 +501,12 @@ function mount(ctx) {
 
 function unmount() {
   try { if (_handle) _handle.stop(); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try { if (_root && _stage) { _stage.scene.remove(_root); _disposeObj(_root); } } catch (_) {}
   try { _stage && _stage.setBloom && _stage.setBloom(false); } catch (_) {}
   _ctx = null; _stage = null; _THREE = null; _handle = null;
-  _root = null; _overlay = null;
+  _root = null; _overlay = null; _show = null;
   _lungs = []; _heart = null; _heartMat = null;
   _ring = null; _ringMat = null; _beatComet = null;
   _systems = []; _hud = {};

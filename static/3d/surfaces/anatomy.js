@@ -25,6 +25,8 @@
 // CONTRACT: ES module default-exporting { id, title, endpoints[], mount(ctx), unmount() }.
 // ctx supplies stage / container / live / label / THREE / szl3d (see Dev0 toolkit).
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "anatomy";
 const TITLE = "Anatomy · Unified Loop";
 const ENDPOINT = "/api/a11oy/v1/anatomy/loop";
@@ -45,7 +47,7 @@ const C_RESERVOIR = 0x6fb1ff;   // blue — SAMPLE work-credit tank
 const ORGAN_ANGLES = { WAQAYCHAQ: Math.PI * 0.5, KAMAY: Math.PI * 1.1666, RIKUY: Math.PI * 1.8333 };
 
 let _ctx = null, _stage = null, _THREE = null, _handle = null;
-let _root = null, _overlay = null;
+let _root = null, _overlay = null, _show = null;
 let _ring = null, _ringMat = null, _beats = null, _beatMat = null;
 let _beatPhase = null;          // per-particle phase along the ring
 let _organs = {};               // name -> { group, core, halo, sprite }
@@ -247,38 +249,32 @@ function _row(label) {
 }
 
 function _buildHUD() {
-  _overlay = document.createElement("div");
-  _overlay.className = "szl3d-surface-overlay";
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "5",
-    display: "flex", flexDirection: "column", gap: "9px",
-    maxWidth: "min(94%,430px)", padding: "12px 14px",
-    background: "rgba(8,14,20,.72)", border: "1px solid #1d2a36", borderRadius: "10px",
-    backdropFilter: "blur(3px)",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;" +
-    "display:flex;align-items:center;gap:9px;";
-  h.innerHTML = "<span>◇ " + TITLE + "</span>";
-  _overlay.appendChild(h);
-
   const badge = _ctx.live.createBadge();
   _hud.badge = badge;
-  _overlay.appendChild(badge.el);
 
-  // honesty banner — the doctrine truth, always visible
+  // Shared collapsible showcase: title + honesty badge + chips + legend live in
+  // the compact chrome; the field readout folds into the (collapsed) body so the
+  // 3D loop stays the star and text never takes over the view.
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge,
+    chips: [
+      { label: "SAMPLE", text: "joules", name: "joules" },
+      { label: "STRUCTURAL-ONLY", text: "organs EXPERIMENTAL", name: "organ" },
+    ],
+    legend: true,
+  });
+
+  // honesty banner — the doctrine truth
   const honesty = document.createElement("div");
   honesty.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
-    "border-left:3px solid " + "#ff8fcf" + ";padding-left:8px;";
+    "border-left:3px solid " + "#5b8dee" + ";padding-left:8px;margin-bottom:8px;";
   honesty.textContent = "organs carry the BEAT (work + receipts), NOT electrons · EXPERIMENTAL tier, " +
     "never proven · joules SAMPLE off-box · Ayni reciprocal, never net-positive · Λ = Conjecture 1";
-  _overlay.appendChild(honesty);
+  _show.body.appendChild(honesty);
 
   // live field readout — each is a demo wired to a real JSON field
   const fields = document.createElement("div");
-  fields.style.cssText = "display:flex;flexDirection:column;gap:5px;margin-top:2px;";
-  fields.style.display = "flex"; fields.style.flexDirection = "column"; fields.style.gap = "5px";
+  fields.style.cssText = "display:flex;flex-direction:column;gap:5px;";
   const mk = (key, lbl) => { const f = _row(lbl); _hud[key] = f.val; fields.appendChild(f.row); };
   mk("intakePosture", "intake · posture");          // DEMO #16
   mk("gridPrice", "intake · grid_price (€/MWh)");    // DEMO #17
@@ -287,23 +283,7 @@ function _buildHUD() {
   mk("credits", "reservoir · work_credits");         // DEMO #20
   mk("receipt", "last_receipt_id");                  // DEMO #21
   mk("ayni", "ayni · intake=output=stored");         // DEMO #22
-  _overlay.appendChild(fields);
-
-  // honesty chips row: joules_label (live) + organ EXPERIMENTAL tier --------
-  const chips = document.createElement("div");
-  chips.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center;";
-  _hud.joulesChip = _ctx.label.chip("SAMPLE", { text: "joules" });
-  _hud.organChip = _ctx.label.chip("STRUCTURAL-ONLY", { text: "organs EXPERIMENTAL" });
-  chips.appendChild(_hud.joulesChip);
-  chips.appendChild(_hud.organChip);
-  _overlay.appendChild(chips);
-
-  // full doctrine legend (keeps all 4 honesty states + STRUCTURAL-ONLY token)
-  const legend = _ctx.label.legend();
-  legend.style.opacity = "0.85"; legend.style.marginTop = "4px";
-  _overlay.appendChild(legend);
-
-  (_ctx.container || document.body).appendChild(_overlay);
+  _show.body.appendChild(fields);
 }
 
 // ---------------------------------------------------------------------------
@@ -406,12 +386,12 @@ function _onData(json, meta) {
     _hud.ayni.style.color = ok ? "#39d3c4" : "#e8c074";
   }
 
-  // ---- live honesty chips ------------------------------------------------
-  if (_hud.joulesChip) _ctx.label.updateChip(_hud.joulesChip, joulesLabel, { text: "joules" });
-  if (_hud.organChip) {
+  // ---- live honesty chips (verbatim label; never upgraded) ---------------
+  if (_show) {
+    _show.setChip("joules", joulesLabel, { text: "joules" });
     // organs stay EXPERIMENTAL-tier; show flowing count honestly
     const flowingN = organs.filter((o) => o && o.flowing).length;
-    _ctx.label.updateChip(_hud.organChip, "STRUCTURAL-ONLY",
+    _show.setChip("organ", "STRUCTURAL-ONLY",
       { text: `organs EXPERIMENTAL (${flowingN}/${organs.length} flowing)` });
   }
 }
@@ -499,13 +479,14 @@ function mount(ctx) {
 
 function unmount() {
   try { if (_handle) _handle.stop(); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try {
     if (_root && _stage) { _stage.scene.remove(_root); _disposeObj(_root); }
   } catch (_) {}
   try { _stage && _stage.setBloom && _stage.setBloom(false); } catch (_) {}
   _ctx = null; _stage = null; _THREE = null; _handle = null;
-  _root = null; _overlay = null; _ring = null; _ringMat = null;
+  _root = null; _overlay = null; _show = null; _ring = null; _ringMat = null;
   _beats = null; _beatMat = null; _beatPhase = null; _beatComet = null;
   _organs = {}; _reservoir = null; _reservoirFill = null; _reservoirMat = null;
   _ayniGroup = null; _ayniBeam = null; _ayniL = null; _ayniR = null;

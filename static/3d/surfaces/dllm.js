@@ -42,6 +42,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "dllm";
 const TITLE = "Diffusion-LLM Parallel Denoising (live)";
 
@@ -66,6 +68,7 @@ const MAX_COLS  = 16;     // wrap the row into a grid after this many columns
 let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
+let _show = null;
 
 // geometry handles
 let _cells = [];     // Array<THREE.Mesh> — one per token position
@@ -375,7 +378,20 @@ function _buildOverlay() {
   _el["plain"] = pd;
   _overlay.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
+  // Fold the legacy panel into the shared showcase overlay (surfaces/_showcase.js):
+  // title + live badge + doctrine legend live in the always-visible chrome; the
+  // descriptive text + KPI card become the collapsible body so the 3D scene is the star.
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    legend: true,
+  });
+  _overlay.style.position = "static";
+  _overlay.style.left = _overlay.style.top = "auto";
+  _overlay.style.maxWidth = "none";
+  _overlay.style.font = "inherit";
+  if (_overlay.firstChild) _overlay.removeChild(_overlay.firstChild); // drop duplicate title
+  _show.body.appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -427,7 +443,7 @@ function _paintOverlay() {
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
   if (_playTimer) { try { clearInterval(_playTimer); } catch (_) {} _playTimer = null; }
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -440,7 +456,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _overlay = _show = null;
   _cells = []; _floor = null; _roundMarker = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _playRound = 0;

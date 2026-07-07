@@ -39,6 +39,8 @@
 //
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "energy";
 const TITLE = "Energy · Harvest";
 const POSTURE_EP = "/api/a11oy/v1/harvest/posture";
@@ -54,6 +56,7 @@ let _stage = null, _THREE = null, _ctx = null;
 let _hPosture = null, _hLoop = null;
 let _root = null;          // THREE.Group holding everything we add (one remove on unmount)
 let _overlay = null;       // DOM HUD panel
+let _show = null;          // shared collapsible showcase chrome
 let _frameFn = null;       // our per-frame callback (guards on _root null after unmount)
 let _hud = {};             // references to live HUD chip/value elements
 let _scene = null;         // built scene-object refs the frame loop + pollers animate
@@ -476,24 +479,20 @@ function build() {
 // ----------------------------------------------------------------------------
 function buildHUD() {
   const lab = _ctx.label;
+  const badge = _ctx.live.createBadge();
+  _hud.badge = badge;
+
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge, legend: true,
+  });
+
+  // rows fold into the (collapsed) showcase body; the 3D funnel stays the star.
   _overlay = document.createElement("div");
   _overlay.className = "szl3d-energy-hud";
   Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
     display: "flex", flexDirection: "column", gap: "7px",
-    maxWidth: "min(94%,430px)", font: "12px ui-monospace,SFMono-Regular,Menlo,monospace",
-    color: "#cfe0ea", background: "rgba(6,11,16,.72)", border: "1px solid #15212c",
-    borderRadius: "10px", padding: "12px 14px", backdropFilter: "blur(3px)",
+    font: "12px ui-monospace,SFMono-Regular,Menlo,monospace", color: "#cfe0ea",
   });
-
-  const title = document.createElement("div");
-  title.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;display:flex;gap:8px;align-items:center";
-  title.innerHTML = "⚡ Energy · Harvest <span style='color:#46586a;font-weight:400'>· flagship · live joules funnel</span>";
-  _overlay.appendChild(title);
-
-  const badge = _ctx.live.createBadge();
-  _overlay.appendChild(badge.el);
-  _hud.badge = badge;
 
   // a small row factory: label text + value + honesty chip
   function row(key, name) {
@@ -524,10 +523,7 @@ function buildHUD() {
   note.textContent = "joules MEASURED only on-box (NVML exporter). Off-box label=sample, evidence empty — the funnel shows its structure, never a fabricated fill. Modeled on Electricity Maps + deck.gl; rendered in three.js (see manifest).";
   _overlay.appendChild(note);
 
-  const legend = _ctx.label.legend(); legend.style.opacity = "0.85"; legend.style.marginTop = "2px";
-  _overlay.appendChild(legend);
-
-  (_ctx.container || document.body).appendChild(_overlay);
+  _show.body.appendChild(_overlay);
 }
 
 function _setRow(key, text, label) {
@@ -684,6 +680,7 @@ function mount(ctx) {
 function unmount() {
   try { if (_hPosture) _hPosture.stop(); } catch (_) {}
   try { if (_hLoop) _hLoop.stop(); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try { if (_root && _stage) _stage.scene.remove(_root); } catch (_) {}
   // dispose geometries/materials we created under _root
@@ -694,7 +691,7 @@ function unmount() {
     });
   } catch (_) {}
   try { if (_stage) _stage.setBloom(false); } catch (_) {}
-  _hPosture = null; _hLoop = null; _overlay = null; _root = null;
+  _hPosture = null; _hLoop = null; _overlay = null; _show = null; _root = null;
   _scene = null; _frameFn = null; _hud = {}; _ctx = null; _stage = null; _THREE = null;
 }
 

@@ -28,6 +28,8 @@
 // Surface export shape: export default { id, title, endpoints, mount(ctx), unmount() }
 //   ctx = { stage, container, live, label, THREE, szl3d }
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "brain";
 const TITLE = "Formula-Graph Brain";
 
@@ -64,7 +66,7 @@ const TIER_COLOR = {
 const TIER_RADIUS = { locked: 0.34, semantic: 0.24, experimental: 0.2, borrowed: 0.2, conjecture: 0.18 };
 
 let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
-let _frameReg = false, _polls = [], _el = {}, _badge = null, _plain = false;
+let _frameReg = false, _polls = [], _el = {}, _badge = null, _plain = false, _show = null;
 
 let _nodeMeshes = {};   // id -> mesh
 let _edgeLines = [];    // line segments
@@ -347,7 +349,14 @@ function _buildOverlay(ctx) {
     '<div style="margin-top:8px"><button id="brain-plain" style="font:11px ui-monospace;background:#0f2027;color:#9fc;' +
       'border:1px solid #1b3a44;border-radius:6px;padding:3px 8px;cursor:pointer">Plain language</button></div>' +
     '<div id="brain-plainbox" style="display:none;margin-top:8px;font-size:10.5px;color:#bcd;line-height:1.55"></div>';
-  (ctx.container || document.body).appendChild(_overlay);
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "formula graph", name: "br" }],
+    legend: true,
+  });
+  _overlay.style.cssText = "font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea";
+  if (_overlay.firstChild) _overlay.removeChild(_overlay.firstChild); // drop duplicate title (+ its label span)
+  _show.body.appendChild(_overlay);
   const btn = _overlay.querySelector("#brain-plain");
   if (btn) btn.addEventListener("click", () => { _plain = !_plain; _applyPlain(); });
 }
@@ -366,6 +375,7 @@ function _paintOverlay() {
   const deg = (S.state === "error" || S.state === "degraded");
   const d = deg ? "—" : null;
   _set("brain-label", S.label || "MODELED");
+  if (_show) _show.setChip("br", S.label || "MODELED", { text: "formula graph" });
   _set("brain-ne", d || ((S.nodes.length || "—") + " / " + (S.edges.length || "—")));
   _set("brain-locked", d || (S.lockedCount != null ? String(S.lockedCount) + " (exactly 8)" : "—"));
   _set("brain-reward", d || (S.rewardFinal != null ? (S.rewardFinal * 100).toFixed(1) + "% mass" : "—"));
@@ -419,6 +429,7 @@ function _applyPlain() {
 // =============================================================================
 function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try {
     if (_group && _stage) {
@@ -432,7 +443,7 @@ function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _overlay = _show = null;
   _nodeMeshes = {}; _edgeLines = []; _pos = {};
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _stage = _THREE = _ctx = null;
