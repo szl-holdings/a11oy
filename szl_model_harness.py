@@ -234,6 +234,17 @@ def _reg():
     return _r
 
 
+# Wave M (Dev 2): the shared sovereign-flywheel bridge. Routes an explicit
+# sovereign request through Dev-1's registry backend (sovereign_local); degrades
+# to honest MODELED/UNAVAILABLE when the local Tower endpoint is unreachable.
+try:
+    import szl_sovereign_flywheel as _sov  # noqa: F401
+    _SOV_OK = True
+except Exception:  # pragma: no cover — bridge missing → sovereign option simply off
+    _sov = None  # type: ignore
+    _SOV_OK = False
+
+
 def _lambda_gm(axes: list[float]) -> float:
     """Reuse szl_llm_registry._lambda_gm; local geometric-mean fallback if the
     registry import fails (never raises into the request path)."""
@@ -496,9 +507,51 @@ def apply(profile_id: str, model_id: str = "", prompt: str = "",
         "kernel_commit": _KERNEL,
         "conjecture_note": _CONJECTURE_NOTE,
     }
+    # ── Wave M (Dev 2): SOVEREIGN option ──────────────────────────────────────
+    # If the caller asked to run this on SZL's OWN governed model, route the
+    # profile-applied prompt through Dev-1's sovereign_local backend. The receipt
+    # ALWAYS records the intended sovereign backend; when the Tower is offline we
+    # return honest MODELED/UNAVAILABLE and NEVER fabricate a model response.
+    sovereign_requested = bool(_SOV_OK and _sov and _sov.is_sovereign(model_id))
+    if sovereign_requested:
+        # Compose the sovereign prompt: profile body (if resolved) as a system
+        # preface + the user prompt. The body TEXT is never surfaced in the
+        # receipt (sha256 only) — it is only sent to the local, sovereign node.
+        sys_layer = (bm.get("_body") or "") if body_available else ""
+        sov_prompt = ((sys_layer + "\n\n") if sys_layer else "") + prompt
+        sov = _sov.run_on_sovereign(sov_prompt, requested_model_id=model_id)
+        receipt["sovereign"] = _sov.receipt_block(sov)
+        receipt["model_id"] = _sov.SOVEREIGN_BACKEND_ID
+        receipt["model_display"] = "SZL Sovereign Local (llama3-szl-finetuned-q4)"
+        receipt["honesty_label"] = sov.get("state")
+
     receipt["signature"] = _sign_receipt(receipt)
 
-    if not body_available:
+    if sovereign_requested:
+        _st = sov.get("state")
+        if _st == "LIVE":
+            response_text = (
+                "[LIVE · SOVEREIGN] Ran the '" + profile_id + "' behavior profile on "
+                "SZL's OWN governed model (sovereign_local, llama3-szl-finetuned-q4) "
+                "— REAL generation this request. " + (sov.get("note") or ""))
+        elif _st == "MODELED":
+            response_text = (
+                "[HONEST STUB · MODELED · SOVEREIGN] Would run the '" + profile_id +
+                "' profile on SZL's sovereign_local model, but the local Tower node "
+                "did not answer live this request. No model output fabricated; the "
+                "intended sovereign backend + Λ-gate + provenance sha256 + signature "
+                "are REAL. " + (sov.get("note") or ""))
+        else:
+            response_text = (
+                "[UNAVAILABLE · SOVEREIGN] The '" + profile_id + "' profile targeted "
+                "SZL's sovereign_local model, but the local endpoint is unreachable "
+                "(SZL_LOCAL_LLM_URL unset / Tower offline). No model call attempted; "
+                "the intended sovereign backend is recorded in the receipt; no output "
+                "fabricated. " + (sov.get("note") or ""))
+        harness_state = _st
+        model_display = receipt["model_display"]
+        chosen_model_id = receipt["model_id"]
+    elif not body_available:
         response_text = (
             f"[UNAVAILABLE] Profile '{profile_id}' body could not be resolved on disk "
             f"and no {(profile.get('system_prompt_ref') or {}).get('env')} override is set. "
@@ -577,6 +630,17 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
                 "forum": f"/api/{ns}/v1/llm/forum",
                 "registry": f"/api/{ns}/v1/llm/registry",
             },
+            # Wave M (Dev 2): run this profile on SZL's OWN sovereign local model.
+            "run_on_sovereign": {
+                "available": bool(_SOV_OK),
+                "how": ("POST /harness/apply with model_id='szl-sovereign-local' "
+                        "(alias of registry backend 'sovereign_local'). Routes the "
+                        "profile-applied prompt through the local Tower via Dev-1's "
+                        "registry backend; honest MODELED/UNAVAILABLE when offline."),
+                "backend_id": "sovereign_local",
+                "model_slug": "llama3-szl-finetuned-q4",
+                "provider_provenance": "SZL sovereign (Ollama, local, Doctrine-v11 system prompt)",
+            },
             "capability_ceiling": "Behavior transfer is MODELED — changes disposition, NOT capability. "
                                   "Only original weights deliver capability (honest ceiling).",
             "doctrine": DOCTRINE,
@@ -615,6 +679,12 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
 
         Body: {"profile_id": "szl-fable", "model_id": "claude_opus_4_8",
                "prompt": "…", "axis_scores": [..], "max_tier": 4, "task_hint": ""}
+
+        Wave M (Dev 2): pass model_id="szl-sovereign-local" (or the registry id
+        "sovereign_local") to run this profile on SZL's OWN governed model via
+        Dev-1's sovereign backend. When the local Tower endpoint is unreachable
+        the apply returns honest MODELED/UNAVAILABLE and the receipt still records
+        the intended sovereign backend — no model response is ever fabricated.
         """
         try:
             body = await request.json()

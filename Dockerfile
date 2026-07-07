@@ -1313,6 +1313,21 @@ COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 # (Microsoft) · Anthropic contextual retrieval · ALCE arXiv:2305.14627 · RAGAS arXiv:2309.15217.
 COPY szl_governed_rag.py ./szl_governed_rag.py
 
+# SOVEREIGN FLYWHEEL BRIDGE (Wave M · Dev 2, 2026-07-07): szl_sovereign_flywheel.py is
+# the ONE shared adapter that lets all four flywheel flows — harness /harness/apply,
+# eval-arena /eval/run, agent-loop /agentloop/run, and RAG /rag/query — run on SZL's OWN
+# governed model by routing model_id="szl-sovereign-local" (alias of Dev-1's registry
+# backend id "sovereign_local") through szl_llm_registry.sovereign_probe/sovereign_generate.
+# The four modules above now import this bridge, so the Wave-L TRANSITIVE Dockerfile
+# COPY-guard (tools/check_copy_sync_lockstep.py CHECK 2, which recurses serve.py's local
+# imports through THEIR local imports) requires this per-file COPY (this Dockerfile uses
+# no `COPY . .`) — omit it and CI fails / the sovereign option falls back to off. When the
+# local Tower endpoint (SZL_LOCAL_LLM_URL) is unset/unreachable, each flow degrades to an
+# honest MODELED/UNAVAILABLE receipt that still records the intended sovereign backend and
+# NEVER fabricates a model response. Additive; Λ = Conjecture 1 (advisory). Nothing to
+# locked-8; no gate weakened.
+COPY szl_sovereign_flywheel.py ./szl_sovereign_flywheel.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets

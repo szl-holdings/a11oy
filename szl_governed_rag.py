@@ -423,6 +423,17 @@ def _reg():
     return _r
 
 
+# Wave M (Dev 2): shared sovereign-flywheel bridge. Lets /rag/query run the
+# abstractive rewrite on SZL's OWN governed model (sovereign_local) via Dev-1's
+# registry backend; honest MODELED/UNAVAILABLE when the Tower is offline.
+try:
+    import szl_sovereign_flywheel as _sov  # noqa: F401
+    _SOV_OK = True
+except Exception:  # pragma: no cover — bridge missing → sovereign option simply off
+    _sov = None  # type: ignore
+    _SOV_OK = False
+
+
 def _lambda_gm(axes: list[float]) -> float:
     try:
         return _reg()._lambda_gm(axes)
@@ -595,6 +606,37 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
         model_note += (f" A harness_profile_id ('{harness_profile_id}') was supplied; the abstractive "
                        "path would apply it via szl_model_harness (MODELED disposition only).")
 
+    # ── Wave M (Dev 2): SOVEREIGN option ───────────────────────────────────────
+    # Run the abstractive rewrite on SZL's OWN governed model, grounded STRICTLY
+    # on the retrieved+cited passages. When the Tower is offline we keep the honest
+    # EXTRACTIVE answer and record the intended sovereign backend — no fabrication.
+    sovereign_answer = None
+    sovereign_block = None
+    if _SOV_OK and _sov and _sov.is_sovereign(model_id):
+        _ctx = "\n\n".join(
+            f"[{p['id']}] {p.get('text', '')}" for p in retr["retrieved"])
+        _sov_prompt = (
+            "Answer the question USING ONLY the sources below. Cite each source id "
+            "you rely on in square brackets. If the sources do not answer it, say so.\n\n"
+            f"SOURCES:\n{_ctx}\n\nQUESTION: {query_text}\n\nGROUNDED ANSWER:")
+        sov = _sov.run_on_sovereign(_sov_prompt, requested_model_id=model_id)
+        sovereign_block = _sov.receipt_block(sov)
+        rag_state = sov.get("state")  # LIVE | MODELED | UNAVAILABLE
+        if sov.get("state") == "LIVE" and isinstance(sov.get("text"), str):
+            sovereign_answer = sov["text"]
+            model_note = ("LIVE abstractive rewrite from SZL's OWN sovereign_local model, "
+                          "grounded on the SAME cited passages. Retrieval, grounding, "
+                          "RAGAS, Λ-gate, and signature remain REAL.")
+        elif sov.get("state") == "MODELED":
+            model_note = ("SZL sovereign_local selected but the local node did not answer "
+                          "live this request — returning the honest EXTRACTIVE grounded "
+                          "answer (no model text fabricated). Intended sovereign backend recorded.")
+        else:
+            model_note = ("SZL sovereign_local selected but the local endpoint is unreachable "
+                          "(SZL_LOCAL_LLM_URL unset / Tower offline) — returning the honest "
+                          "EXTRACTIVE grounded answer. Intended sovereign backend recorded; "
+                          "no model call attempted; no fabrication.")
+
     # per-claim citation map (the differentiator, made machine-checkable)
     claim_citation_map = [
         {"claim": c["claim"], "grounded": c["grounded"],
@@ -637,6 +679,7 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
         "gate_reason": gate_reason,
         "model_id": model_id or None,
         "api_key_wired": api_key_wired,
+        "sovereign": sovereign_block,  # Wave M: intended sovereign backend (None when not requested)
         "harness_profile_id": harness_profile_id or None,
         "rag_state": rag_state,
         "honesty_label": rag_state,
@@ -654,6 +697,10 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
         "rag_state": rag_state,
         "model_note": model_note,
         "grounded_answer": gen["grounded_answer"],
+        # Wave M: the sovereign model's abstractive rewrite (LIVE only; None otherwise
+        # — the extractive grounded_answer above is ALWAYS the honest fallback).
+        "sovereign_answer": sovereign_answer,
+        "sovereign": sovereign_block,
         "claims": gen["claims"],
         "retrieval": retr,
         "ragas": ragas,
@@ -685,7 +732,13 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
         {"query": "...", "corpus": [{"id","text","source"}]?, "model_id": "?",
          "harness_profile_id": "?", "top_k": 4}
         Honest 4xx on empty query; otherwise 200 with grounded answer + per-claim
-        citations + RAGAS scores + Λ-gate + SIGNED receipt (forum-ingested)."""
+        citations + RAGAS scores + Λ-gate + SIGNED receipt (forum-ingested).
+
+        Wave M (Dev 2): model_id="szl-sovereign-local" runs the abstractive rewrite
+        on SZL's OWN governed model (Dev-1 backend), grounded on the same cited
+        passages. When the local Tower endpoint is unreachable the extractive
+        grounded answer is returned and the receipt records the intended sovereign
+        backend — no model response is ever fabricated."""
         try:
             body = await request.json()
         except Exception:
@@ -709,6 +762,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
                 status_code=400)
         return JSONResponse({
             "grounded_answer": res["grounded_answer"],
+            "sovereign_answer": res.get("sovereign_answer"),  # Wave M: LIVE only, else None
+            "sovereign": res.get("sovereign"),               # intended sovereign backend
             "rag_state": res["rag_state"],
             "model_note": res["model_note"],
             "claims": res["claims"],
