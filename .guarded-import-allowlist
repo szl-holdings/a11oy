@@ -23,6 +23,7 @@ szl_otel               # [OPTIONAL-PKG] OpenTelemetry setup shim; absence => a r
 szl_router             # [OPTIONAL-PKG] optional in-Space LLM router; absence => honest "no key wired" default (no MEASURED row fabricated). szl_yupay.py.
 szl_agent_loop_banach  # [OPTIONAL-PKG] optional Banach fixed-point accelerator for the agent loop; absence => the loop uses its plain iteration path.
 szl_connectors         # [OPTIONAL-PKG] optional connector base (http_json); absence => a11oy_markets.py falls back to a local urllib implementation.
+szl_kc_onebit          # [OPTIONAL-PKG] canonical onebit joule-meter reader (read_live_meter); szl_kc_jpt.py prefers it when importable, else falls through to its OWN raw urllib parse — the feature stays live either way. Never existed as a repo file; the guarded import is the correct "prefer canonical, else raw" pattern. (Wave-J Dev5: pre-existing latent gate flag, honestly ledgered.)
 
 # --- [DEAD-STUB] never-existed .register() blocks; feature ABSENT at runtime ---
 # These are surfaced here (not silently swallowed) so they are tracked. Each
