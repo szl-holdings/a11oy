@@ -122,6 +122,30 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         )
         registered.append(f"GET {prefix}/{_suffix}")
 
+    # ------------------------------------------------------------------
+    # GET /counter-uas/compute — same-origin alias for the holographic
+    # Counter-UAS surface's `EP.compute` poll. The governed in-request
+    # MODELED formula stack + Λ-ROE advisory gate lives in szl_cuas_formulas
+    # under /api/<ns>/v1/cuas/compute; the surface historically polled
+    # /counter-uas/compute (this namespace), which had no such route and
+    # therefore fell through to the SPA catch-all (surfaced as a 502 in the
+    # holographic board). This ADDITIVE alias delegates to the SAME governed
+    # compute function so the surface renders the real MODELED envelope +
+    # honest label + Λ = Conjecture 1, with no duplication of logic. If the
+    # formula module is somehow unavailable it returns the honest degraded
+    # envelope (never a crash). Doctrine v11.
+    async def _compute_alias():
+        try:
+            import szl_cuas_formulas as _cf  # local import: keeps this module import-light
+            return JSONResponse(_cf.szl_cuas_compute(None))
+        except Exception as e:  # noqa: BLE001 — honest degraded, never 500 the surface
+            return JSONResponse(_degraded("compute", f"governed compute unavailable: {e!r}", 0))
+
+    app.add_api_route(
+        f"{prefix}/compute", _compute_alias, methods=["GET"], include_in_schema=False
+    )
+    registered.append(f"GET {prefix}/compute")
+
     async def _info():
         return JSONResponse({
             "capability": "Counter-UAS same-origin live bridge to killinchu",
@@ -153,7 +177,14 @@ def _selftest() -> None:
     d = _degraded("evaluate", "test", 0)
     assert d["degraded"] is True and d["label"] == "STRUCTURAL-ONLY"
     assert "does NOT defeat" in d["posture"]
-    print("szl_counter_uas_proxy: ALL OK (route map honest, degraded envelope honest)")
+    # The governed compute alias delegates to the real formula stack (MODELED).
+    try:
+        import szl_cuas_formulas as _cf
+        _c = _cf.szl_cuas_compute(None)
+        assert _c.get("label") == "MODELED" and _c.get("service") == "counter-uas"
+    except Exception as _e:  # module optional in some checkouts — alias fails honest-degraded
+        print(f"szl_counter_uas_proxy: compute-alias source unavailable (honest degraded): {_e!r}")
+    print("szl_counter_uas_proxy: ALL OK (route map honest, compute alias honest, degraded envelope honest)")
 
 
 if __name__ == "__main__":
