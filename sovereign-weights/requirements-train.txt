@@ -1,0 +1,20 @@
+# Stage-B QLoRA training deps — install ON THE TOWER (RTX 4060 Ti), not in CI.
+# SPDX-License-Identifier: Apache-2.0 · Doctrine v11 · Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+#
+# Install torch FIRST, matched to your CUDA (the 4060 Ti is Ada / cu121+):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# then:
+#   pip install -r requirements-train.txt
+#
+# Version floors chosen for Llama-3.1 + 4-bit QLoRA support. train_lora.py
+# imports these only on the REAL training path — --dry-run needs none of them.
+transformers>=4.43.0
+peft>=0.12.0
+trl>=0.9.6
+datasets>=2.20.0
+accelerate>=0.33.0
+bitsandbytes>=0.43.1
+sentencepiece>=0.2.0
+# For the GGUF export step (llama.cpp's convert_lora_to_gguf.py):
+gguf>=0.9.0
+safetensors>=0.4.3
