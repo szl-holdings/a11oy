@@ -675,3 +675,34 @@ jobs:
         run: |
           python3 a11oy_guarded_import_guard.py .
           pytest tests/test_guarded_import_guard.py -q
+
+  python-durable-ledger:
+    name: Durable bounded receipt/energy ledger — bounds size + degrades honestly (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install pytest (szl_durable_ledger + szl_energy_ledger + joule_billing are stdlib-only; no fastapi needed)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Guard the "database or disk is full" fix — bounded rotating store + honest UNAVAILABLE
+        # DISK-FULL GUARD (waveJ Dev1, waveI_gapsB Gap 3): the receipt/energy ledger used an
+        # UNBOUNDED append-only JSONL file that grew until the container disk filled
+        # ("database or disk is full" crashed killinchu live data). szl_durable_ledger.py is
+        # the governed, size-capped + rotating (RotatingFileHandler / OTel disk-buffering
+        # pattern) backing store the EnergyLedger now writes through. These tests prove, with
+        # NO mocks (real files, real fsync, real OSError on a degraded path): (1) the on-disk
+        # footprint stays at/under the HARD bound max_bytes*(backup_count+1) no matter how
+        # many records arrive — the disk can no longer fill; (2) storage degradation is
+        # reported HONESTLY as UNAVAILABLE with the real reason and NOTHING is fabricated as
+        # written; (3) the real EnergyLedger routes through it and its hash chain stays
+        # internally consistent across rotation. A future edit that unbounds the store, drops
+        # the honest degradation signal, or fabricates a write becomes a red CI gate.
+        run: |
+          pytest tests/test_durable_ledger.py -q
+          python szl_durable_ledger.py

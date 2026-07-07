@@ -3234,18 +3234,56 @@ async def _healthz_dep_ping(ttl: float = 30.0) -> dict:
     return _HEALTHZ_DEP_CACHE
 
 
+# ADDITIVE (waveJ Dev1 — durable-ledger storage-pressure signal): a tiny cached probe
+# of the energy/receipt ledger's DURABLE BOUNDED store so /healthz surfaces the
+# "database or disk is full" class (OK | PRESSURE | UNAVAILABLE) BEFORE it crashes the
+# box. Guarded + cached (never blocks the probe, never crashes it, never fabricates OK).
+_LEDGER_STORAGE_CACHE: dict = {}
+
+
+def _ledger_storage_signal(ttl: float = 15.0) -> dict:
+    now = _hz_time.time()
+    ca = _LEDGER_STORAGE_CACHE.get("checked_at")
+    if ca is not None and (now - ca) < ttl:
+        return _LEDGER_STORAGE_CACHE.get("value", {})
+    try:
+        import szl_energy_ledger as _szl_el_health
+        # probe=False: don't do a write-probe on the hot health path; use the store's
+        # tracked state (dir-ok + last write status), which is already honest.
+        led = _szl_el_health.get_ledger()
+        try:
+            val = led.storage_health()
+            # If the durable store is present, refresh its status WITHOUT a write-probe.
+            if getattr(led, "_store", None) is not None:
+                val = led._store.status(probe=False)
+                val["backend"] = "durable-rotating-jsonl"
+        except Exception:
+            val = _szl_el_health.ledger_storage_health()
+    except Exception as exc:
+        val = {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}",
+               "bounded": None}
+    _LEDGER_STORAGE_CACHE.update({"checked_at": now, "value": val})
+    return val
+
+
 @app.get("/api/a11oy/healthz")
 async def healthz() -> JSONResponse:
     dep = await _healthz_dep_ping()
     _ca = dep.get("checked_at")
+    _storage = _ledger_storage_signal()
+    # Honest overall status: degrade the probe when the receipt/energy store is
+    # UNAVAILABLE (disk full / read-only) so an orchestrator/healthcheck catches it.
+    # PRESSURE is advisory (still "ok" overall but surfaced). Never fake green.
+    _overall = "degraded" if str(_storage.get("status")) == "unavailable" else "ok"
     return JSONResponse({
-        "status": "ok",
+        "status": _overall,
         "service": "a11oy",
         "version": "2.0.0",
         "surface": "Brand Orchestration Layer",
         "base_path": "/",
         "doctrine": "v11",
         "uptime_s": round(_hz_time.time() - _A11OY_START_TIME, 1),
+        "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
         "gates": len(_gates_list),
         "declarations": 749,
