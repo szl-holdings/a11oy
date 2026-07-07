@@ -331,7 +331,12 @@ function _buildHUD() {
     legend: true,
   });
 
-  // honesty banner — the doctrine truth
+  // DECLUTTER (Wave-nav): the descriptive/organ text used to stack as one long wall inside
+  // the body. It now folds into native <details> accordions so the compact legend (title +
+  // badge + chips) is all that shows by default and the 3D loop stays the star. Honest
+  // labels stay VERBATIM — only fewer are on-screen at once. Only ONE panel opens by default.
+
+  // compact honesty note (the doctrine truth) — kept always-visible, verbatim, at the top.
   const honesty = document.createElement("div");
   honesty.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
     "border-left:3px solid " + "#5b8dee" + ";padding-left:8px;margin-bottom:8px;";
@@ -339,7 +344,8 @@ function _buildHUD() {
     "never proven · joules SAMPLE off-box · Ayni reciprocal, never net-positive · Λ = Conjecture 1";
   _show.body.appendChild(honesty);
 
-  // live field readout — each is a demo wired to a real JSON field
+  // ACCORDION #1 — live loop telemetry (open by default; the primary readout).
+  const accLoop = _acc("loop telemetry · live", true);
   const fields = document.createElement("div");
   fields.style.cssText = "display:flex;flex-direction:column;gap:5px;";
   const mk = (key, lbl) => { const f = _row(lbl); _hud[key] = f.val; fields.appendChild(f.row); };
@@ -350,15 +356,17 @@ function _buildHUD() {
   mk("credits", "reservoir · work_credits");         // DEMO #20
   mk("receipt", "last_receipt_id");                  // DEMO #21
   mk("ayni", "ayni · intake=output=stored");         // DEMO #22
-  _show.body.appendChild(fields);
+  accLoop.body.appendChild(fields);
+  _show.body.appendChild(accLoop.details);
 
-  // W28 — LIVE registered-organ health matrix. Each row is a real server-side upstream
-  // probe (organ-health/<role>): honest UP / OFFLINE + latency. Never fabricates UP.
+  // ACCORDION #2 — LIVE registered-organ health matrix (the "organ list", now a dropdown).
+  // Each row is a real server-side upstream probe (organ-health/<role>): honest UP / OFFLINE
+  // + latency. Never fabricates UP. Collapsed by default so the body isn't a wall of rows.
+  const accOrg = _acc("registered organ health · live probe", false);
   const hh = document.createElement("div");
-  hh.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
-    "margin-top:10px;border-top:1px solid #1d2a36;padding-top:8px;";
-  hh.textContent = "registered organ health · live upstream probe (organ-health) — honest UP/OFFLINE, never faked";
-  _show.body.appendChild(hh);
+  hh.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;";
+  hh.textContent = "live upstream probe (organ-health) — honest UP/OFFLINE, never faked";
+  accOrg.body.appendChild(hh);
   const hm = document.createElement("div");
   hm.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-top:6px;";
   ORGAN_ROLES.forEach((role) => {
@@ -367,15 +375,16 @@ function _buildHUD() {
     _organRows[role] = f;
     hm.appendChild(f.row);
   });
-  _show.body.appendChild(hm);
+  accOrg.body.appendChild(hm);
+  _show.body.appendChild(accOrg.details);
 
-  // WAVE 2 — GOVERNED LIVING-BRAIN loop readout (read live from /anatomy/loop.brain).
+  // ACCORDION #3 — GOVERNED LIVING-BRAIN loop (read live from /anatomy/loop.brain).
+  const accBrain = _acc("governed brain loop", false);
   const bh = document.createElement("div");
-  bh.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;" +
-    "margin-top:10px;border-top:1px solid #1d2a36;padding-top:8px;";
-  bh.textContent = "governed brain loop · brain DRIVES metered inference (POST /anatomy/pulse) — " +
-    "graph grows ONLY via receipted inference; salience is Λ-advisory (≤0.97), never truth";
-  _show.body.appendChild(bh);
+  bh.style.cssText = "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5;";
+  bh.textContent = "brain DRIVES metered inference (POST /anatomy/pulse) — graph grows ONLY via " +
+    "receipted inference; salience is Λ-advisory (≤0.97), never truth";
+  accBrain.body.appendChild(bh);
 
   const bf = document.createElement("div");
   bf.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-top:6px;";
@@ -384,7 +393,7 @@ function _buildHUD() {
   mkb("brainReceipts", "brain · receipts (chain)");
   mkb("brainEdges", "brain · reinforced edges");
   mkb("brainAudit", "brain · self-audit demotions");
-  _show.body.appendChild(bf);
+  accBrain.body.appendChild(bf);
 
   // belief-tier pills — verbatim doctrine labels, colour-coded, never upgraded.
   const pillsWrap = document.createElement("div");
@@ -401,14 +410,38 @@ function _buildHUD() {
   mkpill("pillCorr", "CORROBORATED", C_TIER_CORR);
   mkpill("pillLoad", "LOAD-BEARING", C_TIER_LOAD);
   mkpill("pillQuar", "QUARANTINED", C_QUARANTINE);
-  _show.body.appendChild(pillsWrap);
+  accBrain.body.appendChild(pillsWrap);
 
   // top-k Λ-advisory salience list (honest empty when the brain graph is unavailable).
   _hud.salienceList = document.createElement("div");
   _hud.salienceList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:8px;" +
     "font:10px ui-monospace,Menlo,monospace;color:#9fb1bf;";
   _hud.salienceList.textContent = "salience · NO-LIVE-DATA";
-  _show.body.appendChild(_hud.salienceList);
+  accBrain.body.appendChild(_hud.salienceList);
+  _show.body.appendChild(accBrain.details);
+}
+
+// Compact disclosure accordion (native <details>) — the shared declutter pattern: fold each
+// text panel behind a tap-to-open summary so the 3D body owns the view. Themed to match the
+// dark estate palette (proof-teal caret; PURPLE BANNED). Only DOM — 0 CDN, disposed with _show.
+function _acc(title, open) {
+  const d = document.createElement("details");
+  if (open) d.open = true;
+  d.style.cssText = "border:1px solid #1d2a36;border-radius:8px;background:#0a1117;" +
+    "margin-top:8px;overflow:hidden;";
+  const s = document.createElement("summary");
+  s.style.cssText = "cursor:pointer;list-style:none;padding:7px 10px;letter-spacing:.3px;" +
+    "font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:#cdd8e0;user-select:none;";
+  // proof-teal disclosure caret (▸ closed / ▾ open) rendered from the open state.
+  const caret = document.createElement("span");
+  caret.style.cssText = "color:#3af4c8;margin-right:7px;display:inline-block;";
+  caret.textContent = open ? "▾" : "▸";
+  d.addEventListener("toggle", () => { caret.textContent = d.open ? "▾" : "▸"; });
+  s.appendChild(caret); s.appendChild(document.createTextNode(title));
+  const body = document.createElement("div");
+  body.style.cssText = "padding:8px 10px 10px;display:flex;flex-direction:column;gap:6px;";
+  d.appendChild(s); d.appendChild(body);
+  return { details: d, body };
 }
 
 function _hex(c) { return "#" + ("000000" + (c >>> 0).toString(16)).slice(-6); }
