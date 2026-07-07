@@ -1,0 +1,28 @@
+{
+  "id": "szl-fable",
+  "name": "SZL Fable-style High-Autonomy Operator",
+  "version": "1.0.0",
+  "target_models": ["claude_opus_4_8", "claude_sonnet_4_6", "gpt_5_4", "gpt_5_5", "sovereign_local"],
+  "system_prompt_ref": {
+    "type": "env|path",
+    "env": "SZL_HARNESS_FABLE_PROMPT",
+    "default_body_path": "harness_profiles/bodies/szl-fable.md"
+  },
+  "provenance": {
+    "author": "Stephen P. Lutar Jr.",
+    "source": "SZL original re-expression; inspired by the community Fable->Opus behavior-transfer technique and Anthropic's published 'Prompting Claude Fable 5' guidance. Authored fresh in SZL's own governed voice.",
+    "inspiration_urls": [
+      "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5",
+      "https://github.com/HalalifyMusic/fable-mode",
+      "https://qiita.com/Humanophilic_development/items/63f2f28e5ceb753005eb"
+    ],
+    "license": "SZL-internal | MIT (SZL-authored body)",
+    "sha256": "9bda95bb8d3e85da859c62eedffd7a025697b6bd041b09fa44496fecda1073e4",
+    "not_verbatim_of": "any third-party leaked prompt (e.g. Claude Fable 5). No leaked text is stored or shipped."
+  },
+  "tags": ["autonomy", "agentic", "grounded", "governed", "high-effort"],
+  "honesty_label": "MODELED",
+  "capability_claim": "transfers disposition/behavior only; does NOT raise the model's capability ceiling",
+  "lambda_posture": "advisory (Conjecture 1); apply is Lambda-gated, never asserts 'green'",
+  "effort_default": "high"
+}

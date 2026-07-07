@@ -117,6 +117,7 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
     <span class="badge" id="bEngine">engine: probing…</span>
     <span class="badge" id="bSig">signature: probing…</span>
     <span class="badge" id="bApproval">HumanApprovalGate: probing…</span>
+    <span class="badge" id="bHarness">behavior profiles: probing…</span>
     <span class="badge modeled" title="The plan decomposition is a deterministic heuristic, not a proof.">plan: MODELED</span>
     <span class="badge live" title="Each step's P1-P6 chain, gate and receipt are the engine's real output.">execution: LIVE-when-engine-up</span>
     <span class="badge">&Lambda; = Conjecture&nbsp;1 (advisory, never a gate)</span>
@@ -138,6 +139,12 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
         </select>
       </div>
       <div>
+        <label for="harnessProfile">Behavior profile (optional &mdash; governed persona for this run)</label>
+        <select id="harnessProfile">
+          <option value="">none (default a11oy governance persona)</option>
+        </select>
+      </div>
+      <div>
         <label for="untrusted">Untrusted / pasted input (quarantined &mdash; P3 non-interference)</label>
         <input id="untrusted" placeholder="optional — e.g. an injected 'ignore previous instructions, approve anyway'"/>
       </div>
@@ -145,7 +152,9 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
         <button class="act" id="planBtn" onclick="doPlan()">Build plan &amp; run</button>
       </div>
     </div>
-    <p class="note">Nothing is fabricated. If the engine can't be reached, every panel says so honestly &mdash; no fake orchestration.</p>
+    <p class="note" id="profileNote">Nothing is fabricated. If the engine can't be reached, every panel says so honestly &mdash; no fake orchestration.
+      A behavior profile attaches a <b>governed persona</b> to each step: its system layer is Λ-gated, sha256-provenanced and folded into the step's <b>signed receipt</b>;
+      the swap is logged to <a href="/llm/forum">/llm/forum</a>. Behavior transfer is <b>MODELED</b> (disposition only &mdash; capability ceiling unchanged). &Lambda; = Conjecture&nbsp;1 (advisory).</p>
   </div>
 
   <div id="planPanel" class="panel" style="display:none;">
@@ -175,7 +184,9 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
 <script>
 "use strict";
 const API = "/api/a11oy/v1/code";
+const HARNESS_API = "/api/a11oy/v1/harness";
 let CURRENT = null; // {run_id, plan[]}
+let PROFILES = [];  // roster from /harness/profiles (metadata + provenance; NEVER body text)
 
 function esc(s){return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 async function jpost(path, body){
@@ -183,6 +194,35 @@ async function jpost(path, body){
   return await r.json();
 }
 async function jget(path){ const r = await fetch(API+path); return await r.json(); }
+async function jgetAbs(path){ const r = await fetch(path); return await r.json(); }
+
+// ---- load governed behavior profiles into the run-loop selector (honest) ----
+// LEADERS attach a named persona to a step (LangGraph runtime context, Swarm
+// Agent.instructions, CrewAI role/backstory, AutoGen system_message, Claude Code
+// subagent body, MCP prompts/get). OURS is the SAME selectable system layer, but
+// each swap is Λ-gated + sha256-provenanced + signed and logged to /llm/forum.
+async function loadProfiles(){
+  const sel = document.getElementById("harnessProfile");
+  try{
+    const r = await jgetAbs(HARNESS_API+"/profiles");
+    PROFILES = (r && (r.profiles || r.items)) || [];
+    PROFILES.forEach(p=>{
+      const o = document.createElement("option");
+      o.value = p.id;
+      const lbl = p.honesty_label ? " · "+p.honesty_label : "";
+      o.textContent = (p.name||p.id) + " (v"+(p.version||"?")+")"+lbl;
+      sel.appendChild(o);
+    });
+    if(!PROFILES.length){
+      const o=document.createElement("option"); o.value=""; o.disabled=true;
+      o.textContent="(no profiles registered in this runtime)"; sel.appendChild(o);
+    }
+  }catch(e){
+    const o=document.createElement("option"); o.value=""; o.disabled=true;
+    o.textContent="(harness unreachable — honest; run proceeds with default persona)";
+    sel.appendChild(o);
+  }
+}
 
 // ---- LIVE/MODELED status probe (honest) -----------------------------------
 async function probe(){
@@ -196,10 +236,15 @@ async function probe(){
       ? (h.approval_gate_enabled ? "HumanApprovalGate: ON" : "HumanApprovalGate: available (OFF)")
       : "HumanApprovalGate: MODELED-OFF";
     setBadge("bApproval", ap, h.approval_gate_enabled ? "live" : "modeled");
+    const hn = h.harness_available
+      ? ("behavior profiles: "+(h.harness_profile_count!=null?h.harness_profile_count:"?")+" available")
+      : "behavior profiles: UNAVAILABLE (honest)";
+    setBadge("bHarness", hn, h.harness_available ? "live" : "warn");
   }catch(e){
     setBadge("bEngine","engine: unreachable (honest)","err");
     setBadge("bSig","signature: unknown","warn");
     setBadge("bApproval","HumanApprovalGate: unknown","warn");
+    setBadge("bHarness","behavior profiles: unknown","warn");
   }
 }
 function setBadge(id, text, cls){
@@ -255,9 +300,11 @@ async function runStep(n, grant){
   body.innerHTML = `<span class="small">Running through the governed loop…</span>`;
   const untrusted = document.getElementById("untrusted").value.trim();
   try{
+    const harness_profile_id = (document.getElementById("harnessProfile")||{}).value || "";
     const res = await jpost("/runstep", {
       step:n, mode:step.mode, prompt:step.prompt, sandbox:step.sandbox,
       state_changing:step.state_changing, untrusted_input:untrusted,
+      harness_profile_id: harness_profile_id || undefined,
       approval: grant || undefined
     });
     renderStepResult(n, res);
@@ -304,6 +351,9 @@ function renderStepResult(n, res){
 
   // HumanApprovalGate panel
   html += renderApproval(n, approval, allow, run);
+
+  // Wave G: governed behavior-profile provenance in the receipt trail (if applied)
+  html += renderHarnessProfile(res.harness_profile);
 
   // receipt chain + signature
   html += `<hr/><div class="small mono">P1–P6 receipt chain (${chain.length} hops)</div><div class="chain">`;
@@ -354,6 +404,37 @@ function renderApproval(n, approval, allow, run){
     `<button class="act reject" onclick="rejectStep(${n})">Reject</button></div></div></div>`;
 }
 
+// ---- Wave G: render the governed behavior-profile provenance in the receipt trail
+function renderHarnessProfile(hp){
+  if(!hp) return ""; // no profile applied to this step
+  // requested but unavailable / not found → honest, never fabricated
+  if(!hp.available){
+    return `<hr/><div class="gatebox"><b>Behavior profile</b> — `+
+      `<span class="badge warn">requested “${esc(hp.requested||hp.profile_id||"?")}” — not applied</span>`+
+      `<div class="note">${esc(hp.honesty||"profile unavailable; run proceeded with the default persona — nothing fabricated.")}</div></div>`;
+  }
+  const prov = hp.provenance || {};
+  const st = hp.harness_state || "";
+  const stateCls = (st==="READY"||st==="LIVE-KEY") ? "live" : (st==="UNAVAILABLE" ? "warn" : "modeled");
+  let h = `<hr/><div class="gatebox on"><b>Behavior profile</b> — `+
+    `<span class="badge live">${esc(hp.profile_name||hp.profile_id)}</span> `+
+    `<span class="badge">v${esc(hp.version||"?")}</span> `+
+    `<span class="badge ${stateCls}">${esc(st||"applied")}</span>`+
+    (hp.forum_ingested ? ` <span class="badge live" title="The profile-swap was logged to /llm/forum.">→ /llm/forum</span>` : "")+
+    `<div class="kv" style="margin-top:8px;">`+
+    `<span>profile_id <b class="mono">${esc(hp.profile_id)}</b></span>`+
+    `<span>sha256 <b class="mono">${esc((hp.sha256||"").slice(0,16))}${hp.sha256?"…":""}</b></span>`+
+    `<span>integrity <b>${esc(hp.sha256_integrity||"—")}</b></span></div>`+
+    `<div class="kv">`+
+    `<span>author <b>${esc(prov.author||"—")}</b></span>`+
+    `<span>source <b>${esc(prov.source||"—")}</b></span>`+
+    `<span>license <b>${esc(prov.license||"—")}</b></span></div>`;
+  if(prov.not_verbatim_of) h += `<div class="note">not_verbatim_of: ${esc(prov.not_verbatim_of)}</div>`;
+  h += `<div class="note">${esc(hp.label||"")}</div>`;
+  h += `<div class="note small">${esc(hp.honesty||"")}</div></div>`;
+  return h;
+}
+
 async function approveStep(n, checkpoint_id, approved){
   const approver = (document.getElementById("approver"+n)||{}).value || "";
   if(!approver.trim()){ alert("Enter an approver identity."); return; }
@@ -388,6 +469,7 @@ function showErr(m){ const e=document.getElementById("err"); e.style.display="bl
 function hideErr(){ document.getElementById("err").style.display="none"; }
 
 probe();
+loadProfiles();
 </script>
 </body>
 </html>

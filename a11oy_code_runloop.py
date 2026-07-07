@@ -197,11 +197,19 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         want_model = b.get("model") or b.get("want_model") or ""
         state_changing = bool(b.get("state_changing", sandbox))
         grant = b.get("approval") if isinstance(b.get("approval"), dict) else None
+        # Wave G: OPTIONAL behavior profile for THIS step. When set, the engine
+        # runs the model through szl_model_harness.apply (profile system layer +
+        # Λ-gate) and the step's SIGNED receipt records the profile provenance.
+        # This is the governed version of how the leaders switch a persona on a
+        # step mid-run (LangGraph runtime context / Swarm handoff / CrewAI role /
+        # AutoGen system_message / Claude Code subagent / MCP prompts/get).
+        harness_profile_id = str(b.get("harness_profile_id") or b.get("profile_id") or "").strip()
 
         # REAL governed run (P1-P6, signed DSSE receipt) via the engine.
         run = _engine.governed_turn(mode, prompt, sign_fn, ns,
                                     untrusted_input=untrusted, run_chain=[],
-                                    sandbox=sandbox, want_model=want_model)
+                                    sandbox=sandbox, want_model=want_model,
+                                    harness_profile_id=harness_profile_id)
 
         # HumanApprovalGate — durable checkpoint on state-changing, gate-allowed steps.
         approval = None
@@ -225,17 +233,47 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         sig = run.get("signed_receipt") or {}
         signed_live = bool(sig.get("signed"))
 
+        # Wave G: surface the OPTIONAL behavior profile applied to THIS step so the
+        # receipt trail can name it (profile id+version+sha256, model_id, provenance).
+        harness = run.get("harness") or None
+        harness_summary = None
+        if harness:
+            _hp = (harness.get("profile") or {})
+            _prov = (_hp.get("provenance") or {})
+            harness_summary = {
+                "requested": harness.get("requested"),
+                "available": harness.get("available"),
+                "profile_id": _hp.get("id"),
+                "profile_name": _hp.get("name"),
+                "version": _hp.get("version"),
+                "sha256": _prov.get("sha256_resolved") or _prov.get("sha256_manifest"),
+                "sha256_integrity": _prov.get("sha256_integrity"),
+                "provenance": {"author": _prov.get("author"), "source": _prov.get("source"),
+                               "license": _prov.get("license"),
+                               "not_verbatim_of": _prov.get("not_verbatim_of")},
+                "harness_state": harness.get("harness_state"),
+                "honesty": harness.get("honesty"),
+                "forum_ingested": bool((harness.get("forum") or {}).get("ingested")),
+                "label": ("Governed behavior profile attached to this step — Λ-gated + "
+                          "sha256-provenanced + signed. Behavior transfer is MODELED "
+                          "(disposition only; capability ceiling unchanged). The profile "
+                          "swap is recorded in /llm/forum."),
+            }
+
         return JSONResponse({
             "ok": True,
             "step": b.get("step"),
             "run": run,
             "approval": approval,
+            "harness_profile": harness_summary,
             "signature_live": signed_live,
             "signature_label": ("LIVE — real ECDSA-P256 DSSE over the receipt (verify vs /cosign.pub)."
                                 if signed_live else
                                 "UNSIGNED (honest) — no in-image key in this runtime; no signature fabricated."),
             "label": "LIVE governed step — the P1-P6 chain, Λ-gate and receipt are the "
-                     "engine's REAL output. Λ is advisory (Conjecture 1).",
+                     "engine's REAL output. Λ is advisory (Conjecture 1)."
+                     + (" Behavior profile '%s' was applied to this step." % harness_summary["profile_id"]
+                        if harness_summary and harness_summary.get("profile_id") else ""),
         })
 
     async def _approve(request):
@@ -273,11 +311,30 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         except Exception:
             signer_live = False
         import os
+        # Wave G: honest liveness of the OPTIONAL behavior-profile harness.
+        harness_available = False
+        harness_profile_count = None
+        try:
+            import szl_model_harness as _h
+            harness_available = callable(getattr(_h, "apply", None))
+            try:
+                harness_profile_count = len(_h._load_manifests())
+            except Exception:
+                harness_profile_count = None
+        except Exception:
+            harness_available = False
         return JSONResponse({
             "surface": "a11oy Code — governed run-loop",
             "engine_available": _ENGINE_OK,
             "engine_error": (None if _ENGINE_OK else _ENGINE_ERR),
             "approval_gate_available": _APPROVAL_OK,
+            "harness_available": harness_available,
+            "harness_profile_count": harness_profile_count,
+            "harness_profiles_endpoint": "/api/%s/v1/harness/profiles" % ns,
+            "harness_note": ("OPTIONAL per-step behavior profile: pass harness_profile_id to "
+                             "/runstep; the step runs the model through the governed harness "
+                             "(profile system layer + Λ-gate) and the signed receipt records "
+                             "the profile provenance. Profile-swaps appear in /llm/forum."),
             "approval_gate_enabled": os.environ.get("A11OY_APPROVAL_INTERRUPT") == "1",
             "signer_live": signer_live,
             "signature_mode": ("LIVE (real ECDSA-P256 in-image key)" if signer_live

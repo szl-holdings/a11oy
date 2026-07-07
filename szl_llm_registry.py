@@ -483,12 +483,60 @@ def register(app: FastAPI) -> dict:
         """Λ-gated tier selection — real routing decision + Khipu receipt.
 
         Body (optional):
-          {"prompt": "…", "axis_scores": [0.92, …], "max_tier": 4, "task_hint": "math"}
+          {"prompt": "…", "axis_scores": [0.92, …], "max_tier": 4, "task_hint": "math",
+           "harness_profile_id": "szl-honest-operator"}
+
+        Wave G: when `harness_profile_id` is set, routing is delegated to the
+        governed behavior-transfer harness (szl_model_harness.apply) so the model
+        runs behind the profile system layer + the SAME Λ-gate, and the response
+        carries a SIGNED harness receipt naming the profile (id+version+sha256,
+        model_id, Λ axes, provenance). This is the governed analogue of how the
+        leaders attach/switch a persona on a step. Falls back to plain routing if
+        the harness module is unavailable (honest note; never crashes).
         """
         try:
             body = await request.json()
         except Exception:
             body = {}
+
+        harness_profile_id = str(body.get("harness_profile_id") or "").strip()
+        if harness_profile_id:
+            try:
+                import szl_model_harness as _harness
+                _res = _harness.apply(
+                    profile_id=harness_profile_id,
+                    model_id=str(body.get("model_id", "")).strip(),
+                    prompt=str(body.get("prompt", "")),
+                    axis_scores=body.get("axis_scores"),
+                    max_tier=int(body.get("max_tier", 4)),
+                    task_hint=str(body.get("task_hint", "")),
+                    ns="a11oy", forum=True,
+                )
+                if not _res.get("ok"):
+                    return JSONResponse(
+                        {"error": _res.get("error"), "known": _res.get("known", []),
+                         "note": "harness_profile_id supplied but profile not found"},
+                        status_code=404)
+                return JSONResponse({
+                    "response": _res["response"],
+                    "harness_state": _res["harness_state"],
+                    "model_selected": _res["model_selected"],
+                    "profile_applied": _res["profile_public"],
+                    "lambda_receipt": _res["receipt"],   # signed szl.harness_apply.receipt/v1
+                    "routed_via": "szl_model_harness.apply (behavior profile attached)",
+                    "forum": _res["forum"],
+                    "doctrine": DOCTRINE,
+                    "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'.",
+                })
+            except Exception as _he:
+                # honest fallback: harness unavailable — proceed with plain routing
+                _harness_fallback_note = ("harness_profile_id '%s' requested but harness "
+                                          "unavailable (%s); fell back to plain routing."
+                                          % (harness_profile_id, type(_he).__name__))
+            else:
+                _harness_fallback_note = None
+        else:
+            _harness_fallback_note = None
 
         prompt = str(body.get("prompt", ""))
         axis_scores: list[float] = body.get("axis_scores") or [
@@ -566,12 +614,15 @@ def register(app: FastAPI) -> dict:
 
         _forum_append({**receipt, "prompt_preview": prompt[:80] if prompt else "", "source": "a11oy"})
 
-        return JSONResponse({
+        _resp = {
             "response": response_text,
             "model_selected": enriched,
             "lambda_receipt": receipt,
             "doctrine": DOCTRINE,
-        })
+        }
+        if _harness_fallback_note:
+            _resp["harness_note"] = _harness_fallback_note
+        return JSONResponse(_resp)
 
     # ── GET /api/a11oy/v1/llm/forum ──────────────────────────────────────────
 

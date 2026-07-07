@@ -737,15 +737,75 @@ _INJECTION_MARKERS = ("ignore previous", "ignore all previous", "override",
                       "approve everything", "skip the gate")
 
 
+def _resolve_harness(harness_profile_id: str, prompt: str, ns: str) -> dict:
+    """Wave G: resolve an OPTIONAL behavior profile for THIS step via the governed
+    szl_model_harness.apply core. Guarded import so the engine NEVER hard-depends
+    on the harness module (honest UNAVAILABLE if it isn't present at runtime).
+
+    Returns {} when no profile was requested. Otherwise a dict carrying the
+    resolved system layer TEXT (to inject as an extra system message for this
+    step) plus the governed harness apply-receipt (profile id+version+sha256,
+    model_id, Λ axes, provenance) — which is folded into the step's signed
+    receipt and posted to /llm/forum. LEADERS attach a named persona to a step
+    (LangGraph runtime context, Swarm Agent.instructions, CrewAI role/backstory,
+    AutoGen system_message, Claude Code subagent body, MCP prompts/get); OURS is
+    the same selectable system layer, but Λ-gated + sha256-provenanced + signed."""
+    pid = str(harness_profile_id or "").strip()
+    if not pid:
+        return {}
+    try:
+        import szl_model_harness as _harness
+    except Exception as e:
+        return {"requested": pid, "available": False, "system_layer": "",
+                "honesty": "MODELED-UNAVAILABLE — szl_model_harness not importable "
+                           "in this runtime (%s); no profile injected, none fabricated."
+                           % type(e).__name__}
+    try:
+        # forum=True here so the profile-swap itself is logged to /llm/forum, as
+        # required (a profile swap is a first-class, receipted control event).
+        res = _harness.apply(profile_id=pid, prompt=prompt, ns=ns, forum=True)
+    except Exception as e:
+        return {"requested": pid, "available": False, "system_layer": "",
+                "honesty": "MODELED-UNAVAILABLE — harness.apply raised (%s); "
+                           "no profile injected, none fabricated." % type(e).__name__}
+    if not res.get("ok"):
+        return {"requested": pid, "available": False, "system_layer": "",
+                "error": res.get("error"), "known": res.get("known", []),
+                "honesty": "profile not found — nothing injected, run proceeds ungoverned-by-profile."}
+    return {
+        "requested": pid,
+        "available": True,
+        "system_layer": res.get("system_layer", ""),
+        "system_layer_available": res.get("system_layer_available", False),
+        "harness_state": res.get("harness_state"),
+        "profile": res.get("profile_public"),
+        "receipt": res.get("receipt"),
+        "forum": res.get("forum"),
+        "honesty": "LIVE Λ-gate + sha256 provenance + signed harness receipt; "
+                   "behavior transfer is MODELED (disposition only, capability unchanged).",
+    }
+
+
 def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                   untrusted_input: str = "", run_chain=None,
-                  sandbox: bool = False, want_model: str = "") -> dict:
+                  sandbox: bool = False, want_model: str = "",
+                  harness_profile_id: str = "") -> dict:
     """One fully-governed a11oy Code turn (chat | code | research).
     P1 retrieve -> P2 quarantine untrusted -> P3 tool_call -> P4 policy_check ->
     P5 kernel_check -> P6 emit (+sign). Same 6-receipt chain as the proven loop.
     For mode=code with sandbox=True, the EXEC happens between the gate and the emit
-    so the receipt records the real run outcome."""
+    so the receipt records the real run outcome.
+
+    Wave G: OPTIONAL `harness_profile_id` attaches a governed behavior profile to
+    THIS step (leader-fashion persona attach, but Λ-gated + provenanced + signed).
+    When set, the resolved profile system layer is injected as an extra system
+    message and the harness apply-receipt {profile id+version+sha256, model_id,
+    Λ axes, provenance} is folded into this step's signed receipt."""
     run_chain = run_chain if run_chain is not None else []
+
+    # ---- Wave G: OPTIONAL behavior-profile attach (governed persona) ----------
+    harness = _resolve_harness(harness_profile_id, prompt, ns)
+    harness_system_layer = harness.get("system_layer", "") if harness else ""
     # PER-RUN GENESIS (FIX 2026-06-06): each run's seq-0 receipt seeds with the SAME
     # genesis constant that verify_run() seeds with ("GENESIS"). Previously this rolled
     # from the prior run's final_hash, so only the FIRST run after boot verified
@@ -801,6 +861,12 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                       "a single runnable code block. Never claim to be a closed model.")
         ctx_note = ("In-image governance context: " + (chunks[0]["text"] if chunks else "")) if mode == "research" else ""
         msgs = [{"role": "system", "content": sys_prompt}]
+        # Wave G: inject the OPTIONAL behavior-profile system layer for this step
+        # (leader-fashion persona attach; here Λ-gated + provenanced + signed). The
+        # body text is used ONLY as the model `system` layer; the receipt records
+        # sha256 provenance, never the body text.
+        if harness_system_layer:
+            msgs.append({"role": "system", "content": harness_system_layer})
         if ctx_note:
             msgs.append({"role": "system", "content": ctx_note})
         msgs.append({"role": "user", "content": prompt})
@@ -947,6 +1013,23 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None,
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Wave G: fold the OPTIONAL harness profile provenance into the SIGNED payload
+    # so the step's signature covers which behavior profile shaped it (id+version
+    # +sha256, model_id, Λ axes, provenance). Body text is NEVER included.
+    if harness:
+        _hr = harness.get("receipt") or {}
+        decision_payload["harness_profile"] = {
+            "requested": harness.get("requested"),
+            "available": harness.get("available"),
+            "system_layer_injected": bool(harness_system_layer),
+            "profile": _hr.get("profile"),          # id + version + sha256 (+ manifest sha + integrity)
+            "model_id": _hr.get("model_id"),
+            "lambda": _hr.get("lambda"),
+            "axis_scores": _hr.get("axis_scores"),  # Λ axes
+            "provenance": _hr.get("provenance"),
+            "harness_signature": (_hr.get("signature") or {}).get("value"),
+            "honesty_label": _hr.get("honesty_label"),
+        }
     try:
         envelope_sig = sign_fn(decision_payload)
     except Exception as e:
@@ -997,6 +1080,7 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "trust": {"score": trust, "floor": trust_floor, "pass": trust_pass, "axes": axes,
                   "status": "Trust score (advisory) — research conjecture (Conjecture 1), not a proven oracle"},
         "receipt_chain": chain, "signed_receipt": envelope_sig,
+        "harness": (harness or None),  # Wave G: OPTIONAL governed behavior-profile attach (None if unused)
         "chain_final_hash": prev_hash, "chain_depth": len(chain),
         "prev_run_hash": prev_run_hash,
         "halts": {"basis": "F-G5 bounded-frontier receipt-DAG termination (PROVEN, wave-6)",

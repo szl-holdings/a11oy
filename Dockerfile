@@ -1255,6 +1255,20 @@ COPY web/governance.html web/autoreview.html web/energy-holographic.html web/ene
 # COPY pattern as web/immune.html + web/energy.html. Codename-free. Honest LIVE/MODELED.
 COPY web/code.html ./web/
 
+# GOVERNED MODEL-HARNESS (Wave F module + Wave G /code wire-in, 2026-07-07):
+# szl_model_harness.py registers /api/a11oy/v1/harness/{profiles,profiles/{id},apply}
+# and exposes an importable apply() core. a11oy_code_engine + a11oy_code_runloop +
+# szl_llm_registry import it (try/except-guarded) so an OPTIONAL harness_profile_id on
+# a /code run-loop step (or /llm/route) runs the model through the profile system layer
+# + Λ-gate and folds the profile provenance into the step's SIGNED receipt. The profile
+# BODIES live under harness_profiles/ (manifests + bodies/*.md, referenced by path/env —
+# never inlined). MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the
+# guarded import falls back and the harness endpoints 404 / harness_profile_id is a no-op
+# (merged-but-not-live). Additive; behavior transfer is MODELED (disposition only, not
+# capability). Λ = Conjecture 1 (advisory). Real DSSE in-Space, honest UNSIGNED locally.
+COPY szl_model_harness.py ./szl_model_harness.py
+COPY harness_profiles/ ./harness_profiles/
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
