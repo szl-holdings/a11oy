@@ -278,7 +278,10 @@ except Exception as _a11oy_ti_e:  # pragma: no cover
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
-    import szl_readiness as _szl_readiness
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_readiness as _szl_readiness  # single source of truth
+    except Exception:
+        import szl_readiness as _szl_readiness
     _szl_readiness.register(app, ns="a11oy")
     print("[a11oy] Operational Readiness registered: /api/a11oy/v1/readiness", file=__import__("sys").stderr)
 except Exception as _szl_rd_e:  # pragma: no cover
@@ -302,7 +305,10 @@ except Exception as _szl_rk_e:  # pragma: no cover
 # engineering gate (PROPOSED), NOT the formal uniqueness Λ (Conjecture 1). Additive,
 # try/except-guarded, pure stdlib (+optional numpy). Registered before the SPA catch-all.
 try:
-    import szl_quantum_bio as _szl_quantum_bio
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_quantum_bio as _szl_quantum_bio  # single source of truth
+    except Exception:
+        import szl_quantum_bio as _szl_quantum_bio
     _szl_quantum_bio.register(app, ns="a11oy")
     print("[a11oy] Quantum-Bio Λ-v5 registered: /api/a11oy/v1/qbio/*", file=__import__("sys").stderr)
 except Exception as _szl_qb_e:  # pragma: no cover
@@ -414,7 +420,10 @@ except Exception as _szl_tee_e:  # pragma: no cover
 # /energy tab + /api/a11oy/v1/energy/{sovereign,jtoken,throughput,kvcache,gateway,router,
 # carbon}. Additive, try/except-guarded, before the SPA catch-all. window.SZLLabels.
 try:
-    import szl_energy_sovereign as _szl_energy_sovereign
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_energy_sovereign as _szl_energy_sovereign  # single source of truth
+    except Exception:
+        import szl_energy_sovereign as _szl_energy_sovereign
     _szl_energy_sovereign.register(app, ns="a11oy")
     print("[a11oy] Energy/Sovereign-Compute registered: /energy + /api/a11oy/v1/energy/*", file=__import__("sys").stderr)
 except Exception as _szl_es_e:  # pragma: no cover
@@ -1327,7 +1336,10 @@ except Exception as _szl_e8_e:  # pragma: no cover
 # reclaimed). coherence_crossing is PROPOSED (mirrors lutar-lean CoherenceDecay, Wave24 merged).
 # Shared module byte-identical a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
 try:
-    import szl_unified_formulas as _szl_unified
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_unified_formulas as _szl_unified  # single source of truth
+    except Exception:
+        import szl_unified_formulas as _szl_unified
     _szl_unified.register(app, ns="a11oy")
     print("[a11oy] Unified formulas registered: /api/a11oy/v1/unified/*", file=__import__("sys").stderr)
 except Exception as _szl_uf_e:  # pragma: no cover
@@ -1343,7 +1355,10 @@ except Exception as _szl_uf_e:  # pragma: no cover
 # effector stays SIMULATED; trust never 100%. Shared module byte-identical
 # a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
 try:
-    import szl_cuas_formulas as _szl_cuas
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_cuas_formulas as _szl_cuas  # single source of truth
+    except Exception:
+        import szl_cuas_formulas as _szl_cuas
     _szl_cuas.register(app, ns="a11oy")
     print("[a11oy] CUAS formulas registered: /api/a11oy/v1/cuas/*", file=__import__("sys").stderr)
 except Exception as _szl_cuas_e:  # pragma: no cover
@@ -4033,7 +4048,10 @@ except Exception as _obs_e:  # pragma: no cover - defensive, additive-only
 # ===========================================================================
 try:
     import sys as _sys_rc
-    import szl_rosie_companion as _rc  # internal wiring only; never user-visible
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_rosie_companion as _rc  # single source of truth
+    except Exception:
+        import szl_rosie_companion as _rc  # internal wiring only; never user-visible
 
     _A11OY_SHADOW = _rc.RosieShadow("a11oy")  # internal handle; label is "Companion"
 
@@ -6493,7 +6511,10 @@ except Exception as _sc_e:  # pragma: no cover - additive, defensive
 # Marker: a11oy-govern-rag-powerd2.
 # ===========================================================================
 try:
-    import a11oy_org_rag as _rag_engine
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_org_rag as _rag_engine  # single source of truth
+    except Exception:
+        import a11oy_org_rag as _rag_engine
     import threading as _rag_threading
     from fastapi import Request as _RAGRequest
     from fastapi.responses import JSONResponse as _RAGJSON
@@ -10604,7 +10625,10 @@ except Exception:
     pass
 
 try:
-    import szl_agentic_loop as _szl_loop
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_agentic_loop as _szl_loop  # single source of truth
+    except Exception:
+        import szl_agentic_loop as _szl_loop
     import sys as _loop_sys
 
     def _a11oy_loop_verify(env):
@@ -10756,7 +10780,10 @@ except Exception as _gcak_e:
 # ============================================================================
 _FORMULA_WIRING_DIAG = {"status": "not-run"}
 try:
-    import szl_formula_wiring as _szl_fw
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_formula_wiring as _szl_fw  # single source of truth
+    except Exception:
+        import szl_formula_wiring as _szl_fw
     import sys as _fw_sys
     _fw_status = _szl_fw.register(app, "a11oy")
     print(f"[a11oy] formula-wiring surface registered: {_fw_status}", file=_fw_sys.stderr)
@@ -10919,7 +10946,10 @@ try:
 except Exception:
     pass
 try:
-    import a11oy_code_engine as _a11oy_code
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_code_engine as _a11oy_code  # single source of truth
+    except Exception:
+        import a11oy_code_engine as _a11oy_code
     import sys as _code_sys
     _code_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
     _code_status = _a11oy_code.register(
@@ -11857,14 +11887,20 @@ except Exception as _szlfac_e:  # pragma: no cover
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import szl_spaces_proxy as _szl_spaces_proxy
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_spaces_proxy as _szl_spaces_proxy  # single source of truth
+    except Exception:
+        import szl_spaces_proxy as _szl_spaces_proxy
     _szl_spaces_proxy_status = _szl_spaces_proxy.register(app, ns="a11oy")
     print(f"[a11oy] Spaces reverse-proxy registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
 except Exception as _szl_sp_e:  # pragma: no cover
     print(f"[a11oy] Spaces reverse-proxy NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 try:
-    import szl_spaces_surface as _szl_spaces_surface
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_spaces_surface as _szl_spaces_surface  # single source of truth
+    except Exception:
+        import szl_spaces_surface as _szl_spaces_surface
     _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="a11oy")
     print(f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
 except Exception as _szl_ss_e:  # pragma: no cover
