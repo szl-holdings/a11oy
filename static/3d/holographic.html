@@ -16,7 +16,7 @@
 }
 </script>
 <style>
- :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf;}
+ :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--proof:#3af4c8;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf;}
  *{box-sizing:border-box}
  html,body{margin:0;height:100%}
  /* Flex column so the 3D stage always fills the space left over by the header +
@@ -30,14 +30,39 @@
  .badge{display:inline-block;font:10.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
   border:1px solid var(--line);color:var(--gold);background:#10171f;white-space:nowrap}
  #backend{color:var(--teal)}
- /* Desktop: tabs wrap. Mobile (below): one horizontally-scrollable row so the
-    ~50 tabs don't build a tall wall that shoves the 3D stage off-screen. */
- .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);
+ /* Nav = a pinned ★ Featured row (flagships incl. Atlas, always visible) above a row of
+    collapsible CATEGORY dropdowns. Replaces the old flat wall of ~84 pills so the flagship
+    surfaces stand out and the rest group behind one-tap dropdowns. Accents are proof-teal
+    (0x3af4c8) — NEVER purple (doctrine v11 palette). */
+ .tabs{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);
   background:#070d15;flex:0 0 auto}
+ .navrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+ .navlabel{font:9.5px ui-monospace,monospace;color:var(--para);letter-spacing:.6px;
+  text-transform:uppercase;opacity:.7;margin-right:2px;flex:0 0 auto}
  .tab{font:11.5px ui-monospace,monospace;padding:6px 12px;border-radius:7px;border:1px solid var(--line);
   background:#0a121b;color:var(--para);cursor:pointer;letter-spacing:.3px;transition:.12s;white-space:nowrap}
- .tab:hover{border-color:var(--teal);color:var(--cream)}
- .tab[aria-selected="true"]{background:#12202b;color:var(--cream);border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
+ .tab:hover{border-color:var(--proof);color:var(--cream)}
+ .tab[aria-selected="true"]{background:#12202b;color:var(--cream);border-color:var(--proof);
+  box-shadow:0 0 0 1px var(--proof) inset}
+ /* Featured (flagship) pills — proof-teal star + accent so Brain/Anatomy stand out. */
+ .tab--feat{border-color:#20323e;color:var(--cream);background:#0b1620}
+ .tab--feat .star{color:var(--proof);margin-right:5px}
+ .tab--feat[aria-selected="true"]{border-color:var(--proof);
+  box-shadow:0 0 0 1px var(--proof) inset,0 0 10px rgba(58,244,200,.25)}
+ /* Category dropdown buttons — ▸ caret rotates to ▾ when the panel is open. */
+ .catbtn{font:11px ui-monospace,monospace;padding:6px 11px;border-radius:7px;border:1px solid var(--line);
+  background:#0a121b;color:var(--para);cursor:pointer;letter-spacing:.3px;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:6px;transition:.12s}
+ .catbtn:hover{border-color:var(--proof);color:var(--cream)}
+ .catbtn .caret{font-size:9px;transition:transform .15s;color:var(--proof)}
+ .catbtn[aria-expanded="true"]{color:var(--cream);border-color:var(--proof)}
+ .catbtn[aria-expanded="true"] .caret{transform:rotate(90deg)}
+ .catbtn[data-hasactive="true"]{box-shadow:0 0 0 1px var(--proof) inset}
+ .catbtn .count{font-size:9px;color:var(--para);opacity:.7}
+ /* Drop panel: the tabs of the currently-open category (only one open at a time). */
+ .panel{display:none;gap:6px;flex-wrap:wrap;padding:8px;margin-top:2px;
+  border:1px solid var(--line);border-radius:9px;background:#08111a}
+ .panel[data-open="true"]{display:flex}
  #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
  #stage{position:absolute;inset:0}
  #stage canvas{display:block;width:100%;height:100%;touch-action:none}
@@ -55,18 +80,21 @@
   /* Keep only the essential badges visible; hide the noisier ones on small screens. */
   header .badge{font-size:9.5px;padding:2px 6px}
   #three-rev-badge,#cdn-badge{display:none}
-  /* Horizontal scroll strip for the tabs, with the active tab kept in view. */
-  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
-   padding:7px 10px;scrollbar-width:thin}
-  .tabs::-webkit-scrollbar{height:4px}
-  .tabs::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
-  .tab{padding:7px 11px;font-size:11px;flex:0 0 auto}
+  .tabs{padding:7px 10px;gap:5px}
+  /* Featured + category rows each scroll horizontally so they never build a tall wall;
+     the tapped-open panel wraps below, height-capped so it never shoves the stage off. */
+  .navrow{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .navrow::-webkit-scrollbar{height:4px}
+  .navrow::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .navlabel{position:sticky;left:0;background:#070d15;z-index:1}
+  .tab,.catbtn{padding:7px 11px;font-size:11px;flex:0 0 auto}
+  .panel[data-open="true"]{flex-wrap:wrap;max-height:34vh;overflow-y:auto}
   footer{font-size:9px;padding:5px 10px}
-  /* Give the 3D stage a guaranteed usable share of the screen on phones. */
-  #stage-wrap{min-height:52vh}
+  /* Give the 3D stage a guaranteed usable share of the screen on phones (100dvh-safe). */
+  #stage-wrap{min-height:46vh}
  }
  @media (max-width:640px) and (orientation:landscape){
-  #stage-wrap{min-height:60vh}
+  #stage-wrap{min-height:56vh}
  }
 </style>
 </head>
@@ -80,7 +108,11 @@
  <span class="badge">Λ = Conjecture 1</span>
  <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
 </header>
-<div class="tabs" id="tabs" role="tablist"></div>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Estate surfaces">
+ <div class="navrow" id="featured-row"><span class="navlabel">★ Featured</span></div>
+ <div class="navrow" id="cat-row"><span class="navlabel">Categories</span></div>
+ <div id="cat-panels"></div>
+</nav>
 <div id="stage-wrap">
  <div id="stage"></div>
  <div id="fallback">3D unavailable on this device — the holographic estate needs a WebGL2 or WebGPU canvas.<br>
@@ -97,90 +129,90 @@ import * as THREE from "three";
 
 // The 9 surface slots the other devs fill. Lazy-loaded per tab.
 const SURFACES = [
-  { id: "atlas",       title: "Atlas",       mod: "/static/3d/surfaces/atlas.js" },
-  { id: "frontier",    title: "Frontier",    mod: "/static/3d/surfaces/frontier.js" },
-  { id: "neuromorphic", title: "Neuromorphic", mod: "/static/3d/surfaces/neuromorphic.js" },
-  { id: "interpretability", title: "Interpretability", mod: "/static/3d/surfaces/interpretability.js" },
-  { id: "circuits", title: "Attribution Graph \u00b7 Circuit Tracing", mod: "/static/3d/surfaces/circuits.js" },
-  { id: "worldmodel", title: "World Model", mod: "/static/3d/surfaces/worldmodel.js" },
-  { id: "qec", title: "Topological QEC", mod: "/static/3d/surfaces/qec.js" },
-  { id: "episodic", title: "Episodic Memory", mod: "/static/3d/surfaces/episodic.js" },
-  { id: "testtime", title: "Test-Time Compute", mod: "/static/3d/surfaces/testtime.js" },
-  { id: "ssm", title: "State-Space (Mamba-3)", mod: "/static/3d/surfaces/ssm.js" },
-  { id: "genie", title: "Genie World-Model", mod: "/static/3d/surfaces/genie.js" },
-  { id: "specdecode", title: "Speculative Decoding", mod: "/static/3d/surfaces/specdecode.js" },
-  { id: "flowmatch", title: "Flow Matching", mod: "/static/3d/surfaces/flowmatch.js" },
-  { id: "dllm", title: "Diffusion LLM", mod: "/static/3d/surfaces/dllm.js" },
-  { id: "moe", title: "MoE Router", mod: "/static/3d/surfaces/moe.js" },
-  { id: "formalmath", title: "Formal-Math Retrieval", mod: "/static/3d/surfaces/formalmath.js" },
-  { id: "ccattest", title: "Confidential-Compute Attest", mod: "/static/3d/surfaces/ccattest.js" },
-  { id: "attestinfer", title: "Attested Inference", mod: "/static/3d/surfaces/attestinfer.js" },
-  { id: "pcai", title: "Proof-Carrying Attested Inference", mod: "/static/3d/surfaces/pcai.js" },
-  { id: "ringattn", title: "Ring Attention", mod: "/static/3d/surfaces/ringattn.js" },
-  { id: "grpo", title: "GRPO Reward Dynamics", mod: "/static/3d/surfaces/grpo.js" },
-  { id: "kvcache", title: "KV-Cache H2O", mod: "/static/3d/surfaces/kvcache.js" },
-  { id: "mla", title: "Latent Attention (MLA)", mod: "/static/3d/surfaces/mla.js" },
-  { id: "blt", title: "Byte-Latent Patching", mod: "/static/3d/surfaces/blt.js" },
-  { id: "nsa", title: "Native Sparse Attention", mod: "/static/3d/surfaces/nsa.js" },
-  { id: "kan", title: "Kolmogorov-Arnold Network", mod: "/static/3d/surfaces/kan.js" },
-  { id: "steering", title: "Steering Vectors (ActAdd / RepE)", mod: "/static/3d/surfaces/steering.js" },
-  { id: "titans", title: "Titans Neural Long-Term Memory", mod: "/static/3d/surfaces/titans.js" },
-  { id: "mor", title: "Mixture-of-Recursions (adaptive depth)", mod: "/static/3d/surfaces/mor.js" },
-  { id: "goat", title: "GOAT Optimal-Transport Attention", mod: "/static/3d/surfaces/goat.js" },
-  { id: "kla", title: "Kaczmarz Linear Attention", mod: "/static/3d/surfaces/kla.js" },
-  { id: "hrm", title: "Hierarchical Reasoning Model", mod: "/static/3d/surfaces/hrm.js" },
-  { id: "pfield", title: "Pressure-Field Coordination", mod: "/static/3d/surfaces/pfield.js" },
-  { id: "qhall", title: "Quantum-Inspired Hallucination UQ", mod: "/static/3d/surfaces/qhall.js" },
-  { id: "aimc", title: "Analog In-Memory Attention", mod: "/static/3d/surfaces/aimc.js" },
-  { id: "ternary", title: "Ternary 1.58-bit Weights", mod: "/static/3d/surfaces/ternary.js" },
-  { id: "sement", title: "Semantic-Entropy Uncertainty", mod: "/static/3d/surfaces/sement.js" },
-  { id: "inplacettt", title: "In-Place Test-Time Training", mod: "/static/3d/surfaces/inplacettt.js" },
-  { id: "nested", title: "Nested Learning (multi-timescale)", mod: "/static/3d/surfaces/nested.js" },
-  { id: "matgran", title: "Matryoshka Representation Granularity", mod: "/static/3d/surfaces/matgran.js" },
-  { id: "graphmem", title: "Multi-Graph Agentic Memory", mod: "/static/3d/surfaces/graphmem.js" },
-  { id: "elf", title: "Continuous-Embedding Flow LM", mod: "/static/3d/surfaces/elf.js" },
-  { id: "s3search", title: "Stratified Denoise Search", mod: "/static/3d/surfaces/s3search.js" },
-  { id: "slidesparse", title: "Structured-Sparse Layout Packing", mod: "/static/3d/surfaces/slidesparse.js" },
-  { id: "catq", title: "Calibration Ternary Quant", mod: "/static/3d/surfaces/catq.js" },
-  { id: "rauq", title: "Attention-Pattern Uncertainty", mod: "/static/3d/surfaces/rauq.js" },
-  { id: "agentcoh", title: "Multi-Agent Memory Coherence", mod: "/static/3d/surfaces/agentcoh.js" },
-  { id: "energy",      title: "Energy",      mod: "/static/3d/surfaces/energy.js" },
-  { id: "fabric",      title: "Fabric",      mod: "/static/3d/surfaces/fabric.js" },
-  { id: "pnt",         title: "PNT",         mod: "/static/3d/surfaces/pnt.js" },
-  { id: "counter-uas", title: "Counter-UAS", mod: "/static/3d/surfaces/counter-uas.js" },
-  { id: "governance",  title: "Governance",  mod: "/static/3d/surfaces/governance.js" },
-  { id: "pinn",        title: "PINN",        mod: "/static/3d/surfaces/pinn.js" },
-  { id: "router",      title: "Router",      mod: "/static/3d/surfaces/router.js" },
-  { id: "anatomy",     title: "Anatomy",     mod: "/static/3d/surfaces/anatomy.js" },
-  { id: "anatomy_body", title: "Anatomy · Living Body", mod: "/static/3d/surfaces/anatomy_body.js" },
-  { id: "estate",      title: "Estate",      mod: "/static/3d/surfaces/estate.js" },
-  { id: "muon",        title: "Muon Orthogonalized-Momentum Optimizer", mod: "/static/3d/surfaces/muon.js" },
-  { id: "specexec",    title: "Tree Speculative Execution",             mod: "/static/3d/surfaces/specexec.js" },
-  { id: "nvfp4",       title: "NVFP4 4-bit Training Format",            mod: "/static/3d/surfaces/nvfp4.js" },
-  { id: "keyless",     title: "Keyless Attention (Value-Only Cache)",     mod: "/static/3d/surfaces/keyless.js" },
-  { id: "gitthoughts", title: "GitOfThoughts (Version-Controlled Reasoning)", mod: "/static/3d/surfaces/gitthoughts.js" },
-  { id: "herotq",      title: "HeRo-Q Hessian-Conditioned Quantization",    mod: "/static/3d/surfaces/herotq.js" },
-  { id: "dla",         title: "Dynamic Linear Attention",                    mod: "/static/3d/surfaces/dla.js" },
-  { id: "ctxready",    title: "Context-Ready Transformer",                   mod: "/static/3d/surfaces/ctxready.js" },
-  { id: "opera",       title: "OPERA Perplexity-Reward Alignment",           mod: "/static/3d/surfaces/opera.js" },
-  { id: "brain",       title: "Brain — live knowledge graph",                mod: "/static/3d/surfaces/brain.js" },
-  { id: "zkinfer",     title: "zkML Proof-of-Inference (Cryptographic Receipts)", mod: "/static/3d/surfaces/zkinfer.js" },
-  { id: "flower", title: "Flower Brain", mod: "/static/3d/surfaces/flower.js" },
-  { id: "agentmem",    title: "AgentMem · Λ-Governed Agent Memory (synthesis)",   mod: "/static/3d/surfaces/agentmem.js" },
-  { id: "loopforge", title: "Loop Forge", mod: "/static/3d/surfaces/loopforge.js" },
-  { id: "edgefusion",  title: "EdgeFusion · Λ-Gated Energy-Proportional Sensor Fusion (synthesis)", mod: "/static/3d/surfaces/edgefusion.js" },
-  { id: "evalarena", title: "Eval Arena · Governed Eval / Red-Team", mod: "/static/3d/surfaces/evalarena.js" },
-  { id: "vqc",         title: "Governed VQC · Parameter-Shift Hybrid QML (MODELED)", mod: "/static/3d/surfaces/vqc.js" },
-  { id: "harness",     title: "Governed Model Harness · Behavior Transfer",         mod: "/static/3d/surfaces/harness.js" },
-  { id: "aigov",       title: "AI Governance Conformance · Λ-Advisory Readiness (crosswalk)", mod: "/static/3d/surfaces/aigov.js" },
-  { id: "fmverif",     title: "Proof-Carrying Inference (Machine-Checkable Certificates)", mod: "/static/3d/surfaces/fmverif.js" },
-  { id: "supplychain", title: "Model-Artifact Provenance (SLSA / in-toto / Rekor / C2PA)", mod: "/static/3d/surfaces/supplychain.js" },
-  { id: "hybridssm",   title: "HybridSSM · Attention vs State-Space vs Hybrid Frontier (synthesis)", mod: "/static/3d/surfaces/hybridssm.js" },
-  { id: "governedagent", title: "Governed Agent Loop · plan→act→self-eval→gate→retry", mod: "/static/3d/surfaces/governedagent.js" },
-  { id: "governedrag", title: "Governed RAG · Retrieval-with-Receipts",                mod: "/static/3d/surfaces/governedrag.js" },
-  { id: "ecosystem",   title: "Harness · Ecosystem Status",                            mod: "/static/3d/surfaces/ecosystem.js" },
-  { id: "brainquery",  title: "Brain Query · ask the graph (retrieval)",               mod: "/static/3d/surfaces/brainquery.js" },
-  { id: "sovereign",   title: "Sovereign Local Model · status · doctrine self-test · Stage A/B · signed receipt", mod: "/static/3d/surfaces/sovereign.js" },
+  { id: "atlas", cat: "map", flag: true,       title: "Atlas",       mod: "/static/3d/surfaces/atlas.js" },
+  { id: "frontier", cat: "map",    title: "Frontier",    mod: "/static/3d/surfaces/frontier.js" },
+  { id: "neuromorphic", cat: "more", title: "Neuromorphic", mod: "/static/3d/surfaces/neuromorphic.js" },
+  { id: "interpretability", cat: "governance", title: "Interpretability", mod: "/static/3d/surfaces/interpretability.js" },
+  { id: "circuits", cat: "governance", title: "Attribution Graph \u00b7 Circuit Tracing", mod: "/static/3d/surfaces/circuits.js" },
+  { id: "worldmodel", cat: "attention", title: "World Model", mod: "/static/3d/surfaces/worldmodel.js" },
+  { id: "qec", cat: "proof", title: "Topological QEC", mod: "/static/3d/surfaces/qec.js" },
+  { id: "episodic", cat: "brain", title: "Episodic Memory", mod: "/static/3d/surfaces/episodic.js" },
+  { id: "testtime", cat: "reasoning", title: "Test-Time Compute", mod: "/static/3d/surfaces/testtime.js" },
+  { id: "ssm", cat: "attention", title: "State-Space (Mamba-3)", mod: "/static/3d/surfaces/ssm.js" },
+  { id: "genie", cat: "attention", title: "Genie World-Model", mod: "/static/3d/surfaces/genie.js" },
+  { id: "specdecode", cat: "attention", title: "Speculative Decoding", mod: "/static/3d/surfaces/specdecode.js" },
+  { id: "flowmatch", cat: "attention", title: "Flow Matching", mod: "/static/3d/surfaces/flowmatch.js" },
+  { id: "dllm", cat: "attention", title: "Diffusion LLM", mod: "/static/3d/surfaces/dllm.js" },
+  { id: "moe", cat: "attention", title: "MoE Router", mod: "/static/3d/surfaces/moe.js" },
+  { id: "formalmath", cat: "governance", title: "Formal-Math Retrieval", mod: "/static/3d/surfaces/formalmath.js" },
+  { id: "ccattest", cat: "proof", title: "Confidential-Compute Attest", mod: "/static/3d/surfaces/ccattest.js" },
+  { id: "attestinfer", cat: "proof", title: "Attested Inference", mod: "/static/3d/surfaces/attestinfer.js" },
+  { id: "pcai", cat: "proof", title: "Proof-Carrying Attested Inference", mod: "/static/3d/surfaces/pcai.js" },
+  { id: "ringattn", cat: "attention", title: "Ring Attention", mod: "/static/3d/surfaces/ringattn.js" },
+  { id: "grpo", cat: "rl", title: "GRPO Reward Dynamics", mod: "/static/3d/surfaces/grpo.js" },
+  { id: "kvcache", cat: "quant", title: "KV-Cache H2O", mod: "/static/3d/surfaces/kvcache.js" },
+  { id: "mla", cat: "attention", title: "Latent Attention (MLA)", mod: "/static/3d/surfaces/mla.js" },
+  { id: "blt", cat: "attention", title: "Byte-Latent Patching", mod: "/static/3d/surfaces/blt.js" },
+  { id: "nsa", cat: "attention", title: "Native Sparse Attention", mod: "/static/3d/surfaces/nsa.js" },
+  { id: "kan", cat: "attention", title: "Kolmogorov-Arnold Network", mod: "/static/3d/surfaces/kan.js" },
+  { id: "steering", cat: "governance", title: "Steering Vectors (ActAdd / RepE)", mod: "/static/3d/surfaces/steering.js" },
+  { id: "titans", cat: "brain", title: "Titans Neural Long-Term Memory", mod: "/static/3d/surfaces/titans.js" },
+  { id: "mor", cat: "reasoning", title: "Mixture-of-Recursions (adaptive depth)", mod: "/static/3d/surfaces/mor.js" },
+  { id: "goat", cat: "attention", title: "GOAT Optimal-Transport Attention", mod: "/static/3d/surfaces/goat.js" },
+  { id: "kla", cat: "attention", title: "Kaczmarz Linear Attention", mod: "/static/3d/surfaces/kla.js" },
+  { id: "hrm", cat: "reasoning", title: "Hierarchical Reasoning Model", mod: "/static/3d/surfaces/hrm.js" },
+  { id: "pfield", cat: "anatomy", title: "Pressure-Field Coordination", mod: "/static/3d/surfaces/pfield.js" },
+  { id: "qhall", cat: "governance", title: "Quantum-Inspired Hallucination UQ", mod: "/static/3d/surfaces/qhall.js" },
+  { id: "aimc", cat: "attention", title: "Analog In-Memory Attention", mod: "/static/3d/surfaces/aimc.js" },
+  { id: "ternary", cat: "quant", title: "Ternary 1.58-bit Weights", mod: "/static/3d/surfaces/ternary.js" },
+  { id: "sement", cat: "governance", title: "Semantic-Entropy Uncertainty", mod: "/static/3d/surfaces/sement.js" },
+  { id: "inplacettt", cat: "reasoning", title: "In-Place Test-Time Training", mod: "/static/3d/surfaces/inplacettt.js" },
+  { id: "nested", cat: "brain", title: "Nested Learning (multi-timescale)", mod: "/static/3d/surfaces/nested.js" },
+  { id: "matgran", cat: "brain", title: "Matryoshka Representation Granularity", mod: "/static/3d/surfaces/matgran.js" },
+  { id: "graphmem", cat: "brain", title: "Multi-Graph Agentic Memory", mod: "/static/3d/surfaces/graphmem.js" },
+  { id: "elf", cat: "attention", title: "Continuous-Embedding Flow LM", mod: "/static/3d/surfaces/elf.js" },
+  { id: "s3search", cat: "quant", title: "Stratified Denoise Search", mod: "/static/3d/surfaces/s3search.js" },
+  { id: "slidesparse", cat: "quant", title: "Structured-Sparse Layout Packing", mod: "/static/3d/surfaces/slidesparse.js" },
+  { id: "catq", cat: "quant", title: "Calibration Ternary Quant", mod: "/static/3d/surfaces/catq.js" },
+  { id: "rauq", cat: "governance", title: "Attention-Pattern Uncertainty", mod: "/static/3d/surfaces/rauq.js" },
+  { id: "agentcoh", cat: "brain", title: "Multi-Agent Memory Coherence", mod: "/static/3d/surfaces/agentcoh.js" },
+  { id: "energy", cat: "energy",      title: "Energy",      mod: "/static/3d/surfaces/energy.js" },
+  { id: "fabric", cat: "defense",      title: "Fabric",      mod: "/static/3d/surfaces/fabric.js" },
+  { id: "pnt", cat: "defense",         title: "PNT",         mod: "/static/3d/surfaces/pnt.js" },
+  { id: "counter-uas", cat: "defense", title: "Counter-UAS", mod: "/static/3d/surfaces/counter-uas.js" },
+  { id: "governance", cat: "governance", flag: true,  title: "Governance",  mod: "/static/3d/surfaces/governance.js" },
+  { id: "pinn", cat: "defense",        title: "PINN",        mod: "/static/3d/surfaces/pinn.js" },
+  { id: "router", cat: "defense",      title: "Router",      mod: "/static/3d/surfaces/router.js" },
+  { id: "anatomy", cat: "anatomy",     title: "Anatomy",     mod: "/static/3d/surfaces/anatomy.js" },
+  { id: "anatomy_body", cat: "anatomy", flag: true, title: "Anatomy · Living Body", mod: "/static/3d/surfaces/anatomy_body.js" },
+  { id: "estate", cat: "map",      title: "Estate",      mod: "/static/3d/surfaces/estate.js" },
+  { id: "muon", cat: "attention",        title: "Muon Orthogonalized-Momentum Optimizer", mod: "/static/3d/surfaces/muon.js" },
+  { id: "specexec", cat: "attention",    title: "Tree Speculative Execution",             mod: "/static/3d/surfaces/specexec.js" },
+  { id: "nvfp4", cat: "quant",       title: "NVFP4 4-bit Training Format",            mod: "/static/3d/surfaces/nvfp4.js" },
+  { id: "keyless", cat: "attention",     title: "Keyless Attention (Value-Only Cache)",     mod: "/static/3d/surfaces/keyless.js" },
+  { id: "gitthoughts", cat: "reasoning", title: "GitOfThoughts (Version-Controlled Reasoning)", mod: "/static/3d/surfaces/gitthoughts.js" },
+  { id: "herotq", cat: "quant",      title: "HeRo-Q Hessian-Conditioned Quantization",    mod: "/static/3d/surfaces/herotq.js" },
+  { id: "dla", cat: "attention",         title: "Dynamic Linear Attention",                    mod: "/static/3d/surfaces/dla.js" },
+  { id: "ctxready", cat: "reasoning",    title: "Context-Ready Transformer",                   mod: "/static/3d/surfaces/ctxready.js" },
+  { id: "opera", cat: "reasoning",       title: "OPERA Perplexity-Reward Alignment",           mod: "/static/3d/surfaces/opera.js" },
+  { id: "brain", cat: "brain", flag: true,       title: "Brain — live knowledge graph",                mod: "/static/3d/surfaces/brain.js" },
+  { id: "zkinfer", cat: "proof",     title: "zkML Proof-of-Inference (Cryptographic Receipts)", mod: "/static/3d/surfaces/zkinfer.js" },
+  { id: "flower", cat: "brain", title: "Flower Brain", mod: "/static/3d/surfaces/flower.js" },
+  { id: "agentmem", cat: "brain",    title: "AgentMem · Λ-Governed Agent Memory (synthesis)",   mod: "/static/3d/surfaces/agentmem.js" },
+  { id: "loopforge", cat: "brain", title: "Loop Forge", mod: "/static/3d/surfaces/loopforge.js" },
+  { id: "edgefusion", cat: "energy",  title: "EdgeFusion · Λ-Gated Energy-Proportional Sensor Fusion (synthesis)", mod: "/static/3d/surfaces/edgefusion.js" },
+  { id: "evalarena", cat: "governance", flag: true, title: "Eval Arena · Governed Eval / Red-Team", mod: "/static/3d/surfaces/evalarena.js" },
+  { id: "vqc", cat: "energy",         title: "Governed VQC · Parameter-Shift Hybrid QML (MODELED)", mod: "/static/3d/surfaces/vqc.js" },
+  { id: "harness", cat: "governance",     title: "Governed Model Harness · Behavior Transfer",         mod: "/static/3d/surfaces/harness.js" },
+  { id: "aigov", cat: "governance",       title: "AI Governance Conformance · Λ-Advisory Readiness (crosswalk)", mod: "/static/3d/surfaces/aigov.js" },
+  { id: "fmverif", cat: "proof",     title: "Proof-Carrying Inference (Machine-Checkable Certificates)", mod: "/static/3d/surfaces/fmverif.js" },
+  { id: "supplychain", cat: "proof", title: "Model-Artifact Provenance (SLSA / in-toto / Rekor / C2PA)", mod: "/static/3d/surfaces/supplychain.js" },
+  { id: "hybridssm", cat: "attention",   title: "HybridSSM · Attention vs State-Space vs Hybrid Frontier (synthesis)", mod: "/static/3d/surfaces/hybridssm.js" },
+  { id: "governedagent", cat: "reasoning", title: "Governed Agent Loop · plan→act→self-eval→gate→retry", mod: "/static/3d/surfaces/governedagent.js" },
+  { id: "governedrag", cat: "reasoning", title: "Governed RAG · Retrieval-with-Receipts",                mod: "/static/3d/surfaces/governedrag.js" },
+  { id: "ecosystem", cat: "defense", flag: true,   title: "Harness · Ecosystem Status",                            mod: "/static/3d/surfaces/ecosystem.js" },
+  { id: "brainquery", cat: "brain", flag: true,  title: "Brain Query · ask the graph (retrieval)",               mod: "/static/3d/surfaces/brainquery.js" },
+  { id: "sovereign", cat: "energy", flag: true,   title: "Sovereign Local Model · status · doctrine self-test · Stage A/B · signed receipt", mod: "/static/3d/surfaces/sovereign.js" },
 ];
 
 const stageEl = document.getElementById("stage");
@@ -259,8 +291,10 @@ async function selectSurface(id) {
   const def = SURFACES.find((s) => s.id === id);
   if (!def) return;
   const token = ++loadToken;
-  // visual selection state
-  [...tabsEl.children].forEach((t) => t.setAttribute("aria-selected", String(t.dataset.id === id)));
+  // visual selection state: mark every tab button with this id (a flagship appears both in
+  // the ★ Featured row and inside its category panel), auto-open the active category, and
+  // proof-teal-flag the owning dropdown button.
+  _highlight(id);
 
   await ensureStage();
   // tear down previous
@@ -285,18 +319,96 @@ async function selectSurface(id) {
   }
 }
 
-// build tabs
-SURFACES.forEach((s) => {
+// ---- grouped nav: pinned ★ Featured row + collapsible category dropdowns ----
+// Category display order + labels (spec taxonomy). Only categories with >=1 surface are
+// rendered; any surface without a `cat` falls to "more" (safety net — never dropped).
+const CATS = [
+  ["map", "Map"],
+  ["brain", "Brain & Memory"],
+  ["anatomy", "Anatomy & Living System"],
+  ["reasoning", "Reasoning & Agents"],
+  ["attention", "Attention & Architecture"],
+  ["quant", "Quantization & Efficiency"],
+  ["governance", "Governance & Assurance"],
+  ["proof", "Proof & Attestation"],
+  ["energy", "Energy & Sovereign"],
+  ["defense", "Defense & Fleet"],
+  ["rl", "RL & Training"],
+  ["more", "More"],
+];
+const catOf = (s) => s.cat || "more";
+
+const featuredRow = document.getElementById("featured-row");
+const catRow = document.getElementById("cat-row");
+const catPanels = document.getElementById("cat-panels");
+const _panels = {};   // cat -> drop-panel element
+const _catBtns = {};  // cat -> dropdown button
+
+function _makeTab(s, feat) {
   const b = document.createElement("button");
-  b.className = "tab"; b.textContent = s.title; b.dataset.id = s.id;
+  b.className = "tab" + (feat ? " tab--feat" : "");
+  b.dataset.id = s.id; b.dataset.cat = catOf(s);
   b.setAttribute("role", "tab"); b.setAttribute("aria-selected", "false");
+  b.title = s.title;
+  if (feat) {
+    const star = document.createElement("span"); star.className = "star"; star.textContent = "★";
+    b.appendChild(star); b.appendChild(document.createTextNode(s.title));
+  } else {
+    b.textContent = s.title;
+  }
   b.addEventListener("click", () => {
     selectSurface(s.id);
-    // On the mobile horizontal tab strip, keep the tapped tab in view.
+    // On the mobile horizontal strips, keep the tapped tab in view.
     try { b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (_) {}
   });
-  tabsEl.appendChild(b);
+  return b;
+}
+
+// Open exactly one category panel (or close all when open=false). One open at a time.
+function openCategory(cat, open) {
+  Object.keys(_panels).forEach((c) => {
+    const on = (c === cat) ? open : false;
+    _panels[c].dataset.open = String(on);
+    if (_catBtns[c]) _catBtns[c].setAttribute("aria-expanded", String(on));
+  });
+}
+
+// (a) pinned Featured row — flagships (incl. Atlas), always visible above the dropdowns.
+SURFACES.filter((s) => s.flag).forEach((s) => featuredRow.appendChild(_makeTab(s, true)));
+
+// (b) category dropdown buttons + their drop panels.
+CATS.forEach(([cat, label]) => {
+  const items = SURFACES.filter((s) => catOf(s) === cat);
+  if (!items.length) return;
+  const btn = document.createElement("button");
+  btn.className = "catbtn"; btn.type = "button";
+  btn.dataset.cat = cat; btn.setAttribute("aria-expanded", "false");
+  const caret = document.createElement("span"); caret.className = "caret"; caret.textContent = "▸";
+  btn.appendChild(caret);
+  btn.appendChild(document.createTextNode(label + " "));
+  const cnt = document.createElement("span"); cnt.className = "count"; cnt.textContent = String(items.length);
+  btn.appendChild(cnt);
+  const panel = document.createElement("div");
+  panel.className = "panel"; panel.dataset.cat = cat; panel.dataset.open = "false";
+  items.forEach((s) => panel.appendChild(_makeTab(s, false)));
+  btn.addEventListener("click", () => openCategory(cat, panel.dataset.open !== "true"));
+  catRow.appendChild(btn);
+  catPanels.appendChild(panel);
+  _panels[cat] = panel; _catBtns[cat] = btn;
 });
+
+// Mark every tab button carrying `id` as selected (a flagship is in both the Featured row
+// and its category panel), auto-open the active surface's category, and proof-teal-flag the
+// owning dropdown button so the current location is always legible.
+function _highlight(id) {
+  const def = SURFACES.find((s) => s.id === id);
+  const cat = def ? catOf(def) : null;
+  tabsEl.querySelectorAll("[data-id]").forEach((t) =>
+    t.setAttribute("aria-selected", String(t.dataset.id === id)));
+  if (cat && _panels[cat]) openCategory(cat, true);
+  Object.keys(_catBtns).forEach((c) =>
+    _catBtns[c].setAttribute("data-hasactive", String(c === cat)));
+}
 
 // WebGPU toggle: flip the preference and re-boot the renderer + re-mount the active surface.
 // Honest: if the browser/driver yields no WebGPU device the toolkit falls back to WebGL2 and
