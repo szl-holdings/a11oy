@@ -1667,6 +1667,22 @@ try:
 except Exception as _szl_aigov_e:  # pragma: no cover
     print(f"[a11oy] AIGov NOT registered: {_szl_aigov_e!r}", file=__import__("sys").stderr)
 
+# (hybridssm-wire) — HYBRIDSSM: MODELED attention vs state-space vs hybrid
+# (Jamba/Griffin/Samba/Zamba) compute/memory frontier. Analytic KV-cache-memory
+# and per-token decode-FLOPs curves + an ILLUSTRATIVE long-context recall proxy
+# (NOT a benchmark). Curves MODELED not MEASURED (no profiler/hardware); the
+# per-arch compositions and the Λ-advisory architecture pick are CONJECTURE
+# (Λ = Conjecture 1, gray, never green; advisory trust capped at 0.97). Cites
+# Mamba (arXiv:2312.00752), Jamba (arXiv:2403.19887), Griffin (arXiv:2402.19427),
+# Samba (arXiv:2406.07522), Zamba (arXiv:2405.16712). Registered BEFORE the SPA
+# catch-all so /api/... is JSON.
+try:
+    import szl_hybridssm as _szl_hybridssm
+    _szl_hybridssm.register(app, ns="a11oy")
+    print("[a11oy] HybridSSM registered: /api/a11oy/v1/frontier/hybridssm", file=__import__("sys").stderr)
+except Exception as _szl_hybridssm_e:  # pragma: no cover
+    print(f"[a11oy] HybridSSM NOT registered: {_szl_hybridssm_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
