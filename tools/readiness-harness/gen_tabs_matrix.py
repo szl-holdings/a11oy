@@ -512,6 +512,17 @@ TAB_ENDPOINTS = {
               "/api/a11oy/v1/cuas/summary"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
+    # Governed Flywheel tabs (Dev 1): four LIVE console panels that wire the
+    # already-merged governed backends into one flywheel (Profile -> Plan -> Exec
+    # -> Self-Eval -> Approval -> Receipt). Contract each to its REAL backing
+    # endpoints so the probe judges them as genuine declared (non-static) tabs
+    # instead of silently bucketing them static -- they DO make live network
+    # calls. Honest labels (LIVE/MODELED/CONJECTURE); Λ stays Conjecture 1;
+    # no locked-8 numbers touched; additive.
+    "flyagent": ["/api/a11oy/v1/agentloop/run", "/api/a11oy/v1/agentloop/health"],
+    "flyharness": ["/api/a11oy/v1/harness/profiles"],
+    "flyeval": ["/api/a11oy/v1/eval/suites", "/api/a11oy/v1/eval/run"],
+    "flyrag": ["/api/a11oy/v1/rag/query", "/api/a11oy/v1/rag/status"],
 }
 
 # Tabs that present clearly-labelled SAMPLE/MODELED/CONNECT-READY content by design
