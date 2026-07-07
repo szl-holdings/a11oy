@@ -703,6 +703,25 @@ try:
 except Exception as _szl_sov_e:  # pragma: no cover
     print(f"[a11oy] Frontier sovereign NOT registered: {_szl_sov_e!r}", file=__import__("sys").stderr)
 
+# Brain-Body panel (Wave O / Dev 3) — GET /api/a11oy/v1/frontier/brainbody composes the LIVING
+# BODY 3D surface (static/3d/surfaces/brainbody.js): each organ's brightness is driven by the
+# real Brain pulse (Dev-1 GET /api/a11oy/v1/brain/pulse, feat/brain-hub) and its energy
+# allocation (Dev-2 GET /api/a11oy/v1/brain/energy, feat/brain-energy), read SERVER-SIDE
+# (prefers the in-process szl_brain_hub/szl_brain_energy modules so it agrees with the routed
+# endpoints by construction; else a same-origin HTTP read; else honest UNAVAILABLE with the
+# dependency recorded). Returns per-organ lighting each carrying its VERBATIM honesty label
+# (LIVE/MODELED/UNAVAILABLE) + a signed receipt of the read. The Brain hub/energy PRs may not
+# be merged in this runtime, so this degrades to an honest UNAVAILABLE (dark body) — NEVER a
+# fabricated pulse, joule, or lit organ. Adds NOTHING to the locked-8; Λ stays Conjecture 1;
+# trust ceiling 0.97. Additive, try/except-guarded, same register() pattern, registered EARLY
+# (before the SPA catch-all).
+try:
+    import szl_brainbody as _szl_brainbody
+    _szl_brainbody.register(app, ns="a11oy")
+    print("[a11oy] Frontier brainbody registered: /api/a11oy/v1/frontier/brainbody (organs lit by the Brain pulse+energy, else honest UNAVAILABLE)", file=__import__("sys").stderr)
+except Exception as _szl_bb_e:  # pragma: no cover
+    print(f"[a11oy] Frontier brainbody NOT registered: {_szl_bb_e!r}", file=__import__("sys").stderr)
+
 # Model-Artifact Provenance (SLSA · in-toto · Rekor · C2PA) — GET /api/a11oy/v1/frontier/
 # supplychain returns the MODEL supply chain (weights → build → attestation → deploy) as a
 # governed, honestly-labeled surface: each stage names its provenance evidence (in-toto

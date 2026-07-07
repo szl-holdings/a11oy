@@ -666,6 +666,17 @@ COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_me
 # transitive import closure is complete with just this one added COPY.
 COPY szl_sovereign_panel.py ./szl_sovereign_panel.py
 
+# Wave O / Dev 3: Brain-Body panel — imported GUARDED by serve.py (GET /api/a11oy/v1/
+# frontier/brainbody), the composer that lights the LIVING BODY 3D surface
+# (static/3d/surfaces/brainbody.js) from the Brain pulse (Dev-1 /brain/pulse) + energy
+# (Dev-2 /brain/energy). Per the transitive COPY-guard, this module MUST be COPY'd or the
+# endpoint 404s and the body renders honest UNAVAILABLE (dark). Its only optional local
+# imports — szl_brain_hub / szl_brain_energy (Dev-1/Dev-2, guarded, may be absent) and
+# szl_dsse.py (already in the COPY set above) — are import-guarded, so the transitive
+# closure is complete with just this one added COPY. The brainbody.js surface itself
+# ships via the existing `COPY static/3d/ ./static/3d/` below (whole-tree). Λ=Conjecture 1.
+COPY szl_brainbody.py ./szl_brainbody.py
+
 # DEV2 Build 1: TEE/TDX attestation hook (2026-06-30) — imported by serve.py (guarded);
 # MUST be per-file COPY'd or /api/a11oy/v1/tee/status + tee_attestation receipt field
 # fall back to honest UNAVAILABLE stubs. Pattern: dstack-capsule Apache-2.0 arXiv 2606.03323.

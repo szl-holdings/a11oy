@@ -352,5 +352,10 @@
     "path": "/api/a11oy/v1/frontier/fmverif",
     "query": "",
     "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/brainbody",
+    "query": "",
+    "method": "GET"
   }
 ]
