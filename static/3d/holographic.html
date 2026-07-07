@@ -97,6 +97,7 @@ import * as THREE from "three";
 
 // The 9 surface slots the other devs fill. Lazy-loaded per tab.
 const SURFACES = [
+  { id: "atlas",       title: "Atlas",       mod: "/static/3d/surfaces/atlas.js" },
   { id: "frontier",    title: "Frontier",    mod: "/static/3d/surfaces/frontier.js" },
   { id: "neuromorphic", title: "Neuromorphic", mod: "/static/3d/surfaces/neuromorphic.js" },
   { id: "interpretability", title: "Interpretability", mod: "/static/3d/surfaces/interpretability.js" },
@@ -308,9 +309,9 @@ window.__SZL3D_SHELL__ = {
   ensureStage, rebootStage,
 };
 
-// initial surface from hash or default to the frontier tier
+// initial surface from hash or default to the Atlas front door (Wave 27 unifier)
 const initial = (location.hash || "").replace("#", "");
-selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "frontier");
+selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "atlas");
 </script>
 </body>
 </html>
