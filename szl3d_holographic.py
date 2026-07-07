@@ -103,6 +103,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "edgefusion", "title": "EdgeFusion · Λ-Gated Energy-Proportional Sensor Fusion (synthesis)", "owner": "Wave19"},
     {"id": "evalarena", "title": "Eval Arena · Governed Eval / Red-Team", "owner": "WaveH-Team2"},
     {"id": "vqc", "title": "Governed VQC · Parameter-Shift Hybrid QML (SIMULATED)", "owner": "WaveH"},
+    {"id": "harness", "title": "Governed Model Harness · Behavior Transfer", "owner": "WaveF"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
