@@ -321,11 +321,229 @@ def measured_channel(now: Optional[float] = None,
         "NVML reading) — STRUCTURAL-ONLY; no joule fabricated", urls)
 
 
+def _engine_entry(engine_b: Dict[str, Any], before_doc: Dict[str, Any],
+                  engine_a: Optional[Dict[str, Any]], after_doc: Optional[Dict[str, Any]],
+                  url: str, now: float) -> Dict[str, Any]:
+    """Build ONE per-node fleet entry for a single engine from two live reads.
+
+    MEASURED only when szl_joules_truth agrees the reading is fresh/real THIS
+    request; monotonic-reset (after<before) => STRUCTURAL-ONLY meter_reset, no
+    delta logged, no fabricated joule. Provenance on every number.
+    """
+    engine_name = str(engine_b.get("engine") or "unknown-engine")
+    j_before = _engine_joules(engine_b, before_doc)
+    j_after = _engine_joules(engine_a, after_doc) if engine_a is not None else None
+    exporter = None
+    for d in (after_doc, before_doc):
+        if isinstance(d, dict) and d.get("exporter") is not None:
+            exporter = str(d.get("exporter"))
+            break
+    meter_ts = None
+    for d in (after_doc, before_doc):
+        if isinstance(d, dict) and isinstance(d.get("ts"), (int, float)):
+            meter_ts = float(d.get("ts"))
+            break
+
+    # MONOTONIC-RESET DETECTION per node (tower reboot / NVML counter reset).
+    if (isinstance(j_before, (int, float)) and isinstance(j_after, (int, float))
+            and j_after < j_before):
+        return {
+            "node": engine_name,
+            "measured": False,
+            "joules_label": "sample",
+            "joules": None,
+            "power_w": None,
+            "live": False,
+            "reason": ("meter_reset_detected: after (%.3f J) < before (%.3f J) — reboot / "
+                       "NVML counter reset; STRUCTURAL-ONLY, no delta logged"
+                       % (float(j_after), float(j_before))),
+            "joules_evidence": {},
+            "joules_before": j_before,
+            "joules_after": j_after,
+            "provenance": {
+                "meter_url": url, "engine": engine_name, "exporter": exporter,
+                "meter_ts": meter_ts, "fetched_at": now,
+                "method": "two live reads this request; after<before => reset => STRUCTURAL-ONLY",
+            },
+        }
+
+    power_w = _engine_power_w(engine_a) or _engine_power_w(engine_b)
+    joules_now = j_after if isinstance(j_after, (int, float)) else j_before
+    exporter_sample = {
+        "joules_measured_total": joules_now,
+        "exporter_node": engine_name,
+        "exporter_last_seen_ts": now,   # JUST read live this request -> fresh by construction
+        "power_w_sample": power_w,
+    }
+    label, evidence = _label_and_evidence(exporter_sample, now=now)
+    provenance = {
+        "meter_url": url, "engine": engine_name, "exporter": exporter,
+        "meter_ts": meter_ts, "fetched_at": now,
+        "method": ("read live NVML joule meter (engine live=true) THIS request with "
+                   "monotonic-reset detection; measured only when live"),
+    }
+    if label != "measured":
+        # joules_truth judged it not fresh/real — honest STRUCTURAL-ONLY, no fabrication.
+        return {
+            "node": engine_name,
+            "measured": False,
+            "joules_label": label,
+            "joules": None,
+            "power_w": None,
+            "live": False,
+            "reason": ("meter responded but joules_truth judged the reading not fresh/real — "
+                       "STRUCTURAL-ONLY (honest downgrade, no joule fabricated)"),
+            "joules_evidence": {},
+            "joules_before": j_before,
+            "joules_after": j_after,
+            "provenance": provenance,
+        }
+    return {
+        "node": engine_name,
+        "measured": True,
+        "joules_label": label,             # "measured"
+        "joules": joules_now,
+        "power_w": power_w,
+        "live": True,
+        "reason": ("MEASURED — live NVML meter responded with a live=true engine (%s) THIS "
+                   "request; cumulative joules climbing, monotonic-reset checked" % engine_name),
+        "joules_evidence": evidence,
+        "joules_before": j_before,
+        "joules_after": j_after,
+        "provenance": provenance,
+    }
+
+
+def fleet_channel(now: Optional[float] = None,
+                  meter_urls: Optional[List[str]] = None,
+                  timeout: Optional[float] = None) -> Dict[str, Any]:
+    """Fleet-wide ENERGY summary — per-node MEASURED joules+watts+provenance across
+    the FULL fleet (BOTH nodes: omen via meter.a-11-oy.com AND betterwithage via
+    meter2.a-11-oy.com) PLUS a fleet total.
+
+    Reads EVERY harnessed meter in A11OY_JOULE_METER_URLS (comma-separated) — never
+    just the first — with a browser User-Agent (Cloudflare-safe), two live reads per
+    meter for a monotonic-reset guard, and lets szl_joules_truth (the single source of
+    truth) gate each node MEASURED vs sample. Each engine on each meter is its OWN node
+    entry, so N engines across M meters map to N nodes cleanly.
+
+    Doctrine-stable schema:
+      {
+        "measured_any": bool,               # True iff >=1 node is MEASURED this request
+        "joules_label": "measured"|"sample", # fleet label: measured iff any node measured
+        "nodes": [ per-node entry, ... ],   # node, measured, joules, power_w, provenance, ...
+        "fleet": {                          # honest sum over MEASURED nodes ONLY
+            "total_joules": float|None,     # None when no node measured (never fabricated)
+            "total_watts": float|None,
+            "measured_node_count": int,
+            "node_count": int,
+        },
+        "reason": str,                      # honest fleet-level reason
+        "meter_urls": [str, ...],
+        "doctrine": "v11",
+        "citations": {...},
+      }
+
+    HONESTY: when NO meter env is set OR no meter responds live this request, the
+    channel is honest STRUCTURAL-ONLY (measured_any False, total_joules None, empty or
+    per-node STRUCTURAL entries) — NEVER a fabricated joule. NEVER raises.
+    """
+    now = _time.time() if now is None else float(now)
+    to = _METER_TIMEOUT_S if timeout is None else float(timeout)
+    urls = meter_urls if meter_urls is not None else _joule_meter_urls()
+
+    cites = {k: CITATIONS[k] for k in ("meter", "exporter", "joules_truth", "harness")}
+
+    if not urls:
+        return {
+            "measured_any": False,
+            "joules_label": "sample",
+            "nodes": [],
+            "fleet": {"total_joules": None, "total_watts": None,
+                      "measured_node_count": 0, "node_count": 0},
+            "reason": ("no live meter env set (A11OY_JOULE_METER_URLS / A11OY_JOULE_METER_URL) — "
+                       "STRUCTURAL-ONLY; no joule fabricated"),
+            "meter_urls": [],
+            "doctrine": DOCTRINE_VERSION,
+            "citations": cites,
+        }
+
+    nodes: List[Dict[str, Any]] = []
+    seen_engines: set = set()   # de-dupe an engine that appears on more than one meter
+    for url in urls:
+        before_doc = _read_meter_raw(url, to)
+        if not isinstance(before_doc, dict):
+            continue  # this meter is unreachable — contributes no node, never faked
+        after_doc = _read_meter_raw(url, to)
+        # Walk EVERY engine on this meter that carries a live=true GPU.
+        for eng_b in (before_doc.get("engines") or []):
+            if not isinstance(eng_b, dict):
+                continue
+            # only engines with a live=true, numeric-power GPU are a live reading
+            has_live = any(
+                isinstance(g, dict) and g.get("live") is True
+                and isinstance(g.get("power_w"), (int, float))
+                for g in (eng_b.get("gpus") or []))
+            if not has_live:
+                continue
+            ename = str(eng_b.get("engine") or "").strip().lower()
+            if ename and ename in seen_engines:
+                continue  # already have this node from an earlier meter (no double-count)
+            # matching AFTER engine (by name) for the monotonic-reset second read
+            eng_a = None
+            if isinstance(after_doc, dict):
+                for cand in (after_doc.get("engines") or []):
+                    if (isinstance(cand, dict)
+                            and str(cand.get("engine") or "").strip().lower() == ename):
+                        eng_a = cand
+                        break
+            entry = _engine_entry(eng_b, before_doc, eng_a, after_doc, url, now)
+            if ename:
+                seen_engines.add(ename)
+            nodes.append(entry)
+
+    measured_nodes = [n for n in nodes if n.get("measured") is True]
+    measured_any = bool(measured_nodes)
+    j_vals = [n["joules"] for n in measured_nodes if isinstance(n.get("joules"), (int, float))]
+    w_vals = [n["power_w"] for n in measured_nodes if isinstance(n.get("power_w"), (int, float))]
+    total_joules = round(sum(j_vals), 3) if j_vals else None
+    total_watts = round(sum(w_vals), 3) if w_vals else None
+
+    if measured_any:
+        reason = ("MEASURED — %d of %d fleet node(s) responded live THIS request "
+                  "(each per-node number carries provenance); fleet total is an honest sum "
+                  "over MEASURED nodes only" % (len(measured_nodes), len(nodes)))
+    elif nodes:
+        reason = ("meters responded but NO node passed the freshness/reset gate this request — "
+                  "STRUCTURAL-ONLY; no joule fabricated")
+    else:
+        reason = ("no harnessed meter responded live this request (all unreachable / no "
+                  "live=true NVML reading) — STRUCTURAL-ONLY; no joule fabricated")
+
+    return {
+        "measured_any": measured_any,
+        "joules_label": "measured" if measured_any else "sample",
+        "nodes": nodes,
+        "fleet": {
+            "total_joules": total_joules,
+            "total_watts": total_watts,
+            "measured_node_count": len(measured_nodes),
+            "node_count": len(nodes),
+        },
+        "reason": reason,
+        "meter_urls": list(urls),
+        "doctrine": DOCTRINE_VERSION,
+        "citations": cites,
+    }
+
+
 # ======================================================================================
 # Self-test — MUST print ALL OK network-free.
 #   * No meter env => STRUCTURAL-ONLY, joules_label 'sample', evidence {}, no fabrication.
 #   * Synthetic live snapshot (omen) via injected reader => MEASURED with provenance.
 #   * Monotonic reset (after<before) => STRUCTURAL-ONLY meter_reset, no delta logged.
+#   * Fleet: synthetic 2-engine snapshot (omen + betterwithage) => both nodes MEASURED
+#     with per-node provenance + honest fleet total; no-env => STRUCTURAL-ONLY fleet.
 # ======================================================================================
 if __name__ == "__main__":
     import sys as _sys
@@ -403,6 +621,100 @@ if __name__ == "__main__":
     assert "meter_reset_detected" in chr_["reason"], chr_["reason"]
     assert chr_["joules_evidence"] == {}, "reset must carry NO fabricated evidence"
     print("(c) counter reset (after<before) => STRUCTURAL-ONLY:", chr_["reason"][:70])
+
+    # ---- (d) FLEET: no meter env => honest STRUCTURAL-ONLY fleet, no fabricated joule ----
+    fl0 = fleet_channel(meter_urls=[])
+    assert fl0["measured_any"] is False, fl0
+    assert fl0["joules_label"] == "sample", fl0["joules_label"]
+    assert fl0["nodes"] == [], "no-env fleet must carry NO nodes"
+    assert fl0["fleet"]["total_joules"] is None, "no-env fleet total must be null (no fabrication)"
+    assert fl0["fleet"]["total_watts"] is None, fl0["fleet"]
+    assert "no live meter env" in fl0["reason"], fl0["reason"]
+    print("(d) no meter env => STRUCTURAL-ONLY fleet:", fl0["reason"][:66])
+
+    fl_dead = fleet_channel(meter_urls=["http://127.0.0.1:1/nope"], timeout=0.2)
+    assert fl_dead["measured_any"] is False and fl_dead["fleet"]["total_joules"] is None, fl_dead
+    print("(d2) unreachable meter => STRUCTURAL-ONLY fleet:", fl_dead["reason"][:60])
+
+    # ---- (e) FLEET MEASURED: synthetic 2-engine snapshot (omen + betterwithage) ----
+    # Matches the WIRING_BRIEF meter JSON shape; two meters, each exposing its OWN engine
+    # (meter.a-11-oy.com -> omen; meter2.a-11-oy.com -> betterwithage). Prove BOTH nodes
+    # go MEASURED with per-node provenance and the fleet total is the honest sum.
+    _OMEN = {
+        "engines": [{"engine": "omen", "joules": 228489.0,
+                     "gpus": [{"index": 0, "name": "NVIDIA GeForce RTX 4060 Ti",
+                               "power_w": 18.76, "joules": 228489.0, "live": True}]}],
+        "totals": {"joules": 228489.0},
+        "exporter": "omen-joule-exporter (real NVML via nvidia-smi)",
+        "ts": 1783435960.47,
+    }
+    _BWA = {
+        "engines": [{"engine": "betterwithage", "joules": 187431.0,
+                     "gpus": [{"index": 0, "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+                               "power_w": 36.39, "joules": 187431.0, "live": True}]}],
+        "totals": {"joules": 187431.0},
+        "exporter": "betterwithage-joule-exporter (real NVML via nvidia-smi)",
+        "ts": 1783435961.02,
+    }
+    _URL_OMEN = "https://meter.a-11-oy.com/"
+    _URL_BWA = "https://meter2.a-11-oy.com/"
+    _fleet_seq = {"omen": 0, "betterwithage": 0}
+
+    def _fake_fleet_read(url, timeout):  # noqa: ANN001 — per-url snapshot, counter climbs
+        base = _OMEN if url == _URL_OMEN else (_BWA if url == _URL_BWA else None)
+        if base is None:
+            return None
+        d = _json.loads(_json.dumps(base))
+        eng = d["engines"][0]["engine"]
+        bump = 0.05 * _fleet_seq[eng]
+        newj = round(d["engines"][0]["joules"] + bump, 3)
+        d["engines"][0]["joules"] = newj
+        d["engines"][0]["gpus"][0]["joules"] = newj
+        d["totals"]["joules"] = newj
+        _fleet_seq[eng] += 1
+        return d
+
+    globals()["_read_meter_raw"] = _fake_fleet_read
+    try:
+        fl = fleet_channel(meter_urls=[_URL_OMEN, _URL_BWA])
+    finally:
+        globals()["_read_meter_raw"] = _orig
+    assert fl["measured_any"] is True, fl
+    assert fl["joules_label"] == "measured", fl["joules_label"]
+    assert fl["fleet"]["node_count"] == 2, fl["fleet"]
+    assert fl["fleet"]["measured_node_count"] == 2, fl["fleet"]
+    _by = {n["node"]: n for n in fl["nodes"]}
+    assert set(_by) == {"omen", "betterwithage"}, list(_by)
+    # per-node MEASURED + per-node provenance (meter url, engine, exporter)
+    assert _by["omen"]["measured"] is True and _by["omen"]["power_w"] == 18.76, _by["omen"]
+    assert _by["omen"]["provenance"]["meter_url"] == _URL_OMEN, _by["omen"]["provenance"]
+    assert _by["omen"]["provenance"]["engine"] == "omen", _by["omen"]["provenance"]
+    assert _by["betterwithage"]["measured"] is True and _by["betterwithage"]["power_w"] == 36.39, _by["betterwithage"]
+    assert _by["betterwithage"]["provenance"]["meter_url"] == _URL_BWA, _by["betterwithage"]["provenance"]
+    assert _by["betterwithage"]["provenance"]["exporter"], "MEASURED node must carry an exporter provenance"
+    # fleet total = honest sum over MEASURED nodes (both climbed by a hair)
+    _sum_j = _by["omen"]["joules"] + _by["betterwithage"]["joules"]
+    assert abs(fl["fleet"]["total_joules"] - round(_sum_j, 3)) < 1e-6, (fl["fleet"], _sum_j)
+    assert abs(fl["fleet"]["total_watts"] - round(18.76 + 36.39, 3)) < 1e-6, fl["fleet"]
+    print("(e) synthetic 2-engine fleet => MEASURED omen+betterwithage, "
+          "total_joules=%s total_watts=%s" % (fl["fleet"]["total_joules"], fl["fleet"]["total_watts"]))
+
+    # ---- (f) FLEET honest partial: one meter live, the other unreachable ----
+    def _fake_partial(url, timeout):  # noqa: ANN001 — omen live, meter2 down
+        return _fake_fleet_read(url, timeout) if url == _URL_OMEN else None
+
+    globals()["_read_meter_raw"] = _fake_partial
+    try:
+        flp = fleet_channel(meter_urls=[_URL_OMEN, _URL_BWA])
+    finally:
+        globals()["_read_meter_raw"] = _orig
+    assert flp["measured_any"] is True, flp
+    assert flp["fleet"]["node_count"] == 1 and flp["fleet"]["measured_node_count"] == 1, flp["fleet"]
+    assert flp["nodes"][0]["node"] == "omen", flp["nodes"]
+    # betterwithage down contributes NOTHING to the total (never fabricated)
+    assert flp["fleet"]["total_watts"] == 18.76, flp["fleet"]
+    print("(f) partial fleet (meter2 down) => only omen MEASURED, no fabrication:",
+          "node_count=%s" % flp["fleet"]["node_count"])
 
     print("ALL OK")
     _sys.exit(0)
