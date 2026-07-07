@@ -17,6 +17,10 @@
 
 export const LABELS = Object.freeze({
   MEASURED:          { key: "MEASURED",          color: "#2fd07a", hex: 0x2fd07a, text: "#04130b", note: "real measurement (NVML/exporter)" },
+  // A REAL counter/power delta where the meter counts the WHOLE GPU and exclusivity is
+  // NOT asserted: an honest upper bound that may include co-tenant energy. Rendered as
+  // its own verbatim state (teal, not green) so it is NEVER upgraded to a clean MEASURED.
+  MEASURED_SHARED_BOUNDED: { key: "MEASURED_SHARED_BOUNDED", color: "#39d3c4", hex: 0x39d3c4, text: "#03130f", note: "real GPU-wide delta, exclusivity not asserted — upper bound" },
   MODELED:           { key: "MODELED",           color: "#e8c074", hex: 0xe8c074, text: "#1a1304", note: "closed-form / deterministic model" },
   SAMPLE:            { key: "SAMPLE",            color: "#6fb1ff", hex: 0x6fb1ff, text: "#03101f", note: "illustrative sample signal" },
   "STRUCTURAL-ONLY": { key: "STRUCTURAL-ONLY",   color: "#8a97a3", hex: 0x8a97a3, text: "#0a0e12", note: "structure only — value unproven" },
@@ -27,6 +31,9 @@ const NEUTRAL = { key: "UNKNOWN", color: "#9fb1bf", hex: 0x9fb1bf, text: "#06090
 export function normalize(raw) {
   if (!raw) return null;
   const t = String(raw).trim().toUpperCase();
+  // Check the shared-bounded state BEFORE the generic MEASURED branch so the co-tenant
+  // upper-bound caveat is preserved verbatim and never collapsed to a clean MEASURED.
+  if (t.indexOf("SHARED") >= 0 && t.indexOf("MEASURED") >= 0) return "MEASURED_SHARED_BOUNDED";
   if (t.indexOf("MEASURED") >= 0) return "MEASURED";
   if (t.indexOf("MODELED") >= 0 || t.indexOf("MODELLED") >= 0) return "MODELED";
   if (t.indexOf("SAMPLE") >= 0) return "SAMPLE";

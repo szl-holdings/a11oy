@@ -561,8 +561,10 @@ def _fetch_joule_meter(timeout: float = 4.0) -> Optional[dict]:
     if len(urls) == 1:
         return _fetch_one_meter(urls[0], timeout)
     merged_engines: list[dict] = []
+    merged_models: list[dict] = []
     total = 0.0
     seen_names: set = set()
+    seen_models: set = set()
     any_ok = False
     for u in urls:
         d = _fetch_one_meter(u, timeout)
@@ -577,9 +579,20 @@ def _fetch_joule_meter(timeout: float = 4.0) -> Optional[dict]:
             merged_engines.append(e)
             if isinstance(e.get("joules"), (int, float)):
                 total += float(e["joules"])
+        # Preserve per-inference model readings additively (first-seen wins on name,
+        # mirroring the engine merge). Honest: an absent models[] contributes nothing.
+        for m in (d.get("models") or []):
+            mname = str(m.get("name") or "").lower()
+            if not mname or mname in seen_models:
+                continue
+            seen_models.add(mname)
+            merged_models.append(m)
     if not any_ok:
         return None
-    return {"engines": merged_engines, "totals": {"joules": round(total, 3)}}
+    out: dict = {"engines": merged_engines, "totals": {"joules": round(total, 3)}}
+    if merged_models:
+        out["models"] = merged_models
+    return out
 
 
 def _exporter_sample_for_node(meter: Optional[dict], exporter_node: str,

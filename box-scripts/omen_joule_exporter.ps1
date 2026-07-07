@@ -7,6 +7,12 @@
 #
 # RUN (OMEN PowerShell):  powershell -ExecutionPolicy Bypass -File $env:USERPROFILE\omen_joule_exporter.ps1
 # Then tunnel port 9471 and point A11OY_JOULE_METER_URL at the tunnel.
+#
+# NOTE: per-inference model energy (the top-level models[] array populated from
+# ollama_energy_probe.py's OLLAMA_ENERGY_JSON) is served ONLY by the Python exporter
+# (omen_joule_exporter.py), which is canonical for the GLM MEASURED joules/token feed.
+# This PowerShell exporter serves engines/totals only; if you need the GLM node's
+# measured energy on the surface, run the Python exporter instead.
 
 $Port        = if ($env:OMEN_EXPORTER_PORT) { [int]$env:OMEN_EXPORTER_PORT } else { 9471 }
 $EngineName  = if ($env:OMEN_ENGINE_NAME)   { $env:OMEN_ENGINE_NAME }        else { "omen" }

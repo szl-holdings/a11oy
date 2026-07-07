@@ -174,6 +174,12 @@ function _meshNodes(json) {
     const joules = _num(n && n.joules);
     const live = (n && n.live) === true;
     const measured = label.indexOf("MEASURED") >= 0 && (watts !== null || joules !== null);
+    // Per-inference GPU energy for the GLM node (from the probe's models[] entry).
+    // jptLabel is carried VERBATIM off the JSON (MEASURED / MEASURED_SHARED_BOUNDED /
+    // UNAVAILABLE) and is NEVER upgraded here — an upper-bound stays an upper bound.
+    const jpt = _num(n && n.joules_per_token);
+    const jptLabel = String((n && n.joules_per_token_label) || "").toUpperCase();
+    const jptMeasured = jpt !== null && jptLabel.indexOf("MEASURED") >= 0;
     return {
       key: String((n && (n.name || n.role)) || ("node" + i)),
       name: String((n && n.name) || (n && n.role) || ("node " + i)),
@@ -181,6 +187,10 @@ function _meshNodes(json) {
       watts, joules, live, measured,
       draw: _num(n && n.draw),
       source: String((n && n.source) || ""),
+      jpt, jptMeasured,
+      // Verbatim probe label for the pill (fallback UNAVAILABLE), never upgraded.
+      jptLabel: jptLabel || "UNAVAILABLE",
+      method: String((n && n.measurement_method) || ""),
       // Honest per-node display label: MEASURED when its own meter read live; OFFLINE
       // otherwise (present in the mesh, but no live NVML reading attributed to it).
       label: measured ? "MEASURED" : "OFFLINE",
@@ -730,7 +740,14 @@ function onMesh(json, meta) {
         _hud.nodeBox.appendChild(wrap);
         r = _hud.nodeRows[nd.key] = { val, chip };
       }
-      if (nd.measured) {
+      if (nd.jptMeasured) {
+        // GLM inference node: show REAL per-inference energy (joules/token). The pill
+        // shows the probe's VERBATIM label (MEASURED or MEASURED_SHARED_BOUNDED — the
+        // shared-GPU upper bound is never silently upgraded to a clean MEASURED).
+        const jt = nd.jpt < 0.01 ? nd.jpt.toPrecision(2) : nd.jpt.toFixed(3);
+        r.val.textContent = jt + " J/tok" + (nd.method ? " · " + nd.method : "");
+        _ctx.label.updateChip(r.chip, nd.jptLabel);
+      } else if (nd.measured) {
         const parts = [];
         if (nd.watts !== null) parts.push(nd.watts.toFixed(1) + " W");
         if (nd.joules !== null) parts.push(nd.joules.toFixed(0) + " J");

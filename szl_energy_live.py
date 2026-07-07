@@ -41,6 +41,10 @@ from starlette.responses import JSONResponse
 # Honest labels (mirror szl_governed_api / szl_joules_truth vocabulary).
 LABEL_MEASURED = "MEASURED"
 LABEL_UNAVAILABLE = "UNAVAILABLE"
+# Per-inference GPU energy where the meter counts the WHOLE GPU and exclusivity is NOT
+# asserted: a real counter delta that may include co-tenant energy (an upper bound).
+# Emitted verbatim by ollama_energy_probe.py; NEVER upgraded to MEASURED here.
+LABEL_BOUNDED = "MEASURED_SHARED_BOUNDED"
 
 # The NVML exporter URL — SAME env the governed-inference GLM engine meters off.
 METER_URL = os.environ.get("SZL_GLM_METER", "https://meter2.a-11-oy.com").rstrip("/")
@@ -377,6 +381,29 @@ def _merged_engine_readings() -> dict:
     return out
 
 
+def _merged_model_readings() -> dict:
+    """Per-inference model energy from the MERGED multi-meter scrape, keyed by the model's
+    BASE name (tag stripped, lower-cased) → the probe's reading dict.
+
+    Populated by ollama_energy_probe.py → omen_joule_exporter.py models[] → the operator's
+    merged meter. Lets the GLM mesh node show its own MEASURED joules/token. Honest
+    (Doctrine v11): no models[] in the meter => empty map => the GLM node keeps its
+    UNAVAILABLE empty-state; a reading's label is carried VERBATIM (never upgraded)."""
+    try:
+        import szl_energy_operator as _op
+        meter = _op._fetch_joule_meter()
+    except Exception:  # noqa: BLE001 — operator/meter absent => empty map, honest fallback
+        return {}
+    out: dict = {}
+    for m in (meter or {}).get("models", []) or []:
+        raw = str(m.get("name") or "").strip().lower()
+        if not raw:
+            continue
+        base = raw.split(":", 1)[0]  # 'glm-4.7-flash:latest' → 'glm-4.7-flash'
+        out.setdefault(base, m)  # first-seen wins, mirrors engine merge
+    return out
+
+
 def build_mesh() -> dict:
     snap = meter_snapshot()
     reachable = bool(snap.get("reachable"))
@@ -386,6 +413,9 @@ def build_mesh() -> dict:
     # and the laptop's meters). This is what lets the laptop node pull its own engine's
     # watts/joules instead of showing null when its meter is a SEPARATE URL from METER_URL.
     engine_map = _merged_engine_readings()
+    # Per-inference model energy (keyed by base model name) for the GLM node — from the
+    # same merged meter scrape. Absent => GLM keeps its honest UNAVAILABLE empty-state.
+    model_map = _merged_model_readings()
 
     # Fallback attribution: match a meter GPU to a mesh node by GPU model token (e.g. the
     # node "…RTX 4060 Ti…" gets the meter GPU whose name label contains "RTX 4060 Ti").
@@ -418,7 +448,7 @@ def build_mesh() -> dict:
             source = "NVML" if g else "mesh-posture"
         if isinstance(watts, (int, float)):
             watt_vals.append(watts)
-        nodes.append({
+        node = {
             "name": n.get("name"),
             "role": n.get("role"),
             "live": n.get("live"),
@@ -426,7 +456,28 @@ def build_mesh() -> dict:
             "joules": joules,
             "joules_label": LABEL_MEASURED if isinstance(joules, (int, float)) else LABEL_UNAVAILABLE,
             "source": source,
-        })
+        }
+        # GLM node: attribute REAL per-inference energy from the probe's models[] entry.
+        # Matched by base model name. The probe's honest label (MEASURED /
+        # MEASURED_SHARED_BOUNDED / UNAVAILABLE) is carried VERBATIM — never upgraded.
+        # No fresh reading => the node keeps its UNAVAILABLE empty-state (null number).
+        if n.get("is_glm"):
+            base = str(n.get("model") or "").strip().lower().split(":", 1)[0]
+            m = model_map.get(base) if base else None
+            jpt = m.get("joules_per_token") if m else None
+            mlabel = (m.get("label") if m else None) or LABEL_UNAVAILABLE
+            if isinstance(jpt, (int, float)) and mlabel != LABEL_UNAVAILABLE:
+                node["joules_per_token"] = jpt
+                node["joules_per_token_label"] = mlabel  # verbatim, never upgraded
+                node["measurement_method"] = m.get("measurement_method")
+                node["exclusive"] = m.get("exclusive")
+                node["energy_joules"] = m.get("energy_joules")
+                node["output_tokens"] = m.get("output_tokens")
+                node["inference_source"] = m.get("source")
+            else:
+                node["joules_per_token"] = None
+                node["joules_per_token_label"] = LABEL_UNAVAILABLE
+        nodes.append(node)
 
     # Normalized 0..1 draw for visualization (relative to the busiest live node this tick).
     max_w = max(watt_vals) if watt_vals else 0.0
@@ -853,17 +904,24 @@ def _selftest() -> dict:
     # UNAVAILABLE, never fabricated. This is the regression this fix guards.
     _lap = "Sovereign GPU 1 (laptop · RTX 5050 · Blackwell)"
     _tow = "Sovereign GPU 2 (tower · RTX 4060 Ti · anchor)"
+    _glm = "GLM-4.7-Flash (sovereign · MIT · glm-4.7-flash)"
     _prev_posture = globals()["govern_posture"]
     _prev_readings = globals()["_merged_engine_readings"]
+    _prev_models = globals()["_merged_model_readings"]
     try:
-        # Deterministic posture (no network) with both nodes' engine labels wired.
+        # Deterministic posture (no network) with both nodes' engine labels wired,
+        # plus the GLM node (no exporter, is_glm=True, model tag for models[] match).
         globals()["govern_posture"] = lambda *a, **k: {
-            "available": True, "live_count": 2, "nodes": [
+            "available": True, "live_count": 3, "nodes": [
                 {"name": _tow, "role": "anchor", "gpu_model": "RTX 4060 Ti",
                  "exporter": "omen", "is_glm": False, "live": True},
                 {"name": _lap, "role": "blackwell", "gpu_model": "RTX 5050",
                  "exporter": "betterwithage", "is_glm": False, "live": True},
+                {"name": _glm, "role": "inference", "model": "glm-4.7-flash",
+                 "exporter": None, "is_glm": True, "live": True},
             ]}
+        # No probe reading by default → GLM node stays UNAVAILABLE (honest empty-state).
+        globals()["_merged_model_readings"] = lambda: {}
         # Reachable-but-empty single meter so the GPU-model fallback yields nothing
         # (proves attribution comes from the engine map, and null is honest when absent).
         with _snap_lock:
@@ -881,6 +939,9 @@ def _selftest() -> dict:
         assert by[_lap]["watts"] == 8.0 and by[_lap]["joules"] == 37000.0, by[_lap]
         assert by[_lap]["joules_label"] == LABEL_MEASURED and by[_lap]["source"] == "NVML", by[_lap]
         assert by[_tow]["watts"] == 13.53 and by[_tow]["joules"] == 15896.0, by[_tow]
+        # GLM node with no probe reading → honest UNAVAILABLE, joules_per_token null.
+        assert by[_glm]["joules_per_token"] is None, by[_glm]
+        assert by[_glm]["joules_per_token_label"] == LABEL_UNAVAILABLE, by[_glm]
 
         # Laptop engine absent (meter2 unreachable) → null, NEVER fabricated; tower unaffected.
         globals()["_merged_engine_readings"] = lambda: {"omen": {"watts": 13.53, "joules": 15896.0}}
@@ -889,13 +950,40 @@ def _selftest() -> dict:
         assert by3[_lap]["watts"] is None and by3[_lap]["joules"] is None, by3[_lap]
         assert by3[_lap]["joules_label"] == LABEL_UNAVAILABLE, by3[_lap]
         assert by3[_tow]["watts"] == 13.53, by3[_tow]
+
+        # (g) GLM per-inference energy: a fresh MEASURED_SHARED_BOUNDED reading in models[]
+        # is surfaced on the GLM node with the label carried VERBATIM (never upgraded).
+        globals()["_merged_model_readings"] = lambda: {
+            "glm-4.7-flash": {
+                "name": "glm-4.7-flash:latest", "joules_per_token": 0.42,
+                "energy_joules": 84.0, "output_tokens": 200,
+                "measurement_method": "counter-delta", "exclusive": False,
+                "label": LABEL_BOUNDED, "source": "pynvml.nvmlDeviceGetTotalEnergyConsumption",
+            }}
+        m4 = build_mesh()
+        by4 = {nd["name"]: nd for nd in m4["nodes"]}
+        assert by4[_glm]["joules_per_token"] == 0.42, by4[_glm]
+        assert by4[_glm]["joules_per_token_label"] == LABEL_BOUNDED, by4[_glm]
+        assert by4[_glm]["measurement_method"] == "counter-delta", by4[_glm]
+        assert by4[_glm]["exclusive"] is False, by4[_glm]
+
+        # A models[] entry whose own label is UNAVAILABLE is NOT surfaced as a number.
+        globals()["_merged_model_readings"] = lambda: {
+            "glm-4.7-flash": {"name": "glm-4.7-flash:latest", "joules_per_token": None,
+                              "label": LABEL_UNAVAILABLE}}
+        m5 = build_mesh()
+        by5 = {nd["name"]: nd for nd in m5["nodes"]}
+        assert by5[_glm]["joules_per_token"] is None, by5[_glm]
+        assert by5[_glm]["joules_per_token_label"] == LABEL_UNAVAILABLE, by5[_glm]
     finally:
         globals()["govern_posture"] = _prev_posture
         globals()["_merged_engine_readings"] = _prev_readings
+        globals()["_merged_model_readings"] = _prev_models
         with _snap_lock:
             _snap_cache["data"] = None
             _snap_cache["ts"] = 0.0
     out["mesh_laptop_attribution"] = True
+    out["mesh_glm_inference_energy"] = True
 
     out["ok"] = all(v is True for v in out.values())
     return out
