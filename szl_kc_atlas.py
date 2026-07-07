@@ -42,8 +42,8 @@ HONESTY SPINE (Doctrine v11 — NON-NEGOTIABLE):
     nature/owner/domain), NEVER arbitrary. The taxonomy source is the Flower Brain
     (szl_kc_flower.py). Bridges (loopforge -> OUROBOROS+CONJECTURE, flower -> all) are cited.
   * no consciousness/sentience/alive claim.
-  * banned marketing tokens rejected (reversed-fragment guard); no 'Λ...theorem' without
-    'Conjecture' nearby.
+  * banned marketing tokens rejected (reversed-fragment guard); no bare
+    'Λ...theorem' claim without 'Conjecture' on the same line (Λ = Conjecture 1, never a theorem).
   * Pure stdlib (seeded LCG, no numpy, no stdlib random). Deterministic: same seed =>
     identical snapshot. The 67 surfaces are EMBEDDED as a Python literal (a snapshot of
     /api/a11oy/v1/frontier/surfaces) so the organ is self-contained — never fetched at runtime.
