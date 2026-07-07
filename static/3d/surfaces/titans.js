@@ -9,7 +9,7 @@
 // slot (proof-teal) and persist far longer than a fixed sliding window, while
 // filler decays (grey) via the weight-decay forgetting gate. A HUD contrasts
 // neural_recall vs window_recall from the live snapshot at
-// /api/killinchu/v1/titans/recall. Honesty label "MODELED" is read VERBATIM
+// /api/a11oy/v1/titans/recall. Honesty label "MODELED" is read VERBATIM
 // from the JSON and displayed as-is; it is never upgraded.
 //
 // Surface export shape (mirrors specdecode.js / episodic.js exactly):
@@ -45,10 +45,10 @@
 const ID    = "titans";
 const TITLE = "Titans · Neural Long-Term Memory (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the titans organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/titans/recall?seed=42&n_tokens=512&window=64&mem_dim=32";
+// Endpoint is served SAME-ORIGIN by the flagship (szl_titans.py), a deterministic
+// surprise/momentum/forgetting memory simulation. Same-origin avoids CORS and
+// cross-Space fault coupling.
+const EP = "/api/a11oy/v1/titans/recall?seed=42&n_tokens=512&window=64&mem_dim=32";
 
 // data-viz hues — purple BANNED
 const C_STREAM  = 0x5b8dee;  // lattice-blue (streaming filler token / spine)
