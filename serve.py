@@ -807,6 +807,22 @@ except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- GOVERNED LIVING-BRAIN loop (Wave 2) — makes the harvested brain an ACTIVE ORGAN
+# that DRIVES metered inference: POST /api/a11oy/v1/anatomy/pulse runs one governed
+# cycle (ground via Personalized-PageRank -> answer on the sovereign mesh IF reachable
+# -> hash-chained RECEIPT -> GATED write-back -> Hebbian reinforce), GET .../salience
+# exposes the current belief-tiered load-bearing knowledge, GET .../self-audit replays
+# the receipt chain and DEMOTES any node whose backing receipt no longer verifies.
+# Pure stdlib; degrades to the graph builder's own salience when Wave-1 szl_brain_api
+# is absent. Registered BEFORE the SPA catch-all so the JSON routes resolve locally.
+try:
+    import szl_anatomy_brainloop as _szl_brainloop
+    _brainloop_status = _szl_brainloop.register(app, ns="a11oy")
+    print(f"[a11oy] Anatomy brain-loop registered: {_brainloop_status}", file=__import__("sys").stderr)
+except Exception as _brainloop_e:  # pragma: no cover
+    print(f"[a11oy] Anatomy brain-loop NOT registered: {_brainloop_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- szl3d HOLOGRAPHIC ESTATE (Dev0 foundation) -- the vendored three.js r170 toolkit +
 # the /holographic shell hosting the 3D surfaces (frontier tier + the 9 estate surfaces),
 # each lazy-loading its per-surface module and lit by REAL a11oy endpoints with honesty
