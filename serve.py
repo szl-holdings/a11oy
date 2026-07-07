@@ -903,6 +903,26 @@ except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
+# ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
+# GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
+# surfaces lit, Λ advisory, signed receipt}; GET .../command/subscribe/{surface_id} →
+# the honest energy/knowledge budget the Brain feeds that surface. PREFERS Dev-1's
+# central hub (szl_brain_hub /brain/pulse, read IN-PROCESS via a guarded import) and
+# falls back to an HONEST locally-composed pulse (pulse_ok:false) from the shipped
+# organs (a11oy_brain_graph + szl_energy_ledger + szl3d_holographic.SURFACES) when
+# #brain-hub is not merged yet — never fabricating a joule. REAL DSSE in-Space, honest
+# UNSIGNED-LOCAL otherwise. Λ = Conjecture 1; nothing to the locked-8. Pure reads,
+# registered BEFORE the SPA catch-all. Its local imports (szl_dsse, a11oy_brain_graph,
+# szl_energy_ledger, szl3d_holographic) are ALL already in the Dockerfile COPY set.
+try:
+    import szl_brain_command as _szl_brain_command
+    _brain_command_status = _szl_brain_command.register(app, ns="a11oy")
+    print(f"[a11oy] Brain command registered: {_brain_command_status}", file=__import__("sys").stderr)
+except Exception as _brain_command_e:  # pragma: no cover
+    print(f"[a11oy] Brain command NOT registered: {_brain_command_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- GOVERNED LIVING-BRAIN loop (Wave 2) — makes the harvested brain an ACTIVE ORGAN
 # that DRIVES metered inference: POST /api/a11oy/v1/anatomy/pulse runs one governed
 # cycle (ground via Personalized-PageRank -> answer on the sovereign mesh IF reachable
@@ -3538,6 +3558,29 @@ def _sovereign_health_signal(ttl: float = 30.0) -> dict:
     return val
 
 
+# Wave O / Dev 5: compact Brain rollup for /healthz. Reads the Brain command layer
+# (szl_brain_command.healthz_brain) which itself prefers Dev-1's central hub pulse and
+# falls back honestly to the shipped organs (pulse_ok:false) when #brain-hub is not
+# merged. Cached (TTL) so /healthz stays cheap. NEVER raises — honest UNAVAILABLE.
+_BRAIN_HZ_CACHE: dict = {}
+
+
+def _brain_health_signal(ttl: float = 30.0) -> dict:
+    now = _hz_time.time()
+    ca = _BRAIN_HZ_CACHE.get("checked_at")
+    if ca is not None and (now - ca) < ttl:
+        return _BRAIN_HZ_CACHE.get("value", {})
+    try:
+        import szl_brain_command as _szl_brain_hz
+        val = _szl_brain_hz.healthz_brain(ns="a11oy")
+    except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
+        val = {"knowledge_nodes": None, "energy_label": "UNAVAILABLE",
+               "surfaces_lit": None, "pulse_ok": False,
+               "error": f"{type(exc).__name__}: {exc}"}
+    _BRAIN_HZ_CACHE.update({"checked_at": now, "value": val})
+    return val
+
+
 @app.get("/api/a11oy/healthz")
 async def healthz() -> JSONResponse:
     dep = await _healthz_dep_ping()
@@ -3546,6 +3589,7 @@ async def healthz() -> JSONResponse:
     _signer = _signer_availability_signal()
     _frontier = _frontier_liveness_signal()
     _sovereign = _sovereign_health_signal()
+    _brain = _brain_health_signal()
     # Honest overall status. PRESSURE is advisory (still "ok" overall but
     # surfaced). Never fake green.
     # Overall degrades on a hard storage failure (disk full / read-only). The
@@ -3575,6 +3619,7 @@ async def healthz() -> JSONResponse:
             "signer": _signer,
             "frontier": _frontier,
             "sovereign": _sovereign,
+            "brain": _brain,
         },
         "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
@@ -3592,6 +3637,13 @@ async def healthz() -> JSONResponse:
         # {reachable:false, label:"UNAVAILABLE"}). Also mirrored into rollup.sovereign
         # so a Wave-L-style rollup consumer finds it in the expected place.
         "sovereign": _sovereign,
+        # Wave O / Dev 5: compact Brain rollup — the founder's "Brain powering the
+        # ecosystem" pulse in four honest fields {knowledge_nodes, energy_label,
+        # surfaces_lit, pulse_ok}. pulse_ok=false when Dev-1's central hub
+        # (/brain/pulse) is not yet merged (counts composed honestly from the shipped
+        # organs). Never fabricates a joule; Λ = Conjecture 1. Also mirrored into
+        # rollup.brain for a rollup consumer.
+        "brain": _brain,
     })
 
 

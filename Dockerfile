@@ -720,6 +720,13 @@ COPY szl_brain_api.py ./szl_brain_api.py
 # a11oy_brain_graph (COPY'd above) for organ weights, signs with szl_demo_sign (COPY'd
 # below). ALL transitive imports are in the COPY set (transitive guard satisfied).
 COPY szl_brain_energy.py ./szl_brain_energy.py
+# BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the ecosystem"
+# dashboard, imported by serve.py (guarded) + read by the /healthz brain rollup; MUST be
+# per-file COPY'd or GET /api/a11oy/v1/brain/command{,/subscribe/{surface_id}} falls
+# through to the SPA shell and /healthz.brain reports UNAVAILABLE. Transitive local
+# imports (szl_dsse, a11oy_brain_graph, szl_energy_ledger, szl3d_holographic) are ALL
+# already in the COPY set above; the optional szl_brain_hub (Dev-1) is imported guarded.
+COPY szl_brain_command.py ./szl_brain_command.py
 # HARVESTED FIELD LEADERS (2026-07-07) — real research graph JSONL (papers/repos/labs/
 # people/datasets/benchmarks/standards/axes, each with a verified url). a11oy_brain_graph
 # reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
