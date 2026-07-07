@@ -889,11 +889,12 @@ def register(app, ns: str = "killinchu") -> List[str]:
 
     try:
         from fastapi.responses import JSONResponse
+        from fastapi import Request as _FastAPIRequest
 
         def _manifest_h():  # noqa: ANN202
             return JSONResponse(_safe(jpt_manifest))
 
-        async def _benchmark_h(request):  # noqa: ANN202 — POST; optional {prompt}
+        async def _benchmark_h(request: _FastAPIRequest):  # noqa: ANN202 — POST; optional {prompt}
             prompt = None
             try:
                 body = await request.json()
@@ -915,7 +916,15 @@ def register(app, ns: str = "killinchu") -> List[str]:
         add_api_route = getattr(app, "add_api_route", None)
         if callable(add_api_route):
             app.add_api_route(paths[0], _manifest_h, methods=["GET"])
-            app.add_api_route(paths[1], _benchmark_h, methods=["POST"])
+            # POST benchmark: register as a raw Starlette route so the un-annotated
+            # Request is passed positionally by the ASGI router. add_api_route on some
+            # FastAPI versions misreads `request` as a required query param (422); the
+            # Starlette router does not do FastAPI signature analysis, so this is
+            # version-proof. Falls back to add_api_route if the router shim is absent.
+            try:
+                app.router.add_route(paths[1], _benchmark_h, methods=["POST"])
+            except Exception:  # noqa: BLE001 — fall back to FastAPI route
+                app.add_api_route(paths[1], _benchmark_h, methods=["POST"])
             app.add_api_route(paths[2], _nodes_h, methods=["GET"])
             app.add_api_route(paths[3], _ledger_h, methods=["GET"])
             app.add_api_route(paths[4], _summary_h, methods=["GET"])
