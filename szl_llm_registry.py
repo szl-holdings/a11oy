@@ -31,6 +31,14 @@ NEW ENDPOINTS (ADDITIVE — registered before Node proxy + SPA catch-all):
   GET  /api/a11oy/v1/llm/forum                 — shared receipt forum (last-N routing events)
   POST /api/a11oy/v1/llm/forum/ingest          — ingest a receipt from Operator / organ mirror
   GET  /api/a11oy/v1/llm/ecosystem-mirror      — manifest for Policy/Reasoning/killinchu to mirror
+  GET  /api/a11oy/v1/llm/sovereign/health      — per-node sovereign-mesh reachability matrix (Wave N)
+
+SOVEREIGN MESH (Wave N, Dev 3): SZL_LOCAL_LLM_URL is the PRIMARY own-metal node;
+SZL_SOVEREIGN_NODES is a comma list of additional tailnet base URLs
+(e.g. http://tower.tailnet:11434/v1). We probe each honestly (short timeout),
+route own-metal-first to the FIRST reachable node, and fall through to free/paid
+ONLY when NO sovereign node is reachable. See SOVEREIGN_REMOTE.md for the exact
+Tower-side OLLAMA_HOST=0.0.0.0:11434 + Tailscale setup and the laptop env.
 
 Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem).
 """
@@ -504,6 +512,167 @@ def sovereign_generate(prompt: str, base: str = "", model: str = "",
     return res
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SOVEREIGN MESH — MULTIPLE own-metal nodes over Tailscale (Wave N, Dev 3).
+#
+# The founder runs several boxes on a tailnet (Tower/OMEN RTX 4060 Ti, laptop,
+# Hetzner). SZL_LOCAL_LLM_URL is the PRIMARY node; SZL_SOVEREIGN_NODES is a comma
+# list of additional tailnet base URLs (e.g. http://tower.tailnet:11434/v1).
+#
+# Doctrine v11 honesty: we PROBE each node honestly with a short timeout and
+# report a per-node reachability matrix. `reachable` is True ONLY on a real 2xx
+# JSON response THIS request. We route to the FIRST reachable OWN-METAL node
+# ("own metal first"), and fall through to free/paid cloud ONLY when NO sovereign
+# node is reachable. We NEVER fabricate reachability, a model list, or text.
+#
+# See SOVEREIGN_REMOTE.md for the exact Tower-side OLLAMA_HOST=0.0.0.0:11434 +
+# Tailscale steps and the env to set on the laptop.
+# ─────────────────────────────────────────────────────────────────────────────
+_SOVEREIGN_NODES_ENV = "SZL_SOVEREIGN_NODES"
+try:
+    _MESH_PROBE_TIMEOUT_S = float(os.environ.get("SZL_SOVEREIGN_PROBE_TIMEOUT", "2.5"))
+except (TypeError, ValueError):
+    _MESH_PROBE_TIMEOUT_S = 2.5
+
+
+def _sovereign_node_urls() -> list[str]:
+    """Ordered, de-duplicated list of sovereign node base URLs (own-metal-first).
+
+    Order = PRIMARY (SZL_LOCAL_LLM_URL) then each SZL_SOVEREIGN_NODES entry in
+    declared order. This IS the own-metal-first routing preference: the primary
+    node is tried before any additional tailnet node. Blank entries dropped;
+    trailing slashes stripped; duplicates removed while preserving order.
+    """
+    urls: list[str] = []
+    seen: set[str] = set()
+    primary = _sovereign_base()
+    if primary:
+        urls.append(primary)
+        seen.add(primary)
+    raw = (os.environ.get(_SOVEREIGN_NODES_ENV, "") or "")
+    for part in raw.split(","):
+        u = part.strip().rstrip("/")
+        if u and u not in seen:
+            urls.append(u)
+            seen.add(u)
+    return urls
+
+
+def sovereign_mesh_matrix(timeout: float | None = None) -> dict[str, Any]:
+    """Probe EVERY configured sovereign node and return a reachability matrix.
+
+    Shape (honest, never fabricated):
+      {
+        "env": {"primary_env": "SZL_LOCAL_LLM_URL", "nodes_env": "SZL_SOVEREIGN_NODES"},
+        "node_count": int,
+        "reachable_count": int,
+        "any_reachable": bool,
+        "primary_base_url": str|None,
+        "selected": {"base_url":..., "role":"primary"|"mesh", "index":int}|None,
+        "nodes": [
+          {"index":0, "base_url":..., "role":"primary"|"mesh", "reachable":bool,
+           "api_style":str|None, "served_models":[...], "probed":[...],
+           "error":str|None, "note":str}
+        ]
+      }
+
+    Own-metal-first: nodes[0] is the primary; `selected` is the FIRST reachable
+    node in list order. `reachable`/`any_reachable` are True ONLY on real 2xx
+    JSON responses THIS request.
+    """
+    to = _MESH_PROBE_TIMEOUT_S if timeout is None else float(timeout)
+    urls = _sovereign_node_urls()
+    primary = _sovereign_base()
+    nodes: list[dict[str, Any]] = []
+    selected: dict[str, Any] | None = None
+    reachable_count = 0
+    for idx, base in enumerate(urls):
+        role = "primary" if (base == primary and idx == 0) else "mesh"
+        p = sovereign_probe(base, timeout=to)
+        reachable = bool(p.get("live"))
+        err = None
+        for probed in p.get("probed", []):
+            if probed.get("error"):
+                err = str(probed.get("error"))
+        entry = {
+            "index": idx,
+            "base_url": base,
+            "role": role,
+            "reachable": reachable,
+            "api_style": p.get("api_style"),
+            "served_models": p.get("models", []),
+            "probed": p.get("probed", []),
+            "error": None if reachable else err,
+            "note": p.get("note", ""),
+        }
+        nodes.append(entry)
+        if reachable:
+            reachable_count += 1
+            if selected is None:
+                selected = {"base_url": base, "role": role, "index": idx,
+                            "api_style": p.get("api_style"),
+                            "served_models": p.get("models", [])}
+    any_reachable = reachable_count > 0
+    if not urls:
+        note = ("No sovereign node configured — set SZL_LOCAL_LLM_URL (primary) and/or "
+                "SZL_SOVEREIGN_NODES (comma list of tailnet URLs). Sovereign UNAVAILABLE; "
+                "router falls through to free/paid.")
+    elif not any_reachable:
+        note = ("NO sovereign node reachable THIS request — sovereign UNAVAILABLE (honest). "
+                "Router falls through to free/paid ONLY because no own-metal node answered.")
+    else:
+        note = ("%d/%d sovereign node(s) reachable THIS request; own-metal-first selected %s."
+                % (reachable_count, len(urls), selected.get("base_url") if selected else "?"))
+    return {
+        "env": {"primary_env": _SOVEREIGN_ENV, "nodes_env": _SOVEREIGN_NODES_ENV},
+        "node_count": len(urls),
+        "reachable_count": reachable_count,
+        "any_reachable": any_reachable,
+        "primary_base_url": primary or None,
+        "selected": selected,
+        "nodes": nodes,
+        "note": note,
+    }
+
+
+def sovereign_mesh_generate(prompt: str, timeout: float | None = None) -> dict[str, Any]:
+    """Own-metal-first generation across the mesh. Probe nodes in order; run a REAL
+    guarded generate against the FIRST reachable node; else HONEST UNAVAILABLE.
+
+    Returns {wired, live, text, model, api_style, base_url, role, node_index,
+             matrix, note}. wired/live are True ONLY when a node answered live
+    THIS request. NEVER fabricates text or reachability.
+    """
+    matrix = sovereign_mesh_matrix()
+    sel = matrix.get("selected")
+    res: dict[str, Any] = {
+        "wired": False, "live": False, "text": None,
+        "model": _sovereign_model_slug(), "api_style": None,
+        "base_url": None, "role": None, "node_index": None,
+        "matrix": matrix, "note": "",
+    }
+    if not sel:
+        res["note"] = ("UNAVAILABLE — no sovereign node reachable in the mesh THIS request. "
+                       "%s" % matrix.get("note", ""))
+        return res
+    base = sel["base_url"]
+    gen = sovereign_generate(prompt, base=base, timeout=timeout)
+    res.update({
+        "wired": bool(gen.get("wired")), "live": bool(gen.get("live")),
+        "text": gen.get("text"), "model": gen.get("model"),
+        "api_style": gen.get("api_style"), "base_url": base,
+        "role": sel.get("role"), "node_index": sel.get("index"),
+        "raw": gen.get("raw"),
+    })
+    if gen.get("wired"):
+        res["note"] = ("REAL generation on own-metal-first node %s (%s, role=%s)."
+                       % (base, gen.get("api_style"), sel.get("role")))
+    else:
+        res["note"] = ("Node %s was reachable at probe but did not generate live this "
+                       "request (honest). %s" % (base, gen.get("note", "")))
+    return res
+
+
 # Provider env vars the router recognises (names only — the SECRET is NEVER read/
 # returned/logged). Used by /llm/router/status and per-model wired surfacing.
 _PROVIDER_ENV_VARS: list[tuple[str, str]] = [
@@ -837,27 +1006,46 @@ def register(app: FastAPI) -> dict:
             or (bool(_sov_base) and not _any_cloud_wired
                 and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes"))
         )
-        if _want_sovereign:
+        # Own-metal-first over the mesh: probe PRIMARY + SZL_SOVEREIGN_NODES.
+        # If NO sovereign node is reachable we do NOT short-circuit here — we fall
+        # THROUGH to the free/paid tier selection below (only when explicit intent
+        # was air-gap/offline do we still honor the request with an honest stub).
+        _explicit_sovereign = (_req_model == "sovereign_local"
+                               or task_hint in _sov_hints or _prefer_local)
+        _mesh_gen = sovereign_mesh_generate(prompt or _DEFAULT_SOVEREIGN_PROMPT) \
+            if _want_sovereign else None
+        _mesh_reachable = bool(_mesh_gen and _mesh_gen.get("matrix", {}).get("any_reachable"))
+        if _want_sovereign and (_mesh_reachable or _explicit_sovereign):
+            gen = _mesh_gen
+            matrix = gen.get("matrix", {})
             sov_model = _MODEL_BY_ID.get("sovereign_local", MODEL_REGISTRY[0])
             sov_enriched = _enrich_model(sov_model)
-            gen = sovereign_generate(prompt or _DEFAULT_SOVEREIGN_PROMPT)
             sov_enriched["wired"] = bool(gen.get("wired"))
             sov_enriched["api_key_wired"] = bool(gen.get("wired"))
             sov_enriched["local_live"] = bool(gen.get("live"))
             sov_enriched["honest_stub"] = not bool(gen.get("wired"))
             sov_reason = ("sovereign_local selected (%s); "
-                          % ("explicit request" if (_req_model == "sovereign_local"
-                             or task_hint in _sov_hints or _prefer_local)
+                          % ("explicit request" if _explicit_sovereign
                              else "offline preference, no cloud key wired"))
             if gen.get("wired"):
-                sov_reason += "node LIVE this request — REAL local generation."
+                sov_reason += ("own-metal-first node %s (role=%s) LIVE — REAL generation."
+                               % (gen.get("base_url"), gen.get("role")))
                 response_text = gen.get("text") or ""
-            else:
-                sov_reason += "node NOT live — HONEST STUB."
+            elif _mesh_reachable:
+                sov_reason += ("node %s reachable but did not generate live — HONEST STUB."
+                               % gen.get("base_url"))
                 response_text = (
                     "[HONEST STUB] sovereign_local (%s). %s Tier selection + Λ=%.4f "
                     "+ receipt are REAL." % (sov_model.get("model_slug", ""),
                                              gen.get("note", ""), lam))
+            else:
+                # explicit intent but NO node reachable => honest UNAVAILABLE stub
+                sov_reason += "NO sovereign node reachable — HONEST UNAVAILABLE stub."
+                response_text = (
+                    "[UNAVAILABLE] sovereign mesh has no reachable own-metal node this "
+                    "request (%d node(s) configured, 0 reachable). %s Tier selection + "
+                    "Λ=%.4f + receipt are REAL."
+                    % (matrix.get("node_count", 0), matrix.get("note", ""), lam))
             sov_receipt = {
                 "schema": "szl.llm_route.lambda_receipt/v1",
                 "ts": _now(), "hub": "a11oy", "lambda": round(lam, 6),
@@ -870,6 +1058,10 @@ def register(app: FastAPI) -> dict:
                 "local_live": bool(gen.get("live")),
                 "local_api_style": gen.get("api_style"),
                 "local_base_url": gen.get("base_url"),
+                "mesh_node_count": matrix.get("node_count", 0),
+                "mesh_reachable_count": matrix.get("reachable_count", 0),
+                "mesh_selected": matrix.get("selected"),
+                "own_metal_first": True,
                 "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
                 "conjecture_note": "Λ = Conjecture 1 — NOT a theorem. CAUCHY_ND sorry open.",
             }
@@ -879,15 +1071,24 @@ def register(app: FastAPI) -> dict:
                 "response": response_text,
                 "model_selected": sov_enriched,
                 "lambda_receipt": sov_receipt,
-                "routed_via": "sovereign_local (%s)" % (gen.get("api_style") or "honest stub"),
+                "routed_via": "sovereign_mesh (%s)" % (gen.get("api_style") or "unavailable"),
                 "local": {k: gen.get(k) for k in
-                          ("wired", "live", "api_style", "base_url", "model", "note", "raw")
+                          ("wired", "live", "api_style", "base_url", "role",
+                           "node_index", "model", "note", "raw")
                           if k in gen},
+                "sovereign_mesh": matrix,
                 "doctrine": DOCTRINE,
             }
             if _harness_fallback_note:
                 _sov_resp["harness_note"] = _harness_fallback_note
             return JSONResponse(_sov_resp)
+        elif _want_sovereign and not _mesh_reachable:
+            # Sovereign was preferred (offline heuristic) but NO node is reachable
+            # AND no explicit sovereign intent — fall THROUGH to free/paid honestly.
+            _harness_fallback_note = ((_harness_fallback_note + " ") if _harness_fallback_note
+                                      else "") + (
+                "sovereign preferred but NO own-metal node reachable this request — "
+                "falling through to free/paid tier (honest).")
 
         # Tier selection (mirrors szl_brain.pick_tier logic)
         if lam >= 0.90:
@@ -1075,32 +1276,55 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/sovereign/health")
     async def llm_sovereign_health() -> JSONResponse:
-        """Ping the sovereign local node (browser UA) and report live + model list.
+        """Per-node sovereign-mesh reachability matrix (Wave N, Dev 3).
 
-        `live` is True ONLY on a real 2xx JSON response THIS request — never
-        fabricated. When SZL_LOCAL_LLM_URL is unset, reports env_present=false and
-        an honest note. gpu.a-11-oy.com serves llama3.1:8b; gpu2 serves
-        glm-4.7-flash + qwen2.5:3b (per fleet ground truth).
+        Probes the PRIMARY node (SZL_LOCAL_LLM_URL) plus every SZL_SOVEREIGN_NODES
+        tailnet URL with a short timeout, own-metal-first. `reachable`/`live` are
+        True ONLY on a real 2xx JSON response THIS request — never fabricated.
+        When NO sovereign node is reachable the response is an honest UNAVAILABLE
+        posture (sovereign_status='UNAVAILABLE') and the router falls through to
+        free/paid. Backward-compatible single-node fields (env_present/wired/live/
+        base_url/served_models) mirror the primary node.
+
+        gpu.a-11-oy.com serves llama3.1:8b; gpu2 serves glm-4.7-flash +
+        qwen2.5:3b (per fleet ground truth). See SOVEREIGN_REMOTE.md for the
+        Tower/laptop Tailscale setup.
         """
-        probe = sovereign_probe()
-        wired = bool(probe.get("env_present"))
+        matrix = sovereign_mesh_matrix()
+        primary_probe = sovereign_probe()
+        wired = bool(primary_probe.get("env_present"))
+        any_reachable = bool(matrix.get("any_reachable"))
+        # Honest label: LIVE when a node answered; UNAVAILABLE when none did.
+        sovereign_status = "LIVE" if any_reachable else "UNAVAILABLE"
         return JSONResponse({
             "timestamp": _now(),
             "hub": "a11oy",
             "model_id": "sovereign_local",
             "model_slug": "llama3-szl-finetuned-q4",
+            # ── Mesh (multi-node) reachability matrix ──
+            "sovereign_status": sovereign_status,   # honest label: LIVE | UNAVAILABLE
+            "mesh": matrix,
+            "node_count": matrix.get("node_count", 0),
+            "reachable_count": matrix.get("reachable_count", 0),
+            "any_reachable": any_reachable,
+            "selected_node": matrix.get("selected"),
+            "own_metal_first": True,
+            "fallthrough_to_cloud": (not any_reachable),
+            "env_vars": {"primary": _SOVEREIGN_ENV, "nodes": _SOVEREIGN_NODES_ENV},
+            # ── Backward-compatible single-node (primary) fields ──
             "env_var": _SOVEREIGN_ENV,
             "env_present": wired,
             "wired": wired,               # env present => operator intends local routing
-            "live": bool(probe.get("live")),  # stronger THIS-request liveness
-            "honest_stub": not bool(probe.get("live")),
-            "base_url": probe.get("base_url"),
-            "api_style": probe.get("api_style"),
-            "served_models": probe.get("models", []),
+            "live": bool(primary_probe.get("live")),  # stronger THIS-request liveness
+            "honest_stub": not any_reachable,
+            "base_url": primary_probe.get("base_url"),
+            "api_style": primary_probe.get("api_style"),
+            "served_models": primary_probe.get("models", []),
             "configured_model": _sovereign_model_slug(),
-            "probed": probe.get("probed", []),
+            "probed": primary_probe.get("probed", []),
             "probe_ua": "browser-UA (Cloudflare-front safe)",
-            "note": probe.get("note", ""),
+            "note": matrix.get("note", ""),
+            "conjecture_note": "Λ = Conjecture 1 — advisory, never a theorem.",
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
         })
@@ -1137,21 +1361,35 @@ def register(app: FastAPI) -> dict:
             "honest_note": code_key.get("honest_note"),
         }
 
-        # Local sovereign node.
+        # Local sovereign node(s) — mesh-aware (primary + SZL_SOVEREIGN_NODES).
         do_probe = bool(probe)
         base = _sovereign_base()
+        _mesh_summary = None
         if do_probe:
-            sov = sovereign_probe(base)
+            _matrix = sovereign_mesh_matrix()
+            _mesh_summary = {
+                "node_count": _matrix.get("node_count", 0),
+                "reachable_count": _matrix.get("reachable_count", 0),
+                "any_reachable": bool(_matrix.get("any_reachable")),
+                "selected": _matrix.get("selected"),
+                "nodes": [{"index": n["index"], "base_url": n["base_url"],
+                           "role": n["role"], "reachable": n["reachable"],
+                           "served_models": n.get("served_models", [])}
+                          for n in _matrix.get("nodes", [])],
+            }
             local_node = {
                 "env_var": _SOVEREIGN_ENV, "base_url": base or None,
-                "env_present": bool(base), "live": bool(sov.get("live")),
-                "served_models": sov.get("models", []), "note": sov.get("note", ""),
+                "env_present": bool(base),
+                "live": bool(_matrix.get("any_reachable")),
+                "served_models": (_matrix.get("selected") or {}).get("served_models", []),
+                "note": _matrix.get("note", ""),
             }
         else:
             local_node = {
                 "env_var": _SOVEREIGN_ENV, "base_url": base or None,
                 "env_present": bool(base), "live": None,
-                "note": "pass ?probe=1 to ping the node for THIS-request liveness",
+                "nodes_env": _SOVEREIGN_NODES_ENV,
+                "note": "pass ?probe=1 to ping the mesh for THIS-request liveness",
             }
 
         provider_keys_present = sorted(seen_present)
@@ -1164,6 +1402,7 @@ def register(app: FastAPI) -> dict:
             "provider_wired_count": len(provider_keys_present),
             "code_agent_credential": code_key_public,
             "local_nodes": [local_node],
+            "sovereign_mesh": _mesh_summary,
             "any_cloud_key_present": len(provider_keys_present) > 0,
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
@@ -1181,7 +1420,7 @@ def register(app: FastAPI) -> dict:
             "GET  /api/a11oy/v1/llm/forum",
             "POST /api/a11oy/v1/llm/forum/ingest",
             "GET  /api/a11oy/v1/llm/ecosystem-mirror",
-            "GET  /api/a11oy/v1/llm/sovereign/health",
+            "GET  /api/a11oy/v1/llm/sovereign/health  (mesh reachability matrix)",
             "GET  /api/a11oy/v1/llm/router/status",
         ],
         "model_count": len(MODEL_REGISTRY),
