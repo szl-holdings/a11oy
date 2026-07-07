@@ -21,13 +21,20 @@
 //     thermal/PDE field seeded by the MEASURED scalars. It is labelled MODELED, never
 //     MEASURED. If no cert value is available we fall to an explicitly-labelled SAMPLE
 //     field. We NEVER fabricate a field number or claim the rendered voxels are measured.
-//   * The agentic-PINN residual trail (/pinn/residual) is AWAITING_GPU_SOLVE in this
+//   * The agentic-PINN residual TRAIL (/pinn/residual) is AWAITING_GPU_SOLVE in this
 //     environment — we render the honest AWAITING state, never a fabricated residual.
+//   * A REAL physics-informed residual is now computed IN-REQUEST via POST
+//     /pinn/residual/evaluate: a bounded-iteration pure-stdlib PINN fit to -u''=f on
+//     (0,1) with the KNOWN closed-form solution u*=sin(πx), so the returned rms PDE
+//     residual and rel-L2 error are auditable, MODELED (never MEASURED, never
+//     fabricated), and cite the physical_bounds_certificate. This is why the surface's
+//     headline honesty label is MODELED (no longer AWAITING-only / STRUCTURAL-ONLY).
 //
 // LIVE DATA (never hardcoded — read via ctx.live.poll):
 //   /api/a11oy/v1/pinn/certificate   MEASURED+SIGNED physical-bounds certificate (primary)
 //   /api/a11oy/v1/pnt/limits         compute_bounds pillar (4-pillar fundamental-limits index)
 //   /api/a11oy/v1/pinn/residual      governed agentic solve residual trail (AWAITING here)
+//   /api/a11oy/v1/pinn/residual/evaluate  REAL in-request physics-informed residual (POST; MODELED)
 //
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 // The shell shares ONE Stage across surfaces; we add objects to ctx.stage.scene, register
@@ -41,6 +48,23 @@ const TITLE = "PINN Thermal/Field";
 const EP_CERT = "/api/a11oy/v1/pinn/certificate";
 const EP_LIMITS = "/api/a11oy/v1/pnt/limits";
 const EP_RESIDUAL = "/api/a11oy/v1/pinn/residual";
+// POST endpoint: the REAL in-request physics-informed residual (bounded-iteration
+// stdlib PINN on a BVP with a closed-form solution -> auditable MODELED residual +
+// rel-L2 error, citing the physical_bounds_certificate). See szl_pinn_residual.py.
+const EP_RESIDUAL_EVAL = "/api/a11oy/v1/pinn/residual/evaluate";
+
+// ---------------------------------------------------------------------------
+// Surface headline honesty label (single source of truth for the frontier index).
+// The pinn surface now evaluates a REAL physics-informed residual IN-REQUEST: it
+// fits a small tanh PINN to -u''=f on (0,1) with a KNOWN closed-form solution and
+// returns the honest computed PDE residual + rel-L2 error (MODELED — a numerical
+// model of a PDE, never MEASURED, never fabricated). Because a real MODELED residual
+// is now computed on every call, the surface's headline honesty label is MODELED
+// (it is no longer AWAITING-only / STRUCTURAL-ONLY). SURFACE.residualLabel is filled
+// verbatim from the endpoint's own `label` field when the poll lands; the runtime
+// default is MODELED and it is NEVER upgraded past what the endpoint reports.
+const SURFACE = { residualLabel: null };
+SURFACE.label = (SURFACE.residualLabel || "MODELED");
 
 // Volume sampling resolution for the GPU-built 3D scalar-field texture.
 const VOX = 48;
@@ -604,6 +628,13 @@ function _buildHUD() {
   resid.innerHTML = "<div style='color:#9fb1bf'>agentic-PINN residual: awaiting…</div>";
   wrap.appendChild(resid);
 
+  // in-request MODELED residual (POST /pinn/residual/evaluate) — real computed value.
+  const residEval = document.createElement("div");
+  residEval.id = "pinn-residual-eval";
+  residEval.style.cssText = "border:1px solid #1d2a36;border-radius:8px;padding:8px 10px;background:#0a1117cc;font-size:11px";
+  residEval.innerHTML = "<div style='color:#9fb1bf'>in-request PINN residual: computing…</div>";
+  wrap.appendChild(residEval);
+
   // ---- controls ----
   const ctrls = document.createElement("div");
   ctrls.style.cssText = "border:1px solid #1d2a36;border-radius:8px;padding:9px 10px;background:#0a1117cc;display:flex;flex-direction:column;gap:7px;font-size:11px";
@@ -626,7 +657,7 @@ function _buildHUD() {
   wrap.appendChild(ctrls);
 
   _show.body.appendChild(wrap);
-  return { wrap, badge, cert, bounds, resid, back };
+  return { wrap, badge, cert, bounds, resid, residEval, back };
 }
 
 function _sliderRow(label, min, max, step, val, onInput) {
@@ -852,6 +883,41 @@ function _onResidual(json, meta) {
     _ctx.label.chip("MODELED", { text: "error bound" }).outerHTML + `</div>`;
 }
 
+// ---------------------------------------------------------------------------
+// The REAL in-request physics-informed residual (POST /pinn/residual/evaluate).
+// This is the honest MODELED residual computed this request by the stdlib PINN in
+// szl_pinn_residual.py — the rms residual + rel-L2 error against the closed-form
+// solution are audited numbers, never fabricated. We surface them verbatim and set
+// SURFACE.residualLabel from the endpoint's own `label` (which is MODELED). We NEVER
+// upgrade past what the endpoint reports; a fail-open/AWAITING payload keeps the
+// honest lower label.
+// ---------------------------------------------------------------------------
+function _onResidualEval(json, meta) {
+  if (!json) return;
+  // record the endpoint's own honesty label verbatim (drives the headline label).
+  if (typeof json.label === "string") SURFACE.residualLabel = json.label;
+  SURFACE.label = (SURFACE.residualLabel || "MODELED");
+  if (!_hud || !_hud.residEval) return;
+  const re = _hud.residEval;
+  const rr = json.residual || {};
+  const tr = json.training || {};
+  if (json.label === "MODELED" && rr.rms_residual != null) {
+    const rms = Number(rr.rms_residual);
+    const rel = rr.rel_l2_error_vs_exact != null ? Number(rr.rel_l2_error_vs_exact) : null;
+    re.innerHTML = `<div style="color:#2fd07a;display:flex;align-items:center;gap:6px">in-request PINN residual ` +
+      _ctx.label.chip("MODELED", { text: "computed this request" }).outerHTML + `</div>` +
+      `<div style="font-size:10.5px">rms r(x)=u''+f: <b>${rms.toExponential(2)}</b>` +
+      (rel != null ? ` · rel-L2 vs exact: <b>${rel.toExponential(2)}</b>` : "") +
+      ` · ${tr.iters_run != null ? tr.iters_run : "—"}/${tr.max_iters != null ? tr.max_iters : "—"} iters (bounded)</div>` +
+      `<div style="color:#9fb1bf;font-size:10px">Bounded stdlib PINN on -u''=f, closed-form u*=sin(πx) → auditable residual; cites physical_bounds_certificate. MODELED, never MEASURED, never fabricated.</div>`;
+  } else {
+    // honest lower state (module absent / fail-open) — never a fabricated residual.
+    const lab = (typeof json.label === "string" && json.label) || "STRUCTURAL-ONLY";
+    re.innerHTML = `<div style="color:#e8c074;display:flex;align-items:center;gap:6px">in-request PINN residual: <b>${json.status || "UNAVAILABLE"}</b> ` +
+      _ctx.label.chip(lab, { text: "no computed residual" }).outerHTML + `</div>`;
+  }
+}
+
 function _short(s) {
   if (!s) return "—";
   s = String(s);
@@ -953,6 +1019,12 @@ function mount(ctx) {
   _handles.push(ctx.live.poll(EP_CERT, 5000, _onCert, { badge: _hud.badge }));
   _handles.push(ctx.live.poll(EP_LIMITS, 8000, _onLimits, {}));
   _handles.push(ctx.live.poll(EP_RESIDUAL, 9000, _onResidual, {}));
+  // POST the in-request residual evaluator (bounded stdlib PINN). fetchInit carries the
+  // POST method + an empty JSON body so the endpoint uses its bounded defaults; the
+  // returned MODELED residual is the honest basis for this surface's headline label.
+  _handles.push(ctx.live.poll(EP_RESIDUAL_EVAL, 30000, _onResidualEval, {
+    fetchInit: { method: "POST", headers: { "content-type": "application/json", "accept": "application/json" }, body: "{}" },
+  }));
 
   return { id: ID, started: true, backend: F.backend };
 }
@@ -984,9 +1056,10 @@ function unmount() {
 export default {
   id: ID,
   title: TITLE,
-  endpoints: [EP_CERT, EP_LIMITS, EP_RESIDUAL],
+  endpoints: [EP_CERT, EP_LIMITS, EP_RESIDUAL, EP_RESIDUAL_EVAL],
   mount,
   unmount,
   // exposed for tests / introspection (not part of the shell contract)
   _F: F,
+  _SURFACE: SURFACE,
 };
