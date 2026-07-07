@@ -1,0 +1,66 @@
+name: surface-registry sync guard
+
+# PERMANENT CI guard (Doctrine v11). Stops the drift that caused the a11oy
+# flagship to under-report its live surface count on 2026-07-06: the holographic
+# surface list is kept in TWO files —
+#   * szl3d_holographic.py          (SURFACES -> /holographic/info manifest)
+#   * static/3d/holographic.html    (const SURFACES -> /frontier/surfaces + public UI + fleet watchdog)
+# — and szl3d_holographic.py was updated to add the wave-15 surfaces while
+# holographic.html was not, so /frontier/surfaces (and the fleet health watchdog)
+# reported a stale count for hours.
+#
+# This guard fails the build if the two registries list a different set of surface
+# ids, or the same ids in a different order. Checker: tools/check_surface_registry_sync.py
+# (pure stdlib). A negative-control self-test first proves the checker REJECTS a
+# planted drift before it is trusted against the real files (org guard pattern,
+# cf. copy-sync-lockstep-guard.yml / constellation-honesty-guard.yml).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  surface-registry-sync:
+    name: holographic.html SURFACES <-> szl3d_holographic.py SURFACES in lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: Byte-validate the checker (ast.parse) before running it
+        run: python3 -c "import ast; ast.parse(open('tools/check_surface_registry_sync.py').read()); print('checker ast OK')"
+      - name: Negative control — planted drift MUST be rejected
+        run: |
+          set -e
+          tmp="$(mktemp -d)"
+          cp -r . "$tmp/repo"
+          cd "$tmp/repo"
+          # Delete one surface id line from the HTML registry only, then assert the checker FAILS.
+          python3 - <<'PY'
+          import re
+          p = "static/3d/holographic.html"
+          s = open(p, encoding="utf-8").read()
+          s2 = re.sub(r'\n\s*\{\s*id:\s*"[A-Za-z0-9_-]+".*?\},', '', s, count=1)
+          assert s2 != s, "negative-control could not plant a drift"
+          open(p, "w", encoding="utf-8").write(s2)
+          PY
+          if python3 tools/check_surface_registry_sync.py . ; then
+            echo "NEGATIVE CONTROL FAILED: checker passed on a drifted registry" >&2
+            exit 1
+          fi
+          echo "negative control OK — planted drift was rejected"
+      - name: Run surface-registry sync guard against the real files
+        run: python3 tools/check_surface_registry_sync.py .
