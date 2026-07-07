@@ -1310,6 +1310,9 @@ COPY a11oy_model_intel.py ./a11oy_model_intel.py
 COPY a11oy_experimental_tier.py ./a11oy_experimental_tier.py
 # feat/a11oy-business: live SEC EDGAR + Treasury FiscalData + FRED markets data for business tab.
 COPY a11oy_markets.py ./a11oy_markets.py
+# feat/frontier-q-agenttts (WaveQ-Dev3): a11oy-native AGENT test-time-compute backend
+# (surface agenttts.js ships via the whole-tree `COPY static/3d/ ./static/3d/` below).
+COPY szl_agent_tts.py ./szl_agent_tts.py
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase

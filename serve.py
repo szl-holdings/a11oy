@@ -12088,6 +12088,39 @@ except Exception as _wp_e3:  # additive: never break the Space
 
 
 # ============================================================================
+# WAVE-Q FRONTIER BATCH (feat/frontier-q-agenttts, Dev3): a11oy-NATIVE cited
+# AGENT test-time-compute backend. Additive + try/except-guarded; returns a
+# renderable 200 with an honest MODELED label + receipt. Registered BEFORE the
+# SPA catch-all; register() uses @app.get (APPENDS), so we front-move the single
+# route to router position 0 so it wins over the /api/a11oy/{path:path} Node proxy
+# + /{full_path:path} SPA catch-all (same proven pattern as the WAVE-N/P batches;
+# reuses _wn_frontmove).
+#   1) szl_agent_tts -> /api/a11oy/v1/agenttts/scaling   (surface: agenttts.js)
+#        Multi-agent test-time compute scaling — DISTINCT from single-model `testtime`:
+#        compounding per-step tool-use (p=s^depth) + best-of-N AGENTS breadth +
+#        IMPERFECT verifier-guided selection (selected = coverage * verifier) +
+#        sequential-revision depth. Honest scaling curve capped at trust 0.97 (never
+#        1.0); Λ ADVISORY-ONLY (never proven). Cites Snell et al. (arXiv:2408.03314),
+#        Brown et al. Large Language Monkeys (arXiv:2407.21787), Hu et al. PaCoRe
+#        (arXiv:2601.05593, parallel coordinated reasoning, ACL 2026).
+# Λ = Conjecture 1 throughout; nothing added to the locked-8; trust never 100%.
+# ============================================================================
+try:
+    import sys as _wq_sys
+    # NOTE: explicit per-module import + <module>.register(app, ...) — the a11oy
+    # surface-wiring contract the register-invocation guard statically verifies.
+    import szl_agent_tts as _szl_agent_tts
+    _wq_s1 = _szl_agent_tts.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/agenttts/scaling")
+    print(f"[a11oy] WAVE-Q FRONTIER szl_agent_tts registered (front-moved): {_wq_s1}", file=_wq_sys.stderr)
+except Exception as _wq_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-Q FRONTIER szl_agent_tts NOT registered (non-fatal): {_wq_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-Q FRONTIER BATCH (agent test-time-compute)
+# ============================================================================
+
+
+# ============================================================================
 # REVENUE LAYER (feat/revenue-layer): ADDITIVE honest revenue ESTIMATORS.
 # Doctrine v11 LOCKED — revenue figures demand maximum honesty; no fabricated
 # numbers. Every output labeled ESTIMATE or PRICING_HYPOTHESIS, computed from
