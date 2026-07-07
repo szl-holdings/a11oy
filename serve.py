@@ -1615,6 +1615,24 @@ try:
 except Exception as _szl_edgefusion_e:  # pragma: no cover
     print(f"[a11oy] EdgeFusion NOT registered: {_szl_edgefusion_e!r}", file=__import__("sys").stderr)
 
+# (aigov-wire) — AIGOV: SZL AI-Governance Conformance surface — a MODELED crosswalk
+# mapping a11oy model/inference evidence onto the real regulated-AI control
+# frameworks (EU AI Act Regulation (EU) 2024/1689 Annex IV + Arts.
+# 9/10/12/13/14/15/72; NIST AI RMF 1.0 GOVERN/MAP/MEASURE/MANAGE; ISO/IEC 42001:2023
+# Annex A), reporting a Λ-ADVISORY readiness score (Λ = Conjecture 1, gray, NEVER
+# green; capped at 0.97, never 1.0) with HONEST gaps. Readiness is advisory
+# CONJECTURE — NOT a compliance guarantee, NOT an attestation, NOT an ATO; the
+# honest verdict is SELF-ASSESSED / ADVISORY (third-party conformity assessment
+# required). Cites EU AI Act (2024/1689), NIST AI RMF 1.0 (NIST AI 100-1), ISO/IEC
+# 42001:2023, COMPL-AI (arXiv:2410.07959). RECEIPT-ON-WRITE — nothing minted on this
+# GET. Registered BEFORE the SPA catch-all so /api/... is JSON.
+try:
+    import szl_aigov as _szl_aigov
+    _szl_aigov.register(app, ns="a11oy")
+    print("[a11oy] AIGov registered: /api/a11oy/v1/frontier/aigov", file=__import__("sys").stderr)
+except Exception as _szl_aigov_e:  # pragma: no cover
+    print(f"[a11oy] AIGov NOT registered: {_szl_aigov_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
