@@ -187,7 +187,10 @@ def build_ipinn_receipt(system, method, params_block, convergence, lambda_adv, s
     receipt = {"payload": payload}
     if sign:
         try:
-            import szl_dsse  # type: ignore
+            try:
+                from szl_substrate import szl_dsse  # type: ignore  # single source of truth (pkg)
+            except Exception:
+                import szl_dsse  # type: ignore  # local vendored fallback (byte-identical)
             env = szl_dsse.sign_payload(payload, RECEIPT_PAYLOAD_TYPE)
             receipt["dsse"] = env
             receipt["signed"] = bool(env.get("signatures"))

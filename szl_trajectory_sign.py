@@ -94,7 +94,10 @@ def new_trajectory_id() -> str:
 def _sign(payload: Dict[str, Any]) -> Dict[str, Any]:
     """DSSE-sign a step payload; honest-unsigned fallback if no key. Never raises."""
     try:
-        import szl_dsse
+        try:
+            from szl_substrate import szl_dsse  # single source of truth (installed pkg)
+        except Exception:
+            import szl_dsse  # local vendored fallback (byte-identical)
         return szl_dsse.sign_payload(payload, STEP_PAYLOAD_TYPE)
     except Exception as exc:  # honest degrade, never fabricate
         return {
@@ -108,7 +111,10 @@ def _sign(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def signing_available() -> bool:
     try:
-        import szl_dsse
+        try:
+            from szl_substrate import szl_dsse  # single source of truth (installed pkg)
+        except Exception:
+            import szl_dsse  # local vendored fallback (byte-identical)
         return bool(szl_dsse.signing_available())
     except Exception:
         return False
@@ -256,7 +262,10 @@ def verify_step(line: Dict[str, Any]) -> Dict[str, Any]:
         return out
     out["signed"] = True
     try:
-        import szl_dsse
+        try:
+            from szl_substrate import szl_dsse  # single source of truth (installed pkg)
+        except Exception:
+            import szl_dsse  # local vendored fallback (byte-identical)
         verdict = szl_dsse.verify_envelope(env)
         out["sig_ok"] = bool(verdict.get("verified"))
         out["sig_detail"] = verdict

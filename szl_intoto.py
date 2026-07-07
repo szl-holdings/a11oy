@@ -208,7 +208,10 @@ def build_intoto_envelope(
 
     if sign_fn is None:
         try:
-            import szl_dsse as _dsse
+            try:
+                from szl_substrate import szl_dsse as _dsse  # single source of truth (pkg)
+            except Exception:
+                import szl_dsse as _dsse  # local vendored fallback (byte-identical)
             sign_fn = _dsse.sign_payload
         except ImportError:
             sign_fn = None
@@ -238,7 +241,10 @@ def build_intoto_envelope(
 def _load_public_pem() -> str | None:
     """Load the SZL cosign public key PEM for Rekor verifier entry."""
     try:
-        import szl_dsse as _dsse
+        try:
+            from szl_substrate import szl_dsse as _dsse  # single source of truth (pkg)
+        except Exception:
+            import szl_dsse as _dsse  # local vendored fallback (byte-identical)
         pem = getattr(_dsse, "COSIGN_PUBLIC_PEM", None)
         if pem and "BEGIN" in pem:
             return pem.strip()
