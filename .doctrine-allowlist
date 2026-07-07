@@ -334,3 +334,13 @@ spaces/immune/dist/public/assets/index-B0yATMcZ.css
 # (CISA prose). Scoped to this ONE file; the sibling brain/harvest/*.jsonl files
 # stay fully scanned.
 brain/harvest/energy_defense.jsonl
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-07-07, Wave-N Dev5 trunk-guardian).
+# The robust banned-token scanner SOURCE + its self-test. Both ENUMERATE the
+# ban-list (the regex + positive/negative control fixtures) for DETECTION
+# purposes — the list IS the rule, same enumeration-for-detection rationale as
+# .github/workflows/doctrine-grep.yml, serve.py and szl_codename_gate.py above.
+# Neither is COPY'd into the image; neither emits a token to any user surface.
+scripts/check_banned_tokens.py
+scripts/check_banned_tokens.test.sh

@@ -41,6 +41,24 @@ jobs:
         with:
           fetch-depth: 0   # need history for PR diff mode
 
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      # Wave-N Dev5 hardening: prove the robust scanner (a) still catches genuine
+      # marketing prose and (b) does NOT red-gate verbatim harvested third-party
+      # corpus text / line-wraps / allowlist-ordering. Self-test runs FIRST so a
+      # neutered or over-firing gate is loud before any real scan.
+      - name: Self-test the banned-token guard (negative fixtures)
+        run: bash scripts/check_banned_tokens.test.sh
+
+      # Robust, stdlib-only enforcement with correct (fnmatch/prefix) allowlist
+      # semantics — the source of truth for pass/fail. The legacy inline grep
+      # below is kept as a redundant backstop so the gate is never weakened.
+      - name: Robust banned-token scan (full tree)
+        run: python3 scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+
       - name: Build file list
         id: filelist
         shell: bash
