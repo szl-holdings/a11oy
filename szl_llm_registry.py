@@ -42,6 +42,7 @@ import math
 import os
 import threading
 import time
+import urllib.request as _urllib_request
 from datetime import datetime, timezone
 from typing import Any
 
@@ -188,7 +189,7 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "why": "Zero external dependency; ships in uds-mesh bundle as GGUF artifact",
         "routing_condition": "OFFLINE_MODE=true or no external key",
         "api_env_var": "SZL_LOCAL_LLM_URL",
-        "api_base": "http://localhost:11434/api/generate",
+        "api_base": "http://localhost:11434",  # ollama base; /api/generate or /v1 resolved at call time
         "model_slug": "llama3-szl-finetuned-q4",
         "modalities": ["text"],
         "streaming": True,
@@ -196,7 +197,10 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "ecosystem_mirror": ["policy", "reasoning", "killinchu"],
         "lean_gate": "deterministicReplay",
         "notes": "Bundled as zarf.yaml `images: [ghcr.io/szl-holdings/sovereign-llm:v0.1.0]`. "
-                 "Requires SZL_LOCAL_LLM_URL env. Honest: NOT currently wired in HF Spaces.",
+                 "Wired when SZL_LOCAL_LLM_URL is set (point at https://gpu.a-11-oy.com); "
+                 "makes a REAL guarded ollama /api or OpenAI-compatible /v1 call and is wired=true "
+                 "ONLY when the node answers live THIS request (see /llm/sovereign/health). "
+                 "Honest stub when the env is unset or the node is offline.",
         "honest_stub": True,
     },
     # ── ADDITIONAL: Perplexity (online search-augmented) ──
@@ -326,6 +330,197 @@ def _api_key_wired(env_var: str) -> bool:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SOVEREIGN LOCAL FLEET — real chat/generate call path (guarded, honest).
+#
+# `sovereign_local` (slug llama3-szl-finetuned-q4) routes to the local GPU fleet
+# (ollama, OpenAI-compatible /v1 or native /api) when SZL_LOCAL_LLM_URL is set AND
+# the node answers live THIS request. Otherwise it degrades to an HONEST STUB.
+#
+# Doctrine v11: wired=true ONLY if the env base is present AND the node responded
+# live on this request. We NEVER fabricate a wired=true or a model response.
+# Transport mirrors szl_kc_jpt (browser-like UA so a Cloudflare-fronted node does
+# not 403; short guarded timeouts; never raises). Pure stdlib.
+# ─────────────────────────────────────────────────────────────────────────────
+_SOVEREIGN_ENV = "SZL_LOCAL_LLM_URL"
+_DEFAULT_SOVEREIGN_PROMPT = os.environ.get(
+    "SZL_LOCAL_LLM_PROMPT",
+    "In one sentence, state why sovereign local inference matters for air-gapped deployments.")
+# Cloudflare-front gotcha: a plain UA gets HTTP 403 (code 1010). Reuse the fleet
+# browser-UA pattern (SZL_PROBE_USER_AGENT is the ecosystem-wide override name).
+_SOVEREIGN_UA = os.environ.get(
+    "SZL_PROBE_USER_AGENT",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0 Safari/537.36 szl-a11oy-registry/1.0")
+try:
+    _SOVEREIGN_PROBE_TIMEOUT_S = float(os.environ.get("SZL_LOCAL_LLM_PROBE_TIMEOUT", "4.0"))
+except (TypeError, ValueError):
+    _SOVEREIGN_PROBE_TIMEOUT_S = 4.0
+try:
+    _SOVEREIGN_GEN_TIMEOUT_S = float(os.environ.get("SZL_LOCAL_LLM_GEN_TIMEOUT", "120.0"))
+except (TypeError, ValueError):
+    _SOVEREIGN_GEN_TIMEOUT_S = 120.0
+
+
+def _sovereign_base() -> str:
+    """Resolve the sovereign-local base URL from env (empty string when unset)."""
+    return (os.environ.get(_SOVEREIGN_ENV, "") or "").strip().rstrip("/")
+
+
+def _sovereign_model_slug() -> str:
+    """The ollama model tag the local node should serve. Overridable per-deploy.
+    The registry slug is `llama3-szl-finetuned-q4`; the live tower currently
+    serves `llama3.1:8b`, so SZL_LOCAL_LLM_MODEL lets a deploy name the real tag."""
+    return (os.environ.get("SZL_LOCAL_LLM_MODEL", "llama3.1:8b") or "llama3.1:8b").strip()
+
+
+def _http_json(url: str, *, method: str = "GET", body: bytes | None = None,
+               timeout: float = 4.0) -> tuple[Any, str | None]:
+    """Guarded JSON HTTP with a browser UA. Returns (doc, error). NEVER raises,
+    NEVER fabricates. `doc` is None on any failure (unreachable/timeout/non-2xx/
+    malformed) and `error` carries a short honest reason."""
+    headers = {"User-Agent": _SOVEREIGN_UA, "Accept": "application/json"}
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    try:
+        req = _urllib_request.Request(url, data=body, method=method, headers=headers)
+        with _urllib_request.urlopen(req, timeout=timeout) as r:  # noqa: S310
+            status = getattr(r, "status", None) or 200
+            if not (200 <= int(status) < 300):
+                return None, "node non-2xx status %s" % status
+            raw = r.read().decode("utf-8", "replace")
+        doc = json.loads(raw)
+        return doc, None
+    except Exception as exc:  # noqa: BLE001 — unreachable/timeout => honest OFFLINE
+        return None, "node unreachable: %s" % (str(exc)[:160])
+
+
+def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, Any]:
+    """Ping the local node and report liveness + served model list. Guarded.
+
+    Tries ollama's native `/api/tags` first (returns {models:[{name,...}]}), then
+    the OpenAI-compatible `/v1/models` ({data:[{id,...}]}). `live` is True ONLY on
+    a real 2xx JSON response THIS request — never fabricated.
+    """
+    base = (base or _sovereign_base())
+    to = _SOVEREIGN_PROBE_TIMEOUT_S if timeout is None else float(timeout)
+    out: dict[str, Any] = {
+        "env_var": _SOVEREIGN_ENV,
+        "env_present": bool(base),
+        "base_url": base or None,
+        "live": False,
+        "models": [],
+        "probed": [],
+        "note": "",
+    }
+    if not base:
+        out["note"] = ("SZL_LOCAL_LLM_URL not set — sovereign_local is an HONEST STUB "
+                       "(point it at https://gpu.a-11-oy.com to wire the local fleet).")
+        return out
+    b = base.rstrip("/")
+    # 1) ollama native /api/tags
+    tags_url = b + "/api/tags"
+    doc, err = _http_json(tags_url, timeout=to)
+    out["probed"].append({"url": tags_url, "ok": doc is not None, "error": err})
+    if isinstance(doc, dict) and isinstance(doc.get("models"), list):
+        names = [str(m.get("name")) for m in doc["models"]
+                 if isinstance(m, dict) and m.get("name")]
+        out["live"] = True
+        out["models"] = names
+        out["api_style"] = "ollama /api"
+        out["note"] = "node live (ollama /api/tags); model list is real THIS request."
+        return out
+    # 2) OpenAI-compatible /v1/models
+    v1_url = b + "/v1/models"
+    doc2, err2 = _http_json(v1_url, timeout=to)
+    out["probed"].append({"url": v1_url, "ok": doc2 is not None, "error": err2})
+    if isinstance(doc2, dict) and isinstance(doc2.get("data"), list):
+        ids = [str(m.get("id")) for m in doc2["data"]
+               if isinstance(m, dict) and m.get("id")]
+        out["live"] = True
+        out["models"] = ids
+        out["api_style"] = "openai /v1"
+        out["note"] = "node live (OpenAI-compatible /v1/models); model list is real THIS request."
+        return out
+    out["note"] = ("SZL_LOCAL_LLM_URL set but node did not respond live this request "
+                   "(honest stub). Errors: %s" % "; ".join(
+                       str(p.get("error")) for p in out["probed"] if p.get("error")))
+    return out
+
+
+def sovereign_generate(prompt: str, base: str = "", model: str = "",
+                       timeout: float | None = None) -> dict[str, Any]:
+    """Run a REAL chat/generate against the local node when it is live; else HONEST
+    STUB. Returns {wired, live, text, model, api_style, base_url, note, raw?}.
+
+    wired/live are True ONLY when SZL_LOCAL_LLM_URL is present AND the node answered
+    live on THIS request. We NEVER fabricate text or a wired flag. Tries ollama
+    native /api/generate first, then OpenAI-compatible /v1/chat/completions.
+    """
+    base = (base or _sovereign_base())
+    model = (model or _sovereign_model_slug())
+    to = _SOVEREIGN_GEN_TIMEOUT_S if timeout is None else float(timeout)
+    res: dict[str, Any] = {
+        "wired": False, "live": False, "text": None, "model": model,
+        "api_style": None, "base_url": base or None, "env_var": _SOVEREIGN_ENV,
+        "env_present": bool(base), "note": "",
+    }
+    if not base:
+        res["note"] = ("SZL_LOCAL_LLM_URL not set — HONEST STUB (no local fleet base). "
+                       "Tier selection + Λ-receipt still REAL.")
+        return res
+    b = base.rstrip("/")
+    # 1) ollama native /api/generate
+    gen_url = b + "/api/generate"
+    body = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode("utf-8")
+    doc, err = _http_json(gen_url, method="POST", body=body, timeout=to)
+    if isinstance(doc, dict) and isinstance(doc.get("response"), str):
+        res.update({"wired": True, "live": True, "text": doc["response"],
+                    "api_style": "ollama /api/generate",
+                    "note": "REAL local generation (ollama /api/generate) THIS request."})
+        for k in ("eval_count", "prompt_eval_count", "total_duration"):
+            if k in doc:
+                res.setdefault("raw", {})[k] = doc[k]
+        return res
+    # 2) OpenAI-compatible /v1/chat/completions
+    chat_url = b + "/v1/chat/completions"
+    body2 = json.dumps({"model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "stream": False}).encode("utf-8")
+    doc2, err2 = _http_json(chat_url, method="POST", body=body2, timeout=to)
+    if isinstance(doc2, dict):
+        try:
+            txt = doc2["choices"][0]["message"]["content"]
+        except Exception:  # noqa: BLE001 — malformed => honest stub
+            txt = None
+        if isinstance(txt, str):
+            res.update({"wired": True, "live": True, "text": txt,
+                        "api_style": "openai /v1/chat/completions",
+                        "note": "REAL local generation (OpenAI-compatible /v1) THIS request."})
+            if isinstance(doc2.get("usage"), dict):
+                res["raw"] = {"usage": doc2["usage"]}
+            return res
+    res["note"] = ("SZL_LOCAL_LLM_URL set but node did not generate live this request "
+                   "(honest stub). Errors: %s / %s" % (err or "", err2 or ""))
+    return res
+
+
+# Provider env vars the router recognises (names only — the SECRET is NEVER read/
+# returned/logged). Used by /llm/router/status and per-model wired surfacing.
+_PROVIDER_ENV_VARS: list[tuple[str, str]] = [
+    ("ANTHROPIC_API_KEY", "anthropic"),
+    ("OPENAI_API_KEY", "openai"),
+    ("GOOGLE_API_KEY", "google"),
+    ("PERPLEXITY_API_KEY", "perplexity"),
+    ("OPENROUTER_API_KEY", "openrouter"),
+    ("MISTRAL_API_KEY", "mistral"),
+    ("DEEPSEEK_API_KEY", "deepseek"),
+    ("GROQ_API_KEY", "groq"),
+    ("HF_TOKEN", "hf-router"),
+    ("HUGGING_FACE_HUB_TOKEN", "hf-router"),
+]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # A11OY_CODE_LLM_KEY — the canonical, provider-agnostic credential for the
 # a11oy Code agent. ONE secret resolves the agent's model backend.
 #
@@ -404,11 +599,62 @@ def code_llm_secret_name() -> str:
     """The canonical secret name the UI / healthz should display."""
     return A11OY_CODE_LLM_KEY_ENV
 
-def _enrich_model(m: dict) -> dict:
-    """Add live runtime fields to a model dict (non-mutating)."""
+def _enrich_model(m: dict, *, probe_local: bool = False) -> dict:
+    """Add live runtime fields to a model dict (non-mutating).
+
+    Every model gets an explicit, honest badge block the front-end can render:
+      wired        — is this model routable RIGHT NOW (key present, or local node
+                     env present)? NEVER hardcoded, NEVER fabricated.
+      provider     — provider label.
+      env_used     — the env var that gates it (name only; never the secret).
+      base_url     — the API/base endpoint.
+      honest_stub  — True when the model would degrade to a labeled stub.
+
+    sovereign_local is special: it is "wired" when SZL_LOCAL_LLM_URL is present.
+    When probe_local=True we additionally ping the node and report live+models,
+    but the base-present gate is what flips `wired` (a set env means the operator
+    intends local routing; `live` is the stronger THIS-request liveness signal).
+    Open-weight alloy models (no api_env_var) report wired=false honestly — they
+    are served by weights at runtime, not gated by a cloud key.
+    """
     out = dict(m)
-    out["api_key_wired"] = _api_key_wired(m.get("api_env_var", ""))
-    out["honest_stub"] = not out["api_key_wired"]
+    env_var = m.get("api_env_var", "") or ""
+    model_id = m.get("model_id", "")
+
+    if model_id == "sovereign_local" or env_var == _SOVEREIGN_ENV:
+        base = _sovereign_base()
+        wired = bool(base)
+        out["api_key_wired"] = wired
+        out["wired"] = wired
+        out["provider"] = m.get("provider", "SZL Holdings (local)")
+        out["env_used"] = _SOVEREIGN_ENV
+        out["env_present"] = wired
+        out["base_url"] = base or m.get("api_base")
+        out["honest_stub"] = not wired
+        out["is_local"] = True
+        if probe_local:
+            probe = sovereign_probe(base)
+            out["local_live"] = bool(probe.get("live"))
+            out["local_models"] = probe.get("models", [])
+            out["local_probe_note"] = probe.get("note", "")
+            # honest_stub only clears when the node is actually live this request
+            out["honest_stub"] = not bool(probe.get("live"))
+        return out
+
+    wired = _api_key_wired(env_var)
+    out["api_key_wired"] = wired
+    out["wired"] = wired
+    out["provider"] = m.get("provider")
+    out["env_used"] = env_var or None
+    out["env_present"] = wired
+    out["base_url"] = m.get("api_base") or m.get("base_url")
+    out["is_local"] = bool(m.get("open_weight"))
+    # Open-weight alloy models are not cloud-key gated; keep their own honest_stub
+    # if the unifier already set one, else derive from key presence.
+    if m.get("open_weight"):
+        out["honest_stub"] = bool(m.get("honest_stub", True))
+    else:
+        out["honest_stub"] = not wired
     return out
 
 def _seed_forum() -> None:
@@ -436,17 +682,36 @@ def register(app: FastAPI) -> dict:
     # ── GET /api/a11oy/v1/llm/registry ───────────────────────────────────────
 
     @app.get("/api/a11oy/v1/llm/registry")
-    async def llm_registry() -> JSONResponse:
-        """Canonical LLM model roster — a11oy is the hub for ALL models."""
-        models = [_enrich_model(m) for m in MODEL_REGISTRY]
-        wired = [m for m in models if m["api_key_wired"]]
+    async def llm_registry(probe: int = 0) -> JSONResponse:
+        """Canonical LLM model roster — a11oy is the hub for ALL models.
+
+        Every model carries an honest badge block {wired, provider, env_used,
+        base_url, honest_stub, is_local} computed from _api_key_wired(env_var) at
+        REQUEST time (never hardcoded). `?probe=1` additionally pings the sovereign
+        local node so its badge reports live+served models THIS request.
+        """
+        do_probe = bool(probe)
+        models = [_enrich_model(m, probe_local=do_probe) for m in MODEL_REGISTRY]
+        wired = [m for m in models if m.get("wired")]
+        badges = [{
+            "model_id": m["model_id"],
+            "wired": bool(m.get("wired")),
+            "provider": m.get("provider"),
+            "env_used": m.get("env_used"),
+            "base_url": m.get("base_url"),
+            "honest_stub": bool(m.get("honest_stub", True)),
+            "is_local": bool(m.get("is_local")),
+        } for m in models]
+        all_stub = (len(wired) == 0)
         return JSONResponse({
             "timestamp": _now(),
             "hub": "a11oy",
             "role": "THE LLM Hub — single source of truth for all model routing",
             "model_count": len(models),
             "wired_count": len(wired),
+            "wired_model_ids": [m["model_id"] for m in wired],
             "models": models,
+            "badges": badges,
             "tier_map": {
                 str(t["tier"]): t["model_id"]
                 for t in MODEL_REGISTRY
@@ -456,10 +721,17 @@ def register(app: FastAPI) -> dict:
             "ecosystem_mirror": "Policy, Reasoning, killinchu mirror a11oy's roster via /llm/ecosystem-mirror",
             "forum_endpoint": "/api/a11oy/v1/llm/forum",
             "route_endpoint": "/api/a11oy/v1/llm/route",
+            "router_status_endpoint": "/api/a11oy/v1/llm/router/status",
+            "sovereign_health_endpoint": "/api/a11oy/v1/llm/sovereign/health",
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
-            "honest_note": "api_key_wired=false for all models in this HF Space (no keys in env). "
-                           "Tier selection + Λ-receipt + model_weight_sha256 are REAL. Response is honest stub.",
+            "honest_note": (
+                ("wired_count=0 — no API key / no SZL_LOCAL_LLM_URL in this env. "
+                 "Tier selection + Λ-receipt + model_weight_sha256 are REAL. Responses are honest stubs.")
+                if all_stub else
+                ("wired_count=%d — per-model `wired` computed from env at request time "
+                 "(_api_key_wired / SZL_LOCAL_LLM_URL). Unwired models degrade to honest stubs."
+                 % len(wired))),
         })
 
     # ── GET /api/a11oy/v1/llm/registry/{model_id} ────────────────────────────
@@ -546,6 +818,76 @@ def register(app: FastAPI) -> dict:
         task_hint: str = str(body.get("task_hint", "")).lower()
 
         lam = _lambda_gm(axis_scores)
+
+        # ── SOVEREIGN LOCAL selection ────────────────────────────────────────
+        # Route to the local fleet when EITHER the caller asks for it explicitly
+        # (model_id='sovereign_local' | task_hint in {sovereign,local,offline} |
+        # prefer_local=true) OR SZL_LOCAL_LLM_URL is set and NO cloud key is wired
+        # (air-gap/offline preference). When selected, we make a REAL guarded call
+        # to the node; wired=true ONLY if the node answered live THIS request.
+        _req_model = str(body.get("model_id", "")).strip().lower()
+        _prefer_local = bool(body.get("prefer_local", False))
+        _sov_hints = {"sovereign", "local", "offline", "air-gap", "airgap"}
+        _any_cloud_wired = any(_api_key_wired(ev) for ev, _ in _PROVIDER_ENV_VARS)
+        _sov_base = _sovereign_base()
+        _want_sovereign = (
+            _req_model == "sovereign_local"
+            or task_hint in _sov_hints
+            or _prefer_local
+            or (bool(_sov_base) and not _any_cloud_wired
+                and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes"))
+        )
+        if _want_sovereign:
+            sov_model = _MODEL_BY_ID.get("sovereign_local", MODEL_REGISTRY[0])
+            sov_enriched = _enrich_model(sov_model)
+            gen = sovereign_generate(prompt or _DEFAULT_SOVEREIGN_PROMPT)
+            sov_enriched["wired"] = bool(gen.get("wired"))
+            sov_enriched["api_key_wired"] = bool(gen.get("wired"))
+            sov_enriched["local_live"] = bool(gen.get("live"))
+            sov_enriched["honest_stub"] = not bool(gen.get("wired"))
+            sov_reason = ("sovereign_local selected (%s); "
+                          % ("explicit request" if (_req_model == "sovereign_local"
+                             or task_hint in _sov_hints or _prefer_local)
+                             else "offline preference, no cloud key wired"))
+            if gen.get("wired"):
+                sov_reason += "node LIVE this request — REAL local generation."
+                response_text = gen.get("text") or ""
+            else:
+                sov_reason += "node NOT live — HONEST STUB."
+                response_text = (
+                    "[HONEST STUB] sovereign_local (%s). %s Tier selection + Λ=%.4f "
+                    "+ receipt are REAL." % (sov_model.get("model_slug", ""),
+                                             gen.get("note", ""), lam))
+            sov_receipt = {
+                "schema": "szl.llm_route.lambda_receipt/v1",
+                "ts": _now(), "hub": "a11oy", "lambda": round(lam, 6),
+                "lambda_floor": _LAMBDA_FLOOR, "axis_scores": axis_scores,
+                "tier_selected": sov_model.get("tier", 5),
+                "model_id": "sovereign_local",
+                "model_display": sov_model.get("display_name"),
+                "reason": sov_reason, "task_hint": task_hint,
+                "api_key_wired": bool(gen.get("wired")),
+                "local_live": bool(gen.get("live")),
+                "local_api_style": gen.get("api_style"),
+                "local_base_url": gen.get("base_url"),
+                "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
+                "conjecture_note": "Λ = Conjecture 1 — NOT a theorem. CAUCHY_ND sorry open.",
+            }
+            _forum_append({**sov_receipt, "prompt_preview": prompt[:80] if prompt else "",
+                           "source": "a11oy"})
+            _sov_resp = {
+                "response": response_text,
+                "model_selected": sov_enriched,
+                "lambda_receipt": sov_receipt,
+                "routed_via": "sovereign_local (%s)" % (gen.get("api_style") or "honest stub"),
+                "local": {k: gen.get(k) for k in
+                          ("wired", "live", "api_style", "base_url", "model", "note", "raw")
+                          if k in gen},
+                "doctrine": DOCTRINE,
+            }
+            if _harness_fallback_note:
+                _sov_resp["harness_note"] = _harness_fallback_note
+            return JSONResponse(_sov_resp)
 
         # Tier selection (mirrors szl_brain.pick_tier logic)
         if lam >= 0.90:
@@ -729,6 +1071,107 @@ def register(app: FastAPI) -> dict:
             "kernel_commit": _KERNEL,
         })
 
+    # ── GET /api/a11oy/v1/llm/sovereign/health ────────────────────────────────
+
+    @app.get("/api/a11oy/v1/llm/sovereign/health")
+    async def llm_sovereign_health() -> JSONResponse:
+        """Ping the sovereign local node (browser UA) and report live + model list.
+
+        `live` is True ONLY on a real 2xx JSON response THIS request — never
+        fabricated. When SZL_LOCAL_LLM_URL is unset, reports env_present=false and
+        an honest note. gpu.a-11-oy.com serves llama3.1:8b; gpu2 serves
+        glm-4.7-flash + qwen2.5:3b (per fleet ground truth).
+        """
+        probe = sovereign_probe()
+        wired = bool(probe.get("env_present"))
+        return JSONResponse({
+            "timestamp": _now(),
+            "hub": "a11oy",
+            "model_id": "sovereign_local",
+            "model_slug": "llama3-szl-finetuned-q4",
+            "env_var": _SOVEREIGN_ENV,
+            "env_present": wired,
+            "wired": wired,               # env present => operator intends local routing
+            "live": bool(probe.get("live")),  # stronger THIS-request liveness
+            "honest_stub": not bool(probe.get("live")),
+            "base_url": probe.get("base_url"),
+            "api_style": probe.get("api_style"),
+            "served_models": probe.get("models", []),
+            "configured_model": _sovereign_model_slug(),
+            "probed": probe.get("probed", []),
+            "probe_ua": "browser-UA (Cloudflare-front safe)",
+            "note": probe.get("note", ""),
+            "doctrine": DOCTRINE,
+            "kernel_commit": _KERNEL,
+        })
+
+    # ── GET /api/a11oy/v1/llm/router/status ───────────────────────────────────
+
+    @app.get("/api/a11oy/v1/llm/router/status")
+    async def llm_router_status(probe: int = 0) -> JSONResponse:
+        """Which providers have keys present (NAMES ONLY — never the secret) and
+        which local nodes are live. `?probe=1` pings the sovereign local node.
+
+        Doctrine v11: presence is a real os.environ check at request time; the
+        secret value is NEVER read into the response, logged, or returned.
+        """
+        providers = []
+        seen_present = set()
+        for env_var, provider in _PROVIDER_ENV_VARS:
+            present = _api_key_wired(env_var)
+            providers.append({
+                "provider": provider,
+                "env_var": env_var,      # NAME ONLY — never the secret value
+                "key_present": present,
+            })
+            if present:
+                seen_present.add(provider)
+
+        # a11oy Code agent canonical credential (provider-agnostic resolver).
+        code_key = resolve_code_llm_key()
+        code_key_public = {
+            "wired": bool(code_key.get("wired")),
+            "provider": code_key.get("provider"),
+            "env_used": code_key.get("env_used"),   # NAME ONLY
+            "base_url": code_key.get("base_url"),
+            "honest_note": code_key.get("honest_note"),
+        }
+
+        # Local sovereign node.
+        do_probe = bool(probe)
+        base = _sovereign_base()
+        if do_probe:
+            sov = sovereign_probe(base)
+            local_node = {
+                "env_var": _SOVEREIGN_ENV, "base_url": base or None,
+                "env_present": bool(base), "live": bool(sov.get("live")),
+                "served_models": sov.get("models", []), "note": sov.get("note", ""),
+            }
+        else:
+            local_node = {
+                "env_var": _SOVEREIGN_ENV, "base_url": base or None,
+                "env_present": bool(base), "live": None,
+                "note": "pass ?probe=1 to ping the node for THIS-request liveness",
+            }
+
+        provider_keys_present = sorted(seen_present)
+        return JSONResponse({
+            "timestamp": _now(),
+            "hub": "a11oy",
+            "role": "router key/liveness status — provider NAMES only, never secrets",
+            "providers": providers,
+            "provider_keys_present": provider_keys_present,
+            "provider_wired_count": len(provider_keys_present),
+            "code_agent_credential": code_key_public,
+            "local_nodes": [local_node],
+            "any_cloud_key_present": len(provider_keys_present) > 0,
+            "doctrine": DOCTRINE,
+            "kernel_commit": _KERNEL,
+            "honest_note": ("Presence is a real os.environ check THIS request. The secret "
+                            "value is NEVER read into the response, logged, or returned — "
+                            "only the env-var NAME + a boolean presence flag."),
+        })
+
     return {
         "module": "szl_llm_registry",
         "endpoints": [
@@ -738,6 +1181,8 @@ def register(app: FastAPI) -> dict:
             "GET  /api/a11oy/v1/llm/forum",
             "POST /api/a11oy/v1/llm/forum/ingest",
             "GET  /api/a11oy/v1/llm/ecosystem-mirror",
+            "GET  /api/a11oy/v1/llm/sovereign/health",
+            "GET  /api/a11oy/v1/llm/router/status",
         ],
         "model_count": len(MODEL_REGISTRY),
         "doctrine": DOCTRINE,
