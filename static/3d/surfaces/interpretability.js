@@ -39,10 +39,14 @@
 const ID    = "interpretability";
 const TITLE = "Interpretability · Sparse-Autoencoder Features (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the interpretability organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/interpretability/features?seed=42&top_k=8&d_model=512&n_features=4096";
+// PRIMARY endpoint is the a11oy-NATIVE self-hosted SAE surface (same-origin, no CORS):
+//   GET /api/a11oy/v1/interpretability/features (szl_a11oy_interpretability.py, MODELED).
+// FALLBACK stays the dedicated killinchu Space (isolated compute, reached cross-origin —
+// killinchu returns access-control-allow-origin: https://a-11-oy.com) so a rebuild/fault
+// on EITHER path never darkens the organ (fault isolation preserved). If the primary
+// reports missing/error we transparently swap to the Space fallback (see mount()).
+const EP          = "/api/a11oy/v1/interpretability/features?seed=42&top_k=8&d_model=512&n_features=4096";
+const EP_FALLBACK = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/interpretability/features?seed=42&top_k=8&d_model=512&n_features=4096";
 
 // data-viz hues — purple BANNED
 const C_NODE   = 0x5b8dee;  // lattice-blue (fired feature)
@@ -96,7 +100,22 @@ export function mount(ctx) {
   if (!_frameReg) { _stage.onFrame(_onFrame); _frameReg = true; }
 
   _badge = ctx.live.createBadge();
-  _polls.push(ctx.live.poll(EP, 5000, _onFeatures, { badge: _badge, onState: (m) => { S.state = m.state; _paintOverlay(); } }));
+  // Guarded primary -> fallback: poll the a11oy-native endpoint; if it goes
+  // missing/error, swap ONCE to the isolated killinchu Space (fault isolation).
+  let _swapped = false;
+  const _startPoll = (ep) => ctx.live.poll(ep, 5000, _onFeatures, {
+    badge: _badge,
+    onState: (m) => {
+      S.state = m.state;
+      if (!_swapped && (m.state === "missing" || m.state === "error")) {
+        _swapped = true;
+        try { _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = []; } catch (_) {}
+        _polls.push(_startPoll(EP_FALLBACK));
+      }
+      _paintOverlay();
+    },
+  });
+  _polls.push(_startPoll(EP));
 
   _buildOverlay();
   return { id: ID, started: true };
@@ -411,4 +430,4 @@ export function unmount() {
   _flash.fill(0);
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP, EP_FALLBACK], mount, unmount };
