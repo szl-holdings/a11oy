@@ -664,6 +664,11 @@ COPY szl_eu_energy.py ./
 # GET /api/a11oy/v1/brain/graph falls through to the SPA HTML shell (no JSON). Harvests
 # the real estate (surfaces+formulas+repos+topics) into a layered node/link brain graph.
 COPY a11oy_brain_graph.py ./
+# HARVESTED FIELD LEADERS (2026-07-07) — real research graph JSONL (papers/repos/labs/
+# people/datasets/benchmarks/standards/axes, each with a verified url). a11oy_brain_graph
+# reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
+# COPY'd or the endpoint honestly reports harvest available=False (estate-only).
+COPY brain/harvest ./brain/harvest
 
 # DEV2: in-toto offline verifier recipe (Apache-2.0)
 RUN mkdir -p /app/szl-cookbook
