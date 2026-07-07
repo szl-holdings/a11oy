@@ -666,6 +666,24 @@ try:
 except Exception as _szl_fmv_e:  # pragma: no cover
     print(f"[a11oy] Frontier fmverif NOT registered: {_szl_fmv_e!r}", file=__import__("sys").stderr)
 
+# Sovereign Local Model panel (Wave M / Dev 4) — GET /api/a11oy/v1/frontier/sovereign returns
+# the operator status of the founder's LOCAL sovereign model (Ollama on the Tower, Doctrine-v11
+# system prompt over base llama3.1:8b; model tag llama3-szl-finetuned-q4): reachability (prefers
+# Dev-1's szl_llm_registry.sovereign_probe, which backs GET /api/a11oy/v1/llm/sovereign/health;
+# else a direct SZL_LOCAL_LLM_URL probe + honest dependency note), the doctrine self-test
+# ("State your doctrine in one line" → the model's REAL answer when reachable, else honest
+# UNAVAILABLE), Stage A-vs-B status, and a signed receipt of the check (REAL DSSE in-Space,
+# UNSIGNED-LOCAL otherwise). The Tower is NOT reachable from CI/cloud, so off-Tower this
+# degrades to honest UNAVAILABLE — NEVER a fabricated status/answer/signature. Adds NOTHING to
+# the locked-8; Λ stays Conjecture 1; trust ceiling 0.97. Additive, try/except-guarded, same
+# register() pattern, registered EARLY (before the SPA catch-all).
+try:
+    import szl_sovereign_panel as _szl_sovereign_panel
+    _szl_sovereign_panel.register(app, ns="a11oy")
+    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (LIVE-SOVEREIGN when reachable, else honest UNAVAILABLE)", file=__import__("sys").stderr)
+except Exception as _szl_sov_e:  # pragma: no cover
+    print(f"[a11oy] Frontier sovereign NOT registered: {_szl_sov_e!r}", file=__import__("sys").stderr)
+
 # Model-Artifact Provenance (SLSA · in-toto · Rekor · C2PA) — GET /api/a11oy/v1/frontier/
 # supplychain returns the MODEL supply chain (weights → build → attestation → deploy) as a
 # governed, honestly-labeled surface: each stage names its provenance evidence (in-toto
@@ -3405,6 +3423,30 @@ def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
     return val
 
 
+# Sovereign local-model rollup signal (Wave M / Dev 4). Compact {reachable, model,
+# label} for the /healthz rollup — a cheap, cached, guarded probe (via
+# szl_sovereign_panel.rollup_signal, which prefers Dev-1's registry probe / falls back
+# to a direct SZL_LOCAL_LLM_URL probe). NEVER blocks or crashes the health path, and
+# NEVER fakes a reachable node: the Tower is unreachable from CI/cloud, so off-Tower
+# this is honestly {reachable:false, label:"UNAVAILABLE"}.
+_SOVEREIGN_HZ_CACHE: dict = {}
+
+
+def _sovereign_health_signal(ttl: float = 30.0) -> dict:
+    now = _hz_time.time()
+    ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
+    if ca is not None and (now - ca) < ttl:
+        return _SOVEREIGN_HZ_CACHE.get("value", {})
+    try:
+        import szl_sovereign_panel as _szl_sov_hz
+        val = _szl_sov_hz.rollup_signal()
+    except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
+        val = {"reachable": False, "model": "llama3-szl-finetuned-q4",
+               "label": "UNAVAILABLE", "error": f"{type(exc).__name__}: {exc}"}
+    _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
+    return val
+
+
 @app.get("/api/a11oy/healthz")
 async def healthz() -> JSONResponse:
     dep = await _healthz_dep_ping()
@@ -3412,6 +3454,7 @@ async def healthz() -> JSONResponse:
     _storage = _ledger_storage_signal()
     _signer = _signer_availability_signal()
     _frontier = _frontier_liveness_signal()
+    _sovereign = _sovereign_health_signal()
     # Honest overall status. PRESSURE is advisory (still "ok" overall but
     # surfaced). Never fake green.
     # Overall degrades on a hard storage failure (disk full / read-only). The
@@ -3440,6 +3483,7 @@ async def healthz() -> JSONResponse:
             "storage": _storage,
             "signer": _signer,
             "frontier": _frontier,
+            "sovereign": _sovereign,
         },
         "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
@@ -3452,6 +3496,11 @@ async def healthz() -> JSONResponse:
         "policy_gates": 46,
         "anchor_formula_gates": 44,
         "hatun_willay": True,
+        # Wave M / Dev 4: sovereign local-model rollup signal (honest — never fakes a
+        # reachable node; the Tower is unreachable from CI/cloud so off-Tower this is
+        # {reachable:false, label:"UNAVAILABLE"}). Also mirrored into rollup.sovereign
+        # so a Wave-L-style rollup consumer finds it in the expected place.
+        "sovereign": _sovereign,
     })
 
 
