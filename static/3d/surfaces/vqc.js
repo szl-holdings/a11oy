@@ -54,7 +54,7 @@
 import { createShowcase } from "./_showcase.js";
 
 const ID    = "vqc";
-const TITLE = "Governed VQC · Parameter-Shift Hybrid QML (SIMULATED)";
+const TITLE = "Governed VQC · Parameter-Shift Hybrid QML (MODELED)";
 
 // Served SAME-ORIGIN by szl_vqc.py — a deterministic parameter-shift VQC sim.
 const EP = "/api/a11oy/v1/vqc/run?seed=7&n_qubits=3&layers=2&steps=14";
@@ -267,8 +267,13 @@ function _buildGateAndGrad() {
 // =============================================================================
 function _onData(j) {
   const p = (j && typeof j.payload === "object" && j.payload) ? j.payload : j;
-  const rawLabel = (j && j.label) || (p && p.label) || "SIMULATED";
-  S.label = String(rawLabel).toUpperCase();
+  // Honesty label read VERBATIM from the served JSON, never upgraded. The
+  // surface renders MODELED absent live data: the loss/gradient are genuinely
+  // computed in a deterministic state-vector SIMULATION (modeled, not physically
+  // MEASURED — there is no quantum device in-request).
+  const served = (j && j.label) || (p && p.label) || null;
+  S.label = (served || "MODELED");
+  S.label = String(S.label).toUpperCase();
 
   S.nQubits    = typeof p.n_qubits === "number" ? p.n_qubits : null;
   S.layers     = typeof p.layers === "number" ? p.layers : null;
@@ -416,8 +421,8 @@ function _buildOverlay() {
   _show = createShowcase(ctx, {
     id: ID, title: TITLE, accent: "#5b8dee",
     badge: _badge,
-    chips: [{ label: "SIMULATED", text: "Λ=CONJECTURE 1", name: "lbl" }],
-    legend: ["SIMULATED"],
+    chips: [{ label: "MODELED", text: "Λ=CONJECTURE 1", name: "lbl" }],
+    legend: ["MODELED"],
     description:
       "A <b>REAL parameter-shift Hybrid VQC</b>, run in a small pure-stdlib " +
       "deterministic <b>state-vector simulation</b> (a few qubits). Pipeline, " +
@@ -530,7 +535,7 @@ function _paintOverlay() {
             ? "UNSIGNED-LOCAL" + (S.receiptDigest ? " " + S.receiptDigest.slice(0, 10) + "…" : "")
             : "—")));
   // honesty label verbatim — never upgraded
-  if (_show) _show.setChip("lbl", S.label || "SIMULATED", { text: "Λ=CONJECTURE 1" });
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "Λ=CONJECTURE 1" });
 }
 
 // =============================================================================

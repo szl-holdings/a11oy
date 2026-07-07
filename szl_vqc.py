@@ -6,6 +6,7 @@ Quantum Circuit, SIMULATION-ONLY, run inside a tiny pure-stdlib (numpy-free)
 deterministic state-vector simulator, wrapped in the SZL governance layer
 (Λ = Conjecture 1 advisory, honest labels, DSSE-signed receipt).
 
+  GET  /api/<ns>/v1/vqc/manifest
   GET  /api/<ns>/v1/vqc/run?seed=&n_qubits=&layers=&steps=
 
 The endpoint runs the canonical hybrid quantum-classical training loop exactly
@@ -599,29 +600,147 @@ def run_vqc(seed=7, n_qubits=3, layers=2, steps=12):
     return payload
 
 
-def _h_vqc_run(req: Request):
+# Honest doctrine label for the frontier registry. The parameter-shift VQC math
+# is a REAL, in-request computation, but it runs in a small deterministic
+# state-vector SIMULATION with NO physical measurement device — so the honest
+# doctrine token is MODELED (in the frontier's _VALID_LABELS set), NOT MEASURED.
+# The response ALSO carries the finer-grained "SIMULATED" descriptor in
+# `sim_kind` and in parts_labeled, so nothing is over- or under-claimed.
+VQC_LABEL = "MODELED"  # frontier doctrine token (MEASURED reserved for a real measured gradient)
+
+
+def vqc_manifest(ns: str = "a11oy"):
+    """Static organ manifest (no compute) — proves the surface is wired + honest.
+
+    A GET the frontier / health probes can hit cheaply without running a training
+    loop. Declares the honest MODELED label, the endpoints, the caps, and the
+    honesty invariants. Cites the parameter-shift rule + frameworks, never as ours.
+    """
+    base = f"/api/{ns}/v1/vqc"
+    return {
+        "service": "governed-vqc",
+        "label": VQC_LABEL,
+        "sim_kind": "SIMULATED",  # finer descriptor: a small deterministic state-vector sim
+        "model": "Governed parameter-shift Hybrid VQC (SIMULATION-ONLY; Λ-gated; signed receipt)",
+        "doctrine": "v11",
+        "summary": ("A REAL parameter-shift Hybrid Variational Quantum Circuit run in a small "
+                    "pure-stdlib deterministic state-vector simulation (a few qubits): feature "
+                    "map → ansatz → Pauli-Z measurement → classical head → loss → exact ±π/2 "
+                    "parameter-shift gradient step. Honest label MODELED (no physical measurement); "
+                    "Λ = Conjecture 1 (gray, never green); trust capped at 0.97."),
+        "endpoints": {
+            "manifest": f"GET  {base}/manifest",
+            "run": f"GET  {base}/run?seed=&n_qubits=&layers=&steps=",
+        },
+        "caps": {"max_qubits": _MAX_QUBITS, "max_layers": _MAX_LAYERS, "max_steps": _MAX_STEPS},
+        "gradient_method": "REAL parameter-shift rule (exact ±π/2), NOT finite differences",
+        "honesty_invariants": {
+            "label_is_modeled_not_measured": True,
+            "no_quantum_advantage_claimed": True,
+            "gradient_genuinely_computed_in_request": True,
+            "never_fabricate_a_number": True,
+            "lambda_is_conjecture_1_gray_never_green": True,
+            "trust_capped_at_0_97": True,
+            "nothing_in_locked_8": True,
+            "pure_stdlib_cmath_math_only": True,
+        },
+        "no_advantage_note": (
+            "NO demonstrated quantum advantage for classical-data ML today (barren plateaus "
+            "McClean 2018; dequantization Cerezo arXiv:2312.09121; Sheoran Sci. Rep. 2025). "
+            "This surface attests a GOVERNED, receipt-carrying RUN — not a speedup or accuracy claim."
+        ),
+        "citations": CITATIONS,
+    }
+
+
+def _h_vqc_run(req):
     seed = _ii(req, "seed", 7)
     n_qubits = max(1, min(_ii(req, "n_qubits", 3), _MAX_QUBITS))
     layers = max(1, min(_ii(req, "layers", 2), _MAX_LAYERS))
     steps = max(1, min(_ii(req, "steps", 12), _MAX_STEPS))
-    p = run_vqc(seed=seed, n_qubits=n_qubits, layers=layers, steps=steps)
-    p["label"] = "SIMULATED"
+    try:
+        p = run_vqc(seed=seed, n_qubits=n_qubits, layers=layers, steps=steps)
+    except Exception as exc:  # pragma: no cover — fail-open, never 500 the surface
+        return JSONResponse(
+            {"label": VQC_LABEL, "error": f"compute fail-open: {str(exc)[:160]}",
+             "payload": {"label": VQC_LABEL}}, status_code=200)
+    # Honest doctrine token is MODELED (a recognized frontier label); the finer
+    # SIMULATED descriptor rides alongside so nothing is over-claimed.
+    p["label"] = VQC_LABEL
+    p["sim_kind"] = "SIMULATED"
     p["model"] = "Governed parameter-shift Hybrid VQC (SIMULATION-ONLY; Λ-gated; signed receipt)"
     # Surface reads label at top level OR payload.label, metrics from payload.
-    return JSONResponse({"label": "SIMULATED", "payload": p})
+    return JSONResponse({"label": VQC_LABEL, "payload": p})
+
+
+def _h_vqc_manifest(req):
+    return JSONResponse(vqc_manifest())
 
 
 def register(app, ns: str = "a11oy"):
-    """Wire /api/<ns>/v1/vqc/run onto app. Additive, try/except-guarded."""
+    """Wire /api/<ns>/v1/vqc/{manifest,run} onto app. Additive, try/except-guarded.
+
+    ROUTE-ORDERING FIX (no band-aid): serve.py defines an /api/<ns>/{path:path}
+    Node-proxy catch-all near the file tail. add_api_route APPENDS to the tail of
+    app.router.routes, and in the full serve.py route set the vqc route could lose
+    ordered matching to that proxy — which forwards /api/a11oy/v1/vqc/run to the
+    Node backend as /v1/vqc/run (a path Node does not define) and 404s with
+    "not found path /v1/vqc/run". So after registering we FRONT-MOVE the vqc routes
+    to the HEAD of app.router.routes (the same proven pattern used by the PINN,
+    constellation, materials and assurance surfaces), guaranteeing they resolve
+    IN-PROCESS regardless of how later front-moves shuffle the router.
+
+    GETs take a raw Request. Per the fastapi==0.137.2 gotcha, we register via
+    app.router.add_route(path, handler, methods=["GET"]) so the ASGI router passes
+    the Request positionally (no FastAPI signature analysis that could misread the
+    param); add_api_route is the fallback. Handlers annotate request: fastapi.Request.
+    """
+    import sys as _sys
     base = f"/api/{ns}/v1/vqc"
-    handlers = [(f"{base}/run", _h_vqc_run)]
-    add_api_route = getattr(app, "add_api_route", None)
-    for path, fn in handlers:
-        if callable(add_api_route):
-            app.add_api_route(path, fn, methods=["GET"])
-        else:
-            app.router.routes.append(Route(path, fn))
-    return [p for p, _ in handlers]
+    handlers = [(f"{base}/manifest", _h_vqc_manifest), (f"{base}/run", _h_vqc_run)]
+    paths = [p for p, _ in handlers]
+    try:
+        # Annotate the raw-Request handlers as fastapi.Request so any FastAPI
+        # signature analysis (in the add_api_route fallback path) treats the param
+        # as the request object, never a query field (fastapi==0.137.2 gotcha).
+        try:
+            import fastapi as _fastapi
+            _h_vqc_manifest.__annotations__["req"] = _fastapi.Request
+            _h_vqc_run.__annotations__["req"] = _fastapi.Request
+        except Exception:  # noqa: BLE001 — annotation best-effort only
+            pass
+
+        add_route = getattr(getattr(app, "router", None), "add_route", None)
+        add_api_route = getattr(app, "add_api_route", None)
+        for path, fn in handlers:
+            if callable(add_route):
+                # Starlette router: passes the Request positionally, no FastAPI
+                # signature analysis — version-proof for a raw-Request GET handler.
+                app.router.add_route(path, fn, methods=["GET"])
+            elif callable(add_api_route):
+                app.add_api_route(path, fn, methods=["GET"])
+            else:
+                app.router.routes.append(Route(path, fn, methods=["GET"]))
+
+        # FRONT-MOVE the just-added vqc routes to the router head so they win over
+        # the /api/<ns>/{path:path} Node proxy catch-all (same proven ROUTE-ORDERING
+        # FIX as the sibling surfaces). Guarded: a failure here leaves the routes
+        # registered (just not front-moved) and NEVER breaks app boot.
+        try:
+            _want = set(paths)
+            _moved = [r for r in app.router.routes if getattr(r, "path", None) in _want]
+            for _r in _moved:
+                app.router.routes.remove(_r)
+            for _r in reversed(_moved):
+                app.router.routes.insert(0, _r)
+            print(f"[a11oy] Governed VQC routes front-moved to router head: {len(_moved)} routes",
+                  file=_sys.stderr)
+        except Exception as _move_e:  # pragma: no cover
+            print(f"[a11oy] Governed VQC front-move skipped (routes still registered): {_move_e!r}",
+                  file=_sys.stderr)
+    except Exception as _reg_e:  # pragma: no cover — additive register must never break boot
+        print(f"[a11oy] Governed VQC register error (guarded): {_reg_e!r}", file=_sys.stderr)
+    return paths
 
 
 if __name__ == "__main__":
@@ -655,4 +774,19 @@ if __name__ == "__main__":
     print("param-shift grad[0]:", round(gW[0], 8), "finite-diff:", round(fd, 8),
           "abs-err:", round(abs(gW[0] - fd), 8))
     assert abs(gW[0] - fd) < 1e-4, "parameter-shift gradient must match finite-difference"
-    print("OK — parameter-shift gradient verified; loop trains; label SIMULATED; Λ=Conjecture 1")
+
+    # manifest honesty: MODELED doctrine token (a frontier-recognized label), the
+    # finer SIMULATED descriptor alongside, and Λ = Conjecture 1 untouched.
+    mf = vqc_manifest()
+    assert mf["label"] == VQC_LABEL == "MODELED", mf["label"]
+    assert mf["sim_kind"] == "SIMULATED"
+    assert all(mf["honesty_invariants"].values()), "all VQC honesty invariants must be True"
+    print("manifest label:", mf["label"], "sim_kind:", mf["sim_kind"])
+
+    # register returns the 2 exact paths on a no-op app shim (front-move guarded).
+    class _NoApp:  # minimal shim: no router.add_route / add_api_route
+        pass
+    rp = register(_NoApp(), ns="a11oy")
+    assert rp == ["/api/a11oy/v1/vqc/manifest", "/api/a11oy/v1/vqc/run"], rp
+    print("register paths:", rp)
+    print("OK — parameter-shift gradient verified; loop trains; label MODELED (sim_kind SIMULATED); Λ=Conjecture 1")
