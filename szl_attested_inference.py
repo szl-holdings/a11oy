@@ -47,7 +47,7 @@ CONFIDENTIAL-COMPUTE LEADERS STUDIED & CITED (clean-room PATTERN, not their code
     https://www.amd.com/content/dam/amd/en/documents/developer/lss-snp-attestation.pdf
   • Intel TDX — a TD produces a TDREPORT (MRTD + RTMRs) converted to a signed TD Quote; the
     verifier checks it (DCAP / Intel Trust Authority). We mirror MRTD as the boot measurement.
-    https://community.intel.com/t5/Blogs/Products-and-Solutions/Security/Seamless-Attestation-of-Intel-TDX-and-NVIDIA-H100-TEEs-with/post/1525587
+    https://download.01.org/intel-sgx/latest/dcap-latest/linux/docs/Intel_TDX_DCAP_Quoting_Library_API.pdf
   • in-toto / SLSA — signed attestations of "who built/ran what, when," graded L1→L3. Our
     receipt carries an SLSA-style provenance predicate (builder, buildType, invocation, digests).
     https://slsa.dev/spec/v1.0/levels  ·  https://slsa.dev/blog/2023/05/in-toto-and-slsa
@@ -116,8 +116,8 @@ SOURCES: List[Dict[str, str]] = [
      "url": "https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/"},
     {"name": "AMD — SEV-SNP Attestation: Establishing Trust in Guests (REPORT_DATA / VCEK / KDS)",
      "url": "https://www.amd.com/content/dam/amd/en/documents/developer/lss-snp-attestation.pdf"},
-    {"name": "Intel + NVIDIA — Seamless Attestation of Intel TDX and NVIDIA H100 TEEs",
-     "url": "https://community.intel.com/t5/Blogs/Products-and-Solutions/Security/Seamless-Attestation-of-Intel-TDX-and-NVIDIA-H100-TEEs-with/post/1525587"},
+    {"name": "Intel — TDX DCAP Quoting Library API (TDREPORT/MRTD/RTMR -> signed TD Quote)",
+     "url": "https://download.01.org/intel-sgx/latest/dcap-latest/linux/docs/Intel_TDX_DCAP_Quoting_Library_API.pdf"},
     {"name": "SLSA — Supply-chain Levels for Software Artifacts (L1→L3)",
      "url": "https://slsa.dev/spec/v1.0/levels"},
     {"name": "in-toto & SLSA — signed provenance attestations",
