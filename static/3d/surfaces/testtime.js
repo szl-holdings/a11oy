@@ -45,10 +45,12 @@ import { createShowcase } from "./_showcase.js";
 const ID    = "testtime";
 const TITLE = "Test-Time Compute · Reasoning-Scaling Laws (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the test-time-compute organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/testtime/scaling?seed=42&p=0.2&N=64&steps=8";
+// PRIMARY endpoint is the a11oy-NATIVE self-hosted twin (same-origin, szl_testtime_scaling.py):
+// exact closed-form best-of-N coverage + sequential-revision scaling laws (label MODELED, read
+// verbatim). The isolated killinchu Space stays a guarded cross-origin FALLBACK so a fault in
+// either path never darkens the other.
+const EP = "/api/a11oy/v1/testtime/scaling?seed=42&p=0.2&N=64&steps=8";
+const EP_FALLBACK = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/testtime/scaling?seed=42&p=0.2&N=64&steps=8";
 
 // data-viz hues — purple BANNED
 const C_PASSN  = 0x5b8dee;  // lattice-blue (pass@N curve)
@@ -478,4 +480,4 @@ export function unmount() {
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP, EP_FALLBACK], mount, unmount };

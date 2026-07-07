@@ -11873,6 +11873,62 @@ except Exception as _wn_e3:  # additive: never break the Space
 
 
 # ============================================================================
+# WAVE-P FRONTIER BATCH (feat/frontier-wave-p, Dev3): three a11oy-NATIVE cited
+# SOTA backends for frontier surfaces that previously read ONLY an isolated
+# killinchu Space cross-origin (no self-hosted twin -> a killinchu flap darkened
+# the surface). Each is deterministic, stdlib-only, try/except-guarded, and
+# returns a renderable 200 with an honest MODELED label + receipt. Registered
+# BEFORE the SPA catch-all; each register() uses @app.get (APPENDS), so we
+# front-move the single route to router position 0 so it wins over the
+# /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all (same
+# proven pattern as the WAVE-N batch above; reuses _wn_frontmove).
+#   1) szl_diffusion_llm    -> /api/a11oy/v1/dllm/denoise         (surface: dllm.js)
+#        Masked-diffusion parallel-decoding schedule (LLaDA linear reverse process
+#        + confidence-first unmask). Cites Nie et al. 2025 LLaDA (arXiv:2502.09992),
+#        Inception Labs Mercury (arXiv:2506.17298), Austin et al. D3PM (arXiv:2107.03006).
+#   2) szl_latent_attention -> /api/a11oy/v1/mla/latent-compress  (surface: mla.js)
+#        MLA low-rank joint KV compression (real down/up-projection + L2 residual).
+#        Cites DeepSeek-V2 (arXiv:2405.04434, introduces MLA) + DeepSeek-V3 (arXiv:2412.19437).
+#   3) szl_testtime_scaling -> /api/a11oy/v1/testtime/scaling     (surface: testtime.js)
+#        Test-time-compute scaling laws: best-of-N coverage 1-(1-p)^N + sequential
+#        revision A-(A-p)(1-γ)^k. Cites DeepSeek-R1 (arXiv:2501.12948), Snell et al.
+#        (arXiv:2408.03314), Brown et al. Large Language Monkeys (arXiv:2407.21787).
+# Λ = Conjecture 1 throughout; nothing added to the locked-8; trust never 100%.
+# ============================================================================
+try:
+    import sys as _wp_sys
+    # NOTE: explicit per-module import + <module>.register(app, ...) — the a11oy
+    # surface-wiring contract the register-invocation guard statically verifies.
+    import szl_diffusion_llm as _szl_diffusion_llm
+    _wp_s1 = _szl_diffusion_llm.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/dllm/denoise")
+    print(f"[a11oy] WAVE-P FRONTIER szl_diffusion_llm registered (front-moved): {_wp_s1}", file=_wp_sys.stderr)
+except Exception as _wp_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-P FRONTIER szl_diffusion_llm NOT registered (non-fatal): {_wp_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    import sys as _wp_sys
+    import szl_latent_attention as _szl_latent_attention
+    _wp_s2 = _szl_latent_attention.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/mla/latent-compress")
+    print(f"[a11oy] WAVE-P FRONTIER szl_latent_attention registered (front-moved): {_wp_s2}", file=_wp_sys.stderr)
+except Exception as _wp_e2:  # additive: never break the Space
+    print(f"[a11oy] WAVE-P FRONTIER szl_latent_attention NOT registered (non-fatal): {_wp_e2!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    import sys as _wp_sys
+    import szl_testtime_scaling as _szl_testtime_scaling
+    _wp_s3 = _szl_testtime_scaling.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/testtime/scaling")
+    print(f"[a11oy] WAVE-P FRONTIER szl_testtime_scaling registered (front-moved): {_wp_s3}", file=_wp_sys.stderr)
+except Exception as _wp_e3:  # additive: never break the Space
+    print(f"[a11oy] WAVE-P FRONTIER szl_testtime_scaling NOT registered (non-fatal): {_wp_e3!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-P FRONTIER BATCH (diffusion-LLM / latent-attention / test-time)
+# ============================================================================
+
+
+# ============================================================================
 # REVENUE LAYER (feat/revenue-layer): ADDITIVE honest revenue ESTIMATORS.
 # Doctrine v11 LOCKED — revenue figures demand maximum honesty; no fabricated
 # numbers. Every output labeled ESTIMATE or PRICING_HYPOTHESIS, computed from
