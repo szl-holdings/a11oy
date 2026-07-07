@@ -96,8 +96,11 @@ CORE_FRONTIER = (
 # the invariant enforced but record the current known gap as a non-strict xfail so the
 # CI gate opens GREEN and auto-flips to a hard failure once substrate is fixed.
 # Tracked gap: szl_substrate.szl_restraint._evaluate 500s on a non-object JSON body
-# (should be an honest 400). Fixed locally in a11oy's fallback copy; substrate copy
-# is the one imported at runtime.
+# (should be an honest 400). The local a11oy/killinchu szl_restraint.py is a
+# byte-identical fallback that is NOT the runtime handler (serve.py prefers the
+# installed szl-substrate copy), so it is intentionally left untouched here to keep
+# the a11oy<->killinchu shared-file parity ratchet green; the real fix belongs in
+# the substrate repo (Dev 2), and this xfail auto-flips to a hard failure once it lands.
 SUBSTRATE_KNOWN_500_ON_LIST_BODY = ("/restraint/evaluate",)
 
 # Canonical advisory-Λ field names whose numeric value is the Trust-bounded score.
