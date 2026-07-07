@@ -128,6 +128,16 @@ except Exception:
     _APPROVAL_OK = False
     _approval_interrupt = None
 
+# Wave M (Dev 2): shared sovereign-flywheel bridge. Lets the governed loop run on
+# SZL's OWN model (sovereign_local) via Dev-1's registry backend; honest
+# MODELED/UNAVAILABLE when the local Tower endpoint is unreachable (no fabrication).
+try:
+    import szl_sovereign_flywheel as _sov  # noqa: F401
+    _SOV_OK = True
+except Exception:  # pragma: no cover — bridge missing → sovereign option simply off
+    _sov = None  # type: ignore
+    _SOV_OK = False
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -184,6 +194,21 @@ def run_loop(task: str,
     mode = (mode or "").lower()
     max_retries = max(0, min(3, int(max_retries)))
     grant = approval if isinstance(approval, dict) else None
+
+    # ── Wave M (Dev 2): sovereign preflight ───────────────────────────────────
+    # If the caller asked to run this loop on SZL's OWN governed model, probe the
+    # sovereign backend ONCE (Dev-1 registry) and carry the honest verdict into the
+    # composite receipt. The per-step ACT still flows through the engine with
+    # want_model=model_id; the sovereign block records the intended backend +
+    # reachability so an offline run is honestly MODELED/UNAVAILABLE (no fabrication).
+    sovereign_requested = bool(_SOV_OK and _sov and _sov.is_sovereign(model_id))
+    sovereign_block = None
+    sovereign_state = None
+    if sovereign_requested:
+        _sp = _sov.run_on_sovereign(task or "State your doctrine in one line.",
+                                    requested_model_id=model_id, probe_only=True)
+        sovereign_state = _sp.get("state")
+        sovereign_block = _sov.receipt_block(_sp)
 
     if not _ENGINE_OK:
         return {
@@ -404,6 +429,7 @@ def run_loop(task: str,
         "task": task,
         "mode": plan_mode,
         "model_id": model_id or "(engine default)",
+        "sovereign": sovereign_block,  # Wave M: intended sovereign backend (None when not requested)
         "harness_profile_id": harness_profile_id or None,
         "eval_suite_default": eval_suite or "(per-step mode heuristic)",
         "max_retries": max_retries,
@@ -475,6 +501,9 @@ def run_loop(task: str,
         "steps": steps_out,
         "aggregate": receipt_body["aggregate"],
         "composite_receipt": {"body": receipt_body, "dsse": dsse, "signing": signing},
+        "sovereign": sovereign_block,  # Wave M: honest intended-backend + reachability
+        "sovereign_label": (_sov.selected_label({"state": sovereign_state})
+                            if sovereign_requested and _SOV_OK and _sov else None),
         "forum_ingest": forum,
         "composes": receipt_body["composes"],
         "leaders_cited": LEADERS,
@@ -642,6 +671,18 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
                 "self_eval_available": _ARENA_OK,
                 "behavior_profile_available": _HARNESS_OK,
                 "human_gate_available": _APPROVAL_OK,
+                "sovereign_available": _SOV_OK,
+            },
+            # Wave M (Dev 2): run this governed loop on SZL's OWN model.
+            "run_on_sovereign": {
+                "available": bool(_SOV_OK),
+                "how": ("POST /agentloop/run with model_id='szl-sovereign-local' "
+                        "(alias of registry backend 'sovereign_local'). The loop "
+                        "probes the local Tower via Dev-1's backend and records the "
+                        "intended sovereign backend in the composite receipt; honest "
+                        "MODELED/UNAVAILABLE when offline (no fabrication)."),
+                "backend_id": "sovereign_local",
+                "model_slug": "llama3-szl-finetuned-q4",
             },
             "eval_suites": eval_suites,
             "approval_gate_enabled": os.environ.get("A11OY_APPROVAL_INTERRUPT") == "1",

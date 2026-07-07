@@ -366,6 +366,17 @@ _SCORERS: dict[str, Callable[[str, str], tuple[bool, str]]] = {
 # answer is derived ONLY from the case's own `expected`/category — it is an honest
 # "reference oracle" stub, NOT a claim that a model produced it.
 # ─────────────────────────────────────────────────────────────────────────────
+# Wave M (Dev 2): shared sovereign-flywheel bridge. Lets /eval/run score SZL's OWN
+# governed model (sovereign_local) through Dev-1's registry backend; honest
+# MODELED/UNAVAILABLE when the local Tower endpoint is unreachable (no fabrication).
+try:
+    import szl_sovereign_flywheel as _sov  # noqa: F401
+    _SOV_OK = True
+except Exception:  # pragma: no cover — bridge missing → sovereign option simply off
+    _sov = None  # type: ignore
+    _SOV_OK = False
+
+
 def _registry_snapshot() -> dict[str, Any]:
     """Best-effort read of the registry (model roster + key-wired status)."""
     out = {"available": False, "models": {}, "any_key_wired": False}
@@ -430,8 +441,45 @@ def _control_benign_answer(case: dict[str, Any]) -> str:
 
 
 def _solve_case(case: dict[str, Any], model_id: str, snap: dict[str, Any],
-                harness: dict[str, Any]) -> dict[str, Any]:
-    """Produce an answer for one case (honest MODELED unless a key is wired)."""
+                harness: dict[str, Any], sov_state: str | None = None) -> dict[str, Any]:
+    """Produce an answer for one case (honest MODELED unless a key is wired).
+
+    Wave M (Dev 2): when the caller asked for SZL's sovereign local model,
+    `sov_state` carries the ONE-shot reachability verdict from run_eval:
+      LIVE        → do a REAL per-case generation on the local node.
+      MODELED     → node not live this request → honest MODELED reference stub
+                    (pipeline still scored; NO model text fabricated as sovereign).
+      UNAVAILABLE → local endpoint unreachable → honest UNAVAILABLE non-response.
+    """
+    # ── sovereign branch (routes through Dev-1's registry backend) ──
+    if sov_state is not None:
+        if sov_state == "LIVE" and _SOV_OK and _sov:
+            sov = _sov.run_on_sovereign(str(case.get("input", "")),
+                                        requested_model_id=model_id)
+            if sov.get("state") == "LIVE" and isinstance(sov.get("text"), str):
+                answer = sov["text"]
+                if harness.get("applied"):
+                    answer = f"[profile:{harness['profile_id']}] " + answer
+                return {"answer": answer, "label": "LIVE"}
+            # node fell over mid-run → honest MODELED, no fabrication as sovereign
+            answer = _modeled_reference_answer(case)
+            if harness.get("applied"):
+                answer = f"[profile:{harness['profile_id']}] " + answer
+            return {"answer": answer, "label": "MODELED"}
+        if sov_state == "MODELED":
+            if case.get("category") == "safety_control":
+                answer = _control_benign_answer(case)
+            else:
+                answer = _modeled_reference_answer(case)
+            if harness.get("applied"):
+                answer = f"[profile:{harness['profile_id']}] " + answer
+            return {"answer": answer, "label": "MODELED"}
+        # UNAVAILABLE — sovereign endpoint unreachable; no model call, no fabrication
+        answer = ("[UNAVAILABLE] SZL sovereign_local endpoint unreachable "
+                  "(SZL_LOCAL_LLM_URL unset / Tower offline); no answer produced. "
+                  "Pipeline scored this as a non-response.")
+        return {"answer": answer, "label": "UNAVAILABLE"}
+
     live = snap.get("available") and snap.get("any_key_wired")
     label = "LIVE" if live else "MODELED"
     known = model_id in snap.get("models", {})
@@ -532,13 +580,25 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
     snap = _registry_snapshot()
     harness = _resolve_harness(harness_profile_id)
 
+    # ── Wave M (Dev 2): sovereign option — probe SZL's OWN model ONCE per run ──
+    # so we don't hammer the local node per-case. The verdict drives per-case
+    # solving; honest MODELED/UNAVAILABLE when the Tower is offline (no fabrication).
+    sov_requested = bool(_SOV_OK and _sov and _sov.is_sovereign(model_id))
+    sov_state: str | None = None
+    sov_receipt = None
+    if sov_requested:
+        sov_probe = _sov.run_on_sovereign("", requested_model_id=model_id,
+                                          probe_only=True)
+        sov_state = sov_probe.get("state")  # LIVE | MODELED | UNAVAILABLE
+        sov_receipt = _sov.receipt_block(sov_probe)
+
     cases_in = suite["cases"]
     suite_sha256 = _sha256_str(_canon(cases_in))  # lm-eval-style content version pin
     results: list[dict[str, Any]] = []
     by_cat: dict[str, dict[str, int]] = {}
 
     for case in cases_in:
-        solved = _solve_case(case, model_id, snap, harness)
+        solved = _solve_case(case, model_id, snap, harness, sov_state=sov_state)
         answer = solved["answer"]
         label = solved["label"]
         scorer_name = case.get("scorer", "exact")
@@ -617,9 +677,14 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
     }
 
     # ── build the receipt payload (signed below) ──
-    honesty_label = "LIVE" if (snap.get("available") and snap.get("any_key_wired")) else "MODELED"
-    if model_id not in snap.get("models", {}):
-        honesty_label = "UNAVAILABLE"
+    if sov_requested:
+        # Sovereign run: the label IS the one-shot reachability verdict (never
+        # UNAVAILABLE just because the alias isn't a plain registry key).
+        honesty_label = sov_state or "UNAVAILABLE"
+    else:
+        honesty_label = "LIVE" if (snap.get("available") and snap.get("any_key_wired")) else "MODELED"
+        if model_id not in snap.get("models", {}):
+            honesty_label = "UNAVAILABLE"
 
     receipt_body = {
         "schema": SCHEMA,
@@ -631,7 +696,8 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
         "suite_version": suite["version"],
         "suite_sha256": suite_sha256,
         "model_id": model_id,
-        "model_known": model_id in snap.get("models", {}),
+        "model_known": (sov_requested or model_id in snap.get("models", {})),
+        "sovereign": sov_receipt,  # Wave M: intended sovereign backend (None when not requested)
         "harness_profile_id": harness_profile_id,
         "harness": {"applied": harness.get("applied"), "available": harness.get("available"),
                     "profile_sha256": harness.get("profile_sha256"), "note": harness.get("note")},
@@ -759,6 +825,16 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
             ],
             "scorers": list(_SCORERS.keys()),
             "run_endpoint": "POST " + base + "/run",
+            # Wave M (Dev 2): evaluate SZL's OWN governed model.
+            "run_on_sovereign": {
+                "available": bool(_SOV_OK),
+                "how": ("POST " + base + "/run with model_id='szl-sovereign-local' "
+                        "(alias of registry backend 'sovereign_local'). Scores SZL's "
+                        "own model via Dev-1's backend; honest MODELED/UNAVAILABLE "
+                        "when the local Tower endpoint is unreachable (no fabrication)."),
+                "backend_id": "sovereign_local",
+                "model_slug": "llama3-szl-finetuned-q4",
+            },
             "leaders_cited": LEADERS,
             "lambda_posture": "advisory (Conjecture 1) — never green",
             "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
@@ -786,6 +862,11 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
 
         Body: {"suite": "core_honest_v1", "model_id": "claude_sonnet_4_6",
                "harness_profile_id": "szl-honest-operator" (optional)}
+
+        Wave M (Dev 2): model_id="szl-sovereign-local" evaluates SZL's OWN
+        governed model through Dev-1's sovereign backend. When the local Tower
+        endpoint is unreachable the run degrades to honest MODELED/UNAVAILABLE and
+        the receipt records the intended sovereign backend — never fabricated.
         """
         try:
             body = await request.json()
