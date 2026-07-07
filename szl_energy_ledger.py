@@ -63,6 +63,16 @@ from joule_billing import (
     JOULES_PER_KWH,
 )
 
+# DURABLE, BOUNDED, ROTATING backing store (waveJ Dev1 — fixes the "database or disk is
+# full" class). Guarded import: if the module is somehow absent we fall back to the prior
+# raw-append behaviour (never crash the host). When present, the ledger's JSONL is
+# size-capped + rotating, storage degradation is reported HONESTLY as UNAVAILABLE, and
+# /healthz gains a storage-pressure signal. Additive + non-overlapping.
+try:
+    from szl_durable_ledger import DurableStore as _DurableStore
+except Exception:  # pragma: no cover — never let a missing helper break the ledger
+    _DurableStore = None  # type: ignore
+
 GENESIS_PREV = "0" * 64                      # genesis entry's prev_digest (64 zeros)
 DEFAULT_PRICE_PER_KWH_CENTS = int(os.getenv("STRIPE_PRICE_PER_KWH_CENTS", "45"))
 
@@ -256,12 +266,33 @@ class EnergyLedger:
         self._entries: list[dict] = []
         self._idem_seen: set[str] = set()
         self._lock = threading.Lock()
+        # DURABLE, BOUNDED backing store (waveJ Dev1). When szl_durable_ledger is
+        # available the JSONL is size-capped + rotating and degradation is HONEST; the
+        # store is the single writer so the on-disk footprint can no longer fill the
+        # disk. If absent, self._store is None and we fall back to the prior raw append
+        # (unbounded, but never crashes) — the guard keeps this purely additive.
+        self._store = None
+        self._last_store_status: str = "ok"
+        if _DurableStore is not None and self.path:
+            try:
+                self._store = _DurableStore(self.path)
+            except Exception:  # pragma: no cover — never fail construction on the store
+                self._store = None
         self._load()
 
     # -- persistence -------------------------------------------------------
     def _load(self) -> None:
-        """Reload the chain from disk so it survives a restart. Bad lines are skipped
-        honestly (never silently fabricated)."""
+        """Reload the chain from disk so it survives a restart. When the durable store is
+        active we read ACROSS all retained rotated segments oldest→newest (so the chain
+        reconstructs in order after rotation); otherwise we read the single raw file.
+        Bad lines are skipped honestly (never silently fabricated)."""
+        if self._store is not None:
+            for entry in self._store.iter_records():
+                self._entries.append(entry)
+                k = entry.get("idempotency_key")
+                if k:
+                    self._idem_seen.add(k)
+            return
         if not self.path or not os.path.exists(self.path):
             return
         try:
@@ -282,7 +313,15 @@ class EnergyLedger:
             pass
 
     def _persist_entry(self, entry: dict) -> None:
-        """Append one entry to the JSONL file + fsync so a crash-after-append survives."""
+        """Append one entry to the DURABLE bounded store (size-capped + rotating + fsync'd)
+        so a crash-after-append survives AND the disk can never fill. Records the honest
+        storage status so storage_health() / /healthz can report UNAVAILABLE when a write
+        was refused — we NEVER fabricate a persisted write. Falls back to the prior raw
+        append when the durable store is unavailable."""
+        if self._store is not None:
+            res = self._store.append(entry)
+            self._last_store_status = res.status
+            return
         if not self.path:
             return
         try:
@@ -291,8 +330,11 @@ class EnergyLedger:
                 f.write(json.dumps(entry, sort_keys=True, separators=(",", ":")) + "\n")
                 f.flush()
                 os.fsync(f.fileno())
-        except OSError:
-            pass
+            self._last_store_status = "ok"
+        except OSError as exc:
+            # HONEST: the raw-fallback write failed (full / read-only). Record it so
+            # storage_health() reports UNAVAILABLE rather than silently claiming success.
+            self._last_store_status = "unavailable"
 
     # -- core append -------------------------------------------------------
     def prev_digest(self) -> str:
@@ -491,6 +533,36 @@ class EnergyLedger:
             ),
         }
 
+    def storage_health(self) -> dict:
+        """Honest storage-pressure signal for /healthz + the ledger summary (waveJ Dev1).
+
+        Reports the DURABLE bounded store's status — OK / PRESSURE / UNAVAILABLE — plus
+        the hard footprint cap, rotation count, and evicted-segment count, so the
+        "database or disk is full" class is observable BEFORE it crashes the box. When the
+        durable store isn't active (fallback raw-append mode) we still report the last
+        write status honestly and flag that the store is NOT size-bounded."""
+        if self._store is not None:
+            s = self._store.status()
+            s["backend"] = "durable-rotating-jsonl"
+            return s
+        # Fallback (durable store unavailable): honest, and explicitly NOT bounded.
+        try:
+            active_bytes = os.path.getsize(self.path) if self.path and os.path.exists(self.path) else 0
+        except OSError:
+            active_bytes = 0
+        return {
+            "status": self._last_store_status,   # ok | unavailable (last raw write)
+            "backend": "raw-append-fallback",
+            "bounded": False,
+            "path": self.path,
+            "active_bytes": active_bytes,
+            "note": (
+                "durable bounded store unavailable — raw append fallback is NOT "
+                "size-bounded; mount /data + ship szl_durable_ledger.py to bound it"
+            ),
+            "doctrine": "v11",
+        }
+
     def summary(self) -> dict:
         """Full ledger view for the GET /energy/ledger endpoint."""
         return {
@@ -499,6 +571,7 @@ class EnergyLedger:
             "chain": self.verify(),
             "totals": self.totals(),
             "persistence": self.persistence_info(),
+            "storage": self.storage_health(),
             "price_per_kwh_cents": self.price_per_kwh_cents,
             "stripe_mode": "live" if os.getenv("STRIPE_API_KEY") else "dry-run",
             "doctrine": DOCTRINE_NOTE,
@@ -521,6 +594,20 @@ def get_ledger() -> EnergyLedger:
             if _LEDGER is None:
                 _LEDGER = EnergyLedger()
     return _LEDGER
+
+
+def ledger_storage_health() -> dict:
+    """Module-level accessor for the ledger's honest storage-pressure signal (waveJ Dev1).
+
+    serve.py's /healthz calls this to surface OK / PRESSURE / UNAVAILABLE for the
+    durable bounded receipt/energy store, so the "database or disk is full" class is
+    observable at the health probe BEFORE it crashes the box. Never raises — on any
+    error it returns an honest error stub rather than a fabricated OK."""
+    try:
+        return get_ledger().storage_health()
+    except Exception as exc:  # pragma: no cover — /healthz must never crash on this
+        return {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}",
+                "bounded": None, "doctrine": "v11"}
 
 
 def record_job(job_dict: dict) -> dict:
