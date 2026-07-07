@@ -22,20 +22,56 @@ is labelled **MODELED** until a real run fills the receipt.
 | File | Role | Runs here? |
 |---|---|---|
 | `build_seed.py` | Deterministic, pure-stdlib miner → `szl_seed.jsonl` (SFT, chat format). | ✅ stdlib |
-| `szl_seed.jsonl` | The generated seed corpus (hand-verifiable, derived from the repo). | data |
+| `szl_seed.jsonl` | The 167 hand-verified doctrine seed examples. | data |
+| `build_brain_corpus.py` | Mines the live brain graph (`data/brain_graph.json`) → `szl_brain_corpus.jsonl`. Grounded ONLY in each node's real fields — never fabricated. | ✅ stdlib |
+| `szl_brain_corpus.jsonl` | Brain-graph Q/A (title/kind/layer/label/connectivity), honesty label verbatim. | data |
+| `build_formula_corpus.py` | Mines the formula registry (`data/formulas_live.json`) → `szl_formula_corpus.jsonl`, quoting each `proof_status` verbatim. | ✅ stdlib |
+| `szl_formula_corpus.jsonl` | Per-formula Q/A; never upgrades a label (Λ stays Conjecture 1). | data |
+| `build_full_corpus.py` | Merges seed + brain + formula + surfaces, dedups near-identical prompts → **`szl_seed_full.jsonl`** (the corpus to train on). | ✅ stdlib |
+| `szl_seed_full.jsonl` | **The full SFT corpus the sovereign model trains on.** | data |
+| `data/brain_graph.json` | Copy of the live 9,343-node / 12,009-link brain graph (`/api/a11oy/v1/brain/graph`). | data |
+| `data/formulas_live.json` | Copy of the 22-formula registry (`/api/a11oy/v1/formulas`). | data |
 | `build_orpo.py` | Builds the 6-family doctrine-preference corpus + eval split. | ✅ stdlib |
 | `szl_orpo.jsonl` | ORPO `{prompt, chosen, rejected}` training pairs. | data |
 | `szl_orpo_eval.jsonl` | Held-out 10%/family refusal-to-fabricate eval. | data |
 | `train_sovereign.py` | QLoRA + Unsloth + ORPO driver. **ROADMAP / GPU-only.** | ❌ GPU only |
 | `provenance_stub.py` | Emits the szl-lake chain-of-title receipt (provenance MODELED). | ✅ stdlib |
 
+### Corpus sources (SFT) and honest counts
+
+`szl_seed_full.jsonl` is assembled deterministically from four grounded sources,
+with near-duplicate prompts collapsed (first wins, in the order below):
+
+| Source | Grounded in | Raw → kept |
+|---|---|---|
+| SEED | 167 hand-verified doctrine examples (`szl_seed.jsonl`, verbatim) | 167 → 167 |
+| BRAIN | live 9,343-node brain graph — real node fields only, no fabrication | 1233 → 1233 |
+| FORMULA | 22-formula registry — `proof_status` quoted verbatim, never upgraded | 70 → 70 |
+| SURFACE | one honest Q/A per live 3D estate surface (SURFACES manifest) | 86 → 86 |
+| **TOTAL** | | **1556** |
+
+Brain answers are built **strictly** from each node's real fields (`id`, `kind`,
+`layer`, `title`, `label`, `degree`, and any `path`/`axis`); nodes with only a
+title get a modest honest description, never an invented capability. Every answer
+carries the node's real honesty label (`HARVESTED` / `MODELED` / `LIVE`) verbatim,
+and discloses that the 9,343 total includes 5,235 arXiv co-author person nodes so
+the honest distinct-artifact count is 4,108. Formula answers quote the recorded
+`proof_status` verbatim and never re-badge a `SORRY`/`AXIOM` as `PROVEN`; Λ stays
+**Conjecture 1** and the locked-8 count stays exactly 8.
+
 Regenerate the corpora at any time (deterministic — byte-identical output):
 
 ```bash
-python training/build_seed.py     # -> training/szl_seed.jsonl
-python training/build_orpo.py     # -> training/szl_orpo.jsonl + szl_orpo_eval.jsonl
-python training/build_seed.py --check   # verify count in [150,300], no banned tokens
-python training/build_orpo.py --check   # verify 6 balanced families
+python training/build_seed.py           # -> training/szl_seed.jsonl (167)
+python training/build_brain_corpus.py    # -> training/szl_brain_corpus.jsonl (1233)
+python training/build_formula_corpus.py  # -> training/szl_formula_corpus.jsonl (70)
+python training/build_full_corpus.py     # -> training/szl_seed_full.jsonl (1556, the train corpus)
+python training/build_orpo.py            # -> training/szl_orpo.jsonl + szl_orpo_eval.jsonl
+
+python training/build_brain_corpus.py --check    # 800 <= n <= 3000, no banned tokens
+python training/build_formula_corpus.py --check  # 40 <= n <= 200, no banned tokens
+python training/build_full_corpus.py --check     # 1000 <= n <= 5000, per-source counts
+python training/build_orpo.py --check            # verify 6 balanced families
 ```
 
 ## Leader sources (cited, never claimed as ours)
@@ -82,8 +118,10 @@ pip install trl peft accelerate datasets bitsandbytes
 
 ```bash
 git clone https://github.com/szl-holdings/a11oy.git && cd a11oy
-python training/build_seed.py && python training/build_orpo.py
-python training/build_seed.py --check && python training/build_orpo.py --check
+python training/build_brain_corpus.py && python training/build_formula_corpus.py
+python training/build_full_corpus.py && python training/build_orpo.py
+python training/build_full_corpus.py --check && python training/build_orpo.py --check
+# SFT trains on training/szl_seed_full.jsonl; ORPO on training/szl_orpo.jsonl.
 ```
 
 ### STAGES 2–4 — DIAGNOSTIC run first (r=2, 50 steps)
