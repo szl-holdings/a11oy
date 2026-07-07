@@ -3300,23 +3300,114 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
     return val
 
 
+# ADDITIVE (waveL Dev2 — release-engineering observability rollup): two more tiny
+# cached, guarded probes so /healthz reports an HONEST release rollup alongside the
+# durable-ledger storage-pressure signal:
+#   (a) DSSE SIGNER AVAILABILITY — is the cosign/DSSE private key present in this
+#       Space (live signing) or are we emitting UNSIGNED-LOCAL envelopes? Read
+#       straight from szl_dsse.signing_available(); never fabricated.
+#   (b) FRONTIER-ENDPOINT LIVENESS COUNT — how many governed-provenance frontier
+#       tiles are live vs degraded, read from szl_frontier_manifest's already-
+#       cached, real-probe-only manifest summary. A down sub-source is reported
+#       honestly (UNAVAILABLE), never faked green.
+# Both are guarded + cached (never block the health path, never crash it, never
+# fabricate). Λ = Conjecture 1; no label is upgraded here.
+_SIGNER_HEALTH_CACHE: dict = {}
+_FRONTIER_HEALTH_CACHE: dict = {}
+
+
+def _signer_availability_signal(ttl: float = 30.0) -> dict:
+    now = _hz_time.time()
+    ca = _SIGNER_HEALTH_CACHE.get("checked_at")
+    if ca is not None and (now - ca) < ttl:
+        return _SIGNER_HEALTH_CACHE.get("value", {})
+    try:
+        import szl_dsse as _szl_dsse_health
+        available = bool(_szl_dsse_health.signing_available())
+        val = {
+            # honest label: DSSE-LIVE only when a real private key is present in
+            # this Space; otherwise UNSIGNED-LOCAL (receipts explicitly unsigned).
+            "status": "DSSE-LIVE" if available else "UNSIGNED-LOCAL",
+            "signing_available": available,
+            "scheme": "DSSEv1 / ECDSA-P256 (cosign keyless OIDC at release)",
+        }
+        try:
+            val["public_key_fingerprint"] = _szl_dsse_health.public_key_fingerprint()
+        except Exception:
+            pass
+    except Exception as exc:
+        val = {"status": "unavailable", "signing_available": None,
+               "error": f"{type(exc).__name__}: {exc}"}
+    _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
+    return val
+
+
+def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
+    now = _hz_time.time()
+    ca = _FRONTIER_HEALTH_CACHE.get("checked_at")
+    if ca is not None and (now - ca) < ttl:
+        return _FRONTIER_HEALTH_CACHE.get("value", {})
+    try:
+        import szl_frontier_manifest as _szl_fm_health
+        manifest = _szl_fm_health.build_manifest()
+        summary = manifest.get("summary", {}) if isinstance(manifest, dict) else {}
+        total = int(summary.get("tiles", 0) or 0)
+        degraded = summary.get("degraded_tiles", []) or []
+        degraded_n = len(degraded)
+        live_n = max(total - degraded_n, 0)
+        val = {
+            # honest: a down sub-source is a degraded tile, not a fake OK.
+            "status": "ok" if degraded_n == 0 else "degraded",
+            "endpoints_total": total,
+            "endpoints_live": live_n,
+            "endpoints_degraded": degraded_n,
+            "degraded_tiles": degraded[:12],
+            "all_sources_live": bool(summary.get("all_sources_live", degraded_n == 0)),
+        }
+    except Exception as exc:
+        val = {"status": "unavailable", "endpoints_total": None,
+               "endpoints_live": None,
+               "error": f"{type(exc).__name__}: {exc}"}
+    _FRONTIER_HEALTH_CACHE.update({"checked_at": now, "value": val})
+    return val
+
+
 @app.get("/api/a11oy/healthz")
 async def healthz() -> JSONResponse:
     dep = await _healthz_dep_ping()
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
-    # Honest overall status: degrade the probe when the receipt/energy store is
-    # UNAVAILABLE (disk full / read-only) so an orchestrator/healthcheck catches it.
-    # PRESSURE is advisory (still "ok" overall but surfaced). Never fake green.
-    _overall = "degraded" if str(_storage.get("status")) == "unavailable" else "ok"
+    _signer = _signer_availability_signal()
+    _frontier = _frontier_liveness_signal()
+    # Honest overall status. PRESSURE is advisory (still "ok" overall but
+    # surfaced). Never fake green.
+    # Overall degrades on a hard storage failure (disk full / read-only). The
+    # signer being UNSIGNED-LOCAL and frontier tiles being degraded are surfaced
+    # honestly but do NOT flip the overall status (they are expected on a CPU
+    # Space / when sub-sources are idle) — an UNAVAILABLE probe on either, or a
+    # storage failure, does degrade so an orchestrator catches a real fault.
+    _degraded_reasons = []
+    if str(_storage.get("status")) == "unavailable":
+        _degraded_reasons.append("storage-unavailable")
+    if str(_signer.get("status")) == "unavailable":
+        _degraded_reasons.append("signer-probe-unavailable")
+    if str(_frontier.get("status")) == "unavailable":
+        _degraded_reasons.append("frontier-probe-unavailable")
+    _overall = "degraded" if _degraded_reasons else "ok"
     return JSONResponse({
         "status": _overall,
+        "degraded_reasons": _degraded_reasons,
         "service": "a11oy",
         "version": "2.0.0",
         "surface": "Brand Orchestration Layer",
         "base_path": "/",
         "doctrine": "v11",
         "uptime_s": round(_hz_time.time() - _A11OY_START_TIME, 1),
+        "rollup": {
+            "storage": _storage,
+            "signer": _signer,
+            "frontier": _frontier,
+        },
         "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
         "gates": len(_gates_list),
@@ -5673,6 +5764,25 @@ async def a11oy_version():
             "sbom": "https://github.com/szl-holdings/a11oy/releases/download/v1.0.0/a11oy-sbom.cdx.json",
             "honest": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest",
         },
+        # ADDITIVE (waveL Dev2): machine-readable release record of the waves'
+        # shipped capabilities with HONEST labels. Mirrors CHANGELOG.md; the
+        # canonical human record is CHANGELOG.md. Λ = Conjecture 1; no upgrades.
+        "changelog": "https://github.com/szl-holdings/a11oy/blob/main/CHANGELOG.md",
+        "capabilities": [
+            {"name": "governed behavior-transfer harness", "label": "MEASURED", "prs": [759, 763]},
+            {"name": "governed eval / red-team arena", "label": "MEASURED", "prs": [766]},
+            {"name": "governed RAG (retrieval-with-receipts)", "label": "MEASURED", "prs": [776]},
+            {"name": "governed agent loop (signed composite run)", "label": "MEASURED", "prs": [773, 757]},
+            {"name": "governed VQC / QML frontier", "label": "SIMULATION-ONLY", "prs": [764, 782]},
+            {"name": "attested inference (TEE-bound receipt)", "label": "UNAVAILABLE-on-CPU (MEASURED on live TDX/Nitro)", "prs": [767]},
+            {"name": "durable bounded receipt/energy ledger + storage-pressure signal", "label": "MEASURED", "prs": [774]},
+            {"name": "measured energy channel (NVML counter-delta)", "label": "MEASURED-behind-live-meter (else UNAVAILABLE)", "prs": [785, 789, 790]},
+            {"name": "substrate consolidation (68/68 movable modules, guarded fallback)", "label": "MEASURED", "prs": [792]},
+            {"name": "transitive COPY-completeness deploy guard", "label": "MEASURED", "prs": []},
+            {"name": "/healthz release rollup (storage/signer/frontier)", "label": "MEASURED", "prs": []},
+        ],
+        "lambda": "Conjecture 1 (never a theorem)",
+        "locked_8": 8,
     }
 
 

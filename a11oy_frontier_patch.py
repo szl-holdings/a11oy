@@ -49,6 +49,26 @@ async def _a11oy_frontier_version(request: Request):
             "cosign": "cosign verify ghcr.io/szl-holdings/a11oy:v1.0.0 --certificate-identity-regexp=szl-holdings",
             "sbom": "https://github.com/szl-holdings/a11oy/releases/download/v1.0.0/a11oy-sbom.cdx.json",
         },
+        # ADDITIVE (waveL Dev2): machine-readable release record of the waves'
+        # shipped capabilities, HONEST labels. Canonical human record: CHANGELOG.md.
+        # This is the front-moved live /v1/version handler, so the release record
+        # must live here (not only in serve.py's shadowed copy). Lambda=Conjecture 1.
+        "changelog": "https://github.com/szl-holdings/a11oy/blob/main/CHANGELOG.md",
+        "capabilities": [
+            {"name": "governed behavior-transfer harness", "label": "MEASURED", "prs": [759, 763]},
+            {"name": "governed eval / red-team arena", "label": "MEASURED", "prs": [766]},
+            {"name": "governed RAG (retrieval-with-receipts)", "label": "MEASURED", "prs": [776]},
+            {"name": "governed agent loop (signed composite run)", "label": "MEASURED", "prs": [773, 757]},
+            {"name": "governed VQC / QML frontier", "label": "SIMULATION-ONLY", "prs": [764, 782]},
+            {"name": "attested inference (TEE-bound receipt)", "label": "UNAVAILABLE-on-CPU (MEASURED on live TDX/Nitro)", "prs": [767]},
+            {"name": "durable bounded receipt/energy ledger + storage-pressure signal", "label": "MEASURED", "prs": [774]},
+            {"name": "measured energy channel (NVML counter-delta)", "label": "MEASURED-behind-live-meter (else UNAVAILABLE)", "prs": [785, 789, 790]},
+            {"name": "substrate consolidation (68/68 movable modules, guarded fallback)", "label": "MEASURED", "prs": [792]},
+            {"name": "transitive COPY-completeness deploy guard", "label": "MEASURED", "prs": []},
+            {"name": "/healthz release rollup (storage/signer/frontier)", "label": "MEASURED", "prs": []},
+        ],
+        "lambda": "Conjecture 1 (never a theorem)",
+        "locked_8": 8,
         "ts": _NOW(),
     })
 
