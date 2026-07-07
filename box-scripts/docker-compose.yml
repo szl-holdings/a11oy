@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
+#
+# docker-compose.yml - omen (RTX 4060 Ti), the ALWAYS-ON primary node.
+#
+# ==============================================================================
+# WINDOWS / WSL2 GPU PASSTHROUGH IS FRAGILE - READ THIS FIRST.
+# ==============================================================================
+# Docker Desktop on Windows routes GPU containers through the WSL2 kernel
+# (Windows driver -> WSL2 kernel -> Docker Desktop VM -> nvidia-container-toolkit
+# -> container). Well-documented failure modes: `could not select device driver
+# "" with capabilities [[gpu]]`, `Unknown runtime specified nvidia`, nvidia-smi
+# works in WSL2 but not in the container (needs a FULL Docker Desktop restart),
+# and Ollama silently falling back to CPU on a stale driver/kernel.
+#
+# => NATIVE-WINDOWS FALLBACK (the recommended posture, see the runbook):
+#    Run OLLAMA NATIVELY on Windows (NOT in this compose) and run the #789 energy
+#    probe NATIVELY too. This compose containerizes ONLY the stateless sidecars
+#    (litellm / prometheus / grafana / cloudflared) plus dcgm-exporter. Ollama is
+#    reached over the tailnet at http://omen:11434 (MagicDNS) / http://100.x.x.1:11434.
+#
+#    dcgm-exporter STILL needs --gpus (it reads the GPU) so it inherits the WSL2
+#    passthrough caveats - but it is a read-only telemetry poll, not the hot
+#    inference path, so an occasional metrics gap is a much smaller blast radius
+#    than a degraded/CPU-fallback LLM. If dcgm-exporter cannot get the GPU on this
+#    box, comment it out and rely on the native #789 NVML probe (box-scripts/
+#    ollama_energy_probe.py) + omen_joule_exporter.py for MEASURED joules instead;
+#    the meter path does not depend on this container.
+#
+# HONESTY (Doctrine v11): restart:unless-stopped + healthchecks make the stack
+# self-healing, but "healthy" here means the CONTAINER answered its healthcheck -
+# it is NOT a claim that a GPU node produced a MEASURED joule. Energy stays
+# MEASURED only from a real NVML delta (the #789 probe / dcgm-exporter), else
+# honest SAMPLE/UNAVAILABLE.
+# ==============================================================================
+
+services:
+  # --- GPU / energy telemetry (NVML power -> Prometheus) ----------------------
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:4.4.1-4.6.0-distroless  # pinned; do NOT :latest a GPU image
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    ports:
+      - "9400:9400"
+    cap_add:
+      - SYS_ADMIN
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]   # <- WSL2 passthrough caveat applies (see header)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9400/metrics >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # --- Prometheus: scrapes dcgm-exporter on BOTH boxes (see prometheus.yml) ---
+  prometheus:
+    image: prom/prometheus:v2.55.1   # pinned
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  grafana:
+    image: grafana/grafana:11.3.1   # pinned; cosmetic service, safe-ish to bump
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+
+  # --- Unified gateway: the ONE endpoint the a11oy Space calls ---------------
+  # sovereign-llm load-balances omen + betterwithage Ollama over the tailnet.
+  # Bearer master_key from the environment (never hardcoded). See litellm_config.yaml.
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml:ro
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY in .env or the shell}
+      - SOVEREIGN_POOL_MODEL=${SOVEREIGN_POOL_MODEL:-llama3.1:8b}
+      # host.docker.internal reaches a NATIVE-Windows Ollama from inside the container;
+      # over the tailnet use the MagicDNS name / 100.x IP instead (preferred).
+      - OMEN_OLLAMA_URL=${OMEN_OLLAMA_URL:-http://host.docker.internal:11434}
+      - BWA_OLLAMA_URL=${BWA_OLLAMA_URL:-http://betterwithage:11434}
+      - OMEN_MODEL=${OMEN_MODEL:-llama3.1:8b}
+      - BWA_MODEL=${BWA_MODEL:-glm-4.7-flash:latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4000/health/liveliness || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # --- Public ingress sidecar: exposes ONLY litellm + grafana, NEVER Ollama ---
+  # The ingress map lives in the Cloudflare dashboard (token mode) or in the
+  # on-box ~/.cloudflared/config.yml. Ollama's :11434 is never listed there.
+  # See cloudflared_ingress.example.yml for the shape (placeholders only).
+  cloudflared:
+    image: cloudflare/cloudflared:2024.11.1   # pinned
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN_GPU:?set CF_TUNNEL_TOKEN_GPU in .env or the shell}
+    depends_on:
+      litellm:
+        condition: service_healthy
+
+volumes:
+  prometheus-data:
+  grafana-data:

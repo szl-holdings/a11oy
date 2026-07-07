@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
+#
+# cloudflared_ingress.example.yml - EXAMPLE cloudflared ingress map (PLACEHOLDERS).
+#
+# ==============================================================================
+# THIS IS AN EXAMPLE. The REAL config lives on each box at
+#   %USERPROFILE%\.cloudflared\config.yml   (Windows)
+# and is NOT committed - it contains the tunnel UUID + a credentials-file path
+# (secrets). Copy this shape, fill the <PLACEHOLDERS>, keep the real file off git.
+# (An alternative to a config.yml is token/dashboard-managed public hostnames -
+# then the ingress map lives in the Cloudflare Zero Trust dashboard, and the
+# container just needs TUNNEL_TOKEN - see docker-compose.yml.)
+# ==============================================================================
+#
+# EXISTING TUNNELS (per box-scripts/omen_boot_persist.ps1 + laptop_persist.ps1 +
+# tunnel/DISCOVERY_meter.md): omen-szl serves gpu/meter; laptop-szl serves gpu2/meter2.
+#
+# NON-NEGOTIABLE (Doctrine v11): Ollama's :11434 is served over the PRIVATE tailnet
+# only (LiteLLM reaches it there). It MUST NEVER appear as a `service:` target in
+# any ingress rule below. The gpu/gpu2 hostnames historically pointed at :11434 for
+# the operator's browser-UA probe path; going forward the ONLY public inference
+# hostname should be the bearer+Access-gated gateway.a-11-oy.com -> LiteLLM :4000.
+
+# ------------------------------------------------------------------------------
+# omen-szl tunnel (the always-on tower)
+# ------------------------------------------------------------------------------
+tunnel: <OMEN_TUNNEL_UUID_OR_NAME>            # e.g. omen-szl
+credentials-file: C:\Users\<USER>\.cloudflared\<OMEN_TUNNEL_UUID>.json
+
+ingress:
+  # --- UNIFIED GATEWAY: the ONLY inference-related public hostname -------------
+  # Bearer (LiteLLM master_key) + Cloudflare Access service token both required.
+  - hostname: gateway.a-11-oy.com
+    service: http://localhost:4000            # -> LiteLLM (sovereign-llm pool)
+
+  # --- OPTIONAL bearer/Access-protected brain-mesh path -----------------------
+  # If you want the a11oy brain/anatomy loop to reach the mesh via a dedicated
+  # hostname, front it with a Cloudflare Access application using a SERVICE TOKEN
+  # (CF-Access-Client-Id / CF-Access-Client-Secret). Same LiteLLM origin.
+  - hostname: mesh.a-11-oy.com
+    service: http://localhost:4000            # -> LiteLLM; gate with CF Access service token
+
+  # --- Energy meter (JSON omen-joule-exporter, port 9471) ---------------------
+  # Read-only meter payload; scraped by the a11oy energy surface. Not inference.
+  - hostname: meter.a-11-oy.com
+    service: http://localhost:9471            # -> omen_joule_exporter.py (models[] MEASURED joules)
+
+  # --- Metrics dashboard (Grafana) - PROTECT WITH CLOUDFLARE ACCESS -----------
+  - hostname: metrics.a-11-oy.com
+    service: http://localhost:3000            # -> Grafana
+
+  # --- gpu.a-11-oy.com ---------------------------------------------------------
+  # HISTORICAL: pointed at Ollama :11434 for the operator browser-UA probe. Prefer
+  # retiring this in favor of gateway.a-11-oy.com. If you must keep a gpu.* health
+  # hostname, point it at a NON-Ollama health page - never raw :11434 without an
+  # auth layer. Ollama has no built-in auth; the network IS its auth layer.
+  # - hostname: gpu.a-11-oy.com
+  #   service: http://localhost:11434         # <-- DISCOURAGED. Keep tailnet-only.
+
+  # --- Catch-all (REQUIRED, must be last) -------------------------------------
+  - service: http_status:404
+
+# ==============================================================================
+# laptop-szl tunnel (betterwithage) - SEPARATE config.yml on the laptop box.
+# Shown here for completeness; put it in the laptop's own ~/.cloudflared/config.yml.
+# ==============================================================================
+# tunnel: <LAPTOP_TUNNEL_UUID_OR_NAME>        # e.g. laptop-szl
+# credentials-file: C:\Users\<USER>\.cloudflared\<LAPTOP_TUNNEL_UUID>.json
+# ingress:
+#   # meter2: the laptop's NVML meter (engine name betterwithage), port 9471.
+#   - hostname: meter2.a-11-oy.com
+#     service: http://localhost:9471          # -> omen_joule_exporter.py (OMEN_ENGINE_NAME=betterwithage)
+#   # gpu2: HISTORICAL laptop Ollama probe path. Same guidance as gpu.* above -
+#   # prefer routing the laptop via LiteLLM (betterwithage-glm) over the tailnet,
+#   # NOT a public :11434 hostname.
+#   # - hostname: gpu2.a-11-oy.com
+#   #   service: http://localhost:11434        # <-- DISCOURAGED. Keep tailnet-only.
+#   - service: http_status:404
+#
+# ------------------------------------------------------------------------------
+# CLOUDFLARE ACCESS (put in front of gateway.* / mesh.* / metrics.*):
+#   * Create a self-hosted Access application bound to the hostname.
+#   * For the a11oy Space (machine-to-machine): issue a SERVICE TOKEN and send
+#     CF-Access-Client-Id / CF-Access-Client-Secret headers. Use the "Service
+#     Auth" 401 policy so non-token requests are rejected at Cloudflare's edge.
+#   * Defense in depth: the origin (LiteLLM) ALSO checks its bearer master_key,
+#     so a leaked Access token alone (or a leaked bearer alone) is insufficient.
+# ------------------------------------------------------------------------------

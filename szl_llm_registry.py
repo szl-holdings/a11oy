@@ -398,6 +398,17 @@ def _api_key_wired(env_var: str) -> bool:
 # not 403; short guarded timeouts; never raises). Pure stdlib.
 # ─────────────────────────────────────────────────────────────────────────────
 _SOVEREIGN_ENV = "SZL_LOCAL_LLM_URL"
+# Unified sovereign-mesh gateway (LiteLLM). When A11OY_SOVEREIGN_GATEWAY_URL is
+# set it takes precedence over SZL_LOCAL_LLM_URL, so the Space/brain hit the ONE
+# load-balancing endpoint (sovereign-llm across omen + betterwithage) instead of a
+# single node. UNSET => behavior is IDENTICAL to before (falls back to
+# SZL_LOCAL_LLM_URL). Never fabricates reachability — a live call still proves it.
+# See box-scripts/litellm_config.yaml + research/SOVEREIGN_MESH_RUNBOOK.md.
+_GATEWAY_ENV = "A11OY_SOVEREIGN_GATEWAY_URL"
+# Optional bearer for a bearer-protected gateway (LiteLLM master_key). The SECRET
+# is NEVER logged or returned — only attached as an Authorization header on the
+# guarded outbound call. Falls back to SZL_LOCAL_LLM_KEY. Unset => no header.
+_GATEWAY_KEY_ENV = "A11OY_SOVEREIGN_GATEWAY_KEY"
 _DEFAULT_SOVEREIGN_PROMPT = os.environ.get(
     "SZL_LOCAL_LLM_PROMPT",
     "In one sentence, state why sovereign local inference matters for air-gapped deployments.")
@@ -422,21 +433,29 @@ _SOVEREIGN_DEFAULT_URL = "http://localhost:11434/v1"
 
 
 def _sovereign_base() -> str:
-    """Resolve the sovereign-local base URL from env.
+    """Resolve the sovereign base URL from env.
 
-    Wave M: default to the OpenAI-compatible Tower endpoint
-    (http://localhost:11434/v1) when SZL_LOCAL_LLM_URL is unset, so the backend
-    always has a concrete target to reachability-probe. The probe/generate paths
-    normalise a trailing `/v1` back to the Ollama root for native /api calls, so
-    either form (`.../11434` or `.../11434/v1`) works.
+    Prefers the unified mesh gateway (A11OY_SOVEREIGN_GATEWAY_URL, the LiteLLM
+    load-balancer over both GPU boxes: omen + betterwithage). Falls back to the
+    single-node SZL_LOCAL_LLM_URL, then to the OpenAI-compatible Tower endpoint
+    (http://localhost:11434/v1) when neither is set, so the backend always has a
+    concrete target to reachability-probe. The probe/generate paths normalise a
+    trailing `/v1` back to the Ollama root for native /api calls, so either form
+    (`.../11434` or `.../11434/v1`) works. This is a guarded preference only — it
+    never asserts the endpoint is reachable; a live call still proves it.
     """
+    gw = (os.environ.get(_GATEWAY_ENV, "") or "").strip()
+    if gw:
+        return gw.rstrip("/")
     val = (os.environ.get(_SOVEREIGN_ENV, "") or "").strip().rstrip("/")
     return val or _SOVEREIGN_DEFAULT_URL
 
 
 def _sovereign_env_present() -> bool:
-    """True only when SZL_LOCAL_LLM_URL was explicitly set (operator intent)."""
-    return bool((os.environ.get(_SOVEREIGN_ENV, "") or "").strip())
+    """True only when the sovereign gateway URL (A11OY_SOVEREIGN_GATEWAY_URL) or
+    the single-node SZL_LOCAL_LLM_URL was explicitly set (operator intent)."""
+    return bool((os.environ.get(_GATEWAY_ENV, "") or "").strip()
+                or (os.environ.get(_SOVEREIGN_ENV, "") or "").strip())
 
 
 def _ollama_root(base: str) -> str:
@@ -445,6 +464,20 @@ def _ollama_root(base: str) -> str:
     if b.endswith("/v1"):
         b = b[: -len("/v1")]
     return b
+
+
+def _sovereign_auth_header() -> dict[str, str]:
+    """Bearer header for a bearer-protected gateway, or {} when no key is set.
+
+    Reads A11OY_SOVEREIGN_GATEWAY_KEY (fallback SZL_LOCAL_LLM_KEY). The secret is
+    NEVER logged or returned in any response — it is only placed on the outbound
+    Authorization header of the guarded call. Unset => no header (unchanged path).
+    """
+    key = (os.environ.get(_GATEWAY_KEY_ENV, "")
+           or os.environ.get("SZL_LOCAL_LLM_KEY", "") or "").strip()
+    if key and len(key) > 8:
+        return {"Authorization": "Bearer " + key}
+    return {}
 
 
 def _sovereign_model_slug() -> str:
@@ -462,6 +495,8 @@ def _http_json(url: str, *, method: str = "GET", body: bytes | None = None,
     headers = {"User-Agent": _SOVEREIGN_UA, "Accept": "application/json"}
     if body is not None:
         headers["Content-Type"] = "application/json"
+    # Optional bearer for a bearer-protected gateway (LiteLLM). Secret never logged.
+    headers.update(_sovereign_auth_header())
     try:
         req = _urllib_request.Request(url, data=body, method=method, headers=headers)
         with _urllib_request.urlopen(req, timeout=timeout) as r:  # noqa: S310
