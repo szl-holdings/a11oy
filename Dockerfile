@@ -679,6 +679,10 @@ COPY szl_eu_energy.py ./
 # GET /api/a11oy/v1/brain/graph falls through to the SPA HTML shell (no JSON). Harvests
 # the real estate (surfaces+formulas+repos+topics) into a layered node/link brain graph.
 COPY a11oy_brain_graph.py ./
+# QUERYABLE BRAIN API (WAVE 1) — imported by serve.py (guarded); MUST be per-file COPY'd or
+# GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
+# falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
+COPY szl_brain_api.py ./szl_brain_api.py
 # HARVESTED FIELD LEADERS (2026-07-07) — real research graph JSONL (papers/repos/labs/
 # people/datasets/benchmarks/standards/axes, each with a verified url). a11oy_brain_graph
 # reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
