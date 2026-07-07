@@ -93,7 +93,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "dla", "title": "Dynamic Linear Attention", "owner": "Wave15"},
     {"id": "ctxready", "title": "Context-Ready Transformer", "owner": "Wave15"},
     {"id": "opera", "title": "OPERA Perplexity-Reward Alignment", "owner": "Wave15"},
-    {"id": "brain", "title": "Formula-Graph Brain", "owner": "Wave15"},
+    {"id": "brain", "title": "Brain — live knowledge graph", "owner": "Wave15"},
     {"id": "zkinfer", "title": "zkML Proof-of-Inference (Cryptographic Receipts)", "owner": "Wave18"},
     {"id": "flower", "title": "Flower Brain", "owner": "Wave24"},
     {"id": "agentmem", "title": "AgentMem · Λ-Governed Agent Memory (synthesis)", "owner": "Wave19"},
