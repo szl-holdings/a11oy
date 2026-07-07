@@ -1519,6 +1519,18 @@ try:
 except Exception as _szl_model_harness_e:  # pragma: no cover
     print(f"[a11oy] Model harness NOT registered: {_szl_model_harness_e!r}", file=__import__("sys").stderr)
 
+# ── WAVE-27 Atlas (atlas, front-door surface): unifies all 67 surfaces into ONE
+# organism using the Flower Brain's 8 real clusters as the taxonomy. MODELED map;
+# every surface classified exactly once (coverage 1.0), kernel pistil (locked-8)
+# immutable at center, conjecture cluster GRAY (never green). Additive, pure-stdlib,
+# guarded, registered before the SPA catch-all. Taxonomy cited to szl_kc_flower.
+try:
+    import szl_kc_atlas as _szl_kc_atlas
+    _szl_kc_atlas.register(app, ns="a11oy")
+    print("[a11oy] Atlas registered: /api/a11oy/v1/atlas/{manifest,map,organism}", file=__import__("sys").stderr)
+except Exception as _szl_atlas_e:  # pragma: no cover
+    print(f"[a11oy] Atlas NOT registered: {_szl_atlas_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
