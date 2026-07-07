@@ -1277,6 +1277,18 @@ COPY web/code.html ./web/
 COPY szl_model_harness.py ./szl_model_harness.py
 COPY harness_profiles/ ./harness_profiles/
 
+# GOVERNED AGENT LOOP (Wave J, Dev 5): szl_agent_loop_governed.py COMPOSES the /code
+# run-loop (act) + model-harness (behavior profile) + eval-arena (self-eval) + the
+# durable HumanApprovalGate into ONE governed loop, emitting ONE composite DSSE-signed
+# receipt per run (ingested to /llm/forum) via POST /api/a11oy/v1/agentloop/run. MUST be
+# per-file COPY'd (this Dockerfile uses no `COPY . .`) or the guarded import in serve.py
+# falls back and the agentloop endpoints 404 (merged-but-not-live). The governedagent.js
+# surface also ships via `COPY static/3d/ ./static/3d/` above; copied explicitly here too
+# so the tab can never go dark. Additive; plan MODELED, act+eval+gate+receipt LIVE.
+# Λ = Conjecture 1 (advisory). Real DSSE in-Space, honest UNSIGNED-LOCAL locally.
+COPY szl_agent_loop_governed.py ./szl_agent_loop_governed.py
+COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets

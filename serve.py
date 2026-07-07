@@ -10949,6 +10949,37 @@ except Exception as _rl_e:
 # ============================================================================
 
 # ============================================================================
+# GOVERNED AGENT LOOP (Wave J, Dev 5) — szl_agent_loop_governed.py COMPOSES the
+# three siloed pieces (the /code run-loop's governed engine ACT, the model-harness
+# behavior PROFILE, and the eval-arena SELF-EVAL) plus the durable HumanApprovalGate
+# into ONE closed loop: plan -> act -> self-eval -> gate -> (bounded retry) -> ONE
+# composite ECDSA-P256 DSSE-signed receipt (hash-chained per step), ingested to
+# /llm/forum. Endpoint POST /api/a11oy/v1/agentloop/run ; GET /agentloop/health.
+# Reuses the host's REAL in-image signer (_a11oy_sign_receipt) — same one the engine
+# + eval-arena use. Routes insert BEFORE the SPA catch-all; try/except guarded so a
+# missing dependency can NEVER take the Space down. HONEST: plan = MODELED, act +
+# self-eval + gate + composite receipt = LIVE; Lambda = Conjecture 1 (advisory, never
+# green); nothing touches the locked-8. Studied leaders: LangGraph, OpenAI Agents SDK,
+# CrewAI, AutoGen, MCP (cited in the module + the composite receipt).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_agent_loop_governed as _szl_agentloop
+    import sys as _al_sys
+    _al_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
+    _al_status = _szl_agentloop.register(app, ns="a11oy",
+                                         sign_fn=_a11oy_sign_receipt, verify_fn=_al_verify)
+    print(f"[a11oy] Governed agent loop registered: {_al_status}", file=_al_sys.stderr)
+except Exception as _al_e:
+    import sys as _al_sys, traceback as _al_tb
+    print(f"[a11oy] Governed agent loop FAILED (non-fatal): {_al_e!r}", file=_al_sys.stderr)
+    _al_tb.print_exc(file=_al_sys.stderr)
+# ============================================================================
+# END: GOVERNED AGENT LOOP — a11oy
+# ============================================================================
+
+# ============================================================================
 # SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
 # AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
 # Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /
