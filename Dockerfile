@@ -1351,6 +1351,13 @@ COPY szl_governed_rag.py ./szl_governed_rag.py
 # locked-8; no gate weakened.
 COPY szl_sovereign_flywheel.py ./szl_sovereign_flywheel.py
 
+# Wave O (Dev 4): the BRAIN vault as a first-class RAG corpus source. Imported by
+# szl_governed_rag (corpus="brain") AND szl_agent_loop_governed (consult_brain) — so
+# the transitive COPY-guard requires it in the COPY set. Reads a11oy_brain_graph
+# (already COPY'd, built from brain/harvest — also COPY'd). Additive; Λ = Conjecture 1;
+# nothing to locked-8; no gate weakened; honest UNAVAILABLE when the vault is empty.
+COPY szl_brain_corpus.py ./szl_brain_corpus.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets

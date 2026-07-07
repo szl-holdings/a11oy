@@ -433,6 +433,19 @@ except Exception:  # pragma: no cover — bridge missing → sovereign option si
     _sov = None  # type: ignore
     _SOV_OK = False
 
+# ── Wave O (Dev 4): the BRAIN vault as a first-class corpus source. When the
+# caller sets corpus="brain", retrieve over the harvested Brain knowledge graph
+# (a11oy_brain_graph, built from brain/harvest/*.jsonl + the live estate) with
+# per-claim citations back to each real node's provenance + a signed receipt.
+# Honest: brain-sourced context is LABELLED; UNAVAILABLE when the vault is
+# empty/down; citations are NEVER fabricated (every id is a real graph node).
+try:
+    import szl_brain_corpus as _brain  # noqa: F401
+    _BRAIN_OK = True
+except Exception:  # pragma: no cover — module missing → brain corpus option simply off
+    _brain = None  # type: ignore
+    _BRAIN_OK = False
+
 
 def _lambda_gm(axes: list[float]) -> float:
     try:
@@ -523,7 +536,7 @@ def _seed_forum() -> None:
 # endpoint. NEVER raises into the caller's request path; NEVER fabricates support.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def query(query_text: str, corpus: list[dict[str, str]] | None = None,
+def query(query_text: str, corpus: "list[dict[str, str]] | str | None" = None,
           model_id: str = "", harness_profile_id: str = "", top_k: int = 4,
           ns: str = "a11oy", forum: bool = True) -> dict[str, Any]:
     """Governed RAG query — deterministic hybrid retrieval → per-claim citation-
@@ -545,10 +558,59 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
             "conjecture_note": _CONJECTURE_NOTE,
         }
 
-    # corpus: caller-provided (validated) OR the shipped demo corpus
+    # corpus: "brain" (the Brain vault) | caller-provided list | shipped demo.
     use_corpus: list[dict[str, str]] = []
     corpus_origin = "shipped_demo"
-    if isinstance(corpus, list) and corpus:
+    brain_note = None
+
+    # ── Wave O (Dev 4): corpus="brain" → retrieve over the harvested Brain graph.
+    # A string "brain" (or {"corpus":"brain"} normalised by the handler) selects
+    # the Brain vault. If the vault is empty/down we return an HONEST UNAVAILABLE
+    # (no fabricated brain hit); if szl_brain_corpus is missing we fall through to
+    # the shipped demo corpus with a note. Λ = Conjecture 1.
+    _wants_brain = isinstance(corpus, str) and corpus.strip().lower() in ("brain", "brain_vault")
+    if _wants_brain:
+        if not _BRAIN_OK or _brain is None:
+            return {
+                "ok": True,
+                "rag_state": "UNAVAILABLE",
+                "honesty_label": "UNAVAILABLE",
+                "model_note": ("corpus=\"brain\" requested but szl_brain_corpus is not "
+                               "importable in this runtime — no brain context fabricated."),
+                "grounded_answer": "[UNAVAILABLE · BRAIN] The Brain corpus module is not "
+                                   "loaded; no brain-sourced answer produced (no fabrication).",
+                "claims": [], "retrieval": {"retrieved": [], "method": "brain"},
+                "ragas": {}, "gate_pass": False,
+                "corpus_origin": "brain",
+                "receipt": None,
+                "forum": {"ingested": False, "skipped": True},
+                "conjecture_note": _CONJECTURE_NOTE,
+            }
+        if not _brain.available(ns):
+            # Empty / down vault — the founder's honest UNAVAILABLE, never a fake hit.
+            return {
+                "ok": True,
+                "rag_state": "UNAVAILABLE",
+                "honesty_label": "UNAVAILABLE",
+                "model_note": ("corpus=\"brain\" requested but the Brain vault is empty / "
+                               "down in this runtime — no brain-sourced citations fabricated."),
+                "grounded_answer": "[UNAVAILABLE · BRAIN] The Brain knowledge vault is empty "
+                                   "or unavailable; no brain-sourced answer produced.",
+                "claims": [], "retrieval": {"retrieved": [], "method": "brain"},
+                "ragas": {}, "gate_pass": False,
+                "corpus_origin": "brain",
+                "brain_stats": _brain.stats(ns),
+                "receipt": None,
+                "forum": {"ingested": False, "skipped": True},
+                "conjecture_note": _CONJECTURE_NOTE,
+            }
+        use_corpus = _brain.corpus(ns)
+        corpus_origin = "brain"
+        brain_note = ("Corpus drawn from the SZL Brain knowledge graph (a11oy_brain_graph, "
+                      "harvested from brain/harvest/*.jsonl + the live estate). Every "
+                      "passage is a REAL graph node; each per-claim citation resolves to "
+                      "that node's own provenance. Λ = Conjecture 1.")
+    elif isinstance(corpus, list) and corpus:
         for i, item in enumerate(corpus):
             if isinstance(item, dict) and item.get("text"):
                 use_corpus.append({
@@ -557,7 +619,7 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
                     "source": str(item.get("source") or "caller-provided"),
                 })
         corpus_origin = "caller_provided"
-    if not use_corpus:
+    if not use_corpus and corpus_origin != "brain":
         use_corpus = list(_CORPUS)
         corpus_origin = "shipped_demo"
 
@@ -654,6 +716,10 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
             "origin": corpus_origin,
             "size": len(use_corpus),
             "sha256": corpus_sha,
+            # Wave O: when origin=="brain", the passages ARE real Brain graph nodes;
+            # per-claim citations resolve to each node's own provenance (never faked).
+            "brain_sourced": corpus_origin == "brain",
+            "brain_note": brain_note,
         },
         "retrieval": {
             "method": retr["method"],
@@ -692,9 +758,15 @@ def query(query_text: str, corpus: list[dict[str, str]] | None = None,
 
     forum_status = _forum_ingest(receipt, query_text) if forum else {"ingested": False, "skipped": True}
 
+    if brain_note:
+        model_note = f"{brain_note} {model_note}"
+
     return {
         "ok": True,
         "rag_state": rag_state,
+        "corpus_origin": corpus_origin,
+        "brain_sourced": corpus_origin == "brain",
+        "brain_note": brain_note,
         "model_note": model_note,
         "grounded_answer": gen["grounded_answer"],
         # Wave M: the sovereign model's abstractive rewrite (LIVE only; None otherwise
@@ -745,9 +817,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
             body = {}
         if not isinstance(body, dict):
             body = {}
+        # Wave O: `corpus` may be the string "brain" (Brain vault), a caller list,
+        # or {"corpus":"brain"}/{"id":"brain"} — normalise a brain dict to "brain".
+        _corpus_arg = body.get("corpus")
+        if isinstance(_corpus_arg, dict):
+            _cid = str(_corpus_arg.get("corpus") or _corpus_arg.get("id") or "").lower()
+            if _cid in ("brain", "brain_vault"):
+                _corpus_arg = "brain"
         res = query(
             query_text=body.get("query", ""),
-            corpus=body.get("corpus"),
+            corpus=_corpus_arg,
             model_id=body.get("model_id", ""),
             harness_profile_id=body.get("harness_profile_id", ""),
             top_k=int(body.get("top_k", 4) or 4),
@@ -761,19 +840,25 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
                  "conjecture_note": _CONJECTURE_NOTE},
                 status_code=400)
         return JSONResponse({
-            "grounded_answer": res["grounded_answer"],
+            "grounded_answer": res.get("grounded_answer"),
             "sovereign_answer": res.get("sovereign_answer"),  # Wave M: LIVE only, else None
             "sovereign": res.get("sovereign"),               # intended sovereign backend
-            "rag_state": res["rag_state"],
-            "model_note": res["model_note"],
-            "claims": res["claims"],
-            "retrieval": res["retrieval"],
-            "ragas": res["ragas"],
-            "gate_pass": res["gate_pass"],
-            "rag_receipt": res["receipt"],
-            "forum": res["forum"],
-            "rag_leaders": res["rag_leaders"],
-            "differentiator": res["differentiator"],
+            "rag_state": res.get("rag_state"),
+            "corpus_origin": res.get("corpus_origin"),        # Wave O: shipped_demo|caller_provided|brain
+            "brain_sourced": res.get("brain_sourced", False), # Wave O: brain-labelled context
+            "brain_note": res.get("brain_note"),
+            "brain_stats": res.get("brain_stats"),            # present on brain UNAVAILABLE
+            "model_note": res.get("model_note"),
+            "claims": res.get("claims", []),
+            "retrieval": res.get("retrieval", {}),
+            "ragas": res.get("ragas", {}),
+            "gate_pass": res.get("gate_pass", False),
+            "rag_receipt": res.get("receipt"),
+            "forum": res.get("forum", {}),
+            "rag_leaders": res.get("rag_leaders", RAG_LEADERS),
+            "differentiator": res.get("differentiator",
+                "Every retrieved answer ships a SIGNED receipt proving which sources "
+                "grounded which claims (per-claim citations + faithfulness Λ-gate)."),
             "doctrine": DOCTRINE,
             "conjecture_note": _CONJECTURE_NOTE,
         })
@@ -788,7 +873,11 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
             "corpus": _CORPUS,
             "corpus_size": len(_CORPUS),
             "corpus_sha256": _corpus_sha256(_CORPUS),
-            "note": "Small embedded demo corpus. POST /rag/query may supply its own `corpus`.",
+            "note": "Small embedded demo corpus. POST /rag/query may supply its own `corpus`, "
+                    "or set corpus=\"brain\" to retrieve over the SZL Brain knowledge vault.",
+            # Wave O: the Brain vault as a first-class corpus source (honest stats).
+            "brain_corpus": (_brain.stats(ns) if _BRAIN_OK and _brain else
+                             {"available": False, "reason": "szl_brain_corpus not loaded"}),
             "rag_leaders_cited": RAG_LEADERS,
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
@@ -819,6 +908,14 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
                 "query": f"/api/{ns}/v1/rag/query",
                 "corpus": f"/api/{ns}/v1/rag/corpus",
                 "forum": f"/api/{ns}/v1/llm/forum",
+            },
+            # Wave O: Brain-vault corpus source availability (honest LIVE/UNAVAILABLE).
+            "brain_corpus": {
+                "module_loaded": _BRAIN_OK,
+                "available": (bool(_brain.available(ns)) if _BRAIN_OK and _brain else False),
+                "usage": "POST /rag/query {\"query\":\"...\",\"corpus\":\"brain\"}",
+                "note": "corpus=\"brain\" retrieves over the harvested Brain graph with "
+                        "per-claim citations to each real node; UNAVAILABLE if the vault is empty.",
             },
             "rag_leaders_cited": RAG_LEADERS,
             "doctrine": DOCTRINE,
@@ -870,6 +967,22 @@ def _selftest() -> None:
     # caller-provided corpus works + changes sha
     cp = query("alpha beta", corpus=[{"id": "x1", "text": "alpha beta gamma delta", "source": "test"}])
     assert cp["ok"] and cp["receipt"]["corpus"]["origin"] == "caller_provided"
+    # Wave O: corpus="brain" retrieves over the Brain vault OR honest UNAVAILABLE.
+    br = query("Euler Khipu formula proof status", corpus="brain")
+    assert br["ok"], br
+    if br["rag_state"] == "UNAVAILABLE":
+        assert br.get("corpus_origin") == "brain" and not br.get("claims")
+        print("szl_governed_rag: corpus=brain -> honest UNAVAILABLE (empty vault).")
+    else:
+        assert br["corpus_origin"] == "brain" and br["brain_sourced"] is True
+        assert br["receipt"]["corpus"]["brain_sourced"] is True
+        # every brain-sourced citation must resolve to a REAL retrieved passage id
+        ret_b = {p["id"] for p in br["receipt"]["retrieval"]["scores"]}
+        for c in br["claims"]:
+            for cit in c["citations"]:
+                assert cit["passage_id"] in ret_b, f"brain claim cites non-retrieved {cit['passage_id']}"
+        print(f"szl_governed_rag: corpus=brain -> {len(br['claims'])} claims, brain-sourced "
+              f"citations verified real (origin={br['corpus_origin']}).")
     print(f"szl_governed_rag: ALL OK (corpus={len(_CORPUS)}, deterministic retrieval, "
           f"per-claim citations={len(r1['receipt']['grounding']['per_claim_citations'])}, "
           f"faithfulness={r1['ragas']['faithfulness']}, Λ={r1['receipt']['lambda']:.4f}, "
