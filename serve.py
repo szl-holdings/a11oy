@@ -954,6 +954,20 @@ except Exception as _szl3d_e:  # pragma: no cover
     print(f"[a11oy] szl3d holographic estate NOT registered: {_szl3d_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- szl_mesh_orchestrator LIVE CROSS-NODE MESH (Wave-P Dev2). Backs the /holographic `mesh`
+# surface: probes BOTH sovereign GPU nodes (omen + betterwithage) THIS request for a per-node
+# LIVE/DEGRADED/OFFLINE state, cheapest-live-watt advisory routing, and a 3-of-4 witness-quorum
+# view (Conjecture 2). Reachability + MEASURED watts are NEVER fabricated. Additive, pure
+# stdlib, try/except-guarded. Registered BEFORE the SPA catch-all so the JSON routes win.
+# Λ = Conjecture 1; BFT = Conjecture 2; nothing here is in the locked-8.
+try:
+    import szl_mesh_orchestrator as _szl_mesh_orchestrator
+    _szl_mesh_status = _szl_mesh_orchestrator.register(app, ns="a11oy")
+    print(f"[a11oy] szl_mesh_orchestrator registered: {_szl_mesh_status}", file=__import__("sys").stderr)
+except Exception as _szl_mesh_e:  # pragma: no cover
+    print(f"[a11oy] szl_mesh_orchestrator NOT registered: {_szl_mesh_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- szl_anatomy_3d LIVING-ANATOMY 3D PAGES (Dev0 sweep: was DORMANT — shipped but unwired).
 # Reclaims 7 finished, self-contained 3D pages (/body-3d, /immune-3d, /nervous-3d,
 # /khipu-chain-3d, /lambda-spine-3d, /wires-3d, /yuyay-13) + their live JSON endpoints, each

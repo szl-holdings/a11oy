@@ -117,6 +117,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "sovereign", "cat": "energy", "flag": True, "title": "Sovereign Local Model · status · doctrine self-test · Stage A/B · signed receipt", "owner": "WaveM-Dev4"},
     {"id": "brainbody", "cat": "anatomy", "title": "Anatomy · Body lit by the Brain (pulse + energy)", "owner": "WaveO-Dev3"},
     {"id": "braincommand", "cat": "brain", "title": "Brain Command · pulse · subscribe/budget · signed receipt (Brain powering the ecosystem)", "owner": "WaveO-Dev5"},
+    {"id": "mesh", "cat": "defense", "title": "Sovereign Mesh · Cross-Node Orchestration (status/route/quorum)", "owner": "WaveP-Dev2"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
