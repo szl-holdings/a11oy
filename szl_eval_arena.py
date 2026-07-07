@@ -791,6 +791,13 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
             body = await request.json()
         except Exception:
             body = {}
+        # Wave J (Dev 3): honest 400 on a malformed (non-object) body instead of a
+        # 500 crash on body.get(...) — closes the silent-degrade/422 class.
+        if not isinstance(body, dict):
+            return JSONResponse(
+                {"error": "request body must be a JSON object",
+                 "got_type": type(body).__name__},
+                status_code=400)
         suite_id = str(body.get("suite") or body.get("suite_id") or "core_honest_v1")
         model_id = str(body.get("model_id") or "claude_sonnet_4_6")
         harness_profile_id = body.get("harness_profile_id")
