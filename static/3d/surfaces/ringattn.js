@@ -39,6 +39,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "ringattn";
 const TITLE = "Ring Attention · Long-Context Blockwise Simulator (live)";
 
@@ -60,7 +62,7 @@ const NODE_SIZE    = 0.34;  // device node sphere radius
 const MAX_DEVICES  = 32;    // pre-allocated device-node cap (perf)
 const KV_ORBIT_R   = RING_RADIUS + 1.1; // KV block travels slightly outside the ring
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
 
@@ -285,19 +287,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "ring attention", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -307,12 +302,7 @@ function _buildOverlay() {
     'accumulator (max/sum) absorbs each block. Result is provably <b>identical</b> to full ' +
     'attention (<b>exact_match</b>) at <b>1/devices</b> memory per device. Honesty label ' +
     '<b>MODELED</b> (deterministic blockwise simulation; NOT a real multi-device kernel). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -349,14 +339,13 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("ra-memratio","per_device_memory_ratio \u2014 MODELED"));
   grid.appendChild(kpiRow("ra-exact",   "exact_match (blockwise == full)"));
   grid.appendChild(kpiRow("ra-maxctx",  "max_context_supported"));
-  grid.appendChild(kpiRow("ra-label",   "honesty label"));
   card.appendChild(grid);
 
   const fn = document.createElement("div");
   fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
   fn.textContent = "Liu, Zaharia & Abbeel arXiv:2310.01889 (Ring Attention) \u00b7 Liu & Abbeel arXiv:2305.19370 (Blockwise Parallel Transformer) \u00b7 github.com/haoliuhl/ringattention. MODELED \u00b7 not claimed-as.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "\u25d1 what this means";
@@ -367,15 +356,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "ra-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -422,7 +410,7 @@ function _paintOverlay() {
   _set("ra-exact",    t || (S.exactMatch === true ? "TRUE (exact)" : S.exactMatch === false ? "FALSE" : "\u2014"));
   _set("ra-maxctx",   t || (S.maxContext != null ? S.maxContext.toLocaleString() + " tokens" : "\u2014"));
   // honesty label verbatim — never upgraded
-  _set("ra-label", t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "ring attention" });
   if (_plain) _applyPlain();
 }
 
@@ -431,7 +419,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -444,7 +432,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _ringLine = null; _deviceMesh = []; _kvBlock = null; _accumulator = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false; _accumPulsePhase = 0;
   _stage = _THREE = _ctx = null;

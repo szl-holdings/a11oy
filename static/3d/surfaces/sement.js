@@ -51,6 +51,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // This organ adds NOTHING to SZL's own locked-8 / Λ-Conjecture-1.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "sement";
 const TITLE = "Semantic-Entropy · Effective-Rank Epistemic Uncertainty (live)";
 
@@ -65,7 +67,7 @@ const C_ACCENT = 0x3af4c8;  // proof-teal accent (effective-rank bar + verdict r
 const C_DIM    = 0x42505d;  // grey (degraded / no-live-data / idle)
 const C_GRID   = 0x1b3a44;  // floor / link colour
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
 
@@ -261,19 +263,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,480px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "semantic entropy", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -286,12 +281,7 @@ function _buildOverlay() {
     'confabulates \\u2014 even when naive surface entropy stays misleadingly low \\u2014 so we ' +
     '<b>abstain</b>. Honesty label <b>MODELED</b> \\u2014 a simulation of the method on ' +
     'synthetic toy data, <b>not</b> a real LLM. 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -330,7 +320,6 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("se-br",      "confabulating \\u00b7 effective rank"));
   grid.appendChild(kpiRow("se-bd",      "confabulating \\u00b7 decision"));
   grid.appendChild(kpiRow("se-ord",     "ordering holds (uncertain > confident)"));
-  grid.appendChild(kpiRow("se-label",   "honesty label"));
   card.appendChild(grid);
 
   const fn = document.createElement("div");
@@ -339,7 +328,7 @@ function _buildOverlay() {
     "Wang, Wei, Yue & Sun arXiv:2510.08389 (2025) \\u00b7 MODELED \\u00b7 hand-specified clustering, " +
     "synthetic hidden states, no real LLM \\u00b7 not claimed-as.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "\\u25d1 what this means";
@@ -350,15 +339,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "sement-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -419,7 +407,7 @@ function _paintOverlay() {
   _set("se-bd",  t || (bad.decision ? bad.decision.toUpperCase() : "\\u2014"));
   _set("se-ord", t || (S.ordering == null ? "\\u2014" : (S.ordering ? "YES \\u2014 semantic H & eff-rank both rise" : "no")));
   // honesty label verbatim — never upgraded
-  _set("se-label", t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "semantic entropy" });
   if (_plain) _applyPlain();
 }
 
@@ -428,7 +416,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -441,7 +429,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _bars = []; _rings = [];
   _built = false;
   _el = {}; _badge = null; _plain = false; _frameReg = false;

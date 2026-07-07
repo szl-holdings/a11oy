@@ -40,6 +40,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8 (adds 0). Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "agentmem";
 const TITLE = "AgentMem · Λ-Governed Agent Memory (live)";
 
@@ -60,9 +62,8 @@ const MAX_MEM   = 256;   // cap on memory nodes rendered (perf)
 const MAX_RECALL = 24;   // cap on recall links rendered
 const GATE_Y    = 0.6;   // height of the central Λ-gate core
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _collapsed = false;
 
 // geometry handles
 let _floor   = null;
@@ -314,50 +315,23 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "7px",
-    maxWidth: "min(92vw,340px)", maxHeight: "calc(100dvh - 28px)", overflowY: "auto",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "Λ=CONJECTURE 1", name: "lbl" }],
+    legend: ["MODELED"],
+    description:
+      "A persistent agent-memory store (disc of nodes); a query recalls the top-k, which " +
+      "flow toward a central <b>Λ-gate</b>. Admitted recalls glow proof-teal; Λ-gated-out / " +
+      "inconsistent recalls stay grey. The gate core scales with the capped trust " +
+      "(≤0.97, never 1.0). SZL cross-axis synthesis: agent memory + Λ-gating (Λ = Conjecture 1, " +
+      "gray, never green) + a signed receipt per recall (receipt-on-write — nothing minted on " +
+      "this read). 0 runtime CDN.",
+    citations:
+      "MemGPT arXiv:2310.08560 · A-MEM 2502.12110 · Mem0 2504.19413 · DSPy 2310.03714. MODELED/CONJECTURE · not claimed-as.",
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.3px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:7px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  // honesty label pill (verbatim, never upgraded)
-  const pill = document.createElement("span");
-  pill.id = "am-pill";
-  pill.style.cssText = "font:600 10px ui-monospace,monospace;padding:2px 7px;border-radius:10px;border:1px solid #8a6bff;color:#c9bdff;background:#14102a";
-  pill.textContent = "MODELED · Λ=CONJECTURE 1";
-  brow.appendChild(pill);
-  _overlay.appendChild(brow);
-
-  // small legend (3 chips)
-  const lg = document.createElement("div");
-  lg.style.cssText = "display:flex;gap:9px;flex-wrap:wrap;font-size:10px;color:#9fb1bf";
-  lg.innerHTML =
-    '<span style="color:#3af4c8">● admitted</span>' +
-    '<span style="color:#8a6bff">● recalled</span>' +
-    '<span style="color:#5a6570">● Λ-gated/stale</span>';
-  _overlay.appendChild(lg);
-
-  // collapse toggle
-  const tog = document.createElement("button");
-  tog.textContent = "▾ details";
-  tog.style.cssText = "font:11px ui-monospace,monospace;padding:4px 10px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  tog.addEventListener("click", () => {
-    _collapsed = !_collapsed;
-    card.style.display = _collapsed ? "none" : "flex";
-    tog.textContent = _collapsed ? "▸ details" : "▾ details";
-  });
-  _overlay.appendChild(tog);
+  const host = _show.body;
 
   const card = document.createElement("div");
   card.id = "am-card";
@@ -385,7 +359,6 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("am-gate",    "Λ-gate admits / gated-out"));
   grid.appendChild(kpiRow("am-trust",   "trust (capped ≤0.97)"));
   grid.appendChild(kpiRow("am-receipt", "recall receipt"));
-  grid.appendChild(kpiRow("am-label",   "honesty label"));
   card.appendChild(grid);
 
   const note = document.createElement("div");
@@ -395,13 +368,7 @@ function _buildOverlay() {
     "<b>signed receipt per recall</b> (receipt-on-write — nothing minted on this read).";
   card.appendChild(note);
 
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "MemGPT arXiv:2310.08560 · A-MEM 2502.12110 · Mem0 2504.19413 · DSPy 2310.03714. MODELED/CONJECTURE · not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  (ctx.container || document.body).appendChild(_overlay);
+  host.appendChild(card);
   _paintOverlay();
 }
 
@@ -428,7 +395,8 @@ function _paintOverlay() {
   _set("am-receipt", t || (S.receiptSigned === false
         ? "unsigned preview" + (S.receiptDigest ? " " + S.receiptDigest.slice(0, 10) + "…" : "")
         : (S.receiptDigest ? S.receiptDigest.slice(0, 10) + "…" : "—")));
-  _set("am-label", t || (S.label || "MODELED"));
+  // honesty label verbatim — never upgraded
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "Λ=CONJECTURE 1" });
 }
 
 // =============================================================================
@@ -436,7 +404,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -449,9 +417,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _memMesh = []; _gateRing = null; _core = null; _links = [];
-  _el = {}; _badge = null; _collapsed = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.nMemories = S.queryK = S.horizon = S.recalled = null;
   S.checked = S.consistent = S.conflicts = S.consistencyRate = null;

@@ -29,6 +29,8 @@
 //
 // 0 runtime CDN: three resolves through the page importmap to /static/3d/vendor/.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "router";
 const TITLE = "Model Router · Inference Economics";
 const EP_CROSS = "/api/a11oy/v1/router/active-flux-crossover";
@@ -62,7 +64,7 @@ function crossoverDifficulty(bw) { return crossoverFreq(bw) / SPAN_HZ; } // d at
 // =========================================================================================
 let _stage = null, _THREE = null, _ctx = null;
 let _hCross = null, _hSweep = null, _hPool = null;
-let _overlay = null, _panel = null;
+let _show = null;
 let _group = null;                 // everything we add to the scene
 let _surface = null;               // the warped cost-quality plane
 let _surfaceBaseY = null;          // base positions for re-warp
@@ -677,43 +679,41 @@ let _el = {};
 
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  _overlay.className = "szl3d-router-overlay";
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,430px)", font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.5";
-  sub.innerHTML = 'Modeled on <b>OpenRouter State of AI</b> + <b>RouteLLM</b>. ' +
-    '<span style="color:#6fb1ff">small/local</span> = easy / low-"frequency", ' +
-    '<span style="color:#ffb56b">large/cloud</span> = hard / high-"frequency". ' +
-    'Deterministic active-flux PI-bandwidth crossover — the complement to a RouteLLM bandit.';
-  _overlay.appendChild(sub);
-
-  // badges
+  // badges (crossover primary in the pill row; sweep + compute-pool folded into the body)
   _badge = ctx.live.createBadge();
   _sweepBadge = ctx.live.createBadge();
   _poolBadge = ctx.live.createBadge();
+
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "routing law", name: "lbl" }],
+    description:
+      'Modeled on <b>OpenRouter State of AI</b> + <b>RouteLLM</b>. ' +
+      '<span style="color:#6fb1ff">small/local</span> = easy / low-"frequency", ' +
+      '<span style="color:#ffb56b">large/cloud</span> = hard / high-"frequency". ' +
+      'Deterministic active-flux PI-bandwidth crossover — the complement to a RouteLLM bandit.',
+    citations:
+      "Adopted & generalized — sources: Active-flux IEEE/APEC 2001 (911711) · Li Yu PI-bandwidth · RouteLLM (LMSYS) · OpenRouter State of AI. MODELED deterministic complement; NOT in the locked-8; Λ = Conjecture 1; trust < 100%.",
+  });
+
+  const host = _show.body;
+
+  // secondary badge row (sweep + compute-pool) folded into the body
   const badgeRow = document.createElement("div");
   badgeRow.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center";
   const tag = (t) => { const s = document.createElement("span"); s.textContent = t; s.style.cssText = "font:10px ui-monospace,monospace;color:#6fb1ff"; return s; };
-  badgeRow.appendChild(tag("crossover")); badgeRow.appendChild(_badge.el);
   badgeRow.appendChild(tag("sweep")); badgeRow.appendChild(_sweepBadge.el);
   badgeRow.appendChild(tag("compute-pool")); badgeRow.appendChild(_poolBadge.el);
-  _overlay.appendChild(badgeRow);
+  host.appendChild(badgeRow);
+
+  // full doctrine legend (all 4 chips) — kept off-canvas inside the collapsible body
+  const lg = ctx.label.legend(); lg.style.opacity = "0.85"; host.appendChild(lg);
 
   // sliders
-  _overlay.appendChild(_mkSlider("π-bandwidth ω_c", "bw", 3, 40, 0.5, S.bw, (v) => v.toFixed(1) + " Hz", _onSliderBw));
-  _overlay.appendChild(_mkSlider("query difficulty (easy→hard)", "qd", 0, 1, 0.02, S.qd, (v) => v.toFixed(2), _onSliderQd));
+  host.appendChild(_mkSlider("π-bandwidth ω_c", "bw", 3, 40, 0.5, S.bw, (v) => v.toFixed(1) + " Hz", _onSliderBw));
+  host.appendChild(_mkSlider("query difficulty (easy→hard)", "qd", 0, 1, 0.02, S.qd, (v) => v.toFixed(2), _onSliderQd));
 
   // KPIs
   const kpi = document.createElement("div");
@@ -731,23 +731,13 @@ function _buildOverlay() {
   kpi.appendChild(cell("cross", "crossover difficulty", "#e8c074"));
   kpi.appendChild(cell("small", "small/local weight", "#6fb1ff"));
   kpi.appendChild(cell("large", "large/cloud weight", "#ffb56b"));
-  _overlay.appendChild(kpi);
-
-  // honesty chip + label
-  const honest = document.createElement("div");
-  honest.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  _el.chip = ctx.label.chip("MODELED", { text: "routing law" });
-  honest.appendChild(_el.chip);
-  _overlay.appendChild(honest);
-
-  // legend
-  const lg = ctx.label.legend(); lg.style.opacity = "0.85"; _overlay.appendChild(lg);
+  host.appendChild(kpi);
 
   // models line
   _el.models = document.createElement("div");
   _el.models.style.cssText = "font-size:10.5px;color:#9fb1bf;line-height:1.5";
   _el.models.textContent = "models: awaiting live router payload";
-  _overlay.appendChild(_el.models);
+  host.appendChild(_el.models);
 
   // raw dump (collapsible)
   const det = document.createElement("details");
@@ -759,15 +749,7 @@ function _buildOverlay() {
   _el.raw.style.cssText = "white-space:pre-wrap;font:10.5px ui-monospace,monospace;color:#bfe;background:#06090d;border:1px solid #1d2a36;border-radius:7px;padding:8px;max-height:150px;overflow:auto;margin-top:6px";
   _el.raw.textContent = "—";
   det.appendChild(sum); det.appendChild(_el.raw);
-  _overlay.appendChild(det);
-
-  // sources (text only — NOT fetch-shaped, doctrine 0-CDN safe)
-  const src = document.createElement("div");
-  src.style.cssText = "font-size:9.5px;color:#5b6c78;line-height:1.6;margin-top:2px";
-  src.textContent = "Adopted & generalized — sources: Active-flux IEEE/APEC 2001 (911711) · Li Yu PI-bandwidth · RouteLLM (LMSYS) · OpenRouter State of AI. MODELED deterministic complement; NOT in the locked-8; Λ = Conjecture 1; trust < 100%.";
-  _overlay.appendChild(src);
-
-  (ctx.container || document.body).appendChild(_overlay);
+  host.appendChild(det);
 }
 
 function _mkSlider(labelText, key, min, max, step, val, fmt, onInput) {
@@ -813,8 +795,8 @@ function _paintKPIs() {
   _el.cross && (_el.cross.textContent = S.crossoverDifficulty != null ? S.crossoverDifficulty.toFixed(3) : dash);
   _el.small && (_el.small.textContent = S.wSmall != null ? S.wSmall.toFixed(3) : dash);
   _el.large && (_el.large.textContent = S.wLarge != null ? S.wLarge.toFixed(3) : dash);
-  if (_el.chip && _ctx) {
-    try { _ctx.label.updateChip(_el.chip, S.label || "MODELED", { text: S.regime ? ("regime: " + S.regime) : "routing law" }); } catch (_) {}
+  if (_show) {
+    try { _show.setChip("lbl", S.label || "MODELED", { text: S.regime ? ("regime: " + S.regime) : "routing law" }); } catch (_) {}
   }
   if (_el.models) {
     if (S.modelsMeta) {
@@ -836,7 +818,7 @@ function unmount() {
   try { if (_hSweep) _hSweep.stop(); } catch (_) {}
   try { if (_hPool) _hPool.stop(); } catch (_) {}
   clearTimeout(_bwDebounce); clearTimeout(_qdDebounce);
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -850,7 +832,7 @@ function unmount() {
     }
   } catch (_) {}
   _hCross = _hSweep = _hPool = null;
-  _overlay = _group = _surface = _ridge = _queryPlane = _crossoverMarker = null;
+  _show = _group = _surface = _ridge = _queryPlane = _crossoverMarker = null;
   _sweepRibbon = _scatter = _particles = _waterfall = _regimeZones = _billboard = null;
   _lawOverlay = _flipBeacon = null;
   _scatterLabels = []; _el = {}; _badge = _sweepBadge = _poolBadge = null;

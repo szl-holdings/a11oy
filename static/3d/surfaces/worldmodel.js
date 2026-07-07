@@ -40,6 +40,8 @@
 // 0 RUNTIME CDN. Vendored three.js r170 via page importmap.
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "worldmodel";
 const TITLE = "World Model · Latent Physical Prediction (live)";
 
@@ -58,7 +60,7 @@ const C_GRID   = 0x1b3a44;  // floor / link colour
 const MAX_STEPS = 64;  // visual cap on rollout points (endpoint clamps horizon<=64)
 const SCALE     = 1.8; // world-unit scale applied to projected latent coordinates
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
 
@@ -294,19 +296,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "world model", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -316,12 +311,7 @@ function _buildOverlay() {
     'V-JEPA 2. The gap between the predicted (violet) and observed (blue) path is the ' +
     '<b>physical surprise</b>. Honesty label <b>MODELED</b> (a simulation of the method ' +
     '\u2014 no real video, no robot data, no trained weights). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -356,14 +346,13 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("wm-acc",    "action-anticipation acc \u2014 MODELED"));
   grid.appendChild(kpiRow("wm-cons",   "free-energy consistency"));
   grid.appendChild(kpiRow("wm-dim",    "latent_dim \u00d7 horizon"));
-  grid.appendChild(kpiRow("wm-label",  "honesty label"));
   card.appendChild(grid);
 
   const fn = document.createElement("div");
   fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
   fn.textContent = "Assran, Bardes, Fan et al. arXiv:2506.09985 (V-JEPA 2) \u00b7 github.com/facebookresearch/vjepa2 \u00b7 LeCun 2022 JEPA position paper (OpenReview). MODELED \u00b7 not claimed-as.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "\u25d1 what this means";
@@ -374,15 +363,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "wm-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -426,7 +414,7 @@ function _paintOverlay() {
   _set("wm-cons",  t || fx(S.consistency, 4));
   _set("wm-dim",   t || ((S.latentDim != null && S.horizon != null) ? (S.latentDim + " \u00d7 " + S.horizon) : "\u2014"));
   // honesty label verbatim — never upgraded
-  _set("wm-label", t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "world model" });
   if (_plain) _applyPlain();
 }
 
@@ -435,7 +423,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -448,7 +436,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _obsPts = []; _predPts = []; _obsLine = null; _predLine = null; _gaps = null; _halo = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _stage = _THREE = _ctx = null;

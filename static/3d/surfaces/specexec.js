@@ -47,6 +47,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "specexec";
 const TITLE = "Tree Speculative Execution";
 
@@ -76,7 +78,7 @@ const MASK_CELL   = 0.34;
 const MASK_MAX    = 32;   // cap cells per axis (matches organ node cap)
 const BAR_ORIGIN  = { x: -3.0, y: 0.0, z: 8.0 };
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
 let _plain = false;
 
@@ -377,19 +379,12 @@ function _onFrame() {
 // =============================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge: _badge,
+    chips: [{ label: "MODELED", text: "token tree", name: "lbl" }],
+    legend: ["MODELED"],
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  const host = _show.body;
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
@@ -402,12 +397,7 @@ function _buildOverlay() {
     'V<sub>i</sub> = product of confidences root\u2192i) \u2014 then walks both against a scripted ' +
     '<b>min(1, p/q)</b> acceptance oracle to count the expected accepted-path length. Honesty label ' +
     '<b>MODELED</b> (deterministic toy tree-walk, NOT a live LLM). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  host.appendChild(sub);
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
@@ -443,7 +433,6 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("sx-dynamic",  "E[accepted path] \u2014 dynamic (MEASURED)"));
   grid.appendChild(kpiRow("sx-improve",  "improvement (dynamic / static)"));
   grid.appendChild(kpiRow("sx-mask",     "tree causal-attention mask"));
-  grid.appendChild(kpiRow("sx-label",    "honesty label"));
   card.appendChild(grid);
 
   const legend = document.createElement("div");
@@ -459,7 +448,7 @@ function _buildOverlay() {
   fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
   fn.textContent = "Tree speculative decoding \u2014 Sequoia arXiv:2402.12374 \u00b7 EAGLE-2 arXiv:2406.16858 \u00b7 Medusa arXiv:2401.10774 \u00b7 SpecInfer (CMU). MODELED \u00b7 not claimed-as.";
   card.appendChild(fn);
-  _overlay.appendChild(card);
+  host.appendChild(card);
 
   const pl = document.createElement("button");
   pl.textContent = "\u25d1 what this means";
@@ -470,15 +459,14 @@ function _buildOverlay() {
     pl.style.background = _plain ? "#0f2a20" : "#08140f";
     _applyPlain();
   });
-  _overlay.appendChild(pl);
+  host.appendChild(pl);
 
   const pd = document.createElement("div");
   pd.id = "sx-plain";
   pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
   _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  host.appendChild(pd);
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
@@ -524,7 +512,7 @@ function _paintOverlay() {
   _set("sx-improve", t || (S.improvement != null ? S.improvement.toFixed(3) + "\u00d7" : "\u2014"));
   _set("sx-mask",    t || ((S.mask && S.mask.length) ? (S.mask.length + " \u00d7 " + S.mask.length) : "\u2014"));
   // honesty label verbatim — never upgraded
-  _set("sx-label",   t || (S.label || "MODELED"));
+  if (_show) _show.setChip("lbl", S.label || "MODELED", { text: "token tree" });
   if (_plain) _applyPlain();
 }
 
@@ -533,7 +521,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -546,7 +534,7 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _treeGroup = null; _maskMesh = []; _barStatic = null; _barDyn = null;
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _stage = _THREE = _ctx = null;
