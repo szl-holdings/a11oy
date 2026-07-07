@@ -12088,6 +12088,36 @@ except Exception as _szl_ss_e:  # pragma: no cover
 # ============================================================================
 
 
+# ============================================================================
+# BRAIN NERVOUS-SYSTEM HUB (WAVE O Dev1, 2026-07-07) — the pulse bus.
+# Endpoints: GET /api/a11oy/v1/brain/pulse (the current ecosystem pulse — unified
+#   harvested KNOWLEDGE (a11oy_brain_graph + harvest_vault) + harnessed ENERGY
+#   (szl_energy_ledger: MEASURED joules/tokens when the ledger holds them, else
+#   honest MODELED dry-run projection, else UNAVAILABLE), organ/surface count lit,
+#   Λ=Conjecture 1 advisory, honest labels, signed DSSE receipt over a deterministic
+#   core) and GET /api/a11oy/v1/brain/subscribe/{surface_id} (the honest energy/
+#   knowledge budget the Brain allocates to that surface — a 1/N share over the live
+#   pulse). REAL DSSE in-Space via szl_dsse; honest UNSIGNED-LOCAL locally; joules
+#   NEVER fabricated (UNAVAILABLE when a source is down); Λ = Conjecture 1 throughout;
+#   nothing touches the locked-8. Reuses a11oy_brain_graph (knowledge) + szl_energy_
+#   ledger (energy) + szl_dsse (signing) — all already in the COPY set; szl_brain_hub.py
+#   + brain/harvest_vault.py added to the Dockerfile COPY set (transitive guard).
+#   Additive, try/except-guarded; register() front-inserts its routes so they beat the
+#   /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_brain_hub as _szl_brain_hub
+    _szl_brain_hub_status = _szl_brain_hub.register(app, ns="a11oy")
+    print(f"[a11oy] Brain nervous-system hub registered: {_szl_brain_hub_status}", file=__import__("sys").stderr)
+except Exception as _szl_bh_e:  # pragma: no cover
+    print(f"[a11oy] Brain hub NOT registered: {_szl_bh_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: BRAIN NERVOUS-SYSTEM HUB (WAVE O Dev1)
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

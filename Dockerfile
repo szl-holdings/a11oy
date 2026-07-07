@@ -714,6 +714,16 @@ COPY szl_brain_energy.py ./szl_brain_energy.py
 # reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
 # COPY'd or the endpoint honestly reports harvest available=False (estate-only).
 COPY brain/harvest ./brain/harvest
+# BRAIN NERVOUS-SYSTEM HUB (WAVE O Dev1, 2026-07-07) — the pulse bus. serve.py imports
+# szl_brain_hub (guarded) and calls .register(app) BEFORE the SPA catch-all + Node proxy;
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/brain/
+# {pulse,subscribe/{surface_id}} fall through to the SPA HTML shell. It reuses
+# a11oy_brain_graph (knowledge) + szl_energy_ledger (energy) + szl_dsse (signing) — all
+# already COPY'd above / in the main COPY set — and imports brain/harvest_vault.py for the
+# self-writing-vault provenance, so that transitive import is COPY'd here too (transitive
+# guard: every serve.py-registered module + its local imports must be in the COPY set).
+COPY szl_brain_hub.py ./szl_brain_hub.py
+COPY brain/harvest_vault.py ./brain/harvest_vault.py
 
 # DEV2: in-toto offline verifier recipe (Apache-2.0)
 RUN mkdir -p /app/szl-cookbook
