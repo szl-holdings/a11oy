@@ -53,6 +53,21 @@ DOCTRINE = "v11"
 _KERNEL = "c7c0ba17"
 _LAMBDA_FLOOR = 0.90
 
+# Wave M (DEV 1) — first-class sovereign backend id + honest provenance.
+# The founder stands up a LOCAL sovereign model on the Tower (OMEN, RTX 4060 Ti)
+# via Ollama (model tag `llama3-szl-finetuned-q4`, base llama3.1:8b wrapped in a
+# Doctrine-v11 SYSTEM prompt), served OpenAI-compatible at SZL_LOCAL_LLM_URL
+# (default http://localhost:11434/v1). It is NOT reachable from CI/cloud, so this
+# backend MUST degrade to an honest UNAVAILABLE label (never fabricate a response).
+_SOVEREIGN_BACKEND_ID = "szl-sovereign-local"          # canonical Wave-M backend id
+_SOVEREIGN_LEGACY_ID = "sovereign_local"                # pre-Wave-M alias (kept, additive)
+_SOVEREIGN_MODEL_TAG = "llama3-szl-finetuned-q4"        # ollama model tag (Stage A wrapper / Stage B LoRA)
+_SOVEREIGN_PROVENANCE = "SZL sovereign (Ollama, local, Doctrine-v11 system prompt)"
+# Honest label vocabulary (Doctrine v11): the sovereign backend is LIVE only when
+# the node answers this request; otherwise UNAVAILABLE (never SIMULATED/fabricated).
+_LABEL_LIVE = "LIVE"
+_LABEL_UNAVAILABLE = "UNAVAILABLE"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # THE CANONICAL LLM ROSTER — a11oy is the hub; every model lives here.
 # Source of truth: OPERATOR_FULL_CAPABILITY_BRIEF_2026-05-31_2135.md §2,
@@ -201,6 +216,47 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
                  "makes a REAL guarded ollama /api or OpenAI-compatible /v1 call and is wired=true "
                  "ONLY when the node answers live THIS request (see /llm/sovereign/health). "
                  "Honest stub when the env is unset or the node is offline.",
+        "honest_stub": True,
+    },
+    # ── WAVE M (DEV 1): FIRST-CLASS SOVEREIGN BACKEND (own-metal, routed FIRST) ──
+    # `szl-sovereign-local` is the canonical Wave-M backend id for the founder's
+    # Tower model (Ollama, model tag llama3-szl-finetuned-q4, Doctrine-v11 system
+    # prompt). It targets SZL_LOCAL_LLM_URL (default http://localhost:11434/v1,
+    # OpenAI-compatible /chat/completions; native Ollama /api/generate fallback).
+    # Per the router's "own metal first" doctrine it slots FIRST in the routing
+    # order (before free, before paid) — BUT ONLY when the node answers live this
+    # request. When the Tower is offline it degrades to an HONEST UNAVAILABLE
+    # label; it NEVER fabricates a response.
+    {
+        "model_id": _SOVEREIGN_BACKEND_ID,          # "szl-sovereign-local"
+        "display_name": "SZL Sovereign Local (own-metal, Doctrine-v11)",
+        "provider": _SOVEREIGN_PROVENANCE,           # "SZL sovereign (Ollama, local, Doctrine-v11 system prompt)"
+        "provider_slug": "szl-sovereign",
+        "tier": 5,
+        "tier_name": "sovereign",
+        "context_window": 32_000,
+        "use_case": "Own-metal sovereign inference — routed FIRST when reachable",
+        "why": "SZL's OWN governed model on the Tower; zero external dependency; "
+               "routed before free/paid per 'own metal first' doctrine when live",
+        "routing_condition": "own-metal FIRST when node is reachable; else honest UNAVAILABLE",
+        "api_env_var": "SZL_LOCAL_LLM_URL",
+        "api_base": "http://localhost:11434/v1",     # OpenAI-compatible base (default)
+        "model_slug": _SOVEREIGN_MODEL_TAG,           # "llama3-szl-finetuned-q4"
+        "modalities": ["text"],
+        "streaming": True,
+        "operator_mirrored": False,
+        "ecosystem_mirror": ["policy", "reasoning", "killinchu"],
+        "lean_gate": "deterministicReplay",
+        "own_metal": True,
+        "route_first": True,
+        "legacy_alias": _SOVEREIGN_LEGACY_ID,
+        "notes": "Stage A = Doctrine-v11 system-prompt derivative (now); Stage B = real "
+                 "LoRA fine-tune (later) under the SAME model tag. Wired when "
+                 "SZL_LOCAL_LLM_URL is set; makes a REAL guarded ollama /api/generate "
+                 "or OpenAI-compatible /v1/chat/completions call and is LIVE ONLY when "
+                 "the node answers this request. Honest UNAVAILABLE otherwise "
+                 "(see GET /api/a11oy/v1/llm/sovereign/health). The Tower is NOT "
+                 "reachable from CI/cloud — CI reports UNAVAILABLE, never fabricates.",
         "honest_stub": True,
     },
     # ── ADDITIONAL: Perplexity (online search-augmented) ──
@@ -361,9 +417,34 @@ except (TypeError, ValueError):
     _SOVEREIGN_GEN_TIMEOUT_S = 120.0
 
 
+# Doctrine v11 default: OpenAI-compatible base at the Tower's Ollama /v1 endpoint.
+_SOVEREIGN_DEFAULT_URL = "http://localhost:11434/v1"
+
+
 def _sovereign_base() -> str:
-    """Resolve the sovereign-local base URL from env (empty string when unset)."""
-    return (os.environ.get(_SOVEREIGN_ENV, "") or "").strip().rstrip("/")
+    """Resolve the sovereign-local base URL from env.
+
+    Wave M: default to the OpenAI-compatible Tower endpoint
+    (http://localhost:11434/v1) when SZL_LOCAL_LLM_URL is unset, so the backend
+    always has a concrete target to reachability-probe. The probe/generate paths
+    normalise a trailing `/v1` back to the Ollama root for native /api calls, so
+    either form (`.../11434` or `.../11434/v1`) works.
+    """
+    val = (os.environ.get(_SOVEREIGN_ENV, "") or "").strip().rstrip("/")
+    return val or _SOVEREIGN_DEFAULT_URL
+
+
+def _sovereign_env_present() -> bool:
+    """True only when SZL_LOCAL_LLM_URL was explicitly set (operator intent)."""
+    return bool((os.environ.get(_SOVEREIGN_ENV, "") or "").strip())
+
+
+def _ollama_root(base: str) -> str:
+    """Return the Ollama server root, stripping a trailing OpenAI-compat `/v1`."""
+    b = (base or "").rstrip("/")
+    if b.endswith("/v1"):
+        b = b[: -len("/v1")]
+    return b
 
 
 def _sovereign_model_slug() -> str:
@@ -403,20 +484,21 @@ def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, A
     """
     base = (base or _sovereign_base())
     to = _SOVEREIGN_PROBE_TIMEOUT_S if timeout is None else float(timeout)
+    env_present = _sovereign_env_present()
     out: dict[str, Any] = {
         "env_var": _SOVEREIGN_ENV,
-        "env_present": bool(base),
+        "env_present": env_present,
         "base_url": base or None,
         "live": False,
         "models": [],
         "probed": [],
         "note": "",
     }
-    if not base:
-        out["note"] = ("SZL_LOCAL_LLM_URL not set — sovereign_local is an HONEST STUB "
-                       "(point it at https://gpu.a-11-oy.com to wire the local fleet).")
-        return out
-    b = base.rstrip("/")
+    # Wave M: we ALWAYS have a concrete base (env or the localhost /v1 default), so
+    # we always reachability-probe. env_present tells the caller whether the
+    # operator explicitly targeted a Tower or we fell back to the localhost default
+    # (which, from CI/cloud, is honestly UNAVAILABLE).
+    b = _ollama_root(base)
     # 1) ollama native /api/tags
     tags_url = b + "/api/tags"
     doc, err = _http_json(tags_url, timeout=to)
@@ -441,9 +523,12 @@ def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, A
         out["api_style"] = "openai /v1"
         out["note"] = "node live (OpenAI-compatible /v1/models); model list is real THIS request."
         return out
-    out["note"] = ("SZL_LOCAL_LLM_URL set but node did not respond live this request "
-                   "(honest stub). Errors: %s" % "; ".join(
-                       str(p.get("error")) for p in out["probed"] if p.get("error")))
+    _tgt = ("SZL_LOCAL_LLM_URL=%s" % base) if env_present else (
+        "SZL_LOCAL_LLM_URL unset — probing localhost default %s" % base)
+    out["note"] = ("Sovereign node NOT reachable this request — honest UNAVAILABLE "
+                   "(never fabricate). %s. The Tower is not reachable from CI/cloud. "
+                   "Errors: %s" % (_tgt, "; ".join(
+                       str(p.get("error")) for p in out["probed"] if p.get("error"))))
     return out
 
 
@@ -462,13 +547,9 @@ def sovereign_generate(prompt: str, base: str = "", model: str = "",
     res: dict[str, Any] = {
         "wired": False, "live": False, "text": None, "model": model,
         "api_style": None, "base_url": base or None, "env_var": _SOVEREIGN_ENV,
-        "env_present": bool(base), "note": "",
+        "env_present": _sovereign_env_present(), "note": "",
     }
-    if not base:
-        res["note"] = ("SZL_LOCAL_LLM_URL not set — HONEST STUB (no local fleet base). "
-                       "Tier selection + Λ-receipt still REAL.")
-        return res
-    b = base.rstrip("/")
+    b = _ollama_root(base)
     # 1) ollama native /api/generate
     gen_url = b + "/api/generate"
     body = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode("utf-8")
@@ -499,8 +580,9 @@ def sovereign_generate(prompt: str, base: str = "", model: str = "",
             if isinstance(doc2.get("usage"), dict):
                 res["raw"] = {"usage": doc2["usage"]}
             return res
-    res["note"] = ("SZL_LOCAL_LLM_URL set but node did not generate live this request "
-                   "(honest stub). Errors: %s / %s" % (err or "", err2 or ""))
+    res["note"] = ("Sovereign node NOT reachable this request — honest UNAVAILABLE "
+                   "(never fabricate a response). Tier selection + Λ-receipt still "
+                   "REAL. Errors: %s / %s" % (err or "", err2 or ""))
     return res
 
 
@@ -621,24 +703,35 @@ def _enrich_model(m: dict, *, probe_local: bool = False) -> dict:
     env_var = m.get("api_env_var", "") or ""
     model_id = m.get("model_id", "")
 
-    if model_id == "sovereign_local" or env_var == _SOVEREIGN_ENV:
+    if model_id in (_SOVEREIGN_LEGACY_ID, _SOVEREIGN_BACKEND_ID) or env_var == _SOVEREIGN_ENV:
         base = _sovereign_base()
-        wired = bool(base)
+        env_present = _sovereign_env_present()
+        # `wired` = operator intent (env explicitly set). `label` = honest state:
+        # LIVE only when the node answers this request; else UNAVAILABLE.
+        wired = env_present
         out["api_key_wired"] = wired
         out["wired"] = wired
-        out["provider"] = m.get("provider", "SZL Holdings (local)")
+        out["provider"] = m.get("provider", _SOVEREIGN_PROVENANCE)
         out["env_used"] = _SOVEREIGN_ENV
-        out["env_present"] = wired
+        out["env_present"] = env_present
         out["base_url"] = base or m.get("api_base")
-        out["honest_stub"] = not wired
         out["is_local"] = True
+        out["own_metal"] = True
+        # Default (no probe): honest UNAVAILABLE until proven live this request.
+        out["honest_stub"] = True
+        out["label"] = _LABEL_UNAVAILABLE
+        out["reachable"] = False
         if probe_local:
             probe = sovereign_probe(base)
-            out["local_live"] = bool(probe.get("live"))
+            live = bool(probe.get("live"))
+            out["local_live"] = live
+            out["reachable"] = live
             out["local_models"] = probe.get("models", [])
             out["local_probe_note"] = probe.get("note", "")
-            # honest_stub only clears when the node is actually live this request
-            out["honest_stub"] = not bool(probe.get("live"))
+            out["api_style"] = probe.get("api_style")
+            # honest_stub clears / label flips to LIVE ONLY when actually live.
+            out["honest_stub"] = not live
+            out["label"] = _LABEL_LIVE if live else _LABEL_UNAVAILABLE
         return out
 
     wired = _api_key_wired(env_var)
@@ -701,8 +794,27 @@ def register(app: FastAPI) -> dict:
             "base_url": m.get("base_url"),
             "honest_stub": bool(m.get("honest_stub", True)),
             "is_local": bool(m.get("is_local")),
+            **({"label": m.get("label"), "reachable": m.get("reachable"),
+                "own_metal": bool(m.get("own_metal"))} if m.get("own_metal") else {}),
         } for m in models]
         all_stub = (len(wired) == 0)
+        # Wave-M sovereign availability snapshot: honest reachability of the
+        # own-metal backend. `reachable`/`label` come from a real probe only when
+        # ?probe=1; otherwise we honestly report unknown (probe not run).
+        _sov_badge = next((m for m in models if m.get("model_id") == _SOVEREIGN_BACKEND_ID), None)
+        sovereign_snapshot = {
+            "backend_id": _SOVEREIGN_BACKEND_ID,
+            "model": _SOVEREIGN_MODEL_TAG,
+            "provider": _SOVEREIGN_PROVENANCE,
+            "url": _sovereign_base(),
+            "env_present": _sovereign_env_present(),
+            "probed": do_probe,
+            "reachable": (bool(_sov_badge.get("reachable")) if (do_probe and _sov_badge) else None),
+            "label": (_sov_badge.get("label") if (do_probe and _sov_badge)
+                      else "UNPROBED (pass ?probe=1 for THIS-request reachability)"),
+            "route_order": "own-metal/sovereign FIRST (when reachable) → free → paid",
+            "health_endpoint": "/api/a11oy/v1/llm/sovereign/health",
+        }
         return JSONResponse({
             "timestamp": _now(),
             "hub": "a11oy",
@@ -723,6 +835,7 @@ def register(app: FastAPI) -> dict:
             "route_endpoint": "/api/a11oy/v1/llm/route",
             "router_status_endpoint": "/api/a11oy/v1/llm/router/status",
             "sovereign_health_endpoint": "/api/a11oy/v1/llm/sovereign/health",
+            "sovereign": sovereign_snapshot,
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
             "honest_note": (
@@ -819,55 +932,87 @@ def register(app: FastAPI) -> dict:
 
         lam = _lambda_gm(axis_scores)
 
-        # ── SOVEREIGN LOCAL selection ────────────────────────────────────────
-        # Route to the local fleet when EITHER the caller asks for it explicitly
-        # (model_id='sovereign_local' | task_hint in {sovereign,local,offline} |
-        # prefer_local=true) OR SZL_LOCAL_LLM_URL is set and NO cloud key is wired
-        # (air-gap/offline preference). When selected, we make a REAL guarded call
-        # to the node; wired=true ONLY if the node answered live THIS request.
+        # ── SOVEREIGN / OWN-METAL selection (routed FIRST when reachable) ─────
+        # Doctrine: "own metal first" — the sovereign backend slots FIRST in the
+        # routing order (before free, before paid) BUT ONLY when the Tower node
+        # actually answers this request. Selection triggers when EITHER:
+        #   (a) the caller asks for it explicitly (model_id in the sovereign ids |
+        #       task_hint in {sovereign,local,offline,…} | prefer_local=true), OR
+        #   (b) OWN-METAL-FIRST: the node is reachable this request (auto-probe),
+        #       unless the caller opts out with prefer_local=false + a cloud model,
+        #   (c) offline preference (env set, no cloud key, offline_mode=true).
+        # When the node is NOT reachable we NEVER fabricate — the caller falls
+        # through to free/paid tiers, and if sovereign was explicitly requested we
+        # return an honest UNAVAILABLE label (no fabricated text).
         _req_model = str(body.get("model_id", "")).strip().lower()
-        _prefer_local = bool(body.get("prefer_local", False))
+        _sov_ids = {_SOVEREIGN_LEGACY_ID, _SOVEREIGN_BACKEND_ID}
+        _prefer_local_raw = body.get("prefer_local", None)
+        _prefer_local = bool(_prefer_local_raw)
+        _opted_out = (_prefer_local_raw is False)  # explicit prefer_local=false
         _sov_hints = {"sovereign", "local", "offline", "air-gap", "airgap"}
         _any_cloud_wired = any(_api_key_wired(ev) for ev, _ in _PROVIDER_ENV_VARS)
         _sov_base = _sovereign_base()
-        _want_sovereign = (
-            _req_model == "sovereign_local"
-            or task_hint in _sov_hints
-            or _prefer_local
-            or (bool(_sov_base) and not _any_cloud_wired
-                and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes"))
+        _explicit_sovereign = (
+            _req_model in _sov_ids or task_hint in _sov_hints or _prefer_local
         )
+        _offline_pref = (
+            _sovereign_env_present() and not _any_cloud_wired
+            and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes")
+        )
+        # OWN-METAL-FIRST: reachability-probe (short timeout) and, if the node is
+        # LIVE this request, route sovereign FIRST — unless the caller explicitly
+        # opted out. If the caller explicitly requested sovereign we ALSO select it
+        # (even when unreachable) so we can return an honest UNAVAILABLE.
+        _sov_probe = sovereign_probe(_sov_base)
+        _sov_reachable = bool(_sov_probe.get("live"))
+        _own_metal_first = _sov_reachable and not _opted_out
+        _want_sovereign = _explicit_sovereign or _offline_pref or _own_metal_first
         if _want_sovereign:
-            sov_model = _MODEL_BY_ID.get("sovereign_local", MODEL_REGISTRY[0])
+            # Prefer the first-class Wave-M backend id; fall back to legacy alias.
+            sov_model = (_MODEL_BY_ID.get(_SOVEREIGN_BACKEND_ID)
+                         or _MODEL_BY_ID.get(_SOVEREIGN_LEGACY_ID)
+                         or MODEL_REGISTRY[0])
             sov_enriched = _enrich_model(sov_model)
             gen = sovereign_generate(prompt or _DEFAULT_SOVEREIGN_PROMPT)
-            sov_enriched["wired"] = bool(gen.get("wired"))
-            sov_enriched["api_key_wired"] = bool(gen.get("wired"))
-            sov_enriched["local_live"] = bool(gen.get("live"))
-            sov_enriched["honest_stub"] = not bool(gen.get("wired"))
-            sov_reason = ("sovereign_local selected (%s); "
-                          % ("explicit request" if (_req_model == "sovereign_local"
-                             or task_hint in _sov_hints or _prefer_local)
-                             else "offline preference, no cloud key wired"))
-            if gen.get("wired"):
-                sov_reason += "node LIVE this request — REAL local generation."
+            _live = bool(gen.get("live"))
+            sov_enriched["wired"] = _sovereign_env_present()
+            sov_enriched["reachable"] = _live
+            sov_enriched["local_live"] = _live
+            sov_enriched["honest_stub"] = not _live
+            sov_enriched["label"] = _LABEL_LIVE if _live else _LABEL_UNAVAILABLE
+            if _explicit_sovereign:
+                _why = "explicit request"
+            elif _own_metal_first:
+                _why = "own-metal-first (node reachable → routed before free/paid)"
+            else:
+                _why = "offline preference, no cloud key wired"
+            sov_reason = "%s selected (%s); " % (sov_model.get("model_id"), _why)
+            if _live:
+                sov_reason += "node LIVE this request — REAL local generation [LIVE]."
                 response_text = gen.get("text") or ""
             else:
-                sov_reason += "node NOT live — HONEST STUB."
+                sov_reason += "node NOT reachable — honest UNAVAILABLE (never fabricate)."
                 response_text = (
-                    "[HONEST STUB] sovereign_local (%s). %s Tier selection + Λ=%.4f "
-                    "+ receipt are REAL." % (sov_model.get("model_slug", ""),
-                                             gen.get("note", ""), lam))
+                    "[UNAVAILABLE] %s (%s) — the sovereign Tower endpoint is not "
+                    "reachable this request, so NO response is fabricated. %s "
+                    "Tier selection + Λ=%.4f + receipt are REAL."
+                    % (sov_model.get("model_id"), sov_model.get("model_slug", ""),
+                       gen.get("note", ""), lam))
             sov_receipt = {
                 "schema": "szl.llm_route.lambda_receipt/v1",
                 "ts": _now(), "hub": "a11oy", "lambda": round(lam, 6),
                 "lambda_floor": _LAMBDA_FLOOR, "axis_scores": axis_scores,
                 "tier_selected": sov_model.get("tier", 5),
-                "model_id": "sovereign_local",
+                "model_id": sov_model.get("model_id"),
+                "model_slug": sov_model.get("model_slug"),
+                "provider": sov_model.get("provider"),
                 "model_display": sov_model.get("display_name"),
                 "reason": sov_reason, "task_hint": task_hint,
-                "api_key_wired": bool(gen.get("wired")),
-                "local_live": bool(gen.get("live")),
+                "own_metal_first": bool(_own_metal_first),
+                "reachable": _live,
+                "label": _LABEL_LIVE if _live else _LABEL_UNAVAILABLE,
+                "api_key_wired": _sovereign_env_present(),
+                "local_live": _live,
                 "local_api_style": gen.get("api_style"),
                 "local_base_url": gen.get("base_url"),
                 "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
@@ -879,11 +1024,16 @@ def register(app: FastAPI) -> dict:
                 "response": response_text,
                 "model_selected": sov_enriched,
                 "lambda_receipt": sov_receipt,
-                "routed_via": "sovereign_local (%s)" % (gen.get("api_style") or "honest stub"),
+                "label": _LABEL_LIVE if _live else _LABEL_UNAVAILABLE,
+                "reachable": _live,
+                "routed_via": "%s (%s)" % (
+                    sov_model.get("model_id"),
+                    gen.get("api_style") if _live else "honest UNAVAILABLE"),
                 "local": {k: gen.get(k) for k in
                           ("wired", "live", "api_style", "base_url", "model", "note", "raw")
                           if k in gen},
                 "doctrine": DOCTRINE,
+                "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
             }
             if _harness_fallback_note:
                 _sov_resp["harness_note"] = _harness_fallback_note
@@ -1075,26 +1225,42 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/sovereign/health")
     async def llm_sovereign_health() -> JSONResponse:
-        """Ping the sovereign local node (browser UA) and report live + model list.
+        """Ping the sovereign local node (browser UA) and report honest health.
 
-        `live` is True ONLY on a real 2xx JSON response THIS request — never
-        fabricated. When SZL_LOCAL_LLM_URL is unset, reports env_present=false and
-        an honest note. gpu.a-11-oy.com serves llama3.1:8b; gpu2 serves
-        glm-4.7-flash + qwen2.5:3b (per fleet ground truth).
+        Wave-M contract (DEV 1): returns the required compact block
+        {reachable, model, url, provider, label} — plus rich diagnostics.
+
+        `reachable` is True ONLY on a real 2xx JSON response THIS request — never
+        fabricated. When the Tower is offline / unreachable (e.g. from CI/cloud),
+        `reachable=false` and `label=UNAVAILABLE` (honest degradation, no fake).
         """
-        probe = sovereign_probe()
-        wired = bool(probe.get("env_present"))
+        base = _sovereign_base()
+        probe = sovereign_probe(base)
+        reachable = bool(probe.get("live"))
+        env_present = bool(probe.get("env_present"))
+        label = _LABEL_LIVE if reachable else _LABEL_UNAVAILABLE
         return JSONResponse({
+            # ── Wave-M required compact contract ──
+            # `model` = canonical sovereign model tag; `configured_model` (below)
+            # is the runtime-overridable ollama tag the node is asked to serve.
+            "reachable": reachable,
+            "model": _SOVEREIGN_MODEL_TAG,
+            "url": base,
+            "provider": _SOVEREIGN_PROVENANCE,
+            "label": label,
+            # ── rich diagnostics (additive, honest) ──
             "timestamp": _now(),
             "hub": "a11oy",
-            "model_id": "sovereign_local",
-            "model_slug": "llama3-szl-finetuned-q4",
+            "backend_id": _SOVEREIGN_BACKEND_ID,
+            "model_id": _SOVEREIGN_BACKEND_ID,
+            "legacy_alias": _SOVEREIGN_LEGACY_ID,
+            "model_slug": _SOVEREIGN_MODEL_TAG,
             "env_var": _SOVEREIGN_ENV,
-            "env_present": wired,
-            "wired": wired,               # env present => operator intends local routing
-            "live": bool(probe.get("live")),  # stronger THIS-request liveness
-            "honest_stub": not bool(probe.get("live")),
-            "base_url": probe.get("base_url"),
+            "env_present": env_present,
+            "wired": env_present,             # env present => operator intends local routing
+            "live": reachable,                # THIS-request liveness (== reachable)
+            "honest_stub": not reachable,
+            "base_url": base,
             "api_style": probe.get("api_style"),
             "served_models": probe.get("models", []),
             "configured_model": _sovereign_model_slug(),
@@ -1103,6 +1269,7 @@ def register(app: FastAPI) -> dict:
             "note": probe.get("note", ""),
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
+            "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
         })
 
     # ── GET /api/a11oy/v1/llm/router/status ───────────────────────────────────
@@ -1142,15 +1309,21 @@ def register(app: FastAPI) -> dict:
         base = _sovereign_base()
         if do_probe:
             sov = sovereign_probe(base)
+            _live = bool(sov.get("live"))
             local_node = {
+                "backend_id": _SOVEREIGN_BACKEND_ID,
                 "env_var": _SOVEREIGN_ENV, "base_url": base or None,
-                "env_present": bool(base), "live": bool(sov.get("live")),
+                "env_present": _sovereign_env_present(), "live": _live,
+                "reachable": _live,
+                "label": _LABEL_LIVE if _live else _LABEL_UNAVAILABLE,
                 "served_models": sov.get("models", []), "note": sov.get("note", ""),
             }
         else:
             local_node = {
+                "backend_id": _SOVEREIGN_BACKEND_ID,
                 "env_var": _SOVEREIGN_ENV, "base_url": base or None,
-                "env_present": bool(base), "live": None,
+                "env_present": _sovereign_env_present(), "live": None,
+                "reachable": None, "label": "UNPROBED",
                 "note": "pass ?probe=1 to ping the node for THIS-request liveness",
             }
 
