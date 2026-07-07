@@ -361,7 +361,7 @@ def _ii(req, key, default):
         return default
 
 
-def _h_fit(req):
+def _h_fit(req: Request):
     seed   = _ii(req, "seed", 42)
     hidden = max(1, min(_ii(req, "hidden", 3), 6))
     knots  = max(3, min(_ii(req, "knots", 7), 12))
