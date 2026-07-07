@@ -657,6 +657,23 @@ try:
 except Exception as _szl_fmv_e:  # pragma: no cover
     print(f"[a11oy] Frontier fmverif NOT registered: {_szl_fmv_e!r}", file=__import__("sys").stderr)
 
+# Model-Artifact Provenance (SLSA · in-toto · Rekor · C2PA) — GET /api/a11oy/v1/frontier/
+# supplychain returns the MODEL supply chain (weights → build → attestation → deploy) as a
+# governed, honestly-labeled surface: each stage names its provenance evidence (in-toto
+# Statement, SLSA provenance predicate, DSSE envelope + Rekor inclusion proof, C2PA manifest)
+# and its HONEST SLSA maturity — L1 honest / L2 attested / L3 roadmap, NEVER upgraded past
+# what is earned. Includes ONE real in-toto→DSSE(PAE)→Merkle-inclusion micro-artifact computed
+# in-process (MEASURED for that narrow claim only; HONEST-STUB on failure; the signature slot is
+# the honest UNSIGNED-LOCAL placeholder — never fabricated). Top label MODELED (NOT VERIFIED).
+# Adds NOTHING to the locked-8; Λ stays Conjecture 1; trust ceiling 0.97, never 100%. Additive,
+# try/except-guarded, same register() pattern, BEFORE the SPA catch-all.
+try:
+    import szl_frontier_supplychain as _szl_frontier_supplychain
+    _szl_frontier_supplychain.register(app, ns="a11oy")
+    print("[a11oy] Frontier supplychain registered: /api/a11oy/v1/frontier/supplychain (MODELED model-artifact provenance)", file=__import__("sys").stderr)
+except Exception as _szl_sc_e:  # pragma: no cover
+    print(f"[a11oy] Frontier supplychain NOT registered: {_szl_sc_e!r}", file=__import__("sys").stderr)
+
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
 # envelope binding every guarantee for a single governed action: the REAL immune verdict
