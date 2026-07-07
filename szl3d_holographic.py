@@ -111,6 +111,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "governedagent", "title": "Governed Agent Loop · plan→act→self-eval→gate→retry", "owner": "WaveJ-Dev5"},
     {"id": "governedrag", "title": "Governed RAG · Retrieval-with-Receipts", "owner": "WaveJ-Dev4"},
     {"id": "ecosystem", "title": "Harness · Ecosystem Status", "owner": "Wave30-Dev3"},
+    {"id": "brainquery", "title": "Brain Query · ask the graph (retrieval)", "owner": "Wave1-Frontier"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).

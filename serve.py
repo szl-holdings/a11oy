@@ -790,6 +790,23 @@ except Exception as _brain_graph_e:  # pragma: no cover
     print(f"[a11oy] Brain graph NOT registered: {_brain_graph_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- szl_brain_api QUERYABLE BRAIN (WAVE 1) -- turns the SAME honest brain graph into a
+# real server-side retrieval API: GET /api/a11oy/v1/brain/{search,neighbors,community,
+# subgraph,salience,ask,stats,index}. Reuses a11oy_brain_graph.get_brain_graph (invents
+# no nodes, harvests nothing, restates no counts). Embedded, zero external DB: NetworkX
+# PageRank/communities, numpy/sqlite-vec vectors, hash-embedding fallback (MODELED, never
+# MEASURED), HippoRAG-style PPR local + GraphRAG community global merged LightRAG-mix. /ask
+# returns a REAL grounding subgraph always; generated prose is UNAVAILABLE unless a sovereign
+# model is reachable — never fabricated. Pure read (0 sign-on-GET). Registered BEFORE the SPA
+# /{full_path:path} catch-all. Additive, try/except-guarded.
+try:
+    import szl_brain_api as _szl_brain_api
+    _brain_api_status = _szl_brain_api.register(app, ns="a11oy")
+    print(f"[a11oy] Brain API registered: {_brain_api_status}", file=__import__("sys").stderr)
+except Exception as _brain_api_e:  # pragma: no cover
+    print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- szl3d HOLOGRAPHIC ESTATE (Dev0 foundation) -- the vendored three.js r170 toolkit +
 # the /holographic shell hosting the 3D surfaces (frontier tier + the 9 estate surfaces),
 # each lazy-loading its per-surface module and lit by REAL a11oy endpoints with honesty
