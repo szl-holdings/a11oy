@@ -688,6 +688,23 @@ try:
 except Exception as _szl_attest_e:  # pragma: no cover
     print(f"[a11oy] Attestation surface NOT registered: {_szl_attest_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# ── WAVE-H TEAM 3: ATTESTED INFERENCE (deepening of Wave-A cc-attest). Endpoint
+# GET /api/a11oy/v1/attest/infer?seed&model → deterministic MODELED flow: device attestation
+# (reuses szl_tee_attest measured-boot chain) → Λ-gate (weighted geomean, Conjecture 1) →
+# gated inference → a signed receipt embedding the attestation quote digest + Λ axes + SLSA-style
+# provenance, verifiable-by-design. DSSE via szl_dsse: REAL ECDSA-P256 in-Space, honest
+# UNSIGNED-LOCAL locally. Label MODELED (no real TEE/GPU/NRAS/network). Leaders cited in the module:
+# NVIDIA H100/H200 CC+NRAS, AMD SEV-SNP, Intel TDX, in-toto/SLSA, Sigstore/Rekor, Confidential
+# Containers. Registered AFTER szl_attest_stack so our STATIC /attest/infer route front-inserts
+# ahead of the parametrized /attest/{receipt_hash} route (register() also scans+inserts directly
+# before it as a belt-and-suspenders). Additive, try/except-guarded. Nothing to locked-8.
+try:
+    import szl_attested_inference as _szl_attested_inference
+    _szl_ai_paths = _szl_attested_inference.register(app, ns="a11oy")
+    print(f"[a11oy] attested-inference registered: {_szl_ai_paths}", file=__import__("sys").stderr)
+except Exception as _szl_ai_e:  # pragma: no cover
+    print(f"[a11oy] attested-inference NOT registered: {_szl_ai_e!r}", file=__import__("sys").stderr)
+
 # Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
 # (topology + projection + governed-receipt overlay) against the two MODELED endpoints
 # above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
@@ -1519,6 +1536,18 @@ try:
     print("[a11oy] Loop Forge metrics registered: /api/a11oy/v1/loopforge/metrics-ext", file=__import__("sys").stderr)
 except Exception as _szl_loopforge_metrics_e:  # pragma: no cover
     print(f"[a11oy] Loop Forge metrics NOT registered: {_szl_loopforge_metrics_e!r}", file=__import__("sys").stderr)
+
+# ── WAVE-28 JPT (measured joules-per-token, ns=a11oy): the Brain's real energy sense.
+# Benchmarks MEASURED J/token per fleet node (meter-delta around real inference), emits
+# a HEART beat + BLOOD-signed receipt per measurement, persists a hash-chained ledger.
+# MEASURED only when a node meter+GPU respond live THIS run; else OFFLINE, never a
+# fabricated joule; monotonic-reset detected. Additive, pure-stdlib, guarded.
+try:
+    import szl_kc_jpt as _szl_kc_jpt
+    _szl_kc_jpt.register(app, ns="a11oy")
+    print("[a11oy] JPT registered: /api/a11oy/v1/jpt/{manifest,benchmark,nodes,ledger,summary}", file=__import__("sys").stderr)
+except Exception as _szl_jpt_e:  # pragma: no cover
+    print(f"[a11oy] JPT NOT registered: {_szl_jpt_e!r}", file=__import__("sys").stderr)
 
 # (harness-wire) — GOVERNED MODEL HARNESS: makes "run model X with behavior
 # profile Y" a first-class, governed, receipted operation. Behavior transfer is
