@@ -706,3 +706,28 @@ jobs:
         run: |
           pytest tests/test_durable_ledger.py -q
           python szl_durable_ledger.py
+
+  python-sovereign-backend:
+    name: Sovereign local backend — honest UNAVAILABLE when Tower down (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install test deps (szl_llm_registry boots via Starlette TestClient; no network)
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi starlette httpx pytest
+      - name: Guard the sovereign backend honest-UNAVAILABLE contract (Wave M, DEV 1)
+        # WAVE M DEV 1: `szl-sovereign-local` (model tag llama3-szl-finetuned-q4, Ollama,
+        # Doctrine-v11 system prompt) is the founder's OWN-METAL model on the Tower, served
+        # OpenAI-compatible at SZL_LOCAL_LLM_URL. The Tower is NOT reachable from CI/cloud, so
+        # the ONE thing that must never regress is honesty: when the endpoint is down, the
+        # backend degrades to an honest UNAVAILABLE (HTTP 200, reachable=False, NO fabricated
+        # model text) and NEVER raises. This test points SZL_LOCAL_LLM_URL at a dead localhost
+        # port and asserts /llm/sovereign/health, /llm/route, and the registry snapshot all
+        # report UNAVAILABLE without fabricating. Fully offline. Λ = Conjecture 1. Doctrine v11.
+        run: pytest tests/test_sovereign_backend.py -q
