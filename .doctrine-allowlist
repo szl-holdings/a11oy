@@ -344,3 +344,27 @@ brain/harvest/energy_defense.jsonl
 # Neither is COPY'd into the image; neither emits a token to any user surface.
 scripts/check_banned_tokens.py
 scripts/check_banned_tokens.test.sh
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-07-07, TRACK C / sovereign-model corpus).
+# The doctrine-preference (ORPO) fine-tune corpus + its builders. These files
+# legitimately enumerate banned marketing superlatives + fabricated-claim wording
+# for DETECTION / NEGATIVE-EXAMPLE purposes — the list (and each 'rejected'
+# string) IS the training signal that teaches the sovereign model to REFUSE
+# them. Same test-fixture / enumeration-for-detection rationale as
+# .github/test-fixtures/doctrine-grep/ and scripts/check_banned_tokens.py above.
+#   * training/build_orpo.py       — authors the 6 violation families; every
+#     'rejected' string is a doctrine-violating NEGATIVE example (banned
+#     superlatives, Λ-as-theorem, fabricated MEASURED/allodial/live claims).
+#   * training/szl_orpo.jsonl      — the emitted {prompt,chosen,rejected} pairs.
+#   * training/szl_orpo_eval.jsonl — the held-out refusal-to-fabricate eval split.
+#   * training/build_seed.py       — embeds the _BANNED tuple purely to DROP any
+#     candidate seed example carrying a banned token (self-guard); the emitted
+#     training/szl_seed.jsonl is CLEAN and stays fully scanned (not listed here).
+# None of these are imported by serve.py or COPY'd into the image; none emit a
+# banned token to any user-facing runtime surface. The 'chosen' side of every
+# pair is fully doctrine-compliant.
+training/build_orpo.py
+training/szl_orpo.jsonl
+training/szl_orpo_eval.jsonl
+training/build_seed.py
