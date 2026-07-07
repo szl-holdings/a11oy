@@ -640,6 +640,23 @@ try:
 except Exception as _szl_zk_e:  # pragma: no cover
     print(f"[a11oy] Frontier zkinfer NOT registered: {_szl_zk_e!r}", file=__import__("sys").stderr)
 
+# Proof-Carrying Inference ("Machine-Checkable Certificates") — GET /api/a11oy/v1/frontier/
+# fmverif returns the SZL SYNTHESIS of proof-carrying inference: a MODELED model of a governed
+# inference that ships with ONE machine-checkable certificate binding four guarantees — a formal
+# proof obligation (Lean/Coq PCC, Necula 1997 + ATL verified compiler PLDI'24 + Marabou 2.0
+# arXiv:2401.14461), a zk proof-of-inference (zkLLM arXiv:2404.16109), the signed receipt chain,
+# and a BFT quorum attestation — with a certificate-issuance cost model (every value citing its
+# arXiv ID/DOI) and ONE real assembly→bind→verify micro-artifact computed in-process (MEASURED
+# for that narrow claim only; HONEST-STUB on failure). Top label MODELED; the SZL synthesis is
+# CONJECTURE (never a theorem). Adds NOTHING to the locked-8; Λ stays Conjecture 1, BFT
+# Conjecture 2; trust ceiling 0.97, never 100%. Additive, try/except-guarded, before the SPA.
+try:
+    import szl_frontier_fmverif as _szl_frontier_fmverif
+    _szl_frontier_fmverif.register(app, ns="a11oy")
+    print("[a11oy] Frontier fmverif registered: /api/a11oy/v1/frontier/fmverif (MODELED proof-carrying inference; synthesis CONJECTURE)", file=__import__("sys").stderr)
+except Exception as _szl_fmv_e:  # pragma: no cover
+    print(f"[a11oy] Frontier fmverif NOT registered: {_szl_fmv_e!r}", file=__import__("sys").stderr)
+
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
 # envelope binding every guarantee for a single governed action: the REAL immune verdict
