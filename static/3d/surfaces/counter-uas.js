@@ -29,6 +29,8 @@
 //   /api/a11oy/v1/counter-uas/gates        13-axis Λ-gate spec
 //   /static/3d/surfaces/data/drones_db.json  53 verified drone fingerprints (vendored)
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "counter-uas";
 const TITLE = "Counter-UAS · killinchu";
 
@@ -56,7 +58,7 @@ const CLS = {
 };
 
 let _ctx = null, _stage = null, THREE = null;
-let _group = null, _globe = null, _handles = [], _frameOff = null, _overlay = null;
+let _group = null, _globe = null, _handles = [], _frameOff = null, _overlay = null, _show = null;
 let _disposables = [];
 
 // Live caches (honest: empty until a real fetch lands).
@@ -346,57 +348,48 @@ function buildDsseLock() {
 
 // ── overlay panels (the HUD reads live values + honest labels) ────────────────
 function buildOverlay() {
-  _overlay = document.createElement("div");
-  _overlay.className = "szl3d-surface-overlay";
-  Object.assign(_overlay.style, { position: "absolute", left: "14px", top: "14px", right: "14px",
-    zIndex: "5", display: "flex", justifyContent: "space-between", gap: "12px",
-    pointerEvents: "none", fontFamily: "ui-monospace,Menlo,monospace" });
+  const badge = _ctx.live.createBadge();
 
-  const left = document.createElement("div");
-  Object.assign(left.style, { display: "flex", flexDirection: "column", gap: "8px", maxWidth: "min(46%,360px)", pointerEvents: "auto" });
-  const right = document.createElement("div");
-  Object.assign(right.style, { display: "flex", flexDirection: "column", gap: "8px", maxWidth: "min(46%,360px)", alignItems: "flex-end", pointerEvents: "auto" });
+  // Shared collapsible showcase: title + badge + legend live in the compact chrome;
+  // the verdict / RID / posture / gates / fingerprint panels fold into the (collapsed)
+  // body so the 3D globe stays the star and text never spans the viewport.
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge, legend: true,
+  });
+
+  // panels flow (wrap) inside the body instead of a full-width two-column banner
+  _overlay = document.createElement("div");
+  Object.assign(_overlay.style, {
+    display: "flex", flexWrap: "wrap", gap: "8px",
+    fontFamily: "ui-monospace,Menlo,monospace",
+  });
 
   const card = (title) => {
     const c = document.createElement("div");
-    c.style.cssText = "background:rgba(8,14,20,.82);border:1px solid #1d2a36;border-radius:9px;padding:9px 11px;display:flex;flex-direction:column;gap:5px;backdrop-filter:blur(3px)";
+    c.style.cssText = "flex:1 1 220px;background:rgba(8,14,20,.82);border:1px solid #1d2a36;border-radius:9px;padding:9px 11px;display:flex;flex-direction:column;gap:5px";
     const h = document.createElement("div");
     h.style.cssText = "font:600 11px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.5px;text-transform:uppercase";
     h.textContent = title; c.appendChild(h);
     return c;
   };
 
-  const head = document.createElement("div");
-  head.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px";
-  head.textContent = TITLE;
-  left.appendChild(head);
-
-  const badge = _ctx.live.createBadge();
-  left.appendChild(badge.el);
-
   // D14: 13-axis Λ-gate verdict panel
   _verdictPanel = card("Λ-Gate Verdict · senses-and-evidences");
-  left.appendChild(_verdictPanel);
+  _overlay.appendChild(_verdictPanel);
 
   // D15: DSSE signature panel (real ECDSA-P256)
   _fpPanel = null;
   _ridPanel = card("Remote-ID / RID Validator");
-  left.appendChild(_ridPanel);
+  _overlay.appendChild(_ridPanel);
 
-  // right column
   _posturePanel = card("JIATF-401 posture");
-  right.appendChild(_posturePanel);
+  _overlay.appendChild(_posturePanel);
   _gatesPanel = card("13-Axis Λ-Gates");
-  right.appendChild(_gatesPanel);
+  _overlay.appendChild(_gatesPanel);
   _fingerprintCallout = card("Fingerprint match · 53-DB");
-  right.appendChild(_fingerprintCallout);
+  _overlay.appendChild(_fingerprintCallout);
 
-  const legend = _ctx.label.legend();
-  legend.style.opacity = "0.85"; legend.style.pointerEvents = "none";
-  left.appendChild(legend);
-
-  _overlay.appendChild(left); _overlay.appendChild(right);
-  (_ctx.container || document.body).appendChild(_overlay);
+  _show.body.appendChild(_overlay);
   return badge;
 }
 
@@ -583,9 +576,10 @@ function unmount() {
   _frameOff = null;
   for (const d of _disposables) { try { d(); } catch (_) {} }
   _disposables = [];
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try { if (_group && _stage) _stage.scene.remove(_group); } catch (_) {}
-  _overlay = null; _group = null; _globe = null; _trackGroup = null;
+  _overlay = _show = null; _group = null; _globe = null; _trackGroup = null;
   _verdictBeam = null; _dsseLock = null; _stage = null; THREE = null; _ctx = null;
   _state = { evaluate: null, telemetry: null, cued: null, airpicture: null, gates: null, db: null, meta: {}, dbCount: 0 };
 }
