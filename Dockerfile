@@ -1289,6 +1289,23 @@ COPY harness_profiles/ ./harness_profiles/
 COPY szl_agent_loop_governed.py ./szl_agent_loop_governed.py
 COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 
+# GOVERNED RAG · retrieval-with-receipts (Wave J · Dev 4, 2026-07-07):
+# szl_governed_rag.py registers POST /api/a11oy/v1/rag/query (+ /rag/corpus, /rag/health)
+# and exposes an importable query() core. Deterministic HYBRID retrieval (dense hashing-
+# embedding cosine + BM25-lite, fused via reciprocal-rank fusion) → ColBERT-style MaxSim
+# rerank → per-claim citation-grounded answer → RAGAS-style faithfulness/context-precision
+# → Λ-gate (Λ = Conjecture 1, advisory, never green) → an ECDSA-P256 DSSE SIGNED receipt
+# (szl.rag_query.receipt/v1) recording WHICH passages grounded WHICH claims, ingested to
+# /llm/forum. Reuses the already-COPY'd szl_llm_registry (Λ-gate + forum) + szl_dsse
+# (signer). MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or serve.py's
+# guarded import falls back and the /rag/* endpoints 404 (merged-but-not-live). The
+# governedrag.js surface ships via the existing `COPY static/3d/ ./static/3d/`. Additive;
+# extractive answer is honest with no model key (abstractive rewrite is MODELED). Λ =
+# Conjecture 1. Real DSSE in-Space, honest UNSIGNED-LOCAL locally. Leaders cited in-module:
+# DPR arXiv:2004.04906 · BM25/RRF · ColBERT arXiv:2004.12832 · Cohere Rerank · GraphRAG
+# (Microsoft) · Anthropic contextual retrieval · ALCE arXiv:2305.14627 · RAGAS arXiv:2309.15217.
+COPY szl_governed_rag.py ./szl_governed_rag.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets

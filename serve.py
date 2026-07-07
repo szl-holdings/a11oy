@@ -1600,6 +1600,25 @@ try:
 except Exception as _szl_model_harness_e:  # pragma: no cover
     print(f"[a11oy] Model harness NOT registered: {_szl_model_harness_e!r}", file=__import__("sys").stderr)
 
+# (governed-rag-wire, Wave J · Dev 4) — GOVERNED RAG / retrieval-with-receipts: the
+# differentiator is that EVERY retrieved answer ships a SIGNED receipt proving which
+# source passages grounded which claims. Deterministic HYBRID retrieval (dense hashing-
+# embedding cosine + BM25-lite, fused via reciprocal-rank fusion) → ColBERT-style MaxSim
+# rerank → per-claim citation-grounded (extractive, honest with no model key) answer →
+# RAGAS-style faithfulness/context-precision → Λ-gate (Λ = Conjecture 1, gray, never
+# green) → an ECDSA-P256 DSSE SIGNED receipt (szl.rag_query.receipt/v1), ingested to
+# /llm/forum. Reuses szl_llm_registry (Λ-gate + forum) + szl_dsse (signer). Registered
+# BEFORE the Node proxy + SPA catch-all so /api/... stays JSON. Abstractive rewrite is
+# MODELED (no fabricated model call); adds NOTHING to the locked-8. Leaders cited in
+# code + response: DPR, BM25/RRF, ColBERT, Cohere Rerank, GraphRAG, Anthropic contextual
+# retrieval, ALCE citation-grounded generation, and RAGAS.
+try:
+    import szl_governed_rag as _szl_governed_rag
+    _szl_governed_rag.register(app, ns="a11oy")
+    print("[a11oy] Governed RAG registered: /api/a11oy/v1/rag/{query,corpus,health}", file=__import__("sys").stderr)
+except Exception as _szl_governed_rag_e:  # pragma: no cover
+    print(f"[a11oy] Governed RAG NOT registered: {_szl_governed_rag_e!r}", file=__import__("sys").stderr)
+
 # ── GOVERNED EVAL / RED-TEAM ARENA (evalarena, Wave H, Team 2). szl_eval_arena.py
 # serves POST /api/a11oy/v1/eval/run (+ /eval/suites, /eval/suites/{id}, /eval/health):
 # a deterministic honest eval suite (correctness + refusal/safety + honesty-label
