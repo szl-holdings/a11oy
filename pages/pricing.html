@@ -1,41 +1,304 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>a11oy · Pricing — commercial tiers</title>
-<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v12 additive · Signed: Yachay · Co-author: Perplexity Computer Agent -->
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+     feat/investor-mode-pricing: honest commercial tiers. On-brand KANCHAY, one nav,
+     mobile-friendly. No prices are invented — undecided prices say "Contact us".
+     No internal leaks (no build/mirror/IP internals). Doctrine v11 LOCKED. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>a11oy — Pricing</title>
+<meta name="description" content="a11oy pricing: three honest tiers — Developer, Team, and Enterprise (air-gapped). Governed inference that signs its work and refuses to lie. Talk to us for a quote."/>
+<link rel="canonical" href="https://a-11-oy.com/pricing"/>
 <style>
-:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
-header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
-header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
-header .tag{color:var(--mut);font-size:12px}
-nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
-nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
-nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
-nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
-main{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
-h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:18px;margin:28px 0 10px;color:var(--gold)}
-.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:16px 0}
-.grid a.tile{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink)}
-.grid a.tile:hover{border-color:var(--gold);text-decoration:none}
-.grid a.tile .t{color:var(--gold);font-weight:600;margin-bottom:4px}.grid a.tile .d{color:var(--mut);font-size:12.5px}
-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
-.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}
-.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
-footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
-.kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
-</style></head><body>
-<header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
-<nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing" class="active">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
-<main><h1>Pricing — commercial tiers</h1><p class="sub">Honor-system metering: quotas are metered and reconciled against Khipu receipts, not enforced by a hard mid-request paywall. We count out loud.</p>
-<table><tr><th>Tier</th><th>Who</th><th>Billing</th><th>Notes</th></tr><tr><td><b>Demo</b></td><td>Greene-network / academic / hackathon (invite or verified domain)</td><td>Free</td><td>Sandbox keys, no real fleet data</td></tr><tr><td><b>Builder</b></td><td>Individual devs / small teams</td><td>Stripe self-serve</td><td>Soft quota; soft 402 advisory at limit, 429 only at 10× hard ceiling</td></tr><tr><td><b>Professional</b></td><td>Companies in production</td><td>Stripe self-serve, flat $/mo</td><td>Higher quota, priority routing</td></tr><tr><td><b>Enterprise</b></td><td>Large orgs</td><td>Contract + invoice (no card)</td><td>SSO, BoE export, SLA conversation</td></tr><tr><td><b>DoD / Gov</b></td><td>.mil / .gov</td><td>Contract / IDIQ</td><td>UDS Core deploy path; gated on the compliance roadmap</td></tr></table><div class="note">Self-serve billing + key management lives in the customer portal (a separate application). This page explains the commercial tiers and links to it.</div>
+/* KANCHAY palette — one palette org-wide. 0 runtime CDN: named font families
+   degrade to the system stack, no @import to any font host. Purple is banned. */
+:root{
+  --bg:#0a0a0a; --panel:#111317; --panel-2:#15181d; --hairline:#1f2630;
+  --gold:#c9b787; --gold-dim:#a89868; --teal:#5fb3a3; --red:#e0564f;
+  --muted:#8a93a0; --text:#e7e9ec; --text-soft:#b9bfc8; --ghost:#6b727c;
+  --display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono","Fira Code",ui-monospace,SFMono-Regular,monospace;
+  --maxw:1120px; --radius:14px; --radius-sm:9px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--display);font-size:16px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  background-image:radial-gradient(1100px 620px at 74% -10%,rgba(95,179,163,.09),transparent 60%),
+    radial-gradient(820px 480px at 6% 2%,rgba(201,183,135,.06),transparent 55%);}
+a{color:var(--gold);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+/* ── ONE nav / topbar ─────────────────────────────────────────────── */
+header.top{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--hairline);
+  background:rgba(10,10,10,.74);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+header.top .wrap{display:flex;align-items:center;gap:16px;height:62px}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--display);font-weight:600;
+  font-size:17px;letter-spacing:-.01em;color:var(--text)}
+.brand:hover{text-decoration:none}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(201,183,135,.14)}
+.brand small{color:var(--muted);font-weight:400;font-size:13px}
+.nav{display:flex;align-items:center;gap:24px;margin-left:8px}
+.nav a{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.nav a:hover{color:var(--text);text-decoration:none}
+.nav a.active{color:var(--gold)}
+.top .spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
+  letter-spacing:.05em;text-transform:uppercase;font-weight:500;padding:11px 18px;border-radius:var(--radius-sm);
+  border:1px solid var(--hairline);color:var(--text);background:var(--panel-2)}
+.btn:hover{border-color:var(--gold-dim);text-decoration:none}
+.btn.primary{background:var(--gold);color:#0a0a0a;border-color:var(--gold);font-weight:600}
+.btn.primary:hover{background:#d8c79b;border-color:#d8c79b}
+@media (max-width:720px){.nav{display:none}}
+
+/* ── hero ─────────────────────────────────────────────────────────── */
+.hero{padding:56px 0 8px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:14px}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.06;letter-spacing:-.02em;margin-bottom:14px}
+.hero p{color:var(--text-soft);font-size:clamp(15px,1.6vw,18px);max-width:62ch;line-height:1.5}
+.tag{display:inline-block;margin-top:18px;font-family:var(--mono);font-size:12.5px;color:var(--teal);
+  border:1px solid rgba(95,179,163,.35);background:rgba(95,179,163,.08);border-radius:8px;padding:8px 14px}
+
+/* ── tier cards ───────────────────────────────────────────────────── */
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:40px 0 12px}
+@media (max-width:900px){.tiers{grid-template-columns:1fr}}
+.tier{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);
+  padding:26px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
+.tier.feature{border-color:rgba(201,183,135,.5);box-shadow:0 24px 60px -30px rgba(201,183,135,.35)}
+.tier .flag{position:absolute;top:-11px;left:24px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:#0a0a0a;background:var(--gold);border-radius:999px;padding:4px 11px;font-weight:700}
+.tier .name{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.01em}
+.tier .for{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:-8px}
+.tier .price{font-family:var(--display);font-weight:600;font-size:30px;letter-spacing:-.01em;color:var(--text)}
+.tier .price small{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:400;margin-top:6px;text-transform:none}
+.tier ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:2px}
+.tier li{font-size:14px;color:var(--text-soft);line-height:1.45;padding-left:24px;position:relative}
+.tier li::before{content:"";position:absolute;left:2px;top:7px;width:9px;height:9px;border-radius:50%;
+  background:rgba(95,179,163,.18);box-shadow:inset 0 0 0 2px var(--teal)}
+.tier .cta{margin-top:auto}
+.tier .cta .btn{width:100%;justify-content:center}
+
+/* ── comparison (responsive: table on desktop, stacked cards on phones) ── */
+.compare{margin:44px 0 8px}
+.compare h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:-.01em;margin-bottom:6px}
+.compare .sub{color:var(--muted);font-size:13.5px;margin-bottom:18px}
+.tablecard{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--hairline);vertical-align:top}
+thead th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--panel-2)}
+tbody th{font-weight:600;color:var(--text);font-family:var(--display)}
+td{color:var(--text-soft)}
+.yes{color:var(--teal);font-weight:600} .no{color:var(--ghost)} .partial{color:var(--gold-dim)}
+/* Phone: turn the wide table into stacked, labelled rows — never overflows. */
+@media (max-width:720px){
+  table,thead,tbody,th,td,tr{display:block}
+  thead{position:absolute;left:-9999px}
+  tbody th{background:var(--panel-2);border-top:1px solid var(--hairline);font-size:15px;padding:12px 16px 10px}
+  td{border:none;padding:8px 16px;display:flex;justify-content:space-between;gap:16px;align-items:baseline}
+  td::before{content:attr(data-label);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);flex:0 0 auto}
+  tr{border-bottom:1px solid var(--hairline)}
+  tr:last-child td:last-child{padding-bottom:14px}
+}
+
+/* ── honesty note + FAQ ───────────────────────────────────────────── */
+.note{border-left:3px solid var(--gold);background:rgba(201,183,135,.06);color:var(--text-soft);
+  font-size:14px;padding:14px 18px;border-radius:0 10px 10px 0;margin:34px 0 0;line-height:1.6}
+.faq{margin:40px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.faq{grid-template-columns:1fr}}
+.faq .q{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);padding:18px 20px}
+.faq .q h3{font-family:var(--display);font-size:15.5px;font-weight:600;margin-bottom:6px}
+.faq .q p{font-size:13.5px;color:var(--muted);line-height:1.55}
+.close{margin:44px 0;padding:28px;background:var(--panel);border:1px solid rgba(201,183,135,.4);border-radius:var(--radius);
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px}
+.close .t{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.01em}
+.close .s{color:var(--muted);font-size:14px;margin-top:4px}
+footer{border-top:1px solid var(--hairline);color:var(--muted);font-size:12px;padding:22px 0 40px;line-height:1.7}
+footer .wrap{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center}
+footer a{color:var(--muted)} footer a:hover{color:var(--text)}
+</style>
+</head>
+<body>
+
+<!-- ONE nav — same shape as the landing/console topbar -->
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/landing"><span class="dot"></span>a11oy <small>/ SZL Holdings</small></a>
+    <nav class="nav" aria-label="Primary">
+      <a href="/landing">Home</a>
+      <a href="/pricing" class="active">Pricing</a>
+      <a href="/docs">Docs</a>
+      <a href="/trust">Trust</a>
+      <a href="/verify">Verify</a>
+    </nav>
+    <span class="spacer"></span>
+    <a class="btn primary" href="mailto:hello@a-11-oy.com?subject=a11oy%20pricing">Talk to us</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <p class="eyebrow">Pricing</p>
+    <h1>Governed inference,<br>priced honestly.</h1>
+    <p>a11oy is AI that signs its work and refuses to lie — every decision ships a signed receipt you
+      can verify yourself. Three tiers below. Where we have not fixed a public price yet, we say
+      "Contact us" instead of inventing one.</p>
+    <span class="tag">AI that signs its work and refuses to lie.</span>
+  </section>
+
+  <!-- Tier cards (naturally responsive; stack on phones) -->
+  <section class="tiers wrap">
+    <div class="tier">
+      <div class="name">Developer</div>
+      <div class="for">Individuals &amp; evaluation</div>
+      <div class="price">Free<small>Self-serve · open-weight models</small></div>
+      <ul>
+        <li>Signed receipts on every decision, verifiable in your browser</li>
+        <li>Governed inference API + the operator console</li>
+        <li>Deny-by-default policy gate</li>
+        <li>Community support</li>
+        <li>For evaluation and non-production use</li>
+      </ul>
+      <div class="cta"><a class="btn" href="/docs">Read the docs</a></div>
+    </div>
+
+    <div class="tier feature">
+      <div class="flag">Most teams start here</div>
+      <div class="name">Team</div>
+      <div class="for">Companies in production</div>
+      <div class="price">Contact us<small>Usage-based · billed by agreement</small></div>
+      <ul>
+        <li>Everything in Developer</li>
+        <li>Higher throughput &amp; priority routing</li>
+        <li>Energy-metered receipts (joules per token)</li>
+        <li>SSO &amp; team roles</li>
+        <li>Audit export &amp; retained receipt trail</li>
+        <li>Business-hours support</li>
+      </ul>
+      <div class="cta"><a class="btn primary" href="mailto:hello@a-11-oy.com?subject=a11oy%20Team%20plan">Get a quote</a></div>
+    </div>
+
+    <div class="tier">
+      <div class="name">Enterprise — air-gapped</div>
+      <div class="for">Regulated, defense &amp; on-prem</div>
+      <div class="price">Contact us<small>Annual contract · deployed on your hardware</small></div>
+      <ul>
+        <li>Everything in Team</li>
+        <li>Air-gapped / on-prem deployment, zero outside dependency</li>
+        <li>Your keys, your signing root</li>
+        <li>Compliance &amp; procurement support</li>
+        <li>Named engineer &amp; response SLA</li>
+      </ul>
+      <div class="cta"><a class="btn" href="mailto:hello@a-11-oy.com?subject=a11oy%20Enterprise%20air-gapped">Talk to sales</a></div>
+    </div>
+  </section>
+
+  <!-- Comparison — responsive table (stacks on phones, never overflows) -->
+  <section class="compare wrap">
+    <h2>What's in each tier</h2>
+    <p class="sub">Same governed core across all three. Higher tiers add scale, control and support.</p>
+    <div class="tablecard">
+      <table>
+        <thead>
+          <tr><th scope="col">Capability</th><th scope="col">Developer</th><th scope="col">Team</th><th scope="col">Enterprise (air-gapped)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Signed, verifiable receipts</th>
+            <td data-label="Developer" class="yes">Yes</td>
+            <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Deny-by-default policy gate</th>
+            <td data-label="Developer" class="yes">Yes</td>
+            <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Energy-metered receipts</th>
+            <td data-label="Developer" class="partial">When metered</td>
+            <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">SSO &amp; team roles</th>
+            <td data-label="Developer" class="no">—</td>
+            <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Audit export</th>
+            <td data-label="Developer" class="no">—</td>
+            <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Air-gapped / on-prem</th>
+            <td data-label="Developer" class="no">—</td>
+            <td data-label="Team" class="partial">On request</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Your own signing keys</th>
+            <td data-label="Developer" class="no">—</td>
+            <td data-label="Team" class="partial">On request</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Support</th>
+            <td data-label="Developer">Community</td>
+            <td data-label="Team">Business hours</td>
+            <td data-label="Enterprise">Named engineer + SLA</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>Honest note on billing.</b> Quotas are metered against the same signed receipts you can verify —
+      we count out loud rather than enforcing a hidden mid-request paywall. Public per-seat and usage
+      prices for Team and Enterprise are not finalized, so those tiers say "Contact us" — we will not
+      invent a number. Developer is free for evaluation and non-production use.
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq wrap">
+    <div class="q"><h3>Do I have to trust your numbers?</h3><p>No. Every decision ships a signed receipt
+      you can re-verify yourself, in your own browser, at <a href="/verify">/verify</a>.</p></div>
+    <div class="q"><h3>Can it run fully offline?</h3><p>Yes — the Enterprise tier deploys air-gapped on
+      your own hardware with no runtime dependency on outside services. Open-weight models only.</p></div>
+    <div class="q"><h3>What is "proven"?</h3><p>Eight core formulas (the locked-8) are proven in Lean 4
+      and re-checked on every build. The Λ trust score is <b>Conjecture 1</b> — advisory, never a gate,
+      never shown as "green".</p></div>
+    <div class="q"><h3>What if the model isn't sure?</h3><p>It refuses rather than guesses. Trust is
+      capped and never claimed at 100%; below the confidence bar the system abstains and says why.</p></div>
+  </section>
+
+  <div class="wrap">
+    <div class="close">
+      <div>
+        <div class="t">Not sure which tier fits?</div>
+        <div class="s">Tell us your workload and deployment constraints — we'll size it with you.</div>
+      </div>
+      <a class="btn primary" href="mailto:hello@a-11-oy.com?subject=a11oy%20pricing%20question">Talk to us →</a>
+    </div>
+  </div>
 </main>
-<footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
-</body></html>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 SZL Holdings</span>
+    <a href="/landing">Home</a>
+    <a href="/trust">Trust center</a>
+    <a href="/verify">Verify a receipt</a>
+    <a href="/docs">Docs</a>
+    <a href="https://a-11-oy.com">a-11-oy.com</a>
+  </div>
+</footer>
+
+</body>
+</html>
