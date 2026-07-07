@@ -43,6 +43,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "flowmatch";
 const TITLE = "Rectified Flow · Flow-Matching ODE Sampler (live)";
 
@@ -61,9 +63,8 @@ const C_GRID    = 0x1b3a44;  // floor / link colour
 // path layout geometry
 const PATH_SCALE = 1.6;   // world-units per unit of raw x/y/z coordinate
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _pathLine  = null;    // THREE.Line — Euler-integrated trajectory
@@ -275,110 +276,39 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "flow-matching", name: "fm" }],
+    legend: ["MODELED"],
+    description:
+      'A <b>rectified-flow ODE sampler</b>: integrate dx/dt = v(x,t) = x1 \u2212 x0 (a ' +
+      '<b>straight-line velocity field</b>) from noise x0 to a target x1 with Euler steps. ' +
+      'Honesty label <b>MODELED</b> (analytic toy case; NOT a trained flow/diffusion model; ' +
+      'never claimed as FLUX or SD3). 0 runtime CDN.',
+    citations:
+      "Lipman et al. arXiv:2210.02747 (Flow Matching) \u00b7 Liu et al. arXiv:2209.03003 (Rectified Flow) \u00b7 FLUX github.com/black-forest-labs/flux (cited only). MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["fm-dims"]     = _show.addField("dims");
+  _el["fm-steps"]    = _show.addField("steps (Euler)");
+  _el["fm-err"]      = _show.addField("final_error \u2014 MODELED");
+  _el["fm-straight"] = _show.addField("straightness_score");
+  _el["fm-conv"]     = _show.addField("steps_to_converge");
+  _el["fm-few"]      = _show.addField("few-step error");
+  _el["fm-many"]     = _show.addField("many-step error");
+  _el["fm-label"]    = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A <b>rectified-flow ODE sampler</b>: integrate dx/dt = v(x,t) = x1 \u2212 x0 (a ' +
-    '<b>straight-line velocity field</b>) from noise x0 to a target x1 with Euler steps. ' +
-    'Honesty label <b>MODELED</b> (analytic toy case; NOT a trained flow/diffusion model; ' +
-    'never claimed as FLUX or SD3). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#5b8dee;box-shadow:0 0 7px #5b8dee";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#5b8dee;letter-spacing:.3px";
-  nm.textContent = "flow-matching";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("fm-dims",   "dims"));
-  grid.appendChild(kpiRow("fm-steps",  "steps (Euler)"));
-  grid.appendChild(kpiRow("fm-err",    "final_error \u2014 MODELED"));
-  grid.appendChild(kpiRow("fm-straight","straightness_score"));
-  grid.appendChild(kpiRow("fm-conv",   "steps_to_converge"));
-  grid.appendChild(kpiRow("fm-few",    "few-step error"));
-  grid.appendChild(kpiRow("fm-many",   "many-step error"));
-  grid.appendChild(kpiRow("fm-label",  "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Lipman et al. arXiv:2210.02747 (Flow Matching) \u00b7 Liu et al. arXiv:2209.03003 (Rectified Flow) \u00b7 FLUX github.com/black-forest-labs/flux (cited only). MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "fm-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const steps = S.steps != null ? String(S.steps) : "loading\u2026";
   const few   = S.fewSteps != null ? String(S.fewSteps) : "1";
   const many  = S.manySteps != null ? String(S.manySteps) : "128";
   const str   = S.straightness != null ? (S.straightness * 100).toFixed(2) + "%" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Older generative-AI samplers (like standard diffusion) need " +
     "<i>many small steps</i> to trace a curved path from random noise to a real output. " +
     "<b>Rectified flow</b> instead learns (or here, defines) a <b>straight-line path</b> " +
@@ -387,7 +317,7 @@ function _applyPlain() {
     "with barely any extra benefit. The path here is <b>" + str + " straight</b>. This is " +
     "the same core idea behind fast production image generators like FLUX. This view is a " +
     "<b>MODELED</b> analytic toy case (not a trained model, not FLUX itself), used at " +
-    "steps=" + steps + " to show the effect live.";
+    "steps=" + steps + " to show the effect live.");
 }
 
 function _tok(s) {
@@ -414,7 +344,7 @@ function _paintOverlay() {
   _set("fm-many",     t || (S.manySteps != null ? `${sci(S.manyError, 2)} (n=${S.manySteps})` : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("fm-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("fm", S.label || "MODELED", { text: "flow-matching" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -422,7 +352,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -435,9 +365,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _pathLine = null; _pathDots = []; _x0Marker = null; _x1Marker = null; _converge = null; _floor = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.dims = S.steps = S.x0 = S.x1 = S.trajectory = null;
   S.finalError = S.straightness = S.stepsToConverge = null;

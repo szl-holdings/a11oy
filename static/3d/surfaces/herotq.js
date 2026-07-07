@@ -51,6 +51,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "herotq";
 const TITLE = "HeRo-Q Hessian-Conditioned Quantization";
 
@@ -76,9 +78,8 @@ const W_DX      = 0.22;   // world-units per weight coordinate
 const W_YSC     = 2.2;    // world-units per unit weight value
 const BAR_W     = 0.7;    // metric bar width
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -371,25 +372,13 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'HeRo-Q (\u201cHessian Robust Quantization\u201d) fixes the <b>\u201clow error, high loss\u201d</b> paradox in ' +
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "hessian-conditioned quant", name: "hl" }],
+    legend: ["MEASURED", "MODELED"],
+    description:
+      'HeRo-Q (\u201cHessian Robust Quantization\u201d) fixes the <b>\u201clow error, high loss\u201d</b> paradox in ' +
     'low-bit quantization: naive rounding minimizes weight ERROR, but the loss actually depends on the ' +
     '<b>Hessian</b> \u2014 a few <b>high-curvature directions</b> (large eigenvalues) are extremely ' +
     'perturbation-sensitive. HeRo-Q applies a <b>rotation-compression</b> transform in the Hessian ' +
@@ -397,94 +386,35 @@ function _buildOverlay() {
     '<b>reduces the largest Hessian eigenvalue</b> before quantizing. Panels: Hessian spectrum ' +
     '(before vs after), weight reconstruction (raw / naive / HeRo-Q), metric bars (quant MSE & ' +
     'curvature-weighted loss ½\u00b7\u0394w\u1d40H\u0394w). Honesty label <b>MODELED</b> (deterministic mechanism ' +
-    'reproduction on a toy matrix; quantizes nothing real). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "hero-q hessian-conditioned quantization";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("hq-size",  "weight / Hessian size"));
-  grid.appendChild(kpiRow("hq-bits",  "quantization bits (levels)"));
-  grid.appendChild(kpiRow("hq-eigb",  "max Hessian \u03bb \u2014 BEFORE"));
-  grid.appendChild(kpiRow("hq-eiga",  "max Hessian \u03bb \u2014 AFTER"));
-  grid.appendChild(kpiRow("hq-eigr",  "eigenvalue reduction"));
-  grid.appendChild(kpiRow("hq-cond",  "condition \u03ba (before \u2192 after)"));
-  grid.appendChild(kpiRow("hq-msen",  "quant MSE \u2014 naive"));
-  grid.appendChild(kpiRow("hq-mseh",  "quant MSE \u2014 HeRo-Q"));
-  grid.appendChild(kpiRow("hq-lossn", "loss-proxy \u00bd\u0394w\u1d40H\u0394w \u2014 naive"));
-  grid.appendChild(kpiRow("hq-lossh", "loss-proxy \u00bd\u0394w\u1d40H\u0394w \u2014 HeRo-Q"));
-  grid.appendChild(kpiRow("hq-lossr", "loss reduction"));
-  grid.appendChild(kpiRow("hq-para",  "\u201clow error, high loss\u201d (naive)"));
-  grid.appendChild(kpiRow("hq-label", "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "HeRo-Q \u2014 Zhang, Jinhao et al. \u201cHeRo-Q: A General Framework for Stable Low Bit Quantization via Hessian Conditioning\u201d arXiv:2601.21626. MODELED \u00b7 Hessian-conditioning demo on a toy matrix, not a trained model. Does NOT reproduce the GSM8K/Llama3-8B numbers.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
+    'reproduction on a toy matrix; quantizes nothing real). 0 runtime CDN.',
+    citations:
+      "HeRo-Q \u2014 Zhang, Jinhao et al. \u201cHeRo-Q: A General Framework for Stable Low Bit Quantization via Hessian Conditioning\u201d arXiv:2601.21626. MODELED \u00b7 Hessian-conditioning demo on a toy matrix, not a trained model. Does NOT reproduce the GSM8K/Llama3-8B numbers.",
+    plain: { html: _plainHtml },
   });
-  _overlay.appendChild(pl);
 
-  const pd = document.createElement("div");
-  pd.id = "hq-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  _el["hq-size"]  = _show.addField("weight / Hessian size");
+  _el["hq-bits"]  = _show.addField("quantization bits (levels)");
+  _el["hq-eigb"]  = _show.addField("max Hessian \u03bb \u2014 BEFORE");
+  _el["hq-eiga"]  = _show.addField("max Hessian \u03bb \u2014 AFTER");
+  _el["hq-eigr"]  = _show.addField("eigenvalue reduction");
+  _el["hq-cond"]  = _show.addField("condition \u03ba (before \u2192 after)");
+  _el["hq-msen"]  = _show.addField("quant MSE \u2014 naive");
+  _el["hq-mseh"]  = _show.addField("quant MSE \u2014 HeRo-Q");
+  _el["hq-lossn"] = _show.addField("loss-proxy \u00bd\u0394w\u1d40H\u0394w \u2014 naive");
+  _el["hq-lossh"] = _show.addField("loss-proxy \u00bd\u0394w\u1d40H\u0394w \u2014 HeRo-Q");
+  _el["hq-lossr"] = _show.addField("loss reduction");
+  _el["hq-para"]  = _show.addField("\u201clow error, high loss\u201d (naive)");
+  _el["hq-label"] = _show.addField("honesty label");
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const eb  = S.maxBefore != null ? S.maxBefore.toFixed(1) : "loading\u2026";
   const ea  = S.maxAfter  != null ? S.maxAfter.toFixed(2)  : "loading\u2026";
   const er  = S.eigRed    != null ? S.eigRed.toFixed(1) + "\u00d7" : "loading\u2026";
   const lr  = S.lossRed   != null ? S.lossRed.toFixed(1) + "\u00d7" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> To make a big model small and fast, we store its numbers with very few " +
     "bits \u2014 like rounding prices to the nearest dollar. Plain rounding keeps the <b>numbers</b> close, " +
     "but the model can still get much <b>worse</b>, because a few \u201cstiff\u201d directions matter far more " +
@@ -497,7 +427,7 @@ function _applyPlain() {
     "<b>MODELED</b> deterministic reproduction of that turn-and-rescale MECHANISM on a small synthetic " +
     "matrix \u2014 it <b>quantizes no real model</b> and runs no benchmark. The paper\u2019s headline " +
     "\u201c70.15% GSM8K on Llama3-8B at 3-bit\u201d is a <b>claim about a real model</b> the estate does not " +
-    "independently verify.";
+    "independently verify.");
 }
 
 function _tok(s) {
@@ -527,7 +457,7 @@ function _paintOverlay() {
   _set("hq-para",  t || (S.paradox != null ? (S.paradox ? "PRESENT \u2192 fixed" : "\u2014") : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("hq-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "hessian-conditioned quant" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -535,7 +465,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -548,12 +478,12 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null;
   _specGroup = null; _specBefore = []; _specAfter = [];
   _wGroup = null;
   _barGroup = null; _barMseN = _barMseH = _barLossN = _barLossH = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.size = S.bits = S.levels = null;
   S.eigs = null;

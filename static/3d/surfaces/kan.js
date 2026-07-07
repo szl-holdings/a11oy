@@ -36,6 +36,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Lambda stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "kan";
 const TITLE = "Kolmogorov-Arnold Network · Per-Edge Splines (live)";
 
@@ -57,9 +59,8 @@ const NODE_GAP    = 1.6;   // world-units between nodes within a layer (Y)
 const MAX_HIDDEN  = 8;     // pre-allocated hidden-node capacity (perf cap)
 const CURVE_SEGS  = 23;    // spline sample segments per edge (matches server's 24 samples)
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 let _markerBaseScale = 1.0;
 
 // geometry handles
@@ -326,109 +327,38 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "kolmogorov-arnold network", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'A <b>Kolmogorov-Arnold Network</b> puts a learnable curve (spline) on every ' +
+      '<b>edge</b> instead of a single scalar weight; nodes just sum their inputs. ' +
+      'Fitted here on the toy task <code>f(x,y)=exp(sin(\u03c0x)+y\u00b2)</code>, each curved ' +
+      'line below is one edge\u2019s own learned shape. Honesty label <b>MODELED</b> ' +
+      '(small from-scratch fit; NOT pykan). 0 runtime CDN.',
+    citations:
+      "Liu et al. 2024 arXiv:2404.19756 (KAN) \u00b7 pykan github.com/KindXiaoming/pykan (reference only). MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["kan-formula"]   = _show.addField("target f(x,y)");
+  _el["kan-params"]    = _show.addField("KAN params \u2014 MODELED");
+  _el["kan-mse"]       = _show.addField("KAN final MSE");
+  _el["kan-mlpparams"] = _show.addField("MLP-baseline params");
+  _el["kan-mlpmse"]    = _show.addField("MLP-baseline final MSE");
+  _el["kan-fewer"]     = _show.addField("KAN fewer params?");
+  _el["kan-label"]     = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A <b>Kolmogorov-Arnold Network</b> puts a learnable curve (spline) on every ' +
-    '<b>edge</b> instead of a single scalar weight; nodes just sum their inputs. ' +
-    'Fitted here on the toy task <code>f(x,y)=exp(sin(\u03c0x)+y\u00b2)</code>, each curved ' +
-    'line below is one edge\u2019s own learned shape. Honesty label <b>MODELED</b> ' +
-    '(small from-scratch fit; NOT pykan). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "kolmogorov-arnold network";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("kan-formula",  "target f(x,y)"));
-  grid.appendChild(kpiRow("kan-params",   "KAN params \u2014 MODELED"));
-  grid.appendChild(kpiRow("kan-mse",      "KAN final MSE"));
-  grid.appendChild(kpiRow("kan-mlpparams","MLP-baseline params"));
-  grid.appendChild(kpiRow("kan-mlpmse",   "MLP-baseline final MSE"));
-  grid.appendChild(kpiRow("kan-fewer",    "KAN fewer params?"));
-  grid.appendChild(kpiRow("kan-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Liu et al. 2024 arXiv:2404.19756 (KAN) \u00b7 pykan github.com/KindXiaoming/pykan (reference only). MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "kan-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const kp = S.kanParams != null ? String(S.kanParams) : "loading\u2026";
   const mp = S.mlpParams != null ? String(S.mlpParams) : "loading\u2026";
   const km = S.kanMse != null ? S.kanMse.toFixed(4) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Most neural networks learn a number (a \u201cweight\u201d) for " +
     "each connection. A Kolmogorov-Arnold Network instead learns a whole <b>curve</b> for " +
     "each connection \u2014 you can see the exact shape of every one of those curves above. " +
@@ -437,7 +367,7 @@ function _applyPlain() {
     "match accuracy with fewer connections at larger scale. Here it has <b>" + kp + "</b> " +
     "learned numbers vs a same-size ordinary network's <b>" + mp + "</b>, reaching a fit " +
     "error of <b>" + km + "</b> on the toy formula shown. This view is a small, from-scratch, " +
-    "<b>MODELED</b> demonstration \u2014 not the original pykan library or a large-scale KAN.";
+    "<b>MODELED</b> demonstration \u2014 not the original pykan library or a large-scale KAN.");
 }
 
 function _tok(s) {
@@ -461,7 +391,7 @@ function _paintOverlay() {
   _set("kan-fewer",     t || (S.fewerParams === true ? "yes" : S.fewerParams === false ? "no" : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("kan-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "kolmogorov-arnold network" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -469,7 +399,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -482,10 +412,10 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _inputNodes = []; _hiddenNodes = []; _outputNode = null;
   _edgeCurves1 = []; _edgeCurves2 = []; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false; _markerBaseScale = 1.0;
+  _el = {}; _badge = null; _frameReg = false; _markerBaseScale = 1.0;
   _stage = _THREE = _ctx = null;
   S.label = S.formula = S.kanParams = S.kanMse = S.kanLoss = null;
   S.mlpParams = S.mlpMse = S.fewerParams = S.edgeShapes = S.distilled = null;

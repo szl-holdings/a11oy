@@ -42,6 +42,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "grpo";
 const TITLE = "GRPO Reward Dynamics · Group-Relative Advantage (live)";
 
@@ -71,9 +73,8 @@ const MAX_STEPS   = 14;    // number of recent steps rendered along the axis
 const MAX_SAMPLES = 16;    // cap on group_size rendered per step (perf)
 const ADV_SCALE   = 1.6;   // world-units of height per unit of |advantage|
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -332,112 +333,41 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "reward dynamics", name: "hl" }],
+    legend: ["MODELED", "SAMPLE"],
+    description:
+      'GRPO samples a <b>group</b> of completions per step and normalizes each reward against ' +
+      'the group\'s own mean/std \u2014 <b>no critic network</b> needed. The policy is updated via a ' +
+      'PPO-clip surrogate (\u03b5=0.2) on that group-relative advantage, plus a KL penalty vs a fixed ' +
+      'reference policy. Honesty label <b>MODELED</b> (deterministic group-advantage + PPO-clip + KL ' +
+      'arithmetic; NOT a trained policy). 0 runtime CDN.',
+    citations:
+      "Shao et al. (DeepSeekMath GRPO) arXiv:2402.03300 \u00b7 DeepSeek-R1 arXiv:2501.12948. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["gr-groupsize"] = _show.addField("group_size (G samples/step)");
+  _el["gr-steps"]     = _show.addField("steps simulated");
+  _el["gr-klbeta"]    = _show.addField("kl_beta (KL-penalty coeff.)");
+  _el["gr-clipeps"]   = _show.addField("clip_eps (PPO-clip \u03b5)");
+  _el["gr-reward"]    = _show.addField("mean_reward \u2014 MODELED");
+  _el["gr-adv"]       = _show.addField("mean_advantage \u2014 MODELED");
+  _el["gr-kl"]        = _show.addField("kl_divergence (k3) \u2014 MODELED");
+  _el["gr-clipfrac"]  = _show.addField("clip_fraction \u2014 MODELED");
+  _el["gr-score"]     = _show.addField("final_policy_score \u2014 MODELED");
+  _el["gr-label"]     = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'GRPO samples a <b>group</b> of completions per step and normalizes each reward against ' +
-    'the group\'s own mean/std \u2014 <b>no critic network</b> needed. The policy is updated via a ' +
-    'PPO-clip surrogate (\u03b5=0.2) on that group-relative advantage, plus a KL penalty vs a fixed ' +
-    'reference policy. Honesty label <b>MODELED</b> (deterministic group-advantage + PPO-clip + KL ' +
-    'arithmetic; NOT a trained policy). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "GRPO reward dynamics";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("gr-groupsize", "group_size (G samples/step)"));
-  grid.appendChild(kpiRow("gr-steps",     "steps simulated"));
-  grid.appendChild(kpiRow("gr-klbeta",    "kl_beta (KL-penalty coeff.)"));
-  grid.appendChild(kpiRow("gr-clipeps",   "clip_eps (PPO-clip \u03b5)"));
-  grid.appendChild(kpiRow("gr-reward",    "mean_reward \u2014 MODELED"));
-  grid.appendChild(kpiRow("gr-adv",       "mean_advantage \u2014 MODELED"));
-  grid.appendChild(kpiRow("gr-kl",        "kl_divergence (k3) \u2014 MODELED"));
-  grid.appendChild(kpiRow("gr-clipfrac",  "clip_fraction \u2014 MODELED"));
-  grid.appendChild(kpiRow("gr-score",     "final_policy_score \u2014 MODELED"));
-  grid.appendChild(kpiRow("gr-label",     "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Shao et al. (DeepSeekMath GRPO) arXiv:2402.03300 \u00b7 DeepSeek-R1 arXiv:2501.12948. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "gr-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const g       = S.groupSize   != null ? String(S.groupSize) : "loading\u2026";
   const reward  = S.meanReward  != null ? (S.meanReward * 100).toFixed(1) + "%" : "loading\u2026";
   const score   = S.policyScore != null ? (S.policyScore * 100).toFixed(1) + "%" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Instead of training a second, separate \u201ccritic\u201d network to judge how " +
     "good an answer is (as classic PPO does), GRPO just generates <b>" + g + " candidate answers</b> to the " +
     "same question and compares them <i>to each other</i> \u2014 the group's own average becomes the yardstick. " +
@@ -446,7 +376,7 @@ function _applyPlain() {
     "from where it started. Over simulated training, the average reward per group reaches about <b>" + reward + "</b> " +
     "and a convergence proxy (<b>policy_score</b>) climbs to about <b>" + score + "</b>. This view is a <b>MODELED</b> " +
     "closed-form simulation of the group-advantage/PPO-clip/KL arithmetic from the DeepSeekMath paper, not a run of " +
-    "DeepSeek-R1 or DeepSeekMath training.";
+    "DeepSeek-R1 or DeepSeekMath training.");
 }
 
 function _tok(s) {
@@ -474,7 +404,7 @@ function _paintOverlay() {
   _set("gr-score",     t || pct(S.policyScore, 2));
   // honesty label verbatim — never upgraded
   _set("gr-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "reward dynamics" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -482,7 +412,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -495,9 +425,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _plane = null; _spine = null; _sampleMesh = []; _tethers = []; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.groupSize = S.steps = S.klBeta = S.clipEps = null;
   S.meanReward = S.meanAdv = S.klDiv = S.clipFrac = S.policyScore = null;

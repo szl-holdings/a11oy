@@ -45,6 +45,8 @@
 //
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "governance";
 const TITLE = "AI Governance · Assurance";
 
@@ -79,6 +81,7 @@ let _handles = [];                // poll handles to stop on unmount
 let _overlay = null, _graphPanel = null, _graph = null, _hud = {};
 let _frameCb = null, _fgScript = null;
 let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
+let _show = null;                     // shared collapsible showcase chrome
 const _state = {};                // last meta per endpoint (for HUD)
 
 // ---------------------------------------------------------------------------
@@ -535,14 +538,19 @@ function _updateSbomFromArtifact(json) {
 // OVERLAY HUD — badges per route + legend + teaching callout + SBOM panel
 // ===========================================================================
 function _buildOverlay(ctx) {
-  _overlay = el("div", "position:absolute;left:14px;top:14px;z-index:5;display:flex;flex-direction:column;gap:9px;max-width:min(94%,440px);pointer-events:none");
+  // Shared collapsible showcase chrome FIRST: compact title bar + honesty legend live in
+  // the always-visible chrome; the per-route badges + posture/gate/honest readouts + the
+  // teaching callout fold into the (collapsed) body so the 3D estate stays the star.
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    legend: ["MEASURED", "MODELED", "HEURISTIC", "STRUCTURAL-ONLY"],
+    description:
+      "modeled on GUAC v1.0 · Sigstore/Rekor · SCITT — knowledge graph + Merkle hash-chain + crosswalk",
+  });
 
-  const head = el("div", "font:600 14px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px", TITLE);
-  _overlay.appendChild(head);
-
-  const sub = el("div", "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5",
-    "modeled on GUAC v1.0 · Sigstore/Rekor · SCITT — knowledge graph + Merkle hash-chain + crosswalk");
-  _overlay.appendChild(sub);
+  // rows fold into the showcase body as a PLAIN static container (no absolute chrome,
+  // no own title, no standalone legend — the showcase provides those).
+  _overlay = el("div", "display:flex;flex-direction:column;gap:9px");
 
   // per-route live badges: LIVE routes first (drive the tab), then the PENDING ones.
   const badgeWrap = el("div", "display:flex;flex-direction:column;gap:5px;pointer-events:auto");
@@ -575,10 +583,6 @@ function _buildOverlay(ctx) {
 
   _hud.honest = el("div", "font:10px ui-monospace,Menlo,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto", "build: awaiting /honest…");
   _overlay.appendChild(_hud.honest);
-
-  // honesty legend (doctrine chips)
-  const legend = _label.legend(); legend.style.opacity = "0.9"; legend.style.pointerEvents = "auto";
-  _overlay.appendChild(legend);
 
   // teaching callout (doctrine): signature ≠ safety
   const teach = el("div",
@@ -619,8 +623,10 @@ function _buildOverlay(ctx) {
   _hud.sbom = el("div", "position:absolute;left:8px;bottom:6px;z-index:2;font:9.5px ui-monospace,monospace;color:#7d8a96", "STRUCTURAL-ONLY · awaiting /assurance/artifact");
   _graphPanel.appendChild(gh); _graphPanel.appendChild(_hud.sbom);
 
+  // fold the rows into the collapsible showcase body; the SBOM graph panel keeps its own
+  // absolute placement (it hosts the vendored ForceGraph3D canvas, which owns its GL context).
+  _show.body.appendChild(_overlay);
   const host = ctx.container || document.body;
-  host.appendChild(_overlay);
   host.appendChild(_graphPanel);
 }
 
@@ -862,14 +868,17 @@ function _refreshStatus() {
 function unmount() {
   _handles.forEach((h) => { try { h.stop && h.stop(); } catch (_) {} });
   _handles = [];
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_frameCb && _stage && _stage.offFrame) _stage.offFrame(_frameCb); } catch (_) {}
   _frameCb = null;
   try { if (_graph && _graph._destructor) _graph._destructor(); } catch (_) {}
   _graph = null;
   try { if (_root && _stage) { disposeObj(_root); _stage.scene.remove(_root); } } catch (_) {}
   _root = null;
-  [_overlay, _graphPanel].forEach((n) => { try { if (n && n.parentNode) n.parentNode.removeChild(n); } catch (_) {} });
-  _overlay = null; _graphPanel = null; _hud = {}; _plain = false; _plainEl = null;
+  // _overlay now lives inside the showcase (removed by _show.destroy()); only the SBOM
+  // graph panel is a standalone positioned node.
+  try { if (_graphPanel && _graphPanel.parentNode) _graphPanel.parentNode.removeChild(_graphPanel); } catch (_) {}
+  _show = null; _overlay = null; _graphPanel = null; _hud = {}; _plain = false; _plainEl = null;
   _stage = null; _THREE = null; _label = null; _live = null;
   for (const k in _state) delete _state[k];
 }
