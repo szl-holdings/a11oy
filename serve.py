@@ -1323,7 +1323,13 @@ except Exception as _szl_cuas_proxy_e:  # pragma: no cover
 # adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Shared
 # module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
 try:
-    import szl_scaling as _szl_scaling
+    # Wave-S repoint: prefer the shared package (single source of truth); fall
+    # back to the local vendored copy so nothing breaks if szl_substrate is not
+    # installed. See szl-holdings/szl-substrate MIGRATION.md.
+    try:
+        from szl_substrate import szl_scaling as _szl_scaling  # single source of truth
+    except Exception:
+        import szl_scaling as _szl_scaling  # fall back to local vendored copy
     _szl_scaling.register(app, ns="a11oy")
     print("[a11oy] Scaling formulas registered: /api/a11oy/v1/scaling/*", file=__import__("sys").stderr)
 except Exception as _szl_scaling_e:  # pragma: no cover
@@ -1336,7 +1342,11 @@ except Exception as _szl_scaling_e:  # pragma: no cover
 # locked 8; Λ stays Conjecture 1; trust never 100%. Shared module byte-identical
 # a11oy↔killinchu. Additive, try/except-guarded.
 try:
-    import szl_allodial as _szl_allodial
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_allodial as _szl_allodial  # single source of truth
+    except Exception:
+        import szl_allodial as _szl_allodial  # fall back to local vendored copy
     _szl_allodial.register(app, ns="a11oy")
     print("[a11oy] Allodial formulas registered: /api/a11oy/v1/allodial/*", file=__import__("sys").stderr)
 except Exception as _szl_allodial_e:  # pragma: no cover
@@ -1356,7 +1366,11 @@ except Exception as _szl_allodial_e:  # pragma: no cover
 # summary(). Pure stdlib. Shared module byte-identical a11oy↔killinchu. Additive,
 # try/except-guarded.
 try:
-    import szl_entanglement as _szl_entanglement
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_entanglement as _szl_entanglement  # single source of truth
+    except Exception:
+        import szl_entanglement as _szl_entanglement  # fall back to local vendored copy
     _szl_entanglement.register(app, ns="a11oy")
     print("[a11oy] Entanglement formulas registered: /api/a11oy/v1/entangle/*", file=__import__("sys").stderr)
 except Exception as _szl_entanglement_e:  # pragma: no cover
@@ -1375,7 +1389,11 @@ except Exception as _szl_entanglement_e:  # pragma: no cover
 # NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Pure stdlib. Shared
 # module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
 try:
-    import szl_neuroplasticity as _szl_neuroplasticity
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_neuroplasticity as _szl_neuroplasticity  # single source of truth
+    except Exception:
+        import szl_neuroplasticity as _szl_neuroplasticity  # fall back to local vendored copy
     _szl_neuroplasticity.register(app, ns="a11oy")
     print("[a11oy] Neuroplasticity formulas registered: /api/a11oy/v1/neuro/*", file=__import__("sys").stderr)
 except Exception as _szl_neuroplasticity_e:  # pragma: no cover
@@ -1416,7 +1434,11 @@ except Exception as _szl_neuromorphic_e:  # pragma: no cover
 # never 100%. Pure stdlib. Shared module byte-identical a11oy<->killinchu. Additive,
 # try/except-guarded.
 try:
-    import szl_chain_of_title as _szl_chain_of_title
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_chain_of_title as _szl_chain_of_title  # single source of truth
+    except Exception:
+        import szl_chain_of_title as _szl_chain_of_title  # fall back to local vendored copy
     _szl_chain_of_title.register(app, ns="a11oy")
     print("[a11oy] Chain-of-Title (L6) registered: /api/a11oy/v1/chain/*", file=__import__("sys").stderr)
 except Exception as _szl_chain_of_title_e:  # pragma: no cover
@@ -1443,7 +1465,11 @@ except Exception as _szl_bn_e:  # pragma: no cover
 # theorem; every item stays OPEN until independently verified; Conjecture 1
 # (Λ uniqueness) is and remains OPEN. Additive, try/except-guarded. Pure stdlib.
 try:
-    import szl_conjecture_factory as _szl_conjecture_factory
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_conjecture_factory as _szl_conjecture_factory  # single source of truth
+    except Exception:
+        import szl_conjecture_factory as _szl_conjecture_factory  # fall back to local vendored copy
     _szl_conjecture_factory.register(app, ns="a11oy")
     print("[a11oy] Conjecture Factory registered: /api/a11oy/v1/conjecture-factory", file=__import__("sys").stderr)
 except Exception as _szl_cf_e:  # pragma: no cover
@@ -2511,7 +2537,11 @@ except Exception as _anat_e:  # additive: never break the Space
 # Doctrine v11: locked EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17; Lambda = Conjecture 1 (< 1.0).
 # ---------------------------------------------------------------------------
 try:
-    import szl_ecosystem_routes as _szl_ecosystem
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_ecosystem_routes as _szl_ecosystem  # single source of truth
+    except Exception:
+        import szl_ecosystem_routes as _szl_ecosystem  # fall back to local vendored copy
     _eco_paths = _szl_ecosystem.register(app, ns="a11oy")
     print(f"[a11oy] ecosystem foundation wired ({_eco_paths}): /ecosystem /estate-organism /api/a11oy/v1/ecosystem/*", file=sys.stderr)
 except Exception as _eco_e:  # additive: never break the Space
@@ -2648,7 +2678,13 @@ except Exception as _alf_e:  # additive: never break the Space
 # fails and these routes fall through to the SPA.
 # ---------------------------------------------------------------------------
 try:
-    import szl_connectors_serve as _szl_connectors
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    # NOTE: szl_connectors_serve has an unguarded module-level `import szl_connectors`,
+    # so it is NOT eager-imported by szl_substrate; import the submodule directly.
+    try:
+        from szl_substrate import szl_connectors_serve as _szl_connectors  # single source of truth
+    except Exception:
+        import szl_connectors_serve as _szl_connectors  # fall back to local vendored copy
     _szl_connectors_status = _szl_connectors.register(app, ns="a11oy")
     print(f"[a11oy] Enterprise Connector mesh registered: {_szl_connectors_status}", file=sys.stderr)
 except Exception as _scx_e:  # additive: never break the Space
@@ -10930,7 +10966,11 @@ except Exception as _op_e:
 # 0 runtime browser CDN (this is a server-side fetch, not a browser CDN load).
 # ============================================================================
 try:
-    import a11oy_hf_assets as _a11oy_hf_assets
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import a11oy_hf_assets as _a11oy_hf_assets  # single source of truth
+    except Exception:
+        import a11oy_hf_assets as _a11oy_hf_assets  # fall back to local vendored copy
     import sys as _hfa_sys
     _hfa_status = _a11oy_hf_assets.register(app, ns="a11oy")
     print(f"[a11oy] dev3 HF assets instill registered: {_hfa_status}", file=_hfa_sys.stderr)
@@ -11265,7 +11305,11 @@ except Exception as _rev_e:  # pragma: no cover
 # can NEVER take the Space down. Shared module byte-identical a11oy<->killinchu.
 # ============================================================================
 try:
-    import szl_metrics_prom as _szl_prom
+    # Wave-S repoint: prefer the shared package; fall back to local vendored copy.
+    try:
+        from szl_substrate import szl_metrics_prom as _szl_prom  # single source of truth
+    except Exception:
+        import szl_metrics_prom as _szl_prom  # fall back to local vendored copy
     import sys as _prom_sys
     _prom_status = _szl_prom.register(app, ns="a11oy")
     print(f"[a11oy] szl_metrics_prom: {_prom_status}", file=_prom_sys.stderr)
