@@ -585,6 +585,25 @@ try:
 except Exception as _szl_ep_e:  # pragma: no cover
     print(f"[a11oy] Energy projection NOT registered: {_szl_ep_e!r}", file=__import__("sys").stderr)
 
+# -- BRAIN ENERGY (Wave O Dev 2 — the Brain HARNESSES + DISTRIBUTES energy) ----------
+# Route /api/a11oy/v1/brain/energy makes the Brain the ecosystem's POWER SOURCE: it
+# reads the energy stack (szl_energy_live/measured NVML joules + operator J/token
+# coefficient) and DISTRIBUTES an honest per-organ energy budget (cheapest-watt /
+# tokens-per-joule aware) with gCO2/token when the meter is up, all signed. NEVER
+# fabricates joules — MEASURED from a live meter, MODELED from a REAL coefficient, else
+# UNAVAILABLE (null). Λ=Conjecture 1; nothing to locked-8. Additive, try/except-guarded,
+# registered BEFORE the SPA catch-all (register() front-inserts its route at position 0).
+# szl_brain_energy MUST be per-file COPY'd in the Dockerfile (this Dockerfile uses no
+# `COPY . .`) — its transitive imports (szl_energy_live/measured/operator, szl_cheapest_watt,
+# a11oy_brain_graph, szl_demo_sign) are ALL already in the COPY set. Feeds Dev-1's
+# /brain/pulse via shared field names; stands alone until #brain-hub merges.
+try:
+    import szl_brain_energy as _szl_brain_energy
+    _szl_be_status = _szl_brain_energy.register(app, ns="a11oy")
+    print(f"[a11oy] Brain energy registered: {_szl_be_status}", file=__import__("sys").stderr)
+except Exception as _szl_be_e2:  # pragma: no cover
+    print(f"[a11oy] Brain energy NOT registered: {_szl_be_e2!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- ORBITAL TIER (MODELED roadmap — no on-orbit hardware) --------------------------
 # Routes /api/a11oy/v1/orbital/topology and /api/a11oy/v1/orbital/projection are the
 # MODELED orbital-compute roadmap surface. SZL has NO satellites: every node is

@@ -702,6 +702,13 @@ COPY a11oy_brain_graph.py ./
 # GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
 # falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
 COPY szl_brain_api.py ./szl_brain_api.py
+# BRAIN ENERGY (Wave O Dev 2) — imported by serve.py (guarded); MUST be per-file COPY'd
+# (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/brain/energy falls through to
+# the SPA HTML shell. The Brain HARNESSES + DISTRIBUTES energy: reads the energy stack
+# (szl_energy_live/measured/operator, szl_cheapest_watt — all already COPY'd above) and
+# a11oy_brain_graph (COPY'd above) for organ weights, signs with szl_demo_sign (COPY'd
+# below). ALL transitive imports are in the COPY set (transitive guard satisfied).
+COPY szl_brain_energy.py ./szl_brain_energy.py
 # HARVESTED FIELD LEADERS (2026-07-07) — real research graph JSONL (papers/repos/labs/
 # people/datasets/benchmarks/standards/axes, each with a verified url). a11oy_brain_graph
 # reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
