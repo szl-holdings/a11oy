@@ -47,6 +47,8 @@
 // 0 RUNTIME CDN. Vendored three.js r170 via page importmap.
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "genie";
 const TITLE = "Genie · Generative Latent-Action World (live)";
 
@@ -66,9 +68,8 @@ const MAX_GRID = 16;   // visual cap on grid_size (endpoint clamps grid<=64; we 
 const CELL     = 0.62; // world-unit spacing between generated cells
 const STEP_MS  = 650;  // ms between generated-rollout steps (one latent action applied per tick)
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _cells = [];       // Array<THREE.Mesh> — one per generated grid cell (row-major)
@@ -285,106 +286,35 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "genie", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'A small <b>latent-action codebook</b> is clustered from state deltas, then applied ' +
+      'step-by-step to <b>GENERATE</b> a brand-new grid-world \u2014 the grid you see evolving ' +
+      'below \u2014 rather than predicting a pre-recorded path. Honesty label <b>MODELED</b> ' +
+      '(a toy simulation of the Genie-style computation shape \u2014 no trained dynamics model, ' +
+      'no video tokenizer, no borrowed weights). 0 runtime CDN.',
+    citations:
+      "Bruce, Segar, Mnih et al. arXiv:2402.15391 (Genie) \u00b7 deepmind.google Genie 2 blog \u00b7 deepmind.google Genie 3 blog. MODELED \u00b7 not claimed-as \u00b7 not claimed at parity.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["gn-grid"]  = _show.addField("grid_size \u00d7 n_latent_actions");
+  _el["gn-step"]  = _show.addField("step (action code applied)");
+  _el["gn-seq"]   = _show.addField("action-code sequence");
+  _el["gn-coh"]   = _show.addField("coherence score \u2014 MODELED");
+  _el["gn-label"] = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A small <b>latent-action codebook</b> is clustered from state deltas, then applied ' +
-    'step-by-step to <b>GENERATE</b> a brand-new grid-world \u2014 the grid you see evolving ' +
-    'below \u2014 rather than predicting a pre-recorded path. Honesty label <b>MODELED</b> ' +
-    '(a toy simulation of the Genie-style computation shape \u2014 no trained dynamics model, ' +
-    'no video tokenizer, no borrowed weights). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#5b8dee;box-shadow:0 0 7px #5b8dee";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#5b8dee;letter-spacing:.3px";
-  nm.textContent = "genie";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("gn-grid",   "grid_size \u00d7 n_latent_actions"));
-  grid.appendChild(kpiRow("gn-step",   "step (action code applied)"));
-  grid.appendChild(kpiRow("gn-seq",    "action-code sequence"));
-  grid.appendChild(kpiRow("gn-coh",    "coherence score \u2014 MODELED"));
-  grid.appendChild(kpiRow("gn-label",  "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Bruce, Segar, Mnih et al. arXiv:2402.15391 (Genie) \u00b7 deepmind.google Genie 2 blog \u00b7 deepmind.google Genie 3 blog. MODELED \u00b7 not claimed-as \u00b7 not claimed at parity.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "gn-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const coh = S.coherence != null ? (S.coherence * 100).toFixed(1) + "%" : "loading\u2026";
   const na  = S.nActions != null ? String(S.nActions) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Instead of just watching and predicting a pre-recorded clip, " +
     "this organ <b>generates a brand-new interactive world</b> one step at a time \u2014 each " +
     "step conditioned on one of <b>" + na + "</b> discrete \u201clatent actions\u201d, the same " +
@@ -394,7 +324,7 @@ function _applyPlain() {
     "step-to-step. " +
     "Plain: this is the shape of computation behind a playable AI-generated world \u2014 but " +
     "this view is a <b>MODELED</b> toy simulation of the technique, not a readout from any " +
-    "trained Genie model or real video.";
+    "trained Genie model or real video.");
 }
 
 function _tok(s) {
@@ -418,7 +348,7 @@ function _paintOverlay(latestDelta) {
   _set("gn-coh",   t || fx(S.coherence, 4));
   // honesty label verbatim — never upgraded
   _set("gn-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "genie" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -427,7 +357,7 @@ function _paintOverlay(latestDelta) {
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
   if (_stepTimer) { clearInterval(_stepTimer); _stepTimer = null; }
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -440,9 +370,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _cells = []; _halo = null; _floor = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.gridSize = S.nActions = S.horizon = null;
   S.actionCodes = S.codebook = S.states = S.coherence = null;

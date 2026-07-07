@@ -53,6 +53,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "inplacettt";
 const TITLE = "In-Place Test-Time Training · W_down as Fast Weights (live)";
 
@@ -78,9 +80,8 @@ const MAX_CURVE   = 96;     // cap on loss-curve points rendered (== payload cap
 const CURVE_SPAN  = 12.0;   // world-units the loss ribbons span along X
 const CURVE_Y     = 4.2;    // baseline height of the loss ribbons
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -383,114 +384,43 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "in-place test-time training", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'Test-time adaptation with <b>no new module</b>: a stock MLP block\u2019s existing ' +
+      '<b>down-projection W_down</b> is re-purposed as <b>fast weights</b> (updated at inference), ' +
+      'while <b>W_up / W_gate stay frozen</b>. The update target is built by a <b>strictly-causal</b> ' +
+      '1-D convolution over past tokens (no future leakage), and one gradient step runs <b>per chunk</b>. ' +
+      'The <b>adapting</b> run\u2019s next-token loss <b>falls</b>; the <b>frozen-W_down control</b> stays <b>flat</b>. ' +
+      'Honesty label <b>MODELED</b> (inspired-not-real toy simulation; NOT the ByteDance model). 0 runtime CDN.',
+    citations:
+      "Feng et al. 2026 (ByteDance Seed + Peking Univ) \u00b7 In-Place Test-Time Training \u00b7 arXiv:2604.06169 (ICLR 2026 Oral) \u00b7 github.com/ByteDance-Seed/In-Place-TTT. MODELED \u00b7 inspired-not-real \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["ip-fast"]    = _show.addField("fast weights (mutated)");
+  _el["ip-frozen"]  = _show.addField("frozen slow weights");
+  _el["ip-chunks"]  = _show.addField("chunks \u00d7 chunk_size");
+  _el["ip-lr"]      = _show.addField("learning_rate (per chunk)");
+  _el["ip-causal"]  = _show.addField("causal guard (no future leak)");
+  _el["ip-adapt"]   = _show.addField("adapt loss (start \u2192 end) \u2014 MODELED");
+  _el["ip-frozenl"] = _show.addField("frozen-control loss (flat)");
+  _el["ip-improve"] = _show.addField("improvement (adapting advantage)");
+  _el["ip-delta"]   = _show.addField("W_down movement (L1)");
+  _el["ip-label"]   = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Test-time adaptation with <b>no new module</b>: a stock MLP block\u2019s existing ' +
-    '<b>down-projection W_down</b> is re-purposed as <b>fast weights</b> (updated at inference), ' +
-    'while <b>W_up / W_gate stay frozen</b>. The update target is built by a <b>strictly-causal</b> ' +
-    '1-D convolution over past tokens (no future leakage), and one gradient step runs <b>per chunk</b>. ' +
-    'The <b>adapting</b> run\u2019s next-token loss <b>falls</b>; the <b>frozen-W_down control</b> stays <b>flat</b>. ' +
-    'Honesty label <b>MODELED</b> (inspired-not-real toy simulation; NOT the ByteDance model). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "in-place test-time training";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("ip-fast",   "fast weights (mutated)"));
-  grid.appendChild(kpiRow("ip-frozen", "frozen slow weights"));
-  grid.appendChild(kpiRow("ip-chunks", "chunks \u00d7 chunk_size"));
-  grid.appendChild(kpiRow("ip-lr",     "learning_rate (per chunk)"));
-  grid.appendChild(kpiRow("ip-causal", "causal guard (no future leak)"));
-  grid.appendChild(kpiRow("ip-adapt",  "adapt loss (start \u2192 end) \u2014 MODELED"));
-  grid.appendChild(kpiRow("ip-frozenl","frozen-control loss (flat)"));
-  grid.appendChild(kpiRow("ip-improve","improvement (adapting advantage)"));
-  grid.appendChild(kpiRow("ip-delta",  "W_down movement (L1)"));
-  grid.appendChild(kpiRow("ip-label",  "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Feng et al. 2026 (ByteDance Seed + Peking Univ) \u00b7 In-Place Test-Time Training \u00b7 arXiv:2604.06169 (ICLR 2026 Oral) \u00b7 github.com/ByteDance-Seed/In-Place-TTT. MODELED \u00b7 inspired-not-real \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "ip-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const chunks = S.numChunks   != null ? String(S.numChunks) : "loading\u2026";
   const aS = S.adaptStart != null ? S.adaptStart.toFixed(4) : "loading\u2026";
   const aE = S.adaptEnd   != null ? S.adaptEnd.toFixed(4)   : "loading\u2026";
   const fE = S.frozenEnd  != null ? S.frozenEnd.toFixed(4)  : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Normally an AI model\u2019s weights are <b>frozen</b> once training ends \u2014 " +
     "it can\u2019t learn anything new while it answers you. In-Place Test-Time Training lets the model " +
     "keep learning <i>as it reads</i>, <b>without bolting on any new part</b>: it quietly re-uses one " +
@@ -504,7 +434,7 @@ function _applyPlain() {
     "ByteDance model</b> and does <b>NOT</b> reproduce the paper\u2019s 128k-context or 4B-parameter results; " +
     "the loss drop is a qualitative demonstration on a controlled stream, not a benchmark claim. " +
     "(Different from <b>titans</b>, which adds a whole new memory module, and from <b>testtime</b>, which " +
-    "just spends more compute without changing any weights \u2014 here an existing weight actually moves.)";
+    "just spends more compute without changing any weights \u2014 here an existing weight actually moves.)");
 }
 
 function _tok(s) {
@@ -535,7 +465,7 @@ function _paintOverlay() {
   _set("ip-delta",  t || fx(S.deltaNorm, 3));
   // honesty label verbatim — never upgraded
   _set("ip-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "in-place test-time training" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -543,7 +473,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -556,10 +486,10 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _lattice = []; _upBar = null; _gateBar = null;
   _adaptLine = null; _frozenLine = null; _core = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.dModel = S.dFf = S.vocab = null;
   S.chunkSize = S.numChunks = S.learningRate = null;

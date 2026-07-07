@@ -44,6 +44,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "goat";
 const TITLE = "GOAT · Optimal-Transport Attention (live)";
 
@@ -68,9 +70,8 @@ const BAR_MAXH   = 4.2;    // max bar height for weight = 1.0
 const CONV_LEN   = 6.0;    // world-length of the convergence trace along X
 const MAX_CONV   = 40;     // cap on residual points rendered
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor       = null;
@@ -344,110 +345,39 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,460px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "optimal-transport attention", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'Plain <b>softmax</b> attention (left, lattice-blue) dumps runaway mass onto one token \u2014 the ' +
+      '<b>attention sink</b> (usually token 0). <b>GOAT</b> (right, proof-teal) reframes each attention row ' +
+      'as an <b>optimal-transport</b> problem: an entropic <b>Sinkhorn</b> plan with a <b>trainable key prior</b> ' +
+      'that pins the column mass, so the sink is structurally removed and mass spreads by relevance. ' +
+      'Honesty label <b>MODELED</b> (deterministic OT/Sinkhorn simulation; NOT a trained transformer). 0 runtime CDN.',
+    citations:
+      "GOAT arXiv:2601.15380 (attention-as-OT) \u00b7 Sinkhorn: Cuturi arXiv:1306.0895 \u00b7 attention sinks: Xiao et al. arXiv:2309.17453. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["gt-dims"]    = _show.addField("queries \u00d7 keys (n_q \u00d7 n_k)");
+  _el["gt-reg"]     = _show.addField("Sinkhorn reg (temperature)");
+  _el["gt-prior"]   = _show.addField("key prior (trainable)");
+  _el["gt-sinks"]   = _show.addField("sink mass on token 0 \u2014 softmax");
+  _el["gt-sinkg"]   = _show.addField("sink mass on token 0 \u2014 GOAT");
+  _el["gt-sinkred"] = _show.addField("sink removed by GOAT \u2014 MODELED");
+  _el["gt-conv"]    = _show.addField("Sinkhorn converged?");
+  _el["gt-label"]   = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Plain <b>softmax</b> attention (left, lattice-blue) dumps runaway mass onto one token \u2014 the ' +
-    '<b>attention sink</b> (usually token 0). <b>GOAT</b> (right, proof-teal) reframes each attention row ' +
-    'as an <b>optimal-transport</b> problem: an entropic <b>Sinkhorn</b> plan with a <b>trainable key prior</b> ' +
-    'that pins the column mass, so the sink is structurally removed and mass spreads by relevance. ' +
-    'Honesty label <b>MODELED</b> (deterministic OT/Sinkhorn simulation; NOT a trained transformer). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "optimal-transport attention";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("gt-dims",    "queries \u00d7 keys (n_q \u00d7 n_k)"));
-  grid.appendChild(kpiRow("gt-reg",     "Sinkhorn reg (temperature)"));
-  grid.appendChild(kpiRow("gt-prior",   "key prior (trainable)"));
-  grid.appendChild(kpiRow("gt-sinks",   "sink mass on token 0 \u2014 softmax"));
-  grid.appendChild(kpiRow("gt-sinkg",   "sink mass on token 0 \u2014 GOAT"));
-  grid.appendChild(kpiRow("gt-sinkred", "sink removed by GOAT \u2014 MODELED"));
-  grid.appendChild(kpiRow("gt-conv",    "Sinkhorn converged?"));
-  grid.appendChild(kpiRow("gt-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "GOAT arXiv:2601.15380 (attention-as-OT) \u00b7 Sinkhorn: Cuturi arXiv:1306.0895 \u00b7 attention sinks: Xiao et al. arXiv:2309.17453. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "gt-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const ss  = S.sinkSoft != null ? (S.sinkSoft * 100).toFixed(0) + "%" : "loading\u2026";
   const sg  = S.sinkGoat != null ? (S.sinkGoat * 100).toFixed(0) + "%" : "loading\u2026";
   const red = S.sinkRed  != null ? (S.sinkRed  * 100).toFixed(0) + "%" : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> When a language model \u201cpays attention,\u201d it decides how much weight to put " +
     "on each earlier word. Normal attention (<b>softmax</b>) has a bad habit: it parks a huge chunk of that " +
     "weight on one throwaway token \u2014 usually the very first one \u2014 just to keep the rest of the row tidy. " +
@@ -456,7 +386,7 @@ function _applyPlain() {
     "cargo\u201d and, crucially, a <b>learned rule</b> caps how much any single token is allowed to receive \u2014 so no " +
     "token can hoard it. After GOAT, the sink token holds only about <b>" + sg + "</b>, a <b>" + red + " reduction</b>, " +
     "and the freed-up attention flows to genuinely relevant words. This view is a <b>MODELED</b> deterministic " +
-    "simulation of the optimal-transport math (Sinkhorn), not a run of a real trained model.";
+    "simulation of the optimal-transport math (Sinkhorn), not a run of a real trained model.");
 }
 
 function _tok(s) {
@@ -482,7 +412,7 @@ function _paintOverlay() {
   _set("gt-conv",    t || (S.converged === true ? "yes (marginals matched)" : S.converged === false ? "not yet" : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("gt-label",   t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "optimal-transport attention" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -490,7 +420,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -503,10 +433,10 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _softBars = []; _goatBars = [];
   _convLine = null; _convDots = []; _sinkRingS = null; _sinkRingG = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.nQ = S.nK = S.iters = S.reg = S.prior = null;
   S.sinkSoft = S.sinkGoat = S.sinkRed = S.residuals = S.attnSoft = S.attnGoat = S.converged = null;

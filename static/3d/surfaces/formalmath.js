@@ -40,6 +40,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "formalmath";
 const TITLE = "Formal-Math Retrieval-Augmented Tactic Selection (live)";
 
@@ -62,9 +64,8 @@ const MAX_DEPTH   = 6;     // matches server _MAX_DEPTH
 const MAX_TRACE   = 64;    // matches server search_trace cap
 const BRANCH      = 3;     // matches server _BRANCH_FACTOR (layout hint only)
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor        = null;
@@ -319,110 +320,39 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "formal-math retrieval + tactic search", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'Retrieves the most relevant <b>premises</b> for a goal by <b>cosine similarity</b> over ' +
+      'hand-rolled bag-of-tokens vectors (no embeddings), then runs a deterministic ' +
+      '<b>best-first search</b> over a synthetic tactic tree, biased by the retrieved premises ' +
+      '\u2014 the LeanDojo/ReProver premise-selection concept. Honesty label <b>MODELED</b> ' +
+      '(NOT connected to Lean 4 or Mathlib). 0 runtime CDN.',
+    citations:
+      "LeanDojo github.com/lean-dojo/LeanDojo \u00b7 ReProver github.com/lean-dojo/ReProver \u00b7 DeepSeek-Prover-V2 arXiv:2504.21801. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["fm-goal"]   = _show.addField("goal");
+  _el["fm-corpus"] = _show.addField("corpus_size");
+  _el["fm-k"]      = _show.addField("k (top-k retrieved)");
+  _el["fm-top"]    = _show.addField("top premise \u2014 MODELED");
+  _el["fm-sim"]    = _show.addField("top similarity");
+  _el["fm-depth"]  = _show.addField("proof-tree depth");
+  _el["fm-nodes"]  = _show.addField("nodes expanded");
+  _el["fm-label"]  = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Retrieves the most relevant <b>premises</b> for a goal by <b>cosine similarity</b> over ' +
-    'hand-rolled bag-of-tokens vectors (no embeddings), then runs a deterministic ' +
-    '<b>best-first search</b> over a synthetic tactic tree, biased by the retrieved premises ' +
-    '\u2014 the LeanDojo/ReProver premise-selection concept. Honesty label <b>MODELED</b> ' +
-    '(NOT connected to Lean 4 or Mathlib). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "formal-math retrieval + tactic search";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("fm-goal",    "goal"));
-  grid.appendChild(kpiRow("fm-corpus",  "corpus_size"));
-  grid.appendChild(kpiRow("fm-k",       "k (top-k retrieved)"));
-  grid.appendChild(kpiRow("fm-top",     "top premise \u2014 MODELED"));
-  grid.appendChild(kpiRow("fm-sim",     "top similarity"));
-  grid.appendChild(kpiRow("fm-depth",   "proof-tree depth"));
-  grid.appendChild(kpiRow("fm-nodes",   "nodes expanded"));
-  grid.appendChild(kpiRow("fm-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "LeanDojo github.com/lean-dojo/LeanDojo \u00b7 ReProver github.com/lean-dojo/ReProver \u00b7 DeepSeek-Prover-V2 arXiv:2504.21801. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "fm-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const top    = (S.topPremises && S.topPremises[0]) ? S.topPremises[0].name : "loading\u2026";
   const simPct = (S.topPremises && S.topPremises[0]) ? (S.topPremises[0].similarity * 100).toFixed(1) + "%" : "loading\u2026";
   const depth  = S.treeDepth != null ? String(S.treeDepth) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Proving a math theorem in a system like Lean often needs the " +
     "<i>right supporting fact</i> (a \u201cpremise\u201d) from a huge library. Instead of " +
     "searching blindly, this organ scores every candidate premise by how many words it shares " +
@@ -431,7 +361,7 @@ function _applyPlain() {
     "first \u2014 reaching a simulated depth of <b>" + depth + "</b> steps. Plain: find the most " +
     "relevant facts first, then search smart instead of exhaustively. This is a <b>MODELED</b> " +
     "toy simulation of the LeanDojo/ReProver idea \u2014 it is not connected to real Lean 4 or " +
-    "Mathlib, and is not DeepSeek-Prover or ReProver output.";
+    "Mathlib, and is not DeepSeek-Prover or ReProver output.");
 }
 
 function _tok(s) {
@@ -458,7 +388,7 @@ function _paintOverlay() {
   _set("fm-nodes",  t || (S.nodesExpand != null ? String(S.nodesExpand) : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("fm-label",  t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "formal-math retrieval + tactic search" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -466,7 +396,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -479,9 +409,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _spine = null; _nodeMesh = []; _edgeLines = []; _unexplLines = []; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.goal = S.corpusSize = S.k = S.topPremises = S.simScores = null;
   S.treeDepth = S.nodesExpand = S.trace = null;

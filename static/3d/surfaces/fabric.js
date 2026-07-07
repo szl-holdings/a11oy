@@ -28,6 +28,8 @@
 //     not a measured bandwidth — we do NOT claim measured NVLink bytes/sec. The reach
 //     counts ARE measured (live probe), labeled accordingly in the HUD.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "fabric";
 const TITLE = "Compute Fabric";
 const ENDPOINT = "/api/a11oy/v1/compute-pool-hardened";
@@ -46,7 +48,7 @@ const C = {
 };
 
 let _ctx = null, _stage = null, _THREE = null;
-let _handle = null, _overlay = null, _panel = null, _detailChip = null;
+let _handle = null, _overlay = null, _panel = null, _detailChip = null, _show = null;
 let _root = null;          // group holding the whole mesh (rotates slowly)
 let _nodeMeshes = [];      // [{ data, group, core, ring, glow, orbit[], labelSprite, basePos }]
 let _edges = [];           // [{ line, a, b, hot }]
@@ -114,17 +116,10 @@ function _nodeColor(node) {
 // HUD overlay (left): title, LIVE badge, fabric-health ring readout, counts,
 // honesty legend. Right panel: node-detail (click a node).
 // ----------------------------------------------------------------------------
-function _styleOverlay(el) {
-  Object.assign(el.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "5",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(92%,360px)", pointerEvents: "none",
-  });
-}
 function _row(label, valId) {
   const r = document.createElement("div");
   r.style.cssText = "display:flex;justify-content:space-between;gap:14px;" +
-    "font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:" + C.para + ";pointerEvents:none";
+    "font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:" + C.para;
   const k = document.createElement("span"); k.textContent = label;
   const v = document.createElement("span"); v.id = valId;
   v.style.cssText = "color:" + C.text + ";font-weight:600;letter-spacing:.3px";
@@ -135,22 +130,29 @@ function _row(label, valId) {
 }
 
 function _buildOverlay() {
+  const badge = _ctx.live.createBadge();
+
+  // Shared collapsible showcase supplies the compact chrome: title + LIVE badge +
+  // legend + the moved descriptive note + the "what this means" plain-language toggle.
+  // The counts rows fold into the (collapsed) body so the 3D node mesh stays the star.
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge,
+    legend: ["LIVE", "MEASURED", "STRUCTURAL-ONLY"],
+    description: "reachable = REAL TCP probe this sweep · sovereign = owned-hardware " +
+      "property, never inferred · topology is STRUCTURAL-ONLY (no measured NVLink bytes).",
+    plain: { html: _plainHtml },
+  });
+
+  // rows fold into a plain (position:static) container inside the showcase body.
   const ov = document.createElement("div");
   ov.className = "szl3d-fabric-overlay";
-  _styleOverlay(ov);
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:" + C.text + ";letter-spacing:.4px";
-  h.textContent = "◇ " + TITLE + " · live node mesh";
-  ov.appendChild(h);
-
-  const badge = _ctx.live.createBadge();
-  badge.el.style.pointerEvents = "auto";
-  ov.appendChild(badge.el);
+  Object.assign(ov.style, {
+    display: "flex", flexDirection: "column", gap: "8px",
+  });
 
   const card = document.createElement("div");
   card.style.cssText = "background:#0b121b;border:1px solid #1b2734;border-radius:9px;" +
-    "padding:9px 11px;display:flex;flexDirection:column;gap:5px;pointerEvents:none";
+    "padding:9px 11px;display:flex;flexDirection:column;gap:5px";
   card.appendChild(_row("fabric health", "v_health"));
   card.appendChild(_row("nodes reachable", "v_reach"));
   card.appendChild(_row("GPU nodes live", "v_gpu"));
@@ -159,45 +161,12 @@ function _buildOverlay() {
   card.appendChild(_row("reach probe", "v_label"));
   ov.appendChild(card);
 
-  const note = document.createElement("div");
-  note.style.cssText = "font:9.5px ui-monospace,monospace;color:#6c7a86;line-height:1.5;pointerEvents:none";
-  note.textContent = "reachable = REAL TCP probe this sweep · sovereign = owned-hardware " +
-    "property, never inferred · topology is STRUCTURAL-ONLY (no measured NVLink bytes).";
-  ov.appendChild(note);
-
-  const legend = _ctx.label.legend();
-  legend.style.opacity = "0.85";
-  legend.style.pointerEvents = "none";
-  ov.appendChild(legend);
-
-  // "what this means" plain-language toggle (matches the research surfaces).
-  const pl = document.createElement("button");
-  pl.textContent = "◑ what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;" +
-    "border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content;pointer-events:auto";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  ov.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;" +
-    "border-radius:7px;padding:7px 9px;display:none;pointer-events:none";
-  _plainEl = pd;
-  ov.appendChild(pd);
-
+  _show.body.appendChild(ov);
   return { ov, badge };
 }
 
-function _applyPlain() {
-  const pd = _plainEl;
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
-  pd.innerHTML =
+function _plainHtml() {
+  return (
     "<b>What this means:</b> This is a live map of the actual machines that make up the " +
     "compute pool — each glowing node is one server. Every few seconds the app runs a " +
     "real network probe (a <b>TCP reachability check</b>) against each node and colours it by " +
@@ -207,7 +176,7 @@ function _applyPlain() {
     "result, not a cached guess. The links between nodes show the pool’s <b>structure only</b>; " +
     "we do <b>not</b> claim to measure the bandwidth flowing over them. The ‘secondary lung’ row " +
     "reports whether a designated failover node is currently reachable, so you can see at a glance " +
-    "if the backup capacity is online.";
+    "if the backup capacity is online.");
 }
 
 function _buildPanel() {
@@ -695,8 +664,7 @@ function mount(ctx) {
   _t = 0; _selected = null; _lastJson = null; _hud = {};
 
   const built = _buildOverlay();
-  _overlay = built.ov;
-  (ctx.container || document.body).appendChild(_overlay);
+  _overlay = built.ov;   // lives inside _show.body (appended by _buildOverlay)
 
   _panel = _buildPanel();
   (ctx.container || document.body).appendChild(_panel);
@@ -737,10 +705,10 @@ function unmount() {
       _domEl._szlFabricDown = null;
     }
   } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { _clearMesh(); } catch (_) {}
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try { if (_panel && _panel.parentNode) _panel.parentNode.removeChild(_panel); } catch (_) {}
-  _handle = null; _overlay = null; _panel = null; _detailChip = null;
+  _handle = null; _overlay = null; _show = null; _panel = null; _detailChip = null;
   _nodeMeshes = []; _edges = []; _root = null; _hubMesh = null;
   _healthRing = null; _healthFill = null; _frameCb = null; _ray = null;
   _pointer = null; _onClick = null; _onMove = null; _domEl = null;

@@ -37,6 +37,8 @@
 // NOTHING here is in the locked-8. Λ = Conjecture 1. Trust < 100%. Endpoints that 404/error/
 // degrade render honest NO-LIVE-DATA/DEGRADED and grey their geometry. 0 runtime CDN.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "frontier";
 const TITLE = "Frontier · Experimental Tier (live)";
 
@@ -63,7 +65,7 @@ function ring(i, y) { const a = Math.PI / 2 - (i / N_ORG) * Math.PI * 2; return 
 const POS = { ent: ring(0, 3), neu: ring(1, 3), qb: ring(2, 3), en: ring(3, 3), scale: ring(4, 3), sc: ring(5, 3), conj: ring(6, 3), pubs: ring(7, 3), eco: ring(8, 3) };
 const HUB = [0, 3, 0];
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badges = {}, _webgpu = false, _computeReady = false;
 let _ent = {}, _neu = {}, _qb = {}, _sc = {}, _en = {}, _scale = {}, _conj = {}, _pubs = {}, _eco = {};
 let _splatlib = null, _lkg = null, _plain = false;   // real-3DGS codec, Looking Glass runtime, plain-language mode
@@ -478,14 +480,26 @@ function _onFrame() {
 function _buildOverlay() {
   const ctx = _ctx;
   ["ent", "neu", "qbcoh", "qbcomp", "sc", "en", "scale", "conj", "pubs", "eco"].forEach((k) => { _badges[k] = ctx.live.createBadge(); });
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, { position: "absolute", left: "14px", top: "14px", zIndex: "6", display: "flex", flexDirection: "column", gap: "8px", maxWidth: "min(94%,450px)", maxHeight: "calc(100vh - 130px)", overflowY: "auto", font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial", color: "#eef3f6", paddingRight: "6px" });
 
-  const h = document.createElement("div"); h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px"; h.textContent = TITLE; _overlay.appendChild(h);
-  const sub = document.createElement("div"); sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML = 'The experimental tier as one holographic lattice \u2014 <b>nine frontier organs</b> on a ring, each lit by a <b>live</b> a11oy endpoint. ' +
-    'Quantum-bio renders as a <b>Gaussian-splat volumetric field</b> (WebGPU compute when enabled). Every label is read <b>verbatim</b> from the JSON. NOT in the locked-8 \u00b7 \u039b = Conjecture 1 \u00b7 trust &lt; 100%.';
-  _overlay.appendChild(sub);
+  // Shared collapsible showcase chrome FIRST: compact title bar + honesty legend live in
+  // the always-visible chrome. This surface has MANY per-organ badges, so we omit a single
+  // `badge` and instead relocate the whole badge/card cluster into the (collapsed) body,
+  // keeping the 3D lattice the star. Long descriptive text -> description; the "adopted &
+  // cited" footnote -> citations (both verbatim).
+  _show = createShowcase(ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    legend: ["RIGOROUS", "VERIFIED", "PUBLISHED", "OPEN", "CONJECTURE", "ROADMAP"],
+    description:
+      'The experimental tier as one holographic lattice \u2014 <b>nine frontier organs</b> on a ring, each lit by a <b>live</b> a11oy endpoint. ' +
+      'Quantum-bio renders as a <b>Gaussian-splat volumetric field</b> (WebGPU compute when enabled). Every label is read <b>verbatim</b> from the JSON. NOT in the locked-8 \u00b7 \u039b = Conjecture 1 \u00b7 trust &lt; 100%.',
+    citations:
+      "Open techniques adopted & cited, NOT claimed-as (clean-room): QuTiP \u00b7 quimb \u00b7 RadicalPy \u00b7 quantum_HEOM \u00b7 Avalanche \u00b7 ncps/LTC \u00b7 Prime Intellect OpenDiLoCo \u00b7 NVIDIA nvtrust \u00b7 CodeCarbon \u00b7 GSF SCI \u00b7 three.js WebGPU \u00b7 GaussianSplats3D \u00b7 Looking Glass quilt. Papers: Kerbl 3DGS 2308.04079 \u00b7 Cirac-Verstraete 2011.12127 \u00b7 Dohare-Sutton (Nature 2024) \u00b7 Hore 2508.21350 \u00b7 Streaming DiLoCo 2501.18512. EXPERIMENTAL tier; not in the locked-8.",
+  });
+
+  // rows/cards fold into the showcase body as a PLAIN static container (no absolute chrome,
+  // no own title, no standalone legend \u2014 the showcase provides those).
+  _overlay = document.createElement("div");
+  Object.assign(_overlay.style, { display: "flex", flexDirection: "column", gap: "8px", font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial", color: "#eef3f6" });
 
   const ctl = document.createElement("div"); ctl.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
   _el.rchip = document.createElement("span"); _el.rchip.style.cssText = "font:10px ui-monospace,monospace;padding:3px 8px;border-radius:6px;border:1px solid #1d2a36;color:" + (_webgpu ? "#6dd47e" : "#6fb1ff"); _el.rchip.textContent = _webgpu ? "splat: WebGPU compute" : "splat: WebGL2"; ctl.appendChild(_el.rchip);
@@ -512,11 +526,9 @@ function _buildOverlay() {
   _overlay.appendChild(_card("publications", "#9fd0ff", _badges.pubs, [["pubs-locked", "locked-proven"], ["pubs-lambda", "\u039b status"], ["pubs-kernel", "experimental kernel"]], "SZL corpus: 41 Zenodo DOIs, thesis v1\u2192v25 (Ouroboros \u2192 Lutar Invariant \u2192 GPD), ORCID 0009-0001-0110-4173. Locked-proven read live; \u039b = Conjecture 1 (unconditional machine-checked FALSE)."));
   _overlay.appendChild(_card("ecosystem", "#3af4c8", _badges.eco, [["eco-count", "governed capabilities"], ["eco-proven", "locked-proven"], ["eco-mix", "honesty mix"]], "The investor/consumer headline: the live governed-capability genome (/genome). 5-tier honesty mix read VERBATIM \u2014 what is proven vs evidence-backed vs conjecture. The honest mix IS the diligence signal."));
 
-  const lg = ctx.label.legend(); lg.style.opacity = "0.85"; _overlay.appendChild(lg);
-  const src = document.createElement("div"); src.style.cssText = "font-size:9.5px;color:#5b6c78;line-height:1.6;margin-top:2px";
-  src.textContent = "Open techniques adopted & cited, NOT claimed-as (clean-room): QuTiP \u00b7 quimb \u00b7 RadicalPy \u00b7 quantum_HEOM \u00b7 Avalanche \u00b7 ncps/LTC \u00b7 Prime Intellect OpenDiLoCo \u00b7 NVIDIA nvtrust \u00b7 CodeCarbon \u00b7 GSF SCI \u00b7 three.js WebGPU \u00b7 GaussianSplats3D \u00b7 Looking Glass quilt. Papers: Kerbl 3DGS 2308.04079 \u00b7 Cirac-Verstraete 2011.12127 \u00b7 Dohare-Sutton (Nature 2024) \u00b7 Hore 2508.21350 \u00b7 Streaming DiLoCo 2501.18512. EXPERIMENTAL tier; not in the locked-8.";
-  _overlay.appendChild(src);
-  (ctx.container || document.body).appendChild(_overlay);
+  // fold the whole control + badge/card cluster into the collapsible showcase body
+  // (the showcase provides the title bar + honesty legend; footnote moved to citations).
+  _show.body.appendChild(_overlay);
   _paintEnt(); _paintNeu(); _paintQb(); _paintSc(); _paintEn(); _paintScale(); _paintConj(); _paintPubs(); _paintEco();
 }
 
@@ -623,11 +635,11 @@ function _paintEco() { const t = _tok(S.eco.state); _set("eco-count", t || (S.ec
 // =========================================================================================
 function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_group && _stage) { _group.traverse((o) => { if (o.geometry && o.geometry.dispose) o.geometry.dispose(); if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach((x) => { if (x.map && x.map.dispose) x.map.dispose(); if (x.dispose) x.dispose(); }); } }); _stage.scene.remove(_group); } } catch (_) {}
   _splatTex = null;
   try { if (_qb.real && _qb.real.dispose) _qb.real.dispose(); } catch (_) {}
-  _group = _overlay = null; _ent = {}; _neu = {}; _qb = {}; _sc = {}; _en = {}; _scale = {}; _conj = {}; _pubs = {}; _eco = {}; _el = {}; _badges = {};
+  _group = _overlay = _show = null; _ent = {}; _neu = {}; _qb = {}; _sc = {}; _en = {}; _scale = {}; _conj = {}; _pubs = {}; _eco = {}; _el = {}; _badges = {};
   _splatlib = _lkg = _realBytes = null; _plain = false;
   _computeNode = _cohBuf = _uTau = _uT = null; _computeReady = false;
   S.ent = { entropy: null, concurrence: null, negativity: null, state: "init" };

@@ -49,6 +49,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still
 //   shown. Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "hrm";
 const TITLE = "Hierarchical Reasoning Model · H-slow / L-fast (live)";
 
@@ -69,9 +71,8 @@ const MAX_N     = 9;    // largest grid side we pre-allocate cells for
 const CELL      = 1.15; // world-units between grid cells
 const MAX_CELLS = MAX_N * MAX_N;
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor     = null;
@@ -300,30 +301,21 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,470px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "hierarchical reasoning model", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'Two interdependent recurrent modules at different timescales solve a mini-Sudoku: a ' +
+      '<b>fast low-level executor (L)</b> propagates local cell constraints to convergence, and a ' +
+      '<b>slow high-level planner (H)</b> advances an abstract plan once per tick and nudges the ' +
+      'executor when it stalls. Cells glow <b>teal</b> as they solve. ' +
+      'Honesty label <b>MODELED</b> (deterministic control-loop simulation on a toy grid; NOT the HRM network). 0 runtime CDN.',
+    citations:
+      "Wang et al. arXiv:2506.21734 (HRM) · github.com/sapientinc/HRM · ARC Prize analysis arcprize.org/blog/hrm-analysis. MODELED · not claimed-as.",
+    plain: { html: _plainHtml },
   });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'Two interdependent recurrent modules at different timescales solve a mini-Sudoku: a ' +
-    '<b>fast low-level executor (L)</b> propagates local cell constraints to convergence, and a ' +
-    '<b>slow high-level planner (H)</b> advances an abstract plan once per tick and nudges the ' +
-    'executor when it stalls. Cells glow <b>teal</b> as they solve. ' +
-    'Honesty label <b>MODELED</b> (deterministic control-loop simulation on a toy grid; NOT the HRM network). 0 runtime CDN.';
-  _overlay.appendChild(sub);
 
   // explicit honesty-caveat banner (the ARC Prize finding) — always shown
   const dist = document.createElement("div");
@@ -336,90 +328,28 @@ function _buildOverlay() {
     'drivers were an <b>outer refinement loop</b>, heavy <b>data augmentation</b>, and a per-task ' +
     '<b>puzzle-embedding</b>. So this organ shows the H/L result <i>beside</i> a size-matched ' +
     '<b>flat baseline</b> (violet bar) \u2014 they end up nearly equal. We do <i>not</i> overclaim the hierarchy.';
-  _overlay.appendChild(dist);
+  _show.appendBody(dist);
 
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
+  _el["hrm-grid"]     = _show.addField("puzzle (mini-Sudoku n\u00d7n)");
+  _el["hrm-clues"]    = _show.addField("clues / empty at start");
+  _el["hrm-hsolved"]  = _show.addField("H/L hierarchical: solved?");
+  _el["hrm-hticks"]   = _show.addField("H-slow ticks used");
+  _el["hrm-hupdates"] = _show.addField("H/L total updates \u2014 MODELED");
+  _el["hrm-fsolved"]  = _show.addField("flat baseline (size-matched): solved?");
+  _el["hrm-fupdates"] = _show.addField("flat total updates \u2014 MODELED");
+  _el["hrm-ratio"]    = _show.addField("updates ratio (hier / flat)");
+  _el["hrm-verdict"]  = _show.addField("honest verdict");
+  _el["hrm-label"]    = _show.addField("honesty label");
 
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "hierarchical reasoning model";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("hrm-grid",     "puzzle (mini-Sudoku n\u00d7n)"));
-  grid.appendChild(kpiRow("hrm-clues",    "clues / empty at start"));
-  grid.appendChild(kpiRow("hrm-hsolved",  "H/L hierarchical: solved?"));
-  grid.appendChild(kpiRow("hrm-hticks",   "H-slow ticks used"));
-  grid.appendChild(kpiRow("hrm-hupdates", "H/L total updates \u2014 MODELED"));
-  grid.appendChild(kpiRow("hrm-fsolved",  "flat baseline (size-matched): solved?"));
-  grid.appendChild(kpiRow("hrm-fupdates", "flat total updates \u2014 MODELED"));
-  grid.appendChild(kpiRow("hrm-ratio",    "updates ratio (hier / flat)"));
-  grid.appendChild(kpiRow("hrm-verdict",  "honest verdict"));
-  grid.appendChild(kpiRow("hrm-label",    "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Wang et al. arXiv:2506.21734 (HRM) \u00b7 github.com/sapientinc/HRM \u00b7 ARC Prize analysis arcprize.org/blog/hrm-analysis. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "hrm-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const nn      = S.n != null ? (S.n + "\u00d7" + S.n) : "small";
   const hSolved = S.hier && S.hier.solved ? "yes" : "not yet";
   const ratio   = S.edge && S.edge.updates_ratio != null ? S.edge.updates_ratio.toFixed(2) : "\u2248 1";
   const verdict = S.edge && typeof S.edge.verdict === "string" ? S.edge.verdict : null;
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> A hard puzzle (here a " + nn + " mini-Sudoku) is solved by two " +
     "cooperating parts of one model running at different speeds: a <b>fast \u201cworker\u201d</b> that " +
     "fills in whatever cells are locally forced, and a <b>slow \u201cplanner\u201d</b> that steps back " +
@@ -435,7 +365,7 @@ function _applyPlain() {
     (verdict ? " \u2014 <i>" + verdict + "</i>" : "") + ". " +
     "The hierarchy gives a <b>small, real</b> benefit, not the dominant one the paper implies. " +
     "This whole view is a <b>MODELED</b> simulation of the control loop on a toy grid, not a run " +
-    "of the real 27M-parameter HRM network.";
+    "of the real 27M-parameter HRM network.");
 }
 
 function _tok(s) {
@@ -464,7 +394,7 @@ function _paintOverlay() {
     : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("hrm-label", t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "hierarchical reasoning model" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -472,7 +402,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -485,9 +415,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null; _cellMesh = []; _planBar = null; _flatBar = null; _marker = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.n = S.hTicks = S.lSteps = S.clues = S.emptyStart = null;
   S.hier = S.flat = S.edge = S.finalGrid = S.caveat = null;

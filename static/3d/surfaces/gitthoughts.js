@@ -50,6 +50,8 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 // Nothing here is in the locked-8. Λ stays Conjecture 1. Trust never 100%.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "gitthoughts";
 const TITLE = "GitOfThoughts (Version-Controlled Reasoning)";
 
@@ -84,9 +86,8 @@ const CURVE_H   = 3.2;    // curve panel height (accuracy 0..1)
 const BAR_W     = 0.7;    // diff/merge bar width
 const BAR_YSC   = 0.32;   // world-units per commit in the bars
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _floor      = null;
@@ -453,119 +454,48 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,480px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
-  });
-
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
-
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "version-controlled reasoning", name: "hl" }],
+    legend: ["MEASURED", "MODELED"],
+    description:
     'GitOfThoughts stores an agent\u2019s reasoning tree as a <b>git repository</b>: every scored thought is a ' +
     '<b>commit</b> (sha256 over parent+content+score \u2014 a Merkle DAG), scores are <b>notes</b>, outcomes are ' +
     '<b>tags</b>, and retrieval is a <b>git log</b> DAG walk. This organ models the substrate \u2014 <b>log, replay, ' +
     'diff, merge</b> \u2014 and the paper\u2019s honest <b>copyability threshold</b>: memory only helps once the ' +
     'retrieved case is a near-duplicate (cosine similarity above <b>~0.8</b>); below it there is <b>no gain</b> ' +
     '(the model finds the answer, it does not transfer the method). Panels: commit tree, threshold curve, ' +
-    'diff/merge bars. Honesty label <b>MODELED</b> (data-structure + finding reproduction; runs no LLM). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#3af4c8;box-shadow:0 0 7px #3af4c8";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#3af4c8;letter-spacing:.3px";
-  nm.textContent = "gitofthoughts version-controlled reasoning";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("gt-tree",    "reasoning tree (depth \u00d7 branch)"));
-  grid.appendChild(kpiRow("gt-commits", "commits (thoughts)"));
-  grid.appendChild(kpiRow("gt-leaves",  "terminal thoughts (tagged)"));
-  grid.appendChild(kpiRow("gt-head",    "HEAD sha (highest-scoring leaf)"));
-  grid.appendChild(kpiRow("gt-log",     "git log length (HEAD\u2192root)"));
-  grid.appendChild(kpiRow("gt-replay",  "replay verified (shas re-derived)"));
-  grid.appendChild(kpiRow("gt-diff",    "diff (onlyA / shared / onlyB)"));
-  grid.appendChild(kpiRow("gt-merge",   "merge (commits / conflicts)"));
-  grid.appendChild(kpiRow("gt-tags",    "outcomes (solved / partial / dead)"));
-  grid.appendChild(kpiRow("gt-thr",     "copyability threshold (cosine)"));
-  grid.appendChild(kpiRow("gt-jump",    "accuracy jump across threshold"));
-  grid.appendChild(kpiRow("gt-below",   "gain BELOW threshold (MEASURED)"));
-  grid.appendChild(kpiRow("gt-above",   "gain ABOVE threshold (MEASURED)"));
-  grid.appendChild(kpiRow("gt-label",   "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "GitOfThoughts \u2014 Shekar, Abhishek H S, Krishnan, arXiv:2606.14470 (arxiv.org/abs/2606.14470) \u00b7 git object model, Pro Git. MODELED \u00b7 data-structure + copyability-threshold reproduction; runs no LLM; memory does NOT improve novel-problem accuracy (reproduced honestly).";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
+    'diff/merge bars. Honesty label <b>MODELED</b> (data-structure + finding reproduction; runs no LLM). 0 runtime CDN.',
+    citations:
+      "GitOfThoughts \u2014 Shekar, Abhishek H S, Krishnan, arXiv:2606.14470 (arxiv.org/abs/2606.14470) \u00b7 git object model, Pro Git. MODELED \u00b7 data-structure + copyability-threshold reproduction; runs no LLM; memory does NOT improve novel-problem accuracy (reproduced honestly).",
+    plain: { html: _plainHtml },
   });
-  _overlay.appendChild(pl);
 
-  const pd = document.createElement("div");
-  pd.id = "gt-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
+  _el["gt-tree"]    = _show.addField("reasoning tree (depth \u00d7 branch)");
+  _el["gt-commits"] = _show.addField("commits (thoughts)");
+  _el["gt-leaves"]  = _show.addField("terminal thoughts (tagged)");
+  _el["gt-head"]    = _show.addField("HEAD sha (highest-scoring leaf)");
+  _el["gt-log"]     = _show.addField("git log length (HEAD\u2192root)");
+  _el["gt-replay"]  = _show.addField("replay verified (shas re-derived)");
+  _el["gt-diff"]    = _show.addField("diff (onlyA / shared / onlyB)");
+  _el["gt-merge"]   = _show.addField("merge (commits / conflicts)");
+  _el["gt-tags"]    = _show.addField("outcomes (solved / partial / dead)");
+  _el["gt-thr"]     = _show.addField("copyability threshold (cosine)");
+  _el["gt-jump"]    = _show.addField("accuracy jump across threshold");
+  _el["gt-below"]   = _show.addField("gain BELOW threshold (MEASURED)");
+  _el["gt-above"]   = _show.addField("gain ABOVE threshold (MEASURED)");
+  _el["gt-label"]   = _show.addField("honesty label");
 
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const thr   = S.threshold != null ? S.threshold.toFixed(2)   : "~0.80";
   const jump  = S.jumpSize   != null ? (S.jumpSize * 100).toFixed(0) + " pts" : "loading\u2026";
   const below = S.gainBelow  != null ? (S.gainBelow * 100).toFixed(1) + "%"   : "loading\u2026";
   const comm  = S.commitCount != null ? String(S.commitCount) : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> When an AI reasons, its train of thought vanishes the moment it finishes \u2014 you " +
     "cannot audit it, replay it, or combine two agents\u2019 histories. GitOfThoughts fixes that by saving every " +
     "thought as a <b>git commit</b>, exactly like version-controlling code: each thought gets a fingerprint " +
@@ -577,7 +507,7 @@ function _applyPlain() {
     "method. Below that line, the gain is essentially zero (<b>" + below + "</b> here). This view reproduces both the " +
     "data structure AND that honesty: the accuracy curve is flat until it <b>jumps by ~" + jump + "</b> right at the " +
     "threshold. This is a <b>MODELED</b> demo \u2014 it runs no real AI and claims no accuracy improvement. The value of " +
-    "git-as-memory is <b>auditability and mergeability</b>, not smarter answers.";
+    "git-as-memory is <b>auditability and mergeability</b>, not smarter answers.");
 }
 
 function _tok(s) {
@@ -609,7 +539,7 @@ function _paintOverlay() {
   _set("gt-above",   t || pct(S.gainAbove, 1));
   // honesty label verbatim — never upgraded
   _set("gt-label",   t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "version-controlled reasoning" }); _show.refreshPlain(); }
 }
 
 function fx0(v) { return typeof v === "number" ? String(v) : "\u2014"; }
@@ -619,7 +549,7 @@ function fx0(v) { return typeof v === "number" ? String(v) : "\u2014"; }
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -632,12 +562,12 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _floor = null;
   _treeGroup = null;
   _curveGroup = null;
   _barGroup = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.depth = S.branch = S.commitCount = S.leafCount = null;
   S.headSha = S.rootSha = null;

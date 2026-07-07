@@ -26,6 +26,8 @@
 //
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID = "estate";
 const TITLE = "Estate Hologram";
 
@@ -44,8 +46,8 @@ const C = {
 
 let _stage = null, _THREE = null, _ctx = null;
 let _root = null, _overlay = null, _frameFn = null;
+let _show = null;              // shared collapsible showcase chrome
 let _hud = {};                 // live HUD chip/value rows
-let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
 let _scene = null;             // built scene-object refs the frame loop animates
 const _anim = {};              // eased animation targets
 const _handles = [];           // every poll handle (stopped on unmount)
@@ -206,24 +208,32 @@ function buildScene() {
 // ----------------------------------------------------------------------------
 function buildHud() {
   const lab = _ctx.label;
+
+  // one shared LIVE badge follows the PRIMARY (kpi-board) poll
+  const badge = _ctx.live.createBadge();
+  _hud.badge = badge;
+
+  // Shared collapsible showcase supplies the compact chrome: title + LIVE badge +
+  // legend (all four doctrine states used across the five surfaces) + the moved
+  // descriptive note + the "what this means" plain-language toggle. The KPI rows fold
+  // into the (collapsed) body below so the 3D estate stays the star.
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee", badge,
+    legend: ["LIVE", "MEASURED", "MODELED", "SAMPLE", "STRUCTURAL-ONLY"],
+    description:
+      "Unified overview: governance arc (kpi-board) + energy ring + fabric hex + PNT " +
+      "horizon + anatomy beat glance. Every value wired live; NO-LIVE-DATA shown grayed, " +
+      "never fabricated. Λ = Conjecture 1, clamped < 1.0.",
+    plain: { html: _plainHtml },
+  });
+
+  // rows fold into a plain (position:static) container inside the showcase body.
   _overlay = document.createElement("div");
   _overlay.className = "szl3d-estate-hud";
   Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
     display: "flex", flexDirection: "column", gap: "6px",
-    maxWidth: "min(94%,440px)", font: "12px ui-monospace,SFMono-Regular,Menlo,monospace",
-    color: "#cfe0ea", background: "rgba(6,11,16,.74)", border: "1px solid #15212c",
-    borderRadius: "10px", padding: "12px 14px", backdropFilter: "blur(3px)",
+    font: "12px ui-monospace,SFMono-Regular,Menlo,monospace", color: "#cfe0ea",
   });
-
-  const title = document.createElement("div");
-  title.style.cssText = "font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;display:flex;gap:8px;align-items:center";
-  title.innerHTML = "◇ Estate Hologram <span style='color:#46586a;font-weight:400'>· 5 endpoints · one scene</span>";
-  _overlay.appendChild(title);
-
-  const badge = _ctx.live.createBadge();
-  _overlay.appendChild(badge.el);
-  _hud.badge = badge;
 
   function row(key, name) {
     const wrap = document.createElement("div");
@@ -256,42 +266,11 @@ function buildHud() {
   row("credits", "reservoir work_credits");   // anatomy
   row("ayni", "Ayni balance");                // anatomy
 
-  const note = document.createElement("div");
-  note.style.cssText = "color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:4px;border-top:1px solid #15212c;padding-top:6px";
-  note.textContent = "Unified overview: governance arc (kpi-board) + energy ring + fabric hex + PNT horizon + anatomy beat glance. Every value wired live; NO-LIVE-DATA shown grayed, never fabricated. Λ = Conjecture 1, clamped < 1.0.";
-  _overlay.appendChild(note);
-
-  const legend = _ctx.label.legend(); legend.style.opacity = "0.85"; legend.style.marginTop = "2px";
-  _overlay.appendChild(legend);
-
-  // "what this means" plain-language toggle (matches the research surfaces).
-  const pl = document.createElement("button");
-  pl.textContent = "◑ what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;" +
-    "border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content;margin-top:4px";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;" +
-    "border-radius:7px;padding:7px 9px;display:none;margin-top:4px";
-  _plainEl = pd;
-  _overlay.appendChild(pd);
-
-  (_ctx.container || document.body).appendChild(_overlay);
+  _show.body.appendChild(_overlay);
 }
 
-function _applyPlain() {
-  const pd = _plainEl;
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
-  pd.innerHTML =
+function _plainHtml() {
+  return (
     "<b>What this means:</b> This is a single command view that pulls together five separate " +
     "live feeds at once — <b>governance</b> (which formulas are locked-proven, the Λ safety " +
     "aggregator, and the CHAPAQ verdict), <b>energy</b> (grid price, renewable share, and any " +
@@ -301,7 +280,7 @@ function _applyPlain() {
     "means a real sensor/probe delta, <b>MODELED</b>/<b>SAMPLE</b> mean a simulation or a stand-in, " +
     "and anything not live is shown as <b>NO-LIVE-DATA</b> rather than a made-up number. The " +
     "locked-8 count is always exactly 8 and Λ is a <b>conjecture</b> clamped below 1.0 — nothing " +
-    "here is inflated or fabricated.";
+    "here is inflated or fabricated.");
 }
 
 function _setRow(key, text, label) {
@@ -516,7 +495,7 @@ function mount(ctx) {
 function unmount() {
   for (const h of _handles) { try { h && h.stop && h.stop(); } catch (_) {} }
   _handles.length = 0;
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_root) {
       _root.traverse((o) => {
@@ -530,7 +509,7 @@ function unmount() {
     }
   } catch (_) {}
   try { if (_stage) _stage.setBloom(false); } catch (_) {}
-  _root = null; _overlay = null; _scene = null; _frameFn = null; _hud = {}; _plain = false; _plainEl = null; _stage = null; _THREE = null; _ctx = null;
+  _root = null; _overlay = null; _show = null; _scene = null; _frameFn = null; _hud = {}; _stage = null; _THREE = null; _ctx = null;
 }
 
 export default { id: ID, title: TITLE, endpoints: [EP_KPI, EP_ENERGY, EP_FABRIC, EP_PNT, EP_LOOP], mount, unmount };

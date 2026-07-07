@@ -36,6 +36,8 @@
 // 0 RUNTIME CDN. Vendored three.js r170 via page importmap.
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown.
 
+import { createShowcase } from "./_showcase.js";
+
 const ID    = "interpretability";
 const TITLE = "Interpretability · Sparse-Autoencoder Features (live)";
 
@@ -59,9 +61,8 @@ const C_GRID   = 0x1b3a44;  // floor / link colour
 const N_SLOTS = 16;   // visual dictionary slots on the ring (matches endpoint feature bank)
 const RADIUS  = 4.2;  // world-unit ring radius
 
-let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
+let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _frameReg = false, _polls = [], _el = {}, _badge = null;
-let _plain = false;
 
 // geometry handles
 let _slots = [];        // Array<THREE.Mesh> — one per dictionary slot on the ring
@@ -270,106 +271,35 @@ function _onFrame() {
 // overlay
 // =============================================================================
 function _buildOverlay() {
-  const ctx = _ctx;
-  _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,440px)",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial",
-    color: "#eef3f6",
+  _show = createShowcase(_ctx, {
+    id: ID, title: TITLE, accent: "#5b8dee",
+    badge: _badge,
+    chips: [{ label: "MODELED", text: "interpretability", name: "hl" }],
+    legend: ["MODELED"],
+    description:
+      'A <b>JumpReLU sparse autoencoder</b> decomposes a model\u2019s internal activation into a ' +
+      'few human-readable <b>features</b>; each fired feature is a node on the ring, and we ' +
+      '<b>causally ablate</b> it to measure the output shift (KL). Honesty label <b>MODELED</b> ' +
+      '(a simulation of the method \u2014 no proprietary weights, no measured logits). 0 runtime CDN.',
+    citations:
+      "Cunningham et al. arXiv:2309.08600 \u00b7 Rajamanoharan et al. arXiv:2407.14435 (JumpReLU) \u00b7 Marks et al. arXiv:2406.02395 (sparse feature circuits) \u00b7 Anthropic transformer-circuits.pub. MODELED \u00b7 not claimed-as.",
+    plain: { html: _plainHtml },
   });
 
-  const h = document.createElement("div");
-  h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px";
-  h.textContent = TITLE;
-  _overlay.appendChild(h);
+  _el["ip-l0"]     = _show.addField("L0 sparsity (active / dict)");
+  _el["ip-active"] = _show.addField("active features");
+  _el["ip-recon"]  = _show.addField("reconstruction cos \u2014 MODELED");
+  _el["ip-topf"]   = _show.addField("top feature (by causal KL)");
+  _el["ip-label"]  = _show.addField("honesty label");
 
-  const sub = document.createElement("div");
-  sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML =
-    'A <b>JumpReLU sparse autoencoder</b> decomposes a model\u2019s internal activation into a ' +
-    'few human-readable <b>features</b>; each fired feature is a node on the ring, and we ' +
-    '<b>causally ablate</b> it to measure the output shift (KL). Honesty label <b>MODELED</b> ' +
-    '(a simulation of the method \u2014 no proprietary weights, no measured logits). 0 runtime CDN.';
-  _overlay.appendChild(sub);
-
-  const brow = document.createElement("div");
-  brow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  if (_badge && _badge.el) brow.appendChild(_badge.el);
-  _overlay.appendChild(brow);
-
-  const card = document.createElement("div");
-  card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
-
-  const chead = document.createElement("div");
-  chead.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-  const dot = document.createElement("span");
-  dot.style.cssText = "width:9px;height:9px;border-radius:50%;background:#5b8dee;box-shadow:0 0 7px #5b8dee";
-  const nm = document.createElement("b");
-  nm.style.cssText = "font-size:12px;color:#5b8dee;letter-spacing:.3px";
-  nm.textContent = "interpretability";
-  chead.appendChild(dot); chead.appendChild(nm);
-  card.appendChild(chead);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-
-  function kpiRow(id, label) {
-    const r = document.createElement("div");
-    r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = label;
-    const v = document.createElement("b");
-    v.id = id;
-    v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%";
-    v.textContent = "\u2014";
-    _el[id] = v;
-    r.appendChild(l); r.appendChild(v); return r;
-  }
-
-  grid.appendChild(kpiRow("ip-l0",     "L0 sparsity (active / dict)"));
-  grid.appendChild(kpiRow("ip-active", "active features"));
-  grid.appendChild(kpiRow("ip-recon",  "reconstruction cos \u2014 MODELED"));
-  grid.appendChild(kpiRow("ip-topf",   "top feature (by causal KL)"));
-  grid.appendChild(kpiRow("ip-label",  "honesty label"));
-  card.appendChild(grid);
-
-  const fn = document.createElement("div");
-  fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5";
-  fn.textContent = "Cunningham et al. arXiv:2309.08600 \u00b7 Rajamanoharan et al. arXiv:2407.14435 (JumpReLU) \u00b7 Marks et al. arXiv:2406.02395 (sparse feature circuits) \u00b7 Anthropic transformer-circuits.pub. MODELED \u00b7 not claimed-as.";
-  card.appendChild(fn);
-  _overlay.appendChild(card);
-
-  const pl = document.createElement("button");
-  pl.textContent = "\u25d1 what this means";
-  pl.title = "Toggle plain-language explanation for investors & consumers.";
-  pl.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #3af4c8;background:#08140f;color:#3af4c8;cursor:pointer;width:fit-content";
-  pl.addEventListener("click", () => {
-    _plain = !_plain;
-    pl.style.background = _plain ? "#0f2a20" : "#08140f";
-    _applyPlain();
-  });
-  _overlay.appendChild(pl);
-
-  const pd = document.createElement("div");
-  pd.id = "ip-plain";
-  pd.style.cssText = "font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;padding:7px 9px;display:none";
-  _el["plain"] = pd;
-  _overlay.appendChild(pd);
-
-  (ctx.container || document.body).appendChild(_overlay);
   _paintOverlay();
 }
 
-function _applyPlain() {
-  const pd = _el["plain"];
-  if (!pd) return;
-  pd.style.display = _plain ? "block" : "none";
-  if (!_plain) return;
+function _plainHtml() {
   const act = S.active != null ? String(S.active) : "loading\u2026";
   const l0  = S.l0 != null ? (S.l0 * 100).toFixed(3) + "% of the dictionary" : "loading\u2026";
   const top = (S.top && S.top[0] && S.top[0].feature) ? S.top[0].feature : "loading\u2026";
-  pd.innerHTML =
+  return (
     "<b>What this means:</b> Instead of treating the model as a black box, a sparse " +
     "autoencoder breaks one internal activation into a handful of named, human-readable " +
     "<b>features</b> \u2014 here <b>" + act + "</b> fired (only <b>" + l0 + "</b>). " +
@@ -377,7 +307,7 @@ function _applyPlain() {
     "the model\u2019s output the most. " +
     "Plain: this is how you audit <i>why</i> an AI produced an answer and prove which internal " +
     "concept drove it \u2014 but this view is a <b>MODELED</b> simulation of the technique, not a " +
-    "readout from a live production model.";
+    "readout from a live production model.");
 }
 
 function _tok(s) {
@@ -400,7 +330,7 @@ function _paintOverlay() {
   _set("ip-topf",   t || (top0 ? (top0.feature + "  (KL " + fx(top0.causal_ablation_kl, 3) + ")") : "\u2014"));
   // honesty label verbatim — never upgraded
   _set("ip-label",  t || (S.label || "MODELED"));
-  if (_plain) _applyPlain();
+  if (_show) { _show.setChip("hl", S.label || "MODELED", { text: "interpretability" }); _show.refreshPlain(); }
 }
 
 // =============================================================================
@@ -408,7 +338,7 @@ function _paintOverlay() {
 // =============================================================================
 export function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
-  try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
+  try { if (_show) _show.destroy(); } catch (_) {}
   try {
     if (_group && _stage) {
       _group.traverse((o) => {
@@ -421,9 +351,9 @@ export function unmount() {
       _stage.scene.remove(_group);
     }
   } catch (_) {}
-  _group = _overlay = null;
+  _group = _show = null;
   _slots = []; _links = null; _hub = null; _ring = null;
-  _el = {}; _badge = null; _plain = false; _frameReg = false;
+  _el = {}; _badge = null; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.l0 = S.active = S.recon = S.top = null;
   S.state = "init";
