@@ -30,6 +30,13 @@
 // real fresh exporter sample arrives, the same geometry fills from the MEASURED joules.
 //
 // LIVE ENDPOINTS:
+//   /api/a11oy/v1/energy/mesh      — PER-NODE live NVML energy from the MERGED multi-meter
+//        scrape (both the tower's meter.a-11-oy.com AND the laptop's meter2.a-11-oy.com,
+//        merged + de-duped by szl_energy_operator._fetch_joule_meter via
+//        A11OY_JOULE_METER_URLS). nodes[]:{name, role, live, watts, joules, joules_label
+//        (MEASURED|UNAVAILABLE), source (NVML|mesh-posture), draw}, total_watts,
+//        total_joules, joules_label. THIS is what upgrades the surface from
+//        STRUCTURAL-ONLY to live-MEASURED per node (Dev2, Wave 28).
 //   /api/a11oy/v1/harvest/posture  — posture, rank, wasted_energy_available, soak_hard,
 //        measured_any, drivers, readings[] (per-feed reachable/measured + value),
 //        joules_label, joules_evidence{joules_measured_total, exporter_node, power_w_sample},
@@ -37,12 +44,20 @@
 //        renewable_share_pct / uk_gco2_per_kwh.
 //   /api/a11oy/v1/anatomy/loop     — reservoir.work_credits (the loop's stored credits).
 //
+// PER-NODE HONESTY (Dev2, binding): each metered GPU is labeled INDEPENDENTLY straight off
+// /energy/mesh — MEASURED when its own NVML meter responded live with a real reading;
+// OFFLINE when the node exists in the mesh but is not live OR its engine returned no
+// reading (watts/joules null); NO-LIVE-DATA/STRUCTURAL-ONLY only when the endpoint itself
+// is missing/errored. A node with no live meter shows OFFLINE — we NEVER fabricate a watt
+// or a joule, and the tower can be MEASURED while the laptop is OFFLINE (and vice-versa).
+//
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
 import { createShowcase } from "./_showcase.js";
 
 const ID = "energy";
 const TITLE = "Energy · Harvest";
+const MESH_EP = "/api/a11oy/v1/energy/mesh";
 const POSTURE_EP = "/api/a11oy/v1/harvest/posture";
 const LOOP_EP = "/api/a11oy/v1/anatomy/loop";
 
@@ -53,7 +68,12 @@ const C = {
 };
 
 let _stage = null, _THREE = null, _ctx = null;
-let _hPosture = null, _hLoop = null;
+let _hMesh = null, _hPosture = null, _hLoop = null;
+// True once /energy/mesh has delivered a MEASURED per-node reading this session, so the
+// posture poller does NOT override the reservoir/gauge with the off-box structural posture
+// (the LIVE mesh is the source of truth for joules/watts when it is measured). Honest:
+// reset to false whenever the mesh endpoint goes missing/errored.
+let _meshMeasured = false;
 let _root = null;          // THREE.Group holding everything we add (one remove on unmount)
 let _overlay = null;       // DOM HUD panel
 let _show = null;          // shared collapsible showcase chrome
@@ -136,6 +156,33 @@ function _getNegWindows(json) {
   if (n !== null) return { list: null, count: n, live: true };
   return { list: null, count: null, live: false };
 }
+// per-node energy from /energy/mesh. Returns a normalized node list; each entry carries
+// its OWN honesty verdict read STRAIGHT off the JSON — never inferred, never fabricated:
+//   measured : joules_label==MEASURED AND a numeric watts/joules is present.
+//   offline  : node exists in the mesh but is not measured (no live reading / not live).
+function _num2(x) { return _num(x); }
+function _meshNodes(json) {
+  const arr = (json && Array.isArray(json.nodes)) ? json.nodes : [];
+  return arr.map((n, i) => {
+    const label = String((n && n.joules_label) || "").toUpperCase();
+    const watts = _num(n && n.watts);
+    const joules = _num(n && n.joules);
+    const live = (n && n.live) === true;
+    const measured = label.indexOf("MEASURED") >= 0 && (watts !== null || joules !== null);
+    return {
+      key: String((n && (n.name || n.role)) || ("node" + i)),
+      name: String((n && n.name) || (n && n.role) || ("node " + i)),
+      role: String((n && n.role) || ""),
+      watts, joules, live, measured,
+      draw: _num(n && n.draw),
+      source: String((n && n.source) || ""),
+      // Honest per-node display label: MEASURED when its own meter read live; OFFLINE
+      // otherwise (present in the mesh, but no live NVML reading attributed to it).
+      label: measured ? "MEASURED" : "OFFLINE",
+    };
+  });
+}
+
 // joules evidence — MEASURED only on-box; off-box {} (we render the honest empty posture)
 function _getJoules(json) {
   const ev = (json && json.joules_evidence) || {};
@@ -356,8 +403,19 @@ function build() {
   MOTES.pos = mPos; MOTES.geo = mGeo;
   _root.add(MOTES.points);
 
+  // ---- DEMO 13: PER-NODE sovereign-GPU pillars (Dev2 — the honest MEASURED upgrade) ----
+  // One pillar per mesh GPU node from /energy/mesh. Height = the node's live NVML watts
+  // (log-eased to a sane visual range); color = green when that node is MEASURED, slate/dim
+  // OFFLINE when it has no live reading. A billboard rides each pillar showing the node's
+  // OWN honesty label (MEASURED·<W> or OFFLINE) so a viewer can tell tower from laptop and
+  // measured from offline at a glance — NEVER a fabricated bar. Pillars are (re)built by the
+  // mesh poller (node set is data-driven), so build() just reserves the group + tray.
+  const PNODES = { group: new THREE.Group(), items: [], trayR: 4.2, built: false };
+  PNODES.group.position.y = -2.15;
+  _root.add(PNODES.group);
+
   // stash builders for the frame loop + pollers
-  _scene = { GRID, NEG, RES, ARC, HALO, GAUGE, DOME, RIBBON, HEALTH, SOAK, CREDITS, MOTES };
+  _scene = { GRID, NEG, RES, ARC, HALO, GAUGE, DOME, RIBBON, HEALTH, SOAK, CREDITS, MOTES, PNODES };
 
   // enable bloom for the holographic glow (safe no-op on WebGPU per toolkit)
   try { _stage.setBloom(true); } catch (_) {}
@@ -468,6 +526,16 @@ function build() {
     MOTES.geo.attributes.position.needsUpdate = true;
     MOTES.points.material.opacity = 0.25 + _anim.flow * 0.4;
 
+    // per-node GPU pillars: ease each toward its live-watts target height; a MEASURED
+    // node pulses gently, an OFFLINE node sits flat + dim (honest — no fabricated motion).
+    for (let i = 0; i < PNODES.items.length; i++) {
+      const it = PNODES.items[i];
+      it.h = ease(it.h, it.hT, 0.08);
+      it.mesh.scale.y = Math.max(0.05, it.h);
+      const pulse = it.measured ? (0.5 + 0.35 * Math.sin(t * 2.4 + i)) : 0.0;
+      it.mesh.material.emissiveIntensity = 0.25 + 0.5 * pulse;
+    }
+
     _root.rotation.y += 0.0012; // gentle estate drift
   };
   _stage.onFrame(_frameFn);
@@ -516,11 +584,24 @@ function buildHUD() {
   row("power", "power_w sample");
   row("credits", "loop work_credits");
   row("health", "grid feeds");
+  row("fleet", "GPU fleet");
+
+  // PER-NODE fleet block (Dev2) — one row per sovereign GPU, populated live by the
+  // /energy/mesh poller. Rows are created on demand (data-driven) so we never hardcode
+  // a node; _hud.nodeRows maps a stable node key -> {val, chip}.
+  const nodeHdr = document.createElement("div");
+  nodeHdr.textContent = "per-node (live NVML, merged meters)";
+  nodeHdr.style.cssText = "color:#7c8b98;font-size:10px;letter-spacing:.4px;margin-top:6px;text-transform:uppercase";
+  _overlay.appendChild(nodeHdr);
+  _hud.nodeBox = document.createElement("div");
+  Object.assign(_hud.nodeBox.style, { display: "flex", flexDirection: "column", gap: "6px" });
+  _overlay.appendChild(_hud.nodeBox);
+  _hud.nodeRows = {};
 
   // doctrine note (the off-box joules honesty reality)
   const note = document.createElement("div");
   note.style.cssText = "color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:4px;border-top:1px solid #15212c;padding-top:6px";
-  note.textContent = "joules MEASURED only on-box (NVML exporter). Off-box label=sample, evidence empty — the funnel shows its structure, never a fabricated fill. Modeled on Electricity Maps + deck.gl; rendered in three.js (see manifest).";
+  note.textContent = "Per-node joules/watts are MEASURED live from the merged NVML meters (tower meter.a-11-oy.com + laptop meter2.a-11-oy.com) via /energy/mesh; a node with no live meter shows OFFLINE — never a fabricated watt or joule. When /energy/mesh is missing the funnel falls back to the harvest-posture structure (STRUCTURAL-ONLY), never inventing a fill. Modeled on Electricity Maps + deck.gl; rendered in three.js (see manifest).";
   _overlay.appendChild(note);
 
   _show.body.appendChild(_overlay);
@@ -536,13 +617,169 @@ function _setRow(key, text, label) {
 // ----------------------------------------------------------------------------
 // pollers — wire EVERY value to the real endpoints; render honest degraded/missing.
 // ----------------------------------------------------------------------------
+
+// (Re)build the per-node pillar tray from a mesh node list. Data-driven: a pillar is
+// created per node the first time we see it, then reused; the node set rarely changes.
+function _ensurePillars(nodes) {
+  const P = _scene && _scene.PNODES;
+  if (!P) return;
+  if (P.built && P.items.length === nodes.length) return;
+  // Rebuild cleanly (dispose old) when the node count changes.
+  for (const it of P.items) {
+    try { P.group.remove(it.mesh); if (it.mesh.geometry) it.mesh.geometry.dispose(); if (it.mesh.material) it.mesh.material.dispose(); } catch (_) {}
+    try { if (it.chip) { P.group.remove(it.chip); if (it.chip.material) { if (it.chip.material.map) it.chip.material.map.dispose(); it.chip.material.dispose(); } } } catch (_) {}
+  }
+  P.items = [];
+  const THREE = _THREE;
+  const n = Math.max(1, nodes.length);
+  for (let i = 0; i < nodes.length; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const g = new THREE.CylinderGeometry(0.28, 0.28, 1, 10); g.translate(0, 0.5, 0);
+    const m = new THREE.MeshStandardMaterial({ color: C.slate, emissive: C.slate, emissiveIntensity: 0.3, metalness: 0.25, roughness: 0.5 });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.position.set(Math.cos(a) * P.trayR, 0, Math.sin(a) * P.trayR);
+    mesh.scale.y = 0.05;
+    P.group.add(mesh);
+    P.items.push({ mesh, chip: null, h: 0.05, hT: 0.05, measured: false });
+  }
+  P.built = true;
+}
+
+// The LIVE per-node upgrade. Reads /energy/mesh; renders each GPU's real watts/joules with
+// an honest MEASURED/OFFLINE label; drives the reservoir + power gauge from the aggregate
+// MEASURED reading. NEVER fabricates: an absent/errored endpoint = STRUCTURAL-ONLY fallback,
+// an OFFLINE node = flat dim pillar + null value.
+function onMesh(json, meta) {
+  if (!_scene) return;
+  const P = _scene.PNODES;
+
+  // endpoint missing/errored -> honest STRUCTURAL-ONLY; do NOT touch the reservoir/gauge
+  // that the posture poller manages, and clear the mesh-measured override so posture wins.
+  if (meta.state === "missing" || meta.state === "error") {
+    _meshMeasured = false;
+    _setRow("fleet", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+    // gray any existing pillars (don't fabricate motion)
+    if (P) for (const it of P.items) { it.hT = 0.05; it.measured = false; it.mesh.material.color.setHex(C.dim); it.mesh.material.emissive.setHex(C.dim); }
+    return;
+  }
+
+  const nodes = _meshNodes(json);
+  _ensurePillars(nodes);
+
+  let measuredCount = 0, liveCount = 0;
+  // draw denominator: busiest MEASURED node's watts (for pillar height normalization)
+  let maxW = 0;
+  for (const nd of nodes) if (nd.measured && nd.watts !== null) maxW = Math.max(maxW, nd.watts);
+
+  for (let i = 0; i < nodes.length; i++) {
+    const nd = nodes[i];
+    if (nd.live) liveCount++;
+    const it = P && P.items[i];
+    if (nd.measured) {
+      measuredCount++;
+      // pillar height from live watts (normalized to the busiest MEASURED node, sane floor)
+      const frac = (maxW > 0 && nd.watts !== null) ? nd.watts / maxW : 0.5;
+      if (it) {
+        it.hT = 0.4 + 3.4 * Math.max(0.05, Math.min(1, frac));
+        it.measured = true;
+        it.mesh.material.color.setHex(C.green);
+        it.mesh.material.emissive.setHex(C.green);
+      }
+    } else if (it) {
+      // OFFLINE: node present but no live reading. Flat, dim, honest.
+      it.hT = 0.05; it.measured = false;
+      it.mesh.material.color.setHex(C.dim);
+      it.mesh.material.emissive.setHex(C.dim);
+    }
+    // per-node billboard (label rides the pillar): MEASURED·<W> or OFFLINE
+    if (P && it) {
+      try {
+        if (it.chip) { P.group.remove(it.chip); if (it.chip.material) { if (it.chip.material.map) it.chip.material.map.dispose(); it.chip.material.dispose(); } }
+        const txt = nd.measured
+          ? (nd.watts !== null ? nd.watts.toFixed(1) + " W" : "live")
+          : (nd.role || "node");
+        it.chip = _ctx.label.billboard(_THREE, nd.label, {
+          text: txt, scale: 0.4,
+          position: [it.mesh.position.x, 4.0, it.mesh.position.z], depthTest: false,
+        });
+        P.group.add(it.chip);
+      } catch (_) {}
+    }
+    // per-node HUD row (created on demand, keyed by node)
+    if (_hud.nodeBox) {
+      let r = _hud.nodeRows[nd.key];
+      if (!r) {
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "display:flex;align-items:center;gap:8px;justify-content:space-between";
+        const left = document.createElement("span"); left.style.cssText = "color:#9fb1bf;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+        left.textContent = nd.name; left.title = nd.name;
+        const right = document.createElement("span"); right.style.cssText = "display:flex;align-items:center;gap:6px";
+        const val = document.createElement("span"); val.style.color = "#eef3f6";
+        const chip = _ctx.label.chip("OFFLINE"); chip.style.transform = "scale(.92)";
+        right.appendChild(val); right.appendChild(chip);
+        wrap.appendChild(left); wrap.appendChild(right);
+        _hud.nodeBox.appendChild(wrap);
+        r = _hud.nodeRows[nd.key] = { val, chip };
+      }
+      if (nd.measured) {
+        const parts = [];
+        if (nd.watts !== null) parts.push(nd.watts.toFixed(1) + " W");
+        if (nd.joules !== null) parts.push(nd.joules.toFixed(0) + " J");
+        r.val.textContent = parts.join(" · ") || "live";
+        _ctx.label.updateChip(r.chip, "MEASURED");
+      } else {
+        r.val.textContent = nd.live ? "live, no meter" : "offline";
+        _ctx.label.updateChip(r.chip, "OFFLINE");
+      }
+    }
+  }
+
+  // fleet summary row
+  if (nodes.length) {
+    _setRow("fleet", measuredCount + "/" + nodes.length + " MEASURED" + (liveCount ? " · " + liveCount + " live" : ""),
+            measuredCount ? "MEASURED" : "STRUCTURAL-ONLY");
+  } else {
+    _setRow("fleet", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+  }
+
+  // AGGREGATE drives the funnel + power gauge from REAL merged joules/watts when MEASURED.
+  // This is the source of truth over the off-box posture (which carries no NVML sample).
+  const totalJ = _num(json.total_joules);
+  const totalW = _num(json.total_watts);
+  const aggMeasured = String((json.joules_label || "")).toUpperCase().indexOf("MEASURED") >= 0
+                      && totalJ !== null && measuredCount > 0;
+  _meshMeasured = aggMeasured;
+  if (aggMeasured) {
+    // fill the reservoir from the REAL merged joules (log-scaled, same visual law as on-box)
+    _anim.fillT = Math.max(0.02, Math.min(1, Math.log10(1 + totalJ) / 6));
+    _scene.RES.fluidMat.color.setHex(C.green); _scene.RES.fluidMat.emissive.setHex(C.green);
+    _setRow("joules", totalJ.toFixed(0) + " J (fleet, " + measuredCount + " GPU)", "MEASURED");
+    if (totalW !== null) { _anim.powerWT = Math.min(1, totalW / 1000); _setRow("power", totalW.toFixed(1) + " W (fleet)", "MEASURED"); }
+    // energy is genuinely flowing into the funnel when we're metering real watts
+    _anim.flowT = Math.max(_anim.flowT || 0, 0.6);
+    // update the reservoir billboard to the honest measured fleet total
+    if (_scene.RES.chip) {
+      try {
+        _scene.RES.group.remove(_scene.RES.chip);
+        _scene.RES.chip = _ctx.label.billboard(_THREE, "MEASURED", { text: totalJ.toFixed(0) + " J", scale: 0.55, position: [0, 2.55, 0], depthTest: false });
+        _scene.RES.group.add(_scene.RES.chip);
+      } catch (_) {}
+    }
+  }
+}
+
 function onPosture(json, meta) {
   if (!_scene) return;
 
-  // degraded / missing posture → honest HUD, don't fabricate
+  // degraded / missing posture → honest HUD, don't fabricate. If the LIVE mesh is still
+  // MEASURED this session it owns the joules/power rows + reservoir fill — don't blank those.
   if (meta.state === "missing" || meta.state === "error") {
-    ["posture", "price", "renew", "carbon", "neg", "joules", "power", "health"].forEach((k) => _setRow(k, "NO-LIVE-DATA", "STRUCTURAL-ONLY"));
-    _anim.flowT = 0; _anim.soakT = 0; _anim.fillT = 0;
+    const baseRows = _meshMeasured
+      ? ["posture", "price", "renew", "carbon", "neg", "health"]
+      : ["posture", "price", "renew", "carbon", "neg", "joules", "power", "health"];
+    baseRows.forEach((k) => _setRow(k, "NO-LIVE-DATA", "STRUCTURAL-ONLY"));
+    _anim.soakT = 0;
+    if (!_meshMeasured) { _anim.flowT = 0; _anim.fillT = 0; }
     return;
   }
   const degraded = meta.state === "degraded" || json.ok === false;
@@ -590,36 +827,44 @@ function onPosture(json, meta) {
   } else { _setRow("neg", "NO-LIVE-DATA", "STRUCTURAL-ONLY"); _anim.negCountT = 0; }
 
   // THE FUNNEL — joules. MEASURED only on-box; off-box honest sample posture, no fill.
+  // IMPORTANT (Dev2, binding): when /energy/mesh has delivered a MEASURED aggregate this
+  // session (_meshMeasured), the LIVE merged-meter reading is the source of truth for the
+  // reservoir fill, the power gauge, the joules/power HUD rows, and the reservoir billboard.
+  // The off-box posture carries NO NVML sample (joules_evidence={}, joules_label=sample), so
+  // we must NOT let it overwrite the honest mesh-measured values with an empty SAMPLE posture.
+  // We therefore GUARD every reservoir/gauge/joules write below behind !_meshMeasured.
   const j = _getJoules(json);
   const jlabel = j.label || (json.joules_label ? String(json.joules_label).toUpperCase() : "STRUCTURAL-ONLY");
-  if (_scene.RES.chip) {
-    try {
-      _scene.RES.group.remove(_scene.RES.chip);
-      _scene.RES.chip = _ctx.label.billboard(_THREE, jlabel, {
-        text: j.measured && j.total !== null ? (j.total.toFixed(0) + " J") : "joules",
-        scale: 0.55, position: [0, 2.55, 0], depthTest: false,
-      });
-      _scene.RES.group.add(_scene.RES.chip);
-    } catch (_) {}
-  }
-  if (j.measured && j.total !== null) {
-    // on-box: fill the reservoir from REAL measured joules (log-scaled to a sane visual range)
-    const frac = Math.max(0.02, Math.min(1, Math.log10(1 + j.total) / 6)); // 1e6 J ~= full
-    _anim.fillT = frac;
-    _setRow("joules", j.total.toFixed(0) + " J (" + (j.node || "exporter") + ")", "MEASURED");
-    _scene.RES.fluidMat.color.setHex(C.green); _scene.RES.fluidMat.emissive.setHex(C.green);
-  } else {
-    // off-box / no fresh sample: honest — reservoir stays empty, label sample/structural
-    _anim.fillT = 0;
-    _setRow("joules", jlabel === "SAMPLE" ? "sample (no on-box NVML)" : "NO-LIVE-DATA", jlabel === "SAMPLE" ? "SAMPLE" : "STRUCTURAL-ONLY");
-    _scene.RES.fluidMat.color.setHex(C.blue); _scene.RES.fluidMat.emissive.setHex(C.blue);
-  }
+  if (!_meshMeasured) {
+    if (_scene.RES.chip) {
+      try {
+        _scene.RES.group.remove(_scene.RES.chip);
+        _scene.RES.chip = _ctx.label.billboard(_THREE, jlabel, {
+          text: j.measured && j.total !== null ? (j.total.toFixed(0) + " J") : "joules",
+          scale: 0.55, position: [0, 2.55, 0], depthTest: false,
+        });
+        _scene.RES.group.add(_scene.RES.chip);
+      } catch (_) {}
+    }
+    if (j.measured && j.total !== null) {
+      // on-box: fill the reservoir from REAL measured joules (log-scaled to a sane visual range)
+      const frac = Math.max(0.02, Math.min(1, Math.log10(1 + j.total) / 6)); // 1e6 J ~= full
+      _anim.fillT = frac;
+      _setRow("joules", j.total.toFixed(0) + " J (" + (j.node || "exporter") + ")", "MEASURED");
+      _scene.RES.fluidMat.color.setHex(C.green); _scene.RES.fluidMat.emissive.setHex(C.green);
+    } else {
+      // off-box / no fresh sample: honest — reservoir stays empty, label sample/structural
+      _anim.fillT = 0;
+      _setRow("joules", jlabel === "SAMPLE" ? "sample (no on-box NVML)" : "NO-LIVE-DATA", jlabel === "SAMPLE" ? "SAMPLE" : "STRUCTURAL-ONLY");
+      _scene.RES.fluidMat.color.setHex(C.blue); _scene.RES.fluidMat.emissive.setHex(C.blue);
+    }
 
-  // power_w gauge
-  if (j.powerW !== null) {
-    _setRow("power", j.powerW.toFixed(1) + " W", j.measured ? "MEASURED" : "SAMPLE");
-    _anim.powerWT = Math.min(1, j.powerW / 1000);
-  } else { _setRow("power", "NO-LIVE-DATA", "STRUCTURAL-ONLY"); _anim.powerWT = 0; }
+    // power_w gauge
+    if (j.powerW !== null) {
+      _setRow("power", j.powerW.toFixed(1) + " W", j.measured ? "MEASURED" : "SAMPLE");
+      _anim.powerWT = Math.min(1, j.powerW / 1000);
+    } else { _setRow("power", "NO-LIVE-DATA", "STRUCTURAL-ONLY"); _anim.powerWT = 0; }
+  }
 
   // grid-feed health constellation + badge (n reachable / total)
   const rs = Array.isArray(json.readings) ? json.readings : [];
@@ -670,14 +915,19 @@ function mount(ctx) {
   build();
   buildHUD();
 
-  // wire BOTH live endpoints. The HUD badge tracks the primary (posture) endpoint.
-  _hPosture = ctx.live.poll(POSTURE_EP, 5000, onPosture, { badge: _hud.badge });
+  // wire ALL THREE live endpoints. /energy/mesh is the FLAGSHIP per-node meter (Dev2), so the
+  // HUD badge tracks IT — its live/degraded/missing state is what the surface headline reports.
+  // posture + loop feed the surrounding grid/price/credits context but no longer own the
+  // reservoir once mesh is MEASURED (see the _meshMeasured guards in onPosture).
+  _hMesh = ctx.live.poll(MESH_EP, 5000, onMesh, { badge: _hud.badge });
+  _hPosture = ctx.live.poll(POSTURE_EP, 5000, onPosture);
   _hLoop = ctx.live.poll(LOOP_EP, 7000, onLoop);
 
   return { id: ID, started: true };
 }
 
 function unmount() {
+  try { if (_hMesh) _hMesh.stop(); } catch (_) {}
   try { if (_hPosture) _hPosture.stop(); } catch (_) {}
   try { if (_hLoop) _hLoop.stop(); } catch (_) {}
   try { if (_show) _show.destroy(); } catch (_) {}
@@ -691,8 +941,9 @@ function unmount() {
     });
   } catch (_) {}
   try { if (_stage) _stage.setBloom(false); } catch (_) {}
-  _hPosture = null; _hLoop = null; _overlay = null; _show = null; _root = null;
+  _hMesh = null; _hPosture = null; _hLoop = null; _meshMeasured = false;
+  _overlay = null; _show = null; _root = null;
   _scene = null; _frameFn = null; _hud = {}; _ctx = null; _stage = null; _THREE = null;
 }
 
-export default { id: ID, title: TITLE, endpoints: [POSTURE_EP, LOOP_EP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [MESH_EP, POSTURE_EP, LOOP_EP], mount, unmount };

@@ -1537,6 +1537,18 @@ try:
 except Exception as _szl_loopforge_metrics_e:  # pragma: no cover
     print(f"[a11oy] Loop Forge metrics NOT registered: {_szl_loopforge_metrics_e!r}", file=__import__("sys").stderr)
 
+# ── WAVE-28 JPT (measured joules-per-token, ns=a11oy): the Brain's real energy sense.
+# Benchmarks MEASURED J/token per fleet node (meter-delta around real inference), emits
+# a HEART beat + BLOOD-signed receipt per measurement, persists a hash-chained ledger.
+# MEASURED only when a node meter+GPU respond live THIS run; else OFFLINE, never a
+# fabricated joule; monotonic-reset detected. Additive, pure-stdlib, guarded.
+try:
+    import szl_kc_jpt as _szl_kc_jpt
+    _szl_kc_jpt.register(app, ns="a11oy")
+    print("[a11oy] JPT registered: /api/a11oy/v1/jpt/{manifest,benchmark,nodes,ledger,summary}", file=__import__("sys").stderr)
+except Exception as _szl_jpt_e:  # pragma: no cover
+    print(f"[a11oy] JPT NOT registered: {_szl_jpt_e!r}", file=__import__("sys").stderr)
+
 # (harness-wire) — GOVERNED MODEL HARNESS: makes "run model X with behavior
 # profile Y" a first-class, governed, receipted operation. Behavior transfer is
 # MODELED (changes disposition, NOT capability) and is honestly labeled as such.

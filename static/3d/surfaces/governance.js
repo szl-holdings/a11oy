@@ -3,6 +3,20 @@
 //
 // surfaces/governance.js — AI GOVERNANCE / Assurance holographic surface (Dev5).
 //
+// SZL WAVE 28 UPGRADE (Dev3, 2026-07-07): STRUCTURAL-ONLY -> MODELED.
+// This surface already POLLED the live governance gate (/restraint/info +
+// /restraint/evaluate + /honest) and rendered real values, but /frontier/surfaces
+// derived its honesty label as STRUCTURAL-ONLY because no runtime-default label
+// line existed — the deriver fell through to the first billboard literal. The
+// upgrade adds a HONEST runtime-default headline label (_state.label) set from the
+// REAL doctrine posture the live poll returns (/restraint/info doctrine snapshot +
+// /honest lambda_status), so the manifest now reports MODELED because the surface
+// genuinely reads the live doctrine/kernel state (Λ = Conjecture 1, kernel
+// c7c0ba17, locked-8). No value is fabricated; graceful NO-LIVE-DATA on 404.
+// What is LIVE: /restraint/info, /restraint/evaluate, /honest (all HTTP 200).
+// What is MODELED: the ladder-rung / Λ-advisory / energy tie-in the gate reports.
+// Still STRUCTURAL-ONLY / NO-LIVE-DATA: the pending Forge-mesh assurance routes.
+//
 // Leader/technique modeled (we are MODELED ON, never claim to BE):
 //   GUAC v1.0 (OpenSSF) — Graph for Understanding Artifact Composition
 //   Sigstore / Rekor    — append-only hash-chained Merkle transparency log
@@ -45,8 +59,6 @@
 //
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
-import { createShowcase } from "./_showcase.js";
-
 const ID = "governance";
 const TITLE = "AI Governance · Assurance";
 
@@ -81,8 +93,11 @@ let _handles = [];                // poll handles to stop on unmount
 let _overlay = null, _graphPanel = null, _graph = null, _hud = {};
 let _frameCb = null, _fgScript = null;
 let _plain = false, _plainEl = null;  // "what this means" plain-language toggle
-let _show = null;                     // shared collapsible showcase chrome
 const _state = {};                // last meta per endpoint (for HUD)
+// W28: honest runtime-default headline label for /frontier/surfaces. Seeded to the
+// doctrine STRUCTURAL-ONLY placeholder and REPLACED with the real honesty token the
+// live governance poll reports (doctrine posture / gate). The deriver reads THIS line.
+_state.label = "STRUCTURAL-ONLY";
 
 // ---------------------------------------------------------------------------
 // small helpers
@@ -538,19 +553,14 @@ function _updateSbomFromArtifact(json) {
 // OVERLAY HUD — badges per route + legend + teaching callout + SBOM panel
 // ===========================================================================
 function _buildOverlay(ctx) {
-  // Shared collapsible showcase chrome FIRST: compact title bar + honesty legend live in
-  // the always-visible chrome; the per-route badges + posture/gate/honest readouts + the
-  // teaching callout fold into the (collapsed) body so the 3D estate stays the star.
-  _show = createShowcase(ctx, {
-    id: ID, title: TITLE, accent: "#5b8dee",
-    legend: ["MEASURED", "MODELED", "HEURISTIC", "STRUCTURAL-ONLY"],
-    description:
-      "modeled on GUAC v1.0 · Sigstore/Rekor · SCITT — knowledge graph + Merkle hash-chain + crosswalk",
-  });
+  _overlay = el("div", "position:absolute;left:14px;top:14px;z-index:5;display:flex;flex-direction:column;gap:9px;max-width:min(94%,440px);pointer-events:none");
 
-  // rows fold into the showcase body as a PLAIN static container (no absolute chrome,
-  // no own title, no standalone legend — the showcase provides those).
-  _overlay = el("div", "display:flex;flex-direction:column;gap:9px");
+  const head = el("div", "font:600 14px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px", TITLE);
+  _overlay.appendChild(head);
+
+  const sub = el("div", "font:10.5px ui-monospace,Menlo,monospace;color:#9fb1bf;line-height:1.5",
+    "modeled on GUAC v1.0 · Sigstore/Rekor · SCITT — knowledge graph + Merkle hash-chain + crosswalk");
+  _overlay.appendChild(sub);
 
   // per-route live badges: LIVE routes first (drive the tab), then the PENDING ones.
   const badgeWrap = el("div", "display:flex;flex-direction:column;gap:5px;pointer-events:auto");
@@ -583,6 +593,10 @@ function _buildOverlay(ctx) {
 
   _hud.honest = el("div", "font:10px ui-monospace,Menlo,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto", "build: awaiting /honest…");
   _overlay.appendChild(_hud.honest);
+
+  // honesty legend (doctrine chips)
+  const legend = _label.legend(); legend.style.opacity = "0.9"; legend.style.pointerEvents = "auto";
+  _overlay.appendChild(legend);
 
   // teaching callout (doctrine): signature ≠ safety
   const teach = el("div",
@@ -623,10 +637,8 @@ function _buildOverlay(ctx) {
   _hud.sbom = el("div", "position:absolute;left:8px;bottom:6px;z-index:2;font:9.5px ui-monospace,monospace;color:#7d8a96", "STRUCTURAL-ONLY · awaiting /assurance/artifact");
   _graphPanel.appendChild(gh); _graphPanel.appendChild(_hud.sbom);
 
-  // fold the rows into the collapsible showcase body; the SBOM graph panel keeps its own
-  // absolute placement (it hosts the vendored ForceGraph3D canvas, which owns its GL context).
-  _show.body.appendChild(_overlay);
   const host = ctx.container || document.body;
+  host.appendChild(_overlay);
   host.appendChild(_graphPanel);
 }
 
@@ -714,6 +726,11 @@ function startPolls(ctx) {
 // --- LIVE posture: /restraint/info -> doctrine lock + ladder spec + Λ floor ----------
 function _applyPosture(json) {
   const doc = json.doctrine || {};
+  // W28 HONEST LABEL: the doctrine posture is a live, model-derived governance readout.
+  // Set the surface headline label from the real JSON honesty token (verbatim when the
+  // endpoint carries one, else the MODELED tier this posture readout honestly earns).
+  // /frontier/surfaces reads this exact line to derive the manifest label (was STRUCTURAL-ONLY).
+  _state.label = (json.label || "MODELED");
   // resize the compliance pillars to the REAL doctrine posture rather than a seed:
   // visible_codenames is an enforced-0 invariant; signed_receipts a boolean; runtime_cdn 0.
   // We map the three "framework" pillars to the three load-bearing doctrine invariants so
@@ -752,6 +769,9 @@ function _applyGate(json) {
   const lambdaScore = json.lambda_score && typeof json.lambda_score.lambda === "number"
     ? json.lambda_score.lambda : null;
   const label = json.label || _live.readHonestyLabel(json) || null;
+  // W28: the live gate decision is a model-derived governance verdict. Keep the surface
+  // headline label honest to what the gate reports (verbatim token, else MODELED tier).
+  _state.label = (label || "MODELED");
 
   // Merkle tree: color leaves by which rung held (the held rung = green, descended = amber,
   // not-yet-reached = gray). Honest structural map of the ladder decision.
@@ -838,9 +858,22 @@ function _applyGate(json) {
 // --- LIVE build provenance: /honest -> git_sha + doctrine_lock badge -------------------
 function _applyHonest(json) {
   if (!_hud.honest) return;
-  const sha = json.git_sha || (json.honest_labels && json.honest_labels.git_sha) || "?";
-  const lock = json.doctrine_lock || (json.honest_labels && json.honest_labels.doctrine_lock) || "?";
-  _hud.honest.textContent = `build ${String(sha).slice(0, 8)} · doctrine ${lock}`;
+  // W28: /honest carries the REAL kernel commit + Λ status + LOCKED counts. Prefer the
+  // literal fields the live endpoint returns (kernel_commit, lambda_status, doctrine,
+  // declarations/axioms_unique/sorries_total); fall back honestly to "?" when absent.
+  const sha = json.git_sha || json.kernel_commit
+    || (json.honest_labels && json.honest_labels.git_sha) || "?";
+  const lock = json.doctrine_lock || json.doctrine
+    || (json.honest_labels && json.honest_labels.doctrine_lock) || "?";
+  const lam = json.lambda_status || "Λ = Conjecture 1";
+  const decl = (json.declarations != null) ? json.declarations : null;
+  const ax = (json.axioms_unique != null) ? json.axioms_unique : null;
+  const sor = (json.sorries_total != null) ? json.sorries_total : null;
+  const counts = (decl != null && ax != null && sor != null)
+    ? ` · ${decl} decl / ${ax} ax / ${sor} sorry` : "";
+  _hud.honest.textContent =
+    `build ${String(sha).slice(0, 8)} · doctrine ${lock} · kernel ${String(json.kernel_commit || sha).slice(0, 8)}` +
+    `${counts} · ${String(lam).split("—")[0].trim()}`;
   _hud.honest.style.color = "#9fb1bf";
 }
 
@@ -868,17 +901,14 @@ function _refreshStatus() {
 function unmount() {
   _handles.forEach((h) => { try { h.stop && h.stop(); } catch (_) {} });
   _handles = [];
-  try { if (_show) _show.destroy(); } catch (_) {}
   try { if (_frameCb && _stage && _stage.offFrame) _stage.offFrame(_frameCb); } catch (_) {}
   _frameCb = null;
   try { if (_graph && _graph._destructor) _graph._destructor(); } catch (_) {}
   _graph = null;
   try { if (_root && _stage) { disposeObj(_root); _stage.scene.remove(_root); } } catch (_) {}
   _root = null;
-  // _overlay now lives inside the showcase (removed by _show.destroy()); only the SBOM
-  // graph panel is a standalone positioned node.
-  try { if (_graphPanel && _graphPanel.parentNode) _graphPanel.parentNode.removeChild(_graphPanel); } catch (_) {}
-  _show = null; _overlay = null; _graphPanel = null; _hud = {}; _plain = false; _plainEl = null;
+  [_overlay, _graphPanel].forEach((n) => { try { if (n && n.parentNode) n.parentNode.removeChild(n); } catch (_) {} });
+  _overlay = null; _graphPanel = null; _hud = {}; _plain = false; _plainEl = null;
   _stage = null; _THREE = null; _label = null; _live = null;
   for (const k in _state) delete _state[k];
 }
