@@ -11325,6 +11325,40 @@ except Exception as _sovcomp_e:
 
 
 # ============================================================================
+# INTERPRETABILITY (a11oy-native SAE features) — closes the last real 404:
+# GET /api/a11oy/v1/interpretability/features returned 404 on a-11-oy.com because
+# the interpretability surface (static/3d/surfaces/interpretability.js) had ONLY the
+# isolated killinchu Space endpoint and no a11oy-native self-hosted twin. This wires
+# the honest self-hosted PRIMARY: szl_a11oy_interpretability re-derives the deterministic
+# top-k sparse-autoencoder encode/decode (Cunningham et al. arXiv:2309.08600; Gao et al.
+# arXiv:2406.04093 top-k SAEs; Anthropic/Bricken + Templeton monosemanticity; JumpReLU
+# Rajamanoharan arXiv:2407.14435; Marks et al. arXiv:2406.02395 causal circuits) and emits
+# the SUPERSET of fields interpretability.js reads (label, l0_sparsity, active_features,
+# reconstruction_cos, top_features[]). Label MODELED (seeded encode; NO trained SAE, NO
+# live model, NO GPU) — read verbatim, never upgraded. Λ=Conjecture 1; adds nothing to
+# the locked-8. register() uses @app.get (APPENDS), so we front-move the single route to
+# app.router.routes position 0 to win over the /api/a11oy/{path:path} Node proxy +
+# /{full_path:path} SPA catch-all (same proven pattern as Sovereign Compute above).
+# Pure stdlib, additive, try/except-guarded — can NEVER take the Space down.
+# ============================================================================
+try:
+    import szl_a11oy_interpretability as _szl_interp
+    import sys as _interp_sys
+    _interp_status = _szl_interp.register(app, ns="a11oy")
+    _interp_paths = {"/api/a11oy/v1/interpretability/features"}
+    for _r in [_rt for _rt in app.router.routes
+               if getattr(_rt, "path", None) in _interp_paths]:
+        app.router.routes.remove(_r)
+        app.router.routes.insert(0, _r)
+    print(f"[a11oy] Interpretability (SAE features) registered (front-moved): {_interp_status}", file=_interp_sys.stderr)
+except Exception as _interp_e:  # pragma: no cover
+    print(f"[a11oy] Interpretability NOT registered (non-fatal): {_interp_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: Interpretability (a11oy-native SAE features)
+# ============================================================================
+
+
+# ============================================================================
 # REVENUE LAYER (feat/revenue-layer): ADDITIVE honest revenue ESTIMATORS.
 # Doctrine v11 LOCKED — revenue figures demand maximum honesty; no fabricated
 # numbers. Every output labeled ESTIMATE or PRICING_HYPOTHESIS, computed from
