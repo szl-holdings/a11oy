@@ -671,6 +671,12 @@ details.raw[open] summary{color:var(--muted);}
   <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
   <span class="tb-desc">GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
   <span class="live"><span class="live-dot"></span>LIVE</span>
+  <!-- ADDITIVE (feat/investor-mode-pricing): CEO / Investor-mode toggle. Opens a clean
+       overlay of 5-7 plain-English, honest proof points over the dense operator view.
+       The operator (dense) console is never rebuilt or hidden — this is an overlay only. -->
+  <button id="inv-toggle" class="inv-toggle" type="button" aria-pressed="false"
+          aria-controls="inv-overlay" title="CEO / Investor view — the plain-English story"
+          onclick="a11oyInvestor.toggle()">◆ Investor view</button>
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACE</span>
     <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
@@ -16359,6 +16365,205 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     sub:'Each experimental surface framed against the frontier paper it extends — honest "we extend X by Y", cited, never green.',
     render:renderLabsIntro
   };
+})();
+</script>
+
+<!-- ============================================================================
+     CEO / INVESTOR MODE OVERLAY  (feat/investor-mode-pricing, additive + guarded)
+     A clean, plain-English "one screen" over the dense operator console. NO raw JSON,
+     NO Lean internals. 6 honest proof points, each with a one-click link to /verify or
+     the check that backs it. The operator (dense) view is untouched underneath; this is
+     an overlay that opens/closes with the topbar "Investor view" toggle.
+     Doctrine v11 LOCKED. Nothing here touches locked-8. Lambda = Conjecture 1 (said plainly).
+     Tagline is the unified one: "AI that signs its work and refuses to lie."
+     0 runtime CDN (system/vendored fonts only). Try/except-guarded in JS so a failure
+     can NEVER break the console.
+     ============================================================================ -->
+<style id="inv-mode-css">
+.inv-toggle{flex:0 0 auto;font-family:var(--mono),ui-monospace,monospace;font-size:11px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--gold);background:rgba(201,183,135,.08);
+  border:1px solid rgba(201,183,135,.35);border-radius:999px;padding:5px 12px;cursor:pointer;
+  white-space:nowrap;transition:background .18s ease,border-color .18s ease,color .18s ease;}
+.inv-toggle:hover{background:rgba(201,183,135,.16);border-color:var(--gold);color:var(--gold-bright,#d6c69a);}
+.inv-toggle[aria-pressed="true"]{background:var(--gold);color:#0a0a0a;border-color:var(--gold);font-weight:600;}
+#inv-overlay{position:fixed;inset:0;z-index:2147483000;display:none;overflow-y:auto;
+  background:#08090c;background-image:radial-gradient(1100px 620px at 72% -8%,rgba(95,179,163,.10),transparent 60%),
+    radial-gradient(820px 480px at 8% 4%,rgba(201,183,135,.07),transparent 55%);
+  color:#f5f5f5;font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+#inv-overlay.open{display:block;}
+.inv-wrap{max-width:1080px;margin:0 auto;padding:0 24px 72px;}
+.inv-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:16px;
+  padding:18px 0 16px;background:linear-gradient(180deg,#08090c 72%,rgba(8,9,12,0));}
+.inv-bar .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#c9b787,#5fb3a3);
+  display:grid;place-items:center;color:#0a0a0a;font-weight:700;font-family:var(--mono),ui-monospace,monospace;font-size:18px;}
+.inv-bar .who{font-weight:600;font-size:16px;letter-spacing:-.01em;}
+.inv-bar .who small{display:block;font-family:var(--mono),ui-monospace,monospace;font-size:10px;
+  letter-spacing:.16em;text-transform:uppercase;color:#8a93a0;font-weight:400;margin-top:2px;}
+.inv-bar .spacer{flex:1;}
+.inv-bar .to-ops{font-family:var(--mono),ui-monospace,monospace;font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;color:#c9b787;border:1px solid rgba(201,183,135,.35);border-radius:999px;
+  padding:7px 14px;cursor:pointer;background:rgba(201,183,135,.06);white-space:nowrap;}
+.inv-bar .to-ops:hover{background:rgba(201,183,135,.14);border-color:#c9b787;}
+.inv-hero{padding:26px 0 10px;border-bottom:1px solid rgba(255,255,255,.06);}
+.inv-eyebrow{font-family:var(--mono),ui-monospace,monospace;font-size:11px;letter-spacing:.28em;
+  text-transform:uppercase;color:#a89868;margin:0 0 14px;}
+.inv-hero h1{font-size:clamp(28px,4.6vw,46px);line-height:1.06;letter-spacing:-.02em;margin:0 0 14px;font-weight:600;}
+.inv-hero h1 .accent{color:#c9b787;}
+.inv-hero p{font-size:clamp(15px,1.5vw,18px);color:#b9bfc8;max-width:60ch;margin:0 0 8px;line-height:1.5;}
+.inv-hero .tag{display:inline-block;margin-top:18px;font-family:var(--mono),ui-monospace,monospace;
+  font-size:12.5px;letter-spacing:.02em;color:#5fb3a3;border:1px solid rgba(95,179,163,.35);
+  background:rgba(95,179,163,.08);border-radius:8px;padding:8px 14px;}
+.inv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:28px 0 0;}
+@media (max-width:760px){.inv-grid{grid-template-columns:1fr;}}
+.inv-card{background:rgba(20,22,28,.72);border:1px solid rgba(255,255,255,.07);border-radius:14px;
+  padding:22px 22px 18px;display:flex;flex-direction:column;gap:10px;position:relative;}
+.inv-card .n{font-family:var(--mono),ui-monospace,monospace;font-size:11px;letter-spacing:.2em;color:#a89868;text-transform:uppercase;}
+.inv-card h3{font-size:19px;line-height:1.22;letter-spacing:-.01em;margin:0;font-weight:600;color:#f5f5f5;}
+.inv-card p{font-size:14.5px;line-height:1.55;color:#b9bfc8;margin:0;}
+.inv-card .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.inv-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono),ui-monospace,monospace;
+  font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;
+  border:1px solid transparent;font-weight:600;}
+.inv-badge.proven{color:#0a0a0a;background:#5fb3a3;border-color:#5fb3a3;}
+.inv-badge.live{color:#5fb3a3;background:rgba(95,179,163,.10);border-color:rgba(95,179,163,.4);}
+.inv-badge.conj{color:#c8cdd6;background:transparent;border-color:#7e8aa3;}
+.inv-card a.chk{font-family:var(--mono),ui-monospace,monospace;font-size:12px;letter-spacing:.03em;
+  color:#c9b787;text-decoration:none;border-bottom:1px dashed rgba(201,183,135,.5);padding-bottom:1px;}
+.inv-card a.chk:hover{color:#d6c69a;border-bottom-style:solid;}
+.inv-cta{display:flex;gap:14px;flex-wrap:wrap;margin:30px 0 0;}
+.inv-btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono),ui-monospace,monospace;
+  font-size:13px;letter-spacing:.05em;text-transform:uppercase;font-weight:500;padding:13px 22px;
+  border-radius:9px;border:1px solid rgba(255,255,255,.12);color:#f5f5f5;background:rgba(20,22,28,.7);text-decoration:none;}
+.inv-btn:hover{border-color:rgba(201,183,135,.5);}
+.inv-btn.primary{background:#c9b787;color:#0a0a0a;border-color:#c9b787;font-weight:600;}
+.inv-btn.primary:hover{background:#d8c79b;border-color:#d8c79b;}
+.inv-foot{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.06);
+  color:#8a93a0;font-size:12.5px;line-height:1.7;}
+.inv-foot b{color:#b9bfc8;font-weight:600;}
+</style>
+
+<div id="inv-overlay" role="dialog" aria-modal="true" aria-label="a11oy — CEO / Investor view">
+  <div class="inv-wrap">
+    <div class="inv-bar">
+      <div class="mark">A</div>
+      <div class="who">a11oy<small>SZL Holdings · Investor view</small></div>
+      <div class="spacer"></div>
+      <button class="to-ops" type="button" onclick="a11oyInvestor.close()">Operator view →</button>
+    </div>
+
+    <section class="inv-hero">
+      <p class="inv-eyebrow">Governed inference</p>
+      <h1>AI that signs its work<br><span class="accent">and refuses to lie.</span></h1>
+      <p>Every AI decision arrives with a signed receipt you can verify yourself. The trust math is a
+        machine-checked theorem. When the model is not sure, it refuses rather than guesses. It runs
+        on your own hardware, air-gapped if you need it.</p>
+      <span class="tag">The plain-English story. Every claim below links to the check that proves it.</span>
+    </section>
+
+    <div class="inv-grid">
+      <div class="inv-card">
+        <div class="n">01 · Signed receipt</div>
+        <h3>Every AI decision ships a signed receipt you can verify yourself.</h3>
+        <p>Each answer carries a cryptographic receipt (DSSE / ECDSA-P256). You re-check the signature
+          in your own browser — no trust in us required.</p>
+        <div class="row"><span class="inv-badge live">Live</span>
+          <a class="chk" href="/verify">Verify a receipt →</a></div>
+      </div>
+
+      <div class="inv-card">
+        <div class="n">02 · Machine-checked trust</div>
+        <h3>The core trust math is a machine-checked theorem — 8 formulas, checked by machine.</h3>
+        <p>Eight formulas (the "locked-8") are proven in Lean 4 and re-checked on every build. Honest
+          caveat: the Λ trust score itself is <b>Conjecture 1</b> — advisory, never shown as
+          "green", never a gate.</p>
+        <div class="row"><span class="inv-badge proven">Proven (locked-8)</span>
+          <span class="inv-badge conj">Λ = Conjecture 1</span>
+          <a class="chk" href="/proof">See the math →</a></div>
+      </div>
+
+      <div class="inv-card">
+        <div class="n">03 · Energy-metered</div>
+        <h3>Energy-metered inference: joules per token, on every receipt.</h3>
+        <p>We meter the real energy each answer costs and write joules-per-token onto the receipt.
+          When no hardware meter is attached, it says so — we never fake the number.</p>
+        <div class="row"><span class="inv-badge live">Live / honest-off</span>
+          <a class="chk" href="/energy-ops">See energy →</a></div>
+      </div>
+
+      <div class="inv-card">
+        <div class="n">04 · Deny by default</div>
+        <h3>A deny-by-default governance gate sits on every action.</h3>
+        <p>Nothing runs unless policy explicitly allows it. Untrusted input is quarantined; a
+          state-changing step can require a human to approve it first.</p>
+        <div class="row"><span class="inv-badge live">Live</span>
+          <a class="chk" href="/console?view=governance">See the gate →</a></div>
+      </div>
+
+      <div class="inv-card">
+        <div class="n">05 · Air-gapped / on-prem</div>
+        <h3>Runs air-gapped and on your own hardware.</h3>
+        <p>The whole substrate deploys on-prem with zero runtime dependency on outside services —
+          suitable for classified and air-gapped environments. Open-weight models only.</p>
+        <div class="row"><span class="inv-badge live">On-prem</span>
+          <a class="chk" href="/security">Deployment posture →</a></div>
+      </div>
+
+      <div class="inv-card">
+        <div class="n">06 · Refuses rather than guesses</div>
+        <h3>When it is not sure, it refuses — instead of guessing.</h3>
+        <p>Trust is capped (never claimed at 100%). Below the confidence bar, the system abstains and
+          says why, rather than inventing an answer.</p>
+        <div class="row"><span class="inv-badge live">Live</span>
+          <a class="chk" href="/trust">Trust center →</a></div>
+      </div>
+    </div>
+
+    <div class="inv-cta">
+      <a class="inv-btn primary" href="/verify">Verify a receipt yourself →</a>
+      <a class="inv-btn" href="/pricing">See pricing</a>
+      <button class="inv-btn" type="button" onclick="a11oyInvestor.close()">Open the operator console</button>
+    </div>
+
+    <div class="inv-foot">
+      <b>Honest by design.</b> Proven means checked in Lean 4 (the locked-8). Λ is <b>Conjecture 1</b>
+      — advisory only, never "green", never a gate. Live surfaces read real endpoints; where a meter
+      or key is missing, the receipt says so instead of faking a value. Doctrine v11 LOCKED.
+      Canonical <a class="chk" href="https://a-11-oy.com" style="border:none">a-11-oy.com</a>.
+    </div>
+  </div>
+</div>
+
+<script id="inv-mode-js">
+/* CEO / Investor-mode overlay controller. Additive + fully guarded: any error here
+   can NEVER take down the operator console. Deep-link: ?investor=1 or #investor. */
+window.a11oyInvestor = (function(){
+  function el(){ try{ return document.getElementById('inv-overlay'); }catch(_){ return null; } }
+  function btn(){ try{ return document.getElementById('inv-toggle'); }catch(_){ return null; } }
+  function set(open){
+    try{
+      var o=el(); if(!o) return;
+      o.classList.toggle('open', !!open);
+      var b=btn(); if(b) b.setAttribute('aria-pressed', open?'true':'false');
+      try{ document.body.style.overflow = open ? 'hidden' : ''; }catch(_){}
+      try{
+        var u=new URL(window.location.href);
+        if(open){ u.searchParams.set('investor','1'); } else { u.searchParams.delete('investor'); }
+        window.history.replaceState(null,'',u.toString());
+      }catch(_){}
+    }catch(_){}
+  }
+  function open(){ set(true); }
+  function close(){ set(false); }
+  function toggle(){ try{ var o=el(); set(!(o&&o.classList.contains('open'))); }catch(_){ } }
+  try{
+    document.addEventListener('keydown', function(e){
+      try{ if(e.key==='Escape'){ close(); } }catch(_){}
+    });
+    // Auto-open on deep-link so a shared investor link lands on the story.
+    var q=(window.location.search||''); var h=(window.location.hash||'');
+    if(/[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
+  }catch(_){}
+  return { open:open, close:close, toggle:toggle };
 })();
 </script>
 
