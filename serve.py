@@ -939,6 +939,26 @@ except Exception as _brainloop_e:  # pragma: no cover
     print(f"[a11oy] Anatomy brain-loop NOT registered: {_brainloop_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- GOVERNED BRAIN-INFER loop (Wave P / Dev 3) — closes BRAIN -> INFERENCE -> RECEIPT
+# -> ENERGY: POST /api/a11oy/v1/govern/brain-infer runs one metered turn (real PPR
+# grounding subgraph from szl_brain_api -> sovereign model IF reachable else honest
+# UNAVAILABLE -> REAL NVML counter-delta energy [MEASURED_SHARED_BOUNDED upper bound]
+# -> DSSE-style SHA-256 hash-chained receipt in a durable append-only JSONL sidecar).
+# GET .../govern/receipts?limit= lists recent receipts + verifies the chain; GET
+# .../govern/verify?id= recomputes one receipt's hash (VERIFIED/FAILED/UNKNOWN).
+# ADDITIVE: mounts at /govern/brain-infer so it NEVER shadows the sellable
+# /govern/infer owned by szl_governed_api. Receipts on this WRITE path only (0
+# sign-on-GET). Never fabricates a joule/token/answer/receipt. Registered BEFORE the
+# SPA catch-all. Its reuse (szl_brain_api, szl_energy_live, szl_dsse) is already in
+# the Dockerfile COPY set. Λ = Conjecture 1; nothing here touches the locked-8.
+try:
+    import szl_governed_infer as _szl_gi
+    _gi_status = _szl_gi.register(app, ns="a11oy")
+    print(f"[a11oy] Governed brain-infer registered: {_gi_status}", file=__import__("sys").stderr)
+except Exception as _gi_e:  # pragma: no cover
+    print(f"[a11oy] Governed brain-infer NOT registered: {_gi_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- szl3d HOLOGRAPHIC ESTATE (Dev0 foundation) -- the vendored three.js r170 toolkit +
 # the /holographic shell hosting the 3D surfaces (frontier tier + the 9 estate surfaces),
 # each lazy-loading its per-surface module and lit by REAL a11oy endpoints with honesty
