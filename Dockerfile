@@ -670,6 +670,17 @@ COPY szl_tee_attest.py ./
 # H100/H200 CC+NRAS, AMD SEV-SNP, Intel TDX, in-toto/SLSA, Sigstore/Rekor, Confidential Containers.
 # The attestinfer.js surface ships via the existing `COPY static/3d/ ./static/3d/`. Λ = Conjecture 1.
 COPY szl_attested_inference.py ./
+# WAVE-N DEV 2: Proof-Carrying Attested Inference (2026-07-07) — imported by serve.py (guarded);
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/pcai/run falls
+# through to the SPA (404). Produces ONE in-toto/SLSA v1 DSSE bundle binding (a) the inference
+# receipt + (b) a TEE attestation quote digest (reuses the cc-attest chain via the already-COPY'd
+# szl_attested_inference) + (c) an in-toto/SLSA v1 provenance predicate + (d) the Λ axes, in a
+# `cosign verify-blob` / `slsa-verifier`-checkable shape (verify commands documented in the module
+# + response). Transitive local imports (szl_attested_inference, szl_tee_attest, szl_dsse,
+# szl_org_lambda) are ALL already COPY'd above. DSSE real ECDSA-P256 in-Space / UNSIGNED-LOCAL
+# locally. Leaders (clean-room PATTERN): in-toto/SLSA v1, Sigstore cosign+Rekor, NVIDIA NRAS.
+# The pcai.js surface ships via the existing `COPY static/3d/ ./static/3d/`. Λ = Conjecture 1.
+COPY szl_proof_carrying_infer.py ./
 # DEV2 Build 2: EU AI Act Art.53 signed energy disclosure (2026-06-30) — imported by
 # serve.py (guarded); MUST be per-file COPY'd or /api/a11oy/v1/energy/eu-disclosure +
 # energy_eu_disclosure receipt field fall back to honest UNAVAILABLE stubs.

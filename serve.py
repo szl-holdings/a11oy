@@ -748,6 +748,25 @@ try:
 except Exception as _szl_ai_e:  # pragma: no cover
     print(f"[a11oy] attested-inference NOT registered: {_szl_ai_e!r}", file=__import__("sys").stderr)
 
+# ── WAVE-N DEV 2: PROOF-CARRYING ATTESTED INFERENCE (PCAI — the #1 differentiator). Endpoint
+# GET /api/a11oy/v1/pcai/run?seed&model → deterministic MODELED flow producing ONE bundle that
+# binds (a) the inference receipt, (b) a TEE attestation quote digest (reuses the cc-attest
+# measured-boot chain via szl_attested_inference), (c) an in-toto/SLSA v1 provenance predicate, and
+# (d) the Λ axes — emitted as a DSSE envelope + Sigstore-style bundle + intoto.jsonl in a shape a
+# standard `cosign verify-blob` / `slsa-verifier verify-artifact` COULD check (exact commands
+# documented in the module AND echoed in the response `verify_commands`). DSSE via szl_dsse: REAL
+# ECDSA-P256 in-Space, honest UNSIGNED-LOCAL locally. Label MODELED (no real TEE/GPU/NRAS/network/
+# Rekor). Leaders cited in the module: in-toto/SLSA v1 provenance, Sigstore cosign+Rekor, NVIDIA
+# NRAS TEE attestation. Registered AFTER szl_attested_inference; register() front-inserts the
+# STATIC /pcai/run route ahead of the SPA /{full_path:path} + Node proxy catch-all. Additive,
+# try/except-guarded. Λ = Conjecture 1; nothing to locked-8.
+try:
+    import szl_proof_carrying_infer as _szl_pcai
+    _szl_pcai_paths = _szl_pcai.register(app, ns="a11oy")
+    print(f"[a11oy] proof-carrying attested-inference (pcai) registered: {_szl_pcai_paths}", file=__import__("sys").stderr)
+except Exception as _szl_pcai_e:  # pragma: no cover
+    print(f"[a11oy] pcai NOT registered: {_szl_pcai_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
 # (topology + projection + governed-receipt overlay) against the two MODELED endpoints
 # above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
