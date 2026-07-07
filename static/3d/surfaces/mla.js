@@ -44,10 +44,12 @@ import { createShowcase } from "./_showcase.js";
 const ID    = "mla";
 const TITLE = "Multi-Head Latent Attention · KV-Compression Simulator (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the MLA organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mla/latent-compress?seed=42&seq_len=128&n_heads=8&d_head=64&d_latent=128";
+// PRIMARY endpoint is the a11oy-NATIVE self-hosted twin (same-origin, szl_latent_attention.py):
+// a real low-rank down/up-projection of a seeded KV matrix (DeepSeek MLA idea) with an exact
+// L2 reconstruction residual (label MODELED, read verbatim). The isolated killinchu Space stays
+// a guarded cross-origin FALLBACK so a fault in either path never darkens the other.
+const EP = "/api/a11oy/v1/mla/latent-compress?seed=42&seq_len=128&n_heads=8&d_head=64&d_latent=128";
+const EP_FALLBACK = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mla/latent-compress?seed=42&seq_len=128&n_heads=8&d_head=64&d_latent=128";
 
 // data-viz hues — purple BANNED
 const C_FULL   = 0x5b8dee;  // lattice-blue (full/uncompressed KV column)
@@ -361,4 +363,4 @@ export function unmount() {
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP, EP_FALLBACK], mount, unmount };

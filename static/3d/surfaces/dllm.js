@@ -47,10 +47,12 @@ import { createShowcase } from "./_showcase.js";
 const ID    = "dllm";
 const TITLE = "Diffusion-LLM Parallel Denoising (live)";
 
-// Endpoint is hosted on the dedicated killinchu Space (isolated compute), reached
-// cross-origin (killinchu returns access-control-allow-origin: https://a-11-oy.com).
-// This keeps the dLLM organ's rebuilds/faults isolated from the flagship.
-const EP = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/dllm/denoise?seed=42&steps=8&length=64";
+// PRIMARY endpoint is the a11oy-NATIVE self-hosted twin (same-origin, szl_diffusion_llm.py):
+// a real LLaDA-style linear reverse-diffusion schedule + confidence-first parallel-unmask
+// over a seeded confidence field (label MODELED, read verbatim). The isolated killinchu
+// Space stays a guarded cross-origin FALLBACK so a fault in either path never darkens the other.
+const EP = "/api/a11oy/v1/dllm/denoise?seed=42&steps=8&length=64";
+const EP_FALLBACK = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/dllm/denoise?seed=42&steps=8&length=64";
 
 // data-viz hues — purple BANNED
 const C_MASKED  = 0x3a4149;  // grey — still-masked token (pre-denoise)
@@ -466,4 +468,4 @@ export function unmount() {
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP, EP_FALLBACK], mount, unmount };
