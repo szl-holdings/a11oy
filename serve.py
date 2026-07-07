@@ -1468,6 +1468,20 @@ try:
 except Exception as _szl_ternary_e:  # pragma: no cover
     print(f"[a11oy] Ternary quantize NOT registered: {_szl_ternary_e!r}", file=__import__("sys").stderr)
 
+# (agentmem-wire) — AGENTMEM: SZL cross-axis SYNTHESIS surface — a Λ-gated,
+# governed, energy-aware agent-memory recall with a signed-receipt-per-recall
+# design. MODELED recall/consistency arithmetic; the SZL synthesis (Λ trust gate
+# + receipt-per-recall chain) is CONJECTURE (Λ = Conjecture 1, gray, never green;
+# trust capped at 0.97; RECEIPT-ON-WRITE, nothing minted on this GET). Cites
+# MemGPT (arXiv:2310.08560), A-MEM (arXiv:2502.12110), Mem0 (arXiv:2504.19413),
+# DSPy (arXiv:2310.03714). Registered BEFORE the SPA catch-all so /api/... is JSON.
+try:
+    import szl_agentmem as _szl_agentmem
+    _szl_agentmem.register(app, ns="a11oy")
+    print("[a11oy] AgentMem recall registered: /api/a11oy/v1/frontier/agentmem", file=__import__("sys").stderr)
+except Exception as _szl_agentmem_e:  # pragma: no cover
+    print(f"[a11oy] AgentMem recall NOT registered: {_szl_agentmem_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
