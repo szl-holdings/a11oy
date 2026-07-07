@@ -3,10 +3,10 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-07-01T00:00:00Z",
+  "generatedAt": "2026-07-07T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 135,
+    "tabs": 139,
     "endpoints": 77,
     "tabsWithCitations": 23,
     "staticTabs": 40
@@ -2782,6 +2782,77 @@
       "route": "/console#fltTopo",
       "endpoints": [
         "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "flyagent",
+      "title": "flyagent",
+      "group": "Console",
+      "route": "/console#flyagent",
+      "endpoints": [
+        "/api/a11oy/v1/agentloop/run",
+        "/api/a11oy/v1/agentloop/health"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "flyeval",
+      "title": "flyeval",
+      "group": "Console",
+      "route": "/console#flyeval",
+      "endpoints": [
+        "/api/a11oy/v1/eval/suites",
+        "/api/a11oy/v1/eval/run"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "flyharness",
+      "title": "flyharness",
+      "group": "Console",
+      "route": "/console#flyharness",
+      "endpoints": [
+        "/api/a11oy/v1/harness/profiles"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "flyrag",
+      "title": "flyrag",
+      "group": "Console",
+      "route": "/console#flyrag",
+      "endpoints": [
+        "/api/a11oy/v1/rag/query",
+        "/api/a11oy/v1/rag/status"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,

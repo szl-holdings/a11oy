@@ -16567,5 +16567,311 @@ window.a11oyInvestor = (function(){
 })();
 </script>
 
+<!-- ===================================================================== -->
+<!-- DEV1 WAVE K — GOVERNED FLYWHEEL CONSOLE WIRING (feat/console-flywheel-wire)
+     ADDITIVE ONLY. Registers window.VIEWS.{flyagent,flyharness,flyeval,flyrag}
+     and injects a "Governed Flywheel" nav group. Every panel reads LIVE from an
+     already-merged, already-mounted backend:
+       flyagent   -> POST /api/a11oy/v1/agentloop/run + GET .../agentloop/health
+       flyharness -> GET  /api/a11oy/v1/harness/profiles (+ /{id})
+       flyeval    -> GET  /api/a11oy/v1/eval/suites + POST /api/a11oy/v1/eval/run
+       flyrag     -> GET/POST /api/a11oy/v1/rag/query + GET /api/a11oy/v1/rag/status
+     Reuses the console toolkit (el/getJSON/postJSON/esc/setHTML). Keeps the house
+     GOLD/TEAL brand. 0 CDN. Honest labels LIVE/MODELED/DEGRADED/BLOCKED. Λ =
+     Conjecture 1 (advisory — NEVER "green", never a gate). Nothing touches the
+     locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17.
+     Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+     Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+     ===================================================================== -->
+<style id="szl-flywheel-css">
+.fw-strip{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin:.2rem 0 .7rem;font-family:var(--mono);font-size:10px;letter-spacing:.05em}
+.fw-strip .st{display:flex;align-items:center;gap:.3rem;padding:.28rem .5rem;border:1px solid var(--gold-line);border-radius:999px;color:var(--paragraph);background:var(--gold-soft)}
+.fw-strip .st b{color:var(--gold);font-weight:600}
+.fw-strip .arr{color:var(--teal);opacity:.7}
+.fw-step{border:1px solid var(--gold-line);border-radius:9px;padding:.6rem .7rem;margin:.5rem 0;background:var(--panel)}
+.fw-step .sh{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.35rem}
+.fw-step .sh .n{font-family:var(--mono);font-size:11px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.05rem .4rem}
+.fw-step .sh .tt{color:var(--cream);font-size:13px}
+.fw-lane{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem;margin-top:.35rem}
+.fw-cell{border:1px solid var(--gold-line);border-radius:7px;padding:.45rem .5rem;background:var(--panel2)}
+.fw-cell .cl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:.2rem}
+.fw-cell .cv{font-size:12px;color:var(--cream);line-height:1.4}
+.fw-cell code{font-size:10.5px;color:#879e92}
+.fw-in{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:12px;padding:.6rem .7rem;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);color:var(--cream)}
+.fw-btn{background:#0e0e0e;border:1px solid var(--teal-line);color:var(--teal);border-radius:7px;padding:.5rem .9rem;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.fw-btn:hover{background:var(--teal-soft)}
+.fw-btn[disabled]{opacity:.5;cursor:not-allowed}
+.fw-sel{font-family:var(--mono);font-size:12px;padding:.5rem .6rem;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);color:var(--cream)}
+.fw-cite{border-left:2px solid var(--teal-line);padding:.4rem .6rem;margin:.4rem 0;background:var(--panel2);border-radius:0 7px 7px 0}
+.fw-cite .cm{color:var(--cream);font-size:12.5px;line-height:1.5}
+.fw-cite .src{font-family:var(--mono);font-size:10.5px;color:#879e92;margin-top:.25rem;word-break:break-all}
+</style>
+<script>
+/* GOVERNED FLYWHEEL — additive VIEWS + nav (Dev1 Wave K). */
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0; var iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
+  whenReady(function(){
+    var V=window.VIEWS; if(!V) return;
+    var E=window.el, H=window.setHTML, gj=window.getJSON, pj=window.postJSON, esc=window.esc;
+    var API=window.API||'/api/a11oy';
+    var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#9a9a9a';
+
+    // honest label -> chip color class
+    function labelClass(s){ s=String(s||'').toUpperCase();
+      if(s==='LIVE'||s==='REAL'||s==='PROVEN') return 'b-live';
+      if(s==='DEMO'||s==='SAMPLE'||s==='RECORDED') return 'b-teal';
+      if(s==='DEGRADED'||s==='BLOCKED'||s==='CACHED'||s==='MODELED'||s==='SIMULATED') return 'b-gold';
+      if(s==='CONJECTURE') return 'b-gold';
+      return 'b-err'; }
+    function chip(txt,cls,title){ return '<span class="badge '+(cls||labelClass(txt))+'"'+(title?(' title="'+esc(title)+'"'):'')+'>'+esc(txt)+'</span>'; }
+    // The shared flywheel framing strip — one governed loop, 5 stations.
+    function flywheelStrip(active){
+      var st=[['harness','Profile'],['agentloop','Plan'],['code','Exec'],['eval','Self-Eval'],['gate','Approval'],['receipt','Receipt']];
+      var h='<div class="fw-strip" title="ONE governed flywheel: a behavior Profile is attached, the loop Plans, the /code engine Executes, the eval-arena Self-Evals (Λ=Conjecture 1), a Human Approval gate is consulted, and ONE composite signed Receipt is emitted. These are the SAME merged backends surfaced as one operator flow.">';
+      st.forEach(function(s,i){ var on=(s[0]===active); h+='<span class="st"'+(on?' style="border-color:var(--teal-line);background:var(--teal-soft)"':'')+'>'+(on?'<b>'+esc(s[1])+'</b>':esc(s[1]))+'</span>'; if(i<st.length-1) h+='<span class="arr">\u2192</span>'; });
+      h+='</div>'; return h; }
+    var LAMBDA_NOTE='<div class="honesty" style="margin-top:.7rem"><b>How to read this.</b> This panel reads a <b>live, already-merged backend</b> in this same Space \u2014 no mock data. The trust score \u039b is <b>Conjecture 1</b> (advisory \u2014 never \u201cgreen\u201d, never a pass/fail oracle; its unconditional uniqueness is machine-checked FALSE). Plans are <b>MODELED</b>; execution, self-eval, the approval gate and the composite <b>receipt are LIVE</b>. Signatures are real ECDSA-P256 in-Space and honestly <b>UNSIGNED-LOCAL</b> in a keyless runtime. Nothing here touches the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div>';
+
+    /* ============================ GOVERNED AGENT ============================ */
+    V.flyagent={title:'Governed Agent',badge:'LIVE \u00b7 /agentloop',sub:'The governed autonomous loop as ONE flywheel: attach a behavior profile \u2192 plan \u2192 execute on the real /code engine \u2192 self-eval (\u039b=Conjecture 1) \u2192 human-approval gate \u2192 ONE composite ECDSA-P256 signed receipt (hash-chained per step, ingested to /llm/forum). Reads live from POST /api/a11oy/v1/agentloop/run. Composes the SAME merged backends (harness + eval-arena + /code run-loop) surfaced across this section \u2014 not five disconnected endpoints.',
+      render:async function(c){
+        c.innerHTML=flywheelStrip('agentloop')
+          +'<div class="card"><div class="card-h"><span class="card-t">Run the governed loop</span><span class="card-ep" id="fa-health-ep">probing\u2026</span></div>'
+          +'<div style="display:flex;flex-direction:column;gap:.5rem">'
+          +'<textarea id="fa-task" class="fw-in" rows="2" placeholder="Task for the governed agent (e.g. Summarize SZL doctrine honesty labels)">Summarize the SZL doctrine honesty labels and why \u039b is advisory.</textarea>'
+          +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'
+          +'<select id="fa-profile" class="fw-sel"><option value="">behavior profile\u2026 (harness)</option></select>'
+          +'<select id="fa-suite" class="fw-sel"><option value="">self-eval suite\u2026</option></select>'
+          +'<button class="fw-btn" id="fa-run" onclick="window.flyagent_run()">\u25b6 Run governed loop</button>'
+          +'</div></div>'
+          +'<div id="fa-summary" style="margin-top:.6rem"></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-step trail \u2014 profile \u2192 exec \u2192 eval \u2192 approval \u2192 receipt</span><span class="card-ep">live composite run</span></div><div id="fa-trail"><div class="row mono dim">run the loop to see the per-step governed trail\u2026</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Composite signed receipt</span><span class="card-ep">ONE receipt per run</span></div><div id="fa-receipt"><div class="row mono dim">\u2014</div><details class="raw"><summary>raw agentloop run JSON</summary><pre class="out" id="fa-raw">\u2014</pre></details></div></div>'
+          +LAMBDA_NOTE;
+        // health probe -> composes availability + populate suites
+        try{ var hd=await gj(API+'/v1/agentloop/health');
+          var comp=hd.composes||{}; var live=hd.signer_live;
+          E('fa-health-ep').innerHTML=chip(live?'signer LIVE':'signer UNSIGNED-LOCAL',live?'b-live':'b-gold',hd.signature_mode||'')
+            +' '+chip('act:'+(comp.act_engine_available?'\u2713':'\u2717'),comp.act_engine_available?'b-live':'b-err')
+            +' '+chip('eval:'+(comp.self_eval_available?'\u2713':'\u2717'),comp.self_eval_available?'b-live':'b-err')
+            +' '+chip('harness:'+(comp.behavior_profile_available?'\u2713':'\u2717'),comp.behavior_profile_available?'b-live':'b-err')
+            +' '+chip('gate:'+(comp.human_gate_available?'\u2713':'\u2717'),comp.human_gate_available?'b-live':'b-gold');
+          var ss=E('fa-suite'); (hd.eval_suites||[]).forEach(function(s){ var o=document.createElement('option'); o.value=s; o.textContent=s; ss.appendChild(o); });
+        }catch(e){ E('fa-health-ep').innerHTML=chip('health unavailable','b-gold'); }
+        // populate profiles from the harness (shows this is ONE flywheel)
+        try{ var pd=await gj(API+'/v1/harness/profiles'); var sel=E('fa-profile');
+          (pd.profiles||[]).forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.id+' ('+(p.honesty_label||'')+')'; sel.appendChild(o); });
+        }catch(e){}
+      }};
+    window.flyagent_run=async function(){
+      var btn=E('fa-run'); if(btn){btn.disabled=true;btn.textContent='running governed loop\u2026';}
+      var task=(E('fa-task')||{}).value||''; var prof=(E('fa-profile')||{}).value||''; var suite=(E('fa-suite')||{}).value||'';
+      H('fa-trail','<div class="row mono dim">plan \u2192 exec \u2192 eval \u2192 gate \u2192 receipt (live, may take a few seconds)\u2026</div>');
+      try{
+        var body={task:task}; if(prof) body.harness_profile_id=prof; if(suite) body.eval_suite=suite;
+        var d=await pj(API+'/v1/agentloop/run',body);
+        E('fa-raw').textContent=JSON.stringify(d,null,2);
+        var st=d.ok?'LIVE':'DEGRADED';
+        // summary
+        var comp=d.composite||{}; var agg=(comp.summary)||{};
+        H('fa-summary','<div class="fw-lane">'
+          +'<div class="fw-cell"><div class="cl">run id</div><div class="cv mono">'+esc(d.run_id||'\u2014')+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">steps</div><div class="cv">'+esc(String(agg.n_steps||(d.steps||[]).length||0))+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">mean accuracy</div><div class="cv">'+esc(agg.mean_accuracy!=null?agg.mean_accuracy:(agg.accuracy!=null?agg.accuracy:'\u2014'))+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">\u039b (advisory)</div><div class="cv">'+esc(agg.mean_lambda!=null?agg.mean_lambda:(agg.lambda!=null?agg.lambda:'\u2014'))+' '+chip('CONJECTURE 1','b-gold','advisory \u2014 never green')+'</div></div>'
+          +'</div>');
+        // per-step trail
+        var steps=d.steps||[]; var th='';
+        steps.forEach(function(s){ var f=s.final||{}; var eng=f.engine||{}; var hp=f.harness_profile||{}; var ev=f.eval||{}; var ap=f.approval||{};
+          th+='<div class="fw-step"><div class="sh"><span class="n">step '+esc(String(s.n))+'</span><span class="tt">'+esc(s.title||'')+'</span>'
+            +(s.retries?chip('retries '+s.retries,'b-gold'):'')+'</div>'
+            +'<div class="mono dim" style="font-size:10.5px;margin-bottom:.3rem">'+esc(s.why||'')+'</div>'
+            +'<div class="fw-lane">'
+            +'<div class="fw-cell"><div class="cl">1 \u00b7 Profile (harness)</div><div class="cv">'+(hp.profile_id?esc(hp.profile_id):'\u2014')+' '+chip(hp.harness_state||'\u2014')+'<br><code>sha '+esc(String(hp.sha256||'').slice(0,12))+' '+esc(hp.sha256_integrity||'')+'</code></div></div>'
+            +'<div class="fw-cell"><div class="cl">2 \u00b7 Exec (/code engine)</div><div class="cv">'+chip(eng.decision||'\u2014',eng.decision==='ALLOW'?'b-live':'b-gold')+' '+(eng.signed?chip('signed','b-live'):chip('unsigned','b-gold'))+'<br><code>'+esc(String(eng.answer_preview||'').slice(0,120))+'</code></div></div>'
+            +'<div class="fw-cell"><div class="cl">3 \u00b7 Self-eval (arena)</div><div class="cv">acc '+esc(ev.accuracy!=null?ev.accuracy:'\u2014')+' ('+esc(String(ev.n_passed||0))+'/'+esc(String(ev.n_cases||0))+')<br>\u039b '+esc(ev.lambda!=null?ev.lambda:'\u2014')+' '+chip(ev.lambda_status||'CONJECTURE','b-gold')+'</div></div>'
+            +'<div class="fw-cell"><div class="cl">4 \u00b7 Approval gate</div><div class="cv">'+(ap.required?chip('required','b-gold'):chip('not required','b-teal'))+' '+(ap.granted===true?chip('granted','b-live'):(ap.granted===false?chip('denied','b-err'):''))+'<br><code>ckpt '+esc(String(ap.checkpoint_id||'').slice(0,12))+'</code></div></div>'
+            +'<div class="fw-cell"><div class="cl">5 \u00b7 Step receipt</div><div class="cv">'+(eng.signed_pae_sha256?chip('receipt \u2713','b-live'):chip('receipt','b-gold'))+'<br><code>'+esc(String(eng.signed_pae_sha256||'\u2014').slice(0,16))+'</code></div></div>'
+            +'</div></div>';
+        });
+        H('fa-trail', th||'<div class="row mono dim">no steps returned.</div>');
+        // composite receipt
+        var rc=d.composite_receipt||{}; var sigs=rc.signatures||[]; var signed=(sigs.length>0)||rc.signed;
+        H('fa-receipt','<div class="fw-lane">'
+          +'<div class="fw-cell"><div class="cl">signature</div><div class="cv">'+(signed?chip('SIGNED ECDSA-P256','b-live'):chip('UNSIGNED-LOCAL','b-gold','honest \u2014 no in-image key in this runtime'))+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">PAE sha256</div><div class="cv"><code>'+esc(String(rc._pae_sha256||rc.pae_sha256||(d.composite&&d.composite.pae_sha256)||'\u2014').slice(0,24))+'</code></div></div>'
+          +'<div class="fw-cell"><div class="cl">forum ingest</div><div class="cv">'+chip(d.forum_ingested?'ingested':'not ingested',d.forum_ingested?'b-live':'b-gold')+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">status</div><div class="cv">'+chip(st,st==='LIVE'?'b-live':'b-gold')+'</div></div>'
+          +'</div><details class="raw" open><summary>raw agentloop run JSON</summary><pre class="out" id="fa-raw2"></pre></details>');
+        E('fa-raw2').textContent=JSON.stringify(d,null,2);
+      }catch(e){ H('fa-trail','<div class="row mono dim">governed loop did not resolve: '+esc(e.message)+' \u2014 shown honestly, not faked.</div>'); }
+      if(btn){btn.disabled=false;btn.textContent='\u25b6 Run governed loop';}
+    };
+
+    /* ============================ HARNESS ============================ */
+    V.flyharness={title:'Harness Profiles',badge:'LIVE \u00b7 /harness',sub:'The governed behavior-transfer harness \u2014 \u201crun model X with behavior profile Y\u201d, receipted. Pick a profile to see its provenance, sha256 integrity, target models and honest label. This is station 1 of the flywheel: the profile the Governed Agent attaches to every step. Reads live from GET /api/a11oy/v1/harness/profiles. Behavior transfer is MODELED (disposition only \u2014 it does NOT raise a model\u2019s capability ceiling); apply is \u039b-gated (Conjecture 1), never \u201cgreen\u201d.',
+      render:async function(c){
+        c.innerHTML=flywheelStrip('harness')
+          +'<div class="kpis" id="fh-kpis"></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Behavior profiles</span><span class="card-ep" id="fh-ep">loading\u2026</span></div>'
+          +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.5rem"><select id="fh-sel" class="fw-sel" onchange="window.flyharness_pick(this.value)"><option value="">choose a profile\u2026</option></select></div>'
+          +'<div id="fh-detail"><div class="row mono dim">pick a profile to inspect its provenance + integrity\u2026</div></div></div>'
+          +LAMBDA_NOTE;
+        try{ var d=await gj(API+'/v1/harness/profiles');
+          window._fhProfiles={}; var sel=E('fh-sel');
+          H('fh-kpis','<div class="kpi"><div class="k">Profiles</div><div class="v teal">'+esc(String(d.profile_count||0))+'</div><div class="d">governed behavior</div></div>'
+            +'<div class="kpi"><div class="k">Available</div><div class="v live">'+esc(String(d.available_count||0))+'</div><div class="d">body resolved</div></div>'
+            +'<div class="kpi"><div class="k">Transfer</div><div class="v" style="color:'+GOLD+'">MODELED</div><div class="d">disposition only</div></div>');
+          (d.profiles||[]).forEach(function(p){ window._fhProfiles[p.id]=p; var o=document.createElement('option'); o.value=p.id; o.textContent=p.id+' \u2014 '+(p.name||''); sel.appendChild(o); });
+          E('fh-ep').innerHTML=chip('LIVE','b-live')+' '+esc(String(d.profile_count||0))+' profiles';
+        }catch(e){ E('fh-ep').innerHTML=chip('unavailable','b-gold'); H('fh-detail','<div class="row mono dim">harness endpoint did not resolve: '+esc(e.message)+'</div>'); }
+      }};
+    window.flyharness_pick=function(id){ var p=(window._fhProfiles||{})[id]; if(!p){ H('fh-detail','<div class="row mono dim">pick a profile\u2026</div>'); return; }
+      var pr=p.provenance||{}; var av=p.availability||{};
+      var urls=(pr.inspiration_urls||[]).map(function(u){ return '<div class="src"><a href="'+esc(u)+'" target="_blank" rel="noopener" style="color:var(--teal)">'+esc(u)+'</a></div>'; }).join('');
+      H('fh-detail','<div class="fw-step"><div class="sh"><span class="tt">'+esc(p.name||p.id)+'</span>'+chip(p.honesty_label||'MODELED','b-gold')+chip('v'+esc(p.version||''),'b-teal')+'</div>'
+        +'<div class="fw-lane">'
+        +'<div class="fw-cell"><div class="cl">id</div><div class="cv mono">'+esc(p.id)+'</div></div>'
+        +'<div class="fw-cell"><div class="cl">target models</div><div class="cv">'+esc((p.target_models||[]).join(', '))+'</div></div>'
+        +'<div class="fw-cell"><div class="cl">tags</div><div class="cv">'+esc((p.tags||[]).join(' \u00b7 '))+'</div></div>'
+        +'<div class="fw-cell"><div class="cl">sha256 integrity</div><div class="cv">'+chip(pr.sha256_integrity||'\u2014',pr.sha256_integrity==='match'?'b-live':'b-err')+'<br><code>'+esc(String(pr.sha256_resolved||'').slice(0,24))+'</code></div></div>'
+        +'<div class="fw-cell"><div class="cl">availability</div><div class="cv">'+chip(av.available?'available':'unavailable',av.available?'b-live':'b-gold')+' '+esc(av.length?(av.length+' chars'):'')+'</div></div>'
+        +'<div class="fw-cell"><div class="cl">\u039b posture</div><div class="cv">'+esc(p.lambda_posture||'advisory (Conjecture 1)')+'</div></div>'
+        +'</div>'
+        +'<div class="fw-cell" style="margin-top:.4rem"><div class="cl">capability claim (honest)</div><div class="cv">'+esc(p.capability_claim||'')+'</div></div>'
+        +'<div class="fw-cell" style="margin-top:.4rem"><div class="cl">provenance</div><div class="cv">author: '+esc(pr.author||'')+' \u00b7 license: '+esc(pr.license||'')+'<br>'+esc(pr.source||'')+'</div>'+urls+'</div>'
+        +'</div>');
+    };
+
+    /* ============================ EVAL ============================ */
+    V.flyeval={title:'Eval Runner',badge:'LIVE \u00b7 /eval',sub:'The governed eval / red-team arena \u2014 \u039b-gated, signed receipt, honest labels. Pick a suite and run it live against a model id; see per-case pass/fail, category rates, the \u039b geometric mean (Conjecture 1) and its receipt. This is station 3 of the flywheel: the same self-eval the Governed Agent runs on every step. Reads live from GET /api/a11oy/v1/eval/suites + POST /api/a11oy/v1/eval/run. Studied OpenAI Evals, HELM, garak, Inspect, promptfoo.',
+      render:async function(c){
+        c.innerHTML=flywheelStrip('eval')
+          +'<div class="card"><div class="card-h"><span class="card-t">Run an eval suite</span><span class="card-ep" id="fe-ep">loading\u2026</span></div>'
+          +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'
+          +'<select id="fe-suite" class="fw-sel"><option value="">choose a suite\u2026</option></select>'
+          +'<input id="fe-model" class="fw-sel" style="width:200px" placeholder="model id (e.g. sovereign_local)" value="sovereign_local">'
+          +'<select id="fe-prof" class="fw-sel"><option value="">no harness profile</option></select>'
+          +'<button class="fw-btn" id="fe-run" onclick="window.flyeval_run()">\u25b6 Run eval</button>'
+          +'</div><div id="fe-suitedesc" class="mono dim" style="font-size:11px;margin-top:.4rem"></div></div>'
+          +'<div class="kpis" id="fe-agg"></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-case results</span><span class="card-ep">live scoring</span></div><div id="fe-cases"><div class="row mono dim">run a suite to see per-case pass/fail\u2026</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Eval receipt + \u039b axes</span><span class="card-ep">Conjecture 1</span></div><div id="fe-receipt"><div class="row mono dim">\u2014</div><details class="raw"><summary>raw eval run JSON</summary><pre class="out" id="fe-raw">\u2014</pre></details></div></div>'
+          +LAMBDA_NOTE;
+        try{ var d=await gj(API+'/v1/eval/suites'); window._feSuites={}; var sel=E('fe-suite');
+          (d.suites||[]).forEach(function(s){ window._feSuites[s.id]=s; var o=document.createElement('option'); o.value=s.id; o.textContent=s.id+' ('+s.n_cases+' cases)'; sel.appendChild(o); });
+          sel.onchange=function(){ var s=window._feSuites[this.value]; H('fe-suitedesc', s?esc(s.title+' \u2014 '+s.description):''); };
+          E('fe-ep').innerHTML=chip('LIVE','b-live')+' '+esc(String((d.suites||[]).length))+' suites';
+        }catch(e){ E('fe-ep').innerHTML=chip('unavailable','b-gold'); }
+        try{ var pd=await gj(API+'/v1/harness/profiles'); var ps=E('fe-prof');
+          (pd.profiles||[]).forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.id; ps.appendChild(o); });
+        }catch(e){}
+      }};
+    window.flyeval_run=async function(){
+      var btn=E('fe-run'); if(btn){btn.disabled=true;btn.textContent='running\u2026';}
+      var suite=(E('fe-suite')||{}).value||''; var model=(E('fe-model')||{}).value||'sovereign_local'; var prof=(E('fe-prof')||{}).value||'';
+      if(!suite){ H('fe-cases','<div class="row mono dim">choose a suite first.</div>'); if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval';} return; }
+      H('fe-cases','<div class="row mono dim">running '+esc(suite)+' live\u2026</div>');
+      try{ var body={suite:suite,model_id:model}; if(prof) body.harness_profile_id=prof;
+        var d=await pj(API+'/v1/eval/run',body); E('fe-raw').textContent=JSON.stringify(d,null,2);
+        var agg=d.aggregate||{};
+        H('fe-agg','<div class="kpi"><div class="k">Cases</div><div class="v">'+esc(String(agg.n_cases||0))+'</div></div>'
+          +'<div class="kpi"><div class="k">Passed</div><div class="v live">'+esc(String(agg.n_passed||0))+'</div></div>'
+          +'<div class="kpi"><div class="k">Accuracy</div><div class="v teal">'+esc(agg.accuracy!=null?agg.accuracy:'\u2014')+'</div></div>'
+          +'<div class="kpi"><div class="k">\u039b (advisory)</div><div class="v" style="color:'+GOLD+'">'+esc(agg.lambda!=null?agg.lambda:'\u2014')+'</div><div class="d">Conjecture 1 \u00b7 never green</div></div>');
+        var rows=(d.results||[]).map(function(r){ return '<div class="fw-step"><div class="sh"><span class="n">'+esc(r.category||'')+'</span>'+chip(r.passed?'PASS':'FAIL',r.passed?'b-live':'b-err')+chip(r.scorer||'','b-teal')+chip(r.honesty_label||'MODELED','b-gold')+'</div>'
+          +'<div class="cv" style="font-size:12px;color:var(--cream)">'+esc(r.input||'')+'</div>'
+          +'<div class="mono dim" style="font-size:10.5px;margin-top:.25rem">expected: '+esc(r.expected||'')+' \u2014 '+esc(r.detail||'')+'</div>'
+          +(r.note?'<div class="mono dim" style="font-size:10px;margin-top:.15rem">'+esc(r.note)+'</div>':'')+'</div>'; }).join('');
+        H('fe-cases', rows||'<div class="row mono dim">no cases.</div>');
+        var rc=d.receipt||{}; var rb=rc.body||{}; var dsse=rc.dsse||rc.envelope||{}; var sigs=(dsse.signatures||rc.signatures||[]);
+        var signed=(sigs.length>0)||rc.signed||dsse.signed;
+        var axes=agg.lambda_axes||{}; var axh=Object.keys(axes).map(function(k){ return '<div class="fw-cell"><div class="cl">'+esc(k)+'</div><div class="cv">'+esc(axes[k])+'</div></div>'; }).join('');
+        H('fe-receipt','<div class="fw-lane">'
+          +'<div class="fw-cell"><div class="cl">signature</div><div class="cv">'+(signed?chip('SIGNED','b-live'):chip('UNSIGNED-LOCAL','b-gold','honest \u2014 no in-image key in this runtime'))+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">\u039b posture</div><div class="cv">'+esc(agg.lambda_posture||'advisory (Conjecture 1)')+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">locked-8 touched</div><div class="cv">'+chip(agg.locked8_touched?'YES':'NO',agg.locked8_touched?'b-err':'b-live')+'</div></div>'
+          +axh+'</div><details class="raw" open><summary>raw eval run JSON</summary><pre class="out" id="fe-raw2"></pre></details>');
+        E('fe-raw2').textContent=JSON.stringify(d,null,2);
+      }catch(e){ H('fe-cases','<div class="row mono dim">eval did not resolve: '+esc(e.message)+' \u2014 shown honestly.</div>'); }
+      if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval';}
+    };
+
+    /* ============================ RAG ============================ */
+    V.flyrag={title:'Governed RAG',badge:'LIVE \u00b7 /rag',sub:'Ask-the-doctrine with per-claim citations + a SIGNED receipt proving which retrieved passage grounded which claim, \u039b-gated on a faithfulness (RAGAS) score. Every citation was ACTUALLY retrieved \u2014 nothing is fabricated (Zero-Bandaid Law): an ungrounded claim is shown honestly (not-grounded / I-don\u2019t-know), never invented. This is the flywheel\u2019s retrieval-with-receipts station. Reads live from POST /api/a11oy/v1/rag/query (governed RAG core) + GET /api/a11oy/v1/rag/status. Studied RAGAS, TruLens, Ragas-faithfulness, and per-claim attribution leaders.',
+      render:async function(c){
+        c.innerHTML=flywheelStrip('')
+          +'<div class="card"><div class="card-h"><span class="card-t">Ask the governed corpus</span><span class="card-ep" id="fr-ep">probing\u2026</span></div>'
+          +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'
+          +'<input id="fr-q" class="fw-in" style="flex:1;min-width:240px" placeholder="Ask the governed corpus\u2026" value="What does a governed RAG receipt record and why is it signed?">'
+          +'<button class="fw-btn" id="fr-run" onclick="window.flyrag_ask()">\u25b6 Ask</button>'
+          +'</div><div id="fr-status" class="mono dim" style="font-size:11px;margin-top:.4rem"></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Grounded answer</span><span class="card-ep" id="fr-answer-ep">\u2014</span></div><div id="fr-answer"><div class="row mono dim">ask a question to get a grounded, per-claim-cited answer\u2026</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-claim citations</span><span class="card-ep">only what was actually retrieved</span></div><div id="fr-cites"><div class="row mono dim">\u2014</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">RAG receipt \u2014 RAGAS faithfulness + \u039b-gate + signature</span><span class="card-ep">governed</span></div><div id="fr-receipt"><div class="row mono dim">\u2014</div><details class="raw"><summary>raw RAG JSON</summary><pre class="out" id="fr-raw">\u2014</pre></details></div></div>'
+          +LAMBDA_NOTE;
+        try{ var s=await gj(API+'/v1/rag/status'); var idx=(s.index)||s; var built=idx.built;
+          E('fr-ep').innerHTML=chip(built?'estate index BUILT':'estate index NOT BUILT',built?'b-live':'b-gold',idx.honest_note||'')+' '+chip('demo corpus LIVE','b-live','the governed RAG core ships an embedded demo corpus that is always queryable');
+          H('fr-status', 'The governed RAG core answers over an embedded demo corpus (always live) with per-claim citations + signed receipt. The larger estate index (serve.py) is '+(built?('BUILT \u2014 '+esc(String(idx.chunks||0))+' chunks'):'NOT built in this runtime \u2014 honest, the panel never fabricates a citation.'));
+        }catch(e){ E('fr-ep').innerHTML=chip('status unavailable','b-gold'); }
+      }};
+    window.flyrag_ask=async function(){
+      var btn=E('fr-run'); if(btn){btn.disabled=true;btn.textContent='asking\u2026';}
+      var q=(E('fr-q')||{}).value||''; H('fr-answer','<div class="row mono dim">retrieving + grounding per-claim citations\u2026</div>');
+      try{ var d=await pj(API+'/v1/rag/query',{query:q,top_k:4}); E('fr-raw').textContent=JSON.stringify(d,null,2);
+        var claims=d.claims||[]; var grounded=claims.some(function(x){return x.grounded;});
+        var st=d.rag_state||(grounded?'MODELED':'UNAVAILABLE');
+        E('fr-answer-ep').innerHTML=chip(st)+' '+(grounded?chip('GROUNDED','b-live'):chip('NOT GROUNDED','b-gold'));
+        H('fr-answer','<div class="cv" style="font-size:13.5px;line-height:1.6;color:var(--cream)">'+esc(d.grounded_answer||d.answer||'\u2014')+'</div>'
+          +'<div class="mono dim" style="font-size:10.5px;margin-top:.4rem">'+esc(d.model_note||d.honesty||'')+'</div>');
+        // per-claim citations (each claim -> its retrieved passages)
+        if(claims.length){ H('fr-cites', claims.map(function(cm,i){
+          var cites=(cm.citations||[]).map(function(ct){ return '<div class="src">\u21b3 '+esc(ct.source||ct.passage_id||'')+' <code>'+esc(ct.passage_id||'')+'</code>'+(ct.support!=null?(' \u00b7 support '+esc(ct.support)):'')+'</div>'; }).join('');
+          return '<div class="fw-cite"><div class="cm">['+(i+1)+'] '+esc(String(cm.claim||'').slice(0,320))+' '+(cm.grounded?chip('grounded','b-live'):chip('ungrounded','b-gold'))+'</div>'+(cites||'<div class="src">no citation \u2014 not fabricated (honest)</div>')+'</div>'; }).join('')); }
+        else if((d.citations||[]).length){ H('fr-cites',(d.citations||[]).map(function(ct,i){ var src=ct.citation||((ct.source||'')+'/'+(ct.path||'')); return '<div class="fw-cite"><div class="cm">['+(i+1)+'] '+esc(String(ct.claim||ct.text||'').slice(0,300))+'</div><div class="src">'+esc(src)+'</div></div>'; }).join('')); }
+        else { H('fr-cites','<div class="row mono dim">no citation fabricated \u2014 honest '+esc(st)+' (Zero-Bandaid Law: honest BLOCKED beats fake green).</div>'); }
+        // receipt: RAGAS faithfulness + Lambda gate + signature
+        var rc=d.rag_receipt||d.receipt||{}; var sig=rc.signature||{}; var signed=!!(sig.signed||(sig.signatures&&sig.signatures.length));
+        var ragas=d.ragas||rc.ragas||{};
+        H('fr-receipt','<div class="fw-lane">'
+          +'<div class="fw-cell"><div class="cl">rag state</div><div class="cv">'+chip(st)+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">faithfulness (RAGAS)</div><div class="cv">'+esc(ragas.faithfulness!=null?ragas.faithfulness:'\u2014')+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">context precision</div><div class="cv">'+esc(ragas.context_precision!=null?ragas.context_precision:'\u2014')+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">\u039b-gate (advisory)</div><div class="cv">'+chip(d.gate_pass?'PASS':'HOLD',d.gate_pass?'b-live':'b-gold')+' '+chip('Conjecture 1','b-gold','advisory \u2014 never green')+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">signature</div><div class="cv">'+(signed?chip('SIGNED ECDSA-P256','b-live'):chip('UNSIGNED-LOCAL','b-gold','honest \u2014 no in-image key in this runtime'))+'</div></div>'
+          +'<div class="fw-cell"><div class="cl">forum ingest</div><div class="cv">'+chip((d.forum&&d.forum.ingested)?'ingested':'not ingested',(d.forum&&d.forum.ingested)?'b-live':'b-gold')+'</div></div>'
+          +'</div><details class="raw" open><summary>raw RAG JSON</summary><pre class="out" id="fr-raw2"></pre></details>');
+        E('fr-raw2').textContent=JSON.stringify(d,null,2);
+      }catch(e){ H('fr-answer','<div class="row mono dim">RAG did not resolve: '+esc(e.message)+' \u2014 shown honestly, no citation fabricated.</div>'); }
+      if(btn){btn.disabled=false;btn.textContent='\u25b6 Ask';}
+    };
+
+    /* ===== NAV INJECTION — "Governed Flywheel" group ===== */
+    try{
+      var side=document.querySelector('.side');
+      if(side && !document.getElementById('flywheel-nav-group')){
+        var grp=document.createElement('div'); grp.className='nav-group'; grp.id='flywheel-nav-group'; grp.textContent='Governed Flywheel';
+        var items=[
+          {v:'flyagent',ico:'\u27f3',t:'Governed Agent'},
+          {v:'flyharness',ico:'\u2318',t:'Harness Profiles'},
+          {v:'flyeval',ico:'\u229c',t:'Eval Runner'},
+          {v:'flyrag',ico:'\u2318',t:'Governed RAG'}
+        ];
+        var frag=document.createDocumentFragment(); frag.appendChild(grp);
+        items.forEach(function(it){ var d=document.createElement('div'); d.className='nav-item'; d.setAttribute('data-view',it.v);
+          d.onclick=(function(vv){return function(){window.go(vv);};})(it.v);
+          d.innerHTML='<span class="ico">'+it.ico+'</span>'+it.t; frag.appendChild(d); });
+        // place right after the WOW group if present, else after brand (top).
+        var wow=document.getElementById('wow-nav-group');
+        if(wow){ var anchor=wow, nxt=wow.nextSibling; while(nxt && nxt.classList && nxt.classList.contains('nav-item')){ anchor=nxt; nxt=nxt.nextSibling; }
+          if(anchor.nextSibling){ side.insertBefore(frag, anchor.nextSibling); } else { side.appendChild(frag); } }
+        else { var brand=side.querySelector('.brand'); if(brand && brand.nextSibling){ side.insertBefore(frag, brand.nextSibling); } else { side.appendChild(frag); } }
+      }
+    }catch(e){}
+    window.VIEWS=V;
+  });
+})();
+</script>
+
 </body>
 </html>
