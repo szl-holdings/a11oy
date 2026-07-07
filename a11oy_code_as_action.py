@@ -113,7 +113,10 @@ def evaluate_gate(code: str, intensity: str = "full") -> dict:
     verdict dict. DENY iff hard_block OR Λ tripwire HALT. Λ is advisory and can
     only tighten (add a DENY); it never overrides a hard DENY."""
     import a11oy_code_engine as ce
-    import szl_restraint as restraint
+    try:  # prefer the extracted substrate package; fall back to local copy
+        from szl_substrate import szl_restraint as restraint
+    except Exception:
+        import szl_restraint as restraint
 
     # 1) HARD security gate (deterministic, deny-by-default, model-independent).
     hard = ce.hard_security_screen(code)

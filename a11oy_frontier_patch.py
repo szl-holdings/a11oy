@@ -106,7 +106,10 @@ async def _a11oy_frontier_agent_loop(request: Request):
     
     # Lambda passed — try to delegate to szl_ken agent loop
     try:
-        import szl_ken as _ken
+        try:  # prefer the extracted substrate package; fall back to local copy
+            from szl_substrate import szl_ken as _ken
+        except Exception:
+            import szl_ken as _ken
         tools = _ken.get_default_tools("a11oy")
         state = _ken.init_state(session_id, "a11oy", body.get("max_steps", 3))
         state = _ken._state_copy(state, lambda_score=lambda_score)

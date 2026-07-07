@@ -228,7 +228,10 @@ def _qhawaq_status() -> dict:
     n_receipts = None
     trust = 0.97
     try:
-        import szl_qhawaq as q
+        try:  # prefer the extracted substrate package; fall back to local copy
+            from szl_substrate import szl_qhawaq as q
+        except Exception:
+            import szl_qhawaq as q
         spec = q.invariants_spec()
         inv = {"count": spec.get("count") or len(spec.get("invariants", [])),
                "ids": [i.get("id") for i in spec.get("invariants", [])]}
@@ -407,7 +410,10 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
             result["errors"][modname] = repr(e)
 
     try:
-        import szl_qhawaq as _q
+        try:  # prefer the extracted substrate package; fall back to local copy
+            from szl_substrate import szl_qhawaq as _q
+        except Exception:
+            import szl_qhawaq as _q
         _wire("szl_qhawaq", lambda: _q.register(app, ns=ns, sign_fn=sign_fn))
     except Exception as e:  # noqa: BLE001
         result["errors"]["szl_qhawaq_import"] = repr(e)

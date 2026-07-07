@@ -765,7 +765,10 @@ except Exception as _anat3d_e:  # pragma: no cover
 # stayed in-image but unwired, so the live endpoint 404'd. Restores the missing wiring
 # (additive, try/except-guarded).
 try:
-    import szl_restraint as _szl_restraint
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import szl_restraint as _szl_restraint
+    except Exception:
+        import szl_restraint as _szl_restraint
     _szl_restraint.register(app, ns="a11oy")
     print("[a11oy] Restraint registered: /api/a11oy/v1/restraint/{info,evaluate,bench}", file=__import__("sys").stderr)
 except Exception as _szl_rs_e:  # pragma: no cover
@@ -1983,7 +1986,10 @@ except Exception as _th_e:
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
 # Sign: Yachay. Perplexity Computer Agent.
 try:
-    import szl_provenance as _prov
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import szl_provenance as _prov
+    except Exception:
+        import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "a11oy")
     import sys as _sys_pv
     print(f"[a11oy] Provenance Hardening registered: {_prov_status}", file=_sys_pv.stderr)
@@ -2861,7 +2867,10 @@ if ASSETS_DIR.exists():
 # ---------------------------------------------------------------------------
 _WH_ERR = None
 try:
-    import szl_warhacker_aliases as _wh_aliases
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import szl_warhacker_aliases as _wh_aliases
+    except Exception:
+        import szl_warhacker_aliases as _wh_aliases
     import os as _wh_os
     _wh_status = _wh_aliases.register(
         app, "a11oy",
@@ -3931,7 +3940,10 @@ except Exception as _ke:
 # szl_dsse (cosign ECDSA-P256/DSSE). Doctrine v11 LOCKED 749/14/163 (public).
 # ---------------------------------------------------------------------------
 try:
-    import operator_shell_v4 as _osh_v4
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import operator_shell_v4 as _osh_v4
+    except Exception:
+        import operator_shell_v4 as _osh_v4
     _osh_v4_status = _osh_v4.register(app, "a11oy", web_dir="/app/web")
     import sys as _osh_sys
     print(f"[a11oy] Operator Shell v4 registered: {_osh_v4_status}", file=_osh_sys.stderr)
@@ -5162,7 +5174,10 @@ except Exception as _parity_e:
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
 # ===========================================================================
 try:
-    import szl_llm_registry as _llm_reg
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import szl_llm_registry as _llm_reg
+    except Exception:
+        import szl_llm_registry as _llm_reg
     _llm_reg_info = _llm_reg.register(app)
     print(
         f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
@@ -10206,7 +10221,10 @@ async def spa_fallback(full_path: str) -> Response:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import szl_ken as _ken
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import szl_ken as _ken
+    except Exception:
+        import szl_ken as _ken
     import sys as _sys
     # Detect flagship from FastAPI app title
     _kf = "unknown"

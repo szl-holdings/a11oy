@@ -275,7 +275,10 @@ def _tile_compute_fabric() -> dict:
 
 
 def _tile_governance() -> dict:
-    import szl_restraint as rs
+    try:  # prefer the extracted substrate package; fall back to local copy
+        from szl_substrate import szl_restraint as rs
+    except Exception:
+        import szl_restraint as rs
     info = rs.info()
     doctrine = info.get("doctrine", {}) or {}
     return _tile(
