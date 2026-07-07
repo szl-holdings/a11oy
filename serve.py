@@ -715,6 +715,21 @@ except Exception as _frontier_page_e:  # pragma: no cover
     print(f"[a11oy] Frontier page NOT registered: {_frontier_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN GRAPH (self-writing brain substrate) -- GET /api/a11oy/v1/brain/graph is the
+# MODELED derived view that HARVESTS the real estate (64 frontier surfaces + 23 PURIQ
+# formulas incl. the flagged locked-8 + 34 active org repos + topic clusters) into a
+# layered node/link graph the 3D surface renders neural-net style (input -> hidden ->
+# output). Honest node/link counts (the ACTUAL harvested totals, not the leaked 8,893).
+# Pure read — signs nothing on GET. Registered BEFORE the SPA /{full_path:path} catch-all
+# so the JSON route resolves here, not the SPA HTML shell.
+try:
+    import a11oy_brain_graph as _a11oy_brain_graph
+    _brain_graph_status = _a11oy_brain_graph.register(app, ns="a11oy")
+    print(f"[a11oy] Brain graph registered: {_brain_graph_status}", file=__import__("sys").stderr)
+except Exception as _brain_graph_e:  # pragma: no cover
+    print(f"[a11oy] Brain graph NOT registered: {_brain_graph_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- szl3d HOLOGRAPHIC ESTATE (Dev0 foundation) -- the vendored three.js r170 toolkit +
 # the /holographic shell hosting the 3D surfaces (frontier tier + the 9 estate surfaces),
 # each lazy-loading its per-surface module and lit by REAL a11oy endpoints with honesty

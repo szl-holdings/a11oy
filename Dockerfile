@@ -660,6 +660,10 @@ COPY szl_tee_attest.py ./
 # energy_eu_disclosure receipt field fall back to honest UNAVAILABLE stubs.
 # Methodology: HF-Energy-Score + GSF-SCI ISO-21031. DSSE-signed + Merkle-logged.
 COPY szl_eu_energy.py ./
+# BRAIN GRAPH (2026-07-07) — imported by serve.py (guarded); MUST be per-file COPY'd or
+# GET /api/a11oy/v1/brain/graph falls through to the SPA HTML shell (no JSON). Harvests
+# the real estate (surfaces+formulas+repos+topics) into a layered node/link brain graph.
+COPY a11oy_brain_graph.py ./
 
 # DEV2: in-toto offline verifier recipe (Apache-2.0)
 RUN mkdir -p /app/szl-cookbook
