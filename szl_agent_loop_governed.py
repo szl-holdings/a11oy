@@ -138,18 +138,20 @@ except Exception:  # pragma: no cover — bridge missing → sovereign option si
     _sov = None  # type: ignore
     _SOV_OK = False
 
-# ── Wave O (Dev 4): the governed loop can CONSULT the Brain pulse for context.
-# szl_brain_corpus.brain_pulse() prefers Dev-1's szl_brain_hub pulse (the signed
-# ecosystem bus) and degrades to a guarded local a11oy_brain_graph summary until
-# #brain-hub merges. The context is CONSULTED (attached to the composite receipt,
-# labelled) — it never changes a gate and never fabricates a citation. When the
-# vault is empty/down the block is honestly UNAVAILABLE. Λ = Conjecture 1.
+# Wave P (Dev 4): the Brain FEEDS + POWERS the governed loop. szl_agentloop_brain is a
+# thin GUARDED bridge that (a) pulls advisory context from the Brain vault (corpus="brain")
+# — szl_brain_corpus.brain_pulse (PR #814) preferred, szl_brain_api fallback (on main) —
+# and (e) requests a per-loop ENERGY allocation from the Brain's harnessed power —
+# szl_brain_energy.brain_energy_summary (PR #811, /brain/energy) preferred, szl_energy_budget
+# fallback (on main). Both are ADVISORY inputs recorded in the composite receipt; neither
+# changes a gate/decision and neither fabricates a node or a joule. Honest UNAVAILABLE when
+# a source is down. Λ = Conjecture 1; nothing touches the locked-8.
 try:
-    import szl_brain_corpus as _brain  # noqa: F401
-    _BRAIN_OK = True
-except Exception:  # pragma: no cover — module missing → brain-consult option simply off
-    _brain = None  # type: ignore
-    _BRAIN_OK = False
+    import szl_agentloop_brain as _brainfeed  # noqa: F401
+    _BRAINFEED_OK = True
+except Exception:  # pragma: no cover — bridge missing → brain feed simply off
+    _brainfeed = None  # type: ignore
+    _BRAINFEED_OK = False
 
 
 def _now() -> str:
@@ -191,7 +193,8 @@ def run_loop(task: str,
              approval: Optional[dict] = None,
              max_retries: int = 1,
              sandbox: Optional[bool] = None,
-             consult_brain: bool = False) -> dict:
+             consult_brain: bool = False,
+             allocate_energy: bool = False) -> dict:
     """Run ONE governed autonomous loop over a task.
 
     Composes the REAL siloed pieces per planned step:
@@ -224,25 +227,28 @@ def run_loop(task: str,
         sovereign_state = _sp.get("state")
         sovereign_block = _sov.receipt_block(_sp)
 
-    # ── Wave O (Dev 4): CONSULT the Brain pulse for context (advisory only). ─────
-    # When consult_brain is set, read the Brain pulse (Dev-1 hub preferred, guarded
-    # local fallback) plus the top brain passages relevant to the task. This is
-    # CONTEXT the loop is aware of — it is recorded in the composite receipt and
-    # NEVER changes a gate/decision and never fabricates a citation. Honest
-    # UNAVAILABLE when the vault is empty/down.
-    brain_context = None
+    # ── Wave P (Dev 4): CONSULT the Brain vault (corpus="brain") for advisory context ──
+    # Pull the top brain passages relevant to the task (REAL harvested nodes only). This
+    # is ADVISORY context recorded in the composite receipt; the top passages are threaded
+    # into the FIRST governed step through the engine's GOVERNED untrusted channel so the
+    # run genuinely grounds on the Brain — but the Λ-gate/eval/approval are unchanged and
+    # no citation is fabricated. Honest UNAVAILABLE when the vault is empty/down.
+    brain_ctx = None
+    brain_preamble = ""
     if consult_brain:
-        if _BRAIN_OK and _brain is not None:
+        if _BRAINFEED_OK and _brainfeed is not None:
             try:
-                brain_context = _brain.brain_pulse(ns, query=task, top_k=5)
-            except Exception as _be:  # pragma: no cover - defensive
-                brain_context = {"available": False,
-                                 "label": "UNAVAILABLE — brain pulse read failed; no context fabricated.",
-                                 "error": repr(_be), "conjecture_note": _CONJECTURE_NOTE}
+                brain_ctx = _brainfeed.consult_brain(ns, task, top_k=5)
+                brain_preamble = _brainfeed.grounding_preamble(brain_ctx)
+            except Exception as _be:  # pragma: no cover — defensive; never raise
+                brain_ctx = {"available": False, "corpus_id": "brain",
+                             "label": "UNAVAILABLE — brain consult raised; no context fabricated.",
+                             "error": repr(_be), "conjecture_note": _CONJECTURE_NOTE}
         else:
-            brain_context = {"available": False,
-                             "label": "UNAVAILABLE — szl_brain_corpus not loaded; no context fabricated.",
-                             "conjecture_note": _CONJECTURE_NOTE}
+            brain_ctx = {"available": False, "corpus_id": "brain",
+                         "label": ("UNAVAILABLE — szl_agentloop_brain bridge not loaded; "
+                                   "no context fabricated."),
+                         "conjecture_note": _CONJECTURE_NOTE}
 
     if not _ENGINE_OK:
         return {
@@ -277,7 +283,7 @@ def run_loop(task: str,
     engine_chain: list[dict] = []  # carry the engine's rolling receipt chain across steps
     prev_digest = ""
 
-    for pstep in plan_steps:
+    for _si, pstep in enumerate(plan_steps):
         n = pstep.get("n")
         step_mode = (pstep.get("mode") or plan_mode or "chat").lower()
         if step_mode not in ("chat", "code", "research"):
@@ -286,6 +292,13 @@ def run_loop(task: str,
         step_sandbox = bool(pstep.get("sandbox")) if sandbox is None else bool(sandbox)
         state_changing = bool(pstep.get("state_changing", step_sandbox))
         suite_id = eval_suite or _default_eval_suite(step_mode)
+
+        # Wave P: thread the consulted Brain-vault passages into the FIRST step through
+        # the engine's GOVERNED untrusted channel (deny-by-default aware), labelled
+        # advisory. Later steps inherit the plan's own untrusted_input only.
+        step_untrusted = pstep.get("untrusted_input", "") or ""
+        if _si == 0 and brain_preamble:
+            step_untrusted = (brain_preamble + ("\n\n" + step_untrusted if step_untrusted else ""))
 
         attempts: list[dict] = []
         best = None
@@ -299,7 +312,7 @@ def run_loop(task: str,
             try:
                 run = _engine.governed_turn(
                     step_mode, step_prompt, sign_fn, ns,
-                    untrusted_input=pstep.get("untrusted_input", "") or "",
+                    untrusted_input=step_untrusted,
                     run_chain=engine_chain, sandbox=step_sandbox,
                     want_model=model_id, harness_profile_id=harness_profile_id or "")
             except Exception as e:  # never raise into the request
@@ -451,7 +464,39 @@ def run_loop(task: str,
     any_gate_hold = any(bool(s["final"]["approval"].get("required")
                              and s["final"]["approval"].get("granted") is None)
                         for s in steps_out if s.get("final") and s["final"].get("approval"))
-    run_chain_digest = _sha256(_canon(chain_digests))
+
+    # ── Wave P (Dev 4): ALLOCATE energy for this loop from the Brain's harnessed power ──
+    # Request an honest per-loop budget from /brain/energy (szl_brain_energy #811 preferred,
+    # szl_energy_budget fallback). Joules carry their true label; UNAVAILABLE when no meter.
+    energy_alloc = None
+    if allocate_energy:
+        if _BRAINFEED_OK and _brainfeed is not None:
+            try:
+                energy_alloc = _brainfeed.allocate_energy(ns, run_id, n_steps, task)
+            except Exception as _ee:  # pragma: no cover — defensive; never raise
+                energy_alloc = {"available": False,
+                                "label": "UNAVAILABLE — energy allocation raised; no joules fabricated.",
+                                "error": repr(_ee), "conjecture_note": _CONJECTURE_NOTE}
+        else:
+            energy_alloc = {"available": False,
+                            "label": ("UNAVAILABLE — szl_agentloop_brain bridge not loaded; "
+                                      "no joules fabricated."),
+                            "conjecture_note": _CONJECTURE_NOTE}
+
+    # ── compact receipt blocks for the consulted Brain context + energy allocation ──
+    brain_block = (_brainfeed.context_block(brain_ctx)
+                   if (brain_ctx is not None and _BRAINFEED_OK and _brainfeed) else brain_ctx)
+    energy_block = (_brainfeed.energy_block(energy_alloc)
+                    if (energy_alloc is not None and _BRAINFEED_OK and _brainfeed) else energy_alloc)
+
+    # ── whole-run hash chain: brain-context (seed) ⊕ per-step digests ⊕ energy (tail) ──
+    # This is the genuine Wave P deepening: ONE digest chaining brain-context + profile +
+    # steps + eval + energy. Brain/energy links are present only when requested (advisory).
+    brain_digest = _sha256(_canon(brain_block)) if brain_block is not None else ""
+    energy_digest = _sha256(_canon(energy_block)) if energy_block is not None else ""
+    _chain_seq = ([brain_digest] if brain_digest else []) + chain_digests + \
+                 ([energy_digest] if energy_digest else [])
+    run_chain_digest = _sha256(_canon(_chain_seq))
 
     # ── build the ONE composite receipt body (chains profile+step+eval per step) ──
     receipt_body = {
@@ -464,12 +509,6 @@ def run_loop(task: str,
         "mode": plan_mode,
         "model_id": model_id or "(engine default)",
         "sovereign": sovereign_block,  # Wave M: intended sovereign backend (None when not requested)
-        # Wave O: the Brain pulse the loop CONSULTED (advisory context; labelled;
-        # None when not requested; UNAVAILABLE when the vault is empty/down). It is
-        # recorded here but NEVER changed a gate/decision — the loop's Λ/eval/approval
-        # are the real modules' own output.
-        "brain_context": brain_context,
-        "brain_consulted": bool(consult_brain),
         "harness_profile_id": harness_profile_id or None,
         "eval_suite_default": eval_suite or "(per-step mode heuristic)",
         "max_retries": max_retries,
@@ -487,6 +526,18 @@ def run_loop(task: str,
                         "approval_checkpoint": (s["final"]["approval"].get("checkpoint_id")
                                                 if s.get("final") else None)}
                        for s in steps_out],
+        # Wave P (Dev 4): the Brain vault context the loop CONSULTED (corpus="brain",
+        # advisory; None when not requested; UNAVAILABLE when the vault is empty/down),
+        # and the ENERGY the loop was ALLOCATED from the Brain's harnessed power (advisory;
+        # joules carry their true label; None when not requested).
+        "brain_consulted": bool(consult_brain),
+        "brain_context": brain_block,
+        "brain_digest": brain_digest or None,
+        "energy_allocated": bool(allocate_energy),
+        "energy_allocation": energy_block,
+        "energy_digest": energy_digest or None,
+        "chain_order": (["brain-context"] if brain_digest else []) + ["steps(profile+act+eval)"] +
+                       (["energy"] if energy_digest else []),
         "run_chain_digest": run_chain_digest,
         "aggregate": {
             "n_steps": n_steps,
@@ -509,6 +560,14 @@ def run_loop(task: str,
             "behavior_profile_available": _HARNESS_OK,
             "human_gate": "szl_agentic_loop.approval_interrupt (durable, deny-by-default)",
             "human_gate_available": _APPROVAL_OK,
+            "brain_context": ("szl_agentloop_brain.consult_brain (corpus='brain'; "
+                              "szl_brain_corpus #814 preferred, szl_brain_api fallback)"),
+            "brain_context_available": (bool(_brainfeed.brain_context_available(ns))
+                                        if _BRAINFEED_OK and _brainfeed else False),
+            "brain_energy": ("szl_agentloop_brain.allocate_energy (/brain/energy; "
+                             "szl_brain_energy #811 preferred, szl_energy_budget fallback)"),
+            "brain_energy_available": (bool(_brainfeed.brain_energy_available(ns))
+                                       if _BRAINFEED_OK and _brainfeed else False),
         },
         "leaders_cited": [{"name": l["name"], "url": l["url"]} for l in LEADERS],
         "doctrine": DOCTRINE,
@@ -520,6 +579,10 @@ def run_loop(task: str,
             "The per-step ACT (engine P1-P6 + Λ-gate + sandbox), the SELF-EVAL (eval-arena "
             "scoring + Λ axes), the behavior-profile attach (harness), and the HumanApprovalGate "
             "are the REAL modules' own output — this receipt only CHAINS + SIGNS them. "
+            "Wave P: the consulted Brain-vault context (corpus='brain') and the Brain-harnessed "
+            "ENERGY allocation (/brain/energy) are ADVISORY inputs — real nodes + true joule "
+            "labels — recorded and chained here; they NEVER change a gate/decision and never "
+            "fabricate a node or a joule (honest UNAVAILABLE when a source is down). "
             "Λ is Conjecture 1 (advisory, never green). No answer, eval, gate, or signature "
             "fabricated. Nothing touches the locked-8."),
     }
@@ -544,8 +607,12 @@ def run_loop(task: str,
         "sovereign": sovereign_block,  # Wave M: honest intended-backend + reachability
         "sovereign_label": (_sov.selected_label({"state": sovereign_state})
                             if sovereign_requested and _SOV_OK and _sov else None),
-        "brain_context": brain_context,  # Wave O: consulted Brain pulse (advisory), None if not requested
-        "brain_label": ((brain_context or {}).get("label") if consult_brain else None),
+        "brain_consulted": bool(consult_brain),
+        "brain_context": brain_block,  # Wave P: consulted Brain-vault context (advisory), None if off
+        "brain_label": ((brain_ctx or {}).get("label") if consult_brain else None),
+        "energy_allocated": bool(allocate_energy),
+        "energy_allocation": energy_block,  # Wave P: Brain-harnessed per-loop energy (advisory), None if off
+        "energy_label": ((energy_alloc or {}).get("label") if allocate_energy else None),
         "forum_ingest": forum,
         "composes": receipt_body["composes"],
         "leaders_cited": LEADERS,
@@ -557,10 +624,12 @@ def run_loop(task: str,
         "doctrine": DOCTRINE,
         "kernel_commit": _KERNEL,
         "conjecture_note": _CONJECTURE_NOTE,
-        "label": ("LIVE governed agent loop — plan (MODELED) → act (engine P1-P6, Λ-gate, "
-                  "sandbox) → self-eval (eval-arena) → HumanApprovalGate → bounded retry → "
-                  "ONE composite signed receipt chaining profile+step+eval, ingested to "
-                  "/llm/forum. Λ is Conjecture 1 (advisory)."),
+        "label": ("LIVE governed agent loop — Brain-vault context (corpus='brain', advisory) → "
+                  "plan (MODELED) → act (engine P1-P6, Λ-gate, sandbox) → self-eval (eval-arena) "
+                  "→ HumanApprovalGate → bounded retry → Brain-harnessed energy allocation "
+                  "(/brain/energy, advisory) → ONE composite signed receipt chaining "
+                  "brain-context + profile + steps + eval + energy, ingested to /llm/forum. "
+                  "Λ is Conjecture 1 (advisory)."),
     }
 
 
@@ -684,12 +753,17 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
             max_retries = 1
         sandbox = b.get("sandbox")
         sandbox = None if sandbox is None else bool(sandbox)
-        # Wave O: opt-in Brain pulse consultation (advisory context only).
-        consult_brain = bool(b.get("consult_brain") or b.get("brain") or False)
+        # Wave P (Dev 4): opt-in Brain-vault consultation + Brain-harnessed energy allocation
+        # (advisory context/budget only; default ON when the Brain feed bridge is present so
+        # a real run is genuinely Brain-powered, but explicitly overridable per request).
+        consult_brain = b.get("consult_brain", b.get("brain"))
+        consult_brain = bool(_BRAINFEED_OK) if consult_brain is None else bool(consult_brain)
+        allocate_energy = b.get("allocate_energy", b.get("energy"))
+        allocate_energy = bool(_BRAINFEED_OK) if allocate_energy is None else bool(allocate_energy)
         result = run_loop(task, sign_fn, ns=ns, mode=mode, model_id=model_id,
                           harness_profile_id=harness_profile_id, eval_suite=eval_suite,
                           approval=approval, max_retries=max_retries, sandbox=sandbox,
-                          consult_brain=consult_brain)
+                          consult_brain=consult_brain, allocate_energy=allocate_energy)
         return JSONResponse(result, status_code=result.get("status_code", 200))
 
     async def _health(request):
@@ -717,18 +791,26 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
                 "behavior_profile_available": _HARNESS_OK,
                 "human_gate_available": _APPROVAL_OK,
                 "sovereign_available": _SOV_OK,
-                "brain_consult_available": _BRAIN_OK,
+                "brain_feed_available": _BRAINFEED_OK,
+                "brain_context_available": (bool(_brainfeed.brain_context_available(ns))
+                                            if _BRAINFEED_OK and _brainfeed else False),
+                "brain_energy_available": (bool(_brainfeed.brain_energy_available(ns))
+                                           if _BRAINFEED_OK and _brainfeed else False),
             },
-            # Wave O (Dev 4): the loop can CONSULT the Brain pulse for context.
-            "consult_brain": {
-                "available": bool(_BRAIN_OK),
-                "how": ("POST /agentloop/run with consult_brain=true. The loop reads the "
-                        "Brain pulse (Dev-1 szl_brain_hub preferred; guarded a11oy_brain_graph "
-                        "fallback until #brain-hub merges) + the top brain passages relevant to "
-                        "the task, and records them in the composite receipt as ADVISORY context. "
-                        "It never changes a gate/decision and never fabricates a citation; honest "
-                        "UNAVAILABLE when the vault is empty/down."),
-                "brain_available": (bool(_brain.available(ns)) if _BRAIN_OK and _brain else False),
+            # Wave P (Dev 4): the Brain FEEDS + POWERS the governed loop.
+            "brain_powered": {
+                "available": bool(_BRAINFEED_OK),
+                "how": ("POST /agentloop/run with consult_brain=true (advisory context from "
+                        "the Brain vault, corpus='brain') and/or allocate_energy=true (a per-loop "
+                        "budget from the Brain's harnessed power, /brain/energy). Both default ON "
+                        "when the bridge is present. Context read path: szl_brain_corpus.brain_pulse "
+                        "(PR #814) preferred, szl_brain_api fallback (on main). Energy read path: "
+                        "szl_brain_energy.brain_energy_summary (PR #811, /brain/energy) preferred, "
+                        "szl_energy_budget fallback (on main). Advisory only — recorded + chained "
+                        "into the composite receipt; never changes a gate; honest UNAVAILABLE when "
+                        "a source is down; no node/joule fabricated."),
+                "corpus_id": "brain",
+                "energy_endpoint": "/api/%s/v1/brain/energy" % ns,
             },
             # Wave M (Dev 2): run this governed loop on SZL's OWN model.
             "run_on_sovereign": {
@@ -770,7 +852,8 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         app.router.routes.insert(0, r)
     return {"registered": [r.path for r in routes], "ns": ns,
             "act_engine_available": _ENGINE_OK, "self_eval_available": _ARENA_OK,
-            "behavior_profile_available": _HARNESS_OK, "human_gate_available": _APPROVAL_OK}
+            "behavior_profile_available": _HARNESS_OK, "human_gate_available": _APPROVAL_OK,
+            "brain_feed_available": _BRAINFEED_OK}
 
 
 def _selftest() -> None:  # pragma: no cover
@@ -786,20 +869,29 @@ def _selftest() -> None:  # pragma: no cover
     assert out["aggregate"]["lambda_status"] == "CONJECTURE"
     assert out["n_steps"] if "n_steps" in out else True
     assert len(out["steps"]) >= 1
-    # Wave O: consult_brain attaches an advisory Brain-pulse context (labelled),
-    # recorded in the composite receipt, never changing a gate/decision.
-    outb = run_loop("explain the Euler Khipu DAG identity F1", _sign, ns="a11oy",
-                    mode="chat", max_retries=0, consult_brain=True)
-    assert outb["ok"] is True
-    bc = outb["composite_receipt"]["body"]["brain_context"]
-    assert isinstance(bc, dict) and "label" in bc and "available" in bc
-    assert outb["composite_receipt"]["body"]["brain_consulted"] is True
-    # gate/decision unaffected: locked-8 still untouched, Λ still Conjecture.
-    assert outb["composite_receipt"]["body"]["locked8_touched"] is False
-    print(f"szl_agent_loop_governed: consult_brain -> brain_context label={bc['label']!r} "
-          f"available={bc['available']} relevant={len(bc.get('relevant', []))}")
-    print("szl_agent_loop_governed: ALL OK (composed engine+harness+eval+gate, "
-          "ONE composite signed receipt, Λ=Conjecture 1, locked-8 untouched)")
+
+    # Wave P (Dev 4): Brain-powered run — CONSULT the vault (corpus='brain') + ALLOCATE
+    # energy from /brain/energy; the composite receipt chains brain-context + steps + energy.
+    outb = run_loop("explain the Euler Khipu DAG identity F1 and estimate its energy budget",
+                    _sign, ns="a11oy", mode="research", max_retries=0,
+                    consult_brain=True, allocate_energy=True)
+    assert outb["ok"] is True, outb
+    body = outb["composite_receipt"]["body"]
+    assert body["brain_consulted"] is True and body["energy_allocated"] is True
+    bc = body["brain_context"]
+    assert isinstance(bc, dict) and "label" in bc and "available" in bc, bc
+    ea = body["energy_allocation"]
+    assert isinstance(ea, dict) and "label" in ea and "loop_allocation_joules_label" in ea, ea
+    # the whole-run digest genuinely chains brain-context (seed) + steps + energy (tail):
+    assert body["chain_order"][0] == "brain-context" and body["chain_order"][-1] == "energy", body["chain_order"]
+    assert body["brain_digest"] and body["energy_digest"], body
+    # honesty: gate/Λ/locked-8 unaffected by the advisory brain+energy inputs.
+    assert body["locked8_touched"] is False
+    assert body["aggregate"]["lambda_status"] == "CONJECTURE"
+    print("szl_agent_loop_governed: ALL OK (composed brain-context+engine+harness+eval+gate+"
+          "energy, ONE composite signed receipt chaining %s, Λ=Conjecture 1, locked-8 "
+          "untouched). brain_label=%r energy_label=%r"
+          % (body["chain_order"], bc.get("label"), ea.get("label")))
 
 
 if __name__ == "__main__":  # pragma: no cover
