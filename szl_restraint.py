@@ -598,6 +598,11 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[Any], dict]] = 
             b = await request.json()
         except Exception:
             b = {}
+        # Wave J (Dev 3): honest 400 on a malformed (non-object) body instead of a
+        # 500 crash on b.get(...) — closes the silent-degrade/422 class.
+        if not isinstance(b, dict):
+            return JSONResponse({"error": "request body must be a JSON object",
+                                 "got_type": type(b).__name__}, status_code=400)
         task = b.get("task") or b.get("prompt") or b.get("query") or ""
         intensity = b.get("intensity") or "full"
         lang = b.get("lang")

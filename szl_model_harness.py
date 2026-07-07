@@ -620,6 +620,13 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
             body = await request.json()
         except Exception:
             body = {}
+        # Wave J (Dev 3): honest 400 on a malformed (non-object) body instead of a
+        # 500 crash on body.get(...) — closes the silent-degrade/422 class.
+        if not isinstance(body, dict):
+            return JSONResponse(
+                {"error": "request body must be a JSON object",
+                 "got_type": type(body).__name__},
+                status_code=400)
 
         # Wave G: the endpoint is now a thin shell over the IMPORTABLE apply()
         # core (single source of truth shared with the /code run-loop step). The

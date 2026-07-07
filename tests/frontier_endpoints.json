@@ -1,0 +1,346 @@
+[
+  {
+    "path": "/api/a11oy/v1/anatomy/loop",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/anatomy/vitals",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/assurance/artifact",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/assurance/credential",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/atlas/map",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/atlas/organism",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/attest/infer",
+    "query": "seed=42&model=szl-modeled-lm",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/brain/graph",
+    "query": "summary=1",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/compute-pool-hardened",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/conjecture-factory",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/counter-uas/air-picture",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/counter-uas/cued-tracks",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/counter-uas/evaluate",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/counter-uas/gates",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/counter-uas/telemetry",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/ecosystem/kpi-board",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/energy/mesh",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/energy/operator/status",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/energy/sovereign",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/entangle/concurrence",
+    "query": "state=bell",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/entangle/entropy",
+    "query": "state=bell",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/entangle/negativity",
+    "query": "state=bell",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/eval/health",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/eval/run",
+    "query": "",
+    "method": "POST",
+    "body": {
+      "suite": "core_honest_v1",
+      "model_id": "claude_opus_4_8"
+    },
+    "neg_body": {
+      "suite": "__unknown_suite__",
+      "model_id": "__nope__"
+    }
+  },
+  {
+    "path": "/api/a11oy/v1/eval/suites",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/experimental/index",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/agentmem",
+    "query": "seed=42&n_memories=256&query_k=16&horizon=128",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/edgefusion",
+    "query": "seed=42&n_tracks=48&n_sensors=4&horizon=64",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/surfaces",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/zkinfer",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/genome",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/harness/apply",
+    "query": "",
+    "method": "POST",
+    "body": {
+      "profile_id": "szl-fable",
+      "model_id": "claude_opus_4_8",
+      "prompt": "Demonstrate the applied behavior profile."
+    },
+    "neg_body": {
+      "profile_id": "__does_not_exist__",
+      "model_id": "__nope__",
+      "prompt": "x"
+    }
+  },
+  {
+    "path": "/api/a11oy/v1/harness/profiles",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/harvest/posture",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/honest",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/interpretability/features",
+    "query": "seed=42&top_k=8&d_model=512&n_features=4096",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/kan/fit",
+    "query": "seed=42&hidden=3&knots=7&epochs=120",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/loopforge/archive",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/loopforge/horizon",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/loopforge/metrics",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/loopforge/run",
+    "query": "",
+    "method": "POST",
+    "body": {}
+  },
+  {
+    "path": "/api/a11oy/v1/loopforge/workspace",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/mor/route",
+    "query": "seed=42&tokens=256&max_depth=4&threshold=0.5",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/neuro/plasticity",
+    "query": "act=0.5,0.0,0.0001,0.8,0.0",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/neuro/stdp",
+    "query": "dt=10",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/neuromorphic/spikes",
+    "query": "seed=42&n_neurons=64&dt_ms=0.5&T_ms=100.0",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/organ-health",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/pinn/certificate",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/pinn/residual",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/pnt/coast",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/pnt/limits",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/pnt/resilience",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/pnt/sensor",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/qbio/coherence",
+    "query": "tau_c=6.05&steps=60",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/qbio/compass",
+    "query": "B_uT=50&angles=0,30,60,90,120,150,180",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/restraint/evaluate",
+    "query": "",
+    "method": "POST",
+    "body": {
+      "task": "Summarize a public doctrine note.",
+      "action": "evaluate"
+    },
+    "neg_body": {}
+  },
+  {
+    "path": "/api/a11oy/v1/restraint/info",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/router/active-flux-crossover",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/router/active-flux-crossover/sweep",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/scaling/exponents",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/sovereign-compute",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/ternary/quantize",
+    "query": "seed=42&rows=32&cols=32&batch=16&act_bits=8",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/titans/recall",
+    "query": "seed=42&n_tokens=512&window=64&mem_dim=32",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/vqc/run",
+    "query": "seed=7&n_qubits=3&layers=2&steps=14",
+    "method": "GET"
+  }
+]
