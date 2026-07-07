@@ -34,6 +34,8 @@ Formula citations (Lean kernel-proven, 0-sorry):
 
 Endpoints exposed (all GET):
   /api/a11oy/v1/harvest/posture  — live wasted-energy posture from free feeds
+  /api/a11oy/v1/harvest/fleet    — fleet-wide MEASURED energy summary (per-node
+                                   joules+watts+provenance across BOTH nodes + total)
   /api/a11oy/v1/harvest/plan     — formula-bounded soak plan (?bytes=N)
   /api/a11oy/v1/harvest/receipt  — honest receipt (price_measured, joules always "sample")
   /api/a11oy/v1/harvest/world    — follow-the-wind best zone (scan_world_renshare)
@@ -101,7 +103,10 @@ _NO_EXPORTER_SAMPLE = None
 # THIS request, it returns an honest STRUCTURAL-ONLY channel with a clear reason and NO
 # fabricated joule. Guarded so a missing module can never crash the endpoint.
 try:
-    from szl_energy_measured import measured_channel as _energy_measured_channel
+    from szl_energy_measured import (
+        measured_channel as _energy_measured_channel,
+        fleet_channel as _energy_fleet_channel,
+    )
     _ENERGY_MEASURED_OK = True
 except Exception as _energy_measured_err:  # pragma: no cover - honest STRUCTURAL fallback
     _ENERGY_MEASURED_OK = False
@@ -119,6 +124,43 @@ except Exception as _energy_measured_err:  # pragma: no cover - honest STRUCTURA
                            "meter_ts": None, "fetched_at": None,
                            "method": "module unavailable"},
             "power_w": None, "joules_before": None, "joules_after": None,
+            "meter_urls": [],
+        }
+
+    def _energy_fleet_channel(now=None, meter_urls=None, timeout=None):  # type: ignore
+        # Module absent -> honest STRUCTURAL-ONLY fleet, never a fabricated joule.
+        return {
+            "measured_any": False,
+            "joules_label": "sample",
+            "nodes": [],
+            "fleet": {"total_joules": None, "total_watts": None,
+                      "measured_node_count": 0, "node_count": 0},
+            "reason": ("szl_energy_measured unavailable (%s) — STRUCTURAL-ONLY fleet, "
+                       "no joule fabricated" % _ENERGY_MEASURED_ERR),
+            "meter_urls": [],
+        }
+
+
+def _energy_fleet_summary() -> dict:
+    """Consult the fleet-wide ENERGY MEASURED channel (szl_energy_measured.fleet_channel).
+
+    Returns per-node MEASURED joules+watts+provenance across the FULL fleet (both the
+    omen and betterwithage meters via A11OY_JOULE_METER_URLS) PLUS a fleet total. Each
+    number carries provenance (meter url, engine, exporter, ts). MEASURED only from a
+    live meter reading THIS request; otherwise honest STRUCTURAL-ONLY (no node, null
+    total). NEVER raises, NEVER fabricates a joule.
+    """
+    try:
+        return _energy_fleet_channel()
+    except Exception as exc:  # pragma: no cover - degrade honestly
+        return {
+            "measured_any": False,
+            "joules_label": "sample",
+            "nodes": [],
+            "fleet": {"total_joules": None, "total_watts": None,
+                      "measured_node_count": 0, "node_count": 0},
+            "reason": "fleet energy channel raised (%s) — STRUCTURAL-ONLY, no joule fabricated"
+                      % _safe_err(exc),
             "meter_urls": [],
         }
 
@@ -426,6 +468,62 @@ def handle_world() -> dict:
         }
 
 
+def handle_fleet() -> dict:
+    """GET /harvest/fleet — fleet-wide MEASURED energy summary across BOTH nodes.
+
+    Reports per-node MEASURED joules+watts with provenance (meter url, engine,
+    exporter, ts) on every number, PLUS a fleet total (honest sum over MEASURED nodes
+    only). Reads EVERY harnessed meter in A11OY_JOULE_METER_URLS (omen via
+    meter.a-11-oy.com AND betterwithage via meter2.a-11-oy.com) with a browser
+    User-Agent (Cloudflare-safe) and a per-node monotonic-reset guard; szl_joules_truth
+    (the single source of truth) gates each node MEASURED vs sample. When no meter env
+    is set or no meter responds live THIS request, the summary is honest STRUCTURAL-ONLY
+    (measured_any=false, null fleet total, no nodes) — NEVER a fabricated joule.
+    """
+    try:
+        fc = _energy_fleet_summary()
+        measured_any = bool(fc.get("measured_any")) and fc.get("joules_label") == "measured"
+        fleet = fc.get("fleet", {}) or {}
+        if measured_any:
+            note = (
+                "joules_label 'measured' — %d of %d fleet node(s) responded live THIS "
+                "request via A11OY_JOULE_METER_URLS; each per-node joule/watt carries "
+                "provenance (meter url, engine, exporter, ts) and the fleet total is an "
+                "honest sum over MEASURED nodes only. monotonic-reset checked. %s"
+                % (fleet.get("measured_node_count", 0), fleet.get("node_count", 0),
+                   fc.get("reason", ""))
+            )
+        else:
+            note = (
+                "joules_label 'sample' (STRUCTURAL-ONLY) — no fleet node responded live this "
+                "request; MEASURED requires a live meter reading via A11OY_JOULE_METER_URLS. "
+                "Fleet total is null. No joule fabricated. reason: %s"
+                % fc.get("reason", "no meter reading")
+            )
+        return {
+            "ok": True,
+            "measured_any": measured_any,
+            "joules_label": fc.get("joules_label", "sample"),
+            "nodes": fc.get("nodes", []),          # per-node joules+watts+provenance
+            "fleet": fleet,                        # total_joules, total_watts, counts
+            "meter_urls": fc.get("meter_urls", []),
+            "joules_reason": fc.get("reason"),
+            "joules_note": note,
+            "citations": fc.get("citations", {}),
+            "doctrine": _DOCTRINE_NOTE,
+            "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "measured_any": False,
+            "joules_label": "sample",
+            "error": _safe_err(exc),
+            "doctrine": _DOCTRINE_NOTE,
+            "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+
+
 def handle_index() -> dict:
     """GET /harvest/index — index of harvest endpoints + feed citations + doctrine."""
     return {
@@ -435,6 +533,13 @@ def handle_index() -> dict:
                 "path": "/api/a11oy/v1/harvest/posture",
                 "method": "GET",
                 "description": "Live wasted-energy posture from free feeds. Per-feed reachable/measured flags.",
+            },
+            {
+                "path": "/api/a11oy/v1/harvest/fleet",
+                "method": "GET",
+                "description": ("Fleet-wide MEASURED energy summary: per-node joules+watts with "
+                                "provenance across BOTH nodes (omen + betterwithage) + a fleet "
+                                "total; honest STRUCTURAL-ONLY when no meter responds live."),
             },
             {
                 "path": "/api/a11oy/v1/harvest/plan",
@@ -490,6 +595,11 @@ def register(app, ns: str = "a11oy") -> str:
         """Live wasted-energy posture from free feeds (per-feed reachable/measured flags)."""
         return JSONResponse(handle_posture())
 
+    @app.get(f"{base}/fleet")
+    async def _harvest_fleet():
+        """Fleet-wide MEASURED energy summary: per-node joules+watts+provenance + fleet total."""
+        return JSONResponse(handle_fleet())
+
     @app.get(f"{base}/plan")
     async def _harvest_plan(bytes: int = 1024):
         """Formula-bounded soak plan: Bekenstein cap + Landauer floor + Ouroboros bound."""
@@ -505,7 +615,7 @@ def register(app, ns: str = "a11oy") -> str:
         """Follow-the-wind: scan_world_renshare across zones, return best surplus zone."""
         return JSONResponse(handle_world())
 
-    status = "harvest-wired:5" if _HARVEST_OK else f"harvest-degraded:{_HARVEST_IMPORT_ERR if not _HARVEST_OK else 'unknown'}"
+    status = "harvest-wired:6" if _HARVEST_OK else f"harvest-degraded:{_HARVEST_IMPORT_ERR if not _HARVEST_OK else 'unknown'}"
     return status
 
 
@@ -581,7 +691,24 @@ if __name__ == "__main__":
     index_resp = handle_index()
     print(f"    ok={index_resp.get('ok')}  endpoints={len(index_resp.get('endpoints',[]))}  "
           f"feeds={len(index_resp.get('feeds',[]))}  harvest_module_ok={index_resp.get('harvest_module_ok')}")
-    assert len(index_resp.get("endpoints", [])) == 5, "index must list 5 endpoints"
+    assert len(index_resp.get("endpoints", [])) == 6, "index must list 6 endpoints"
+    checks += 1
+
+    # --- 5b. fleet (fleet-wide MEASURED energy summary; honest STRUCTURAL-ONLY off-box) ---
+    print("\n[5b] GET /harvest/fleet (fleet-wide MEASURED energy summary):")
+    fleet_resp = handle_fleet()
+    _fl = fleet_resp.get("fleet", {}) or {}
+    print(f"    ok={fleet_resp.get('ok')}  measured_any={fleet_resp.get('measured_any')}  "
+          f"joules_label={fleet_resp.get('joules_label')}  "
+          f"nodes={_fl.get('node_count')}  measured_nodes={_fl.get('measured_node_count')}  "
+          f"total_joules={_fl.get('total_joules')}  total_watts={_fl.get('total_watts')}")
+    # Off-box (no meter env) this MUST be honest STRUCTURAL-ONLY: no fabricated joule.
+    if not fleet_resp.get("measured_any"):
+        assert fleet_resp.get("joules_label") == "sample", \
+            f"DOCTRINE: fleet joules_label must be 'sample' with no live meter, got {fleet_resp.get('joules_label')}"
+        assert _fl.get("total_joules") is None, \
+            "DOCTRINE: fleet total_joules must be null when no node MEASURED (no fabrication)"
+    print(f"    joules_reason: {str(fleet_resp.get('joules_reason'))[:80]}")
     checks += 1
 
     # --- 6. OFFLINE degradation test (monkeypatch feeds to unreachable) ---
