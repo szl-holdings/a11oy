@@ -31,6 +31,7 @@ from typing import Any, Dict, List
 
 # Surface slots (id, human title) — the frontier tier + the 9 estate surfaces.
 SURFACES: List[Dict[str, str]] = [
+    {"id": "atlas", "title": "Atlas", "owner": "Wave27"},
     {"id": "frontier", "title": "Frontier", "owner": "Dev0"},
     {"id": "neuromorphic", "title": "Neuromorphic", "owner": "Dev0"},
     {"id": "interpretability", "title": "Interpretability", "owner": "Dev0"},
