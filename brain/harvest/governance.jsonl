@@ -1,0 +1,552 @@
+{"id": "axis:zkml", "kind": "axis", "label": "zkML / proof-of-inference", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "zkml", "layer": 3, "maps_to_surface": "zkinfer"}
+{"id": "axis:ccattest", "kind": "axis", "label": "TEE / confidential-compute attestation", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "ccattest", "layer": 3, "maps_to_surface": "ccattest"}
+{"id": "axis:aigov", "kind": "axis", "label": "AI governance & policy", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "aigov", "layer": 3}
+{"id": "axis:fmverif", "kind": "axis", "label": "Formal verification of ML (Lean/Coq)", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "fmverif", "layer": 3}
+{"id": "axis:supplychain", "kind": "axis", "label": "Supply-chain security (SLSA/in-toto/sigstore)", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "supplychain", "layer": 3}
+{"id": "axis:provenance", "kind": "axis", "label": "Signed receipts / provenance (C2PA)", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "provenance", "layer": 3, "maps_to_surface": "receipt"}
+{"id": "axis:interp", "kind": "axis", "label": "Interpretability-as-governance", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "interp", "layer": 3, "maps_to_surface": "immune"}
+{"id": "axis:agentmem", "kind": "axis", "label": "Agent memory / consistency", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "agentmem", "layer": 3}
+{"id": "axis:bft", "kind": "axis", "label": "BFT / consensus", "url": "https://a-11-oy.com/api/a11oy/v1/brain/graph", "source": "SZL charter", "axis": "bft", "layer": 3}
+{"id": "paper:kang2022scaling", "kind": "paper", "label": "Scaling up Trustless DNN Inference with Zero-Knowledge Proofs", "url": "https://arxiv.org/abs/2210.08674", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:zeno2024", "kind": "paper", "label": "ZENO: Type-based Optimization Framework for Zero-Knowledge NN Inference", "url": "https://dl.acm.org/doi/pdf/10.1145/3617232.3624852", "source": "academic", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:ezdps2022", "kind": "paper", "label": "ezDPS: An Efficient and Zero-Knowledge ML Inference Pipeline", "url": "https://petsymposium.org/popets/2023/popets-2023-0061.pdf", "source": "academic", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:zkdl2023", "kind": "paper", "label": "zkDL: Efficient Zero-Knowledge Proofs of Deep Learning Training", "url": "https://arxiv.org/abs/2307.16273", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:south2024verifiable", "kind": "paper", "label": "Verifiable evaluations of machine learning models using zkSNARKs", "url": "https://arxiv.org/abs/2402.02675", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:artemis2024", "kind": "paper", "label": "Artemis: Efficient Commit-and-Prove SNARKs for zkML", "url": "https://arxiv.org/html/2409.12055v1", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:zkptDNN2024", "kind": "paper", "label": "Zero-Knowledge Proofs of Training for Deep Neural Networks", "url": "https://dl.acm.org/doi/pdf/10.1145/3658644.3670316", "source": "academic", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:peng2025survey", "kind": "paper", "label": "A Survey of Zero-Knowledge Proof Based Verifiable Machine Learning", "url": "https://arxiv.org/abs/2502.18535", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:ganescu2024trust", "kind": "paper", "label": "Trust the Process: Zero-Knowledge ML to Enhance Trust in Generative AI", "url": "https://arxiv.org/abs/2402.06414", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:szkp2024", "kind": "paper", "label": "SZKP: A Scalable Accelerator Architecture for Zero-Knowledge Proofs", "url": "https://arxiv.org/html/2408.05890v1", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:xing2025zkpvml", "kind": "paper", "label": "ZKP-based Verifiable Machine Learning: A Comprehensive Survey", "url": "https://arxiv.org/abs/2310.14848", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:lavin2024zkpsurvey", "kind": "paper", "label": "A Survey on the Applications of Zero-Knowledge Proofs", "url": "https://arxiv.org/abs/2408.00243", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "paper:byzsfl2025", "kind": "paper", "label": "ByzSFL: Byzantine-Robust Secure Federated Learning with Zero-Knowledge Proofs", "url": "https://arxiv.org/abs/2501.06953", "source": "arXiv", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:ezkl", "kind": "repo", "label": "zkonduit/ezkl (1213\u2605)", "url": "https://github.com/zkonduit/ezkl", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:deepprove", "kind": "repo", "label": "Lagrange-Labs/deep-prove (3353\u2605)", "url": "https://github.com/Lagrange-Labs/deep-prove", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:subnet2", "kind": "repo", "label": "inference-labs-inc/subnet-2 (2114\u2605)", "url": "https://github.com/inference-labs-inc/subnet-2", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:zkmlblueprints", "kind": "repo", "label": "inference-labs-inc/zkml-blueprints (1534\u2605)", "url": "https://github.com/inference-labs-inc/zkml-blueprints", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:dsperse", "kind": "repo", "label": "inference-labs-inc/dsperse (986\u2605)", "url": "https://github.com/inference-labs-inc/dsperse", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:jstprove", "kind": "repo", "label": "inference-labs-inc/JSTprove (969\u2605)", "url": "https://github.com/inference-labs-inc/JSTprove", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:awesomezkml", "kind": "repo", "label": "worldcoin/awesome-zkml (1054\u2605)", "url": "https://github.com/worldcoin/awesome-zkml", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:luminair", "kind": "repo", "label": "gizatechxyz/LuminAIR (58\u2605)", "url": "https://github.com/gizatechxyz/LuminAIR", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:ddkangzkml", "kind": "repo", "label": "ddkang/zkml (374\u2605)", "url": "https://github.com/ddkang/zkml", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "repo:gizahub", "kind": "repo", "label": "gizatechxyz/Giza-zkml-Hub (51\u2605)", "url": "https://github.com/gizatechxyz/Giza-zkml-Hub", "source": "GitHub (gh, 2026-07-07)", "axis": "zkml", "layer": 0, "maps_to_surface": "zkinfer"}
+{"id": "org:zkonduit", "kind": "org", "label": "Zkonduit (EZKL)", "url": "https://zkonduit.com", "source": "web", "axis": "zkml", "layer": 1, "maps_to_surface": "zkinfer"}
+{"id": "org:lagrange", "kind": "org", "label": "Lagrange Labs", "url": "https://www.lagrange.dev", "source": "web", "axis": "zkml", "layer": 1, "maps_to_surface": "zkinfer"}
+{"id": "org:inferencelabs", "kind": "org", "label": "Inference Labs", "url": "https://inferencelabs.com", "source": "web", "axis": "zkml", "layer": 1, "maps_to_surface": "zkinfer"}
+{"id": "org:giza", "kind": "org", "label": "Giza (gizatech)", "url": "https://www.gizatech.xyz", "source": "web", "axis": "zkml", "layer": 1, "maps_to_surface": "zkinfer"}
+{"id": "org:uiuckang", "kind": "org", "label": "UIUC Kang Lab", "url": "https://ddkang.github.io", "source": "web", "axis": "zkml", "layer": 1, "maps_to_surface": "zkinfer"}
+{"id": "person:ddkang", "kind": "person", "label": "Daniel Kang (UIUC; trustless DNN inference)", "url": "https://ddkang.github.io", "source": "web", "axis": "zkml", "layer": 2, "maps_to_surface": "zkinfer"}
+{"id": "person:jasonmorton", "kind": "person", "label": "Jason Morton (EZKL / Zkonduit)", "url": "https://github.com/jasonmorton", "source": "web", "axis": "zkml", "layer": 2, "maps_to_surface": "zkinfer"}
+{"id": "person:yisun", "kind": "person", "label": "Yi Sun (zkML, UChicago)", "url": "https://arxiv.org/a/sun_y", "source": "web", "axis": "zkml", "layer": 2, "maps_to_surface": "zkinfer"}
+{"id": "person:hithnawi", "kind": "person", "label": "Anwar Hithnawi (Artemis; ETH/UCSC)", "url": "https://arxiv.org/a/hithnawi_a_1", "source": "web", "axis": "zkml", "layer": 2, "maps_to_surface": "zkinfer"}
+{"id": "person:tobinsouth", "kind": "person", "label": "Tobin South (verifiable evals, MIT)", "url": "https://arxiv.org/a/south_t_1", "source": "web", "axis": "zkml", "layer": 2, "maps_to_surface": "zkinfer"}
+{"id": "paper:teamworkTEE2024", "kind": "paper", "label": "Teamwork Makes TEE Work: Open & Resilient Remote Attestation on Decentralized Trust", "url": "https://arxiv.org/abs/2402.08908", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:ccxtrust2024", "kind": "paper", "label": "CCxTrust: Confidential Computing Platform Based on TEE and TPM Collaborative Trust", "url": "https://arxiv.org/html/2412.03842v3", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:cctransparency2024", "kind": "paper", "label": "A Confidential Computing Transparency Framework for a Comprehensive Trust Chain", "url": "https://arxiv.org/abs/2409.03720", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:guarantee2022", "kind": "paper", "label": "GuaranTEE: Control-Flow Attestation for Trusted Execution Environments", "url": "https://arxiv.org/abs/2202.07380", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:attestedDNS2025", "kind": "paper", "label": "Transparent Attested DNS for Confidential Computing Services", "url": "https://arxiv.org/abs/2503.14611", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:rawebs2024", "kind": "paper", "label": "RA-WEBs: Remote Attestation for WEB services", "url": "https://arxiv.org/abs/2411.01340", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:demystified2022", "kind": "paper", "label": "Attestation Mechanisms for Trusted Execution Environments Demystified", "url": "https://arxiv.org/abs/2206.03780", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:ssprove_ra2025", "kind": "paper", "label": "Formally-verified Security against Forgery of Remote Attestation using SSProve", "url": "https://arxiv.org/abs/2502.17653", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:sokcvm2025", "kind": "paper", "label": "SoK: A cloudy view on trust relationships of CVMs (Public Cloud)", "url": "https://arxiv.org/html/2503.08256v1", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:confattest2020", "kind": "paper", "label": "Confidential Attestation: Efficient in-Enclave Verification of Privacy Policy Compliance", "url": "https://arxiv.org/abs/2007.10513", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "paper:evidencetamper2024", "kind": "paper", "label": "Evidence Tampering and Chain of Custody in Layered Attestations (Copland)", "url": "https://arxiv.org/abs/2402.00203", "source": "arXiv", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "repo:ccf", "kind": "repo", "label": "microsoft/CCF (866\u2605)", "url": "https://github.com/microsoft/CCF", "source": "GitHub (gh, 2026-07-07)", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "repo:trustee", "kind": "repo", "label": "confidential-containers/trustee (169\u2605)", "url": "https://github.com/confidential-containers/trustee", "source": "GitHub (gh, 2026-07-07)", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "repo:kettle", "kind": "repo", "label": "confidential-dot-ai/kettle (34\u2605)", "url": "https://github.com/confidential-dot-ai/kettle", "source": "GitHub (gh, 2026-07-07)", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "org:ccc", "kind": "org", "label": "Confidential Computing Consortium (Linux Foundation)", "url": "https://confidentialcomputing.io", "source": "web", "axis": "ccattest", "layer": 1, "maps_to_surface": "ccattest"}
+{"id": "org:msresearch_cc", "kind": "org", "label": "Microsoft Research Confidential Computing", "url": "https://www.microsoft.com/en-us/research/group/confidential-computing/", "source": "web", "axis": "ccattest", "layer": 1, "maps_to_surface": "ccattest"}
+{"id": "org:concom", "kind": "org", "label": "Confidential Containers (CNCF sandbox)", "url": "https://confidentialcontainers.org", "source": "web", "axis": "ccattest", "layer": 1, "maps_to_surface": "ccattest"}
+{"id": "std:rats", "kind": "standard", "label": "IETF RATS \u2014 Remote ATtestation procedureS (RFC 9334 architecture)", "url": "https://datatracker.ietf.org/doc/rfc9334/", "source": "web", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "gl:enarx_kernel", "kind": "repo", "label": "enarx/kernel (GitLab; Enarx confidential-computing WebAssembly runtime)", "url": "https://gitlab.com/enarx/kernel", "source": "GitLab (web, 2026-07-07)", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "gl:enarx_lab", "kind": "repo", "label": "enarx/lab (GitLab; Enarx CC experiments)", "url": "https://gitlab.com/enarx/lab", "source": "GitLab (web, 2026-07-07)", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "org:enarx", "kind": "org", "label": "Enarx (confidential computing, GitLab-hosted)", "url": "https://gitlab.com/enarx", "source": "GitLab (web, 2026-07-07)", "axis": "ccattest", "layer": 1, "maps_to_surface": "ccattest"}
+{"id": "std:sgx", "kind": "standard", "label": "Intel SGX / DCAP attestation", "url": "https://www.intel.com/content/www/us/en/developer/tools/software-guard-extensions/attestation-services.html", "source": "web", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "std:sevsnp", "kind": "standard", "label": "AMD SEV-SNP", "url": "https://www.amd.com/en/developer/sev.html", "source": "web", "axis": "ccattest", "layer": 0, "maps_to_surface": "ccattest"}
+{"id": "person:fournet", "kind": "person", "label": "C\u00e9dric Fournet (MSR; attested DNS, AMP)", "url": "https://www.microsoft.com/en-us/research/people/fournet/", "source": "web", "axis": "ccattest", "layer": 2, "maps_to_surface": "ccattest"}
+{"id": "person:delignat", "kind": "person", "label": "Antoine Delignat-Lavaud (MSR; attested DNS)", "url": "https://antoine.delignat-lavaud.fr", "source": "web", "axis": "ccattest", "layer": 2, "maps_to_surface": "ccattest"}
+{"id": "person:felber", "kind": "person", "label": "Pascal Felber (attestation demystified, UniNE)", "url": "https://members.unine.ch/pascal.felber/", "source": "web", "axis": "ccattest", "layer": 2, "maps_to_surface": "ccattest"}
+{"id": "std:nistairmf", "kind": "standard", "label": "NIST AI Risk Management Framework (AI RMF 1.0, NIST AI 100-1)", "url": "https://nvlpubs.nist.gov/nistpubs/ai/nist.ai.100-1.pdf", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "std:euaiact", "kind": "standard", "label": "EU AI Act \u2014 Regulation (EU) 2024/1689", "url": "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "std:iso42001", "kind": "standard", "label": "ISO/IEC 42001:2023 \u2014 AI Management System", "url": "https://www.iso.org/standard/42001", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "std:iso23894", "kind": "standard", "label": "ISO/IEC 23894:2023 \u2014 AI Risk Management guidance", "url": "https://www.iso.org/standard/77304.html", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "std:oecdai", "kind": "standard", "label": "OECD AI Principles", "url": "https://oecd.ai/en/ai-principles", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "std:nistgenai", "kind": "standard", "label": "NIST AI 600-1 \u2014 Generative AI Profile", "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "org:nist", "kind": "org", "label": "NIST (US National Institute of Standards & Technology)", "url": "https://www.nist.gov/artificial-intelligence", "source": "web", "axis": "aigov", "layer": 1}
+{"id": "org:euaioffice", "kind": "org", "label": "European AI Office", "url": "https://digital-strategy.ec.europa.eu/en/policies/ai-office", "source": "web", "axis": "aigov", "layer": 1}
+{"id": "org:partnershipai", "kind": "org", "label": "Partnership on AI", "url": "https://partnershiponai.org", "source": "web", "axis": "aigov", "layer": 1}
+{"id": "org:mlcommons", "kind": "org", "label": "MLCommons (AI safety benchmarks)", "url": "https://mlcommons.org", "source": "web", "axis": "aigov", "layer": 1}
+{"id": "org:oecd", "kind": "org", "label": "OECD.AI Policy Observatory", "url": "https://oecd.ai", "source": "web", "axis": "aigov", "layer": 1}
+{"id": "repo:trestle", "kind": "repo", "label": "oscal-compass/compliance-trestle (261\u2605)", "url": "https://github.com/oscal-compass/compliance-trestle", "source": "GitHub (gh, 2026-07-07)", "axis": "aigov", "layer": 0}
+{"id": "bench:ailuminate", "kind": "benchmark", "label": "MLCommons AILuminate safety benchmark", "url": "https://mlcommons.org/benchmarks/ailuminate/", "source": "web", "axis": "aigov", "layer": 0}
+{"id": "paper:katzdualverify2018", "kind": "paper", "label": "A Dual Approach to Scalable Verification of Deep Networks", "url": "https://arxiv.org/abs/1803.06567", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:elboher2020abstraction", "kind": "paper", "label": "An Abstraction-Based Framework for Neural Network Verification", "url": "https://arxiv.org/abs/1910.14574", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:certifiedchecker2024", "kind": "paper", "label": "Towards a Certified Proof Checker for DNN Verification (Imandra)", "url": "https://arxiv.org/abs/2307.06299", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:coqdifflogic2024", "kind": "paper", "label": "Taming Differentiable Logics with Coq Formalisation", "url": "https://arxiv.org/abs/2403.13700", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:neurosymbolic2022", "kind": "paper", "label": "Neuro-Symbolic Verification of Deep Neural Networks", "url": "https://arxiv.org/abs/2203.00938", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:convexbarrier2020", "kind": "paper", "label": "A Convex Relaxation Barrier to Tight Robustness Verification of NNs", "url": "https://arxiv.org/abs/1902.08722", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:soi2022", "kind": "paper", "label": "Efficient Neural Network Analysis with Sum-of-Infeasibilities", "url": "https://arxiv.org/abs/2203.11201", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:verifiedcs2024", "kind": "paper", "label": "Verified Neural Compressed Sensing (DeepMind)", "url": "https://arxiv.org/abs/2405.04260", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:vnnfriendly2024", "kind": "paper", "label": "VNN: Verification-Friendly Neural Networks with Hard Robustness Guarantees", "url": "https://arxiv.org/abs/2312.09748", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "paper:vnncomp6", "kind": "paper", "label": "The 6th International Verification of Neural Networks Competition (VNN-COMP 2025)", "url": "https://arxiv.org/abs/2512.19007", "source": "arXiv", "axis": "fmverif", "layer": 0}
+{"id": "repo:marabou", "kind": "repo", "label": "NeuralNetworkVerification/Marabou (339\u2605)", "url": "https://github.com/NeuralNetworkVerification/Marabou", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "repo:abcrown", "kind": "repo", "label": "Verified-Intelligence/alpha-beta-CROWN (380\u2605)", "url": "https://github.com/Verified-Intelligence/alpha-beta-CROWN", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "repo:autolirpa", "kind": "repo", "label": "Verified-Intelligence/auto_LiRPA (347\u2605)", "url": "https://github.com/Verified-Intelligence/auto_LiRPA", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "repo:nnv", "kind": "repo", "label": "verivital/nnv (142\u2605)", "url": "https://github.com/verivital/nnv", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "repo:eran", "kind": "repo", "label": "eth-sri/eran (346\u2605)", "url": "https://github.com/eth-sri/eran", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "repo:lean4", "kind": "repo", "label": "leanprover/lean4 (8414\u2605)", "url": "https://github.com/leanprover/lean4", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "repo:rocq", "kind": "repo", "label": "rocq-prover/rocq (5515\u2605)", "url": "https://github.com/rocq-prover/rocq", "source": "GitHub (gh, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "org:vnncomp", "kind": "org", "label": "VNN-COMP (Int'l NN Verification Competition)", "url": "https://vnn-comp.github.io", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "org:leanprover", "kind": "org", "label": "Lean prover community", "url": "https://leanprover.github.io", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "org:leancommunity", "kind": "org", "label": "leanprover-community (mathlib)", "url": "https://leanprover-community.github.io", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "org:rocqcommunity", "kind": "org", "label": "Rocq Prover project (INRIA)", "url": "https://rocq-prover.org", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "org:ethsri", "kind": "org", "label": "ETH Zurich SRI Lab", "url": "https://www.sri.inf.ethz.ch", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "org:verifiedintel", "kind": "org", "label": "Verified Intelligence (CMU/UCLA/UIUC verification group)", "url": "https://github.com/Verified-Intelligence", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "org:hujilab", "kind": "org", "label": "HUJI (Hebrew University) NN Verification group", "url": "https://www.katz-lab.com", "source": "web", "axis": "fmverif", "layer": 1}
+{"id": "gl:neuralverifier", "kind": "repo", "label": "jaymorgan/NeuralVerifier.jl (GitLab; Julia NN verification)", "url": "https://gitlab.com/jaymorgan/NeuralVerifier.jl", "source": "GitLab (web, 2026-07-07)", "axis": "fmverif", "layer": 0}
+{"id": "bench:vnncomp2025", "kind": "benchmark", "label": "VNN-COMP 2025 benchmarks (ONNX + VNN-LIB)", "url": "https://sites.google.com/view/vnn2025", "source": "web", "axis": "fmverif", "layer": 0}
+{"id": "std:vnnlib", "kind": "standard", "label": "VNN-LIB standard for NN verification specifications", "url": "https://www.vnnlib.org", "source": "web", "axis": "fmverif", "layer": 0}
+{"id": "person:guykatz", "kind": "person", "label": "Guy Katz (Marabou; HUJI)", "url": "https://www.katz-lab.com", "source": "web", "axis": "fmverif", "layer": 2}
+{"id": "person:clarkbarrett", "kind": "person", "label": "Clark Barrett (SMT / Stanford)", "url": "https://theory.stanford.edu/~barrett/", "source": "web", "axis": "fmverif", "layer": 2}
+{"id": "person:huanzhang", "kind": "person", "label": "Huan Zhang (alpha-beta-CROWN; UIUC)", "url": "https://huan-zhang.com", "source": "web", "axis": "fmverif", "layer": 2}
+{"id": "person:kohli", "kind": "person", "label": "Pushmeet Kohli (verification, DeepMind)", "url": "https://sites.google.com/site/pushmeet/", "source": "web", "axis": "fmverif", "layer": 2}
+{"id": "person:komendantskaya", "kind": "person", "label": "Ekaterina Komendantskaya (certified checkers; Coq)", "url": "https://www.macs.hw.ac.uk/~ek19/", "source": "web", "axis": "fmverif", "layer": 2}
+{"id": "person:avigad", "kind": "person", "label": "Jeremy Avigad (Lean; CMU)", "url": "https://www.andrew.cmu.edu/user/avigad/", "source": "web", "axis": "fmverif", "layer": 2}
+{"id": "paper:schorlemmer2025provenance", "kind": "paper", "label": "Establishing Provenance Before Coding: Traditional & Next-Gen Software Signing", "url": "https://arxiv.org/abs/2407.03949", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "paper:sok_sscdesign2024", "kind": "paper", "label": "SoK: Analysis of Software Supply Chain Security by Secure Design Properties", "url": "https://arxiv.org/abs/2406.10109", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "paper:slsachallenges2024", "kind": "paper", "label": "Analyzing Challenges in Deployment of the SLSA Framework", "url": "https://arxiv.org/abs/2409.05014", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "paper:signingindustry2025", "kind": "paper", "label": "An Industry Interview Study of Software Signing for Supply Chain Security", "url": "https://arxiv.org/abs/2406.08198", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "paper:sok_defense2024", "kind": "paper", "label": "SoK: A Defense-Oriented Evaluation of Software Supply Chain Security (AStRA)", "url": "https://arxiv.org/abs/2405.14993", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "paper:whatis_sscs2022", "kind": "paper", "label": "What is Software Supply Chain Security? (Intel; goal-oriented taxonomy)", "url": "https://arxiv.org/abs/2209.04006", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "paper:scm2reference2024", "kind": "paper", "label": "An Empirically Grounded Reference Architecture for SSC Metadata Management", "url": "https://arxiv.org/abs/2310.06300", "source": "arXiv", "axis": "supplychain", "layer": 0}
+{"id": "repo:cosign", "kind": "repo", "label": "sigstore/cosign (6100\u2605)", "url": "https://github.com/sigstore/cosign", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:rekor", "kind": "repo", "label": "sigstore/rekor (1177\u2605)", "url": "https://github.com/sigstore/rekor", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:fulcio", "kind": "repo", "label": "sigstore/fulcio (862\u2605)", "url": "https://github.com/sigstore/fulcio", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:gitsign", "kind": "repo", "label": "sigstore/gitsign (1107\u2605)", "url": "https://github.com/sigstore/gitsign", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:modeltransparency", "kind": "repo", "label": "sigstore/model-transparency (237\u2605)", "url": "https://github.com/sigstore/model-transparency", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:intoto", "kind": "repo", "label": "in-toto/in-toto (1017\u2605)", "url": "https://github.com/in-toto/in-toto", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:intoto_attest", "kind": "repo", "label": "in-toto/attestation (347\u2605)", "url": "https://github.com/in-toto/attestation", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:archivista", "kind": "repo", "label": "in-toto/archivista (116\u2605)", "url": "https://github.com/in-toto/archivista", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:slsagen", "kind": "repo", "label": "slsa-framework/slsa-github-generator (584\u2605)", "url": "https://github.com/slsa-framework/slsa-github-generator", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:connaisseur", "kind": "repo", "label": "sse-secure-systems/connaisseur (474\u2605)", "url": "https://github.com/sse-secure-systems/connaisseur", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "repo:keytransparency", "kind": "repo", "label": "google/keytransparency (1572\u2605)", "url": "https://github.com/google/keytransparency", "source": "GitHub (gh, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "org:sigstore", "kind": "org", "label": "Sigstore (OpenSSF / Linux Foundation)", "url": "https://www.sigstore.dev", "source": "web", "axis": "supplychain", "layer": 1}
+{"id": "org:intotoorg", "kind": "org", "label": "in-toto (CNCF)", "url": "https://in-toto.io", "source": "web", "axis": "supplychain", "layer": 1}
+{"id": "org:slsa", "kind": "org", "label": "SLSA (Supply-chain Levels for Software Artifacts / OpenSSF)", "url": "https://slsa.dev", "source": "web", "axis": "supplychain", "layer": 1}
+{"id": "org:openssf", "kind": "org", "label": "OpenSSF (Open Source Security Foundation)", "url": "https://openssf.org", "source": "web", "axis": "supplychain", "layer": 1}
+{"id": "std:slsaspec", "kind": "standard", "label": "SLSA v1.0 specification", "url": "https://slsa.dev/spec/v1.0/", "source": "web", "axis": "supplychain", "layer": 0}
+{"id": "std:slsaprov", "kind": "standard", "label": "SLSA Provenance predicate", "url": "https://slsa.dev/provenance/v1", "source": "web", "axis": "supplychain", "layer": 0}
+{"id": "std:intotospec", "kind": "standard", "label": "in-toto attestation predicate spec (ITE)", "url": "https://github.com/in-toto/attestation/tree/main/spec", "source": "web", "axis": "supplychain", "layer": 0}
+{"id": "std:sbom_cyclonedx", "kind": "standard", "label": "CycloneDX SBOM standard", "url": "https://cyclonedx.org", "source": "web", "axis": "supplychain", "layer": 0}
+{"id": "std:sbom_spdx", "kind": "standard", "label": "SPDX SBOM standard (ISO/IEC 5962)", "url": "https://spdx.dev", "source": "web", "axis": "supplychain", "layer": 0}
+{"id": "person:torresarias", "kind": "person", "label": "Santiago Torres-Arias (in-toto; Purdue)", "url": "https://santiagotorres.me", "source": "web", "axis": "supplychain", "layer": 2}
+{"id": "person:jamesdavis", "kind": "person", "label": "James C. Davis (software signing; Purdue)", "url": "https://davisjam.github.io", "source": "web", "axis": "supplychain", "layer": 2}
+{"id": "person:melara", "kind": "person", "label": "Marcela Melara (SSC security; Intel Labs)", "url": "https://mmelara.com", "source": "web", "axis": "supplychain", "layer": 2}
+{"id": "gl:testify_cicd", "kind": "repo", "label": "testifysec/cicd-components (GitLab; Witness/in-toto CI attestation components)", "url": "https://gitlab.com/testifysec/cicd-components", "source": "GitLab (web, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "gl:testify_demo", "kind": "repo", "label": "testifysec/demos/in-toto-demo (GitLab)", "url": "https://gitlab.com/testifysec/demos/in-toto-demo", "source": "GitLab (web, 2026-07-07)", "axis": "supplychain", "layer": 0}
+{"id": "org:testifysec", "kind": "org", "label": "TestifySec (Witness / in-toto attestation)", "url": "https://gitlab.com/testifysec", "source": "GitLab (web, 2026-07-07)", "axis": "supplychain", "layer": 1}
+{"id": "paper:amp2020", "kind": "paper", "label": "AMP: Authentication of Media via Provenance (Microsoft)", "url": "https://arxiv.org/abs/2001.07886", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "paper:simmons2024interop", "kind": "paper", "label": "Interoperable Provenance Authentication of Broadcast Media (C2PA + watermarking)", "url": "https://arxiv.org/abs/2405.12336", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "paper:fairoze2025watermark", "kind": "paper", "label": "On the Difficulty of Constructing a Robust and Publicly-Detectable Watermark (vs C2PA)", "url": "https://arxiv.org/html/2502.04901v1", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "paper:invismark2024", "kind": "paper", "label": "InvisMark: Invisible and Robust Watermarking for AI-generated Image Provenance", "url": "https://arxiv.org/html/2411.07795v2", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "paper:waterfall2024", "kind": "paper", "label": "Waterfall: Robust and Scalable Text Watermarking and Provenance for LLMs", "url": "https://arxiv.org/html/2407.04411v2", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "paper:proofofhumanity2025", "kind": "paper", "label": "Proof of Humanity: Certifying Human-Originated Content in an AI-Dominated Internet", "url": "https://arxiv.org/abs/2504.03752", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "paper:sepmark2023", "kind": "paper", "label": "SepMark: Deep Separable Watermarking for Source Tracing and Deepfake Detection", "url": "https://arxiv.org/abs/2305.06321", "source": "arXiv", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "repo:c2pars", "kind": "repo", "label": "contentauth/c2pa-rs (366\u2605)", "url": "https://github.com/contentauth/c2pa-rs", "source": "GitHub (gh, 2026-07-07)", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "repo:c2patool", "kind": "repo", "label": "contentauth/c2patool (131\u2605)", "url": "https://github.com/contentauth/c2patool", "source": "GitHub (gh, 2026-07-07)", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "repo:invismark", "kind": "repo", "label": "microsoft/InvisMark (56\u2605)", "url": "https://github.com/microsoft/InvisMark", "source": "GitHub (gh, 2026-07-07)", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "repo:c2paspecs", "kind": "repo", "label": "c2pa-org/specifications (193\u2605)", "url": "https://github.com/c2pa-org/specifications", "source": "GitHub (gh, 2026-07-07)", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "org:c2pa", "kind": "org", "label": "C2PA \u2014 Coalition for Content Provenance and Authenticity", "url": "https://c2pa.org", "source": "web", "axis": "provenance", "layer": 1, "maps_to_surface": "receipt"}
+{"id": "org:cai", "kind": "org", "label": "Content Authenticity Initiative (Adobe-led)", "url": "https://contentauthenticity.org", "source": "web", "axis": "provenance", "layer": 1, "maps_to_surface": "receipt"}
+{"id": "org:origin", "kind": "org", "label": "Project Origin (media provenance)", "url": "https://www.originproject.info", "source": "web", "axis": "provenance", "layer": 1, "maps_to_surface": "receipt"}
+{"id": "std:c2paspec", "kind": "standard", "label": "C2PA Technical Specification v2.x", "url": "https://c2pa.org/specifications/", "source": "web", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "std:iptc", "kind": "standard", "label": "IPTC Photo Metadata (digital source type)", "url": "https://iptc.org/standards/photo-metadata/", "source": "web", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "std:coset", "kind": "standard", "label": "IETF COSE signatures (RFC 9052) \u2014 underpins C2PA claims", "url": "https://datatracker.ietf.org/doc/rfc9052/", "source": "web", "axis": "provenance", "layer": 0, "maps_to_surface": "receipt"}
+{"id": "person:winograd", "kind": "person", "label": "Joseph Winograd (C2PA; broadcast provenance)", "url": "https://arxiv.org/a/winograd_j_1", "source": "web", "axis": "provenance", "layer": 2, "maps_to_surface": "receipt"}
+{"id": "person:paulengland", "kind": "person", "label": "Paul England (AMP; Microsoft)", "url": "https://arxiv.org/a/england_p_1", "source": "web", "axis": "provenance", "layer": 2, "maps_to_surface": "receipt"}
+{"id": "person:neilgong", "kind": "person", "label": "Neil Zhenqiang Gong (watermark attribution; Duke)", "url": "https://people.duke.edu/~zg70/", "source": "web", "axis": "provenance", "layer": 2, "maps_to_surface": "receipt"}
+{"id": "paper:inductionheads2022", "kind": "paper", "label": "In-context Learning and Induction Heads (Anthropic)", "url": "https://arxiv.org/abs/2209.11895", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:mireview2024", "kind": "paper", "label": "Mechanistic Interpretability for AI Safety \u2014 A Review", "url": "https://arxiv.org/abs/2404.14082", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:practicalMI2025", "kind": "paper", "label": "A Practical Review of Mechanistic Interpretability for Transformer LMs", "url": "https://arxiv.org/html/2407.02646", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:mechanistic2024", "kind": "paper", "label": "Mechanistic? (Saphra & Wiegreffe \u2014 taxonomy of the term)", "url": "https://arxiv.org/abs/2410.09087", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:identifiability2025", "kind": "paper", "label": "Everything, Everywhere, All at Once: Is Mechanistic Interpretability Identifiable?", "url": "https://arxiv.org/abs/2502.20914", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:primer2024", "kind": "paper", "label": "A Primer on the Inner Workings of Transformer-based Language Models", "url": "https://arxiv.org/abs/2405.00208", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:mythos2017", "kind": "paper", "label": "The Mythos of Model Interpretability (Lipton)", "url": "https://arxiv.org/abs/1606.03490", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "paper:2satsolver2024", "kind": "paper", "label": "Mechanistically Interpreting a Transformer-based 2-SAT Solver: An Axiomatic Approach", "url": "https://arxiv.org/html/2407.13594", "source": "arXiv", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "repo:transformerlens", "kind": "repo", "label": "TransformerLensOrg/TransformerLens (3635\u2605)", "url": "https://github.com/TransformerLensOrg/TransformerLens", "source": "GitHub (gh, 2026-07-07)", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "repo:sae_lens", "kind": "repo", "label": "decoderesearch/SAELens (1457\u2605)", "url": "https://github.com/decoderesearch/SAELens", "source": "GitHub (gh, 2026-07-07)", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "repo:pyvene", "kind": "repo", "label": "stanfordnlp/pyvene (888\u2605)", "url": "https://github.com/stanfordnlp/pyvene", "source": "GitHub (gh, 2026-07-07)", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "repo:captum", "kind": "repo", "label": "meta-pytorch/captum (5665\u2605)", "url": "https://github.com/meta-pytorch/captum", "source": "GitHub (gh, 2026-07-07)", "axis": "interp", "layer": 0, "maps_to_surface": "immune"}
+{"id": "org:anthropicinterp", "kind": "org", "label": "Anthropic Interpretability Team", "url": "https://transformer-circuits.pub", "source": "web", "axis": "interp", "layer": 1, "maps_to_surface": "immune"}
+{"id": "org:goodfire", "kind": "org", "label": "Goodfire AI (interpretability)", "url": "https://goodfire.ai", "source": "web", "axis": "interp", "layer": 1, "maps_to_surface": "immune"}
+{"id": "org:eleutherinterp", "kind": "org", "label": "EleutherAI interpretability", "url": "https://www.eleuther.ai", "source": "web", "axis": "interp", "layer": 1, "maps_to_surface": "immune"}
+{"id": "org:apollo", "kind": "org", "label": "Apollo Research (interpretability & safety)", "url": "https://www.apolloresearch.ai", "source": "web", "axis": "interp", "layer": 1, "maps_to_surface": "immune"}
+{"id": "person:neelnanda", "kind": "person", "label": "Neel Nanda (mech interp; DeepMind; TransformerLens)", "url": "https://www.neelnanda.io", "source": "web", "axis": "interp", "layer": 2, "maps_to_surface": "immune"}
+{"id": "person:chrisolah", "kind": "person", "label": "Chris Olah (circuits; Anthropic)", "url": "https://colah.github.io", "source": "web", "axis": "interp", "layer": 2, "maps_to_surface": "immune"}
+{"id": "person:saphra", "kind": "person", "label": "Naomi Saphra (interpretability critique)", "url": "https://nsaphra.net", "source": "web", "axis": "interp", "layer": 2, "maps_to_surface": "immune"}
+{"id": "person:fazlbarez", "kind": "person", "label": "Fazl Barez (interp for safety)", "url": "https://fazlbarez.github.io", "source": "web", "axis": "interp", "layer": 2, "maps_to_surface": "immune"}
+{"id": "paper:memsurvey2024", "kind": "paper", "label": "A Survey on the Memory Mechanism of LLM-based Agents", "url": "https://arxiv.org/abs/2404.13501", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:amem2025", "kind": "paper", "label": "A-MEM: Agentic Memory for LLM Agents (Zettelkasten)", "url": "https://arxiv.org/abs/2502.12110", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:episodic2025", "kind": "paper", "label": "Position: Episodic Memory is the Missing Piece for Long-Term LLM Agents", "url": "https://arxiv.org/abs/2502.06975", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:memorybank2023", "kind": "paper", "label": "MemoryBank: Enhancing LLMs with Long-Term Memory", "url": "https://arxiv.org/abs/2305.10250", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:reflectivemem2025", "kind": "paper", "label": "In Prospect and Retrospect: Reflective Memory Management for Dialogue Agents", "url": "https://arxiv.org/abs/2503.08026", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:tim2023", "kind": "paper", "label": "Think-in-Memory: Recalling and Post-thinking Enable LLMs with Long-Term Memory", "url": "https://arxiv.org/abs/2311.08719", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:minja2025", "kind": "paper", "label": "A Practical Memory Injection Attack against LLM Agents (MINJA)", "url": "https://arxiv.org/html/2503.03704v2", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "paper:hiagent2024", "kind": "paper", "label": "HiAgent: Hierarchical Working Memory Management for Long-Horizon Agent Tasks", "url": "https://arxiv.org/abs/2408.09559", "source": "arXiv", "axis": "agentmem", "layer": 0}
+{"id": "repo:mem0", "kind": "repo", "label": "mem0ai/mem0 (60290\u2605)", "url": "https://github.com/mem0ai/mem0", "source": "GitHub (gh, 2026-07-07)", "axis": "agentmem", "layer": 0}
+{"id": "repo:letta", "kind": "repo", "label": "letta-ai/letta (23691\u2605)", "url": "https://github.com/letta-ai/letta", "source": "GitHub (gh, 2026-07-07)", "axis": "agentmem", "layer": 0}
+{"id": "repo:llamaindex", "kind": "repo", "label": "run-llama/llama_index (50705\u2605)", "url": "https://github.com/run-llama/llama_index", "source": "GitHub (gh, 2026-07-07)", "axis": "agentmem", "layer": 0}
+{"id": "repo:amemrepo", "kind": "repo", "label": "agiresearch/A-mem (1089\u2605)", "url": "https://github.com/agiresearch/A-mem", "source": "GitHub (gh, 2026-07-07)", "axis": "agentmem", "layer": 0}
+{"id": "org:mem0org", "kind": "org", "label": "Mem0 (mem0ai)", "url": "https://mem0.ai", "source": "web", "axis": "agentmem", "layer": 1}
+{"id": "org:lettaorg", "kind": "org", "label": "Letta (formerly MemGPT / UC Berkeley)", "url": "https://www.letta.com", "source": "web", "axis": "agentmem", "layer": 1}
+{"id": "bench:memdaily", "kind": "benchmark", "label": "MemDaily / MemSim benchmark for LLM assistant memory", "url": "https://github.com/nuster1128/MemSim", "source": "web", "axis": "agentmem", "layer": 0}
+{"id": "bench:asb", "kind": "benchmark", "label": "Agent Security Bench (ASB) \u2014 attacks/defenses incl. memory", "url": "https://arxiv.org/abs/2410.02644", "source": "web", "axis": "agentmem", "layer": 0}
+{"id": "person:yongfengzhang", "kind": "person", "label": "Yongfeng Zhang (A-MEM; agentic memory; Rutgers)", "url": "https://www.yongfeng.me", "source": "web", "axis": "agentmem", "layer": 2}
+{"id": "person:charlespacker", "kind": "person", "label": "Charles Packer (MemGPT/Letta; UC Berkeley)", "url": "https://github.com/cpacker", "source": "web", "axis": "agentmem", "layer": 2}
+{"id": "paper:efficientsync2017", "kind": "paper", "label": "Efficient Synchronous Byzantine Consensus (Abraham, Devadas, Dolev, Nayak, Ren)", "url": "https://arxiv.org/abs/1704.02397", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:bftreview2023", "kind": "paper", "label": "Reaching Consensus in the Byzantine Empire: A Review of BFT Consensus Algorithms", "url": "https://arxiv.org/abs/2204.03181", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:poe2021", "kind": "paper", "label": "Proof-of-Execution: Reaching Consensus through Fault-Tolerant Speculation", "url": "https://arxiv.org/abs/1911.00838", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:banyan2024", "kind": "paper", "label": "Banyan: Fast Rotating Leader BFT", "url": "https://arxiv.org/abs/2312.05869", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:boltdumbo2022", "kind": "paper", "label": "Bolt-Dumbo Transformer: Asynchronous Consensus As Fast As Pipelined BFT", "url": "https://arxiv.org/abs/2103.09425", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:fastbyz2021", "kind": "paper", "label": "Revisiting Optimal Resilience of Fast Byzantine Consensus", "url": "https://arxiv.org/abs/2102.12825", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:avalanche2024", "kind": "paper", "label": "An Analysis of Avalanche Consensus (Cachin et al.)", "url": "https://arxiv.org/abs/2401.02811", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:selfstab2023", "kind": "paper", "label": "Self-stabilizing Byzantine Multivalued Consensus (Raynal et al.)", "url": "https://arxiv.org/abs/2311.09075", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "paper:nosigbft2025", "kind": "paper", "label": "Byzantine Fault Tolerant Protocols with Near-Constant Work without Signatures", "url": "https://arxiv.org/abs/2501.05377", "source": "arXiv", "axis": "bft", "layer": 0}
+{"id": "repo:fabric", "kind": "repo", "label": "hyperledger/fabric (16676\u2605)", "url": "https://github.com/hyperledger/fabric", "source": "GitHub (gh, 2026-07-07)", "axis": "bft", "layer": 0}
+{"id": "repo:sui", "kind": "repo", "label": "MystenLabs/sui (7724\u2605)", "url": "https://github.com/MystenLabs/sui", "source": "GitHub (gh, 2026-07-07)", "axis": "bft", "layer": 0}
+{"id": "repo:bftsmart", "kind": "repo", "label": "bft-smart/library (457\u2605)", "url": "https://github.com/bft-smart/library", "source": "GitHub (gh, 2026-07-07)", "axis": "bft", "layer": 0}
+{"id": "repo:diem", "kind": "repo", "label": "diem/diem (16675\u2605)", "url": "https://github.com/diem/diem", "source": "GitHub (gh, 2026-07-07)", "axis": "bft", "layer": 0}
+{"id": "org:hyperledger", "kind": "org", "label": "Hyperledger Foundation (LF Decentralized Trust)", "url": "https://www.lfdecentralizedtrust.org", "source": "web", "axis": "bft", "layer": 1}
+{"id": "org:mystenlabs", "kind": "org", "label": "Mysten Labs", "url": "https://mystenlabs.com", "source": "web", "axis": "bft", "layer": 1}
+{"id": "person:ittai", "kind": "person", "label": "Ittai Abraham (BFT; HotStuff; sync consensus)", "url": "https://ittaia.github.io", "source": "web", "axis": "bft", "layer": 2}
+{"id": "person:cachin", "kind": "person", "label": "Christian Cachin (BFT; Avalanche analysis; UniBern)", "url": "https://crypto.unibe.ch/cc/", "source": "web", "axis": "bft", "layer": 2}
+{"id": "person:gramoli", "kind": "person", "label": "Vincent Gramoli (Red Belly / BFT; USyd)", "url": "https://gramoli.redbellyblockchain.io", "source": "web", "axis": "bft", "layer": 2}
+{"id": "person:raynal", "kind": "person", "label": "Michel Raynal (distributed computing; consensus)", "url": "https://en.wikipedia.org/wiki/Michel_Raynal", "source": "web", "axis": "bft", "layer": 2}
+{"id": "person:dolev", "kind": "person", "label": "Danny Dolev (Byzantine agreement; HUJI)", "url": "https://en.wikipedia.org/wiki/Danny_Dolev", "source": "web", "axis": "bft", "layer": 2}
+{"src": "paper:kang2022scaling", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:zeno2024", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:ezdps2022", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:zkdl2023", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:south2024verifiable", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:artemis2024", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:zkptDNN2024", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:peng2025survey", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:ganescu2024trust", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:szkp2024", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:xing2025zkpvml", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:lavin2024zkpsurvey", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "paper:byzsfl2025", "dst": "axis:zkml", "rel": "evidence-for"}
+{"src": "repo:ezkl", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:deepprove", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:subnet2", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:zkmlblueprints", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:dsperse", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:jstprove", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:awesomezkml", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:luminair", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:ddkangzkml", "dst": "axis:zkml", "rel": "implements"}
+{"src": "repo:gizahub", "dst": "axis:zkml", "rel": "implements"}
+{"src": "org:zkonduit", "dst": "axis:zkml", "rel": "leads"}
+{"src": "org:lagrange", "dst": "axis:zkml", "rel": "leads"}
+{"src": "org:inferencelabs", "dst": "axis:zkml", "rel": "leads"}
+{"src": "org:giza", "dst": "axis:zkml", "rel": "leads"}
+{"src": "org:uiuckang", "dst": "axis:zkml", "rel": "leads"}
+{"src": "person:ddkang", "dst": "axis:zkml", "rel": "advances"}
+{"src": "person:jasonmorton", "dst": "axis:zkml", "rel": "advances"}
+{"src": "person:yisun", "dst": "axis:zkml", "rel": "advances"}
+{"src": "person:hithnawi", "dst": "axis:zkml", "rel": "advances"}
+{"src": "person:tobinsouth", "dst": "axis:zkml", "rel": "advances"}
+{"src": "person:jasonmorton", "dst": "repo:ezkl", "rel": "authored"}
+{"src": "person:ddkang", "dst": "repo:ddkangzkml", "rel": "authored"}
+{"src": "person:ddkang", "dst": "paper:kang2022scaling", "rel": "authored"}
+{"src": "person:yisun", "dst": "paper:kang2022scaling", "rel": "authored"}
+{"src": "person:hithnawi", "dst": "paper:artemis2024", "rel": "authored"}
+{"src": "person:tobinsouth", "dst": "paper:south2024verifiable", "rel": "authored"}
+{"src": "repo:ezkl", "dst": "org:zkonduit", "rel": "maintained-by"}
+{"src": "repo:deepprove", "dst": "org:lagrange", "rel": "maintained-by"}
+{"src": "repo:subnet2", "dst": "org:inferencelabs", "rel": "maintained-by"}
+{"src": "repo:zkmlblueprints", "dst": "org:inferencelabs", "rel": "maintained-by"}
+{"src": "repo:dsperse", "dst": "org:inferencelabs", "rel": "maintained-by"}
+{"src": "repo:jstprove", "dst": "org:inferencelabs", "rel": "maintained-by"}
+{"src": "repo:luminair", "dst": "org:giza", "rel": "maintained-by"}
+{"src": "repo:ddkangzkml", "dst": "org:uiuckang", "rel": "maintained-by"}
+{"src": "repo:ezkl", "dst": "paper:artemis2024", "rel": "referenced-by"}
+{"src": "repo:ddkangzkml", "dst": "paper:kang2022scaling", "rel": "implements-paper"}
+{"src": "paper:teamworkTEE2024", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:ccxtrust2024", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:cctransparency2024", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:guarantee2022", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:attestedDNS2025", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:rawebs2024", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:demystified2022", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:ssprove_ra2025", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:sokcvm2025", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:confattest2020", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "paper:evidencetamper2024", "dst": "axis:ccattest", "rel": "evidence-for"}
+{"src": "repo:ccf", "dst": "axis:ccattest", "rel": "implements"}
+{"src": "repo:trustee", "dst": "axis:ccattest", "rel": "implements"}
+{"src": "repo:kettle", "dst": "axis:ccattest", "rel": "implements"}
+{"src": "org:ccc", "dst": "axis:ccattest", "rel": "leads"}
+{"src": "org:msresearch_cc", "dst": "axis:ccattest", "rel": "leads"}
+{"src": "org:concom", "dst": "axis:ccattest", "rel": "leads"}
+{"src": "std:rats", "dst": "axis:ccattest", "rel": "governs"}
+{"src": "gl:enarx_kernel", "dst": "axis:ccattest", "rel": "implements"}
+{"src": "gl:enarx_lab", "dst": "axis:ccattest", "rel": "implements"}
+{"src": "org:enarx", "dst": "axis:ccattest", "rel": "leads"}
+{"src": "gl:enarx_kernel", "dst": "org:enarx", "rel": "maintained-by"}
+{"src": "gl:enarx_lab", "dst": "org:enarx", "rel": "maintained-by"}
+{"src": "std:sgx", "dst": "axis:ccattest", "rel": "governs"}
+{"src": "std:sevsnp", "dst": "axis:ccattest", "rel": "governs"}
+{"src": "person:fournet", "dst": "axis:ccattest", "rel": "advances"}
+{"src": "person:delignat", "dst": "axis:ccattest", "rel": "advances"}
+{"src": "person:felber", "dst": "axis:ccattest", "rel": "advances"}
+{"src": "repo:ccf", "dst": "org:msresearch_cc", "rel": "maintained-by"}
+{"src": "repo:trustee", "dst": "org:concom", "rel": "maintained-by"}
+{"src": "person:fournet", "dst": "paper:attestedDNS2025", "rel": "authored"}
+{"src": "person:delignat", "dst": "paper:attestedDNS2025", "rel": "authored"}
+{"src": "person:felber", "dst": "paper:demystified2022", "rel": "authored"}
+{"src": "repo:ccf", "dst": "paper:attestedDNS2025", "rel": "referenced-by"}
+{"src": "std:rats", "dst": "repo:trustee", "rel": "standard-for"}
+{"src": "std:nistairmf", "dst": "axis:aigov", "rel": "governs"}
+{"src": "std:euaiact", "dst": "axis:aigov", "rel": "governs"}
+{"src": "std:iso42001", "dst": "axis:aigov", "rel": "governs"}
+{"src": "std:iso23894", "dst": "axis:aigov", "rel": "governs"}
+{"src": "std:oecdai", "dst": "axis:aigov", "rel": "governs"}
+{"src": "std:nistgenai", "dst": "axis:aigov", "rel": "governs"}
+{"src": "org:nist", "dst": "axis:aigov", "rel": "leads"}
+{"src": "org:euaioffice", "dst": "axis:aigov", "rel": "leads"}
+{"src": "org:partnershipai", "dst": "axis:aigov", "rel": "leads"}
+{"src": "org:mlcommons", "dst": "axis:aigov", "rel": "leads"}
+{"src": "org:oecd", "dst": "axis:aigov", "rel": "leads"}
+{"src": "repo:trestle", "dst": "axis:aigov", "rel": "implements"}
+{"src": "bench:ailuminate", "dst": "axis:aigov", "rel": "measures"}
+{"src": "std:nistairmf", "dst": "org:nist", "rel": "published-by"}
+{"src": "std:nistgenai", "dst": "org:nist", "rel": "published-by"}
+{"src": "std:euaiact", "dst": "org:euaioffice", "rel": "enforced-by"}
+{"src": "bench:ailuminate", "dst": "org:mlcommons", "rel": "published-by"}
+{"src": "repo:trestle", "dst": "std:nistairmf", "rel": "operationalizes"}
+{"src": "std:euaiact", "dst": "axis:provenance", "rel": "mandates", "via": "Article 50 AI-content marking"}
+{"src": "paper:katzdualverify2018", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:elboher2020abstraction", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:certifiedchecker2024", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:coqdifflogic2024", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:neurosymbolic2022", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:convexbarrier2020", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:soi2022", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:verifiedcs2024", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:vnnfriendly2024", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "paper:vnncomp6", "dst": "axis:fmverif", "rel": "evidence-for"}
+{"src": "repo:marabou", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "repo:abcrown", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "repo:autolirpa", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "repo:nnv", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "repo:eran", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "repo:lean4", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "repo:rocq", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "org:vnncomp", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "org:leanprover", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "org:leancommunity", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "org:rocqcommunity", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "org:ethsri", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "org:verifiedintel", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "org:hujilab", "dst": "axis:fmverif", "rel": "leads"}
+{"src": "gl:neuralverifier", "dst": "axis:fmverif", "rel": "implements"}
+{"src": "bench:vnncomp2025", "dst": "axis:fmverif", "rel": "measures"}
+{"src": "std:vnnlib", "dst": "axis:fmverif", "rel": "governs"}
+{"src": "person:guykatz", "dst": "axis:fmverif", "rel": "advances"}
+{"src": "person:clarkbarrett", "dst": "axis:fmverif", "rel": "advances"}
+{"src": "person:huanzhang", "dst": "axis:fmverif", "rel": "advances"}
+{"src": "person:kohli", "dst": "axis:fmverif", "rel": "advances"}
+{"src": "person:komendantskaya", "dst": "axis:fmverif", "rel": "advances"}
+{"src": "person:avigad", "dst": "axis:fmverif", "rel": "advances"}
+{"src": "person:guykatz", "dst": "repo:marabou", "rel": "leads"}
+{"src": "person:guykatz", "dst": "paper:elboher2020abstraction", "rel": "authored"}
+{"src": "person:guykatz", "dst": "paper:certifiedchecker2024", "rel": "authored"}
+{"src": "person:clarkbarrett", "dst": "paper:soi2022", "rel": "authored"}
+{"src": "person:huanzhang", "dst": "repo:abcrown", "rel": "leads"}
+{"src": "person:huanzhang", "dst": "repo:autolirpa", "rel": "leads"}
+{"src": "person:kohli", "dst": "paper:katzdualverify2018", "rel": "authored"}
+{"src": "person:kohli", "dst": "paper:verifiedcs2024", "rel": "authored"}
+{"src": "person:komendantskaya", "dst": "paper:coqdifflogic2024", "rel": "authored"}
+{"src": "person:komendantskaya", "dst": "paper:certifiedchecker2024", "rel": "authored"}
+{"src": "person:avigad", "dst": "repo:lean4", "rel": "advances"}
+{"src": "repo:marabou", "dst": "org:hujilab", "rel": "maintained-by"}
+{"src": "repo:abcrown", "dst": "org:verifiedintel", "rel": "maintained-by"}
+{"src": "repo:autolirpa", "dst": "org:verifiedintel", "rel": "maintained-by"}
+{"src": "repo:eran", "dst": "org:ethsri", "rel": "maintained-by"}
+{"src": "repo:lean4", "dst": "org:leanprover", "rel": "maintained-by"}
+{"src": "repo:rocq", "dst": "org:rocqcommunity", "rel": "maintained-by"}
+{"src": "repo:abcrown", "dst": "bench:vnncomp2025", "rel": "wins"}
+{"src": "bench:vnncomp2025", "dst": "org:vnncomp", "rel": "run-by"}
+{"src": "std:vnnlib", "dst": "org:vnncomp", "rel": "adopted-by"}
+{"src": "paper:vnncomp6", "dst": "org:vnncomp", "rel": "reports"}
+{"src": "paper:schorlemmer2025provenance", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "paper:sok_sscdesign2024", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "paper:slsachallenges2024", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "paper:signingindustry2025", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "paper:sok_defense2024", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "paper:whatis_sscs2022", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "paper:scm2reference2024", "dst": "axis:supplychain", "rel": "evidence-for"}
+{"src": "repo:cosign", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:rekor", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:fulcio", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:gitsign", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:modeltransparency", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:intoto", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:intoto_attest", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:archivista", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:slsagen", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:connaisseur", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "repo:keytransparency", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "org:sigstore", "dst": "axis:supplychain", "rel": "leads"}
+{"src": "org:intotoorg", "dst": "axis:supplychain", "rel": "leads"}
+{"src": "org:slsa", "dst": "axis:supplychain", "rel": "leads"}
+{"src": "org:openssf", "dst": "axis:supplychain", "rel": "leads"}
+{"src": "std:slsaspec", "dst": "axis:supplychain", "rel": "governs"}
+{"src": "std:slsaprov", "dst": "axis:supplychain", "rel": "governs"}
+{"src": "std:intotospec", "dst": "axis:supplychain", "rel": "governs"}
+{"src": "std:sbom_cyclonedx", "dst": "axis:supplychain", "rel": "governs"}
+{"src": "std:sbom_spdx", "dst": "axis:supplychain", "rel": "governs"}
+{"src": "person:torresarias", "dst": "axis:supplychain", "rel": "advances"}
+{"src": "person:jamesdavis", "dst": "axis:supplychain", "rel": "advances"}
+{"src": "person:melara", "dst": "axis:supplychain", "rel": "advances"}
+{"src": "gl:testify_cicd", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "gl:testify_demo", "dst": "axis:supplychain", "rel": "implements"}
+{"src": "org:testifysec", "dst": "axis:supplychain", "rel": "leads"}
+{"src": "gl:testify_cicd", "dst": "org:testifysec", "rel": "maintained-by"}
+{"src": "gl:testify_demo", "dst": "org:testifysec", "rel": "maintained-by"}
+{"src": "gl:testify_cicd", "dst": "repo:intoto", "rel": "builds-on"}
+{"src": "person:torresarias", "dst": "repo:intoto", "rel": "created"}
+{"src": "person:torresarias", "dst": "paper:sok_sscdesign2024", "rel": "authored"}
+{"src": "person:jamesdavis", "dst": "paper:schorlemmer2025provenance", "rel": "authored"}
+{"src": "person:melara", "dst": "paper:whatis_sscs2022", "rel": "authored"}
+{"src": "person:melara", "dst": "paper:sok_defense2024", "rel": "authored"}
+{"src": "repo:cosign", "dst": "org:sigstore", "rel": "maintained-by"}
+{"src": "repo:rekor", "dst": "org:sigstore", "rel": "maintained-by"}
+{"src": "repo:fulcio", "dst": "org:sigstore", "rel": "maintained-by"}
+{"src": "repo:gitsign", "dst": "org:sigstore", "rel": "maintained-by"}
+{"src": "repo:modeltransparency", "dst": "org:sigstore", "rel": "maintained-by"}
+{"src": "repo:intoto", "dst": "org:intotoorg", "rel": "maintained-by"}
+{"src": "repo:intoto_attest", "dst": "org:intotoorg", "rel": "maintained-by"}
+{"src": "repo:archivista", "dst": "org:intotoorg", "rel": "maintained-by"}
+{"src": "repo:slsagen", "dst": "org:slsa", "rel": "maintained-by"}
+{"src": "std:slsaspec", "dst": "org:slsa", "rel": "published-by"}
+{"src": "std:slsaprov", "dst": "org:slsa", "rel": "published-by"}
+{"src": "std:intotospec", "dst": "org:intotoorg", "rel": "published-by"}
+{"src": "org:slsa", "dst": "org:openssf", "rel": "part-of"}
+{"src": "org:sigstore", "dst": "org:openssf", "rel": "part-of"}
+{"src": "repo:slsagen", "dst": "std:slsaprov", "rel": "generates"}
+{"src": "repo:modeltransparency", "dst": "axis:provenance", "rel": "signs-artifacts"}
+{"src": "paper:amp2020", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "paper:simmons2024interop", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "paper:fairoze2025watermark", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "paper:invismark2024", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "paper:waterfall2024", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "paper:proofofhumanity2025", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "paper:sepmark2023", "dst": "axis:provenance", "rel": "evidence-for"}
+{"src": "repo:c2pars", "dst": "axis:provenance", "rel": "implements"}
+{"src": "repo:c2patool", "dst": "axis:provenance", "rel": "implements"}
+{"src": "repo:invismark", "dst": "axis:provenance", "rel": "implements"}
+{"src": "repo:c2paspecs", "dst": "axis:provenance", "rel": "implements"}
+{"src": "org:c2pa", "dst": "axis:provenance", "rel": "leads"}
+{"src": "org:cai", "dst": "axis:provenance", "rel": "leads"}
+{"src": "org:origin", "dst": "axis:provenance", "rel": "leads"}
+{"src": "std:c2paspec", "dst": "axis:provenance", "rel": "governs"}
+{"src": "std:iptc", "dst": "axis:provenance", "rel": "governs"}
+{"src": "std:coset", "dst": "axis:provenance", "rel": "governs"}
+{"src": "person:winograd", "dst": "axis:provenance", "rel": "advances"}
+{"src": "person:paulengland", "dst": "axis:provenance", "rel": "advances"}
+{"src": "person:neilgong", "dst": "axis:provenance", "rel": "advances"}
+{"src": "person:winograd", "dst": "paper:simmons2024interop", "rel": "authored"}
+{"src": "person:paulengland", "dst": "paper:amp2020", "rel": "authored"}
+{"src": "person:fournet", "dst": "paper:amp2020", "rel": "authored"}
+{"src": "repo:c2pars", "dst": "org:cai", "rel": "maintained-by"}
+{"src": "repo:c2patool", "dst": "org:cai", "rel": "maintained-by"}
+{"src": "repo:c2paspecs", "dst": "org:c2pa", "rel": "maintained-by"}
+{"src": "std:c2paspec", "dst": "org:c2pa", "rel": "published-by"}
+{"src": "std:coset", "dst": "std:c2paspec", "rel": "underpins"}
+{"src": "org:cai", "dst": "org:c2pa", "rel": "founding-member"}
+{"src": "org:origin", "dst": "org:c2pa", "rel": "founding-member"}
+{"src": "repo:invismark", "dst": "paper:invismark2024", "rel": "implements-paper"}
+{"src": "paper:inductionheads2022", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:mireview2024", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:practicalMI2025", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:mechanistic2024", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:identifiability2025", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:primer2024", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:mythos2017", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "paper:2satsolver2024", "dst": "axis:interp", "rel": "evidence-for"}
+{"src": "repo:transformerlens", "dst": "axis:interp", "rel": "implements"}
+{"src": "repo:sae_lens", "dst": "axis:interp", "rel": "implements"}
+{"src": "repo:pyvene", "dst": "axis:interp", "rel": "implements"}
+{"src": "repo:captum", "dst": "axis:interp", "rel": "implements"}
+{"src": "org:anthropicinterp", "dst": "axis:interp", "rel": "leads"}
+{"src": "org:goodfire", "dst": "axis:interp", "rel": "leads"}
+{"src": "org:eleutherinterp", "dst": "axis:interp", "rel": "leads"}
+{"src": "org:apollo", "dst": "axis:interp", "rel": "leads"}
+{"src": "person:neelnanda", "dst": "axis:interp", "rel": "advances"}
+{"src": "person:chrisolah", "dst": "axis:interp", "rel": "advances"}
+{"src": "person:saphra", "dst": "axis:interp", "rel": "advances"}
+{"src": "person:fazlbarez", "dst": "axis:interp", "rel": "advances"}
+{"src": "person:neelnanda", "dst": "repo:transformerlens", "rel": "created"}
+{"src": "person:neelnanda", "dst": "paper:inductionheads2022", "rel": "authored"}
+{"src": "person:chrisolah", "dst": "paper:inductionheads2022", "rel": "authored"}
+{"src": "person:chrisolah", "dst": "org:anthropicinterp", "rel": "leads"}
+{"src": "person:saphra", "dst": "paper:mechanistic2024", "rel": "authored"}
+{"src": "paper:inductionheads2022", "dst": "org:anthropicinterp", "rel": "produced-by"}
+{"src": "repo:transformerlens", "dst": "org:eleutherinterp", "rel": "incubated-by"}
+{"src": "paper:mireview2024", "dst": "axis:aigov", "rel": "informs"}
+{"src": "paper:memsurvey2024", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:amem2025", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:episodic2025", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:memorybank2023", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:reflectivemem2025", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:tim2023", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:minja2025", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "paper:hiagent2024", "dst": "axis:agentmem", "rel": "evidence-for"}
+{"src": "repo:mem0", "dst": "axis:agentmem", "rel": "implements"}
+{"src": "repo:letta", "dst": "axis:agentmem", "rel": "implements"}
+{"src": "repo:llamaindex", "dst": "axis:agentmem", "rel": "implements"}
+{"src": "repo:amemrepo", "dst": "axis:agentmem", "rel": "implements"}
+{"src": "org:mem0org", "dst": "axis:agentmem", "rel": "leads"}
+{"src": "org:lettaorg", "dst": "axis:agentmem", "rel": "leads"}
+{"src": "bench:memdaily", "dst": "axis:agentmem", "rel": "measures"}
+{"src": "bench:asb", "dst": "axis:agentmem", "rel": "measures"}
+{"src": "person:yongfengzhang", "dst": "axis:agentmem", "rel": "advances"}
+{"src": "person:charlespacker", "dst": "axis:agentmem", "rel": "advances"}
+{"src": "person:yongfengzhang", "dst": "paper:amem2025", "rel": "authored"}
+{"src": "person:yongfengzhang", "dst": "repo:amemrepo", "rel": "leads"}
+{"src": "person:charlespacker", "dst": "repo:letta", "rel": "created"}
+{"src": "repo:mem0", "dst": "org:mem0org", "rel": "maintained-by"}
+{"src": "repo:letta", "dst": "org:lettaorg", "rel": "maintained-by"}
+{"src": "paper:minja2025", "dst": "axis:agentmem", "rel": "threat-model-for"}
+{"src": "bench:asb", "dst": "paper:minja2025", "rel": "benchmarks"}
+{"src": "paper:efficientsync2017", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:bftreview2023", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:poe2021", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:banyan2024", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:boltdumbo2022", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:fastbyz2021", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:avalanche2024", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:selfstab2023", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "paper:nosigbft2025", "dst": "axis:bft", "rel": "evidence-for"}
+{"src": "repo:fabric", "dst": "axis:bft", "rel": "implements"}
+{"src": "repo:sui", "dst": "axis:bft", "rel": "implements"}
+{"src": "repo:bftsmart", "dst": "axis:bft", "rel": "implements"}
+{"src": "repo:diem", "dst": "axis:bft", "rel": "implements"}
+{"src": "org:hyperledger", "dst": "axis:bft", "rel": "leads"}
+{"src": "org:mystenlabs", "dst": "axis:bft", "rel": "leads"}
+{"src": "person:ittai", "dst": "axis:bft", "rel": "advances"}
+{"src": "person:cachin", "dst": "axis:bft", "rel": "advances"}
+{"src": "person:gramoli", "dst": "axis:bft", "rel": "advances"}
+{"src": "person:raynal", "dst": "axis:bft", "rel": "advances"}
+{"src": "person:dolev", "dst": "axis:bft", "rel": "advances"}
+{"src": "person:ittai", "dst": "paper:efficientsync2017", "rel": "authored"}
+{"src": "person:dolev", "dst": "paper:efficientsync2017", "rel": "authored"}
+{"src": "person:cachin", "dst": "paper:avalanche2024", "rel": "authored"}
+{"src": "person:raynal", "dst": "paper:selfstab2023", "rel": "authored"}
+{"src": "repo:fabric", "dst": "org:hyperledger", "rel": "maintained-by"}
+{"src": "repo:sui", "dst": "org:mystenlabs", "rel": "maintained-by"}
+{"src": "paper:banyan2024", "dst": "axis:bft", "rel": "advances"}
+{"src": "axis:bft", "dst": "axis:ccattest", "rel": "underpins", "via": "decentralized attestation quorums"}
+{"src": "axis:bft", "dst": "axis:provenance", "rel": "underpins", "via": "transparency-log ordering (Rekor/keytransparency)"}

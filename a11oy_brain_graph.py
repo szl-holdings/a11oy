@@ -52,6 +52,8 @@ Doctrine v11 honesty:
 """
 
 import datetime
+import json
+import os
 import re
 
 from fastapi import FastAPI
@@ -61,6 +63,21 @@ import a11oy_frontier_page as _frontier
 import szl_puriq_formulas as _puriq
 
 CANONICAL_DOMAIN = "a-11-oy.com"
+
+# --------------------------------------------------------------------------- #
+# HARVESTED FIELD LEADERS — committed JSONL shipped in the image.
+# The estate's own 134 nodes are layers 0..3 (input->output). The harvested
+# research field around SZL's thesis (papers, repos, labs, people, datasets,
+# benchmarks, standards, axes) sits in an OUTER "field" layer (FIELD_LAYER = -1),
+# BEYOND the estate's input layer — the real-world frontier that feeds the estate.
+# Every harvested node keeps its honest label/url/source/axis; nothing invented.
+# Counts are the ACTUAL merged len() — never hardcoded.
+# --------------------------------------------------------------------------- #
+FIELD_LAYER = -1
+_HARVEST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "brain", "harvest")
+_HARVEST_FILES = ("architectures.jsonl", "governance.jsonl",
+                  "energy_defense.jsonl")
 
 # --------------------------------------------------------------------------- #
 # STATIC SNAPSHOT — 34 active szl-holdings repos.
@@ -103,6 +120,46 @@ def _tokens(*parts: str) -> set:
             if len(t) >= 3 and t not in _STOPWORDS:
                 out.add(t)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# HARVEST LOADER
+# --------------------------------------------------------------------------- #
+
+def _iter_harvest_records():
+    """Yield (kind, obj) for every JSONL record in the committed harvest files.
+
+    Handles BOTH record shapes present in the harvest:
+      * tagged   : {"type": "node"|"edge", ...}
+      * bare     : node has {kind}; edge has {rel} + {src}/{dst}.
+    kind is "node" or "edge". Missing/corrupt files are skipped honestly (the
+    estate graph still builds; the harvest section reports available=False)."""
+    for fname in _HARVEST_FILES:
+        path = os.path.join(_HARVEST_DIR, fname)
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                tag = obj.get("type")
+                is_edge = (tag == "edge"
+                           or ("rel" in obj and ("src" in obj or "dst" in obj)))
+                if is_edge:
+                    yield "edge", obj
+                elif tag == "node" or "kind" in obj:
+                    yield "node", obj
+
+
+def harvest_available() -> bool:
+    """True if at least one committed harvest file is present at runtime."""
+    return any(os.path.isfile(os.path.join(_HARVEST_DIR, f))
+               for f in _HARVEST_FILES)
 
 
 # --------------------------------------------------------------------------- #
@@ -231,6 +288,67 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
             if tok in topic_ids:
                 add_link(rid, topic_ids[tok], "repo-topic", via=tok)
 
+    estate_node_count = len(nodes)
+    estate_link_count = len(links)
+
+    # ---- FIELD layer: harvested field leaders (committed JSONL) ----------- #
+    # Dedupe by id: estate nodes are canonical and WIN — harvested duplicates
+    # (e.g. surface:* stubs) are dropped, never overwriting the real estate node.
+    harvested_added = 0
+    harvest_dupes = 0
+    _link_seen = set()  # (source, target, rel) dedupe for harvested links only
+    pending_edges: list = []
+
+    def _add_field_link(src: str, dst: str, rel: str, **attrs) -> None:
+        key = (src, dst, rel)
+        if key in _link_seen:
+            return
+        if src not in index or dst not in index or src == dst:
+            return
+        _link_seen.add(key)
+        links.append({"source": src, "target": dst, "rel": rel, **attrs})
+        index[src]["degree"] += 1
+        index[dst]["degree"] += 1
+
+    for kind, obj in _iter_harvest_records():
+        if kind == "node":
+            hid = obj.get("id")
+            if not hid:
+                continue
+            if hid in index:  # collision with estate (or an earlier harvest id)
+                harvest_dupes += 1
+                continue
+            node = add_node(
+                hid,
+                kind=obj.get("kind", "field"),
+                layer=FIELD_LAYER,
+                ring="field",
+                title=obj.get("label", hid),
+                label="HARVESTED",
+                url=obj.get("url"),
+                source=obj.get("source"),
+                axis=obj.get("axis"),
+                src_layer=obj.get("layer"),
+            )
+            harvested_added += 1
+            # a node's own maps_to_surface -> a real surface node (deferred until
+            # every node is loaded so the target may live in a later file).
+            mts = obj.get("maps_to_surface")
+            if mts:
+                pending_edges.append((hid, f"surface:{mts}", "maps-to-surface"))
+        else:  # edge
+            src = obj.get("src")
+            dst = obj.get("dst")
+            rel = (obj.get("rel") or "related").replace("_", "-")
+            if src and dst:
+                pending_edges.append((src, dst, rel))
+
+    # attach harvested edges last: maps-to-surface edges bind field leaders to
+    # the REAL estate surface nodes; targets that resolve to nothing are dropped
+    # (add-link is dangling-safe) — no fabricated placeholder nodes.
+    for src, dst, rel in pending_edges:
+        _add_field_link(src, dst, rel, derived_from="harvest")
+
     # strip internal token caches before returning
     for node in nodes:
         node.pop("_tokens", None)
@@ -238,9 +356,17 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     # ---- honest counts + breakdown ---------------------------------------- #
     kind_counts: dict = {}
     layer_counts: dict = {}
+    source_counts: dict = {}
+    axis_counts: dict = {}
     for node in nodes:
         kind_counts[node["kind"]] = kind_counts.get(node["kind"], 0) + 1
         layer_counts[node["layer"]] = layer_counts.get(node["layer"], 0) + 1
+        src = node.get("source")
+        if src:
+            source_counts[src] = source_counts.get(src, 0) + 1
+        ax = node.get("axis")
+        if ax:
+            axis_counts[ax] = axis_counts.get(ax, 0) + 1
     rel_counts: dict = {}
     for link in links:
         rel_counts[link["rel"]] = rel_counts.get(link["rel"], 0) + 1
@@ -260,6 +386,7 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
                      "signing on GET."),
         },
         "layers": {
+            "-1": "field (harvested field leaders — outer ring, beyond input)",
             "0": "input (repos + surfaces)",
             "1": "hidden (topic clusters)",
             "2": "hidden (formulas; locked-8 highlighted)",
@@ -275,15 +402,30 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
                       "source": ORG_REPOS_SNAPSHOT["source"]},
             "topics": {"count": len(topic_ids),
                        "source": "distinct FORMULA_META.organ"},
+            "harvest": {"count": harvested_added,
+                        "deduped_against_estate": harvest_dupes,
+                        "available": harvest_available(),
+                        "files": list(_HARVEST_FILES),
+                        "layer": FIELD_LAYER,
+                        "source": "brain/harvest/*.jsonl (real field leaders; "
+                                  "every node carries a verified url + source)"},
         },
         "node_count": len(nodes),
         "link_count": len(links),
         "summary": {
             "node_count": len(nodes),
             "link_count": len(links),
+            "estate_node_count": estate_node_count,
+            "estate_link_count": estate_link_count,
+            "harvest_node_count": harvested_added,
+            "harvest_link_count": len(links) - estate_link_count,
             "by_kind": kind_counts,
             "by_layer": {str(k): v for k, v in sorted(layer_counts.items())},
             "by_rel": rel_counts,
+            "by_source": dict(sorted(source_counts.items(),
+                                     key=lambda kv: (-kv[1], kv[0]))),
+            "by_axis": dict(sorted(axis_counts.items(),
+                                   key=lambda kv: (-kv[1], kv[0]))),
             "locked_flagged": sum(1 for n in nodes if n.get("locked")),
         },
         "nodes": nodes,
@@ -291,19 +433,93 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     }
 
 
+# --------------------------------------------------------------------------- #
+# CACHE + FILTERED VIEWS (the merged graph is big — build once, slice per query)
+# --------------------------------------------------------------------------- #
+_CACHE: dict = {}
+
+
+def get_brain_graph(ns: str = "a11oy", *, refresh: bool = False) -> dict:
+    """Return the merged graph, cached per-ns (built on first call).
+
+    The merged graph is thousands of nodes; rebuilding it per request is wasted
+    work on a pure read. Deterministic, so caching is safe."""
+    if refresh or ns not in _CACHE:
+        _CACHE[ns] = build_brain_graph(ns)
+    return _CACHE[ns]
+
+
+def _matches(node: dict, layer, axis, source) -> bool:
+    if layer is not None and node.get("layer") != layer:
+        return False
+    if axis is not None and node.get("axis") != axis:
+        return False
+    if source is not None and node.get("source") != source:
+        return False
+    return True
+
+
+def filtered_graph(ns: str = "a11oy", *, layer=None, axis=None, source=None,
+                   summary: bool = False) -> dict:
+    """A view over the cached merged graph.
+
+    - summary=True  drops the heavy nodes/links arrays (counts + breakdowns only)
+      so the 3D surface can size the render before pulling the full payload.
+    - layer/axis/source restrict to a subgraph (nodes matching the filter plus
+      the links wholly within that subset). node_count/link_count on a filtered
+      view are the ACTUAL sizes of the returned subset — still never fabricated."""
+    graph = get_brain_graph(ns)
+    filtering = layer is not None or axis is not None or source is not None
+
+    if not filtering:
+        view = dict(graph)
+        if summary:
+            view.pop("nodes", None)
+            view.pop("links", None)
+            view["mode"] = "summary"
+        return view
+
+    keep_nodes = [n for n in graph["nodes"] if _matches(n, layer, axis, source)]
+    keep_ids = {n["id"] for n in keep_nodes}
+    keep_links = [l for l in graph["links"]
+                  if l["source"] in keep_ids and l["target"] in keep_ids]
+
+    view = dict(graph)
+    view["filter"] = {"layer": layer, "axis": axis, "source": source}
+    view["node_count"] = len(keep_nodes)
+    view["link_count"] = len(keep_links)
+    view["full_node_count"] = graph["node_count"]
+    view["full_link_count"] = graph["link_count"]
+    if summary:
+        view.pop("nodes", None)
+        view.pop("links", None)
+        view["mode"] = "summary"
+    else:
+        view["nodes"] = keep_nodes
+        view["links"] = keep_links
+    return view
+
+
 def register(app: FastAPI, ns: str = "a11oy") -> str:
     """Mount GET /api/<ns>/v1/brain/graph. ADDITIVE — before the SPA catch-all.
 
-    Pure read; harvests the real estate into a layered node/link graph. Signs
-    nothing (receipt-on-write, never on GET)."""
+    Pure read; harvests the real estate + committed field-leader JSONL into a
+    layered node/link graph (cached). Signs nothing (receipt-on-write, never on
+    GET). Query params: ?layer=<int> ?axis=<token> ?source=<token>
+    ?summary=1 (counts only)."""
 
     @app.get(f"/api/{ns}/v1/brain/graph")
-    async def brain_graph() -> JSONResponse:  # noqa: ANN202
-        return JSONResponse(build_brain_graph(ns))
+    async def brain_graph(layer: int = None, axis: str = None,
+                          source: str = None,
+                          summary: bool = False) -> JSONResponse:  # noqa: ANN202
+        return JSONResponse(filtered_graph(
+            ns, layer=layer, axis=axis, source=source, summary=summary))
 
+    g = get_brain_graph(ns)
     return (f"brain-graph mounted: GET /api/{ns}/v1/brain/graph "
-            "(MODELED; harvests surfaces+formulas+repos+topics into a layered "
-            "neural-net graph; honest node/link counts; 0 sign-on-read)")
+            f"(MODELED estate + HARVESTED field leaders; {g['node_count']} nodes, "
+            f"{g['link_count']} links; cached; ?layer=/?axis=/?source=/?summary=1; "
+            "honest merged counts; 0 sign-on-read)")
 
 
 def _selftest() -> None:
@@ -324,7 +540,6 @@ def _selftest() -> None:
     assert g["summary"]["locked_flagged"] == 8, "exactly 8 locked formulas flagged"
     # neural-net layering present on every node
     assert all("layer" in n for n in g["nodes"]), "every node needs a layer"
-    assert set(g["summary"]["by_layer"]) == {"0", "1", "2", "3"}, "4 layers"
     # every link references existing nodes
     ids = {n["id"] for n in g["nodes"]}
     assert all(l["source"] in ids and l["target"] in ids for l in g["links"]), \
@@ -333,9 +548,54 @@ def _selftest() -> None:
     rels = set(g["summary"]["by_rel"])
     for r in ("formula-surface", "repo-surface", "surface-endpoint"):
         assert r in rels, f"required relation {r} missing"
-    print(f"a11oy_brain_graph: ALL OK — {g['node_count']} nodes, "
-          f"{g['link_count']} links; by_kind={g['summary']['by_kind']}; "
-          f"by_layer={g['summary']['by_layer']}; locked_flagged=8")
+
+    # ---- harvested field-leader merge (honest, deduped, layered) ---------- #
+    if harvest_available():
+        est_n = g["summary"]["estate_node_count"]
+        har_n = g["summary"]["harvest_node_count"]
+        assert est_n == 134, f"estate must stay 134, got {est_n}"
+        assert har_n > 1000, f"expected thousands of harvested nodes, got {har_n}"
+        assert g["node_count"] == est_n + har_n, "merged node_count must add up"
+        # field ring present and beyond input
+        assert "-1" in g["summary"]["by_layer"], "field layer (-1) must be present"
+        assert FIELD_LAYER < 0, "field ring must sit beyond the input layer"
+        # honest counts — never the leaked/hardcoded vanity figures
+        assert g["node_count"] not in (8893, 8000), "counts must be REAL len()"
+        # every harvested node keeps a real url + honest source/label
+        field = [n for n in g["nodes"] if n.get("layer") == FIELD_LAYER]
+        assert all(n.get("url") and n.get("source") for n in field), \
+            "every harvested node needs a real url + source"
+        assert all(n.get("label") == "HARVESTED" for n in field), "honest label"
+        # locked-8 UNTOUCHED by the harvest
+        assert g["summary"]["locked_flagged"] == 8, "harvest adds nothing to locked-8"
+        # by_source / by_axis breakdowns present and non-trivial
+        assert len(g["summary"]["by_source"]) >= 5, "by_source breakdown missing"
+        assert len(g["summary"]["by_axis"]) >= 5, "by_axis breakdown missing"
+        # maps-to-surface edges bind field leaders to REAL surface nodes
+        surf_ids = {n["id"] for n in g["nodes"] if n["kind"] == "surface"}
+        m2s = [l for l in g["links"] if l["rel"] == "maps-to-surface"
+               and l["target"] in surf_ids]
+        assert m2s, "expected maps-to-surface edges into real surface nodes"
+        # filter + summary views are self-consistent
+        sub = filtered_graph("a11oy", layer=FIELD_LAYER)
+        assert sub["node_count"] == har_n, "layer filter must return the field ring"
+        assert all(n["layer"] == FIELD_LAYER for n in sub["nodes"]), "filter leak"
+        summ = filtered_graph("a11oy", summary=True)
+        assert "nodes" not in summ and summ["node_count"] == g["node_count"], \
+            "summary mode drops arrays but keeps honest counts"
+        top_axis = next(iter(g["summary"]["by_axis"]))
+        axv = filtered_graph("a11oy", axis=top_axis)
+        assert axv["node_count"] > 0 and axv["node_count"] < g["node_count"], \
+            "axis filter must return a proper subset"
+        print(f"a11oy_brain_graph: ALL OK — MERGED {g['node_count']} nodes "
+              f"({est_n} estate + {har_n} harvested), {g['link_count']} links; "
+              f"by_layer={g['summary']['by_layer']}; "
+              f"by_source={len(g['summary']['by_source'])} sources; "
+              f"by_axis={len(g['summary']['by_axis'])} axes; locked_flagged=8")
+    else:
+        assert set(g["summary"]["by_layer"]) == {"0", "1", "2", "3"}, "4 layers"
+        print(f"a11oy_brain_graph: ALL OK (estate-only; harvest files absent) — "
+              f"{g['node_count']} nodes, {g['link_count']} links")
 
 
 if __name__ == "__main__":
