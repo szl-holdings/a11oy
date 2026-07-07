@@ -82,7 +82,10 @@ except Exception as _exc:  # pragma: no cover
 else:
     _ORGRAG_IMPORT_ERROR = ""
 try:
-    import szl_llm_registry as _llmreg  # A11OY_CODE_LLM_KEY resolver
+    try:  # prefer the extracted substrate package; fall back to local copy
+        from szl_substrate import szl_llm_registry as _llmreg  # A11OY_CODE_LLM_KEY resolver
+    except Exception:
+        import szl_llm_registry as _llmreg
 except Exception:  # pragma: no cover
     _llmreg = None
 try:

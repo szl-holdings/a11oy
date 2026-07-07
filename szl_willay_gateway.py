@@ -277,7 +277,10 @@ def _khipu_consensus(action_hash: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 def _restraint_note(prompt: str) -> Dict[str, Any]:
     try:
-        import szl_restraint as r
+        try:  # prefer the extracted substrate package; fall back to local copy
+            from szl_substrate import szl_restraint as r
+        except Exception:
+            import szl_restraint as r
         dec = r.descend_ladder(prompt, "full")
         return {"available": True, "rung_key": dec.get("rung_key"),
                 "ceiling": dec.get("ceiling"), "why": dec.get("answer")}

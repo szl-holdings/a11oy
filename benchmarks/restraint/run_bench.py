@@ -140,7 +140,10 @@ def _measured_arm(model: str, system: Optional[str], task: str, repeat: int) -> 
 
 def _sample_arm(task: str, arm: str, intensity: str) -> Dict[str, Any]:
     """SAMPLE arm via OUR ladder model — internally consistent, clearly NOT measured."""
-    import szl_restraint as R
+    try:  # prefer the extracted substrate package; fall back to local copy
+        from szl_substrate import szl_restraint as R
+    except Exception:
+        import szl_restraint as R
     dec = R.descend_ladder(task, intensity)
     s = dec["lines_saved_estimate"]
     tpl = R.TOKENS_PER_LOC
@@ -169,7 +172,10 @@ def run(model: Optional[str], repeat: int, intensity: str) -> Dict[str, Any]:
     # SAMPLE mode needs szl_restraint importable.
     if not measured:
         try:
-            import szl_restraint  # noqa: F401
+            try:  # prefer the extracted substrate package; fall back to local copy
+                from szl_substrate import szl_restraint  # noqa: F401
+            except Exception:
+                import szl_restraint  # noqa: F401
         except Exception as e:
             print("[run_bench] szl_restraint not importable: %s" % e, file=sys.stderr)
 

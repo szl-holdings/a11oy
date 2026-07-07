@@ -327,7 +327,10 @@ def register(app: Any, gates_list: list[dict], gates_by_name: dict[str, dict],
         signing_available = False
 
         try:
-            import szl_provenance as _prov
+            try:  # prefer the extracted substrate package; fall back to local copy
+                from szl_substrate import szl_provenance as _prov
+            except Exception:
+                import szl_provenance as _prov
             # Access the module-level DAG directly
             dag = _prov._KHIPU_DAG  # type: ignore[attr-defined]
             dag_count = len(dag.nodes)

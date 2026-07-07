@@ -84,7 +84,10 @@ _RESULTS_PATHS = [
 # Soft imports of sibling modules (consumed, never edited). All optional.
 # ---------------------------------------------------------------------------
 try:
-    import szl_restraint as _restraint  # R1's module (a11oy Restraint ladder)
+    try:  # prefer the extracted substrate package; fall back to local copy
+        from szl_substrate import szl_restraint as _restraint  # R1's module (a11oy Restraint ladder)
+    except Exception:
+        import szl_restraint as _restraint
 except Exception:  # pragma: no cover - honest degrade
     _restraint = None  # type: ignore
 
