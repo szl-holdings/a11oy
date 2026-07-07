@@ -1409,6 +1409,47 @@ try:
 except Exception as _szl_neuromorphic_e:  # pragma: no cover
     print(f"[a11oy] Neuromorphic spikes NOT registered: {_szl_neuromorphic_e!r}", file=__import__("sys").stderr)
 
+# (wave-e architecture-cluster wires) — four frontier organs served SAME-ORIGIN.
+# All MODELED (deterministic simulations/fits, not trained models); each cites a
+# real 2024-2026 arXiv source verbatim and never claims the method as its own.
+# Registered BEFORE the SPA catch-all so /api/... resolves to JSON, not HTML.
+# (kan-wire) — Kolmogorov-Arnold Network: from-scratch KAN fit, per-edge splines.
+# MODELED; MEASURED fit metrics. Cites Liu et al. 2024 (arXiv:2404.19756).
+try:
+    import szl_kan as _szl_kan
+    _szl_kan.register(app, ns="a11oy")
+    print("[a11oy] KAN fit registered: /api/a11oy/v1/kan/fit", file=__import__("sys").stderr)
+except Exception as _szl_kan_e:  # pragma: no cover
+    print(f"[a11oy] KAN fit NOT registered: {_szl_kan_e!r}", file=__import__("sys").stderr)
+
+# (titans-wire) — Titans neural long-term memory: surprise/momentum/forgetting.
+# MODELED. Cites Behrouz et al. 2025, Google (arXiv:2501.00663).
+try:
+    import szl_titans as _szl_titans
+    _szl_titans.register(app, ns="a11oy")
+    print("[a11oy] Titans recall registered: /api/a11oy/v1/titans/recall", file=__import__("sys").stderr)
+except Exception as _szl_titans_e:  # pragma: no cover
+    print(f"[a11oy] Titans recall NOT registered: {_szl_titans_e!r}", file=__import__("sys").stderr)
+
+# (mor-wire) — Mixture-of-Recursions: adaptive per-token recursion depth (one
+# shared block). MODELED. Cites Bae et al. 2025 (arXiv:2507.10524).
+try:
+    import szl_mor as _szl_mor
+    _szl_mor.register(app, ns="a11oy")
+    print("[a11oy] MoR route registered: /api/a11oy/v1/mor/route", file=__import__("sys").stderr)
+except Exception as _szl_mor_e:  # pragma: no cover
+    print(f"[a11oy] MoR route NOT registered: {_szl_mor_e!r}", file=__import__("sys").stderr)
+
+# (ternary-wire) — BitNet b1.58 native 1.58-bit ternary weights + multiply-free
+# arithmetic. MODELED; MEASURED fidelity deltas. Cites arXiv:2504.12285 and
+# arXiv:2402.17764.
+try:
+    import szl_ternary as _szl_ternary
+    _szl_ternary.register(app, ns="a11oy")
+    print("[a11oy] Ternary quantize registered: /api/a11oy/v1/ternary/quantize", file=__import__("sys").stderr)
+except Exception as _szl_ternary_e:  # pragma: no cover
+    print(f"[a11oy] Ternary quantize NOT registered: {_szl_ternary_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
