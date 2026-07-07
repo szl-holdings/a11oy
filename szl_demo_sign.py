@@ -36,7 +36,13 @@ from typing import Any, Optional
 
 # Reuse the EXACT PAE + canonical-JSON encoding the production path and the
 # /verify JS already agree on, so a demo signature verifies through the same code.
-import szl_dsse
+# POC (szl-substrate extraction): prefer the shared package as the single source
+# of truth; fall back to the local vendored copy so nothing breaks if the package
+# is not installed in this runtime. See szl-holdings/szl-substrate MIGRATION.md.
+try:
+    from szl_substrate import szl_dsse  # single source of truth
+except Exception:  # pragma: no cover
+    import szl_dsse  # fall back to local vendored copy
 
 DEMO_KEY_ID = "demo-signing-key"
 DEMO_SIGN_KEY_ENV = "SZL_DEMO_SIGN_KEY"

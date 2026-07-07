@@ -50,10 +50,16 @@ try:  # public hash-chained ledger (same chain served by /api/a11oy/v1/ledger/{i
 except Exception:  # noqa: BLE001
     _ledger = None
 
+# POC (szl-substrate extraction): prefer the shared package as the single source
+# of truth; fall back to the local vendored copy so nothing breaks if the package
+# is not installed in this runtime. See szl-holdings/szl-substrate MIGRATION.md.
 try:  # real ECDSA-P256 DSSE signer
-    import szl_dsse as _dsse
+    from szl_substrate import szl_dsse as _dsse  # single source of truth
 except Exception:  # noqa: BLE001
-    _dsse = None
+    try:
+        import szl_dsse as _dsse  # fall back to local vendored copy
+    except Exception:  # noqa: BLE001
+        _dsse = None
 
 import szl_bridge_schemas as _schemas
 
