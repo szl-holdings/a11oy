@@ -1353,6 +1353,17 @@ COPY harness_profiles/ ./harness_profiles/
 # Λ = Conjecture 1 (advisory). Real DSSE in-Space, honest UNSIGNED-LOCAL locally.
 COPY szl_agent_loop_governed.py ./szl_agent_loop_governed.py
 COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
+# BRAIN FEED for the governed loop (Wave P · Dev 4, 2026-07-07): szl_agentloop_brain.py is
+# the thin GUARDED bridge szl_agent_loop_governed.py imports to make the loop Brain-POWERED —
+# (a) it pulls advisory context from the Brain vault (corpus="brain") and (e) requests a
+# per-loop energy allocation from the Brain's harnessed power (/brain/energy), both chained
+# into the ONE composite signed receipt. It imports szl_brain_corpus (PR #814) / szl_brain_energy
+# (PR #811) LAZILY (inside functions) with an on-main fallback (szl_brain_api / szl_energy_budget,
+# both already COPY'd), so this per-file COPY has no unmerged transitive dependency. MUST be
+# per-file COPY'd (this Dockerfile uses no `COPY . .`) or the guarded import in the agent loop
+# falls back and the run is not Brain-powered. Additive; Λ = Conjecture 1 (advisory); honest
+# UNAVAILABLE when a Brain source is down; no node/joule fabricated; nothing to locked-8.
+COPY szl_agentloop_brain.py ./szl_agentloop_brain.py
 
 # GOVERNED RAG · retrieval-with-receipts (Wave J · Dev 4, 2026-07-07):
 # szl_governed_rag.py registers POST /api/a11oy/v1/rag/query (+ /rag/corpus, /rag/health)
