@@ -51,12 +51,19 @@ except Exception:  # pragma: no cover
     szl_khipu = None  # type: ignore
     _HAS_KHIPU = False
 
+# POC (szl-substrate extraction): prefer the shared package as the single source
+# of truth; fall back to the local vendored copy so nothing breaks if the package
+# is not installed in this runtime. See szl-holdings/szl-substrate MIGRATION.md.
 try:
-    import szl_dsse  # real ECDSA-P256 DSSE signing (cosign.pub verifiable)
+    from szl_substrate import szl_dsse  # single source of truth (cosign.pub verifiable)
     _HAS_DSSE = True
 except Exception:  # pragma: no cover
-    szl_dsse = None  # type: ignore
-    _HAS_DSSE = False
+    try:
+        import szl_dsse  # fall back to local vendored copy
+        _HAS_DSSE = True
+    except Exception:
+        szl_dsse = None  # type: ignore
+        _HAS_DSSE = False
 
 try:
     import szl_governance_gateway as _gw  # classify() + route()

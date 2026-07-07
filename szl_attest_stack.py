@@ -89,7 +89,12 @@ def _factor_dsse_chain(receipt_hash: str) -> dict[str, Any]:
     # DSSE signature posture — honest UNSIGNED when no founder cosign key present.
     sig_block: dict[str, Any] = {"signed": False, "label": "UNSIGNED"}
     try:
-        import szl_dsse as _dsse
+        # POC (szl-substrate extraction): prefer the shared package; fall back to
+        # the local vendored copy. See szl-holdings/szl-substrate MIGRATION.md.
+        try:
+            from szl_substrate import szl_dsse as _dsse  # single source of truth
+        except Exception:
+            import szl_dsse as _dsse  # fall back to local vendored copy
         if _dsse.signing_available():
             sig_block = {"signed": True, "label": "DSSE-COSIGN",
                          "keyid": _dsse.KEYID,
