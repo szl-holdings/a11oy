@@ -39,6 +39,10 @@ const EP_REPAIR = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbra
 const EP_PLAST  = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/plasticity?seed=42&rounds=30";
 // wave-18: write-back memory loop (HEART/BLOOD hash-chain + A-MEM reconsolidation)
 const EP_MEM    = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/memory?seed=42&sessions=5";
+// wave-19: homeostatic self-regulation (MAPE-K + HRRL drive-reduction, meta-stats only)
+const EP_VITALS = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/vitals?seed=42&rounds=12";
+// wave-20: evolutionary self-improvement (MAP-Elites/DGM archive; kernel gate disposes)
+const EP_EVOLVE = "https://szlholdings-killinchu.hf.space/api/killinchu/v1/fgbrain/evolve?seed=42&generations=15";
 
 // tier -> colour. proof-teal for the proven core, lattice-blue for verified/experimental,
 // violet-blue for borrowed fusions, GREY for conjectures (never green).
@@ -72,6 +76,10 @@ const S = {
   lesion: null, bodyHealth: null, lam2Before: null, lam2After: null, connectedAfter: null,
   lockedFrozen: null, plastScore: null, ewcCore: null,
   beats: null, chainOk: null, reconsGain: null,
+  driveFinal: null, viability: null, inBand: null, setpointCount: null,
+  lockedUntouched: null, failClosed: null,
+  archiveCells: null, archiveCellsPossible: null, modeledPromotions: null,
+  gateImmutable: null, claimPinningOk: null, rollbackRestored: null,
 };
 
 // deterministic layout: concentric shells by tier (locked core -> outward),
@@ -110,6 +118,8 @@ function mount(ctx) {
   _polls.push(ctx.live.poll(EP_REPAIR, 0, _onRepair, {}));
   _polls.push(ctx.live.poll(EP_PLAST, 0, _onPlast, {}));
   _polls.push(ctx.live.poll(EP_MEM, 0, _onMem, {}));
+  _polls.push(ctx.live.poll(EP_VITALS, 0, _onVitals, {}));
+  _polls.push(ctx.live.poll(EP_EVOLVE, 0, _onEvolve, {}));
 
   if (!_frameReg && _stage.onFrame) { _stage.onFrame(_animate); _frameReg = true; }
 }
@@ -243,6 +253,32 @@ function _onMem(j) {
   _paintOverlay();
 }
 
+function _onVitals(j) {
+  if (!j) return;
+  const p = j.payload || j;
+  S.driveFinal = p.drive_final != null ? p.drive_final : null;
+  S.viability = p.viability_horizon != null ? p.viability_horizon : null;
+  S.inBand = p.in_band_count != null ? p.in_band_count : null;
+  S.setpointCount = p.setpoint_count != null ? p.setpoint_count : null;
+  S.lockedUntouched = p.locked_untouched != null ? p.locked_untouched : null;
+  S.failClosed = p.fail_closed != null ? p.fail_closed : null;
+  if (p.locked_count != null) S.lockedCount = p.locked_count;
+  _paintOverlay();
+}
+
+function _onEvolve(j) {
+  if (!j) return;
+  const p = j.payload || j;
+  S.archiveCells = p.archive_cells_filled != null ? p.archive_cells_filled : null;
+  S.archiveCellsPossible = p.archive_cells_possible != null ? p.archive_cells_possible : null;
+  S.modeledPromotions = p.modeled_promotions != null ? p.modeled_promotions : null;
+  S.gateImmutable = p.gate_immutable != null ? p.gate_immutable : null;
+  S.claimPinningOk = p.claim_pinning_ok != null ? p.claim_pinning_ok : null;
+  S.rollbackRestored = p.rollback_restored != null ? p.rollback_restored : null;
+  if (p.locked_count != null) S.lockedCount = p.locked_count;
+  _paintOverlay();
+}
+
 // =============================================================================
 // overlay HUD
 // =============================================================================
@@ -278,6 +314,18 @@ function _buildOverlay(ctx) {
     _row("Receipt beats written", "brain-beats") +
     _row("Hash chain intact", "brain-chain") +
     _row("Reconsolidation gain", "brain-recons") +
+    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Homeostasis (self-regulation)</div>' +
+    _row("Drive (final)", "brain-drive") +
+    _row("In-band set-points", "brain-inband") +
+    _row("Viability horizon", "brain-viab") +
+    _row("Locked untouched", "brain-untouched") +
+    '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Evolution (proposes; kernel disposes)</div>' +
+    _row("Archive cells filled", "brain-archive") +
+    _row("Promotions (MODELED)", "brain-promos") +
+    _row("Kernel gate immutable", "brain-gate") +
+    _row("Drift rollback restored", "brain-rollback") +
     '<div id="brain-tiers" style="margin-top:6px;font-size:10.5px;color:#8fb3bd"></div>' +
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">' +
       _leg(C_LOCKED, "proven-8") + _leg(C_SEMANT, "verified") + _leg(C_BORROW, "borrowed") + _leg(C_CONJ, "conjecture (gray)") +
@@ -319,6 +367,14 @@ function _paintOverlay() {
   _set("brain-beats", d || (S.beats != null ? String(S.beats) : "\u2014"));
   _set("brain-chain", d || (S.chainOk != null ? (S.chainOk ? "yes (tamper-evident)" : "NO \u2014 alert") : "\u2014"));
   _set("brain-recons", d || (S.reconsGain != null ? (S.reconsGain >= 0 ? "+" : "") + S.reconsGain + " nodes" : "\u2014"));
+  _set("brain-drive", d || (S.driveFinal != null ? S.driveFinal.toFixed(4) + (S.failClosed ? " (fail-closed)" : "") : "\u2014"));
+  _set("brain-inband", d || (S.inBand != null && S.setpointCount != null ? S.inBand + " / " + S.setpointCount : "\u2014"));
+  _set("brain-viab", d || (S.viability != null ? S.viability + " cycles" : "\u2014"));
+  _set("brain-untouched", d || (S.lockedUntouched != null ? (S.lockedUntouched ? "yes (meta-stats only)" : "NO \u2014 alert") : "\u2014"));
+  _set("brain-archive", d || (S.archiveCells != null ? (S.archiveCells + (S.archiveCellsPossible != null ? " / " + S.archiveCellsPossible : "")) : "\u2014"));
+  _set("brain-promos", d || (S.modeledPromotions != null ? (S.modeledPromotions + " (MODELED, not locked-8)") : "\u2014"));
+  _set("brain-gate", d || (S.gateImmutable != null ? (S.gateImmutable ? "yes" : "NO \u2014 alert") : "\u2014"));
+  _set("brain-rollback", d || (S.rollbackRestored != null ? (S.rollbackRestored ? "yes" : "NO \u2014 alert") : "\u2014"));
   if (S.tierCounts) {
     const t = S.tierCounts;
     _set("brain-tiers", "tiers: locked " + (t.locked || 0) + " · semantic " + (t.semantic || 0) +
@@ -370,7 +426,11 @@ function unmount() {
   S.lesion = S.bodyHealth = S.lam2Before = S.lam2After = S.connectedAfter = null;
   S.lockedFrozen = S.plastScore = S.ewcCore = null;
   S.beats = S.chainOk = S.reconsGain = null;
+  S.driveFinal = S.viability = S.inBand = S.setpointCount = null;
+  S.lockedUntouched = S.failClosed = null;
+  S.archiveCells = S.archiveCellsPossible = S.modeledPromotions = null;
+  S.gateImmutable = S.claimPinningOk = S.rollbackRestored = null;
   S.state = "init";
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST, EP_MEM], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_GRAPH, EP_FIRE, EP_REPAIR, EP_PLAST, EP_MEM, EP_VITALS, EP_EVOLVE], mount, unmount };
