@@ -342,5 +342,15 @@
     "path": "/api/a11oy/v1/vqc/run",
     "query": "seed=7&n_qubits=3&layers=2&steps=14",
     "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/aigov",
+    "query": "seed=42",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/fmverif",
+    "query": "",
+    "method": "GET"
   }
 ]
