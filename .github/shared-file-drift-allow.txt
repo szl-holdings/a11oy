@@ -49,3 +49,13 @@ _vendor_blobs.py           # per-app vendored asset blob bundle (different asset
 #     showcase always renders; a11oy serves different routes, so this hardening module
 #     is intentionally app-specific. Reconcile only if both demos adopt one limiter.
 szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
+
+# --- Wave M (DEV 1) a11oy-only LLM-hub feature: first-class sovereign backend.
+#     szl_llm_registry.py now registers the `szl-sovereign-local` own-metal backend
+#     (model tag llama3-szl-finetuned-q4, Ollama, Doctrine-v11 system prompt) that
+#     targets SZL_LOCAL_LLM_URL, routes own-metal-first when reachable, and degrades
+#     to an honest UNAVAILABLE otherwise. a11oy IS the LLM hub for the ecosystem
+#     (killinchu mirrors model-access via /llm/ecosystem-mirror rather than shipping
+#     the hub roster itself), so this backend registration is intentionally a11oy-
+#     specific. Reconcile if/when killinchu adopts the same sovereign backend entry.
+szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sovereign-local); killinchu mirrors via /llm/ecosystem-mirror
