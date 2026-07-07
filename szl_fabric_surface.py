@@ -32,6 +32,11 @@ what the sources truly say:
   GET /api/a11oy/v1/autoreview/status — honest summary over the real autoreview
                                         substance (calibration MEASURED, dial,
                                         block-rate ROADMAP until real runs land).
+  GET|POST /api/a11oy/v1/fabric/topology — MODELED compute-fabric topology/throughput
+                                        model over the HORIZONTAL fabric (Amdahl/
+                                        Gustafson/USL/Little, cited). Node COUNT is
+                                        LIVE when the compute-pool is reachable; the
+                                        throughput is MODELED, never a metered read.
 
 HONESTY (doctrine v11)
 ----------------------
@@ -101,6 +106,22 @@ _HONESTY = {
     "orbital": "ROADMAP",
     "fabricated_data": False,
     "key_committed": False,
+}
+
+# Cited scalability models for the MODELED fabric topology/throughput endpoint. These
+# are the classical laws we EVALUATE deterministically; none is reclaimed as an SZL
+# discovery. Our fabric is HORIZONTAL (independent nodes, embarrassingly-parallel jobs),
+# so serial fraction + coordination cost are what bound aggregate throughput — never a
+# fused-VRAM claim.
+_TOPOLOGY_CITATIONS = {
+    "Amdahl's Law (speedup bound, serial fraction)":
+        "https://dl.acm.org/doi/10.1145/1465482.1465560",
+    "Gustafson's Law (scaled speedup)":
+        "https://dl.acm.org/doi/10.1145/42411.42415",
+    "Universal Scalability Law (Gunther — contention + coherency)":
+        "https://arxiv.org/abs/0808.1431",
+    "Little's Law (throughput = concurrency / latency)":
+        "https://www.jstor.org/stable/167570",
 }
 
 
@@ -396,6 +417,195 @@ def _autoreview_summary() -> dict:
     return _gov(payload, status=status)
 
 
+# ---------------------------------------------------------------------------
+# Fabric TOPOLOGY / THROUGHPUT — MODELED compute-fabric scalability model.
+#
+# HONEST: this is a MODELED envelope, NOT a live meter. It evaluates the classical
+# scalability laws (Amdahl, Gustafson, Universal Scalability Law, Little) over a
+# HORIZONTAL fabric of N independent nodes to bound aggregate throughput and
+# efficiency. Node COUNT is passed through from the live compute-pool when it is
+# reachable this sweep (cited as its real source); otherwise a documented default
+# node set is used and clearly labelled MODELED. There is NO fused/pooled VRAM claim
+# anywhere — nodes are independent; per-node capacity is never summed into one device.
+# Pure stdlib (no numpy needed). Every number carries its provenance.
+# ---------------------------------------------------------------------------
+# Documented default per-node service rate (jobs/sec) used ONLY when the live pool is
+# unreachable this sweep. These are MODELED design points, not measured meter reads.
+_MODELED_NODE_CLASSES = {
+    "sovereign-gpu": {"per_node_jobs_per_s": 8.0, "note": "sovereign RTX-class GPU node (MODELED design point)"},
+    "cpu":           {"per_node_jobs_per_s": 1.5, "note": "CPU worker node (MODELED design point)"},
+    "hosted-inference": {"per_node_jobs_per_s": 12.0, "note": "hosted inference endpoint (MODELED design point)"},
+}
+_DEFAULT_TOPOLOGY_NODES = [
+    {"kind": "cpu", "count": 3},
+    {"kind": "sovereign-gpu", "count": 2},
+    {"kind": "hosted-inference", "count": 2},
+]
+
+
+def amdahl_speedup(n: int, serial_fraction: float) -> float:
+    """Amdahl's Law speedup S(n) = 1 / (s + (1-s)/n), s = serial fraction. Bounds the
+    best case at 1/s as n→∞. Cite Amdahl 1967. MODELED."""
+    s = min(max(serial_fraction, 0.0), 1.0)
+    n = max(int(n), 1)
+    return 1.0 / (s + (1.0 - s) / n)
+
+
+def gustafson_speedup(n: int, serial_fraction: float) -> float:
+    """Gustafson's scaled speedup S(n) = n - s(n-1). Cite Gustafson 1988. MODELED."""
+    s = min(max(serial_fraction, 0.0), 1.0)
+    n = max(int(n), 1)
+    return n - s * (n - 1)
+
+
+def usl_capacity(n: int, sigma: float, kappa: float) -> float:
+    """Universal Scalability Law relative capacity
+        C(n) = n / (1 + σ(n-1) + κ n(n-1))
+    σ = contention (serialization), κ = coherency (cross-talk) penalty. Unlike Amdahl,
+    the USL captures RETROGRADE scaling (C can peak then fall). Cite Gunther. MODELED."""
+    n = max(int(n), 1)
+    sig = max(sigma, 0.0)
+    kap = max(kappa, 0.0)
+    return n / (1.0 + sig * (n - 1) + kap * n * (n - 1))
+
+
+def _fabric_topology(params: Optional[dict] = None) -> dict:
+    """MODELED compute-fabric topology + throughput model over a HORIZONTAL fabric of N
+    independent nodes. Evaluates Amdahl/Gustafson/USL scalability + a Little's-Law
+    aggregate throughput bound. Node inventory is PASSED THROUGH from the live
+    compute-pool when reachable (cited), else a documented MODELED default set. NO fused/
+    pooled VRAM is ever claimed — nodes are independent. Every value carries provenance."""
+    p = dict(params or {})
+
+    def _f(key: str, default: float) -> float:
+        try:
+            return float(p.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    # --- node inventory: prefer the LIVE compute-pool, else a documented MODELED set ---
+    pool = _self_get(_COMPUTE_POOL_PATH, timeout=_COMPUTE_POOL_TIMEOUT)
+    pool_ok = isinstance(pool, dict) and "nodes" in pool
+    node_groups: dict[str, int] = {}
+    node_source = "MODELED-default"
+    if pool_ok:
+        for nd in (pool.get("nodes") or []):
+            # HORIZONTAL: count only REACHABLE independent nodes into the working fabric.
+            if nd.get("reachable"):
+                kind = str(nd.get("kind") or "cpu")
+                node_groups[kind] = node_groups.get(kind, 0) + 1
+        if node_groups:
+            node_source = "LIVE compute-pool (reachable nodes, passed through)"
+    if not node_groups:
+        for grp in _DEFAULT_TOPOLOGY_NODES:
+            node_groups[str(grp["kind"])] = int(grp["count"])
+        node_source = "MODELED-default (compute-pool unreachable this sweep)"
+
+    # --- per-node MODELED service rate + aggregate ideal (embarrassingly-parallel) ---
+    per_class = []
+    n_total = 0
+    ideal_jobs_per_s = 0.0
+    for kind, count in sorted(node_groups.items()):
+        rate = _MODELED_NODE_CLASSES.get(kind, {}).get("per_node_jobs_per_s", 1.0)
+        n_total += int(count)
+        ideal_jobs_per_s += rate * int(count)
+        per_class.append({
+            "kind": kind, "nodes": int(count),
+            "per_node_jobs_per_s": rate,
+            "class_ideal_jobs_per_s": round(rate * int(count), 4),
+            "per_node_label": "MODELED",
+            "note": _MODELED_NODE_CLASSES.get(kind, {}).get("note", "MODELED design point"),
+        })
+    n_total = max(n_total, 1)
+
+    # --- scalability laws over the working fabric ---
+    serial_fraction = min(max(_f("serial_fraction", 0.05), 0.0), 1.0)  # governance/coord overhead
+    sigma = max(_f("usl_sigma", 0.02), 0.0)     # contention (Khipu quorum / receipt serialization)
+    kappa = max(_f("usl_kappa", 0.0005), 0.0)   # coherency cross-talk (advisory consensus chatter)
+    amdahl = amdahl_speedup(n_total, serial_fraction)
+    gustafson = gustafson_speedup(n_total, serial_fraction)
+    usl = usl_capacity(n_total, sigma, kappa)
+    parallel_efficiency = amdahl / n_total  # in (0,1]
+
+    # --- Little's Law aggregate throughput bound (throughput = concurrency / latency) ---
+    # Governed throughput = ideal embarrassingly-parallel rate DERATED by USL efficiency
+    # (USL relative capacity / n) so coordination cost is honestly charged.
+    usl_efficiency = usl / n_total
+    governed_jobs_per_s = ideal_jobs_per_s * usl_efficiency
+    mean_latency_s = _f("mean_job_latency_s", 0.35)
+    # Little's Law: L = λW  →  in-flight concurrency at the governed throughput.
+    concurrency_in_flight = governed_jobs_per_s * mean_latency_s
+
+    payload = {
+        "ok": True,
+        "service": "fabric-topology",
+        "surface_names": ["Fabric", "Tawantin"],
+        "organ": _FABRIC_NAME,
+        "label": "MODELED",
+        "data_label": "MODELED — scalability/throughput model over the fabric topology; "
+                      "NOT a live meter. Node COUNT is live when the pool is reachable.",
+        "kind": "Governed Distributed Compute Fabric — HORIZONTAL topology/throughput MODEL",
+        "topology": {
+            "scale_model": "HORIZONTAL — independent nodes; NO fused/pooled VRAM is ever claimed",
+            "nodes_total": n_total,
+            "node_source": node_source,
+            "per_class": per_class,
+        },
+        "scalability": {
+            "serial_fraction": round(serial_fraction, 6),
+            "amdahl_speedup": round(amdahl, 4),
+            "amdahl_ceiling": round(1.0 / max(serial_fraction, 1e-9), 4),
+            "gustafson_scaled_speedup": round(gustafson, 4),
+            "usl_relative_capacity": round(usl, 4),
+            "usl_sigma_contention": round(sigma, 6),
+            "usl_kappa_coherency": round(kappa, 6),
+            "parallel_efficiency": round(parallel_efficiency, 6),
+            "usl_efficiency": round(usl_efficiency, 6),
+        },
+        "throughput": {
+            "ideal_jobs_per_s": round(ideal_jobs_per_s, 4),
+            "ideal_label": "MODELED (embarrassingly-parallel upper bound; no coordination cost)",
+            "governed_jobs_per_s": round(governed_jobs_per_s, 4),
+            "governed_label": "MODELED (ideal derated by USL efficiency — honest coordination cost)",
+            "mean_job_latency_s": round(mean_latency_s, 4),
+            "concurrency_in_flight": round(concurrency_in_flight, 4),
+            "littles_law": "L = λW — in-flight concurrency = throughput × mean latency",
+        },
+        "inputs": {
+            "serial_fraction": serial_fraction, "usl_sigma": sigma, "usl_kappa": kappa,
+            "mean_job_latency_s": mean_latency_s,
+            "note": "MODELED design inputs (governance/coordination overhead); "
+                    "override via POST {params:{...}}. Node COUNT is live when reachable.",
+        },
+        "provenance": {
+            "node_inventory": {"path": _COMPUTE_POOL_PATH, "reachable": pool_ok,
+                               "note": "node identity/reachability (LIVE when reachable)"},
+            "scalability_laws": _TOPOLOGY_CITATIONS,
+            "note": "Classical scalability laws EVALUATED deterministically; none is "
+                    "reclaimed as an SZL discovery. Throughput is MODELED, not metered.",
+        },
+        "honesty": dict(_HONESTY, **{
+            "modeled_not_measured": "This endpoint MODELS aggregate throughput from a "
+                                    "scalability law; it does NOT meter joules or jobs. "
+                                    "For MEASURED joules see the energy operator; this "
+                                    "surface never presents a model output as a meter read.",
+            "scale": "HORIZONTAL scale only — independent nodes. There is NO fused/pooled "
+                     "VRAM claim anywhere in this fabric.",
+            "coordination_cost": "Governed throughput is the ideal parallel rate DERATED by "
+                                 "the USL efficiency, so contention + coherency cost is "
+                                 "honestly charged — we never quote the naive linear sum.",
+        }),
+        "locked_proven": {
+            "set": _LOCKED_PROVEN, "count": len(_LOCKED_PROVEN),
+            "kernel_commit": _KERNEL_COMMIT,
+            "note": "EXACTLY 8 locked-proven; this model adds nothing to the set.",
+        },
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    status = "REAL" if pool_ok else "DEGRADED"
+    return _gov(payload, status=status)
+
+
 def _healthz(service: str, organ: str) -> dict:
     return {"status": "ok", "service": service, "organ": organ, "doctrine": "v11"}
 
@@ -420,6 +630,21 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _h_autoreview_status():  # noqa: ANN202
         return JSONResponse(await run_in_threadpool(_autoreview_summary))
 
+    async def _h_fabric_topology():  # noqa: ANN202 — GET; MODELED demo scenario
+        return JSONResponse(await run_in_threadpool(_fabric_topology, None))
+
+    async def _h_fabric_topology_post(request: Request):  # noqa: ANN202 — POST {params}
+        params = None
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                params = body.get("params", body)
+        except Exception:  # noqa: BLE001 — empty/invalid body => MODELED demo scenario
+            params = None
+        payload = await run_in_threadpool(
+            _fabric_topology, params if isinstance(params, dict) else None)
+        return JSONResponse(payload)
+
     async def _h_tawantin_healthz():  # noqa: ANN202
         return JSONResponse(_healthz("tawantin", _FABRIC_NAME))
 
@@ -438,9 +663,22 @@ def register(app, ns: str = "a11oy") -> dict:
                           methods=["GET"], include_in_schema=True)
         app.add_api_route(f"{base}/autoreview/status", _h_autoreview_status,
                           methods=["GET"], include_in_schema=True)
+        # MODELED topology/throughput endpoint (GET drives the poller; POST overrides).
+        app.add_api_route(f"{base}/fabric/topology", _h_fabric_topology,
+                          methods=["GET"], include_in_schema=True)
+        # POST /fabric/topology takes a raw Request; the module-level `from fastapi import
+        # Request` makes `request: Request` resolvable so add_api_route does NOT misread it
+        # as a query param (fastapi 0.137.2 gotcha). Register via the Starlette router
+        # (no FastAPI signature analysis => version-proof), add_api_route as fallback.
+        try:
+            app.router.add_route(f"{base}/fabric/topology", _h_fabric_topology_post,
+                                 methods=["POST"])
+        except Exception:  # noqa: BLE001 — fall back to the FastAPI route registrar
+            app.add_api_route(f"{base}/fabric/topology", _h_fabric_topology_post,
+                              methods=["POST"])
         routes.extend([f"{base}/tawantin/status", f"{base}/tawantin/healthz",
                        f"{base}/fabric/status", f"{base}/fabric/healthz",
-                       f"{base}/autoreview/status"])
+                       f"{base}/autoreview/status", f"{base}/fabric/topology"])
 
     print(f"[{ns}] szl_fabric_surface routes registered "
           f"(Fabric/Tawantin + Auto-review honest summaries, {len(routes)} routes)",
@@ -539,6 +777,33 @@ def _selftest() -> dict:
     # No POSITIVE fused-VRAM claim (e.g. 'fused vram', 'pooled vram' without 'no').
     assert "fused vram" not in served, "positive fused-VRAM claim leaked"
     out["no_codename_no_fused_vram"] = True
+
+    # --- MODELED topology/throughput model (no live pool this sweep -> MODELED-default) ---
+    with mock.patch(__name__ + "._self_get", side_effect=lambda p, timeout=None: None):
+        topo = _fabric_topology(None)
+    assert topo["label"] == "MODELED", topo
+    assert topo["status"] == "DEGRADED", topo  # pool unreachable => honest DEGRADED envelope
+    assert topo["topology"]["nodes_total"] == 7, topo  # 3 cpu + 2 gpu + 2 hosted (default set)
+    # Amdahl is bounded by 1/s; USL efficiency in (0,1]; governed <= ideal (coordination cost).
+    assert topo["scalability"]["amdahl_speedup"] <= topo["scalability"]["amdahl_ceiling"] + 1e-6, topo
+    assert 0.0 < topo["scalability"]["usl_efficiency"] <= 1.0, topo
+    assert topo["throughput"]["governed_jobs_per_s"] <= topo["throughput"]["ideal_jobs_per_s"] + 1e-6, topo
+    # no positive fused-VRAM claim; horizontal-only asserted.
+    topo_txt = json.dumps(topo).lower()
+    assert "fused vram" not in topo_txt and "horizontal" in topo_txt, topo
+    assert topo["provenance"]["scalability_laws"], topo  # cited inputs present
+    # closed-form spot checks of the laws.
+    assert abs(amdahl_speedup(1, 0.05) - 1.0) < 1e-9
+    assert abs(usl_capacity(1, 0.02, 0.0005) - 1.0) < 1e-9
+    assert gustafson_speedup(4, 0.05) > amdahl_speedup(4, 0.05)  # scaled >= fixed-size
+    # live pool passthrough: node COUNT comes from the reachable pool nodes.
+    with mock.patch(__name__ + "._self_get", side_effect=_route):
+        topo_live = _fabric_topology(None)
+    assert topo_live["status"] == "REAL", topo_live
+    assert "LIVE compute-pool" in topo_live["topology"]["node_source"], topo_live
+    # fake_pool has 2 reachable nodes (hetzner-box-cpu + groq).
+    assert topo_live["topology"]["nodes_total"] == 2, topo_live
+    out["modeled_topology_throughput"] = True
 
     return out
 

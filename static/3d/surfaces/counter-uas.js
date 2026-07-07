@@ -40,8 +40,20 @@ const EP = {
   cued:       "/api/a11oy/v1/counter-uas/cued-tracks",
   airpicture: "/api/a11oy/v1/counter-uas/air-picture",
   gates:      "/api/a11oy/v1/counter-uas/gates",
+  // Governed in-request MODELED compute: evaluates the C-UAS formula stack + the
+  // Λ-ROE advisory gate (Conjecture 1, gray never green; effector SIMULATED). This
+  // is the surface's honest runtime-default label source (szl_cuas_formulas.py).
+  compute:    "/api/a11oy/v1/counter-uas/compute",
   dronesDb:   "/static/3d/surfaces/data/drones_db.json",
 };
+
+// Honest surface state. The headline label is READ VERBATIM from the live compute
+// endpoint and defaults to MODELED (the governed compute is a deterministic model of
+// the C-UAS formulas — no live sensor/effector on the demo floor). Λ-ROE is Conjecture
+// 1 and renders GRAY, never green. Never fabricated; never upgraded past what the
+// endpoint declares.
+const S = { label: null, compute: null, roe: null };
+const LAMBDA_GRAY = 0x9aa7b0;   // Λ = Conjecture 1 → GRAY (never green). Doctrine v11.
 
 // Globe radius (world units) + altitude scale (alt_m -> world units above surface).
 const R = 3.0;
@@ -64,7 +76,7 @@ let _disposables = [];
 // Live caches (honest: empty until a real fetch lands).
 let _state = {
   evaluate: null, telemetry: null, cued: null, airpicture: null, gates: null, db: null,
-  meta: {}, dbCount: 0,
+  compute: null, meta: {}, dbCount: 0,
 };
 
 // ── geo helpers ────────────────────────────────────────────────────────────
@@ -221,6 +233,7 @@ let _dsseLock = null;         // DSSE signature lock animation node
 let _fingerprintCallout = null;
 let _restrictedZones = null;  // restricted-airspace SDF volumes
 let _ridPanel = null, _gatesPanel = null, _verdictPanel = null, _posturePanel = null, _fpPanel = null;
+let _computePanel = null;   // governed MODELED compute + Λ-ROE advisory gate (gray)
 let _beamPhase = 0, _lockPhase = 0;
 
 function rebuildTracks() {
@@ -377,6 +390,10 @@ function buildOverlay() {
   _verdictPanel = card("Λ-Gate Verdict · senses-and-evidences");
   _overlay.appendChild(_verdictPanel);
 
+  // Governed MODELED compute + Λ-ROE advisory gate (Conjecture 1, gray never green).
+  _computePanel = card("Governed compute · Λ-ROE (Conjecture 1)");
+  _overlay.appendChild(_computePanel);
+
   // D15: DSSE signature panel (real ECDSA-P256)
   _fpPanel = null;
   _ridPanel = card("Remote-ID / RID Validator");
@@ -422,6 +439,52 @@ function renderVerdict() {
     const ci = row("CI sign", ev.signature.indexOf("PLACEHOLDER") >= 0 ? "PLACEHOLDER" : "wired", "STRUCTURAL-ONLY");
     _verdictPanel.appendChild(ci);
   }
+}
+
+// Governed MODELED compute + Λ-ROE advisory gate. The headline label is read VERBATIM
+// from the endpoint (defaults MODELED). Λ-ROE is Conjecture 1 — its chip is ALWAYS the
+// gray Conjecture token, NEVER green; the effector is SIMULATED, human-on-loop. We honor
+// the endpoint's explicit render contract (render_green must be false).
+function renderCompute() {
+  if (!_computePanel) return;
+  clearCard(_computePanel);
+  const j = _state.compute;
+  // Runtime-default honesty label, read verbatim from the live compute endpoint. This
+  // is the census single-source-of-truth (a11oy_frontier_page._derive_label): the
+  // headline label is `(endpoint.label || "MODELED")`, never upgraded past what the
+  // endpoint declares. Λ-ROE stays Conjecture 1 (gray) regardless.
+  const jl = j && j.label;
+  S.label = (jl || "MODELED").toUpperCase();
+  if (!j || j.degraded || j.ok === false) {
+    _computePanel.appendChild(row("compute", j && j.degraded ? "DEGRADED" : "—", S.label));
+    // Λ-ROE remains Conjecture 1 (gray) even when the compute is unavailable.
+    _computePanel.appendChild(row("Λ-ROE", "Conjecture 1 · advisory", "MODELED"));
+    return;
+  }
+  const roe = j.lambda_roe_gate || {};
+  S.roe = roe;
+  _computePanel.appendChild(row("data", String(j.data_label || "MODELED"), S.label));
+  const eng = (j.results && j.results.engageability) || {};
+  if (eng.feasible != null) {
+    _computePanel.appendChild(row("engageability", eng.feasible ? "feasible" : "infeasible",
+      eng.effector === "SIMULATED" ? "SIMULATED" : "MODELED"));
+  }
+  const cons = (j.results && j.results.consensus) || {};
+  if (cons.lambda2 != null) _computePanel.appendChild(row("consensus λ₂", String(cons.lambda2)));
+  // Λ-ROE gate row — ALWAYS the gray Conjecture chip, NEVER green. Doctrine v11.
+  const posture = roe.posture || "advisory";
+  const roeRow = row("Λ-ROE", String(posture), "MODELED");
+  // Force the Λ posture pill gray (Conjecture 1) regardless of sub-gate pass state.
+  const pill = document.createElement("span");
+  pill.textContent = "Conjecture 1 · gray";
+  pill.style.cssText = "margin-left:6px;padding:1px 6px;border-radius:6px;font:10px ui-monospace,monospace;" +
+    "color:#0d1117;background:#9aa7b0;";   // gray (#9aa7b0) — NEVER green
+  roeRow.appendChild(pill);
+  _computePanel.appendChild(roeRow);
+  _computePanel.appendChild(row("authorization", String(roe.authorization || "advisory") +
+    " · " + String(roe.control_mode || "human_on_loop")));
+  _computePanel.appendChild(row("effector", String(roe.effector || "SIMULATED"), "SIMULATED"));
+  _computePanel.appendChild(row("autonomous engage", roe.autonomous_engage ? "YES" : "NO — never"));
 }
 
 function renderRid() {
@@ -517,13 +580,13 @@ function mount(ctx) {
 
   // floating honesty billboard
   try {
-    const bb = ctx.label.billboard(THREE, "STRUCTURAL-ONLY", { text: "senses · evidences · NOT defeats", scale: 0.42, position: [0, R + 2.0, 0] });
+    const bb = ctx.label.billboard(THREE, "MODELED", { text: "senses · evidences · NOT defeats · Λ-ROE Conjecture 1", scale: 0.42, position: [0, R + 2.0, 0] });
     _group.add(bb);
     _track(() => { if (bb.material.map) bb.material.map.dispose(); bb.material.dispose(); });
   } catch (_) {}
 
   const badge = buildOverlay();
-  renderPosture(); renderVerdict(); renderRid(); renderGates(); renderFingerprint();
+  renderPosture(); renderVerdict(); renderCompute(); renderRid(); renderGates(); renderFingerprint();
 
   // per-frame animation (rotate the estate slowly + run demo updaters). The shell's
   // Stage has no offFrame(), so we self-guard: once unmounted, _group is null and the
@@ -561,6 +624,10 @@ function mount(ctx) {
   _handles.push(ctx.live.poll(EP.gates, 30000, (json) => {
     _state.gates = json; renderGates();
   }));
+  // Governed MODELED compute + Λ-ROE advisory gate (Conjecture 1, gray never green).
+  _handles.push(ctx.live.poll(EP.compute, 8000, (json) => {
+    _state.compute = json; renderCompute();
+  }));
   // 53-fingerprint DB (static vendored; fetched once)
   fetch(EP.dronesDb, { headers: { accept: "application/json" } })
     .then((r) => r.ok ? r.json() : null)
@@ -581,7 +648,8 @@ function unmount() {
   try { if (_group && _stage) _stage.scene.remove(_group); } catch (_) {}
   _overlay = _show = null; _group = null; _globe = null; _trackGroup = null;
   _verdictBeam = null; _dsseLock = null; _stage = null; THREE = null; _ctx = null;
-  _state = { evaluate: null, telemetry: null, cued: null, airpicture: null, gates: null, db: null, meta: {}, dbCount: 0 };
+  _computePanel = null; S.label = null; S.compute = null; S.roe = null;
+  _state = { evaluate: null, telemetry: null, cued: null, airpicture: null, gates: null, db: null, compute: null, meta: {}, dbCount: 0 };
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP.evaluate, EP.telemetry, EP.cued, EP.airpicture, EP.gates], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP.evaluate, EP.telemetry, EP.cued, EP.airpicture, EP.gates, EP.compute], mount, unmount };

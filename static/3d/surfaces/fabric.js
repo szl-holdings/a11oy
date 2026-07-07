@@ -33,6 +33,18 @@ import { createShowcase } from "./_showcase.js";
 const ID = "fabric";
 const TITLE = "Compute Fabric";
 const ENDPOINT = "/api/a11oy/v1/compute-pool-hardened";
+// MODELED compute-fabric topology/throughput model (szl_fabric_surface.py). Evaluates
+// the classical scalability laws (Amdahl/Gustafson/USL/Little) over the HORIZONTAL
+// fabric. Node COUNT is live when the pool is reachable; the THROUGHPUT is MODELED
+// (never a metered read) and carries cited inputs + provenance. This is the surface's
+// honest runtime-default census label source.
+const TOPOLOGY_EP = "/api/a11oy/v1/fabric/topology";
+
+// Honest surface state. The headline label is READ VERBATIM from the topology endpoint
+// and defaults to MODELED (the topology/throughput is a MODELED scalability model of the
+// fabric — the reach counts remain MEASURED, labelled separately). Never fabricated;
+// never upgraded past what the endpoint declares.
+const S = { label: null, topo: null };
 
 // Doctrine palette (matches the shell CSS vars).
 const C = {
@@ -48,7 +60,7 @@ const C = {
 };
 
 let _ctx = null, _stage = null, _THREE = null;
-let _handle = null, _overlay = null, _panel = null, _detailChip = null, _show = null;
+let _handle = null, _topoHandle = null, _overlay = null, _panel = null, _detailChip = null, _show = null;
 let _root = null;          // group holding the whole mesh (rotates slowly)
 let _nodeMeshes = [];      // [{ data, group, core, ring, glow, orbit[], labelSprite, basePos }]
 let _edges = [];           // [{ line, a, b, hot }]
@@ -137,9 +149,10 @@ function _buildOverlay() {
   // The counts rows fold into the (collapsed) body so the 3D node mesh stays the star.
   _show = createShowcase(_ctx, {
     id: ID, title: TITLE, accent: "#5b8dee", badge,
-    legend: ["LIVE", "MEASURED", "STRUCTURAL-ONLY"],
+    legend: ["LIVE", "MEASURED", "MODELED", "STRUCTURAL-ONLY"],
     description: "reachable = REAL TCP probe this sweep · sovereign = owned-hardware " +
-      "property, never inferred · topology is STRUCTURAL-ONLY (no measured NVLink bytes).",
+      "property, never inferred · throughput is a MODELED scalability model (Amdahl/" +
+      "Gustafson/USL/Little, cited) · the node mesh is STRUCTURAL-ONLY (no measured NVLink bytes).",
     plain: { html: _plainHtml },
   });
 
@@ -159,6 +172,8 @@ function _buildOverlay() {
   card.appendChild(_row("sovereign GPU live", "v_sov"));
   card.appendChild(_row("secondary lung", "v_chaski"));
   card.appendChild(_row("reach probe", "v_label"));
+  card.appendChild(_row("governed throughput", "v_tput"));
+  card.appendChild(_row("topology model", "v_topo"));
   ov.appendChild(card);
 
   _show.body.appendChild(ov);
@@ -548,6 +563,31 @@ function _updateHud(json, meta) {
 }
 
 // ----------------------------------------------------------------------------
+// MODELED topology / throughput handler. Sets the surface's runtime-default honesty
+// label VERBATIM from the endpoint (defaults MODELED — the census single-source-of-
+// truth, a11oy_frontier_page._derive_label). The throughput is MODELED, NOT a metered
+// read; the reach counts stay MEASURED (labelled separately). HORIZONTAL scale only —
+// no fused/pooled VRAM claim.
+// ----------------------------------------------------------------------------
+function _onTopology(j) {
+  S.topo = j;
+  // Runtime-default census label, read verbatim (never upgraded past what it declares).
+  const jl = j && j.label;
+  S.label = (jl || "MODELED").toUpperCase();
+  const tput = j && j.throughput;
+  if (_hud.v_tput) {
+    _hud.v_tput.textContent = (tput && tput.governed_jobs_per_s != null)
+      ? (tput.governed_jobs_per_s + " jobs/s") : "—";
+    _hud.v_tput.style.color = C.para;   // MODELED figure — neutral, never a MEASURED green
+  }
+  if (_hud.v_topo) {
+    const n = j && j.topology && j.topology.nodes_total;
+    _hud.v_topo.textContent = (n != null ? (n + " nodes · ") : "") + S.label;
+    _hud.v_topo.style.color = C.para;
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Degraded / missing handling
 // ----------------------------------------------------------------------------
 function _showDegraded(meta) {
@@ -693,11 +733,16 @@ function mount(ctx) {
     }
   }, { badge: built.badge, onState: (meta) => { if (meta.state !== "live" && meta.state !== "degraded") _showDegraded(meta); } });
 
+  // MODELED topology/throughput poll (sets the honest runtime-default census label).
+  _topoHandle = ctx.live.poll(TOPOLOGY_EP, 9000, (json) => { _onTopology(json); });
+
   return { id: ID, started: true };
 }
 
 function unmount() {
   try { if (_handle) _handle.stop(); } catch (_) {}
+  try { if (_topoHandle) _topoHandle.stop(); } catch (_) {}
+  _topoHandle = null; S.label = null; S.topo = null;
   try {
     if (_domEl) {
       if (_onClick) _domEl.removeEventListener("click", _onClick);
@@ -716,4 +761,4 @@ function unmount() {
   _ctx = null; _stage = null; _THREE = null; _lastJson = null; _selected = null;
 }
 
-export default { id: ID, title: TITLE, endpoints: [ENDPOINT], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [ENDPOINT, TOPOLOGY_EP], mount, unmount };

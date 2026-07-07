@@ -26,6 +26,8 @@ Inspirations (cited, NOT reclaimed):
 
 Register:  register(app, ns="killinchu")  /  register(app, ns="a11oy")
 Routes:    GET /api/<ns>/v1/cuas/{summary,engage,plausibility,fusion,consensus,wta,pqbus}
+           GET|POST /api/<ns>/v1/cuas/compute  (governed in-request MODELED eval +
+               Λ-ROE advisory gate: Conjecture 1, gray never green, effector SIMULATED)
 """
 from __future__ import annotations
 import math
@@ -565,6 +567,148 @@ def szl_6dof_step(state: dict[str, float] | None = None, tau: list[float] | None
     }
 
 
+# ---------------------------------------------------------------------------
+# Λ-ROE GATE — Rules-of-Engagement gate over the fused C-UAS picture.
+#
+# DOCTRINE (non-negotiable): Λ is Conjecture 1, NEVER a proven theorem, so its
+# render color is ALWAYS gray and it is NEVER green. The gate ADVISES a human
+# operator; it NEVER authorizes an autonomous engage. Even when every sub-gate
+# passes, the returned authorization is "advisory" and "human_on_loop" — the
+# effector stays SIMULATED and a live actuation requires a human decision that
+# this code does not and cannot make. This function only COMPOSES the honest
+# sub-verdicts (engageability feasibility, GNSS plausibility, fusion confidence,
+# swarm consensus λ₂) into an advisory posture with an explicit gray render hint.
+# ---------------------------------------------------------------------------
+def szl_roe_gate(engage: dict[str, Any], plausibility: dict[str, Any],
+                 fusion: dict[str, Any], consensus: dict[str, Any],
+                 conf_floor: float = 0.5) -> dict[str, Any]:
+    """SZL Λ-ROE (rules-of-engagement) advisory gate. Composes the sub-verdicts into
+    an advisory ROE posture. Λ is Conjecture 1 (NOT a theorem): render_color is ALWAYS
+    'gray', render_green is ALWAYS False, and authorization is ALWAYS advisory /
+    human-on-loop — this NEVER authorizes an autonomous engage. [SIMULATED · Conjecture 1]"""
+    feasible = bool(engage.get("feasible"))
+    gnss_ok = not bool(plausibility.get("spoof_suspected"))
+    conf = float(fusion.get("confidence") or 0.0)
+    conf_ok = conf >= conf_floor
+    quorum = bool(consensus.get("connected_quorum"))
+    subgates = {
+        "engageability_feasible": feasible,
+        "gnss_plausible": gnss_ok,
+        "fusion_confidence_ok": conf_ok,
+        "swarm_quorum_coherent": quorum,
+    }
+    all_pass = all(subgates.values())
+    # Advisory posture — NEVER an autonomous "engage". Best case is "advise human review".
+    posture = "advise-operator-review" if all_pass else "hold — sub-gate(s) not satisfied"
+    return {
+        "gate": "Λ-ROE (rules-of-engagement)",
+        "kind": "Conjecture 1",
+        "is_theorem": False,
+        "subgates": subgates,
+        "subgates_all_pass": all_pass,
+        "authorization": "advisory",          # NEVER "authorized"; NEVER autonomous
+        "control_mode": "human_on_loop",
+        "autonomous_engage": False,
+        "effector": "SIMULATED",
+        "posture": posture,
+        # Explicit render contract for the surface: Λ is Conjecture 1 → gray, never green.
+        "render_color": "gray",
+        "render_green": False,
+        "render_hint": "Λ = Conjecture 1 (advisory) — render GRAY, never green",
+        "note": "Λ-ROE advises a human operator; it never authorizes an autonomous "
+                "engage. Effector SIMULATED. Trust never 100%.",
+        "status": "SIMULATED",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Governed compute endpoint — evaluate the C-UAS formulas IN-REQUEST and return
+# the results with provenance (cited inputs), the Λ-ROE advisory gate (Conjecture
+# 1, gray, never green), and a SIMULATED effector. MODELED: deterministic model
+# outputs on the demo floor, no live sensor/effector. Pure stdlib (+ optional numpy).
+# ---------------------------------------------------------------------------
+_DEFAULT_CONSENSUS_ADJ = [[0, 1, 0], [1, 0, 1], [0, 1, 0]]
+
+
+def szl_cuas_compute(params: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Evaluate the counter-UAS formula stack in-request and return a governed MODELED
+    envelope: engageability feasibility (F-α, SIMULATED effector), GNSS plausibility
+    (F-β), track-fusion confidence (F-γ), swarm-consensus λ₂ (F-δ), a WTA triage PLAN
+    (F-ε, SIMULATED), and the composed Λ-ROE advisory gate (Conjecture 1, gray, never
+    green, human-on-loop). Every value carries a cited source; no value is fabricated.
+    Inputs default to a documented demo scenario and may be overridden via `params`.
+    MODELED — deterministic model output; effector SIMULATED, never autonomous. [MODELED]"""
+    p = dict(params or {})
+
+    def _f(key: str, default: float) -> float:
+        try:
+            return float(p.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    # --- F-α engageability (PN feasibility solver; effector SIMULATED) ---
+    engage = szl_engageability(
+        N=_f("N", 3.5), Vc=_f("Vc", 300.0), los_rate=_f("los_rate", 0.02),
+        t_go=_f("t_go", 4.0), a_max=_f("a_max", 200.0), a_T=_f("a_T", 0.0))
+    # --- F-β GNSS plausibility (innovation chi-square spoof detector) ---
+    innov = p.get("innovation") if isinstance(p.get("innovation"), list) else [1.0, 1.0, 1.0]
+    s_diag = p.get("S_diag") if isinstance(p.get("S_diag"), list) else [0.1, 0.1, 0.1]
+    plaus = szl_plausibility([float(x) for x in innov], [float(x) for x in s_diag],
+                             threshold=_f("chi2_threshold", 33.1))
+    # --- F-γ track-fusion confidence (covariance intersection) ---
+    fusion = szl_fusion(_f("var_a", 2.0), _f("var_b", 3.0), _f("omega", 0.5))
+    # --- F-δ swarm-consensus Λ (urgency-weighted Laplacian; Λ = Conjecture 1) ---
+    adj = p.get("adjacency") if isinstance(p.get("adjacency"), list) else _DEFAULT_CONSENSUS_ADJ
+    cons = szl_consensus([[float(w) for w in row] for row in adj],
+                         min_tti=_f("min_tti", 5.0), gamma=_f("gamma", 1.0))
+    # --- F-ε WTA triage PLAN (effector SIMULATED, never fires) ---
+    threats = p.get("threats") if isinstance(p.get("threats"), list) else [
+        {"id": "T1", "base_value": 5, "tti": 2},
+        {"id": "T2", "base_value": 3, "tti": 1},
+        {"id": "T3", "base_value": 8, "tti": 4}]
+    wta = szl_wta(threats, int(_f("n_interceptors", 3)), p_kill=_f("p_kill", 0.7))
+    # --- Λ-ROE advisory gate over the fused picture (Conjecture 1, gray, never green) ---
+    roe = szl_roe_gate(engage, plaus, fusion, cons, conf_floor=_f("conf_floor", 0.5))
+
+    return {
+        "ok": True,
+        "service": "counter-uas",
+        "organ": "SZL Counter-UAS C2 governed compute",
+        "label": "MODELED",
+        "data_label": "MODELED — deterministic in-request formula evaluation; "
+                      "no live sensor/effector on the demo floor",
+        "posture": "SENSES & EVIDENCES — computes feasibility/plans; NEVER defeats, "
+                   "NEVER autonomously engages",
+        "results": {
+            "engageability": engage,
+            "plausibility": plaus,
+            "fusion": fusion,
+            "consensus": cons,
+            "wta_plan": wta,
+        },
+        "lambda_roe_gate": roe,
+        "provenance": {
+            "engageability": "Proportional Navigation (Zarchan; Palumbo JHU APL 2018)",
+            "plausibility": "GNSS innovation chi-square (Joerger PLANS 2014)",
+            "fusion": "Covariance Intersection (Julier & Uhlmann 1997)",
+            "consensus": "Graph-Laplacian consensus (Olfati-Saber 2007; Zelazo 2014)",
+            "wta_plan": "Weapon-Target Assignment (Manne 1958)",
+            "sources": SOURCES,
+            "note": "Each formula is an SZL construct citing its classical inspiration; "
+                    "no classical result is reclaimed as an SZL discovery.",
+        },
+        "doctrine": {
+            "locked_proven": 8, "lambda": "Conjecture 1", "khipu_bft": "Conjecture 2",
+            "effector": "SIMULATED", "autonomous_engage": False,
+            "control_mode": "human_on_loop", "trust": "never 100%",
+            "note": "EXPERIMENTAL-tier compute; adds NOTHING to the locked-8; "
+                    "Λ stays Conjecture 1 (gray, never green).",
+        },
+        "status_legend": STATUS_LEGEND,
+        "status": "MODELED",
+    }
+
+
 def summary(ns: str = "killinchu") -> dict[str, Any]:
     """Headline of all six SZL counter-UAS formulas + honest provenance/legend.
     `ns` names the serving app so the title is accurate on both killinchu and a11oy."""
@@ -661,6 +805,40 @@ def register(app, ns: str) -> None:
             return {"error": {"code": "validation_error", "detail": str(e)}}
     app.add_api_route(f"{base}/dynamics", _sixdof, methods=["GET"])
 
+    # Governed compute: evaluate the C-UAS formula stack in-request and return a
+    # MODELED envelope with provenance + the Λ-ROE advisory gate (Conjecture 1,
+    # gray, never green; effector SIMULATED, human-on-loop). GET drives the poller
+    # with a documented demo scenario; POST accepts a JSON param override body.
+    app.add_api_route(f"{base}/compute", lambda: szl_cuas_compute(None), methods=["GET"])
+
+    # POST /compute takes a raw Request. On fastapi 0.137.2 an un-annotated `request`
+    # param is misread by add_api_route as a required query param (422); the module-
+    # level `import fastapi` lets us annotate `request: fastapi.Request` and register
+    # via app.router.add_route (the Starlette router does no FastAPI signature
+    # analysis, so this is version-proof), with add_api_route as the fallback.
+    import fastapi  # noqa: PLC0415 — local import keeps module import pure/stdlib-first
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    async def _compute_post(request: fastapi.Request):  # noqa: ANN202 — POST; optional {params}
+        params = None
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                params = body.get("params", body)
+        except Exception:  # noqa: BLE001 — empty/invalid body => documented demo scenario
+            params = None
+        try:
+            return JSONResponse(szl_cuas_compute(params if isinstance(params, dict) else None))
+        except Exception as e:  # noqa: BLE001 — never 500 the surface; honest fail-open
+            return JSONResponse({"label": "MODELED", "ok": False,
+                                 "error": {"code": "compute_error", "detail": str(e)[:160]},
+                                 "status": "MODELED"})
+
+    try:
+        app.router.add_route(f"{base}/compute", _compute_post, methods=["POST"])
+    except Exception:  # noqa: BLE001 — fall back to the FastAPI route registrar
+        app.add_api_route(f"{base}/compute", _compute_post, methods=["POST"])
+
 
 def _selftest() -> None:
     # PN: a_cmd = N*Vc*los = 3.5*300*0.02 = 21.0
@@ -727,7 +905,34 @@ def _selftest() -> None:
     # roll torque produces a positive p-dot
     st2 = szl_6dof_step(tau=[0.0, 0.01, 0.0, 0.0])
     assert st2["derivatives"]["dp"] > 0.0 and st2["effector"] == "SIMULATED"
-    print("szl_cuas_formulas: ALL OK (27 checks)")
+    # Λ-ROE gate: Conjecture 1 => ALWAYS gray, NEVER green, NEVER autonomous engage.
+    good = szl_roe_gate(
+        {"feasible": True}, {"spoof_suspected": False},
+        {"confidence": 0.9}, {"connected_quorum": True})
+    assert good["render_color"] == "gray" and good["render_green"] is False
+    assert good["is_theorem"] is False and good["kind"] == "Conjecture 1"
+    assert good["authorization"] == "advisory" and good["autonomous_engage"] is False
+    assert good["control_mode"] == "human_on_loop" and good["effector"] == "SIMULATED"
+    assert good["subgates_all_pass"] is True  # even all-pass never turns green
+    bad = szl_roe_gate(
+        {"feasible": False}, {"spoof_suspected": True},
+        {"confidence": 0.1}, {"connected_quorum": False})
+    assert bad["subgates_all_pass"] is False and bad["render_green"] is False
+    # Governed compute envelope: MODELED, effector SIMULATED, Λ-ROE gray, provenance cited.
+    comp = szl_cuas_compute(None)
+    assert comp["label"] == "MODELED" and comp["status"] == "MODELED"
+    assert comp["lambda_roe_gate"]["render_color"] == "gray"
+    assert comp["lambda_roe_gate"]["render_green"] is False
+    assert comp["doctrine"]["effector"] == "SIMULATED"
+    assert comp["doctrine"]["autonomous_engage"] is False
+    assert comp["results"]["engageability"]["effector"] == "SIMULATED"
+    assert comp["results"]["wta_plan"]["effector"] == "SIMULATED"
+    assert "sources" in comp["provenance"] and comp["provenance"]["sources"]
+    # param override flows through (spoof trips when innovation is large).
+    comp2 = szl_cuas_compute({"innovation": [10, 10, 10], "S_diag": [0.1, 0.1, 0.1]})
+    assert comp2["results"]["plausibility"]["spoof_suspected"] is True
+    assert comp2["lambda_roe_gate"]["subgates"]["gnss_plausible"] is False
+    print("szl_cuas_formulas: ALL OK (35 checks)")
 
 
 if __name__ == "__main__":
