@@ -102,6 +102,7 @@ CITATIONS (clean-room; none claimed as SZL's own; verified to resolve 2026-07-07
 import hashlib
 from datetime import datetime, timezone
 
+from starlette.requests import Request
 from starlette.routing import Route
 from starlette.responses import JSONResponse
 
@@ -363,7 +364,7 @@ def _bool(req, key, default=False):
     return str(v).strip().lower() in ("1", "true", "yes", "on")
 
 
-def _h_edgefusion(req):
+def _h_edgefusion(req: Request):
     seed      = _ii(req, "seed", 42)
     n_tracks  = max(1, min(_ii(req, "n_tracks", 48), 512))
     n_sensors = max(1, min(_ii(req, "n_sensors", 4), len(_SENSOR_BANK)))
