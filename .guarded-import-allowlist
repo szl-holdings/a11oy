@@ -24,6 +24,7 @@ szl_router             # [OPTIONAL-PKG] optional in-Space LLM router; absence =>
 szl_agent_loop_banach  # [OPTIONAL-PKG] optional Banach fixed-point accelerator for the agent loop; absence => the loop uses its plain iteration path.
 szl_connectors         # [OPTIONAL-PKG] optional connector base (http_json); absence => a11oy_markets.py falls back to a local urllib implementation.
 szl_kc_onebit          # [OPTIONAL-PKG] canonical onebit joule-meter reader (read_live_meter); szl_kc_jpt.py prefers it when importable, else falls through to its OWN raw urllib parse — the feature stays live either way. Never existed as a repo file; the guarded import is the correct "prefer canonical, else raw" pattern. (Wave-J Dev5: pre-existing latent gate flag, honestly ledgered.)
+szl_brain_hub          # [OPTIONAL-PKG] Dev-1's Brain nervous-system pulse hub (Wave O, feat/brain-hub — not yet merged). szl_brain_corpus.py PREFERS szl_brain_hub.pulse() as the canonical Brain read path; absence => a guarded local a11oy_brain_graph summary (labelled MODELED, honest DEPENDENCY note) — the agent-loop consult_brain feature stays LIVE either way, never fabricates. The join lights up automatically when #brain-hub lands. Cross-dev dependency, not a repo file by design.
 
 # --- [DEAD-STUB] never-existed .register() blocks; feature ABSENT at runtime ---
 # These are surfaced here (not silently swallowed) so they are tracked. Each
