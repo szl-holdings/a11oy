@@ -679,6 +679,10 @@ COPY szl_eu_energy.py ./
 # GET /api/a11oy/v1/brain/graph falls through to the SPA HTML shell (no JSON). Harvests
 # the real estate (surfaces+formulas+repos+topics) into a layered node/link brain graph.
 COPY a11oy_brain_graph.py ./
+# QUERYABLE BRAIN API (WAVE 1) — imported by serve.py (guarded); MUST be per-file COPY'd or
+# GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
+# falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
+COPY szl_brain_api.py ./szl_brain_api.py
 # HARVESTED FIELD LEADERS (2026-07-07) — real research graph JSONL (papers/repos/labs/
 # people/datasets/benchmarks/standards/axes, each with a verified url). a11oy_brain_graph
 # reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
@@ -1312,6 +1316,21 @@ COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 # DPR arXiv:2004.04906 · BM25/RRF · ColBERT arXiv:2004.12832 · Cohere Rerank · GraphRAG
 # (Microsoft) · Anthropic contextual retrieval · ALCE arXiv:2305.14627 · RAGAS arXiv:2309.15217.
 COPY szl_governed_rag.py ./szl_governed_rag.py
+
+# SOVEREIGN FLYWHEEL BRIDGE (Wave M · Dev 2, 2026-07-07): szl_sovereign_flywheel.py is
+# the ONE shared adapter that lets all four flywheel flows — harness /harness/apply,
+# eval-arena /eval/run, agent-loop /agentloop/run, and RAG /rag/query — run on SZL's OWN
+# governed model by routing model_id="szl-sovereign-local" (alias of Dev-1's registry
+# backend id "sovereign_local") through szl_llm_registry.sovereign_probe/sovereign_generate.
+# The four modules above now import this bridge, so the Wave-L TRANSITIVE Dockerfile
+# COPY-guard (tools/check_copy_sync_lockstep.py CHECK 2, which recurses serve.py's local
+# imports through THEIR local imports) requires this per-file COPY (this Dockerfile uses
+# no `COPY . .`) — omit it and CI fails / the sovereign option falls back to off. When the
+# local Tower endpoint (SZL_LOCAL_LLM_URL) is unset/unreachable, each flow degrades to an
+# honest MODELED/UNAVAILABLE receipt that still records the intended sovereign backend and
+# NEVER fabricates a model response. Additive; Λ = Conjecture 1 (advisory). Nothing to
+# locked-8; no gate weakened.
+COPY szl_sovereign_flywheel.py ./szl_sovereign_flywheel.py
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build

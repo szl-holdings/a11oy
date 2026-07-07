@@ -23,7 +23,7 @@ reachable**. It **NEVER fabricates** reachability, a model list, or a response.
 
 | Env var | Role | Example |
 | --- | --- | --- |
-| `SZL_LOCAL_LLM_URL` | **PRIMARY** own-metal node (tried first) | `http://tower.tailnet:11434/v1` |
+| `SZL_LOCAL_LLM_URL` | **PRIMARY** own-metal node (tried first; defaults to `http://localhost:11434/v1` when unset) | `http://tower.tailnet:11434/v1` |
 | `SZL_SOVEREIGN_NODES` | Comma list of **additional** tailnet nodes | `http://omen.tailnet:11434/v1,http://hetzner.tailnet:11434/v1` |
 | `SZL_LOCAL_LLM_MODEL` | Tag the node serves (optional) | `llama3.1:8b` |
 | `SZL_SOVEREIGN_PROBE_TIMEOUT` | Per-node probe timeout, seconds (default `2.5`) | `2.5` |
@@ -182,9 +182,10 @@ curl "http://localhost:7860/api/a11oy/v1/llm/router/status?probe=1" | jq .sovere
 }
 ```
 
-When nothing is configured or nothing answers, `nodes` is `[]` or every
-`reachable` is `false`, `sovereign_status` is `"UNAVAILABLE"`, and
-`fallthrough_to_cloud` is `true`.
+When nothing answers (the default localhost primary is unreachable, or every
+configured node is down), every `reachable` is `false`, `sovereign_status` is
+`"UNAVAILABLE"`, `selected_node` is `null`, and `fallthrough_to_cloud` is `true`
+— the router then routes to free/paid. Nothing is ever fabricated.
 
 ---
 

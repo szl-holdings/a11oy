@@ -221,6 +221,97 @@ def collect_local_imports(
 
 
 # ---------------------------------------------------------------------------
+# TRANSITIVE LOCAL-IMPORT CLOSURE
+# ---------------------------------------------------------------------------
+# ROOT-CAUSE fix for the recurring "forgot to COPY module X" class that has
+# bitten szl-holdings/a11oy 3x (canonical example: szl_energy_measured). That
+# module is NOT imported directly by serve.py; it is imported by
+# a11oy_harvest_endpoints.py, which serve.py registers via
+# `a11oy_harvest_endpoints.register(app, ...)`. The original guard only parsed
+# the top-level entrypoints, so a transitively-required module could be dropped
+# from the Dockerfile COPY set while the guard stayed green — and the deploy
+# (reusable-hf-deploy DERIVES the pushed file set straight from the Dockerfile
+# COPY sources) would then never ship that module, 404-ing the endpoint.
+#
+# This closure walks the local-import graph: starting from the entrypoints, it
+# follows every LOCAL root-level .py import (directly or via try/except-guarded
+# imports) into that module, and so on, transitively. Every local root module
+# reachable from a registered/imported entrypoint MUST therefore be in the
+# Dockerfile COPY set. This is exactly the set of files the container actually
+# needs at import time, so it can never silently ship broken again.
+#
+# Honest scope note (still true): dynamic importlib.import_module(var) strings
+# and sub-package internals are not followed (sub-packages are covered by their
+# directory-level COPY). This closure covers the per-file root-.py drift class.
+
+def collect_transitive_local_imports(
+    entrypoints: Sequence[str],
+    repo_root: str,
+    stdlib: frozenset[str],
+    max_depth: int = 6,
+) -> dict[str, set[str]]:
+    """
+    Breadth-first closure over LOCAL root-level .py imports reachable from the
+    entrypoints. Returns { entrypoint_path: {module_name, ...} } where the value
+    set includes BOTH the entrypoint's direct local imports AND every local
+    root module transitively imported by those modules (bounded by max_depth as
+    a cycle/runaway guard).
+
+    A module is "local root" iff a `<name>.py` file exists in repo_root and the
+    name is neither stdlib nor an obvious third-party package.
+    """
+    root = Path(repo_root)
+
+    def _local_imports_of_source(source: str) -> set[str]:
+        found: set[str] = set()
+        for name in _extract_imports_from_source(source):
+            if not name:
+                continue
+            if name.startswith("_") and len(name) == 1:
+                continue
+            if name in stdlib:
+                continue
+            if (root / f"{name}.py").exists():
+                found.add(name)
+        return found
+
+    result: dict[str, set[str]] = {}
+    for ep in entrypoints:
+        ep_path = Path(ep) if Path(ep).is_absolute() else root / ep
+        if not ep_path.exists():
+            print(f"::warning::Entrypoint not found: {ep_path} — skipping")
+            result[ep] = set()
+            continue
+
+        closure: set[str] = set()
+        # BFS frontier holds (module_name, depth). Seed with the entrypoint's
+        # own direct local imports at depth 1.
+        seed_src = ep_path.read_text(encoding="utf-8", errors="replace")
+        frontier: list[tuple[str, int]] = [
+            (m, 1) for m in _local_imports_of_source(seed_src)
+        ]
+        while frontier:
+            mod, depth = frontier.pop()
+            if mod in closure:
+                continue
+            closure.add(mod)
+            if depth >= max_depth:
+                continue
+            mod_file = root / f"{mod}.py"
+            try:
+                mod_src = mod_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for nxt in _local_imports_of_source(mod_src):
+                if nxt not in closure:
+                    frontier.append((nxt, depth + 1))
+
+        result[ep] = closure
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # DOCKERFILE COPY-SET EXTRACTION
 # ---------------------------------------------------------------------------
 
@@ -438,6 +529,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Run built-in self-test: verify guard catches a deliberately-missing COPY",
     )
+    parser.add_argument(
+        "--no-transitive",
+        action="store_true",
+        help="Only check the entrypoints' DIRECT local imports (legacy behavior). "
+             "By default the guard follows the transitive local-import closure so "
+             "modules imported by registered submodules (e.g. szl_energy_measured "
+             "via a11oy_harvest_endpoints) are also required in the Dockerfile COPY.",
+    )
     args = parser.parse_args(argv)
 
     repo_root = os.path.abspath(args.root)
@@ -458,14 +557,23 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[copy-completeness] Entrypoints: {args.entrypoints}")
     print()
 
-    # Step 1: collect imports from entrypoints
-    imports_by_ep = collect_local_imports(args.entrypoints, repo_root, stdlib)
+    # Step 1: collect imports from entrypoints. By default follow the TRANSITIVE
+    # local-import closure (root-cause fix for the szl_energy_measured class);
+    # --no-transitive restores the legacy direct-only behavior.
+    if args.no_transitive:
+        print("[copy-completeness] Mode       : DIRECT imports only (--no-transitive)")
+        imports_by_ep = collect_local_imports(args.entrypoints, repo_root, stdlib)
+    else:
+        print("[copy-completeness] Mode       : TRANSITIVE local-import closure")
+        imports_by_ep = collect_transitive_local_imports(
+            args.entrypoints, repo_root, stdlib
+        )
 
     # Union of all locally-imported root .py modules across all entrypoints
     all_local_imports: set[str] = set()
     for ep, mods in imports_by_ep.items():
         all_local_imports |= mods
-        print(f"  {ep}: {len(mods)} local root module(s) imported")
+        print(f"  {ep}: {len(mods)} local root module(s) reachable")
 
     print(f"\n[copy-completeness] Total unique local root modules : {len(all_local_imports)}")
 

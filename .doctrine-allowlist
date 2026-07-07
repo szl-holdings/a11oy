@@ -312,3 +312,25 @@ spaces/immune/dist/public/assets/index-B0yATMcZ.css
 # Test fixtures for the page-claim honesty guard (fail/pass/stale samples).
 # The overclaim fixture intentionally contains comparative claims by design.
 .github/test-fixtures/page-claim-guard/
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-07-07, green-the-trunk / DEV 1).
+# brain/harvest/energy_defense.jsonl is a HARVESTED third-party knowledge graph
+# (real GitHub repos + arXiv papers) rendered on GET /api/a11oy/v1/brain/graph
+# as the FIELD layer. The marketing-hype words that rode in from upstream repo
+# descriptions (state-of-the-art / cutting-edge / seamless / breakthrough /
+# best-in-class / "leading") were FIXED IN THE SOURCE TEXT to honest, non-hype
+# phrasing in this same PR — NOT hidden. The ONLY tokens that remain and cannot
+# be reworded are two REAL third-party repo slugs whose org/name literally
+# contains the substring "jarvis":
+#     repo:bayjarvis/llm            (github.com/bayjarvis/llm)
+#     repo:aimagelab/JARVIS         (github.com/aimagelab/JARVIS)
+# These appear in the load-bearing id / url / label and their repo_in_axis edge
+# `src`. Renaming a real repository would FABRICATE its identity and break the
+# node<->edge provenance link, so they are enumerated here (not reworded). The
+# doctrine ban on "Jarvis" targets the SZL product CODENAME, never third-party
+# GitHub org names that happen to contain the substring. Same third-party-data
+# rationale as wayra_snapshot.json (arXiv titles) and live_snapshots/kev.json
+# (CISA prose). Scoped to this ONE file; the sibling brain/harvest/*.jsonl files
+# stay fully scanned.
+brain/harvest/energy_defense.jsonl
