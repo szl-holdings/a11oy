@@ -713,6 +713,15 @@ COPY a11oy_brain_graph.py ./
 # GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
 # falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
 COPY szl_brain_api.py ./szl_brain_api.py
+# GOVERNED BRAIN-INFER (Wave P / Dev 3) — imported by serve.py (guarded); MUST be per-file
+# COPY'd (this Dockerfile uses no `COPY . .`) or POST /api/a11oy/v1/govern/brain-infer and
+# GET /api/a11oy/v1/govern/{receipts,verify} fall through to the SPA HTML shell (silent
+# 200 HTML, never JSON). Closes BRAIN->INFERENCE->RECEIPT->ENERGY: real PPR grounding,
+# sovereign model IF reachable (else honest UNAVAILABLE), REAL NVML counter-delta energy,
+# DSSE-style SHA-256 hash-chained durable receipts. Transitive reuse (szl_brain_api above,
+# szl_energy_live + szl_dsse already in the COPY set) is import-guarded. Additive: does NOT
+# shadow the sellable /govern/infer (szl_governed_api). Receipts on the WRITE path only.
+COPY szl_governed_infer.py ./szl_governed_infer.py
 # BRAIN ENERGY (Wave O Dev 2) — imported by serve.py (guarded); MUST be per-file COPY'd
 # (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/brain/energy falls through to
 # the SPA HTML shell. The Brain HARNESSES + DISTRIBUTES energy: reads the energy stack
