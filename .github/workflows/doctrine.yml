@@ -9,4 +9,4 @@ permissions:
 
 jobs:
   check:
-    uses: szl-holdings/.github/.github/workflows/doctrine-check.yml@dcbf2e21c582a64795ead4e88fcb218684a0c883  # main (post-#188: authoritative checker checks out .github + runs doctrine_check.py against the caller tree)
+    uses: szl-holdings/.github/.github/workflows/doctrine-check.yml@2b6d13ae00ab73e0075aa2b8dc765cab62825d84  # main (post-#189: authoritative checker + INV2 exemption for intentional ORPO negative-training data)
