@@ -289,10 +289,18 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
                      derived_from="locked-8" if fid in locked else "Λ=Conjecture 1")
 
     # ---- INPUT layer: repos (static snapshot) ----------------------------- #
+    # Each estate repo node inherits the snapshot's REAL committed capture date
+    # (ORG_REPOS_SNAPSHOT["captured"]). Granularity is PER-SNAPSHOT: every repo
+    # shares the one date the `gh repo list` inventory was captured — this is an
+    # honest per-pass capture date, NOT a per-repo last-commit time we did not
+    # measure. Propagated verbatim; never invented.
     for repo in ORG_REPOS_SNAPSHOT["repos"]:
         rid = f"repo:{repo}"
         add_node(rid, kind="repo", layer=0, title=repo, label="MODELED",
-                 org=ORG_REPOS_SNAPSHOT["org"])
+                 org=ORG_REPOS_SNAPSHOT["org"],
+                 captured_at=ORG_REPOS_SNAPSHOT["captured"],
+                 captured_granularity="per-snapshot",
+                 captured_source=ORG_REPOS_SNAPSHOT["source"])
         rtokens = _tokens(repo)
         # repo -> surface (repo name token appears in surface id/title)
         for _su, snode, sid in surface_nodes:
