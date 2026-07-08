@@ -329,6 +329,16 @@
     "method": "GET"
   },
   {
+    "path": "/api/a11oy/v1/status",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/status/health",
+    "query": "",
+    "method": "GET"
+  },
+  {
     "path": "/api/a11oy/v1/ternary/quantize",
     "query": "seed=42&rows=32&cols=32&batch=16&act_bits=8",
     "method": "GET"
