@@ -29,16 +29,54 @@
     border:1px solid rgba(57,230,212,.35); color:#bfeee7; background:rgba(57,230,212,.06);
   }
   .badge.warn { border-color:rgba(240,200,90,.45); color:#f0d98a; background:rgba(240,200,90,.06); }
+  .badge.live { border-color:rgba(90,240,170,.5); color:#8ff0c4; background:rgba(90,240,170,.07); }
   .status {
     position:fixed; left:152px; bottom:20px; z-index:5; font-size:11px; letter-spacing:.10em;
     color:#6fa6a0; pointer-events:none;
   }
   .status b { color:#9fe6dd; font-weight:600; }
   .legend {
-    position:fixed; right:22px; bottom:56px; z-index:5; font-size:10.5px; letter-spacing:.08em;
+    position:fixed; right:22px; bottom:18px; z-index:5; font-size:10.5px; letter-spacing:.06em;
     color:#6fa6a0; text-align:right; pointer-events:none; line-height:1.7;
   }
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-left:8px; vertical-align:middle; }
+
+  /* ---- Estate-brain query console ---- */
+  #brain {
+    position:fixed; right:22px; top:78px; z-index:6; width:min(340px,86vw);
+    background:rgba(6,12,18,.82); border:1px solid rgba(57,230,212,.28); border-radius:14px;
+    backdrop-filter:blur(7px); padding:14px 14px 12px; pointer-events:auto;
+    box-shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  #brain h2 { margin:0 0 2px; font-size:12px; letter-spacing:.20em; color:#eafffb; font-weight:600; }
+  #brain .hint { margin:0 0 10px; font-size:10px; letter-spacing:.05em; color:#6fa6a0; line-height:1.55; }
+  #brain .row { display:flex; gap:7px; }
+  #q {
+    flex:1; min-width:0; background:rgba(3,7,11,.9); border:1px solid rgba(57,230,212,.30);
+    color:#dffaf5; border-radius:9px; padding:9px 10px; font:inherit; font-size:12px; outline:none;
+  }
+  #q:focus { border-color:rgba(57,230,212,.7); }
+  #ask {
+    border:1px solid rgba(57,230,212,.45); background:rgba(57,230,212,.12); color:#bff5ec;
+    border-radius:9px; padding:0 13px; font:inherit; font-size:11px; letter-spacing:.08em;
+    cursor:pointer; white-space:nowrap;
+  }
+  #ask:hover { background:rgba(57,230,212,.22); }
+  #ask:disabled { opacity:.5; cursor:default; }
+  #ans { margin-top:11px; font-size:11px; line-height:1.6; max-height:44vh; overflow:auto; }
+  #ans .meta { color:#6fa6a0; letter-spacing:.04em; font-size:10px; margin-bottom:8px; }
+  #ans .prose { color:#dbeee9; margin:0 0 10px; padding:9px 10px; border-radius:8px;
+    background:rgba(57,230,212,.05); border:1px solid rgba(57,230,212,.16); }
+  #ans .prose.na { color:#f0d98a; border-color:rgba(240,200,90,.30); background:rgba(240,200,90,.05); }
+  #ans .seed { display:flex; gap:8px; align-items:baseline; padding:5px 0; border-top:1px solid rgba(57,230,212,.10); }
+  #ans .seed .k { font-size:9px; letter-spacing:.10em; color:#04070b; border-radius:4px; padding:1px 5px; flex:none; }
+  #ans .seed .t { color:#cfe9e6; }
+  #ans .seed .sc { margin-left:auto; color:#5f9089; font-size:10px; flex:none; }
+  #labels { position:fixed; inset:0; z-index:4; pointer-events:none; }
+  #labels .lab {
+    position:absolute; transform:translate(-50%,-140%); font-size:10px; letter-spacing:.03em;
+    color:#eafffb; text-shadow:0 1px 6px #000; white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis;
+  }
 </style>
 </head>
 <body>
@@ -46,20 +84,34 @@
     <canvas id="gl"></canvas>
     <canvas id="fb" hidden></canvas>
   </div>
+  <div id="labels"></div>
 
   <div class="hud">
     <h1 class="title">HOLOGRAPHIC ESTATE</h1>
-    <p class="sub">Point-field estate model · Holo Lab</p>
+    <p class="sub">Point-field estate · live knowledge brain</p>
     <div class="badges">
-      <span class="badge warn">SAMPLE — procedural model, not a real capture</span>
-      <span class="badge">PREVIEW</span>
+      <span class="badge warn">SAMPLE — procedural estate model</span>
+      <span class="badge live" id="brainBadge">BRAIN — connecting…</span>
     </div>
   </div>
 
+  <div id="brain">
+    <h2>ASK THE ESTATE BRAIN</h2>
+    <p class="hint">Queries the live a11oy knowledge graph. Returns a grounded subgraph
+      (nodes are <b>MODELED</b>); prose is shown only when a sovereign model is reachable — never fabricated.</p>
+    <div class="row">
+      <input id="q" type="text" placeholder="e.g. agentic orchestration, energy defense…" autocomplete="off" />
+      <button id="ask">ASK</button>
+    </div>
+    <div id="ans"></div>
+  </div>
+
   <div class="legend">
-    structure<span class="dot" style="background:#eafffb"></span><br/>
+    estate structure<span class="dot" style="background:#eafffb"></span><br/>
     roof line<span class="dot" style="background:#39e6d4"></span><br/>
-    grounds<span class="dot" style="background:#2f7fb0"></span>
+    grounds<span class="dot" style="background:#2f7fb0"></span><br/>
+    knowledge nodes<span class="dot" style="background:#f0c85a"></span><br/>
+    <span style="opacity:.7">node layout is deterministic, not measured coordinates</span>
   </div>
 
   <div class="status">renderer: <b id="rstat">initialising…</b> · <span id="rnote">building point field</span></div>
@@ -74,15 +126,24 @@
   </script>
 
   <script>
+    // ============================================================================
+    // Holographic Estate — procedural estate point field + LIVE knowledge brain.
+    // Honest by construction:
+    //   • the house/grounds are a SAMPLE procedural model, not a real capture;
+    //   • the constellation nodes come from the live a11oy brain graph (MODELED);
+    //   • node positions are a deterministic layout, NOT measured coordinates;
+    //   • generated prose is shown ONLY if the brain reports a reachable model,
+    //     otherwise we display the grounded subgraph and say prose is UNAVAILABLE.
+    // ============================================================================
+    const BRAIN = '/api/a11oy/v1/brain';   // same-origin governed brain API
+
     // ---- Shared procedural estate point field (single source for WebGL + 2D fallback) ----
-    // Honest: this is a generated model of a house + grounds, NOT a photogrammetric capture.
     function buildEstatePoints() {
       const pts = []; // {x,y,z, c:[r,g,b]}
       const push = (x,y,z,c) => pts.push({x,y,z,c});
       const CYAN = [0.22,0.90,0.83], WHITE = [0.92,1.0,0.98], BLUE = [0.18,0.50,0.69];
       const jit = (n) => (Math.random()-0.5)*n;
 
-      // House body: box centred at origin, width 6 (x), height 3 (y), depth 4 (z), base at y=0
       const W=6, H=3, D=4;
       const wallDensity = 2600;
       for (let i=0;i<wallDensity;i++){
@@ -95,36 +156,28 @@
         else { z=D/2; x=(Math.random()-0.5)*W; }
         push(x+jit(0.03), y+jit(0.03), z+jit(0.03), WHITE);
       }
-      // Roof: two sloped planes meeting at a ridge (y from H to H+1.8)
       const roofDensity = 1700, RH=1.8;
       for (let i=0;i<roofDensity;i++){
-        const t = Math.random();               // 0..1 across span
-        const along = (Math.random()-0.5)*D;    // along ridge (z)
+        const t = Math.random();
+        const along = (Math.random()-0.5)*D;
         const side = Math.random()<0.5 ? -1 : 1;
         const x = side * (W/2) * (1-t);
         const y = H + RH * t;
         push(x+jit(0.02), y+jit(0.02), along+jit(0.03), CYAN);
       }
-      // Ridge line accent
       for (let i=0;i<260;i++){ push(jit(0.05), H+RH+jit(0.02), (Math.random()-0.5)*D, CYAN); }
-      // Windows: brighter clusters on front face (z = D/2)
       const winCenters = [[-1.6,1.3],[1.6,1.3],[0,0.9]];
       for (const [wx,wy] of winCenters){
-        for (let i=0;i<230;i++){
-          push(wx+jit(0.5), wy+jit(0.6), D/2+0.02, WHITE);
-        }
+        for (let i=0;i<230;i++){ push(wx+jit(0.5), wy+jit(0.6), D/2+0.02, WHITE); }
       }
-      // Grounds: radial point grid on y=0 plane, fading outward
       const groundR = 11;
       for (let i=0;i<3200;i++){
         const r = Math.pow(Math.random(),0.6)*groundR;
         const a = Math.random()*Math.PI*2;
         const x = Math.cos(a)*r, z = Math.sin(a)*r;
-        // skip the footprint interior so the house reads clearly
         if (Math.abs(x)<W/2+0.3 && Math.abs(z)<D/2+0.3) continue;
         push(x, jit(0.04), z, BLUE);
       }
-      // A few tall accents (trees) at corners of the plot
       const trees = [[-7,-6],[7,-6.5],[-6.5,6],[7.5,6]];
       for (const [tx,tz] of trees){
         for (let i=0;i<420;i++){
@@ -139,14 +192,136 @@
     const ESTATE = buildEstatePoints();
     const rstat = document.getElementById('rstat');
     const rnote = document.getElementById('rnote');
+    const labelsBox = document.getElementById('labels');
 
-    // ---- 2D never-blank fallback (source-over, small points, shared field) ----
+    // ---- Knowledge brain state (populated from the live API; never fabricated) ----
+    const KIND_COLORS = {
+      axis:    [0.24,0.92,0.84],
+      surface: [0.30,0.62,0.86],
+      estate:  [0.95,1.00,0.98],
+      repo:    [0.96,0.78,0.35],
+      person:  [0.72,0.55,0.96],
+    };
+    const kindColor = (k) => KIND_COLORS[k] || [0.55,0.78,0.74];
+    const brainNodes = [];            // {id,title,kind,pos:{x,y,z}}
+    const nodeById = new Map();
+    let highlightSet = new Set();
+    const QUERY_ANCHOR = { x:0, y:7.2, z:0 };  // where the query beam originates
+
+    function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+    function layoutPos(id){
+      const h = hashStr(id);
+      const a = (h % 4096)/4096 * Math.PI*2;
+      const r = 7.5 + ((h>>>12) % 1000)/1000 * 5.5;   // radius 7.5 .. 13
+      const y = 3.8 + ((h>>>22) % 1000)/1000 * 5.0;   // height 3.8 .. 8.8
+      return { x: Math.cos(a)*r, y, z: Math.sin(a)*r };
+    }
+    function addNode(n){
+      if (!n || !n.id || nodeById.has(n.id)) return nodeById.get(n && n.id);
+      const node = { id:n.id, title:n.title||n.id, kind:n.kind||'node', pos:layoutPos(n.id) };
+      nodeById.set(node.id, node); brainNodes.push(node);
+      return node;
+    }
+
+    // viz adapter is filled by whichever renderer wins (WebGL or 2D fallback)
+    const viz = { rebuildNodes(){}, applyHighlight(){}, project:null };
+
+    async function jget(url){
+      const r = await fetch(url, { headers:{ 'accept':'application/json' } });
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }
+
+    async function initBrain(){
+      const badge = document.getElementById('brainBadge');
+      try {
+        const stats = await jget(`${BRAIN}/stats`);
+        const nodes = (stats.node_count||0).toLocaleString();
+        const links = (stats.link_count||0).toLocaleString();
+        badge.textContent = `BRAIN LIVE · ${nodes} nodes · ${links} links`;
+        badge.classList.add('live');
+      } catch (e) {
+        badge.textContent = 'BRAIN OFFLINE'; badge.classList.remove('live'); badge.classList.add('warn');
+      }
+      // seed the constellation with the most salient nodes (honest MODELED ranking)
+      try {
+        const sal = await jget(`${BRAIN}/salience?top=52`);
+        for (const r of (sal.ranking||[])) addNode(r);
+        viz.rebuildNodes();
+      } catch (e) { /* estate still renders; constellation just stays empty */ }
+    }
+
+    function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    async function ask(q){
+      const ansEl = document.getElementById('ans');
+      const btn = document.getElementById('ask');
+      q = (q||'').trim(); if (!q) return;
+      btn.disabled = true; ansEl.innerHTML = '<div class="meta">querying the estate brain…</div>';
+      try {
+        const d = await jget(`${BRAIN}/ask?q=${encodeURIComponent(q)}`);
+        const seeds = (d.seeds||[]).slice(0, 8);
+        // register + highlight the grounded subgraph
+        highlightSet = new Set();
+        for (const s of seeds){ const n = addNode(s); if (n) highlightSet.add(n.id); }
+        viz.rebuildNodes(); viz.applyHighlight();
+
+        const model = d.answer_model || null;
+        const prose = (d.answer || '').trim();
+        let html = `<div class="meta">retrieval · ${esc(d.retrieval || 'graph grounding')}</div>`;
+        if (model && prose){
+          html += `<p class="prose">${esc(prose)}<br><span style="opacity:.6;font-size:9px">MODELED · ${esc(model)}</span></p>`;
+        } else {
+          html += `<p class="prose na">PROSE UNAVAILABLE — no sovereign model reachable. Showing the grounded subgraph below (this is the honest result, not a fabricated answer).</p>`;
+        }
+        if (seeds.length){
+          for (const s of seeds){
+            const c = kindColor(s.kind).map(v=>Math.round(v*255));
+            const sc = (typeof s.score==='number') ? s.score.toFixed(3) : '';
+            html += `<div class="seed"><span class="k" style="background:rgb(${c[0]},${c[1]},${c[2]})">${esc(s.kind||'node')}</span>`
+                 +  `<span class="t">${esc(s.title||s.id)}</span><span class="sc">${sc}</span></div>`;
+          }
+        } else {
+          html += `<div class="meta">no grounding nodes returned.</div>`;
+        }
+        ansEl.innerHTML = html;
+      } catch (e) {
+        ansEl.innerHTML = `<div class="meta" style="color:#f0d98a">brain unreachable (${esc(e.message)}). The estate model is still live above.</div>`;
+      } finally { btn.disabled = false; }
+    }
+
+    document.getElementById('ask').addEventListener('click', ()=> ask(document.getElementById('q').value));
+    document.getElementById('q').addEventListener('keydown', (e)=>{ if (e.key==='Enter') ask(e.target.value); });
+
+    // ---- floating labels for highlighted nodes (shared by both render paths) ----
+    const labelDivs = new Map();
+    function syncLabels(){
+      for (const [id,div] of labelDivs){ if (!highlightSet.has(id)){ div.remove(); labelDivs.delete(id); } }
+      for (const id of highlightSet){
+        if (!labelDivs.has(id)){
+          const n = nodeById.get(id); if (!n) continue;
+          const div = document.createElement('div'); div.className='lab';
+          div.textContent = n.title.length>34 ? n.title.slice(0,33)+'…' : n.title;
+          labelsBox.appendChild(div); labelDivs.set(id, div);
+        }
+      }
+    }
+    function positionLabels(){
+      if (!viz.project) return;
+      for (const [id,div] of labelDivs){
+        const n = nodeById.get(id); if (!n){ continue; }
+        const p = viz.project(n.pos.x, n.pos.y, n.pos.z);
+        if (p && p.vis){ div.style.display='block'; div.style.left=p.sx+'px'; div.style.top=p.sy+'px'; }
+        else { div.style.display='none'; }
+      }
+    }
+
+    // ---- 2D never-blank fallback (estate + constellation, shared field) ----
     function run2DFallback(reason){
       const glc = document.getElementById('gl'); glc.hidden = true;
       const c = document.getElementById('fb'); c.hidden = false;
       const ctx = c.getContext('2d');
-      rstat.textContent = '2D fallback';
-      rstat.style.color = '#f0d98a';
+      rstat.textContent = '2D fallback'; rstat.style.color = '#f0d98a';
       rnote.textContent = reason || 'WebGL2 unavailable — projecting same model';
       let W,H,DPR;
       function resize(){
@@ -155,38 +330,42 @@
         c.width = W*DPR; c.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
       }
       window.addEventListener('resize', resize); resize();
-      let ang = 0;
-      const focal = 620, camY = 2.2, camDist = 18;
-      function frame(){
-        ang += 0.0032;
-        ctx.clearRect(0,0,W,H);
-        const cx=W/2, cy=H/2 + 40;
+      let ang = 0; const focal = 620, camY = 2.6, camDist = 18; const cx = ()=>W/2, cy = ()=>H/2 + 40;
+      function proj3(x,y,z){
         const ca=Math.cos(ang), sa=Math.sin(ang);
-        // depth sort (paint far first)
+        const rx = x*ca - z*sa; const rz = x*sa + z*ca + camDist; const ry = y - camY;
+        if (rz<=0.1) return null; const s = focal/rz;
+        return { sx: cx() + rx*s, sy: cy() - ry*s, z: rz, s };
+      }
+      viz.project = (x,y,z)=>{ const p=proj3(x,y,z); return p ? {sx:p.sx, sy:p.sy, vis:true} : {vis:false}; };
+      viz.rebuildNodes = ()=>{}; viz.applyHighlight = ()=>{ syncLabels(); };
+      function frame(){
+        ang += 0.0030; ctx.clearRect(0,0,W,H);
         const proj = [];
-        for (const p of ESTATE){
-          const x = p.x*ca - p.z*sa;
-          const z = p.x*sa + p.z*ca + camDist;
-          const y = p.y - camY;
-          if (z<=0.1) continue;
-          const s = focal/z;
-          proj.push({ sx: cx + x*s, sy: cy - y*s, z, s, c:p.c });
-        }
+        for (const p of ESTATE){ const q=proj3(p.x,p.y,p.z); if(q){ q.c=p.c; q.kind='estate'; proj.push(q);} }
+        for (const n of brainNodes){ const q=proj3(n.pos.x,n.pos.y,n.pos.z); if(q){ q.c=kindColor(n.kind); q.node=n; proj.push(q);} }
         proj.sort((a,b)=>b.z-a.z);
+        // query beams to highlighted seeds
+        if (highlightSet.size){
+          const a0 = proj3(QUERY_ANCHOR.x,QUERY_ANCHOR.y,QUERY_ANCHOR.z);
+          if (a0){ ctx.strokeStyle='rgba(57,230,212,.28)'; ctx.lineWidth=1;
+            for (const n of brainNodes){ if(!highlightSet.has(n.id)) continue; const b=proj3(n.pos.x,n.pos.y,n.pos.z); if(b){ ctx.beginPath(); ctx.moveTo(a0.sx,a0.sy); ctx.lineTo(b.sx,b.sy); ctx.stroke(); } } }
+        }
         for (const q of proj){
-          const r = Math.max(0.35, q.s*0.05);
-          const a = Math.min(0.85, 34/q.z);
+          const hot = q.node && highlightSet.has(q.node.id);
+          const r = q.node ? (hot? Math.max(2.6,q.s*0.10) : Math.max(1.2,q.s*0.05)) : Math.max(0.35, q.s*0.05);
+          const a = q.node ? (hot?0.95:0.6) : Math.min(0.85, 34/q.z);
           ctx.beginPath();
           ctx.fillStyle = `rgba(${(q.c[0]*255)|0},${(q.c[1]*255)|0},${(q.c[2]*255)|0},${a})`;
-          ctx.arc(q.sx, q.sy, r, 0, Math.PI*2);
-          ctx.fill();
+          ctx.arc(q.sx, q.sy, r, 0, Math.PI*2); ctx.fill();
         }
+        positionLabels();
         requestAnimationFrame(frame);
       }
       frame();
     }
 
-    // ---- WebGL2 path (soft gaussian points + bloom + orbit), falls back on any failure ----
+    // ---- WebGL2 path (soft gaussian estate + constellation + bloom + orbit) ----
     async function runWebGL(){
       const canvas = document.getElementById('gl');
       const gl2 = canvas.getContext('webgl2');
@@ -207,51 +386,70 @@
       camera.position.set(13, 8, 15);
 
       const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 0.55;
-      controls.target.set(0, 1.6, 0); controls.minDistance = 8; controls.maxDistance = 40;
+      controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 0.5;
+      controls.target.set(0, 2.4, 0); controls.minDistance = 8; controls.maxDistance = 46;
 
+      // estate points
       const n = ESTATE.length;
-      const positions = new Float32Array(n*3);
-      const colors = new Float32Array(n*3);
-      for (let i=0;i<n;i++){
-        const p = ESTATE[i];
+      const positions = new Float32Array(n*3), colors = new Float32Array(n*3);
+      for (let i=0;i<n;i++){ const p=ESTATE[i];
         positions[i*3]=p.x; positions[i*3+1]=p.y; positions[i*3+2]=p.z;
-        colors[i*3]=p.c[0]; colors[i*3+1]=p.c[1]; colors[i*3+2]=p.c[2];
-      }
+        colors[i*3]=p.c[0]; colors[i*3+1]=p.c[1]; colors[i*3+2]=p.c[2]; }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
       geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
 
-      const mat = new THREE.ShaderMaterial({
-        uniforms: { uSize:{value:16.0}, uPixelRatio:{value:renderer.getPixelRatio()} },
-        transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-        vertexColors:true,
-        vertexShader:`
-          uniform float uSize; uniform float uPixelRatio;
-          varying vec3 vColor;
-          void main(){
-            vColor = color;
-            vec4 mv = modelViewMatrix * vec4(position,1.0);
-            gl_PointSize = uSize * uPixelRatio * (1.0 / -mv.z) * 4.0;
-            gl_Position = projectionMatrix * mv;
-          }`,
-        fragmentShader:`
-          varying vec3 vColor;
-          void main(){
-            vec2 d = gl_PointCoord - vec2(0.5);
-            float r = dot(d,d);
-            float a = exp(-r*7.0) * 0.30;      // soft gaussian, low per-point alpha
-            if (a < 0.01) discard;
-            gl_FragColor = vec4(vColor, a);
-          }`
+      const pointMat = (size, alpha) => new THREE.ShaderMaterial({
+        uniforms:{ uSize:{value:size}, uPixelRatio:{value:renderer.getPixelRatio()}, uAlpha:{value:alpha} },
+        transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, vertexColors:true,
+        vertexShader:`uniform float uSize; uniform float uPixelRatio; attribute float aScale; varying vec3 vColor; varying float vScale;
+          void main(){ vColor=color; vScale=aScale; vec4 mv=modelViewMatrix*vec4(position,1.0);
+            gl_PointSize=uSize*uPixelRatio*(1.0/-mv.z)*4.0*aScale; gl_Position=projectionMatrix*mv; }`,
+        fragmentShader:`varying vec3 vColor; varying float vScale; uniform float uAlpha;
+          void main(){ vec2 d=gl_PointCoord-vec2(0.5); float r=dot(d,d);
+            float a=exp(-r*7.0)*uAlpha*(0.6+0.4*vScale); if(a<0.01) discard; gl_FragColor=vec4(vColor,a); }`
       });
-      scene.add(new THREE.Points(geo, mat));
+
+      const estateScale = new Float32Array(n).fill(1.0);
+      geo.setAttribute('aScale', new THREE.BufferAttribute(estateScale,1));
+      scene.add(new THREE.Points(geo, pointMat(16.0, 0.30)));
+
+      // constellation (rebuilt as brain nodes arrive / highlight changes)
+      let cGeo=null, cPoints=null, linkObj=null;
+      const cMat = pointMat(30.0, 0.9);
+      function rebuildNodes(){
+        if (cPoints){ scene.remove(cPoints); cGeo.dispose(); }
+        const m = brainNodes.length; if (!m){ cPoints=null; return; }
+        const cp=new Float32Array(m*3), cc=new Float32Array(m*3), cs=new Float32Array(m);
+        for (let i=0;i<m;i++){ const nd=brainNodes[i]; const col=kindColor(nd.kind); const hot=highlightSet.has(nd.id);
+          cp[i*3]=nd.pos.x; cp[i*3+1]=nd.pos.y; cp[i*3+2]=nd.pos.z;
+          const boost = hot?1.7:1.0; cc[i*3]=Math.min(1,col[0]*boost); cc[i*3+1]=Math.min(1,col[1]*boost); cc[i*3+2]=Math.min(1,col[2]*boost);
+          cs[i]= hot?2.4:0.9; }
+        cGeo=new THREE.BufferGeometry();
+        cGeo.setAttribute('position', new THREE.BufferAttribute(cp,3));
+        cGeo.setAttribute('color', new THREE.BufferAttribute(cc,3));
+        cGeo.setAttribute('aScale', new THREE.BufferAttribute(cs,1));
+        cPoints=new THREE.Points(cGeo, cMat); scene.add(cPoints);
+      }
+      function applyHighlight(){
+        rebuildNodes(); syncLabels();
+        if (linkObj){ scene.remove(linkObj); linkObj.geometry.dispose(); linkObj=null; }
+        const hi=[...highlightSet].map(id=>nodeById.get(id)).filter(Boolean); if(!hi.length) return;
+        const seg=new Float32Array(hi.length*6);
+        for (let i=0;i<hi.length;i++){ const p=hi[i].pos;
+          seg[i*6]=QUERY_ANCHOR.x; seg[i*6+1]=QUERY_ANCHOR.y; seg[i*6+2]=QUERY_ANCHOR.z;
+          seg[i*6+3]=p.x; seg[i*6+4]=p.y; seg[i*6+5]=p.z; }
+        const lg=new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(seg,3));
+        linkObj=new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color:0x39e6d4, transparent:true, opacity:0.32 }));
+        scene.add(linkObj);
+      }
+      viz.rebuildNodes = rebuildNodes; viz.applyHighlight = applyHighlight;
+      viz.project = (x,y,z)=>{ const v=new THREE.Vector3(x,y,z).project(camera);
+        return { sx:(v.x*0.5+0.5)*window.innerWidth, sy:(-v.y*0.5+0.5)*window.innerHeight, vis:(v.z<1 && v.z>-1) }; };
 
       const composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
-      const bloom = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.6, 0.25);
-      composer.addPass(bloom);
+      composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.6, 0.25));
 
       window.addEventListener('resize', ()=>{
         camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
@@ -260,15 +458,17 @@
       });
 
       rstat.textContent = 'WebGL2'; rstat.style.color = '#9fe6dd';
-      rnote.textContent = `three r${THREE.REVISION} · ${n.toLocaleString()} points · soft-gaussian + bloom`;
+      rnote.textContent = `three r${THREE.REVISION} · estate + live brain constellation`;
 
-      (function loop(){ controls.update(); composer.render(); requestAnimationFrame(loop); })();
+      rebuildNodes();
+      (function loop(){ controls.update(); composer.render(); positionLabels(); requestAnimationFrame(loop); })();
     }
 
-    runWebGL().catch(err => {
+    runWebGL().then(initBrain).catch(err => {
       run2DFallback(err && err.message === 'no-webgl2'
         ? 'WebGL2 unavailable — projecting same model'
         : 'renderer offline — projecting same model');
+      initBrain();
     });
   </script>
 </body>
