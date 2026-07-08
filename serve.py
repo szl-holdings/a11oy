@@ -217,6 +217,13 @@ except Exception as _szl_bh_e:  # pragma: no cover
 try:
     import szl_observability as _szl_observability
     _szl_observability.register(app, ns="a11oy")
+    # -- ADDITIVE (free-first spend guardrail) -- szl_spend_cap
+    try:
+        import szl_spend_cap as _szl_spend_cap
+        print("[a11oy] " + _szl_spend_cap.register(app, ns="a11oy"), file=__import__("sys").stderr)
+    except Exception as _szl_spend_cap_e:
+        print(f"[szl_spend_cap] NOT mounted ({_szl_spend_cap_e!r}); existing routes unaffected", file=__import__("sys").stderr)
+    # -- ADDITIVE (free-first spend guardrail) -- szl_spend_cap end
     print("[a11oy] Observability registered: /api/a11oy/v1/observability/{traces,trace/{id},health-summary} (OpenTelemetry-style tracing, stdlib)", file=__import__("sys").stderr)
 except Exception as _szl_obs_e:  # pragma: no cover
     print(f"[a11oy] Observability NOT registered: {_szl_obs_e!r}; existing routes unaffected", file=__import__("sys").stderr)
