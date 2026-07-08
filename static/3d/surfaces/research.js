@@ -327,7 +327,7 @@ function _plainHtml() {
   const topTxt = top ? (esc(catShort(top.cat)) + " \u2014 " + num(top.count) + " papers") : "loading\u2026";
   return (
     "<b>What this means:</b> <b>arXiv</b> is where the world\u2019s AI researchers post new work, " +
-    "often the day it\u2019s written \u2014 the true leading edge, months ahead of any product. This " +
+    "often the day it\u2019s written \u2014 the true frontier, months ahead of any product. This " +
     "surface reads the newest submissions right now and plots each research <b>category</b> as a " +
     "pillar: the taller the pillar, the more fresh papers that area has in this window; the bead\u2019s " +
     "height is that area\u2019s <b>share</b> of everything posted. The busiest area at this moment is " +
