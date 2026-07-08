@@ -12,22 +12,24 @@
 # (RUN_ON_BOX.md has the exact PowerShell sequence.)
 
 # --- core training stack ---
-unsloth==2025.6.8
-trl==0.15.2
-peft==0.14.0
-transformers==4.51.3
-bitsandbytes==0.45.5
-datasets==3.5.0
-accelerate==1.6.0
+# stack pinned TOGETHER (transformers 5.x cascades with trl/unsloth) - verified set Jul 2026; do not bump package-by-package
+unsloth==2026.6.9
+transformers==5.5.0
+trl==0.24.0
+peft==0.19.1
+bitsandbytes==0.49.2
+accelerate>=1.10,<2         # keep compatible with the 5.x stack; latest 1.x that resolves - do not pin to a version that fights the above
+datasets                    # let it resolve to a transformers-5.5-compatible version
+tokenizers                  # let it resolve to a transformers-5.5-compatible version
 
 # --- attention / kernels (Unsloth prefers a matching xformers; optional on
 #     native Windows - see the Windows note in RUN_ON_BOX.md) ---
-xformers==0.0.30
+xformers==0.0.34            # cu128 build - matches the unslothai Blackwell docker set
 
 # --- misc pins to keep the resolver stable ---
 sentencepiece==0.2.1
 protobuf==5.29.6
-huggingface-hub==0.30.2
+huggingface-hub             # let it resolve to what transformers 5.5 needs
 
 # torch is intentionally NOT pinned here - install it from the cu128 index
 # BEFORE this file (see the header above), so pip does not pull a non-Blackwell

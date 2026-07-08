@@ -12664,6 +12664,39 @@ except Exception as _wq_e1:  # additive: never break the Space
 
 
 # ============================================================================
+# WAVE-S FRONTIER (feat/frontier-s-blocksparse, Dev1): a11oy-NATIVE cited
+# LEARNED BLOCKWISE TOP-k KV SPARSE-ATTENTION backend — the DeepSeek-NSA /
+# MiniMax-MSA / SparDA family the estate did NOT yet model as a LEARNED
+# index-branch block selector (distinct from nsa's fixed-pattern demo and from
+# sement's uncertainty surface). Deterministic, stdlib-only (no numpy),
+# try/except-guarded; returns a renderable 200 with an honest MODELED label +
+# receipt. register() uses @app.get (APPENDS), so we front-move the single route
+# to router position 0 so it wins over the /api/a11oy/{path:path} Node proxy +
+# /{full_path:path} SPA catch-all (reuses _wn_frontmove).
+#   szl_blocksparse -> /api/a11oy/v1/blocksparse/select   (surface: blocksparse.js)
+#     Real index-branch (mean-pooled block key) scoring -> per-GQA-group Top-k
+#     block selection -> exact block-sparse attention over a seeded long-context
+#     KV cache; reports the compute-reduction vs dense + a recall/quality tradeoff
+#     curve (index recall vs the exact oracle top-k). Cites MiniMax MSA
+#     (arXiv:2606.13392), SparDA (arXiv:2606.04511), NSA/DeepSeek (arXiv:2502.11089).
+# Λ = Conjecture 1; nothing added to the locked-8; trust never 100%.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _ws_sys
+    import szl_blocksparse as _szl_blocksparse
+    _ws_s1 = _szl_blocksparse.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/blocksparse/select")
+    print(f"[a11oy] WAVE-S FRONTIER szl_blocksparse registered (front-moved): {_ws_s1}", file=_ws_sys.stderr)
+except Exception as _ws_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-S FRONTIER szl_blocksparse NOT registered (non-fatal): {_ws_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-S FRONTIER (learned blockwise Top-k KV sparse attention)
+# ============================================================================
+
+
+# ============================================================================
 # WAVE-S FRONTIER (feat/frontier-s-confattest, Dev3): a11oy-NATIVE cited
 # CONFIDENTIAL-COMPUTE ATTESTATION + ACTION-GATE backend. Two governance legs:
 #   (a) a SIMULATED confidential-compute enclave attestation quote (Intel-TDX
@@ -12686,14 +12719,14 @@ except Exception as _wq_e1:  # additive: never break the Space
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # ============================================================================
 try:
-    import sys as _ws_sys
+    import sys as _wsca_sys
     import szl_confattest as _szl_confattest
-    _ws_s1 = _szl_confattest.register(app, ns="a11oy")
+    _wsca_s1 = _szl_confattest.register(app, ns="a11oy")
     _wn_frontmove("/api/a11oy/v1/confattest/quote")
     _wn_frontmove("/api/a11oy/v1/confattest/gate")
-    print(f"[a11oy] WAVE-S FRONTIER szl_confattest registered (front-moved): {_ws_s1}", file=_ws_sys.stderr)
-except Exception as _ws_e1:  # additive: never break the Space
-    print(f"[a11oy] WAVE-S FRONTIER szl_confattest NOT registered (non-fatal): {_ws_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+    print(f"[a11oy] WAVE-S FRONTIER szl_confattest registered (front-moved): {_wsca_s1}", file=_wsca_sys.stderr)
+except Exception as _wsca_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-S FRONTIER szl_confattest NOT registered (non-fatal): {_wsca_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================
 # END: WAVE-S FRONTIER (confidential-compute attestation + action gate)
 # ============================================================================
