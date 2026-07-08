@@ -26,8 +26,11 @@ import serve  # noqa: E402
 import szl_frontier_index as fi  # noqa: E402
 
 STATUS = "/api/a11oy/v1/status"
+SUMMARY = "/api/a11oy/v1/status/summary"
 HEALTH = "/api/a11oy/v1/status/health"
 HEALTH_TOKENS = {"LIVE", "DEGRADED", "UNAVAILABLE", "FRONTEND"}
+ESTATE_TOKENS = {"LIVE", "DEGRADED", "UNAVAILABLE"}
+_RANK = {"UNAVAILABLE": 0, "DEGRADED": 1, "LIVE": 2}
 VOCAB = set(fi.HONEST_LABELS)
 
 
@@ -42,12 +45,15 @@ def test_status_routes_registered_before_catchalls():
     si = _route_index(STATUS)
     assert si is not None, f"{STATUS} not registered"
     assert _route_index(HEALTH) is not None, f"{HEALTH} not registered"
+    assert _route_index(SUMMARY) is not None, f"{SUMMARY} not registered"
     spa = _route_index("/{full_path:path}")
     proxy = _route_index("/api/a11oy/{path:path}")
-    if spa is not None:
-        assert si < spa, f"{STATUS} ({si}) must precede the SPA catch-all ({spa})"
-    if proxy is not None:
-        assert si < proxy, f"{STATUS} ({si}) must precede the Node proxy ({proxy})"
+    for path in (STATUS, SUMMARY, HEALTH):
+        idx = _route_index(path)
+        if spa is not None:
+            assert idx < spa, f"{path} ({idx}) must precede the SPA catch-all ({spa})"
+        if proxy is not None:
+            assert idx < proxy, f"{path} ({idx}) must precede the Node proxy ({proxy})"
 
 
 def test_status_answers_200_and_is_internally_consistent():
@@ -103,3 +109,58 @@ def test_status_health_tile_ok():
     j = r.json()
     assert j["ok"] is True and j["label"] == "MODELED"
     assert j["doctrine"]["lambda"] == "Conjecture 1"
+
+
+def test_status_preflight_and_worst_wins_headline():
+    """Boot-preflight readiness is folded into the estate; the headline is
+    worst-wins across live surface health AND preflight (never fabricated green)."""
+    with TestClient(serve.app) as c:
+        j = c.get(STATUS).json()
+    pf = j["preflight"]
+    assert pf["overall"] in HEALTH_TOKENS, f"preflight overall not honest: {pf['overall']}"
+    assert pf["label"] == pf["overall"], "preflight label must be its verbatim overall"
+    assert isinstance(pf.get("subsystems"), list)
+    est = j["estate"]
+    headline = est["headline"]
+    assert headline in ESTATE_TOKENS, f"bad headline {headline}"
+    # Headline can never be healthier than either the estate health or preflight.
+    assert _RANK[headline] <= _RANK.get(est["health"], 0)
+    assert _RANK[headline] <= _RANK.get(pf["overall"], 1)
+
+
+def test_status_history_sparkline_is_honest_sample():
+    """The history sparkline is an in-memory ring buffer of REAL observed probes,
+    labelled SAMPLE, bounded, and never fabricated. Each GET appends one probe."""
+    with TestClient(serve.app) as c:
+        j1 = c.get(STATUS).json()
+        h1 = j1["history"]
+        assert h1["label"] == "SAMPLE", h1
+        cap = h1["capacity"]
+        assert h1["observed"] == len(h1["sparkline"]) == len(h1["samples"])
+        assert 1 <= h1["observed"] <= cap, "ring buffer must be bounded and non-empty after a probe"
+        for tok in h1["sparkline"]:
+            assert tok in ESTATE_TOKENS, f"non-honest sparkline token {tok}"
+        before = h1["observed"]
+        h2 = c.get(STATUS).json()["history"]
+        assert h2["observed"] == min(before + 1, cap), "each probe appends exactly one observation"
+
+
+def test_status_summary_compact_agrees_with_full():
+    with TestClient(serve.app) as c:
+        r = c.get(SUMMARY)
+        assert r.status_code == 200, f"{SUMMARY} -> {r.status_code} (must never 500)"
+        sm = r.json()
+        full = c.get(STATUS).json()
+    assert sm["ok"] is True and sm["label"] == "MODELED"
+    assert sm["endpoint"] == "status/summary"
+    assert sm["headline"] in ESTATE_TOKENS
+    assert sm["estate_health"] in ESTATE_TOKENS
+    assert sm["preflight"] in HEALTH_TOKENS
+    assert sm["history"]["label"] == "SAMPLE"
+    assert isinstance(sm["history"]["sparkline"], list)
+    # Compact payload must not disagree with the full aggregate it derives from.
+    assert sm["estate_health"] == full["estate"]["health"]
+    assert sm["surfaces"] == full["estate"]["surfaces"]
+    d = sm["doctrine"]
+    assert d["locked_proven"] == 8 and d["lambda"] == "Conjecture 1"
+    assert d["trust_ceiling"] == 0.97 and d["runtime_cdn"] == 0

@@ -15,12 +15,17 @@
 // health value. When the route answers, the tiles fill in on the next poll.
 //
 // DATA: same-origin, relative — /api/a11oy/v1/status. Read defensively (the exact schema
-// is Dev 2's; we accept the plausible field names and never fabricate a value):
+// is Dev 2's, DEEPENED by Wave S Dev 4; we accept the plausible field names and never
+// fabricate a value):
 //   ok, label (this view's own top label, MODELED — an introspective rollup, not a meter),
-//   rollup ("green"|"degraded"|"unavailable"; derived locally iff the backend omits it),
-//   summary{ surfaces, health_counts{green,degraded,unavailable}, label_counts },
-//   surfaces[]{ id, title, category, label, health, endpoint, reason },
+//   estate{ health, headline (GREEN/DEGRADED/UNAVAILABLE, boot-preflight folded in worst-wins),
+//           surfaces, subsystems, counts{LIVE,DEGRADED,UNAVAILABLE,FRONTEND} },
+//   preflight{ overall (LIVE/DEGRADED/UNAVAILABLE), subsystems[] } — boot readiness, verbatim,
+//   history{ label:"SAMPLE", observed, sparkline[LIVE|DEGRADED|UNAVAILABLE,...] } — REAL probes,
+//   surfaces[]{ id, title, category, label|data_label, health, endpoint, reason },
 //   doctrine{ locked_proven, lambda, trust_ceiling }.
+// Older/legacy field names (rollup, summary{...}) are still accepted as fallbacks so this
+// surface degrades gracefully against either schema and never renders blank.
 //
 // VISUALIZES:
 //   1. a CENTRAL ROLLUP CORE — one icosahedron whose colour is the estate rollup
@@ -79,7 +84,7 @@ let _listEl = null, _placeholderEl = null;
 // live state (all read from JSON; nothing invented)
 const S = {
   label:       null,   // this view's own top honesty label VERBATIM (MODELED)
-  rollup:      null,   // "green" | "degraded" | "unavailable"
+  rollup:      null,   // "green" | "degraded" | "unavailable"  (estate headline, preflight folded in)
   count:       null,
   green:       null,
   degraded:    null,
@@ -88,6 +93,12 @@ const S = {
   lambda:      null,
   locked:      null,
   surfaces:    [],     // [{ id, title, label, health, reason }]
+  // DEEPEN (Wave S): boot-preflight readiness + honest SAMPLE history sparkline.
+  preflight:   null,   // "green" | "degraded" | "unavailable" | null (boot readiness)
+  preflightN:  null,   // number of preflight subsystems reported
+  sparkline:   [],     // ["green"|"degraded"|"unavailable", ...] — REAL observed probes only
+  historyLabel: null,  // "SAMPLE" verbatim
+  historyN:    null,   // observed-probe count now held in the ring buffer
   state:       "init",
 };
 
@@ -281,17 +292,42 @@ function _onData(j) {
     };
   });
 
-  // rollup — prefer the backend's own; else derive worst-wins.
-  const rawRollup = _normHealth(j && (j.rollup || j.rollup_health || (j.summary && j.summary.rollup)));
+  // rollup — prefer the backend's HONEST estate HEADLINE (Wave S: this folds boot-preflight
+  // readiness into the whole-estate state, worst-wins), then its estate.health, then the
+  // legacy top-level rollup field; else derive worst-wins from the per-surface ring locally.
+  const est = (j && j.estate) || {};
+  const rawRollup = _normHealth(
+    (est && (est.headline || est.health)) ||
+    (j && (j.rollup || j.rollup_health || (j.summary && j.summary.rollup))),
+  );
   S.rollup = rawRollup || _deriveRollup(S.surfaces);
 
-  // summary counts — prefer the backend's own; else count locally.
+  // summary counts — prefer the backend's estate.counts (LIVE/DEGRADED/UNAVAILABLE), then a
+  // legacy summary block; else count locally from the ring. Honest by construction.
   const sm = (j && j.summary) || {};
-  const hc = sm.health_counts || sm.counts || {};
-  S.count       = typeof sm.surfaces === "number" ? sm.surfaces : S.surfaces.length;
-  S.green       = typeof hc.green === "number" ? hc.green : S.surfaces.filter((s) => s.health === "green").length;
-  S.degraded    = typeof hc.degraded === "number" ? hc.degraded : S.surfaces.filter((s) => s.health === "degraded").length;
-  S.unavailable = typeof hc.unavailable === "number" ? hc.unavailable : S.surfaces.filter((s) => s.health === "unavailable").length;
+  const hc = est.counts || sm.health_counts || sm.counts || {};
+  const _hcGet = (k1, k2) => (typeof hc[k1] === "number" ? hc[k1]
+                            : typeof hc[k2] === "number" ? hc[k2] : null);
+  S.count       = typeof est.surfaces === "number" ? est.surfaces
+                : typeof sm.surfaces === "number" ? sm.surfaces : S.surfaces.length;
+  const _g = _hcGet("LIVE", "green"), _d = _hcGet("DEGRADED", "degraded"), _u = _hcGet("UNAVAILABLE", "unavailable");
+  S.green       = _g != null ? _g : S.surfaces.filter((s) => s.health === "green").length;
+  S.degraded    = _d != null ? _d : S.surfaces.filter((s) => s.health === "degraded").length;
+  S.unavailable = _u != null ? _u : S.surfaces.filter((s) => s.health === "unavailable").length;
+
+  // DEEPEN: boot-preflight readiness (from the same rollup /healthz surfaces). Read verbatim,
+  // never upgraded — a DEGRADED preflight stays degraded. null if the backend omits it.
+  const pf = (j && j.preflight) || null;
+  S.preflight  = pf ? _normHealth(pf.overall || pf.label) : null;
+  S.preflightN = (pf && Array.isArray(pf.subsystems)) ? pf.subsystems.length : null;
+
+  // DEEPEN: honest SAMPLE history sparkline — REAL observed probes only, never fabricated.
+  const hist = (j && j.history) || null;
+  S.historyLabel = (hist && typeof hist.label === "string") ? hist.label.toUpperCase() : null;
+  S.historyN     = (hist && typeof hist.observed === "number") ? hist.observed : null;
+  S.sparkline    = (hist && Array.isArray(hist.sparkline))
+    ? hist.sparkline.map((tok) => _normHealth(tok)).filter(Boolean)
+    : [];
 
   const d = (j && j.doctrine) || {};
   S.trustCeil = typeof d.trust_ceiling === "number" ? d.trust_ceiling : null;
@@ -385,6 +421,7 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("od-green", "green (up · honest label)"));
   grid.appendChild(kpiRow("od-deg",   "degraded"));
   grid.appendChild(kpiRow("od-unav",  "unavailable"));
+  grid.appendChild(kpiRow("od-preflight", "boot preflight (readiness)"));
   grid.appendChild(kpiRow("od-locked", "locked proofs"));
   grid.appendChild(kpiRow("od-trust",  "trust ceiling"));
   grid.appendChild(kpiRow("od-lambda", "Λ"));
@@ -399,6 +436,30 @@ function _buildOverlay() {
     'operational health, not a proof. Labels read verbatim, never upgraded.';
   card.appendChild(leg);
   host.appendChild(card);
+
+  // ── history sparkline (honest SAMPLE ring buffer of recent estate rollups) ──
+  const spark = document.createElement("div");
+  spark.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:7px 9px;display:flex;flex-direction:column;gap:5px";
+  const sparkHead = document.createElement("div");
+  sparkHead.style.cssText = "display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#6b7a86;letter-spacing:.4px;text-transform:uppercase";
+  const sparkTitle = document.createElement("span"); sparkTitle.textContent = "recent rollups · history";
+  const sparkTag = document.createElement("b");
+  sparkTag.id = "od-spark-tag";
+  sparkTag.style.cssText = "font:600 9px ui-monospace,Menlo,monospace;color:#9fb1bf;letter-spacing:.3px";
+  sparkTag.textContent = "SAMPLE";
+  sparkHead.appendChild(sparkTitle); sparkHead.appendChild(sparkTag);
+  spark.appendChild(sparkHead);
+  const sparkBars = document.createElement("div");
+  sparkBars.id = "od-spark-bars";
+  sparkBars.style.cssText = "display:flex;align-items:flex-end;gap:2px;height:26px;overflow:hidden";
+  spark.appendChild(sparkBars);
+  const sparkNote = document.createElement("div");
+  sparkNote.id = "od-spark-note";
+  sparkNote.style.cssText = "font-size:9px;color:#6b7a86;line-height:1.5";
+  sparkNote.textContent = "in-memory ring buffer of rollups this process observed — never a fabricated back-history.";
+  spark.appendChild(sparkNote);
+  _el["sparkBars"] = sparkBars; _el["sparkTag"] = sparkTag; _el["sparkNote"] = sparkNote;
+  host.appendChild(spark);
 
   // ── honest placeholder tile (shown when the backend is UNAVAILABLE / missing) ──
   _placeholderEl = document.createElement("div");
@@ -510,9 +571,17 @@ function _paintOverlay() {
   _set("od-green",  t || _n(S.green));
   _set("od-deg",    t || _n(S.degraded));
   _set("od-unav",   t || _n(S.unavailable));
+  _set("od-preflight", t || _preflightWord());
   _set("od-locked", t || (S.locked != null ? String(S.locked) : "—"));
   _set("od-trust",  t || (S.trustCeil != null ? String(S.trustCeil) : "—"));
   _set("od-lambda", t || (S.lambda || "—"));
+
+  // preflight readout is colour-coded to its honest readiness
+  const pfEl = _el["od-preflight"];
+  if (pfEl) pfEl.style.color = down ? "#eef3f6" : _healthCss(S.preflight);
+
+  // honest SAMPLE history sparkline
+  _renderSparkline();
 
   // honest placeholder tile vs the live per-surface list
   _paintPlaceholderAndList();
@@ -583,6 +652,50 @@ function _healthCss(health) {
   return "#8494a1";
 }
 
+// Honest boot-preflight readiness word (readiness → LIVE/DEGRADED/UNAVAILABLE). Never
+// invents a value: if the backend omitted preflight, we say so honestly ("n/a").
+function _preflightWord() {
+  if (!S.preflight) return "n/a";
+  const word = S.preflight === "green" ? "READY"
+             : S.preflight === "degraded" ? "DEGRADED"
+             : S.preflight === "unavailable" ? "UNAVAILABLE" : "…";
+  return S.preflightN != null ? (word + " · " + S.preflightN + " subsys") : word;
+}
+
+// Render the honest SAMPLE sparkline: one small bar per REAL observed rollup, coloured by
+// that observed health. Empty until the first probe — never back-filled or faked.
+function _renderSparkline() {
+  const bars = _el["sparkBars"], note = _el["sparkNote"], tag = _el["sparkTag"];
+  if (!bars) return;
+  if (tag) tag.textContent = S.historyLabel || "SAMPLE";
+  bars.innerHTML = "";
+  const spk = S.sparkline || [];
+  if (!spk.length) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "font-size:9px;color:#6b7a86;align-self:center";
+    empty.textContent = _backendDown() ? "no history — backend unavailable" : "no probes observed yet…";
+    bars.appendChild(empty);
+    if (note) note.textContent = "in-memory ring buffer of rollups this process observed — never a fabricated back-history.";
+    return;
+  }
+  // show the most recent window so the newest rollup sits on the right
+  const MAX = 48;
+  const view = spk.slice(-MAX);
+  const H = { green: 26, degraded: 17, unavailable: 9 };
+  for (const h of view) {
+    const b = document.createElement("div");
+    const px = H[h] || 6;
+    b.style.cssText = "width:5px;flex:0 0 auto;border-radius:1px;background:" + _healthCss(h) + ";height:" + px + "px";
+    b.title = h;
+    bars.appendChild(b);
+  }
+  if (note) {
+    const n = S.historyN != null ? S.historyN : view.length;
+    note.textContent = "SAMPLE · " + n + " rollup" + (n === 1 ? "" : "s") +
+      " observed by this process — never a fabricated back-history.";
+  }
+}
+
 // =============================================================================
 // unmount — dispose everything; must not affect other organs
 // =============================================================================
@@ -609,6 +722,7 @@ export function unmount() {
   _stage = _THREE = _ctx = null;
   S.label = S.rollup = S.count = S.green = S.degraded = S.unavailable = null;
   S.trustCeil = S.lambda = S.locked = null; S.surfaces = []; S.state = "init";
+  S.preflight = S.preflightN = S.historyLabel = S.historyN = null; S.sparkline = [];
 }
 
 export default { id: ID, title: TITLE, endpoints: [EP], mount, unmount };
