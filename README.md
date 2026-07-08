@@ -49,7 +49,13 @@ ecosystem-stage: "operational"
 
 a11oy is a **governed-AI Command Center**: one interface for ask-and-act with deny-by-default safety gates, trust scoring, a live decision feed, and a signed receipt for every action.
 
-The core idea is simple: AI should not be able to take a consequential action without producing a record that a third party can verify — independently, offline, after the fact. a11oy enforces that. Every action passes through a policy gate, is scored by a trust function, and is sealed into a cryptographically signed receipt chained over SHA-256. Tamper with one byte and verification fails loudly.
+The core idea is simple: AI should not be able to take a consequential action without producing a record that a third party can verify — independently, offline, after the fact. a11oy enforces that. Every action:
+
+- passes through a **policy gate** (deny-by-default);
+- is scored by a **trust function**; then
+- is sealed into a **cryptographically signed receipt** chained over SHA-256.
+
+Tamper with one byte and verification fails loudly.
 
 **Try it now — no login required:**
 
@@ -169,3 +175,21 @@ python3 .github/shared-module-hash-check.py --update
 <div align="center">
 <sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested · L3 roadmap · Not affiliated with Defense Unicorns · No production ATO claimed · trust never 100%</sub>
 </div>
+
+---
+
+## ◇ Part of the SZL Holdings estate — *governed AI you can prove*
+
+One sovereign substrate, many organs — every decision carries a signed, checkable receipt.
+
+**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.static.hf.space)** ·
+[🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
+[🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
+[🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
+[🫀 anatomy](https://huggingface.co/spaces/SZLHOLDINGS/anatomy) ·
+[🌌 cosmos](https://huggingface.co/spaces/SZLHOLDINGS/cosmos) ·
+[🛰️ SDA](https://huggingface.co/spaces/SZLHOLDINGS/sda) ·
+[🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·
+[🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
+
+<sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>
