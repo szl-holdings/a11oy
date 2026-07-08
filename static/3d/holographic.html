@@ -96,6 +96,52 @@
  @media (max-width:640px) and (orientation:landscape){
   #stage-wrap{min-height:56vh}
  }
+
+ /* ---- Landing / intro overlay (Dev4, Wave R) --------------------------- */
+ /* A coherent honest entry panel that showcases the Brain + the frontier estate
+    + the public /verify, sitting over the live 3D stage (which boots underneath).
+    Additive: dismisses to reveal the estate; every stat carries an honest label and
+    degrades to NO-LIVE-DATA if its same-origin endpoint 404s / is unreachable. */
+ #intro{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;padding:26px 20px;overflow-y:auto;
+  background:radial-gradient(120% 120% at 50% 0%,rgba(11,22,32,.90),rgba(5,7,13,.96));
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);text-align:center}
+ #intro[hidden]{display:none}
+ #intro .intro-eyebrow{font:10.5px ui-monospace,monospace;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--gold);opacity:.85}
+ #intro h2{margin:0;font-size:clamp(19px,3.4vw,30px);letter-spacing:.3px;color:var(--cream);
+  font-weight:600;max-width:min(720px,92vw)}
+ #intro .intro-sub{margin:0;max-width:min(640px,90vw);color:var(--para);
+  font:13.5px/1.55 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+ #intro .cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;
+  max-width:min(880px,95vw);margin-top:2px}
+ #intro .card{flex:1 1 240px;min-width:210px;max-width:280px;text-align:left;
+  border:1px solid var(--line);border-radius:12px;background:#0a121bcc;padding:14px 15px;
+  display:flex;flex-direction:column;gap:8px}
+ #intro .card h3{margin:0;font:12.5px ui-monospace,monospace;letter-spacing:.4px;color:var(--cream)}
+ #intro .card p{margin:0;font:12px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;color:var(--para)}
+ #intro .stat{font:22px ui-monospace,monospace;color:var(--proof);line-height:1.1}
+ #intro .stat small{font-size:11px;color:var(--para);display:block;margin-top:2px;letter-spacing:.2px}
+ #intro .lbl{align-self:flex-start;font:9.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);letter-spacing:.4px}
+ #intro .lbl[data-state="live"]{color:var(--proof);border-color:#20323e}
+ #intro .lbl[data-state="degraded"]{color:var(--gold);border-color:#3a2f1a}
+ #intro .card .go{margin-top:auto;font:11px ui-monospace,monospace;padding:7px 10px;border-radius:8px;
+  border:1px solid var(--line);background:#0b1620;color:var(--cream);cursor:pointer;text-align:center;
+  transition:.12s;text-decoration:none}
+ #intro .card .go:hover{border-color:var(--proof);color:var(--cream)}
+ #intro .enter{margin-top:6px;font:12.5px ui-monospace,monospace;padding:10px 22px;border-radius:9px;
+  border:1px solid var(--proof);background:#12202b;color:var(--cream);cursor:pointer;letter-spacing:.4px;
+  box-shadow:0 0 0 1px var(--proof) inset,0 0 12px rgba(58,244,200,.22);transition:.12s}
+ #intro .enter:hover{box-shadow:0 0 0 1px var(--proof) inset,0 0 18px rgba(58,244,200,.4)}
+ #intro .intro-foot{font:10px ui-monospace,monospace;color:var(--para);opacity:.8;letter-spacing:.3px;
+  max-width:min(760px,92vw)}
+ #intro-reopen{cursor:pointer;background:#10171f}
+ @media (max-width:640px){
+  #intro{gap:12px;padding:20px 14px;justify-content:flex-start}
+  #intro .cards{gap:9px}
+  #intro .card{padding:11px 12px;min-width:0;flex:1 1 100%;max-width:420px}
+ }
 </style>
 </head>
 <body>
@@ -106,6 +152,8 @@
  <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
  <span class="badge" id="cdn-badge">0 runtime CDN</span>
  <span class="badge">Λ = Conjecture 1</span>
+ <button class="badge" id="intro-reopen" title="Reopen the landing overview (Brain · frontier estate · public verify)">◇ intro</button>
+ <a href="/verify" class="badge" title="Public receipt verifier — paste a signed Khipu receipt / DSSE envelope for a PASS/FAIL panel">✓ verify</a>
  <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
 </header>
 <nav class="tabs" id="tabs" role="tablist" aria-label="Estate surfaces">
@@ -117,6 +165,43 @@
  <div id="stage"></div>
  <div id="fallback">3D unavailable on this device — the holographic estate needs a WebGL2 or WebGPU canvas.<br>
   All underlying data is still available as JSON at the per-surface endpoints.</div>
+ <!-- Landing overlay (Dev4): coherent honest entry over the live estate. -->
+ <div id="intro" role="dialog" aria-label="a11oy holographic estate — landing overview" hidden>
+  <div class="intro-eyebrow">SZL Holdings · Doctrine v11 · Λ = Conjecture 1</div>
+  <h2>The governed agentic substrate, rendered as a holographic estate</h2>
+  <p class="intro-sub">Every value each surface shows traces to a real same-origin a11oy endpoint and
+   carries its own honesty label (MEASURED / MODELED / SAMPLE / STRUCTURAL-ONLY). Nothing here is
+   invented. Start with the Brain, walk the frontier estate, or verify a signed receipt yourself.</p>
+  <div class="cards">
+   <div class="card" id="card-brain">
+    <span class="lbl" data-state="degraded" id="brain-lbl">NO-LIVE-DATA</span>
+    <h3>Brain — live knowledge graph</h3>
+    <div class="stat" id="brain-stat">—<small id="brain-sub">distinct artifacts (harvested)</small></div>
+    <p id="brain-note">The estate's own harvested graph. Distinct artifacts is the honest headline;
+     the raw node count is larger (dominated by arXiv co-author nodes).</p>
+    <button class="go" data-go="brain">Open the Brain →</button>
+   </div>
+   <div class="card" id="card-estate">
+    <span class="lbl" data-state="degraded" id="estate-lbl">NO-LIVE-DATA</span>
+    <h3>Frontier estate</h3>
+    <div class="stat" id="estate-stat">—<small>3D surfaces, each wired to a live backend</small></div>
+    <p>Attention, reasoning, governance, proof, energy, defense and more — grouped behind the
+     category dropdowns above. locked-proven formulas = 8 (never inflated).</p>
+    <button class="go" data-go="frontierindex">Explore the estate →</button>
+   </div>
+   <div class="card" id="card-verify">
+    <span class="lbl" data-state="live">PUBLIC</span>
+    <h3>Verify it yourself</h3>
+    <div class="stat">✓<small>signed Khipu receipt / DSSE envelope</small></div>
+    <p>Receipts sign on state changes, never on reads. Paste a receipt id or envelope into the
+     public verifier for an independent PASS / FAIL panel — no login.</p>
+    <a class="go" href="/verify">Open /verify →</a>
+   </div>
+  </div>
+  <button class="enter" id="intro-enter">Enter the estate →</button>
+  <div class="intro-foot">Doctrine v11 · locked = 8 {F1,F4,F7,F11,F12,F18,F19,F22} · Λ = Conjecture 1 ·
+   Khipu BFT = Conjecture 2 · 0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</div>
+ </div>
 </div>
 <footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
  shared szl3d toolkit (Dev0) · every value carries its honesty label · trust &lt; 100%</footer>
@@ -227,6 +312,7 @@ const SURFACES = [
   { id: "sparsemoe", cat: "quant", title: "Extreme-Sparsity MoE Analyzer · activation-ratio ↔ inference-cost tradeoff (STRUCTURAL-ONLY)", mod: "/static/3d/surfaces/sparsemoe.js" },
   { id: "pddisagg", cat: "defense", title: "Prefill/Decode Disaggregation Map · colocated vs disaggregated latency across the mesh (STRUCTURAL-ONLY/ROADMAP)", mod: "/static/3d/surfaces/pddisagg.js" },
   { id: "execverify", cat: "reasoning", title: "Execution-Verified Synthesis Loop · eval → verified trajectory → corpus candidate → receipt (STRUCTURAL-ONLY)", mod: "/static/3d/surfaces/execverify.js" },
+  { id: "opsdash", cat: "governance", flag: true, title: "Ops Dashboard · live estate health · GREEN/DEGRADED/UNAVAILABLE rollup + per-surface honest labels + /verify", mod: "/static/3d/surfaces/opsdash.js" },
 ];
 
 const stageEl = document.getElementById("stage");
@@ -454,6 +540,93 @@ window.__SZL3D_SHELL__ = {
 // initial surface from hash or default to the Atlas front door (Wave 27 unifier)
 const initial = (location.hash || "").replace("#", "");
 selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "atlas");
+
+// ---- Landing / intro overlay (Dev4, Wave R) --------------------------------
+// A coherent honest entry: the estate boots live underneath while this panel shows the
+// Brain headline + frontier surface count + the public verifier. Every stat is fetched
+// same-origin (0 CDN) and degrades to an honest NO-LIVE-DATA chip if the endpoint 404s or
+// is unreachable — never a fabricated number. Auto-shows once per tab session; re-openable
+// via the header ◇ intro badge or ?intro=1.
+{
+  const introEl = document.getElementById("intro");
+  const setLabel = (id, state, text) => {
+    const el = document.getElementById(id);
+    if (el) { el.dataset.state = state; el.textContent = text; }
+  };
+  const setStat = (id, value, subHtml) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = value;
+    if (subHtml !== undefined) { const s = document.createElement("small"); s.innerHTML = subHtml; el.appendChild(s); }
+  };
+
+  // Brain headline — honest distinct_artifacts (never the raw, person-inflated total).
+  async function loadBrain() {
+    try {
+      const r = await fetch("/api/a11oy/v1/brain/graph?summary=1", { headers: { accept: "application/json" } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      const s = j.summary || j;
+      const distinct = s.distinct_artifacts ?? j.distinct_artifacts;
+      const total = s.node_count ?? j.node_count;
+      if (distinct == null) throw new Error("no distinct_artifacts field");
+      setStat("brain-stat", Number(distinct).toLocaleString(), "distinct artifacts (harvested)");
+      setLabel("brain-lbl", "live", "LIVE");
+      if (total != null) {
+        const note = document.getElementById("brain-note");
+        if (note) note.textContent =
+          `${Number(distinct).toLocaleString()} distinct artifacts; raw node_count ${Number(total).toLocaleString()} ` +
+          `is larger (dominated by arXiv co-author person nodes — never presented as distinct work).`;
+      }
+    } catch (e) {
+      setStat("brain-stat", "—", "distinct artifacts (harvested)");
+      setLabel("brain-lbl", "degraded", "NO-LIVE-DATA");
+    }
+  }
+
+  // Frontier estate — count of live 3D surfaces (prefer the honest server info, fall back to
+  // the in-page manifest which is the same source of truth as the shell).
+  async function loadEstate() {
+    try {
+      const r = await fetch("/api/a11oy/v1/holographic/info", { headers: { accept: "application/json" } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      const n = Array.isArray(j.surfaces) ? j.surfaces.length : SURFACES.length;
+      setStat("estate-stat", String(n), "3D surfaces, each wired to a live backend");
+      setLabel("estate-lbl", "live", "LIVE");
+    } catch (e) {
+      // The shell manifest is authoritative and always present — honest count, labelled as
+      // in-page (not a fresh server read).
+      setStat("estate-stat", String(SURFACES.length), "3D surfaces (from in-page manifest)");
+      setLabel("estate-lbl", "degraded", "MANIFEST");
+    }
+  }
+
+  function openIntro() { introEl.hidden = false; loadBrain(); loadEstate(); }
+  function closeIntro() {
+    introEl.hidden = true;
+    try { sessionStorage.setItem("szl3d_intro_seen", "1"); } catch (_) {}
+  }
+
+  introEl.querySelectorAll("[data-go]").forEach((b) =>
+    b.addEventListener("click", () => { closeIntro(); selectSurface(b.dataset.go); }));
+  const enterBtn = document.getElementById("intro-enter");
+  if (enterBtn) enterBtn.addEventListener("click", closeIntro);
+  const reopen = document.getElementById("intro-reopen");
+  if (reopen) reopen.addEventListener("click", openIntro);
+
+  // Auto-show on a fresh visit: skip if this tab already dismissed it, unless a deep-link
+  // hash (#brain etc.) or a suppress flag says otherwise; ?intro=1 always forces it.
+  let seen = false;
+  try { seen = sessionStorage.getItem("szl3d_intro_seen") === "1"; } catch (_) {}
+  const force = /[?&]intro=1\b/.test(location.search);
+  const deepLink = SURFACES.some((s) => s.id === initial);
+  if (force || (!seen && !deepLink)) openIntro();
+  else introEl.hidden = true;
+
+  window.__SZL3D_SHELL__.openIntro = openIntro;
+  window.__SZL3D_SHELL__.closeIntro = closeIntro;
+}
 </script>
 </body>
 </html>

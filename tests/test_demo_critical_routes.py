@@ -62,6 +62,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/attest/",                   # prove-our-whole-stack — 6-factor provenance chain for a decision receipt
     "/attest",                                 # KANCHAY prove-the-stack verifier PAGE
     "/api/a11oy/v1/genome",                    # formula-registry genome — console Genome panel reads it (4 honesty tiers)
+    "/api/a11oy/v1/status",                    # Wave-R operational-dashboard back-end (honest per-subsystem/surface health rollup)
+    "/api/a11oy/v1/frontier-index/catalog",    # Wave-Q honest ecosystem catalog the status aggregate is built on (drift-proof source)
 ]
 
 

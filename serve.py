@@ -103,6 +103,19 @@ except ImportError:
 
 app = FastAPI(title="a11oy — Brand Orchestration Layer", version="2.0.0")
 
+# ── Shared guarded-surface wrapper (Wave R Dev 2) — one bad surface must NEVER 500 the
+# SPA. This ASGI middleware converts an unhandled exception from any JSON API surface
+# (/api/…) into an HONEST 200 carrying UNAVAILABLE + the real reason, instead of a bare
+# 500; non-API paths (SPA HTML / static assets) are re-raised unchanged. Added FIRST so it
+# is INNERMOST — its honest degraded response still flows out through CORS + security
+# headers. Additive: edits no surface's internals. Signs/mints nothing; adds nothing to the
+# locked-8; Λ stays Conjecture 1. Honest degrade, never a fabricated green.
+try:
+    import szl_guarded_surface as _szl_guarded_surface
+    print("[a11oy] " + _szl_guarded_surface.register(app), file=__import__("sys").stderr)
+except Exception as _szl_guard_e:  # pragma: no cover
+    print(f"[a11oy] Guarded-surface wrapper NOT registered: {_szl_guard_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
@@ -753,6 +766,22 @@ try:
     print("[a11oy] Frontier INDEX registered: /api/a11oy/v1/frontier-index/catalog (honest ecosystem catalog + self-audit)", file=__import__("sys").stderr)
 except Exception as _szl_fidx_e:  # pragma: no cover
     print(f"[a11oy] Frontier INDEX NOT registered: {_szl_fidx_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
+# operational-dashboard back-end: for every registered surface it reports the honest data
+# label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
+# up for the whole estate. DRIFT-PROOF: built ENTIRELY on the Wave-Q frontier index
+# (szl_frontier_index.build_catalog), which derives from szl3d_holographic.SURFACES +
+# app.routes + each surface's own response — so it can never drift from what is wired. PURE
+# READ (signs/mints nothing on GET). Adds NOTHING to the locked-8; Λ stays Conjecture 1;
+# trust ceiling 0.97. Additive, try/except-guarded, same register() pattern, BEFORE the SPA
+# catch-all. Must register AFTER the frontier index (which it reads).
+try:
+    import szl_status_aggregate as _szl_status_aggregate
+    _szl_status_aggregate.register(app, ns="a11oy")
+    print("[a11oy] Operational STATUS aggregate registered: /api/a11oy/v1/status (honest per-subsystem/surface health, drift-proof)", file=__import__("sys").stderr)
+except Exception as _szl_status_e:  # pragma: no cover
+    print(f"[a11oy] Operational STATUS aggregate NOT registered: {_szl_status_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
@@ -3538,6 +3567,40 @@ except Exception as _bv3_e:  # never crash the app
 
 
 # ---------------------------------------------------------------------------
+# BOOT PREFLIGHT (Wave R Dev 1 — collision-proof, fail-LOUD env/secret hygiene).
+# ADDITIVE + GUARDED. On boot, log an HONEST present/absent report of every
+# expected env NAME (never a secret VALUE) and compute per-subsystem readiness.
+# A missing/renamed secret DEGRADES the affected subsystem instead of crashing
+# the estate — the exact resilience the 2026-07-08 "Collision on variables and
+# secrets names" CONFIG_ERROR outage demanded. Fully try/except-wrapped so a
+# preflight failure can NEVER 503 the box; a preflight fault degrades honestly.
+# Canonical env registry + secret-vs-variable map: docs/RUNTIME_ENV.md.
+# ---------------------------------------------------------------------------
+_PREFLIGHT_RESULT: dict[str, Any] = {"readiness": {"overall": "DEGRADED", "subsystems": []},
+                                     "report": {"ok": False, "error": "preflight not run"}}
+try:
+    import szl_boot_preflight as _szl_preflight
+    _PREFLIGHT_RESULT = _szl_preflight.run_preflight()
+except Exception as _preflight_e:  # pragma: no cover — boot must survive this
+    print(f"[a11oy] PREFLIGHT module NOT loaded (guarded-degrade): {_preflight_e!r}",
+          file=sys.stderr)
+
+
+def _preflight_signal() -> dict:
+    """Compact preflight rollup for /healthz. NEVER raises — honest DEGRADED on
+    any fault. Re-reads readiness live so a late-set env is reflected; falls back
+    to the boot-time snapshot if the module is unavailable."""
+    try:
+        import szl_boot_preflight as _szl_pf_hz
+        return _szl_pf_hz.readiness()
+    except Exception as exc:  # pragma: no cover — never block healthz
+        snap = _PREFLIGHT_RESULT.get("readiness", {}) if isinstance(_PREFLIGHT_RESULT, dict) else {}
+        return {"overall": snap.get("overall", "DEGRADED"),
+                "subsystems": snap.get("subsystems", []),
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+# ---------------------------------------------------------------------------
 # Health / Readiness
 # ---------------------------------------------------------------------------
 
@@ -3731,6 +3794,7 @@ async def healthz() -> JSONResponse:
     _frontier = _frontier_liveness_signal()
     _sovereign = _sovereign_health_signal()
     _brain = _brain_health_signal()
+    _preflight = _preflight_signal()
     # Honest overall status. PRESSURE is advisory (still "ok" overall but
     # surfaced). Never fake green.
     # Overall degrades on a hard storage failure (disk full / read-only). The
@@ -3745,6 +3809,12 @@ async def healthz() -> JSONResponse:
         _degraded_reasons.append("signer-probe-unavailable")
     if str(_frontier.get("status")) == "unavailable":
         _degraded_reasons.append("frontier-probe-unavailable")
+    # Preflight: a DEGRADED preflight (optional secret absent) is EXPECTED on a
+    # stock CPU Space and does NOT flip overall (mirrors signer UNSIGNED-LOCAL).
+    # Only an UNAVAILABLE preflight — a hard-required env missing or the module
+    # itself failing — is a real fault an orchestrator should catch.
+    if str(_preflight.get("overall")) == "UNAVAILABLE":
+        _degraded_reasons.append("preflight-unavailable")
     _overall = "degraded" if _degraded_reasons else "ok"
     return JSONResponse({
         "status": _overall,
@@ -3761,6 +3831,7 @@ async def healthz() -> JSONResponse:
             "frontier": _frontier,
             "sovereign": _sovereign,
             "brain": _brain,
+            "preflight": _preflight,
         },
         "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
@@ -3785,7 +3856,41 @@ async def healthz() -> JSONResponse:
         # organs). Never fabricates a joule; Λ = Conjecture 1. Also mirrored into
         # rollup.brain for a rollup consumer.
         "brain": _brain,
+        # Wave R / Dev 1: env/secret PREFLIGHT readiness (per-subsystem honest
+        # LIVE/DEGRADED/UNAVAILABLE). NAMES ONLY — never a secret value. DEGRADED
+        # on a stock CPU Space (optional provider secrets absent) is expected and
+        # honest, not a fault. Also mirrored into rollup.preflight.
+        "preflight": _preflight,
     })
+
+
+@app.get("/api/a11oy/v1/preflight")
+async def preflight_status() -> JSONResponse:
+    """HONEST env/secret preflight: per-subsystem readiness + present/absent env
+    NAMES (never a secret VALUE) + the canonical secret-vs-variable registry and
+    the HF collision rule. Read-only; no signing on this GET (Doctrine v11)."""
+    try:
+        import szl_boot_preflight as _szl_pf
+        report = _szl_pf.preflight_report()
+        ready = _szl_pf.readiness()
+        return JSONResponse({
+            "status": ready.get("overall", "DEGRADED"),
+            "doctrine": "v11",
+            "readiness": ready,
+            "env_report": report,
+            "registry": _szl_pf.registry(),
+            "collision_names": _szl_pf.collision_names(),
+            "collision_rule": "HF Space forbids a name being BOTH a variable and "
+                              "a secret — the 2026-07-08 CONFIG_ERROR cause. Each "
+                              "name above is configured in exactly one tab.",
+            "note": "NAMES ONLY — no secret values are ever emitted here.",
+        })
+    except Exception as exc:  # honest DEGRADED, never a 500
+        return JSONResponse({
+            "status": "DEGRADED",
+            "doctrine": "v11",
+            "error": f"{type(exc).__name__}: {exc}",
+        }, status_code=200)
 
 
 @app.get("/api/a11oy/readyz")
