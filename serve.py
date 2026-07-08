@@ -1041,6 +1041,24 @@ except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- szl_brainmemory BRAIN MEMORY FRESHNESS -- governed episodic memory-freshness / decay
+# honesty over the SAME honest brain graph (reuses szl_brain_api.get_index). GET /api/a11oy/v1/
+# brain/memory/info (static describe + formula + honest labels), GET /api/a11oy/v1/brain/memory
+# ?top= (deterministic per-node freshness ranking + per-component breakdown + FRESH/AGING/STALE
+# verdict), POST /api/a11oy/v1/brain/memory/receipt (unsigned SHA-256 content-digest, RECEIPT-ON-
+# WRITE-NOT-ON-READ). If a real per-node recency timestamp exists the score is MODELED (recency +
+# structure); otherwise it degrades HONESTLY to STRUCTURAL-ONLY (connectivity+salience proxy) and
+# NEVER fabricates a timestamp or a decay curve. STALE nodes are flagged for re-harvest, never
+# silently trusted. Labels are never upgraded; the score is never MEASURED. Adds NOTHING to the
+# locked-8; Lambda stays Conjecture 1; trust ceiling 0.97, never 100%. Pure reads sign nothing.
+# Additive, try/except-guarded, BEFORE the SPA catch-all. Must register AFTER szl_brain_api.
+try:
+    import szl_brainmemory as _szl_brainmemory
+    print("[a11oy] " + _szl_brainmemory.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainmemory_e:  # pragma: no cover
+    print(f"[a11oy] Brain memory freshness NOT registered: {_szl_brainmemory_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/

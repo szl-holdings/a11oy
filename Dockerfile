@@ -1517,6 +1517,17 @@ COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
 # OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97.
 COPY szl_honestywall.py ./szl_honestywall.py
 
+# BRAIN MEMORY FRESHNESS (feat/frontier-brainmemory) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from serve.py to
+# appear in the COPY set). szl_brainmemory.py is imported by serve.py and reuses the honest
+# brain graph (szl_brain_api.get_index) to compute a deterministic, explainable per-node
+# memory-freshness score → FRESH/AGING/STALE. MODELED only when a real per-node recency
+# timestamp exists; otherwise STRUCTURAL-ONLY (connectivity+salience proxy, never a fabricated
+# timestamp or decay curve). Its 3D surface brainmemory.js ships via the existing whole-tree
+# `COPY static/3d/ ./static/3d/` above. READ-only — adds NOTHING to the locked-8; Λ = Conjecture
+# 1; trust ceiling 0.97; GET reads mint nothing; POST receipt is an unsigned SHA-256 digest.
+COPY szl_brainmemory.py ./szl_brainmemory.py
+
 # AGENT OS MAP (feat/frontier-agentos) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from
 # serve.py to appear in the COPY set). szl_agentos.py is imported by serve.py and
