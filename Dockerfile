@@ -1556,6 +1556,17 @@ COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
 # Node-origin lineage — NOT per-answer provenance, NOT build/model attestation. Adds
 # NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_brainlineage.py ./szl_brainlineage.py
+# BRAIN EXPLAIN (feat/frontier-brainexplain) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from serve.py
+# to appear in the COPY set). szl_brainexplain.py is imported by serve.py and turns the
+# brain's REAL retrieval (szl_brain_api.ask) into a deterministic, plain-language
+# explanation trace — which query terms matched which seed nodes, why each supporting
+# node ranked where it did (ppr vs salience), which communities were traversed, each
+# node's OWN label VERBATIM — with an EXPLAINABLE/PARTIALLY-EXPLAINABLE/OPAQUE verdict
+# (MODELED). Its 3D surface brainexplain.js ships via the whole-tree `COPY static/3d/
+# ./static/3d/` above. DESCRIBES only — adds NOTHING to the locked-8; Λ = Conjecture 1.
+COPY szl_brainexplain.py ./szl_brainexplain.py
+
 
 
 
