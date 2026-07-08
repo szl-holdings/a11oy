@@ -1144,21 +1144,84 @@ except Exception as _brainwatch_e:  # pragma: no cover
     print(f"[a11oy] Brain watch NOT registered: {_brainwatch_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
-# -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
-# grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
-# describe), GET /api/a11oy/v1/brain/consensus?q=&k= (MODELED corroboration measures + verdict —
-# distinct supporting nodes, distinct communities spanned, support concentration →
-# CORROBORATED/WEAK-CORROBORATION/SINGLE-SOURCE, single-source-risk flag; mints nothing), POST
-# /api/a11oy/v1/brain/consensus/receipt (unsigned SHA-256 content digest, RECEIPT-ON-WRITE).
-# Reuses szl_brain_api.get_index/ask (invents no node, harvests nothing, restates no counts);
-# never CORROBORATED while single-source-risk is set; never upgrades a label. Pure reads on GET
-# (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all, AFTER the brain API
-# (which it reads). Additive, try/except-guarded.
+# -- szl_brainconsensus BRAIN CONSENSUS -- honest corroboration of a grounding across the graph
+# Additive, try/except-guarded, BEFORE the SPA catch-all.
 try:
     import szl_brainconsensus as _szl_brainconsensus
     print("[a11oy] " + _szl_brainconsensus.register(app, ns="a11oy"), file=__import__("sys").stderr)
-except Exception as _brainconsensus_e:  # pragma: no cover
-    print(f"[a11oy] Brain consensus NOT registered: {_brainconsensus_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+except Exception as _szl_brainconsensus_e:  # pragma: no cover
+    print(f"[a11oy] Brain consensus NOT registered: {_szl_brainconsensus_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- BRAIN QUERY AUDIT (feat/frontier-brainqueryaudit) — an append-only, hash-linked
+# ledger of brain queries and the honest verdict each returned:
+# GET /api/a11oy/v1/brain/audit/info (static describe), GET /api/a11oy/v1/brain/audit
+# (current ledger + a RECOMPUTED chain-integrity verdict → CHAIN-INTACT/CHAIN-BROKEN;
+# pure read, mints nothing), POST /api/a11oy/v1/brain/audit/record (append one entry +
+# mint an UNSIGNED SHA-256 receipt chained to the prior entry, receipt-on-write). The
+# ledger is ephemeral (in-memory) and labelled so; a broken chain is never softened to
+# intact; no label is ever upgraded; each receipt is an unsigned content digest, never a
+# signature or a proof. Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded so an import error can never break boot.
+try:
+    import szl_brainqueryaudit as _szl_brainqueryaudit
+    _brainqueryaudit_status = _szl_brainqueryaudit.register(app, ns="a11oy")
+    print(f"[a11oy] Brain query audit registered: {_brainqueryaudit_status}", file=__import__("sys").stderr)
+except Exception as _brainqueryaudit_e:  # pragma: no cover
+    print(f"[a11oy] Brain query audit NOT registered: {_brainqueryaudit_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME honest
+# brain graph: GET /api/a11oy/v1/brain/lineage/info (static describe + which real origin fields
+# it reads), GET /api/a11oy/v1/brain/lineage?id= (origin chain for one node + verdict) or ?q=
+# (origin chains for a query's top nodes). For each node it reports HOW it ENTERED the graph,
+# read VERBATIM from the node's OWN real fields (source/url → structural derivation → none) →
+# TRACED/PARTIAL-LINEAGE/UNKNOWN-ORIGIN. A node with no source field is UNKNOWN-ORIGIN — NEVER a
+# fabricated source; the aggregate is NEVER TRACED while any origin is UNKNOWN. POST .../lineage/
+# receipt mints an UNSIGNED SHA-256 content digest on write only (0 sign-on-GET). This is
+# node-origin lineage (where a fact came from) — NOT per-answer provenance, NOT build/model
+# attestation, NOT counter-UAS. Reuses szl_brain_api.get_index (invents no node). Adds NOTHING to
+# the locked-8; Λ stays Conjecture 1. Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded. szl_brainlineage.py is per-file COPY'd in the Dockerfile.
+try:
+    import szl_brainlineage as _szl_brainlineage
+    _brainlineage_status = _szl_brainlineage.register(app, ns="a11oy")
+    print(f"[a11oy] Brain lineage registered: {_brainlineage_status}", file=__import__("sys").stderr)
+except Exception as _brainlineage_e:  # pragma: no cover
+    print(f"[a11oy] Brain lineage NOT registered: {_brainlineage_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- BRAIN EXPLAIN (feat/frontier-brainexplain) — a transparent, human-readable
+# explanation of WHY the brain retrieved what it did for a query: GET
+# /api/a11oy/v1/brain/explain/info (static describe), GET /api/a11oy/v1/brain/explain?q=&k=
+# (a MODELED explanation trace over the REAL retrieval subgraph — which query terms
+# matched which seed nodes, why each supporting node ranked where it did (ppr vs
+# salience), which communities were traversed, each node's OWN label VERBATIM; verdict
+# EXPLAINABLE/PARTIALLY-EXPLAINABLE/OPAQUE; pure read, mints nothing), POST
+# /api/a11oy/v1/brain/explain/receipt (same trace + an unsigned SHA-256 content digest,
+# receipt-on-write). Reuses szl_brain_api.get_index().ask (invents no node, re-ranks
+# nothing); never fabricates a rationale (honest OPAQUE beats a fake one); never upgrades
+# a label. Registered BEFORE the SPA /{full_path:path} catch-all. Additive, guarded.
+try:
+    import szl_brainexplain as _szl_brainexplain
+    _brainexplain_status = _szl_brainexplain.register(app, ns="a11oy")
+    print(f"[a11oy] Brain explain registered: {_brainexplain_status}", file=__import__("sys").stderr)
+except Exception as _brainexplain_e:  # pragma: no cover
+    print(f"[a11oy] Brain explain NOT registered: {_brainexplain_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- BRAIN GAPS (feat/frontier-braingaps) — an honest map of what the brain does NOT know
+# over the SAME honest brain graph: GET /api/a11oy/v1/brain/gaps/info (static describe),
+# GET /api/a11oy/v1/brain/gaps (estate-wide MEASURED gap map — thin/sparse communities,
+# weakly-connected island nodes degree<=1, weak-label share → WELL-COVERED/PATCHY/SPARSE;
+# mints nothing), GET /api/a11oy/v1/brain/gaps?q= (per-topic COVERED/THIN/GAP grounding),
+# POST /api/a11oy/v1/brain/gaps/receipt (unsigned SHA-256 receipt-on-write). Reuses
+# szl_brain_api.get_index (invents no node, harvests nothing); NEVER fabricates coverage —
+# a topic the graph cannot ground is reported as a GAP; never upgrades a label. Pure reads
+# on GET (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all. Additive,
+# try/except-guarded.
+try:
+    import szl_braingaps as _szl_braingaps
+    _braingaps_status = _szl_braingaps.register(app, ns="a11oy")
+    print(f"[a11oy] Brain gaps registered: {_braingaps_status}", file=__import__("sys").stderr)
+except Exception as _braingaps_e:  # pragma: no cover
+    print(f"[a11oy] Brain gaps NOT registered: {_braingaps_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
