@@ -81,9 +81,11 @@ _HOLOGRAPHIC_REL = "static/3d/holographic.html"
 _VALID_LABELS = ("MEASURED", "LIVE", "SAMPLE", "MODELED", "STRUCTURAL-ONLY", "ROADMAP")
 UNAVAILABLE = "UNAVAILABLE"
 
-# `{ id: "grpo", title: "GRPO Reward Dynamics", mod: "/static/3d/surfaces/grpo.js" }`
+# `{ id: "grpo", cat: "x", [flag: true,] title: "GRPO Reward Dynamics", mod: ".../grpo.js" }`
+# id -> title -> mod is the stable authored order; interstitial keys (cat, flag, ...) are
+# tolerated so the manifest tracks the real single-source registry rather than reporting 0.
 _SURFACE_ENTRY_RE = re.compile(
-    r'\{\s*id:\s*"([^"]+)"\s*,\s*title:\s*"([^"]+)"\s*,\s*mod:\s*"([^"]+)"\s*\}')
+    r'\{\s*id:\s*"([^"]+)"[^{}]*?\btitle:\s*"([^"]+)"[^{}]*?\bmod:\s*"([^"]+)"[^{}]*\}')
 # Runtime-default label the surface renders absent live data: `S.label = (j.label || "MODELED")`.
 _LABEL_DEFAULT_RE = re.compile(r'\b\w+\.label\s*=\s*\(\s*[\w.]+\s*\|\|\s*"([A-Z][A-Z-]+)"')
 # Declared honesty chip / billboard token (surfaces without a runtime-default label).
