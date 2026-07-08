@@ -26,7 +26,7 @@ xformers==0.0.30
 
 # --- misc pins to keep the resolver stable ---
 sentencepiece==0.2.0
-protobuf==5.29.3
+protobuf==5.29.6
 huggingface-hub==0.30.2
 
 # torch is intentionally NOT pinned here - install it from the cu128 index
