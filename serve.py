@@ -11097,6 +11097,123 @@ except Exception as _spine_move_e:  # pragma: no cover
     print(f"[a11oy] Spine front-move skipped: {_spine_move_e!r}", file=__import__("sys").stderr)
 
 
+# ---------------------------------------------------------------------------
+# Federated router spend — surface the BOX szl-router's REAL paid spend on the
+# /sovereign board. The a11oy container's own szl_spend_cap ledger is local/advisory
+# and stays ~$0 (no paid inference runs in THIS container); the durable source of
+# truth for real paid spend is the Hetzner box szl-router's append-only hash-linked
+# ledger. This reads it live, read-only, at request time (the HF Space FS is ephemeral,
+# so a pushed copy could never be durable). Honest by construction: env unset ->
+# "not_configured"; box silent -> "unreachable"; a real $0 is shown ONLY when the box
+# actually reports $0. NO keys, NO chat cross this feed — the box endpoint exposes only
+# USD totals + chain hash + provider tiers, GET-only, token-gated, rate-limited at nginx.
+# ---------------------------------------------------------------------------
+_fed_spend_cache = {"ts": 0.0, "data": None}
+_FED_SPEND_TTL = 30.0
+
+
+def _http_get_auth(url: str, token: str = "", timeout: int = 7):
+    """Return (status_code, body_text_or_None). Never raises. Optional Bearer auth."""
+    import urllib.request, urllib.error, ssl
+    try:
+        ctx = ssl.create_default_context()
+        headers = {"user-agent": "a11oy-sovereign-fed", "accept": "application/json"}
+        if token:
+            headers["authorization"] = "Bearer " + token
+        req = urllib.request.Request(url, method="GET", headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+            code = int(getattr(r, "status", 0) or 0)
+            body = r.read(65536).decode("utf-8", "replace")
+            return code, body
+    except urllib.error.HTTPError as e:
+        return int(getattr(e, "code", 0) or 0), None
+    except Exception:
+        return 0, None
+
+
+def _fetch_federated_spend() -> dict:
+    import json as _json, os as _os
+    url = (_os.environ.get("SZL_ROUTER_SPEND_URL", "") or "").strip()
+    token = (_os.environ.get("SZL_ROUTER_SPEND_TOKEN", "") or "").strip()
+    base = {"configured": bool(url), "reachable": False, "http_status": 0,
+            "source_url": url or None}
+    if not url:
+        base["state"] = "not_configured"
+        return base
+    code, body = _http_get_auth(url, token, timeout=7)
+    base["http_status"] = code
+    if not (code and 200 <= code < 400 and body):
+        base["state"] = "unreachable"
+        return base
+    try:
+        s = _json.loads(body)
+    except Exception:
+        base["state"] = "unreachable"
+        return base
+    chain = s.get("chain") if isinstance(s.get("chain"), dict) else {}
+    tail_in = s.get("tail") if isinstance(s.get("tail"), list) else []
+    tail = []
+    for e in tail_in[-6:]:
+        if not isinstance(e, dict):
+            continue
+        meta = e.get("meta") if isinstance(e.get("meta"), dict) else {}
+        tail.append({
+            "amount_usd": e.get("amount_usd"),
+            "source": str(e.get("source", ""))[:40],
+            "estimated": bool(e.get("estimated")),
+            "model": str(meta.get("upstream_model") or meta.get("model") or "")[:40],
+            "basis": str(meta.get("basis", ""))[:40],
+            "ts": e.get("ts"),
+        })
+    base.update({
+        "reachable": True, "state": "live",
+        "cap_usd": s.get("cap_usd"), "spent_usd": s.get("spent_usd"),
+        "remaining_usd": s.get("remaining_usd"), "pct_used": s.get("pct_used"),
+        "armed": s.get("armed"), "tripped": s.get("tripped"),
+        "kill_file_engaged": s.get("kill_file_engaged"), "entries": s.get("entries"),
+        "chain_intact": chain.get("intact"), "chain_entries": chain.get("entries"),
+        "tail": tail,
+        "upstream_schema": str(s.get("schema", ""))[:40],
+        "upstream_generated": str(s.get("generated", ""))[:40],
+    })
+    return base
+
+
+@app.get("/api/a11oy/v1/spend/federated")
+async def a11oy_spend_federated() -> Response:
+    import time as _t, datetime as _dt
+    now = _t.monotonic()
+    cached = _fed_spend_cache["data"]
+    if cached is not None and (now - _fed_spend_cache["ts"]) < _FED_SPEND_TTL:
+        return JSONResponse({**cached, "cache": "hit"})
+    payload = await asyncio.to_thread(_fetch_federated_spend)
+    data = {
+        "schema": "szl.federated_spend/v1",
+        "checked_at": _dt.datetime.utcnow().isoformat() + "Z",
+        "authority": "box szl-router append-only ledger (real paid spend, authoritative)",
+        "note": "read live from the box router at request time; a11oy's own szl_spend_cap ledger is local/advisory. Nothing summed, nothing fabricated; chain state is as reported by the source.",
+        "cache": "miss",
+        **payload,
+    }
+    _fed_spend_cache["data"] = data
+    _fed_spend_cache["ts"] = now
+    return JSONResponse(data)
+
+
+# ROUTE-ORDERING FIX (same proven pattern as constellation/spine): front-move the
+# federated-spend route ahead of the /api/a11oy/{path:path} Node proxy catch-all.
+try:
+    _fed_paths = {"/api/a11oy/v1/spend/federated"}
+    _fed_moved = [r for r in app.router.routes if getattr(r, "path", None) in _fed_paths]
+    for _r in _fed_moved:
+        app.router.routes.remove(_r)
+    for _r in reversed(_fed_moved):
+        app.router.routes.insert(0, _r)
+    print(f"[a11oy] Federated-spend route front-moved to router head: {len(_fed_moved)} routes", file=__import__("sys").stderr)
+except Exception as _fed_move_e:  # pragma: no cover
+    print(f"[a11oy] Federated-spend front-move skipped: {_fed_move_e!r}", file=__import__("sys").stderr)
+
+
 @app.get("/viz")
 async def viz_gallery() -> Response:
     f = VIZ_DIR / "index.html"
