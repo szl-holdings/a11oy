@@ -1313,6 +1313,14 @@ COPY a11oy_markets.py ./a11oy_markets.py
 # feat/frontier-q-agenttts (WaveQ-Dev3): a11oy-native AGENT test-time-compute backend
 # (surface agenttts.js ships via the whole-tree `COPY static/3d/ ./static/3d/` below).
 COPY szl_agent_tts.py ./szl_agent_tts.py
+# WAVE-Q FRONTIER (feat/frontier-q-gateddelta, Dev1): a11oy-native cited gated-delta /
+# delta-rule linear-attention backend (surface id gateddelta). Per-file COPY (there is
+# NO `COPY . .`): without this the /api/a11oy/v1/gateddelta/recall route would fall
+# through to the SPA catch-all at runtime. The gateddelta.js surface also ships via the
+# whole-tree `COPY static/3d/ ./static/3d/` below; copied explicitly here too to satisfy
+# the transitive per-file COPY-guard. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+COPY szl_gated_delta.py ./szl_gated_delta.py
+COPY static/3d/surfaces/gateddelta.js ./static/3d/surfaces/gateddelta.js
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase

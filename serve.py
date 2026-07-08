@@ -12380,6 +12380,39 @@ except Exception as _szl_bh_e:  # pragma: no cover
 # ============================================================================
 
 
+# ============================================================================
+# WAVE-Q FRONTIER (feat/frontier-q-gateddelta, Dev1): a11oy-NATIVE cited
+# GATED-DELTA / DELTA-RULE linear-attention backend — the delta-rule family
+# (Gated DeltaNet / DeltaNet / DeltaProduct / GLA) that the estate did NOT yet
+# model (distinct from nsa/mla/ringattn/kla/ssm/hybridssm). Deterministic,
+# stdlib-only (no numpy), try/except-guarded; returns a renderable 200 with an
+# honest MODELED label + receipt. register() uses @app.get (APPENDS), so we
+# front-move the single route to router position 0 so it wins over the
+# /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all (reuses
+# _wn_frontmove from the WAVE-N batch).
+#   szl_gated_delta -> /api/a11oy/v1/gateddelta/recall   (surface: gateddelta.js)
+#     Real delta-rule (I − β k kᵀ Householder) / gated-delta (α decay) / plain
+#     linear-attention associative-memory state updates over a seeded key/value
+#     write trace with overwrites; verifies the chunk-parallel invariant. Cites
+#     Gated DeltaNet (arXiv:2412.06464), Parallel Delta Rule (arXiv:2406.06484),
+#     DeltaProduct (arXiv:2502.10297), GLA (arXiv:2312.06635).
+# Λ = Conjecture 1; nothing added to the locked-8; trust never 100%.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _wq_sys
+    import szl_gated_delta as _szl_gated_delta
+    _wq_s1 = _szl_gated_delta.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/gateddelta/recall")
+    print(f"[a11oy] WAVE-Q FRONTIER szl_gated_delta registered (front-moved): {_wq_s1}", file=_wq_sys.stderr)
+except Exception as _wq_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-Q FRONTIER szl_gated_delta NOT registered (non-fatal): {_wq_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-Q FRONTIER (gated delta-rule linear attention)
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
