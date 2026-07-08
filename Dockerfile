@@ -1576,6 +1576,7 @@ COPY szl_brainexplain.py ./szl_brainexplain.py
 # whole-tree `COPY static/3d/ ./static/3d/` above. OBSERVES only — adds NOTHING to the
 # locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_braingaps.py ./szl_braingaps.py
+COPY szl_spend_cap.py ./szl_spend_cap.py
 
 
 
