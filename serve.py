@@ -1041,6 +1041,22 @@ except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- szl_brainprovenance BRAIN PROVENANCE (Wave T) -- per-answer SOURCE-LINEAGE layer over the
+# SAME brain retrieval: GET /api/a11oy/v1/brain/provenance{,/info} return the ordered chain of
+# exactly which knowledge-graph nodes supported an answer, each node's OWN honest label read
+# VERBATIM (never upgraded) + contribution_weight + a coverage statement, rolled to one honest
+# verdict TRACEABLE/PARTIAL-PROVENANCE/UNTRACEABLE (never TRACEABLE while any node UNAVAILABLE).
+# POST .../receipt mints an UNSIGNED SHA-256 content digest on write only (0 sign-on-GET). This
+# is source-lineage of an answer — NOT build/model attestation, NOT counter-UAS. Reuses
+# szl_brain_api (already COPY'd). Registered BEFORE the SPA catch-all. Additive, guarded.
+try:
+    import szl_brainprovenance as _szl_brainprovenance
+    _brainprov_status = _szl_brainprovenance.register(app, ns="a11oy")
+    print(f"[a11oy] Brain Provenance registered: {_brainprov_status}", file=__import__("sys").stderr)
+except Exception as _brainprov_e:  # pragma: no cover
+    print(f"[a11oy] Brain Provenance NOT registered: {_brainprov_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/

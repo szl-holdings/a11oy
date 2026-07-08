@@ -743,6 +743,11 @@ COPY a11oy_brain_graph.py ./
 # GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
 # falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
 COPY szl_brain_api.py ./szl_brain_api.py
+# BRAIN PROVENANCE (Wave T) — imported by serve.py (guarded); MUST be per-file COPY'd or
+# GET /api/a11oy/v1/brain/provenance{,/info} + POST .../receipt fall through to the SPA
+# HTML shell. Per-answer SOURCE-LINEAGE only (which graph nodes supported the answer, each
+# label VERBATIM), NOT build/model attestation. Reuses szl_brain_api (COPY'd above).
+COPY szl_brainprovenance.py ./szl_brainprovenance.py
 # GOVERNED BRAIN-INFER (Wave P / Dev 3) — imported by serve.py (guarded); MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or POST /api/a11oy/v1/govern/brain-infer and
 # GET /api/a11oy/v1/govern/{receipts,verify} fall through to the SPA HTML shell (silent
