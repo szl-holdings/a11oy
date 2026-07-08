@@ -1,0 +1,66 @@
+name: What's New feed honesty — no feed entry the app doesn't register (Wave S Dev 5)
+
+# ADDITIVE CI guard (Doctrine v11). The What's New surface
+# (szl_whatsnew.py, GET /api/a11oy/v1/whatsnew/feed) advertises the estate's
+# recently-added frontier surfaces. Its core promise is drift-proof: it can only
+# list surfaces that are ACTUALLY REGISTERED. This guard boots the real app
+# in-process, fetches the feed, and FAILS if any listed surface is not registered
+# (independently re-derived from szl3d_holographic.SURFACES + app routes — the
+# checker imports nothing from szl_whatsnew). It also asserts honest-vocabulary
+# labels, Λ = Conjecture 1 (advisory), trust ceiling <= 0.97, and no fabricated
+# commit dates. It ADDS a guard; it weakens none.
+#
+# ORG GUARD PATTERN (cf. python-frontier-index-honesty in tests.yml /
+# constellation-honesty-guard.yml): a --selftest negative control proves the
+# checker REJECTS planted drift (an unregistered surface, an out-of-vocabulary
+# label, count drift, a fabricated date, a Λ downgrade) before it is trusted
+# against the live feed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  whatsnew-feed-honesty:
+    name: What's New feed lists only registered surfaces (drift-proof)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Byte-validate the checker (ast.parse) before running it
+        run: python3 -c "import ast; ast.parse(open('.github/scripts/whatsnew_feed_honesty_check.py').read()); print('checker ast OK')"
+      - name: Install deps (serve.py boots in-process via Starlette TestClient; no network)
+        run: |
+          python -m pip install --upgrade pip
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install fastapi starlette httpx pytest
+      - name: Negative control — the honesty checker must reject planted drift first
+        # A guard is only trusted after it PROVES it can catch a lie. --selftest feeds the
+        # checker a toy feed that lists an UNREGISTERED surface (plus an out-of-vocabulary
+        # label, count drift, a fabricated date, and a Λ downgrade) and asserts every planted
+        # drift is REJECTED while a truthful feed is accepted. If this step ever passes a lie,
+        # the checker is broken and the live gate below cannot be trusted.
+        run: python3 .github/scripts/whatsnew_feed_honesty_check.py --selftest
+      - name: Live honesty gate — every feed entry re-checked against the app's registry
+        # WAVE S DEV 5: boots the REAL app in-process (no mocks, no network), fetches
+        # GET /api/a11oy/v1/whatsnew/feed, and re-derives the authoritative registered-surface
+        # id set INDEPENDENTLY (szl3d_holographic.SURFACES + app routes; imports nothing from
+        # szl_whatsnew). FAILS if the feed lists any surface that is not registered, reports an
+        # out-of-vocabulary/banned label, drifts its shown-count, or fabricates a commit date.
+        # ADDITIVE guard; weakens no existing gate. Doctrine v11: Λ = Conjecture 1 (advisory),
+        # trust ceiling 0.97, adds nothing to the locked-8.
+        run: python3 .github/scripts/whatsnew_feed_honesty_check.py

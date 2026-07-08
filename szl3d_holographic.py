@@ -134,6 +134,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "blocksparse", "cat": "attention", "title": "Learned Blockwise Top-k KV Sparse Attention · selection (MODELED)", "owner": "WaveS-Dev1"},
     {"id": "confattest", "cat": "governance", "title": "Confidential-Compute Attestation + Action Gate · SIMULATED enclave quote → receipt · govern ACTIONS not reasoning (MODELED)", "owner": "WaveS-Dev3"},
     {"id": "retrievalattn", "cat": "attention", "title": "Retrieval-Modulated Long-Context Attention · needle recall (MODELED)", "owner": "WaveS-Dev2"},
+    {"id": "whatsnew", "cat": "brain", "title": "What's New · honest auto-derived estate changelog · recently-added surfaces w/ verbatim labels + citations from real git history (drift-proof)", "owner": "WaveS-Dev5"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).

@@ -785,6 +785,25 @@ try:
 except Exception as _szl_fidx_e:  # pragma: no cover
     print(f"[a11oy] Frontier INDEX NOT registered: {_szl_fidx_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# WHAT'S NEW (Wave S Dev 5) — GET /api/a11oy/v1/whatsnew/feed shows the RECENTLY-ADDED
+# frontier surfaces, each with the honest data label its OWN backend emits + the paper(s) it
+# cites, ordered by when the surface was actually added to the repository (real git history).
+# HONEST BY CONSTRUCTION: the WHAT (label + citations) is read VERBATIM from the audited
+# Frontier Index catalog (szl_frontier_index.build_catalog -> szl3d_holographic.SURFACES +
+# app.routes + each surface's own response), and the WHEN is derived from a real
+# `git log --diff-filter=A` pass — never a hand-maintained changelog that can drift. When the
+# runtime container has no .git tree, ordering degrades honestly to the registry authoring
+# order and says so; NO commit date is ever fabricated. PURE READ (signs/mints nothing on
+# GET). Adds NOTHING to the locked-8; Λ stays Conjecture 1; trust ceiling 0.97, never 100%.
+# Additive, try/except-guarded, same register() pattern, BEFORE the SPA catch-all. Must
+# register AFTER the frontier index (which it reads).
+try:
+    import szl_whatsnew as _szl_whatsnew
+    _szl_whatsnew.register(app, ns="a11oy")
+    print("[a11oy] What's New registered: /api/a11oy/v1/whatsnew/feed (honest auto-derived estate changelog, drift-proof)", file=__import__("sys").stderr)
+except Exception as _szl_whatsnew_e:  # pragma: no cover
+    print(f"[a11oy] What's New NOT registered: {_szl_whatsnew_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
 # operational-dashboard back-end: for every registered surface it reports the honest data
 # label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
