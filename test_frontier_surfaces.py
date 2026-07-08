@@ -29,9 +29,11 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parent
 _HOLO = _REPO_ROOT / "static" / "3d" / "holographic.html"
 
 # Independent re-parse of the registry (NOT importing the module's own regex) so a
-# broken/loosened production regex is caught rather than masked.
+# broken/loosened production regex is caught rather than masked. id -> title -> mod is the
+# stable authored order; interstitial keys (cat, flag, ...) are tolerated so this independent
+# parse tracks the real single-source registry rather than matching 0.
 _ENTRY_RE = re.compile(
-    r'\{\s*id:\s*"([^"]+)"\s*,\s*title:\s*"([^"]+)"\s*,\s*mod:\s*"([^"]+)"\s*\}')
+    r'\{\s*id:\s*"([^"]+)"[^{}]*?\btitle:\s*"([^"]+)"[^{}]*?\bmod:\s*"([^"]+)"[^{}]*\}')
 
 _VALID = set(fp._VALID_LABELS) | {fp.UNAVAILABLE}
 
