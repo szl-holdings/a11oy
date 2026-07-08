@@ -8,11 +8,11 @@
 // data label + last-known operational health, plus a single GREEN / DEGRADED /
 // UNAVAILABLE rollup for the entire estate and a link to the public /verify page.
 //
-// GUARDED DEPENDENCY: /api/a11oy/v1/status is built by Dev 2 on a parallel branch
-// (feat/r-backend-status). Until that PR merges the route 404s; this surface degrades
-// HONESTLY (szl3d_live.poll -> state "missing") into a single honest placeholder tile —
-// it never renders blank or broken. Once the route is live the tiles fill in on the next
-// poll with zero code change.
+// BACKEND: /api/a11oy/v1/status is LIVE on main (Dev 2, #837 feat/r-backend-status, merged).
+// This surface still reads DEFENSIVELY: if the route is ever unreachable at runtime (a bad
+// deploy, a stale box) it degrades HONESTLY (szl3d_live.poll -> state "missing") into a
+// single honest placeholder tile — it never renders blank or broken, and never fabricates a
+// health value. When the route answers, the tiles fill in on the next poll.
 //
 // DATA: same-origin, relative — /api/a11oy/v1/status. Read defensively (the exact schema
 // is Dev 2's; we accept the plausible field names and never fabricate a value):

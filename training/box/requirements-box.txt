@@ -1,0 +1,34 @@
+# SZL sovereign training box - pinned deps (Qwen2.5-3B QLoRA + ORPO).
+# Target: Windows OMEN, RTX 5050 Laptop GPU (Blackwell / sm_120, ~8GB VRAM).
+#
+# IMPORTANT - torch must be a CUDA 12.8 (cu128) build. Blackwell (sm_120) is NOT
+# supported by cu121/cu124 wheels; installing the default CPU/older-CUDA wheel
+# will fail at runtime with "no kernel image is available for execution".
+# Install torch FIRST, from the cu128 index, then install the rest:
+#
+#   pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r requirements-box.txt
+#
+# (RUN_ON_BOX.md has the exact PowerShell sequence.)
+
+# --- core training stack ---
+unsloth==2025.6.8
+trl==0.15.2
+peft==0.14.0
+transformers==4.51.3
+bitsandbytes==0.45.5
+datasets==3.5.0
+accelerate==1.6.0
+
+# --- attention / kernels (Unsloth prefers a matching xformers; optional on
+#     native Windows - see the Windows note in RUN_ON_BOX.md) ---
+xformers==0.0.30
+
+# --- misc pins to keep the resolver stable ---
+sentencepiece==0.2.0
+protobuf==5.29.3
+huggingface-hub==0.30.2
+
+# torch is intentionally NOT pinned here - install it from the cu128 index
+# BEFORE this file (see the header above), so pip does not pull a non-Blackwell
+# wheel from PyPI.
