@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Holographic Estate — Holo Lab</title>
+<style>
+  :root { --cyan:#39e6d4; --cyan-dim:#1c8f86; --ink:#04070b; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; }
+  body {
+    background:
+      radial-gradient(1200px 700px at 68% 18%, rgba(57,230,212,.10), transparent 60%),
+      radial-gradient(900px 900px at 20% 90%, rgba(40,120,200,.08), transparent 60%),
+      linear-gradient(160deg, #04070b 0%, #060c14 55%, #030507 100%);
+    color:#cfe9e6;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    overflow:hidden;
+  }
+  #stage { position:fixed; inset:0; }
+  canvas { display:block; width:100%; height:100%; }
+  /* Site injects a top-left signed-corpus badge + bottom-right widget; keep clear of them. */
+  .hud { position:fixed; left:152px; top:18px; z-index:5; pointer-events:none; max-width:min(560px,60vw); }
+  .title { margin:0; font-size:20px; letter-spacing:.28em; font-weight:600; color:#eafffb; }
+  .sub { margin:6px 0 12px; font-size:12px; letter-spacing:.14em; color:#7fb7b0; }
+  .badges { display:flex; gap:8px; flex-wrap:wrap; }
+  .badge {
+    font-size:10.5px; letter-spacing:.16em; padding:4px 9px; border-radius:999px;
+    border:1px solid rgba(57,230,212,.35); color:#bfeee7; background:rgba(57,230,212,.06);
+  }
+  .badge.warn { border-color:rgba(240,200,90,.45); color:#f0d98a; background:rgba(240,200,90,.06); }
+  .status {
+    position:fixed; left:152px; bottom:20px; z-index:5; font-size:11px; letter-spacing:.10em;
+    color:#6fa6a0; pointer-events:none;
+  }
+  .status b { color:#9fe6dd; font-weight:600; }
+  .legend {
+    position:fixed; right:22px; bottom:56px; z-index:5; font-size:10.5px; letter-spacing:.08em;
+    color:#6fa6a0; text-align:right; pointer-events:none; line-height:1.7;
+  }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-left:8px; vertical-align:middle; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <canvas id="fb" hidden></canvas>
+  </div>
+
+  <div class="hud">
+    <h1 class="title">HOLOGRAPHIC ESTATE</h1>
+    <p class="sub">Point-field estate model · Holo Lab</p>
+    <div class="badges">
+      <span class="badge warn">SAMPLE — procedural model, not a real capture</span>
+      <span class="badge">PREVIEW</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    structure<span class="dot" style="background:#eafffb"></span><br/>
+    roof line<span class="dot" style="background:#39e6d4"></span><br/>
+    grounds<span class="dot" style="background:#2f7fb0"></span>
+  </div>
+
+  <div class="status">renderer: <b id="rstat">initialising…</b> · <span id="rnote">building point field</span></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/static/3d/vendor/three/three.module.min.js",
+      "three/addons/": "/static/3d/vendor/three/addons/"
+    }
+  }
+  </script>
+
+  <script>
+    // ---- Shared procedural estate point field (single source for WebGL + 2D fallback) ----
+    // Honest: this is a generated model of a house + grounds, NOT a photogrammetric capture.
+    function buildEstatePoints() {
+      const pts = []; // {x,y,z, c:[r,g,b]}
+      const push = (x,y,z,c) => pts.push({x,y,z,c});
+      const CYAN = [0.22,0.90,0.83], WHITE = [0.92,1.0,0.98], BLUE = [0.18,0.50,0.69];
+      const jit = (n) => (Math.random()-0.5)*n;
+
+      // House body: box centred at origin, width 6 (x), height 3 (y), depth 4 (z), base at y=0
+      const W=6, H=3, D=4;
+      const wallDensity = 2600;
+      for (let i=0;i<wallDensity;i++){
+        const face = Math.floor(Math.random()*4);
+        let x,y,z;
+        y = Math.random()*H;
+        if (face===0){ x=-W/2; z=(Math.random()-0.5)*D; }
+        else if (face===1){ x=W/2; z=(Math.random()-0.5)*D; }
+        else if (face===2){ z=-D/2; x=(Math.random()-0.5)*W; }
+        else { z=D/2; x=(Math.random()-0.5)*W; }
+        push(x+jit(0.03), y+jit(0.03), z+jit(0.03), WHITE);
+      }
+      // Roof: two sloped planes meeting at a ridge (y from H to H+1.8)
+      const roofDensity = 1700, RH=1.8;
+      for (let i=0;i<roofDensity;i++){
+        const t = Math.random();               // 0..1 across span
+        const along = (Math.random()-0.5)*D;    // along ridge (z)
+        const side = Math.random()<0.5 ? -1 : 1;
+        const x = side * (W/2) * (1-t);
+        const y = H + RH * t;
+        push(x+jit(0.02), y+jit(0.02), along+jit(0.03), CYAN);
+      }
+      // Ridge line accent
+      for (let i=0;i<260;i++){ push(jit(0.05), H+RH+jit(0.02), (Math.random()-0.5)*D, CYAN); }
+      // Windows: brighter clusters on front face (z = D/2)
+      const winCenters = [[-1.6,1.3],[1.6,1.3],[0,0.9]];
+      for (const [wx,wy] of winCenters){
+        for (let i=0;i<230;i++){
+          push(wx+jit(0.5), wy+jit(0.6), D/2+0.02, WHITE);
+        }
+      }
+      // Grounds: radial point grid on y=0 plane, fading outward
+      const groundR = 11;
+      for (let i=0;i<3200;i++){
+        const r = Math.pow(Math.random(),0.6)*groundR;
+        const a = Math.random()*Math.PI*2;
+        const x = Math.cos(a)*r, z = Math.sin(a)*r;
+        // skip the footprint interior so the house reads clearly
+        if (Math.abs(x)<W/2+0.3 && Math.abs(z)<D/2+0.3) continue;
+        push(x, jit(0.04), z, BLUE);
+      }
+      // A few tall accents (trees) at corners of the plot
+      const trees = [[-7,-6],[7,-6.5],[-6.5,6],[7.5,6]];
+      for (const [tx,tz] of trees){
+        for (let i=0;i<420;i++){
+          const h = Math.random();
+          const spread = (1-h)*1.1;
+          push(tx+jit(spread), 0.2 + h*3.4, tz+jit(spread), [0.16,0.6,0.5]);
+        }
+      }
+      return pts;
+    }
+
+    const ESTATE = buildEstatePoints();
+    const rstat = document.getElementById('rstat');
+    const rnote = document.getElementById('rnote');
+
+    // ---- 2D never-blank fallback (source-over, small points, shared field) ----
+    function run2DFallback(reason){
+      const glc = document.getElementById('gl'); glc.hidden = true;
+      const c = document.getElementById('fb'); c.hidden = false;
+      const ctx = c.getContext('2d');
+      rstat.textContent = '2D fallback';
+      rstat.style.color = '#f0d98a';
+      rnote.textContent = reason || 'WebGL2 unavailable — projecting same model';
+      let W,H,DPR;
+      function resize(){
+        DPR = Math.min(window.devicePixelRatio||1, 2);
+        W = c.clientWidth = window.innerWidth; H = c.clientHeight = window.innerHeight;
+        c.width = W*DPR; c.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+      }
+      window.addEventListener('resize', resize); resize();
+      let ang = 0;
+      const focal = 620, camY = 2.2, camDist = 18;
+      function frame(){
+        ang += 0.0032;
+        ctx.clearRect(0,0,W,H);
+        const cx=W/2, cy=H/2 + 40;
+        const ca=Math.cos(ang), sa=Math.sin(ang);
+        // depth sort (paint far first)
+        const proj = [];
+        for (const p of ESTATE){
+          const x = p.x*ca - p.z*sa;
+          const z = p.x*sa + p.z*ca + camDist;
+          const y = p.y - camY;
+          if (z<=0.1) continue;
+          const s = focal/z;
+          proj.push({ sx: cx + x*s, sy: cy - y*s, z, s, c:p.c });
+        }
+        proj.sort((a,b)=>b.z-a.z);
+        for (const q of proj){
+          const r = Math.max(0.35, q.s*0.05);
+          const a = Math.min(0.85, 34/q.z);
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(${(q.c[0]*255)|0},${(q.c[1]*255)|0},${(q.c[2]*255)|0},${a})`;
+          ctx.arc(q.sx, q.sy, r, 0, Math.PI*2);
+          ctx.fill();
+        }
+        requestAnimationFrame(frame);
+      }
+      frame();
+    }
+
+    // ---- WebGL2 path (soft gaussian points + bloom + orbit), falls back on any failure ----
+    async function runWebGL(){
+      const canvas = document.getElementById('gl');
+      const gl2 = canvas.getContext('webgl2');
+      if (!gl2) throw new Error('no-webgl2');
+
+      const THREE = await import('three');
+      const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+      const { EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js');
+      const { RenderPass } = await import('three/addons/postprocessing/RenderPass.js');
+      const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js');
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(52, window.innerWidth/window.innerHeight, 0.1, 200);
+      camera.position.set(13, 8, 15);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 0.55;
+      controls.target.set(0, 1.6, 0); controls.minDistance = 8; controls.maxDistance = 40;
+
+      const n = ESTATE.length;
+      const positions = new Float32Array(n*3);
+      const colors = new Float32Array(n*3);
+      for (let i=0;i<n;i++){
+        const p = ESTATE[i];
+        positions[i*3]=p.x; positions[i*3+1]=p.y; positions[i*3+2]=p.z;
+        colors[i*3]=p.c[0]; colors[i*3+1]=p.c[1]; colors[i*3+2]=p.c[2];
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { uSize:{value:16.0}, uPixelRatio:{value:renderer.getPixelRatio()} },
+        transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+        vertexColors:true,
+        vertexShader:`
+          uniform float uSize; uniform float uPixelRatio;
+          varying vec3 vColor;
+          void main(){
+            vColor = color;
+            vec4 mv = modelViewMatrix * vec4(position,1.0);
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mv.z) * 4.0;
+            gl_Position = projectionMatrix * mv;
+          }`,
+        fragmentShader:`
+          varying vec3 vColor;
+          void main(){
+            vec2 d = gl_PointCoord - vec2(0.5);
+            float r = dot(d,d);
+            float a = exp(-r*7.0) * 0.30;      // soft gaussian, low per-point alpha
+            if (a < 0.01) discard;
+            gl_FragColor = vec4(vColor, a);
+          }`
+      });
+      scene.add(new THREE.Points(geo, mat));
+
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.6, 0.25);
+      composer.addPass(bloom);
+
+      window.addEventListener('resize', ()=>{
+        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      rstat.textContent = 'WebGL2'; rstat.style.color = '#9fe6dd';
+      rnote.textContent = `three r${THREE.REVISION} · ${n.toLocaleString()} points · soft-gaussian + bloom`;
+
+      (function loop(){ controls.update(); composer.render(); requestAnimationFrame(loop); })();
+    }
+
+    runWebGL().catch(err => {
+      run2DFallback(err && err.message === 'no-webgl2'
+        ? 'WebGL2 unavailable — projecting same model'
+        : 'renderer offline — projecting same model');
+    });
+  </script>
+</body>
+</html>
