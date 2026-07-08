@@ -1588,6 +1588,16 @@ COPY szl_brainhealth.py ./szl_brainhealth.py
 # above. OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_brainwatch.py ./szl_brainwatch.py
 
+# BRAIN CONSENSUS (feat/frontier-brainconsensus) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from serve.py to
+# appear in the COPY set). szl_brainconsensus.py is imported by serve.py and measures honest
+# CORROBORATION of the brain grounding (distinct supporting nodes + distinct communities
+# spanned + support concentration → CORROBORATED/WEAK-CORROBORATION/SINGLE-SOURCE, MODELED),
+# reusing szl_brain_api.ask (invents no node, harvests nothing). Its 3D surface
+# brainconsensus.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above.
+# READS only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
+COPY szl_brainconsensus.py ./szl_brainconsensus.py
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is

@@ -1144,6 +1144,23 @@ except Exception as _brainwatch_e:  # pragma: no cover
     print(f"[a11oy] Brain watch NOT registered: {_brainwatch_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
+# grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
+# describe), GET /api/a11oy/v1/brain/consensus?q=&k= (MODELED corroboration measures + verdict —
+# distinct supporting nodes, distinct communities spanned, support concentration →
+# CORROBORATED/WEAK-CORROBORATION/SINGLE-SOURCE, single-source-risk flag; mints nothing), POST
+# /api/a11oy/v1/brain/consensus/receipt (unsigned SHA-256 content digest, RECEIPT-ON-WRITE).
+# Reuses szl_brain_api.get_index/ask (invents no node, harvests nothing, restates no counts);
+# never CORROBORATED while single-source-risk is set; never upgrades a label. Pure reads on GET
+# (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all, AFTER the brain API
+# (which it reads). Additive, try/except-guarded.
+try:
+    import szl_brainconsensus as _szl_brainconsensus
+    print("[a11oy] " + _szl_brainconsensus.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _brainconsensus_e:  # pragma: no cover
+    print(f"[a11oy] Brain consensus NOT registered: {_brainconsensus_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
