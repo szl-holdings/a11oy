@@ -822,6 +822,26 @@ try:
 except Exception as _szl_honestywall_e:  # pragma: no cover
     print(f"[a11oy] Honesty wall NOT registered: {_szl_honestywall_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# AGENT OS MAP (feat/frontier-agentos) — a live, self-honest operator's-eye map of the agent
+# OS, composed ENTIRELY from our OWN governed components. Node presence is derived from the
+# live surface registry (szl3d_holographic.SURFACES); each node carries a LIVE honesty verdict
+# sourced VERBATIM from the honestywall aggregate (consumed in-process, never an HTTP hop out
+# of the Space): daily loop<-agentops, trust ledger<-anatomy + receipts + honestywall aggregate,
+# standing goals<-doctrine v11 + locked-8, optional loops<-governedagent/governedrag/loopforge/
+# mesh. Overall state OPERATING / DEGRADED / HALTED-HONEST — NEVER OPERATING if anything is
+# VIOLATED; an unreachable backing renders UNKNOWN, never a confident node. GET map/status/info
+# are PURE READS (sign/mint nothing); POST snapshot mints ONE unsigned SHA-256 content-digest
+# receipt (RECEIPT-ON-WRITE-NOT-ON-READ). Its GET status/info are STATIC self-manifests that do
+# NOT call honestywall, so honestywall's probe of agentos can never recurse. Composes only —
+# adds NOTHING to the locked-8; Lambda stays Conjecture 1; trust ceiling 0.97, never 100%.
+# Additive, try/except-guarded, BEFORE the SPA catch-all. Must register AFTER the honesty wall
+# (which it reads). concept spark: Agentic-OS mapping, @Av1dlive on X (cited; diagrams not copied).
+try:
+    import szl_agentos as _szl_agentos
+    print("[a11oy] " + _szl_agentos.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_agentos_e:  # pragma: no cover
+    print(f"[a11oy] Agent OS map NOT registered: {_szl_agentos_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
 # operational-dashboard back-end: for every registered surface it reports the honest data
 # label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
