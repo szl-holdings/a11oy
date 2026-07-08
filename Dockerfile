@@ -1391,6 +1391,11 @@ COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 # MODELED, UNSIGNED-LOCAL locally. Λ = Conjecture 1; adds nothing to the locked-8.
 COPY szl_crypto_pipeline.py ./szl_crypto_pipeline.py
 COPY static/3d/surfaces/cryptopipeline.js ./static/3d/surfaces/cryptopipeline.js
+# BOUNDED OPERATE LOOP (Wave P · Dev 5, 2026-07-07): a minimal HARD-bounded Ouroboros
+# recursion that grounds each step on the REAL brain PPR and judges it with a
+# deterministic doctrine gate (writer≠judge). Additive; builds ON the governed loop.
+COPY szl_agent_operate.py ./szl_agent_operate.py
+COPY static/3d/surfaces/agentops.js ./static/3d/surfaces/agentops.js
 # BRAIN FEED for the governed loop (Wave P · Dev 4, 2026-07-07): szl_agentloop_brain.py is
 # the thin GUARDED bridge szl_agent_loop_governed.py imports to make the loop Brain-POWERED —
 # (a) it pulls advisory context from the Brain vault (corpus="brain") and (e) requests a

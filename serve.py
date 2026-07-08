@@ -11285,6 +11285,26 @@ except Exception as _vt_e:
 # ============================================================================
 
 # ============================================================================
+# BOUNDED OPERATE LOOP — a11oy (WaveP-Dev5). Builds ON the governed loop: a
+# minimal, HARD-bounded Ouroboros recursion (ground→act→self-eval→gate→retry)
+# grounded on the REAL brain PPR, with writer≠judge (sovereign model vs a
+# deterministic doctrine gate). Additive; routes front-inserted before the SPA
+# catch-all. receipt-on-WRITE (POST /operate only); GET /status signs nothing.
+# ============================================================================
+try:
+    import szl_agent_operate as _szl_operate
+    import sys as _op_sys
+    _op_status = _szl_operate.register(app, ns="a11oy")
+    print(f"[a11oy] Bounded operate loop registered: {_op_status}", file=_op_sys.stderr)
+except Exception as _op_e:
+    import sys as _op_sys, traceback as _op_tb
+    print(f"[a11oy] Bounded operate loop FAILED (non-fatal): {_op_e!r}", file=_op_sys.stderr)
+    _op_tb.print_exc(file=_op_sys.stderr)
+# ============================================================================
+# END: BOUNDED OPERATE LOOP — a11oy
+# ============================================================================
+
+# ============================================================================
 # SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
 # AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
 # Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /
