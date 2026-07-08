@@ -1546,6 +1546,17 @@ COPY szl_brainconsensus.py ./szl_brainconsensus.py
 # brainqueryaudit.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/`
 # above. RECORDS/OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
+# BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME
+# honest brain graph: for a node id or a query's top nodes it reports HOW each node
+# ENTERED the graph, read VERBATIM from the node's OWN real origin fields
+# (source/url → structural derivation → none) → TRACED/PARTIAL-LINEAGE/UNKNOWN-ORIGIN,
+# never a fabricated source; POST .../receipt mints an UNSIGNED SHA-256 digest on write.
+# Its only import (szl_brain_api) is already in the COPY set; its 3D surface
+# brainlineage.js ships via the whole-tree `COPY static/3d/ ./static/3d/` above.
+# Node-origin lineage — NOT per-answer provenance, NOT build/model attestation. Adds
+# NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
+COPY szl_brainlineage.py ./szl_brainlineage.py
+
 
 
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this

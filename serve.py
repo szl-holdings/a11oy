@@ -1179,6 +1179,26 @@ except Exception as _brainqueryaudit_e:  # pragma: no cover
     print(f"[a11oy] Brain query audit NOT registered: {_brainqueryaudit_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME honest
+# brain graph: GET /api/a11oy/v1/brain/lineage/info (static describe + which real origin fields
+# it reads), GET /api/a11oy/v1/brain/lineage?id= (origin chain for one node + verdict) or ?q=
+# (origin chains for a query's top nodes). For each node it reports HOW it ENTERED the graph,
+# read VERBATIM from the node's OWN real fields (source/url → structural derivation → none) →
+# TRACED/PARTIAL-LINEAGE/UNKNOWN-ORIGIN. A node with no source field is UNKNOWN-ORIGIN — NEVER a
+# fabricated source; the aggregate is NEVER TRACED while any origin is UNKNOWN. POST .../lineage/
+# receipt mints an UNSIGNED SHA-256 content digest on write only (0 sign-on-GET). This is
+# node-origin lineage (where a fact came from) — NOT per-answer provenance, NOT build/model
+# attestation, NOT counter-UAS. Reuses szl_brain_api.get_index (invents no node). Adds NOTHING to
+# the locked-8; Λ stays Conjecture 1. Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded. szl_brainlineage.py is per-file COPY'd in the Dockerfile.
+try:
+    import szl_brainlineage as _szl_brainlineage
+    _brainlineage_status = _szl_brainlineage.register(app, ns="a11oy")
+    print(f"[a11oy] Brain lineage registered: {_brainlineage_status}", file=__import__("sys").stderr)
+except Exception as _brainlineage_e:  # pragma: no cover
+    print(f"[a11oy] Brain lineage NOT registered: {_brainlineage_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
