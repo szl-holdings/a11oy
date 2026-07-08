@@ -369,6 +369,16 @@
     "method": "GET"
   },
   {
+    "path": "/api/a11oy/v1/frontier/flowbrain",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/flowbrain/trajectory",
+    "query": "node=surface:energy",
+    "method": "GET"
+  },
+  {
     "path": "/api/a11oy/v1/frontier/lgmi",
     "query": "seed=42&n_features=64&n_circuits=48&sparsity=0.08",
     "method": "GET"
