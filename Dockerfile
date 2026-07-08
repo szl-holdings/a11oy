@@ -1347,6 +1347,11 @@ COPY szl_gated_delta.py ./szl_gated_delta.py
 COPY static/3d/surfaces/gateddelta.js ./static/3d/surfaces/gateddelta.js
 COPY szl_blocksparse.py ./szl_blocksparse.py
 COPY static/3d/surfaces/blocksparse.js ./static/3d/surfaces/blocksparse.js
+# WAVE-S Dev2 (feat/frontier-s-retrievalattn): retrieval-modulated long-context
+# attention backend + surface — explicit per-file COPY (transitive COPY-guard).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_retrieval_attn.py ./szl_retrieval_attn.py
+COPY static/3d/surfaces/retrievalattn.js ./static/3d/surfaces/retrievalattn.js
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase
