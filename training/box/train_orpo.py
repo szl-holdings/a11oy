@@ -199,7 +199,7 @@ def main():
         output_dir=os.path.join(HERE, "outputs", "orpo-trainer"),
         report_to="none",
     )
-    trainer = ORPOTrainer(model=model, tokenizer=tokenizer,
+    trainer = ORPOTrainer(model=model, processing_class=tokenizer,
                           train_dataset=orpo_ds, args=orpo_args)
     result = trainer.train()
 
