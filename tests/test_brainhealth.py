@@ -47,6 +47,18 @@ def _stub(monkeypatch, key, payload):
     monkeypatch.setitem(bh._PROBE_OVERRIDES, key, lambda q, k: dict(payload))
 
 
+_ALL_KEYS = tuple(c["key"] for c in bh.COMPONENTS)
+
+
+def _force_unavailable(monkeypatch, *keys):
+    """Force each named sibling UNAVAILABLE through the probe-override seam by supplying a
+    callable that returns a non-manifest (None). This makes the 'sibling absent' scenarios
+    deterministic regardless of which sibling modules happen to be importable on this branch —
+    the module treats an override that yields no manifest dict as honestly UNAVAILABLE."""
+    for key in keys:
+        monkeypatch.setitem(bh._PROBE_OVERRIDES, key, lambda q, k: None)
+
+
 # --------------------------------------------------------------------------- #
 # 1. registration + ordering
 # --------------------------------------------------------------------------- #
@@ -136,6 +148,9 @@ def test_negated_adverse_token_is_not_a_violation(monkeypatch):
     _stub(monkeypatch, "grounding", {"label": "MODELED", "grounding_confidence": 0.9})
     _stub(monkeypatch, "contradiction",
           {"label": "MODELED", "verdict": "no-conflict", "contradiction_score": 0.0})
+    # Force the remaining siblings UNAVAILABLE so the verdict turns ONLY on the negated
+    # contradiction token, not on whatever a real sibling happens to report on this branch.
+    _force_unavailable(monkeypatch, "freshness", "provenance", "uncertainty")
     agg = bh.build_rollup("q", 4)
     assert agg["verdict"] in (bh.TRUSTWORTHY, bh.DEGRADED)
     assert agg["verdict"] != bh.UNTRUSTWORTHY
@@ -164,10 +179,11 @@ def test_unavailable_sibling_degrades_never_fabricates(monkeypatch):
     assert agg["verdict"] != bh.TRUSTWORTHY
 
 
-def test_all_siblings_absent_is_insufficient_signal():
-    # No overrides and (on main) no sibling modules importable -> honestly INSUFFICIENT-SIGNAL,
-    # never a fabricated TRUSTWORTHY over zero signal.
-    bh._PROBE_OVERRIDES.clear()
+def test_all_siblings_absent_is_insufficient_signal(monkeypatch):
+    # Force EVERY component UNAVAILABLE through the probe-override seam so the zero-signal
+    # scenario is deterministic even though sibling modules are importable on this branch ->
+    # honestly INSUFFICIENT-SIGNAL, never a fabricated TRUSTWORTHY over zero signal.
+    _force_unavailable(monkeypatch, *_ALL_KEYS)
     agg = bh.build_rollup("q", 4)
     assert agg["summary"]["components_available"] == 0
     assert agg["verdict"] == bh.INSUFFICIENT_SIGNAL
@@ -178,6 +194,9 @@ def test_all_siblings_absent_is_insufficient_signal():
 # --------------------------------------------------------------------------- #
 def test_one_component_is_insufficient_signal(monkeypatch):
     _stub(monkeypatch, "grounding", {"label": "MODELED", "grounding_confidence": 0.9})
+    # Force the remaining siblings UNAVAILABLE so EXACTLY one component is available (below
+    # MIN_COMPONENTS), deterministically regardless of which siblings import on this branch.
+    _force_unavailable(monkeypatch, "freshness", "provenance", "contradiction", "uncertainty")
     agg = bh.build_rollup("q", 4)
     assert agg["summary"]["components_available"] == 1
     assert agg["summary"]["components_available"] < bh.MIN_COMPONENTS
