@@ -340,6 +340,54 @@ def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
     return _cached_fetch("arxiv_frontier", url, ttl=900, parser=parse)
 
 
+def feed_hf_trending(limit: int = 24) -> dict[str, Any]:
+    """FRONTIER — live public Hugging Face Hub trending stream (keyless API).
+
+    The open-source model frontier: the models the Hub is trending right now, rolled up
+    per org/author plus the most-liked individual models. 100% MEASURED — the Hub's own
+    published like counts, downloads, authors and task tags; no invented benchmark, no
+    score, no ranking beyond the Hub's own trending signal.
+    """
+    url = ("https://huggingface.co/api/models?sort=trendingScore&direction=-1"
+           "&limit=60&full=false")
+
+    def parse(d):
+        arr = d if isinstance(d, list) else (d.get("models") if isinstance(d, dict) else [])
+
+        def _n(x):
+            try:
+                return int(x)
+            except Exception:
+                return 0
+
+        models = []
+        for m in (arr or []):
+            mid = m.get("id") or m.get("modelId") or ""
+            if not mid:
+                continue
+            org = m.get("author") or (mid.split("/")[0] if "/" in mid else "other")
+            models.append({
+                "id": mid,
+                "org": org,
+                "likes": _n(m.get("likes")),
+                "downloads": _n(m.get("downloads")),
+                "task": m.get("pipeline_tag") or "",
+                "library": m.get("library_name") or "",
+            })
+        total = len(models)
+        top = sorted(models, key=lambda x: x["likes"], reverse=True)[:limit]
+        orgs: dict[str, Any] = {}
+        for m in models:
+            g = orgs.setdefault(m["org"], {"org": m["org"], "count": 0, "likes": 0, "downloads": 0})
+            g["count"] += 1
+            g["likes"] += m["likes"]
+            g["downloads"] += m["downloads"]
+        orgs_list = sorted(orgs.values(), key=lambda x: (x["likes"], x["count"]), reverse=True)
+        return {"models": top, "orgs": orgs_list, "total": total}
+
+    return _cached_fetch("hf_trending", url, ttl=900, parser=parse)
+
+
 def feed_nvd_fintech(limit: int = 16) -> dict[str, Any]:
     url = ("https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=financial"
            "&resultsPerPage=" + str(limit))
@@ -528,6 +576,11 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     async def _frontier_research(limit: int = 24):
         ax = feed_arxiv_frontier(limit)
         return JSONResponse({"tab": "research", "arxiv": ax, "doctrine": DOCTRINE})
+
+    @app.get(base + "/frontier/open", include_in_schema=False)
+    async def _frontier_open(limit: int = 24):
+        hf = feed_hf_trending(limit)
+        return JSONResponse({"tab": "open", "huggingface": hf, "doctrine": DOCTRINE})
 
     # ---------- REAL ESTATE ----------
     @app.get(base + "/re/pulse", include_in_schema=False)
