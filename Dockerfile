@@ -1464,6 +1464,13 @@ COPY szl_verify_transcript.py ./szl_verify_transcript.py
 COPY szl_frontier_index.py ./szl_frontier_index.py
 COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 
+# WAVE-R DEV 3 OPS DASHBOARD (front-end operational view). Per-file COPY (this Dockerfile
+# has NO `COPY . .`; the copy-completeness guard requires every runtime asset to appear in
+# the COPY set). opsdash.js is the 3D surface listed in szl3d_holographic.SURFACES +
+# holographic.html; it consumes Dev 2's /api/a11oy/v1/status and degrades honestly (an
+# honest placeholder tile) when that endpoint is not yet registered. No backend module.
+COPY static/3d/surfaces/opsdash.js ./static/3d/surfaces/opsdash.js
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
