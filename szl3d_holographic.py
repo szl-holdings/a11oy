@@ -126,6 +126,9 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "gnqs", "cat": "quant", "title": "GNQS · Governed-Norm Quantization Stability (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "casta", "cat": "defense", "title": "CASTA · Clean-room Anomaly × Streaming Test-time Adaptation (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "frontierindex", "cat": "brain", "title": "Frontier Index · honest ecosystem catalog · per-surface backend label + citations + native/fallback (self-audited)", "owner": "WaveQ-Dev5"},
+    {"id": "sparsemoe", "cat": "quant", "title": "Extreme-Sparsity MoE Analyzer · activation-ratio ↔ inference-cost tradeoff (STRUCTURAL-ONLY)", "owner": "WaveP-Dev4"},
+    {"id": "pddisagg", "cat": "defense", "title": "Prefill/Decode Disaggregation Map · colocated vs disaggregated latency across the mesh (STRUCTURAL-ONLY/ROADMAP)", "owner": "WaveP-Dev4"},
+    {"id": "execverify", "cat": "reasoning", "title": "Execution-Verified Synthesis Loop · eval → verified trajectory → corpus candidate → receipt (STRUCTURAL-ONLY)", "owner": "WaveP-Dev4"},
     {"id": "opsdash", "cat": "governance", "flag": True, "title": "Ops Dashboard · live estate health · GREEN/DEGRADED/UNAVAILABLE rollup + per-surface honest labels + /verify", "owner": "WaveR-Dev3"},
 ]
 

@@ -680,6 +680,16 @@ COPY szl_lgmi.py ./szl_lgmi.py
 COPY szl_gnqs.py ./szl_gnqs.py
 COPY szl_casta.py ./szl_casta.py
 
+# Wave P / Dev 4: three more frontier surfaces — imported GUARDED by serve.py (GET
+# /api/a11oy/v1/frontier/{sparsemoe,pddisagg,execverify}). Per the transitive COPY-guard
+# (Wave L) each MUST be COPY'd or its endpoint 404s. Pure stdlib (no local imports), so
+# the import closure is complete with just these three added COPYs. The matching
+# static/3d/surfaces/{sparsemoe,pddisagg,execverify}.js ship via the static/3d/ directory
+# COPY and need no per-file line.
+COPY szl_sparsemoe.py ./szl_sparsemoe.py
+COPY szl_pddisagg.py ./szl_pddisagg.py
+COPY szl_execverify.py ./szl_execverify.py
+
 # Wave O / Dev 3: Brain-Body panel — imported GUARDED by serve.py (GET /api/a11oy/v1/
 # frontier/brainbody), the composer that lights the LIVING BODY 3D surface
 # (static/3d/surfaces/brainbody.js) from the Brain pulse (Dev-1 /brain/pulse) + energy

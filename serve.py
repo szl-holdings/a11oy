@@ -1993,6 +1993,49 @@ try:
 except Exception as _szl_casta_e:  # pragma: no cover
     print(f"[a11oy] CASTA NOT registered: {_szl_casta_e!r}", file=__import__("sys").stderr)
 
+# ── SZL SPARSEMOE (Wave-P Dev4) — Extreme-Sparsity MoE Analyzer. A closed-form
+# STRUCTURAL-ONLY estimator of the activation-ratio ↔ inference-cost tradeoff for
+# Mixture-of-Experts configs (frozen-weight VRAM + active-slice VRAM + relative
+# cost-per-token). a11oy does NOT run a 744B model — every number is MODELED /
+# STRUCTURAL-ONLY, never MEASURED. Cites GLM-5.2 744B/~40B MIT (llmcheck.net July 2026),
+# Anthony Maio Checkpoint, DeepSeekMoE (arXiv:2401.06066), Mixtral (arXiv:2401.04088).
+# Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_sparsemoe as _szl_sparsemoe
+    _szl_sparsemoe.register(app, ns="a11oy")
+    print("[a11oy] SPARSEMOE registered: /api/a11oy/v1/frontier/sparsemoe", file=__import__("sys").stderr)
+except Exception as _szl_sparsemoe_e:  # pragma: no cover
+    print(f"[a11oy] SPARSEMOE NOT registered: {_szl_sparsemoe_e!r}", file=__import__("sys").stderr)
+
+# ── SZL PDDISAGG (Wave-P Dev4) — Prefill/Decode Disaggregation Map. A STRUCTURAL-ONLY /
+# ROADMAP latency model of splitting compute-bound prefill from bandwidth-bound decode
+# across the a11oy mesh nodes (omen/betterwithage), with a modeled cross-node KV-cache
+# handoff and speedup. a11oy does NOT disaggregate today — no real dispatch, never
+# MEASURED. Cites NVIDIA Dynamo v1.2.0 (github.com/ai-dynamo/dynamo), the PD-disaggregation
+# survey (arXiv:2603.13358), DistServe (arXiv:2401.09670), Splitwise (arXiv:2311.18677).
+# Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_pddisagg as _szl_pddisagg
+    _szl_pddisagg.register(app, ns="a11oy")
+    print("[a11oy] PDDISAGG registered: /api/a11oy/v1/frontier/pddisagg", file=__import__("sys").stderr)
+except Exception as _szl_pddisagg_e:  # pragma: no cover
+    print(f"[a11oy] PDDISAGG NOT registered: {_szl_pddisagg_e!r}", file=__import__("sys").stderr)
+
+# ── SZL EXECVERIFY (Wave-P Dev4) — Execution-Verified Synthesis Loop. A STRUCTURAL-ONLY
+# model of a closed honest loop tying evalarena (honest eval), agentops (bounded operate
+# loop, writer≠judge) and the Brain corpus into one governed pipeline: eval →
+# execution-verified trajectory → corpus candidate → SHA-256 receipt. a11oy does NOT train
+# a model from the loop in-request — the synthesis is DESCRIBED + RECEIPTED, never MEASURED
+# (Λ = Conjecture 1, gray, never green; trust capped 0.97). Cites Together AI ICML-2026
+# (together.ai/blog/icml-2026), execution-guided synthesis (arXiv:1807.03100), STaR
+# (arXiv:2203.14465). Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_execverify as _szl_execverify
+    _szl_execverify.register(app, ns="a11oy")
+    print("[a11oy] EXECVERIFY registered: /api/a11oy/v1/frontier/execverify", file=__import__("sys").stderr)
+except Exception as _szl_execverify_e:  # pragma: no cover
+    print(f"[a11oy] EXECVERIFY NOT registered: {_szl_execverify_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
