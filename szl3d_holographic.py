@@ -126,6 +126,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "gnqs", "cat": "quant", "title": "GNQS · Governed-Norm Quantization Stability (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "casta", "cat": "defense", "title": "CASTA · Clean-room Anomaly × Streaming Test-time Adaptation (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "frontierindex", "cat": "brain", "title": "Frontier Index · honest ecosystem catalog · per-surface backend label + citations + native/fallback (self-audited)", "owner": "WaveQ-Dev5"},
+    {"id": "opsdash", "cat": "governance", "flag": True, "title": "Ops Dashboard · live estate health · GREEN/DEGRADED/UNAVAILABLE rollup + per-surface honest labels + /verify", "owner": "WaveR-Dev3"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
