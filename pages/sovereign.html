@@ -103,6 +103,29 @@
   .fednote{color:var(--mute);font-size:10.5px;margin:0 0 12px;line-height:1.5}
   .fedwrap .strip{margin-bottom:12px}
   .fedwrap .lamps{margin-bottom:0}
+  /* governed frontier console */
+  .frin,.frta{width:100%;background:rgba(8,12,20,.7);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);font-size:12px;border-radius:9px;padding:9px 10px;outline:none;box-sizing:border-box}
+  .frin:focus,.frta:focus{border-color:var(--teal-dim)}
+  .frta{resize:vertical;min-height:40px;line-height:1.5}
+  .frrow{display:flex;gap:8px;align-items:flex-start;margin:8px 0}
+  .frbtn{white-space:nowrap;background:var(--teal);color:#04241d;border:none;font-weight:700;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;padding:9px 14px;border-radius:9px;cursor:pointer}
+  .frbtn.ghost{background:transparent;color:var(--teal-dim);border:1px solid var(--teal-dim);font-weight:600}
+  .frbtn:disabled{opacity:.45;cursor:default}
+  .frout{margin-top:6px}
+  .frchips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:3px 8px;border-radius:20px;
+    border:1px solid var(--line);color:var(--mute);background:rgba(8,12,20,.5)}
+  .chip.ok{border-color:var(--teal-dim);color:var(--teal);background:rgba(58,244,200,.08)}
+  .chip.bad{border-color:#ff5470;color:#ff5470;background:rgba(255,84,112,.08)}
+  .chip.amber{border-color:#f5a623;color:#f5a623;background:rgba(245,166,35,.08)}
+  .franswer{white-space:pre-wrap;font-size:13px;line-height:1.55;color:var(--ink);background:rgba(8,12,20,.5);
+    border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin:6px 0}
+  .frraw{margin-top:6px}
+  .frraw summary{cursor:pointer;color:var(--mute);font-family:var(--mono);font-size:10.5px;letter-spacing:.04em}
+  .frraw pre{white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:10px;color:var(--mute);
+    background:rgba(8,12,20,.6);border:1px solid var(--line);border-radius:8px;padding:10px;margin:6px 0 0;max-height:220px;overflow:auto}
 
 </style>
 </head>
@@ -124,6 +147,20 @@
     <div class="fednote">read live from the box router at request time &middot; chain state as reported by the source &middot; never summed with the local advisory ledger above</div>
     <div class="strip" id="fedstrip"></div>
     <div class="lamps" id="fedlamps"></div>
+  </section>
+
+  <section class="fedwrap frontier">
+    <div class="fedttl"><span class="badge">GOVERNED</span> Frontier Console &mdash; one capped call, receipt verified locally <span class="fedsrc" id="frstate">&mdash;</span></div>
+    <div class="fednote">operator-gated &middot; model pinned &middot; max 256 tokens &middot; 8s cooldown &middot; 50/day &middot; the box router meters &amp; kill-switches every call. a11oy verifies the DSSE / ECDSA-P256 receipt against a <b>pinned</b> key &mdash; the router is never trusted, the math is checked here.</div>
+    <div class="frrow">
+      <input id="frop" class="frin" type="password" autocomplete="off" spellcheck="false" placeholder="operator token (kept only in this browser)"/>
+      <button id="frsave" class="frbtn ghost" type="button">remember</button>
+    </div>
+    <div class="frrow">
+      <textarea id="frprompt" class="frta" rows="2" maxlength="600" placeholder="Ask the sovereign router something&hellip; (governed, capped, receipted &middot; &#8984;/Ctrl+Enter)"></textarea>
+      <button id="frask" class="frbtn" type="button">Ask &rarr;</button>
+    </div>
+    <div id="frout" class="frout"></div>
   </section>
 
   <section class="khipu"><div id="khipu"></div></section>
@@ -310,6 +347,63 @@
       '<circle cx="'+cx+'" cy="'+TOP+'" r="2.6" fill="#3a5568"/>'+
       '<text x="'+cx+'" y="'+(TOP+140)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10.5" fill="#6f8c9c">'+esc(text)+'</text></g>';
   }
+
+  // ---------- governed frontier console ----------
+  var FR_KEY="szl_frontier_op";
+  function frToken(){ try{return localStorage.getItem(FR_KEY)||"";}catch(e){return "";} }
+  function frChip(label,cls){ return '<span class="chip '+(cls||"")+'">'+esc(label)+'</span>'; }
+  function frRender(d){
+    var out=$("frout"), st=$("frstate");
+    if(!d){ out.innerHTML='<div class="franswer">the console could not reach a11oy (network).</div>'; st.textContent="\u2014"; return; }
+    var s=d.state||"?";
+    var label={verified:"RECEIPT VERIFIED",verify_failed:"VERIFY FAILED",receipt_unsigned:"UNSIGNED",receipt_missing:"NO RECEIPT",receipt_unparseable:"BAD RECEIPT",not_configured:"NOT CONFIGURED",unauthorized:"UNAUTHORIZED",bad_request:"BAD REQUEST",unreachable:"ROUTER UNREACHABLE",cooldown:"COOLDOWN",daily_cap:"DAILY CAP",busy:"BUSY"}[s]||String(s).toUpperCase();
+    var cls=(s==="verified")?"ok":((s==="verify_failed"||s==="unauthorized"||s==="unreachable")?"bad":"amber");
+    st.innerHTML=frChip(label,cls);
+    if(s==="not_configured"){ out.innerHTML='<div class="franswer">Frontier edge/operator not provisioned yet.</div>'; return; }
+    if(s==="unauthorized"){ out.innerHTML='<div class="franswer">Operator token rejected. Paste your token above and try again.</div>'; return; }
+    if(s==="cooldown"){ out.innerHTML='<div class="franswer">Cooling down &mdash; retry in '+esc(d.retry_after_s)+'s (governance).</div>'; return; }
+    if(s==="daily_cap"){ out.innerHTML='<div class="franswer">Daily governed-call cap reached ('+esc(d.daily_cap)+').</div>'; return; }
+    if(s==="busy"){ out.innerHTML='<div class="franswer">A governed call is already in flight &mdash; one at a time.</div>'; return; }
+    if(s==="unreachable"){ out.innerHTML='<div class="franswer">Box router did not answer (http '+esc(d.http_status)+').</div>'; return; }
+    if(s==="bad_request"){ out.innerHTML='<div class="franswer">'+esc(d.detail||"bad request")+'</div>'; return; }
+    var html="";
+    if(d.answer){ html+='<div class="franswer">'+esc(d.answer)+'</div>'; }
+    var r=d.receipt||{}, p=d.provenance||{}, u=d.usage||{};
+    var chips="";
+    chips+=frChip((r.verified?"\u2713 ":"\u2717 ")+"DSSE "+(r.verified?"verified":(r.reason||"unverified")), r.verified?"ok":"bad");
+    if(p.tier) chips+=frChip("tier "+p.tier,"");
+    if(p.served_by) chips+=frChip("via "+p.served_by,"");
+    if(p.upstream_model||p.model) chips+=frChip("model "+(p.upstream_model||p.model),"");
+    if(p.amount_usd!=null) chips+=frChip((p.estimated?"~":"")+(money6(p.amount_usd)||"$0.00")+" this call","amber");
+    if(u.total_tokens!=null) chips+=frChip(u.total_tokens+" tok","");
+    if(r.keyid) chips+=frChip("keyid "+String(r.keyid).slice(0,12),"");
+    if(r.organ) chips+=frChip("organ "+r.organ,"");
+    if(p.request_digest) chips+=frChip("req "+String(p.request_digest).slice(0,10),"");
+    html+='<div class="frchips">'+chips+'</div>';
+    if(d.envelope){ html+='<details class="frraw"><summary>raw DSSE receipt &mdash; verify it yourself</summary><pre>'+esc(JSON.stringify(d.envelope,null,2))+'</pre></details>'; }
+    out.innerHTML=html;
+  }
+  function frAsk(){
+    var tok=(($("frop").value||"")||frToken()).trim();
+    var prompt=($("frprompt").value||"").trim();
+    var btn=$("frask");
+    if(!prompt){ $("frprompt").focus(); return; }
+    btn.disabled=true; $("frstate").innerHTML='<span class="chip amber">calling\u2026</span>';
+    $("frout").innerHTML='<div class="franswer">routing one governed call\u2026</div>';
+    fetch("/api/a11oy/v1/frontier/ask",{method:"POST",cache:"no-store",
+      headers:{"content-type":"application/json","accept":"application/json","x-szl-operator":tok},
+      body:JSON.stringify({prompt:prompt})})
+      .then(function(r){ return r.json().catch(function(){return null;}); })
+      .then(function(d){ frRender(d); })
+      .catch(function(){ frRender(null); })
+      .then(function(){ btn.disabled=false; });
+  }
+  (function frInit(){
+    var op=$("frop"); if(op){ var t=frToken(); if(t) op.value=t; }
+    var save=$("frsave"); if(save) save.addEventListener("click",function(){ try{ localStorage.setItem(FR_KEY,($("frop").value||"").trim()); save.textContent="saved"; setTimeout(function(){save.textContent="remember";},1200);}catch(e){} });
+    var ask=$("frask"); if(ask) ask.addEventListener("click",frAsk);
+    var pr=$("frprompt"); if(pr) pr.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey)&&e.key==="Enter"){ e.preventDefault(); frAsk(); } });
+  })();
 
   // ---------- tick ----------
   function tick(){
