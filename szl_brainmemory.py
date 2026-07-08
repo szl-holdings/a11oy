@@ -13,14 +13,23 @@ WHAT IT DOES (honest by construction):
   measure.
 
   RECENCY SIGNAL, HONESTLY LABELLED. A "freshness" score wants a real recency signal (when was
-  this node last harvested / seen?). This estate's harvested nodes carry node_label, degree,
-  salience, community and title — but NO per-node harvest timestamp. So this module DETECTS at
-  request time whether any real recency field is present:
+  this node last harvested / captured?). Some estate nodes now carry a REAL committed capture
+  date: the 34 active-org-repo nodes inherit ORG_REPOS_SNAPSHOT["captured"] (the date the
+  `gh repo list` inventory was captured) as a `captured_at` field. That date is per-SNAPSHOT
+  (every repo in a pass shares it), not a per-repo last-commit time we did not measure. So this
+  module DETECTS at request time whether any real recency field is present:
 
-    * recency field present on the nodes  -> MODELED freshness (recency ⊕ structural proxy),
-                                             the recency component derived from the real
-                                             timestamp delta read THIS request.
-    * NO recency field (the estate today) -> STRUCTURAL-ONLY freshness: a connectivity/salience
+    * a real captured_at present on the nodes -> MEASURED freshness (recency ⊕ structural). The
+                                             recency component is the AGE of the real capture date
+                                             read LIVE this request: age = now() - captured_at,
+                                             decayed over an explicit RECENCY_HORIZON_DAYS window.
+                                             now() is read fresh every request (never a cached
+                                             "now-minus"). Nodes WITHOUT a real captured_at score
+                                             0.0 on recency (unknown capture date -> treated as
+                                             maximally stale, honest-pessimistic) and are reported
+                                             recency_measured=false, so per-node precision is never
+                                             overclaimed. Coverage is reported explicitly.
+    * NO real capture date (the field ring)  -> STRUCTURAL-ONLY freshness: a connectivity/salience
                                              PROXY, LABELLED STRUCTURAL-ONLY. It does NOT claim
                                              to measure decay; it flags the WEAKLY-embedded
                                              nodes (low degree, low salience) as the ones most
@@ -41,8 +50,10 @@ the honestywall content-digest pattern) — a plain content hash, never a fabric
 DOCTRINE v11:
   - Adds NOTHING to the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}; it only READS + ranks.
   - Λ stays Conjecture 1 (advisory); introduces no theorem, no green/1.0. Trust ceiling 0.97.
-  - A label is NEVER upgraded: STRUCTURAL-ONLY is never printed as MODELED/MEASURED; the score
-    is never printed as MEASURED. A truthful STRUCTURAL-ONLY beats a fabricated freshness.
+  - MEASURED is emitted ONLY when a real captured_at yields a live age delta THIS request; with no
+    real capture date the surface degrades to STRUCTURAL-ONLY. A label is NEVER upgraded past what
+    the data supports: STRUCTURAL-ONLY is never printed as MEASURED. A truthful STRUCTURAL-ONLY
+    beats a fabricated freshness, and a fabricated capture date is never emitted.
   - Pure stdlib + numpy. Additive routes, registered before the SPA catch-all. 0 runtime CDN.
 """
 
@@ -60,14 +71,15 @@ except Exception:  # pragma: no cover
     _HAVE_NUMPY = False
 
 # Honest-label vocabulary (doctrine v11), re-stated (not imported) so a broken import can never
-# blank it. This surface only ever emits MODELED or STRUCTURAL-ONLY as its OWN top label — never
-# MEASURED (there is no live decay meter), never upgraded.
+# blank it. The freshness aggregate emits MEASURED (a real captured_at yields a live age delta
+# this request) or STRUCTURAL-ONLY (no capture date) as its top label — never upgraded past data.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
     "UNSIGNED-LOCAL", "UNAVAILABLE",
 )
 
+MEASURED = "MEASURED"
 MODELED = "MODELED"
 STRUCTURAL_ONLY = "STRUCTURAL-ONLY"
 UNAVAILABLE = "UNAVAILABLE"
@@ -82,17 +94,26 @@ FRESH_MIN = 0.60   # freshness >= 0.60            -> FRESH
 AGING_MIN = 0.30   # 0.30 <= freshness < 0.60     -> AGING
 #                    freshness < 0.30             -> STALE
 
+# Recency decay window (fixed + documented). The recency component is the AGE of the real capture
+# date read LIVE this request, decayed linearly over this horizon: a capture made "now" scores
+# 1.0; a capture RECENCY_HORIZON_DAYS old (or older) scores 0.0; linear in between. This is an
+# ABSOLUTE age measurement (now() - captured_at), never a relative min-max that would collapse to
+# a flat 0.0 when a whole snapshot shares one date.
+RECENCY_HORIZON_DAYS = 180.0
+_SECONDS_PER_DAY = 86400.0
+
 # Component weights. Two honest modes; the weights are reported so the score is auditable.
-#   MODELED (a real recency field exists): recency dominates, structure supports.
-#   STRUCTURAL-ONLY (no recency field):    connectivity + salience proxy ONLY (no recency term).
-WEIGHTS_MODELED = {"recency": 0.50, "connectivity": 0.30, "salience": 0.20}
+#   MEASURED (a real captured_at exists): recency dominates, structure supports.
+#   STRUCTURAL-ONLY (no capture date):    connectivity + salience proxy ONLY (no recency term).
+WEIGHTS_MEASURED = {"recency": 0.50, "connectivity": 0.30, "salience": 0.20}
 WEIGHTS_STRUCTURAL = {"connectivity": 0.60, "salience": 0.40}
 
 # Candidate per-node recency fields. If a node carries one of these (a REAL captured timestamp),
-# freshness becomes MODELED and the recency component is derived from its delta. The estate's
-# harvested nodes carry NONE of these today -> the surface degrades honestly to STRUCTURAL-ONLY.
+# freshness becomes MEASURED and the recency component is derived from its live age delta. Only
+# the estate's 34 active-org-repo nodes carry one today (captured_at, per-snapshot); the harvested
+# field ring carries none -> for those nodes the surface degrades honestly to STRUCTURAL-ONLY.
 RECENCY_FIELDS = (
-    "harvested_at", "captured_at", "last_seen", "last_seen_at", "updated_at",
+    "captured_at", "harvested_at", "last_seen", "last_seen_at", "updated_at",
     "created_at", "seen_at", "timestamp", "mtime", "epoch",
 )
 
@@ -185,56 +206,84 @@ def _verdict(score: float) -> str:
 # recency field when one exists. Returns the full freshness aggregate.
 # --------------------------------------------------------------------------- #
 
+def _recency_from_age(ts: float, now_ts: float) -> float:
+    """Absolute recency in [0,1] from a REAL capture epoch and a LIVE now.
+
+    recency = clamp(1 - age_days / RECENCY_HORIZON_DAYS, 0, 1). A capture made "now" (or in the
+    future — clock skew) scores 1.0; a capture >= horizon old scores 0.0. This is the live
+    now-minus-captured_at delta, never a cached or fabricated value."""
+    age_days = (now_ts - ts) / _SECONDS_PER_DAY
+    if age_days <= 0.0:
+        return 1.0
+    return max(0.0, min(1.0, 1.0 - age_days / RECENCY_HORIZON_DAYS))
+
+
 def compute_freshness(nodes: list, *, recency_field: str | None = None,
                       now_ts: float | None = None, top: int | None = None) -> dict:
     """Compute the deterministic freshness aggregate over `nodes`.
 
-    If `recency_field` is given AND real timestamps parse -> MODELED (recency ⊕ structural).
+    If `recency_field` is given AND at least one real timestamp parses -> MEASURED (recency ⊕
+    structural), the recency component being the LIVE age of the real capture date this request.
     Otherwise -> STRUCTURAL-ONLY (connectivity + salience proxy, no invented decay)."""
     nodes = [n for n in nodes if isinstance(n, dict) and n.get("id") is not None]
     n = len(nodes)
+    if now_ts is None:
+        now_ts = _now_ts()
 
     degrees = [float(x.get("degree", 0) or 0) for x in nodes]
     saliences = [float(x.get("salience", 0.0) or 0.0) for x in nodes]
 
     # Recency is honest ONLY if the field is present AND parseable on this data.
-    ts_values: list = []
+    parsed_ts: list = [None] * n
     have_recency = False
     if recency_field:
-        parsed = [_parse_ts(x.get(recency_field)) for x in nodes]
-        if any(p is not None for p in parsed):
-            have_recency = True
-            # Missing/unparseable timestamps on some nodes -> treated as OLDEST (min), never
-            # fabricated as fresh. This is the honest-pessimistic choice.
-            present = [p for p in parsed if p is not None]
-            floor = min(present) if present else 0.0
-            ts_values = [p if p is not None else floor for p in parsed]
+        parsed_ts = [_parse_ts(x.get(recency_field)) for x in nodes]
+        have_recency = any(p is not None for p in parsed_ts)
 
     conn_norm = _minmax(degrees)
     sal_norm = _minmax(saliences)
 
     if have_recency:
-        # Newer -> higher. min-max over the real epoch deltas read THIS request.
-        rec_norm = _minmax(ts_values)
-        weights = dict(WEIGHTS_MODELED)
-        label = MODELED
-        mode = "recency+structural"
+        weights = dict(WEIGHTS_MEASURED)
+        label = MEASURED
+        mode = "measured-recency+structural"
     else:
-        rec_norm = [None] * n
         weights = dict(WEIGHTS_STRUCTURAL)
         label = STRUCTURAL_ONLY
         mode = "structural-only"
 
     ranking: list = []
     verdict_counts = {FRESH: 0, AGING: 0, STALE: 0}
+    recency_measured_nodes = 0
     for i, node in enumerate(nodes):
         components: dict = {
             "connectivity": round(conn_norm[i], 6),
             "salience": round(sal_norm[i], 6),
         }
+        entry = {
+            "id": node.get("id"),
+            "title": node.get("title", node.get("id")),
+            "kind": node.get("kind"),
+            "community": node.get("community"),
+            "degree": int(degrees[i]),
+            "salience": round(saliences[i], 8),
+            "label": label,
+        }
         if have_recency:
-            components["recency"] = round(rec_norm[i], 6)
-            score = (weights["recency"] * rec_norm[i]
+            ts = parsed_ts[i]
+            if ts is not None:
+                rec = _recency_from_age(ts, now_ts)
+                recency_measured_nodes += 1
+                entry["captured_at"] = node.get(recency_field)
+                entry["recency_measured"] = True
+            else:
+                # No real capture date on THIS node -> maximally stale on the recency axis
+                # (honest-pessimistic). Never fabricate a timestamp for it.
+                rec = 0.0
+                entry["captured_at"] = None
+                entry["recency_measured"] = False
+            components["recency"] = round(rec, 6)
+            score = (weights["recency"] * rec
                      + weights["connectivity"] * conn_norm[i]
                      + weights["salience"] * sal_norm[i])
         else:
@@ -245,21 +294,16 @@ def compute_freshness(nodes: list, *, recency_field: str | None = None,
         verdict = _verdict(score)
         verdict_counts[verdict] += 1
 
-        entry = {
-            "id": node.get("id"),
-            "title": node.get("title", node.get("id")),
-            "kind": node.get("kind"),
-            "community": node.get("community"),
-            "degree": int(degrees[i]),
-            "salience": round(saliences[i], 8),
-            "freshness": round(score, 6),
-            "verdict": verdict,
-            "label": label,
-            "components": components,
-        }
+        entry["freshness"] = round(score, 6)
+        entry["verdict"] = verdict
+        entry["components"] = components
         if verdict == STALE:
-            entry["note"] = ("weakly-embedded / low-freshness — RE-HARVEST recommended; "
-                             "do not silently trust this node")
+            if have_recency and not entry.get("recency_measured", False):
+                entry["note"] = ("no real capture date on this node — RE-HARVEST recommended; "
+                                 "recency treated as maximally stale, never silently trusted")
+            else:
+                entry["note"] = ("weakly-embedded / low-freshness — RE-HARVEST recommended; "
+                                 "do not silently trust this node")
         ranking.append(entry)
 
     # Deterministic order: freshest first, ties broken by id (stable, reproducible).
@@ -267,27 +311,36 @@ def compute_freshness(nodes: list, *, recency_field: str | None = None,
     if isinstance(top, int) and top > 0:
         ranking = ranking[:top]
 
+    coverage = round(recency_measured_nodes / n, 6) if n else 0.0
     return {
         "label": label,
         "mode": mode,
         "recency_signal": have_recency,
         "recency_field": recency_field if have_recency else None,
+        "recency_granularity": "per-snapshot" if have_recency else None,
+        "recency_measured_nodes": recency_measured_nodes,
+        "recency_coverage": coverage,
+        "recency_horizon_days": RECENCY_HORIZON_DAYS if have_recency else None,
         "weights": weights,
         "thresholds": {"FRESH": f">= {FRESH_MIN}", "AGING": f">= {AGING_MIN}", "STALE": f"< {AGING_MIN}"},
         "node_count": n,
         "verdict_counts": verdict_counts,
         "ranking": ranking,
-        "honest_note": _honest_note(have_recency),
+        "honest_note": _honest_note(have_recency, recency_measured_nodes, n),
         "computed_at_utc": _now_iso(),
     }
 
 
-def _honest_note(have_recency: bool) -> str:
+def _honest_note(have_recency: bool, measured_nodes: int = 0, total: int = 0) -> str:
     if have_recency:
-        return ("freshness is MODELED: a recency component (from the real per-node timestamp "
-                "delta read this request) combined with a connectivity/salience structural "
-                "proxy. STALE nodes should be re-harvested, never silently trusted.")
-    return ("no real per-node recency signal exists on the estate graph, so freshness is "
+        return (f"freshness is MEASURED: the recency component is the LIVE age of a real "
+                f"captured_at (now() - capture date, decayed over {RECENCY_HORIZON_DAYS:g} days) "
+                f"combined with a connectivity/salience structural proxy. The capture date is "
+                f"PER-SNAPSHOT and real for {measured_nodes}/{total} nodes (the active-org-repo "
+                f"snapshot); nodes with no real capture date score 0.0 on recency (treated as "
+                f"maximally stale, recency_measured=false) — per-node precision is never "
+                f"overclaimed. STALE nodes should be re-harvested, never silently trusted.")
+    return ("no real per-node recency signal exists on these nodes, so freshness is "
             "STRUCTURAL-ONLY: a connectivity + salience PROXY, NOT a decay measurement. It flags "
             "weakly-embedded nodes (low degree, low salience) as the ones most likely to be "
             "stale and worth re-harvesting. No timestamp or decay half-life is fabricated.")
@@ -438,8 +491,9 @@ def handle_info(ns: str = "a11oy") -> dict:
         "title": "Brain Memory Freshness — honest episodic decay proxy",
         "label": MODELED,
         "what": ("a deterministic, explainable memory-freshness score per knowledge-graph node, "
-                 "derived from honest signals ONLY. If a real per-node recency timestamp exists "
-                 "the score is MODELED (recency ⊕ structural); otherwise it is STRUCTURAL-ONLY (a "
+                 "derived from honest signals ONLY. If a real per-node capture date (captured_at) "
+                 "exists the score is MEASURED (recency ⊕ structural), the recency component being "
+                 "the LIVE age of that real date this request; otherwise it is STRUCTURAL-ONLY (a "
                  "connectivity + salience proxy, never an invented decay curve). Reuses the same "
                  "honest brain graph; invents no nodes, harvests nothing, fabricates no timestamp."),
         "endpoints": {
@@ -448,12 +502,15 @@ def handle_info(ns: str = "a11oy") -> dict:
             "receipt": f"POST {base}/receipt",
         },
         "formula": {
-            "modeled": ("freshness = 0.50·recency + 0.30·connectivity + 0.20·salience  "
-                        "(when a real per-node recency timestamp exists)"),
+            "measured": ("freshness = 0.50·recency + 0.30·connectivity + 0.20·salience  "
+                         "(when a real captured_at exists; recency = live age of the real capture "
+                         f"date, decayed linearly over {RECENCY_HORIZON_DAYS:g} days)"),
             "structural_only": ("freshness = 0.60·connectivity + 0.40·salience  "
-                                "(no recency signal — LABELLED STRUCTURAL-ONLY, not a decay measurement)"),
+                                "(no capture date — LABELLED STRUCTURAL-ONLY, not a decay measurement)"),
             "components": {
-                "recency": "min-max of the REAL per-node timestamp delta (newest→1); omitted when absent",
+                "recency": (f"live age of the REAL captured_at: clamp(1 - (now-captured_at)/"
+                            f"{RECENCY_HORIZON_DAYS:g}d, 0, 1); nodes with no real date score 0.0 "
+                            "(recency_measured=false); None entirely when STRUCTURAL-ONLY"),
                 "connectivity": "min-max of node degree (how embedded the node is in the graph)",
                 "salience": "min-max of PageRank salience (how load-bearing the node is)",
             },
@@ -461,10 +518,14 @@ def handle_info(ns: str = "a11oy") -> dict:
                          "STALE": f"< {AGING_MIN} — RE-HARVEST recommended, never silently trusted"},
         },
         "honest_labels": {
-            "MODELED": "used ONLY when a real recency timestamp is present",
-            "STRUCTURAL-ONLY": "used when NO recency signal exists — a proxy, never MEASURED, never upgraded",
-            "note": "the score is NEVER labelled MEASURED — there is no live decay meter.",
+            "MEASURED": ("used ONLY when a real captured_at yields a LIVE age delta this request; "
+                         "the capture date is PER-SNAPSHOT (active-org-repo nodes), and coverage "
+                         "is reported — per-node precision is never overclaimed"),
+            "STRUCTURAL-ONLY": "used when NO real capture date exists — a proxy, never upgraded to MEASURED",
+            "note": ("MEASURED here means a real now()-minus-captured_at age read live this "
+                     "request; nodes with no real capture date are honestly recency_measured=false."),
         },
+        "recency_horizon_days": RECENCY_HORIZON_DAYS,
         "recency_fields_probed": list(RECENCY_FIELDS),
         "receipt_policy": ("RECEIPT-ON-WRITE-NOT-ON-READ — GET info/ranking mint nothing; only "
                            "POST /receipt emits an unsigned SHA-256 content digest."),
@@ -476,7 +537,7 @@ def handle_info(ns: str = "a11oy") -> dict:
 
 def handle_ranking(ns: str = "a11oy", top: int = 25) -> dict:
     """GET /brain/memory?top= — freshness ranking + per-component breakdown + verdict. PURE READ
-    (mints nothing). Label is MODELED or STRUCTURAL-ONLY, honestly, never upgraded."""
+    (mints nothing). Label is MEASURED or STRUCTURAL-ONLY, honestly, never upgraded."""
     top = max(1, min(int(top), 5000))
     return build_aggregate(ns, top=top)
 
@@ -577,17 +638,36 @@ if __name__ == "__main__":
     print(f"[1] STRUCTURAL-ONLY (no recency): hub FRESH..orphan STALE  OK "
           f"(verdicts={agg['verdict_counts']})")
 
-    # Synthetic nodes WITH a real recency field -> MODELED, recency component populated.
+    # Synthetic nodes WITH a real capture date -> MEASURED, live-age recency component populated.
+    # Fixed now_ts for determinism: "new" captured 10 days ago, "old" > horizon ago.
+    now = 2_000_000_000.0
     synth_ts = [
-        {"id": "new", "degree": 5, "salience": 0.2, "harvested_at": 2_000_000_000},
-        {"id": "old", "degree": 5, "salience": 0.2, "harvested_at": 1_000_000_000},
+        {"id": "new", "degree": 5, "salience": 0.2,
+         "captured_at": now - 10 * _SECONDS_PER_DAY},
+        {"id": "old", "degree": 5, "salience": 0.2,
+         "captured_at": now - (RECENCY_HORIZON_DAYS + 50) * _SECONDS_PER_DAY},
     ]
-    agg2 = compute_freshness(synth_ts, recency_field="harvested_at")
-    assert agg2["label"] == MODELED and agg2["recency_signal"] is True
-    assert agg2["ranking"][0]["id"] == "new"         # newer timestamp -> fresher
-    assert agg2["ranking"][0]["components"]["recency"] == 1.0
-    assert agg2["ranking"][-1]["components"]["recency"] == 0.0
-    print("[2] MODELED (real recency): newer > older; recency component populated  OK")
+    agg2 = compute_freshness(synth_ts, recency_field="captured_at", now_ts=now)
+    assert agg2["label"] == MEASURED and agg2["recency_signal"] is True
+    assert agg2["recency_measured_nodes"] == 2 and agg2["recency_coverage"] == 1.0
+    assert agg2["ranking"][0]["id"] == "new"         # newer capture -> fresher
+    assert agg2["ranking"][0]["components"]["recency"] > 0.9   # ~10 days old
+    assert agg2["ranking"][-1]["components"]["recency"] == 0.0  # past horizon
+    assert agg2["ranking"][0]["recency_measured"] is True
+    print("[2] MEASURED (real captured_at): newer > older; live-age recency populated  OK")
+
+    # A node MISSING a real capture date while others have one -> recency 0.0, recency_measured
+    # false (honest-pessimistic), never a fabricated date; whole surface still MEASURED.
+    synth_mixed = [
+        {"id": "dated", "degree": 5, "salience": 0.5, "captured_at": now - _SECONDS_PER_DAY},
+        {"id": "undated", "degree": 5, "salience": 0.5},
+    ]
+    agg3 = compute_freshness(synth_mixed, recency_field="captured_at", now_ts=now)
+    assert agg3["label"] == MEASURED and agg3["recency_measured_nodes"] == 1
+    undated = [e for e in agg3["ranking"] if e["id"] == "undated"][0]
+    assert undated["components"]["recency"] == 0.0
+    assert undated["recency_measured"] is False and undated["captured_at"] is None
+    print("[2b] MEASURED with partial coverage: undated node recency=0.0, never fabricated  OK")
 
     # Receipt: deterministic on the SAME aggregate; RECEIPT-ON-WRITE only.
     r1 = content_receipt(agg)

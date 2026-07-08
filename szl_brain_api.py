@@ -519,7 +519,8 @@ class BrainIndex:
              "community": self.community_of.get(n["id"]),
              "node_label": n.get("label")}
         for opt in ("url", "source", "axis", "formula_id", "locked",
-                    "conjecture", "proof_status"):
+                    "conjecture", "proof_status", "captured_at",
+                    "captured_granularity", "captured_source"):
             if n.get(opt) is not None:
                 v[opt] = n[opt]
         return v
