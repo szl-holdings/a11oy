@@ -135,6 +135,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "confattest", "cat": "governance", "title": "Confidential-Compute Attestation + Action Gate · SIMULATED enclave quote → receipt · govern ACTIONS not reasoning (MODELED)", "owner": "WaveS-Dev3"},
     {"id": "retrievalattn", "cat": "attention", "title": "Retrieval-Modulated Long-Context Attention · needle recall (MODELED)", "owner": "WaveS-Dev2"},
     {"id": "whatsnew", "cat": "brain", "title": "What's New · honest auto-derived estate changelog · recently-added surfaces w/ verbatim labels + citations from real git history (drift-proof)", "owner": "WaveS-Dev5"},
+    {"id": "honestywall", "cat": "governance", "title": "Honesty Wall · live \"can this system lie right now?\" integrity aggregation · reads each surface's OWN honest label VERBATIM + estate honesty invariants → INTACT/DEGRADED/VIOLATED verdict, unsigned SHA-256 receipt-on-write (drift-proof)", "owner": "WaveS-Dev6"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
