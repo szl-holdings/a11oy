@@ -12732,6 +12732,40 @@ except Exception as _wsca_e1:  # additive: never break the Space
 # ============================================================================
 
 
+# ============================================================================
+# WAVE-S FRONTIER (feat/frontier-s-retrievalattn, Dev 2): a11oy-NATIVE cited
+# RETRIEVAL-MODULATED LONG-CONTEXT ATTENTION backend — a sparse/local window
+# AUGMENTED with an in-context retrieval step (MATCH family) that re-injects the
+# long-range tokens the window dropped, quantifying the long-range-recall recovery
+# vs a plain sparse window on a seeded synthetic needle task (distinct from
+# episodic/graphmem/s3search). Deterministic, stdlib-only (no numpy), try/except-
+# guarded; returns a renderable 200 with an honest MODELED label + receipt.
+# register() uses @app.get (APPENDS), so we front-move the single route to router
+# position 0 so it wins over the /api/a11oy/{path:path} Node proxy + /{full_path:path}
+# SPA catch-all (reuses _wn_frontmove from the WAVE-N batch).
+#   szl_retrieval_attn -> /api/a11oy/v1/retrievalattn/recall (surface: retrievalattn.js)
+#     Real full / sparse-window / exponentially-decaying-memory / retrieval-augmented
+#     read policies + cosine retrieval over a seeded needle task; reports long-range
+#     recall per policy + the MATCH recovery over a plain sparse window. Cites MATCH
+#     (Ma et al. arXiv:2606.29844, ACL 2026) + Exponentially-Decaying-Memory attention
+#     (Wei & Gulcehre arXiv:2605.28640).
+# Λ = Conjecture 1; nothing added to the locked-8; trust never 100%.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _ws_sys2
+    import szl_retrieval_attn as _szl_retrieval_attn
+    _ws_s2 = _szl_retrieval_attn.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/retrievalattn/recall")
+    print(f"[a11oy] WAVE-S FRONTIER szl_retrieval_attn registered (front-moved): {_ws_s2}", file=_ws_sys2.stderr)
+except Exception as _ws_e2:  # additive: never break the Space
+    print(f"[a11oy] WAVE-S FRONTIER szl_retrieval_attn NOT registered (non-fatal): {_ws_e2!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-S FRONTIER (retrieval-modulated long-context attention)
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

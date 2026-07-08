@@ -133,6 +133,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "flowbrain", "cat": "brain", "flag": True, "title": "FlowBrain · continuous belief-flow lens · tiers as thresholds crossed on x_t∈[0,1] + 1D-time⊗1D-node axis-factorization (STRUCTURAL-ONLY; borrows B[FM]² continuous-flow principle, NO EEG)", "owner": "WaveS-Dev4"},
     {"id": "blocksparse", "cat": "attention", "title": "Learned Blockwise Top-k KV Sparse Attention · selection (MODELED)", "owner": "WaveS-Dev1"},
     {"id": "confattest", "cat": "governance", "title": "Confidential-Compute Attestation + Action Gate · SIMULATED enclave quote → receipt · govern ACTIONS not reasoning (MODELED)", "owner": "WaveS-Dev3"},
+    {"id": "retrievalattn", "cat": "attention", "title": "Retrieval-Modulated Long-Context Attention · needle recall (MODELED)", "owner": "WaveS-Dev2"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
