@@ -644,6 +644,52 @@ jobs:
         # class becomes a red gate here instead of a silent live failure.
         run: pytest tests/test_frontier_endpoints.py -q
 
+  python-status-aggregate:
+    name: Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi starlette httpx pytest
+      - name: Operational status aggregate — honest, drift-proof per-subsystem/surface health
+        # WAVE R DEV 2: GET /api/a11oy/v1/status is the operational-dashboard back-end.
+        # This gate boots the REAL app in-process (no mocks, no network) and asserts it is
+        # registered before the SPA/Node-proxy catch-alls, answers 200 (never 500), carries
+        # honest data labels + health tokens per surface, is DRIFT-PROOF against the Wave-Q
+        # frontier index (ids + verbatim labels must match), keeps the locked-8 exact / Λ =
+        # Conjecture 1 / trust 0.97, and NEVER fabricates an all-green estate rollup.
+        run: pytest tests/test_status_aggregate.py -q
+
+  python-guarded-surface:
+    name: Shared guarded-surface wrapper — one bad surface never 500s the SPA (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi starlette httpx pytest
+      - name: Guarded-surface wrapper — honest 200 UNAVAILABLE instead of a bare 500
+        # WAVE R DEV 2: szl_guarded_surface installs one additive ASGI middleware so an
+        # unhandled exception from any JSON API surface (/api/…) becomes an HONEST 200
+        # (ok:false, UNAVAILABLE + real reason) instead of a 500 — one bad surface can
+        # never break the SPA. This gate proves it on a fresh app (throwing /api -> honest
+        # 200; healthy passes through; non-api crash unchanged) AND on the REAL serve.app
+        # (middleware installed; a front-inserted throwing surface degrades honestly).
+        run: pytest tests/test_guarded_surface.py -q
+
   python-guarded-import-liveness:
     name: Guarded-import liveness — no silent no-op dead first-party imports (pytest, offline)
     runs-on: ubuntu-latest
