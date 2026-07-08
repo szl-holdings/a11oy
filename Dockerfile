@@ -1464,6 +1464,14 @@ COPY szl_verify_transcript.py ./szl_verify_transcript.py
 COPY szl_frontier_index.py ./szl_frontier_index.py
 COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 
+# WAVE-R BACKEND UPGRADE (Dev 2). Per-file COPY (no `COPY . .`; the copy-completeness guard
+# requires every module reachable from serve.py to appear in the COPY set). Both are imported
+# by serve.py: szl_guarded_surface.py installs the shared guard so one bad surface can't 500
+# the SPA; szl_status_aggregate.py serves the honest /api/a11oy/v1/status operational aggregate
+# (drift-proof, reuses szl_frontier_index above).
+COPY szl_guarded_surface.py ./szl_guarded_surface.py
+COPY szl_status_aggregate.py ./szl_status_aggregate.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
