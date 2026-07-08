@@ -103,6 +103,19 @@ except ImportError:
 
 app = FastAPI(title="a11oy — Brand Orchestration Layer", version="2.0.0")
 
+# ── Shared guarded-surface wrapper (Wave R Dev 2) — one bad surface must NEVER 500 the
+# SPA. This ASGI middleware converts an unhandled exception from any JSON API surface
+# (/api/…) into an HONEST 200 carrying UNAVAILABLE + the real reason, instead of a bare
+# 500; non-API paths (SPA HTML / static assets) are re-raised unchanged. Added FIRST so it
+# is INNERMOST — its honest degraded response still flows out through CORS + security
+# headers. Additive: edits no surface's internals. Signs/mints nothing; adds nothing to the
+# locked-8; Λ stays Conjecture 1. Honest degrade, never a fabricated green.
+try:
+    import szl_guarded_surface as _szl_guarded_surface
+    print("[a11oy] " + _szl_guarded_surface.register(app), file=__import__("sys").stderr)
+except Exception as _szl_guard_e:  # pragma: no cover
+    print(f"[a11oy] Guarded-surface wrapper NOT registered: {_szl_guard_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
@@ -753,6 +766,22 @@ try:
     print("[a11oy] Frontier INDEX registered: /api/a11oy/v1/frontier-index/catalog (honest ecosystem catalog + self-audit)", file=__import__("sys").stderr)
 except Exception as _szl_fidx_e:  # pragma: no cover
     print(f"[a11oy] Frontier INDEX NOT registered: {_szl_fidx_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
+# operational-dashboard back-end: for every registered surface it reports the honest data
+# label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
+# up for the whole estate. DRIFT-PROOF: built ENTIRELY on the Wave-Q frontier index
+# (szl_frontier_index.build_catalog), which derives from szl3d_holographic.SURFACES +
+# app.routes + each surface's own response — so it can never drift from what is wired. PURE
+# READ (signs/mints nothing on GET). Adds NOTHING to the locked-8; Λ stays Conjecture 1;
+# trust ceiling 0.97. Additive, try/except-guarded, same register() pattern, BEFORE the SPA
+# catch-all. Must register AFTER the frontier index (which it reads).
+try:
+    import szl_status_aggregate as _szl_status_aggregate
+    _szl_status_aggregate.register(app, ns="a11oy")
+    print("[a11oy] Operational STATUS aggregate registered: /api/a11oy/v1/status (honest per-subsystem/surface health, drift-proof)", file=__import__("sys").stderr)
+except Exception as _szl_status_e:  # pragma: no cover
+    print(f"[a11oy] Operational STATUS aggregate NOT registered: {_szl_status_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
