@@ -336,6 +336,23 @@ spaces/immune/dist/public/assets/index-B0yATMcZ.css
 brain/harvest/energy_defense.jsonl
 
 # ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-07-08, green-the-trunk / Wave-Q).
+# training/data/brain_graph.json is the MODELED derived-view rendering of the
+# SAME harvested field layer as brain/harvest/energy_defense.jsonl above (label
+# "MODELED", served pure-read on GET /api/a11oy/v1/brain/graph). The ONLY banned
+# token it carries is the substring "jarvis" inside a REAL third-party GitHub
+# repo slug captured as a field-leader node + its provenance edge:
+#     repo:bayjarvis/llm            (github.com/bayjarvis/llm)
+# It lives in the load-bearing node id / label and the maps-to-surface /
+# repo-in-axis edge `source`. Renaming a real repository would FABRICATE its
+# identity and break the node<->edge provenance link, so it is enumerated here
+# (not reworded) — identical third-party-data rationale to the energy_defense
+# entry above. The doctrine ban on "Jarvis" targets the SZL product CODENAME,
+# never third-party GitHub org names that contain the substring. Scoped to this
+# ONE generated file.
+training/data/brain_graph.json
+
+# ----------------------------------------------------------------------------
 # Doctrine grep-gate exemption (2026-07-07, Wave-N Dev5 trunk-guardian).
 # The robust banned-token scanner SOURCE + its self-test. Both ENUMERATE the
 # ban-list (the regex + positive/negative control fixtures) for DETECTION
