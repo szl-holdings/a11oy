@@ -829,6 +829,23 @@ try:
 except Exception as _szl_honestywall_e:  # pragma: no cover
     print(f"[a11oy] Honesty wall NOT registered: {_szl_honestywall_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# SURFACE HONESTY MANIFESTS (feat/manifest-coverage-sweep) — client-only 3D visualization
+# surfaces have NO a11oy-native measuring backend under this namespace, so their id carries no
+# a11oy GET route and the Honesty Wall / Frontier Index can see no manifest for them (NO-
+# MANIFEST). This ADDS the missing per-surface honesty manifest each lacked: a truthful
+# declaration with data label UNAVAILABLE (no native backend to measure or misreport; never
+# upgraded) plus the estate-wide doctrine invariants they abide by (locked-8 exact +0, Λ=
+# Conjecture 1 not a theorem, Khipu BFT=Conjecture 2, trust ceiling 0.97 never 100%, 0 runtime
+# CDN, no consciousness claim). It adds NO capability; it only makes the honest posture VISIBLE
+# so the wall can VERIFY these surfaces instead of skipping them — raising coverage without
+# inventing anything. GET reads mint nothing. Additive, try/except-guarded, BEFORE the SPA
+# catch-all. Register AFTER the honesty wall so the routes exist when the wall probes.
+try:
+    import szl_surface_manifests as _szl_surface_manifests
+    print("[a11oy] " + _szl_surface_manifests.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_surface_manifests_e:  # pragma: no cover
+    print(f"[a11oy] Surface manifests NOT registered: {_szl_surface_manifests_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # AGENT OS MAP (feat/frontier-agentos) — a live, self-honest operator's-eye map of the agent
 # OS, composed ENTIRELY from our OWN governed components. Node presence is derived from the
 # live surface registry (szl3d_holographic.SURFACES); each node carries a LIVE honesty verdict
