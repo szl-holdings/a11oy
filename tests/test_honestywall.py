@@ -188,3 +188,35 @@ def test_status_in_real_estate_is_consistent():
     for e in j["surfaces"]:
         if e.get("label") is not None:
             assert e["label"] in vocab, f"{e['id']}: non-vocab label {e['label']}"
+
+
+def test_lambda_negated_theorem_is_not_a_violation():
+    """Regression: a lambda declared as a Conjecture that explicitly says it is
+    'NOT a theorem' / 'never a theorem' must PASS. The prior naive substring test
+    (`"theorem" not in low`) false-flagged the honest negated phrasing, which was
+    the single reachable violation dragging the live estate verdict to VIOLATED."""
+    honest_variants = [
+        "Conjecture 1 (advisory, NOT a theorem; never green/proven)",
+        "Conjecture 1 — advisory only, never a theorem, never green",
+        "Conjecture 1 (advisory, gray; isn't a theorem)",
+    ]
+    for lam in honest_variants:
+        _, _, checks = hw._eval_payload({"doctrine": {"lambda": lam}})
+        by = {c["invariant"]: c for c in checks}
+        c = by.get("lambda_is_conjecture_not_theorem")
+        assert c is not None, f"invariant not evaluated for: {lam!r}"
+        assert c["status"] == "SATISFIED", f"honest negated-theorem lambda wrongly flagged: {lam!r}"
+
+
+def test_lambda_affirmative_theorem_claim_is_a_violation():
+    """A lambda that AFFIRMATIVELY claims to be proven must be flagged. The strings
+    below are NEGATIVE examples the estate never claims: Λ stays Conjecture 1,
+    never a theorem, never green. They exist only so the checker proves it still
+    catches a real affirmative claim."""
+    for lam in ["Lambda is a theorem, proven green",
+                "now a theorem with trust 1.0"]:
+        _, _, checks = hw._eval_payload({"doctrine": {"lambda": lam}})
+        by = {c["invariant"]: c for c in checks}
+        c = by.get("lambda_is_conjecture_not_theorem")
+        assert c is not None
+        assert c["status"] == "VIOLATED", f"affirmative theorem claim not flagged: {lam!r}"
