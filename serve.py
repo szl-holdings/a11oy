@@ -739,6 +739,21 @@ try:
 except Exception as _szl_sc_e:  # pragma: no cover
     print(f"[a11oy] Frontier supplychain NOT registered: {_szl_sc_e!r}", file=__import__("sys").stderr)
 
+# Frontier INDEX (Wave Q) — GET /api/a11oy/v1/frontier-index/catalog ENUMERATES every
+# registered frontier surface and, for each, reports the honest data label its OWN backend
+# actually emits, its cited paper(s), and whether it is a11oy-native or a cross-origin
+# fallback. HONEST BY CONSTRUCTION: derived live from the app's surface registry
+# (szl3d_holographic.SURFACES) + app.routes + each surface's own in-process response — never
+# a hand-maintained list that can drift. PURE READ (signs/mints nothing on GET). Adds NOTHING
+# to the locked-8; Λ stays Conjecture 1; trust ceiling 0.97, never 100%. Additive,
+# try/except-guarded, same register() pattern, BEFORE the SPA catch-all.
+try:
+    import szl_frontier_index as _szl_frontier_index
+    _szl_frontier_index.register(app, ns="a11oy")
+    print("[a11oy] Frontier INDEX registered: /api/a11oy/v1/frontier-index/catalog (honest ecosystem catalog + self-audit)", file=__import__("sys").stderr)
+except Exception as _szl_fidx_e:  # pragma: no cover
+    print(f"[a11oy] Frontier INDEX NOT registered: {_szl_fidx_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
 # envelope binding every guarantee for a single governed action: the REAL immune verdict

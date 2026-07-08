@@ -1457,6 +1457,13 @@ COPY szl_brain_corpus.py ./szl_brain_corpus.py
 # Wave Q Dev 4: composite verify-transcript surface (DEEPENS #806 public verify).
 COPY szl_verify_transcript.py ./szl_verify_transcript.py
 
+# WAVE-Q FRONTIER INDEX (honest ecosystem catalog + self-audit). Per-file COPY (this
+# Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module reachable
+# from serve.py to appear in the COPY set). szl_frontier_index.py is imported by serve.py;
+# frontierindex.js is the 3D surface listed in szl3d_holographic.SURFACES + holographic.html.
+COPY szl_frontier_index.py ./szl_frontier_index.py
+COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
