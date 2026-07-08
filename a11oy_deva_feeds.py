@@ -236,6 +236,57 @@ def feed_polymarket(limit: int = 16) -> dict[str, Any]:
     return _cached_fetch("polymarket", url, ttl=60, parser=parse)
 
 
+def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
+    """FRONTIER — live public OpenRouter model catalog (keyless /api/v1/models).
+
+    Returns the widest-context models plus per-lab rollups (count, max context
+    window, count of free-priced models). 100% MEASURED — the catalog's own
+    published context windows and prices; no invented benchmark or ranking.
+    """
+    url = "https://openrouter.ai/api/v1/models"
+
+    def parse(d):
+        arr = d.get("data") if isinstance(d, dict) else (d if isinstance(d, list) else [])
+
+        def _flt(x):
+            try:
+                return float(x)
+            except Exception:
+                return 0.0
+
+        models = []
+        for m in (arr or []):
+            mid = m.get("id") or ""
+            lab = mid.split("/")[0] if "/" in mid else (mid or "other")
+            tp = m.get("top_provider") or {}
+            ctx = m.get("context_length") or tp.get("context_length") or 0
+            pr = m.get("pricing") or {}
+            arch = m.get("architecture") or {}
+            models.append({
+                "id": mid,
+                "name": m.get("name") or mid,
+                "lab": lab,
+                "ctx": int(ctx or 0),
+                "price_prompt": _flt(pr.get("prompt")),
+                "price_completion": _flt(pr.get("completion")),
+                "modality": arch.get("modality"),
+            })
+        total = len(models)
+        top = sorted(models, key=lambda x: x["ctx"], reverse=True)[:limit]
+        labs: dict[str, Any] = {}
+        for m in models:
+            g = labs.setdefault(m["lab"], {"lab": m["lab"], "count": 0, "maxCtx": 0, "free": 0})
+            g["count"] += 1
+            if m["ctx"] > g["maxCtx"]:
+                g["maxCtx"] = m["ctx"]
+            if m["price_prompt"] == 0.0 and m["price_completion"] == 0.0:
+                g["free"] += 1
+        labs_list = sorted(labs.values(), key=lambda x: (x["count"], x["maxCtx"]), reverse=True)
+        return {"models": top, "labs": labs_list, "total": total}
+
+    return _cached_fetch("openrouter_models", url, ttl=900, parser=parse)
+
+
 def feed_nvd_fintech(limit: int = 16) -> dict[str, Any]:
     url = ("https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=financial"
            "&resultsPerPage=" + str(limit))
@@ -413,6 +464,12 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     async def _fin_risk(limit: int = 16):
         cve = feed_nvd_fintech(limit)
         return JSONResponse({"tab": "risk", "fintech_cve": cve, "doctrine": DOCTRINE})
+
+    # ---------- FRONTIER (live AI model landscape) ----------
+    @app.get(base + "/frontier/models", include_in_schema=False)
+    async def _frontier_models(limit: int = 24):
+        orm = feed_openrouter_models(limit)
+        return JSONResponse({"tab": "models", "openrouter": orm, "doctrine": DOCTRINE})
 
     # ---------- REAL ESTATE ----------
     @app.get(base + "/re/pulse", include_in_schema=False)
