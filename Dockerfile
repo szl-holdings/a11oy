@@ -1539,6 +1539,16 @@ COPY szl_agentos.py ./szl_agentos.py
 # locked-8; Λ = Conjecture 1; trust ceiling 0.97; MODELED (never MEASURED); no green.
 COPY szl_brainground.py ./szl_brainground.py
 
+# BRAIN UNCERTAINTY (feat/frontier-brainuncertainty) — per-file COPY (this Dockerfile
+# has NO `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_brainuncertainty.py is imported by serve.py
+# and derives calibrated, honest uncertainty (score dispersion + retrieval entropy +
+# rank stability → one [0,1] with a CONFIDENT/UNCERTAIN/HIGHLY-UNCERTAIN verdict) over
+# the SAME honest brain retrieval (szl_brain_api). Its 3D surface brainuncertainty.js
+# ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above. READS only —
+# adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
+COPY szl_brainuncertainty.py ./szl_brainuncertainty.py
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is

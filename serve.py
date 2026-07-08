@@ -1040,6 +1040,23 @@ try:
 except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# BRAIN UNCERTAINTY (feat/frontier-brainuncertainty) — calibrated, HONEST uncertainty on a
+# brain retrieval, complementing (never duplicating) point grounding confidence. Reads the
+# SAME honest ranked retrieval the brain already serves (szl_brain_api) and derives three
+# deterministic, explainable measures over the retrieval's OWN shape — score dispersion,
+# retrieval entropy (over graph communities), rank stability — into one uncertainty in [0,1]
+# with a CONFIDENT/UNCERTAIN/HIGHLY-UNCERTAIN verdict that recommends abstain. NEVER CONFIDENT
+# when dispersion/entropy is high. MODELED calibration honesty, NOT a probability guarantee;
+# Λ = Conjecture 1. GET info/uncertainty are PURE READS (mint nothing); POST receipt mints ONE
+# unsigned SHA-256 content-digest receipt (RECEIPT-ON-WRITE-NOT-ON-READ). Adds NOTHING to the
+# locked-8; trust ceiling 0.97, never 100%. Additive, try/except-guarded, BEFORE the SPA
+# catch-all. Must register AFTER the brain API (which it reads).
+try:
+    import szl_brainuncertainty as _szl_brainuncertainty
+    print("[a11oy] " + _szl_brainuncertainty.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainuncertainty_e:  # pragma: no cover
+    print(f"[a11oy] Brain uncertainty NOT registered: {_szl_brainuncertainty_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
