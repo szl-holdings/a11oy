@@ -286,6 +286,59 @@ def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
 
     return _cached_fetch("openrouter_models", url, ttl=900, parser=parse)
 
+def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
+    """FRONTIER — live arXiv AI research feed (keyless Atom API).
+
+    Newest submissions across cs.AI / cs.LG / cs.CL / cs.CV / cs.NE rendered as the
+    live research frontier: most-recent papers plus per-category rollups. 100%
+    MEASURED — arXiv's own published titles, authors, categories and timestamps;
+    no citation count, no score, no ranking.
+    """
+    url = ("http://export.arxiv.org/api/query?search_query="
+           "cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL+OR+cat:cs.CV+OR+cat:cs.NE"
+           "&sortBy=submittedDate&sortOrder=descending&max_results=60")
+
+    def parse(d):
+        import xml.etree.ElementTree as ET
+        text = d if isinstance(d, str) else ""
+        try:
+            root = ET.fromstring(text)
+        except Exception:
+            return {"papers": [], "cats": [], "total": 0}
+        A = "{http://www.w3.org/2005/Atom}"
+        X = "{http://arxiv.org/schemas/atom}"
+        papers = []
+        for e in root.findall(A + "entry"):
+            title = " ".join((e.findtext(A + "title") or "").split())
+            if not title:
+                continue
+            pub = (e.findtext(A + "published") or e.findtext(A + "updated") or "").strip()
+            authors = [(a.findtext(A + "name") or "").strip() for a in e.findall(A + "author")]
+            authors = [a for a in authors if a]
+            pc = e.find(X + "primary_category")
+            cat = pc.get("term") if pc is not None else ""
+            aid = (e.findtext(A + "id") or "").strip()
+            papers.append({
+                "id": aid,
+                "title": title,
+                "first_author": authors[0] if authors else "",
+                "authors_n": len(authors),
+                "published": pub,
+                "cat": cat,
+            })
+        total = len(papers)
+        cats: dict[str, Any] = {}
+        for p in papers:
+            c = p["cat"] or "other"
+            g = cats.setdefault(c, {"cat": c, "count": 0, "latest": ""})
+            g["count"] += 1
+            if p["published"] > g["latest"]:
+                g["latest"] = p["published"]
+        cats_list = sorted(cats.values(), key=lambda x: (x["count"], x["latest"]), reverse=True)
+        return {"papers": papers[:limit], "cats": cats_list, "total": total}
+
+    return _cached_fetch("arxiv_frontier", url, ttl=900, parser=parse)
+
 
 def feed_nvd_fintech(limit: int = 16) -> dict[str, Any]:
     url = ("https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=financial"
@@ -470,6 +523,11 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     async def _frontier_models(limit: int = 24):
         orm = feed_openrouter_models(limit)
         return JSONResponse({"tab": "models", "openrouter": orm, "doctrine": DOCTRINE})
+
+    @app.get(base + "/frontier/research", include_in_schema=False)
+    async def _frontier_research(limit: int = 24):
+        ax = feed_arxiv_frontier(limit)
+        return JSONResponse({"tab": "research", "arxiv": ax, "doctrine": DOCTRINE})
 
     # ---------- REAL ESTATE ----------
     @app.get(base + "/re/pulse", include_in_schema=False)
