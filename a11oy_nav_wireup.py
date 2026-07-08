@@ -56,6 +56,7 @@ from typing import Any, Dict, List
 # ---------------------------------------------------------------------------
 _SURFACES = [
     ("/cockpit",        "\u2318",     "Command Cockpit"),                   # ⌘
+    ("/sovereign",      "\u26D3",     "Sovereign Ledger"),                  # khipu health+spend
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
     ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
     ("/factory",        "\u2699",     "Governed Factory"),                  # ⚙
@@ -83,6 +84,7 @@ _SURFACES = [
 _SURFACE_GROUP_ORDER = ["Sovereign & Agentic Core", "Platform & Infrastructure"]
 _SURFACE_GROUP_OF = {
     "/cockpit": "Sovereign & Agentic Core",
+    "/sovereign": "Sovereign & Agentic Core",
     "/nemo": "Sovereign & Agentic Core",
     "/autoreview": "Sovereign & Agentic Core",
     "/factory": "Sovereign & Agentic Core",
