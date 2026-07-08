@@ -569,9 +569,7 @@ COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-
 # BYTE-IDENTICAL to killinchu. Imported by serve.py (try/except guarded); serves
 # /qhawaq + /api/a11oy/v1/qhawaq/*. Without this COPY the guarded import falls back
 # and /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
-COPY szl_qhawaq.py ./szl_qhawaq.py
 
-COPY szl_wallpa.py ./szl_wallpa.py
 # ADDITIVE (WALLPA): Voice / expression organ — renders governed actions into audio output.
 # Quechua wallpay = to create/express. Doctrine v13 §2.2. Routes: /api/a11oy/wallpa/{voices,
 # speak,speak/stream,narrate-doctrine}. OSS-only TTS (Piper→Coqui→OpenVoice→synthetic fallback).
@@ -606,7 +604,6 @@ COPY benchmarks/restraint/run_bench.py ./benchmarks/restraint/run_bench.py
 # reproduce tool (SZL arm is NumPy-only; the DeepXDE comparison arm is a benchmark-ONLY dev
 # dep — LGPL-2.1, lazy-imported in the harness, NEVER imported by serve.py/shipped code).
 # Mirrors the restraint bench pattern above.
-COPY szl_pinn_nonlinear.py ./szl_pinn_nonlinear.py
 COPY benchmarks/pinn/results.json ./benchmarks/pinn/results.json
 COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
 # ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
@@ -670,15 +667,11 @@ COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_me
 # the /healthz sovereign field falls back to a bare UNAVAILABLE. Its only local imports
 # — szl_llm_registry.py and szl_dsse.py — are already in the COPY set above, so the
 # transitive import closure is complete with just this one added COPY.
-COPY szl_sovereign_panel.py ./szl_sovereign_panel.py
 
 # Wave P / Dev 4: three new frontier synthesis surfaces — imported GUARDED by serve.py
 # (GET /api/a11oy/v1/frontier/{lgmi,gnqs,casta}). Per the transitive COPY-guard (Wave L)
 # each MUST be COPY'd or its endpoint 404s. Pure stdlib (no local imports), so the
 # import closure is complete with just these three added COPYs.
-COPY szl_lgmi.py ./szl_lgmi.py
-COPY szl_gnqs.py ./szl_gnqs.py
-COPY szl_casta.py ./szl_casta.py
 
 # Wave P / Dev 4: three more frontier surfaces — imported GUARDED by serve.py (GET
 # /api/a11oy/v1/frontier/{sparsemoe,pddisagg,execverify}). Per the transitive COPY-guard
@@ -686,9 +679,6 @@ COPY szl_casta.py ./szl_casta.py
 # the import closure is complete with just these three added COPYs. The matching
 # static/3d/surfaces/{sparsemoe,pddisagg,execverify}.js ship via the static/3d/ directory
 # COPY and need no per-file line.
-COPY szl_sparsemoe.py ./szl_sparsemoe.py
-COPY szl_pddisagg.py ./szl_pddisagg.py
-COPY szl_execverify.py ./szl_execverify.py
 
 # Wave O / Dev 3: Brain-Body panel — imported GUARDED by serve.py (GET /api/a11oy/v1/
 # frontier/brainbody), the composer that lights the LIVING BODY 3D surface
@@ -699,18 +689,15 @@ COPY szl_execverify.py ./szl_execverify.py
 # szl_dsse.py (already in the COPY set above) — are import-guarded, so the transitive
 # closure is complete with just this one added COPY. The brainbody.js surface itself
 # ships via the existing `COPY static/3d/ ./static/3d/` below (whole-tree). Λ=Conjecture 1.
-COPY szl_brainbody.py ./szl_brainbody.py
 
 # FlowBrain frontier surface backend (WaveS) — imported by serve.py (guarded) for GET
 # /api/a11oy/v1/frontier/flowbrain(+/trajectory). Continuous belief-flow lens; STRUCTURAL-ONLY,
 # synthesis CONJECTURE. The flowbrain.js surface ships via the existing whole-tree
 # `COPY static/3d/ ./static/3d/` below. Adds nothing to the locked-8; Λ=Conjecture 1.
-COPY szl_flowbrain.py ./szl_flowbrain.py
 
 # DEV2 Build 1: TEE/TDX attestation hook (2026-06-30) — imported by serve.py (guarded);
 # MUST be per-file COPY'd or /api/a11oy/v1/tee/status + tee_attestation receipt field
 # fall back to honest UNAVAILABLE stubs. Pattern: dstack-capsule Apache-2.0 arXiv 2606.03323.
-COPY szl_tee_attest.py ./
 # WAVE-H TEAM 3: attested-inference deepening (2026-07-07) — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/attest/infer
 # falls through to the SPA (404). Binds a MODELED device-attestation quote to a Λ-gated inference
@@ -718,7 +705,6 @@ COPY szl_tee_attest.py ./
 # already-COPY'd szl_tee_attest + szl_dsse + szl_org_lambda. Leaders (clean-room PATTERN): NVIDIA
 # H100/H200 CC+NRAS, AMD SEV-SNP, Intel TDX, in-toto/SLSA, Sigstore/Rekor, Confidential Containers.
 # The attestinfer.js surface ships via the existing `COPY static/3d/ ./static/3d/`. Λ = Conjecture 1.
-COPY szl_attested_inference.py ./
 # WAVE-N DEV 2: Proof-Carrying Attested Inference (2026-07-07) — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/pcai/run falls
 # through to the SPA (404). Produces ONE in-toto/SLSA v1 DSSE bundle binding (a) the inference
@@ -729,30 +715,24 @@ COPY szl_attested_inference.py ./
 # szl_org_lambda) are ALL already COPY'd above. DSSE real ECDSA-P256 in-Space / UNSIGNED-LOCAL
 # locally. Leaders (clean-room PATTERN): in-toto/SLSA v1, Sigstore cosign+Rekor, NVIDIA NRAS.
 # The pcai.js surface ships via the existing `COPY static/3d/ ./static/3d/`. Λ = Conjecture 1.
-COPY szl_proof_carrying_infer.py ./
 # DEV2 Build 2: EU AI Act Art.53 signed energy disclosure (2026-06-30) — imported by
 # serve.py (guarded); MUST be per-file COPY'd or /api/a11oy/v1/energy/eu-disclosure +
 # energy_eu_disclosure receipt field fall back to honest UNAVAILABLE stubs.
 # Methodology: HF-Energy-Score + GSF-SCI ISO-21031. DSSE-signed + Merkle-logged.
-COPY szl_eu_energy.py ./
 # BRAIN GRAPH (2026-07-07) — imported by serve.py (guarded); MUST be per-file COPY'd or
 # GET /api/a11oy/v1/brain/graph falls through to the SPA HTML shell (no JSON). Harvests
 # the real estate (surfaces+formulas+repos+topics) into a layered node/link brain graph.
-COPY a11oy_brain_graph.py ./
 # QUERYABLE BRAIN API (WAVE 1) — imported by serve.py (guarded); MUST be per-file COPY'd or
 # GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
 # falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
-COPY szl_brain_api.py ./szl_brain_api.py
 # BRAIN PROVENANCE (Wave T) — imported by serve.py (guarded); MUST be per-file COPY'd or
 # GET /api/a11oy/v1/brain/provenance{,/info} + POST .../receipt fall through to the SPA
 # HTML shell. Per-answer SOURCE-LINEAGE only (which graph nodes supported the answer, each
 # label VERBATIM), NOT build/model attestation. Reuses szl_brain_api (COPY'd above).
-COPY szl_brainprovenance.py ./szl_brainprovenance.py
 # BRAIN CONTRADICTION DETECTOR (feat/frontier-braincontradict) — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET/POST
 # /api/a11oy/v1/brain/contradict{,/info,/receipt} fall through to the SPA HTML shell. Its only
 # import (szl_brain_api) is already COPY'd above; the 3D surface .js ships via the static/3d tree.
-COPY szl_braincontradict.py ./szl_braincontradict.py
 # GOVERNED BRAIN-INFER (Wave P / Dev 3) — imported by serve.py (guarded); MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or POST /api/a11oy/v1/govern/brain-infer and
 # GET /api/a11oy/v1/govern/{receipts,verify} fall through to the SPA HTML shell (silent
@@ -761,21 +741,18 @@ COPY szl_braincontradict.py ./szl_braincontradict.py
 # DSSE-style SHA-256 hash-chained durable receipts. Transitive reuse (szl_brain_api above,
 # szl_energy_live + szl_dsse already in the COPY set) is import-guarded. Additive: does NOT
 # shadow the sellable /govern/infer (szl_governed_api). Receipts on the WRITE path only.
-COPY szl_governed_infer.py ./szl_governed_infer.py
 # BRAIN ENERGY (Wave O Dev 2) — imported by serve.py (guarded); MUST be per-file COPY'd
 # (this Dockerfile uses no `COPY . .`) or GET /api/a11oy/v1/brain/energy falls through to
 # the SPA HTML shell. The Brain HARNESSES + DISTRIBUTES energy: reads the energy stack
 # (szl_energy_live/measured/operator, szl_cheapest_watt — all already COPY'd above) and
 # a11oy_brain_graph (COPY'd above) for organ weights, signs with szl_demo_sign (COPY'd
 # below). ALL transitive imports are in the COPY set (transitive guard satisfied).
-COPY szl_brain_energy.py ./szl_brain_energy.py
 # BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the ecosystem"
 # dashboard, imported by serve.py (guarded) + read by the /healthz brain rollup; MUST be
 # per-file COPY'd or GET /api/a11oy/v1/brain/command{,/subscribe/{surface_id}} falls
 # through to the SPA shell and /healthz.brain reports UNAVAILABLE. Transitive local
 # imports (szl_dsse, a11oy_brain_graph, szl_energy_ledger, szl3d_holographic) are ALL
 # already in the COPY set above; the optional szl_brain_hub (Dev-1) is imported guarded.
-COPY szl_brain_command.py ./szl_brain_command.py
 # HARVESTED FIELD LEADERS (2026-07-07) — real research graph JSONL (papers/repos/labs/
 # people/datasets/benchmarks/standards/axes, each with a verified url). a11oy_brain_graph
 # reads these at runtime to merge the outer "field" layer into /brain/graph; MUST be
@@ -789,8 +766,9 @@ COPY brain/harvest ./brain/harvest
 # already COPY'd above / in the main COPY set — and imports brain/harvest_vault.py for the
 # self-writing-vault provenance, so that transitive import is COPY'd here too (transitive
 # guard: every serve.py-registered module + its local imports must be in the COPY set).
-COPY szl_brain_hub.py ./szl_brain_hub.py
 COPY brain/harvest_vault.py ./brain/harvest_vault.py
+# --- buildkit max-depth fix: per-file COPYs grouped into one layer (no file dropped; every source token preserved). ---
+COPY szl_qhawaq.py szl_wallpa.py szl_pinn_nonlinear.py szl_sovereign_panel.py szl_lgmi.py szl_gnqs.py szl_casta.py szl_sparsemoe.py szl_pddisagg.py szl_execverify.py szl_brainbody.py szl_flowbrain.py szl_tee_attest.py szl_attested_inference.py szl_proof_carrying_infer.py szl_eu_energy.py a11oy_brain_graph.py szl_brain_api.py szl_brainprovenance.py szl_braincontradict.py szl_governed_infer.py szl_brain_energy.py szl_brain_command.py szl_brain_hub.py ./
 
 # DEV2: in-toto offline verifier recipe (Apache-2.0)
 RUN mkdir -p /app/szl-cookbook
@@ -1337,31 +1315,21 @@ COPY compliance/rego/classification_boundary.rego compliance/rego/human_override
 # therefore declared in .github/copy-sync-lockstep.json image_only_assets.
 COPY a11oy_threat_intel.py a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py szl_mosaic_governance.py szl_unified_formulas.py szl_cuas_formulas.py szl_contracting.py szl_bounties.py szl_putnam.py szl_connectors_serve.py szl_connector_mcp.py szl_conjecture_factory.py szl_hf_bucket.py szl_metrics_prom.py szl_research_infra.py szl_dark_surfaces_register.py szl_anatomy_loop.py szl_anatomy_brainloop.py conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py szl_codename_gate.py szl_ecosystem_routes.py szl_organ_health.py a11oy_governance_endpoints.py szl_tau_eval.py szl_calibration.py szl_conformal.py szl_colang_policy.py szl_ietf_receipt.py a11oy_autoreview.py a11oy_grc.py a11oy_grc_data.py a11oy_grc_restraint.py szl3d_holographic.py szl_rekor_anchor.py szl_circuit_graphs.py szl_semantic_entropy.py szl_kv_cache.py szl_diffusion_llm.py szl_latent_attention.py szl_testtime_scaling.py ./
 # feat/a11oy-models: live external model intel (LMArena Elo + HF Hub + Pareto) for llm/arena tabs.
-COPY a11oy_model_intel.py ./a11oy_model_intel.py
 # ADDITIVE (EXPERIMENTAL TIER INSTILLATION, 2026-06-30, Dev A): wires the full
 # experimental (CI-green, NOT in locked-8) tier surface. Honesty doctrine v11.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
-COPY a11oy_experimental_tier.py ./a11oy_experimental_tier.py
 # feat/a11oy-business: live SEC EDGAR + Treasury FiscalData + FRED markets data for business tab.
-COPY a11oy_markets.py ./a11oy_markets.py
 # feat/frontier-q-agenttts (WaveQ-Dev3): a11oy-native AGENT test-time-compute backend
 # (surface agenttts.js ships via the whole-tree `COPY static/3d/ ./static/3d/` below).
-COPY szl_agent_tts.py ./szl_agent_tts.py
 # WAVE-Q FRONTIER (feat/frontier-q-gateddelta, Dev1): a11oy-native cited gated-delta /
 # delta-rule linear-attention backend (surface id gateddelta). Per-file COPY (there is
 # NO `COPY . .`): without this the /api/a11oy/v1/gateddelta/recall route would fall
 # through to the SPA catch-all at runtime. The gateddelta.js surface also ships via the
 # whole-tree `COPY static/3d/ ./static/3d/` below; copied explicitly here too to satisfy
 # the transitive per-file COPY-guard. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
-COPY szl_gated_delta.py ./szl_gated_delta.py
-COPY static/3d/surfaces/gateddelta.js ./static/3d/surfaces/gateddelta.js
-COPY szl_blocksparse.py ./szl_blocksparse.py
-COPY static/3d/surfaces/blocksparse.js ./static/3d/surfaces/blocksparse.js
 # WAVE-S Dev2 (feat/frontier-s-retrievalattn): retrieval-modulated long-context
 # attention backend + surface — explicit per-file COPY (transitive COPY-guard).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY szl_retrieval_attn.py ./szl_retrieval_attn.py
-COPY static/3d/surfaces/retrievalattn.js ./static/3d/surfaces/retrievalattn.js
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase
@@ -1388,12 +1356,11 @@ COPY static/energy_3d.js ./static/energy_3d.js
 # GitHub-built image via this per-file COPY, served from /app/web/) and declared an
 # accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
 # as web/immune.html + web/energy.html). Codename-free.
-COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html ./web/
+COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # served at /code by _ptg_serve("code.html"); binds to the REAL engine endpoints
 # (a11oy_code_engine) + the a11oy_code_runloop orchestrator. Same baked-only per-file
 # COPY pattern as web/immune.html + web/energy.html. Codename-free. Honest LIVE/MODELED.
-COPY web/code.html ./web/
 
 # GOVERNED MODEL-HARNESS (Wave F module + Wave G /code wire-in, 2026-07-07):
 # szl_model_harness.py registers /api/a11oy/v1/harness/{profiles,profiles/{id},apply}
@@ -1406,7 +1373,6 @@ COPY web/code.html ./web/
 # guarded import falls back and the harness endpoints 404 / harness_profile_id is a no-op
 # (merged-but-not-live). Additive; behavior transfer is MODELED (disposition only, not
 # capability). Λ = Conjecture 1 (advisory). Real DSSE in-Space, honest UNSIGNED locally.
-COPY szl_model_harness.py ./szl_model_harness.py
 COPY harness_profiles/ ./harness_profiles/
 
 # GOVERNED AGENT LOOP (Wave J, Dev 5): szl_agent_loop_governed.py COMPOSES the /code
@@ -1418,8 +1384,6 @@ COPY harness_profiles/ ./harness_profiles/
 # surface also ships via `COPY static/3d/ ./static/3d/` above; copied explicitly here too
 # so the tab can never go dark. Additive; plan MODELED, act+eval+gate+receipt LIVE.
 # Λ = Conjecture 1 (advisory). Real DSSE in-Space, honest UNSIGNED-LOCAL locally.
-COPY szl_agent_loop_governed.py ./szl_agent_loop_governed.py
-COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 # WAVE-Q FRONTIER (feat/frontier-q-cryptopipeline, Dev 2): szl_crypto_pipeline.py
 # registers GET /api/a11oy/v1/cryptopipeline/transcript — the end-to-end AI-lifecycle
 # (data→train→infer→unlearn) hash-commit chain composing into ONE verifiable transcript
@@ -1430,8 +1394,6 @@ COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 # live). The cryptopipeline.js surface also ships via `COPY static/3d/ ./static/3d/`
 # above; copied explicitly here too so the tab can never go dark. Additive; label
 # MODELED, UNSIGNED-LOCAL locally. Λ = Conjecture 1; adds nothing to the locked-8.
-COPY szl_crypto_pipeline.py ./szl_crypto_pipeline.py
-COPY static/3d/surfaces/cryptopipeline.js ./static/3d/surfaces/cryptopipeline.js
 # WAVE-S FRONTIER (feat/frontier-s-confattest, Dev 3): szl_confattest.py registers
 # GET /api/a11oy/v1/confattest/quote + /confattest/gate — (a) a SIMULATED confidential-
 # compute enclave attestation quote (NO real TEE; SHA-derived + replayable) chained into
@@ -1442,13 +1404,9 @@ COPY static/3d/surfaces/cryptopipeline.js ./static/3d/surfaces/cryptopipeline.js
 # falls back and the endpoints 404 (merged-but-not-live). The confattest.js surface also
 # ships via `COPY static/3d/ ./static/3d/` above; copied explicitly here too so the tab
 # can never go dark. Additive; label MODELED, UNSIGNED-LOCAL locally. Λ = Conjecture 1.
-COPY szl_confattest.py ./szl_confattest.py
-COPY static/3d/surfaces/confattest.js ./static/3d/surfaces/confattest.js
 # BOUNDED OPERATE LOOP (Wave P · Dev 5, 2026-07-07): a minimal HARD-bounded Ouroboros
 # recursion that grounds each step on the REAL brain PPR and judges it with a
 # deterministic doctrine gate (writer≠judge). Additive; builds ON the governed loop.
-COPY szl_agent_operate.py ./szl_agent_operate.py
-COPY static/3d/surfaces/agentops.js ./static/3d/surfaces/agentops.js
 # BRAIN FEED for the governed loop (Wave P · Dev 4, 2026-07-07): szl_agentloop_brain.py is
 # the thin GUARDED bridge szl_agent_loop_governed.py imports to make the loop Brain-POWERED —
 # (a) it pulls advisory context from the Brain vault (corpus="brain") and (e) requests a
@@ -1459,7 +1417,6 @@ COPY static/3d/surfaces/agentops.js ./static/3d/surfaces/agentops.js
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the guarded import in the agent loop
 # falls back and the run is not Brain-powered. Additive; Λ = Conjecture 1 (advisory); honest
 # UNAVAILABLE when a Brain source is down; no node/joule fabricated; nothing to locked-8.
-COPY szl_agentloop_brain.py ./szl_agentloop_brain.py
 
 # GOVERNED RAG · retrieval-with-receipts (Wave J · Dev 4, 2026-07-07):
 # szl_governed_rag.py registers POST /api/a11oy/v1/rag/query (+ /rag/corpus, /rag/health)
@@ -1476,7 +1433,6 @@ COPY szl_agentloop_brain.py ./szl_agentloop_brain.py
 # Conjecture 1. Real DSSE in-Space, honest UNSIGNED-LOCAL locally. Leaders cited in-module:
 # DPR arXiv:2004.04906 · BM25/RRF · ColBERT arXiv:2004.12832 · Cohere Rerank · GraphRAG
 # (Microsoft) · Anthropic contextual retrieval · ALCE arXiv:2305.14627 · RAGAS arXiv:2309.15217.
-COPY szl_governed_rag.py ./szl_governed_rag.py
 
 # SOVEREIGN FLYWHEEL BRIDGE (Wave M · Dev 2, 2026-07-07): szl_sovereign_flywheel.py is
 # the ONE shared adapter that lets all four flywheel flows — harness /harness/apply,
@@ -1491,23 +1447,18 @@ COPY szl_governed_rag.py ./szl_governed_rag.py
 # honest MODELED/UNAVAILABLE receipt that still records the intended sovereign backend and
 # NEVER fabricates a model response. Additive; Λ = Conjecture 1 (advisory). Nothing to
 # locked-8; no gate weakened.
-COPY szl_sovereign_flywheel.py ./szl_sovereign_flywheel.py
 
 # Wave O (Dev 4): the BRAIN vault as a first-class RAG corpus source. Imported by
 # szl_governed_rag (corpus="brain") AND szl_agent_loop_governed (consult_brain) — so
 # the transitive COPY-guard requires it in the COPY set. Reads a11oy_brain_graph
 # (already COPY'd, built from brain/harvest — also COPY'd). Additive; Λ = Conjecture 1;
 # nothing to locked-8; no gate weakened; honest UNAVAILABLE when the vault is empty.
-COPY szl_brain_corpus.py ./szl_brain_corpus.py
 # Wave Q Dev 4: composite verify-transcript surface (DEEPENS #806 public verify).
-COPY szl_verify_transcript.py ./szl_verify_transcript.py
 
 # WAVE-Q FRONTIER INDEX (honest ecosystem catalog + self-audit). Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module reachable
 # from serve.py to appear in the COPY set). szl_frontier_index.py is imported by serve.py;
 # frontierindex.js is the 3D surface listed in szl3d_holographic.SURFACES + holographic.html.
-COPY szl_frontier_index.py ./szl_frontier_index.py
-COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 
 # WAVE-S DEV 5: WHAT'S NEW (honest auto-derived estate changelog). Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module reachable
@@ -1515,8 +1466,6 @@ COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 # the audited Frontier Index catalog + real git add-history; whatsnew.js is the 3D surface
 # listed in szl3d_holographic.SURFACES + holographic.html. (No .git tree ships in the image,
 # so the feed degrades honestly to registry-order at runtime — see szl_whatsnew.py.)
-COPY szl_whatsnew.py ./szl_whatsnew.py
-COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
 
 # HONESTY WALL (feat/frontier-honestywall) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from serve.py
@@ -1525,7 +1474,6 @@ COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
 # estate honesty invariants into one INTACT/DEGRADED/VIOLATED verdict. Its 3D surface
 # honestywall.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above.
 # OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97.
-COPY szl_honestywall.py ./szl_honestywall.py
 
 # BRAIN MEMORY FRESHNESS (feat/frontier-brainmemory) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from serve.py to
@@ -1536,7 +1484,6 @@ COPY szl_honestywall.py ./szl_honestywall.py
 # timestamp or decay curve). Its 3D surface brainmemory.js ships via the existing whole-tree
 # `COPY static/3d/ ./static/3d/` above. READ-only — adds NOTHING to the locked-8; Λ = Conjecture
 # 1; trust ceiling 0.97; GET reads mint nothing; POST receipt is an unsigned SHA-256 digest.
-COPY szl_brainmemory.py ./szl_brainmemory.py
 
 # AGENT OS MAP (feat/frontier-agentos) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from
@@ -1547,7 +1494,6 @@ COPY szl_brainmemory.py ./szl_brainmemory.py
 # OPERATING/DEGRADED/HALTED-HONEST map state. Its 3D surface agentos.js ships via
 # the existing whole-tree `COPY static/3d/ ./static/3d/` above. COMPOSES only —
 # adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
-COPY szl_agentos.py ./szl_agentos.py
 
 # BRAINGROUND (feat/frontier-brainground) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from
@@ -1558,7 +1504,6 @@ COPY szl_agentos.py ./szl_agentos.py
 # surface brainground.js ships via the existing whole-tree `COPY static/3d/
 # ./static/3d/` above. Read-only over knowledge-graph retrieval — adds NOTHING to the
 # locked-8; Λ = Conjecture 1; trust ceiling 0.97; MODELED (never MEASURED); no green.
-COPY szl_brainground.py ./szl_brainground.py
 # BRAIN UNCERTAINTY (feat/frontier-brainuncertainty) — per-file COPY (this Dockerfile
 # has NO `COPY . .`; the copy-completeness guard requires every module reachable from
 # serve.py to appear in the COPY set). szl_brainuncertainty.py is imported by serve.py
@@ -1567,7 +1512,6 @@ COPY szl_brainground.py ./szl_brainground.py
 # the SAME honest brain retrieval (szl_brain_api). Its 3D surface brainuncertainty.js
 # ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above. READS only —
 # adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
-COPY szl_brainuncertainty.py ./szl_brainuncertainty.py
 # BRAIN HEALTH (feat/frontier-brainhealth) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from
 # serve.py to appear in the COPY set). szl_brainhealth.py is imported by serve.py and
@@ -1577,7 +1521,6 @@ COPY szl_brainuncertainty.py ./szl_brainuncertainty.py
 # it hard-depends on none of them). Its 3D surface brainhealth.js ships via the
 # existing whole-tree `COPY static/3d/ ./static/3d/` above. OBSERVES only — adds
 # NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
-COPY szl_brainhealth.py ./szl_brainhealth.py
 # BRAIN WATCH (feat/frontier-brainwatch) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from
 # serve.py to appear in the COPY set). szl_brainwatch.py is imported by serve.py and
@@ -1586,7 +1529,6 @@ COPY szl_brainhealth.py ./szl_brainhealth.py
 # verdict vs a caller-supplied PRIOR (STABLE/DRIFTING/DEGRADED/BASELINE-ONLY). Its 3D
 # surface brainwatch.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/`
 # above. OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
-COPY szl_brainwatch.py ./szl_brainwatch.py
 
 # BRAIN CONSENSUS (feat/frontier-brainconsensus) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from serve.py to
@@ -1604,21 +1546,20 @@ COPY szl_brainconsensus.py ./szl_brainconsensus.py
 # imported by serve.py at boot to log an honest present/absent env report and
 # degrade (never crash) on a missing/renamed secret. Registry + secret-vs-variable
 # map documented in docs/RUNTIME_ENV.md.
-COPY szl_boot_preflight.py ./szl_boot_preflight.py
 # WAVE-R BACKEND UPGRADE (Dev 2). Per-file COPY (no `COPY . .`; the copy-completeness guard
 # requires every module reachable from serve.py to appear in the COPY set). Both are imported
 # by serve.py: szl_guarded_surface.py installs the shared guard so one bad surface can't 500
 # the SPA; szl_status_aggregate.py serves the honest /api/a11oy/v1/status operational aggregate
 # (drift-proof, reuses szl_frontier_index above).
-COPY szl_guarded_surface.py ./szl_guarded_surface.py
-COPY szl_status_aggregate.py ./szl_status_aggregate.py
 # WAVE-R DEV 3 OPS DASHBOARD (front-end operational view). Per-file COPY (this Dockerfile
 # has NO `COPY . .`; the copy-completeness guard requires every runtime asset to appear in
 # the COPY set). opsdash.js is the 3D surface listed in szl3d_holographic.SURFACES +
 # holographic.html; it consumes the now-merged /api/a11oy/v1/status (Dev 2, #837) and still
 # reads defensively — degrading honestly (an honest placeholder tile) if the endpoint is
 # unreachable at runtime. No backend module.
-COPY static/3d/surfaces/opsdash.js ./static/3d/surfaces/opsdash.js
+# --- buildkit max-depth fix: per-file COPYs grouped into one layer (no file dropped; every source token preserved). ---
+COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py ./
+COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
