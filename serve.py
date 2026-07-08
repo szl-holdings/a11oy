@@ -1260,6 +1260,24 @@ try:
 except Exception as _brainconstitution_e:  # pragma: no cover
     print(f"[a11oy] Brain constitution NOT registered: {_brainconstitution_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN AGENT (feat/frontier-brainagent) — an honesty-gated agentic graph reasoner that treats
+# the brain graph as a state space and walks it one node at a time for a query: GET
+# /api/a11oy/v1/brain/agent/info (reasoner + honesty gate + budget model), GET
+# /api/a11oy/v1/brain/agent?q=&max_steps=&max_nodes= (bounded EXPAND/FOLLOW/BACKTRACK/STOP walk →
+# ANSWER-GROUNDED/PARTIAL/ABSTAINED-BUDGET/ABSTAINED-INSUFFICIENT + ordered trace; mints nothing),
+# POST /api/a11oy/v1/brain/agent/receipt (unsigned SHA-256 receipt-on-write). Every candidate hop
+# passes an honesty gate built from the sibling surfaces via guarded imports (grounding,
+# provenance, contradiction, uncertainty); an ungrounded/untraceable/contradicted/uncertain hop is
+# refused with a recorded reason, an absent guard is UNAVAILABLE NEVER a fabricated pass; abstains
+# rather than answer under-grounded; makes no sentience claim. Pure reads on GET (0 sign-on-GET).
+# Registered BEFORE the SPA /{full_path:path} catch-all. Additive, try/except-guarded.
+try:
+    import szl_brainagent as _szl_brainagent
+    _brainagent_status = _szl_brainagent.register(app, ns="a11oy")
+    print(f"[a11oy] Brain agent registered: {_brainagent_status}", file=__import__("sys").stderr)
+except Exception as _brainagent_e:  # pragma: no cover
+    print(f"[a11oy] Brain agent NOT registered: {_brainagent_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
@@ -11212,206 +11230,6 @@ try:
     print(f"[a11oy] Federated-spend route front-moved to router head: {len(_fed_moved)} routes", file=__import__("sys").stderr)
 except Exception as _fed_move_e:  # pragma: no cover
     print(f"[a11oy] Federated-spend front-move skipped: {_fed_move_e!r}", file=__import__("sys").stderr)
-
-
-# ---------------------------------------------------------------------------
-# SZL Sovereign Ops — S3: governed FRONTIER CONSOLE (operator-gated).
-# POST /api/a11oy/v1/frontier/ask originates ONE real, capped inference call to
-# the Hetzner box szl-router through the token-gated edge (/sovereign/router-chat),
-# captures the per-completion DSSE receipt (x-szl-receipt), and INDEPENDENTLY
-# verifies its ECDSA-P256-SHA256 signature against a PINNED public key — a11oy
-# never trusts the router's word, it checks the math itself. Honest states only;
-# no fabricated success. All secrets read from env at request time; never logged.
-# ---------------------------------------------------------------------------
-_FRONTIER_MAXTOK = 256
-_FRONTIER_PROMPT_CAP = 600
-_FRONTIER_COOLDOWN_S = 8.0
-_FRONTIER_DAILY_CAP = 50
-_frontier_lock = asyncio.Lock()
-_frontier_state = {"last_ts": 0.0, "day": "", "day_count": 0}
-
-
-def _verify_szl_envelope(envelope, public_pem):
-    """Vendored, dependency-free DSSE/ECDSA-P256-SHA256 verifier — byte-identical
-    to szl_receipt.verify_receipt. Returns (ok: bool, reason: str, body: dict|None)."""
-    import base64, json, struct, hashlib
-    if not isinstance(envelope, dict):
-        return False, "envelope not an object", None
-    if not envelope.get("signed", False):
-        return False, "unsigned-honest", None
-    if not public_pem:
-        return False, "no pinned public key", None
-    try:
-        payload_bytes = base64.b64decode(envelope["payload"])
-        body_dict = json.loads(payload_bytes.decode("utf-8"))
-    except Exception:
-        return False, "signature mismatch", None
-    try:
-        from cryptography.hazmat.primitives import hashes as _h, serialization as _ser
-        from cryptography.hazmat.primitives.asymmetric import ec as _ec
-        from cryptography.exceptions import InvalidSignature as _IS
-    except Exception as _e:
-        return False, "verifier unavailable: %s" % _e, body_dict
-    # Recompute canonical_json(body) exactly as the signer did (sorted keys, compact, UTF-8).
-    canon = json.dumps(body_dict, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-    pt = str(envelope.get("payloadType", "application/vnd.szl.receipt+json")).encode("utf-8")
-    def _enc(b): return struct.pack("<Q", len(b)) + b
-    pae = b"DSSEv1 " + _enc(pt) + b" " + _enc(canon)
-    try:
-        pub = _ser.load_pem_public_key(public_pem.encode("utf-8") if isinstance(public_pem, str) else public_pem)
-        der = base64.b64decode(envelope["signature"])
-        pub.verify(der, pae, _ec.ECDSA(_h.SHA256()))
-    except _IS:
-        return False, "signature mismatch", body_dict
-    except Exception as _e:
-        return False, "verify error: %s" % _e, body_dict
-    if envelope.get("digest") and envelope["digest"] != hashlib.sha256(canon).hexdigest():
-        return False, "digest mismatch", body_dict
-    return True, "ok", body_dict
-
-
-def _frontier_post(url, edge_token, body_obj, timeout=90):
-    """POST to the box edge; returns (http_status, resp_json_or_None, receipt_header_or_None). Never raises."""
-    import json, ssl, urllib.request, urllib.error
-    try:
-        data = json.dumps(body_obj).encode("utf-8")
-        headers = {"content-type": "application/json", "accept": "application/json",
-                   "user-agent": "a11oy-sovereign-frontier"}
-        if edge_token:
-            headers["authorization"] = "Bearer " + edge_token
-        ctx = ssl.create_default_context()
-        req = urllib.request.Request(url, data=data, method="POST", headers=headers)
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
-            code = int(getattr(r, "status", 0) or 0)
-            rcpt = r.headers.get("x-szl-receipt")
-            raw = r.read(262144).decode("utf-8", "replace")
-            try:
-                return code, json.loads(raw), rcpt
-            except Exception:
-                return code, None, rcpt
-    except urllib.error.HTTPError as e:
-        try:
-            rcpt = e.headers.get("x-szl-receipt")
-        except Exception:
-            rcpt = None
-        return int(getattr(e, "code", 0) or 0), None, rcpt
-    except Exception:
-        return 0, None, None
-
-
-@app.post("/api/a11oy/v1/frontier/ask")
-async def a11oy_frontier_ask(request: Request) -> Response:
-    import os as _os, datetime as _dt, time as _t, hmac as _hmac, base64 as _b64, json as _json
-    def _J(obj, status=200):
-        return JSONResponse({"schema": "szl.frontier_ask/v1",
-                             "checked_at": _dt.datetime.utcnow().isoformat() + "Z", **obj}, status_code=status)
-    chat_url = (_os.environ.get("SZL_FRONTIER_CHAT_URL", "") or "").strip()
-    edge_token = (_os.environ.get("SZL_FRONTIER_EDGE_TOKEN", "") or "").strip()
-    op_token = (_os.environ.get("SZL_FRONTIER_OPERATOR_TOKEN", "") or "").strip()
-    pub_pem = (_os.environ.get("SZL_FRONTIER_PUBKEY_PEM", "") or "").strip()
-    model_pinned = (_os.environ.get("SZL_FRONTIER_MODEL", "szl-large").strip() or "szl-large")
-    if not (chat_url and edge_token and op_token):
-        return _J({"state": "not_configured", "detail": "frontier edge/operator not provisioned"}, 200)
-    # ---- operator gate (constant-time) ----
-    presented = request.headers.get("x-szl-operator", "")
-    if not presented:
-        auth = request.headers.get("authorization", "")
-        if auth.lower().startswith("bearer "):
-            presented = auth[7:].strip()
-    if not (presented and _hmac.compare_digest(presented, op_token)):
-        return _J({"state": "unauthorized", "detail": "valid operator token required"}, 401)
-    # ---- input clamps ----
-    try:
-        payload = await request.json()
-    except Exception:
-        payload = {}
-    prompt = str((payload.get("prompt") if isinstance(payload, dict) else "") or "").strip()
-    if not prompt:
-        return _J({"state": "bad_request", "detail": "prompt is required"}, 400)
-    if len(prompt) > _FRONTIER_PROMPT_CAP:
-        prompt = prompt[:_FRONTIER_PROMPT_CAP]
-    # ---- governance (defense-in-depth; the box ledger + kill-switch are authoritative) ----
-    now = _t.monotonic()
-    today = _dt.datetime.utcnow().strftime("%Y-%m-%d")
-    if _frontier_state["day"] != today:
-        _frontier_state["day"] = today
-        _frontier_state["day_count"] = 0
-    if _frontier_state["day_count"] >= _FRONTIER_DAILY_CAP:
-        return _J({"state": "daily_cap", "daily_cap": _FRONTIER_DAILY_CAP}, 429)
-    since = now - (_frontier_state["last_ts"] or 0)
-    if _frontier_state["last_ts"] and since < _FRONTIER_COOLDOWN_S:
-        return _J({"state": "cooldown", "retry_after_s": round(_FRONTIER_COOLDOWN_S - since, 1)}, 429)
-    if _frontier_lock.locked():
-        return _J({"state": "busy", "detail": "a frontier call is already in flight"}, 429)
-    async with _frontier_lock:
-        body_obj = {"model": model_pinned,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": _FRONTIER_MAXTOK, "temperature": 0.3}
-        code, resp, rcpt_hdr = await asyncio.to_thread(_frontier_post, chat_url, edge_token, body_obj, 90)
-        _frontier_state["last_ts"] = _t.monotonic()
-        if not (code and 200 <= code < 300 and isinstance(resp, dict)):
-            return _J({"state": "unreachable", "http_status": code, "model_pinned": model_pinned}, 502)
-        _frontier_state["day_count"] += 1
-        answer = ""
-        try:
-            answer = ((resp.get("choices") or [{}])[0].get("message") or {}).get("content", "") or ""
-        except Exception:
-            answer = ""
-        usage = resp.get("usage") if isinstance(resp.get("usage"), dict) else {}
-        # ---- receipt verify (independent of the router) ----
-        receipt_state = "receipt_missing"; envelope = None; body = None
-        verify_reason = "no x-szl-receipt header"; verified = False
-        if rcpt_hdr:
-            try:
-                envelope = _json.loads(_b64.b64decode(rcpt_hdr.encode("ascii")).decode("utf-8"))
-            except Exception:
-                envelope = None
-            if isinstance(envelope, dict):
-                if not envelope.get("signed", False):
-                    receipt_state = "receipt_unsigned"; verify_reason = "unsigned-honest"
-                else:
-                    verified, verify_reason, body = _verify_szl_envelope(envelope, pub_pem)
-                    receipt_state = "verified" if verified else "verify_failed"
-            else:
-                receipt_state = "receipt_unparseable"; verify_reason = "header not base64-JSON"
-        # ---- provenance from the VERIFIED body ----
-        prov = {}
-        src = body if isinstance(body, dict) else {}
-        for k in ("tier", "served_by", "upstream_model", "model", "amount_usd", "estimated", "request_digest", "basis"):
-            if k in src:
-                prov[k] = src[k]
-        return _J({
-            "state": ("verified" if verified else receipt_state),
-            "model_pinned": model_pinned,
-            "answer": answer[:4000],
-            "usage": {"prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "total_tokens": usage.get("total_tokens")},
-            "receipt": {
-                "state": receipt_state, "verified": verified, "reason": verify_reason,
-                "signed": bool(envelope.get("signed")) if isinstance(envelope, dict) else False,
-                "organ": (envelope or {}).get("organ"), "keyid": (envelope or {}).get("keyid"),
-                "algo": (envelope or {}).get("algo"), "payloadType": (envelope or {}).get("payloadType"),
-                "digest": (envelope or {}).get("digest"),
-                "verifier": "a11oy vendored DSSE/ECDSA-P256-SHA256 vs PINNED pubkey (independent of the router)",
-            },
-            "provenance": prov,
-            "envelope": envelope,
-            "governance": {"cooldown_s": _FRONTIER_COOLDOWN_S, "daily_used": _frontier_state["day_count"], "daily_cap": _FRONTIER_DAILY_CAP, "max_tokens": _FRONTIER_MAXTOK, "prompt_cap": _FRONTIER_PROMPT_CAP},
-            "note": "Real capped call routed via the box szl-router edge; the receipt signature is verified locally against a pinned key. Authoritative paid-spend ledger is the box router (see the /sovereign board).",
-        }, 200)
-
-
-# ROUTE-ORDERING FIX (same proven pattern as constellation/spine + federated-spend):
-# front-move the frontier-ask POST ahead of the /api/a11oy/{path:path} Node proxy catch-all.
-try:
-    _fr_paths = {"/api/a11oy/v1/frontier/ask"}
-    _fr_moved = [r for r in app.router.routes if getattr(r, "path", None) in _fr_paths]
-    for _r in _fr_moved:
-        app.router.routes.remove(_r)
-    for _r in reversed(_fr_moved):
-        app.router.routes.insert(0, _r)
-    print(f"[a11oy] Frontier-ask route front-moved to router head: {len(_fr_moved)} routes", file=__import__("sys").stderr)
-except Exception as _fr_move_e:  # pragma: no cover
-    print(f"[a11oy] Frontier-ask front-move skipped: {_fr_move_e!r}", file=__import__("sys").stderr)
 
 
 @app.get("/viz")
