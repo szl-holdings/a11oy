@@ -10802,6 +10802,18 @@ async def command_cockpit_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# Sovereign Ledger (Khipu) — unified health + spend board. Registered BEFORE
+# the /viz + SPA catch-all so the explicit route wins. pages/ ships wholesale via
+# the Dockerfile COPY pages/, so this new page needs no Dockerfile edit.
+@app.get("/sovereign")
+@app.get("/a11oy/sovereign")
+async def sovereign_ledger_page() -> Response:
+    f = PAGES_DIR / "sovereign.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # CONSTELLATION status feed for the cockpit — one honest, org-wide view of the
 # SZL flagship surfaces. Every entry is a REAL HTTP GET probe (2xx/3xx counts as
 # reachable); no status is fabricated and an unreachable surface reports its real

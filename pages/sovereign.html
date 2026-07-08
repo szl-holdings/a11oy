@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<!--
+  KHIPU — Sovereign Ledger. A single screen fusing the whole SZL organism's
+  HEALTH and SPEND into one living knotted-cord record (khipu: the Andean
+  tactile ledger — a one-of-one metaphor for a hash-linked spend chain).
+
+  Doctrine: 0 runtime CDN, 0 build step, pure inline CSS/JS. Honest by
+  construction — every figure renders only if its own feed answered; nulls show
+  "—", a dead feed shows "unreachable", nothing is ever fabricated. Frugal by
+  construction — the SVG is rebuilt only on the 15s refresh; motion is CSS-only
+  (GPU-composited), no requestAnimationFrame loop burns CPU.
+
+  Feeds (all same-origin, all free):
+    GET /api/a11oy/v1/engine/status   (szl.engine_status/v1)   — organs, mind, energy
+    GET /api/a11oy/v1/spend/state     (szl_spend_cap)          — cap, spent, kill, chain
+    GET /api/a11oy/v1/constellation   (szl.constellation_status/v1) — estate surfaces
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>KHIPU · Sovereign Ledger</title>
+<style>
+  :root{
+    --void:#080c14; --void2:#0b1220; --panel:#0d1524; --line:#173049;
+    --teal:#3af4c8; --teal-dim:#1c8f78; --amber:#f5a623; --amber-dim:#7a5410;
+    --red:#ff5470; --ink:#e8f6f1; --mute:#6f8c9c;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(58,244,200,.08), transparent 60%),
+      radial-gradient(900px 600px at 8% 110%, rgba(245,166,35,.06), transparent 60%),
+      var(--void);
+    color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; min-height:100%;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1280px;width:100%;margin:0 auto;padding:22px 22px 40px;flex:1;display:flex;flex-direction:column}
+  /* header */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .brand h1{font-family:var(--mono);font-size:30px;letter-spacing:.42em;margin:0;font-weight:600;
+    background:linear-gradient(90deg,var(--teal),#bfeee2);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand .tag{color:var(--mute);font-size:12.5px;letter-spacing:.02em}
+  .brand .tag b{color:var(--teal-dim);font-weight:600}
+  .clock{font-family:var(--mono);font-size:11.5px;color:var(--mute);text-align:right;line-height:1.7}
+  .clock .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--teal);margin-right:6px;
+    box-shadow:0 0 8px var(--teal);animation:beat 2.4s ease-in-out infinite}
+  /* stat strip */
+  .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  .lamps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--void2));border:1px solid var(--line);
+    border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--teal-dim);opacity:.6}
+  .card.amber::before{background:var(--amber)}
+  .card.red::before{background:var(--red)}
+  .card .k{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
+  .card .v{font-family:var(--mono);font-size:29px;margin-top:7px;line-height:1;letter-spacing:-.01em}
+  .card .v small{font-size:14px;color:var(--mute)}
+  .card.amber .v{color:var(--amber)}
+  .card .sub{font-size:11px;color:var(--mute);margin-top:7px;font-family:var(--mono)}
+  /* lamps */
+  .lamp{display:flex;align-items:center;gap:11px;background:var(--void2);border:1px solid var(--line);
+    border-radius:12px;padding:13px 15px}
+  .lamp .bulb{width:12px;height:12px;border-radius:50%;flex:none;background:var(--mute);box-shadow:0 0 0 rgba(0,0,0,0)}
+  .lamp.ok .bulb{background:var(--teal);box-shadow:0 0 12px var(--teal);animation:beat 2.6s ease-in-out infinite}
+  .lamp.warn .bulb{background:var(--amber);box-shadow:0 0 12px var(--amber)}
+  .lamp.bad .bulb{background:var(--red);box-shadow:0 0 14px var(--red);animation:beat 1s ease-in-out infinite}
+  .lamp .lt{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .lamp .lt .n{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+  .lamp .lt .s{font-family:var(--mono);font-size:15px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lamp.ok .s{color:var(--teal)} .lamp.warn .s{color:var(--amber)} .lamp.bad .s{color:var(--red)}
+  /* khipu */
+  .khipu{background:linear-gradient(180deg,rgba(13,21,36,.7),rgba(8,12,20,.7));
+    border:1px solid var(--line);border-radius:16px;padding:8px 6px 4px;flex:1;min-height:360px;position:relative}
+  .khipu svg{display:block;width:100%;height:100%}
+  .cordwrap{transform-box:fill-box;transform-origin:top center}
+  .sway0{animation:sway 7s ease-in-out infinite}
+  .sway1{animation:sway 8.5s ease-in-out infinite;animation-delay:-2s}
+  .sway2{animation:sway 6.2s ease-in-out infinite;animation-delay:-4s}
+  .knot{transform-box:fill-box;transform-origin:center}
+  .knot.live{animation:pulse 2.8s ease-in-out infinite}
+  .lgd{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:6px;color:var(--mute);font-size:11px}
+  .lgd i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  footer{margin-top:16px;color:var(--mute);font-size:11.5px;text-align:center;line-height:1.7}
+  footer b{color:var(--teal-dim)}
+  @keyframes beat{0%,100%{opacity:1}50%{opacity:.35}}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.55)}}
+  @keyframes sway{0%,100%{transform:translateX(-3px) rotate(-.5deg)}50%{transform:translateX(3px) rotate(.5deg)}}
+  @media (max-width:760px){.strip,.lamps{grid-template-columns:repeat(2,1fr)}.brand h1{font-size:22px;letter-spacing:.3em}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>KHIPU</h1>
+      <div class="tag">Sovereign Ledger &mdash; the whole organism's <b>health</b> &amp; <b>spend</b>, one screen &middot; honest by construction</div>
+    </div>
+    <div class="clock"><span><span class="dot"></span><span id="live">live</span></span><br/><span id="ts">&mdash;</span></div>
+  </header>
+
+  <section class="strip" id="strip"></section>
+  <section class="lamps" id="lamps"></section>
+
+  <section class="khipu"><div id="khipu"></div></section>
+  <div class="lgd">
+    <span><i style="background:#3af4c8"></i>live / intact</span>
+    <span><i style="background:#f5a623"></i>spend</span>
+    <span><i style="background:#ff5470"></i>down / tripped</span>
+    <span><i style="background:#6f8c9c"></i>unknown / &mdash;</span>
+  </div>
+
+  <footer>
+    Every value comes from a live feed; a silent source renders <b>&mdash;</b> or <b>unreachable</b>, never fake-green (Doctrine v11).
+    &nbsp;&middot;&nbsp; Free-first: sovereign compute + free grid; paid inference is capped and kill-switched, never quiet.
+    &nbsp;&middot;&nbsp; refresh 15s
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id)};
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+  function money(x){ if(x==null||isNaN(x)) return null; return "$"+Number(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function fetchJSON(url){
+    return fetch(url,{headers:{accept:"application/json"},cache:"no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .catch(function(){ return null; });
+  }
+  // reachability, tolerant of several honest shapes
+  function reach(o){
+    if(!o||typeof o!=="object") return null;
+    var v = (o.reachable!=null?o.reachable : (o.ok!=null?o.ok : (o.up!=null?o.up : (o.alive!=null?o.alive : null))));
+    if(v==null && typeof o.status==="string") v = /^(up|live|ok|ready|running|healthy)$/i.test(o.status);
+    return v;
+  }
+  function stateClass(v){ return v===true?"live":(v===false?"down":"na"); }
+  function colorOf(v){ return v===true?"#3af4c8":(v===false?"#ff5470":"#6f8c9c"); }
+
+  // ---------- cockpit strip + lamps (from spend/state) ----------
+  function renderSpend(sp){
+    var strip=$("strip"), lamps=$("lamps");
+    if(!sp){
+      strip.innerHTML = '<div class="card red"><div class="k">Spend ledger</div><div class="v">unreachable</div><div class="sub">the spend feed did not answer</div></div>';
+      lamps.innerHTML=""; return;
+    }
+    var cap=sp.cap_usd, spent=sp.spent_usd, rem=sp.remaining_usd, pct=sp.pct_used;
+    var overspend = (rem!=null && rem<=0);
+    strip.innerHTML =
+      card("Hard cap", money(cap), "ceiling · $"+ (cap!=null?cap:"—"), "") +
+      card("Spent", money(spent)||"—", (sp.entries!=null?sp.entries+" ledger entries":""), "amber") +
+      card("Remaining", money(rem)||"—", "", overspend?"red":"") +
+      card("Utilisation", (pct!=null? pct+"% ":"—"), bar(pct), pct!=null&&pct>=90?"red":(pct!=null&&pct>=60?"amber":""));
+
+    lamps.innerHTML =
+      lamp("Spend cap", sp.armed===true?"ARMED":"—", sp.armed===true?"ok":"na") +
+      lamp("Status", sp.tripped===true?"TRIPPED":(sp.tripped===false?"CLEAR":"—"), sp.tripped===true?"bad":(sp.tripped===false?"ok":"na")) +
+      lamp("Kill-switch", sp.kill_file_engaged===true?"ENGAGED":(sp.kill_file_engaged===false?"ready":"—"), sp.kill_file_engaged===true?"bad":(sp.kill_file_engaged===false?"ok":"na")) +
+      lamp("Ledger chain", (sp.chain&&sp.chain.intact===true)?"INTACT":((sp.chain&&sp.chain.intact===false)?"BROKEN":"—"), (sp.chain&&sp.chain.intact===true)?"ok":((sp.chain&&sp.chain.intact===false)?"bad":"na"));
+  }
+  function card(k,v,sub,cls){
+    return '<div class="card '+(cls||"")+'"><div class="k">'+esc(k)+'</div><div class="v">'+(v==null?"&mdash;":v)+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+  }
+  function bar(pct){
+    if(pct==null) return "";
+    var p=Math.max(0,Math.min(100,pct));
+    var col = p>=90?"#ff5470":(p>=60?"#f5a623":"#3af4c8");
+    return '<div style="height:5px;border-radius:3px;background:#122;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+p+'%;background:'+col+'"></div></div>';
+  }
+  function lamp(n,s,cls){
+    return '<div class="lamp '+cls+'"><span class="bulb"></span><span class="lt"><span class="n">'+esc(n)+'</span><span class="s">'+esc(s)+'</span></span></div>';
+  }
+
+  // ---------- the khipu (organs + spend sources + estate) ----------
+  var VW=1200, VH=460, TOP=78, BASE=430;
+  function pendant(x, len, knots, cls, label, swayCls){
+    var bx = x + (Math.sin(x)*8);              // gentle static bow, deterministic
+    var path = 'M '+x+' '+TOP+' Q '+((x+bx)/2)+' '+((TOP+len)/2)+' '+bx+' '+len;
+    var s = '<g class="cordwrap '+swayCls+'">';
+    s += '<path d="'+path+'" fill="none" stroke="'+colorOf(cls==="live"?true:(cls==="down"?false:null))+'" stroke-width="1.6" opacity="'+(cls==="na"?.4:.75)+'"/>';
+    var n = Math.max(1, knots|0);
+    for(var i=0;i<n;i++){
+      var t=(i+1)/(n+1);
+      var kx = x + (bx-x)*t, ky = TOP + (len-TOP)*t;
+      var kn = (cls==="live"?"knot live":"knot");
+      s += '<circle class="'+kn+'" cx="'+kx.toFixed(1)+'" cy="'+ky.toFixed(1)+'" r="'+(cls==="down"?4.6:4)+'" fill="'+colorOf(cls==="live"?true:(cls==="down"?false:null))+'" opacity="'+(cls==="na"?.5:.95)+'" style="animation-delay:'+(i*0.3).toFixed(1)+'s"/>';
+    }
+    s += '<circle cx="'+x+'" cy="'+TOP+'" r="2.6" fill="#bfeee2"/>';
+    s += '<text x="'+bx.toFixed(1)+'" y="'+(len+16)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" fill="#6f8c9c">'+esc(label)+'</text>';
+    s += '</g>';
+    return s;
+  }
+  function sectionLabel(cx, text){
+    return '<text x="'+cx+'" y="44" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="11" letter-spacing="3" fill="#3af4c8" opacity=".8">'+esc(text)+'</text>';
+  }
+  function spread(x0,x1,n){ var a=[]; if(n<=0) return a; if(n===1){a.push((x0+x1)/2);return a;} for(var i=0;i<n;i++)a.push(x0+(x1-x0)*i/(n-1)); return a; }
+
+  function renderKhipu(eng, sp, con){
+    var svg='<svg viewBox="0 0 '+VW+' '+VH+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sovereign khipu">';
+    svg += '<line x1="48" y1="'+TOP+'" x2="'+(VW-48)+'" y2="'+TOP+'" stroke="#173049" stroke-width="3" stroke-linecap="round"/>';
+    // section 1: VITALS (organs)
+    var organs = (eng&&eng.organs&&typeof eng.organs==="object")?eng.organs:null;
+    svg += sectionLabel(250,"VITALS");
+    if(organs){
+      var names=Object.keys(organs); var xs=spread(90,430,Math.max(1,names.length));
+      for(var i=0;i<names.length;i++){
+        var v=reach(organs[names[i]]); var len=BASE-((i%3)*26);
+        svg += pendant(xs[i], len, 3, stateClass(v), names[i].slice(0,7), "sway0");
+      }
+      if(!names.length) svg += emptyCord(250,"no organs reported","sway0");
+    } else svg += emptyCord(250, eng?"no organ data":"engine unreachable","sway0");
+
+    // section 2: SPEND (ledger sources)
+    svg += sectionLabel(600,"SPEND");
+    if(sp){
+      var tail=(sp.tail&&sp.tail.length)?sp.tail.slice(-6):[];
+      if(tail.length){
+        var total=tail.reduce(function(a,e){return a+(+e.amount_usd||0)},0)||1;
+        var xs2=spread(480,720,tail.length);
+        for(var j=0;j<tail.length;j++){
+          var amt=+tail[j].amount_usd||0; var kk=Math.max(1,Math.min(9,Math.round(1+8*(amt/total))));
+          svg += pendantAmber(xs2[j], BASE-((j%2)*30), kk, (tail[j].source||"?").slice(0,8), money(amt)||"", "sway1");
+        }
+      } else {
+        svg += emptyCord(600, (sp.spent_usd? money(sp.spent_usd):"$0.00")+" spent \u2014 sovereign & free","sway1");
+      }
+    } else svg += emptyCord(600,"spend unreachable","sway1");
+
+    // section 3: ESTATE (constellation surfaces)
+    svg += sectionLabel(955,"ESTATE");
+    var surfaces = con && (Array.isArray(con.surfaces)?con.surfaces:(Array.isArray(con)?con:null));
+    if(surfaces){
+      var ss=surfaces.slice(0,9); var xs3=spread(772,1140,Math.max(1,ss.length));
+      for(var k=0;k<ss.length;k++){
+        var s=ss[k]; var v3=reach(s); var nm=(s.name||s.id||s.slug||"?");
+        svg += pendant(xs3[k], BASE-((k%3)*24), 2, stateClass(v3), String(nm).slice(0,9), "sway2");
+      }
+      if(!ss.length) svg += emptyCord(955,"no surfaces reported","sway2");
+    } else svg += emptyCord(955, con?"no estate data":"constellation unreachable","sway2");
+
+    svg += '</svg>';
+    $("khipu").innerHTML = svg;
+  }
+  function pendantAmber(x,len,knots,label,val,swayCls){
+    var bx=x+(Math.sin(x)*8);
+    var path='M '+x+' '+TOP+' Q '+((x+bx)/2)+' '+((TOP+len)/2)+' '+bx+' '+len;
+    var s='<g class="cordwrap '+swayCls+'"><path d="'+path+'" fill="none" stroke="#f5a623" stroke-width="1.6" opacity=".8"/>';
+    var n=Math.max(1,knots|0);
+    for(var i=0;i<n;i++){var t=(i+1)/(n+1);var kx=x+(bx-x)*t,ky=TOP+(len-TOP)*t;
+      s+='<circle cx="'+kx.toFixed(1)+'" cy="'+ky.toFixed(1)+'" r="3.7" fill="#f5a623" opacity=".95"/>';}
+    s+='<circle cx="'+x+'" cy="'+TOP+'" r="2.6" fill="#f5d18a"/>';
+    s+='<text x="'+bx.toFixed(1)+'" y="'+(len+16)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" fill="#a9803a">'+esc(label)+'</text>';
+    s+='<text x="'+bx.toFixed(1)+'" y="'+(len+28)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#6f8c9c">'+esc(val)+'</text></g>';
+    return s;
+  }
+  function emptyCord(cx,text,swayCls){
+    return '<g class="cordwrap '+swayCls+'"><line x1="'+cx+'" y1="'+TOP+'" x2="'+cx+'" y2="'+(TOP+120)+'" stroke="#173049" stroke-width="1.4" stroke-dasharray="3 5"/>'+
+      '<circle cx="'+cx+'" cy="'+TOP+'" r="2.6" fill="#3a5568"/>'+
+      '<text x="'+cx+'" y="'+(TOP+140)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10.5" fill="#6f8c9c">'+esc(text)+'</text></g>';
+  }
+
+  // ---------- tick ----------
+  function tick(){
+    Promise.all([
+      fetchJSON("/api/a11oy/v1/engine/status"),
+      fetchJSON("/api/a11oy/v1/spend/state"),
+      fetchJSON("/api/a11oy/v1/constellation")
+    ]).then(function(res){
+      var eng=res[0], sp=res[1], con=res[2];
+      renderSpend(sp);
+      renderKhipu(eng, sp, con);
+      var live=$("live"); live.textContent = sp?"live":"degraded";
+      live.style.color = sp?"#3af4c8":"#ff5470";
+      $("ts").textContent = new Date().toISOString().replace("T"," ").replace(/\..+/,"Z");
+    });
+  }
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>
