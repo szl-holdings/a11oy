@@ -118,7 +118,9 @@ def test_status_preflight_and_worst_wins_headline():
         j = c.get(STATUS).json()
     pf = j["preflight"]
     assert pf["overall"] in HEALTH_TOKENS, f"preflight overall not honest: {pf['overall']}"
-    assert pf["label"] == pf["overall"], "preflight label must be its verbatim overall"
+    # readiness is a health token, not a doctrine disclosure label — must not use a
+    # reserved honesty-label key (the frontier-endpoint contract vocab-checks those).
+    assert "label" not in pf, "preflight must not carry a reserved honesty-label key"
     assert isinstance(pf.get("subsystems"), list)
     est = j["estate"]
     headline = est["headline"]

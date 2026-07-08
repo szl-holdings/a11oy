@@ -116,16 +116,27 @@ def _preflight_view() -> dict:
         import szl_boot_preflight as _pf
         r = _pf.readiness()
         overall = (r.get("overall") or UNAVAILABLE)
+        # A subsystem's readiness is a health TOKEN (LIVE/DEGRADED/UNAVAILABLE), NOT a
+        # doctrine honesty-disclosure label. The preflight module names it `label`, but
+        # the frontier-endpoint contract strictly vocab-checks any `label`/`data_label`
+        # key against the DISCLOSURE vocabulary (which has no DEGRADED). So we re-key it
+        # to `readiness` here — same honest value, verbatim, just not under a reserved
+        # disclosure-label key. NAMES only; never a secret value.
+        subs = []
+        for s in (r.get("subsystems", []) or []):
+            if not isinstance(s, dict):
+                continue
+            t = {k: v for k, v in s.items() if k != "label"}
+            t["readiness"] = s.get("label", UNAVAILABLE)
+            subs.append(t)
         return {
-            "label": overall,                       # LIVE / DEGRADED / UNAVAILABLE (verbatim)
-            "overall": overall,
-            "subsystems": r.get("subsystems", []),
+            "overall": overall,                     # LIVE / DEGRADED / UNAVAILABLE (verbatim)
+            "subsystems": subs,
             "source": ("szl_boot_preflight.readiness — same boot-preflight rollup /healthz "
                        "surfaces; env/secret NAMES only, never a secret value."),
         }
     except Exception as exc:  # honest degrade — preflight readiness is advisory
         return {
-            "label": UNAVAILABLE,
             "overall": UNAVAILABLE,
             "subsystems": [],
             "error": f"{type(exc).__name__}: {exc}",
@@ -328,7 +339,7 @@ def handle_status(app, ns: str = "a11oy") -> dict:
             "label": UNAVAILABLE,
             "estate": {"health": UNAVAILABLE, "surfaces": 0, "subsystems": 0,
                        "counts": _blank_counts(), "headline": UNAVAILABLE},
-            "preflight": {"label": UNAVAILABLE, "overall": UNAVAILABLE, "subsystems": []},
+            "preflight": {"overall": UNAVAILABLE, "subsystems": []},
             "history": _history_view(),
             "reason": str(exc),
             "doctrine": "v11: status aggregate unavailable; no fabricated health emitted.",
@@ -513,7 +524,9 @@ if __name__ == "__main__":
     # 6) DEEPEN: boot-preflight readiness folded in + honest estate HEADLINE.
     pf = st["preflight"]
     assert pf["overall"] in HEALTHS, f"preflight overall not honest: {pf['overall']}"
-    assert pf["label"] == pf["overall"], "preflight label must be its verbatim overall"
+    # preflight readiness is a health TOKEN, NOT a doctrine disclosure label — it must NOT
+    # be exposed under a reserved honesty-label key (frontier-endpoint contract vocab).
+    assert "label" not in pf, "preflight must not carry a reserved honesty-label key"
     headline = est["headline"]
     assert headline in (LIVE, DEGRADED, UNAVAILABLE), f"bad headline {headline}"
     # WORST-WINS: headline can never be healthier than either input.
