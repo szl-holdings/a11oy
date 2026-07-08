@@ -260,12 +260,17 @@ def _eval_payload(payload: dict) -> tuple[str | None, float | None, list[dict]]:
         checks.append(_check("locked_count_eight", lc, "== 8", int(lc) == LOCKED_COUNT))
 
     # Λ is Conjecture 1, never a theorem.
+    # Only an AFFIRMATIVE "is a theorem" claim is a violation; a negated mention
+    # ("not a theorem", "never a theorem") is the honest declaration and must PASS.
+    # (Prior naive `"theorem" not in low` false-flagged "NOT a theorem".)
     lam = doctrine.get("lambda")
     if isinstance(lam, str) and lam.strip():
         low = lam.lower()
+        stripped = re.sub(r"\b(?:not|never|isn'?t|is\s+not|no)\s+a?\s*theorem", "", low)
+        claims_theorem = "theorem" in stripped
         checks.append(_check("lambda_is_conjecture_not_theorem", lam,
                              "declares a Conjecture, never a theorem",
-                             ("conjecture" in low) and ("theorem" not in low)))
+                             ("conjecture" in low) and not claims_theorem))
 
     # trust ceiling ≤ 0.97 and never 100%.
     tc = doctrine.get("trust_ceiling")
