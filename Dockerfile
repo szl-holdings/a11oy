@@ -701,6 +701,12 @@ COPY szl_execverify.py ./szl_execverify.py
 # ships via the existing `COPY static/3d/ ./static/3d/` below (whole-tree). Λ=Conjecture 1.
 COPY szl_brainbody.py ./szl_brainbody.py
 
+# FlowBrain frontier surface backend (WaveS) — imported by serve.py (guarded) for GET
+# /api/a11oy/v1/frontier/flowbrain(+/trajectory). Continuous belief-flow lens; STRUCTURAL-ONLY,
+# synthesis CONJECTURE. The flowbrain.js surface ships via the existing whole-tree
+# `COPY static/3d/ ./static/3d/` below. Adds nothing to the locked-8; Λ=Conjecture 1.
+COPY szl_flowbrain.py ./szl_flowbrain.py
+
 # DEV2 Build 1: TEE/TDX attestation hook (2026-06-30) — imported by serve.py (guarded);
 # MUST be per-file COPY'd or /api/a11oy/v1/tee/status + tee_attestation receipt field
 # fall back to honest UNAVAILABLE stubs. Pattern: dstack-capsule Apache-2.0 arXiv 2606.03323.
@@ -1339,6 +1345,8 @@ COPY szl_agent_tts.py ./szl_agent_tts.py
 # the transitive per-file COPY-guard. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 COPY szl_gated_delta.py ./szl_gated_delta.py
 COPY static/3d/surfaces/gateddelta.js ./static/3d/surfaces/gateddelta.js
+COPY szl_blocksparse.py ./szl_blocksparse.py
+COPY static/3d/surfaces/blocksparse.js ./static/3d/surfaces/blocksparse.js
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase

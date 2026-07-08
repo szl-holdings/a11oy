@@ -138,7 +138,7 @@ def main():
         dataset_text_field="text",
         report_to="none",
     )
-    trainer = SFTTrainer(model=model, tokenizer=tokenizer,
+    trainer = SFTTrainer(model=model, processing_class=tokenizer,
                          train_dataset=sft_ds, args=sft_args)
 
     result = trainer.train()

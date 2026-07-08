@@ -735,6 +735,24 @@ try:
 except Exception as _szl_bb_e:  # pragma: no cover
     print(f"[a11oy] Frontier brainbody NOT registered: {_szl_bb_e!r}", file=__import__("sys").stderr)
 
+# FlowBrain — GET /api/a11oy/v1/frontier/flowbrain (+ /flowbrain/trajectory) reframes the
+# governed brain's belief-tier evolution (CONJECTURE → CORROBORATED → LOAD-BEARING) as a
+# CONTINUOUS confidence flow x_t ∈ [0,1] where the named tiers are THRESHOLDS CROSSED, not
+# states occupied, and exposes a SplitUNet-style "1D-time ⊗ 1D-node" axis-factorization
+# (STRUCTURAL-ONLY). The flow is a deterministic logistic derived from a REAL brain-graph
+# node's degree/layer (a11oy_brain_graph); no node fact is fabricated. Borrows ONLY the
+# continuous-flow-over-discretization principle from B[FM]² (arXiv:2606.20812) — NO EEG, no
+# flow-matching model trained/run here. Top label STRUCTURAL-ONLY; the synthesis is
+# CONJECTURE (never a theorem). GET-only, so it emits an UNSIGNED SHA-256 CONTENT digest
+# (client-recomputable) — no signing on a read path. Adds NOTHING to the locked-8; Λ stays
+# Conjecture 1; trust ceiling 0.97, never 100%. Additive, try/except-guarded, before the SPA.
+try:
+    import szl_flowbrain as _szl_flowbrain
+    _szl_flowbrain.register(app, ns="a11oy")
+    print("[a11oy] Frontier flowbrain registered: /api/a11oy/v1/frontier/flowbrain (STRUCTURAL-ONLY continuous belief-flow lens; synthesis CONJECTURE)", file=__import__("sys").stderr)
+except Exception as _szl_fb_e:  # pragma: no cover
+    print(f"[a11oy] Frontier flowbrain NOT registered: {_szl_fb_e!r}", file=__import__("sys").stderr)
+
 # Model-Artifact Provenance (SLSA · in-toto · Rekor · C2PA) — GET /api/a11oy/v1/frontier/
 # supplychain returns the MODEL supply chain (weights → build → attestation → deploy) as a
 # governed, honestly-labeled surface: each stage names its provenance evidence (in-toto
@@ -12661,6 +12679,39 @@ except Exception as _wq_e1:  # additive: never break the Space
     print(f"[a11oy] WAVE-Q FRONTIER szl_gated_delta NOT registered (non-fatal): {_wq_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================
 # END: WAVE-Q FRONTIER (gated delta-rule linear attention)
+# ============================================================================
+
+
+# ============================================================================
+# WAVE-S FRONTIER (feat/frontier-s-blocksparse, Dev1): a11oy-NATIVE cited
+# LEARNED BLOCKWISE TOP-k KV SPARSE-ATTENTION backend — the DeepSeek-NSA /
+# MiniMax-MSA / SparDA family the estate did NOT yet model as a LEARNED
+# index-branch block selector (distinct from nsa's fixed-pattern demo and from
+# sement's uncertainty surface). Deterministic, stdlib-only (no numpy),
+# try/except-guarded; returns a renderable 200 with an honest MODELED label +
+# receipt. register() uses @app.get (APPENDS), so we front-move the single route
+# to router position 0 so it wins over the /api/a11oy/{path:path} Node proxy +
+# /{full_path:path} SPA catch-all (reuses _wn_frontmove).
+#   szl_blocksparse -> /api/a11oy/v1/blocksparse/select   (surface: blocksparse.js)
+#     Real index-branch (mean-pooled block key) scoring -> per-GQA-group Top-k
+#     block selection -> exact block-sparse attention over a seeded long-context
+#     KV cache; reports the compute-reduction vs dense + a recall/quality tradeoff
+#     curve (index recall vs the exact oracle top-k). Cites MiniMax MSA
+#     (arXiv:2606.13392), SparDA (arXiv:2606.04511), NSA/DeepSeek (arXiv:2502.11089).
+# Λ = Conjecture 1; nothing added to the locked-8; trust never 100%.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _ws_sys
+    import szl_blocksparse as _szl_blocksparse
+    _ws_s1 = _szl_blocksparse.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/blocksparse/select")
+    print(f"[a11oy] WAVE-S FRONTIER szl_blocksparse registered (front-moved): {_ws_s1}", file=_ws_sys.stderr)
+except Exception as _ws_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-S FRONTIER szl_blocksparse NOT registered (non-fatal): {_ws_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-S FRONTIER (learned blockwise Top-k KV sparse attention)
 # ============================================================================
 
 

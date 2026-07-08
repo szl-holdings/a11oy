@@ -234,3 +234,26 @@ rejected}`, then reuse the eval logic in `train_orpo.py` (`run_eval`). For GGUF
 without Unsloth, merge with `model.merge_and_unload()`, save fp16, and convert
 with `llama.cpp`’s `convert_hf_to_gguf.py --outtype q4_k_m`, then write the same
 Modelfile `export_gguf.py` produces.
+
+## Sample-efficiency doctrine note (why the seed corpus is small on purpose)
+
+The seed corpora here (`szl_seed.jsonl`, `szl_orpo.jsonl`) are deliberately small
+and hand-curated rather than scraped-large. A foundation-model result worth
+citing on this point is **B[FM]² — Brain Foundation Model via Flow Matching with
+SplitUNet** (MIT + KU Leuven, arXiv:2606.20812): it reports that a
+continuous-flow objective plus an axis-factorized (1D-time ⊗ 1D-node) backbone
+reaches its quality with markedly **fewer training samples** than discretized,
+un-factorized baselines — i.e. the *shape* of the objective buys sample
+efficiency, not raw corpus size.
+
+We borrow **only that principle** for our own doctrine — curate a small, honest,
+high-signal preference set and let QLoRA+ORPO do the rest — and we make no claim
+to have trained a flow-matching model, touched EEG, or reproduced any B[FM]²
+number. It is a **cited prior-art rationale (SOURCE IDEA)** for keeping the seed
+set small and clean, nothing more. Provenance of any run remains **MODELED** until
+a signed receipt fills it; a truthful small-corpus result beats a fabricated large one.
+
+> See also the `flowbrain` frontier surface (`szl_flowbrain.py` +
+> `static/3d/surfaces/flowbrain.js`), which borrows the same continuous-flow and
+> axis-factorization framing as a **STRUCTURAL-ONLY** governance lens — likewise
+> no EEG, no flow-matching model, synthesis **CONJECTURE**.
