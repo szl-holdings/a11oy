@@ -1161,6 +1161,24 @@ except Exception as _brainconsensus_e:  # pragma: no cover
     print(f"[a11oy] Brain consensus NOT registered: {_brainconsensus_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN QUERY AUDIT (feat/frontier-brainqueryaudit) — an append-only, hash-linked
+# ledger of brain queries and the honest verdict each returned:
+# GET /api/a11oy/v1/brain/audit/info (static describe), GET /api/a11oy/v1/brain/audit
+# (current ledger + a RECOMPUTED chain-integrity verdict → CHAIN-INTACT/CHAIN-BROKEN;
+# pure read, mints nothing), POST /api/a11oy/v1/brain/audit/record (append one entry +
+# mint an UNSIGNED SHA-256 receipt chained to the prior entry, receipt-on-write). The
+# ledger is ephemeral (in-memory) and labelled so; a broken chain is never softened to
+# intact; no label is ever upgraded; each receipt is an unsigned content digest, never a
+# signature or a proof. Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded so an import error can never break boot.
+try:
+    import szl_brainqueryaudit as _szl_brainqueryaudit
+    _brainqueryaudit_status = _szl_brainqueryaudit.register(app, ns="a11oy")
+    print(f"[a11oy] Brain query audit registered: {_brainqueryaudit_status}", file=__import__("sys").stderr)
+except Exception as _brainqueryaudit_e:  # pragma: no cover
+    print(f"[a11oy] Brain query audit NOT registered: {_brainqueryaudit_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/

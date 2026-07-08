@@ -1539,6 +1539,14 @@ COPY harness_profiles/ ./harness_profiles/
 # brainconsensus.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above.
 # READS only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_brainconsensus.py ./szl_brainconsensus.py
+# BRAIN QUERY AUDIT (feat/frontier-brainqueryaudit) — append-only, hash-linked ledger
+# of brain queries + the honest verdict each returned; POST appends + mints an UNSIGNED
+# SHA-256 receipt chained to the prior entry, GET recomputes the chain (CHAIN-INTACT/
+# CHAIN-BROKEN), ephemeral in-memory ledger labelled honestly. Its 3D surface
+# brainqueryaudit.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/`
+# above. RECORDS/OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
+COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
+
 
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
