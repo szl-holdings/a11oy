@@ -5274,6 +5274,14 @@ try:
         return _Redir(url="/brain", status_code=307)
 
     async def _alias_sovereign():
+        # /sovereign is now a REAL surface: the KHIPU Sovereign Ledger board
+        # (unified health + spend). Serve the page directly so the canonical URL
+        # renders the board instead of the legacy /agent redirect; fall back to
+        # /agent only if the page asset is somehow absent.
+        from starlette.responses import FileResponse as _FR
+        _sov = PAGES_DIR / "sovereign.html"
+        if _sov.is_file():
+            return _FR(_sov, media_type="text/html")
         return _Redir(url="/agent", status_code=307)
 
     async def _alias_investor_demo():
@@ -10805,7 +10813,6 @@ async def command_cockpit_page() -> Response:
 # Sovereign Ledger (Khipu) — unified health + spend board. Registered BEFORE
 # the /viz + SPA catch-all so the explicit route wins. pages/ ships wholesale via
 # the Dockerfile COPY pages/, so this new page needs no Dockerfile edit.
-@app.get("/sovereign")
 @app.get("/a11oy/sovereign")
 async def sovereign_ledger_page() -> Response:
     f = PAGES_DIR / "sovereign.html"
