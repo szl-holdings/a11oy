@@ -25,6 +25,10 @@ from datetime import datetime, timezone
 EXIT_OK = 0
 EXIT_VIOLATION = 1
 EXIT_ERROR = 2
+# A transient network failure (429 / 5xx / timeout) exhausted its retries.
+# Honest doctrine: unreachable == UNKNOWN, NOT a failure — never opens an
+# incident. Only a reachable VIOLATION or a genuine auth/malformed ERROR fails.
+EXIT_UNKNOWN = EXIT_OK
 
 
 class AuthError(Exception):
@@ -61,9 +65,20 @@ def http_get(url: str, token: str | None = None, retries: int = 3,
             if e.code == 404:
                 return 404, b""
             last = "HTTP %d" % e.code
-            if e.code < 500:
-                # other 4xx: not retryable, surface as Unreachable (malformed req)
-                raise Unreachable("%s for %s" % (last, url))
+            # 429 (rate-limit) and 5xx are TRANSIENT -> retry with backoff.
+            # Honour Retry-After on 429 when present. Other 4xx are a hard,
+            # non-retryable client error (malformed request).
+            if e.code == 429 or e.code >= 500:
+                retry_after = None
+                try:
+                    retry_after = float(e.headers.get("Retry-After")) if e.headers else None
+                except (TypeError, ValueError):
+                    retry_after = None
+                delay = retry_after if retry_after is not None else 1.5 * (attempt + 1)
+                time.sleep(delay)
+                continue
+            # other 4xx: not retryable, surface as Unreachable (malformed req)
+            raise Unreachable("%s for %s" % (last, url))
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             last = str(e)
         time.sleep(1.5 * (attempt + 1))
