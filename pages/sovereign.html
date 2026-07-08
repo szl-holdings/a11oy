@@ -93,6 +93,17 @@
   @keyframes sway{0%,100%{transform:translateX(-3px) rotate(-.5deg)}50%{transform:translateX(3px) rotate(.5deg)}}
   @media (max-width:760px){.strip,.lamps{grid-template-columns:repeat(2,1fr)}.brand h1{font-size:22px;letter-spacing:.3em}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+  /* federated (authoritative box) spend panel */
+  .localttl{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:2px 2px 8px}
+  .fedwrap{margin:6px 0 18px;padding:14px 15px 15px;border:1px solid var(--teal-dim);border-radius:14px;
+    background:linear-gradient(180deg,rgba(58,244,200,.05),rgba(8,12,20,.5))}
+  .fedttl{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .fedttl .badge{font-size:9.5px;letter-spacing:.16em;background:var(--teal);color:#04241d;padding:3px 8px;border-radius:20px;font-weight:700}
+  .fedttl .fedsrc{color:var(--mute);font-size:10.5px;letter-spacing:.02em}
+  .fednote{color:var(--mute);font-size:10.5px;margin:0 0 12px;line-height:1.5}
+  .fedwrap .strip{margin-bottom:12px}
+  .fedwrap .lamps{margin-bottom:0}
+
 </style>
 </head>
 <body>
@@ -105,8 +116,15 @@
     <div class="clock"><span><span class="dot"></span><span id="live">live</span></span><br/><span id="ts">&mdash;</span></div>
   </header>
 
+  <div class="localttl">a11oy module ledger &mdash; local / advisory (in-container)</div>
   <section class="strip" id="strip"></section>
   <section class="lamps" id="lamps"></section>
+  <section class="fedwrap">
+    <div class="fedttl"><span class="badge">AUTHORITATIVE</span> Live Sovereign Router &mdash; real paid spend on the box ledger <span class="fedsrc" id="fedsrc">&mdash;</span></div>
+    <div class="fednote">read live from the box router at request time &middot; chain state as reported by the source &middot; never summed with the local advisory ledger above</div>
+    <div class="strip" id="fedstrip"></div>
+    <div class="lamps" id="fedlamps"></div>
+  </section>
 
   <section class="khipu"><div id="khipu"></div></section>
   <div class="lgd">
@@ -129,6 +147,7 @@
   var $=function(id){return document.getElementById(id)};
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function money(x){ if(x==null||isNaN(x)) return null; return "$"+Number(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function money6(x){ if(x==null||isNaN(x)) return null; var n=Number(x); if(n===0) return "$0.00"; if(Math.abs(n)<0.01) return "$"+n.toFixed(6); return "$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function fetchJSON(url){
     return fetch(url,{headers:{accept:"application/json"},cache:"no-store"})
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
@@ -178,6 +197,30 @@
     return '<div class="lamp '+cls+'"><span class="bulb"></span><span class="lt"><span class="n">'+esc(n)+'</span><span class="s">'+esc(s)+'</span></span></div>';
   }
 
+  // ---------- federated (authoritative box-router) spend panel ----------
+  function renderFed(fs){
+    var strip=$("fedstrip"), lamps=$("fedlamps"), src=$("fedsrc");
+    if(!strip) return;
+    function down(msg,sub,cls){ strip.innerHTML='<div class="card '+(cls||"")+'"><div class="k">Router spend</div><div class="v">'+esc(msg)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>'; lamps.innerHTML=""; src.textContent=""; }
+    if(!fs){ down("unreachable","the federation feed did not answer","red"); return; }
+    if(fs.state==="not_configured"){ down("not configured","set SZL_ROUTER_SPEND_URL to federate the box ledger",""); return; }
+    if(fs.state!=="live" || fs.reachable!==true){ down("unreachable","box router did not answer (http "+(fs.http_status!=null?fs.http_status:"?")+")","red"); return; }
+    var cap=fs.cap_usd, spent=fs.spent_usd, rem=fs.remaining_usd, pct=fs.pct_used;
+    var overspend=(rem!=null && rem<=0);
+    strip.innerHTML =
+      card("Hard cap", money6(cap), "ceiling", "") +
+      card("Spent (real, paid)", money6(spent)||"&mdash;", (fs.entries!=null?fs.entries+" ledger entries":""), "amber") +
+      card("Remaining", money6(rem)||"&mdash;", "", overspend?"red":"") +
+      card("Utilisation", (pct!=null? pct+"% ":"&mdash;"), bar(pct), pct!=null&&pct>=90?"red":(pct!=null&&pct>=60?"amber":""));
+    lamps.innerHTML =
+      lamp("Spend cap", fs.armed===true?"ARMED":"\u2014", fs.armed===true?"ok":"na") +
+      lamp("Status", fs.tripped===true?"TRIPPED":(fs.tripped===false?"CLEAR":"\u2014"), fs.tripped===true?"bad":(fs.tripped===false?"ok":"na")) +
+      lamp("Kill-switch", fs.kill_file_engaged===true?"ENGAGED":(fs.kill_file_engaged===false?"ready":"\u2014"), fs.kill_file_engaged===true?"bad":(fs.kill_file_engaged===false?"ok":"na")) +
+      lamp("Ledger chain", fs.chain_intact===true?"INTACT":(fs.chain_intact===false?"BROKEN":"\u2014"), fs.chain_intact===true?"ok":(fs.chain_intact===false?"bad":"na"));
+    var when = fs.upstream_generated || fs.checked_at || "";
+    src.textContent = (when? "\u00b7 as of "+when : "") + (fs.cache? " ("+fs.cache+")":"");
+  }
+
   // ---------- the khipu (organs + spend sources + estate) ----------
   var VW=1200, VH=460, TOP=78, BASE=430;
   function pendant(x, len, knots, cls, label, swayCls){
@@ -202,7 +245,7 @@
   }
   function spread(x0,x1,n){ var a=[]; if(n<=0) return a; if(n===1){a.push((x0+x1)/2);return a;} for(var i=0;i<n;i++)a.push(x0+(x1-x0)*i/(n-1)); return a; }
 
-  function renderKhipu(eng, sp, con){
+  function renderKhipu(eng, sp, con, fed){
     var svg='<svg viewBox="0 0 '+VW+' '+VH+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sovereign khipu">';
     svg += '<line x1="48" y1="'+TOP+'" x2="'+(VW-48)+'" y2="'+TOP+'" stroke="#173049" stroke-width="3" stroke-linecap="round"/>';
     // section 1: VITALS (organs)
@@ -217,19 +260,21 @@
       if(!names.length) svg += emptyCord(250,"no organs reported","sway0");
     } else svg += emptyCord(250, eng?"no organ data":"engine unreachable","sway0");
 
-    // section 2: SPEND (ledger sources)
+    // section 2: SPEND (real box-router ledger; falls back to local advisory)
     svg += sectionLabel(600,"SPEND");
-    if(sp){
-      var tail=(sp.tail&&sp.tail.length)?sp.tail.slice(-6):[];
+    var spendSrc = (fed && fed.state==="live" && fed.reachable===true) ? fed : sp;
+    if(spendSrc){
+      var tail=(spendSrc.tail&&spendSrc.tail.length)?spendSrc.tail.slice(-6):[];
       if(tail.length){
         var total=tail.reduce(function(a,e){return a+(+e.amount_usd||0)},0)||1;
         var xs2=spread(480,720,tail.length);
         for(var j=0;j<tail.length;j++){
           var amt=+tail[j].amount_usd||0; var kk=Math.max(1,Math.min(9,Math.round(1+8*(amt/total))));
-          svg += pendantAmber(xs2[j], BASE-((j%2)*30), kk, (tail[j].source||"?").slice(0,8), money(amt)||"", "sway1");
+          svg += pendantAmber(xs2[j], BASE-((j%2)*30), kk, (tail[j].source||"?").slice(0,8), money6(amt)||"", "sway1");
         }
       } else {
-        svg += emptyCord(600, (sp.spent_usd? money(sp.spent_usd):"$0.00")+" spent \u2014 sovereign & free","sway1");
+        var sv=(spendSrc.spent_usd!=null?spendSrc.spent_usd:null);
+        svg += emptyCord(600, (sv? money6(sv):"$0.00")+" spent","sway1");
       }
     } else svg += emptyCord(600,"spend unreachable","sway1");
 
@@ -271,13 +316,15 @@
     Promise.all([
       fetchJSON("/api/a11oy/v1/engine/status"),
       fetchJSON("/api/a11oy/v1/spend/state"),
-      fetchJSON("/api/a11oy/v1/constellation")
+      fetchJSON("/api/a11oy/v1/constellation"),
+      fetchJSON("/api/a11oy/v1/spend/federated")
     ]).then(function(res){
-      var eng=res[0], sp=res[1], con=res[2];
+      var eng=res[0], sp=res[1], con=res[2], fed=res[3];
       renderSpend(sp);
-      renderKhipu(eng, sp, con);
-      var live=$("live"); live.textContent = sp?"live":"degraded";
-      live.style.color = sp?"#3af4c8":"#ff5470";
+      renderFed(fed);
+      renderKhipu(eng, sp, con, fed);
+      var live=$("live"); live.textContent = (fed||sp)?"live":"degraded";
+      live.style.color = (fed||sp)?"#3af4c8":"#ff5470";
       $("ts").textContent = new Date().toISOString().replace("T"," ").replace(/\..+/,"Z");
     });
   }
