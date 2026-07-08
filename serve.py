@@ -1900,6 +1900,55 @@ try:
 except Exception as _szl_hybridssm_e:  # pragma: no cover
     print(f"[a11oy] HybridSSM NOT registered: {_szl_hybridssm_e!r}", file=__import__("sys").stderr)
 
+# ── SZL LGMI (Wave-P Dev4) — Λ-Governed Mechanistic Interpretability. A per-circuit
+# Λ-advisory trust gate (the szl-lambda-gate aggregator) over sparse-feature / circuit
+# ATTRIBUTION, with a signed-attribution-receipt-per-write design. Ties the real
+# interpretability leaders (SAEs / attribution patching / ACDC) to the SZL Λ-gate.
+# MODELED (deterministic seeded decomposition); the SZL synthesis is CONJECTURE
+# (Λ = Conjecture 1, gray, never green; advisory trust capped at 0.97). Cites Towards
+# Monosemanticity (Transformer Circuits 2023), Sparse Autoencoders (arXiv:2309.08600),
+# JumpReLU SAE (arXiv:2407.14435), ACDC (arXiv:2304.14997), IOI (arXiv:2211.00593),
+# Attribution Patching / AtP* (arXiv:2403.00745). Additive, try/except-guarded,
+# registered BEFORE the SPA catch-all.
+try:
+    import szl_lgmi as _szl_lgmi
+    _szl_lgmi.register(app, ns="a11oy")
+    print("[a11oy] LGMI registered: /api/a11oy/v1/frontier/lgmi", file=__import__("sys").stderr)
+except Exception as _szl_lgmi_e:  # pragma: no cover
+    print(f"[a11oy] LGMI NOT registered: {_szl_lgmi_e!r}", file=__import__("sys").stderr)
+
+# ── SZL GNQS (Wave-P Dev4) — Governed-Norm Quantization Stability. A per-layer
+# Λ-advisory trust gate (szl-lambda-gate) over which layers are QUANTIZATION-SAFE once
+# an SZL governed norm (szl-governed-norm) bounds their activation outliers, with a
+# signed-quantization-receipt-per-write design. MODELED (deterministic activation /
+# quant-error simulation); the SZL synthesis is CONJECTURE (Λ = Conjecture 1, gray,
+# never green; advisory trust capped at 0.97). Cites LLM.int8() (arXiv:2208.07339),
+# GPTQ (arXiv:2210.17323), AWQ (arXiv:2306.00978), SmoothQuant (arXiv:2211.10438),
+# BitNet b1.58 (arXiv:2402.17764), RMSNorm (arXiv:1910.07467), Massive Activations
+# (arXiv:2402.17762). Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_gnqs as _szl_gnqs
+    _szl_gnqs.register(app, ns="a11oy")
+    print("[a11oy] GNQS registered: /api/a11oy/v1/frontier/gnqs", file=__import__("sys").stderr)
+except Exception as _szl_gnqs_e:  # pragma: no cover
+    print(f"[a11oy] GNQS NOT registered: {_szl_gnqs_e!r}", file=__import__("sys").stderr)
+
+# ── SZL CASTA (Wave-P Dev4) — Clean-room Anomaly + Streaming Test-time Adaptation. A
+# per-window Λ-advisory trust gate (szl-lambda-gate) that REFUSES to apply streaming
+# test-time adaptation on windows the clean-room SDA detector (khipu-sda-core) flags as
+# anomalous, with a signed-adaptation-receipt-per-write design. MODELED (deterministic
+# drift/anomaly stream); the SZL synthesis is CONJECTURE (Λ = Conjecture 1, gray, never
+# green; advisory trust capped at 0.97). Cites Tent (arXiv:2006.10726), CoTTA
+# (arXiv:2203.13591), EATA (arXiv:2204.02610), MEMO (arXiv:2110.09506), Robust Random
+# Cut Forest (PMLR v48 2016), Isolation Forest (IEEE ICDM 2008). Additive,
+# try/except-guarded, before the SPA catch-all.
+try:
+    import szl_casta as _szl_casta
+    _szl_casta.register(app, ns="a11oy")
+    print("[a11oy] CASTA registered: /api/a11oy/v1/frontier/casta", file=__import__("sys").stderr)
+except Exception as _szl_casta_e:  # pragma: no cover
+    print(f"[a11oy] CASTA NOT registered: {_szl_casta_e!r}", file=__import__("sys").stderr)
+
 # NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
 # ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
 # /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static

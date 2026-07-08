@@ -122,6 +122,9 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "cryptopipeline", "cat": "proof", "title": "Crypto-Pipeline · End-to-End AI Lifecycle Verifiable Transcript (MODELED)", "owner": "WaveQ-Dev2"},
     {"id": "gateddelta", "cat": "attention", "title": "Gated Delta-Rule Linear Attention · state recall (MODELED)", "owner": "WaveQ-Dev1"},
     {"id": "agentops", "cat": "reasoning", "title": "Agent Ops · bounded operate loop (ground→act→self-eval→gate, Ouroboros-bounded, writer≠judge)", "owner": "WaveP-Dev5"},
+    {"id": "lgmi", "cat": "governance", "title": "LGMI · Λ-Governed Mechanistic Interpretability (synthesis)", "owner": "WaveP-Dev4"},
+    {"id": "gnqs", "cat": "quant", "title": "GNQS · Governed-Norm Quantization Stability (synthesis)", "owner": "WaveP-Dev4"},
+    {"id": "casta", "cat": "defense", "title": "CASTA · Clean-room Anomaly × Streaming Test-time Adaptation (synthesis)", "owner": "WaveP-Dev4"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).
