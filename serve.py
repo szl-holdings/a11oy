@@ -1199,6 +1199,25 @@ except Exception as _brainlineage_e:  # pragma: no cover
     print(f"[a11oy] Brain lineage NOT registered: {_brainlineage_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN EXPLAIN (feat/frontier-brainexplain) — a transparent, human-readable
+# explanation of WHY the brain retrieved what it did for a query: GET
+# /api/a11oy/v1/brain/explain/info (static describe), GET /api/a11oy/v1/brain/explain?q=&k=
+# (a MODELED explanation trace over the REAL retrieval subgraph — which query terms
+# matched which seed nodes, why each supporting node ranked where it did (ppr vs
+# salience), which communities were traversed, each node's OWN label VERBATIM; verdict
+# EXPLAINABLE/PARTIALLY-EXPLAINABLE/OPAQUE; pure read, mints nothing), POST
+# /api/a11oy/v1/brain/explain/receipt (same trace + an unsigned SHA-256 content digest,
+# receipt-on-write). Reuses szl_brain_api.get_index().ask (invents no node, re-ranks
+# nothing); never fabricates a rationale (honest OPAQUE beats a fake one); never upgrades
+# a label. Registered BEFORE the SPA /{full_path:path} catch-all. Additive, guarded.
+try:
+    import szl_brainexplain as _szl_brainexplain
+    _brainexplain_status = _szl_brainexplain.register(app, ns="a11oy")
+    print(f"[a11oy] Brain explain registered: {_brainexplain_status}", file=__import__("sys").stderr)
+except Exception as _brainexplain_e:  # pragma: no cover
+    print(f"[a11oy] Brain explain NOT registered: {_brainexplain_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
