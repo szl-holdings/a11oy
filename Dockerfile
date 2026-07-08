@@ -1345,6 +1345,8 @@ COPY szl_agent_tts.py ./szl_agent_tts.py
 # the transitive per-file COPY-guard. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 COPY szl_gated_delta.py ./szl_gated_delta.py
 COPY static/3d/surfaces/gateddelta.js ./static/3d/surfaces/gateddelta.js
+COPY szl_blocksparse.py ./szl_blocksparse.py
+COPY static/3d/surfaces/blocksparse.js ./static/3d/surfaces/blocksparse.js
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase
