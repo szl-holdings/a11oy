@@ -286,6 +286,107 @@ def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
 
     return _cached_fetch("openrouter_models", url, ttl=900, parser=parse)
 
+def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
+    """FRONTIER — live arXiv AI research feed (keyless Atom API).
+
+    Newest submissions across cs.AI / cs.LG / cs.CL / cs.CV / cs.NE rendered as the
+    live research frontier: most-recent papers plus per-category rollups. 100%
+    MEASURED — arXiv's own published titles, authors, categories and timestamps;
+    no citation count, no score, no ranking.
+    """
+    url = ("http://export.arxiv.org/api/query?search_query="
+           "cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL+OR+cat:cs.CV+OR+cat:cs.NE"
+           "&sortBy=submittedDate&sortOrder=descending&max_results=60")
+
+    def parse(d):
+        import xml.etree.ElementTree as ET
+        text = d if isinstance(d, str) else ""
+        try:
+            root = ET.fromstring(text)
+        except Exception:
+            return {"papers": [], "cats": [], "total": 0}
+        A = "{http://www.w3.org/2005/Atom}"
+        X = "{http://arxiv.org/schemas/atom}"
+        papers = []
+        for e in root.findall(A + "entry"):
+            title = " ".join((e.findtext(A + "title") or "").split())
+            if not title:
+                continue
+            pub = (e.findtext(A + "published") or e.findtext(A + "updated") or "").strip()
+            authors = [(a.findtext(A + "name") or "").strip() for a in e.findall(A + "author")]
+            authors = [a for a in authors if a]
+            pc = e.find(X + "primary_category")
+            cat = pc.get("term") if pc is not None else ""
+            aid = (e.findtext(A + "id") or "").strip()
+            papers.append({
+                "id": aid,
+                "title": title,
+                "first_author": authors[0] if authors else "",
+                "authors_n": len(authors),
+                "published": pub,
+                "cat": cat,
+            })
+        total = len(papers)
+        cats: dict[str, Any] = {}
+        for p in papers:
+            c = p["cat"] or "other"
+            g = cats.setdefault(c, {"cat": c, "count": 0, "latest": ""})
+            g["count"] += 1
+            if p["published"] > g["latest"]:
+                g["latest"] = p["published"]
+        cats_list = sorted(cats.values(), key=lambda x: (x["count"], x["latest"]), reverse=True)
+        return {"papers": papers[:limit], "cats": cats_list, "total": total}
+
+    return _cached_fetch("arxiv_frontier", url, ttl=900, parser=parse)
+
+
+def feed_hf_trending(limit: int = 24) -> dict[str, Any]:
+    """FRONTIER — live public Hugging Face Hub trending stream (keyless API).
+
+    The open-source model frontier: the models the Hub is trending right now, rolled up
+    per org/author plus the most-liked individual models. 100% MEASURED — the Hub's own
+    published like counts, downloads, authors and task tags; no invented benchmark, no
+    score, no ranking beyond the Hub's own trending signal.
+    """
+    url = ("https://huggingface.co/api/models?sort=trendingScore&direction=-1"
+           "&limit=60&full=false")
+
+    def parse(d):
+        arr = d if isinstance(d, list) else (d.get("models") if isinstance(d, dict) else [])
+
+        def _n(x):
+            try:
+                return int(x)
+            except Exception:
+                return 0
+
+        models = []
+        for m in (arr or []):
+            mid = m.get("id") or m.get("modelId") or ""
+            if not mid:
+                continue
+            org = m.get("author") or (mid.split("/")[0] if "/" in mid else "other")
+            models.append({
+                "id": mid,
+                "org": org,
+                "likes": _n(m.get("likes")),
+                "downloads": _n(m.get("downloads")),
+                "task": m.get("pipeline_tag") or "",
+                "library": m.get("library_name") or "",
+            })
+        total = len(models)
+        top = sorted(models, key=lambda x: x["likes"], reverse=True)[:limit]
+        orgs: dict[str, Any] = {}
+        for m in models:
+            g = orgs.setdefault(m["org"], {"org": m["org"], "count": 0, "likes": 0, "downloads": 0})
+            g["count"] += 1
+            g["likes"] += m["likes"]
+            g["downloads"] += m["downloads"]
+        orgs_list = sorted(orgs.values(), key=lambda x: (x["likes"], x["count"]), reverse=True)
+        return {"models": top, "orgs": orgs_list, "total": total}
+
+    return _cached_fetch("hf_trending", url, ttl=900, parser=parse)
+
 
 def feed_nvd_fintech(limit: int = 16) -> dict[str, Any]:
     url = ("https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=financial"
@@ -470,6 +571,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     async def _frontier_models(limit: int = 24):
         orm = feed_openrouter_models(limit)
         return JSONResponse({"tab": "models", "openrouter": orm, "doctrine": DOCTRINE})
+
+    @app.get(base + "/frontier/research", include_in_schema=False)
+    async def _frontier_research(limit: int = 24):
+        ax = feed_arxiv_frontier(limit)
+        return JSONResponse({"tab": "research", "arxiv": ax, "doctrine": DOCTRINE})
+
+    @app.get(base + "/frontier/open", include_in_schema=False)
+    async def _frontier_open(limit: int = 24):
+        hf = feed_hf_trending(limit)
+        return JSONResponse({"tab": "open", "huggingface": hf, "doctrine": DOCTRINE})
 
     # ---------- REAL ESTATE ----------
     @app.get(base + "/re/pulse", include_in_schema=False)
