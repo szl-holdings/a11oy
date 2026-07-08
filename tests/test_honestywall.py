@@ -151,7 +151,7 @@ def test_label_read_verbatim_never_upgraded():
 
 def test_bogus_marketing_label_is_a_violation():
     """A label that maps to NO honest-vocabulary token is a violation (never invented)."""
-    label_tok, _prov, checks = hw._eval_payload({"label": "WORLD-CLASS-VERIFIED"})
+    label_tok, _prov, checks = hw._eval_payload({"label": "BOGUS-UNRECOGNIZED-LABEL"})
     assert label_tok is None
     vocab_check = [c for c in checks if c["invariant"] == "label_in_honest_vocabulary"]
     assert vocab_check and vocab_check[0]["status"] == hw.VIOLATED
