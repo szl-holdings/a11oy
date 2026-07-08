@@ -1464,6 +1464,13 @@ COPY szl_verify_transcript.py ./szl_verify_transcript.py
 COPY szl_frontier_index.py ./szl_frontier_index.py
 COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 
+# WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
+# Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
+# reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is
+# imported by serve.py at boot to log an honest present/absent env report and
+# degrade (never crash) on a missing/renamed secret. Registry + secret-vs-variable
+# map documented in docs/RUNTIME_ENV.md.
+COPY szl_boot_preflight.py ./szl_boot_preflight.py
 # WAVE-R BACKEND UPGRADE (Dev 2). Per-file COPY (no `COPY . .`; the copy-completeness guard
 # requires every module reachable from serve.py to appear in the COPY set). Both are imported
 # by serve.py: szl_guarded_surface.py installs the shared guard so one bad surface can't 500

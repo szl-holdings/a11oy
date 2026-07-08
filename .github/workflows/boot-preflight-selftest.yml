@@ -1,0 +1,55 @@
+name: Boot preflight self-test
+
+# Network-free stdlib self-test for the boot-resilience env/secret preflight
+# (szl_boot_preflight.py). ADDITIVE guard — asserts that a missing/renamed
+# secret DEGRADES honestly instead of crashing the estate (the 2026-07-08
+# "Collision on variables and secrets names" CONFIG_ERROR class), that /healthz
+# stays 200 on a bare env, and that no secret VALUE ever leaks (names only).
+# No network, no GPU, no HF token required — serve.py boots in-process via the
+# Starlette TestClient. This gate is ADDED, never weakens an existing gate.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - szl_boot_preflight.py
+      - test_boot_preflight.py
+      - serve.py
+      - docs/RUNTIME_ENV.md
+      - .github/workflows/boot-preflight-selftest.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - szl_boot_preflight.py
+      - test_boot_preflight.py
+      - serve.py
+      - docs/RUNTIME_ENV.md
+      - .github/workflows/boot-preflight-selftest.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selftest:
+    name: szl_boot_preflight self-test (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi starlette httpx pytest
+      - name: py_compile the preflight module + serve.py
+        run: python -m py_compile szl_boot_preflight.py test_boot_preflight.py serve.py
+      - name: Run boot-preflight self-test (offline, missing-var => DEGRADED not crash)
+        run: python3 test_boot_preflight.py
