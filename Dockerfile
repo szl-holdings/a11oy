@@ -1528,6 +1528,17 @@ COPY szl_honestywall.py ./szl_honestywall.py
 # adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
 COPY szl_agentos.py ./szl_agentos.py
 
+# BRAIN HEALTH (feat/frontier-brainhealth) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_brainhealth.py is imported by serve.py and
+# rolls up the brain's OWN honesty sibling surfaces (grounding, freshness, provenance,
+# contradiction, uncertainty) into ONE brain-trust verdict, reading each available
+# component VERBATIM and degrading absent siblings to UNAVAILABLE (guarded imports —
+# it hard-depends on none of them). Its 3D surface brainhealth.js ships via the
+# existing whole-tree `COPY static/3d/ ./static/3d/` above. OBSERVES only — adds
+# NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
+COPY szl_brainhealth.py ./szl_brainhealth.py
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is

@@ -842,6 +842,25 @@ try:
 except Exception as _szl_agentos_e:  # pragma: no cover
     print(f"[a11oy] Agent OS map NOT registered: {_szl_agentos_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# BRAIN HEALTH (feat/frontier-brainhealth) — the brain's equivalent of the honesty wall: a
+# governed ROLLUP that reads each brain-honesty sibling surface's OWN signal + honest label
+# VERBATIM (grounding<-szl_brainground, freshness<-szl_brainmemory, provenance<-szl_brainprovenance,
+# contradiction<-szl_braincontradict, uncertainty<-szl_brainuncertainty) and rolls the AVAILABLE
+# ones into ONE brain-trust verdict for a query: TRUSTWORTHY / DEGRADED / UNTRUSTWORTHY /
+# INSUFFICIENT-SIGNAL. RESILIENT BY CONSTRUCTION — siblings ship in separate PRs, so each is
+# gathered through a GUARDED import (ImportError -> that component degrades to UNAVAILABLE, never
+# fabricated, never hard-depended-on). NEVER TRUSTWORTHY if any available component abstains / is
+# insufficient / conflict-flagged / stale-dominant. Strictly knowledge-graph honesty — advances no
+# detection/fusion/effector/targeting/cueing capability. GET health/info are PURE READS (sign/mint
+# nothing); POST receipt mints ONE unsigned SHA-256 content-digest (RECEIPT-ON-WRITE-NOT-ON-READ).
+# Adds NOTHING to the locked-8; Lambda stays Conjecture 1; trust ceiling 0.97, never 100%.
+# Additive, try/except-guarded, BEFORE the SPA catch-all.
+try:
+    import szl_brainhealth as _szl_brainhealth
+    print("[a11oy] " + _szl_brainhealth.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainhealth_e:  # pragma: no cover
+    print(f"[a11oy] Brain health NOT registered: {_szl_brainhealth_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
 # operational-dashboard back-end: for every registered surface it reports the honest data
 # label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
