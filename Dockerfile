@@ -1517,6 +1517,17 @@ COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
 # OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97.
 COPY szl_honestywall.py ./szl_honestywall.py
 
+# AGENT OS MAP (feat/frontier-agentos) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_agentos.py is imported by serve.py and
+# composes the estate's OWN in-process components (agentops, anatomy, honestywall,
+# doctrine + locked-8, optional governed loops) into one operator's-eye node/edge
+# map, carrying each node's LIVE verdict from the honestywall aggregate into an
+# OPERATING/DEGRADED/HALTED-HONEST map state. Its 3D surface agentos.js ships via
+# the existing whole-tree `COPY static/3d/ ./static/3d/` above. COMPOSES only —
+# adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
+COPY szl_agentos.py ./szl_agentos.py
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is
