@@ -743,6 +743,16 @@ COPY a11oy_brain_graph.py ./
 # GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
 # falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
 COPY szl_brain_api.py ./szl_brain_api.py
+# BRAIN PROVENANCE (Wave T) — imported by serve.py (guarded); MUST be per-file COPY'd or
+# GET /api/a11oy/v1/brain/provenance{,/info} + POST .../receipt fall through to the SPA
+# HTML shell. Per-answer SOURCE-LINEAGE only (which graph nodes supported the answer, each
+# label VERBATIM), NOT build/model attestation. Reuses szl_brain_api (COPY'd above).
+COPY szl_brainprovenance.py ./szl_brainprovenance.py
+# BRAIN CONTRADICTION DETECTOR (feat/frontier-braincontradict) — imported by serve.py (guarded);
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET/POST
+# /api/a11oy/v1/brain/contradict{,/info,/receipt} fall through to the SPA HTML shell. Its only
+# import (szl_brain_api) is already COPY'd above; the 3D surface .js ships via the static/3d tree.
+COPY szl_braincontradict.py ./szl_braincontradict.py
 # GOVERNED BRAIN-INFER (Wave P / Dev 3) — imported by serve.py (guarded); MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or POST /api/a11oy/v1/govern/brain-infer and
 # GET /api/a11oy/v1/govern/{receipts,verify} fall through to the SPA HTML shell (silent
@@ -1517,6 +1527,17 @@ COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
 # OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97.
 COPY szl_honestywall.py ./szl_honestywall.py
 
+# BRAIN MEMORY FRESHNESS (feat/frontier-brainmemory) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from serve.py to
+# appear in the COPY set). szl_brainmemory.py is imported by serve.py and reuses the honest
+# brain graph (szl_brain_api.get_index) to compute a deterministic, explainable per-node
+# memory-freshness score → FRESH/AGING/STALE. MODELED only when a real per-node recency
+# timestamp exists; otherwise STRUCTURAL-ONLY (connectivity+salience proxy, never a fabricated
+# timestamp or decay curve). Its 3D surface brainmemory.js ships via the existing whole-tree
+# `COPY static/3d/ ./static/3d/` above. READ-only — adds NOTHING to the locked-8; Λ = Conjecture
+# 1; trust ceiling 0.97; GET reads mint nothing; POST receipt is an unsigned SHA-256 digest.
+COPY szl_brainmemory.py ./szl_brainmemory.py
+
 # AGENT OS MAP (feat/frontier-agentos) — per-file COPY (this Dockerfile has NO
 # `COPY . .`; the copy-completeness guard requires every module reachable from
 # serve.py to appear in the COPY set). szl_agentos.py is imported by serve.py and
@@ -1538,6 +1559,34 @@ COPY szl_agentos.py ./szl_agentos.py
 # ./static/3d/` above. Read-only over knowledge-graph retrieval — adds NOTHING to the
 # locked-8; Λ = Conjecture 1; trust ceiling 0.97; MODELED (never MEASURED); no green.
 COPY szl_brainground.py ./szl_brainground.py
+# BRAIN UNCERTAINTY (feat/frontier-brainuncertainty) — per-file COPY (this Dockerfile
+# has NO `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_brainuncertainty.py is imported by serve.py
+# and derives calibrated, honest uncertainty (score dispersion + retrieval entropy +
+# rank stability → one [0,1] with a CONFIDENT/UNCERTAIN/HIGHLY-UNCERTAIN verdict) over
+# the SAME honest brain retrieval (szl_brain_api). Its 3D surface brainuncertainty.js
+# ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above. READS only —
+# adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
+COPY szl_brainuncertainty.py ./szl_brainuncertainty.py
+# BRAIN HEALTH (feat/frontier-brainhealth) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_brainhealth.py is imported by serve.py and
+# rolls up the brain's OWN honesty sibling surfaces (grounding, freshness, provenance,
+# contradiction, uncertainty) into ONE brain-trust verdict, reading each available
+# component VERBATIM and degrading absent siblings to UNAVAILABLE (guarded imports —
+# it hard-depends on none of them). Its 3D surface brainhealth.js ships via the
+# existing whole-tree `COPY static/3d/ ./static/3d/` above. OBSERVES only — adds
+# NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
+COPY szl_brainhealth.py ./szl_brainhealth.py
+# BRAIN WATCH (feat/frontier-brainwatch) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_brainwatch.py is imported by serve.py and
+# computes a deterministic honesty-posture snapshot of the live brain graph (label
+# distribution, orphan/community/salience posture; MEASURED) and a MODELED drift
+# verdict vs a caller-supplied PRIOR (STABLE/DRIFTING/DEGRADED/BASELINE-ONLY). Its 3D
+# surface brainwatch.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/`
+# above. OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
+COPY szl_brainwatch.py ./szl_brainwatch.py
 
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module

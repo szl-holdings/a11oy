@@ -860,6 +860,24 @@ try:
     print("[a11oy] " + _szl_brainground.register(app, ns="a11oy"), file=__import__("sys").stderr)
 except Exception as _szl_brainground_e:  # pragma: no cover
     print(f"[a11oy] Brainground NOT registered: {_szl_brainground_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# BRAIN HEALTH (feat/frontier-brainhealth) — the brain's equivalent of the honesty wall: a
+# governed ROLLUP that reads each brain-honesty sibling surface's OWN signal + honest label
+# VERBATIM (grounding<-szl_brainground, freshness<-szl_brainmemory, provenance<-szl_brainprovenance,
+# contradiction<-szl_braincontradict, uncertainty<-szl_brainuncertainty) and rolls the AVAILABLE
+# ones into ONE brain-trust verdict for a query: TRUSTWORTHY / DEGRADED / UNTRUSTWORTHY /
+# INSUFFICIENT-SIGNAL. RESILIENT BY CONSTRUCTION — siblings ship in separate PRs, so each is
+# gathered through a GUARDED import (ImportError -> that component degrades to UNAVAILABLE, never
+# fabricated, never hard-depended-on). NEVER TRUSTWORTHY if any available component abstains / is
+# insufficient / conflict-flagged / stale-dominant. Strictly knowledge-graph honesty — advances no
+# detection/fusion/effector/targeting/cueing capability. GET health/info are PURE READS (sign/mint
+# nothing); POST receipt mints ONE unsigned SHA-256 content-digest (RECEIPT-ON-WRITE-NOT-ON-READ).
+# Adds NOTHING to the locked-8; Lambda stays Conjecture 1; trust ceiling 0.97, never 100%.
+# Additive, try/except-guarded, BEFORE the SPA catch-all.
+try:
+    import szl_brainhealth as _szl_brainhealth
+    print("[a11oy] " + _szl_brainhealth.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainhealth_e:  # pragma: no cover
+    print(f"[a11oy] Brain health NOT registered: {_szl_brainhealth_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 # Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
 # operational-dashboard back-end: for every registered surface it reports the honest data
@@ -1039,6 +1057,91 @@ try:
     print(f"[a11oy] Brain API registered: {_brain_api_status}", file=__import__("sys").stderr)
 except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# BRAIN UNCERTAINTY (feat/frontier-brainuncertainty) — calibrated, HONEST uncertainty on a
+# brain retrieval, complementing (never duplicating) point grounding confidence. Reads the
+# SAME honest ranked retrieval the brain already serves (szl_brain_api) and derives three
+# deterministic, explainable measures over the retrieval's OWN shape — score dispersion,
+# retrieval entropy (over graph communities), rank stability — into one uncertainty in [0,1]
+# with a CONFIDENT/UNCERTAIN/HIGHLY-UNCERTAIN verdict that recommends abstain. NEVER CONFIDENT
+# when dispersion/entropy is high. MODELED calibration honesty, NOT a probability guarantee;
+# Λ = Conjecture 1. GET info/uncertainty are PURE READS (mint nothing); POST receipt mints ONE
+# unsigned SHA-256 content-digest receipt (RECEIPT-ON-WRITE-NOT-ON-READ). Adds NOTHING to the
+# locked-8; trust ceiling 0.97, never 100%. Additive, try/except-guarded, BEFORE the SPA
+# catch-all. Must register AFTER the brain API (which it reads).
+try:
+    import szl_brainuncertainty as _szl_brainuncertainty
+    print("[a11oy] " + _szl_brainuncertainty.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainuncertainty_e:  # pragma: no cover
+    print(f"[a11oy] Brain uncertainty NOT registered: {_szl_brainuncertainty_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
+# -- szl_brainmemory BRAIN MEMORY FRESHNESS -- governed episodic memory-freshness / decay
+# honesty over the SAME honest brain graph (reuses szl_brain_api.get_index). GET /api/a11oy/v1/
+# brain/memory/info (static describe + formula + honest labels), GET /api/a11oy/v1/brain/memory
+# ?top= (deterministic per-node freshness ranking + per-component breakdown + FRESH/AGING/STALE
+# verdict), POST /api/a11oy/v1/brain/memory/receipt (unsigned SHA-256 content-digest, RECEIPT-ON-
+# WRITE-NOT-ON-READ). If a real per-node recency timestamp exists the score is MODELED (recency +
+# structure); otherwise it degrades HONESTLY to STRUCTURAL-ONLY (connectivity+salience proxy) and
+# NEVER fabricates a timestamp or a decay curve. STALE nodes are flagged for re-harvest, never
+# silently trusted. Labels are never upgraded; the score is never MEASURED. Adds NOTHING to the
+# locked-8; Lambda stays Conjecture 1; trust ceiling 0.97, never 100%. Pure reads sign nothing.
+# Additive, try/except-guarded, BEFORE the SPA catch-all. Must register AFTER szl_brain_api.
+try:
+    import szl_brainmemory as _szl_brainmemory
+    print("[a11oy] " + _szl_brainmemory.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainmemory_e:  # pragma: no cover
+    print(f"[a11oy] Brain memory freshness NOT registered: {_szl_brainmemory_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# -- szl_brainprovenance BRAIN PROVENANCE (Wave T) -- per-answer SOURCE-LINEAGE layer over the
+# SAME brain retrieval: GET /api/a11oy/v1/brain/provenance{,/info} return the ordered chain of
+# exactly which knowledge-graph nodes supported an answer, each node's OWN honest label read
+# VERBATIM (never upgraded) + contribution_weight + a coverage statement, rolled to one honest
+# verdict TRACEABLE/PARTIAL-PROVENANCE/UNTRACEABLE (never TRACEABLE while any node UNAVAILABLE).
+# POST .../receipt mints an UNSIGNED SHA-256 content digest on write only (0 sign-on-GET). This
+# is source-lineage of an answer — NOT build/model attestation, NOT counter-UAS. Reuses
+# szl_brain_api (already COPY'd). Registered BEFORE the SPA catch-all. Additive, guarded.
+try:
+    import szl_brainprovenance as _szl_brainprovenance
+    _brainprov_status = _szl_brainprovenance.register(app, ns="a11oy")
+    print(f"[a11oy] Brain Provenance registered: {_brainprov_status}", file=__import__("sys").stderr)
+except Exception as _brainprov_e:  # pragma: no cover
+    print(f"[a11oy] Brain Provenance NOT registered: {_brainprov_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# -- BRAIN CONTRADICTION DETECTOR (feat/frontier-braincontradict) — a governed lens that
+# surfaces potential CONTRADICTIONS between grounded knowledge-graph claims HONESTLY and
+# refuses to RESOLVE them: GET /api/a11oy/v1/brain/contradict/info (static describe),
+# GET .../contradict?q=&k= (run detection over the retrieved subgraph -> pairs + reasons +
+# NO-CONFLICT/POSSIBLE-CONFLICT/CONFLICT-FLAGGED verdict, label MODELED), POST .../contradict/
+# receipt (UNSIGNED SHA-256 content-digest receipt-on-write; the GETs mint nothing). Reuses the
+# SAME honest brain graph via szl_brain_api.get_index (invents no nodes). Detection is a
+# transparent deterministic lexical/structural heuristic (negation polarity / antonym opposition
+# / numeric conflict) — no black-box model, MODELED never MEASURED, confidence capped below 1.0.
+# PRESENTS conflicts (adjudication=human-required, resolution=null) — never picks a winner, never
+# hides a side. Adds NOTHING to the locked-8; Λ stays Conjecture 1. Pure reads (0 sign-on-GET).
+# Registered BEFORE the SPA catch-all. Additive, try/except-guarded. szl_braincontradict.py is
+# per-file COPY'd in the Dockerfile (its only import, szl_brain_api, is already in the COPY set).
+try:
+    import szl_braincontradict as _szl_braincontradict
+    _braincontradict_status = _szl_braincontradict.register(app, ns="a11oy")
+    print(f"[a11oy] Brain contradiction detector registered: {_braincontradict_status}", file=__import__("sys").stderr)
+except Exception as _braincontradict_e:  # pragma: no cover
+    print(f"[a11oy] Brain contradiction detector NOT registered: {_braincontradict_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
+# -- BRAIN WATCH (feat/frontier-brainwatch) — a governed honesty-posture DRIFT monitor
+# over the SAME honest brain graph: GET /api/a11oy/v1/brain/watch/info (static describe),
+# GET /api/a11oy/v1/brain/watch (current MEASURED posture snapshot — label distribution,
+# orphan share, community fragmentation, salience concentration; BASELINE-ONLY, mints
+# nothing), POST /api/a11oy/v1/brain/watch/compare (MODELED drift vs a caller-supplied
+# PRIOR → STABLE/DRIFTING/DEGRADED, unsigned SHA-256 receipt-on-write). Reuses
+# szl_brain_api.get_index (invents no node, harvests nothing); never fabricates a trend
+# without a real prior; never upgrades a label. Pure reads on GET (0 sign-on-GET).
+# Registered BEFORE the SPA /{full_path:path} catch-all. Additive, try/except-guarded.
+try:
+    import szl_brainwatch as _szl_brainwatch
+    _brainwatch_status = _szl_brainwatch.register(app, ns="a11oy")
+    print(f"[a11oy] Brain watch registered: {_brainwatch_status}", file=__import__("sys").stderr)
+except Exception as _brainwatch_e:  # pragma: no cover
+    print(f"[a11oy] Brain watch NOT registered: {_brainwatch_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
