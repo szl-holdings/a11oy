@@ -1243,6 +1243,24 @@ except Exception as _braingaps_e:  # pragma: no cover
     print(f"[a11oy] Brain gaps NOT registered: {_braingaps_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN CONSTITUTION (feat/frontier-brainconstitution) — the honest, machine-checkable
+# ruleset the brain is graded against per query, the capstone over the brain-honesty surfaces:
+# GET /api/a11oy/v1/brain/constitution/info (Articles + method), GET
+# /api/a11oy/v1/brain/constitution?q=&k= (per-Article COMPLIANT/VIOLATED/UNAVAILABLE + overall
+# CONSTITUTIONAL/IN-VIOLATION/INSUFFICIENT-SIGNAL verdict; mints nothing), POST
+# /api/a11oy/v1/brain/constitution/receipt (unsigned SHA-256 receipt-on-write). Grades each
+# Article against whatever sibling brain-honesty surfaces are importable (guarded imports; an
+# absent surface is UNAVAILABLE, NEVER a fabricated pass); NEVER CONSTITUTIONAL while any
+# evaluable Article is VIOLATED; never upgrades a label. Pure reads on GET (0 sign-on-GET).
+# Registered BEFORE the SPA /{full_path:path} catch-all. Additive, try/except-guarded.
+try:
+    import szl_brainconstitution as _szl_brainconstitution
+    _brainconstitution_status = _szl_brainconstitution.register(app, ns="a11oy")
+    print(f"[a11oy] Brain constitution registered: {_brainconstitution_status}", file=__import__("sys").stderr)
+except Exception as _brainconstitution_e:  # pragma: no cover
+    print(f"[a11oy] Brain constitution NOT registered: {_brainconstitution_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
@@ -5274,6 +5292,14 @@ try:
         return _Redir(url="/brain", status_code=307)
 
     async def _alias_sovereign():
+        # /sovereign is now a REAL surface: the KHIPU Sovereign Ledger board
+        # (unified health + spend). Serve the page directly so the canonical URL
+        # renders the board instead of the legacy /agent redirect; fall back to
+        # /agent only if the page asset is somehow absent.
+        from starlette.responses import FileResponse as _FR
+        _sov = PAGES_DIR / "sovereign.html"
+        if _sov.is_file():
+            return _FR(_sov, media_type="text/html")
         return _Redir(url="/agent", status_code=307)
 
     async def _alias_investor_demo():
@@ -10805,7 +10831,6 @@ async def command_cockpit_page() -> Response:
 # Sovereign Ledger (Khipu) — unified health + spend board. Registered BEFORE
 # the /viz + SPA catch-all so the explicit route wins. pages/ ships wholesale via
 # the Dockerfile COPY pages/, so this new page needs no Dockerfile edit.
-@app.get("/sovereign")
 @app.get("/a11oy/sovereign")
 async def sovereign_ledger_page() -> Response:
     f = PAGES_DIR / "sovereign.html"

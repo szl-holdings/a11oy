@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import check_hf_corpus_freshness as fresh  # noqa: E402
 from szl_corpus_guard_common import (  # noqa: E402
-    AuthError, Unreachable, EXIT_OK, EXIT_VIOLATION, EXIT_ERROR,
+    AuthError, Unreachable, EXIT_OK, EXIT_VIOLATION, EXIT_ERROR, EXIT_UNKNOWN,
 )
 
 REF = datetime(2026, 6, 12, 12, 0, 0, tzinfo=timezone.utc)
@@ -101,11 +101,39 @@ def main():
                                head_fetcher=fetcher_for(AuthError("401")), ref=REF)
     check("auth error is EXIT_ERROR", code == EXIT_ERROR)
 
-    # unreachable -> EXIT_ERROR
+    # unreachable (transient, retries exhausted) -> UNKNOWN, NON-failing (no false incident)
     code, res = fresh.evaluate(cfg_one(72, 1), None,
                                head_fetcher=fetcher_for(Unreachable("down")),
                                ref=REF)
-    check("unreachable is EXIT_ERROR", code == EXIT_ERROR)
+    check("unreachable is UNKNOWN non-failing (no false incident)",
+          code == EXIT_UNKNOWN and res[0]["status"] == "unknown")
+
+    # retry/backoff: http_get retries transient failures then succeeds
+    import urllib.error as _ue
+    calls = {"n": 0}
+    def _flaky_urlopen(req, timeout=30):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise _ue.HTTPError(req.full_url, 429, "Too Many Requests", {}, None)
+        class _R:
+            def getcode(self): return 200
+            def read(self): return b'{"count": 5}'
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        return _R()
+    import urllib.request as _ur
+    _orig = _ur.urlopen
+    _ur.urlopen = _flaky_urlopen
+    try:
+        import scripts.szl_corpus_guard_common as _gc
+    except Exception:
+        import szl_corpus_guard_common as _gc
+    try:
+        _st, _body = _gc.http_get("https://example.test/head.json")
+        check("http_get retries 429 then succeeds (200 on 3rd try)",
+              _st == 200 and calls["n"] == 3)
+    finally:
+        _ur.urlopen = _orig
 
     print()
     if FAILURES:

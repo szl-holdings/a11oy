@@ -23,7 +23,7 @@ import sys
 
 import szl_corpus_guard_common as common
 from szl_corpus_guard_common import (
-    AuthError, Unreachable, EXIT_OK, EXIT_VIOLATION, EXIT_ERROR,
+    AuthError, Unreachable, EXIT_OK, EXIT_VIOLATION, EXIT_ERROR, EXIT_UNKNOWN,
 )
 
 
@@ -50,8 +50,12 @@ def evaluate(cfg, token, *, head_fetcher=fetch_head, ref=None):
                 results.append(entry)
                 continue
             except Unreachable as e:
-                entry.update(status="error", detail="unreachable: %s" % e)
-                worst = max(worst, EXIT_ERROR)
+                # Transient network failure that exhausted retries (429 / 5xx /
+                # timeout). Honest doctrine: unreachable == UNKNOWN, NOT a
+                # failure. Do NOT open an incident on a network flap — only a
+                # reachable VIOLATION or a genuine auth/malformed ERROR fails.
+                entry.update(status="unknown", detail="unreachable (transient): %s" % e)
+                worst = max(worst, EXIT_UNKNOWN)
                 results.append(entry)
                 continue
 
@@ -121,7 +125,11 @@ def main(argv=None):
         with open(args.summary_out, "w", encoding="utf-8") as fh:
             fh.write(text + "\n")
     if code == EXIT_OK:
-        print("FRESHNESS OK — all datasets fresh and above floor.")
+        if any(r.get("status") == "unknown" for r in results):
+            print("FRESHNESS OK — some datasets UNKNOWN (transient network flap, "
+                  "retries exhausted); no violation. Not opening an incident.")
+        else:
+            print("FRESHNESS OK — all datasets fresh and above floor.")
     elif code == EXIT_VIOLATION:
         print("FRESHNESS VIOLATION — a dataset is stale or below its floor.")
     else:
