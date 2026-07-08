@@ -1508,6 +1508,15 @@ COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 COPY szl_whatsnew.py ./szl_whatsnew.py
 COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
 
+# HONESTY WALL (feat/frontier-honestywall) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from serve.py
+# to appear in the COPY set). szl_honestywall.py is imported by serve.py and reads the
+# audited Frontier Index catalog to aggregate each surface's OWN honest label + the
+# estate honesty invariants into one INTACT/DEGRADED/VIOLATED verdict. Its 3D surface
+# honestywall.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/` above.
+# OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97.
+COPY szl_honestywall.py ./szl_honestywall.py
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is

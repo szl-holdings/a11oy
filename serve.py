@@ -804,6 +804,24 @@ try:
 except Exception as _szl_whatsnew_e:  # pragma: no cover
     print(f"[a11oy] What's New NOT registered: {_szl_whatsnew_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# HONESTY WALL (feat/frontier-honestywall) — the live "can this system lie right now?"
+# integrity wall. For every registered surface it reads the honest data label its OWN
+# backend emits (VERBATIM, never upgraded) + the estate's honesty invariants (locked-8
+# exact, Λ=Conjecture 1 not theorem, trust ceiling ≤0.97, no CONJECTURE rendered green,
+# no consciousness claim, writer≠judge) and rolls them into a single verifiable verdict:
+# INTACT / DEGRADED / VIOLATED — NEVER INTACT if anything is violated. DRIFT-PROOF: built
+# ENTIRELY on the Wave-Q frontier index (szl3d_holographic.SURFACES + app.routes + each
+# surface's own response). GET status/info are PURE READS (sign/mint nothing); POST
+# aggregate mints ONE unsigned SHA-256 content-digest receipt (RECEIPT-ON-WRITE-NOT-ON-
+# READ). Adds NOTHING to the locked-8; Λ stays Conjecture 1; trust ceiling 0.97, never
+# 100%. Additive, try/except-guarded, BEFORE the SPA catch-all. Must register AFTER the
+# frontier index (which it reads).
+try:
+    import szl_honestywall as _szl_honestywall
+    print("[a11oy] " + _szl_honestywall.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_honestywall_e:  # pragma: no cover
+    print(f"[a11oy] Honesty wall NOT registered: {_szl_honestywall_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
 # operational-dashboard back-end: for every registered surface it reports the honest data
 # label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
