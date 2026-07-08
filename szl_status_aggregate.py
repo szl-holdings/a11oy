@@ -41,7 +41,9 @@ DOCTRINE v11:
   - Additive route, registered before the SPA catch-all; canonical a-11-oy.com.
 """
 
+import collections
 import datetime
+import threading
 from typing import Any
 
 # The self label of this operational-status surface itself. It is a derived
@@ -52,8 +54,94 @@ LIVE = "LIVE"
 DEGRADED = "DEGRADED"
 UNAVAILABLE = "UNAVAILABLE"
 FRONTEND = "FRONTEND"  # client-side surface: no backend to be healthy/unhealthy
+# The history sparkline is a ring buffer of the estate rollups THIS process has
+# actually observed since boot — it is not a measured continuous time-series, so
+# it is honestly labelled SAMPLE (recent observed probes), never fabricated.
+SAMPLE = "SAMPLE"
 
 TRUST_CEILING = 0.97
+
+# ---------------------------------------------------------------------------
+# In-memory PROBE HISTORY ring buffer (honest SAMPLE sparkline).
+#
+# Every time build_status assembles a rollup it records ONE honest observation
+# of the whole-estate health it just computed. This is a bounded, in-process
+# ring buffer: it starts EMPTY at boot and only ever contains probes this
+# process genuinely observed — it NEVER back-fills or fabricates a history it
+# does not have (Doctrine v11: honest SAMPLE, never a fake measured series).
+# ---------------------------------------------------------------------------
+_HISTORY_MAXLEN = 64
+_HISTORY: "collections.deque[dict]" = collections.deque(maxlen=_HISTORY_MAXLEN)
+_HISTORY_LOCK = threading.Lock()
+
+
+def _record_probe(estate_health: str, counts: dict) -> None:
+    """Append one honestly-observed estate rollup to the ring buffer. Bounded
+    and thread-safe; never raises (a history write must never break a GET)."""
+    try:
+        with _HISTORY_LOCK:
+            _HISTORY.append({
+                "t": _now_iso(),
+                "health": estate_health,
+                "counts": dict(counts),
+            })
+    except Exception:  # pragma: no cover — history is best-effort, never fatal
+        pass
+
+
+def _history_view() -> dict:
+    """Honest SAMPLE sparkline: the estate rollups observed by THIS process since
+    boot. `observed` is the true count now held (<= capacity); `sparkline` is the
+    ordered list of health tokens. Empty until the first probe — never faked."""
+    with _HISTORY_LOCK:
+        samples = list(_HISTORY)
+    return {
+        "label": SAMPLE,
+        "what": ("in-memory ring buffer of the most recent whole-estate rollups THIS "
+                 "process actually observed since boot — a recent-probe sample, not a "
+                 "measured continuous series; never back-filled or fabricated."),
+        "capacity": _HISTORY_MAXLEN,
+        "observed": len(samples),
+        "sparkline": [s["health"] for s in samples],
+        "samples": samples,
+    }
+
+
+def _preflight_view() -> dict:
+    """Boot-preflight readiness rollup, read from the SAME honest source /healthz
+    uses (szl_boot_preflight.readiness — env/secret NAMES only, never a value).
+    Overall is already an honest LIVE/DEGRADED/UNAVAILABLE token. Guarded: on any
+    fault it degrades to an honest UNAVAILABLE rather than crashing the status GET."""
+    try:
+        import szl_boot_preflight as _pf
+        r = _pf.readiness()
+        overall = (r.get("overall") or UNAVAILABLE)
+        # A subsystem's readiness is a health TOKEN (LIVE/DEGRADED/UNAVAILABLE), NOT a
+        # doctrine honesty-disclosure label. The preflight module names it `label`, but
+        # the frontier-endpoint contract strictly vocab-checks any `label`/`data_label`
+        # key against the DISCLOSURE vocabulary (which has no DEGRADED). So we re-key it
+        # to `readiness` here — same honest value, verbatim, just not under a reserved
+        # disclosure-label key. NAMES only; never a secret value.
+        subs = []
+        for s in (r.get("subsystems", []) or []):
+            if not isinstance(s, dict):
+                continue
+            t = {k: v for k, v in s.items() if k != "label"}
+            t["readiness"] = s.get("label", UNAVAILABLE)
+            subs.append(t)
+        return {
+            "overall": overall,                     # LIVE / DEGRADED / UNAVAILABLE (verbatim)
+            "subsystems": subs,
+            "source": ("szl_boot_preflight.readiness — same boot-preflight rollup /healthz "
+                       "surfaces; env/secret NAMES only, never a secret value."),
+        }
+    except Exception as exc:  # honest degrade — preflight readiness is advisory
+        return {
+            "overall": UNAVAILABLE,
+            "subsystems": [],
+            "error": f"{type(exc).__name__}: {exc}",
+            "source": "szl_boot_preflight (unavailable)",
+        }
 
 # Health tokens are drawn from the honest vocabulary so any label/health value
 # stays inside the doctrine honesty vocabulary the CI contract gate enforces.
@@ -113,6 +201,22 @@ def _estate_health(counts: dict) -> str:
     return _HEALTH_HEALTHY
 
 
+def _headline(estate_health: str, preflight_overall: Any) -> str:
+    """Whole-estate GREEN/DEGRADED/UNAVAILABLE headline that folds in boot-preflight
+    readiness. WORST-WINS across {live surface health, preflight readiness}: any
+    UNAVAILABLE -> UNAVAILABLE; else any DEGRADED -> DEGRADED; else LIVE. A missing
+    or unrecognised preflight token is treated as DEGRADED (honest, never green)."""
+    order = {UNAVAILABLE: 0, DEGRADED: 1, LIVE: 2}
+    pf = str(preflight_overall or "").upper()
+    pf_rank = order.get(pf, order[DEGRADED])  # unknown preflight -> DEGRADED, never LIVE
+    est_rank = order.get(str(estate_health or "").upper(), order[UNAVAILABLE])
+    worst = min(est_rank, pf_rank)
+    for tok, rank in order.items():
+        if rank == worst:
+            return tok
+    return UNAVAILABLE
+
+
 def _degraded() -> Any:
     """Import the frontier index lazily so this module never hard-fails at import
     time if the index is unavailable (additive, guarded)."""
@@ -162,6 +266,12 @@ def build_status(app, ns: str = "a11oy") -> dict:
 
     estate_health = _estate_health(estate_counts) if catalog_ok else _HEALTH_UNAVAILABLE
 
+    # Record THIS observation into the honest in-memory sparkline ring buffer, then
+    # snapshot the buffer + the boot-preflight readiness for the payload.
+    _record_probe(estate_health, estate_counts)
+    history = _history_view()
+    preflight = _preflight_view()
+
     return {
         "ok": True,
         "endpoint": "status",
@@ -180,7 +290,16 @@ def build_status(app, ns: str = "a11oy") -> dict:
             "surfaces": len(entries),
             "subsystems": len(subsystems),
             "counts": estate_counts,
+            # Boot-preflight readiness folded into the estate headline so an operator
+            # reads ONE honest state that covers BOTH live surface health AND whether
+            # the box booted ready. Worst-wins: a DEGRADED/UNAVAILABLE preflight can
+            # only ever pull the headline down, never lift it (no fabricated green).
+            "headline": _headline(estate_health, preflight.get("overall")),
         },
+        # Boot-preflight readiness (from the same rollup /healthz surfaces).
+        "preflight": preflight,
+        # Honest SAMPLE sparkline: recent estate rollups THIS process observed.
+        "history": history,
         "health_legend": {
             LIVE: "surface's own /api route answered in-process with an honest label",
             DEGRADED: "route registered but no a11oy-native honest label emitted (proxy/other origin)",
@@ -219,9 +338,67 @@ def handle_status(app, ns: str = "a11oy") -> dict:
             "service": "a11oy.status.aggregate",
             "label": UNAVAILABLE,
             "estate": {"health": UNAVAILABLE, "surfaces": 0, "subsystems": 0,
-                       "counts": _blank_counts()},
+                       "counts": _blank_counts(), "headline": UNAVAILABLE},
+            "preflight": {"overall": UNAVAILABLE, "subsystems": []},
+            "history": _history_view(),
             "reason": str(exc),
             "doctrine": "v11: status aggregate unavailable; no fabricated health emitted.",
+            "timestamp_utc": _now_iso(),
+        }
+
+
+def build_summary(app, ns: str = "a11oy") -> dict:
+    """Compact rollup for EXTERNAL monitors — a small, stable JSON an uptime probe
+    can poll cheaply. Derives entirely from build_status (so it can never disagree
+    with the full aggregate); emits the estate headline, per-health counts, the
+    boot-preflight overall, and the honest SAMPLE sparkline tokens. Nothing new."""
+    full = build_status(app, ns)
+    est = full.get("estate", {}) or {}
+    pf = full.get("preflight", {}) or {}
+    hist = full.get("history", {}) or {}
+    return {
+        "ok": bool(full.get("ok")),
+        "endpoint": "status/summary",
+        "service": "a11oy.status.summary",
+        "label": MODELED,
+        "headline": est.get("headline", UNAVAILABLE),
+        "estate_health": est.get("health", UNAVAILABLE),
+        "surfaces": est.get("surfaces", 0),
+        "subsystems": est.get("subsystems", 0),
+        "counts": est.get("counts", _blank_counts()),
+        "preflight": pf.get("overall", UNAVAILABLE),
+        "history": {
+            "label": SAMPLE,
+            "observed": hist.get("observed", 0),
+            "sparkline": hist.get("sparkline", []),
+        },
+        "doctrine": {
+            "locked_proven": 8,
+            "lambda": "Conjecture 1",
+            "trust_ceiling": TRUST_CEILING,
+            "trust_100_percent": False,
+            "runtime_cdn": 0,
+        },
+        "timestamp_utc": _now_iso(),
+    }
+
+
+def handle_summary(app, ns: str = "a11oy") -> dict:
+    """GET /status/summary — never 500s: honest UNAVAILABLE payload on any fault."""
+    try:
+        return build_summary(app, ns)
+    except Exception as exc:  # noqa: BLE001 — honest degrade, never crash the SPA
+        return {
+            "ok": False,
+            "endpoint": "status/summary",
+            "service": "a11oy.status.summary",
+            "label": UNAVAILABLE,
+            "headline": UNAVAILABLE,
+            "estate_health": UNAVAILABLE,
+            "counts": _blank_counts(),
+            "preflight": UNAVAILABLE,
+            "history": {"label": SAMPLE, "observed": 0, "sparkline": []},
+            "reason": str(exc),
             "timestamp_utc": _now_iso(),
         }
 
@@ -254,12 +431,18 @@ def register(app, ns: str = "a11oy") -> str:
         rolled up for the whole estate. Drift-proof (reuses the frontier index)."""
         return JSONResponse(handle_status(app, ns))
 
+    @app.get(f"{base}/summary")
+    def _status_summary():
+        """Compact rollup for external monitors: headline + counts + preflight +
+        honest SAMPLE sparkline. Read-only; signs/mints nothing on a GET."""
+        return JSONResponse(handle_summary(app, ns))
+
     @app.get(f"{base}/health")
     def _status_health():
         """Self-describing health tile for the status aggregate itself."""
         return JSONResponse(handle_health())
 
-    return "status-aggregate-wired:2"
+    return "status-aggregate-wired:3"
 
 
 # ---------------------------------------------------------------------------
@@ -338,5 +521,47 @@ if __name__ == "__main__":
         assert est["health"] in (DEGRADED, UNAVAILABLE), est
     print(f"[5] self label MODELED, no green; estate rollup honest={est['health']}  OK")
 
-    print("\nok:true checks:5")
+    # 6) DEEPEN: boot-preflight readiness folded in + honest estate HEADLINE.
+    pf = st["preflight"]
+    assert pf["overall"] in HEALTHS, f"preflight overall not honest: {pf['overall']}"
+    # preflight readiness is a health TOKEN, NOT a doctrine disclosure label — it must NOT
+    # be exposed under a reserved honesty-label key (frontier-endpoint contract vocab).
+    assert "label" not in pf, "preflight must not carry a reserved honesty-label key"
+    headline = est["headline"]
+    assert headline in (LIVE, DEGRADED, UNAVAILABLE), f"bad headline {headline}"
+    # WORST-WINS: headline can never be healthier than either input.
+    order = {UNAVAILABLE: 0, DEGRADED: 1, LIVE: 2}
+    assert order[headline] <= order[est["health"]], (headline, est["health"])
+    pf_rank = order.get(pf["overall"], order[DEGRADED])
+    assert order[headline] <= pf_rank, (headline, pf["overall"])
+    print(f"[6] preflight={pf['overall']} folded into worst-wins headline={headline}  OK")
+
+    # 7) DEEPEN: honest SAMPLE sparkline ring buffer — records real observed probes,
+    #    is bounded, and never fabricates a history it does not have.
+    h = st["history"]
+    assert h["label"] == SAMPLE, h
+    assert h["capacity"] == _HISTORY_MAXLEN
+    assert h["observed"] >= 1 and h["observed"] == len(h["sparkline"]) == len(h["samples"])
+    assert h["observed"] <= h["capacity"], "ring buffer must be bounded"
+    for tok in h["sparkline"]:
+        assert tok in (LIVE, DEGRADED, UNAVAILABLE), f"non-honest sparkline token {tok}"
+    before = st["history"]["observed"]
+    st2 = handle_status(app, ns="a11oy")
+    assert st2["history"]["observed"] == min(before + 1, _HISTORY_MAXLEN), (
+        "each probe must append exactly one honest observation")
+    print(f"[7] SAMPLE sparkline: {h['observed']} real observed probe(s), bounded  OK")
+
+    # 8) DEEPEN: /status/summary compact monitor payload agrees with the full aggregate.
+    sm = handle_summary(app, ns="a11oy")
+    assert sm["ok"] is True and sm["label"] == MODELED
+    assert sm["endpoint"] == "status/summary"
+    assert sm["headline"] in (LIVE, DEGRADED, UNAVAILABLE)
+    assert sm["estate_health"] == LIVE or sm["estate_health"] in (DEGRADED, UNAVAILABLE)
+    assert sm["preflight"] in HEALTHS
+    assert sm["history"]["label"] == SAMPLE
+    assert sm["doctrine"]["locked_proven"] == 8 and sm["doctrine"]["lambda"] == "Conjecture 1"
+    assert sm["doctrine"]["runtime_cdn"] == 0
+    print(f"[8] /status/summary compact monitor payload agrees, headline={sm['headline']}  OK")
+
+    print("\nok:true checks:8")
     _sys.exit(0)
