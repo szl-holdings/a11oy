@@ -672,6 +672,14 @@ COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_me
 # transitive import closure is complete with just this one added COPY.
 COPY szl_sovereign_panel.py ./szl_sovereign_panel.py
 
+# Wave P / Dev 4: three new frontier synthesis surfaces — imported GUARDED by serve.py
+# (GET /api/a11oy/v1/frontier/{lgmi,gnqs,casta}). Per the transitive COPY-guard (Wave L)
+# each MUST be COPY'd or its endpoint 404s. Pure stdlib (no local imports), so the
+# import closure is complete with just these three added COPYs.
+COPY szl_lgmi.py ./szl_lgmi.py
+COPY szl_gnqs.py ./szl_gnqs.py
+COPY szl_casta.py ./szl_casta.py
+
 # Wave O / Dev 3: Brain-Body panel — imported GUARDED by serve.py (GET /api/a11oy/v1/
 # frontier/brainbody), the composer that lights the LIVING BODY 3D surface
 # (static/3d/surfaces/brainbody.js) from the Brain pulse (Dev-1 /brain/pulse) + energy

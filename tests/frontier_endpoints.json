@@ -357,5 +357,20 @@
     "path": "/api/a11oy/v1/frontier/brainbody",
     "query": "",
     "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/lgmi",
+    "query": "seed=42&n_features=64&n_circuits=48&sparsity=0.08",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/gnqs",
+    "query": "seed=42&n_layers=48&bits=4&governed=1",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/frontier/casta",
+    "query": "seed=42&n_steps=48&drift=0.015&contamination=0.12&adapt=1",
+    "method": "GET"
   }
 ]
