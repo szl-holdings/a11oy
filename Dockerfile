@@ -1474,6 +1474,15 @@ COPY szl_verify_transcript.py ./szl_verify_transcript.py
 COPY szl_frontier_index.py ./szl_frontier_index.py
 COPY static/3d/surfaces/frontierindex.js ./static/3d/surfaces/frontierindex.js
 
+# WAVE-S DEV 5: WHAT'S NEW (honest auto-derived estate changelog). Per-file COPY (this
+# Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module reachable
+# from serve.py to appear in the COPY set). szl_whatsnew.py is imported by serve.py and reads
+# the audited Frontier Index catalog + real git add-history; whatsnew.js is the 3D surface
+# listed in szl3d_holographic.SURFACES + holographic.html. (No .git tree ships in the image,
+# so the feed degrades honestly to registry-order at runtime — see szl_whatsnew.py.)
+COPY szl_whatsnew.py ./szl_whatsnew.py
+COPY static/3d/surfaces/whatsnew.js ./static/3d/surfaces/whatsnew.js
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is
