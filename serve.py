@@ -1041,6 +1041,27 @@ except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN CONTRADICTION DETECTOR (feat/frontier-braincontradict) — a governed lens that
+# surfaces potential CONTRADICTIONS between grounded knowledge-graph claims HONESTLY and
+# refuses to RESOLVE them: GET /api/a11oy/v1/brain/contradict/info (static describe),
+# GET .../contradict?q=&k= (run detection over the retrieved subgraph -> pairs + reasons +
+# NO-CONFLICT/POSSIBLE-CONFLICT/CONFLICT-FLAGGED verdict, label MODELED), POST .../contradict/
+# receipt (UNSIGNED SHA-256 content-digest receipt-on-write; the GETs mint nothing). Reuses the
+# SAME honest brain graph via szl_brain_api.get_index (invents no nodes). Detection is a
+# transparent deterministic lexical/structural heuristic (negation polarity / antonym opposition
+# / numeric conflict) — no black-box model, MODELED never MEASURED, confidence capped below 1.0.
+# PRESENTS conflicts (adjudication=human-required, resolution=null) — never picks a winner, never
+# hides a side. Adds NOTHING to the locked-8; Λ stays Conjecture 1. Pure reads (0 sign-on-GET).
+# Registered BEFORE the SPA catch-all. Additive, try/except-guarded. szl_braincontradict.py is
+# per-file COPY'd in the Dockerfile (its only import, szl_brain_api, is already in the COPY set).
+try:
+    import szl_braincontradict as _szl_braincontradict
+    _braincontradict_status = _szl_braincontradict.register(app, ns="a11oy")
+    print(f"[a11oy] Brain contradiction detector registered: {_braincontradict_status}", file=__import__("sys").stderr)
+except Exception as _braincontradict_e:  # pragma: no cover
+    print(f"[a11oy] Brain contradiction detector NOT registered: {_braincontradict_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/

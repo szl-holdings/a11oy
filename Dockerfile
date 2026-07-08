@@ -743,6 +743,11 @@ COPY a11oy_brain_graph.py ./
 # GET /api/a11oy/v1/brain/{search,neighbors,community,subgraph,salience,ask,stats,index}
 # falls through to a runtime stub. Reuses a11oy_brain_graph to make the brain traversable.
 COPY szl_brain_api.py ./szl_brain_api.py
+# BRAIN CONTRADICTION DETECTOR (feat/frontier-braincontradict) — imported by serve.py (guarded);
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or GET/POST
+# /api/a11oy/v1/brain/contradict{,/info,/receipt} fall through to the SPA HTML shell. Its only
+# import (szl_brain_api) is already COPY'd above; the 3D surface .js ships via the static/3d tree.
+COPY szl_braincontradict.py ./szl_braincontradict.py
 # GOVERNED BRAIN-INFER (Wave P / Dev 3) — imported by serve.py (guarded); MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or POST /api/a11oy/v1/govern/brain-infer and
 # GET /api/a11oy/v1/govern/{receipts,verify} fall through to the SPA HTML shell (silent
