@@ -1,0 +1,95 @@
+# brain-honesty-check.yml — scheduled LIVENESS check for a11oy's brain-honesty estate.
+# Doctrine v11 | Λ = Conjecture 1 (advisory) | SLSA L1 honest
+# Signed-off-by: Lutar, Stephen P. Jr. <stephenlutar2@gmail.com>
+#
+# The brain-honesty surfaces (szl_brain*.py — consensus, contradict, explain, gaps, ground,
+# health, lineage, memory, provenance, audit, uncertainty, watch) are OBSERVE-only views over
+# the knowledge graph, and the honesty wall (szl_honestywall.py,
+# GET /api/a11oy/v1/govern/honestywall/status) aggregates the estate's OWN honesty invariants
+# into one verdict: INTACT / DEGRADED / VIOLATED. This monitor confirms — over the network,
+# against the LIVE HF Space — that each surface's /info manifest is UP and the wall is
+# reachable and NOT VIOLATED. It NEVER fabricates a pass: an unreachable surface is UNKNOWN,
+# not green. Only the wall governs the exit code (a single napping surface must not red-gate
+# the liveness signal); a truthful VIOLATED / UNREACHABLE beats a fake green.
+#
+# Read-only: no secrets, no repo writes, GET-only probes. Org policy compliance —
+# github-owned actions only, SHA-pinned; the checker is stdlib-only Python (no pip install,
+# no third-party action). A --selftest negative control (offline) proves the checker refuses
+# to fabricate a pass before it is trusted against the live estate.
+
+name: Brain Honesty Check
+
+on:
+  schedule:
+    - cron: '17 7 * * *'   # daily at 07:17 UTC
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  self-test:
+    name: Checker self-test (offline negative control)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Byte-validate the checker (ast.parse) before running it
+        run: python3 -c "import ast; ast.parse(open('fleet_ops/brain_honesty_check.py').read()); print('checker ast OK')"
+      - name: Run offline negative control (proves it refuses to fabricate a pass)
+        run: python3 fleet_ops/brain_honesty_check.py --selftest
+
+  liveness:
+    name: Live brain-honesty surface + wall liveness (HF Space)
+    needs: self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Probe live brain-honesty surfaces + honesty wall
+        id: probe
+        run: |
+          set +e
+          python3 fleet_ops/brain_honesty_check.py \
+            --base "https://szlholdings-a11oy.hf.space" \
+            --summary-file /tmp/brain-honesty.json | tee /tmp/probe.log
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo "### a11oy brain-honesty liveness"
+            echo ""
+            echo '```'
+            cat /tmp/probe.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Do not fail here — the final gate decides, so the summary always records first.
+          exit 0
+      - name: Gate on the honesty-wall verdict
+        if: always()
+        run: |
+          code="${{ steps.probe.outputs.exit_code }}"
+          case "$code" in
+            0) echo "honesty wall reachable and not violated (INTACT/DEGRADED)." ;;
+            1) echo "::error::honesty wall reports VIOLATED — the estate can lie right now." ; exit 1 ;;
+            2) echo "::error::honesty wall UNREACHABLE — unreachable-when-expected, not a pass." ; exit 1 ;;
+            *) echo "::error::brain-honesty check errored (exit $code)." ; exit 1 ;;
+          esac
