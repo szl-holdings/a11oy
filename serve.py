@@ -735,6 +735,24 @@ try:
 except Exception as _szl_bb_e:  # pragma: no cover
     print(f"[a11oy] Frontier brainbody NOT registered: {_szl_bb_e!r}", file=__import__("sys").stderr)
 
+# FlowBrain — GET /api/a11oy/v1/frontier/flowbrain (+ /flowbrain/trajectory) reframes the
+# governed brain's belief-tier evolution (CONJECTURE → CORROBORATED → LOAD-BEARING) as a
+# CONTINUOUS confidence flow x_t ∈ [0,1] where the named tiers are THRESHOLDS CROSSED, not
+# states occupied, and exposes a SplitUNet-style "1D-time ⊗ 1D-node" axis-factorization
+# (STRUCTURAL-ONLY). The flow is a deterministic logistic derived from a REAL brain-graph
+# node's degree/layer (a11oy_brain_graph); no node fact is fabricated. Borrows ONLY the
+# continuous-flow-over-discretization principle from B[FM]² (arXiv:2606.20812) — NO EEG, no
+# flow-matching model trained/run here. Top label STRUCTURAL-ONLY; the synthesis is
+# CONJECTURE (never a theorem). GET-only, so it emits an UNSIGNED SHA-256 CONTENT digest
+# (client-recomputable) — no signing on a read path. Adds NOTHING to the locked-8; Λ stays
+# Conjecture 1; trust ceiling 0.97, never 100%. Additive, try/except-guarded, before the SPA.
+try:
+    import szl_flowbrain as _szl_flowbrain
+    _szl_flowbrain.register(app, ns="a11oy")
+    print("[a11oy] Frontier flowbrain registered: /api/a11oy/v1/frontier/flowbrain (STRUCTURAL-ONLY continuous belief-flow lens; synthesis CONJECTURE)", file=__import__("sys").stderr)
+except Exception as _szl_fb_e:  # pragma: no cover
+    print(f"[a11oy] Frontier flowbrain NOT registered: {_szl_fb_e!r}", file=__import__("sys").stderr)
+
 # Model-Artifact Provenance (SLSA · in-toto · Rekor · C2PA) — GET /api/a11oy/v1/frontier/
 # supplychain returns the MODEL supply chain (weights → build → attestation → deploy) as a
 # governed, honestly-labeled surface: each stage names its provenance evidence (in-toto
