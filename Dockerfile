@@ -407,6 +407,12 @@ COPY static/vendor3d/three.module.min.js static/vendor3d/OrbitControls.js static
 # CDN, the estate is sovereign. Whole-tree COPY (nested vendor/ tree). The register
 # module + its pytest ship alongside the rest of the root .py modules.
 COPY szl3d_holographic.py ./szl3d_holographic.py
+# ADDITIVE (Wave-P Dev2): live cross-node mesh orchestrator backing the /holographic
+# `mesh` surface (mesh.js ships free in the whole-tree static/3d COPY above). Serves
+# /api/a11oy/v1/mesh/{status,route,quorum} — honest per-node LIVE/DEGRADED/OFFLINE,
+# cheapest-live-watt advisory routing, and a 3-of-4 witness-quorum view (Conjecture 2).
+# Pure stdlib transport. Imported + registered by serve.py before the SPA catch-all.
+COPY szl_mesh_orchestrator.py ./szl_mesh_orchestrator.py
 # ADDITIVE (cathedral unification, GitHub-aligned): the ONE canonical genius
 # cathedral served at /cathedral — IDENTICAL "Constellation · Khipu" scene as the
 # SZLHOLDINGS/cathedral HF static space. cathedral_genius.html is that HF
