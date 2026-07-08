@@ -1409,6 +1409,18 @@ COPY static/3d/surfaces/governedagent.js ./static/3d/surfaces/governedagent.js
 # MODELED, UNSIGNED-LOCAL locally. Λ = Conjecture 1; adds nothing to the locked-8.
 COPY szl_crypto_pipeline.py ./szl_crypto_pipeline.py
 COPY static/3d/surfaces/cryptopipeline.js ./static/3d/surfaces/cryptopipeline.js
+# WAVE-S FRONTIER (feat/frontier-s-confattest, Dev 3): szl_confattest.py registers
+# GET /api/a11oy/v1/confattest/quote + /confattest/gate — (a) a SIMULATED confidential-
+# compute enclave attestation quote (NO real TEE; SHA-derived + replayable) chained into
+# a content-addressed receipt, and (b) a deny-by-default ACTION GATE that governs the
+# ACTION EFFECT not the reasoning, with Λ ADVISORY (surface id `confattest`). Chains
+# GUARDED read-only to the DSSE/durable-ledger spine (never signs on the GET). MUST be
+# per-file COPY'd (this Dockerfile uses no `COPY . .`) or the guarded import in serve.py
+# falls back and the endpoints 404 (merged-but-not-live). The confattest.js surface also
+# ships via `COPY static/3d/ ./static/3d/` above; copied explicitly here too so the tab
+# can never go dark. Additive; label MODELED, UNSIGNED-LOCAL locally. Λ = Conjecture 1.
+COPY szl_confattest.py ./szl_confattest.py
+COPY static/3d/surfaces/confattest.js ./static/3d/surfaces/confattest.js
 # BOUNDED OPERATE LOOP (Wave P · Dev 5, 2026-07-07): a minimal HARD-bounded Ouroboros
 # recursion that grounds each step on the REAL brain PPR and judges it with a
 # deterministic doctrine gate (writer≠judge). Additive; builds ON the governed loop.

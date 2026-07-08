@@ -130,6 +130,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "pddisagg", "cat": "defense", "title": "Prefill/Decode Disaggregation Map · colocated vs disaggregated latency across the mesh (STRUCTURAL-ONLY/ROADMAP)", "owner": "WaveP-Dev4"},
     {"id": "execverify", "cat": "reasoning", "title": "Execution-Verified Synthesis Loop · eval → verified trajectory → corpus candidate → receipt (STRUCTURAL-ONLY)", "owner": "WaveP-Dev4"},
     {"id": "opsdash", "cat": "governance", "flag": True, "title": "Ops Dashboard · live estate health · GREEN/DEGRADED/UNAVAILABLE rollup + per-surface honest labels + /verify", "owner": "WaveR-Dev3"},
+    {"id": "confattest", "cat": "governance", "title": "Confidential-Compute Attestation + Action Gate · SIMULATED enclave quote → receipt · govern ACTIONS not reasoning (MODELED)", "owner": "WaveS-Dev3"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).

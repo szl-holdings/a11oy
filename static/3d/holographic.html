@@ -313,6 +313,7 @@ const SURFACES = [
   { id: "pddisagg", cat: "defense", title: "Prefill/Decode Disaggregation Map · colocated vs disaggregated latency across the mesh (STRUCTURAL-ONLY/ROADMAP)", mod: "/static/3d/surfaces/pddisagg.js" },
   { id: "execverify", cat: "reasoning", title: "Execution-Verified Synthesis Loop · eval → verified trajectory → corpus candidate → receipt (STRUCTURAL-ONLY)", mod: "/static/3d/surfaces/execverify.js" },
   { id: "opsdash", cat: "governance", flag: true, title: "Ops Dashboard · live estate health · GREEN/DEGRADED/UNAVAILABLE rollup + per-surface honest labels + /verify", mod: "/static/3d/surfaces/opsdash.js" },
+  { id: "confattest", cat: "governance", title: "Confidential-Compute Attestation + Action Gate · SIMULATED enclave quote → receipt · govern ACTIONS not reasoning (MODELED)", mod: "/static/3d/surfaces/confattest.js" },
 ];
 
 const stageEl = document.getElementById("stage");
