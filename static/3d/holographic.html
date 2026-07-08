@@ -35,7 +35,7 @@
     surfaces stand out and the rest group behind one-tap dropdowns. Accents are proof-teal
     (0x3af4c8) — NEVER purple (doctrine v11 palette). */
  .tabs{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);
-  background:#070d15;flex:0 0 auto;position:relative;z-index:16}
+  background:#070d15;flex:0 0 auto}
  .navrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
  .navlabel{font:9.5px ui-monospace,monospace;color:var(--para);letter-spacing:.6px;
   text-transform:uppercase;opacity:.7;margin-right:2px;flex:0 0 auto}
@@ -59,29 +59,15 @@
  .catbtn[aria-expanded="true"] .caret{transform:rotate(90deg)}
  .catbtn[data-hasactive="true"]{box-shadow:0 0 0 1px var(--proof) inset}
  .catbtn .count{font-size:9px;color:var(--para);opacity:.7}
- /* Drop panel: floats OVER the 3D stage (absolute) so opening a category never shoves the
-    holo down the page. Only one open at a time; click the stage or press Esc to dismiss. */
- #cat-panels{position:static}
- .panel{display:none;position:absolute;left:10px;right:10px;top:100%;margin-top:5px;z-index:15;
-  gap:6px;flex-wrap:wrap;padding:10px;border:1px solid var(--line);border-radius:11px;
-  background:rgba(9,18,27,.97);box-shadow:0 18px 44px rgba(0,0,0,.6);
-  max-height:min(56vh,440px);overflow:auto;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+ /* Drop panel: the tabs of the currently-open category (only one open at a time). */
+ .panel{display:none;gap:6px;flex-wrap:wrap;padding:8px;margin-top:2px;
+  border:1px solid var(--line);border-radius:9px;background:#08111a}
  .panel[data-open="true"]{display:flex}
  #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
  #stage{position:absolute;inset:0}
  #stage canvas{display:block;width:100%;height:100%;touch-action:none}
  #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
-  text-align:center;color:var(--para);padding:24px;font:13px/1.6 ui-monospace,monospace}
- #fallback a{color:var(--teal)}
- /* Boot hint: a calm "the holo is starting" state so the stage is never an unexplained black
-    void while three.js + the first surface load. Hidden the instant a canvas appears. */
- #booting{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:12px;text-align:center;color:var(--teal);pointer-events:none;
-  font:12.5px ui-monospace,monospace;letter-spacing:.4px;transition:opacity .4s}
- #booting[hidden]{display:none}
- #booting .spin{width:26px;height:26px;border:2px solid #143240;border-top-color:var(--proof);
-  border-radius:50%;animation:szspin 1s linear infinite}
- @keyframes szspin{to{transform:rotate(360deg)}}
+  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace}
  footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   background:#070d15;color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6;
   white-space:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -177,9 +163,8 @@
 </nav>
 <div id="stage-wrap">
  <div id="stage"></div>
- <div id="booting"><div class="spin"></div>booting the holographic estate…</div>
  <div id="fallback">3D unavailable on this device — the holographic estate needs a WebGL2 or WebGPU canvas.<br>
-  All underlying data is still available as JSON at the per-surface endpoints, and the <a href="/atlas">2D console</a> works everywhere.</div>
+  All underlying data is still available as JSON at the per-surface endpoints.</div>
  <!-- Landing overlay (Dev4): coherent honest entry over the live estate. -->
  <div id="intro" role="dialog" aria-label="a11oy holographic estate — landing overview" hidden>
   <div class="intro-eyebrow">SZL Holdings · Doctrine v11 · Λ = Conjecture 1</div>
@@ -220,38 +205,6 @@
 </div>
 <footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
  shared szl3d toolkit (Dev0) · every value carries its honesty label · trust &lt; 100%</footer>
-
-<script>
-/* Module-independent safety net + dead-man timer. Runs even if the ES module below never
-   loads/executes (old browser, blocked importmap, strict CSP). If after 10s there is still no
-   <canvas> in the stage and the honest #fallback isn't already shown, reveal an honest message
-   + a 2D-console escape hatch — so the stage is never an unexplained black void. */
-(function () {
-  window.__SZL3D_BOOTED__ = false;
-  var run = function () {
-    setTimeout(function () {
-      try {
-        var stage = document.getElementById("stage");
-        var hasCanvas = stage && stage.querySelector("canvas");
-        var boot = document.getElementById("booting");
-        var fb = document.getElementById("fallback");
-        var fbShown = fb && getComputedStyle(fb).display !== "none";
-        if (!window.__SZL3D_BOOTED__ && !hasCanvas && !fbShown && fb) {
-          if (boot) boot.setAttribute("hidden", "");
-          fb.innerHTML =
-            "The holographic estate couldn't start in this browser.<br>" +
-            "It needs WebGL2 — available in most current desktop and mobile browsers " +
-            "(try updating, or open it on a laptop). Every value is still available as JSON at " +
-            "the per-surface endpoints, and the <a href=\"/atlas\">2D console</a> works everywhere.";
-          fb.style.display = "flex";
-        }
-      } catch (e) {}
-    }, 10000);
-  };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
-  else run();
-})();
-</script>
 
 <script type="module">
 import szl3d from "/static/3d/szl3d/szl3d_boot.js";
@@ -375,6 +328,10 @@ const SURFACES = [
   { id: "brainhealth", cat: "brain", title: "Brain Health · live \"can the brain be trusted for this query right now?\" rollup · reads each brain-honesty surface's OWN label VERBATIM (grounding, freshness, provenance, contradiction, uncertainty), degrades absent siblings to UNAVAILABLE → TRUSTWORTHY/DEGRADED/UNTRUSTWORTHY/INSUFFICIENT-SIGNAL, never TRUSTWORTHY if any available component abstains, unsigned SHA-256 receipt-on-write (MODELED)", mod: "/static/3d/surfaces/brainhealth.js" },
   { id: "brainwatch", cat: "brain", title: "Brain Watch · knowledge-graph honesty-posture drift monitor · MEASURED label-distribution/orphan/community/salience snapshot vs a caller-supplied PRIOR → STABLE/DRIFTING/DEGRADED/BASELINE-ONLY (no fabricated trend without a real prior), unsigned SHA-256 receipt-on-write", mod: "/static/3d/surfaces/brainwatch.js" },
   { id: "brainconsensus", cat: "brain", title: "Brain Consensus · honest corroboration of a brain grounding · measures how MANY distinct nodes support a query and how many distinct communities they span (cross-community agreement is stronger than one clique) → CORROBORATED/WEAK-CORROBORATION/SINGLE-SOURCE, single-source-risk flag when support collapses to one node/community, never CORROBORATED while that flag is set, MODELED corroboration honesty not a truth guarantee, unsigned SHA-256 receipt-on-write", mod: "/static/3d/surfaces/brainconsensus.js" },
+  { id: "brainqueryaudit", cat: "brain", title: "Brain Query Audit · append-only hash-linked ledger of brain queries + the honest verdict each returned · POST appends {query, verdict, grounding_label} and mints an UNSIGNED SHA-256 receipt chained to the prior entry (tamper-evident); GET recomputes the whole chain → CHAIN-INTACT/CHAIN-BROKEN (never softened), ephemeral in-memory ledger labelled honestly, MODELED, receipt-on-write-not-on-read", mod: "/static/3d/surfaces/brainqueryaudit.js" },
+  { id: "brainlineage", cat: "brain", title: "Brain Lineage · node-origin chain · how each knowledge-graph node ENTERED the graph, read VERBATIM from its OWN real origin fields (source/url → structural derivation → none) → TRACED/PARTIAL-LINEAGE/UNKNOWN-ORIGIN, a node with no source is UNKNOWN-ORIGIN never a fabricated source, aggregate never TRACED while any origin UNKNOWN, unsigned SHA-256 receipt-on-write (node-origin lineage, NOT per-answer provenance, NOT build/model attestation)", mod: "/static/3d/surfaces/brainlineage.js" },
+  { id: "brainexplain", cat: "brain", title: "Brain Explain · transparent explanation of WHY the brain retrieved what it did · MODELED descriptive trace over the REAL retrieval subgraph (which query terms matched which seed nodes, per-node ppr-vs-salience rationale, communities traversed, each node's OWN label VERBATIM) → EXPLAINABLE/PARTIALLY-EXPLAINABLE/OPAQUE (never invents a rationale; honest OPAQUE beats a fake one), unsigned SHA-256 receipt-on-write", mod: "/static/3d/surfaces/brainexplain.js" },
+  { id: "braingaps", cat: "brain", title: "Brain Gaps · an honest map of what the brain does NOT know · MEASURED thin (sparse) communities + weakly-connected island nodes (degree≤1) + weak-label share over the live graph, and per-query COVERED/THIN/GAP grounding → estate verdict WELL-COVERED/PATCHY/SPARSE (a GAP is never fabricated into coverage), unsigned SHA-256 receipt-on-write (MODELED)", mod: "/static/3d/surfaces/braingaps.js" },
   { id: "markets", cat: "finance", flag: true, title: "Markets & Finance · live Polymarket prediction book (top markets by 24h volume, pillar height = 24h vol, bead = YES probability) + crypto majors orbiting by market cap · 100% MEASURED same-origin deva finance feeds, no mocked spend/keys, log-scaling is display-only", mod: "/static/3d/surfaces/finance.js" },
 ];
 
@@ -403,10 +360,7 @@ async function ensureStage() {
     document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
     _syncGpuToggle();
     stage.start();
-    window.__SZL3D_BOOTED__ = true;
-    const _boot = document.getElementById("booting"); if (_boot) _boot.setAttribute("hidden", "");
   } catch (e) {
-    const _boot = document.getElementById("booting"); if (_boot) _boot.setAttribute("hidden", "");
     fallbackEl.style.display = "flex";
     document.getElementById("backend").textContent = "renderer: UNAVAILABLE";
     console.error("[holographic] stage boot failed:", e);
@@ -490,7 +444,6 @@ async function selectSurface(id) {
 // rendered; any surface without a `cat` falls to "more" (safety net — never dropped).
 const CATS = [
   ["map", "Map"],
-  ["finance", "Markets & Finance"],
   ["brain", "Brain & Memory"],
   ["anatomy", "Anatomy & Living System"],
   ["reasoning", "Reasoning & Agents"],
@@ -511,35 +464,20 @@ const catPanels = document.getElementById("cat-panels");
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
 
-// Display label = the head of the honest title (everything before the first descriptor
-// separator · — ( or " - "), capped at 30 chars. The FULL verbatim title stays as the hover
-// tooltip (b.title), so no honesty is lost — this only stops paragraph-length titles from
-// building a wall of text across the nav.
-function shortLabel(s) {
-  if (s.short) return s.short;
-  let t = String(s.title || s.id);
-  const cut = t.search(/\s[\u00b7\u2014]\s|\s[\u00b7\u2014]|\s\(|\s[-\u2013]\s/);
-  if (cut > 0) t = t.slice(0, cut);
-  t = t.trim();
-  return t.length > 30 ? t.slice(0, 29).trim() + "\u2026" : t;
-}
-
 function _makeTab(s, feat) {
   const b = document.createElement("button");
   b.className = "tab" + (feat ? " tab--feat" : "");
   b.dataset.id = s.id; b.dataset.cat = catOf(s);
   b.setAttribute("role", "tab"); b.setAttribute("aria-selected", "false");
   b.title = s.title;
-  const lbl = shortLabel(s);
   if (feat) {
     const star = document.createElement("span"); star.className = "star"; star.textContent = "★";
-    b.appendChild(star); b.appendChild(document.createTextNode(lbl));
+    b.appendChild(star); b.appendChild(document.createTextNode(s.title));
   } else {
-    b.textContent = lbl;
+    b.textContent = s.title;
   }
   b.addEventListener("click", () => {
     selectSurface(s.id);
-    openCategory(null, false); // close any open dropdown so the holo is revealed
     // On the mobile horizontal strips, keep the tapped tab in view.
     try { b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (_) {}
   });
@@ -555,14 +493,8 @@ function openCategory(cat, open) {
   });
 }
 
-// (a) pinned Featured row — a curated, ordered set of true flagships (incl. Atlas), always
-// visible above the dropdowns. Kept short so the row never becomes a wall; every other surface
-// (incl. the remaining flag:true ones) is one tap away in its category dropdown.
-const FEATURED_IDS = ["atlas", "markets", "brain", "anatomy_body", "governance", "evalarena", "ecosystem", "brainquery", "sovereign"];
-FEATURED_IDS.forEach((id) => {
-  const s = SURFACES.find((x) => x.id === id);
-  if (s) featuredRow.appendChild(_makeTab(s, true));
-});
+// (a) pinned Featured row — flagships (incl. Atlas), always visible above the dropdowns.
+SURFACES.filter((s) => s.flag).forEach((s) => featuredRow.appendChild(_makeTab(s, true)));
 
 // (b) category dropdown buttons + their drop panels.
 CATS.forEach(([cat, label]) => {
@@ -585,11 +517,6 @@ CATS.forEach(([cat, label]) => {
   _panels[cat] = panel; _catBtns[cat] = btn;
 });
 
-// Click the 3D stage (or press Esc) to dismiss any open category dropdown, so a floating panel
-// never permanently covers the holo.
-stageEl.addEventListener("pointerdown", () => openCategory(null, false));
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") openCategory(null, false); });
-
 // Mark every tab button carrying `id` as selected (a flagship is in both the Featured row
 // and its category panel), auto-open the active surface's category, and proof-teal-flag the
 // owning dropdown button so the current location is always legible.
@@ -598,8 +525,7 @@ function _highlight(id) {
   const cat = def ? catOf(def) : null;
   tabsEl.querySelectorAll("[data-id]").forEach((t) =>
     t.setAttribute("aria-selected", String(t.dataset.id === id)));
-  // Flag the owning category button (proof-teal ring) but DON'T auto-open its panel — a floating
-  // panel would cover the holo on load / on every switch. The user opens dropdowns on demand.
+  if (cat && _panels[cat]) openCategory(cat, true);
   Object.keys(_catBtns).forEach((c) =>
     _catBtns[c].setAttribute("data-hasactive", String(c === cat)));
 }
