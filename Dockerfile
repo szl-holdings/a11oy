@@ -1528,6 +1528,17 @@ COPY szl_honestywall.py ./szl_honestywall.py
 # adds NOTHING to the locked-8; Λ = Conjecture 1; trust ceiling 0.97; no green.
 COPY szl_agentos.py ./szl_agentos.py
 
+# BRAINGROUND (feat/frontier-brainground) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_brainground.py is imported by serve.py and
+# scores the brain's OWN grounding_subgraph (szl_brain_api, COPY'd above) into a
+# grounding_confidence + honest verdict (GROUNDED/WEAK-GROUNDING/INSUFFICIENT-
+# GROUNDING) so the brain can honestly abstain when the grounding is weak. Its 3D
+# surface brainground.js ships via the existing whole-tree `COPY static/3d/
+# ./static/3d/` above. Read-only over knowledge-graph retrieval — adds NOTHING to the
+# locked-8; Λ = Conjecture 1; trust ceiling 0.97; MODELED (never MEASURED); no green.
+COPY szl_brainground.py ./szl_brainground.py
+
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # Dockerfile has NO `COPY . .`; the copy-completeness guard requires every module
 # reachable from serve.py to appear in the COPY set). szl_boot_preflight.py is

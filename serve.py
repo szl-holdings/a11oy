@@ -842,6 +842,25 @@ try:
 except Exception as _szl_agentos_e:  # pragma: no cover
     print(f"[a11oy] Agent OS map NOT registered: {_szl_agentos_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# BRAINGROUND (feat/frontier-brainground) — grounding-confidence + honest-abstention layer over
+# the brain's retrieval. GET /api/a11oy/v1/brain/ground?q=&k= scores the brain's REAL
+# grounding_subgraph (szl_brain_api.ask, hippoRAG-PPR local ⊕ graphRAG-community global) across
+# four explainable components (seed coverage, subgraph cohesion, salience mass, community
+# consistency) into one grounding_confidence ∈ [0,1] and returns an honest verdict —
+# GROUNDED / WEAK-GROUNDING / INSUFFICIENT-GROUNDING. When grounding is weak (confidence < 0.45
+# or too few nodes) it states the brain SHOULD ABSTAIN rather than answer. Reuses the brain's OWN
+# honest labels VERBATIM (MODELED/UNAVAILABLE), never upgraded; grounding_confidence is MODELED,
+# never MEASURED. GET info/ground are PURE READS (sign/mint nothing); POST ground/receipt mints
+# ONE unsigned SHA-256 content-digest receipt (RECEIPT-ON-WRITE-NOT-ON-READ). Pure honesty over
+# knowledge-graph retrieval — advances no detection/fusion/effector/targeting/cueing capability.
+# Adds NOTHING to the locked-8; Λ stays Conjecture 1; trust ceiling 0.97, never 100%. Additive,
+# try/except-guarded, BEFORE the SPA catch-all.
+try:
+    import szl_brainground as _szl_brainground
+    print("[a11oy] " + _szl_brainground.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brainground_e:  # pragma: no cover
+    print(f"[a11oy] Brainground NOT registered: {_szl_brainground_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Operational STATUS aggregate (Wave R Dev 2) — GET /api/a11oy/v1/status is the honest
 # operational-dashboard back-end: for every registered surface it reports the honest data
 # label its OWN backend emits (VERBATIM) + a derived per-surface/subsystem health, rolled
