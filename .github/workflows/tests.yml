@@ -731,3 +731,40 @@ jobs:
         # port and asserts /llm/sovereign/health, /llm/route, and the registry snapshot all
         # report UNAVAILABLE without fabricating. Fully offline. Λ = Conjecture 1. Doctrine v11.
         run: pytest tests/test_sovereign_backend.py -q
+
+  python-frontier-index-honesty:
+    name: Frontier Index honesty — no catalog label a backend doesn't emit (Wave Q Dev 5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install deps (serve.py boots in-process via Starlette TestClient; no network)
+        run: |
+          python -m pip install --upgrade pip
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install fastapi starlette httpx pytest
+      - name: Negative control — the honesty checker must reject planted drift first
+        # ORG GUARD PATTERN (cf. constellation-honesty-guard.yml self-test job): a guard is
+        # only trusted after it PROVES it can catch a lie. --selftest feeds the checker a toy
+        # catalog that claims a label its backend does not emit (plus an out-of-vocabulary
+        # token, an over-claim from an empty endpoint, and a fabricated citation) and asserts
+        # every planted drift is REJECTED, while a truthful catalog is accepted. If this step
+        # ever passes a lie, the checker is broken and the live gate below cannot be trusted.
+        run: python3 .github/scripts/frontier_index_honesty_check.py --selftest
+      - name: Live honesty gate — catalog labels re-derived independently against backends
+        # WAVE Q DEV 5: the Frontier Index (GET /api/a11oy/v1/frontier-index/catalog) claims,
+        # per surface, the honest label its OWN backend emits — its promise is "honest by
+        # construction". This gate boots the REAL app in-process (no mocks, no network),
+        # fetches the catalog, and for EVERY surface the catalog calls a11oy-native with a
+        # concrete label + endpoint, RE-DERIVES that label independently — different code
+        # (this script imports nothing from szl_frontier_index) and a different probe path (a
+        # real TestClient HTTP GET vs the catalog's in-request direct-callable invocation) —
+        # and FAILS if the catalog ever claims a label the backend does not emit, over-claims
+        # a label from an endpoint that emits none, or attributes a citation not in the
+        # backend's own response. ADDITIVE guard; weakens no existing gate. Doctrine v11:
+        # Λ = Conjecture 1 (advisory), trust ceiling 0.97, adds nothing to the locked-8.
+        run: python3 .github/scripts/frontier_index_honesty_check.py
