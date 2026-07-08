@@ -1566,6 +1566,17 @@ COPY szl_brainlineage.py ./szl_brainlineage.py
 # (MODELED). Its 3D surface brainexplain.js ships via the whole-tree `COPY static/3d/
 # ./static/3d/` above. DESCRIBES only — adds NOTHING to the locked-8; Λ = Conjecture 1.
 COPY szl_brainexplain.py ./szl_brainexplain.py
+# BRAIN GAPS (feat/frontier-braingaps) — per-file COPY (this Dockerfile has NO
+# `COPY . .`; the copy-completeness guard requires every module reachable from
+# serve.py to appear in the COPY set). szl_braingaps.py is imported by serve.py and
+# computes a deterministic coverage-gap map of the live brain graph (thin/sparse
+# communities, weakly-connected island nodes degree<=1, weak-label share; MEASURED)
+# plus a per-query COVERED/THIN/GAP grounding verdict (MODELED) — a GAP is never
+# fabricated into coverage. Its 3D surface braingaps.js ships via the existing
+# whole-tree `COPY static/3d/ ./static/3d/` above. OBSERVES only — adds NOTHING to the
+# locked-8; Λ = Conjecture 1; trust 0.97.
+COPY szl_braingaps.py ./szl_braingaps.py
+
 
 
 
