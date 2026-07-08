@@ -137,6 +137,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "whatsnew", "cat": "brain", "title": "What's New · honest auto-derived estate changelog · recently-added surfaces w/ verbatim labels + citations from real git history (drift-proof)", "owner": "WaveS-Dev5"},
     {"id": "honestywall", "cat": "governance", "title": "Honesty Wall · live \"can this system lie right now?\" integrity aggregation · reads each surface's OWN honest label VERBATIM + estate honesty invariants → INTACT/DEGRADED/VIOLATED verdict, unsigned SHA-256 receipt-on-write (drift-proof)", "owner": "WaveS-Dev6"},
     {"id": "agentos", "cat": "governance", "flag": True, "title": "Agent OS Map · live self-honest operator's-eye map of the agent OS · nodes (daily loop←agentops, trust ledger←anatomy+receipts+honestywall, standing goals←doctrine+locked-8, optional loops←governedagent/governedrag/loopforge/mesh) with LIVE per-node verdict from the honestywall aggregate → OPERATING/DEGRADED/HALTED-HONEST, never OPERATING if anything VIOLATED, unsigned SHA-256 receipt-on-write (drift-proof)", "owner": "WaveS-Dev7"},
+    {"id": "brainwatch", "cat": "brain", "title": "Brain Watch · knowledge-graph honesty-posture drift monitor · MEASURED label-distribution/orphan/community/salience snapshot vs a caller-supplied PRIOR → STABLE/DRIFTING/DEGRADED/BASELINE-ONLY (no fabricated trend without a real prior), unsigned SHA-256 receipt-on-write", "owner": "WaveT-Dev1"},
 ]
 
 # Content-type by extension (the only extensions we serve from the 3d tree).

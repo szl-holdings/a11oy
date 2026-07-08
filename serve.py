@@ -1022,6 +1022,23 @@ except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN WATCH (feat/frontier-brainwatch) — a governed honesty-posture DRIFT monitor
+# over the SAME honest brain graph: GET /api/a11oy/v1/brain/watch/info (static describe),
+# GET /api/a11oy/v1/brain/watch (current MEASURED posture snapshot — label distribution,
+# orphan share, community fragmentation, salience concentration; BASELINE-ONLY, mints
+# nothing), POST /api/a11oy/v1/brain/watch/compare (MODELED drift vs a caller-supplied
+# PRIOR → STABLE/DRIFTING/DEGRADED, unsigned SHA-256 receipt-on-write). Reuses
+# szl_brain_api.get_index (invents no node, harvests nothing); never fabricates a trend
+# without a real prior; never upgrades a label. Pure reads on GET (0 sign-on-GET).
+# Registered BEFORE the SPA /{full_path:path} catch-all. Additive, try/except-guarded.
+try:
+    import szl_brainwatch as _szl_brainwatch
+    _brainwatch_status = _szl_brainwatch.register(app, ns="a11oy")
+    print(f"[a11oy] Brain watch registered: {_brainwatch_status}", file=__import__("sys").stderr)
+except Exception as _brainwatch_e:  # pragma: no cover
+    print(f"[a11oy] Brain watch NOT registered: {_brainwatch_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
