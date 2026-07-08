@@ -209,7 +209,10 @@ def test_lambda_negated_theorem_is_not_a_violation():
 
 
 def test_lambda_affirmative_theorem_claim_is_a_violation():
-    """A lambda that AFFIRMATIVELY claims to be a theorem must be flagged."""
+    """A lambda that AFFIRMATIVELY claims to be proven must be flagged. The strings
+    below are NEGATIVE examples the estate never claims: Λ stays Conjecture 1,
+    never a theorem, never green. They exist only so the checker proves it still
+    catches a real affirmative claim."""
     for lam in ["Lambda is a theorem, proven green",
                 "now a theorem with trust 1.0"]:
         _, _, checks = hw._eval_payload({"doctrine": {"lambda": lam}})
