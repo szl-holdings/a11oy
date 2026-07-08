@@ -1218,6 +1218,24 @@ except Exception as _brainexplain_e:  # pragma: no cover
     print(f"[a11oy] Brain explain NOT registered: {_brainexplain_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN GAPS (feat/frontier-braingaps) — an honest map of what the brain does NOT know
+# over the SAME honest brain graph: GET /api/a11oy/v1/brain/gaps/info (static describe),
+# GET /api/a11oy/v1/brain/gaps (estate-wide MEASURED gap map — thin/sparse communities,
+# weakly-connected island nodes degree<=1, weak-label share → WELL-COVERED/PATCHY/SPARSE;
+# mints nothing), GET /api/a11oy/v1/brain/gaps?q= (per-topic COVERED/THIN/GAP grounding),
+# POST /api/a11oy/v1/brain/gaps/receipt (unsigned SHA-256 receipt-on-write). Reuses
+# szl_brain_api.get_index (invents no node, harvests nothing); NEVER fabricates coverage —
+# a topic the graph cannot ground is reported as a GAP; never upgrades a label. Pure reads
+# on GET (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all. Additive,
+# try/except-guarded.
+try:
+    import szl_braingaps as _szl_braingaps
+    _braingaps_status = _szl_braingaps.register(app, ns="a11oy")
+    print(f"[a11oy] Brain gaps registered: {_braingaps_status}", file=__import__("sys").stderr)
+except Exception as _braingaps_e:  # pragma: no cover
+    print(f"[a11oy] Brain gaps NOT registered: {_braingaps_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
 # GET /api/a11oy/v1/brain/command → {knowledge harvested, energy harnessed, organs/
