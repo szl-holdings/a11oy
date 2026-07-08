@@ -12696,6 +12696,42 @@ except Exception as _ws_e1:  # additive: never break the Space
 # ============================================================================
 
 
+# ============================================================================
+# WAVE-S FRONTIER (feat/frontier-s-confattest, Dev3): a11oy-NATIVE cited
+# CONFIDENTIAL-COMPUTE ATTESTATION + ACTION-GATE backend. Two governance legs:
+#   (a) a SIMULATED confidential-compute enclave attestation quote (Intel-TDX
+#       MRTD + NVIDIA-CC EAT shape) chained into a content-addressed receipt —
+#       there is NO real TEE/enclave; values are SHA-derived + replayable;
+#   (b) a deny-by-default ACTION GATE that governs the ACTION EFFECT, NOT the
+#       reasoning (clean-room of "Governing Actions, Not Agents") with Λ as an
+#       ADVISORY axis (Conjecture 1). A HOLD is safe; an ALLOW is NOT a proof.
+# Deterministic, stdlib-only, try/except-guarded; honest MODELED label + receipt
+# (UNSIGNED-LOCAL — signing is on-write, never on this GET). register() uses
+# @app.get (APPENDS), so we front-move both routes to router position 0 so they
+# win over the /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA
+# catch-all (reuses _wn_frontmove from the WAVE-N batch).
+#   szl_confattest -> /api/a11oy/v1/confattest/quote   (surface: confattest.js)
+#                  -> /api/a11oy/v1/confattest/gate
+# Cites Governing Actions Not Agents (arXiv:2606.26298), Parallax
+# (arXiv:2604.12986), EnclaveX (arXiv:2606.31408), OpenPCC (arXiv:2606.11145),
+# OPAQUE 3.0 (no arXiv id). Λ = Conjecture 1; nothing added to the locked-8;
+# trust never 100%.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# ============================================================================
+try:
+    import sys as _wsca_sys
+    import szl_confattest as _szl_confattest
+    _wsca_s1 = _szl_confattest.register(app, ns="a11oy")
+    _wn_frontmove("/api/a11oy/v1/confattest/quote")
+    _wn_frontmove("/api/a11oy/v1/confattest/gate")
+    print(f"[a11oy] WAVE-S FRONTIER szl_confattest registered (front-moved): {_wsca_s1}", file=_wsca_sys.stderr)
+except Exception as _wsca_e1:  # additive: never break the Space
+    print(f"[a11oy] WAVE-S FRONTIER szl_confattest NOT registered (non-fatal): {_wsca_e1!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE-S FRONTIER (confidential-compute attestation + action gate)
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
