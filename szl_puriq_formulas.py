@@ -611,13 +611,17 @@ def _render_html():
     for fid in sorted(snap, key=lambda x: int(x[1:])):
         m = snap[fid]
         ps = m["proof_status"]
-        color = {"PROVED": "#1a7f37", "SKELETON": "#9a6700",
-                 "CONJ": "#7d4ed8"}.get(m["lean_status"], "#555")
-        sprint = (f' &nbsp;<span style="color:#1a7f37">[lean: {m["proved_tactic"]}]</span>'
+        color = {"PROVED": "#39d98a", "SKELETON": "#f5c451",
+                 "CONJ": "#c9a0ff"}.get(m["lean_status"], "#9a9a9a")
+        sprint = (f' &nbsp;<span style="color:#39d98a">[lean: {m["proved_tactic"]}]</span>'
                   if ps == "PROVED" and m.get("proved_tactic") else "")
         h = m.get("harness") or {}
+        hay = f'{fid} {m["name"]} {m["organ"]} {m["lean_status"]} {ps}'.lower()
         rows.append(
-            f'<tr><td><b>{fid}</b></td><td>{m["name"]}</td><td>{m["organ"]}</td>'
+            f'<tr id="{fid}" class="frow" data-fid="{fid}" data-hay="{hay}" tabindex="0" '
+            f'title="click to reveal the live proof-state / receipt chain">'
+            f'<td><b>{fid}</b> <a class="anchor" href="#{fid}" title="permalink to {fid}">&para;</a></td>'
+            f'<td>{m["name"]}</td><td>{m["organ"]}</td>'
             f'<td><code>{m["current_value"]}</code></td>'
             f'<td>{"OK" if m["identity_holds"] else "X"}</td>'
             f'<td style="color:{color}">{m["lean_status"]}</td>'
@@ -625,6 +629,8 @@ def _render_html():
             f'<td>{h.get("passed","-")}/{h.get("total","-")}</td>'
             f'<td>{"yes" if m["chain_verified"] else "no"}</td>'
             f'<td>{", ".join(m.get("invoked_by", []))}</td></tr>'
+            f'<tr class="drow" id="d-{fid}"><td colspan="10"><div class="dbox mono" id="db-{fid}">'
+            f'click loads the LIVE per-formula endpoint &mdash; raw output, no cache</div></td></tr>'
         )
     table = "\n".join(rows)
     proved = ", ".join(stats["sprint_proved"])
@@ -632,47 +638,100 @@ def _render_html():
     ew_total = ew["total_new_experimental_theorems"]
     ew_rows = "<br>".join(
         f'&bull; <b>{w["id"]}</b> (+{w["new_theorems"]} thm, PR#{w["pr"]}) '
-        f'<span style="color:#1a7f37">[{w["label"]}]</span>: {w["summary"]}'
+        f'<span style="color:#39d98a">[{w["label"]}]</span>: {w["summary"]}'
         for w in ew["waves"]
     )
-    return f"""<!doctype html><html><head><meta charset="utf-8">
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>PURIQ /formulas — 23 FormulaAgents</title>
+<meta name="description" content="Named-theorem registry: 23 FormulaAgents, live recomputed values, Khipu receipt chains, honest Lean proof status. Every row is addressable; every check reveals its raw machine output."/>
+<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted, served same-origin at /vendor/fonts/*.woff2. -->
 <style>
-body{{font-family:ui-sans-serif,system-ui,Arial;margin:0;background:#0d1117;color:#e6edf3}}
-header{{padding:24px 32px;background:#161b22;border-bottom:1px solid #30363d}}
-h1{{margin:0 0 6px;font-size:22px}}
-.sub{{color:#8b949e;font-size:13px}}
-.kpis{{display:flex;gap:18px;margin:14px 32px;flex-wrap:wrap}}
-.kpi{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px}}
-.kpi b{{font-size:20px;display:block}}
-table{{border-collapse:collapse;width:calc(100% - 64px);margin:8px 32px 40px;font-size:13px}}
-th,td{{text-align:left;padding:7px 9px;border-bottom:1px solid #21262d}}
-th{{color:#8b949e;font-weight:600;border-bottom:1px solid #30363d}}
-tr:hover{{background:#161b22}}
-code{{color:#79c0ff}}
-.note{{margin:0 32px 24px;color:#8b949e;font-size:12px;line-height:1.6}}
+@font-face{{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}}
+@font-face{{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}}
+:root{{--ground:#0a0a0a;--panel:#0c0c0c;--gold:#c9b787;--teal:#5fb3a3;--cream:#f5f5f5;
+--paragraph:#9a9a9a;--muted:#888;--dim:#555;--gold-line:rgba(201,183,135,0.15);
+--gold-soft:rgba(201,183,135,0.04);--teal-line:rgba(95,179,163,0.22);--teal-soft:rgba(95,179,163,0.10);
+--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;--display:'Space Grotesk',Georgia,serif;}}
+*{{box-sizing:border-box;}}
+html,body{{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}}
+.mono{{font-family:var(--mono);}}
+:focus-visible{{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}}
+.ribbon{{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;
+padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+color:var(--gold);background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);}}
+.ribbon .sep{{color:var(--dim);}} .ribbon .teal{{color:var(--teal);}}
+.ribbon a{{margin-left:auto;color:var(--teal);text-decoration:none;}}
+header.hero{{padding:2.2rem 2rem 1.2rem;}}
+h1{{margin:0 0 6px;font-size:clamp(1.5rem,3.2vw,2.2rem);font-weight:300;letter-spacing:-.02em;}}
+h1 .accent{{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}}
+.sub{{color:var(--paragraph);font-size:13px;font-family:var(--mono);}}
+.kpis{{display:flex;gap:14px;margin:14px 2rem;flex-wrap:wrap;}}
+.kpi{{background:var(--panel);border:1px solid var(--gold-line);border-radius:8px;padding:12px 16px;}}
+.kpi b{{font-size:20px;display:block;color:var(--gold);font-weight:500;}}
+.kpi span{{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}}
+.searchbar{{margin:6px 2rem 2px;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;}}
+.searchbar input{{flex:1 1 260px;max-width:30rem;background:var(--panel);border:1px solid var(--gold-line);
+border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:13px;padding:.6rem .9rem;}}
+.searchbar input::placeholder{{color:var(--dim);}}
+.searchbar .cnt{{font-family:var(--mono);font-size:11px;color:var(--muted);}}
+table{{border-collapse:collapse;width:calc(100% - 4rem);margin:8px 2rem 24px;font-size:13px;}}
+th,td{{text-align:left;padding:7px 9px;border-bottom:1px solid rgba(201,183,135,0.08);}}
+th{{color:var(--muted);font-weight:600;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--gold-line);}}
+tr.frow{{cursor:pointer;}}
+tr.frow:hover{{background:var(--panel);}}
+tr.frow:target{{background:var(--teal-soft);}}
+td code{{color:var(--teal);font-family:var(--mono);}}
+a.anchor{{color:var(--dim);text-decoration:none;font-size:11px;visibility:hidden;}}
+tr.frow:hover a.anchor,tr.frow:target a.anchor{{visibility:visible;}}
+tr.drow{{display:none;}}
+tr.drow.open{{display:table-row;}}
+.dbox{{background:var(--panel);border:1px solid var(--teal-line);border-radius:8px;margin:.3rem 0 .6rem;
+padding:.8rem 1rem;font-size:11px;line-height:1.55;color:var(--paragraph);white-space:pre-wrap;
+word-break:break-word;max-height:22rem;overflow:auto;}}
+.note{{margin:0 2rem 24px;color:var(--paragraph);font-size:12px;line-height:1.7;border:1px solid var(--gold-line);
+border-radius:10px;background:var(--gold-soft);padding:1rem 1.2rem;}}
+.note b{{color:var(--gold);}}
+.footer{{padding:1.4rem 2rem 2.6rem;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+text-transform:uppercase;color:var(--dim);line-height:2;}}
+.footer a{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:0;}}
+@media (max-width:720px){{.kpis,.searchbar,.note{{margin-left:1rem;margin-right:1rem;}}table{{width:calc(100% - 2rem);margin-left:1rem;margin-right:1rem;display:block;overflow-x:auto;}}}}
 </style></head><body>
-<header>
-<h1>PURIQ — Agentic Formula Layer · /formulas</h1>
-<div class="sub">Doctrine v11 LOCKED · 23 FormulaAgents · live self-evaluation + Khipu receipts + honest Lean self-prove · signed Yachay (CTO)</div>
+<div class="ribbon">
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span class="teal">A11OY</span><span class="sep">/</span>
+  <span>FORMULAS &middot; PURIQ REGISTRY</span><span class="sep">/</span>
+  <span>DOCTRINE V11 &middot; LOCKED</span>
+  <a href="/wires">wires &middot; the constitution &rarr;</a>
+</div>
+<header class="hero">
+<h1>PURIQ &mdash; <span class="accent">named-formula registry</span> &middot; 23 FormulaAgents</h1>
+<div class="sub">live self-evaluation + Khipu receipts + honest Lean self-prove &middot; signed Yachay (CTO) &middot;
+every row is addressable (#F1&hellip;#F23) &middot; click a row to reveal the raw machine check</div>
 </header>
 <div class="kpis">
-<div class="kpi"><b>{stats['n_agents']}</b>FormulaAgents</div>
-<div class="kpi"><b>{stats['proved_count']}</b>Lean PROVED</div>
-<div class="kpi"><b>{stats['harness_baseline']}</b>numeric harness</div>
-<div class="kpi"><b>749 / 14 / 163</b>Doctrine v11 LOCKED (decl/axioms/sorries)</div>
-<div class="kpi"><b>+{ew_total}</b>experimental kernel-verified (separate from locked)</div>
+<div class="kpi"><b>{stats['n_agents']}</b><span>FormulaAgents</span></div>
+<div class="kpi"><b>{stats['proved_count']}</b><span>Lean PROVED</span></div>
+<div class="kpi"><b>{stats['harness_baseline']}</b><span>numeric harness</span></div>
+<div class="kpi"><b>749 / 14 / 163</b><span>Doctrine v11 LOCKED (decl/axioms/sorries)</span></div>
+<div class="kpi"><b>+{ew_total}</b><span>experimental kernel-verified (separate from locked)</span></div>
 </div>
-<div class="note" style="margin-top:0">
+<div class="searchbar">
+<input id="q" type="search" placeholder="premise search &mdash; filter by id / name / organ / status (e.g. kalman, PROVED, heart)" aria-label="search formulas"/>
+<span class="cnt" id="cnt"></span>
+</div>
+<div class="note" style="margin-top:12px">
 <b>Experimental kernel-verified waves</b> (NOT in the locked count of 8; honest maturity labels):<br>
 {ew_rows}
 <br><b>Trust Score interval:</b> sourced from <b>CONFORMAL</b> (W5-3 + W7-4) \u2014 distribution-free, with an anti-overconfidence floor (we never report 100%). NOT Hoeffding/PAC-Bayes (those are NOT proven at the pinned Mathlib v4.13.0).<br>
 <b>Deferred (not proven at pin):</b> C3 Hoeffding, C4 Azuma, C5 KL\u22650, C15, C16, C18, C19.
 </div>
 <table>
-<tr><th>ID</th><th>Formula</th><th>Organ</th><th>Live value</th><th>Identity</th>
-<th>Lean class</th><th>Proof status</th><th>Harness</th><th>Chain</th><th>Invoked by</th></tr>
+<thead><tr><th>ID</th><th>Formula</th><th>Organ</th><th>Live value</th><th>Identity</th>
+<th>Lean class</th><th>Proof status</th><th>Harness</th><th>Chain</th><th>Invoked by</th></tr></thead>
+<tbody id="tb">
 {table}
+</tbody>
 </table>
 <div class="note">
 Self-prove sprint (real local Lean v4.13.0, Mathlib-free): <b>{proved}</b> PROVED.
@@ -680,6 +739,56 @@ Axioms: F11/F12 use <code>propext</code> (Lean core); F1/F18/F19 use none. No <c
 Lambda-uniqueness is <b>Conjecture 1</b>, NOT a theorem. Values recompute live per request.
 ADDITIVE only; IP-HOLD a11oy#57 untouched.
 </div>
+<div class="footer">
+registry pattern after mathlib &mdash; every result named + addressable (<a href="https://arxiv.org/abs/1910.09336" rel="noopener">arXiv:1910.09336</a>, cited) &middot;
+proof-state reveal after Alectryon (MIT, pattern) &middot; premise-search after LeanDojo/ReProver (MIT, pattern) &middot;
+0 runtime CDN &middot; fonts self-hosted &middot; JSON: <a href="/api/a11oy/v1/puriq/formulas">/api/a11oy/v1/puriq/formulas</a>
+</div>
+<script>
+(function(){{
+  var tb=document.getElementById('tb'),q=document.getElementById('q'),cnt=document.getElementById('cnt');
+  var frows=[].slice.call(tb.querySelectorAll('tr.frow'));
+  function applyFilter(){{
+    var s=(q.value||'').trim().toLowerCase(),n=0;
+    frows.forEach(function(r){{
+      var hit=!s||r.getAttribute('data-hay').indexOf(s)>=0;
+      r.style.display=hit?'':'none';n+=hit?1:0;
+      var d=document.getElementById('d-'+r.getAttribute('data-fid'));
+      if(d&&!hit)d.classList.remove('open');
+    }});
+    cnt.textContent=s?(n+' / '+frows.length+' match'):(frows.length+' formulas');
+  }}
+  q.addEventListener('input',applyFilter);applyFilter();
+  var loaded={{}};
+  function reveal(fid){{
+    var d=document.getElementById('d-'+fid);if(!d)return;
+    d.classList.toggle('open');
+    if(!d.classList.contains('open')||loaded[fid])return;
+    var box=document.getElementById('db-'+fid);
+    box.textContent='fetching LIVE /api/a11oy/v1/puriq/formulas/'+fid+' \\u2026';
+    fetch('/api/a11oy/v1/puriq/formulas/'+fid).then(function(r){{
+      if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
+    }}).then(function(j){{
+      loaded[fid]=true;
+      box.textContent='LIVE proof-state / receipt chain (raw endpoint output, recomputed per request):\\n\\n'+JSON.stringify(j,null,2);
+    }}).catch(function(e){{
+      box.textContent='endpoint unreachable: '+e.message+' \\u2014 shown honestly, nothing cached or invented.';
+    }});
+  }}
+  tb.addEventListener('click',function(ev){{
+    if(ev.target.closest('a'))return;
+    var r=ev.target.closest('tr.frow');if(r)reveal(r.getAttribute('data-fid'));
+  }});
+  tb.addEventListener('keydown',function(ev){{
+    if(ev.key!=='Enter'&&ev.key!==' ')return;
+    var r=ev.target.closest('tr.frow');if(r){{ev.preventDefault();reveal(r.getAttribute('data-fid'));}}
+  }});
+  if(location.hash){{
+    var t=document.getElementById(location.hash.slice(1));
+    if(t&&t.classList.contains('frow'))reveal(t.getAttribute('data-fid'));
+  }}
+}})();
+</script>
 </body></html>"""
 
 

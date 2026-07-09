@@ -74,7 +74,26 @@
     .honesty b{color:var(--gold);}
     .footer{padding:2rem 1.5rem 3rem;text-align:center;}
     .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
-    @media (max-width:560px){.wire-status{margin-left:0;}}
+    .const-wrap{max-width:64rem;margin:0 auto 2rem;padding:0 1.25rem;}
+.const-head{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap;margin:0 0 .35rem;}
+.const-head h2{font-size:1.5rem;font-weight:300;letter-spacing:-.02em;color:var(--cream);margin:0;}
+.const-ver{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);
+  border:1px solid var(--teal-line);border-radius:999px;padding:.2rem .7rem;background:var(--teal-soft);}
+.const-sub{font-size:13px;color:var(--paragraph);line-height:1.65;margin:0 0 1rem;}
+.rule{border:1px solid var(--gold-line);border-radius:10px;background:var(--panel);padding:.95rem 1.1rem;margin-bottom:.7rem;}
+.rule-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
+.rule-id{font-family:var(--mono);font-size:12px;color:var(--gold);border:1px solid var(--gold-line);border-radius:5px;padding:.1rem .5rem;background:var(--gold-soft);}
+.rule-st{font-size:.98rem;font-weight:500;color:var(--cream);}
+.rule-en{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:.15rem .55rem;border-radius:999px;}
+.en-live{color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);}
+.en-rec{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+.en-dec{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+.en-np{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+.rule-body{font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.6;margin-top:.4rem;}
+.rule-body a{color:var(--teal);text-decoration:none;}
+.const-cred{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.8;margin-top:.9rem;}
+.const-cred a{color:var(--teal);text-decoration:none;}
+@media (max-width:560px){.wire-status{margin-left:0;}.rule-en{margin-left:0;}}
   </style>
 </head>
 <body>
@@ -108,10 +127,73 @@
   <div class="controls">
     <button class="r-btn primary" onclick="loadWires()">▶ Refresh the mesh</button>
     <button class="r-btn" onclick="window.location='/observability'">Observability →</button>
+    <button class="r-btn" onclick="document.getElementById('constitution').scrollIntoView({behavior:'smooth'})">The written constitution ↓</button>
   </div>
   <div id="wires"></div>
   <div class="meta" id="meta"></div>
 </div>
+
+
+<section class="const-wrap" id="constitution">
+  <div class="const-head">
+    <h2>The written constitution</h2>
+    <span class="const-ver">W-CONST v1.0 &middot; 2026-07-09</span>
+  </div>
+  <p class="const-sub">The wires above are the live mesh; these are the <b style="color:var(--cream)">versioned, numbered rules</b> the
+    organism is wired to obey. Each rule links to where its enforcement can be observed &mdash; a live endpoint, a receipt surface, or an
+    honest DECLARED label when the property is build-time. One rule is special: it is <b style="color:var(--cream)">never provable</b>, and the
+    constitution says so.</p>
+
+  <div class="rule" id="W-1">
+    <div class="rule-head"><span class="rule-id">W-1</span><span class="rule-st">Never fabricate.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">Every surfaced number carries MEASURED / REPORTED / UNKNOWN / UNAVAILABLE. A missing read is shown as missing, never invented.
+      Enforcement: <a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a> (doctrine lock, live).</div>
+  </div>
+  <div class="rule" id="W-2">
+    <div class="rule-head"><span class="rule-id">W-2</span><span class="rule-st">&Lambda; stays Conjecture 1 &mdash; forever open.</span><span class="rule-en en-np">NEVER-PROVABLE</span></div>
+    <div class="rule-body">&Lambda;-uniqueness is machine-checked FALSE as an unconditional statement; it may only ever be advisory. No release, page, or
+      agent may promote it to a theorem. This clause is enshrined precisely because it can never be discharged.
+      Reference: <a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a>.</div>
+  </div>
+  <div class="rule" id="W-3">
+    <div class="rule-head"><span class="rule-id">W-3</span><span class="rule-st">Bounded loops only.</span><span class="rule-en en-rec">RECEIPTED</span></div>
+    <div class="rule-body">Every agentic run executes under the ouroboros loop-kernel with an explicit step budget; each receipt carries the
+      steps / maxBudget / exit trace. No unbounded autonomy. Observe it: run the <a href="/ayllu">/ayllu council</a> and read the loop block in the receipt.</div>
+  </div>
+  <div class="rule" id="W-4">
+    <div class="rule-head"><span class="rule-id">W-4</span><span class="rule-st">Metered actions emit signed receipts.</span><span class="rule-en en-rec">RECEIPTED</span></div>
+    <div class="rule-body">DSSE / ECDSA-P256 signed, hash-chained. A decision without a receipt is a bug, not a feature.
+      Verify offline at <a href="/verify">/verify</a>.</div>
+  </div>
+  <div class="rule" id="W-5">
+    <div class="rule-head"><span class="rule-id">W-5</span><span class="rule-st">Sovereign serving &mdash; 0 runtime CDN.</span><span class="rule-en en-dec">DECLARED</span></div>
+    <div class="rule-body">No third-party runtime fetches; fonts and scripts are served same-origin. Build-time property &mdash; labelled DECLARED
+      honestly (verifiable by inspecting this very page's network panel).</div>
+  </div>
+  <div class="rule" id="W-6">
+    <div class="rule-head"><span class="rule-id">W-6</span><span class="rule-st">Proved-count honesty.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">Exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22}; the experimental kernel-verified tier is reported
+      separately and never folded in. Registry: <a href="/formulas">/formulas</a>.</div>
+  </div>
+  <div class="rule" id="W-7">
+    <div class="rule-head"><span class="rule-id">W-7</span><span class="rule-st">No energy claims without a meter.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">When no live meter exists the energy panel says UNAVAILABLE &mdash; no perpetual-motion numbers, ever.
+      Enforcement: <a href="/api/a11oy/v1/energy/live">/api/a11oy/v1/energy/live</a>.</div>
+  </div>
+  <div class="rule" id="W-8">
+    <div class="rule-head"><span class="rule-id">W-8</span><span class="rule-st">Knowledge instilled &ne; weights trained.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">Personas carry cited, instilled knowledge in their system prompts; no claim of weight-training is ever made.
+      Enforcement: <a href="/api/a11oy/v1/ayllu/roster">/api/a11oy/v1/ayllu/roster</a> (<span class="mono">knowledge_instilled</span> flag).</div>
+  </div>
+
+  <div class="const-cred">
+    format after <a href="https://github.com/openai/model_spec" rel="noopener">openai/model_spec</a> (CC0-1.0 &mdash; structure mirrored; rules are our own) &middot;
+    pattern citations: Constitutional AI (<a href="https://arxiv.org/abs/2212.08073" rel="noopener">arXiv:2212.08073</a>),
+    principle granularity (<a href="https://arxiv.org/abs/2310.13798" rel="noopener">arXiv:2310.13798</a>) &middot;
+    enforcement labels: LIVE-READ = a real endpoint you can click &middot; RECEIPTED = signed evidence per run &middot;
+    DECLARED = build-time property, honestly labelled &middot; NEVER-PROVABLE = enshrined open conjecture
+  </div>
+</section>
 
 <div class="honesty">
   <b>Honesty.</b> Statuses are read live from <span class="mono">/api/a11oy/v1/mesh/state</span>. <b>LIVE</b> = a real in-Space wire;
