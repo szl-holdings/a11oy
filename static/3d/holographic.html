@@ -68,6 +68,10 @@
  #stage canvas{display:block;width:100%;height:100%;touch-action:none}
  #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
   text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace}
+ #surface-caption{padding:4px 14px;border-top:1px solid var(--line);background:#060c14;
+  color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.2px;flex:0 0 auto;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6}
+ #surface-caption:empty{display:none}
  footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   background:#070d15;color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6;
   white-space:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -203,6 +207,7 @@
    Khipu BFT = Conjecture 2 · 0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</div>
  </div>
 </div>
+<div id="surface-caption" title=""></div>
 <footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
  shared szl3d toolkit (Dev0) · every value carries its honesty label · trust &lt; 100%</footer>
 
@@ -420,6 +425,9 @@ async function selectSurface(id) {
   // the ★ Featured row and inside its category panel), auto-open the active category, and
   // proof-teal-flag the owning dropdown button.
   _highlight(id);
+  // one-line honest caption: the FULL verbatim title of the active surface (hover for wrap-free read)
+  { const cap = document.getElementById("surface-caption");
+    if (cap) { cap.textContent = def.title; cap.title = def.title; } }
 
   await ensureStage();
   // tear down previous
@@ -469,17 +477,30 @@ const catPanels = document.getElementById("cat-panels");
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
 
+// Short pill label: first 1-2 " · "-separated segments of the honest title, capped.
+// The FULL honest title is preserved verbatim in the tooltip (b.title) and in the
+// footer caption when the surface is selected — nothing is dropped, only de-cluttered.
+function _shortLabel(s) {
+  if (s.short) return s.short;
+  const parts = String(s.title).split(/\s*(?:·|—)\s*/).filter(Boolean);
+  let label = parts[0] || String(s.title);
+  if (parts[1] && (label.length + parts[1].length + 3) <= 36) label += " · " + parts[1];
+  if (label.length > 42) label = label.slice(0, 39).replace(/\s+\S*$/, "") + "…";
+  return label;
+}
+
 function _makeTab(s, feat) {
   const b = document.createElement("button");
   b.className = "tab" + (feat ? " tab--feat" : "");
   b.dataset.id = s.id; b.dataset.cat = catOf(s);
   b.setAttribute("role", "tab"); b.setAttribute("aria-selected", "false");
-  b.title = s.title;
+  b.title = s.title; // full honest title on hover
+  b.setAttribute("aria-label", s.title);
   if (feat) {
     const star = document.createElement("span"); star.className = "star"; star.textContent = "★";
-    b.appendChild(star); b.appendChild(document.createTextNode(s.title));
+    b.appendChild(star); b.appendChild(document.createTextNode(_shortLabel(s)));
   } else {
-    b.textContent = s.title;
+    b.textContent = _shortLabel(s);
   }
   b.addEventListener("click", () => {
     selectSurface(s.id);
