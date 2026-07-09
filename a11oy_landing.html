@@ -463,11 +463,14 @@
   <div class="body-embed" id="body-embed">
     <div class="poster" id="body-poster">
       <div class="pulse-ring" aria-hidden="true"></div>
-      <h3>The Living Body</h3>
-      <p>A real-time 3D organism wired to the same probes as the console. Loads a11oy&rsquo;s own
-        living-organism view in-frame, or open it full-screen.</p>
+      <h3>The Living Brain &amp; Body</h3>
+      <p>Two live 3D views of the same governed organism: a <b>moldable brain</b> whose eight lobes
+        are wired to live public reads (Hub assets, GitHub repos, proved theorems, organ vitals,
+        the harnessed open-weights frontier) &mdash; sculpt its cortex with your pointer &mdash;
+        and the full <b>living body</b> wired to the same probes as the console.</p>
       <div class="cta-row" style="justify-content:center">
-        <button class="btn btn-lattice" id="body-load" type="button">Load the body in-frame</button>
+        <button class="btn btn-lattice" id="brain-load" type="button">🧠 Mold the brain in-frame</button>
+        <button class="btn btn-ghost" id="body-load" type="button">Load the living body</button>
         <a class="btn btn-ghost" href="/living-anatomy" target="_blank" rel="noopener">Open full-screen →</a>
       </div>
     </div>
@@ -702,6 +705,18 @@
     const f = document.createElement("iframe");
     f.src = "https://szlholdings-anatomy.hf.space#estate";
     f.title = "a11oy living body — 3D governed organism (V10 · Estate + Ayllu wirings)";
+    f.loading = "lazy"; f.referrerPolicy = "no-referrer";
+    f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
+    wrap.innerHTML = ""; wrap.appendChild(f);
+  }); }
+
+  // ---- (C2) the moldable brain: same-origin 3D surface, loads in-frame on click ----
+  const brl = $("brain-load");
+  if(brl){ brl.addEventListener("click", function(){
+    const wrap = $("body-embed");
+    const f = document.createElement("iframe");
+    f.src = "/static/3d/brain.html";
+    f.title = "The a11oy Brain — moldable 3D cortex, eight lobes wired to live public reads";
     f.loading = "lazy"; f.referrerPolicy = "no-referrer";
     f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
     wrap.innerHTML = ""; wrap.appendChild(f);
