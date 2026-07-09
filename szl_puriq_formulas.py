@@ -630,7 +630,7 @@ def _render_html():
             f'<td>{"yes" if m["chain_verified"] else "no"}</td>'
             f'<td>{", ".join(m.get("invoked_by", []))}</td></tr>'
             f'<tr class="drow" id="d-{fid}"><td colspan="10"><div class="dbox mono" id="db-{fid}">'
-            f'click loads the LIVE per-formula endpoint &mdash; raw output, no cache</div></td></tr>'
+            f'click loads the LIVE per-formula endpoint &mdash; raw output, fetched fresh on every open</div></td></tr>'
         )
     table = "\n".join(rows)
     proved = ", ".join(stats["sprint_proved"])
@@ -717,7 +717,7 @@ every row is addressable (#F1&hellip;#F23) &middot; click a row to reveal the ra
 <div class="kpi"><b>+{ew_total}</b><span>experimental kernel-verified (separate from locked)</span></div>
 </div>
 <div class="searchbar">
-<input id="q" type="search" placeholder="premise search &mdash; filter by id / name / organ / status (e.g. kalman, PROVED, heart)" aria-label="search formulas"/>
+<input id="q" type="search" placeholder="premise search &mdash; filter by id / name / organ / status (e.g. khipu, PROVED, rfl)" aria-label="search formulas"/>
 <span class="cnt" id="cnt"></span>
 </div>
 <div class="note" style="margin-top:12px">
@@ -734,7 +734,7 @@ every row is addressable (#F1&hellip;#F23) &middot; click a row to reveal the ra
 </tbody>
 </table>
 <div class="note">
-Self-prove sprint (real local Lean v4.13.0, Mathlib-free): <b>{proved}</b> PROVED.
+Locked-proven (<b>{proved}</b>): F1/F11/F12/F18/F19 proved in the local self-prove sprint (real local Lean v4.13.0, Mathlib-free); F4/F7/F22 locked kernel theorems (lutar-lean #219 / platform #321).
 Axioms: F11/F12 use <code>propext</code> (Lean core); F1/F18/F19 use none. No <code>sorryAx</code>.
 Lambda-uniqueness is <b>Conjecture 1</b>, NOT a theorem. Values recompute live per request.
 ADDITIVE only; IP-HOLD a11oy#57 untouched.
@@ -763,13 +763,12 @@ proof-state reveal after Alectryon (MIT, pattern) &middot; premise-search after 
   function reveal(fid){{
     var d=document.getElementById('d-'+fid);if(!d)return;
     d.classList.toggle('open');
-    if(!d.classList.contains('open')||loaded[fid])return;
+    if(!d.classList.contains('open'))return;
     var box=document.getElementById('db-'+fid);
     box.textContent='fetching LIVE /api/a11oy/v1/puriq/formulas/'+fid+' \\u2026';
     fetch('/api/a11oy/v1/puriq/formulas/'+fid).then(function(r){{
       if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
     }}).then(function(j){{
-      loaded[fid]=true;
       box.textContent='LIVE proof-state / receipt chain (raw endpoint output, recomputed per request):\\n\\n'+JSON.stringify(j,null,2);
     }}).catch(function(e){{
       box.textContent='endpoint unreachable: '+e.message+' \\u2014 shown honestly, nothing cached or invented.';
