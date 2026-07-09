@@ -136,7 +136,7 @@ import * as label from "/static/3d/szl3d/szl3d_label.js";
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
-// Doctrine v11 (binding): WIRE TO LIVE DATA. Six lobes = six live public reads.
+// Doctrine v11 (binding): WIRE TO LIVE DATA. Eight lobes = eight live public reads.
 // Every value is MEASURED from a live read (a real 0 stays 0), or UNKNOWN where
 // the source exposes none. A failed feed shows NO-LIVE-DATA, never a guess.
 // Molding is a local display-only sculpt — it cannot alter any measured value.
@@ -244,7 +244,7 @@ const LOBES = [
     fetchStat: async () => {
       const j = await getJSON(HF_API + "/collections?owner=" + HF_ORG + "&limit=" + PAGE_CAP);
       return { text: capText(j.length), honesty: capHonesty(j.length),
-        caption: "Occipital lobe · " + capText(j.length) + " curated collections on the live Hub · MEASURED · " +
+        caption: "Occipital lobe · " + capText(j.length) + " curated collections on the live Hub · " + capHonesty(j.length) + " · " +
           "click to open " + HF_ORG };
     },
   },
@@ -549,7 +549,7 @@ function wireMolding() {
 }
 
 // ---------------------------------------------------------------------------
-// HUD — six live lobe reads + doctrine honesty chips.
+// HUD — eight live lobe reads + doctrine honesty chips.
 // ---------------------------------------------------------------------------
 const hudEl = document.getElementById("hud");
 const hud = {};
@@ -663,15 +663,21 @@ function wirePicking() {
 }
 
 // ---------------------------------------------------------------------------
-// orchestrate: boot -> brain -> HUD -> six live reads (each honest on its own).
+// orchestrate: boot -> brain -> HUD -> eight live reads (each honest on its own).
+// The live reads NEVER depend on the renderer: on a WebGL-less device the HUD
+// still fills with real measured values (the LIVE badge reflects the feeds,
+// not the canvas) — an honest fallback, never a frozen "…".
 // ---------------------------------------------------------------------------
 async function main() {
   buildHud();
-  try { await ensureStage(); } catch (_) { if (liveBadge) liveBadge.set(live.LIVE_STATES.ERROR); return; }
-  buildBrain();
-  wirePicking();
-  wireMolding();
-  setMold(false);
+  let stageOk = true;
+  try { await ensureStage(); } catch (_) { stageOk = false; }
+  if (stageOk) {
+    buildBrain();
+    wirePicking();
+    wireMolding();
+    setMold(false);
+  }
 
   let ok = 0, structuralOnly = false;
 
