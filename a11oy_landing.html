@@ -258,6 +258,29 @@
   .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:860px;line-height:1.65}
   .muted{color:var(--ghost)}
   .skel{color:var(--ghost);font-family:var(--mono)}
+
+  /* ---- honesty strip (MEASURED/REPORTED/UNKNOWN/CONJECTURE) ---- */
+  .honesty{border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(10,16,30,0.6),rgba(10,16,30,0.22))}
+  .honesty .wrap{padding:48px 24px}
+  .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 0}
+  @media(max-width:860px){.legend{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.legend{grid-template-columns:1fr}}
+  .leg{padding:16px 17px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.03)}
+  .leg .lt{font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.6px;margin-bottom:7px}
+  .leg p{margin:0;color:var(--sub);font-size:.9rem;line-height:1.5}
+  .leg.measured .lt{color:var(--proof)}     .leg.measured{border-color:rgba(58,244,200,0.35)}
+  .leg.reported .lt{color:var(--lattice)}   .leg.reported{border-color:rgba(91,141,238,0.35)}
+  .leg.unknown  .lt{color:var(--gold)}      .leg.unknown{border-color:rgba(215,185,107,0.35)}
+  .leg.conjecture .lt{color:var(--gray)}    .leg.conjecture{border-color:rgba(125,138,160,0.4)}
+  .honesty .lambda-line{margin:24px 0 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .honesty .lambda-line .muted{max-width:640px}
+  .honesty .free-energy{margin:14px 0 0;color:var(--ghost);font-size:.92rem;max-width:840px;line-height:1.6}
+
+  /* ---- surfaces grid (cards are links) ---- */
+  .surface-card{cursor:pointer;transition:border-color .18s,transform .18s}
+  .surface-card:hover{border-color:rgba(58,244,200,0.42);transform:translateY(-2px)}
+  .surface-card .go{color:var(--proof);font-family:var(--mono);font-size:12.5px}
 </style>
 </head>
 <body>
@@ -276,13 +299,13 @@
       <span>a11oy<span class="sub" style="margin-left:9px">Governed Inference</span></span>
     </a>
     <nav>
-      <a class="hide-sm" href="#thesis">Thesis</a>
+      <a class="hide-sm" href="#surfaces">Surfaces</a>
       <a class="hide-sm" href="#proof">The proof</a>
-      <a class="hide-sm" href="#verticals">Verticals</a>
-      <a href="/living-anatomy">Living anatomy</a>
-      <a href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">IMMUNE demo</a>
-      <a href="/trust">Trust center</a>
-      <a class="btn btn-primary" href="/console">Open the console →</a>
+      <a class="hide-sm" href="#honesty">Honesty</a>
+      <a class="hide-sm" href="/warhacker">Warhacker</a>
+      <a class="hide-sm" href="/observability">Observability</a>
+      <a href="/trust">Evidence</a>
+      <a class="btn btn-primary" href="/console">Open the command center →</a>
     </nav>
   </div>
 </header>
@@ -320,6 +343,46 @@
     </div>
   </div>
 </section>
+
+<!-- ====================== (1b) HONESTY STRIP ====================== -->
+<section class="honesty" id="honesty">
+  <div class="wrap">
+    <p class="kick">The honesty doctrine · v11 LOCKED</p>
+    <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
+    <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
+    <div class="legend">
+      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — signed-receipt count, advisory Λ posture, chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>
+      <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
+      <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
+      <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Λ lives here.</p></div>
+    </div>
+    <div class="lambda-line">
+      <span class="chip gray"><span class="dot"></span>Λ = Conjecture 1</span>
+      <span class="muted">an advisory trust bound — never proven, never 1.0, and never rendered green. Theorem&nbsp;U is the proven <i>conditional</i> alternative; the unconditional claim is machine-checked false as stated.</span>
+    </div>
+    <p class="free-energy"><b style="color:var(--ink)">No free energy.</b> Joules are MEASURED only from a live exporter delta; with no live meter we label the reading SAMPLE or UNAVAILABLE and fabricate nothing. a11oy never claims over-unity, perpetual output, or free-energy efficiency — only what a real meter reports.</p>
+  </div>
+</section>
+
+<!-- ====================== (1c) EXPLORE THE SURFACES ====================== -->
+<section class="band wrap" id="surfaces">
+  <p class="kick">Explore the estate</p>
+  <h2>Nine surfaces. One governed core.</h2>
+  <p class="intro">Every surface reads the same live endpoints and the same honesty doctrine. Jump straight in — the full working console is one click away.</p>
+  <div class="grid g3">
+    <a class="card surface-card" href="/console"><div class="ic">⌘</div><h3>Command Center</h3><p>The full working console — signed receipts, the self-doubt gate, the genome registry and live organ vitals.</p><div class="golinks"><span class="go">Open /console →</span></div></a>
+    <a class="card surface-card" href="/superpowers"><div class="ic">✦</div><h3>Five Superpowers</h3><p>The five things governed inference does that ungoverned models can't — each linked to the live check that backs it.</p><div class="golinks"><span class="go">Open /superpowers →</span></div></a>
+    <a class="card surface-card" href="/warhacker"><div class="ic">⚔</div><h3>Warhacker</h3><p>The adversarial red-team surface — probe the gate, watch it refuse, and read the signed receipt of every attempt.</p><div class="golinks"><span class="go">Open /warhacker →</span></div></a>
+    <a class="card surface-card" href="/observability"><div class="ic">◎</div><h3>Observability</h3><p>OpenTelemetry-style traces and health summaries across the organs — live, read-only, no sign-on-GET.</p><div class="golinks"><span class="go">Open /observability →</span></div></a>
+    <a class="card surface-card" href="/wires"><div class="ic">〜</div><h3>Wires</h3><p>The live wiring between organs — which probe feeds which surface, and whether it is up right now.</p><div class="golinks"><span class="go">Open /wires →</span></div></a>
+    <a class="card surface-card" href="/console#mesh"><div class="ic">◇</div><h3>Mesh</h3><p>The BFT-quorum mesh graph — 3-of-4 consensus, live state read from <span class="mono">/api/a11oy/v1/mesh/state</span>.</p><div class="golinks"><span class="go">Open the mesh →</span></div></a>
+    <a class="card surface-card" href="/formulas"><div class="ic">Σ</div><h3>Formulas</h3><p>The PURIQ agentic formula genome — live-recomputed values, each carrying its own Khipu receipt.</p><div class="golinks"><span class="go">Open /formulas →</span></div></a>
+    <a class="card surface-card" href="/trust"><div class="ic">✓</div><h3>Evidence</h3><p>The trust center: the locked-8 with truthful Lean refs, Theorem&nbsp;U vs Conjecture&nbsp;1, the receipt ledger, offline verify.</p><div class="golinks"><span class="go">Open the evidence →</span></div></a>
+    <a class="card surface-card" href="/static/viz/router/"><div class="ic mono">⇄</div><h3>LLM Router</h3><p>The LLM-Router Live scene — per-tier routing stats polled every second, otherwise an honest DEMO MODE.</p><div class="golinks"><span class="go">Open the router →</span></div></a>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
 
 <!-- ====================== (2) THE THESIS ====================== -->
 <section class="band wrap" id="thesis">
@@ -518,15 +581,17 @@
 <footer>
   <div class="wrap">
     <div class="cols">
-      <div style="max-width:340px">
+      <div style="max-width:360px">
         <a class="brand" href="/" style="margin-bottom:12px">
           <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
             <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
-          <span>a11oy</span></a>
+          <span>a11oy<span class="sub" style="margin-left:9px">Alloy by SZL Holdings</span></span></a>
         <p class="muted" style="margin:6px 0 0">Governed Inference — AI that signs its work and
           refuses to lie. Signed receipts, the Λ trust gate, a self-doubt gate, and a sha3_256
           receipt ledger anyone can verify, offline.</p>
+        <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
+          <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
       </div>
       <div class="lk"><strong style="color:var(--ink)">Product</strong>
         <a href="/console">Command center</a>
@@ -540,6 +605,11 @@
         <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
         <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
         <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Router &amp; org</strong>
+        <a href="/static/viz/router/">LLM-Router Live · 3D</a>
+        <a href="https://github.com/szl-holdings/szl-router" target="_blank" rel="noopener">SZL Router · OpenAI-compatible</a>
+        <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">SZL Holdings · GitHub org</a>
+        <a href="#surfaces">All nine surfaces</a></div>
     </div>
     <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven Lean kernel is exactly <b>8</b>
       theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
@@ -547,6 +617,7 @@
       advisory bound, never a theorem and never 1.0. Receipts are signed on state changes, never on
       reads. Energy is MEASURED only with a live exporter delta, otherwise honest SAMPLE. Supply
       chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.
+      <b style="color:var(--sub)">Alloy by SZL Holdings.</b>
       © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
   </div>
 </footer>
