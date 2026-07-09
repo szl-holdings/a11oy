@@ -132,6 +132,8 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     <div class="links">
       <a class="linkcard" href="https://szlholdings-anatomy.hf.space#estate" target="_blank" rel="noopener"><div class="lt">Standalone anatomy scene ↗</div><div class="ls">szlholdings-anatomy.hf.space · full-screen 3D (opens zoomed-out)</div></a>
       <a class="linkcard" href="https://szlholdings-killinchu.hf.space" target="_blank" rel="noopener"><div class="lt">killinchu — the field-node body ↗</div><div class="ls">szlholdings-killinchu.hf.space · counter-UAS twin (same organism)</div></a>
+      <a class="linkcard" href="/formulas"><div class="lt">/formulas — the named-formula registry</div><div class="ls">23 addressable FormulaAgents · live proof-state reveal · honest Lean status</div></a>
+      <a class="linkcard" href="/wires#constitution"><div class="lt">/wires — the written constitution</div><div class="ls">W-CONST v1.0 · numbered rules wired to live enforcement evidence</div></a>
     </div>
   </div>
   <div class="panel">
@@ -146,7 +148,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     </div>
   </div>
   <div class="footnote">
-    <b>Honest by design.</b> Live embed of the shared anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (never inflated); CUT-2 conditional/experimental @ 044eb098; Byzantine quorum = Conjecture 2 (OPEN); A5 deterministic replay = measured. Mesh quorum is read live. 0 runtime CDN — anatomy scene is a same-org HF static Space.
+    <b>Honest by design.</b> Live embed of the shared anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (never inflated); CUT-2 conditional/experimental @ 044eb098; Byzantine quorum = Conjecture 2 (OPEN); A5 deterministic replay = measured. Mesh quorum is read live. 0 runtime CDN — anatomy scene is a same-org HF static Space. Anatomical vocabulary (brain, heart, skeleton…) is an <b>engineering metaphor</b> for system organs — no medical-atlas or neuroscience claim is made or implied.
   </div>
 </div>
 <script>
@@ -166,11 +168,14 @@ async function getJSON(u){try{const r=await fetch(u);if(!r.ok)return null;return
 async function load(){
   // mesh / consensus from killinchu uds healthz (cross-app, one organism)
   const h=await getJSON("https://szlholdings-killinchu.hf.space/api/killinchu/uds/v1/healthz");
-  if(h&&h.quorum){
+  if(h&&h.quorum&&h.quorum.healthy!=null){
     const q=h.quorum;
-    $('c_mesh').textContent=(q.healthy!=null?q.healthy:'4')+' / 4 (HOLDS)';
+    $('c_mesh').textContent=q.healthy+' / 4'+(q.healthy>=4?' (HOLDS)':'');
+    $('c_mesh').style.color='var(--teal)';
   }else{
-    $('c_mesh').textContent='4 / 4 (HOLDS)';
+    // honest: no live read => say so; never fake a quorum
+    $('c_mesh').textContent='UNREACHABLE';
+    $('c_mesh').style.color='var(--orange)';
   }
   // confirm a11oy live
   const cl=await getJSON(A+"/code/healthz");
