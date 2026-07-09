@@ -173,6 +173,50 @@ details.raw[open] summary{color:var(--muted);}
 .tl-graphbox{height:380px;background:#080808;border:1px solid var(--gold-line);border-radius:10px}
 .ln-dagbox{height:440px;background:#080808;border:1px solid var(--gold-line);border-radius:10px}
 
+
+/* ===== IA REDESIGN — domain rail + flagships + command palette ===== */
+/* Collapses the flat ~40-item nav into a persistent 7-domain rail + a featured
+   flagship row + a fuzzy ⌘K palette. Every view stays reachable. Static CSS. */
+.cmdk-btn{display:flex;align-items:center;gap:.5rem;width:100%;margin:.1rem 0 .3rem;padding:.55rem .6rem;border-radius:8px;
+  border:1px solid var(--gold-line);background:var(--panel);color:var(--paragraph);font-family:var(--mono);font-size:11px;cursor:pointer;transition:.15s;letter-spacing:.03em;text-align:left;}
+.cmdk-btn:hover{border-color:var(--teal-line);color:var(--cream);background:var(--teal-soft);}
+.cmdk-btn .ico{font-size:13px;color:var(--teal);}
+.cmdk-btn .kbd{margin-left:auto;font-size:9px;color:var(--dim);border:1px solid var(--gold-line);border-radius:4px;padding:.05rem .32rem;}
+/* flagships (max 5) */
+.featured{display:grid;grid-template-columns:1fr 1fr;gap:.42rem;margin:.15rem .05rem .35rem;}
+.flag-card{display:flex;align-items:center;gap:.45rem;padding:.5rem .55rem;border-radius:8px;cursor:pointer;
+  border:1px solid var(--gold-line);background:linear-gradient(135deg,rgba(201,183,135,.07),rgba(95,179,163,.05));
+  color:var(--cream);font-size:11.5px;transition:.15s;border-left:2px solid var(--gold-line);}
+.flag-card:hover{border-color:var(--teal-line);background:var(--teal-soft);}
+.flag-card.active{border-color:var(--teal);border-left-color:var(--teal);color:var(--teal);}
+.flag-card .ico{font-size:12px;color:var(--gold);}
+.flag-card.full{grid-column:1 / -1;}
+/* domain rail (accordion) */
+.dom{display:flex;align-items:center;gap:.55rem;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--cream);
+  font-size:12.5px;font-weight:500;transition:.15s;border:1px solid transparent;}
+.dom:hover{background:var(--gold-soft);}
+.dom.open{color:var(--teal);}
+.dom .ico{width:16px;text-align:center;color:var(--teal);font-size:13px;}
+.dom .count{font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:.15rem;}
+.dom .chev{margin-left:auto;color:var(--dim);font-size:10px;transition:transform .15s;}
+.dom.open .chev{transform:rotate(90deg);color:var(--teal);}
+.domidx{display:none;margin:.05rem 0 .45rem .55rem;padding-left:.35rem;border-left:1px solid var(--gold-line);}
+.domidx.open{display:block;}
+/* ⌘K command palette overlay */
+.pal-ov{position:fixed;inset:0;z-index:200;background:rgba(4,4,4,.72);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;}
+.pal-ov.open{display:flex;}
+.palette{margin-top:9vh;width:min(640px,92vw);background:var(--panel);border:1px solid var(--teal-line);border-radius:12px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.6);}
+.palette input{width:100%;box-sizing:border-box;padding:1rem 1.1rem;background:var(--panel2);border:none;border-bottom:1px solid var(--gold-line);
+  color:var(--cream);font-family:var(--mono);font-size:14px;outline:none;}
+.palette input::placeholder{color:var(--dim);}
+.pal-hint{display:flex;gap:1rem;flex-wrap:wrap;padding:.4rem 1.1rem;font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--gold-soft);}
+.pal-list{max-height:56vh;overflow:auto;padding:.4rem;}
+.pal-item{display:flex;align-items:center;gap:.7rem;padding:.55rem .7rem;border-radius:8px;cursor:pointer;color:var(--paragraph);font-size:13px;}
+.pal-item .ico{width:16px;text-align:center;color:var(--teal);}
+.pal-item .dom-tag{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;}
+.pal-item.sel,.pal-item:hover{background:var(--teal-soft);color:var(--cream);}
+.pal-empty{padding:1.2rem;text-align:center;color:var(--dim);font-family:var(--mono);font-size:11px;}
+
 </style>
 </head>
 <body>
@@ -195,58 +239,11 @@ details.raw[open] summary{color:var(--muted);}
 <div class="app">
   <aside class="side">
     <div class="brand"><div class="mark">A</div><div><div class="nm">a11oy</div><div class="role">orchestrating brain</div></div></div>
-    <div class="nav-group">Operate</div>
-    <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
-    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
-    <div class="nav-item" data-view="operate" onclick="go('operate')"><span class="ico">▸</span>Governed Run-Loop</div>
-    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
-    <div class="nav-item" data-view="fleet" onclick="go('fleet')"><span class="ico">⊟</span>System Health</div>
-    <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
-    <div class="nav-group">The Brain (3D)</div>
-    <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
-    <div class="nav-item" data-view="ayni" onclick="go('ayni')"><span class="ico">♺</span>Reciprocity</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
-    <div class="nav-item" data-view="trustspace" onclick="go('trustspace')"><span class="ico">⁂</span>Trust Space</div>
-    <div class="nav-item" data-view="ontology" onclick="go('ontology')"><span class="ico">⌗</span>Service Map</div>
-    <div class="nav-group">Knowledge Base</div>
-    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
-    <div class="nav-item" data-view="policies" onclick="go('policies')"><span class="ico">▤</span>Vertical Policies</div>
-    <div class="nav-group">Decide &amp; Govern</div>
-    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score</div>
-    <div class="nav-item" data-view="decision" onclick="go('decision')"><span class="ico">◈</span>Governed Decision</div>
-    <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
-    <div class="nav-item" data-view="feed" onclick="go('feed')"><span class="ico">∿</span>Live Decisions</div>
-    <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
-    <div class="nav-item" data-view="chat" onclick="go('chat')"><span class="ico">✦</span>Governed AI Chat</div>
-    <div class="nav-item" data-view="forecast" onclick="go('forecast')"><span class="ico">↗</span>Forecast</div>
-    <div class="nav-group">Prove &amp; Verify</div>
-    <div class="nav-item" data-view="receipts" onclick="go('receipts')"><span class="ico">⎙</span>Signed Receipts</div>
-    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
-    <div class="nav-item" data-view="threats" onclick="go('threats')"><span class="ico">☠</span>Threat Library</div>
-    <div class="nav-group">World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
-    <div class="nav-item" data-view="kev" onclick="go('kev')"><span class="ico">⊕</span>Known-Exploited</div>
-    <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
-    <div class="nav-group">Business &amp; Ecosystem</div>
-    <div class="nav-item" data-view="business" onclick="go('business')"><span class="ico">◑</span>Business Observability</div>
-    <div class="nav-item" data-view="verticals" onclick="go('verticals')"><span class="ico">▦</span>Vertical-Pack Ecosystem</div>
-    <div class="nav-group">Models &amp; Tools</div>
-    <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
-    <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
-    <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
-    <div class="nav-group">Leader-Grade (NEW)</div>
-    <div class="nav-item" data-view="ledger3d" onclick="go('ledger3d')"><span class="ico">◈</span>Trust Ledger</div>
-    <div class="nav-item" data-view="lineage" onclick="go('lineage')"><span class="ico">⚛</span>Knowledge Lineage</div>
-    <div class="nav-item" data-view="mission" onclick="go('mission')"><span class="ico">⬢</span>Mission Health</div>
-    <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-    <div class="nav-group">Doctrine</div>
-    <div class="nav-item" data-view="gpd" onclick="go('gpd')"><span class="ico">⟁</span>Governed Post-Determinism</div>
-    <div class="nav-group">Experimental (CI-green)</div>
-    <div class="nav-item" data-view="experimental" onclick="go('experimental')"><span class="ico">⚗</span>Experimental Tier</div>
-    <div class="nav-item" onclick="window.open('/proven-formulas','_blank')" style="cursor:pointer"><span class="ico">∿</span>Wave9/10 Formulas ↗</div>
-    <div class="nav-item" onclick="window.open('/frontier','_blank')" style="cursor:pointer"><span class="ico">◌</span>Frontier Showcase ↗</div>
+    <button class="cmdk-btn" onclick="openPalette()" title="Search every view — ⌘K / Ctrl-K"><span class="ico">⌕</span>Search all views<span class="kbd">⌘K</span></button>
+    <div class="nav-group">Flagships</div>
+    <div class="featured" id="featured"></div>
+    <div class="nav-group">Domains</div>
+    <div class="rail" id="rail"></div>
     <div class="side-foot">Trust score = research conjecture<br>8 formulas formally proven<br>SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · 5 services<br>Verifiable receipts · honest by design<br><span style="color:#c9a05f;font-size:9px">+ 80+ EXPERIMENTAL · CI-green</span></div>
   </aside>
 
@@ -1592,6 +1589,7 @@ function go(view){
   v.render(el('vbody'));
   if(history.replaceState)history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820)document.querySelector('.side').classList.remove('open');
+  if(window.syncRail)window.syncRail(view);
 }
 const start=(location.hash||'#command').slice(1);
 go(VIEWS[start]?start:'command');
@@ -1945,5 +1943,124 @@ async function operate_run(){
 window.operate_run=operate_run;
 
 </script>
+<div class="pal-ov" id="pal-ov" onclick="if(event.target===this)closePalette()">
+  <div class="palette" role="dialog" aria-label="Command palette — search all views">
+    <input id="pal-input" type="text" placeholder="Search all views…  type to filter · ↑↓ move · ↵ open · Esc close" autocomplete="off" spellcheck="false" aria-label="Search all views"/>
+    <div class="pal-hint"><span>⌘K / Ctrl-K</span><span>↑↓ navigate</span><span>↵ open</span><span>Esc close</span></div>
+    <div class="pal-list" id="pal-list"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   IA REDESIGN — persistent 7-domain rail + 5 flagships + ⌘K command palette
+   Collapses the flat ~40-item nav WITHOUT removing any view. Every VIEWS entry
+   stays reachable via its domain index panel AND the fuzzy palette. External
+   links (/proven-formulas, /frontier) are preserved in the Doctrine domain and
+   the palette. Static HTML/JS only — no framework. Honest labels + doctrine bar
+   are untouched. Palantir/Anduril command-center IA: hierarchy + persistent
+   context over a flat wall of pills.
+   ============================================================================ */
+(function(){
+  const DOMAINS=[
+    {id:'ops',icon:'◎',label:'Ops & Fleet',full:'Operations & Fleet — command center, governed run-loop, service health & live system maps',views:['command','ask','operate','demo','fleet','mesh','mission','business']},
+    {id:'brain',icon:'❋',label:'Brain & Memory',full:'Brain & Memory — living organism, knowledge ontology, receipt chain, lineage, pulse & trust space',views:['organism','knowledge','chain','pulse','trustspace','ontology','kbformulas','lineage']},
+    {id:'reason',icon:'⚇',label:'Reasoning & Agents',full:'Reasoning & Agents — model router, agent tools, governed chat, eval arena, replay & forecast',views:['llm','mcp','chat','arena','replay','forecast']},
+    {id:'govern',icon:'⊠',label:'Governance & Assurance',full:'Governance & Assurance — governed decisions, safety gates, policies, readiness, live decisions & reciprocity',views:['govern','decision','lambda','gates','feed','policies','ayni']},
+    {id:'proof',icon:'⎙',label:'Proof & Attestation',full:'Proof & Attestation — signed receipts & the verifiable trust ledger',views:['receipts','ledger3d']},
+    {id:'threat',icon:'⚔',label:'World & Threat Intel',full:'World & Threat Intel — threat library, CVE watch, known-exploited & adversary techniques',views:['threats','cve','kev','attack']},
+    {id:'doctrine',icon:'⟁',label:'Doctrine & Frontier',full:'Doctrine & Frontier — what we claim, governed post-determinism, vertical-pack ecosystem & experimental tier',views:['honest','gpd','verticals','experimental'],ext:[{label:'Wave9/10 Formulas',href:'/proven-formulas',icon:'∿'},{label:'Frontier Showcase',href:'/frontier',icon:'◌'}]}
+  ];
+  const FLAGSHIPS=[
+    {view:'command',label:'Ops Command',hero:true,tip:'Command Center — one pane of glass over the whole governed-AI platform'},
+    {view:'organism',label:'Living Body',tip:'Living Organism — the platform as one breathing 3D organism'},
+    {view:'knowledge',label:'Knowledge Graph',tip:'Knowledge Ontology — axioms → theorems → formulas, loaded live'},
+    {view:'govern',label:'Governance',tip:'Readiness & Compliance — governed decisions & assurance posture'},
+    {view:'chain',label:'Proof Chain',tip:'Receipt Chain — SHA-256 hash-chained proof-of-governance'}
+  ];
+  window.__IA_DOMAINS=DOMAINS;
+  const V=function(){return window.VIEWS||{};};
+  const T=function(id){var v=V()[id];return (v&&v.title)||id;};
+  const SUB=function(id){var v=V()[id];return (v&&v.sub)||'';};
+  const domOf={}; DOMAINS.forEach(function(d){d.views.forEach(function(v){domOf[v]=d;});});
+  // orphan safety net: any VIEWS key not placed in a domain is appended to the
+  // last domain so no view can ever become unreachable if the registry drifts.
+  try{Object.keys(V()).forEach(function(v){if(!domOf[v]){var last=DOMAINS[DOMAINS.length-1];last.views.push(v);domOf[v]=last;}});}catch(e){}
+  function attr(s){return String(s==null?'':s).replace(/"/g,'&quot;');}
+  function navItem(v){
+    var tip=(T(v)+' — '+SUB(v)).slice(0,190);
+    return '<div class="nav-item" data-view="'+v+'" title="'+attr(tip)+'" onclick="go(\''+v+'\')"><span class="ico">▸</span>'+T(v)+'</div>';
+  }
+  function buildRail(){
+    var feat=document.getElementById('featured');
+    if(feat)feat.innerHTML=FLAGSHIPS.map(function(f){
+      return '<div class="flag-card'+(f.hero?' full':'')+'" data-view="'+f.view+'" title="'+attr(f.tip)+'" onclick="go(\''+f.view+'\')"><span class="ico">★</span>'+f.label+'</div>';
+    }).join('');
+    var rail=document.getElementById('rail');
+    if(rail)rail.innerHTML=DOMAINS.map(function(d){
+      var items=d.views.map(navItem).join('');
+      var ext=(d.ext||[]).map(function(e){return '<div class="nav-item" title="opens '+attr(e.href)+' in a new tab" onclick="window.open(\''+e.href+'\',\'_blank\')" style="cursor:pointer"><span class="ico">'+e.icon+'</span>'+e.label+' ↗</div>';}).join('');
+      var n=d.views.length+(d.ext?d.ext.length:0);
+      return '<div class="dom" data-dom="'+d.id+'" title="'+attr(d.full)+'" onclick="toggleDom(\''+d.id+'\')"><span class="ico">'+d.icon+'</span>'+d.label+'<span class="count">'+n+'</span><span class="chev">▸</span></div>'
+        +'<div class="domidx" id="domidx-'+d.id+'">'+items+ext+'</div>';
+    }).join('');
+  }
+  window.toggleDom=function(id){
+    var p=document.getElementById('domidx-'+id);
+    var willOpen=p&&!p.classList.contains('open');
+    document.querySelectorAll('.domidx').forEach(function(x){x.classList.toggle('open',willOpen&&x.id==='domidx-'+id);});
+    document.querySelectorAll('.dom').forEach(function(h){h.classList.toggle('open',willOpen&&h.dataset.dom===id);});
+  };
+  function openDomFor(view){
+    var d=domOf[view];if(!d)return;
+    document.querySelectorAll('.domidx').forEach(function(p){p.classList.toggle('open',p.id==='domidx-'+d.id);});
+    document.querySelectorAll('.dom').forEach(function(h){h.classList.toggle('open',h.dataset.dom===d.id);});
+  }
+  window.syncRail=function(view){
+    document.querySelectorAll('.side .nav-item, .flag-card').forEach(function(n){n.classList.toggle('active',n.dataset.view===view);});
+    openDomFor(view);
+  };
+
+  /* ---- ⌘K command palette (fuzzy over ALL views + external links) ---- */
+  var PAL=[],selIdx=0;
+  function palItems(){
+    var arr=[];
+    DOMAINS.forEach(function(d){
+      d.views.forEach(function(v){arr.push({type:'view',id:v,label:T(v),dom:d.label,icon:'▸',hay:(v+' '+T(v)+' '+d.label+' '+SUB(v)).toLowerCase()});});
+      (d.ext||[]).forEach(function(e){arr.push({type:'ext',href:e.href,label:e.label+' ↗',dom:d.label,icon:e.icon,hay:(e.label+' '+e.href+' '+d.label).toLowerCase()});});
+    });
+    return arr;
+  }
+  function renderPal(q){
+    var list=document.getElementById('pal-list');if(!list)return;
+    var terms=(q||'').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    PAL=palItems().filter(function(it){return terms.every(function(t){return it.hay.indexOf(t)>=0;});});
+    selIdx=0;
+    if(!PAL.length){list.innerHTML='<div class="pal-empty">no matching view</div>';return;}
+    list.innerHTML=PAL.map(function(it,i){return '<div class="pal-item'+(i===0?' sel':'')+'" data-i="'+i+'" onmouseover="palHover('+i+')" onclick="palGo('+i+')"><span class="ico">'+it.icon+'</span>'+attr(it.label)+'<span class="dom-tag">'+attr(it.dom)+'</span></div>';}).join('');
+  }
+  window.palHover=function(i){selIdx=i;document.querySelectorAll('.pal-item').forEach(function(e,j){e.classList.toggle('sel',j===i);});};
+  window.palGo=function(i){var it=PAL[i];if(!it)return;closePalette();if(it.type==='ext')window.open(it.href,'_blank');else go(it.id);};
+  window.openPalette=function(){var ov=document.getElementById('pal-ov');if(!ov)return;ov.classList.add('open');var inp=document.getElementById('pal-input');if(inp){inp.value='';renderPal('');setTimeout(function(){inp.focus();},20);}};
+  window.closePalette=function(){var ov=document.getElementById('pal-ov');if(ov)ov.classList.remove('open');};
+  document.addEventListener('keydown',function(e){
+    if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();openPalette();return;}
+    var ov=document.getElementById('pal-ov');if(!ov||!ov.classList.contains('open'))return;
+    if(e.key==='Escape'){closePalette();}
+    else if(e.key==='ArrowDown'){e.preventDefault();selIdx=Math.min(selIdx+1,PAL.length-1);palHover(selIdx);var s=document.querySelector('.pal-item.sel');if(s)s.scrollIntoView({block:'nearest'});}
+    else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,0);palHover(selIdx);var s2=document.querySelector('.pal-item.sel');if(s2)s2.scrollIntoView({block:'nearest'});}
+    else if(e.key==='Enter'){e.preventDefault();palGo(selIdx);}
+  });
+
+  function init(){
+    buildRail();
+    var cur=(location.hash||'#command').slice(1);
+    window.syncRail(V()[cur]?cur:'command');
+    var inp=document.getElementById('pal-input');if(inp)inp.addEventListener('input',function(e){renderPal(e.target.value);});
+  }
+  if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+
 </body>
 </html>
