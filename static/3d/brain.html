@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>The a11oy Brain — moldable · SZL Holdings</title>
+<!-- 0 runtime CDN. three.js is vendored in-image and served same-origin through the
+     /static/3d/vendor/... importmap below (see VENDOR_MANIFEST.md). System fonts only.
+
+     This page is a SELF-CONTAINED, MOLDABLE 3D brain of the SZL Holdings estate.
+     Eight lobes are wired to eight LIVE public reads, fetched client-side on load:
+       · Models / Datasets / Spaces / Collections — Hugging Face Hub API (SZLHOLDINGS)
+       · Repositories — GitHub REST API (org szl-holdings)
+       · Proved formulas — the ProvedFormulas.lean source file, fetched raw from the
+         szl-holdings/a11oy repository and its `theorem` declarations counted in-browser.
+       · Fleet vitals — live /healthz probes of the organ Spaces (a11oy · killinchu ·
+         anatomy · amaru · sentra), each answer is that organ's own, right now.
+       · Open frontier — live Hub counts of the open-weights orgs the a11oy backbone
+         is built to route to (DeepSeek · Qwen · Kimi/Moonshot) plus GLM/Z.ai (watched).
+     Every number on screen is MEASURED from those live reads (a real 0 stays 0) or
+     UNKNOWN where the source exposes none; an unreachable feed degrades to an honest
+     NO-LIVE-DATA state. Nothing is ever fabricated.
+
+     MOLDING is a local, display-only sculpt: dragging in Mold mode displaces mesh
+     vertices on YOUR device only. It never changes, and can never change, any
+     measured number. Λ = Conjecture 1. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three/three.module.min.js",
+    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+    "three/addons/": "/static/3d/vendor/three/addons/"
+  }
+}
+</script>
+<style>
+ :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--proof:#3af4c8;--gold:#e8c074;
+  --sky:#6fb1ff;--green:#2fd07a;--rose:#e08a8a;--cream:#eef3f6;--para:#9fb1bf;}
+ *{box-sizing:border-box}
+ html,body{margin:0;height:100%}
+ body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  overflow:hidden;display:flex;flex-direction:column;height:100vh;height:100svh;height:100dvh}
+ header{padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#08101a,#05070d);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:0 0 auto}
+ h1{font-size:16px;margin:0;letter-spacing:.4px}
+ .badge{display:inline-block;font:10.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);color:var(--gold);background:#10171f;white-space:nowrap}
+ #backend{color:var(--teal)}
+ a{color:var(--teal);text-decoration:none}
+ #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
+ #stage{position:absolute;inset:0}
+ #stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+ #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace;line-height:1.6}
+ #fallback code{color:var(--teal)}
+ #hud{position:absolute;left:14px;top:14px;z-index:6;display:flex;flex-direction:column;gap:7px;
+  max-width:min(94%,440px);font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe0ea;
+  background:rgba(6,11,16,.78);border:1px solid #15212c;border-radius:11px;padding:12px 14px;
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);max-height:calc(100% - 28px);overflow-y:auto}
+ #hud .h-title{font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ #hud .h-sub{color:#46586a;font-weight:400;font-size:11px}
+ #hud .row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+ #hud .row .name{display:flex;align-items:center;gap:7px;color:#9fb1bf}
+ #hud .row .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 7px currentColor;flex:0 0 auto}
+ #hud .row .right{display:flex;align-items:center;gap:6px}
+ #hud .row .val{color:#eef3f6}
+ #hud .note{color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:2px;border-top:1px solid #15212c;padding-top:6px}
+ #hud .plainbtn{font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid var(--proof);
+  background:#08140f;color:var(--proof);cursor:pointer;width:fit-content;margin-top:2px}
+ #hud .plain{font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;
+  padding:7px 9px;display:none;margin-top:2px}
+ /* mold controls — bottom-right, out of the HUD's way */
+ #mold-ui{position:absolute;right:14px;bottom:14px;z-index:6;display:flex;gap:8px;align-items:center;
+  font:11.5px ui-monospace,monospace}
+ #mold-ui button{font:600 11.5px ui-monospace,monospace;padding:8px 14px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--line);background:#0b121b;color:#cfe0ea;transition:all .15s}
+ #mold-ui button.on{border-color:var(--proof);color:var(--proof);background:#08140f;
+  box-shadow:0 0 14px rgba(58,244,200,.25)}
+ #mold-ui #mold-hint{color:#6d7d8a;background:rgba(6,11,16,.78);border:1px solid #15212c;border-radius:8px;
+  padding:6px 10px;max-width:280px;display:none}
+ #surface-caption{padding:4px 14px;border-top:1px solid var(--line);background:#060c14;color:var(--para);
+  font:10.5px ui-monospace,monospace;letter-spacing:.2px;flex:0 0 auto;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;z-index:6}
+ #surface-caption:empty{display:none}
+ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;background:#070d15;color:var(--para);
+  font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6;white-space:nowrap;overflow-x:auto;
+  -webkit-overflow-scrolling:touch}
+ @media (max-width:640px){
+  header{padding:8px 12px;gap:8px}
+  h1{font-size:14px;flex:1 1 100%}
+  header .badge{font-size:9.5px;padding:2px 6px}
+  #three-rev-badge,#cdn-badge{display:none}
+  #hud{max-width:calc(100% - 20px);left:10px;top:10px;font-size:11px;padding:10px 12px}
+  #mold-ui #mold-hint{display:none !important}
+  footer{font-size:9px;padding:5px 10px}
+ }
+</style>
+</head>
+<body>
+<header>
+ <h1>🧠 The a11oy Brain</h1>
+ <span class="badge" id="backend">renderer: …</span>
+ <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
+ <span class="badge" id="cdn-badge">0 runtime CDN</span>
+ <span class="badge">Λ = Conjecture 1</span>
+ <a href="/static/3d/estate.html" class="badge" title="Holographic estate map — every live Hub asset">◇ estate</a>
+ <a href="/static/3d/holographic.html" class="badge" title="The full holographic estate — 100+ live 3D surfaces">◇ surfaces</a>
+ <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
+</header>
+<div id="stage-wrap">
+ <div id="stage"></div>
+ <div id="fallback">3D unavailable on this device — the brain needs a WebGL2 or WebGPU canvas.<br>
+  All underlying data is still available as JSON / source, e.g.<br>
+  <code>huggingface.co/api/models?author=SZLHOLDINGS</code> ·
+  <code>api.github.com/orgs/szl-holdings/repos</code></div>
+ <!-- Live lobe rollup HUD (built in JS so every chip is a real doctrine label). -->
+ <div id="hud"></div>
+ <div id="mold-ui">
+  <span id="mold-hint">drag the cortex to push it out · hold <b>Shift</b> (or use two fingers) to carve in ·
+   sculpting is display-only on your device, the measured numbers never change</span>
+  <button id="mode-btn" type="button" title="Toggle between orbiting the brain and molding its cortex">🖐 Mold</button>
+  <button id="reset-btn" type="button" title="Restore the original cortex (display-only)">↺ Reset sculpt</button>
+ </div>
+</div>
+<div id="surface-caption" title=""></div>
+<footer>Doctrine v11 · Λ = Conjecture 1 · eight lobes wired live: Hugging Face Hub (SZLHOLDINGS + open-frontier orgs) ·
+ GitHub org (szl-holdings) · ProvedFormulas.lean counted in-browser from raw source · organ /healthz vitals ·
+ every count MEASURED or honestly UNKNOWN / NO-LIVE-DATA · sculpting is local + display-only ·
+ 0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</footer>
+
+<script type="module">
+import szl3d from "/static/3d/szl3d/szl3d_boot.js";
+import * as live from "/static/3d/szl3d/szl3d_live.js";
+import * as label from "/static/3d/szl3d/szl3d_label.js";
+import * as THREE from "three";
+
+// ---------------------------------------------------------------------------
+// Doctrine v11 (binding): WIRE TO LIVE DATA. Six lobes = six live public reads.
+// Every value is MEASURED from a live read (a real 0 stays 0), or UNKNOWN where
+// the source exposes none. A failed feed shows NO-LIVE-DATA, never a guess.
+// Molding is a local display-only sculpt — it cannot alter any measured value.
+// ---------------------------------------------------------------------------
+
+const HF_API = "https://huggingface.co/api";
+const HF_ORG = "SZLHOLDINGS";
+const GH_ORG = "szl-holdings";
+const LEAN_RAW = "https://raw.githubusercontent.com/szl-holdings/a11oy/main/proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean";
+
+// Palette accents (doctrine-safe — NEVER purple). One per lobe.
+const COL = {
+  formulas: 0x3af4c8,    // proof-teal — the reasoning cortex
+  models: 0xe8c074,      // gold
+  datasets: 0x39d3c4,    // teal
+  spaces: 0x6fb1ff,      // sky
+  collections: 0x2fd07a, // green
+  repos: 0xe08a8a,       // rose — the motor cortex (code)
+  fleet: 0xd9e46e,       // lime — brainstem vitals
+  frontier: 0xff9d5c,    // amber — the harnessed open frontier
+  cortex: 0x0f2f33,
+  wire: 0x2a8f86,
+};
+
+function numOr(x) {
+  if (x === null || x === undefined) return null;
+  const n = typeof x === "number" ? x : Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Each lobe: a fixed anatomical direction on the cortex + one live read.
+// `fetchStat` returns { text, honesty, caption } — resolved independently so a
+// single failing feed only degrades its own lobe.
+const PAGE_CAP = 100;
+function capText(n) { return n >= PAGE_CAP ? PAGE_CAP + "+ (page cap — lower bound)" : String(n); }
+function capHonesty(n) { return n >= PAGE_CAP ? "STRUCTURAL-ONLY" : "MEASURED"; }
+
+async function getJSON(url) {
+  // 10s abort: a hung request must degrade to NO-LIVE-DATA, never hang at "…".
+  const r = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  if (!Array.isArray(j)) throw new Error("unexpected payload");
+  return j;
+}
+
+const LOBES = [
+  {
+    key: "formulas", name: "Frontal — proved formulas", color: COL.formulas,
+    dir: [0, 0.55, 0.95], url: "https://github.com/" + GH_ORG + "/a11oy/blob/main/proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean",
+    fetchStat: async () => {
+      // Count `theorem` declarations in the live source bytes — a real in-browser
+      // measurement of the file as it exists on main right now.
+      const r = await fetch(LEAN_RAW, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const src = await r.text();
+      const n = (src.match(/(^|\n)\s*theorem\s/g) || []).length;
+      return { text: n + " theorems", honesty: "MEASURED",
+        caption: "Frontal lobe · " + n + " `theorem` declarations counted in-browser from the live " +
+          "ProvedFormulas.lean source on main · MEASURED (raw.githubusercontent.com) · click to read the proofs" };
+    },
+  },
+  {
+    key: "models", name: "Parietal — models", color: COL.models,
+    dir: [0.55, 0.85, -0.15], url: "https://huggingface.co/" + HF_ORG,
+    fetchStat: async () => {
+      const j = await getJSON(HF_API + "/models?author=" + HF_ORG + "&limit=" + PAGE_CAP + "&full=false");
+      let dl = 0, dlKnown = true;
+      j.forEach((m) => { const d = numOr(m.downloads); if (d === null) dlKnown = false; else dl += d; });
+      return { text: capText(j.length), honesty: capHonesty(j.length),
+        caption: "Parietal lobe · " + capText(j.length) + " models on the live Hub · " +
+          (dlKnown ? "Σ " + dl.toLocaleString() + " downloads · MEASURED (live Hub)" : "some download counts UNKNOWN") +
+          " · click to open " + HF_ORG + " on Hugging Face" };
+    },
+  },
+  {
+    key: "datasets", name: "Temporal L — datasets", color: COL.datasets,
+    dir: [-0.95, -0.05, 0.15], url: "https://huggingface.co/" + HF_ORG + "?tab=datasets" ,
+    fetchStat: async () => {
+      const j = await getJSON(HF_API + "/datasets?author=" + HF_ORG + "&limit=" + PAGE_CAP + "&full=false");
+      let dl = 0, dlKnown = true;
+      j.forEach((d) => { const n = numOr(d.downloads); if (n === null) dlKnown = false; else dl += n; });
+      return { text: capText(j.length), honesty: capHonesty(j.length),
+        caption: "Left temporal lobe · " + capText(j.length) + " datasets on the live Hub · " +
+          (dlKnown ? "Σ " + dl.toLocaleString() + " downloads · MEASURED (live Hub)" : "some download counts UNKNOWN") +
+          " · click to open the datasets" };
+    },
+  },
+  {
+    key: "spaces", name: "Temporal R — Spaces", color: COL.spaces,
+    dir: [0.95, -0.05, 0.15], url: "https://huggingface.co/" + HF_ORG + "?tab=spaces",
+    fetchStat: async () => {
+      const j = await getJSON(HF_API + "/spaces?author=" + HF_ORG + "&limit=" + PAGE_CAP + "&full=false");
+      let likes = 0, lKnown = true;
+      j.forEach((s) => { const n = numOr(s.likes); if (n === null) lKnown = false; else likes += n; });
+      return { text: capText(j.length), honesty: capHonesty(j.length),
+        caption: "Right temporal lobe · " + capText(j.length) + " live Spaces · " +
+          (lKnown ? "Σ " + likes.toLocaleString() + " likes · MEASURED (live Hub)" : "some like counts UNKNOWN") +
+          " · Space downloads: UNKNOWN (Hub exposes none) · click to open the Spaces" };
+    },
+  },
+  {
+    key: "collections", name: "Occipital — collections", color: COL.collections,
+    dir: [0, 0.35, -1], url: "https://huggingface.co/" + HF_ORG,
+    fetchStat: async () => {
+      const j = await getJSON(HF_API + "/collections?owner=" + HF_ORG + "&limit=" + PAGE_CAP);
+      return { text: capText(j.length), honesty: capHonesty(j.length),
+        caption: "Occipital lobe · " + capText(j.length) + " curated collections on the live Hub · MEASURED · " +
+          "click to open " + HF_ORG };
+    },
+  },
+  {
+    key: "repos", name: "Cerebellum — repositories", color: COL.repos,
+    dir: [0, -0.75, -0.75], url: "https://github.com/" + GH_ORG,
+    fetchStat: async () => {
+      const j = await getJSON("https://api.github.com/orgs/" + GH_ORG + "/repos?per_page=" + PAGE_CAP + "&type=public");
+      let stars = 0, sKnown = true;
+      j.forEach((r) => { const n = numOr(r.stargazers_count); if (n === null) sKnown = false; else stars += n; });
+      return { text: capText(j.length), honesty: capHonesty(j.length),
+        caption: "Cerebellum · " + capText(j.length) + " public repositories in the live GitHub org · " +
+          (sKnown ? "Σ " + stars.toLocaleString() + " stars · MEASURED (GitHub API)" : "some star counts UNKNOWN") +
+          " · click to open github.com/" + GH_ORG };
+    },
+  },
+  {
+    key: "fleet", name: "Brainstem — fleet vitals", color: COL.fleet,
+    dir: [0, -0.92, 0.05], url: "https://huggingface.co/" + HF_ORG,
+    fetchStat: async () => {
+      // Live /healthz probes of the organ Spaces — each value is that organ's OWN
+      // answer, fetched right now. A 404 means "no health endpoint exposed", which
+      // is reported as exactly that — never claimed as up OR down.
+      const ORGANS = ["a11oy", "killinchu", "anatomy", "amaru", "sentra"];
+      const results = await Promise.all(ORGANS.map(async (o) => {
+        try {
+          const r = await fetch("https://szlholdings-" + o + ".hf.space/healthz",
+            { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+          if (!r.ok) return { o, state: "no /healthz (HTTP " + r.status + ")", up: false };
+          const j = await r.json();
+          return { o, state: (j && j.status) ? String(j.status) : "unknown payload", up: !!(j && j.status === "ok") };
+        } catch (_) { return { o, state: "unreachable", up: false }; }
+      }));
+      const up = results.filter((r) => r.up).length;
+      return { text: up + "/" + ORGANS.length + " organs report ok", honesty: "MEASURED",
+        caption: "Brainstem · live /healthz probes made from your browser just now — " +
+          results.map((r) => r.o + ": " + (r.up ? "ok" : r.state)).join(" · ") +
+          " · MEASURED (each value is that organ's own live answer; a missing endpoint is said, not guessed)" };
+    },
+  },
+  {
+    key: "frontier", name: "R frontal — open frontier", color: COL.frontier,
+    dir: [0.7, 0.45, 0.62], url: "https://huggingface.co/deepseek-ai",
+    fetchStat: async () => {
+      // The open-weights orgs the multi-provider backbone is built to route to
+      // (DeepSeek, Qwen, Kimi/Moonshot are wired providers; GLM/Z.ai is watched).
+      // Counted live from the public Hub — page cap makes totals honest lower bounds.
+      const ORGS = ["deepseek-ai", "Qwen", "moonshotai", "zai-org"];
+      const counts = await Promise.all(ORGS.map(async (a) => {
+        const j = await getJSON(HF_API + "/models?author=" + a + "&limit=" + PAGE_CAP + "&full=false");
+        return { a, n: j.length };
+      }));
+      let total = 0, capped = false;
+      counts.forEach((c) => { total += c.n; if (c.n >= PAGE_CAP) capped = true; });
+      return { text: (capped ? "\u2265 " + total : String(total)) + " open models",
+        honesty: capped ? "STRUCTURAL-ONLY" : "MEASURED",
+        caption: "Right frontal · the open-weights frontier harnessed by the a11oy backbone " +
+          "(DeepSeek · Qwen · Kimi/Moonshot — wired providers · GLM/Z.ai — watched) · " +
+          counts.map((c) => c.a + ": " + (c.n >= PAGE_CAP ? PAGE_CAP + "+" : c.n)).join(" · ") +
+          " · counted live from the public Hub (page cap " + PAGE_CAP + "/org \u2014 lower bound)" };
+    },
+  },
+];
+
+const stageEl = document.getElementById("stage");
+const fallbackEl = document.getElementById("fallback");
+const captionEl = document.getElementById("surface-caption");
+document.getElementById("three-rev").textContent = THREE.REVISION;
+
+let stage = null;
+let brain = null;         // THREE.Group holding cortex + lobes
+let cortex = null;        // the sculptable mesh
+let cortexWire = null;    // wireframe overlay sharing the same geometry
+let basePos = null;       // pristine vertex positions for Reset
+const lobeMarkers = {};   // key -> { marker, label, lobe }
+const pickable = [];      // lobe markers for raycasting
+
+// ---------------------------------------------------------------------------
+// boot the shared renderer (WebGL2 default — WebGPU is not production-safe on
+// all platforms per doctrine; the toolkit falls back honestly either way).
+// ---------------------------------------------------------------------------
+async function ensureStage() {
+  if (stage) return stage;
+  try {
+    stage = await szl3d.boot(stageEl, {
+      bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 },
+      cameraPos: [0, 3.5, 12.5],
+      forceWebGL: true,
+    });
+    document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
+    stage.start();
+  } catch (e) {
+    fallbackEl.style.display = "flex";
+    document.getElementById("backend").textContent = "renderer: UNAVAILABLE";
+    console.error("[brain] stage boot failed:", e);
+    throw e;
+  }
+  return stage;
+}
+
+// ---------------------------------------------------------------------------
+// The cortex: a high-resolution icosphere shaped into a brain-like form with a
+// midline fissure and deterministic sine-fold "gyri". The shaping is purely
+// aesthetic (display-only); the DATA lives in the lobe reads, never the shape.
+// ---------------------------------------------------------------------------
+function brainShape(v) {
+  // v: THREE.Vector3 on the unit sphere -> returns shaped position
+  const x = v.x, y = v.y, z = v.z;
+  // base ellipsoid: wider than tall, longest front-to-back
+  let px = x * 1.06, py = y * 0.88, pz = z * 1.28;
+  // flatten the underside a little (temporal floor)
+  if (py < -0.45) py = -0.45 + (py + 0.45) * 0.55;
+  // midline longitudinal fissure: pinch |x| near 0 on the upper half
+  const mid = Math.exp(-(x * x) / 0.02);
+  if (y > -0.1) { py -= 0.10 * mid * (y + 0.1); px *= (1 - 0.16 * mid); }
+  // deterministic cortical folds (sine-noise, display-only)
+  const th = Math.atan2(z, x), ph = Math.asin(Math.max(-1, Math.min(1, y)));
+  const fold =
+    0.028 * Math.sin(9 * th + 2.1 * Math.sin(3 * ph)) +
+    0.022 * Math.sin(7 * ph + 1.7 * Math.sin(4 * th)) +
+    0.014 * Math.sin(13 * th - 5 * ph);
+  const r = 1 + fold * (y > -0.35 ? 1 : 0.35); // calmer folds near the base
+  return new THREE.Vector3(px * r, py * r, pz * r);
+}
+
+function buildBrain() {
+  brain = new THREE.Group();
+  stage.scene.add(brain);
+
+  const R = 3.1;
+  const geo = new THREE.IcosahedronGeometry(1, 5); // 10242 verts — smooth enough to sculpt
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).normalize();
+    const p = brainShape(v).multiplyScalar(R);
+    pos.setXYZ(i, p.x, p.y, p.z);
+  }
+  geo.computeVertexNormals();
+  basePos = new Float32Array(pos.array); // pristine copy for Reset
+
+  cortex = new THREE.Mesh(
+    geo,
+    new THREE.MeshStandardMaterial({
+      color: COL.cortex, emissive: 0x123a3e, emissiveIntensity: 0.55,
+      metalness: 0.15, roughness: 0.55, flatShading: false,
+    }),
+  );
+  brain.add(cortex);
+
+  // wireframe overlay SHARES the geometry — sculpting updates both in lockstep
+  cortexWire = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({ color: COL.wire, wireframe: true, transparent: true, opacity: 0.14 }),
+  );
+  cortexWire.scale.setScalar(1.001);
+  brain.add(cortexWire);
+
+  // faint polar floor grid for depth
+  try {
+    const grid = new THREE.PolarGridHelper(9, 8, 6, 64, 0x14212b, 0x0e1922);
+    grid.position.y = -4.6;
+    if (grid.material) { grid.material.transparent = true; grid.material.opacity = 0.35; }
+    if (Array.isArray(grid.material)) grid.material.forEach((m) => { m.transparent = true; m.opacity = 0.35; });
+    stage.scene.add(grid);
+  } catch (_) {}
+
+  // lobe markers + billboards (loading placeholders until the live reads land)
+  LOBES.forEach((lobe) => {
+    const d = new THREE.Vector3(lobe.dir[0], lobe.dir[1], lobe.dir[2]).normalize();
+    const surf = brainShape(d).multiplyScalar(R);
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 18, 18),
+      new THREE.MeshStandardMaterial({
+        color: lobe.color, emissive: lobe.color, emissiveIntensity: 0.55,
+        metalness: 0.25, roughness: 0.4,
+      }),
+    );
+    marker.position.copy(surf).multiplyScalar(1.04);
+    marker.userData = { caption: lobe.name + " · loading live read…", url: lobe.url, base: 0.55 };
+    brain.add(marker);
+    pickable.push(marker);
+
+    const lp = surf.clone().multiplyScalar(1.28);
+    const lbl = label.billboard(THREE, "STRUCTURAL-ONLY",
+      { text: lobe.name + " · …", scale: 0.42, position: [lp.x, lp.y, lp.z] });
+    brain.add(lbl);
+    lobeMarkers[lobe.key] = { marker, label: lbl, lobe, labelPos: lp };
+  });
+
+  // gentle idle motion + marker pulse (paused while molding so the surface holds still)
+  const clock = new THREE.Clock();
+  stage.onFrame(() => {
+    const t = clock.getElapsedTime();
+    if (!molding && !dragging) brain.rotation.y += 0.0016;
+    Object.values(lobeMarkers).forEach(({ marker }, i) => {
+      const s = 1 + 0.1 * Math.sin(t * 1.6 + i * 1.1);
+      marker.scale.setScalar(s);
+    });
+  });
+}
+
+// swap a lobe billboard (billboards are cheap canvas sprites; rebuild in place)
+function refreshLobeLabel(key, honesty, text) {
+  const lm = lobeMarkers[key];
+  if (!lm) return;
+  brain.remove(lm.label);
+  try { if (lm.label.material && lm.label.material.map) lm.label.material.map.dispose(); lm.label.material.dispose(); } catch (_) {}
+  const p = lm.labelPos;
+  const lbl = label.billboard(THREE, honesty, { text, scale: 0.42, position: [p.x, p.y, p.z] });
+  brain.add(lbl);
+  lm.label = lbl;
+}
+
+// ---------------------------------------------------------------------------
+// MOLDING — local, display-only sculpting. Raycast the cortex, displace nearby
+// vertices along the drag direction with a smooth falloff. Reset restores the
+// pristine geometry. None of this touches any measured value.
+// ---------------------------------------------------------------------------
+let molding = false;   // Mold mode on/off
+let dragging = false;  // actively sculpting this pointer-drag
+const SCULPT_R = 0.9;  // falloff radius (world units)
+const SCULPT_K = 0.05; // strength per move event
+
+const modeBtn = document.getElementById("mode-btn");
+const resetBtn = document.getElementById("reset-btn");
+const moldHint = document.getElementById("mold-hint");
+
+function setMold(on) {
+  molding = on;
+  modeBtn.classList.toggle("on", on);
+  modeBtn.textContent = on ? "🧭 Orbit" : "🖐 Mold";
+  moldHint.style.display = on ? "block" : "none";
+  if (stage && stage.controls) stage.controls.enabled = !on;
+  stage.renderer.domElement.style.cursor = on ? "crosshair" : "grab";
+  captionEl.textContent = on
+    ? "Mold mode · drag the cortex to push it out · hold Shift to carve in · Reset restores it · display-only, data untouched"
+    : "Orbit mode · drag to orbit, scroll to zoom · hover a lobe for its live read · click a lobe to open its source";
+}
+
+function wireMolding() {
+  const canvas = stage.renderer.domElement;
+  const ray = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const hitP = new THREE.Vector3();
+  const vv = new THREE.Vector3();
+  const nn = new THREE.Vector3();
+
+  function castCortex(ev) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    ray.setFromCamera(ndc, stage.camera);
+    const hit = ray.intersectObject(cortex, false)[0];
+    return hit || null;
+  }
+
+  function sculpt(hit, carveIn) {
+    // hit.point is world-space; cortex lives inside the rotated `brain` group,
+    // so work in the cortex's local space.
+    hitP.copy(hit.point);
+    cortex.worldToLocal(hitP);
+    const pos = cortex.geometry.attributes.position;
+    const nrm = cortex.geometry.attributes.normal;
+    const sgn = carveIn ? -1 : 1;
+    for (let i = 0; i < pos.count; i++) {
+      vv.fromBufferAttribute(pos, i);
+      const d = vv.distanceTo(hitP);
+      if (d > SCULPT_R) continue;
+      const w = Math.pow(1 - d / SCULPT_R, 2); // smooth falloff
+      nn.fromBufferAttribute(nrm, i);
+      vv.addScaledVector(nn, sgn * SCULPT_K * w);
+      pos.setXYZ(i, vv.x, vv.y, vv.z);
+    }
+    pos.needsUpdate = true;
+    cortex.geometry.computeVertexNormals();
+  }
+
+  canvas.addEventListener("pointerdown", (ev) => {
+    if (!molding) return;
+    const hit = castCortex(ev);
+    if (hit) { dragging = true; canvas.setPointerCapture(ev.pointerId); sculpt(hit, ev.shiftKey || ev.button === 2); }
+  });
+  canvas.addEventListener("pointermove", (ev) => {
+    if (!molding || !dragging) return;
+    const hit = castCortex(ev);
+    if (hit) sculpt(hit, ev.shiftKey || ev.buttons === 2);
+  });
+  const stop = (ev) => { if (dragging) { dragging = false; try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {} } };
+  canvas.addEventListener("pointerup", stop);
+  canvas.addEventListener("pointercancel", stop);
+  canvas.addEventListener("contextmenu", (ev) => { if (molding) ev.preventDefault(); });
+
+  modeBtn.addEventListener("click", () => setMold(!molding));
+  resetBtn.addEventListener("click", () => {
+    const pos = cortex.geometry.attributes.position;
+    pos.array.set(basePos);
+    pos.needsUpdate = true;
+    cortex.geometry.computeVertexNormals();
+    captionEl.textContent = "Cortex restored to its pristine shape (the sculpt was display-only all along).";
+  });
+}
+
+// ---------------------------------------------------------------------------
+// HUD — six live lobe reads + doctrine honesty chips.
+// ---------------------------------------------------------------------------
+const hudEl = document.getElementById("hud");
+const hud = {};
+let liveBadge = null;
+
+function buildHud() {
+  const title = document.createElement("div");
+  title.className = "h-title";
+  title.innerHTML = "\ud83e\udde0 The a11oy Brain <span class='h-sub'>eight lobes \u00b7 eight live reads</span>";
+  hudEl.appendChild(title);
+
+  liveBadge = live.createBadge();
+  hudEl.appendChild(liveBadge.el);
+
+  const mkRow = (key, name, color) => {
+    const wrap = document.createElement("div"); wrap.className = "row";
+    const left = document.createElement("span"); left.className = "name";
+    if (color != null) {
+      const dot = document.createElement("span"); dot.className = "dot";
+      dot.style.color = "#" + color.toString(16).padStart(6, "0");
+      left.appendChild(dot);
+    }
+    left.appendChild(document.createTextNode(name));
+    const right = document.createElement("span"); right.className = "right";
+    const val = document.createElement("span"); val.className = "val"; val.textContent = "…";
+    const chip = label.chip("STRUCTURAL-ONLY"); chip.style.transform = "scale(.9)";
+    right.appendChild(val); right.appendChild(chip);
+    wrap.appendChild(left); wrap.appendChild(right);
+    hudEl.appendChild(wrap);
+    hud[key] = { val, chip };
+  };
+
+  LOBES.forEach((l) => mkRow(l.key, l.name, l.color));
+
+  const note = document.createElement("div");
+  note.className = "note";
+  note.textContent = "Each lobe is one live public read (Hugging Face Hub, GitHub API, the raw " +
+    "ProvedFormulas.lean source counted in-browser, or the organs' own /healthz answers). " +
+    "Every count is MEASURED from that read (a real 0 stays 0); " +
+    "UNKNOWN where the source exposes none; NO-LIVE-DATA if a feed is unreachable. Molding the cortex is a " +
+    "local, display-only sculpt — it never changes a measured number. Nothing is fabricated. \u039b = Conjecture 1.";
+  hudEl.appendChild(note);
+
+  const legend = label.legend(); legend.style.opacity = "0.85";
+  hudEl.appendChild(legend);
+
+  const pl = document.createElement("button");
+  pl.className = "plainbtn"; pl.textContent = "\u25d1 what this means";
+  pl.title = "Plain-language explanation for investors & consumers.";
+  const pd = document.createElement("div"); pd.className = "plain";
+  pd.innerHTML = "<b>What this means:</b> this brain is a live portrait of what SZL Holdings actually " +
+    "publishes, organ by organ: its <b>AI models</b>, <b>datasets</b>, running <b>Spaces</b> and " +
+    "<b>collections</b> on Hugging Face, its open <b>code repositories</b> on GitHub, and the machine-checked " +
+    "<b>mathematical theorems</b> in its proof corpus \u2014 each fetched live from the public source the moment " +
+    "you opened this page. The <b>brainstem</b> shows the platform's organs answering their own health checks " +
+    "right now, and the <b>open frontier</b> lobe counts the open-weights model fleets (DeepSeek, Qwen, Kimi, GLM) " +
+    "that a11oy's multi-provider backbone is built to harness. We only show numbers those sources actually report; " +
+    "anything they don't expose is " +
+    "marked <b>UNKNOWN</b>, and a feed that's down shows <b>NO-LIVE-DATA</b>, never a made-up figure. " +
+    "And yes \u2014 you can <b>mold</b> the cortex with your pointer. That sculpt happens only on your screen: " +
+    "it's the one part of this page that is play, and it is labeled as such.";
+  pl.addEventListener("click", () => { const on = pd.style.display !== "block"; pd.style.display = on ? "block" : "none"; pl.style.background = on ? "#0f2a20" : "#08140f"; });
+  hudEl.appendChild(pl); hudEl.appendChild(pd);
+}
+
+function setRow(key, text, honesty) {
+  const r = hud[key];
+  if (!r) return;
+  r.val.textContent = text;
+  label.updateChip(r.chip, honesty);
+}
+
+// ---------------------------------------------------------------------------
+// pointer picking — hover to caption a lobe, click to open its live source.
+// (Only in orbit mode; mold mode owns the pointer.)
+// ---------------------------------------------------------------------------
+function wirePicking() {
+  const canvas = stage.renderer.domElement;
+  const ray = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  let hovered = null;
+
+  function pick(ev) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    ray.setFromCamera(ndc, stage.camera);
+    const hit = ray.intersectObjects(pickable, false)[0];
+    return hit ? hit.object : null;
+  }
+  function setHover(obj) {
+    if (hovered === obj) return;
+    if (hovered) hovered.material.emissiveIntensity = hovered.userData.base;
+    hovered = obj;
+    if (hovered) {
+      hovered.material.emissiveIntensity = Math.min(1.4, hovered.userData.base + 0.6);
+      captionEl.textContent = hovered.userData.caption;
+      captionEl.title = hovered.userData.caption;
+      canvas.style.cursor = "pointer";
+    } else {
+      canvas.style.cursor = "grab";
+    }
+  }
+  canvas.addEventListener("pointermove", (ev) => { if (!molding) setHover(pick(ev)); });
+  canvas.addEventListener("pointerleave", () => setHover(null));
+  canvas.addEventListener("click", (ev) => {
+    if (molding) return;
+    const obj = pick(ev);
+    if (obj && obj.userData.url) window.open(obj.userData.url, "_blank", "noopener");
+  });
+}
+
+// ---------------------------------------------------------------------------
+// orchestrate: boot -> brain -> HUD -> six live reads (each honest on its own).
+// ---------------------------------------------------------------------------
+async function main() {
+  buildHud();
+  try { await ensureStage(); } catch (_) { if (liveBadge) liveBadge.set(live.LIVE_STATES.ERROR); return; }
+  buildBrain();
+  wirePicking();
+  wireMolding();
+  setMold(false);
+
+  let ok = 0, structuralOnly = false;
+
+  await Promise.all(LOBES.map(async (lobe) => {
+    try {
+      const s = await lobe.fetchStat();
+      setRow(lobe.key, s.text, s.honesty);
+      refreshLobeLabel(lobe.key, s.honesty, lobe.name + " \u00b7 " + s.text);
+      const lm = lobeMarkers[lobe.key];
+      if (lm) lm.marker.userData.caption = s.caption;
+      if (s.honesty !== "MEASURED") structuralOnly = true;
+      ok++;
+    } catch (e) {
+      console.warn("[brain] " + lobe.key + " unavailable:", e && e.message);
+      setRow(lobe.key, "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+      refreshLobeLabel(lobe.key, "STRUCTURAL-ONLY", lobe.name + " \u00b7 NO-LIVE-DATA");
+      const lm = lobeMarkers[lobe.key];
+      if (lm) lm.marker.userData.caption = lobe.name + " \u00b7 NO-LIVE-DATA \u2014 this feed is unreachable right now; nothing is guessed in its place.";
+    }
+  }));
+
+  if (ok === LOBES.length && !structuralOnly) {
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.LIVE, { at: Date.now() });
+  } else if (ok > 0) {
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.DEGRADED, { at: Date.now() });
+  } else {
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.ERROR);
+  }
+}
+
+// expose a tiny hook for headless selftest harnesses (parity with the shell).
+window.__SZL3D_BRAIN__ = { get stage() { return stage; }, get cortex() { return cortex; }, lobeMarkers, LOBES };
+
+main();
+</script>
+</body>
+</html>
