@@ -68,6 +68,7 @@ __version__ = _AYLLU_VERSION
 # ---- cost + abuse bounds (public Space; real token cost once live) -----------
 MAX_PROMPT_CHARS = 6000
 COUNCIL_MAX = 5                                     # hard cap on participants / call
+COUNCIL_DEBATE_MAX = 3  # debate doubles model calls; tighter cap bounds cost
 COUNCIL_DEFAULT = ["Amaru", "Kamachiq", "Qhatuq"]  # architect · orchestrator · markets
 
 # One process-wide lounge (in-memory, honest source labels).
@@ -134,11 +135,14 @@ _PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ayllu — a11oy agent council</title>
 <style>
-:root{--void:#080c14;--panel:#0d1520;--line:#16202c;--teal:#3af4c8;--fg:#dfe7ee;--dim:#7f93a6}
+:root{--void:#080c14;--panel:#0d1520;--line:#16202c;--teal:#3af4c8;--fg:#dfe7ee;--dim:#7f93a6;--gold:#d4a444}
 *{box-sizing:border-box}
 body{margin:0;background:var(--void);color:var(--fg);
 font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:900px;margin:0 auto;padding:36px 22px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background:radial-gradient(60% 40% at 70% -10%,rgba(58,244,200,.07),transparent 60%),
+radial-gradient(50% 35% at 10% 110%,rgba(212,164,68,.05),transparent 60%)}
+main{max-width:980px;margin:0 auto;padding:36px 22px;position:relative;z-index:1}
 h1{color:var(--teal);margin:0 0 4px;font-size:26px;display:flex;align-items:center;gap:10px}
 h2{font-size:16px;margin:0 0 10px;color:var(--fg)}
 .sub{color:var(--dim);margin:0 0 22px}
@@ -160,14 +164,19 @@ button.mini{background:transparent;color:var(--teal);border:1px solid var(--line
 font-weight:600;font-size:12px}
 .hint{color:var(--dim);font-size:12px;margin:0 0 8px}
 .out{margin-top:10px}
-.turn{border-top:1px solid var(--line);padding:10px 0}
-.turnh{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
-.meta{color:var(--dim);font-size:12px}
-.ans{margin-top:5px;white-space:pre-wrap}
+.turn{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-top:8px;background:#0a121c}
+.turnh{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.chip{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+font-size:11px;font-weight:800;color:var(--fg);border:1px solid var(--line);flex:none}
+.meta{color:var(--dim);font-size:12px;margin-left:auto}
+.arch{color:var(--dim);font-size:12px}
+.ans{margin-top:7px;white-space:pre-wrap}
 .rcpt{color:var(--dim);font-size:12px;margin-top:8px}
 .note{color:#da3;font-size:12px;margin-bottom:8px}
 .err{color:#e66}
 .stub{color:#da3;font-weight:700;font-size:11px}
+.roundhdr{margin:14px 0 2px;color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.loopchip{font-size:10px;border:1px solid var(--line);border-radius:12px;padding:1px 7px;color:var(--dim)}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);font-size:14px}
 th{color:var(--teal);font-weight:600}
@@ -178,22 +187,34 @@ padding:12px 14px;border-radius:6px;color:var(--dim);margin-top:6px;font-size:13
 code{color:var(--teal)}
 html{scroll-behavior:smooth}
 .topbar{position:sticky;top:0;z-index:20;background:rgba(8,12,20,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
-.tb-wrap{max-width:900px;margin:0 auto;padding:10px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tb-wrap{max-width:980px;margin:0 auto;padding:10px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .tb-brand{color:var(--teal);font-weight:800;text-decoration:none;font-size:18px;display:flex;align-items:center;gap:8px}
 .tb-nav{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .tb-nav a{color:var(--dim);text-decoration:none;font-size:13px}
 .tb-nav a:hover{color:var(--fg)}
-.tb-nav a.tb-home{color:#d4a444;font-weight:600}
+.tb-nav a.tb-home{color:var(--gold);font-weight:600}
 section[id]{scroll-margin-top:72px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.panel{background:#0a121c;border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h3{margin:0 0 6px;font-size:13px;color:var(--teal);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.kpi{font-size:19px;font-weight:800;color:var(--fg)}
+.small{font-size:12px;color:var(--dim)}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.links a{color:var(--teal);text-decoration:none;font-size:12px;border:1px solid var(--line);border-radius:16px;padding:4px 11px}
+.links a:hover{border-color:var(--teal)}
+.tgl{display:flex;gap:7px;align-items:center;color:var(--dim);font-size:13px;margin:0 0 8px}
+.tgl input{width:auto}
+.prov{color:var(--dim);font-size:11px;margin-top:14px;line-height:1.6}
 </style></head><body>
 <header class="topbar"><div class="tb-wrap">
 <a class="tb-brand" href="/ayllu">Ayllu <span id="badge" class="badge">…</span></a>
-<nav class="tb-nav"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-mesh">Mesh</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
+<nav class="tb-nav"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-organism">Organism</a><a href="#sec-mesh">Mesh</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
 </div></header>
 <main>
 <h1>Ayllu</h1>
 <p class="sub">The AlloyScape tribe, ingested and reborn as a11oy's own agent community —
-<span id="count">?</span> personas, one guarded loop. v__VERSION__</p>
+<span id="count">?</span> personas, one guarded loop. v__VERSION__ ·
+<span title="Curated, cited text appended to every persona's system prompt — no weights changed anywhere.">knowledge instilled, never "trained"</span></p>
 
 <section class="card" id="sec-ask">
   <h2>Ask a persona</h2>
@@ -210,8 +231,11 @@ section[id]{scroll-margin-top:72px}
 <section class="card" id="sec-council">
   <h2>Convene a council</h2>
   <p class="hint">Defaults to 3 core personas; select up to 5 (⌘/Ctrl-click). Fan-out is
-  capped to protect cost.</p>
+  capped to protect cost. Debate mode runs exactly two bounded rounds
+  (after arXiv:2305.14325) and is capped to 3 personas.</p>
   <select id="councilsel" multiple size="6"></select>
+  <label class="tgl"><input type="checkbox" id="debate">
+  Debate mode — positions, then explicit dissent &amp; converge (2× cost)</label>
   <textarea id="councilprompt" rows="3" placeholder="A question for the council…"></textarea>
   <button id="councilbtn">Convene</button>
   <div id="councilout" class="out"></div>
@@ -220,12 +244,34 @@ section[id]{scroll-margin-top:72px}
 <section class="card" id="sec-roster">
   <h2>Roster</h2>
   <table id="roster"><thead><tr><th>Persona</th><th>Quechua</th><th>Archetype</th>
-  <th>a11oy domain</th><th>Autonomy</th></tr></thead><tbody></tbody></table>
+  <th>a11oy domain</th><th>Autonomy</th><th>Knowledge</th></tr></thead><tbody></tbody></table>
+  <div class="src" style="margin-top:6px">"Instilled ✓" = the shared, cited Wave-13 leaders
+  corpus is appended to that persona's system prompt at runtime. No model weights are
+  changed anywhere — this is knowledge instillation, not training.</div>
 </section>
 
 <section class="card" id="sec-lounge">
   <h2>Lounge <button id="refreshlounge" class="mini">refresh</button></h2>
   <div id="lounge" class="out"></div>
+</section>
+
+<section class="card" id="sec-organism">
+  <h2>The organism — anatomy · brain · formulas</h2>
+  <div class="src" style="margin:.2rem 0 .6rem">The council is one organ of one governed
+  organism. These panels read the same governed endpoints as the command centre — an
+  unavailable endpoint says so rather than faking a value.</div>
+  <div class="grid">
+    <div class="panel"><h3>Formulas <span class="small" id="f-badge">…</span></h3><div id="f-out" class="small">loading…</div></div>
+    <div class="panel"><h3>Doctrine lock <span class="small" id="d-badge">…</span></h3><div id="d-out" class="small">loading…</div></div>
+    <div class="panel"><h3>Sovereign energy <span class="small" id="e-badge">…</span></h3><div id="e-out" class="small">loading…</div></div>
+  </div>
+  <div class="links">
+    <a href="/living-anatomy">Living anatomy</a>
+    <a href="/formulas">PURIQ formulas</a>
+    <a href="/wires">The constitution</a>
+    <a href="/api/__NS__/v1/brain/graph" title="Full brain graph JSON (~4 MB)">Brain graph (raw JSON)</a>
+    <a href="/console">Command centre</a>
+  </div>
 </section>
 
 <section class="card" id="sec-mesh">
@@ -242,21 +288,36 @@ fail-closed Λ-gate; state-changing actions require two-person attestation. The 
 "always execute" mandate is deliberately <b>not</b> adopted. Answers come from a11oy's
 own model backend + router; when no inference credential is set on this Space,
 <code>ask</code>/<code>council</code> return a clearly-labeled stub — never a fabricated
-answer. These turns do direct completion only (no tool dispatch yet).</div>
+answer. Debate mode is bounded to exactly two rounds. These turns do direct completion
+only (no tool dispatch yet).</div>
+
+<p class="prov"><b>Provenance.</b> Council patterns studied from the field's leaders and
+rebuilt in a11oy's own idiom — MetaGPT (SOP role handoffs), CrewAI (role/goal remits),
+LangGraph (bounded graph loops), CAMEL (agent societies), OpenAI Agents SDK / Google ADK
+(visible handoffs &amp; guardrails) — all permissive-licensed; debate-then-converge after
+arXiv:2305.14325. No code was copied from pattern-only sources. Personas carry this as
+instilled knowledge (cited text in the system prompt); nothing here was "trained".</p>
 </main>
 <script>
 const NS="__NS__";
 const api = p => `/api/${NS}/v1/ayllu/`+p;
+const gapi = p => `/api/${NS}/v1/`+p;
 async function j(url,opts){const r=await fetch(url,opts);
   let d={};try{d=await r.json();}catch(e){}return {ok:r.ok,status:r.status,data:d};}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,
   c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function hue(n){let h=0;for(const c of String(n))h=(h*31+c.charCodeAt(0))%360;return h;}
+function chip(n){const h=hue(n);
+  return `<span class="chip" style="background:hsl(${h} 55% 20%);border-color:hsl(${h} 55% 38%)">`
+       + esc(String(n).slice(0,2).toUpperCase())+`</span>`;}
 function renderTurn(t){
   const ans = t.answer!=null ? esc(t.answer) : '<i>'+esc(t.honesty)+'</i>';
   const model = t.model?('model: '+esc(t.model)):'no model';
   const tier = (t.tier&&t.tier.route)?(' · tier(advisory): '+esc(t.tier.route)):'';
   const stub = t.stub?' · <span class="stub">STUB</span>':'';
-  return `<div class="turn"><div class="turnh"><b>${esc(t.persona)}</b>`
+  const loop = (t.loop&&t.loop.mode)?`<span class="loopchip" title="${esc(t.loop.note||'')}">loop: ${esc(t.loop.mode)}</span>`:'';
+  return `<div class="turn"><div class="turnh">${chip(t.persona)}<b>${esc(t.persona)}</b>`
+       + `<span class="arch">${esc(t.archetype||'')}</span>${loop}`
        + `<span class="meta">${model}${tier}${stub}</span></div>`
        + `<div class="ans">${ans}</div></div>`;
 }
@@ -274,9 +335,10 @@ async function loadRoster(){
     const o=document.createElement('option');o.value=p.name;
     o.textContent=p.name+' — '+p.domain;sel.appendChild(o);
     csel.appendChild(o.cloneNode(true));
-    rows.push(`<tr><td><b>${esc(p.name)}</b></td><td>${esc(p.quechua)}</td>`
+    const kn=p.knowledge_instilled?'instilled ✓':'—';
+    rows.push(`<tr><td>${chip(p.name)} <b>${esc(p.name)}</b></td><td>${esc(p.quechua)}</td>`
       +`<td>${esc(p.archetype)}</td><td>${esc(p.domain)}</td>`
-      +`<td>${esc(p.autonomy_level)}</td></tr>`);
+      +`<td>${esc(p.autonomy_level)}</td><td class="src">${kn}</td></tr>`);
   });
   document.querySelector('#roster tbody').innerHTML=rows.join('');
 }
@@ -301,16 +363,27 @@ document.getElementById('councilbtn').onclick=async()=>{
   const out=document.getElementById('councilout');
   if(!prompt){out.innerHTML='<span class="err">enter a prompt</span>';return;}
   const picks=[...document.getElementById('councilsel').selectedOptions].map(o=>o.value);
-  out.textContent='…convening';
-  const body={prompt}; if(picks.length)body.personas=picks;
+  const debate=document.getElementById('debate').checked;
+  out.textContent=debate?'…convening (debate: 2 bounded rounds)':'…convening';
+  const body={prompt}; if(picks.length)body.personas=picks; if(debate)body.debate=true;
   const {ok,status,data}=await j(api('council'),{method:'POST',
     headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   if(!ok){out.innerHTML='<span class="err">'+esc(data.error||('HTTP '+status))+'</span>'
     +(data.retry_after_s?(' (retry in '+data.retry_after_s+'s)'):'');return;}
-  const rounds=(data.result&&data.result.rounds)||[];
-  const cap=(data.result&&data.result.cap_note)?
-    ('<div class="note">'+esc(data.result.cap_note)+'</div>'):'';
-  out.innerHTML=cap+rounds.map(renderTurn).join('');
+  const res=data.result||{}, rounds=res.rounds||[];
+  const cap=res.cap_note?('<div class="note">'+esc(res.cap_note)+'</div>'):'';
+  const r1=rounds.filter(t=>(t.round||1)===1), r2=rounds.filter(t=>t.round===2);
+  let html=cap;
+  if(r2.length){
+    html+='<div class="roundhdr">Round 1 — opening positions</div>'+r1.map(renderTurn).join('');
+    html+='<div class="roundhdr">Round 2 — debate &amp; converge (final)</div>'+r2.map(renderTurn).join('');
+  }else{
+    html+=r1.map(renderTurn).join('');
+    if(res.mode==='single-round'&&document.getElementById('debate').checked){
+      html+='<div class="src">debate skipped honestly: fewer than two personas produced answers.</div>';
+    }
+  }
+  out.innerHTML=html;
 };
 async function loadLounge(){
   const {ok,data}=await j(api('lounge')), out=document.getElementById('lounge');
@@ -321,26 +394,64 @@ async function loadLounge(){
     :'<i>empty</i>';
 }
 document.getElementById('refreshlounge').onclick=loadLounge;
+function unavailable(el,status){el.innerHTML='<span class="src">endpoint unavailable ('
+  +esc(String(status))+') — shown honestly, not faked.</span>';}
+async function loadFormulas(){
+  const b=document.getElementById('f-badge'), out=document.getElementById('f-out');
+  const {ok,status,data}=await j(gapi('formulas'));
+  if(!ok){b.textContent='offline';unavailable(out,status);return;}
+  b.textContent='live';
+  const fs=(data.formulas||[]).slice(0,4);
+  out.innerHTML='<div class="kpi">'+esc(String(data.count??'—'))+'</div>'
+    +'<div class="small">registered formulas</div>'
+    +fs.map(f=>`<div class="lg"><code>${esc(f.name)}</code><br><span class="src">${esc(f.proof_status||'')}</span></div>`).join('')
+    +'<div class="src" style="margin-top:6px">Λ-aggregator uniqueness remains Conjecture 1 — never claimed proven.</div>';
+}
+async function loadDoctrine(){
+  const b=document.getElementById('d-badge'), out=document.getElementById('d-out');
+  const {ok,status,data}=await j(gapi('honest'));
+  if(!ok){b.textContent='offline';unavailable(out,status);return;}
+  const d=data.doctrine_lock||{};
+  b.textContent=esc(d.state||'?');
+  out.innerHTML='<div class="kpi">'+esc(String(d.declarations??'—'))+'</div>'
+    +'<div class="small">Lean declarations · '+esc(String(d.axioms??'—'))+' axioms · '
+    +esc(String(d.sorries??'—'))+' sorries (honest count)</div>'
+    +'<div class="lg small">'+esc(d.lambda_note||'')+'</div>';
+}
+async function loadEnergy(){
+  const b=document.getElementById('e-badge'), out=document.getElementById('e-out');
+  const {ok,status,data}=await j(gapi('energy/live'));
+  if(!ok){b.textContent='offline';unavailable(out,status);return;}
+  b.textContent=esc(data.label||'?');
+  const nodes=data.nodes||[];
+  const live=nodes.filter(n=>n.live).length;
+  out.innerHTML='<div class="kpi">'+(data.total_watts!=null?esc(String(data.total_watts))+' W':'—')+'</div>'
+    +'<div class="small">'+live+'/'+nodes.length+' sovereign nodes live'
+    +(data.total_watts==null?' — no wattage fabricated':'')+'</div>'
+    +nodes.slice(0,3).map(n=>`<div class="lg small">${n.live?'●':'○'} ${esc(n.name)}</div>`).join('');
+}
 async function loadMesh(){
   const badge=document.getElementById('mesh-badge'), out=document.getElementById('mesh-out');
-  const {ok,status,data}=await j('/api/'+NS+'/v1/mesh/state');
-  if(!ok){badge.textContent='offline';
-    out.innerHTML='<span class="src">mesh state endpoint unavailable ('+esc(String(status))+') — shown honestly, not faked.</span>';return;}
-  const d=(data&&data.data&&typeof data.data==='object')?data.data:data;
-  const nodes=d.nodes||d.mesh||d.members||d.organs||[];
-  const cnt=(d.count!=null)?d.count:(Array.isArray(nodes)?nodes.length:'\u2014');
+  const {ok,status,data}=await j(gapi('mesh/state'));
+  if(!ok){badge.textContent='offline';unavailable(out,status);return;}
   badge.textContent='live';
-  out.innerHTML='<div class="lg"><b>mesh nodes</b> <span class="src">'+esc(String(cnt))+'</span></div>';
+  const wires=data.wires||{};
+  const rows=Object.entries(wires).map(([k,w])=>
+    `<tr><td><b>${esc(k)}</b></td><td>${esc(w.edge||'')}</td><td class="src">${esc(w.status||'')}</td></tr>`);
+  out.innerHTML=rows.length?('<table><thead><tr><th>Wire</th><th>Edge</th><th>Status</th></tr></thead><tbody>'
+    +rows.join('')+'</tbody></table>'
+    +'<div class="src" style="margin-top:5px">doctrine '+esc(data.doctrine||'?')
+    +' · khipu nodes: '+esc(String(data.khipu_nodes??'—'))+'</div>')
+    :'<div class="lg"><b>mesh</b> <span class="src">no wires reported</span></div>';
 }
 async function loadObs(){
   const out=document.getElementById('obs-out');
-  const {ok,status,data}=await j('/api/'+NS+'/v1/observability/summary');
-  if(!ok){out.innerHTML='<span class="src">observability summary unavailable ('+esc(String(status))+') — shown honestly.</span>';return;}
-  const d=(data&&data.data&&typeof data.data==='object')?data.data:data;
+  const {ok,status,data}=await j(gapi('observability/summary'));
+  if(!ok){unavailable(out,status);return;}
   out.innerHTML='<div class="lg"><b>observability</b><pre class="src" style="white-space:pre-wrap;margin:.3rem 0 0">'
-    +esc(JSON.stringify(d,null,2).slice(0,700))+'</pre></div>';
+    +esc(JSON.stringify(data.melt||data,null,2).slice(0,600))+'</pre></div>';
 }
-loadRoster();loadLounge();loadMesh();loadObs();
+loadRoster();loadLounge();loadMesh();loadObs();loadFormulas();loadDoctrine();loadEnergy();
 </script>
 </body></html>"""
 
@@ -439,18 +550,21 @@ def register(app, ns: str = "a11oy") -> str:
             return JSONResponse(
                 {"error": f"'prompt' must be a string ≤ {MAX_PROMPT_CHARS} chars",
                  "max_chars": MAX_PROMPT_CHARS}, status_code=422)
+        debate = bool(body.get("debate", False))
+        max_n = COUNCIL_DEBATE_MAX if debate else COUNCIL_MAX
         requested = body.get("personas")
         cap_note = None
         if requested:
             if not isinstance(requested, list):
                 return JSONResponse({"error": "'personas' must be a list"},
                                     status_code=422)
-            names = [str(n) for n in requested][:COUNCIL_MAX]
-            if len(requested) > COUNCIL_MAX:
+            names = [str(n) for n in requested][:max_n]
+            if len(requested) > max_n:
                 cap_note = (f"requested {len(requested)} personas; capped to "
-                            f"{COUNCIL_MAX} to bound cost")
+                            f"{max_n} to bound cost"
+                            + (" (debate mode runs two rounds)" if debate else ""))
         else:
-            names = list(COUNCIL_DEFAULT)
+            names = list(COUNCIL_DEFAULT)[:max_n]
             cap_note = (f"no personas specified; convened the {len(names)} core "
                         "personas (Amaru, Kamachiq, Qhatuq)")
         personas = [get_persona(n) for n in names]
@@ -460,7 +574,8 @@ def register(app, ns: str = "a11oy") -> str:
                 {"error": "no known personas in request",
                  "known": [x.name for x in ROSTER]}, status_code=422)
         result = await _LOUNGE.deliberate(prompt, personas,
-                                          model_complete=_backend.model_complete)
+                                          model_complete=_backend.model_complete,
+                                          debate=debate)
         if cap_note:
             result["cap_note"] = cap_note
         council_id = str(uuid.uuid4())
@@ -468,6 +583,7 @@ def register(app, ns: str = "a11oy") -> str:
             "council_id": council_id,
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "participants": result["participants"],
+            "mode": result.get("mode"),
             "models": [r.get("model") for r in result.get("rounds", [])],
         })
         return JSONResponse({"council_id": council_id, "result": result,
@@ -488,7 +604,7 @@ def register(app, ns: str = "a11oy") -> str:
                       summary="Ask one persona — bounded, honest, receipted")
     app.add_api_route(f"/api/{ns}/v1/ayllu/council", _council, methods=["POST"],
                       tags=["ayllu"],
-                      summary="Bounded multi-persona deliberation (capped fan-out)")
+                      summary="Bounded multi-persona deliberation (capped fan-out; optional 2-round debate mode after arXiv:2305.14325)")
     app.add_api_route(f"/api/{ns}/v1/ayllu/lounge", _lounge_feed, methods=["GET"],
                       tags=["ayllu"], summary="Recent collaboration lounge feed")
     app.add_api_route("/ayllu", _page, methods=["GET"], include_in_schema=False)
@@ -496,5 +612,6 @@ def register(app, ns: str = "a11oy") -> str:
     return (
         f"ok — ayllu registered: {len(ROSTER)} personas; live model backend "
         f"({_backend.backend_status().get('mode')}); bounded-autonomy Λ-gate; "
-        f"/ayllu + /api/{ns}/v1/ayllu/roster|ask|council|lounge; version={__version__}"
+        f"/ayllu + /api/{ns}/v1/ayllu/roster|ask|council|lounge; "
+        f"debate-mode council; version={__version__}"
     )
