@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Holographic Estate Map — a11oy</title>
+<!-- 0 runtime CDN. three.js is vendored in-image and served same-origin through the
+     /static/3d/vendor/... importmap below (see VENDOR_MANIFEST.md). System fonts only.
+
+     This page is a SELF-CONTAINED 3D holographic map of the WHOLE SZLHOLDINGS estate —
+     models, datasets, Spaces and collections — fetched from the LIVE Hugging Face Hub API
+     client-side. Every count and per-node metric traces to that live API and carries a
+     doctrine honesty label: MEASURED where the Hub reports a real number (including 0), and
+     UNKNOWN where the Hub exposes none (e.g. Spaces have no public download counter). If the
+     Hub is unreachable/rate-limited a category degrades to an honest NO-LIVE-DATA state —
+     nothing here is ever fabricated. Λ = Conjecture 1. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three/three.module.min.js",
+    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+    "three/addons/": "/static/3d/vendor/three/addons/"
+  }
+}
+</script>
+<style>
+ :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--proof:#3af4c8;--gold:#e8c074;
+  --sky:#6fb1ff;--green:#2fd07a;--cream:#eef3f6;--para:#9fb1bf;}
+ *{box-sizing:border-box}
+ html,body{margin:0;height:100%}
+ /* Flex column so the 3D stage fills the space left over by the header, no matter how far it
+    wraps. dvh tracks the mobile address-bar collapse; svh/100vh are older-engine fallbacks. */
+ body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  overflow:hidden;display:flex;flex-direction:column;height:100vh;height:100svh;height:100dvh}
+ header{padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#08101a,#05070d);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:0 0 auto}
+ h1{font-size:16px;margin:0;letter-spacing:.4px}
+ .badge{display:inline-block;font:10.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);color:var(--gold);background:#10171f;white-space:nowrap}
+ #backend{color:var(--teal)}
+ a{color:var(--teal);text-decoration:none}
+ #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
+ #stage{position:absolute;inset:0}
+ #stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+ #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace;line-height:1.6}
+ #fallback code{color:var(--teal)}
+ /* HUD — live estate rollup. Every row carries a doctrine honesty chip. */
+ #hud{position:absolute;left:14px;top:14px;z-index:6;display:flex;flex-direction:column;gap:7px;
+  max-width:min(94%,430px);font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe0ea;
+  background:rgba(6,11,16,.78);border:1px solid #15212c;border-radius:11px;padding:12px 14px;
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);max-height:calc(100% - 28px);overflow-y:auto}
+ #hud .h-title{font:600 13px ui-sans-serif,system-ui;color:#eef3f6;letter-spacing:.4px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ #hud .h-sub{color:#46586a;font-weight:400;font-size:11px}
+ #hud .row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+ #hud .row .name{display:flex;align-items:center;gap:7px;color:#9fb1bf}
+ #hud .row .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 7px currentColor;flex:0 0 auto}
+ #hud .row .right{display:flex;align-items:center;gap:6px}
+ #hud .row .val{color:#eef3f6}
+ #hud .note{color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:2px;border-top:1px solid #15212c;padding-top:6px}
+ #hud .plainbtn{font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid var(--proof);
+  background:#08140f;color:var(--proof);cursor:pointer;width:fit-content;margin-top:2px}
+ #hud .plain{font-size:10.5px;color:#c9d6df;line-height:1.55;border:1px dashed #26333f;border-radius:7px;
+  padding:7px 9px;display:none;margin-top:2px}
+ #surface-caption{padding:4px 14px;border-top:1px solid var(--line);background:#060c14;color:var(--para);
+  font:10.5px ui-monospace,monospace;letter-spacing:.2px;flex:0 0 auto;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;z-index:6}
+ #surface-caption:empty{display:none}
+ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;background:#070d15;color:var(--para);
+  font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6;white-space:nowrap;overflow-x:auto;
+  -webkit-overflow-scrolling:touch}
+ @media (max-width:640px){
+  header{padding:8px 12px;gap:8px}
+  h1{font-size:14px;flex:1 1 100%}
+  header .badge{font-size:9.5px;padding:2px 6px}
+  #three-rev-badge,#cdn-badge{display:none}
+  #hud{max-width:calc(100% - 20px);left:10px;top:10px;font-size:11px;padding:10px 12px}
+  footer{font-size:9px;padding:5px 10px}
+ }
+</style>
+</head>
+<body>
+<header>
+ <h1>◇ Holographic Estate Map</h1>
+ <span class="badge" id="backend">renderer: …</span>
+ <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
+ <span class="badge" id="cdn-badge">0 runtime CDN</span>
+ <span class="badge">Λ = Conjecture 1</span>
+ <a href="/static/3d/holographic.html" class="badge" title="The full holographic estate — 100+ live 3D surfaces">◇ surfaces</a>
+ <a href="/verify" class="badge" title="Public receipt verifier — paste a signed Khipu receipt / DSSE envelope for a PASS/FAIL panel">✓ verify</a>
+ <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
+</header>
+<div id="stage-wrap">
+ <div id="stage"></div>
+ <div id="fallback">3D unavailable on this device — the holographic map needs a WebGL2 or WebGPU canvas.<br>
+  All underlying data is still available as JSON from the Hugging Face Hub API, e.g.<br>
+  <code>huggingface.co/api/models?author=SZLHOLDINGS</code></div>
+ <!-- Live estate rollup HUD (built in JS so every chip is a real doctrine label). -->
+ <div id="hud"></div>
+</div>
+<div id="surface-caption" title=""></div>
+<footer>Doctrine v11 · Λ = Conjecture 1 · live Hugging Face Hub API (SZLHOLDINGS) ·
+ every count MEASURED from the live Hub, UNKNOWN where the Hub exposes none ·
+ 0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</footer>
+
+<script type="module">
+import szl3d from "/static/3d/szl3d/szl3d_boot.js";
+import * as live from "/static/3d/szl3d/szl3d_live.js";
+import * as label from "/static/3d/szl3d/szl3d_label.js";
+import * as THREE from "three";
+
+// ---------------------------------------------------------------------------
+// Doctrine v11 (binding): WIRE TO LIVE DATA. This map reads the estate straight
+// from the public Hugging Face Hub API client-side. Every value on screen is
+// MEASURED from that live read (including a real 0), or UNKNOWN where the Hub
+// exposes no such field. We NEVER fabricate a count or a metric. A category whose
+// endpoint fails/rate-limits renders an honest NO-LIVE-DATA state, not a guess.
+// ---------------------------------------------------------------------------
+
+const HF_API = "https://huggingface.co/api";
+const ORG = "SZLHOLDINGS";
+
+// Palette accents (all doctrine-safe — NEVER purple). One per asset class.
+const COL = {
+  models: 0xe8c074,      // gold
+  datasets: 0x39d3c4,    // teal
+  spaces: 0x6fb1ff,      // sky
+  collections: 0x2fd07a, // green
+  core: 0x3af4c8,        // proof-teal
+  spine: 0x1e6f68,
+  dim: 0x46586a,
+};
+
+// Each asset class = one constellation orbiting the org core. `metric` drives node
+// size (log-scaled, display-only); `metricName` is what that number honestly is.
+const CATS = [
+  {
+    key: "models", title: "Models", color: COL.models, angle: -40,
+    path: "/models?author=" + ORG + "&limit=100&full=false",
+    idOf: (m) => m.id,
+    urlOf: (m) => "https://huggingface.co/" + m.id,
+    metric: (m) => numOr(m.downloads),
+    metricName: "downloads",
+    caption: (m) => "Model · " + m.id + " · " + fmtMetric(m.downloads, "downloads") +
+      " · " + fmtMetric(m.likes, "likes") + " · MEASURED (live Hub)",
+  },
+  {
+    key: "datasets", title: "Datasets", color: COL.datasets, angle: 50,
+    path: "/datasets?author=" + ORG + "&limit=100&full=false",
+    idOf: (d) => d.id,
+    urlOf: (d) => "https://huggingface.co/datasets/" + d.id,
+    metric: (d) => numOr(d.downloads),
+    metricName: "downloads",
+    caption: (d) => "Dataset · " + d.id + " · " + fmtMetric(d.downloads, "downloads") +
+      " · " + fmtMetric(d.likes, "likes") + " · MEASURED (live Hub)",
+  },
+  {
+    key: "spaces", title: "Spaces", color: COL.spaces, angle: 140,
+    path: "/spaces?author=" + ORG + "&limit=100&full=false",
+    idOf: (s) => s.id,
+    urlOf: (s) => "https://huggingface.co/spaces/" + s.id,
+    // Spaces have no public download counter on the Hub — size by likes, be honest
+    // that downloads are UNKNOWN (not zero).
+    metric: (s) => numOr(s.likes),
+    metricName: "likes",
+    caption: (s) => "Space · " + s.id + " · " + fmtMetric(s.likes, "likes") +
+      " · sdk: " + (s.sdk || "UNKNOWN") + " · downloads: UNKNOWN (Hub exposes none) · MEASURED (likes)",
+  },
+  {
+    key: "collections", title: "Collections", color: COL.collections, angle: 230,
+    path: "/collections?owner=" + ORG + "&limit=100",
+    idOf: (c) => c.slug,
+    urlOf: (c) => "https://huggingface.co/collections/" + c.slug,
+    metric: (c) => (Array.isArray(c.items) ? c.items.length : null),
+    metricName: "items",
+    caption: (c) => "Collection · " + (c.title || c.slug) + " · " +
+      fmtMetric(Array.isArray(c.items) ? c.items.length : null, "items") + " · " +
+      fmtMetric(c.upvotes, "upvotes") + " · MEASURED (live Hub)",
+  },
+];
+
+const R_HUB = 9;          // radius of the 4 constellation hubs around the core
+const CLUSTER_R = 3.0;    // radius each constellation's members orbit their hub
+
+function numOr(x) {
+  if (x === null || x === undefined) return null;
+  const n = typeof x === "number" ? x : Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+function fmtMetric(x, name) {
+  const n = numOr(x);
+  if (n === null) return name + ": UNKNOWN";
+  return n.toLocaleString() + " " + name;
+}
+// Fibonacci-sphere direction for even constellation spread.
+function fibDir(i, n) {
+  const off = 2 / Math.max(1, n);
+  const y = i * off - 1 + off / 2;
+  const r = Math.sqrt(Math.max(0, 1 - y * y));
+  const phi = i * Math.PI * (3 - Math.sqrt(5));
+  return [Math.cos(phi) * r, y, Math.sin(phi) * r];
+}
+
+const stageEl = document.getElementById("stage");
+const fallbackEl = document.getElementById("fallback");
+const captionEl = document.getElementById("surface-caption");
+document.getElementById("three-rev").textContent = THREE.REVISION;
+
+let stage = null;
+const clusters = {};      // key -> { group, hubPos, nodes:[] }
+const pickable = [];      // meshes for raycasting
+let coreMesh = null, coreHalo = null;
+
+// ---------------------------------------------------------------------------
+// boot the shared renderer (WebGL2 default — WebGPU is not production-safe on all
+// platforms per doctrine; the toolkit falls back honestly either way).
+// ---------------------------------------------------------------------------
+async function ensureStage() {
+  if (stage) return stage;
+  try {
+    stage = await szl3d.boot(stageEl, {
+      bloom: { strength: 0.9, radius: 0.55, threshold: 0.16 },
+      cameraPos: [0, 7, 23],
+      forceWebGL: true,
+    });
+    document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
+    stage.start();
+  } catch (e) {
+    fallbackEl.style.display = "flex";
+    document.getElementById("backend").textContent = "renderer: UNAVAILABLE";
+    console.error("[estate-map] stage boot failed:", e);
+    throw e;
+  }
+  return stage;
+}
+
+// ---------------------------------------------------------------------------
+// Static scaffold: org core, 4 hubs + spines, a faint floor grid, hub labels.
+// Populated with live nodes once the Hub API resolves.
+// ---------------------------------------------------------------------------
+function buildScaffold() {
+  const root = new THREE.Group();
+  stage.scene.add(root);
+
+  // faint polar floor grid for depth
+  try {
+    const grid = new THREE.PolarGridHelper(R_HUB + 4, 8, 6, 64, 0x14212b, 0x0e1922);
+    grid.position.y = -5.5;
+    if (grid.material) { grid.material.transparent = true; grid.material.opacity = 0.35; }
+    if (Array.isArray(grid.material)) grid.material.forEach((m) => { m.transparent = true; m.opacity = 0.35; });
+    root.add(grid);
+  } catch (_) {}
+
+  // central org core — proof-teal wireframe icosahedron + soft halo
+  coreMesh = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.7, 1),
+    new THREE.MeshStandardMaterial({
+      color: COL.core, emissive: COL.core, emissiveIntensity: 0.5,
+      metalness: 0.4, roughness: 0.35, wireframe: true,
+    }),
+  );
+  root.add(coreMesh);
+  coreHalo = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(2.05, 1),
+    new THREE.MeshBasicMaterial({ color: COL.core, transparent: true, opacity: 0.08, wireframe: true }),
+  );
+  root.add(coreHalo);
+
+  const coreLbl = label.billboard(THREE, "MEASURED", { text: ORG + " · live estate", scale: 0.62, position: [0, 3.2, 0] });
+  root.add(coreLbl);
+
+  // 4 hubs on a ring, alternating height for a 3D constellation feel
+  CATS.forEach((cat, i) => {
+    const a = (cat.angle * Math.PI) / 180;
+    const hy = (i % 2 === 0) ? 2.4 : -2.4;
+    const hubPos = new THREE.Vector3(Math.cos(a) * R_HUB, hy, Math.sin(a) * R_HUB);
+
+    // spine: core -> hub
+    const spineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), hubPos.clone()]);
+    root.add(new THREE.Line(spineGeo, new THREE.LineBasicMaterial({ color: COL.spine, transparent: true, opacity: 0.5 })));
+
+    // hub marker
+    const hub = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.75, 0),
+      new THREE.MeshStandardMaterial({ color: cat.color, emissive: cat.color, emissiveIntensity: 0.5, wireframe: true }),
+    );
+    hub.position.copy(hubPos);
+    root.add(hub);
+
+    const group = new THREE.Group();
+    group.position.copy(hubPos);
+    root.add(group);
+
+    // hub label — starts as a loading placeholder; replaced with the live count.
+    const lbl = label.billboard(THREE, "STRUCTURAL-ONLY", { text: cat.title + " · …", scale: 0.5, position: [hubPos.x, hubPos.y + 1.6, hubPos.z] });
+    root.add(lbl);
+
+    clusters[cat.key] = { cat, group, hub, hubPos, label: lbl, nodes: [] };
+  });
+
+  // gentle motion + pulse
+  const clock = new THREE.Clock();
+  stage.onFrame(() => {
+    const t = clock.getElapsedTime();
+    if (coreMesh) { coreMesh.rotation.y += 0.0025; coreMesh.rotation.x += 0.0011; }
+    if (coreHalo) { coreHalo.rotation.y -= 0.0016; coreHalo.material.opacity = 0.06 + 0.04 * (0.5 + 0.5 * Math.sin(t * 1.3)); }
+    Object.values(clusters).forEach((c, i) => {
+      c.group.rotation.y += 0.0012 + i * 0.0002;
+      if (c.hub) c.hub.rotation.y -= 0.006;
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// live HF fetch — one call per asset class, resolved independently so a single
+// failure only degrades its own constellation.
+// ---------------------------------------------------------------------------
+async function fetchCat(cat) {
+  const r = await fetch(HF_API + cat.path, { headers: { accept: "application/json" } });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  if (!Array.isArray(j)) throw new Error("unexpected payload");
+  return j;
+}
+
+function populateCluster(cat, items) {
+  const c = clusters[cat.key];
+  if (!c) return;
+  const n = items.length;
+  // max metric for log scaling (display-only; never changes the honest value)
+  let maxM = 1;
+  items.forEach((it) => { const m = cat.metric(it); if (m !== null && m > maxM) maxM = m; });
+  const logMax = Math.log10(1 + maxM);
+
+  items.forEach((it, i) => {
+    const m = cat.metric(it);
+    const t = (m === null || logMax <= 0) ? 0 : (Math.log10(1 + m) / logMax);
+    const size = 0.16 + 0.42 * t;
+    const dir = fibDir(i, n);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(size, 18, 18),
+      new THREE.MeshStandardMaterial({
+        color: cat.color, emissive: cat.color,
+        emissiveIntensity: 0.35 + 0.4 * t, metalness: 0.25, roughness: 0.4,
+      }),
+    );
+    mesh.position.set(dir[0] * CLUSTER_R, dir[1] * CLUSTER_R, dir[2] * CLUSTER_R);
+    mesh.userData = { caption: cat.caption(it), url: cat.urlOf(it), color: cat.color, base: mesh.material.emissiveIntensity };
+    c.group.add(mesh);
+    c.nodes.push(mesh);
+    pickable.push(mesh);
+  });
+
+  // honest hub label: the real live count (MEASURED)
+  refreshHubLabel(cat.key, "MEASURED", cat.title + " · " + n);
+}
+
+// swap a hub billboard (billboards are cheap canvas sprites; rebuild in place)
+function refreshHubLabel(key, honesty, text) {
+  const c = clusters[key];
+  if (!c) return;
+  const pos = c.label.position.clone();
+  stage.scene.remove(c.label);
+  try { if (c.label.material && c.label.material.map) c.label.material.map.dispose(); c.label.material.dispose(); } catch (_) {}
+  const lbl = label.billboard(THREE, honesty, { text, scale: 0.5, position: [pos.x, pos.y, pos.z] });
+  stage.scene.add(lbl);
+  c.label = lbl;
+}
+
+// ---------------------------------------------------------------------------
+// HUD — live counts + doctrine honesty chips, built from the same live reads.
+// ---------------------------------------------------------------------------
+const hudEl = document.getElementById("hud");
+const hud = {};
+let liveBadge = null;
+
+function buildHud() {
+  const title = document.createElement("div");
+  title.className = "h-title";
+  title.innerHTML = "\u25c7 Estate Map <span class='h-sub'>live Hugging Face \u00b7 " + ORG + "</span>";
+  hudEl.appendChild(title);
+
+  liveBadge = live.createBadge();
+  hudEl.appendChild(liveBadge.el);
+
+  const mkRow = (key, name, color) => {
+    const wrap = document.createElement("div"); wrap.className = "row";
+    const left = document.createElement("span"); left.className = "name";
+    if (color != null) {
+      const dot = document.createElement("span"); dot.className = "dot";
+      dot.style.color = "#" + color.toString(16).padStart(6, "0");
+      left.appendChild(dot);
+    }
+    left.appendChild(document.createTextNode(name));
+    const right = document.createElement("span"); right.className = "right";
+    const val = document.createElement("span"); val.className = "val"; val.textContent = "…";
+    const chip = label.chip("STRUCTURAL-ONLY"); chip.style.transform = "scale(.9)";
+    right.appendChild(val); right.appendChild(chip);
+    wrap.appendChild(left); wrap.appendChild(right);
+    hudEl.appendChild(wrap);
+    hud[key] = { val, chip };
+  };
+
+  CATS.forEach((c) => mkRow(c.key, c.title, c.color));
+  mkRow("total", "estate assets", null);
+  mkRow("downloads", "\u03a3 downloads (models+data)", null);
+  mkRow("likes", "\u03a3 likes (models+data+spaces)", null);
+
+  const note = document.createElement("div");
+  note.className = "note";
+  note.textContent = "Each sphere is a real estate asset read live from the Hugging Face Hub; " +
+    "sphere size = its headline metric (log-scaled, display-only). Click a node to open it on the Hub. " +
+    "Every count is MEASURED from the live read (a real 0 stays 0); UNKNOWN where the Hub exposes no value; " +
+    "NO-LIVE-DATA if a category is unreachable. Nothing is fabricated. \u039b = Conjecture 1.";
+  hudEl.appendChild(note);
+
+  const legend = label.legend(); legend.style.opacity = "0.85";
+  hudEl.appendChild(legend);
+
+  const pl = document.createElement("button");
+  pl.className = "plainbtn"; pl.textContent = "\u25d1 what this means";
+  pl.title = "Plain-language explanation for investors & consumers.";
+  const pd = document.createElement("div"); pd.className = "plain";
+  pd.innerHTML = "<b>What this means:</b> this is a live map of everything SZL Holdings publishes openly on " +
+    "Hugging Face \u2014 its <b>models</b>, <b>datasets</b>, interactive <b>Spaces</b> and curated <b>collections</b>. " +
+    "Each glowing point is one real asset, pulled straight from Hugging Face right now, and its size reflects a " +
+    "genuine number (downloads, likes or item count). We only show numbers Hugging Face actually reports \u2014 a real " +
+    "zero is shown as zero, and anything the Hub doesn't expose (like Space download counts) is marked <b>UNKNOWN</b> " +
+    "rather than guessed. If a feed is down you'll see <b>NO-LIVE-DATA</b>, never a made-up figure.";
+  pl.addEventListener("click", () => { const on = pd.style.display !== "block"; pd.style.display = on ? "block" : "none"; pl.style.background = on ? "#0f2a20" : "#08140f"; });
+  hudEl.appendChild(pl); hudEl.appendChild(pd);
+}
+
+function setRow(key, text, honesty) {
+  const r = hud[key];
+  if (!r) return;
+  r.val.textContent = text;
+  label.updateChip(r.chip, honesty);
+}
+
+// ---------------------------------------------------------------------------
+// pointer picking — hover to caption a node, click to open it on the Hub.
+// ---------------------------------------------------------------------------
+function wirePicking() {
+  const canvas = stage.renderer.domElement;
+  const ray = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  let hovered = null;
+
+  function pick(ev) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    ray.setFromCamera(ndc, stage.camera);
+    const hit = ray.intersectObjects(pickable, false)[0];
+    return hit ? hit.object : null;
+  }
+  function setHover(obj) {
+    if (hovered === obj) return;
+    if (hovered) hovered.material.emissiveIntensity = hovered.userData.base;
+    hovered = obj;
+    if (hovered) {
+      hovered.material.emissiveIntensity = Math.min(1.4, hovered.userData.base + 0.6);
+      captionEl.textContent = hovered.userData.caption;
+      captionEl.title = hovered.userData.caption;
+      canvas.style.cursor = "pointer";
+    } else {
+      canvas.style.cursor = "grab";
+    }
+  }
+  canvas.addEventListener("pointermove", (ev) => setHover(pick(ev)));
+  canvas.addEventListener("pointerleave", () => setHover(null));
+  canvas.addEventListener("click", (ev) => {
+    const obj = pick(ev);
+    if (obj && obj.userData.url) window.open(obj.userData.url, "_blank", "noopener");
+  });
+}
+
+// ---------------------------------------------------------------------------
+// orchestrate: boot -> scaffold -> HUD -> live fetch (per-category honest state).
+// ---------------------------------------------------------------------------
+async function main() {
+  buildHud();
+  try { await ensureStage(); } catch (_) { if (liveBadge) liveBadge.set(live.LIVE_STATES.ERROR); return; }
+  buildScaffold();
+  wirePicking();
+  captionEl.textContent = "Hover a node for its live Hub metric · click to open it on Hugging Face · drag to orbit";
+
+  let okCats = 0, totalAssets = 0, totalDl = 0, totalLikes = 0;
+
+  await Promise.all(CATS.map(async (cat) => {
+    try {
+      const items = await fetchCat(cat);
+      populateCluster(cat, items);
+      setRow(cat.key, String(items.length), "MEASURED");
+      okCats++;
+      totalAssets += items.length;
+      if (cat.key === "models" || cat.key === "datasets") {
+        items.forEach((it) => { const d = numOr(it.downloads); if (d !== null) totalDl += d; });
+      }
+      if (cat.key === "models" || cat.key === "datasets" || cat.key === "spaces") {
+        items.forEach((it) => { const l = numOr(it.likes); if (l !== null) totalLikes += l; });
+      }
+    } catch (e) {
+      console.warn("[estate-map] " + cat.key + " unavailable:", e && e.message);
+      setRow(cat.key, "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+      refreshHubLabel(cat.key, "STRUCTURAL-ONLY", cat.title + " · NO-LIVE-DATA");
+    }
+  }));
+
+  if (okCats === CATS.length) {
+    setRow("total", String(totalAssets), "MEASURED");
+    setRow("downloads", totalDl.toLocaleString(), "MEASURED");
+    setRow("likes", totalLikes.toLocaleString(), "MEASURED");
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.LIVE, { at: Date.now() });
+  } else if (okCats > 0) {
+    setRow("total", totalAssets + " (partial)", "STRUCTURAL-ONLY");
+    setRow("downloads", totalDl.toLocaleString() + " (partial)", "STRUCTURAL-ONLY");
+    setRow("likes", totalLikes.toLocaleString() + " (partial)", "STRUCTURAL-ONLY");
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.DEGRADED, { at: Date.now() });
+  } else {
+    setRow("total", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+    setRow("downloads", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+    setRow("likes", "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.ERROR);
+  }
+}
+
+// expose a tiny hook for headless selftest harnesses (parity with the shell).
+window.__SZL3D_ESTATE_MAP__ = { get stage() { return stage; }, clusters, pickable, CATS };
+
+main();
+</script>
+</body>
+</html>
