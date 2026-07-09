@@ -33,9 +33,16 @@ class Persona:
 
     def system_prompt(self) -> str:
         p = self.soul_path()
-        if not p.exists():
-            return f"[soul file missing for {self.name}: {p} — honest empty persona]"
-        return p.read_text(encoding="utf-8")
+        if p.exists():
+            prompt = p.read_text(encoding="utf-8")
+        else:
+            prompt = f"[soul file missing for {self.name}: {p} — honest empty persona]"
+        shared = _SOULS_DIR / "_shared_knowledge.md"
+        if shared.exists():
+            # Knowledge INSTILLED (curated, cited text appended to the system
+            # prompt) — never "training"; no weights are changed anywhere.
+            prompt += "\n\n" + shared.read_text(encoding="utf-8")
+        return prompt
 
     def metadata(self) -> dict:
         return {
@@ -47,6 +54,7 @@ class Persona:
             "approval_required": self.approval_required,
             "default_difficulty": self.default_difficulty,
             "soul_present": self.soul_path().exists(),
+            "knowledge_instilled": (_SOULS_DIR / "_shared_knowledge.md").exists(),
         }
 
 
