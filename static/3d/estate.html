@@ -143,7 +143,7 @@ const CATS = [
     metric: (m) => numOr(m.downloads),
     metricName: "downloads",
     caption: (m) => "Model · " + m.id + " · " + fmtMetric(m.downloads, "downloads") +
-      " · " + fmtMetric(m.likes, "likes") + " · MEASURED (live Hub)",
+      " · " + fmtMetric(m.likes, "likes") + liveTag(m.downloads, m.likes),
   },
   {
     key: "datasets", title: "Datasets", color: COL.datasets, angle: 50,
@@ -153,7 +153,7 @@ const CATS = [
     metric: (d) => numOr(d.downloads),
     metricName: "downloads",
     caption: (d) => "Dataset · " + d.id + " · " + fmtMetric(d.downloads, "downloads") +
-      " · " + fmtMetric(d.likes, "likes") + " · MEASURED (live Hub)",
+      " · " + fmtMetric(d.likes, "likes") + liveTag(d.downloads, d.likes),
   },
   {
     key: "spaces", title: "Spaces", color: COL.spaces, angle: 140,
@@ -165,7 +165,8 @@ const CATS = [
     metric: (s) => numOr(s.likes),
     metricName: "likes",
     caption: (s) => "Space · " + s.id + " · " + fmtMetric(s.likes, "likes") +
-      " · sdk: " + (s.sdk || "UNKNOWN") + " · downloads: UNKNOWN (Hub exposes none) · MEASURED (likes)",
+      " · sdk: " + (s.sdk || "UNKNOWN") + " · downloads: UNKNOWN (Hub exposes none)" +
+      (numOr(s.likes) !== null ? " · MEASURED (likes)" : ""),
   },
   {
     key: "collections", title: "Collections", color: COL.collections, angle: 230,
@@ -176,7 +177,8 @@ const CATS = [
     metricName: "items",
     caption: (c) => "Collection · " + (c.title || c.slug) + " · " +
       fmtMetric(Array.isArray(c.items) ? c.items.length : null, "items") + " · " +
-      fmtMetric(c.upvotes, "upvotes") + " · MEASURED (live Hub)",
+      fmtMetric(c.upvotes, "upvotes") +
+      liveTag(Array.isArray(c.items) ? c.items.length : null, c.upvotes),
   },
 ];
 
@@ -192,6 +194,14 @@ function fmtMetric(x, name) {
   const n = numOr(x);
   if (n === null) return name + ": UNKNOWN";
   return n.toLocaleString() + " " + name;
+}
+// The "MEASURED (live Hub)" tag may only be claimed when EVERY number shown in the
+// caption is a real measured value; if any is UNKNOWN the caption says so instead —
+// never UNKNOWN and MEASURED in the same breath.
+function liveTag() {
+  for (let i = 0; i < arguments.length; i++) if (numOr(arguments[i]) === null)
+    return " \u00b7 live Hub read (UNKNOWN = field not exposed)";
+  return " \u00b7 MEASURED (live Hub)";
 }
 // Fibonacci-sphere direction for even constellation spread.
 function fibDir(i, n) {
@@ -317,7 +327,8 @@ function buildScaffold() {
 // failure only degrades its own constellation.
 // ---------------------------------------------------------------------------
 async function fetchCat(cat) {
-  const r = await fetch(HF_API + cat.path, { headers: { accept: "application/json" } });
+  // 10s abort: a hung Hub request must degrade to NO-LIVE-DATA, never hang at "…".
+  const r = await fetch(HF_API + cat.path, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000) });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const j = await r.json();
   if (!Array.isArray(j)) throw new Error("unexpected payload");
@@ -487,13 +498,18 @@ async function main() {
   wirePicking();
   captionEl.textContent = "Hover a node for its live Hub metric · click to open it on Hugging Face · drag to orbit";
 
-  let okCats = 0, totalAssets = 0, totalDl = 0, totalLikes = 0;
+  let okCats = 0, totalAssets = 0, totalDl = 0, totalLikes = 0, anyTrunc = false;
 
   await Promise.all(CATS.map(async (cat) => {
     try {
       const items = await fetchCat(cat);
       populateCluster(cat, items);
-      setRow(cat.key, String(items.length), "MEASURED");
+      // limit=100 page cap: 100 returned means "at least 100" — an honest lower
+      // bound, never presented as an exact MEASURED count.
+      const truncated = items.length >= 100;
+      if (truncated) anyTrunc = true;
+      setRow(cat.key, truncated ? "100+ (page cap \u2014 lower bound)" : String(items.length),
+        truncated ? "STRUCTURAL-ONLY" : "MEASURED");
       okCats++;
       totalAssets += items.length;
       if (cat.key === "models" || cat.key === "datasets") {
@@ -509,11 +525,18 @@ async function main() {
     }
   }));
 
-  if (okCats === CATS.length) {
+  if (okCats === CATS.length && !anyTrunc) {
     setRow("total", String(totalAssets), "MEASURED");
     setRow("downloads", totalDl.toLocaleString(), "MEASURED");
     setRow("likes", totalLikes.toLocaleString(), "MEASURED");
     if (liveBadge) liveBadge.set(live.LIVE_STATES.LIVE, { at: Date.now() });
+  } else if (okCats === CATS.length && anyTrunc) {
+    // every feed answered but at least one hit the page cap — totals are honest
+    // lower bounds, flagged as such, never claimed as exact.
+    setRow("total", "\u2265 " + totalAssets + " (page cap hit)", "STRUCTURAL-ONLY");
+    setRow("downloads", "\u2265 " + totalDl.toLocaleString(), "STRUCTURAL-ONLY");
+    setRow("likes", "\u2265 " + totalLikes.toLocaleString(), "STRUCTURAL-ONLY");
+    if (liveBadge) liveBadge.set(live.LIVE_STATES.DEGRADED, { at: Date.now() });
   } else if (okCats > 0) {
     setRow("total", totalAssets + " (partial)", "STRUCTURAL-ONLY");
     setRow("downloads", totalDl.toLocaleString() + " (partial)", "STRUCTURAL-ONLY");
