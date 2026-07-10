@@ -92,11 +92,26 @@ PROVIDER_OAUTH: dict[str, dict[str, str]] = {
 }
 
 
+# Domain-separation salt + work factor for deriving the state-signing key.
+_STATE_KDF_SALT = b"szl.killinchu.oauth-state.v1"
+_STATE_KDF_ITERATIONS = 200_000
+_STATE_KEY_CACHE: dict[str, bytes] = {}
+
+
 def _state_secret() -> bytes:
     # signed-state nonce key: reuse the cosign-adjacent secret if present, else a
     # per-process ephemeral key (state still verifiable within the process).
+    # Stretched with PBKDF2-HMAC-SHA256 rather than a single SHA-256 pass so a
+    # low-entropy secret (e.g. the ephemeral fallback) cannot be cheaply
+    # brute-forced from a leaked state signature (CodeQL
+    # py/weak-sensitive-data-hashing). Cached per secret so the stretch is a
+    # one-time cost while still honouring a changed secret.
     s = os.environ.get("SZL_OAUTH_STATE_SECRET") or os.environ.get("SZL_COSIGN_PRIVATE_PEM") or "szl-oauth-ephemeral"
-    return hashlib.sha256(s.encode()).digest()
+    key = _STATE_KEY_CACHE.get(s)
+    if key is None:
+        key = hashlib.pbkdf2_hmac("sha256", s.encode(), _STATE_KDF_SALT, _STATE_KDF_ITERATIONS)
+        _STATE_KEY_CACHE[s] = key
+    return key
 
 
 def _b64u(b: bytes) -> str:
