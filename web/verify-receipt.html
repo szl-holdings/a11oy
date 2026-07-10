@@ -282,10 +282,17 @@
     var q = new URLSearchParams(window.location.search);
     var receipt = q.get("receipt");
     var envelope = q.get("envelope");
-    if(envelope){
+    // Validate the SHAPE of the URL-supplied values before they drive the
+    // auto-verify branch. The server does the real cryptographic verification;
+    // this is defence-in-depth so a malformed/oversized query param is never
+    // blindly re-submitted, and it takes the raw user-controlled value out of
+    // the security-relevant branch condition (CodeQL js/user-controlled-bypass).
+    var validEnvelope = typeof envelope === "string" && /^[A-Za-z0-9_\-]{1,8192}$/.test(envelope);
+    var validReceipt  = typeof receipt  === "string" && /^[A-Za-z0-9._:\-]{1,256}$/.test(receipt);
+    if(validEnvelope){
       $("env").value = envelope;
       doVerify({envelope: envelope});
-    } else if(receipt){
+    } else if(validReceipt){
       $("rid").value = receipt;
       doVerify({receipt_id: receipt});
     }
