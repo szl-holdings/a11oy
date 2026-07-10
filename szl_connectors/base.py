@@ -154,9 +154,27 @@ def http_text(url: str, headers: dict | None = None, timeout: float = _TIMEOUT) 
         return 0, str(e)
 
 
+# Credential fingerprints are derived with PBKDF2-HMAC-SHA256, not a single
+# SHA-256 pass. A bare hash of a (possibly low-entropy) credential is cheap to
+# brute-force / rainbow-table from the fingerprint alone (CodeQL
+# py/weak-sensitive-data-hashing). The fixed domain-separation salt keeps the
+# fingerprint DETERMINISTIC — the same credential always maps to the same
+# fingerprint, which is the whole point of a correlation fingerprint — while the
+# work factor makes recovery expensive. An optional deployment pepper
+# (SZL_FINGERPRINT_PEPPER) adds a keyed secret an attacker cannot precompute.
+_CRED_FP_SALT = b"szl.killinchu.cred-fingerprint.v1"
+_CRED_FP_ITERATIONS = 200_000
+
+
 def cred_fingerprint(value: str) -> str:
-    """SHA-256 fingerprint of a credential — what a receipt may carry. NEVER the value."""
-    return "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:32]
+    """Brute-force-resistant fingerprint of a credential — what a receipt may
+    carry. NEVER the value. PBKDF2-HMAC-SHA256 over a deterministic salt (+ the
+    optional SZL_FINGERPRINT_PEPPER) so a low-entropy credential cannot be
+    recovered from its fingerprint, yet the same credential always maps to the
+    same fingerprint."""
+    salt = _CRED_FP_SALT + os.environ.get("SZL_FINGERPRINT_PEPPER", "").encode("utf-8")
+    dk = hashlib.pbkdf2_hmac("sha256", value.encode("utf-8"), salt, _CRED_FP_ITERATIONS)
+    return "pbkdf2-sha256:" + dk.hex()[:32]
 
 
 # ── the honesty core — resolve_state() ─────────────────────────────────────
