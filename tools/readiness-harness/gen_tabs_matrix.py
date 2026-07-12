@@ -34,6 +34,19 @@ OUT = os.path.join(HERE, "tabs.json")
 ORGAN = "a11oy"
 CONSOLE_ROUTE = "/console"
 
+# Shared evidence-state semantics. Keep this vocabulary in the generated
+# contract so clients do not infer observed, modeled, cached, or unavailable
+# states from prose.
+STATE_VOCABULARY = {
+    "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
+    "MEASURED": "Observed by an instrument or deterministic runtime check with provenance.",
+    "MODELED": "Computed estimate or scenario output; not an observation.",
+    "SNAPSHOT": "Versioned point-in-time artifact with an observed or generated timestamp.",
+    "SAMPLE": "Demonstration or reference data; never presented as current operations.",
+    "CACHED": "Previously fetched source data served with its original observation timestamp.",
+    "UNAVAILABLE": "The source or evidence is not available; no replacement value is fabricated.",
+}
+
 # ── Endpoint contract registry ─────────────────────────────────────────────
 # freshnessSLA: max acceptable age (seconds) of the data the endpoint returns;
 #   null  -> static/derived, no freshness obligation.
@@ -95,6 +108,22 @@ ENDPOINTS = {
 
     # ── Eval arena ──
     "/api/a11oy/v1/eval-arena/history": ep(schema="arena_history", sla=DAY),
+    "/api/a11oy/v1/eval/suites": ep(schema="generic_obj", sla=HOUR,
+        note="Versioned eval-suite catalog consumed by the flywheel eval surface."),
+    "/api/a11oy/v1/eval/run": ep(method="POST", schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Governed eval execution; an invalid or incomplete request may honestly validate with 400/422."),
+    "/api/a11oy/v1/harness/profiles": ep(schema="generic_obj", sla=HOUR,
+        note="Versioned behavior-profile roster with provenance and availability."),
+    "/api/a11oy/v1/agentloop/health": ep(schema="generic_obj", sla=HOUR,
+        note="Read-only governed agent-loop capability and dependency posture."),
+    "/api/a11oy/v1/agentloop/run": ep(method="POST", schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Governed multi-step agent run; an invalid or incomplete request may honestly validate with 400/422."),
+    "/api/a11oy/v1/rag/query": ep(schema="generic_obj", sla=HOUR, citations=True,
+        note="GET is the read-only governed RAG descriptor; POST performs a query. The readiness probe uses GET."),
+    "/api/a11oy/v1/rag/status": ep(schema="generic_obj", sla=HOUR, citations=True,
+        note="Read-only RAG index and corpus posture with explicit not-built state."),
 
     # ── Energy / GSF SCI ──
     "/api/a11oy/v1/energy/live": ep(schema="generic_obj", sla=30,
@@ -133,12 +162,15 @@ ENDPOINTS = {
 
     # ── Operator (rosie) ──
     "/api/a11oy/v1/operator/ledger": ep(schema="generic_obj", sla=HOUR),
-    "/api/a11oy/v1/operator/recommend": ep(method="POST", schema="generic_obj", sla=None),
+    "/api/a11oy/v1/operator/recommend": ep(schema="generic_obj", sla=None,
+        note="Read-only recommendation rollup consumed by the Ask & Act surface."),
     "/api/a11oy/v2/operator/command-log": ep(schema="generic_obj", sla=None,
         note="Append-only command log; quiet != stale, so no freshness SLA."),
 
     # ── Policy (sentra) ──
-    "/api/a11oy/v1/policy/compliance": ep(schema="generic_obj", sla=HOUR),
+    "/api/a11oy/v1/policy/compliance": ep(method="POST", schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Governed compliance evaluation; the console submits a framework payload. Empty or invalid bodies may honestly validate with 400/422."),
     "/api/a11oy/v1/policy/gates": ep(schema="generic_obj", sla=None),
     "/api/a11oy/v1/policy/threats": ep(schema="generic_obj", sla=None, citations=True,
         note="Curated, citation-gated policy threat catalog (not a live feed); judged on citations, not freshness."),
@@ -653,13 +685,14 @@ def build():
         })
 
     matrix = {
-        "version": "1",
+        "version": "1.1",
         "doctrine": "v11",
         "organ": ORGAN,
         "consoleRoute": CONSOLE_ROUTE,
         "generatedAt": os.environ.get("SOURCE_DATE_EPOCH_ISO")
         or datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z"),
         "generator": "tools/readiness-harness/gen_tabs_matrix.py",
+        "stateVocabulary": STATE_VOCABULARY,
         "summary": {
             "tabs": len(tabs),
             "endpoints": len(ENDPOINTS),
@@ -690,7 +723,8 @@ def main():
             sys.exit(1)
         print("OK: tabs.json matches the console (%d tabs)." % matrix["summary"]["tabs"])
         return
-    with open(OUT, "w", encoding="utf-8") as f:
+    # Pin LF so the generated contract has the same bytes on Windows and Linux.
+    with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
     # Emit a GET-only target list for the k6 stress suite (warhacker.js reads it).
     stress_targets = sorted(
@@ -698,7 +732,7 @@ def main():
     )
     stress_path = os.path.join(os.path.dirname(OUT), "stress", "stress-targets.json")
     os.makedirs(os.path.dirname(stress_path), exist_ok=True)
-    with open(stress_path, "w", encoding="utf-8") as f:
+    with open(stress_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(stress_targets, indent=2) + "\n")
     print("wrote %s (%d tabs, %d endpoints, %d stress targets)" %
           (OUT, matrix["summary"]["tabs"], matrix["summary"]["endpoints"], len(stress_targets)))
