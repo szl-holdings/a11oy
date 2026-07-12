@@ -149,7 +149,7 @@ def _norm_digest(v: Optional[str]) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Check 1 — signature (reuse szl_dsse.verify_envelope; honest labels)
 # ---------------------------------------------------------------------------
-def _check_signature(env: dict[str, Any]) -> dict[str, Any]:
+def _check_signature(env: dict[str, Any], runtime_verify_fn=None) -> dict[str, Any]:
     out: dict[str, Any] = {"check": "signature",
                            "algo": "ECDSA-P256-SHA256 over DSSE PAE"}
     try:
@@ -170,6 +170,28 @@ def _check_signature(env: dict[str, Any]) -> dict[str, Any]:
         return {**out, "status": UNSIGNED_LOCAL,
                 "detail": ("envelope has no signatures[]; nothing to verify "
                            "(honest UNSIGNED-LOCAL — no signature fabricated)")}
+    keyids = [str(s.get("keyid") or "") for s in sigs if isinstance(s, dict)]
+    if "a11oy-inimage-ecdsa-p256" in keyids:
+        # Live Nemo/Council receipts use the per-boot key served at
+        # /cosign.pub, not the long-lived organization key embedded in
+        # szl_dsse. The old static-key-only path falsely marked them MISMATCH.
+        if not callable(runtime_verify_fn):
+            return {**out, "status": UNAVAILABLE,
+                    "verify_key_url": "/cosign.pub",
+                    "keyid_expected": "a11oy-inimage-ecdsa-p256",
+                    "detail": "in-image verifier callback unavailable in this context"}
+        try:
+            runtime_verdict = runtime_verify_fn(env)
+        except Exception as e:
+            return {**out, "status": UNAVAILABLE,
+                    "verify_key_url": "/cosign.pub",
+                    "detail": f"in-image verify error: {type(e).__name__}"}
+        return {**out,
+                "status": (VERIFIED if runtime_verdict.get("signature_valid")
+                           else MISMATCH),
+                "verify_key_url": "/cosign.pub",
+                "keyid_expected": "a11oy-inimage-ecdsa-p256",
+                "detail": runtime_verdict.get("detail")}
     try:
         verdict = szl_dsse.verify_envelope(env)
     except Exception as e:
@@ -330,7 +352,7 @@ def _overall(checks: list[dict[str, Any]]) -> str:
 
 
 def verify_receipt(envelope: Any = None, receipt_id: Optional[str] = None,
-                   organ: Optional[str] = None) -> dict[str, Any]:
+                   organ: Optional[str] = None, runtime_verify_fn=None) -> dict[str, Any]:
     """Public verify. Accepts a DSSE envelope OR a receipt_id (chain lookup).
 
     Returns a structured, honestly-labelled verdict. NEVER raises into the request
@@ -392,7 +414,7 @@ def verify_receipt(envelope: Any = None, receipt_id: Optional[str] = None,
     rid = (str(receipt_id).strip().lower() if receipt_id
            else _receipt_id_from_env(env, payload_obj))
 
-    sig = _check_signature(env)
+    sig = _check_signature(env, runtime_verify_fn=runtime_verify_fn)
     dig = _check_payload_digest(env)
     chain = _check_hash_chain(rid, organ)
     checks = [sig, dig, chain]
@@ -425,6 +447,30 @@ def _shareable_link(env: dict[str, Any], rid: Optional[str]) -> dict[str, Any]:
 # Registered BEFORE the SPA catch-all (mirrors szl_khipu_verify).
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "a11oy") -> dict:
+    async def _verify_manifest():  # noqa: ANN202
+        return JSONResponse({
+            "schema": "szl.public-receipt-verifier/manifest/v1",
+            "state": "LIVE",
+            "purpose": "Independently verify a pasted DSSE receipt or receipt id.",
+            "try": {
+                "method": "POST",
+                "endpoint": f"/api/{ns}/v1/verify/receipt",
+                "body": {"envelope": {"payloadType": "...", "payload": "...",
+                                      "signatures": []}},
+            },
+            "evidence": ["signature", "payload_digest", "hash_chain"],
+            "limits": (
+                "PASS means every check that could run passed and none mismatched; "
+                "it does not prove the model output is factually correct."
+            ),
+            "reproduce": {
+                "public_key": "/cosign.pub",
+                "human_ui": "/verify",
+                "shareable_get": f"/api/{ns}/v1/verify/receipt/{{receipt_id}}",
+            },
+            "doctrine": _DOCTRINE,
+        })
+
     async def _verify_post(request: Request):  # noqa: ANN202
         try:
             body = await request.json()
@@ -435,7 +481,9 @@ def register(app, ns: str = "a11oy") -> dict:
         envelope = body.get("envelope")
         receipt_id = body.get("receipt_id") or body.get("receipt")
         organ = body.get("organ")
-        result = verify_receipt(envelope=envelope, receipt_id=receipt_id, organ=organ)
+        runtime_verify = getattr(request.app.state, "szl_verify_receipt", None)
+        result = verify_receipt(envelope=envelope, receipt_id=receipt_id, organ=organ,
+                                runtime_verify_fn=runtime_verify)
         status = 200 if result.get("ok") else 400
         return JSONResponse(result, status_code=status,
                             headers={"x-szl-verify-verdict": str(result.get("verdict", ""))})
@@ -445,14 +493,23 @@ def register(app, ns: str = "a11oy") -> dict:
         return JSONResponse(result, status_code=200,
                             headers={"x-szl-verify-verdict": str(result.get("verdict", ""))})
 
+    # Capture the pre-existing routes because callers may register this module
+    # after a generic /api/{ns}/{path:path} proxy. We front-move the exact
+    # verifier routes after creation so ordered Starlette matching is stable.
+    existing_routes = list(app.router.routes)
     prefixes = [f"/api/{ns}/v1/verify", "/v1/verify"]
     routes: list[str] = []
     for p in prefixes:
+        app.add_api_route(f"{p}/receipt", _verify_manifest, methods=["GET"],
+                          include_in_schema=True)
         app.add_api_route(f"{p}/receipt", _verify_post, methods=["POST"],
                           include_in_schema=True)
         app.add_api_route(f"{p}/receipt/{{receipt_id}}", _verify_get_path,
                           methods=["GET"], include_in_schema=True)
-        routes.extend([f"{p}/receipt (POST)", f"{p}/receipt/{{receipt_id}} (GET)"])
+        routes.extend([f"{p}/receipt (GET manifest)", f"{p}/receipt (POST)",
+                       f"{p}/receipt/{{receipt_id}} (GET)"])
+    added_routes = list(app.router.routes[len(existing_routes):])
+    app.router.routes[:] = added_routes + existing_routes
     print(f"[{ns}] szl_public_verify routes registered "
           f"(PUBLIC verify-a-receipt, {len(routes)} routes)", flush=True)
     return {"ok": True, "ns": ns, "routes": routes}
