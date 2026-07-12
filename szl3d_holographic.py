@@ -25,9 +25,16 @@ Mirrors the existing in-image static-serve pattern (serve.py /static/shared/{fna
 """
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 # Surface slots (id, human title) — the frontier tier + the 9 estate surfaces.
 SURFACES: List[Dict[str, str]] = [
@@ -150,7 +157,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "brainexplain", "cat": "brain", "title": "Brain Explain · transparent explanation of WHY the brain retrieved what it did · MODELED descriptive trace over the REAL retrieval subgraph (which query terms matched which seed nodes, per-node ppr-vs-salience rationale, communities traversed, each node's OWN label VERBATIM) → EXPLAINABLE/PARTIALLY-EXPLAINABLE/OPAQUE (never invents a rationale; honest OPAQUE beats a fake one), unsigned SHA-256 receipt-on-write", "owner": "WaveT-Dev1"},
     {"id": "braingaps", "cat": "brain", "title": "Brain Gaps · an honest map of what the brain does NOT know · MEASURED thin (sparse) communities + weakly-connected island nodes (degree≤1) + weak-label share over the live graph, and per-query COVERED/THIN/GAP grounding → estate verdict WELL-COVERED/PATCHY/SPARSE (a GAP is never fabricated into coverage), unsigned SHA-256 receipt-on-write (MODELED)", "owner": "WaveT-Dev1"},
     {"id": "brainconstitution", "cat": "brain", "title": "Brain Constitution · the honest, machine-checkable ruleset the brain is graded against per query · an explicit ordered set of ARTICLES (grounding sufficiency, calibrated confidence, honest corroboration, contradictions surfaced, traceable to source, freshness honesty, coverage gaps admitted, doctrine invariants) each graded COMPLIANT/VIOLATED/UNAVAILABLE against whatever sibling brain-honesty surfaces are importable (an absent surface is UNAVAILABLE, never a fabricated pass) → CONSTITUTIONAL/IN-VIOLATION/INSUFFICIENT-SIGNAL, never CONSTITUTIONAL while any evaluable Article is VIOLATED, unsigned SHA-256 receipt-on-write (MODELED)", "owner": "WaveT-Dev1"},
-    {"id": "markets", "cat": "finance", "flag": True, "title": "Markets & Finance · live Polymarket prediction book (top markets by 24h volume, pillar height = 24h vol, bead = YES probability) + crypto majors orbiting by market cap · 100% MEASURED same-origin deva finance feeds, no mocked spend/keys, log-scaling is display-only", "owner": "Forge"},
+    {"id": "markets", "module": "finance", "cat": "finance", "flag": True, "title": "Markets & Finance · live Polymarket prediction book (top markets by 24h volume, pillar height = 24h vol, bead = YES probability) + crypto majors orbiting by market cap · 100% MEASURED same-origin deva finance feeds, no mocked spend/keys, log-scaling is display-only", "owner": "Forge"},
     {"id": "leaders", "cat": "more", "flag": True, "title": "Frontier Models · Live AI Leaders · MEASURED live OpenRouter model catalog — one pillar per lab (height = max context window, bead = open/free share); widest-context models orbit as satellites (teal = free, amber = paid); log-scaling is display-only, no invented benchmark or ranking", "owner": "Forge"},
    {"id": "research", "cat": "more", "flag": True, "title": "Frontier Research · Live arXiv AI · MEASURED live arXiv submission stream (cs.AI/LG/CL/CV/NE) — one pillar per research category (height = fresh-paper count, bead = share of the window); most-recent papers orbit as satellites sized by author count; log-scaling is display-only, no citation count, score, or ranking", "owner": "Forge"},
     {"id": "open", "cat": "more", "flag": True, "title": "Open Frontier · Live Hugging Face · MEASURED live Hugging Face Hub trending stream — one pillar per org/author (height = summed likes, bead = download reach); most-liked open models orbit as satellites coloured by task; log-scaling is display-only, no invented benchmark, score, or ranking beyond the Hub’s own", "owner": "Forge"},
@@ -236,6 +243,248 @@ def no_cdn_violations(base: Path):
                     break
 
 
+# The Brain surface is a browser-side part of the sovereign 0-CDN tree.  It must
+# never call third-party hosts directly.  These URLs are therefore fixed here,
+# server-side, with no caller-controlled target (and thus no open proxy / SSRF
+# surface).  GET /.../brain/evidence performs one bounded, read-only observation
+# and returns explicit LIVE / DEGRADED / UNAVAILABLE states.  There is deliberately
+# no stale cache and no silent fallback.
+_BRAIN_PAGE_CAP = 100
+_BRAIN_TIMEOUT_S = 4.0
+_BRAIN_MAX_BYTES = 5 * 1024 * 1024
+_BRAIN_FORMULA_COMMIT = "22b084d4a74abb4d5911ca9dc303c35d222bd284"
+_BRAIN_FORMULA_PATH = "proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean"
+_BRAIN_FORMULA_SHA256 = "847d2e332017a5bfe3e7823092acf0245840f6b20f3d6f1544f723fd1607612e"
+_BRAIN_SOURCES: Dict[str, str] = {
+    "formulas": (
+        "https://raw.githubusercontent.com/szl-holdings/a11oy/"
+        f"{_BRAIN_FORMULA_COMMIT}/{_BRAIN_FORMULA_PATH}"
+    ),
+    "models": "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=false",
+    "datasets": "https://huggingface.co/api/datasets?author=SZLHOLDINGS&limit=100&full=false",
+    "spaces": "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=false",
+    "collections": "https://huggingface.co/api/collections?owner=SZLHOLDINGS&limit=100",
+    "repos": "https://api.github.com/orgs/szl-holdings/repos?per_page=100&type=public",
+    "organ:a11oy": "https://szlholdings-a11oy.hf.space/healthz",
+    "organ:killinchu": "https://szlholdings-killinchu.hf.space/healthz",
+    "organ:anatomy": "https://szlholdings-anatomy.hf.space/healthz",
+    "organ:amaru": "https://szlholdings-amaru.hf.space/healthz",
+    "organ:sentra": "https://szlholdings-sentra.hf.space/healthz",
+    "frontier:deepseek-ai": "https://huggingface.co/api/models?author=deepseek-ai&limit=100&full=false",
+    "frontier:Qwen": "https://huggingface.co/api/models?author=Qwen&limit=100&full=false",
+    "frontier:moonshotai": "https://huggingface.co/api/models?author=moonshotai&limit=100&full=false",
+    "frontier:zai-org": "https://huggingface.co/api/models?author=zai-org&limit=100&full=false",
+}
+
+
+def _brain_read(url: str) -> bytes:
+    """Read one allowlisted public source with a hard time and byte bound."""
+    req = Request(url, headers={"Accept": "application/json, text/plain;q=0.9",
+                                "User-Agent": "a11oy-holographic-evidence/1.0"})
+    with urlopen(req, timeout=_BRAIN_TIMEOUT_S) as response:  # nosec B310: fixed allowlist
+        data = response.read(_BRAIN_MAX_BYTES + 1)
+    if len(data) > _BRAIN_MAX_BYTES:
+        raise ValueError("response_too_large")
+    return data
+
+
+def _brain_json(url: str) -> Any:
+    return json.loads(_brain_read(url).decode("utf-8"))
+
+
+def _brain_text(url: str) -> str:
+    return _brain_read(url).decode("utf-8")
+
+
+def _brain_health(url: str) -> Dict[str, Any]:
+    """Observe an organ health endpoint.  An HTTP response is itself a measured
+    observation; a missing endpoint is not rewritten into either UP or DOWN."""
+    try:
+        payload = _brain_json(url)
+        status = str(payload.get("status", "unknown payload")) if isinstance(payload, dict) else "unknown payload"
+        return {"read_state": "LIVE", "health_state": status, "up": status == "ok"}
+    except HTTPError as exc:
+        return {"read_state": "LIVE", "health_state": f"no /healthz (HTTP {exc.code})", "up": False}
+
+
+def _brain_error(exc: BaseException) -> str:
+    if isinstance(exc, ValueError) and str(exc) == "source_integrity_mismatch":
+        return "source_integrity_mismatch"
+    if isinstance(exc, HTTPError):
+        return f"upstream_http_{exc.code}"
+    if isinstance(exc, (TimeoutError, OSError)):
+        return "upstream_unreachable_or_timeout"
+    if isinstance(exc, (UnicodeError, json.JSONDecodeError)):
+        return "upstream_invalid_payload"
+    if isinstance(exc, ValueError) and str(exc) == "response_too_large":
+        return "upstream_response_too_large"
+    return "upstream_read_failed"
+
+
+def _unavailable(source_url: str, exc: BaseException) -> Dict[str, Any]:
+    return {"state": "UNAVAILABLE", "data_label": "UNAVAILABLE",
+            "source_url": source_url, "reason": _brain_error(exc)}
+
+
+def _count_payload(items: Any, source_url: str, sum_field: str | None = None) -> Dict[str, Any]:
+    if not isinstance(items, list):
+        raise ValueError("unexpected_payload_shape")
+    n = len(items)
+    result: Dict[str, Any] = {
+        "state": "LIVE", "data_label": "MEASURED", "source_url": source_url,
+        "count": n, "count_display": f"{n}+" if n >= _BRAIN_PAGE_CAP else str(n),
+        "page_cap": _BRAIN_PAGE_CAP, "lower_bound": n >= _BRAIN_PAGE_CAP,
+    }
+    if sum_field:
+        values = [item.get(sum_field) for item in items if isinstance(item, dict)]
+        known = len(values) == n and all(isinstance(value, (int, float)) for value in values)
+        result[f"{sum_field}_sum"] = sum(values) if known else None
+        result[f"{sum_field}_sum_known"] = known
+    return result
+
+
+def brain_evidence(
+    fetch_json: Callable[[str], Any] = _brain_json,
+    fetch_text: Callable[[str], str] = _brain_text,
+    fetch_health: Callable[[str], Dict[str, Any]] = _brain_health,
+    expected_formula_sha256: str = _BRAIN_FORMULA_SHA256,
+) -> Dict[str, Any]:
+    """Build one honest Brain observation from fixed public sources.
+
+    All reads run concurrently under fixed worker, timeout, and response-size
+    bounds.  Partial results remain visible, but an incomplete composite lobe is
+    UNAVAILABLE rather than being presented as a complete count.
+    """
+    observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    raw: Dict[str, Any] = {}
+    errors: Dict[str, BaseException] = {}
+
+    def read(key: str) -> Any:
+        url = _BRAIN_SOURCES[key]
+        if key == "formulas":
+            return fetch_text(url)
+        if key.startswith("organ:"):
+            return fetch_health(url)
+        return fetch_json(url)
+
+    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="brain-evidence") as pool:
+        futures = {pool.submit(read, key): key for key in _BRAIN_SOURCES}
+        for future in as_completed(futures):
+            key = futures[future]
+            try:
+                raw[key] = future.result()
+            except BaseException as exc:  # each source degrades independently
+                errors[key] = exc
+
+    lobes: Dict[str, Dict[str, Any]] = {}
+    try:
+        if "formulas" in errors:
+            raise errors["formulas"]
+        source = raw["formulas"]
+        content_sha256 = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        if content_sha256 != expected_formula_sha256:
+            raise ValueError("source_integrity_mismatch")
+        theorem_count = len(_re.findall(r"(^|\n)\s*theorem\s", source))
+        lobes["formulas"] = {
+            "state": "LIVE", "data_label": "MEASURED",
+            "source_url": _BRAIN_SOURCES["formulas"],
+            "source_repository": "szl-holdings/a11oy",
+            "source_path": _BRAIN_FORMULA_PATH,
+            "source_commit": _BRAIN_FORMULA_COMMIT,
+            "mutable_reference": False,
+            "theorem_count": theorem_count,
+            "content_sha256": content_sha256,
+            "expected_content_sha256": expected_formula_sha256,
+            "integrity_state": "VERIFIED",
+        }
+    except BaseException as exc:
+        lobes["formulas"] = _unavailable(_BRAIN_SOURCES["formulas"], exc)
+
+    for key, sum_field in (("models", "downloads"), ("datasets", "downloads"),
+                           ("spaces", "likes"), ("collections", None),
+                           ("repos", "stargazers_count")):
+        try:
+            if key in errors:
+                raise errors[key]
+            lobes[key] = _count_payload(raw[key], _BRAIN_SOURCES[key], sum_field)
+        except BaseException as exc:
+            lobes[key] = _unavailable(_BRAIN_SOURCES[key], exc)
+
+    organ_keys = [key for key in _BRAIN_SOURCES if key.startswith("organ:")]
+    organs: List[Dict[str, Any]] = []
+    fleet_complete = True
+    for key in organ_keys:
+        name = key.split(":", 1)[1]
+        if key in errors:
+            fleet_complete = False
+            organs.append({"organ": name, **_unavailable(_BRAIN_SOURCES[key], errors[key]), "up": False})
+        else:
+            health = raw[key]
+            if health.get("read_state") != "LIVE":
+                fleet_complete = False
+            organs.append({"organ": name, "state": health.get("read_state", "UNAVAILABLE"),
+                           "data_label": "MEASURED" if health.get("read_state") == "LIVE" else "UNAVAILABLE",
+                           "source_url": _BRAIN_SOURCES[key], "health_state": health.get("health_state"),
+                           "up": bool(health.get("up"))})
+    lobes["fleet"] = {
+        "state": "LIVE" if fleet_complete else "UNAVAILABLE",
+        "data_label": "MEASURED" if fleet_complete else "UNAVAILABLE",
+        "organs": organs, "up_count": sum(1 for organ in organs if organ["up"]),
+        "organ_count": len(organs),
+        "reason": None if fleet_complete else "one_or_more_health_reads_unavailable",
+    }
+
+    frontier_keys = [key for key in _BRAIN_SOURCES if key.startswith("frontier:")]
+    frontier_sources: List[Dict[str, Any]] = []
+    frontier_complete = True
+    frontier_total = 0
+    frontier_capped = False
+    for key in frontier_keys:
+        org = key.split(":", 1)[1]
+        try:
+            if key in errors:
+                raise errors[key]
+            item = _count_payload(raw[key], _BRAIN_SOURCES[key])
+            frontier_total += item["count"]
+            frontier_capped = frontier_capped or item["lower_bound"]
+            frontier_sources.append({"org": org, **item})
+        except BaseException as exc:
+            frontier_complete = False
+            frontier_sources.append({"org": org, **_unavailable(_BRAIN_SOURCES[key], exc)})
+    lobes["frontier"] = {
+        "state": "LIVE" if frontier_complete else "UNAVAILABLE",
+        "data_label": "MEASURED" if frontier_complete and not frontier_capped else
+                      ("STRUCTURAL-ONLY" if frontier_complete else "UNAVAILABLE"),
+        "count": frontier_total if frontier_complete else None,
+        "lower_bound": frontier_capped if frontier_complete else None,
+        "sources": frontier_sources,
+        "reason": None if frontier_complete else "one_or_more_frontier_reads_unavailable",
+    }
+
+    available = sum(1 for lobe in lobes.values() if lobe["state"] == "LIVE")
+    overall = "LIVE" if available == len(lobes) else ("DEGRADED" if available else "UNAVAILABLE")
+    overall_label = ("MEASURED" if overall == "LIVE" and
+                     all(lobe["data_label"] == "MEASURED" for lobe in lobes.values()) else
+                     ("STRUCTURAL-ONLY" if overall == "LIVE" else overall))
+    return {
+        "schema": "a11oy.holographic.brain-evidence.v1",
+        "state": overall,
+        "data_label": overall_label,
+        "observed_at": observed_at,
+        "lobe_count": len(lobes), "live_lobes": available,
+        "lobes": lobes,
+        "limits": {
+            "read_only": True, "same_origin_browser_read": True,
+            "fixed_allowlist": True, "timeout_seconds_per_source": _BRAIN_TIMEOUT_S,
+            "response_byte_cap": _BRAIN_MAX_BYTES, "page_cap": _BRAIN_PAGE_CAP,
+            "formula_source_commit_pinned": True,
+            "formula_content_sha256_verified": True,
+            "cache_or_last_good_fallback": False,
+            "note": "Every request is a fresh bounded observation. Missing sources remain UNAVAILABLE.",
+        },
+    }
+
+
 def shell_html(ns: str = "a11oy") -> str:
     """Read the holographic shell HTML off disk (single source of truth:
     static/3d/holographic.html). Falls back to a minimal honest stub if missing."""
@@ -268,6 +517,7 @@ def info(ns: str = "a11oy") -> Dict[str, Any]:
         },
         "surfaces": SURFACES,
         "shell": {"page": "/holographic", "alias": "/a11oy/holographic"},
+        "brain_evidence": f"/api/{ns}/v1/holographic/brain/evidence",
         "selftest": "/static/3d/selftest/index.html",
         "doctrine": {"locked_proven": 8, "lambda": "Conjecture 1", "khipu_bft": "Conjecture 2",
                      "runtime_cdn": 0, "webgpu": "attempt-then-WebGL2-fallback"},
@@ -311,9 +561,15 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     async def _info():
         return JSONResponse(info(ns))
 
+    async def _brain_evidence():
+        payload = await asyncio.to_thread(brain_evidence)
+        return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
     for prefix in (f"/api/{ns}/v1/holographic", "/v1/holographic"):
         app.add_api_route(f"{prefix}/info", _info, methods=["GET"], include_in_schema=False)
+        app.add_api_route(f"{prefix}/brain/evidence", _brain_evidence, methods=["GET"], include_in_schema=False)
     registered.append(f"GET /api/{ns}/v1/holographic/info")
+    registered.append(f"GET /api/{ns}/v1/holographic/brain/evidence")
 
     return {"registered": registered, "count": len(registered),
             "capability": "szl3d toolkit + holographic shell", "surfaces": len(SURFACES),
@@ -329,7 +585,9 @@ def _selftest() -> None:
         assert (base / f).is_file(), f"missing toolkit asset: {f}"
     # 2. all surface modules exist (frontier tier + the 9 estate surfaces)
     for s in SURFACES:
-        assert (base / "surfaces" / f"{s['id']}.js").is_file(), f"missing surface: {s['id']}"
+        module_id = s.get("module", s["id"])
+        assert (base / "surfaces" / f"{module_id}.js").is_file(), \
+            f"missing surface module: {s['id']} -> {module_id}.js"
     # 3. path traversal is rejected
     assert _safe_resolve(base, "../serve.py") is None
     assert _safe_resolve(base, "../../etc/passwd") is None
