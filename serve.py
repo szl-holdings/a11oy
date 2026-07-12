@@ -8020,6 +8020,13 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     return env
 
 
+# Ayllu registers earlier in this module, before the ephemeral signer exists.
+# Expose the signer through app.state so its request handlers can resolve it
+# lazily after startup. This removes the previous always-UNSIGNED Council path
+# without re-registering duplicate routes or committing any key material.
+app.state.szl_sign_receipt = _a11oy_sign_receipt
+
+
 def _a11oy_pubkey_fpr() -> str:
     if not _A11OY_PUB_PEM:
         return "—"
@@ -10574,6 +10581,40 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
+# /killinchu — canonical path bridge. Without an explicit route this path falls
+# through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
+# bridge server-side so it works without JavaScript at every mobile viewport,
+# and preserve subpaths/query strings for direct links into the live product.
+_KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
+
+
+async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
+    suffix = f"/{full_path}" if full_path else "/"
+    target = f"{_KILLINCHU_CANONICAL}{suffix}"
+    if request.url.query:
+        target = f"{target}?{request.url.query}"
+    response = _PTG_Redirect(url=target, status_code=307)
+    response.headers["X-SZL-Route-State"] = "CANONICAL_REDIRECT"
+    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL}/>; rel="canonical"'
+    return response
+
+
+for _killinchu_path in ("/killinchu", "/killinchu/"):
+    app.add_api_route(
+        _killinchu_path,
+        _killinchu_redirect,
+        methods=["GET"],
+        include_in_schema=False,
+    )
+
+app.add_api_route(
+    "/killinchu/{full_path:path}",
+    _killinchu_redirect,
+    methods=["GET"],
+    include_in_schema=False,
+)
+
+
 # /estate-hologram — Unified Estate Hologram. web/estate-hologram.html is already
 # baked (Dockerfile COPY) but lacked a route -> soft-404'd to the SPA shell.
 @app.get("/estate-hologram")
@@ -11579,6 +11620,11 @@ try:
 
     def _a11oy_loop_pubpem():
         return _A11OY_PUB_PEM or ""
+
+    # Public verifier routes are registered earlier; resolve this callback from
+    # app.state at request time so per-boot A11OY receipts verify against the
+    # matching /cosign.pub key instead of the unrelated organization key.
+    app.state.szl_verify_receipt = _a11oy_loop_verify
 
     _loop_status = _szl_loop.register(
         app, "a11oy",
@@ -13233,6 +13279,35 @@ except Exception as _ws_e2:  # additive: never break the Space
 # ============================================================================
 
 
+# Bounded deployment-source attestation. Registered last and front-moved by the
+# module so the exact well-known JSON route wins over the SPA history fallback.
+# A pinned GitHub reference is evidence of a source observation only; it does
+# not assert byte parity, a reproducible Space build, or build provenance.
+try:
+    import szl_source_attestation as _szl_source_attestation
+
+    _a11oy_source_observation = {
+        "repository": "szl-holdings/a11oy",
+        "commit": "adac37574f88a30ff099f3ec7f548685d4166e6f",
+        "path": "",
+        "relation": "declared-source-with-hf-overlay",
+        "state": "VERIFIED_REFERENCE",
+        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/adac37574f88a30ff099f3ec7f548685d4166e6f",
+    }
+    _szl_source_result = _szl_source_attestation.register(
+        app,
+        "SZLHOLDINGS/a11oy",
+        _a11oy_source_observation,
+        "PENDING_GITHUB_SYNC",
+    )
+    print(f"[a11oy] deployment-source attestation registered: {_szl_source_result}", file=sys.stderr)
+except Exception as _szl_source_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] deployment-source attestation NOT registered (non-fatal): {_szl_source_error!r}",
+        file=sys.stderr,
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
@@ -13242,4 +13317,3 @@ if __name__ == "__main__":
     # middleware additionally stamps a neutral `Server: szl` token. Defense in
     # depth, no behavior change.
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", server_header=False)
-

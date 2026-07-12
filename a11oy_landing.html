@@ -6,7 +6,7 @@
   SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
   Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.
   HONESTY DOCTRINE v11 LOCKED — every figure is fetched live and labelled honestly
-  (LIVE / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
+  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
   never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
   Receipts are signed on write, never on GET. Every claim deep-links a live surface to check.
@@ -63,6 +63,10 @@
     -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
   a{color:inherit;text-decoration:none}
+  a:focus-visible,button:focus-visible{outline:3px solid var(--proof);outline-offset:3px}
+  .skip-link{position:fixed;left:16px;top:10px;z-index:1000;padding:9px 13px;border-radius:8px;
+    background:var(--ink);color:var(--void);font-weight:700;transform:translateY(-150%)}
+  .skip-link:focus{transform:translateY(0)}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
   .mono{font-family:var(--mono)}
   h1,h2,h3,.brand{font-family:var(--head)}
@@ -281,9 +285,23 @@
   .surface-card{cursor:pointer;transition:border-color .18s,transform .18s}
   .surface-card:hover{border-color:rgba(58,244,200,0.42);transform:translateY(-2px)}
   .surface-card .go{color:var(--proof);font-family:var(--mono);font-size:12.5px}
+  .pulse-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px}
+  .pulse-card{min-width:0;padding:19px;border:1px solid var(--border);border-radius:13px;background:var(--deep)}
+  .pulse-card .pulse-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .pulse-card h3{font-size:1rem;margin:0}
+  .pulse-card p{font-size:.86rem;color:var(--sub);margin:0;min-height:2.8em}
+  .pulse-card a{display:inline-block;margin-top:12px;color:var(--proof);font:11px var(--mono)}
+  .data-state{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;border:1px solid var(--border);
+    color:var(--ghost);font:10px var(--mono);letter-spacing:.06em;white-space:nowrap}
+  .data-state.live{color:var(--proof);border-color:rgba(58,244,200,.35);background:var(--proof-dim)}
+  .data-state.down{color:var(--down);border-color:rgba(232,116,110,.38);background:rgba(232,116,110,.07)}
+  .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
+  @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to main content</a>
 
 <!-- ============================ NAV ============================ -->
 <header class="nav">
@@ -302,13 +320,14 @@
       <a class="hide-sm" href="#surfaces">Surfaces</a>
       <a class="hide-sm" href="#proof">The proof</a>
       <a class="hide-sm" href="#honesty">Honesty</a>
-      <a class="hide-sm" href="/warhacker">Warhacker</a>
+      <a class="hide-sm" href="/console#arena">Eval arena</a>
       <a class="hide-sm" href="/observability">Observability</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console">Open the command center →</a>
     </nav>
   </div>
 </header>
+<main id="main">
 
 <!-- ====================== (1) HERO — canvas + boot owned by Dev 2 ====================== -->
 <section class="hero">
@@ -364,6 +383,20 @@
   </div>
 </section>
 
+<!-- ====================== (1c) LIVE ESTATE PULSE ====================== -->
+<section class="band wrap" id="estate-pulse" aria-labelledby="estate-pulse-title">
+  <p class="kick">Runtime evidence</p>
+  <h2 id="estate-pulse-title">What is actually reachable right now.</h2>
+  <p class="intro">Four read-only checks connect the product story to the running system. REACHABLE means the source answered this browser session; evidence mode (LIVE, SNAPSHOT, MODELED, or UNAVAILABLE) remains separate and never certifies model truth.</p>
+  <div class="pulse-grid" aria-live="polite">
+    <article class="pulse-card"><div class="pulse-head"><h3>Platform health</h3><span class="data-state" id="pulse-health-state">CHECKING</span></div><p id="pulse-health-detail">Checking the deployed runtime.</p><a href="/healthz">Source /healthz →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Tab contract</h3><span class="data-state" id="pulse-contract-state">CHECKING</span></div><p id="pulse-contract-detail">Checking the published tab inventory.</p><a href="/api/a11oy/v1/readiness/tab-matrix">Source tab matrix →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Receipt ledger</h3><span class="data-state" id="pulse-ledger-state">CHECKING</span></div><p id="pulse-ledger-detail">Checking the append-only evidence read.</p><a href="/api/a11oy/v1/ledger">Source receipt ledger →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Sovereign mesh</h3><span class="data-state" id="pulse-mesh-state">CHECKING</span></div><p id="pulse-mesh-detail">Checking the current mesh posture.</p><a href="/api/a11oy/v1/mesh/state">Source mesh state →</a></article>
+  </div>
+  <p class="pulse-time" id="pulse-checked">Checks have not completed.</p>
+</section>
+
 <!-- ====================== (1c) EXPLORE THE SURFACES ====================== -->
 <section class="band wrap" id="surfaces">
   <p class="kick">Explore the estate</p>
@@ -372,7 +405,7 @@
   <div class="grid g3">
     <a class="card surface-card" href="/console"><div class="ic">⌘</div><h3>Command Center</h3><p>The full working console — signed receipts, the self-doubt gate, the genome registry and live organ vitals.</p><div class="golinks"><span class="go">Open /console →</span></div></a>
     <a class="card surface-card" href="/superpowers"><div class="ic">✦</div><h3>Five Superpowers</h3><p>The five things governed inference does that ungoverned models can't — each linked to the live check that backs it.</p><div class="golinks"><span class="go">Open /superpowers →</span></div></a>
-    <a class="card surface-card" href="/warhacker"><div class="ic">⚔</div><h3>Warhacker</h3><p>The adversarial red-team surface — probe the gate, watch it refuse, and read the signed receipt of every attempt.</p><div class="golinks"><span class="go">Open /warhacker →</span></div></a>
+    <a class="card surface-card" href="/console#arena"><div class="ic">⚔</div><h3>Adversarial assurance</h3><p>Run governed evaluations, inspect refusals, and trace every verdict to its evidence. The archived Warhacker route now resolves here.</p><div class="golinks"><span class="go">Open the eval arena →</span></div></a>
     <a class="card surface-card" href="/observability"><div class="ic">◎</div><h3>Observability</h3><p>OpenTelemetry-style traces and health summaries across the organs — live, read-only, no sign-on-GET.</p><div class="golinks"><span class="go">Open /observability →</span></div></a>
     <a class="card surface-card" href="/wires"><div class="ic">〜</div><h3>Wires</h3><p>The live wiring between organs — which probe feeds which surface, and whether it is up right now.</p><div class="golinks"><span class="go">Open /wires →</span></div></a>
     <a class="card surface-card" href="/console#mesh"><div class="ic">◇</div><h3>Mesh</h3><p>The BFT-quorum mesh graph — 3-of-4 consensus, live state read from <span class="mono">/api/a11oy/v1/mesh/state</span>.</p><div class="golinks"><span class="go">Open the mesh →</span></div></a>
@@ -578,6 +611,7 @@
 </section>
 
 <!-- ============================ (8) FOOTER ============================ -->
+</main>
 <footer>
   <div class="wrap">
     <div class="cols">
@@ -775,6 +809,42 @@
     $("chain-src").innerHTML = ok ? liveChip(alg) : downChip("UNAVAILABLE");
   }
 
+  // ---- live estate pulse: reachability is reported separately from correctness ----
+  function pulseState(key, state, detail){
+    const chip = $("pulse-"+key+"-state");
+    const body = $("pulse-"+key+"-detail");
+    if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE" || state === "REACHABLE") ? "live" : "down"); }
+    if(body) body.textContent = detail;
+  }
+  async function pulseJSON(url){
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6500);
+    try{
+      const r = await fetch(url, {cache:"no-store", signal:ctl.signal});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return await r.json();
+    } finally { clearTimeout(timer); }
+  }
+  async function loadEstatePulse(){
+    const checks = [
+      pulseJSON("/healthz").then(d => pulseState("health", "REACHABLE", (d.organ || "a11oy")+" runtime answered "+(d.status || "reachable")+"; inspect its evidence state in the source."))
+        .catch(() => pulseState("health", "UNAVAILABLE", "Runtime health did not answer this session.")),
+      pulseJSON("/api/a11oy/v1/readiness/tab-matrix?view=summary").then(d => {
+        const s = d.summary && d.summary.summary || {};
+        if(!d.available) throw new Error("matrix unavailable");
+        pulseState("contract", "REACHABLE", (s.tabs || "Published")+" tabs · "+(s.endpoints || "declared")+" endpoint contracts · SNAPSHOT.");
+      }).catch(() => pulseState("contract", "UNAVAILABLE", "Tab contract is not bundled with this deployment.")),
+      pulseJSON("/api/a11oy/v1/ledger").then(d => pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source."))
+        .catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),
+      pulseJSON("/api/a11oy/v1/mesh/state").then(d => {
+        const nodes = Array.isArray(d.nodes) ? d.nodes.length : (Array.isArray(d.peers) ? d.peers.length : null);
+        pulseState("mesh", "REACHABLE", nodes === null ? "Mesh state answered; open the source for node posture." : nodes+" nodes reported by the current mesh read.");
+      }).catch(() => pulseState("mesh", "UNAVAILABLE", "Mesh state did not answer this session."))
+    ];
+    await Promise.allSettled(checks);
+    if($("pulse-checked")) $("pulse-checked").textContent = "Checked "+new Date().toLocaleString()+" · read-only · cache disabled";
+  }
+
   // ---- (C) living body: load the anatomy Space in-frame only on click (perf + reduced-motion) ----
   const bl = $("body-load");
   if(bl){ bl.addEventListener("click", function(){
@@ -801,6 +871,7 @@
 
   // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
   (async function(){
+    loadEstatePulse();
     const ov = await loadOverview();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",

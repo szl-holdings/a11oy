@@ -127,45 +127,45 @@ COMPONENTS: list[dict] = [
         "key": "grounding",
         "title": "grounding confidence",
         "module": "szl_brainground",
-        "funcs": ("compute_grounding", "grounding_confidence", "brainground",
-                  "compute", "assess", "evaluate", "for_query", "health"),
-        "value_keys": ("grounding_confidence", "confidence", "grounding", "score", "value"),
+        "funcs": ("evaluate",),
+        "call_style": "q_k_ns",
+        "value_keys": ("trust_value", "grounding_confidence", "confidence", "grounding", "score", "value"),
         "adverse": ("ungrounded", "no-grounding", "no grounding"),
     },
     {
         "key": "freshness",
         "title": "memory freshness",
         "module": "szl_brainmemory",
-        "funcs": ("compute_freshness", "freshness", "brainmemory",
-                  "compute", "assess", "evaluate", "for_query", "health"),
-        "value_keys": ("freshness", "freshness_score", "recency", "score", "value"),
+        "funcs": ("build_aggregate",),
+        "call_style": "ns",
+        "value_keys": ("trust_value", "freshness", "freshness_score", "recency", "score", "value"),
         "adverse": ("expired", "outdated"),
     },
     {
         "key": "provenance",
         "title": "source-lineage coverage",
         "module": "szl_brainprovenance",
-        "funcs": ("compute_provenance", "provenance_coverage", "brainprovenance",
-                  "compute", "assess", "evaluate", "for_query", "health"),
-        "value_keys": ("provenance_coverage", "coverage", "lineage_coverage", "score", "value"),
+        "funcs": ("build_provenance",),
+        "call_style": "ns_q_k",
+        "value_keys": ("trust_value", "provenance_coverage", "lineage_coverage", "score", "value"),
         "adverse": ("unprovenanced", "no-lineage", "no lineage", "unsourced"),
     },
     {
         "key": "contradiction",
         "title": "conflict flag",
         "module": "szl_braincontradict",
-        "funcs": ("compute_contradiction", "contradiction", "braincontradict",
-                  "compute", "assess", "evaluate", "for_query", "health"),
-        "value_keys": ("contradiction_score", "conflict_score", "score", "value"),
+        "funcs": ("run_detection",),
+        "call_style": "q_k_ns",
+        "value_keys": ("trust_value", "contradiction_score", "conflict_score", "score", "value"),
         "adverse": ("conflicted", "contradicted"),
     },
     {
         "key": "uncertainty",
         "title": "uncertainty / abstain",
         "module": "szl_brainuncertainty",
-        "funcs": ("compute_uncertainty", "uncertainty", "brainuncertainty",
-                  "compute", "assess", "evaluate", "for_query", "health"),
-        "value_keys": ("uncertainty", "semantic_entropy", "entropy", "score", "value"),
+        "funcs": ("handle_uncertainty",),
+        "call_style": "ns_q_k",
+        "value_keys": ("trust_value", "semantic_entropy", "entropy", "score", "value"),
         "adverse": ("uncertain", "high-uncertainty", "high uncertainty"),
     },
 ]
@@ -196,10 +196,17 @@ def _resolve_callable(spec: dict) -> Callable | None:
     return None
 
 
-def _invoke(fn: Callable, q: str, k: int):
+def _invoke(fn: Callable, q: str, k: int, style: str = "generic", ns: str = "a11oy"):
     """Call the sibling with the most specific signature it accepts, degrading through
     (q, k) -> (q) -> (). A TypeError only from arity is retried; anything else propagates so
     the caller can mark the component UNAVAILABLE honestly."""
+    explicit = {
+        "q_k_ns": (q, k, ns),
+        "ns_q_k": (ns, q, k),
+        "ns": (ns,),
+    }
+    if style in explicit:
+        return fn(*explicit[style])
     for args in ((q, k), (q,), ()):
         try:
             return fn(*args)
@@ -209,6 +216,65 @@ def _invoke(fn: Callable, q: str, k: int):
                 continue
             raise
     return fn(q)
+
+
+def _normalize_component_payload(key: str, payload: dict) -> dict:
+    """Add a transparent trust-aligned value without changing the sibling's own label/verdict.
+
+    The old rollup averaged heterogeneous directions (for example, high uncertainty increased
+    the displayed modeled trust). Every `trust_value` below uses the same direction: 1 is the
+    favorable end of that component's own signal and 0 is the adverse end. Source fields remain
+    present and source_verdict is copied verbatim for audit/replay.
+    """
+    out = dict(payload)
+    out["source_verdict"] = payload.get("verdict")
+
+    def clip(value):
+        try:
+            return max(0.0, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            return None
+
+    if key == "grounding":
+        value = clip(payload.get("grounding_confidence"))
+        if value is not None:
+            out["trust_value"] = value
+        if payload.get("should_abstain") is True:
+            out["abstain"] = True
+    elif key == "freshness":
+        counts = payload.get("verdict_counts") if isinstance(payload.get("verdict_counts"), dict) else {}
+        total = payload.get("node_count")
+        stale = counts.get("STALE")
+        if isinstance(total, (int, float)) and total > 0 and isinstance(stale, (int, float)):
+            stale_share = clip(float(stale) / float(total))
+            out["stale_share"] = stale_share
+            out["trust_value"] = round(1.0 - stale_share, 6)
+            out["stale_dominant"] = stale_share >= 0.5
+            out["verdict"] = "STALE-DOMINANT" if stale_share >= 0.5 else "FRESHNESS-MIXED"
+    elif key == "provenance":
+        coverage = payload.get("coverage") if isinstance(payload.get("coverage"), dict) else {}
+        value = clip(coverage.get("fraction_traceable_to_source"))
+        if value is not None:
+            out["provenance_coverage"] = value
+            out["trust_value"] = value
+    elif key == "contradiction":
+        summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+        pairs = summary.get("pairs_examined")
+        flagged = summary.get("flagged_count")
+        if isinstance(pairs, (int, float)) and pairs > 0 and isinstance(flagged, (int, float)):
+            risk = clip(float(flagged) / float(pairs))
+            out["conflict_score"] = risk
+            out["trust_value"] = round(1.0 - risk, 6)
+        if str(payload.get("verdict", "")).upper() == "CONFLICT-FLAGGED":
+            out["contradiction_detected"] = True
+    elif key == "uncertainty":
+        uncertainty = clip(payload.get("uncertainty"))
+        if uncertainty is not None:
+            out["raw_uncertainty"] = uncertainty
+            out["trust_value"] = round(1.0 - uncertainty, 6)
+        if payload.get("abstain_recommended") is True:
+            out["abstain"] = True
+    return out
 
 
 def _iter_string_values(obj):
@@ -258,9 +324,10 @@ _ADVERSE_FLAGS = ("abstain", "abstained", "insufficient", "conflict", "conflict_
 
 def _detect_adverse(payload: dict, extra_tokens) -> str | None:
     """Return the adverse reason if the component declares one, else None. Reads the
-    component's OWN fields VERBATIM: (1) explicit boolean adverse flags set True; (2) an
-    adverse token in its verdict/status/signal/label string; (3) an adverse token anywhere in
-    its serialized payload. Conservative — a negated mention ('no conflict') is NOT adverse."""
+    component's OWN decision fields VERBATIM: (1) explicit boolean adverse flags set True;
+    (2) an adverse token in verdict/status/signal/state/answer_label. Descriptive notes,
+    formulas and doctrine text are intentionally excluded: a sentence explaining when to
+    abstain is not evidence that this request actually abstained."""
     # (1) explicit boolean flags.
     for flag in _ADVERSE_FLAGS:
         v = payload.get(flag)
@@ -271,9 +338,11 @@ def _detect_adverse(payload: dict, extra_tokens) -> str | None:
             if isinstance(dv, bool) and dv is True:
                 return flag
     tokens = tuple(_SHARED_ADVERSE) + tuple(extra_tokens or ())
-    # (2) declared string VALUES only (never field names) — verdict/status/signal/label live
-    # here, as does any nested honesty string. A negated mention ('no conflict') is NOT adverse.
-    for s in _iter_string_values(payload):
+    # (2) declared decision strings only (never field names or descriptive prose).
+    for field in ("verdict", "status", "signal", "state", "answer_label"):
+        s = payload.get(field)
+        if not isinstance(s, str):
+            continue
         low = s.lower()
         for tok in tokens:
             if tok in low and not _is_negated(low, tok):
@@ -312,7 +381,7 @@ def _detect_positive(payload: dict, value: float | None) -> bool:
     return False
 
 
-def _gather_component(spec: dict, q: str, k: int) -> dict:
+def _gather_component(spec: dict, q: str, k: int, ns: str = "a11oy") -> dict:
     """Gather ONE component honestly. Never raises: any failure => UNAVAILABLE with a reason."""
     key = spec["key"]
     base = {
@@ -336,7 +405,7 @@ def _gather_component(spec: dict, q: str, k: int) -> dict:
                 base["note"] = ("sibling not importable (guarded ImportError) or exposes no "
                                 "compute entrypoint; component honestly UNAVAILABLE")
                 return base
-            payload = _invoke(fn, q, k)
+            payload = _invoke(fn, q, k, style=spec.get("call_style", "generic"), ns=ns)
     except Exception as exc:  # a live failure degrades THIS component honestly, never the roll-up
         base["note"] = f"component compute failed, reported honestly: {str(exc)[:160]}"
         return base
@@ -345,6 +414,7 @@ def _gather_component(spec: dict, q: str, k: int) -> dict:
         base["note"] = "component returned no manifest dict; honestly UNAVAILABLE"
         return base
 
+    payload = _normalize_component_payload(key, payload)
     label = _read_label(payload)
     value = _read_value(payload, spec.get("value_keys", ()))
     adverse = _detect_adverse(payload, spec.get("adverse"))
@@ -359,6 +429,8 @@ def _gather_component(spec: dict, q: str, k: int) -> dict:
         "available": True,
         "label": label if label is not None else MODELED,
         "value": round(value, 6) if value is not None else None,
+        "value_semantics": "trust-aligned [0,1]; source direction normalized transparently",
+        "source_verdict": payload.get("source_verdict"),
         "signal": signal,
         "adverse_reason": adverse,
         "note": ("component available; label read VERBATIM, never upgraded"
@@ -413,7 +485,7 @@ def _modeled_trust(components: list[dict]) -> float | None:
 def build_rollup(q: str = "", k: int = 12, ns: str = "a11oy") -> dict:
     """Gather every brain-honesty component (available ones read VERBATIM, missing ones
     UNAVAILABLE) and roll the AVAILABLE ones into ONE honest brain-trust verdict."""
-    components = [_gather_component(spec, q, k) for spec in COMPONENTS]
+    components = [_gather_component(spec, q, k, ns=ns) for spec in COMPONENTS]
     verdict, reason = _decide_verdict(components)
 
     available = [c for c in components if c["available"]]
@@ -688,6 +760,8 @@ if __name__ == "__main__":
                                                   "verdict": "grounded"}
     _PROBE_OVERRIDES["freshness"] = lambda q, k: {"label": "SAMPLE", "freshness": 0.7,
                                                   "verdict": "fresh"}
+    for _missing_key in ("provenance", "contradiction", "uncertainty"):
+        _PROBE_OVERRIDES[_missing_key] = lambda q, k: None
     r2 = build_rollup("q", k=4)
     # exactly two available, both OK, but 3 UNAVAILABLE -> DEGRADED (never TRUSTWORTHY w/ gaps).
     assert r2["verdict"] == DEGRADED, r2["verdict"]

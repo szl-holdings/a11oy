@@ -71,6 +71,10 @@ COUNCIL_MAX = 5                                     # hard cap on participants /
 COUNCIL_DEBATE_MAX = 3  # debate doubles model calls; tighter cap bounds cost
 COUNCIL_DEFAULT = ["Amaru", "Kamachiq", "Qhatuq"]  # architect · orchestrator · markets
 
+COUNCIL_CONTRACT_VERSION = "2.0"
+COUNCIL_SCHEMA = "szl.ayllu.evidence-bound-council/v2"
+NEMO_ARTIFACT = "https://huggingface.co/SZLHOLDINGS/szl-nemo"
+
 # One process-wide lounge (in-memory, honest source labels).
 _LOUNGE = Lounge()
 
@@ -109,13 +113,26 @@ def _receipt_sha(receipt: Optional[dict]) -> Optional[str]:
         return None
 
 
-def _make_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _make_receipt(payload: Dict[str, Any], sign_fn=None) -> Dict[str, Any]:
     """Wrap payload in a DSSE envelope (honest UNSIGNED if no cosign key)."""
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     honesty = "UNSIGNED — szl_dsse not present; no signature fabricated."
+    if callable(sign_fn):
+        try:
+            env = sign_fn(payload)
+            if isinstance(env, dict):
+                return env
+            honesty = "UNSIGNED - runtime signer returned a non-object; no signature fabricated."
+        except Exception as exc:
+            honesty = (f"UNSIGNED - runtime signer raised ({str(exc)[:80]}); "
+                       "no signature fabricated.")
     if _dsse is not None:
         try:
-            return _dsse.sign(payload)
+            # szl_dsse exposes sign_payload(); the former sign() call made every
+            # Ayllu receipt fall through to UNSIGNED even when the module existed.
+            if hasattr(_dsse, "sign_payload"):
+                return _dsse.sign_payload(
+                    payload, "application/vnd.szl.receipt+json")
         except Exception as exc:
             honesty = (f"UNSIGNED — szl_dsse.sign raised ({str(exc)[:80]}); "
                        "no signature fabricated.")
@@ -126,6 +143,213 @@ def _make_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
         "signed": False,
         "honesty": honesty,
     }
+
+
+def _sha256_json(value: Any) -> str:
+    body = json.dumps(value, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(body).hexdigest()
+
+
+def council_manifest(ns: str = "a11oy") -> Dict[str, Any]:
+    """Side-effect-free, investor-readable contract for the bounded council."""
+    base = f"/api/{ns}/v1/ayllu"
+    return {
+        "schema": "szl.ayllu.council-manifest/v1",
+        "contract_schema": COUNCIL_SCHEMA,
+        "contract_version": COUNCIL_CONTRACT_VERSION,
+        "purpose": (
+            "Produce a bounded, evidence-bearing advisory record from multiple "
+            "personas. The Council proposes; it never executes an external action."
+        ),
+        "try": {
+            "method": "POST",
+            "endpoint": base + "/council",
+            "body": {"prompt": "Review this proposed agent action",
+                     "personas": ["Amaru", "Yupaq", "Kamachiq"],
+                     "debate": True},
+        },
+        "evidence": [
+            "prompt SHA-256",
+            "persona/model/round/output digest per turn",
+            "Nemo governed-route decision and DSSE receipt",
+            "deterministic replay key over participants, mode, and output digests",
+            "in-process Khipu chain receipt (resets on process restart)",
+            "outer Council DSSE receipt",
+        ],
+        "limits": {
+            "prompt_chars": MAX_PROMPT_CHARS,
+            "participants": COUNCIL_MAX,
+            "debate_participants": COUNCIL_DEBATE_MAX,
+            "debate_rounds": 2,
+            "effectors": "none",
+            "decision_state": "PROPOSAL_ONLY",
+            "semantic_consensus": "NOT_MEASURED",
+            "chain_persistence": "IN_MEMORY_RESETS_ON_RESTART",
+        },
+        "reproduce": {
+            "manifest": base + "/council/manifest",
+            "verifier": f"/api/{ns}/v1/verify/receipt",
+            "public_key": "/cosign.pub",
+        },
+        "nemo": {
+            "artifact": NEMO_ARTIFACT,
+            "artifact_kind": "configuration-recipe",
+            "weights_present": False,
+            "training_state": "NOT_PERFORMED",
+            "honesty": (
+                "The current SZL-Nemo Hub artifact is a card and Modelfile recipe, "
+                "not SZL-trained weights. Council answers use the live A11OY router."
+            ),
+        },
+        "evaluation": {
+            "council_effectiveness": "NOT_MEASURED",
+            "required_next": (
+                "golden cases with decision-quality, calibration, dissent-recall, "
+                "cost, latency, and human-overturn outcomes"
+            ),
+        },
+    }
+
+
+def _nemo_council_route(prompt: str, sign_fn=None) -> Dict[str, Any]:
+    """Run the existing Nemo router and expose the evidence Council needs."""
+    try:
+        import a11oy_nemo_core as nemo
+        routed = nemo.govern_route(prompt, top_k=3, sign_fn=sign_fn)
+        experts = routed.get("experts") or []
+        return {
+            "state": routed.get("routing_evidence_state", "HEURISTIC"),
+            "source": "a11oy_nemo_core.govern_route",
+            "model": routed.get("model"),
+            "model_version": routed.get("model_version"),
+            "experts_selected": routed.get("experts_selected") or [],
+            "selection_basis": [e.get("selection_basis") for e in experts],
+            "overall_lambda_advisory": routed.get("overall_lambda_advisory"),
+            "below_advisory_floor": any(bool(e.get("below_advisory_floor"))
+                                        for e in experts),
+            "limits": routed.get("routing_limits"),
+            "receipt": routed.get("receipt"),
+        }
+    except Exception as exc:
+        return {
+            "state": "UNAVAILABLE",
+            "source": "a11oy_nemo_core.govern_route",
+            "error": type(exc).__name__,
+            "honesty": "Nemo routing unavailable; no route or score fabricated.",
+        }
+
+
+def _build_council_contract(prompt: str, result: Dict[str, Any],
+                            nemo_route: Dict[str, Any]) -> Dict[str, Any]:
+    rounds = result.get("rounds") or []
+    turn_evidence = []
+    for turn in rounds:
+        answer = turn.get("answer")
+        turn_evidence.append({
+            "persona": turn.get("persona"),
+            "round": turn.get("round"),
+            "model": turn.get("model"),
+            "stub": bool(turn.get("stub")),
+            "output_sha256": (hashlib.sha256(str(answer).encode("utf-8")).hexdigest()
+                              if answer is not None else None),
+            "energy_receipt_sha256": _receipt_sha(turn.get("energy_receipt")),
+        })
+    replay_material = {
+        "contract_version": COUNCIL_CONTRACT_VERSION,
+        "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        "participants": result.get("participants") or [],
+        "mode": result.get("mode"),
+        "turns": turn_evidence,
+    }
+    live_turns = sum(1 for t in turn_evidence if not t["stub"])
+    if not turn_evidence:
+        evidence_state = "UNAVAILABLE"
+    elif live_turns == len(turn_evidence):
+        evidence_state = "LIVE"
+    elif live_turns:
+        evidence_state = "MIXED"
+    else:
+        evidence_state = "STUB"
+    return {
+        "schema": COUNCIL_SCHEMA,
+        "contract_version": COUNCIL_CONTRACT_VERSION,
+        "purpose": "bounded multi-persona advisory deliberation",
+        "decision_state": "PROPOSAL_ONLY",
+        "approval_state": "HUMAN_REVIEW_REQUIRED",
+        "evidence_state": evidence_state,
+        "prompt_sha256": replay_material["prompt_sha256"],
+        "turn_evidence": turn_evidence,
+        "routing": nemo_route,
+        "formula_path": [
+            {"id": "lambda-aggregate", "state": "CONJECTURE_1_ADVISORY"},
+            {"id": "active-flux-crossover", "state": "MODELED"},
+            {"id": "dsse-pae", "state": "IMPLEMENTED"},
+        ],
+        "semantic_consensus": {
+            "state": "NOT_MEASURED",
+            "honesty": (
+                "Multiple answers do not prove consensus or correctness. Semantic "
+                "agreement, dissent recall, and decision quality require labeled evals."
+            ),
+        },
+        "limits": {
+            "participants_max": COUNCIL_MAX,
+            "debate_participants_max": COUNCIL_DEBATE_MAX,
+            "rounds_max": 2,
+            "model_calls_observed": len(turn_evidence),
+            "external_effectors": 0,
+            "automatic_commit": False,
+        },
+        "human_checkpoint": {
+            "required": True,
+            "satisfied": False,
+            "next_action": "Review evidence and explicitly approve, revise, or reject.",
+        },
+        "replay": {
+            "key": "sha256:" + _sha256_json(replay_material),
+            "material": replay_material,
+            "verifier": "/api/a11oy/v1/verify/receipt",
+            "public_key": "/cosign.pub",
+        },
+        "training": {
+            "artifact": NEMO_ARTIFACT,
+            "weights_present": False,
+            "state": "NOT_PERFORMED",
+        },
+    }
+
+
+def _mint_council_chain(contract: Dict[str, Any], ns: str = "a11oy") -> Dict[str, Any]:
+    """Append the proposal receipt to the shared in-process Khipu chain."""
+    try:
+        import szl_khipu
+        dag = szl_khipu.get_dag("ayllu_council", ns=ns)
+        receipt = dag.emit("ayllu.council.proposal", {
+            "contract_version": contract.get("contract_version"),
+            "decision_state": contract.get("decision_state"),
+            "evidence_state": contract.get("evidence_state"),
+            "prompt_sha256": contract.get("prompt_sha256"),
+            "replay_key": (contract.get("replay") or {}).get("key"),
+        })
+        chain = dag.verify_chain()
+        return {
+            "state": "LIVE",
+            "organ": "ayllu_council",
+            "receipt_id": receipt.get("digest"),
+            "seq": receipt.get("seq"),
+            "chain_verified": bool(chain.get("ok")),
+            "depth": dag.depth(),
+            "persistence": "IN_MEMORY_RESETS_ON_RESTART",
+        }
+    except Exception as exc:
+        return {
+            "state": "UNAVAILABLE",
+            "organ": "ayllu_council",
+            "receipt_id": None,
+            "error": type(exc).__name__,
+            "honesty": "Khipu append unavailable; no chain receipt fabricated.",
+        }
 
 
 # --- The /ayllu page: a working chat + council UI. 0-CDN (pure inline markup, no
@@ -172,6 +396,9 @@ font-size:11px;font-weight:800;color:var(--fg);border:1px solid var(--line);flex
 .arch{color:var(--dim);font-size:12px}
 .ans{margin-top:7px;white-space:pre-wrap}
 .rcpt{color:var(--dim);font-size:12px;margin-top:8px}
+.contract{border-left:3px solid var(--teal);padding:9px 11px;margin:10px 0;
+background:#071711;color:var(--dim);font-size:12px;line-height:1.6}
+.contract b{color:var(--fg)}
 .note{color:#da3;font-size:12px;margin-bottom:8px}
 .err{color:#e66}
 .stub{color:#da3;font-weight:700;font-size:11px}
@@ -230,6 +457,11 @@ section[id]{scroll-margin-top:72px}
 
 <section class="card" id="sec-council">
   <h2>Convene a council</h2>
+  <div class="contract"><b>Evidence-bound Council v2.</b> Every run carries a
+  Nemo route receipt, per-turn output digests, a replay key, explicit limits, and a
+  human checkpoint. State is always <code>PROPOSAL_ONLY</code>; semantic consensus and
+  Council effectiveness remain <code>NOT_MEASURED</code> until labeled evaluation exists.
+  <a href="/api/__NS__/v1/ayllu/council/manifest">machine-readable contract</a></div>
   <p class="hint">Defaults to 3 core personas; select up to 5 (⌘/Ctrl-click). Fan-out is
   capped to protect cost. Debate mode runs exactly two bounded rounds
   (after arXiv:2305.14325) and is capped to 3 personas.</p>
@@ -370,10 +602,19 @@ document.getElementById('councilbtn').onclick=async()=>{
     headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   if(!ok){out.innerHTML='<span class="err">'+esc(data.error||('HTTP '+status))+'</span>'
     +(data.retry_after_s?(' (retry in '+data.retry_after_s+'s)'):'');return;}
-  const res=data.result||{}, rounds=res.rounds||[];
+  const res=data.result||{}, rounds=res.rounds||[], c=data.contract||{};
   const cap=res.cap_note?('<div class="note">'+esc(res.cap_note)+'</div>'):'';
   const r1=rounds.filter(t=>(t.round||1)===1), r2=rounds.filter(t=>t.round===2);
-  let html=cap;
+  const route=c.routing||{}, outer=data.receipt||{};
+  const contract=`<div class="contract"><b>${esc(c.decision_state||'PROPOSAL_ONLY')}</b>`
+    +` Â· evidence ${esc(c.evidence_state||'UNKNOWN')}`
+    +` Â· human review ${c.human_checkpoint&&c.human_checkpoint.required?'REQUIRED':'UNKNOWN'}`
+    +`<br>Nemo: ${esc((route.experts_selected||[]).join(' + ')||route.state||'unavailable')}`
+    +` Â· route ${esc(route.state||'UNKNOWN')} Â· outer receipt ${outer.signed?'SIGNED':'UNSIGNED'}`
+    +`<br>replay ${esc((c.replay&&c.replay.key)||'unavailable')}`
+    +`<br>semantic consensus: ${esc((c.semantic_consensus&&c.semantic_consensus.state)||'NOT_MEASURED')}`
+    +`</div>`;
+  let html=cap+contract;
   if(r2.length){
     html+='<div class="roundhdr">Round 1 — opening positions</div>'+r1.map(renderTurn).join('');
     html+='<div class="roundhdr">Round 2 — debate &amp; converge (final)</div>'+r2.map(renderTurn).join('');
@@ -465,6 +706,14 @@ def register(app, ns: str = "a11oy") -> str:
     from fastapi import Request
     from fastapi.responses import HTMLResponse, JSONResponse
 
+    def _runtime_signer(request: "Request"):
+        """Resolve the host signer lazily: Ayllu registers before serve.py creates it."""
+        try:
+            signer = getattr(request.app.state, "szl_sign_receipt", None)
+            return signer if callable(signer) else None
+        except Exception:
+            return None
+
     async def _roster(request: "Request") -> "JSONResponse":
         return JSONResponse({
             "count": len(ROSTER),
@@ -476,6 +725,9 @@ def register(app, ns: str = "a11oy") -> str:
             "provenance": "ingested from the AlloyScape tribe design; see ayllu/INGEST.md",
             "version": __version__,
         })
+
+    async def _council_manifest(request: "Request") -> "JSONResponse":
+        return JSONResponse(council_manifest(ns))
 
     async def _ask(request: "Request") -> "JSONResponse":
         ok, retry = _ASK_BUCKET.check()
@@ -523,7 +775,7 @@ def register(app, ns: str = "a11oy") -> str:
             "stub": turn.get("stub"),
             "energy_receipt_sha256": _receipt_sha(turn.get("energy_receipt")),
             "honesty": turn.get("honesty"),
-        })
+        }, sign_fn=_runtime_signer(request))
         _LOUNGE.post(
             p.name, turn.get("answer") or turn.get("honesty"),
             source=("brain" if turn.get("answer") is not None else "persona-fallback"))
@@ -579,15 +831,33 @@ def register(app, ns: str = "a11oy") -> str:
         if cap_note:
             result["cap_note"] = cap_note
         council_id = str(uuid.uuid4())
-        receipt = _make_receipt({
+        signer = _runtime_signer(request)
+        nemo_route = _nemo_council_route(prompt, sign_fn=signer)
+        contract = _build_council_contract(prompt, result, nemo_route)
+        contract["chain"] = _mint_council_chain(contract, ns=ns)
+        receipt_body = {
             "council_id": council_id,
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "participants": result["participants"],
             "mode": result.get("mode"),
             "models": [r.get("model") for r in result.get("rounds", [])],
-        })
+            "decision_state": contract["decision_state"],
+            "evidence_state": contract["evidence_state"],
+            "replay_key": contract["replay"]["key"],
+            "turn_evidence": contract["turn_evidence"],
+            "nemo_route_receipt_sha256": _receipt_sha(
+                (contract.get("routing") or {}).get("receipt")),
+            "human_checkpoint": contract["human_checkpoint"],
+            "chain": contract["chain"],
+        }
+        receipt = _make_receipt({
+            "schema": "szl.ayllu.council-receipt/v2",
+            "body": receipt_body,
+            "payload_digest": _sha256_json(receipt_body),
+            "receipt_id": contract["chain"].get("receipt_id"),
+        }, sign_fn=signer)
         return JSONResponse({"council_id": council_id, "result": result,
-                             "receipt": receipt})
+                             "contract": contract, "receipt": receipt})
 
     async def _lounge_feed(request: "Request") -> "JSONResponse":
         return JSONResponse({"count": len(_LOUNGE.feed),
@@ -602,6 +872,9 @@ def register(app, ns: str = "a11oy") -> str:
     app.add_api_route(f"/api/{ns}/v1/ayllu/ask", _ask, methods=["POST"],
                       tags=["ayllu"],
                       summary="Ask one persona — bounded, honest, receipted")
+    app.add_api_route(f"/api/{ns}/v1/ayllu/council/manifest", _council_manifest,
+                      methods=["GET"], tags=["ayllu"],
+                      summary="Evidence-bound Council contract, limits, and reproduce path")
     app.add_api_route(f"/api/{ns}/v1/ayllu/council", _council, methods=["POST"],
                       tags=["ayllu"],
                       summary="Bounded multi-persona deliberation (capped fan-out; optional 2-round debate mode after arXiv:2305.14325)")

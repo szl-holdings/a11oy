@@ -1,14 +1,23 @@
 {
-  "version": "1",
+  "version": "1.1",
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-07-07T00:00:00Z",
+  "generatedAt": "2026-07-12T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
+  "stateVocabulary": {
+    "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
+    "MEASURED": "Observed by an instrument or deterministic runtime check with provenance.",
+    "MODELED": "Computed estimate or scenario output; not an observation.",
+    "SNAPSHOT": "Versioned point-in-time artifact with an observed or generated timestamp.",
+    "SAMPLE": "Demonstration or reference data; never presented as current operations.",
+    "CACHED": "Previously fetched source data served with its original observation timestamp.",
+    "UNAVAILABLE": "The source or evidence is not available; no replacement value is fabricated."
+  },
   "summary": {
     "tabs": 139,
-    "endpoints": 77,
-    "tabsWithCitations": 23,
+    "endpoints": 84,
+    "tabsWithCitations": 24,
     "staticTabs": 40
   },
   "endpoints": {
@@ -310,6 +319,157 @@
       },
       "note": ""
     },
+    "/api/a11oy/v1/eval/suites": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Versioned eval-suite catalog consumed by the flywheel eval surface."
+    },
+    "/api/a11oy/v1/eval/run": {
+      "method": "POST",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Governed eval execution; an invalid or incomplete request may honestly validate with 400/422."
+    },
+    "/api/a11oy/v1/harness/profiles": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Versioned behavior-profile roster with provenance and availability."
+    },
+    "/api/a11oy/v1/agentloop/health": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Read-only governed agent-loop capability and dependency posture."
+    },
+    "/api/a11oy/v1/agentloop/run": {
+      "method": "POST",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Governed multi-step agent run; an invalid or incomplete request may honestly validate with 400/422."
+    },
+    "/api/a11oy/v1/rag/query": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "GET is the read-only governed RAG descriptor; POST performs a query. The readiness probe uses GET."
+    },
+    "/api/a11oy/v1/rag/status": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Read-only RAG index and corpus posture with explicit not-built state."
+    },
     "/api/a11oy/v1/energy/live": {
       "method": "GET",
       "schema": "generic_obj",
@@ -534,7 +694,7 @@
       "note": ""
     },
     "/api/a11oy/v1/operator/recommend": {
-      "method": "POST",
+      "method": "GET",
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
@@ -552,7 +712,7 @@
           "placeholder"
         ]
       },
-      "note": ""
+      "note": "Read-only recommendation rollup consumed by the Ask & Act surface."
     },
     "/api/a11oy/v2/operator/command-log": {
       "method": "GET",
@@ -576,13 +736,15 @@
       "note": "Append-only command log; quiet != stale, so no freshness SLA."
     },
     "/api/a11oy/v1/policy/compliance": {
-      "method": "GET",
+      "method": "POST",
       "schema": "generic_obj",
-      "freshnessSLA": 3600,
+      "freshnessSLA": null,
       "citationsRequired": false,
       "degradedRules": {
         "allowStatuses": [
-          200
+          200,
+          400,
+          422
         ],
         "allowLabels": [
           "live",
@@ -594,7 +756,7 @@
           "placeholder"
         ]
       },
-      "note": ""
+      "note": "Governed compliance evaluation; the console submits a framework payload. Empty or invalid bodies may honestly validate with 400/422."
     },
     "/api/a11oy/v1/policy/gates": {
       "method": "GET",
@@ -2854,13 +3016,13 @@
         "/api/a11oy/v1/rag/query",
         "/api/a11oy/v1/rag/status"
       ],
-      "citationsRequired": false,
+      "citationsRequired": true,
       "sampleLabelAllowed": false,
       "static": false,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
-        "failOnMissingCitation": false
+        "failOnMissingCitation": true
       }
     },
     {

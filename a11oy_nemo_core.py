@@ -70,6 +70,17 @@ from datetime import datetime, timezone
 # ---------------------------------------------------------------------------
 NEMO_NAME = "SZL-Nemo"
 NEMO_VERSION = "0.1.0-skeleton"
+NEMO_ARTIFACT = {
+    "repo_id": "SZLHOLDINGS/szl-nemo",
+    "url": "https://huggingface.co/SZLHOLDINGS/szl-nemo",
+    "kind": "configuration-recipe",
+    "weights_present": False,
+    "training_state": "NOT_PERFORMED",
+    "honesty": (
+        "The Hub artifact currently contains a model card and Modelfile recipe, "
+        "not SZL-trained weights. It must not be described as a fine-tuned model."
+    ),
+}
 
 # The honest base options (open weights, cited). We pick Qwen3-32B (Apache-2.0) as
 # the DEFAULT sovereign-local base because it fits the 2-GPU plan (TP=2). GLM (MIT)
@@ -360,11 +371,34 @@ def _select_experts(query: str, top_k: int = 2):
     and select the top_k as the active experts. Deterministic, transparent."""
     q = (query or "").lower()
     scored = []
+    # When a prompt carries no domain keyword, the old alphabetical tie-break
+    # silently selected code + counter-UAS. That was deterministic but not a
+    # defensible default for a governed council. The fallback is now explicit:
+    # governance first (policy/evidence review), then code (implementation
+    # feasibility). It remains a transparent heuristic, never a learned claim.
+    fallback_priority = {
+        "governance": 0,
+        "code": 1,
+        "finance": 2,
+        "maritime": 3,
+        "counter-uas": 4,
+    }
     for e in NEMO_EXPERTS:
         hits = [k for k in e["keywords"] if k in q]
         score = len(hits) + (0.01 * len(q))  # tiny length tiebreak; deterministic
         scored.append({"expert": e, "score": score, "matched": hits})
-    scored.sort(key=lambda r: (-r["score"], r["expert"]["id"]))
+    has_domain_signal = any(r["matched"] for r in scored)
+    if has_domain_signal:
+        scored.sort(key=lambda r: (-r["score"],
+                                   fallback_priority.get(r["expert"]["id"], 99),
+                                   r["expert"]["id"]))
+        basis = "matched-domain-keywords"
+    else:
+        scored.sort(key=lambda r: (fallback_priority.get(r["expert"]["id"], 99),
+                                   r["expert"]["id"]))
+        basis = "explicit-governance-first-fallback"
+    for row in scored:
+        row["selection_basis"] = basis
     chosen = scored[:max(1, top_k)]
     return scored, chosen
 
@@ -455,6 +489,7 @@ def govern_route(query: str, top_k: int = 2, pi_bandwidth_hz: float = 12.0,
         experts_out.append({
             "expert_id": e["id"], "title": e["title"], "desc": e["desc"],
             "matched_keywords": c["matched"], "selection_score": round(c["score"], 4),
+            "selection_basis": c.get("selection_basis"),
             "lambda_advisory": lam, "lambda_axes": axis,
             "lambda_status": DOCTRINE["lambda"],
             "below_advisory_floor": below_floor,
@@ -478,7 +513,15 @@ def govern_route(query: str, top_k: int = 2, pi_bandwidth_hz: float = 12.0,
         "experts": experts_out,
         "all_expert_scores": [{"expert_id": s["expert"]["id"],
                                "score": round(s["score"], 4),
-                               "matched": s["matched"]} for s in scored],
+                               "matched": s["matched"],
+                               "selection_basis": s.get("selection_basis")}
+                              for s in scored],
+        "routing_evidence_state": "HEURISTIC",
+        "routing_limits": (
+            "Deterministic keyword routing with an explicit governance-first "
+            "fallback; not learned, not a quality guarantee, and not a substitute "
+            "for human approval."
+        ),
         "overall_lambda_advisory": overall_lambda,
         "thompson_posteriors": _thompson_view(),
         "doctrine": DOCTRINE,
@@ -898,6 +941,7 @@ def model_card():
         "one_liner": ("SZL-Nemo — a sovereign, governed, self-improving AGENT model "
                       "built ON an open base (default Qwen3-32B, Apache-2.0)."),
         "base": NEMO_BASE,
+        "hub_artifact": NEMO_ARTIFACT,
         "what_is_ours": [
             "Governed-MoE DOMAIN-EXPERT router (Λ-governed, signed every selection) — the differentiator.",
             "MTP / speculative decoding as the inference default (app-layer; box ROADMAP→Forge).",

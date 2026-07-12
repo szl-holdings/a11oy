@@ -69,6 +69,9 @@ html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);display
 .mono{font-family:var(--mono);}
 a{color:inherit;text-decoration:none;}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:3px;}
+.skip-link{position:fixed;left:12px;top:8px;z-index:1000;padding:.55rem .8rem;border-radius:6px;
+  background:var(--cream);color:var(--ground);font-weight:700;transform:translateY(-160%);}
+.skip-link:focus{transform:translateY(0);}
 ::-webkit-scrollbar{width:9px;height:9px;}::-webkit-scrollbar-thumb{background:#222;border-radius:6px;}
 
 /* ===== TOP BAR + CROSS-FLAG SWITCHER ===== */
@@ -82,6 +85,8 @@ a{color:inherit;text-decoration:none;}
 .topbar .sep{color:var(--dim);}
 .topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+.live.degraded{color:var(--warn);}.live.degraded .live-dot{background:var(--warn);box-shadow:0 0 6px var(--warn);}
+.live.down{color:var(--err);}.live.down .live-dot{background:var(--err);box-shadow:none;animation:none;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 .switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
 .switcher .lbl{color:var(--dim);margin-right:.35rem;}
@@ -107,7 +112,7 @@ a{color:inherit;text-decoration:none;}
 .nav-group.mod-proofs{color:#a09cc0;border-left-color:rgba(160,156,192,.3);}
 .nav-group.mod-lake{color:var(--gold-bright);border-left-color:rgba(214,198,154,.3);}
 .nav-group.mod-api{color:var(--muted);border-left-color:rgba(136,136,136,.25);}
-.nav-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--paragraph);font-size:13.5px;transition:.15s;border:1px solid transparent;}
+.nav-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--paragraph);font:13.5px var(--display);text-align:left;transition:.15s;border:1px solid transparent;background:transparent;}
 .nav-item:hover{background:var(--gold-soft);color:var(--cream);}
 .nav-item.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal-line);}
 .nav-item .ico{width:16px;text-align:center;opacity:.8;font-size:12px;}
@@ -580,6 +585,7 @@ details.raw[open] summary{color:var(--muted);}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#content">Skip to command content</a>
 <!-- ============================================================================
      SZL BOOT-GUARD (no-white-flash) — additive, 0-CDN, byte-identical across flagships.
      PROBLEM: the head loads several synchronous vendored <script src> tags (THREE,
@@ -670,7 +676,7 @@ details.raw[open] summary{color:var(--muted);}
   <span>SZL HOLDINGS</span><span class="sep">/</span>
   <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
   <span class="tb-desc">GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE</span>
+  <span class="live" id="runtime-status" role="status" aria-live="polite"><span class="live-dot"></span><span id="runtime-status-text">CHECKING</span></span>
   <!-- ADDITIVE (feat/investor-mode-pricing): CEO / Investor-mode toggle. Opens a clean
        overlay of 5-7 plain-English, honest proof points over the dense operator view.
        The operator (dense) console is never rebuilt or hidden — this is an overlay only. -->
@@ -695,7 +701,7 @@ details.raw[open] summary{color:var(--muted);}
 
 <div class="app">
   <div class="side-scrim" onclick="toggleSide(false)"></div>
-  <aside class="side">
+  <aside class="side" aria-label="A11OY workspace navigation">
     <div class="brand"><div class="mark">A</div><div><div class="nm">a11oy</div><div class="role">orchestrating brain</div></div></div>
     <!-- UNIFIED MODULE NAV (feat/unified-console-nav-sci-energy 2026-06-30):
          7 top-level modules (Datadog "product-area" pattern, AWS ≤7 lesson).
@@ -15947,9 +15953,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       g.textContent = grp[0];
       frag.appendChild(g);
       grp[1].forEach(function(it){
-        var d = document.createElement('div');
+        var d = document.createElement('button');
+        d.type = 'button';
         d.className = 'nav-item';
         d.setAttribute('data-view', it[0]);
+        d.setAttribute('aria-label', it[2]);
         // 4th element (optional) = a page href: navigate to the page instead of go(view).
         if(it[3]){
           (function(href){ d.onclick = function(){ window.location.href = href; }; })(it[3]);
@@ -16014,6 +16022,27 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', schedule);
   else schedule();
   window.addEventListener('load', function(){ setTimeout(apply, 120); });
+})();
+</script>
+
+<script>
+/* Runtime posture is a read, not decorative chrome. HEALTHY means /healthz answered;
+   CONTRACT GAP means the runtime is up but its public tab matrix is unavailable. */
+(function(){
+  "use strict";
+  var host=document.getElementById('runtime-status');
+  var text=document.getElementById('runtime-status-text');
+  if(!host||!text) return;
+  function set(state,label){host.className='live '+state;text.textContent=label;}
+  Promise.all([
+    fetch('/healthz',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error();return r.json();}),
+    fetch('/api/a11oy/v1/readiness/tab-matrix?view=summary',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error();return r.json();})
+  ]).then(function(values){
+    var health=values[0]||{}, matrix=values[1]||{};
+    if((health.status==='ok'||health.status==='healthy')&&matrix.available){set('','ONLINE · CONTRACT '+(matrix.contract_version||''));}
+    else if(health.status==='ok'||health.status==='healthy'){set('degraded','ONLINE · CONTRACT GAP');}
+    else{set('degraded','DEGRADED');}
+  }).catch(function(){set('down','STATUS UNAVAILABLE');});
 })();
 </script>
 
