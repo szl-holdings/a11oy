@@ -372,7 +372,7 @@ _SURFACE_CLUSTER: Dict[str, Tuple[int, str]] = {
 # New registry entries inherit their declared shell category for classification:
 # brain/anatomy -> MEMORY & PROVENANCE; everything else -> SURFACES. Their maturity label
 # is NEVER guessed. A label is reused only when present in the vetted embedded snapshot or
-# written explicitly in the canonical title; otherwise it is UNSPECIFIED.
+# written explicitly in the canonical title; otherwise evidence is UNAVAILABLE.
 # =====================================================================================
 _EMBEDDED_SURFACES = tuple(dict(s) for s in LIVE_SURFACES)
 _EMBEDDED_LABELS = {s["id"]: s["label"] for s in _EMBEDDED_SURFACES}
@@ -388,7 +388,7 @@ def _declared_label(surface_id: str, title: str) -> Tuple[str, str]:
     for label in _EXPLICIT_LABELS:
         if label in upper:
             return label, "canonical-title-explicit"
-    return "UNSPECIFIED", "canonical-registry-no-maturity-claim"
+    return "UNAVAILABLE", "canonical-registry-no-maturity-claim"
 
 
 def _canonical_roster() -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
@@ -547,7 +547,7 @@ _HONEST_NOTE = (
     "checked FALSE; Khipu BFT; self-repair) renders GRAY, never green. The Loop-Forge flow overlay "
     "(proposer -> kernel gate -> archive) is a MODELED process view, NOT a claim that anything is "
     "trained, alive, or conscious. Maturity labels are reused only from the vetted embedded snapshot "
-    "or an explicit canonical title; otherwise the label is UNSPECIFIED, never guessed. The organ "
+    "or an explicit canonical title; otherwise the label is UNAVAILABLE, never guessed. The organ "
     "imports its local canonical registry and never fetches a network dependency at runtime. "
     "Deterministic: same registry + seed => identical snapshot. Pure "
     "stdlib, no numpy, no stdlib random."
