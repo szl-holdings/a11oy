@@ -477,6 +477,11 @@ COPY ayni_os/ ./ayni_os/
 COPY infra/receipts-samples/ ./infra/receipts-samples/
 COPY pages/ ./pages/
 
+# Readiness contract: serve.py exposes this matrix at
+# /api/a11oy/v1/readiness/tab-matrix. The endpoint previously degraded to
+# available:false because this explicit-copy image never shipped the artifact.
+COPY tools/readiness-harness/tabs.json ./tools/readiness-harness/tabs.json
+
 # ADDITIVE (Live 3D Wires / PURIQ Doctrine v12, Yachay): explicit per-file COPY.
 # This Dockerfile uses per-file COPY (no `COPY . .`), so the live-wires module +
 # its static assets must be copied explicitly or `import szl_live_wires` 404s and
@@ -1600,7 +1605,7 @@ COPY szl_spend_cap.py ./szl_spend_cap.py
 # reads defensively — degrading honestly (an honest placeholder tile) if the endpoint is
 # unreachable at runtime. No backend module.
 # --- buildkit max-depth fix: per-file COPYs grouped into one layer (no file dropped; every source token preserved). ---
-COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py ./
+COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py ./
 COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
@@ -1625,4 +1630,3 @@ CMD ["python", "serve.py"]
 # tiny Apache-2.0 GGUF fetch for the live CPU demo tier (honest tower-side fallback).
 # UNIFIED into the existing LLM registry (one roster). DeepSeek-Coder-V2 = CODE_PRIMARY.
 # C20/W7-5 router, W5-3/W7-4 conformal, C10-C12 consensus; every call -> signed receipt.
-
