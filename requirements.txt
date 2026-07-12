@@ -12,6 +12,10 @@ vsp-otel>=0.1
 # when set, spans export OTLP/gRPC to that endpoint.
 opentelemetry-sdk>=1.43.0
 opentelemetry-exporter-otlp>=1.43.0
+# Runtime signing/import parity with the Docker image. Exact pin: the DSSE and
+# boot-ephemeral Council signer must not silently resolve a different crypto
+# implementation in requirements-based deployments.
+cryptography==49.0.0
 # ADDITIVE (Formulas → Ecosystem, Opus 4.8 2026-06-03): real BLS12-381 aggregate
 # signatures over the Khipu chain (a11oy.formulas.bls_aggregate). Optional at runtime —
 # the module returns an HONEST error + ECDSA fallback if absent (never a fake 'verified').

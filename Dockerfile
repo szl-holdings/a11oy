@@ -163,6 +163,16 @@ COPY knowledge.json ./static/knowledge.json
 # registers live. (dockerfile-copy-guard verifies these sources exist on main.)
 COPY a11oy_ayllu.py ./
 COPY ayllu/ ./ayllu/
+# Waqay Security Loop wave 15: pure read-only proposal contract.  The module
+# exposes zero external effectors; serve.py registers only its manifest GET.
+COPY szl_waqay_security_loop.py ./
+# Claim-integrity Rupture Gate wave 15: contract-only, external signals only,
+# unsigned deterministic receipts, zero effectors.
+COPY szl_claim_rupture_gate.py ./
+# Primary official project registry (51 records across 10 fields).  Runtime
+# serves the deterministic, unranked registry; optional live metadata remains a
+# bounded adapter and is not executed on anonymous public requests.
+COPY research/ ./research/
 # routers/ — Wave-K Dev4 serve.py decomposition (first bounded slice). serve.py
 # imports `from routers import lambda_bounty|research_3d|frontier_reads` (guarded)
 # and calls each register(app) BEFORE the SPA catch-all. This Dockerfile uses no
@@ -649,7 +659,9 @@ COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
 # hf-sync mirrored) — same baked-only pattern as web/sda.html + web/immune.html;
 # declared in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json
 # accepted_divergences.
-COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/signature-is-not-proof.html web/defense-readiness.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html ./web/
+COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html ./web/
+COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
+COPY web/defense-readiness.html ./web/defense-readiness.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and

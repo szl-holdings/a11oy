@@ -101,7 +101,119 @@ except ImportError:
 # --- end OTel preamble ---
 
 
-app = FastAPI(title="a11oy — Brand Orchestration Layer", version="2.0.0")
+# The implicit FastAPI /openapi.json route calls app.openapi() without the
+# defensive per-route fallback used by our backend hardening. On the assembled
+# app one malformed legacy annotation could therefore make the conventional
+# schema path return 500 while the curated schema remained healthy. Disable the
+# implicit docs routes; szl_be_hardening registers both the canonical
+# /api/a11oy/openapi.json and an exact /openapi.json alias from one builder.
+app = FastAPI(
+    title="a11oy — Brand Orchestration Layer",
+    version="2.0.0",
+    openapi_url=None,
+    docs_url=None,
+    redoc_url=None,
+)
+
+# Waqay Security Loop (wave 15): expose only the deterministic, read-only
+# contract.  The implementation has no deployment, recall, repository, signing,
+# model, or other external effector.  Mutation endpoints stay deliberately
+# absent until identity, policy, approval, provenance, and direct-origin bypass
+# controls are independently verified.
+try:
+    from szl_waqay_security_loop import security_loop_manifest
+    _WAQAY_SECURITY_LOOP_READY = True
+except Exception:  # pragma: no cover - honest optional degradation
+    security_loop_manifest = None  # type: ignore[assignment]
+    _WAQAY_SECURITY_LOOP_READY = False
+
+
+@app.get("/api/a11oy/v1/waqay/security-loop/manifest")
+async def waqay_security_loop_manifest() -> JSONResponse:
+    if not _WAQAY_SECURITY_LOOP_READY or security_loop_manifest is None:
+        return JSONResponse(
+            {
+                "ready": False,
+                "mode": "UNAVAILABLE",
+                "effectors": 0,
+                "external_mutations": "DISABLED",
+            },
+            status_code=503,
+        )
+    return JSONResponse({"ready": True, **security_loop_manifest()})
+
+
+# Claim Rupture Gate (wave 15): contract-only exposure.  The module consumes
+# externally supplied uncertainty/factuality evidence but never invents a score,
+# upgrades a claim, persists a decision, or invokes an effector.  Evaluation
+# POST routes remain absent pending identity/policy/abuse review.
+try:
+    from szl_claim_rupture_gate import info as claim_rupture_gate_info
+    _CLAIM_RUPTURE_GATE_READY = True
+except Exception:  # pragma: no cover - honest optional degradation
+    claim_rupture_gate_info = None  # type: ignore[assignment]
+    _CLAIM_RUPTURE_GATE_READY = False
+
+
+@app.get("/api/a11oy/v1/claim-integrity/info")
+async def claim_integrity_info() -> JSONResponse:
+    if not _CLAIM_RUPTURE_GATE_READY or claim_rupture_gate_info is None:
+        return JSONResponse(
+            {
+                "ready": False,
+                "decision_state": "UNAVAILABLE",
+                "effectors_enabled": 0,
+            },
+            status_code=503,
+        )
+    return JSONResponse({"ready": True, **claim_rupture_gate_info()})
+
+
+# Primary-project registry (wave 15): primary sources, projects/organizations
+# rather than editorial rankings of people.  The public endpoints intentionally
+# serve the deterministic registry only; anonymous GitHub refreshes stay out of
+# the request path to avoid rate-limit and availability claims.
+try:
+    from research.a11oy_primary_project_registry import (
+        info as primary_project_registry_info,
+        snapshot as primary_project_registry_snapshot,
+    )
+    _PRIMARY_PROJECT_REGISTRY_READY = True
+except Exception:  # pragma: no cover - honest optional degradation
+    primary_project_registry_info = None  # type: ignore[assignment]
+    primary_project_registry_snapshot = None  # type: ignore[assignment]
+    _PRIMARY_PROJECT_REGISTRY_READY = False
+
+
+@app.get("/api/a11oy/v1/frontier/projects/info")
+async def frontier_projects_info() -> JSONResponse:
+    if not _PRIMARY_PROJECT_REGISTRY_READY or primary_project_registry_info is None:
+        return JSONResponse({"ok": False, "label": "UNAVAILABLE"}, status_code=503)
+    return JSONResponse(primary_project_registry_info())
+
+
+@app.get("/api/a11oy/v1/frontier/projects")
+async def frontier_projects_snapshot() -> JSONResponse:
+    if not _PRIMARY_PROJECT_REGISTRY_READY or primary_project_registry_snapshot is None:
+        return JSONResponse({"ok": False, "label": "UNAVAILABLE"}, status_code=503)
+    return JSONResponse(primary_project_registry_snapshot(fetch_live=False))
+
+
+def _optional_module_absent(exc: Exception, module: str, surface: str,
+                            *, stream=None) -> bool:
+    """Log a direct optional-module absence without a noisy traceback.
+
+    Missing transitive dependencies and registration errors deliberately return
+    False: those are defects and callers must retain their diagnostic traceback.
+    """
+    if isinstance(exc, ModuleNotFoundError) and getattr(exc, "name", None) == module:
+        print(
+            f"[a11oy] OPTIONAL-ABSENT {module}: {surface} not registered; "
+            "existing routes unaffected",
+            file=stream or sys.stderr,
+        )
+        return True
+    return False
 
 # ── Shared guarded-surface wrapper (Wave R Dev 2) — one bad surface must NEVER 500 the
 # SPA. This ASGI middleware converts an unhandled exception from any JSON API surface
@@ -216,18 +328,19 @@ except Exception as _szl_bh_e:  # pragma: no cover
 # fail-open (tracing NEVER breaks a request); locked=8; Λ=Conjecture 1; no key.
 try:
     import szl_observability as _szl_observability
-    _szl_observability.register(app, ns="a11oy")
-    # -- ADDITIVE (free-first spend guardrail) -- szl_spend_cap
-    try:
-        import szl_spend_cap as _szl_spend_cap
-        print("[a11oy] " + _szl_spend_cap.register(app, ns="a11oy"), file=__import__("sys").stderr)
-    except Exception as _szl_spend_cap_e:
-        print(f"[szl_spend_cap] NOT mounted ({_szl_spend_cap_e!r}); existing routes unaffected", file=__import__("sys").stderr)
-    # -- ADDITIVE (free-first spend guardrail) -- szl_spend_cap end
-    print("[a11oy] Observability registered: /api/a11oy/v1/observability/{traces,trace/{id},health-summary} (OpenTelemetry-style tracing, stdlib)", file=__import__("sys").stderr)
+    _szl_obs_paths = _szl_observability.register(app, ns="a11oy")
+    print(f"[a11oy] Observability registered once: {_szl_obs_paths}", file=sys.stderr)
 except Exception as _szl_obs_e:  # pragma: no cover
-    print(f"[a11oy] Observability NOT registered: {_szl_obs_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+    print(f"[a11oy] Observability NOT registered: {_szl_obs_e!r}; existing routes unaffected", file=sys.stderr)
 # ── Observability / distributed tracing (devN) — szl_observability ── end
+
+# The spend cap is independent of tracing. An optional observability failure must
+# never decide whether the free-first guardrail is present.
+try:
+    import szl_spend_cap as _szl_spend_cap
+    print("[a11oy] " + _szl_spend_cap.register(app, ns="a11oy"), file=sys.stderr)
+except Exception as _szl_spend_cap_e:
+    print(f"[szl_spend_cap] NOT mounted ({_szl_spend_cap_e!r}); existing routes unaffected", file=sys.stderr)
 
 # ── Resilience (devM) — szl_resilience ──
 # ADDITIVE on top of backend-hardening (#346) + prod-hardening (#345). Two proven
@@ -2886,8 +2999,10 @@ try:
     print(f"[a11oy] /about/thesis registered: {_thesis_status}", file=_sys_th.stderr)
 except Exception as _th_e:
     import sys as _sys_th, traceback as _tb_th
-    print(f"[a11oy] /about/thesis NOT registered: {_th_e}", file=_sys_th.stderr)
-    _tb_th.print_exc()
+    if not _optional_module_absent(_th_e, "szl_thesis_about", "/about/thesis",
+                                   stream=_sys_th.stderr):
+        print(f"[a11oy] /about/thesis NOT registered: {_th_e}", file=_sys_th.stderr)
+        _tb_th.print_exc()
 # ── end /about/thesis ────────────────────────────────────────────────────────
 
 # ── Provenance Hardening (Yachay / Doctrine v12) — ADDITIVE, registered EARLY ──
@@ -3309,7 +3424,9 @@ try:
     app.include_router(_formulas_mod.router)
     print("[a11oy] SZL_FORMULA_OPS mounted: 8x POST /formulas/<name> + /formulas-ops (UI) + /api/a11oy/v1/formulas-ops (index)", file=sys.stderr)
 except Exception as _formulas_exc:  # additive: never break the Space if the module is absent
-    print(f"[a11oy] FORMULAS mount skipped: {_formulas_exc}", file=sys.stderr)
+    if not _optional_module_absent(
+            _formulas_exc, "szl_formula_ops", "Formula Operationalizer"):
+        print(f"[a11oy] FORMULAS mount failed: {_formulas_exc}", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Doctrine v12 PURIQ): mount the a11oy.code conversational
@@ -3870,8 +3987,10 @@ try:
     print(f"[a11oy] v4 PAC-Bayes Predict registered: {_v4_predict_status}", file=_v4p_sys.stderr)
 except Exception as _v4p_e:
     import sys as _v4p_sys, traceback as _v4p_tb
-    print(f"[a11oy] v4 PAC-Bayes Predict NOT registered: {_v4p_e!r}", file=_v4p_sys.stderr)
-    _v4p_tb.print_exc()
+    if not _optional_module_absent(_v4p_e, "a11oy_v4_predict", "v4 PAC-Bayes Predict",
+                                   stream=_v4p_sys.stderr):
+        print(f"[a11oy] v4 PAC-Bayes Predict NOT registered: {_v4p_e!r}", file=_v4p_sys.stderr)
+        _v4p_tb.print_exc()
 
 try:
     import a11oy_v4_thesis_primitives as _v4_tp
@@ -3880,8 +3999,11 @@ try:
     print(f"[a11oy] v4 Thesis Primitives registered: {_v4_tp_status}", file=_v4tp_sys.stderr)
 except Exception as _v4tp_e:
     import sys as _v4tp_sys, traceback as _v4tp_tb
-    print(f"[a11oy] v4 Thesis Primitives NOT registered: {_v4tp_e!r}", file=_v4tp_sys.stderr)
-    _v4tp_tb.print_exc()
+    if not _optional_module_absent(
+            _v4tp_e, "a11oy_v4_thesis_primitives", "v4 Thesis Primitives",
+            stream=_v4tp_sys.stderr):
+        print(f"[a11oy] v4 Thesis Primitives NOT registered: {_v4tp_e!r}", file=_v4tp_sys.stderr)
+        _v4tp_tb.print_exc()
 # --- end PAC-Bayes Predict + Thesis Primitives ---
 
 
@@ -4918,29 +5040,11 @@ except Exception as _sc_e:  # pragma: no cover
     print(f"[a11oy] szl_sovereign_compute NOT registered ({_sc_e!r}); existing routes unaffected", file=sys.stderr)
 
 
-# ===========================================================================
-# a11oy OBSERVABILITY (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
-# Business observability instilled as a NATIVE a11oy capability — NOT a separate
-# product, NOT an add-on, NOT a separate brand. a11oy is the platform; observability
-# is one of its endpoints. szl_observability.register(app, ns="a11oy") adds, under
-# /api/a11oy/v3/observability/* : manifesto, pillars (9), pillars/{name}, tag,
-# attribute-revenue, query (Honeycomb-style), compliance/{framework}, decision-replay,
-# and a mobile-first /dashboard. Reads the REAL in-process organs (Wire D Khipu DAG
-# via app.state.szl_emit_signed_receipt / szl_khipu_dag, trace state) — a pillar with
-# no wired source honestly reports status="unknown" (never faked). Registered BEFORE
-# the /api/a11oy/{path:path} Node proxy + SPA catch-all so /api/a11oy/v3/observability/*
-# resolve LOCALLY. try/except-guarded: can NEVER take down a route.
-# DIFFERENTIATOR: the only observability stack that signs every event (Wire D DSSE),
-# proves the chain via Lean (749/14/163), and replays decisions years later (AYNI-OS).
-# LOCKED preserved: Doctrine v11 749/14/163, 13-axis, SLSA L1, Λ-uniqueness=Conjecture 1.
-# ---------------------------------------------------------------------------
-try:
-    import szl_observability as _obs
-    _obs_info = _obs.register(app, ns="a11oy")
-    print(f"[szl_observability] a11oy observability mounted: base={_obs_info.get('base')}, "
-          f"pillars={_obs_info.get('pillars')}, slsa={_obs_info.get('slsa')}", file=sys.stderr)
-except Exception as _obs_e:  # pragma: no cover - defensive, additive-only
-    print(f"[szl_observability] a11oy observability NOT mounted ({_obs_e!r}); existing routes unaffected", file=sys.stderr)
+# Observability is registered exactly once near app construction. A historical
+# duplicate lived here and expected a dict even though register() returns
+# list[str], producing a false startup error after the routes were already live.
+# Keep one authoritative v1 tracing contract; the stale, nonexistent v3 claims
+# are intentionally removed rather than preserved as dead documentation.
 
 
 # ===========================================================================
@@ -5129,8 +5233,9 @@ try:
     print("[a11oy] szl_kernels_organ: 9 living kernels at /api/a11oy/v3/kernels/*", file=sys.stderr)
 except Exception as _ke:
     import traceback as _tb_k
-    print(f"[a11oy] szl_kernels_organ NOT registered: {_ke}", file=sys.stderr)
-    _tb_k.print_exc()
+    if not _optional_module_absent(_ke, "szl_kernels_organ", "agentic Codex kernels"):
+        print(f"[a11oy] szl_kernels_organ NOT registered: {_ke}", file=sys.stderr)
+        _tb_k.print_exc()
 
 
 # ---------------------------------------------------------------------------
@@ -5225,8 +5330,9 @@ try:
     print(f"[a11oy] Typed Ontology + Object Explorer registered: {_ont_status}", file=sys.stderr)
 except Exception as _ont_e:
     import traceback as _ont_tb
-    print(f"[a11oy] Typed Ontology NOT registered: {_ont_e!r}", file=sys.stderr)
-    _ont_tb.print_exc(file=sys.stderr)
+    if not _optional_module_absent(_ont_e, "a11oy_ontology", "Typed Ontology"):
+        print(f"[a11oy] Typed Ontology NOT registered: {_ont_e!r}", file=sys.stderr)
+        _ont_tb.print_exc(file=sys.stderr)
 
 # C. Derivation DAG renderer (/api/a11oy/v4/derivation/{id}, /derivation/{id}, vendored Three.js)
 try:
@@ -5235,8 +5341,9 @@ try:
     print(f"[a11oy] Derivation DAG renderer registered: {_deriv_status}", file=sys.stderr)
 except Exception as _deriv_e:
     import traceback as _deriv_tb
-    print(f"[a11oy] Derivation DAG NOT registered: {_deriv_e!r}", file=sys.stderr)
-    _deriv_tb.print_exc(file=sys.stderr)
+    if not _optional_module_absent(_deriv_e, "a11oy_derivation", "Derivation DAG"):
+        print(f"[a11oy] Derivation DAG NOT registered: {_deriv_e!r}", file=sys.stderr)
+        _deriv_tb.print_exc(file=sys.stderr)
 
 # B. Synchronized 4-lens shell (/explorer)
 try:
@@ -5245,8 +5352,9 @@ try:
     print(f"[a11oy] 4-lens synchronized Explorer registered: {_explorer_status}", file=sys.stderr)
 except Exception as _explorer_e:
     import traceback as _explorer_tb
-    print(f"[a11oy] 4-lens Explorer NOT registered: {_explorer_e!r}", file=sys.stderr)
-    _explorer_tb.print_exc(file=sys.stderr)
+    if not _optional_module_absent(_explorer_e, "a11oy_explorer", "4-lens Explorer"):
+        print(f"[a11oy] 4-lens Explorer NOT registered: {_explorer_e!r}", file=sys.stderr)
+        _explorer_tb.print_exc(file=sys.stderr)
 
 # Every /agent/ask and /predict call writes the full Worker->Critic->Yuyay-13->Lambda->
 # Khipu derivation chain into the Khipu (Receipt) store as a graph (Palantir AIP Logic
@@ -10062,7 +10170,13 @@ async def api_proxy(request: Request, path: str) -> Response:
 # ===========================================================================
 try:
     from fastapi.responses import Response as _VendResponse
+    # Resolve from the image root in production and from this checkout during
+    # local operator verification.  The previous image-only path made the
+    # injected operator widget 404 on every local HTML page even though the
+    # vendored asset was present in ``static-vendor/``.
     _VENDOR_DIR = Path("/app/static-vendor")
+    if not _VENDOR_DIR.is_dir():
+        _VENDOR_DIR = Path(__file__).resolve().parent / "static-vendor"
     _VENDOR_JS_CT = "application/javascript; charset=utf-8"
     _VENDOR_CSS_CT = "text/css; charset=utf-8"
     # Allowlist of the 7 keepers + KaTeX (exact filenames the console references).
@@ -10253,6 +10367,14 @@ except Exception as _opw_e:  # never crash the app — additive only
 # Static files that physically exist at the repo root (favicon, robots, etc.)
 # are served directly.
 # ---------------------------------------------------------------------------
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_no_content() -> Response:
+    """Avoid sending the browser's implicit favicon request into the SPA
+    fallback.  This build has no canonical ICO asset, so an honest 204 is
+    preferable to a fabricated icon or the previous local-dev 500."""
+    return Response(status_code=204, headers={"Cache-Control": "public, max-age=86400"})
 
 
 
@@ -13288,11 +13410,11 @@ try:
 
     _a11oy_source_observation = {
         "repository": "szl-holdings/a11oy",
-        "commit": "adac37574f88a30ff099f3ec7f548685d4166e6f",
+        "commit": "2ca22d0b337805a2d4e7e65af3f6738c401431a4",
         "path": "",
         "relation": "declared-source-with-hf-overlay",
         "state": "VERIFIED_REFERENCE",
-        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/adac37574f88a30ff099f3ec7f548685d4166e6f",
+        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/2ca22d0b337805a2d4e7e65af3f6738c401431a4",
     }
     _szl_source_result = _szl_source_attestation.register(
         app,

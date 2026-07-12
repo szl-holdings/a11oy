@@ -217,22 +217,21 @@ def register(app: FastAPI) -> None:
     FastAPI's built-in Swagger UI also defaults to /docs and is registered first
     (at app construction), so it would otherwise shadow our tab. To keep BOTH and
     stay additive (zero regression), we relocate the OpenAPI/Swagger UI to /api/docs
-    and the raw schema to /api/openapi.json, then drop the original /docs + /redoc
-    + /openapi.json default routes. Nothing customer-facing or SPA-facing is lost;
-    the interactive API explorer simply moves under the /api/* namespace where it
-    belongs.
+    and keep /api/openapi.json as a legacy schema alias. The conventional
+    /openapi.json path is owned by backend hardening as an exact alias of the
+    curated /api/a11oy/openapi.json schema; this module must not delete it.
     """
     # --- relocate FastAPI's default docs so /docs is free for the branded tab ---
     try:
         from fastapi.openapi.docs import get_swagger_ui_html
 
-        _default_docs_paths = {"/docs", "/redoc", "/openapi.json"}
+        _default_docs_paths = {"/docs", "/redoc"}
         app.router.routes = [
             r for r in app.router.routes
             if getattr(r, "path", None) not in _default_docs_paths
         ]
         # Re-expose the schema + Swagger UI under /api/* (additive, not lost).
-        app.openapi_url = "/api/openapi.json"
+        app.openapi_url = "/api/a11oy/openapi.json"
 
         @app.get("/api/openapi.json", include_in_schema=False)
         async def _hub_openapi() -> JSONResponse:
@@ -279,7 +278,10 @@ def register(app: FastAPI) -> None:
 
         @app.get("/api/docs", include_in_schema=False)
         async def _hub_swagger():
-            return get_swagger_ui_html(openapi_url="/api/openapi.json", title="a11oy API — Swagger UI")
+            return get_swagger_ui_html(
+                openapi_url="/api/a11oy/openapi.json",
+                title="a11oy API — Swagger UI",
+            )
     except Exception:
         # If relocation fails for any reason, fall through: the branded /docs tab
         # still registers below; worst case Swagger keeps /docs. Never fatal.

@@ -24,9 +24,11 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import threading
 import time
 import uuid
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 # FastAPI resolves endpoint annotations with get_type_hints against THIS module's
@@ -69,6 +71,10 @@ __version__ = _AYLLU_VERSION
 MAX_PROMPT_CHARS = 6000
 COUNCIL_MAX = 5                                     # hard cap on participants / call
 COUNCIL_DEBATE_MAX = 3  # debate doubles model calls; tighter cap bounds cost
+ASK_MAX_TOKENS = 384
+ASK_TURN_TIMEOUT_S = 45.0
+COUNCIL_MAX_TOKENS = 192
+COUNCIL_TURN_TIMEOUT_S = 45.0
 COUNCIL_DEFAULT = ["Amaru", "Kamachiq", "Qhatuq"]  # architect · orchestrator · markets
 
 COUNCIL_CONTRACT_VERSION = "2.0"
@@ -114,9 +120,26 @@ def _receipt_sha(receipt: Optional[dict]) -> Optional[str]:
 
 
 def _make_receipt(payload: Dict[str, Any], sign_fn=None) -> Dict[str, Any]:
-    """Wrap payload in a DSSE envelope (honest UNSIGNED if no cosign key)."""
+    """Wrap payload in DSSE without overstating the signer's identity.
+
+    ``szl_dsse`` is the organization-key path: it signs only when an operator
+    injects the established Cosign private-key runtime secret. ``sign_fn`` is
+    the host's explicitly boot-ephemeral development signer. Prefer the former
+    only when its key is genuinely loadable, then fall back to the development
+    signer. With neither path available, emit an honest unsigned envelope.
+    """
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     honesty = "UNSIGNED — szl_dsse not present; no signature fabricated."
+    if _dsse is not None:
+        try:
+            signing_available = getattr(_dsse, "signing_available", None)
+            if (callable(signing_available) and signing_available()
+                    and hasattr(_dsse, "sign_payload")):
+                return _dsse.sign_payload(
+                    payload, "application/vnd.szl.receipt+json")
+        except Exception as exc:
+            honesty = (f"UNSIGNED — organization-key signer unavailable "
+                       f"({str(exc)[:80]}); no signature fabricated.")
     if callable(sign_fn):
         try:
             env = sign_fn(payload)
@@ -128,8 +151,9 @@ def _make_receipt(payload: Dict[str, Any], sign_fn=None) -> Dict[str, Any]:
                        "no signature fabricated.")
     if _dsse is not None:
         try:
-            # szl_dsse exposes sign_payload(); the former sign() call made every
-            # Ayllu receipt fall through to UNSIGNED even when the module existed.
+            # No organization key and no host development signer: use the
+            # canonical implementation only to construct its explicit UNSIGNED
+            # envelope (it never fabricates signature bytes).
             if hasattr(_dsse, "sign_payload"):
                 return _dsse.sign_payload(
                     payload, "application/vnd.szl.receipt+json")
@@ -151,7 +175,82 @@ def _sha256_json(value: Any) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
-def council_manifest(ns: str = "a11oy") -> Dict[str, Any]:
+def _council_store_path(ns: str) -> tuple[str, str]:
+    """Resolve Council state without claiming an unverified durable mount.
+
+    Operators can name an exact path or an established data directory.  Local
+    development defaults to a gitignored directory beside this module, which
+    survives process restarts but is *not* claimed to survive a container or
+    Space rebuild.
+    """
+    exact = os.environ.get("A11OY_AYLLU_KHIPU_PATH")
+    if exact:
+        return exact, "A11OY_AYLLU_KHIPU_PATH"
+    data_dir = os.environ.get("A11OY_DATA_DIR")
+    if data_dir:
+        return os.path.join(data_dir, "ayllu", f"khipu_{ns}_council.sqlite3"), "A11OY_DATA_DIR"
+    khipu_dir = os.environ.get("SZL_KHIPU_DIR")
+    if khipu_dir:
+        return os.path.join(khipu_dir, f"khipu_{ns}_council.sqlite3"), "SZL_KHIPU_DIR"
+    return str(Path(__file__).resolve().parent / ".a11oy-state"
+               / f"khipu_{ns}_council.sqlite3"), "REPOSITORY_LOCAL_DEVELOPMENT_STATE"
+
+
+def _open_council_store(ns: str):
+    """Open the repository's tested durable Khipu implementation.
+
+    Returns ``(store, metadata)``.  Failure is explicit; the caller may still
+    use the legacy in-memory DAG but must report that downgrade.
+    """
+    path, configured_by = _council_store_path(ns)
+    try:
+        from szl_be_hardening import DurableKhipu
+        store = DurableKhipu("ayllu_council", ns=ns, path=path)
+        durable = store.backend in ("sqlite", "json")
+        meta = {
+            "backend": store.backend,
+            "durable": durable,
+            "configured_by": configured_by,
+            "survives_process_restart": durable,
+            "survives_redeploy": "NOT_VERIFIED",
+            "redeploy_requirement": (
+                "Mount the configured path on persistent storage; a writable "
+                "local/container filesystem alone does not prove redeploy persistence."
+            ),
+        }
+        return store, meta
+    except Exception as exc:
+        return None, {
+            "backend": "memory",
+            "durable": False,
+            "configured_by": configured_by,
+            "survives_process_restart": False,
+            "survives_redeploy": "NOT_VERIFIED",
+            "error": type(exc).__name__,
+            "honesty": "Durable Khipu unavailable; Council will use the in-process DAG.",
+        }
+
+
+def _council_store_metadata(store, fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    if store is None:
+        return dict(fallback or {
+            "backend": "memory", "durable": False,
+            "survives_process_restart": False,
+            "survives_redeploy": "NOT_VERIFIED",
+        })
+    backend = getattr(store, "backend", "memory")
+    base = dict(fallback or {})
+    base.update({
+        "backend": backend,
+        "durable": backend in ("sqlite", "json"),
+        "survives_process_restart": backend in ("sqlite", "json"),
+        "survives_redeploy": "NOT_VERIFIED",
+    })
+    return base
+
+
+def council_manifest(ns: str = "a11oy",
+                     chain_storage: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Side-effect-free, investor-readable contract for the bounded council."""
     base = f"/api/{ns}/v1/ayllu"
     return {
@@ -174,7 +273,7 @@ def council_manifest(ns: str = "a11oy") -> Dict[str, Any]:
             "persona/model/round/output digest per turn",
             "Nemo governed-route decision and DSSE receipt",
             "deterministic replay key over participants, mode, and output digests",
-            "in-process Khipu chain receipt (resets on process restart)",
+            "Khipu chain receipt with runtime-reported storage backend and durability",
             "outer Council DSSE receipt",
         ],
         "limits": {
@@ -182,10 +281,20 @@ def council_manifest(ns: str = "a11oy") -> Dict[str, Any]:
             "participants": COUNCIL_MAX,
             "debate_participants": COUNCIL_DEBATE_MAX,
             "debate_rounds": 2,
+            "ask_tokens_per_turn": ASK_MAX_TOKENS,
+            "ask_timeout_s": ASK_TURN_TIMEOUT_S,
+            "council_tokens_per_turn": COUNCIL_MAX_TOKENS,
+            "council_timeout_s": COUNCIL_TURN_TIMEOUT_S,
+            "round_fanout": "CONCURRENT_BOUNDED",
             "effectors": "none",
             "decision_state": "PROPOSAL_ONLY",
             "semantic_consensus": "NOT_MEASURED",
-            "chain_persistence": "IN_MEMORY_RESETS_ON_RESTART",
+            "chain_storage": chain_storage or {
+                "backend": "NOT_INSPECTED",
+                "durable": "NOT_INSPECTED",
+                "survives_process_restart": "NOT_INSPECTED",
+                "survives_redeploy": "NOT_VERIFIED",
+            },
         },
         "reproduce": {
             "manifest": base + "/council/manifest",
@@ -251,6 +360,11 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
             "round": turn.get("round"),
             "model": turn.get("model"),
             "stub": bool(turn.get("stub")),
+            "timeout": bool(turn.get("timeout", False)),
+            "token_budget": turn.get("token_budget"),
+            "timeout_s": turn.get("timeout_s"),
+            "correctness_state": ("NOT_APPLICABLE_STUB" if bool(turn.get("stub"))
+                                  else "UNVERIFIED_MODEL_OUTPUT"),
             "output_sha256": (hashlib.sha256(str(answer).encode("utf-8")).hexdigest()
                               if answer is not None else None),
             "energy_receipt_sha256": _receipt_sha(turn.get("energy_receipt")),
@@ -263,7 +377,10 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
         "turns": turn_evidence,
     }
     live_turns = sum(1 for t in turn_evidence if not t["stub"])
+    timeout_turns = sum(1 for t in turn_evidence if t["timeout"])
     if not turn_evidence:
+        evidence_state = "UNAVAILABLE"
+    elif timeout_turns and not live_turns:
         evidence_state = "UNAVAILABLE"
     elif live_turns == len(turn_evidence):
         evidence_state = "LIVE"
@@ -278,6 +395,7 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
         "decision_state": "PROPOSAL_ONLY",
         "approval_state": "HUMAN_REVIEW_REQUIRED",
         "evidence_state": evidence_state,
+        "correctness_state": "NOT_VERIFIED",
         "prompt_sha256": replay_material["prompt_sha256"],
         "turn_evidence": turn_evidence,
         "routing": nemo_route,
@@ -297,6 +415,10 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
             "participants_max": COUNCIL_MAX,
             "debate_participants_max": COUNCIL_DEBATE_MAX,
             "rounds_max": 2,
+            "tokens_per_turn_max": COUNCIL_MAX_TOKENS,
+            "turn_timeout_s": COUNCIL_TURN_TIMEOUT_S,
+            "round_fanout": "CONCURRENT_BOUNDED",
+            "timeout_turns": timeout_turns,
             "model_calls_observed": len(turn_evidence),
             "external_effectors": 0,
             "automatic_commit": False,
@@ -320,18 +442,51 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
     }
 
 
-def _mint_council_chain(contract: Dict[str, Any], ns: str = "a11oy") -> Dict[str, Any]:
-    """Append the proposal receipt to the shared in-process Khipu chain."""
+def _mint_council_chain(contract: Dict[str, Any], ns: str = "a11oy",
+                        store=None,
+                        storage_meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Append the proposal receipt to durable Khipu, with honest fallback."""
+    payload = {
+        "contract_version": contract.get("contract_version"),
+        "decision_state": contract.get("decision_state"),
+        "evidence_state": contract.get("evidence_state"),
+        "prompt_sha256": contract.get("prompt_sha256"),
+        "replay_key": (contract.get("replay") or {}).get("key"),
+    }
+    if store is not None:
+        try:
+            receipt = store.emit("ayllu.council.proposal", payload)
+            ok, depth, first_break = store.verify()
+            meta = _council_store_metadata(store, storage_meta)
+            return {
+                "state": "LIVE",
+                "organ": "ayllu_council",
+                "receipt_id": receipt.get("digest"),
+                "seq": receipt.get("seq"),
+                "chain_verified": bool(ok),
+                "first_break_seq": first_break,
+                "depth": depth,
+                "persistence": ("PROCESS_RESTART_DURABLE_LOCAL_DISK"
+                                if meta["durable"] else
+                                "IN_MEMORY_RESETS_ON_RESTART"),
+                "storage": meta,
+            }
+        except Exception as exc:
+            # Do not lose the advisory response merely because durable storage
+            # failed. Fall through to the legacy in-process chain and report the
+            # exact downgrade in the returned evidence.
+            storage_meta = {
+                **(storage_meta or {}),
+                "backend": "memory",
+                "durable": False,
+                "survives_process_restart": False,
+                "survives_redeploy": "NOT_VERIFIED",
+                "durable_append_error": type(exc).__name__,
+            }
     try:
         import szl_khipu
         dag = szl_khipu.get_dag("ayllu_council", ns=ns)
-        receipt = dag.emit("ayllu.council.proposal", {
-            "contract_version": contract.get("contract_version"),
-            "decision_state": contract.get("decision_state"),
-            "evidence_state": contract.get("evidence_state"),
-            "prompt_sha256": contract.get("prompt_sha256"),
-            "replay_key": (contract.get("replay") or {}).get("key"),
-        })
+        receipt = dag.emit("ayllu.council.proposal", payload)
         chain = dag.verify_chain()
         return {
             "state": "LIVE",
@@ -341,6 +496,7 @@ def _mint_council_chain(contract: Dict[str, Any], ns: str = "a11oy") -> Dict[str
             "chain_verified": bool(chain.get("ok")),
             "depth": dag.depth(),
             "persistence": "IN_MEMORY_RESETS_ON_RESTART",
+            "storage": _council_store_metadata(None, storage_meta),
         }
     except Exception as exc:
         return {
@@ -349,6 +505,7 @@ def _mint_council_chain(contract: Dict[str, Any], ns: str = "a11oy") -> Dict[str
             "receipt_id": None,
             "error": type(exc).__name__,
             "honesty": "Khipu append unavailable; no chain receipt fabricated.",
+            "storage": _council_store_metadata(None, storage_meta),
         }
 
 
@@ -384,6 +541,7 @@ select[multiple]{height:auto}
 textarea{resize:vertical;margin-bottom:8px}
 button{background:var(--teal);color:#04140f;border:0;border-radius:7px;padding:8px 16px;
 font-weight:700;cursor:pointer}
+button:disabled{cursor:wait;opacity:.55}
 button.mini{background:transparent;color:var(--teal);border:1px solid var(--line);padding:3px 9px;
 font-weight:600;font-size:12px}
 .hint{color:var(--dim);font-size:12px;margin:0 0 8px}
@@ -432,6 +590,21 @@ section[id]{scroll-margin-top:72px}
 .tgl{display:flex;gap:7px;align-items:center;color:var(--dim);font-size:13px;margin:0 0 8px}
 .tgl input{width:auto}
 .prov{color:var(--dim);font-size:11px;margin-top:14px;line-height:1.6}
+@media (max-width:720px){
+ main{padding:24px 14px}
+ .tb-wrap{padding:9px 14px;flex-wrap:nowrap}
+ .tb-brand{flex:0 0 auto}
+ .tb-nav{flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+ .tb-nav::-webkit-scrollbar{display:none}
+ .tb-nav a{flex:0 0 auto}
+ .card{padding:14px}
+ .row{display:grid;grid-template-columns:minmax(0,1fr)}
+ .row select,.row input{width:100%;min-width:0}
+ table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+ .meta{margin-left:0;width:100%}
+ section[id]{scroll-margin-top:58px}
+}
 </style></head><body>
 <header class="topbar"><div class="tb-wrap">
 <a class="tb-brand" href="/ayllu">Ayllu <span id="badge" class="badge">…</span></a>
@@ -446,13 +619,13 @@ section[id]{scroll-margin-top:72px}
 <section class="card" id="sec-ask">
   <h2>Ask a persona</h2>
   <div class="row">
-    <select id="persona"></select>
+    <select id="persona" aria-label="Persona"></select>
     <input id="difficulty" type="number" min="0" max="1" step="0.1"
-           placeholder="difficulty 0–1 (optional)">
+           placeholder="difficulty 0–1 (optional)" aria-label="Difficulty from zero to one">
   </div>
-  <textarea id="askprompt" rows="3" placeholder="Ask a persona…"></textarea>
+  <textarea id="askprompt" rows="3" placeholder="Ask a persona…" aria-label="Prompt for the selected persona"></textarea>
   <button id="askbtn">Ask</button>
-  <div id="askout" class="out"></div>
+  <div id="askout" class="out" aria-live="polite"></div>
 </section>
 
 <section class="card" id="sec-council">
@@ -465,12 +638,12 @@ section[id]{scroll-margin-top:72px}
   <p class="hint">Defaults to 3 core personas; select up to 5 (⌘/Ctrl-click). Fan-out is
   capped to protect cost. Debate mode runs exactly two bounded rounds
   (after arXiv:2305.14325) and is capped to 3 personas.</p>
-  <select id="councilsel" multiple size="6"></select>
+  <select id="councilsel" multiple size="6" aria-label="Council personas"></select>
   <label class="tgl"><input type="checkbox" id="debate">
   Debate mode — positions, then explicit dissent &amp; converge (2× cost)</label>
-  <textarea id="councilprompt" rows="3" placeholder="A question for the council…"></textarea>
+  <textarea id="councilprompt" rows="3" placeholder="A question for the council…" aria-label="Question for the council"></textarea>
   <button id="councilbtn">Convene</button>
-  <div id="councilout" class="out"></div>
+  <div id="councilout" class="out" aria-live="polite"></div>
 </section>
 
 <section class="card" id="sec-roster">
@@ -534,8 +707,12 @@ instilled knowledge (cited text in the system prompt); nothing here was "trained
 const NS="__NS__";
 const api = p => `/api/${NS}/v1/ayllu/`+p;
 const gapi = p => `/api/${NS}/v1/`+p;
-async function j(url,opts){const r=await fetch(url,opts);
-  let d={};try{d=await r.json();}catch(e){}return {ok:r.ok,status:r.status,data:d};}
+async function j(url,opts){
+  try{const r=await fetch(url,opts);let d={};
+    try{d=await r.json();}catch(e){}
+    return {ok:r.ok,status:r.status,data:d};
+  }catch(e){return {ok:false,status:'network',data:{error:'request unavailable'}};}
+}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,
   c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function hue(n){let h=0;for(const c of String(n))h=(h*31+c.charCodeAt(0))%360;return h;}
@@ -554,8 +731,14 @@ function renderTurn(t){
        + `<div class="ans">${ans}</div></div>`;
 }
 async function loadRoster(){
-  const {ok,data}=await j(api('roster'));
-  if(!ok)return;
+  const {ok,status,data}=await j(api('roster'));
+  if(!ok){
+    document.getElementById('count').textContent='—';
+    const badge=document.getElementById('badge');
+    badge.textContent='UNAVAILABLE';badge.className='badge warn';
+    badge.title='roster endpoint unavailable ('+String(status)+') — no live state fabricated';
+    return;
+  }
   document.getElementById('count').textContent=data.count;
   const b=data.backend||{}, badge=document.getElementById('badge'), mode=b.mode||'?';
   badge.textContent=mode.toUpperCase();
@@ -575,15 +758,17 @@ async function loadRoster(){
   document.querySelector('#roster tbody').innerHTML=rows.join('');
 }
 document.getElementById('askbtn').onclick=async()=>{
+  const btn=document.getElementById('askbtn');
   const persona=document.getElementById('persona').value;
   const prompt=document.getElementById('askprompt').value.trim();
   const d=document.getElementById('difficulty').value;
   const out=document.getElementById('askout');
   if(!prompt){out.innerHTML='<span class="err">enter a prompt</span>';return;}
-  out.textContent='…thinking';
+  out.textContent='…thinking';btn.disabled=true;out.setAttribute('aria-busy','true');
   const body={persona,prompt}; if(d!=='')body.difficulty=parseFloat(d);
   const {ok,status,data}=await j(api('ask'),{method:'POST',
     headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  btn.disabled=false;out.removeAttribute('aria-busy');
   if(!ok){out.innerHTML='<span class="err">'+esc(data.error||('HTTP '+status))+'</span>'
     +(data.retry_after_s?(' (retry in '+data.retry_after_s+'s)'):'');return;}
   const r=data.receipt||{}, sig=r.signed?'signed':'UNSIGNED';
@@ -591,15 +776,18 @@ document.getElementById('askbtn').onclick=async()=>{
     +`<div class="rcpt">receipt: ${sig} · ask ${esc(String(data.ask_id)).slice(0,8)}</div>`;
 };
 document.getElementById('councilbtn').onclick=async()=>{
+  const btn=document.getElementById('councilbtn');
   const prompt=document.getElementById('councilprompt').value.trim();
   const out=document.getElementById('councilout');
   if(!prompt){out.innerHTML='<span class="err">enter a prompt</span>';return;}
   const picks=[...document.getElementById('councilsel').selectedOptions].map(o=>o.value);
   const debate=document.getElementById('debate').checked;
   out.textContent=debate?'…convening (debate: 2 bounded rounds)':'…convening';
+  btn.disabled=true;out.setAttribute('aria-busy','true');
   const body={prompt}; if(picks.length)body.personas=picks; if(debate)body.debate=true;
   const {ok,status,data}=await j(api('council'),{method:'POST',
     headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  btn.disabled=false;out.removeAttribute('aria-busy');
   if(!ok){out.innerHTML='<span class="err">'+esc(data.error||('HTTP '+status))+'</span>'
     +(data.retry_after_s?(' (retry in '+data.retry_after_s+'s)'):'');return;}
   const res=data.result||{}, rounds=res.rounds||[], c=data.contract||{};
@@ -607,10 +795,10 @@ document.getElementById('councilbtn').onclick=async()=>{
   const r1=rounds.filter(t=>(t.round||1)===1), r2=rounds.filter(t=>t.round===2);
   const route=c.routing||{}, outer=data.receipt||{};
   const contract=`<div class="contract"><b>${esc(c.decision_state||'PROPOSAL_ONLY')}</b>`
-    +` Â· evidence ${esc(c.evidence_state||'UNKNOWN')}`
-    +` Â· human review ${c.human_checkpoint&&c.human_checkpoint.required?'REQUIRED':'UNKNOWN'}`
+    +` · evidence ${esc(c.evidence_state||'UNKNOWN')}`
+    +` · human review ${c.human_checkpoint&&c.human_checkpoint.required?'REQUIRED':'UNKNOWN'}`
     +`<br>Nemo: ${esc((route.experts_selected||[]).join(' + ')||route.state||'unavailable')}`
-    +` Â· route ${esc(route.state||'UNKNOWN')} Â· outer receipt ${outer.signed?'SIGNED':'UNSIGNED'}`
+    +` · route ${esc(route.state||'UNKNOWN')} · outer receipt ${outer.signed?'SIGNED':'UNSIGNED'}`
     +`<br>replay ${esc((c.replay&&c.replay.key)||'unavailable')}`
     +`<br>semantic consensus: ${esc((c.semantic_consensus&&c.semantic_consensus.state)||'NOT_MEASURED')}`
     +`</div>`;
@@ -706,6 +894,13 @@ def register(app, ns: str = "a11oy") -> str:
     from fastapi import Request
     from fastapi.responses import HTMLResponse, JSONResponse
 
+    council_store, council_storage = _open_council_store(ns)
+    try:
+        app.state.ayllu_council_khipu = council_store
+        app.state.ayllu_council_khipu_storage = council_storage
+    except Exception:
+        pass
+
     def _runtime_signer(request: "Request"):
         """Resolve the host signer lazily: Ayllu registers before serve.py creates it."""
         try:
@@ -727,7 +922,9 @@ def register(app, ns: str = "a11oy") -> str:
         })
 
     async def _council_manifest(request: "Request") -> "JSONResponse":
-        return JSONResponse(council_manifest(ns))
+        storage = getattr(request.app.state, "ayllu_council_khipu_storage",
+                          council_storage)
+        return JSONResponse(council_manifest(ns, storage))
 
     async def _ask(request: "Request") -> "JSONResponse":
         ok, retry = _ASK_BUCKET.check()
@@ -763,7 +960,12 @@ def register(app, ns: str = "a11oy") -> str:
             return JSONResponse(
                 {"error": "'difficulty' must be a number between 0 and 1"},
                 status_code=422)
-        turn = await run_turn(p, prompt, model_complete=_backend.model_complete,
+        async def _ask_complete(**kwargs):
+            return await _backend.model_complete(
+                **kwargs, max_tokens=ASK_MAX_TOKENS,
+                timeout_s=ASK_TURN_TIMEOUT_S)
+
+        turn = await run_turn(p, prompt, model_complete=_ask_complete,
                               difficulty=difficulty)
         ask_id = str(uuid.uuid4())
         receipt = _make_receipt({
@@ -825,16 +1027,24 @@ def register(app, ns: str = "a11oy") -> str:
             return JSONResponse(
                 {"error": "no known personas in request",
                  "known": [x.name for x in ROSTER]}, status_code=422)
-        result = await _LOUNGE.deliberate(prompt, personas,
-                                          model_complete=_backend.model_complete,
-                                          debate=debate)
+        async def _council_complete(**kwargs):
+            return await _backend.model_complete(
+                **kwargs, max_tokens=COUNCIL_MAX_TOKENS,
+                timeout_s=COUNCIL_TURN_TIMEOUT_S)
+
+        result = await _LOUNGE.deliberate(
+            prompt, personas, model_complete=_council_complete, debate=debate)
         if cap_note:
             result["cap_note"] = cap_note
         council_id = str(uuid.uuid4())
         signer = _runtime_signer(request)
         nemo_route = _nemo_council_route(prompt, sign_fn=signer)
         contract = _build_council_contract(prompt, result, nemo_route)
-        contract["chain"] = _mint_council_chain(contract, ns=ns)
+        store = getattr(request.app.state, "ayllu_council_khipu", council_store)
+        storage = getattr(request.app.state, "ayllu_council_khipu_storage",
+                          council_storage)
+        contract["chain"] = _mint_council_chain(
+            contract, ns=ns, store=store, storage_meta=storage)
         receipt_body = {
             "council_id": council_id,
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
@@ -886,5 +1096,7 @@ def register(app, ns: str = "a11oy") -> str:
         f"ok — ayllu registered: {len(ROSTER)} personas; live model backend "
         f"({_backend.backend_status().get('mode')}); bounded-autonomy Λ-gate; "
         f"/ayllu + /api/{ns}/v1/ayllu/roster|ask|council|lounge; "
-        f"debate-mode council; version={__version__}"
+        f"debate-mode council; council_khipu={council_storage.get('backend')} "
+        f"(process_restart_durable={council_storage.get('durable')}, "
+        f"redeploy=NOT_VERIFIED); version={__version__}"
     )
