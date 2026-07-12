@@ -10574,6 +10574,40 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
+# /killinchu — canonical path bridge. Without an explicit route this path falls
+# through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
+# bridge server-side so it works without JavaScript at every mobile viewport,
+# and preserve subpaths/query strings for direct links into the live product.
+_KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
+
+
+async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
+    suffix = f"/{full_path}" if full_path else "/"
+    target = f"{_KILLINCHU_CANONICAL}{suffix}"
+    if request.url.query:
+        target = f"{target}?{request.url.query}"
+    response = _PTG_Redirect(url=target, status_code=307)
+    response.headers["X-SZL-Route-State"] = "CANONICAL_REDIRECT"
+    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL}/>; rel="canonical"'
+    return response
+
+
+for _killinchu_path in ("/killinchu", "/killinchu/"):
+    app.add_api_route(
+        _killinchu_path,
+        _killinchu_redirect,
+        methods=["GET"],
+        include_in_schema=False,
+    )
+
+app.add_api_route(
+    "/killinchu/{full_path:path}",
+    _killinchu_redirect,
+    methods=["GET"],
+    include_in_schema=False,
+)
+
+
 # /estate-hologram — Unified Estate Hologram. web/estate-hologram.html is already
 # baked (Dockerfile COPY) but lacked a route -> soft-404'd to the SPA shell.
 @app.get("/estate-hologram")
@@ -13242,4 +13276,3 @@ if __name__ == "__main__":
     # middleware additionally stamps a neutral `Server: szl` token. Defense in
     # depth, no behavior change.
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", server_header=False)
-
