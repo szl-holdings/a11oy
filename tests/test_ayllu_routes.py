@@ -14,6 +14,11 @@ A route-*presence* test (see test_demo_critical_routes.py) cannot catch this: th
 route IS registered, it just returns 422 instead of running. So this guard boots
 the ayllu routes on a bare app and exercises them for real (no mocks, no network).
 """
+import asyncio
+import sys
+import time
+from types import SimpleNamespace
+
 import pytest
 
 pytest.importorskip("fastapi")
@@ -23,6 +28,7 @@ from fastapi import FastAPI  # noqa: E402
 from starlette.testclient import TestClient  # noqa: E402
 
 import a11oy_ayllu  # noqa: E402
+from ayllu import backend as ayllu_backend  # noqa: E402
 
 
 def _client() -> TestClient:
@@ -54,6 +60,10 @@ def test_page_and_lounge_are_200():
     # it is reachable both ways — its own space, cleanly linked, not embedded.
     assert 'href="/console"' in page.text, (
         "The /ayllu page must link back to the command centre (/console).")
+    assert "Â·" not in page.text, "Council output must not ship mojibake separators."
+    assert "@media (max-width:720px)" in page.text
+    assert 'id="councilout" class="out" aria-live="polite"' in page.text
+    assert "data:{error:'request unavailable'}" in page.text
     lr = c.get("/api/a11oy/v1/ayllu/lounge")
     assert lr.status_code == 200
     assert "recent" in lr.json()
@@ -74,3 +84,122 @@ def test_ask_unknown_persona_is_404():
     r = _client().post(
         "/api/a11oy/v1/ayllu/ask", json={"persona": "nobody", "prompt": "hi"})
     assert r.status_code == 404
+
+
+def test_council_contract_never_promotes_model_text_to_verified_truth():
+    result = {
+        "participants": ["Amaru"],
+        "mode": "single-round",
+        "rounds": [{
+            "persona": "Amaru", "round": 1, "model": "szl-sovereign:latest",
+            "stub": False, "answer": "a model claim", "energy_receipt": None,
+        }],
+    }
+    contract = a11oy_ayllu._build_council_contract(
+        "review this", result, {"state": "LIVE", "receipt": None})
+    assert contract["decision_state"] == "PROPOSAL_ONLY"
+    assert contract["correctness_state"] == "NOT_VERIFIED"
+    assert contract["turn_evidence"][0]["correctness_state"] == "UNVERIFIED_MODEL_OUTPUT"
+    assert contract["semantic_consensus"]["state"] == "NOT_MEASURED"
+
+
+def test_council_fanout_uses_bounded_tokens_and_one_parallel_deadline(monkeypatch):
+    calls = []
+
+    async def fake_complete(*_args, **kwargs):
+        calls.append({"kwargs": kwargs, "started": time.monotonic()})
+        await asyncio.sleep(0.05)
+        return {"text": "proposal", "model": "test", "stub": False,
+                "timeout": False, "token_budget": kwargs["max_tokens"],
+                "timeout_s": kwargs["timeout_s"]}
+
+    monkeypatch.setattr(a11oy_ayllu._backend, "model_complete", fake_complete)
+    a11oy_ayllu._COUNCIL_BUCKET._hits.clear()
+    response = _client().post("/api/a11oy/v1/ayllu/council", json={
+        "prompt": "Bound this review",
+        "personas": ["Amaru", "Kamachiq", "Qhatuq"],
+        "debate": False,
+    })
+    assert response.status_code == 200
+    assert len(calls) == 3
+    assert {c["kwargs"]["max_tokens"] for c in calls} == {
+        a11oy_ayllu.COUNCIL_MAX_TOKENS}
+    assert {c["kwargs"]["timeout_s"] for c in calls} == {
+        a11oy_ayllu.COUNCIL_TURN_TIMEOUT_S}
+    started = [c["started"] for c in calls]
+    assert max(started) - min(started) < 0.03, (
+        "independent council turns should start as concurrent bounded fan-out")
+    limits = response.json()["contract"]["limits"]
+    assert limits["round_fanout"] == "CONCURRENT_BOUNDED"
+    assert limits["tokens_per_turn_max"] == a11oy_ayllu.COUNCIL_MAX_TOKENS
+
+
+def test_backend_timeout_cancels_turn_and_fabricates_no_answer(monkeypatch):
+    cancelled = {"value": False}
+
+    async def slow_complete(*_args, **_kwargs):
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled["value"] = True
+            raise
+
+    monkeypatch.setitem(
+        sys.modules, "a11oy_code_orchestrator",
+        SimpleNamespace(agent_model_complete=slow_complete))
+    result = asyncio.run(ayllu_backend.model_complete(
+        "system", "prompt", max_tokens=77, timeout_s=0.02))
+    assert cancelled["value"] is True
+    assert result["timeout"] is True
+    assert result["stub"] is True
+    assert result["model"] == "timeout"
+    assert result["text"] is None
+    assert result["token_budget"] == 77
+    assert "no answer was fabricated" in result["honesty"]
+
+
+def test_council_khipu_survives_process_store_reopen(monkeypatch, tmp_path):
+    """Council proposals append to the same verified SQLite chain after reopen.
+
+    This proves local process-restart persistence only. The response must continue
+    to label redeploy durability NOT_VERIFIED because no persistent production
+    mount is demonstrated by this test.
+    """
+    db_path = tmp_path / "ayllu-council.sqlite3"
+    monkeypatch.setenv("A11OY_AYLLU_KHIPU_PATH", str(db_path))
+
+    async def fake_complete(*_args, **kwargs):
+        return {"text": "bounded proposal", "model": "test", "stub": False,
+                "timeout": False, "token_budget": kwargs["max_tokens"],
+                "timeout_s": kwargs["timeout_s"]}
+
+    monkeypatch.setattr(a11oy_ayllu._backend, "model_complete", fake_complete)
+    monkeypatch.setattr(
+        a11oy_ayllu, "_nemo_council_route",
+        lambda *_args, **_kwargs: {
+            "state": "UNAVAILABLE", "receipt": None,
+            "honesty": "test does not claim a Nemo model route",
+        })
+
+    def convene():
+        app = FastAPI()
+        a11oy_ayllu.register(app, ns="restarttest")
+        a11oy_ayllu._COUNCIL_BUCKET._hits.clear()
+        response = TestClient(app).post(
+            "/api/restarttest/v1/ayllu/council",
+            json={"prompt": "audit this", "personas": ["Amaru"]})
+        assert response.status_code == 200
+        return response.json()
+
+    first = convene()
+    second = convene()  # new app + newly-opened DurableKhipu over the same path
+
+    first_chain = first["contract"]["chain"]
+    second_chain = second["contract"]["chain"]
+    assert first_chain["storage"]["backend"] == "sqlite"
+    assert first_chain["storage"]["survives_process_restart"] is True
+    assert first_chain["storage"]["survives_redeploy"] == "NOT_VERIFIED"
+    assert first_chain["seq"] == 0
+    assert second_chain["seq"] == 1
+    assert second_chain["depth"] == 2
+    assert second_chain["chain_verified"] is True
