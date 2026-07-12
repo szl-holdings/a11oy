@@ -8,18 +8,19 @@
      /static/3d/vendor/... importmap below (see VENDOR_MANIFEST.md). System fonts only.
 
      This page is a SELF-CONTAINED, MOLDABLE 3D brain of the SZL Holdings estate.
-     Eight lobes are wired to eight LIVE public reads, fetched client-side on load:
+     Eight lobes are wired to one same-origin evidence contract. On each request the
+     server performs fixed-allowlist, read-only, timeout + byte-bounded public reads:
        · Models / Datasets / Spaces / Collections — Hugging Face Hub API (SZLHOLDINGS)
        · Repositories — GitHub REST API (org szl-holdings)
-       · Proved formulas — the ProvedFormulas.lean source file, fetched raw from the
-         szl-holdings/a11oy repository and its `theorem` declarations counted in-browser.
+       · Proved formulas — a commit-pinned ProvedFormulas.lean artifact, fetched
+         server-side, SHA-256 verified, then counted for `theorem` declarations.
        · Fleet vitals — live /healthz probes of the organ Spaces (a11oy · killinchu ·
          anatomy · amaru · sentra), each answer is that organ's own, right now.
        · Open frontier — live Hub counts of the open-weights orgs the a11oy backbone
          is built to route to (DeepSeek · Qwen · Kimi/Moonshot) plus GLM/Z.ai (watched).
      Every number on screen is MEASURED from those live reads (a real 0 stays 0) or
      UNKNOWN where the source exposes none; an unreachable feed degrades to an honest
-     NO-LIVE-DATA state. Nothing is ever fabricated.
+     NO-LIVE-DATA state. There is no stale cache or hidden fallback. Nothing is fabricated.
 
      MOLDING is a local, display-only sculpt: dragging in Mold mode displaces mesh
      vertices on YOUR device only. It never changes, and can never change, any
@@ -65,6 +66,11 @@
  #hud .row .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 7px currentColor;flex:0 0 auto}
  #hud .row .right{display:flex;align-items:center;gap:6px}
  #hud .row .val{color:#eef3f6}
+ #hud .attestation{display:block;color:#9fb1bf;font-size:9.5px;line-height:1.45;padding:5px 7px;
+  margin:-2px 0 1px 16px;border-left:2px solid #375464;background:rgba(8,20,15,.58);
+  overflow-wrap:anywhere;word-break:break-word}
+ #hud .attestation[data-state="VERIFIED"]{color:var(--proof);border-left-color:var(--proof)}
+ #hud .attestation[data-state="UNAVAILABLE"]{color:#e08a8a;border-left-color:#e08a8a}
  #hud .note{color:#6d7d8a;font-size:10.5px;line-height:1.45;margin-top:2px;border-top:1px solid #15212c;padding-top:6px}
  #hud .plainbtn{font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid var(--proof);
   background:#08140f;color:var(--proof);cursor:pointer;width:fit-content;margin-top:2px}
@@ -125,7 +131,7 @@
 </div>
 <div id="surface-caption" title=""></div>
 <footer>Doctrine v11 · Λ = Conjecture 1 · eight lobes wired live: Hugging Face Hub (SZLHOLDINGS + open-frontier orgs) ·
- GitHub org (szl-holdings) · ProvedFormulas.lean counted in-browser from raw source · organ /healthz vitals ·
+ GitHub org (szl-holdings) · ProvedFormulas.lean counted through a same-origin bounded evidence route · organ /healthz vitals ·
  every count MEASURED or honestly UNKNOWN / NO-LIVE-DATA · sculpting is local + display-only ·
  0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</footer>
 
@@ -136,16 +142,16 @@ import * as label from "/static/3d/szl3d/szl3d_label.js";
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
-// Doctrine v11 (binding): WIRE TO LIVE DATA. Eight lobes = eight live public reads.
+// Doctrine v11 (binding): WIRE TO LIVE DATA. Eight lobes = one same-origin
+// evidence contract backed by fixed, bounded, read-only public observations.
 // Every value is MEASURED from a live read (a real 0 stays 0), or UNKNOWN where
 // the source exposes none. A failed feed shows NO-LIVE-DATA, never a guess.
 // Molding is a local display-only sculpt — it cannot alter any measured value.
 // ---------------------------------------------------------------------------
 
-const HF_API = "https://huggingface.co/api";
 const HF_ORG = "SZLHOLDINGS";
 const GH_ORG = "szl-holdings";
-const LEAN_RAW = "https://raw.githubusercontent.com/szl-holdings/a11oy/main/proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean";
+const BRAIN_EVIDENCE = "/api/a11oy/v1/holographic/brain/evidence";
 
 // Palette accents (doctrine-safe — NEVER purple). One per lobe.
 const COL = {
@@ -161,54 +167,65 @@ const COL = {
   wire: 0x2a8f86,
 };
 
-function numOr(x) {
-  if (x === null || x === undefined) return null;
-  const n = typeof x === "number" ? x : Number(x);
-  return Number.isFinite(n) ? n : null;
-}
-
 // Each lobe: a fixed anatomical direction on the cortex + one live read.
 // `fetchStat` returns { text, honesty, caption } — resolved independently so a
 // single failing feed only degrades its own lobe.
-const PAGE_CAP = 100;
-function capText(n) { return n >= PAGE_CAP ? PAGE_CAP + "+ (page cap — lower bound)" : String(n); }
-function capHonesty(n) { return n >= PAGE_CAP ? "STRUCTURAL-ONLY" : "MEASURED"; }
-
-async function getJSON(url) {
-  // 10s abort: a hung request must degrade to NO-LIVE-DATA, never hang at "…".
-  const r = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+async function getEvidence() {
+  // One same-origin browser read. The server performs a fixed-allowlist, read-only,
+  // timeout + byte-bounded observation. There is no last-good or hidden fallback.
+  const r = await fetch(BRAIN_EVIDENCE, {
+    headers: { accept: "application/json" }, cache: "no-store",
+    signal: AbortSignal.timeout(12000),
+  });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const j = await r.json();
-  if (!Array.isArray(j)) throw new Error("unexpected payload");
+  if (!j || j.schema !== "a11oy.holographic.brain-evidence.v1" || !j.lobes) {
+    throw new Error("unexpected evidence payload");
+  }
   return j;
+}
+const EVIDENCE = getEvidence();
+
+function requireLive(evidence, key) {
+  const lobe = evidence.lobes && evidence.lobes[key];
+  if (!lobe || lobe.state !== "LIVE") {
+    throw new Error((lobe && lobe.reason) || "source unavailable");
+  }
+  return lobe;
+}
+
+function countText(lobe) {
+  return lobe.lower_bound ? lobe.count + "+ (page cap — lower bound)" : String(lobe.count);
 }
 
 const LOBES = [
   {
     key: "formulas", name: "Frontal — proved formulas", color: COL.formulas,
-    dir: [0, 0.55, 0.95], url: "https://github.com/" + GH_ORG + "/a11oy/blob/main/proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean",
+    dir: [0, 0.55, 0.95], url: "https://github.com/" + GH_ORG + "/a11oy/blob/22b084d4a74abb4d5911ca9dc303c35d222bd284/proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean",
     fetchStat: async () => {
-      // Count `theorem` declarations in the live source bytes — a real in-browser
-      // measurement of the file as it exists on main right now.
-      const r = await fetch(LEAN_RAW, { signal: AbortSignal.timeout(10000) });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const src = await r.text();
-      const n = (src.match(/(^|\n)\s*theorem\s/g) || []).length;
+      const s = requireLive(await EVIDENCE, "formulas");
+      if (s.integrity_state !== "VERIFIED" || s.mutable_reference !== false ||
+          !/^[0-9a-f]{40}$/.test(s.source_commit || "") ||
+          !/^[0-9a-f]{64}$/.test(s.content_sha256 || "")) {
+        throw new Error("formula integrity contract incomplete");
+      }
+      const n = s.theorem_count;
       return { text: n + " theorems", honesty: "MEASURED",
-        caption: "Frontal lobe · " + n + " `theorem` declarations counted in-browser from the live " +
-          "ProvedFormulas.lean source on main · MEASURED (raw.githubusercontent.com) · click to read the proofs" };
+        attestation: "proof artifact · immutable commit " + s.source_commit +
+          " · SHA-256 " + s.content_sha256 + " · " + s.integrity_state,
+        caption: "Frontal lobe · " + n + " `theorem` declarations counted server-side from a commit-pinned " +
+          "ProvedFormulas.lean artifact · SHA-256 " + s.content_sha256.slice(0, 12) + "… VERIFIED · " +
+          "MEASURED via same-origin bounded evidence route · click to read the pinned proofs" };
     },
   },
   {
     key: "models", name: "Parietal — models", color: COL.models,
     dir: [0.55, 0.85, -0.15], url: "https://huggingface.co/" + HF_ORG,
     fetchStat: async () => {
-      const j = await getJSON(HF_API + "/models?author=" + HF_ORG + "&limit=" + PAGE_CAP + "&full=false");
-      let dl = 0, dlKnown = true;
-      j.forEach((m) => { const d = numOr(m.downloads); if (d === null) dlKnown = false; else dl += d; });
-      return { text: capText(j.length), honesty: capHonesty(j.length),
-        caption: "Parietal lobe · " + capText(j.length) + " models on the live Hub · " +
-          (dlKnown ? "Σ " + dl.toLocaleString() + " downloads · MEASURED (live Hub)" : "some download counts UNKNOWN") +
+      const s = requireLive(await EVIDENCE, "models");
+      return { text: countText(s), honesty: s.lower_bound ? "STRUCTURAL-ONLY" : "MEASURED",
+        caption: "Parietal lobe · " + countText(s) + " models on the live Hub · " +
+          (s.downloads_sum_known ? "Σ " + s.downloads_sum.toLocaleString() + " downloads · MEASURED (live Hub)" : "some download counts UNKNOWN") +
           " · click to open " + HF_ORG + " on Hugging Face" };
     },
   },
@@ -216,12 +233,10 @@ const LOBES = [
     key: "datasets", name: "Temporal L — datasets", color: COL.datasets,
     dir: [-0.95, -0.05, 0.15], url: "https://huggingface.co/" + HF_ORG + "?tab=datasets" ,
     fetchStat: async () => {
-      const j = await getJSON(HF_API + "/datasets?author=" + HF_ORG + "&limit=" + PAGE_CAP + "&full=false");
-      let dl = 0, dlKnown = true;
-      j.forEach((d) => { const n = numOr(d.downloads); if (n === null) dlKnown = false; else dl += n; });
-      return { text: capText(j.length), honesty: capHonesty(j.length),
-        caption: "Left temporal lobe · " + capText(j.length) + " datasets on the live Hub · " +
-          (dlKnown ? "Σ " + dl.toLocaleString() + " downloads · MEASURED (live Hub)" : "some download counts UNKNOWN") +
+      const s = requireLive(await EVIDENCE, "datasets");
+      return { text: countText(s), honesty: s.lower_bound ? "STRUCTURAL-ONLY" : "MEASURED",
+        caption: "Left temporal lobe · " + countText(s) + " datasets on the live Hub · " +
+          (s.downloads_sum_known ? "Σ " + s.downloads_sum.toLocaleString() + " downloads · MEASURED (live Hub)" : "some download counts UNKNOWN") +
           " · click to open the datasets" };
     },
   },
@@ -229,12 +244,10 @@ const LOBES = [
     key: "spaces", name: "Temporal R — Spaces", color: COL.spaces,
     dir: [0.95, -0.05, 0.15], url: "https://huggingface.co/" + HF_ORG + "?tab=spaces",
     fetchStat: async () => {
-      const j = await getJSON(HF_API + "/spaces?author=" + HF_ORG + "&limit=" + PAGE_CAP + "&full=false");
-      let likes = 0, lKnown = true;
-      j.forEach((s) => { const n = numOr(s.likes); if (n === null) lKnown = false; else likes += n; });
-      return { text: capText(j.length), honesty: capHonesty(j.length),
-        caption: "Right temporal lobe · " + capText(j.length) + " live Spaces · " +
-          (lKnown ? "Σ " + likes.toLocaleString() + " likes · MEASURED (live Hub)" : "some like counts UNKNOWN") +
+      const s = requireLive(await EVIDENCE, "spaces");
+      return { text: countText(s), honesty: s.lower_bound ? "STRUCTURAL-ONLY" : "MEASURED",
+        caption: "Right temporal lobe · " + countText(s) + " live Spaces · " +
+          (s.likes_sum_known ? "Σ " + s.likes_sum.toLocaleString() + " likes · MEASURED (live Hub)" : "some like counts UNKNOWN") +
           " · Space downloads: UNKNOWN (Hub exposes none) · click to open the Spaces" };
     },
   },
@@ -242,9 +255,10 @@ const LOBES = [
     key: "collections", name: "Occipital — collections", color: COL.collections,
     dir: [0, 0.35, -1], url: "https://huggingface.co/" + HF_ORG,
     fetchStat: async () => {
-      const j = await getJSON(HF_API + "/collections?owner=" + HF_ORG + "&limit=" + PAGE_CAP);
-      return { text: capText(j.length), honesty: capHonesty(j.length),
-        caption: "Occipital lobe · " + capText(j.length) + " curated collections on the live Hub · " + capHonesty(j.length) + " · " +
+      const s = requireLive(await EVIDENCE, "collections");
+      const honesty = s.lower_bound ? "STRUCTURAL-ONLY" : "MEASURED";
+      return { text: countText(s), honesty,
+        caption: "Occipital lobe · " + countText(s) + " curated collections on the live Hub · " + honesty + " · " +
           "click to open " + HF_ORG };
     },
   },
@@ -252,12 +266,10 @@ const LOBES = [
     key: "repos", name: "Cerebellum — repositories", color: COL.repos,
     dir: [0, -0.75, -0.75], url: "https://github.com/" + GH_ORG,
     fetchStat: async () => {
-      const j = await getJSON("https://api.github.com/orgs/" + GH_ORG + "/repos?per_page=" + PAGE_CAP + "&type=public");
-      let stars = 0, sKnown = true;
-      j.forEach((r) => { const n = numOr(r.stargazers_count); if (n === null) sKnown = false; else stars += n; });
-      return { text: capText(j.length), honesty: capHonesty(j.length),
-        caption: "Cerebellum · " + capText(j.length) + " public repositories in the live GitHub org · " +
-          (sKnown ? "Σ " + stars.toLocaleString() + " stars · MEASURED (GitHub API)" : "some star counts UNKNOWN") +
+      const s = requireLive(await EVIDENCE, "repos");
+      return { text: countText(s), honesty: s.lower_bound ? "STRUCTURAL-ONLY" : "MEASURED",
+        caption: "Cerebellum · " + countText(s) + " public repositories in the live GitHub org · " +
+          (s.stargazers_count_sum_known ? "Σ " + s.stargazers_count_sum.toLocaleString() + " stars · MEASURED (GitHub API)" : "some star counts UNKNOWN") +
           " · click to open github.com/" + GH_ORG };
     },
   },
@@ -265,23 +277,10 @@ const LOBES = [
     key: "fleet", name: "Brainstem — fleet vitals", color: COL.fleet,
     dir: [0, -0.92, 0.05], url: "https://huggingface.co/" + HF_ORG,
     fetchStat: async () => {
-      // Live /healthz probes of the organ Spaces — each value is that organ's OWN
-      // answer, fetched right now. A 404 means "no health endpoint exposed", which
-      // is reported as exactly that — never claimed as up OR down.
-      const ORGANS = ["a11oy", "killinchu", "anatomy", "amaru", "sentra"];
-      const results = await Promise.all(ORGANS.map(async (o) => {
-        try {
-          const r = await fetch("https://szlholdings-" + o + ".hf.space/healthz",
-            { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000) });
-          if (!r.ok) return { o, state: "no /healthz (HTTP " + r.status + ")", up: false };
-          const j = await r.json();
-          return { o, state: (j && j.status) ? String(j.status) : "unknown payload", up: !!(j && j.status === "ok") };
-        } catch (_) { return { o, state: "unreachable", up: false }; }
-      }));
-      const up = results.filter((r) => r.up).length;
-      return { text: up + "/" + ORGANS.length + " organs report ok", honesty: "MEASURED",
-        caption: "Brainstem · live /healthz probes made from your browser just now — " +
-          results.map((r) => r.o + ": " + (r.up ? "ok" : r.state)).join(" · ") +
+      const s = requireLive(await EVIDENCE, "fleet");
+      return { text: s.up_count + "/" + s.organ_count + " organs report ok", honesty: "MEASURED",
+        caption: "Brainstem · live /healthz probes made by the same-origin bounded evidence route — " +
+          s.organs.map((r) => r.organ + ": " + (r.up ? "ok" : r.health_state)).join(" · ") +
           " · MEASURED (each value is that organ's own live answer; a missing endpoint is said, not guessed)" };
     },
   },
@@ -289,22 +288,13 @@ const LOBES = [
     key: "frontier", name: "R frontal — open frontier", color: COL.frontier,
     dir: [0.7, 0.45, 0.62], url: "https://huggingface.co/deepseek-ai",
     fetchStat: async () => {
-      // The open-weights orgs the multi-provider backbone is built to route to
-      // (DeepSeek, Qwen, Kimi/Moonshot are wired providers; GLM/Z.ai is watched).
-      // Counted live from the public Hub — page cap makes totals honest lower bounds.
-      const ORGS = ["deepseek-ai", "Qwen", "moonshotai", "zai-org"];
-      const counts = await Promise.all(ORGS.map(async (a) => {
-        const j = await getJSON(HF_API + "/models?author=" + a + "&limit=" + PAGE_CAP + "&full=false");
-        return { a, n: j.length };
-      }));
-      let total = 0, capped = false;
-      counts.forEach((c) => { total += c.n; if (c.n >= PAGE_CAP) capped = true; });
-      return { text: (capped ? "\u2265 " + total : String(total)) + " open models",
-        honesty: capped ? "STRUCTURAL-ONLY" : "MEASURED",
+      const s = requireLive(await EVIDENCE, "frontier");
+      return { text: (s.lower_bound ? "\u2265 " + s.count : String(s.count)) + " open models",
+        honesty: s.data_label,
         caption: "Right frontal · the open-weights frontier harnessed by the a11oy backbone " +
           "(DeepSeek · Qwen · Kimi/Moonshot — wired providers · GLM/Z.ai — watched) · " +
-          counts.map((c) => c.a + ": " + (c.n >= PAGE_CAP ? PAGE_CAP + "+" : c.n)).join(" · ") +
-          " · counted live from the public Hub (page cap " + PAGE_CAP + "/org \u2014 lower bound)" };
+          s.sources.map((c) => c.org + ": " + c.count_display).join(" · ") +
+          " · counted live from the public Hub via same-origin bounded evidence (page cap 100/org — lower bound when capped)" };
     },
   },
 ];
@@ -582,12 +572,29 @@ function buildHud() {
     hud[key] = { val, chip };
   };
 
-  LOBES.forEach((l) => mkRow(l.key, l.name, l.color));
+  LOBES.forEach((l) => {
+    mkRow(l.key, l.name, l.color);
+    if (l.key === "formulas") {
+      const proof = document.createElement("a");
+      proof.id = "formula-attestation";
+      proof.className = "attestation";
+      proof.href = l.url;
+      proof.target = "_blank";
+      proof.rel = "noopener";
+      proof.setAttribute("aria-live", "polite");
+      proof.dataset.state = "PENDING";
+      proof.textContent = "proof artifact · integrity verification pending…";
+      proof.title = "Open the immutable formula source artifact";
+      hudEl.appendChild(proof);
+      hud[l.key].attestation = proof;
+    }
+  });
 
   const note = document.createElement("div");
   note.className = "note";
-  note.textContent = "Each lobe is one live public read (Hugging Face Hub, GitHub API, the raw " +
-    "ProvedFormulas.lean source counted in-browser, or the organs' own /healthz answers). " +
+  note.textContent = "Each lobe is one live public observation (Hugging Face Hub, GitHub API, the raw " +
+    "ProvedFormulas.lean source, or the organs' own /healthz answers), exposed to this page through one " +
+    "same-origin, fixed-allowlist, bounded read-only evidence contract with no stale fallback. " +
     "Every count is MEASURED from that read (a real 0 stays 0); " +
     "UNKNOWN where the source exposes none; NO-LIVE-DATA if a feed is unreachable. Molding the cortex is a " +
     "local, display-only sculpt — it never changes a measured number. Nothing is fabricated. \u039b = Conjecture 1.";
@@ -620,6 +627,14 @@ function setRow(key, text, honesty) {
   if (!r) return;
   r.val.textContent = text;
   label.updateChip(r.chip, honesty);
+}
+
+function setFormulaAttestation(text, state) {
+  const proof = hud.formulas && hud.formulas.attestation;
+  if (!proof) return;
+  proof.textContent = text;
+  proof.dataset.state = state;
+  proof.title = text;
 }
 
 // ---------------------------------------------------------------------------
@@ -685,6 +700,7 @@ async function main() {
     try {
       const s = await lobe.fetchStat();
       setRow(lobe.key, s.text, s.honesty);
+      if (lobe.key === "formulas") setFormulaAttestation(s.attestation, "VERIFIED");
       refreshLobeLabel(lobe.key, s.honesty, lobe.name + " \u00b7 " + s.text);
       const lm = lobeMarkers[lobe.key];
       if (lm) lm.marker.userData.caption = s.caption;
@@ -693,6 +709,9 @@ async function main() {
     } catch (e) {
       console.warn("[brain] " + lobe.key + " unavailable:", e && e.message);
       setRow(lobe.key, "NO-LIVE-DATA", "STRUCTURAL-ONLY");
+      if (lobe.key === "formulas") {
+        setFormulaAttestation("proof artifact · integrity UNAVAILABLE · no theorem count trusted", "UNAVAILABLE");
+      }
       refreshLobeLabel(lobe.key, "STRUCTURAL-ONLY", lobe.name + " \u00b7 NO-LIVE-DATA");
       const lm = lobeMarkers[lobe.key];
       if (lm) lm.marker.userData.caption = lobe.name + " \u00b7 NO-LIVE-DATA \u2014 this feed is unreachable right now; nothing is guessed in its place.";
