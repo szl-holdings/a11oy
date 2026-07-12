@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 //
-// surfaces/atlas.js — THE ATLAS (SZL, Wave 27, the 68th surface: the unifying front door).
+// surfaces/atlas.js — THE ATLAS (the unifying, registry-aligned front door).
 //
-// A single holographic overview that shows the WHOLE 67-surface holographic estate as ONE
+// A single holographic overview that shows the WHOLE canonical holographic registry as ONE
 // organism, mapped by the Flower Brain's 8 real clusters (the ecosystem's own taxonomy). The
 // still, luminous CENTER is the KERNEL PISTIL — the machine-proven locked-8
 // {F1,F4,F7,F11,F12,F18,F19,F22} (lutar-lean kernel c7c0ba17) — the immutable heart that never
 // grows. Eight labeled cluster regions radiate out at 45° intervals: PROVEN CORE, VERIFIED,
-// EXPERIMENTAL, UNIFIED, OUROBOROS, SURFACES (the big one, 58), MEMORY & PROVENANCE (9), and
+// EXPERIMENTAL, UNIFIED, OUROBOROS, SURFACES, MEMORY & PROVENANCE, and
 // CONJECTURES (GRAY, never green). Each cluster holds its member surfaces as nodes; the kernel
 // clusters carry the flower's kernel objects instead of surfaces. Hover a node -> the surface
 // title + its HONEST label (MODELED / STRUCTURAL-ONLY / ROADMAP / MEASURED — rendered by the
@@ -20,11 +20,11 @@
 // taxonomy source is the Flower Brain (szl_kc_flower.py). The LAYOUT is MODELED — a
 // deterministic, honest drawing read VERBATIM from /api/a11oy/v1/atlas/{map,organism}. The
 // honesty label "MODELED" is shown as-is and is never upgraded. Unification by CARTOGRAPHY:
-// this gives the flat 67-tab wall a spine without removing a single surface.
+// this gives the evolving tab wall a spine without removing a single surface.
 //
 // HARD INVARIANTS (Doctrine v11):
 //   * clusters = EXACTLY 8. locked-core = EXACTLY 8 (the pistil never grows).
-//   * coverage 1.0 — every one of the 67 surfaces is classified into exactly one cluster.
+//   * coverage is measured against szl3d_holographic.SURFACES; denominator + digest are shown.
 //   * CONJECTURE cluster renders GREY (0x5a6570), visibly dim, NEVER green.
 //   * honest label mix rendered by real label (MODELED / STRUCTURAL-ONLY / ROADMAP / MEASURED),
 //     not painted uniform.
@@ -43,6 +43,8 @@ const TITLE = "Atlas";
 // Live endpoints — same convention as loopforge.js (same-origin a11oy namespace).
 const EP_MAP      = "/api/a11oy/v1/atlas/map";
 const EP_ORGANISM = "/api/a11oy/v1/atlas/organism";
+const EP_BRAIN_HEALTH = "/api/a11oy/v1/brain/health?q=evidence-bound%20brain%20atlas&k=12";
+const EP_BRAIN_GAPS = "/api/a11oy/v1/brain/gaps?q=evidence-bound%20brain%20atlas&k=12";
 
 // ---- Colour palette. We render the estate honestly using ONLY teal / lattice-blue / cyan-blue /
 // gold / greys / black. The backend's cluster hue field carries a bluish tone upstream for the
@@ -81,10 +83,12 @@ const LABEL_COLOR = {
   "STRUCTURAL-ONLY": C_DIM,     // structural-only — dim grey-blue, no proof claim
   "ROADMAP":         C_GOLD,    // roadmap — gold, not-yet-built
   "MEASURED":        C_LOCKED,  // measured — proof-teal (the one truly measured surface)
+  "SIMULATED":       C_GOLD,    // simulated — visible but not live-world evidence
+  "UNSPECIFIED":     C_DIM,     // no maturity claim in the canonical registry
 };
 function _labelColor(lbl) {
-  const t = String(lbl || "MODELED").toUpperCase();
-  return LABEL_COLOR[t] != null ? LABEL_COLOR[t] : C_VERIF;
+  const t = String(lbl || "UNSPECIFIED").toUpperCase();
+  return LABEL_COLOR[t] != null ? LABEL_COLOR[t] : C_DIM;
 }
 
 // Geometry constants.
@@ -117,13 +121,17 @@ const S = {
   crossLinks: [],              // from /organism
   lfFlow: null,                // Loop-Forge flow overlay
   clustersTotal: null,
-  surfaceCount: null,          // 67
+  surfaceCount: null,
   totalClassified: null,
   coverage: null,
+  registry: null,
   lockedCoreCount: null,
   conjectureGray: null,
   everyOnce: null,
   labelMix: {},                // overall honest label mix
+  brainHealth: null,
+  brainGaps: null,
+  brainProbeState: "init",
   built: false,
 };
 
@@ -158,6 +166,10 @@ function mount(ctx) {
   _polls.push(ctx.live.poll(EP_ORGANISM, 20000, _onOrganism, {
     onState: (m) => { S.state = m.state; _paintOverlay(); },
   }));
+  _polls.push(ctx.live.poll(EP_BRAIN_HEALTH, 30000, _onBrainHealth, {
+    onState: (m) => { S.brainProbeState = m.state; _paintOverlay(); },
+  }));
+  _polls.push(ctx.live.poll(EP_BRAIN_GAPS, 45000, _onBrainGaps, {}));
 
   // pointer hover/click for node picking + surface deep-linking.
   _domEl = (_stage.renderer && _stage.renderer.domElement) || null;
@@ -192,6 +204,7 @@ function _onMap(j) {
   S.surfaceCount = p.surface_count != null ? p.surface_count : null;
   S.totalClassified = p.total_classified != null ? p.total_classified : null;
   S.coverage = p.coverage != null ? p.coverage : null;
+  S.registry = p.registry || null;
   S.lockedCoreCount = p.locked_core_count != null ? p.locked_core_count : null;
   S.conjectureGray = (p.conjecture_cluster_gray != null) ? p.conjecture_cluster_gray : null;
   S.everyOnce = (p.every_surface_classified_once != null) ? p.every_surface_classified_once : null;
@@ -205,6 +218,18 @@ function _onMap(j) {
   S.labelMix = mix;
 
   _tryBuild();
+  _paintOverlay();
+}
+
+function _onBrainHealth(j) {
+  if (!j) { S.brainHealth = null; _paintOverlay(); return; }
+  S.brainHealth = j.payload || j;
+  _paintOverlay();
+}
+
+function _onBrainGaps(j) {
+  if (!j) { S.brainGaps = null; _paintOverlay(); return; }
+  S.brainGaps = j.payload || j;
   _paintOverlay();
 }
 
@@ -282,10 +307,12 @@ function _clusterAxis(petal) {
 
 // place a node within a cluster's wedge: radius grows in rings, lateral fans the members out.
 function _placeNode(idKey, indexInCluster, countInCluster, ang) {
-  const perRing = 6;
+  // Adaptive packing keeps an evolving 100+ surface roster inside the camera frustum.
+  // The original fixed six-per-ring layout pushed later registry nodes far off-screen.
+  const perRing = Math.max(6, Math.min(16, Math.ceil(Math.sqrt(Math.max(1, countInCluster)) * 1.5)));
   const ring = Math.floor(indexInCluster / perRing);
   const inRing = indexInCluster % perRing;
-  const r = RING_INNER + RING_STEP * ring;
+  const r = RING_INNER + Math.min(RING_STEP, 0.78) * ring;
   // fan lateral spread within the wedge (±~26°), tightening as rings grow outward.
   const spread = (perRing > 1) ? (inRing / (perRing - 1) - 0.5) : 0;   // -0.5..0.5
   const wedge = (26 - 3 * ring) * DEG;
@@ -323,11 +350,11 @@ function _rebuildOrganism() {
 
     if (surfaces.length) {
       surfaces.forEach((s, i) => {
-        const hLabel = String(s.label || "MODELED").toUpperCase();
+        const hLabel = String(s.label || "UNSPECIFIED").toUpperCase();
         // honest label colour — the estate is NOT painted uniform.
         const nodeCol = c.gray ? C_CONJ : _labelColor(hLabel);
-        const isRoadmap = hLabel === "ROADMAP";
-        const isStruct = hLabel === "STRUCTURAL-ONLY";
+        const isRoadmap = hLabel === "ROADMAP" || hLabel === "SIMULATED";
+        const isStruct = hLabel === "STRUCTURAL-ONLY" || hLabel === "UNSPECIFIED";
         const geo = new _THREE.SphereGeometry(NODE_R, 16, 16);
         const mat = new _THREE.MeshStandardMaterial({
           color: nodeCol,
@@ -548,15 +575,17 @@ function _animate() {
 function _buildOverlay(ctx) {
   _show = createShowcase(ctx, {
     id: ID, title: TITLE, accent: "#3af4c8", badge: _badge,
-    chips: [{ label: "MODELED", name: "label" }],
+    chips: [{ label: "MODELED", name: "label" }, { label: "BRAIN: LOADING", name: "brain" }],
   });
   _overlay = document.createElement("div");
   _overlay.style.cssText = "font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;";
   _overlay.innerHTML =
-    '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">The whole holographic estate as ONE organism — the 67 surfaces mapped by the Flower Brain\u2019s 8 real clusters. The still teal heart is the machine-proven locked-8 pistil (kernel c7c0ba17); clusters radiate out; hover a node for its honest label, click a surface to open it.</div>' +
+    '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">The canonical holographic registry as ONE organism — measured against the same roster that builds this shell. The still teal heart is the machine-proven locked-8 pistil (kernel c7c0ba17); hover a node for its honest label, click a surface to open it.</div>' +
     _row("Total surfaces", "atlas-total") +
     _row("Clusters", "atlas-clusters") +
     _row("Coverage (all classified)", "atlas-coverage") +
+    _row("Registry source", "atlas-registry-source") +
+    _row("Registry digest", "atlas-registry-digest") +
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">' +
     '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Honest label mix (never painted uniform)</div>' +
     '<div id="atlas-labelmix" style="font-size:10.5px;color:#eaf6f9"></div>' +
@@ -567,9 +596,31 @@ function _buildOverlay(ctx) {
     '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:2px">Invariants</div>' +
     '<div id="atlas-inv" style="font-size:11px;color:#eaf6f9"></div>' +
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">' +
-      _leg(C_LOCKED, "proven / measured") + _leg(C_VERIF, "modeled") + _leg(C_GOLD, "roadmap / LF flow") +
-      _leg(C_DIM, "structural-only") + _leg(C_CONJ, "conjecture (grey)") +
+      _leg(C_LOCKED, "locked core / measured node") + _leg(C_VERIF, "modeled") + _leg(C_GOLD, "simulated / roadmap / LF flow") +
+      _leg(C_DIM, "structural / unspecified") + _leg(C_CONJ, "conjecture (grey)") +
     '</div>' +
+    '<hr style="border:0;border-top:1px solid #1b3a44;margin:9px 0">' +
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:3px">Brain trust lens · live honesty signals for a query</div>' +
+    _row("Health verdict", "atlas-brain-health") +
+    _row("Signals available", "atlas-brain-components") +
+    _row("Knowledge gaps", "atlas-brain-gaps") +
+    '<div style="display:flex;gap:6px;margin-top:7px">' +
+      '<input id="atlas-brain-query" value="evidence-bound brain atlas" aria-label="Brain trust probe query" style="min-width:0;flex:1;font:10.5px ui-monospace;background:#081319;color:#dceef2;border:1px solid #1b3a44;border-radius:6px;padding:5px 7px">' +
+      '<button id="atlas-brain-run" style="font:10.5px ui-monospace;background:#0f2027;color:#9fc;border:1px solid #1b3a44;border-radius:6px;padding:4px 8px;cursor:pointer">Run probe</button>' +
+    '</div>' +
+    '<div id="atlas-brain-note" role="status" style="margin-top:5px;font-size:10px;color:#8fb3bd">A read-only query: no memory write, no model call, no action.</div>' +
+    '<details style="margin-top:9px;border-top:1px solid #1b3a44;padding-top:7px">' +
+      '<summary style="cursor:pointer;color:#9fc;font-size:10.5px">Purpose · Try · Evidence · Limits · Reproduce</summary>' +
+      '<div style="margin-top:6px;font-size:10px;color:#bcd;line-height:1.55">' +
+        '<b>Purpose.</b> Keep the estate map complete as the roster evolves, and expose whether the brain can support a query now.<br>' +
+        '<b>Try.</b> Enter a topic and run the read-only trust probe.<br>' +
+        '<b>Evidence.</b> Canonical roster digest, classified denominator, brain component availability, and structural gap verdict.<br>' +
+        '<b>Limits.</b> MODELED cartography is not truth, consciousness, or a production readiness claim. UNSPECIFIED is never promoted. Missing brain guards stay UNAVAILABLE.<br>' +
+        '<b>Reproduce.</b> <a id="atlas-open-map" href="' + EP_MAP + '" target="_blank" rel="noopener" style="color:#9fc">map JSON</a> · ' +
+        '<a id="atlas-open-health" href="' + EP_BRAIN_HEALTH + '" target="_blank" rel="noopener" style="color:#9fc">health JSON</a> · ' +
+        '<a id="atlas-open-gaps" href="' + EP_BRAIN_GAPS + '" target="_blank" rel="noopener" style="color:#9fc">gaps JSON</a>' +
+      '</div>' +
+    '</details>' +
     '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<button id="atlas-plain" style="font:11px ui-monospace;background:#0f2027;color:#9fc;border:1px solid #1b3a44;border-radius:6px;padding:3px 8px;cursor:pointer">Plain language</button>' +
       '<button id="atlas-info" style="font:11px ui-monospace;background:#0f2027;color:#9fc;border:1px solid #1b3a44;border-radius:6px;padding:3px 8px;cursor:pointer">What is this?</button>' +
@@ -585,6 +636,10 @@ function _buildOverlay(ctx) {
     if (box) box.style.display = box.style.display === "none" ? "block" : "none";
     if (box && box.innerHTML === "") box.innerHTML = _infoHTML();
   });
+  const rb = _overlay.querySelector("#atlas-brain-run");
+  if (rb) rb.addEventListener("click", _runBrainProbe);
+  const qi = _overlay.querySelector("#atlas-brain-query");
+  if (qi) qi.addEventListener("keydown", (e) => { if (e.key === "Enter") _runBrainProbe(); });
 }
 function _row(k, id) {
   return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:3px">' +
@@ -597,6 +652,35 @@ function _leg(hex, txt) {
 function _hex(n) { return "#" + (n >>> 0).toString(16).padStart(6, "0"); }
 function _esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function _set(id, v) { const e = _overlay && _overlay.querySelector("#" + id); if (e) e.textContent = v; }
+
+async function _runBrainProbe() {
+  const input = _overlay && _overlay.querySelector("#atlas-brain-query");
+  const button = _overlay && _overlay.querySelector("#atlas-brain-run");
+  const note = _overlay && _overlay.querySelector("#atlas-brain-note");
+  const query = String(input && input.value || "").trim();
+  if (!query) { if (note) note.textContent = "Enter a query. Empty input is not treated as evidence."; return; }
+  const q = encodeURIComponent(query);
+  const healthUrl = "/api/a11oy/v1/brain/health?q=" + q + "&k=12";
+  const gapsUrl = "/api/a11oy/v1/brain/gaps?q=" + q + "&k=12";
+  if (button) { button.disabled = true; button.textContent = "Running…"; }
+  if (note) note.textContent = "Reading the live honesty surfaces…";
+  try {
+    const [hr, gr] = await Promise.all([fetch(healthUrl, { headers: { accept: "application/json" } }), fetch(gapsUrl, { headers: { accept: "application/json" } })]);
+    if (!hr.ok || !gr.ok) throw new Error("HTTP " + hr.status + "/" + gr.status);
+    S.brainHealth = await hr.json();
+    S.brainGaps = await gr.json();
+    S.brainProbeState = "live";
+    const oh = _overlay && _overlay.querySelector("#atlas-open-health"); if (oh) oh.href = healthUrl;
+    const og = _overlay && _overlay.querySelector("#atlas-open-gaps"); if (og) og.href = gapsUrl;
+    if (note) note.textContent = "Probe complete. Verdicts are read-only honesty signals, not a truth guarantee.";
+  } catch (e) {
+    S.brainHealth = null; S.brainGaps = null; S.brainProbeState = "error";
+    if (note) note.textContent = "NO-LIVE-DATA — the probe failed honestly (" + String(e && e.message || e).slice(0, 80) + ").";
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Run probe"; }
+    _paintOverlay();
+  }
+}
 
 function _buildTooltip(ctx) {
   _tooltip = document.createElement("div");
@@ -624,11 +708,17 @@ function _paintOverlay() {
   const d = deg ? "\u2014" : null;
 
   if (_show) _show.setChip("label", S.label || "MODELED");
+  if (_show) _show.setChip("brain", "BRAIN: " + (S.brainHealth && S.brainHealth.verdict ? S.brainHealth.verdict : (S.brainProbeState === "error" ? "NO-LIVE-DATA" : "LOADING")));
 
   if (missing && !S.clusters.length) {
     _set("atlas-total", nd);
     _set("atlas-clusters", "8 (Flower Brain taxonomy, offline)");
     _set("atlas-coverage", nd);
+    _set("atlas-registry-source", nd);
+    _set("atlas-registry-digest", nd);
+    _set("atlas-brain-health", S.brainHealth && S.brainHealth.verdict || nd);
+    _set("atlas-brain-components", nd);
+    _set("atlas-brain-gaps", S.brainGaps && (S.brainGaps.estate_verdict || (S.brainGaps.gaps && S.brainGaps.gaps.estate_verdict)) || nd);
     const lm = _overlay.querySelector("#atlas-labelmix"); if (lm) lm.textContent = nd + " — the map waits until the organ answers.";
     const cl = _overlay.querySelector("#atlas-clusterlist"); if (cl) cl.textContent = nd;
     const inv = _overlay.querySelector("#atlas-inv");
@@ -641,14 +731,23 @@ function _paintOverlay() {
   }
 
   const total = S.surfaceCount != null ? S.surfaceCount : null;
-  _set("atlas-total", d || (total != null ? String(total) + " (+ atlas = " + (total + 1) + ")" : "\u2014"));
+  _set("atlas-total", d || (total != null ? String(total) + " (Atlas included)" : "\u2014"));
   _set("atlas-clusters", d || (S.clustersTotal != null ? String(S.clustersTotal) + " (must be 8)" : "\u2014"));
   _set("atlas-coverage", d || (S.coverage != null ? (S.coverage * 100).toFixed(1) + "% (" + (S.totalClassified != null ? S.totalClassified : "\u2014") + "/" + (total != null ? total : "\u2014") + ")" : "\u2014"));
+  _set("atlas-registry-source", S.registry ? ((S.registry.loaded ? "CANONICAL" : "FALLBACK") + " · " + (S.registry.surface_count != null ? S.registry.surface_count : "—")) : "\u2014");
+  _set("atlas-registry-digest", S.registry && S.registry.sha256 ? S.registry.sha256.slice(0, 16) + "…" : "\u2014");
+
+  const health = S.brainHealth || null;
+  const healthSummary = health && health.summary || {};
+  const gaps = S.brainGaps || null;
+  _set("atlas-brain-health", health && health.verdict ? String(health.verdict) : (S.brainProbeState === "error" ? "NO-LIVE-DATA" : "LOADING"));
+  _set("atlas-brain-components", health ? String(healthSummary.components_available != null ? healthSummary.components_available : "—") + "/" + String(healthSummary.components_total != null ? healthSummary.components_total : "—") : "\u2014");
+  _set("atlas-brain-gaps", gaps ? String(gaps.estate_verdict || (gaps.gaps && gaps.gaps.estate_verdict) || "UNSPECIFIED") : "\u2014");
 
   // honest label mix — rendered by real label, coloured by label type (NOT uniform).
   const lm = _overlay.querySelector("#atlas-labelmix");
   if (lm) {
-    const order = ["MODELED", "STRUCTURAL-ONLY", "ROADMAP", "MEASURED"];
+    const order = ["MODELED", "MEASURED", "STRUCTURAL-ONLY", "SIMULATED", "ROADMAP", "UNSPECIFIED"];
     const keys = order.filter((k) => S.labelMix[k] != null).concat(Object.keys(S.labelMix).filter((k) => order.indexOf(k) < 0));
     if (!keys.length) { lm.textContent = deg ? "\u2014" : "\u2014"; }
     else {
@@ -686,6 +785,8 @@ function _paintOverlay() {
       _check("clusters == 8", clustersOk) +
       _check("locked-core == 8", lockedOk) +
       _check("coverage 1.0", covOk) +
+      _check("canonical registry loaded", S.registry ? S.registry.loaded === true : null) +
+      _check("registry duplicate ids == 0", S.registry && Array.isArray(S.registry.duplicate_ids) ? S.registry.duplicate_ids.length === 0 : null) +
       _check("conjecture grey (never green)", grayOk);
   }
 
@@ -702,15 +803,20 @@ function _applyPlain() {
   if (!box) return;
   box.style.display = _plain ? "block" : "none";
   if (_plain) {
+    const total = S.surfaceCount != null ? S.surfaceCount : "the current";
+    const c6 = S.clusters.find((c) => c.key === "surfaces");
+    const c7 = S.clusters.find((c) => c.key === "memory");
+    const n6 = c6 && c6.surface_count != null ? c6.surface_count : "many";
+    const n7 = c7 && c7.surface_count != null ? c7.surface_count : "the brain and memory";
     box.innerHTML =
-      "This is our <b>entire holographic estate drawn as one organism</b>. We have 67 surfaces (tabs); " +
+      "This is our <b>entire holographic estate drawn as one organism</b>. The canonical shell currently declares <b>" + total + " surfaces</b>, Atlas included; " +
       "on their own they look like a flat wall. The Atlas gives them a spine by <b>mapping every surface " +
       "into the Flower Brain\u2019s 8 real clusters</b> \u2014 the ecosystem\u2019s own taxonomy \u2014 without removing a " +
       "single surface. The solid teal ball in the middle is the <b>pistil: the 8 things we have actually " +
       "machine-proven</b> (locked-8, kernel c7c0ba17). It never grows. Around it, eight regions fan out; most " +
-      "of the surfaces live in the big <b>SURFACES</b> region (58), a smaller set in <b>MEMORY &amp; PROVENANCE</b> " +
-      "(9), and the rest of the clusters carry the flower\u2019s kernel objects. <b>Hover any node</b> to see its " +
-      "surface name and its honest label (MODELED, STRUCTURAL-ONLY, ROADMAP, or MEASURED \u2014 we do not paint " +
+      "of the surfaces live in the big <b>SURFACES</b> region (" + n6 + "), with <b>MEMORY &amp; PROVENANCE</b> " +
+      "carrying " + n7 + ". The rest of the clusters carry the flower\u2019s kernel objects. <b>Hover any node</b> to see its " +
+      "surface name and its honest label (including UNSPECIFIED when the registry makes no maturity claim \u2014 we do not paint " +
       "them all the same); <b>click a surface</b> to jump straight to it. The gold arcs are <b>Loop Forge\u2019s " +
       "living process</b> (propose \u2192 kernel gate \u2192 archive). The grey region is our <b>conjectures we have NOT " +
       "proven</b>; it stays grey and never turns green. Label is <b>" + (S.label || "MODELED") + "</b>: a faithful " +
@@ -720,16 +826,19 @@ function _applyPlain() {
 }
 
 function _infoHTML() {
+  const total = S.surfaceCount != null ? S.surfaceCount : "the canonical roster";
+  const digest = S.registry && S.registry.sha256 ? S.registry.sha256.slice(0, 16) + "…" : "pending";
   return "<b>This is the estate as one organism, mapped by the Flower Brain\u2019s 8 clusters.</b> " +
-    "Unification by cartography: the flat 67-tab wall is given a spine by classifying every surface into " +
+    "Unification by cartography: the shell roster is given a spine by classifying every surface into " +
     "the 8 real clusters of the <b>Flower Brain</b> (the taxonomy source) \u2014 additively, with no surface removed. " +
     "The still center is the machine-proven <b>locked-8 pistil</b> {F1,F4,F7,F11,F12,F18,F19,F22}, carried from " +
     "the lutar-lean kernel <b>c7c0ba17</b> (cited; re-verified in CI/dev, not in-Space). " +
     "<br><br><b>What is MODELED vs real.</b> The classification is REAL \u2014 each surface maps to its cluster by its " +
-    "actual nature/owner/domain, served by the backend organ szl_kc_atlas and proven complete (coverage 1.0, zero " +
-    "orphans, all 67 mapped once; the Atlas itself is the 68th). The LAYOUT is a <b>MODELED</b> deterministic drawing " +
+    "actual declared category/domain, served by the backend organ szl_kc_atlas and checked complete against " + total +
+    " canonical entries (coverage 1.0, zero orphans, Atlas included; roster digest <code>" + digest + "</code>). The LAYOUT is a <b>MODELED</b> deterministic drawing " +
     "read verbatim from <code>/api/a11oy/v1/atlas/{map,organism}</code> \u2014 not a computation, not \u201Calive.\u201D The honest " +
-    "label mix (58 MODELED / 7 STRUCTURAL-ONLY / 1 ROADMAP / 1 MEASURED) is rendered per surface, never uniform. " +
+    "label mix is returned by the endpoint and rendered per surface, never hard-coded or uniform. A new surface " +
+    "without an explicit maturity claim is UNSPECIFIED, never silently promoted. " +
     "\u039B stays <b>Conjecture 1</b>, the conjecture cluster is <b>grey, never green</b>. " +
     "<br><br><b>Sources (we cite the taxonomy; we do not claim it as computation).</b><br>" +
     "&bull; Taxonomy source \u2014 the Flower Brain: <code>github.com/szl-holdings/killinchu szl_kc_flower.py</code><br>" +
@@ -774,7 +883,8 @@ function unmount() {
   S.clusters = []; S.petals = []; S.petalByCluster = {}; S.crossLinks = []; S.lfFlow = null;
   S.clustersTotal = S.surfaceCount = S.totalClassified = S.coverage = null;
   S.lockedCoreCount = S.conjectureGray = S.everyOnce = null;
+  S.registry = null; S.brainHealth = null; S.brainGaps = null; S.brainProbeState = "init";
   S.labelMix = {}; S.built = false;
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_MAP, EP_ORGANISM], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_MAP, EP_ORGANISM, EP_BRAIN_HEALTH, EP_BRAIN_GAPS], mount, unmount };
