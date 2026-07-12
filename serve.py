@@ -8020,6 +8020,13 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     return env
 
 
+# Ayllu registers earlier in this module, before the ephemeral signer exists.
+# Expose the signer through app.state so its request handlers can resolve it
+# lazily after startup. This removes the previous always-UNSIGNED Council path
+# without re-registering duplicate routes or committing any key material.
+app.state.szl_sign_receipt = _a11oy_sign_receipt
+
+
 def _a11oy_pubkey_fpr() -> str:
     if not _A11OY_PUB_PEM:
         return "—"
@@ -11614,6 +11621,11 @@ try:
     def _a11oy_loop_pubpem():
         return _A11OY_PUB_PEM or ""
 
+    # Public verifier routes are registered earlier; resolve this callback from
+    # app.state at request time so per-boot A11OY receipts verify against the
+    # matching /cosign.pub key instead of the unrelated organization key.
+    app.state.szl_verify_receipt = _a11oy_loop_verify
+
     _loop_status = _szl_loop.register(
         app, "a11oy",
         _a11oy_sign_receipt,
@@ -13265,6 +13277,35 @@ except Exception as _ws_e2:  # additive: never break the Space
 # ============================================================================
 # END: WAVE-S FRONTIER (retrieval-modulated long-context attention)
 # ============================================================================
+
+
+# Bounded deployment-source attestation. Registered last and front-moved by the
+# module so the exact well-known JSON route wins over the SPA history fallback.
+# A pinned GitHub reference is evidence of a source observation only; it does
+# not assert byte parity, a reproducible Space build, or build provenance.
+try:
+    import szl_source_attestation as _szl_source_attestation
+
+    _a11oy_source_observation = {
+        "repository": "szl-holdings/a11oy",
+        "commit": "adac37574f88a30ff099f3ec7f548685d4166e6f",
+        "path": "",
+        "relation": "declared-source-with-hf-overlay",
+        "state": "VERIFIED_REFERENCE",
+        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/adac37574f88a30ff099f3ec7f548685d4166e6f",
+    }
+    _szl_source_result = _szl_source_attestation.register(
+        app,
+        "SZLHOLDINGS/a11oy",
+        _a11oy_source_observation,
+        "PENDING_GITHUB_SYNC",
+    )
+    print(f"[a11oy] deployment-source attestation registered: {_szl_source_result}", file=sys.stderr)
+except Exception as _szl_source_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] deployment-source attestation NOT registered (non-fatal): {_szl_source_error!r}",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":
