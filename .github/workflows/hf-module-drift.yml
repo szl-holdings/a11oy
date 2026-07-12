@@ -34,3 +34,6 @@ jobs:
     uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@79cb06b79d6a3156a5796948295617ff6b207683  # main
     with:
       hf-repo: SZLHOLDINGS/a11oy
+      # Pull requests must validate the proposed head, not the base branch. Push, schedule,
+      # and manual runs continue to validate the exact commit that triggered the workflow.
+      ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
