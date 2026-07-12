@@ -162,13 +162,20 @@ def test_negated_adverse_token_is_not_a_violation(monkeypatch):
 # 4. UNAVAILABLE handled honestly (no fabrication) — siblings absent
 # --------------------------------------------------------------------------- #
 def test_unavailable_sibling_degrades_never_fabricates(monkeypatch):
-    # only two siblings present; the other three are absent (no override, unimportable).
+    # All five sibling modules now ship together. Exercise the unavailable contract through
+    # the explicit probe seam instead of depending on three modules being absent on disk.
+    expected_keys = {"grounding", "freshness", "provenance", "contradiction", "uncertainty"}
+    unavailable_keys = {"provenance", "contradiction", "uncertainty"}
+    assert set(_ALL_KEYS) == expected_keys, "Brain Health must govern the complete five-module roster"
     _stub(monkeypatch, "grounding", {"label": "MODELED", "grounding_confidence": 0.9})
     _stub(monkeypatch, "freshness", {"label": "SAMPLE", "freshness": 0.8})
+    _force_unavailable(monkeypatch, *unavailable_keys)
     agg = bh.build_rollup("q", 4)
     assert agg["summary"]["components_available"] == 2
     assert agg["summary"]["components_unavailable"] == 3
     # every unavailable component is honestly UNAVAILABLE with no fabricated value/label.
+    observed_unavailable = {c["key"] for c in agg["components"] if not c["available"]}
+    assert observed_unavailable == unavailable_keys
     for c in agg["components"]:
         if not c["available"]:
             assert c["label"] == bh.UNAVAILABLE
