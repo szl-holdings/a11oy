@@ -13,6 +13,7 @@ honest stub dict — it NEVER fabricates an answer and NEVER claims a wiring it 
 """
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from typing import Any, Optional
 
@@ -39,10 +40,15 @@ def backend_status() -> dict[str, Any]:
         orch_err = str(exc)[:160]
 
     has_cred = False
+    local_ready = False
+    backend_ready = False
     cred_checked = False
     if orch is not None:
         try:
-            has_cred = bool(orch.has_inference_credential())
+            has_cred = bool(orch._resolve_hf_token()) or any(
+                orch._resolve_provider_keys().values())
+            _base, local_ready = orch._serving_base()
+            backend_ready = bool(orch.has_inference_credential())
             cred_checked = True
         except Exception:
             cred_checked = False
@@ -51,7 +57,7 @@ def backend_status() -> dict[str, Any]:
         mode = "unavailable"
     elif not cred_checked:
         mode = "unknown"
-    elif has_cred:
+    elif backend_ready:
         mode = "live"
     else:
         mode = "stub"
@@ -61,15 +67,18 @@ def backend_status() -> dict[str, Any]:
         "orchestrator_error": orch_err,
         "credential_checked": cred_checked,
         "has_credential": has_cred,
+        "local_backend_ready": local_ready,
+        "backend_ready": backend_ready,
         "mode": mode,
         "note": {
             "unavailable": "a11oy_code_orchestrator not importable — ask/council return "
                            "an honest stub.",
             "unknown": "orchestrator present but credential state could not be read.",
-            "live": "real model answers via a11oy routing + energy receipts; ongoing "
-                    "token cost.",
-            "stub": "no inference credential set on this Space — clearly-labeled "
-                    "deterministic stub, no fabrication.",
+            "live": ("real model answers via a11oy routing + receipts; source is a "
+                     "reachable local backend or a credentialed remote provider. "
+                     "Outputs remain unverified model text."),
+            "stub": ("no reachable local backend or remote inference credential — "
+                     "clearly-labeled deterministic stub, no fabrication."),
         }.get(mode, ""),
         "backend": "a11oy_code_orchestrator.agent_model_complete",
     }
@@ -83,6 +92,7 @@ async def model_complete(
     persona: Optional[str] = None,
     max_tokens: int = 1000,
     temperature: float = 0.4,
+    timeout_s: float = 45.0,
     **_ignored: Any,
 ) -> dict[str, Any]:
     """Adapter matching ayllu.loop.run_turn's model_complete contract.
@@ -105,20 +115,57 @@ async def model_complete(
                 "model": "unavailable",
                 "stub": True,
             }
+        bounded_tokens = max(1, min(int(max_tokens), 2048))
+        bounded_timeout = max(0.1, min(float(timeout_s), 120.0))
         try:
-            result = await _o.agent_model_complete(
-                messages, max_tokens=max_tokens, temperature=temperature)
+            result = await asyncio.wait_for(
+                _o.agent_model_complete(
+                    messages, max_tokens=bounded_tokens, temperature=temperature),
+                timeout=bounded_timeout,
+            )
+        except asyncio.TimeoutError:
+            return {
+                "text": None,
+                "model": "timeout",
+                "stub": True,
+                "timeout": True,
+                "token_budget": bounded_tokens,
+                "timeout_s": bounded_timeout,
+                "honesty": (
+                    f"model turn exceeded the {bounded_timeout:g}s deadline; "
+                    "the request was cancelled and no answer was fabricated"
+                ),
+            }
         except Exception as exc:
             return {
-                "text": f"[honest error: agent_model_complete raised: {str(exc)[:160]}]",
+                "text": None,
                 "model": "error",
                 "stub": True,
+                "timeout": False,
+                "token_budget": bounded_tokens,
+                "timeout_s": bounded_timeout,
+                "honesty": (
+                    f"agent_model_complete raised: {str(exc)[:160]}; "
+                    "no answer was fabricated"
+                ),
             }
         if not isinstance(result, dict):
-            return {"text": str(result), "model": "unknown", "stub": True}
+            return {
+                "text": None,
+                "model": "unknown",
+                "stub": True,
+                "timeout": False,
+                "token_budget": bounded_tokens,
+                "timeout_s": bounded_timeout,
+                "honesty": "model backend returned a non-contract value; no answer was used",
+            }
         return {
             "text": result.get("text", ""),
             "model": result.get("model"),
             "stub": bool(result.get("stub")),
+            "timeout": bool(result.get("timeout", False)),
+            "token_budget": bounded_tokens,
+            "timeout_s": bounded_timeout,
+            "honesty": result.get("honesty"),
             "energy_receipt": result.get("energy_receipt"),
         }

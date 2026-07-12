@@ -8,6 +8,7 @@ per persona — and never fabricates when no backend is injected.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -39,18 +40,21 @@ class Lounge:
     ) -> dict[str, Any]:
         from .loop import run_turn
 
-        rounds = []
-        for p in personas:
-            turn = await run_turn(
-                p, prompt,
-                model_complete=model_complete,
+        async def _one_turn(p, turn_prompt: str):
+            return await run_turn(
+                p, turn_prompt, model_complete=model_complete,
                 difficulty=difficulty,
-                two_person_attested=two_person_attested,
-            )
+                two_person_attested=two_person_attested)
+
+        # A council round is independent fan-out. Preserve input order in the
+        # evidence, but spend one bounded deadline instead of N sequential ones.
+        rounds = list(await asyncio.gather(*(
+            _one_turn(p, prompt) for p in personas
+        )))
+        for p, turn in zip(personas, rounds):
             turn["round"] = 1
             src = "brain" if turn.get("answer") is not None else "persona-fallback"
             self.post(p.name, turn.get("answer") or turn.get("honesty"), source=src)
-            rounds.append(turn)
 
         mode = "single-round"
         # Debate-then-converge (after arXiv:2305.14325, Multiagent Debate): one
@@ -65,6 +69,7 @@ class Lounge:
             ]
             if len(positions) >= 2:
                 mode = "debate"
+                debate_jobs = []
                 for p in personas:
                     peers = "\n\n".join(
                         f"[{name}] {ans[:1200]}" for name, ans in positions
@@ -77,12 +82,11 @@ class Lounge:
                         "State explicitly where you agree or dissent, then give "
                         "your revised answer. Honest dissent beats false consensus."
                     )
-                    turn = await run_turn(
-                        p, debate_prompt,
-                        model_complete=model_complete,
-                        difficulty=difficulty,
-                        two_person_attested=two_person_attested,
-                    )
+                    debate_jobs.append((p, debate_prompt))
+                revised = list(await asyncio.gather(*(
+                    _one_turn(p, turn_prompt) for p, turn_prompt in debate_jobs
+                )))
+                for (p, _turn_prompt), turn in zip(debate_jobs, revised):
                     turn["round"] = 2
                     src = ("brain" if turn.get("answer") is not None
                            else "persona-fallback")
