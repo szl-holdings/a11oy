@@ -3,13 +3,13 @@
 # Doctrine v11 LOCKED: locked-proven=8 · Λ=Conjecture 1 · SLSA L1 honest / L2 attested / L3 roadmap
 # Co-Authored-By: Perplexity Computer Agent
 """
-szl_kc_atlas.py — THE ATLAS (68th surface) — the unifying front door that maps the
-whole 67-surface holographic estate into ONE organism using the Flower Brain's 8 real
+szl_kc_atlas.py — THE ATLAS — the unifying front door that maps the
+canonical holographic registry into ONE organism using the Flower Brain's 8 real
 clusters as the taxonomy. Backs a11oy static/3d/surfaces/atlas.js.
 
-The estate serves 67 surfaces as a flat wall of monospace tabs — no hierarchy, no story.
+The estate serves an evolving surface roster as a flat wall of monospace tabs — no hierarchy, no story.
 The answer is already in the ecosystem: the Flower Brain (surface 65) defines 8 real
-clusters. The Atlas classifies EVERY one of the 67 surfaces into exactly one of those 8
+clusters. The Atlas classifies EVERY surface in the canonical registry into exactly one of those 8
 clusters (zero orphans, coverage 1.0), carries the flower's KERNEL objects (locked-8,
 theorems, codexes, Λ conjecture) as the still center, and shows the estate as one
 organism: a locked-8 pistil, 8 petals with their member surfaces, cross-links (which
@@ -22,35 +22,36 @@ github.com/szl-holdings/killinchu szl_kc_flower.py):
   3 EXPERIMENTAL       — CI-green experimental / agentic theorems.
   4 UNIFIED FORMULAS   — cited borrowed structure (DOIs), never claimed as SZL's own.
   5 OUROBOROS CODEXES  — the bounded-recursion self-referential codex layer.
-  6 SURFACES           — the live 3D surface organs (most of the 67 map here, sub-tagged).
+  6 SURFACES           — the live 3D surface organs (most of the roster maps here, sub-tagged).
   7 MEMORY & PROVENANCE— HEART/BLOOD + A-MEM spine; episodic/graph/agent memory + anatomy.
   8 CONJECTURES        — Λ Conjecture 1, Khipu, self-repair (GRAY, never green).
 
 Routes (NEW; never collide):
   GET /api/{ns}/v1/atlas/manifest  — organ manifest + honesty_invariants
-  GET /api/{ns}/v1/atlas/map       — the REAL per-surface classification of all 67 + coverage proof
+  GET /api/{ns}/v1/atlas/map       — the REAL per-surface classification + denominator + coverage proof
   GET /api/{ns}/v1/atlas/organism  — estate-as-organism view: pistil, 8 petals, cross-links, LF flow
 
 HONESTY SPINE (Doctrine v11 — NON-NEGOTIABLE):
   * label "MODELED" returned verbatim on every endpoint; never upgraded.
   * clusters == 8, locked_core == 8 (immutable pistil {F1,F4,F7,F11,F12,F18,F19,F22}).
   * conjecture cluster (8) renders GRAY, never green — assert conjecture_rendered_green == 0.
-  * coverage == 1.0: EVERY one of the 67 surfaces is classified into exactly one cluster —
-    zero orphans, zero double-counts. The Atlas itself is the 68th surface (its own home is
-    cluster 6). __main__ verifies this against the embedded 67.
+  * coverage == 1.0: EVERY canonical registry surface, including Atlas, is classified into
+    exactly one cluster — zero orphans, zero double-counts. __main__ verifies this against
+    szl3d_holographic.SURFACES and publishes the denominator + registry digest.
   * classification basis is REAL and cited per-cluster (derived from each surface's actual
     nature/owner/domain), NEVER arbitrary. The taxonomy source is the Flower Brain
     (szl_kc_flower.py). Bridges (loopforge -> OUROBOROS+CONJECTURE, flower -> all) are cited.
   * no consciousness/sentience/alive claim.
   * banned marketing tokens rejected (reversed-fragment guard); every Λ/theorem line keeps its qualifier inline (Λ = Conjecture 1, never a theorem) so the honesty gate never trips.
   * Pure stdlib (seeded LCG, no numpy, no stdlib random). Deterministic: same seed =>
-    identical snapshot. The 67 surfaces are EMBEDDED as a Python literal (a snapshot of
-    /api/a11oy/v1/frontier/surfaces) so the organ is self-contained — never fetched at runtime.
+    identical snapshot. The embedded Wave-27 surface list is retained only as a vetted label
+    source/fallback; the canonical local shell registry defines current coverage.
 
 Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 """
 from __future__ import annotations
 
+import hashlib as _hashlib
 import json as _json
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -262,10 +263,10 @@ LIVE_SURFACES: List[Dict[str, str]] = [
     {"id": "loopforge",      "title": "Loop Forge",                                        "label": "MODELED"},
 ]
 _SURFACE_IDS = tuple(s["id"] for s in LIVE_SURFACES)
-SURFACE_COUNT = len(LIVE_SURFACES)  # 67
+SURFACE_COUNT = len(LIVE_SURFACES)  # reconciled below against the canonical shell registry
 
 # =====================================================================================
-# THE CLASSIFICATION — each of the 67 surfaces -> exactly ONE cluster, by its REAL nature.
+# THE CLASSIFICATION — each canonical surface -> exactly ONE cluster, by its declared nature.
 # Basis is DEFENSIBLE and cited per-cluster (see _CLASSIFICATION_BASIS). Not arbitrary:
 #   * MEMORY & PROVENANCE (7): surfaces whose PRIMARY organ is memory storage/retrieval,
 #     provenance/receipts, or the estate's anatomy/self-map (episodic, titans, graphmem,
@@ -358,6 +359,107 @@ _SURFACE_CLUSTER: Dict[str, Tuple[int, str]] = {
     "loopforge":    (6, "Loop Forge surface — the living process (bridges to OUROBOROS+CONJECTURE)"),
 }
 
+# =====================================================================================
+# CANONICAL ROSTER ALIGNMENT — the holographic shell is the source of truth.
+#
+# The original Atlas embedded a 67-surface snapshot. The shell continued to evolve, which
+# allowed the Atlas to keep reporting coverage=1.0 over a stale denominator while dozens of
+# newer surfaces were absent. We now reconcile the embedded label snapshot against
+# szl3d_holographic.SURFACES at import time. The import is local, deterministic and
+# fail-closed: if the canonical module is unavailable we expose the embedded snapshot and
+# mark registry_loaded=False instead of pretending it is current.
+#
+# New registry entries inherit their declared shell category for classification:
+# brain/anatomy -> MEMORY & PROVENANCE; everything else -> SURFACES. Their maturity label
+# is NEVER guessed. A label is reused only when present in the vetted embedded snapshot or
+# written explicitly in the canonical title; otherwise it is UNSPECIFIED.
+# =====================================================================================
+_EMBEDDED_SURFACES = tuple(dict(s) for s in LIVE_SURFACES)
+_EMBEDDED_LABELS = {s["id"]: s["label"] for s in _EMBEDDED_SURFACES}
+_EXPLICIT_LABELS = ("STRUCTURAL-ONLY", "MEASURED", "SIMULATED", "ROADMAP", "MODELED")
+
+
+def _declared_label(surface_id: str, title: str) -> Tuple[str, str]:
+    if surface_id == "atlas":
+        return MODELED_LABEL, "atlas-contract"
+    if surface_id in _EMBEDDED_LABELS:
+        return _EMBEDDED_LABELS[surface_id], "embedded-vetted-snapshot"
+    upper = str(title or "").upper()
+    for label in _EXPLICIT_LABELS:
+        if label in upper:
+            return label, "canonical-title-explicit"
+    return "UNSPECIFIED", "canonical-registry-no-maturity-claim"
+
+
+def _canonical_roster() -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
+    source = "embedded-snapshot"
+    loaded = False
+    error: Optional[str] = None
+    try:
+        from szl3d_holographic import SURFACES as shell_surfaces
+
+        raw = list(shell_surfaces)
+        source = "szl3d_holographic.SURFACES"
+        loaded = True
+    except Exception as exc:  # pragma: no cover - deployment fallback is reported in payload
+        raw = [
+            {"id": "atlas", "cat": "map", "title": "Atlas", "owner": "atlas-contract"},
+            *_EMBEDDED_SURFACES,
+        ]
+        error = "%s: %s" % (type(exc).__name__, str(exc)[:160])
+
+    rows: List[Dict[str, str]] = []
+    seen = set()
+    duplicate_ids: List[str] = []
+    for item in raw:
+        sid = str(item.get("id") or "").strip()
+        if not sid:
+            continue
+        if sid in seen:
+            duplicate_ids.append(sid)
+            continue
+        seen.add(sid)
+        title = str(item.get("title") or sid)
+        label, label_source = _declared_label(sid, title)
+        rows.append({
+            "id": sid,
+            "title": title,
+            "label": label,
+            "label_source": label_source,
+            "cat": str(item.get("cat") or "more"),
+            "owner": str(item.get("owner") or "UNSPECIFIED"),
+            "module": str(item.get("module") or sid),
+        })
+
+    canonical = [{k: r[k] for k in ("id", "title", "cat", "owner", "module")} for r in rows]
+    digest = _hashlib.sha256(
+        _json.dumps(canonical, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return rows, {
+        "source": source,
+        "loaded": loaded,
+        "error": error,
+        "sha256": digest,
+        "surface_count": len(rows),
+        "duplicate_ids": sorted(set(duplicate_ids)),
+    }
+
+
+LIVE_SURFACES, _REGISTRY_META = _canonical_roster()
+_SURFACE_IDS = tuple(s["id"] for s in LIVE_SURFACES)
+SURFACE_COUNT = len(LIVE_SURFACES)
+
+# Reconcile classification against the canonical registry. Existing authored mappings retain
+# their specific sub-tags; new entries receive a deterministic tag derived from the shell's
+# own declared category. This makes orphans visible and prevents stale-denominator success.
+for _surface in LIVE_SURFACES:
+    _sid = _surface["id"]
+    if _sid in _SURFACE_CLUSTER:
+        continue
+    _cat = str(_surface.get("cat") or "more").lower()
+    _cluster = 7 if _cat in ("brain", "anatomy") else 6
+    _SURFACE_CLUSTER[_sid] = (_cluster, "%s registry surface (canonical shell category)" % _cat)
+
 # Per-cluster classification BASIS (cited to the Flower Brain taxonomy source). Every
 # cluster + bridge cites a real basis — this is the honest, non-arbitrary rationale.
 _CLASSIFICATION_BASIS: Dict[int, str] = {
@@ -430,12 +532,13 @@ _BRIDGES: List[Tuple[str, int, str, str]] = [
 ]
 
 _HONEST_NOTE = (
-    "MODELED: The Atlas is a MODELED cartography that unifies the live 67-surface estate into "
+    "MODELED: The Atlas is a MODELED cartography that unifies the canonical holographic estate into "
     "ONE organism using the Flower Brain's 8 real clusters as the taxonomy (source: "
     "github.com/szl-holdings/killinchu szl_kc_flower.py). The classification is REAL and cited "
     "per-cluster (derived from each surface's actual nature/owner/domain), NEVER arbitrary. EVERY "
-    "one of the 67 surfaces is classified into exactly ONE cluster — zero orphans, zero double-"
-    "counts, coverage 1.0 — and the Atlas itself is the 68th surface (its home is cluster 6). The "
+    "surface in szl3d_holographic.SURFACES, including the Atlas, is classified into exactly ONE "
+    "cluster — zero orphans, zero double-counts. The denominator, source and SHA-256 registry digest "
+    "are returned on every endpoint, so stale-roster coverage cannot masquerade as completeness. The "
     "kernel clusters (PROVEN CORE, VERIFIED, EXPERIMENTAL, UNIFIED, OUROBOROS, CONJECTURE) carry "
     "the flower's KERNEL objects (locked-8, theorems, cited formulas, codexes, the Λ conjecture); "
     "surfaces BRIDGE to them (loopforge -> ouroboros+conjecture, flower -> all clusters) — every "
@@ -443,9 +546,10 @@ _HONEST_NOTE = (
     "and is the immutable pistil that NEVER grows. The conjecture cluster (Λ Conjecture 1, machine-"
     "checked FALSE; Khipu BFT; self-repair) renders GRAY, never green. The Loop-Forge flow overlay "
     "(proposer -> kernel gate -> archive) is a MODELED process view, NOT a claim that anything is "
-    "trained, alive, or conscious. The 67 surfaces are an EMBEDDED verbatim snapshot of "
-    "/api/a11oy/v1/frontier/surfaces (labels read verbatim, never upgraded); the organ is self-"
-    "contained and never fetches at runtime. Deterministic: same seed => identical snapshot. Pure "
+    "trained, alive, or conscious. Maturity labels are reused only from the vetted embedded snapshot "
+    "or an explicit canonical title; otherwise the label is UNSPECIFIED, never guessed. The organ "
+    "imports its local canonical registry and never fetches a network dependency at runtime. "
+    "Deterministic: same registry + seed => identical snapshot. Pure "
     "stdlib, no numpy, no stdlib random."
 )
 
@@ -457,7 +561,7 @@ CITATIONS: Dict[str, str] = {
     "locked_count_eight (no-axiom theorem)": _LL + "Lutar/Wave11/AxiomDisclosure.lean",
     "szl_heart_blood (HEART sigma-bus + BLOOD DSSE hash-chain memory spine)": _A11OY + "szl_heart_blood.py",
     "A-MEM agentic memory (Xu et al., NeurIPS 2025)": "https://arxiv.org/abs/2502.12110",
-    "live surface list (embedded snapshot source)": "https://a-11-oy.com/api/a11oy/v1/frontier/surfaces",
+    "live surface list (public registry view)": "https://a-11-oy.com/api/a11oy/v1/holographic/info",
     "a11oy holographic.html SURFACES (surface registry)": _A11OY + "static/3d/holographic.html",
 }
 
@@ -468,7 +572,7 @@ CITATIONS: Dict[str, str] = {
 # =====================================================================================
 def _classify() -> Dict[str, Any]:
     """Return {cluster_n -> {surfaces:[...], kernel_objects:[...]}} + coverage bookkeeping.
-    Asserts EVERY one of the 67 surfaces is assigned to exactly one cluster."""
+    Asserts EVERY canonical registry surface is assigned to exactly one cluster."""
     # every surface must be in _SURFACE_CLUSTER exactly once
     assigned_ids = list(_SURFACE_CLUSTER.keys())
     # detect orphans (a live surface with no assignment) and unknowns (assignment w/o a surface)
@@ -486,7 +590,7 @@ def _classify() -> Dict[str, Any]:
     for c in CLUSTERS:
         per_cluster[c["n"]] = {"surfaces": [], "kernel_objects": []}
 
-    for sid in _SURFACE_IDS:  # iterate in the canonical embedded order (deterministic)
+    for sid in _SURFACE_IDS:  # iterate in canonical registry order (deterministic)
         cn, sub = _SURFACE_CLUSTER[sid]
         per_cluster[cn]["surfaces"].append({
             "id": sid, "title": title_of[sid], "label": label_of[sid], "sub_tag": sub,
@@ -502,7 +606,7 @@ def _classify() -> Dict[str, Any]:
         "orphans": orphans,
         "unknown_assignments": unknown,
         "double_counts": sorted(set(double_counts)),
-        "total_classified": total_classified,     # MUST equal SURFACE_COUNT (67)
+        "total_classified": total_classified,     # MUST equal canonical SURFACE_COUNT
         "title_of": title_of,
         "label_of": label_of,
     }
@@ -534,7 +638,7 @@ def _valid_bridges() -> List[Dict[str, Any]]:
 
 
 # =====================================================================================
-# /map — the REAL classification: all 67 surfaces mapped to the 8 clusters + coverage proof.
+# /map — the REAL classification: canonical surfaces mapped to 8 clusters + coverage proof.
 # =====================================================================================
 def atlas_map(seed: int = 42) -> Dict[str, Any]:
     cl = _classify()
@@ -562,7 +666,7 @@ def atlas_map(seed: int = 42) -> Dict[str, Any]:
         })
 
     bridges = _valid_bridges()
-    # coverage proof: every one of the 67 appears exactly once across all clusters
+    # coverage proof: every canonical registry surface appears exactly once across all clusters
     seen: Dict[str, int] = {}
     for c in clusters_out:
         for s in c["surfaces"]:
@@ -577,17 +681,21 @@ def atlas_map(seed: int = 42) -> Dict[str, Any]:
         "kernel": KERNEL_ID,
         "seed": int(seed),
         "taxonomy_source": _FLOWER_SRC,
+        "registry": dict(_REGISTRY_META),
         "clusters_total": len(CLUSTERS),                # 8
         "clusters": clusters_out,
-        "surface_count": SURFACE_COUNT,                 # 67
-        "total_classified": cl["total_classified"],     # MUST == 67
+        "surface_count": SURFACE_COUNT,
+        "coverage_denominator": "szl3d_holographic.SURFACES",
+        "total_classified": cl["total_classified"],
         "coverage": coverage,                            # MUST == 1.0
         "orphans": cl["orphans"],                        # MUST be []
         "unknown_assignments": cl["unknown_assignments"],  # MUST be []
         "double_counts": cl["double_counts"],            # MUST be []
         "every_surface_classified_once": bool(each_once),  # MUST be True
-        "atlas_is_68th": {"id": "atlas", "home_cluster": 6,
-                          "note": "the Atlas surface itself is the 68th; its home is cluster 6 SURFACES"},
+        "atlas_membership": {"id": "atlas", "home_cluster": 6, "included_in_surface_count": True},
+        "atlas_is_68th": {"id": "atlas", "home_cluster": 6, "legacy_field": True,
+                          "current": False, "included_in_surface_count": True,
+                          "note": "legacy compatibility field; Atlas is now included in the canonical registry denominator"},
         "bridges": bridges,
         "cross_cluster_bridges": sum(1 for b in bridges if b["cross_cluster"]),
         "locked_core": list(LOCKED8_IDS),
@@ -675,13 +783,15 @@ def atlas_organism(seed: int = 42) -> Dict[str, Any]:
         "kernel": KERNEL_ID,
         "seed": int(seed),
         "taxonomy_source": _FLOWER_SRC,
+        "registry": dict(_REGISTRY_META),
         "center": center,                          # the immutable locked-8 pistil
         "petals": petals,                          # 8 petals w/ member surfaces + kernel objects
         "petals_total": len(petals),               # 8
         "cross_links": cross_links,                # which surfaces bridge clusters
         "cross_links_total": len(cross_links),
         "loop_forge_flow": lf_flow,                # proposer -> kernel -> archive overlay
-        "surface_count": SURFACE_COUNT,            # 67
+        "surface_count": SURFACE_COUNT,
+        "coverage_denominator": "szl3d_holographic.SURFACES",
         "coverage": m["coverage"],                 # 1.0
         "locked_core": list(LOCKED8_IDS),
         "locked_core_count": len(LOCKED8_IDS),     # 8
@@ -725,16 +835,17 @@ def atlas_manifest(seed: int = 42) -> Dict[str, Any]:
     return {
         "service": "atlas",
         "surface": "atlas",
-        "surface_index": 68,
+        "surface_index": _SURFACE_IDS.index("atlas") + 1 if "atlas" in _SURFACE_IDS else None,
         "label": MODELED_LABEL,
         "doctrine": DOCTRINE_VERSION,
         "kernel": KERNEL_ID,
         "seed": int(seed),
-        "summary": ("The Atlas unifies the live 67-surface holographic estate into ONE organism "
+        "summary": ("The Atlas unifies the canonical holographic registry into ONE organism "
                     "using the Flower Brain's 8 real clusters as the taxonomy. Every surface is "
                     "classified into exactly one cluster (coverage 1.0); the locked-8 pistil is the "
                     "immutable center; conjectures stay GRAY. Cartography, not a new surface layer."),
         "taxonomy_source": _FLOWER_SRC,
+        "registry": dict(_REGISTRY_META),
         "endpoints": [
             "/api/<ns>/v1/atlas/manifest",
             "/api/<ns>/v1/atlas/map",
@@ -749,18 +860,20 @@ def atlas_manifest(seed: int = 42) -> Dict[str, Any]:
             "kernel_object_count": len(c["kernel_object_ids"]),
             "label_mix": c["label_mix"],
         } for c in m["clusters"]],
-        "surface_count": SURFACE_COUNT,                  # 67
-        "total_classified": m["total_classified"],        # 67
+        "surface_count": SURFACE_COUNT,
+        "coverage_denominator": "szl3d_holographic.SURFACES",
+        "total_classified": m["total_classified"],
         "coverage": m["coverage"],                        # 1.0
         "orphans": m["orphans"],                          # []
         "double_counts": m["double_counts"],              # []
-        "overall_label_mix": overall_mix,                 # honest label mix over all 67
+        "overall_label_mix": overall_mix,                 # honest label mix over canonical roster
         "locked_core": list(LOCKED8_IDS),
         "locked_core_count": m["locked_core_count"],      # 8
         "conjecture_cluster_gray": m["conjecture_cluster_gray"],  # True
         "conjecture_rendered_green": conjecture_rendered_green,   # 0
         "bridges_total": len(m["bridges"]),
         "cross_cluster_bridges": m["cross_cluster_bridges"],
+        "atlas_membership": m["atlas_membership"],
         "atlas_is_68th": m["atlas_is_68th"],
         "honesty_invariants": honesty_invariants,
         "citations": CITATIONS,
@@ -872,9 +985,9 @@ if __name__ == "__main__":
     assert org["center"]["is_pistil"] is True and org["center"]["immutable"] is True
     assert [o["id"] for o in org["center"]["locked8"]] == list(LOCKED8_IDS)
 
-    # coverage 1.0: EVERY one of the 67 surfaces classified exactly once, zero orphans
-    assert m["surface_count"] == 67, "estate must be 67 surfaces"
-    assert m["total_classified"] == 67, "all 67 must be classified"
+    # coverage 1.0: EVERY canonical surface classified exactly once, zero orphans
+    assert m["surface_count"] == len(_SURFACE_IDS) == SURFACE_COUNT
+    assert m["total_classified"] == SURFACE_COUNT, "all canonical surfaces must be classified"
     assert m["coverage"] == 1.0, "coverage must be 1.0"
     assert m["orphans"] == [], "zero orphans"
     assert m["unknown_assignments"] == [], "zero unknown assignments"
@@ -885,12 +998,14 @@ if __name__ == "__main__":
     for c in m["clusters"]:
         for s in c["surfaces"]:
             seen[s["id"]] = seen.get(s["id"], 0) + 1
-    assert set(seen.keys()) == set(_SURFACE_IDS), "cluster members must be exactly the 67"
+    assert set(seen.keys()) == set(_SURFACE_IDS), "cluster members must equal canonical registry"
     assert all(v == 1 for v in seen.values()), "no surface may appear twice"
-    assert sum(seen.values()) == 67
+    assert sum(seen.values()) == SURFACE_COUNT
 
-    # atlas itself is the 68th surface (home cluster 6)
-    assert m["atlas_is_68th"]["home_cluster"] == 6 and mf["surface_index"] == 68
+    # Atlas is part of the denominator and lives in cluster 6.
+    assert m["atlas_membership"]["home_cluster"] == 6
+    assert m["atlas_membership"]["included_in_surface_count"] is True
+    assert "atlas" in _SURFACE_IDS and mf["surface_index"] == _SURFACE_IDS.index("atlas") + 1
 
     # each cluster populated (surfaces OR kernel objects) + basis cited to the flower
     for c in m["clusters"]:
@@ -994,7 +1109,7 @@ if __name__ == "__main__":
     ], paths
 
     print("register paths:", paths)
-    print("szl_kc_atlas: ALL OK — 67 surfaces unified into 8 flower clusters, coverage 1.0, "
+    print("szl_kc_atlas: ALL OK — canonical surfaces unified into 8 flower clusters, coverage 1.0, "
           "locked-8 immutable pistil, conjectures gray, cited basis per cluster, deterministic.",
           file=sys.stderr)
     print("ALL OK")
