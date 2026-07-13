@@ -1,0 +1,61 @@
+{
+  "admission_summary": {
+    "canonical_rows_observed": 8,
+    "raw_graph_nodes_admitted": 0,
+    "raw_graph_nodes_excluded": 9464,
+    "raw_graph_nodes_observed": 9464,
+    "unique_document_count": 5
+  },
+  "artifact_receipts": {
+    "research/brain-evidence-admission/canonical-index.json": "342f28c5f718c4a0dd3f1f0f1c1e47e0345bb98bed84359af0151b2ffbef0031",
+    "research/brain-evidence-admission/evaluation-results.json": "5c636b5746555ee83dd6733edaeaf79afeb44e2ee5ed323a693e1693b5453dbe",
+    "research/brain-evidence-admission/preregistration.json": "cfa65dcce7822c8a3ed16a2a9b2cf2e90cd8c42ca4e5115d4e5c15a1eafa68d4",
+    "research/brain-evidence-admission/qrels.json": "e6fb9b6b7fba08b8107e92289eb11b647e88013bb56b2311e7fefdd09b4962eb",
+    "szl_brain_evidence_eval.py": "f04ff7fa8172397fd2b88620f9c270a9c470a0deaa3e04e9e6aae63ad79329c4"
+  },
+  "claims_boundary": {
+    "doi_minted": false,
+    "model_promotion_allowed": false,
+    "model_trust_delta": 0,
+    "network_used": false,
+    "peer_reviewed": false,
+    "proof_credit": 0,
+    "training_triggered": false
+  },
+  "index_receipt_sha256": "05de63827271daee11888d0f1e43e558bca30ff6f4d969da807fd7e6e617f658",
+  "label": "MEASURED_LOCAL_PILOT",
+  "limitations": [
+    "The corpus has only five unique canonical documents and fifteen manually judged queries.",
+    "There is one adjudicator and no inter-rater reliability measurement.",
+    "Canonical source timestamps are absent, so semantic source freshness remains UNKNOWN.",
+    "The baseline is lexical BM25; no learned reranker or independent external corpus was evaluated.",
+    "Results do not generalize to the 9,000-plus-node raw Brain graph, which remained excluded."
+  ],
+  "manifest_receipt_sha256": "a75ffbfddab45b7fe7b4f8e799cb8740e2d15877d1e9e8d37f3d8de64e9de685",
+  "metrics": {
+    "answerable_abstention_rate": 0.2,
+    "answerable_query_count": 10,
+    "canonical_license_coverage": 1.0,
+    "canonical_source_timestamp_coverage": 0.0,
+    "mean_reciprocal_rank": 1.0,
+    "ndcg_at_3": 1.0,
+    "overall_action_accuracy": 0.866666666667,
+    "query_count": 15,
+    "raw_graph_source_timestamp_coverage": 0.003592561285,
+    "recall_at_1": 1.0,
+    "recall_at_3": 1.0,
+    "unanswerable_abstention_accuracy": 1.0,
+    "unanswerable_query_count": 5
+  },
+  "paper_ready_claims": [
+    "A deterministic local pilot was executed over the content-addressed canonical evidence subset.",
+    "No raw graph node entered the evaluation index.",
+    "Evaluation qrels remained separate from the index and ineligible for training.",
+    "License, freshness, ranking, and abstention metrics were computed from committed local evidence."
+  ],
+  "preregistration_commit_sha": "3e465d9bc1f5abbdaf37c3aa30e7a08b422a6ab3",
+  "protocol_id": "brain-canonical-retrieval-pilot-v1",
+  "results_receipt_sha256": "0c7b6d0ec479a9b5c13062c10f02fd354e38144dca8934bd28cac88b684b3ab3",
+  "schema_version": "szl.brain.evidence-manifest.v1",
+  "status": "COMPLETE_LOCAL_PILOT"
+}
