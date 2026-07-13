@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-forge-receipt-agent-draft-v1.json",
+  "title": "SZL-Forge ReceiptAgent model draft",
+  "description": "Unsigned model proposal. The deterministic A11oy runtime validates evidence and formula references, computes hashes, applies policy, and signs the final receipt envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "answer", "evidence_ids", "formula_refs", "uncertainty", "abstention", "tool_proposal"],
+  "properties": {
+    "schema_version": {"const": "szl.forge-receipt-draft.v1"},
+    "status": {"enum": ["ANSWER_PROPOSED", "ABSTAINED", "UNAVAILABLE"]},
+    "answer": {"type": ["string", "null"]},
+    "evidence_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^(fixture|brain|artifact|source|receipt):[A-Za-z0-9._:/-]+$"}
+    },
+    "formula_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["namespace", "formula_id", "claimed_status"],
+        "properties": {
+          "namespace": {"type": "string", "minLength": 1},
+          "formula_id": {"type": "string", "minLength": 1},
+          "claimed_status": {"enum": ["KERNEL_ACCEPTED", "CONDITIONAL", "OPEN", "REFUTED", "NOT_EVALUATED"]}
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["band", "basis"],
+      "properties": {
+        "band": {"enum": ["LOW", "MEDIUM", "HIGH", "NOT_EVALUATED"]},
+        "basis": {"type": "string", "minLength": 1}
+      }
+    },
+    "abstention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "code", "detail"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "code": {"enum": ["NONE", "MODEL_UNAVAILABLE", "EVIDENCE_NOT_ADMITTED", "EVIDENCE_INSUFFICIENT", "FORMULA_NAMESPACE_CONFLICT", "RECEIPT_INVALID", "POLICY_DENIED", "UNCERTAINTY_TOO_HIGH"]},
+        "detail": {"type": "string", "minLength": 1}
+      }
+    },
+    "tool_proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "tool_id", "arguments"],
+      "properties": {
+        "state": {"enum": ["NONE", "PROPOSED"]},
+        "tool_id": {"type": ["string", "null"]},
+        "arguments": {"type": ["object", "null"]}
+      }
+    }
+  }
+}

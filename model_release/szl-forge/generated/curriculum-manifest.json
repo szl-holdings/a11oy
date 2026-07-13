@@ -1,0 +1,38 @@
+{
+  "schema_version": "szl.forge-curriculum-manifest.v1",
+  "contract_id": "szl-forge-1.5b.receipt-agent-v1",
+  "profile_id": "ReceiptAgent-v1",
+  "state": "ADMITTED_PROJECT_AUTHORED_ONLY",
+  "rights_basis": "PROJECT_AUTHORED_SCHEMA_GENERATED",
+  "source": {
+    "path": "model_release/szl-forge/curriculum-source.json",
+    "sha256": "2b24edf2097f971ef1887141a4c294b9d4af808470888b6b8a4ce41488665a59"
+  },
+  "draft_schema": {
+    "path": "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
+    "sha256": "adb4720e7ffdc8688faffa1ab5e05a5059912dd03d470753fc39b18bbb72771e"
+  },
+  "train": {
+    "path": "model_release/szl-forge/generated/train.jsonl",
+    "rows": 30,
+    "sha256": "2a0be6ff0b0d30d92c344385548d806fd394b9a3439706029caa48e983f31b5d"
+  },
+  "eval": {
+    "path": "model_release/szl-forge/generated/eval.jsonl",
+    "rows": 8,
+    "sha256": "7fc4d11546055e0b65c59ff7895cd38e1c3917aebd840394291c55c7d2d273b5"
+  },
+  "excluded_training_classes": [
+    "BRAIN_RAW_NODE",
+    "FORMULA_HOLDOUT",
+    "HISTORICAL_UNREVIEWED_SEED",
+    "ORPO_QUARANTINE",
+    "THIRD_PARTY_TRACE"
+  ],
+  "external_mutations": {
+    "trained": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": "szl.forge-preflight-receipt.v1",
+  "contract_id": "szl-forge-1.5b.receipt-agent-v1",
+  "state": "BLOCKED",
+  "gpu_policy": {
+    "minimum_free_memory_mib": 6656,
+    "maximum_utilization_pct": 10,
+    "maximum_temperature_c": 60,
+    "queue_probe_samples": 3,
+    "training_soak_samples": 11,
+    "sample_interval_seconds": 30,
+    "maximum_training_temperature_c": 80,
+    "thresholds_may_be_weakened": false,
+    "processes_may_be_stopped_automatically": false
+  },
+  "checks": [
+    {
+      "id": "CURRICULUM_ADMISSION",
+      "state": "PASS",
+      "sha256": "3d13e664f67f08e63f3e7d772d9f059b2fd3389b4b722ef2e1f2db7a9cf05c8e",
+      "train_rows": 30,
+      "eval_rows": 8
+    },
+    {
+      "id": "IMMUTABLE_BASE",
+      "state": "PASS",
+      "files": [
+        {
+          "path": "config.json",
+          "bytes": 1338,
+          "sha256": "7dc54a8c2b362c0090547190abae63572ba7a39606c51c60d5ed3af9129cd6ce"
+        },
+        {
+          "path": "generation_config.json",
+          "bytes": 270,
+          "sha256": "409eda00f5fe7d1c29c2c0335823449a4fda6af454b6638b96044fce19186cc5"
+        },
+        {
+          "path": "model.safetensors",
+          "bytes": 1143327694,
+          "sha256": "4be8a58f9cdd190ac6014bee8e42968fa5520296509cad8e85a77cbd217ce653"
+        },
+        {
+          "path": "added_tokens.json",
+          "bytes": 605,
+          "sha256": "58b54bbe36fc752f79a24a271ef66a0a0830054b4dfad94bde757d851968060b"
+        },
+        {
+          "path": "merges.txt",
+          "bytes": 1671853,
+          "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "bytes": 614,
+          "sha256": "b5acd1507cb3a3539e63369cb4a2b675a599cf13afe62282d371518288967797"
+        },
+        {
+          "path": "tokenizer.json",
+          "bytes": 11421896,
+          "sha256": "9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "bytes": 7362,
+          "sha256": "0553ada6e92b1a29b4431c72782c6e5e6ab675ef0b20ceb2833cd1074c7fb932"
+        },
+        {
+          "path": "vocab.json",
+          "bytes": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ]
+    },
+    {
+      "id": "GPU_ADMISSION",
+      "state": "BLOCKED",
+      "reason": "GPU admission thresholds were not maintained",
+      "samples": [
+        {
+          "measured_at_unix_ns": 1783928683212159300,
+          "gpu_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+          "memory_total_mib": 8151,
+          "memory_used_mib": 7483,
+          "memory_free_mib": 428,
+          "utilization_pct": 100,
+          "temperature_c": 78
+        }
+      ]
+    }
+  ],
+  "external_mutations": {
+    "training_started": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false
+  }
+}

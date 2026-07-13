@@ -1,0 +1,117 @@
+{
+  "schema_version": "szl.forge-training-contract.v1",
+  "contract_id": "szl-forge-1.5b.receipt-agent-v1",
+  "family_id": "SZL-Forge-1.5B",
+  "profile_id": "ReceiptAgent-v1",
+  "candidate_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
+  "release_state": "NOT_TRAINED",
+  "quality_claim": "NOT_ESTABLISHED",
+  "base": {
+    "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "architecture": "Qwen2ForCausalLM",
+    "license": "Apache-2.0",
+    "network_download_allowed": false,
+    "identity_manifest": "model_release/m1/operational-manifest.json"
+  },
+  "curriculum": {
+    "builder": "model_release/szl-forge/szl_forge_training.py",
+    "source": "model_release/szl-forge/curriculum-source.json",
+    "draft_schema": "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
+    "generated_manifest": "model_release/szl-forge/generated/curriculum-manifest.json",
+    "train": "model_release/szl-forge/generated/train.jsonl",
+    "eval": "model_release/szl-forge/generated/eval.jsonl",
+    "required_rights_basis": "PROJECT_AUTHORED_SCHEMA_GENERATED",
+    "allowed_source_classes": ["PROJECT_AUTHORED_POLICY", "PROJECT_AUTHORED_SCHEMA"],
+    "minimum_train_rows": 24,
+    "minimum_eval_rows": 8
+  },
+  "excluded_from_training": [
+    {
+      "path": "model_release/m1/brain-ingest-ledger.jsonl",
+      "reason": "All 9464 raw Brain nodes are training-quarantined. The Brain remains a retrieval and evaluation source only."
+    },
+    {
+      "path": "model_release/m1/formula-curriculum-ledger.jsonl",
+      "reason": "The current formula corpus is holdout-only and must not enter gradients."
+    },
+    {
+      "path": "research/formula-training-admission/admission-tranche.jsonl",
+      "reason": "All 148 formula admission records are holdout rows."
+    },
+    {
+      "path": "training/szl_seed.jsonl",
+      "reason": "The historical 167-row dataset has incomplete license, privacy, and contamination review."
+    },
+    {
+      "path": "training/szl_brain_corpus.jsonl",
+      "reason": "Legacy raw-node-derived text predates the current fail-closed admission decision."
+    },
+    {
+      "path": "training/szl_formula_corpus.jsonl",
+      "reason": "Legacy formula text would contaminate the frozen formula holdout."
+    },
+    {
+      "path": "training/szl_orpo.jsonl",
+      "reason": "The ORPO candidate passed 0 of 12 qualification checks and is quarantined."
+    }
+  ],
+  "training": {
+    "method": "QLORA_SFT",
+    "max_steps": 64,
+    "max_sequence_length": 1024,
+    "per_device_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0002,
+    "warmup_ratio": 0.03,
+    "seed": 3407,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.0,
+    "target_modules": "all-linear",
+    "optimizer": "paged_adamw_8bit",
+    "confirmation_phrase": "TRAIN_SZL_FORGE_RECEIPT_AGENT_1_5B"
+  },
+  "runtime": {
+    "python": "3.11_OR_3.12",
+    "torch": "2.7.1+cu128",
+    "unsloth": "2026.6.9",
+    "transformers": "5.5.0",
+    "trl": "0.24.0",
+    "peft": "0.19.1",
+    "bitsandbytes": "0.49.2",
+    "xformers": "0.0.34_OPTIONAL",
+    "lock_source": "training/box/requirements-box.txt"
+  },
+  "gpu_admission": {
+    "minimum_free_memory_mib": 6656,
+    "maximum_utilization_pct": 10,
+    "maximum_temperature_c": 60,
+    "queue_probe_samples": 3,
+    "training_soak_samples": 11,
+    "sample_interval_seconds": 30,
+    "maximum_training_temperature_c": 80,
+    "thresholds_may_be_weakened": false,
+    "processes_may_be_stopped_automatically": false
+  },
+  "mandatory_receipts": [
+    "preflight-receipt.json",
+    "training-receipt.json",
+    "adapter-files.json",
+    "reload-evaluation-receipt.json"
+  ],
+  "promotion": {
+    "automatic": false,
+    "requires_human_approval": true,
+    "requires_zero_catastrophic_errors": true,
+    "requires_full_receipt_agent_evaluation": true,
+    "requires_dsse_attestation": true,
+    "requires_transparency_log": true
+  },
+  "external_mutations": {
+    "upload": false,
+    "publish": false,
+    "deploy": false,
+    "push": false
+  }
+}
