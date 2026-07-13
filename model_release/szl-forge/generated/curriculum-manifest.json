@@ -10,17 +10,17 @@
   },
   "draft_schema": {
     "path": "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
-    "sha256": "adb4720e7ffdc8688faffa1ab5e05a5059912dd03d470753fc39b18bbb72771e"
+    "sha256": "05803c2aa83af206850c6f6760916b89ac61bf7109111115b7ae6e1d720006b9"
   },
   "train": {
-    "path": "model_release/szl-forge/generated/train.jsonl",
+    "path": "train.jsonl",
     "rows": 30,
-    "sha256": "2a0be6ff0b0d30d92c344385548d806fd394b9a3439706029caa48e983f31b5d"
+    "sha256": "2af4951a08c8bad70233d15dec54ffb1671d105d6ad9824103194f8d291d2942"
   },
   "eval": {
-    "path": "model_release/szl-forge/generated/eval.jsonl",
+    "path": "eval.jsonl",
     "rows": 8,
-    "sha256": "7fc4d11546055e0b65c59ff7895cd38e1c3917aebd840394291c55c7d2d273b5"
+    "sha256": "c55b885b162b565983fa395b2e395a0355b254c85e9b565ef392bb3456158e9b"
   },
   "excluded_training_classes": [
     "BRAIN_RAW_NODE",

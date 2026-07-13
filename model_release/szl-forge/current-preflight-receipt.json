@@ -17,13 +17,17 @@
     {
       "id": "CURRICULUM_ADMISSION",
       "state": "PASS",
-      "sha256": "3d13e664f67f08e63f3e7d772d9f059b2fd3389b4b722ef2e1f2db7a9cf05c8e",
+      "manifest_sha256": "63b6e0af8a121a1b52c7fe808b820d7945411c27730fb4824b33a5e4a772c3f1",
+      "contract_sha256": "201016a2ef216bd85b7285d3438d08b81a28866d656ddeccd19b6a0cd6168bb7",
+      "source_sha256": "2b24edf2097f971ef1887141a4c294b9d4af808470888b6b8a4ce41488665a59",
+      "draft_schema_sha256": "05803c2aa83af206850c6f6760916b89ac61bf7109111115b7ae6e1d720006b9",
       "train_rows": 30,
       "eval_rows": 8
     },
     {
       "id": "IMMUTABLE_BASE",
       "state": "PASS",
+      "identity_manifest_sha256": "c62cfa7a4e4887270afb0a4ab7cbc6dde6202765fb03242785633352df6a694d",
       "files": [
         {
           "path": "config.json",
@@ -78,13 +82,13 @@
       "reason": "GPU admission thresholds were not maintained",
       "samples": [
         {
-          "measured_at_unix_ns": 1783928683212159300,
+          "measured_at_unix_ns": 1783929951637505900,
           "gpu_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
           "memory_total_mib": 8151,
-          "memory_used_mib": 7483,
-          "memory_free_mib": 428,
-          "utilization_pct": 100,
-          "temperature_c": 78
+          "memory_used_mib": 1332,
+          "memory_free_mib": 6579,
+          "utilization_pct": 7,
+          "temperature_c": 66
         }
       ]
     }

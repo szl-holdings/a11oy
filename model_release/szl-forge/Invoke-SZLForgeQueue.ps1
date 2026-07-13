@@ -9,7 +9,8 @@ param(
   [int]$MaxAttempts = 30,
   [ValidateRange(30, 3600)]
   [int]$RetrySeconds = 120,
-  [string]$Python = 'python'
+  [string]$Python = 'python',
+  [string]$GitExecutable = $env:SZL_FORGE_GIT
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,6 +23,10 @@ New-Item -ItemType Directory -Path $StateDirectory -Force | Out-Null
 
 if (-not (Test-Path -LiteralPath $Runner -PathType Leaf)) { throw "Missing runner: $Runner" }
 if (-not (Test-Path -LiteralPath $BaseSnapshot -PathType Container)) { throw "Missing immutable base snapshot: $BaseSnapshot" }
+if (-not [string]::IsNullOrWhiteSpace($GitExecutable)) {
+  if (-not (Test-Path -LiteralPath $GitExecutable -PathType Leaf)) { throw "Missing Git executable: $GitExecutable" }
+  $env:SZL_FORGE_GIT = (Resolve-Path -LiteralPath $GitExecutable).Path
+}
 if ($Mode -eq 'queue-train' -and $Confirmation -cne $RequiredConfirmation) {
   throw 'Exact training confirmation phrase is required.'
 }
@@ -51,7 +56,11 @@ function Write-State {
       retry_seconds = $RetrySeconds
       thresholds_may_be_weakened = $false
       processes_may_be_stopped_automatically = $false
+      exclusive_training_lease_required = $true
+      runtime_identity_fail_closed = $true
       network_download_allowed = $false
+      python_socket_connections_allowed = $false
+      os_network_namespace = 'NOT_ESTABLISHED'
       upload_allowed = $false
     }
     attempts = $Attempts
@@ -92,14 +101,26 @@ for ($Attempt = 1; $Attempt -le $MaxAttempts; $Attempt++) {
     & $Python $Runner train --base-snapshot $BaseSnapshot --output-dir $AttemptOutput --confirmation $Confirmation
     $TrainExit = $LASTEXITCODE
     $Attempts[-1]['train_exit_code'] = $TrainExit
+    $TrainingReceiptPath = Join-Path $AttemptOutput 'receipts\training-receipt.json'
+    $TrainingActuallyStarted = $false
+    if (Test-Path -LiteralPath $TrainingReceiptPath -PathType Leaf) {
+      try {
+        $TrainingReceipt = Get-Content -Raw -LiteralPath $TrainingReceiptPath | ConvertFrom-Json
+        $TrainingActuallyStarted = $null -ne $TrainingReceipt.training_started_at_unix_ns
+      } catch {
+        $Attempts[-1]['training_receipt_read_error'] = $_.Exception.Message
+      }
+    }
+    $Attempts[-1]['training_started'] = $TrainingActuallyStarted
     if ($TrainExit -eq 0) {
       Write-State -State 'CANDIDATE_GENERATED_NOT_PROMOTED' -Reason 'Training, reload, and schema evaluation completed. Promotion remains a separate human-approved gate.' -TrainingStarted $true
       exit 0
     }
     if ($TrainExit -ne 3) {
-      Write-State -State 'ABORTED_NOT_PROMOTED' -Reason "Training path returned exit code $TrainExit." -TrainingStarted $true
+      Write-State -State 'ABORTED_NOT_PROMOTED' -Reason "Training path returned non-retryable exit code $TrainExit." -TrainingStarted $TrainingActuallyStarted
       exit $TrainExit
     }
+    $Attempts[-1]['classification'] = 'GPU_SOAK_REFUSED_BEFORE_MODEL_LOAD'
   } elseif ($ProbeExit -ne 3) {
     Write-State -State 'ABORTED_NOT_PROMOTED' -Reason "Probe returned unexpected exit code $ProbeExit."
     exit $ProbeExit

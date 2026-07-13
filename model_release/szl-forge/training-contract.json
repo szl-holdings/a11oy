@@ -17,7 +17,9 @@
   "curriculum": {
     "builder": "model_release/szl-forge/szl_forge_training.py",
     "source": "model_release/szl-forge/curriculum-source.json",
+    "source_sha256": "2b24edf2097f971ef1887141a4c294b9d4af808470888b6b8a4ce41488665a59",
     "draft_schema": "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
+    "draft_schema_sha256": "05803c2aa83af206850c6f6760916b89ac61bf7109111115b7ae6e1d720006b9",
     "generated_manifest": "model_release/szl-forge/generated/curriculum-manifest.json",
     "train": "model_release/szl-forge/generated/train.jsonl",
     "eval": "model_release/szl-forge/generated/eval.jsonl",
@@ -70,18 +72,49 @@
     "lora_dropout": 0.0,
     "target_modules": "all-linear",
     "optimizer": "paged_adamw_8bit",
-    "confirmation_phrase": "TRAIN_SZL_FORGE_RECEIPT_AGENT_1_5B"
+    "confirmation_phrase": "TRAIN_SZL_FORGE_RECEIPT_AGENT_1_5B",
+    "maximum_wall_clock_seconds": 7200,
+    "watchdog_interval_seconds": 5,
+    "minimum_output_free_bytes": 4294967296
   },
   "runtime": {
-    "python": "3.11_OR_3.12",
-    "torch": "2.7.1+cu128",
-    "unsloth": "2026.6.9",
-    "transformers": "5.5.0",
-    "trl": "0.24.0",
-    "peft": "0.19.1",
-    "bitsandbytes": "0.49.2",
-    "xformers": "0.0.34_OPTIONAL",
-    "lock_source": "training/box/requirements-box.txt"
+    "identity_policy": "MEASURED_AT_RUN_FAIL_CLOSED",
+    "python_minor_allowlist": ["3.11", "3.12"],
+    "torch_exact_allowlist": ["2.7.1+cu128", "2.10.0+cu130"],
+    "minimum_cuda_runtime": [12, 8],
+    "minimum_device_capability": [12, 0],
+    "required_device_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "package_exact": {
+      "transformers": "5.5.0",
+      "trl": "0.24.0",
+      "peft": "0.19.1",
+      "bitsandbytes": "0.49.2"
+    },
+    "package_required_measured": ["accelerate", "datasets", "tokenizers", "huggingface-hub"],
+    "prior_measured_profile": {
+      "label": "REPORTED_PRIOR_MEASURED_NOT_CURRENT_RUN",
+      "python": "3.12.10",
+      "torch": "2.10.0+cu130",
+      "cuda_runtime": "13.0"
+    },
+    "lock_source": "training/box/requirements-box.txt",
+    "lock_source_state": "LEGACY_CU128_ONLY_NOT_RUNTIME_AUTHORITY"
+  },
+  "source_control": {
+    "require_clean_scope": true,
+    "git_executable_env": "SZL_FORGE_GIT",
+    "paths": [
+      "model_release/szl-forge/Invoke-SZLForgeQueue.ps1",
+      "model_release/szl-forge/curriculum-source.json",
+      "model_release/szl-forge/generated/curriculum-manifest.json",
+      "model_release/szl-forge/generated/eval.jsonl",
+      "model_release/szl-forge/generated/train.jsonl",
+      "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
+      "model_release/szl-forge/szl_forge_training.py",
+      "model_release/szl-forge/training-contract.json",
+      "model_release/m1/operational-manifest.json",
+      "tests/test_szl_forge_training_path.py"
+    ]
   },
   "gpu_admission": {
     "minimum_free_memory_mib": 6656,
@@ -96,9 +129,12 @@
   },
   "mandatory_receipts": [
     "preflight-receipt.json",
+    "input-snapshot-receipt.json",
+    "gpu-load-admission-receipt.json",
     "training-receipt.json",
     "adapter-files.json",
-    "reload-evaluation-receipt.json"
+    "reload-evaluation-receipt.json",
+    "final-input-integrity-receipt.json"
   ],
   "promotion": {
     "automatic": false,

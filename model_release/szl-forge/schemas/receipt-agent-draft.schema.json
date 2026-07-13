@@ -17,13 +17,14 @@
     },
     "formula_refs": {
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["namespace", "formula_id", "claimed_status"],
         "properties": {
-          "namespace": {"type": "string", "minLength": 1},
-          "formula_id": {"type": "string", "minLength": 1},
+          "namespace": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._:/-]+$"},
+          "formula_id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._:/-]+$"},
           "claimed_status": {"enum": ["KERNEL_ACCEPTED", "CONDITIONAL", "OPEN", "REFUTED", "NOT_EVALUATED"]}
         }
       }
@@ -53,9 +54,85 @@
       "required": ["state", "tool_id", "arguments"],
       "properties": {
         "state": {"enum": ["NONE", "PROPOSED"]},
-        "tool_id": {"type": ["string", "null"]},
+        "tool_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9._:/-]+$"},
         "arguments": {"type": ["object", "null"]}
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "ANSWER_PROPOSED"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "answer": {"type": "string", "minLength": 1},
+          "evidence_ids": {"minItems": 1},
+          "uncertainty": {"properties": {"band": {"enum": ["LOW", "MEDIUM"]}}},
+          "abstention": {
+            "properties": {"required": {"const": false}, "code": {"const": "NONE"}}
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "ABSTAINED"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "answer": {"type": "null"},
+          "evidence_ids": {"maxItems": 0},
+          "formula_refs": {"maxItems": 0},
+          "uncertainty": {"properties": {"band": {"const": "HIGH"}}},
+          "abstention": {
+            "properties": {
+              "required": {"const": true},
+              "code": {"enum": ["EVIDENCE_NOT_ADMITTED", "EVIDENCE_INSUFFICIENT", "FORMULA_NAMESPACE_CONFLICT", "RECEIPT_INVALID", "POLICY_DENIED", "UNCERTAINTY_TOO_HIGH"]}
+            }
+          },
+          "tool_proposal": {"properties": {"state": {"const": "NONE"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "UNAVAILABLE"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "answer": {"type": "null"},
+          "evidence_ids": {"maxItems": 0},
+          "formula_refs": {"maxItems": 0},
+          "uncertainty": {"properties": {"band": {"const": "NOT_EVALUATED"}}},
+          "abstention": {
+            "properties": {"required": {"const": true}, "code": {"const": "MODEL_UNAVAILABLE"}}
+          },
+          "tool_proposal": {"properties": {"state": {"const": "NONE"}}}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"tool_proposal": {"properties": {"state": {"const": "NONE"}}}},
+        "required": ["tool_proposal"]
+      },
+      "then": {
+        "properties": {
+          "tool_proposal": {"properties": {"tool_id": {"type": "null"}, "arguments": {"type": "null"}}}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"tool_proposal": {"properties": {"state": {"const": "PROPOSED"}}}},
+        "required": ["tool_proposal"]
+      },
+      "then": {
+        "properties": {
+          "status": {"const": "ANSWER_PROPOSED"},
+          "tool_proposal": {
+            "properties": {
+              "tool_id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._:/-]+$"},
+              "arguments": {"type": "object", "minProperties": 1}
+            }
+          }
+        }
+      }
+    }
+  ]
 }
