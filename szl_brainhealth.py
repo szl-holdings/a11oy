@@ -60,6 +60,8 @@ import threading
 import time
 from typing import Any, Callable
 
+import szl_braincorpus as _braincorpus
+
 try:  # numpy is allowed; used only for the modeled mean, guarded so a missing wheel is honest.
     import numpy as _np
     _HAVE_NUMPY = True
@@ -103,25 +105,7 @@ SERVICE_DEGRADED = "DEGRADED"
 QUERY_EVALUATED = "EVALUATED"
 QUERY_NOT_EVALUATED = "NOT-EVALUATED"
 
-EVIDENCE_CLASSES = ("PROVED", "OPEN", "REFUTED", "EXPERIMENTAL", "UNKNOWN")
 _ROOT = pathlib.Path(__file__).resolve().parent
-CORPUS_SOURCE_PATHS = {
-    "szl_lake": _ROOT / "data" / "szl-lake" / "evidence-manifest.json",
-    "formula": _ROOT / "corpus" / "formulas" / "a11oy__gates_manifest.json",
-    "lean": _ROOT / "docs" / "thesis" / "v18" / "lean_source_MANIFEST.json",
-}
-
-CORPUS_MANIFEST_CONTRACT = {
-    "schema_version": "szl.brain.corpus-evidence.v1",
-    "required_top_level": ["schema_version", "source_type", "version", "entries"],
-    "entry_required": ["id", "evidence_class", "artifact_sha256"],
-    "entry_optional": ["sorry_count", "proof_receipt", "refutation_receipt", "source_path"],
-    "proof_rule": (
-        "PROVED credit requires explicit evidence_class=PROVED, sorry_count=0, and a local "
-        "proof_receipt with verified=true, kernel_commit, and matching artifact_sha256"
-    ),
-    "non_uplift_rule": "OPEN, REFUTED, EXPERIMENTAL, UNKNOWN, and any sorry_count>0 add zero proof/trust credit",
-}
 
 _REFRESH_LOCK = threading.Lock()
 _REFRESH_COOLDOWN_SECONDS = 5.0
@@ -541,144 +525,9 @@ def _source_snapshot_metadata(ns: str = "a11oy") -> dict:
         }
 
 
-def _classify_corpus_entry(entry: dict) -> dict:
-    """Apply the no-uplift evidence lattice to one normalized manifest entry."""
-    declared = str(entry.get("evidence_class") or "UNKNOWN").upper()
-    if declared not in EVIDENCE_CLASSES:
-        declared = "UNKNOWN"
-    try:
-        sorry_count = max(0, int(entry.get("sorry_count") or 0))
-    except (TypeError, ValueError):
-        sorry_count = 0
-    artifact_sha = str(entry.get("artifact_sha256") or "")
-    proof = entry.get("proof_receipt") if isinstance(entry.get("proof_receipt"), dict) else {}
-    proof_valid = bool(
-        declared == "PROVED" and sorry_count == 0 and artifact_sha
-        and proof.get("verified") is True
-        and isinstance(proof.get("kernel_commit"), str) and proof.get("kernel_commit")
-        and proof.get("artifact_sha256") == artifact_sha
-    )
-    if sorry_count > 0:
-        effective = "OPEN"
-        reason = "sorry/admit obligations remain; cannot be PROVED"
-    elif declared == "PROVED" and not proof_valid:
-        effective = "UNKNOWN"
-        reason = "PROVED declaration lacks a matching verified local kernel receipt"
-    else:
-        effective = declared
-        reason = "explicit manifest class retained under the no-uplift lattice"
-    return {
-        "id": str(entry.get("id") or entry.get("source_path") or "unknown"),
-        "declared_class": declared,
-        "effective_class": effective,
-        "sorry_count": sorry_count,
-        "artifact_sha256": artifact_sha or None,
-        "proof_receipt_valid": proof_valid,
-        "proof_credit": 1 if effective == "PROVED" and proof_valid else 0,
-        "trust_uplift_eligible": bool(effective == "PROVED" and proof_valid),
-        "reason": reason,
-    }
-
-
-def _legacy_manifest_entries(source_key: str, data: Any) -> list[dict]:
-    """Normalize existing local manifests conservatively; never infer PROVED from filenames."""
-    if isinstance(data, dict) and isinstance(data.get("entries"), list):
-        return [dict(e) for e in data["entries"] if isinstance(e, dict)]
-    if source_key == "lean" and isinstance(data, dict):
-        out = []
-        for row in data.get("files") or []:
-            if not isinstance(row, dict):
-                continue
-            sorry = int(row.get("sorry_count") or 0)
-            out.append({
-                "id": row.get("rel_repo") or row.get("dataset_path"),
-                "source_path": row.get("rel_repo"),
-                "artifact_sha256": row.get("sha256"),
-                "sorry_count": sorry,
-                "evidence_class": "OPEN" if sorry > 0 else "EXPERIMENTAL",
-            })
-        return out
-    if source_key == "formula" and isinstance(data, list):
-        out = []
-        for row in data:
-            if not isinstance(row, dict):
-                continue
-            status = str(row.get("lean_status") or "").lower()
-            evidence_class = "OPEN" if status == "phantom" else (
-                "EXPERIMENTAL" if status == "real" else "UNKNOWN")
-            out.append({
-                "id": row.get("name"),
-                "source_path": row.get("lean_file"),
-                "artifact_sha256": None,
-                "sorry_count": 1 if status == "phantom" else 0,
-                "evidence_class": evidence_class,
-            })
-        return out
-    return []
-
-
 def build_corpus_source_contract() -> dict:
-    """Read only versioned local manifests and classify evidence without network access."""
-    sources = []
-    counts = {c: 0 for c in EVIDENCE_CLASSES}
-    proof_credit = 0
-    for source_key, path in CORPUS_SOURCE_PATHS.items():
-        if not path.is_file():
-            sources.append({
-                "source_type": source_key,
-                "status": "SOURCE_UNAVAILABLE",
-                "path": str(path.relative_to(_ROOT)),
-                "contract": CORPUS_MANIFEST_CONTRACT,
-                "entries": [],
-            })
-            continue
-        try:
-            raw = path.read_bytes()
-            data = json.loads(raw.decode("utf-8"))
-            entries = [_classify_corpus_entry(e) for e in _legacy_manifest_entries(source_key, data)]
-            for entry in entries:
-                counts[entry["effective_class"]] += 1
-                proof_credit += entry["proof_credit"]
-            sources.append({
-                "source_type": source_key,
-                "status": "INGESTED-LOCAL",
-                "path": str(path.relative_to(_ROOT)),
-                "manifest_sha256": hashlib.sha256(raw).hexdigest(),
-                "version": (data.get("schema_version") or data.get("version") or data.get("generated"))
-                           if isinstance(data, dict) else None,
-                "entries": entries,
-            })
-        except Exception as exc:
-            sources.append({
-                "source_type": source_key,
-                "status": "SOURCE_UNAVAILABLE",
-                "path": str(path.relative_to(_ROOT)),
-                "error": str(exc)[:160],
-                "contract": CORPUS_MANIFEST_CONTRACT,
-                "entries": [],
-            })
-    return {
-        "ok": True,
-        "endpoint": "brain/health/corpus-sources",
-        "label": MODELED,
-        "schema_version": CORPUS_MANIFEST_CONTRACT["schema_version"],
-        "evidence_classes": list(EVIDENCE_CLASSES),
-        "manifest_contract": CORPUS_MANIFEST_CONTRACT,
-        "sources": sources,
-        "summary": {
-            "counts": counts,
-            "proof_credit": proof_credit,
-            "trust_uplift_from_non_proved": 0,
-            "network_access": False,
-            "gpu_training_started": False,
-        },
-        "note": (
-            "existing legacy manifests are translated conservatively: zero-sorry source files "
-            "remain EXPERIMENTAL without a verified kernel receipt; sorry/phantom entries are "
-            "OPEN; no 180/200 proof claim is inferred"
-        ),
-        "timestamp_utc": _now_iso(),
-    }
+    """Return the bounded content-addressed corpus admission status (pure read)."""
+    return _braincorpus.build_corpus_status(_ROOT)
 
 
 def _service_readiness(ns: str = "a11oy", snapshot: dict | None = None) -> dict:
@@ -1068,6 +917,7 @@ def handle_info(ns: str = "a11oy") -> dict:
             "receipt": f"POST {base}/receipt",
             "bounded_local_reindex": f"POST {base}/refresh",
             "corpus_sources": f"GET  {base}/corpus-sources",
+            "corpus_sources_info": f"GET  {base}/corpus-sources/info",
         },
         "state_separation": {
             "service_readiness": "can the graph/index and evaluators serve a request?",
@@ -1163,6 +1013,12 @@ def register(app, ns: str = "a11oy") -> str:
     def _brainhealth_corpus_sources():
         """Versioned local evidence manifests under the no-uplift proof lattice."""
         return JSONResponse(build_corpus_source_contract())
+
+    @app.get(f"{base}/corpus-sources/info")
+    def _brainhealth_corpus_sources_info():
+        """Static, side-effect-free content-addressed corpus admission contract."""
+        return JSONResponse({"ok": True, "endpoint": "brain/health/corpus-sources/info",
+                             **_braincorpus.info()})
 
     async def _brainhealth_receipt(request):
         """POST: rollup + UNSIGNED SHA-256 content digest (RECEIPT-ON-WRITE). Reads q/k from the

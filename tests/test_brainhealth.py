@@ -35,6 +35,7 @@ INFO = "/api/a11oy/v1/brain/health/info"
 RECEIPT = "/api/a11oy/v1/brain/health/receipt"
 REFRESH = "/api/a11oy/v1/brain/health/refresh"
 CORPUS_SOURCES = "/api/a11oy/v1/brain/health/corpus-sources"
+CORPUS_SOURCES_INFO = "/api/a11oy/v1/brain/health/corpus-sources/info"
 VERDICTS = {bh.TRUSTWORTHY, bh.DEGRADED, bh.UNTRUSTWORTHY, bh.INSUFFICIENT_SIGNAL}
 
 
@@ -66,11 +67,11 @@ def _force_unavailable(monkeypatch, *keys):
 # 1. registration + ordering
 # --------------------------------------------------------------------------- #
 def test_routes_registered_before_catchalls():
-    for path in (HEALTH, INFO, RECEIPT, REFRESH, CORPUS_SOURCES):
+    for path in (HEALTH, INFO, RECEIPT, REFRESH, CORPUS_SOURCES, CORPUS_SOURCES_INFO):
         assert _route_index(path) is not None, f"{path} not registered"
     spa = _route_index("/{full_path:path}")
     proxy = _route_index("/api/a11oy/{path:path}")
-    for path in (HEALTH, INFO, RECEIPT, REFRESH, CORPUS_SOURCES):
+    for path in (HEALTH, INFO, RECEIPT, REFRESH, CORPUS_SOURCES, CORPUS_SOURCES_INFO):
         idx = _route_index(path)
         if spa is not None:
             assert idx < spa, f"{path} ({idx}) must precede the SPA catch-all ({spa})"
@@ -167,32 +168,6 @@ def test_testclient_is_allowed_to_call_local_refresh_route(monkeypatch):
     assert r.json()["outcome"] == "REINDEXED"
 
 
-def test_nonproved_corpus_classes_never_raise_proof_or_trust():
-    rows = [
-        {"id": "open", "evidence_class": "OPEN", "artifact_sha256": "a" * 64},
-        {"id": "refuted", "evidence_class": "REFUTED", "artifact_sha256": "b" * 64},
-        {"id": "sorry", "evidence_class": "PROVED", "artifact_sha256": "c" * 64,
-         "sorry_count": 1, "proof_receipt": {"verified": True, "kernel_commit": "k",
-                                                 "artifact_sha256": "c" * 64}},
-        {"id": "no-receipt", "evidence_class": "PROVED", "artifact_sha256": "d" * 64},
-    ]
-    got = [bh._classify_corpus_entry(row) for row in rows]
-    assert [r["effective_class"] for r in got] == ["OPEN", "REFUTED", "OPEN", "UNKNOWN"]
-    assert all(r["proof_credit"] == 0 and not r["trust_uplift_eligible"] for r in got)
-
-
-def test_proved_requires_matching_verified_kernel_receipt():
-    sha = "e" * 64
-    got = bh._classify_corpus_entry({
-        "id": "proved", "evidence_class": "PROVED", "artifact_sha256": sha,
-        "sorry_count": 0,
-        "proof_receipt": {"verified": True, "kernel_commit": "c7c0ba17",
-                          "artifact_sha256": sha},
-    })
-    assert got["effective_class"] == "PROVED"
-    assert got["proof_credit"] == 1 and got["trust_uplift_eligible"] is True
-
-
 def test_get_info_is_static_pure_read():
     with TestClient(serve.app) as c:
         r = c.get(INFO)
@@ -200,6 +175,22 @@ def test_get_info_is_static_pure_read():
     j = r.json()
     assert j["ok"] is True and j["label"] == "MODELED" and "receipt" not in j
     assert set(j["verdicts"]) == VERDICTS
+
+
+def test_corpus_status_and_info_are_read_only_and_do_not_promote_claims():
+    with TestClient(serve.app) as c:
+        status_response = c.get(CORPUS_SOURCES)
+        info_response = c.get(CORPUS_SOURCES_INFO)
+    assert status_response.status_code == 200
+    status = status_response.json()
+    assert status["schema_version"] == "szl.brain.corpus-evidence.v1"
+    assert status["summary"]["network_access"] is False
+    assert status["summary"]["writes_performed"] == 0
+    assert status["summary"]["trust_uplift_from_non_proved"] == 0
+    assert "receipt" not in status
+    assert info_response.status_code == 200
+    info = info_response.json()
+    assert info["effectors"] == 0 and info["request_selected_paths"] is False
 
 
 def test_post_receipt_mints_unsigned_sha256_and_is_deterministic():
