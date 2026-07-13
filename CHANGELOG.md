@@ -17,10 +17,11 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
 ### Added — v1.1.0 operational-evidence candidate
 - **Brain evidence reranker** — three content-addressed canonical source
   families (SZL-Lake, Lean/Mathlib, formulas) produce eight deterministic,
-  licensed rows across train/eval/test. The remaining 9,463 raw graph nodes are
-  quarantined when license, revision, or freshness evidence is absent. Proof
-  credit remains zero; the model and evaluation remain **BLOCKED** pending real
-  receipts.
+  licensed rows across train/eval/test. Those rows are derived from the three
+  canonical manifests, not admitted from the raw graph. All 9,464 raw graph
+  nodes remain quarantined where license, revision, or freshness evidence is
+  absent. Proof credit remains zero; the model and evaluation remain
+  **BLOCKED** pending real receipts.
 - **Preregistered numerical-computing dataset** — 1,328 deterministic cases
   spanning declared matrix families, dimensions, condition strata, seeds, and
   tolerances. Dataset readiness is distinct from external MATLAB/Octave engine

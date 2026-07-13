@@ -2,8 +2,7 @@ cff-version: 1.2.0
 message: "If you use A11oy, cite this software and the associated research record."
 type: software
 title: "A11oy: governed AI execution fabric"
-version: "1.1.0"
-date-released: "2026-07-13"
+version: "1.1.0-candidate"
 license: Apache-2.0
 repository-code: "https://github.com/szl-holdings/a11oy"
 url: "https://a-11-oy.com"
@@ -37,14 +36,21 @@ contact:
     affiliation: "SZL Holdings LLC"
     email: "contact@szlholdings.com"
     orcid: "https://orcid.org/0009-0001-0110-4173"
-identifiers:
-  - type: doi
-    value: "10.5281/zenodo.19944926"
-    description: "Stable concept DOI for the associated Ouroboros / governed-systems research program; not the A11oy v1.1.0 software-version DOI."
-  - type: doi
-    value: "10.5281/zenodo.20434276"
-    description: "Existing formal-verification and governance-receipt artifact record; not the A11oy v1.1.0 software-version DOI."
 references:
+  - type: report
+    title: "Ouroboros / governed-systems research program"
+    doi: "10.5281/zenodo.19944926"
+    year: 2026
+    authors:
+      - family-names: "Lutar"
+        given-names: "Stephen P., Jr."
+  - type: data
+    title: "SZL Holdings formal-verification and governance-receipt artifacts"
+    doi: "10.5281/zenodo.20434276"
+    year: 2026
+    authors:
+      - family-names: "Lutar"
+        given-names: "Stephen P., Jr."
   - type: standard
     title: "SLSA specification"
     url: "https://slsa.dev/spec/v1.0/levels"

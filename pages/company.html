@@ -28,10 +28,19 @@
   "codeRepository": "https://github.com/szl-holdings/a11oy",
   "url": "https://a-11-oy.com",
   "sameAs": [
-    "https://a11oy.net",
-    "https://doi.org/10.5281/zenodo.19944926",
-    "https://doi.org/10.5281/zenodo.20434276",
-    "https://orcid.org/0009-0001-0110-4173"
+    "https://a11oy.net"
+  ],
+  "citation": [
+    {
+      "@type": "CreativeWork",
+      "identifier": "https://doi.org/10.5281/zenodo.19944926",
+      "url": "https://doi.org/10.5281/zenodo.19944926"
+    },
+    {
+      "@type": "Dataset",
+      "identifier": "https://doi.org/10.5281/zenodo.20434276",
+      "url": "https://doi.org/10.5281/zenodo.20434276"
+    }
   ],
   "author": {
     "@type": "Person",
@@ -231,7 +240,7 @@ footer{border-top:1px solid var(--line);padding:54px 0 40px}
     <p class="lead">Honesty, <em>by construction</em>.</p>
     <p class="body">PURIQ is the operating doctrine of the house: we tell you exactly what is <strong>proven</strong>, what is experimental, and what is roadmap — and the line is enforced by the kernel, not by a marketing department. The trust score never reads 100%. The locked theorem count is checked in CI; experimental work is labelled experimental; a conjecture is named a conjecture. Provenance isn't a slogan here — it's how the system refuses to lie about itself.</p>
     <div class="metrics">
-      <div class="metric"><div class="n">5</div><div class="k">Locked proven formulas</div><div class="c">{F1, F11, F12, F18, F19} kernel-verified @ c7c0ba17 · machine-enforced count</div></div>
+      <div class="metric"><div class="n">8</div><div class="k">Locked proven formulas</div><div class="c">{F1, F4, F7, F11, F12, F18, F19, F22} kernel-verified @ c7c0ba17 · machine-enforced count</div></div>
       <div class="metric"><div class="n">28</div><div class="k">Kernel-verified loop theorems</div><div class="c">P1–P6 governed run loop — gate-sound, injection-resistant, auditable end-to-end</div></div>
       <div class="metric"><div class="n">1304 / 22</div><div class="k">Experimental decl / axioms</div><div class="c">waves 3–10 CI-green · explicitly excluded from the locked count</div></div>
       <div class="metric warn"><div class="n">Λ = Conj. 1</div><div class="k">Aggregator uniqueness</div><div class="c">a named conjecture, NOT a theorem — unconditional uniqueness machine-checked false</div></div>
@@ -347,11 +356,11 @@ footer{border-top:1px solid var(--line);padding:54px 0 40px}
         <p>The existing archival record for formal and receipt artifacts. It remains separately typed from the next A11oy software release.</p>
         <div class="meta">10.5281/zenodo.20434276 ↗</div>
       </a>
-      <a class="card" href="https://github.com/szl-holdings/a11oy/releases" target="_blank" rel="noopener noreferrer">
-        <div class="tag-row"><span class="code">software releases</span><span class="pill pill-staged">v1.1.0 candidate</span></div>
-        <h3>A11oy release channel</h3>
-        <p>The next version DOI remains pending until immutable release bytes are published and Zenodo returns a resolvable record. No placeholder is presented as a DOI.</p>
-        <div class="meta">GitHub Releases → Zenodo readback</div>
+      <a class="card" id="software-release-card" href="https://github.com/szl-holdings/a11oy/releases" target="_blank" rel="noopener noreferrer">
+        <div class="tag-row"><span class="code">software releases</span><span class="pill pill-staged" id="software-release-status">v1.1.0 candidate</span></div>
+        <h3 id="software-release-title">A11oy release channel</h3>
+        <p id="software-release-description">The next version DOI remains pending until immutable release bytes are published and Zenodo returns a resolvable record. No placeholder is presented as a DOI.</p>
+        <div class="meta" id="software-release-identifier">GitHub Releases → Zenodo readback</div>
       </a>
       <div class="card">
         <div class="tag-row"><span class="code">product surfaces</span><span class="pill pill-live">canonical</span></div>
@@ -409,5 +418,51 @@ footer{border-top:1px solid var(--line);padding:54px 0 40px}
     <span>Doctrine <b style="color:var(--ink-soft)">v11 LOCKED</b> · 749/14/163 · <span class="sha">c7c0ba17</span> · SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap</span>
   </div>
 </footer>
+<script>
+(() => {
+  const card = document.getElementById('software-release-card');
+  const badge = document.getElementById('software-release-status');
+  const title = document.getElementById('software-release-title');
+  const description = document.getElementById('software-release-description');
+  const identifier = document.getElementById('software-release-identifier');
+  if (!card || !badge || !title || !description || !identifier) return;
+
+  fetch('/api/a11oy/v1/version', {cache: 'no-store', credentials: 'same-origin'})
+    .then((response) => response.ok ? response.json() : Promise.reject(new Error('version endpoint unavailable')))
+    .then((release) => {
+      const software = release && release.doi && release.doi.software_version;
+      if (release.release_state !== 'VERIFIED' || !software || software.status !== 'VERIFIED') return;
+      const doi = String(software.value || '');
+      const doiUrl = String(software.url || '');
+      if (!/^10\.5281\/zenodo\.\d+$/.test(doi) || doiUrl !== `https://doi.org/${doi}`) return;
+
+      card.href = doiUrl;
+      badge.className = 'pill pill-live';
+      badge.textContent = 'DOI live';
+      title.textContent = `A11oy ${release.version} software release`;
+      description.textContent = 'The immutable release archive was verified against the public Zenodo record. The DOI below identifies this exact A11oy software version.';
+      identifier.textContent = `${doi} ↗`;
+
+      const meta = document.createElement('meta');
+      meta.name = 'a11oy:software-version-doi';
+      meta.content = doi;
+      document.head.appendChild(meta);
+
+      const structured = document.querySelector('script[type="application/ld+json"]');
+      if (structured) {
+        try {
+          const data = JSON.parse(structured.textContent);
+          data.identifier = doiUrl;
+          structured.textContent = JSON.stringify(data);
+        } catch (_) {
+          // The visible card remains verified; malformed optional JSON-LD is not promoted.
+        }
+      }
+    })
+    .catch(() => {
+      // Fail closed: retain the candidate state when public readback is unavailable.
+    });
+})();
+</script>
 </body>
 </html>

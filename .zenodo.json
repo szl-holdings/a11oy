@@ -24,23 +24,15 @@
   "related_identifiers": [
     {
       "identifier": "10.5281/zenodo.19944926",
-      "relation": "isDocumentedBy",
-      "resource_type": "publication"
+      "relation": "isDocumentedBy"
     },
     {
       "identifier": "10.5281/zenodo.20434276",
-      "relation": "isSupplementedBy",
-      "resource_type": "other"
-    },
-    {
-      "identifier": "https://a-11-oy.com",
-      "relation": "isIdenticalTo",
-      "resource_type": "software"
+      "relation": "isSupplementedBy"
     },
     {
       "identifier": "https://github.com/szl-holdings/a11oy",
-      "relation": "isSourceOf",
-      "resource_type": "software"
+      "relation": "isDerivedFrom"
     }
   ]
 }

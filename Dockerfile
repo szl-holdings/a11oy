@@ -191,6 +191,11 @@ COPY szl_formal_conjecture_lab.py ./
 COPY szl_m1_model_gate.py ./
 COPY szl_m1_corpus_manifest.py ./
 COPY model_release/m1/ ./model_release/m1/
+# Canonical release identity and public Zenodo readback receipt. The readback
+# file ships in a PENDING state until a separately verified archive PR replaces
+# it; the runtime never invents a DOI from the version number.
+COPY szl_release_identity.py ./
+COPY zenodo-readback.json ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
