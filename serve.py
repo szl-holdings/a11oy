@@ -227,9 +227,23 @@ class _QuantumUtilityPayloadTooLarge(ValueError):
 
 
 async def _quantum_utility_body(request: Request) -> dict[str, Any]:
-    body = await request.body()
-    if len(body) > _QUANTUM_UTILITY_BODY_LIMIT:
-        raise _QuantumUtilityPayloadTooLarge("request body exceeds 256 KiB")
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except ValueError as exc:
+            raise QuantumUtilityContractError("content-length must be a non-negative integer") from exc
+        if declared_length < 0:
+            raise QuantumUtilityContractError("content-length must be a non-negative integer")
+        if declared_length > _QUANTUM_UTILITY_BODY_LIMIT:
+            raise _QuantumUtilityPayloadTooLarge("request body exceeds 256 KiB")
+
+    body_buffer = bytearray()
+    async for chunk in request.stream():
+        if len(body_buffer) + len(chunk) > _QUANTUM_UTILITY_BODY_LIMIT:
+            raise _QuantumUtilityPayloadTooLarge("request body exceeds 256 KiB")
+        body_buffer.extend(chunk)
+    body = bytes(body_buffer)
     try:
         value = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -241,7 +255,14 @@ async def _quantum_utility_body(request: Request) -> dict[str, Any]:
 
 def _quantum_utility_unavailable() -> JSONResponse:
     return JSONResponse(
-        {"ready": False, "mode": "UNAVAILABLE", "effectors": 0, "provider_calls": 0, "qpu_calls": 0},
+        {
+            "ready": False,
+            "label": "UNAVAILABLE",
+            "mode": "UNAVAILABLE",
+            "effectors": 0,
+            "provider_calls": 0,
+            "qpu_calls": 0,
+        },
         status_code=503,
     )
 
@@ -253,12 +274,30 @@ async def _quantum_utility_operation(request: Request, operation: str) -> JSONRe
         return JSONResponse(quantum_utility_run(operation, await _quantum_utility_body(request)))
     except _QuantumUtilityPayloadTooLarge as exc:
         return JSONResponse(
-            {"ready": True, "accepted": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "accepted": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
             status_code=413,
         )
     except QuantumUtilityContractError as exc:
         return JSONResponse(
-            {"ready": True, "accepted": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "accepted": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
             status_code=422,
         )
 
@@ -298,12 +337,30 @@ async def quantum_utility_receipt_replay(request: Request) -> JSONResponse:
         return JSONResponse(quantum_utility_replay(await _quantum_utility_body(request)))
     except _QuantumUtilityPayloadTooLarge as exc:
         return JSONResponse(
-            {"ready": True, "valid": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "valid": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
             status_code=413,
         )
     except QuantumUtilityContractError as exc:
         return JSONResponse(
-            {"ready": True, "valid": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "valid": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
             status_code=422,
         )
 
