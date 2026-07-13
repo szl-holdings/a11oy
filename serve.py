@@ -3125,12 +3125,6 @@ async def _safe_json_body(request: Request):
         return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
 
 
-# ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
-try:
-    from vsp_otel.middleware import install as install_vsp; install_vsp(app)
-except Exception as _vsp_e:
-    import sys as _vsp_sys; print(f"[a11oy] vsp-otel wire skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
-
 # ADDITIVE: OTel — instrument FastAPI app
 try:
     _szl_otel_setup(fastapi_app=app)
@@ -3149,6 +3143,12 @@ except Exception as _otel_e:
 try:
     import vsp_otel.middleware as _vsp_otel
     _vsp_otel.install(app)
+    app.add_api_route(
+        "/api/a11oy/v1/observability/status",
+        lambda: JSONResponse(_vsp_otel.status(app)),
+        methods=["GET"],
+        include_in_schema=False,
+    )
     import sys as _vsp_sys
     print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
 except Exception as _vsp_e:
