@@ -169,6 +169,9 @@ COPY szl_waqay_security_loop.py ./
 # Claim-integrity Rupture Gate wave 15: contract-only, external signals only,
 # unsigned deterministic receipts, zero effectors.
 COPY szl_claim_rupture_gate.py ./
+# Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
+# SDK, QPU call, credential path, external effector, or finance-engine coupling.
+COPY szl_quantum_utility.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
