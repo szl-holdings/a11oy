@@ -179,6 +179,10 @@ COPY szl_quantum_utility.py ./
 # the API reports UNAVAILABLE.
 COPY szl_numerics_adapter.py ./
 COPY numerics/ ./numerics/
+# Wave 19 formal-conjecture receipt lab. This copies only the strict contract,
+# bounded ledger, and public-key receipt verifier; it installs no prover and
+# exposes no command or network execution path.
+COPY szl_formal_conjecture_lab.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.

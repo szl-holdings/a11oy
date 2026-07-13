@@ -385,6 +385,24 @@ except Exception as _numerics_adapter_error:  # pragma: no cover - honest option
     }
 
 
+# Formal Conjecture Lab (wave 19). Declarations and formal artifacts are
+# bounded local writes. No prover command is exposed. A transition to a kernel
+# result requires an externally produced DSSE receipt verified against the
+# embedded public cosign key and bound to the exact server-computed statement
+# and artifact hashes. KERNEL_ACCEPTED is evidence only, never proof promotion.
+try:
+    import szl_formal_conjecture_lab as _szl_formal_conjecture_lab
+
+    _FORMAL_CONJECTURE_LAB_STATUS = _szl_formal_conjecture_lab.register(app, ns="a11oy")
+except Exception as _formal_conjecture_lab_error:  # pragma: no cover - honest optional degradation
+    _FORMAL_CONJECTURE_LAB_STATUS = {
+        "registered": False,
+        "kernel_execution": "UNAVAILABLE",
+        "proof_promotion": "DISABLED",
+        "reason": type(_formal_conjecture_lab_error).__name__,
+    }
+
+
 def _optional_module_absent(exc: Exception, module: str, surface: str,
                             *, stream=None) -> bool:
     """Log a direct optional-module absence without a noisy traceback.
@@ -10207,6 +10225,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)
                               "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
+                              "v1/formal-conjecture-lab/",  # Fail-closed formal receipt lab
                               )
 
 
