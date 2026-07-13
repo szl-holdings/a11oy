@@ -18,6 +18,36 @@ for the A11oy numerical evaluator. The service is implemented in
 - MATLAB and Octave are external runtime boundaries. Neither engine, a MATLAB
   license, nor network-isolation evidence is bundled here.
 
+## Preregistered comparison runner
+
+`szl_numerics_experiment.py` is the only supported batch runner for the frozen
+comparison. It refuses to invoke either engine unless every mandatory gate is
+present: POSIX resource limits, a fresh deny-by-default `unshare --net`
+namespace, both external engines, an explicit operator license review for each
+engine, and a 100-decimal-place `mpmath` reference implementation. A blocked
+preflight writes a receipt with zero engine invocations and zero result rows.
+
+The external engine interface is deliberately fixed. Octave must support its
+normal `--version` CLI plus the adapter's bounded script execution. The MATLAB
+boundary is an operator-provided offline service executable that must support
+`--version` and the adapter's `--json-input PATH --json-output PATH` contract.
+Neither boundary may accept a caller-supplied command, shell fragment, network
+target, or arbitrary source file. Every actual invocation is launched in a
+new network namespace with POSIX CPU, address-space, file-size, and open-file
+limits.
+
+Example preflight/execution command (it remains blocked when any gate is
+missing):
+
+```text
+python szl_numerics_experiment.py --execute-all --output numerics-run.json
+```
+
+The two license-review environment flags are affirmative operator attestations,
+not runtime discovery: `A11OY_OCTAVE_LICENSE_REVIEWED=1` and
+`A11OY_MATLAB_LICENSE_REVIEWED=1`. They must be set only after the applicable
+licenses and the external-process boundary have actually been reviewed.
+
 ## Routes
 
 - `GET /api/a11oy/v1/numerics/dataset/status`
