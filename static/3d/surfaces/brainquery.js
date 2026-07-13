@@ -17,6 +17,13 @@
 //     answer pill reads its verbatim UNAVAILABLE — NEVER a fabricated answer.
 //   * embeddings tier is shown verbatim (hash-fallback similarity is MODELED,
 //     never MEASURED).
+//   * query latency is MEASURED only when supplied by the server's monotonic
+//     clock; browser animation time is never presented as request latency.
+//   * canonical node count is dedupe lineage, not evidence/model admission;
+//     training eligibility remains BLOCKED/UNAVAILABLE when the estate is
+//     entirely quarantined.
+//   * exact-query provenance is fetched by pure GET; this surface never mints
+//     or POSTs a receipt.
 //   * Λ = Conjecture 1 → GREY node, never green. locked-proven = exactly 8.
 //   * palette: lattice-blue 0x5b8dee · violet-blue 0x8a6bff · proof-teal 0x3af4c8
 //     · greys. PURPLE BANNED. 0 runtime CDN (three.js via ctx.THREE).
@@ -32,6 +39,8 @@ const TITLE = "Brain Query — ask the graph";
 // same-origin a11oy endpoints (canonical a-11-oy.com in prod; relative here)
 const EP_ASK   = "/api/a11oy/v1/brain/ask";
 const EP_INDEX = "/api/a11oy/v1/brain/index";
+const EP_RERANKER = "/api/a11oy/v1/brain/reranker/inventory?limit=1";
+const EP_PROVENANCE = "/api/a11oy/v1/brain/provenance";
 
 // palette (doctrine v11) — NO purple
 const C_INPUT   = 0x5b8dee;  // lattice-blue — repos + surfaces (input)
@@ -49,6 +58,7 @@ const MAX_EDGES = 900;
 
 let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _badge = null, _frameReg = false, _t0 = 0, _inFlight = null;
+let _provenanceFlight = null, _querySerial = 0;
 
 // scene objects
 let _sphereGeo = null;
@@ -67,6 +77,12 @@ const S = {
   retrieval: null, note: null,
   // index tiers (from /brain/index) — honest capability pills
   vectorBackend: null, embedSource: null, embedTier: null, communityAlgo: null,
+  rawNodes: null, rawLinks: null, distinctArtifacts: null, personNodes: null,
+  canonicalNodes: null, quarantinedNodes: null, trainingEligible: null,
+  rerankerState: "UNAVAILABLE", rerankerNote: null,
+  queryLatency: null,
+  provenanceVerdict: "UNAVAILABLE", provenanceFraction: null,
+  provenanceQuery: null, provenanceState: "UNAVAILABLE",
 };
 
 // -------------------------------------------------------------------------- //
@@ -132,6 +148,8 @@ function mount(ctx) {
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   _group = new _THREE.Group();
   _stage.scene.add(_group);
+  // Browser time drives animation only. It is never emitted or labeled as
+  // query latency; the latency field accepts the server's monotonic receipt.
   _t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
   _sphereGeo = new _THREE.SphereGeometry(1, 12, 10);
 
@@ -143,6 +161,7 @@ function mount(ctx) {
 
   // one-shot index probe → honest capability pills (vector/embedding/community).
   _fetchIndex();
+  _fetchRerankerInventory();
 
   // top-N + hover/tap labels bound to the node meshes.
   if (_show) {
@@ -182,15 +201,104 @@ function _fetchIndex() {
       S.embedTier     = _readLabel(j, "MODELED"); // whole payload is MODELED
       if (j.embed_tier) S.embedTier = String(j.embed_tier).toUpperCase();
       S.communityAlgo = j.community_algo || null;
+      const rawValue = j.raw_node_count != null ? j.raw_node_count : j.node_count;
+      S.rawNodes = rawValue != null && Number.isFinite(Number(rawValue)) ? Number(rawValue) : null;
+      S.rawLinks = j.link_count != null && Number.isFinite(Number(j.link_count))
+        ? Number(j.link_count) : null;
+      S.distinctArtifacts = j.distinct_artifacts != null && Number.isFinite(Number(j.distinct_artifacts))
+        ? Number(j.distinct_artifacts) : null;
+      S.personNodes = j.person_node_count != null && Number.isFinite(Number(j.person_node_count))
+        ? Number(j.person_node_count) : null;
       _paintOverlay();
     })
     .catch(() => { /* index pills stay "—"; the ask path still works */ });
+}
+
+function _fetchRerankerInventory() {
+  fetch(EP_RERANKER, { headers: { accept: "application/json" } })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http " + r.status))))
+    .then((j) => {
+      const inv = (j && j.inventory) || {};
+      const raw = inv.raw_node_count != null ? Number(inv.raw_node_count) : NaN;
+      const canonical = inv.canonical_node_count != null ? Number(inv.canonical_node_count) : NaN;
+      const quarantined = inv.quarantined_node_count != null ? Number(inv.quarantined_node_count) : NaN;
+      if (S.rawNodes == null && Number.isFinite(raw)) S.rawNodes = raw;
+      S.canonicalNodes = Number.isFinite(canonical) ? canonical : null;
+      S.quarantinedNodes = Number.isFinite(quarantined) ? quarantined : null;
+      // Canonical means dedupe lineage only. It is never promoted into model
+      // admission. When every raw node is quarantined, eligibility is exactly 0.
+      S.trainingEligible = Number.isFinite(raw) && raw > 0 && quarantined === raw ? 0 : null;
+      S.rerankerState = S.trainingEligible === 0 ? "BLOCKED" : "UNAVAILABLE";
+      S.rerankerNote = S.trainingEligible === 0
+        ? "all raw nodes quarantined; canonical count is dedupe lineage, not admission"
+        : "inventory does not establish training eligibility";
+      _paintOverlay();
+    })
+    .catch(() => {
+      S.canonicalNodes = S.quarantinedNodes = S.trainingEligible = null;
+      S.rerankerState = "UNAVAILABLE";
+      S.rerankerNote = "reranker inventory endpoint unavailable";
+      _paintOverlay();
+    });
+}
+
+function _fetchProvenance(q, serial) {
+  if (_provenanceFlight && _provenanceFlight.abort) {
+    try { _provenanceFlight.abort(); } catch (_) {}
+  }
+  const ctrl = ("AbortController" in window) ? new AbortController() : null;
+  _provenanceFlight = ctrl;
+  S.provenanceState = "loading";
+  S.provenanceQuery = q;
+  S.provenanceVerdict = "UNAVAILABLE";
+  S.provenanceFraction = null;
+  _paintOverlay();
+  const url = EP_PROVENANCE + "?q=" + encodeURIComponent(q) + "&k=12";
+  // Pure GET: this surface never calls the provenance receipt POST.
+  fetch(url, { method: "GET", headers: { accept: "application/json" },
+    signal: ctrl ? ctrl.signal : undefined })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http " + r.status))))
+    .then((j) => {
+      if (serial !== _querySerial || String(j.query || "") !== q) return;
+      const coverage = (j && j.coverage) || {};
+      const fraction = coverage.fraction_traceable_to_source != null
+        ? Number(coverage.fraction_traceable_to_source) : NaN;
+      S.provenanceVerdict = String(j.verdict || "UNAVAILABLE").toUpperCase();
+      S.provenanceFraction = Number.isFinite(fraction) ? fraction : null;
+      S.provenanceState = _readLabel(j, "UNAVAILABLE");
+      S.provenanceQuery = String(j.query || "");
+      _paintOverlay();
+    })
+    .catch((e) => {
+      if (e && e.name === "AbortError") return;
+      if (serial !== _querySerial) return;
+      S.provenanceVerdict = "UNAVAILABLE";
+      S.provenanceFraction = null;
+      S.provenanceState = "UNAVAILABLE";
+      _paintOverlay();
+    });
 }
 
 function _ask(q) {
   q = (q || "").trim();
   if (!q) return;
   S.query = q;
+  const serial = ++_querySerial;
+  S.queryLatency = null;
+  S.answer = null;
+  S.answerLabel = "UNAVAILABLE";
+  S.answerModel = null;
+  S.nodes = S.links = S.seedScore = null;
+  S.retrieval = S.note = null;
+  if (_group) _clearScene();
+  if (_provenanceFlight && _provenanceFlight.abort) {
+    try { _provenanceFlight.abort(); } catch (_) {}
+  }
+  _provenanceFlight = null;
+  S.provenanceState = "loading";
+  S.provenanceQuery = q;
+  S.provenanceVerdict = "UNAVAILABLE";
+  S.provenanceFraction = null;
   if (_input && _input.value !== q) _input.value = q;
   _setBadge("loading");
   S.state = "loading";
@@ -204,13 +312,18 @@ function _ask(q) {
   fetch(url, { headers: { accept: "application/json" }, signal: ctrl ? ctrl.signal : undefined })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http " + r.status))))
     .then((j) => {
+      if (serial !== _querySerial) return;
       _inFlight = null;
       _onAsk(j);
+      _fetchProvenance(q, serial);
     })
     .catch((e) => {
       if (e && e.name === "AbortError") return;
+      if (serial !== _querySerial) return;
       _inFlight = null;
       S.state = "error";
+      S.label = "UNAVAILABLE";
+      S.provenanceState = "UNAVAILABLE";
       _setBadge("error");
       _paintOverlay();
     });
@@ -235,6 +348,9 @@ function _onAsk(j) {
   S.answerModel = j.answer_model || null;
   S.retrieval = j.retrieval || null;
   S.note = j.note || null;
+  const latency = j.query_latency || null;
+  S.queryLatency = latency && String(latency.label || "").toUpperCase() === "MEASURED"
+    && Number.isFinite(Number(latency.value_ms)) ? latency : null;
 
   S.state = "live";
   _setBadge("live");
@@ -323,8 +439,12 @@ function _animate() {
 const _el = {};
 
 function _buildOverlay(ctx) {
+  const compactViewport = typeof window !== "undefined" && (
+    (window.matchMedia && window.matchMedia("(max-width: 640px)").matches) ||
+    Number(window.innerWidth || 0) <= 640
+  );
   _show = createShowcase(ctx, {
-    id: ID, title: TITLE, accent: "#5b8dee", startExpanded: true,
+    id: ID, title: TITLE, accent: "#5b8dee", startExpanded: !compactViewport,
     chips: [{ label: "MODELED", text: "retrieval", name: "src" }],
     legend: ["MEASURED", "MODELED", "UNAVAILABLE"],
     description:
@@ -377,8 +497,15 @@ function _buildOverlay(ctx) {
 
   // KPI rows
   _el.answerLbl = _show.addField("Generated answer");
-  _el.grounded  = _show.addField("Grounding nodes");
+  _el.rawNodes  = _show.addField("Raw graph nodes");
+  _el.distinct  = _show.addField("Distinct artifacts");
+  _el.people    = _show.addField("Person nodes");
+  _el.canonical = _show.addField("Canonical dedupe lineage");
+  _el.grounded  = _show.addField("Retrieved for this query");
   _el.edges     = _show.addField("Grounding edges");
+  _el.latency   = _show.addField("Server query latency");
+  _el.eligibility = _show.addField("Training eligibility");
+  _el.provenance = _show.addField("Typed-query provenance");
   _el.vectors   = _show.addField("Vector backend");
   _el.embed     = _show.addField("Embeddings");
   _el.community = _show.addField("Communities via");
@@ -396,6 +523,28 @@ function _buildOverlay(ctx) {
 
 function _fmt(n) { return (n == null) ? "—" : Number(n).toLocaleString("en-US"); }
 
+function _safeSourceHref(n) {
+  const candidates = [n && n.url, n && n.source];
+  for (let i = 0; i < candidates.length; i++) {
+    const raw = typeof candidates[i] === "string" ? candidates[i].trim() : "";
+    if (!raw) continue;
+    // A leading single slash is a same-origin path. Protocol-relative URLs are
+    // external and deliberately rejected here.
+    if (/^\/(?![\/\\])/.test(raw)) {
+      try {
+        const local = new URL(raw, window.location.origin);
+        if (local.origin === window.location.origin &&
+            (local.protocol === "http:" || local.protocol === "https:")) return local.href;
+      } catch (_) { /* malformed same-origin path remains plain text */ }
+    }
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
+    } catch (_) { /* malformed/non-URL source labels remain plain text */ }
+  }
+  return null;
+}
+
 function _paintOverlay() {
   if (!_show) return;
   _show.setChip("src", S.label || "MODELED", { text: "retrieval" });
@@ -412,10 +561,15 @@ function _paintOverlay() {
       _answerEl.textContent = S.answer;
       _answerEl.style.color = "#c9d6df";
     } else {
-      _answerEl.innerHTML =
-        "<b style=\"color:#e7eef6\">" + (S.answerLabel || "UNAVAILABLE") + "</b> — no sovereign " +
-        "model was reachable, so no answer text is generated. The grounding subgraph shown is " +
-        "real; a fabricated answer is never produced.";
+      _answerEl.textContent = "";
+      const unavailable = document.createElement("b");
+      unavailable.style.color = "#e7eef6";
+      unavailable.textContent = S.answerLabel || "UNAVAILABLE";
+      _answerEl.appendChild(unavailable);
+      _answerEl.appendChild(document.createTextNode(
+        " — no sovereign model was reachable, so no answer text is generated. " +
+        "The grounding subgraph shown is real; a fabricated answer is never produced."
+      ));
       _answerEl.style.color = "#9fb1bf";
     }
   }
@@ -423,6 +577,28 @@ function _paintOverlay() {
   const set = (k, v) => { if (_el[k]) _el[k].textContent = v; };
   const gN = S.nodes ? S.nodes.length : null;
   const gE = S.links ? S.links.length : null;
+  set("rawNodes", S.rawNodes == null ? "UNAVAILABLE" :
+    (_fmt(S.rawNodes) + (S.rawLinks == null ? "" : " nodes / " + _fmt(S.rawLinks) + " links")));
+  set("distinct", S.distinctArtifacts == null ? "UNAVAILABLE" : _fmt(S.distinctArtifacts));
+  set("people", S.personNodes == null ? "UNAVAILABLE" : _fmt(S.personNodes));
+  set("canonical", S.canonicalNodes == null ? "UNAVAILABLE" :
+    (_fmt(S.canonicalNodes) + " (dedupe only; not admission)"));
+  set("latency", S.state === "loading" ? "loading..." : (S.queryLatency
+    ? ("MEASURED · " + Number(S.queryLatency.value_ms).toLocaleString("en-US") +
+       " ms · server monotonic") : "UNAVAILABLE"));
+  set("eligibility", S.trainingEligible === 0
+    ? ("BLOCKED / UNAVAILABLE · 0 training-eligible · all " + _fmt(S.quarantinedNodes) + " raw nodes quarantined")
+    : (S.rerankerState + " · training eligibility not established"));
+  const provenancePct = S.provenanceFraction == null ? null
+    : Math.round(Math.max(0, Math.min(1, S.provenanceFraction)) * 1000) / 10;
+  set("provenance", S.provenanceState === "loading" ? "loading exact query..."
+    : (S.provenanceVerdict + (provenancePct == null ? "" : " · " + provenancePct + "% traceable") +
+       " · read-only GET"));
+  if (_el.provenance) {
+    _el.provenance.title = S.provenanceQuery
+      ? ('Exact query: "' + S.provenanceQuery + '". GET mints nothing.')
+      : "Exact-query provenance is unavailable.";
+  }
   set("answerLbl", S.answer ? (S.answerLabel + (S.answerModel ? " · " + S.answerModel : ""))
                             : (S.answerLabel || "UNAVAILABLE"));
   set("grounded", S.state === "loading" ? "loading…" : _fmt(gN));
@@ -440,10 +616,29 @@ function _paintOverlay() {
       .slice(0, 8);
     top.forEach((n) => {
       const line = document.createElement("div");
-      line.style.cssText = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
-      const hit = (S.seedScore && S.seedScore[n.id] != null) ? " ●" : "";
-      line.textContent = "· " + (n.title || n.id) + " [" + (n.kind || "?") + "]" + hit;
-      line.title = n.id;
+      line.style.cssText = "display:flex;align-items:baseline;gap:5px;min-width:0;overflow:hidden";
+      const safeHit = (S.seedScore && S.seedScore[n.id] != null) ? " hit" : "";
+      const id = document.createElement("code");
+      id.style.cssText = "flex:0 0 auto;color:#6f8ca4;font-size:9px";
+      id.textContent = String(n.id || "UNAVAILABLE");
+      const href = _safeSourceHref(n);
+      const title = document.createElement(href ? "a" : "span");
+      title.style.cssText = "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b7c7d3";
+      title.textContent = String(n.title || n.id || "UNAVAILABLE");
+      if (href) {
+        title.href = href;
+        title.target = "_blank";
+        title.rel = "noopener noreferrer";
+        title.style.textDecoration = "underline";
+        title.style.textDecorationColor = "#38556c";
+      }
+      const meta = document.createElement("span");
+      meta.style.cssText = "flex:0 0 auto;color:#738493";
+      meta.textContent = "[" + (n.kind || "?") + "]" + safeHit;
+      line.appendChild(id);
+      line.appendChild(title);
+      line.appendChild(meta);
+      line.title = String(n.id || "");
       _resultsEl.appendChild(line);
     });
   }
@@ -469,7 +664,9 @@ function _plainHtml() {
 // -------------------------------------------------------------------------- //
 function unmount() {
   try { if (_inFlight && _inFlight.abort) _inFlight.abort(); } catch (_) {}
-  _inFlight = null;
+  try { if (_provenanceFlight && _provenanceFlight.abort) _provenanceFlight.abort(); } catch (_) {}
+  _inFlight = _provenanceFlight = null;
+  _querySerial += 1;
   try { if (_input && _onKey) _input.removeEventListener("keydown", _onKey); } catch (_) {}
   try { if (_show) _show.destroy(); } catch (_) {}
   try { _clearScene(); } catch (_) {}
@@ -486,6 +683,16 @@ function unmount() {
   S.nodes = S.links = S.seedScore = null;
   S.retrieval = S.note = null;
   S.vectorBackend = S.embedSource = S.embedTier = S.communityAlgo = null;
+  S.rawNodes = S.rawLinks = S.distinctArtifacts = S.personNodes = null;
+  S.canonicalNodes = S.quarantinedNodes = S.trainingEligible = null;
+  S.rerankerState = "UNAVAILABLE"; S.rerankerNote = null;
+  S.queryLatency = null;
+  S.provenanceVerdict = S.provenanceState = "UNAVAILABLE";
+  S.provenanceFraction = S.provenanceQuery = null;
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_ASK, EP_INDEX], mount, unmount };
+export default {
+  id: ID, title: TITLE,
+  endpoints: [EP_ASK, EP_INDEX, EP_RERANKER, EP_PROVENANCE],
+  mount, unmount,
+};
