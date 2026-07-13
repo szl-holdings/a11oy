@@ -199,6 +199,115 @@ async def frontier_projects_snapshot() -> JSONResponse:
     return JSONResponse(primary_project_registry_snapshot(fetch_live=False))
 
 
+# Quantum Utility Gate (wave 16): bounded proposal-only analysis.  The core is
+# pure stdlib and has no provider/QPU/network/filesystem/process effectors.  It
+# is deliberately separate from the finance szl_gpu_quant engine; the existing
+# szl_vqc surface remains MODELED/SIMULATED and is not hardware evidence.
+try:
+    from szl_quantum_utility import (
+        ContractError as QuantumUtilityContractError,
+        info as quantum_utility_info_payload,
+        replay_receipt as quantum_utility_replay,
+        run_with_receipt as quantum_utility_run,
+    )
+    _QUANTUM_UTILITY_READY = True
+except Exception:  # pragma: no cover - honest optional degradation
+    QuantumUtilityContractError = ValueError  # type: ignore[misc,assignment]
+    quantum_utility_info_payload = None  # type: ignore[assignment]
+    quantum_utility_replay = None  # type: ignore[assignment]
+    quantum_utility_run = None  # type: ignore[assignment]
+    _QUANTUM_UTILITY_READY = False
+
+
+_QUANTUM_UTILITY_BODY_LIMIT = 256 * 1024
+
+
+class _QuantumUtilityPayloadTooLarge(ValueError):
+    pass
+
+
+async def _quantum_utility_body(request: Request) -> dict[str, Any]:
+    body = await request.body()
+    if len(body) > _QUANTUM_UTILITY_BODY_LIMIT:
+        raise _QuantumUtilityPayloadTooLarge("request body exceeds 256 KiB")
+    try:
+        value = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise QuantumUtilityContractError("request body must be one JSON object") from exc
+    if not isinstance(value, dict):
+        raise QuantumUtilityContractError("request body must be one JSON object")
+    return value
+
+
+def _quantum_utility_unavailable() -> JSONResponse:
+    return JSONResponse(
+        {"ready": False, "mode": "UNAVAILABLE", "effectors": 0, "provider_calls": 0, "qpu_calls": 0},
+        status_code=503,
+    )
+
+
+async def _quantum_utility_operation(request: Request, operation: str) -> JSONResponse:
+    if not _QUANTUM_UTILITY_READY or quantum_utility_run is None:
+        return _quantum_utility_unavailable()
+    try:
+        return JSONResponse(quantum_utility_run(operation, await _quantum_utility_body(request)))
+    except _QuantumUtilityPayloadTooLarge as exc:
+        return JSONResponse(
+            {"ready": True, "accepted": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            status_code=413,
+        )
+    except QuantumUtilityContractError as exc:
+        return JSONResponse(
+            {"ready": True, "accepted": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            status_code=422,
+        )
+
+
+@app.get("/api/a11oy/v1/quantum-utility/info")
+async def quantum_utility_info() -> JSONResponse:
+    if not _QUANTUM_UTILITY_READY or quantum_utility_info_payload is None:
+        return _quantum_utility_unavailable()
+    return JSONResponse(quantum_utility_info_payload())
+
+
+@app.post("/api/a11oy/v1/quantum-utility/qubo/baseline")
+async def quantum_utility_qubo_baseline(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "QUBO_EXACT_BASELINE")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/hamiltonian/shot-plan")
+async def quantum_utility_hamiltonian_shot_plan(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "HAMILTONIAN_SHOT_PLAN")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/counterfactual/score")
+async def quantum_utility_counterfactual_score(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "COUNTERFACTUAL_SCORE")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/claim/rupture-gate")
+async def quantum_utility_claim_gate(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "QUANTUM_ADVANTAGE_GATE")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/receipt/replay")
+async def quantum_utility_receipt_replay(request: Request) -> JSONResponse:
+    if not _QUANTUM_UTILITY_READY or quantum_utility_replay is None:
+        return _quantum_utility_unavailable()
+    try:
+        return JSONResponse(quantum_utility_replay(await _quantum_utility_body(request)))
+    except _QuantumUtilityPayloadTooLarge as exc:
+        return JSONResponse(
+            {"ready": True, "valid": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            status_code=413,
+        )
+    except QuantumUtilityContractError as exc:
+        return JSONResponse(
+            {"ready": True, "valid": False, "error": str(exc), "mode": "PROPOSAL_ONLY", "effectors": 0},
+            status_code=422,
+        )
+
+
 def _optional_module_absent(exc: Exception, module: str, surface: str,
                             *, stream=None) -> bool:
     """Log a direct optional-module absence without a noisy traceback.
@@ -10020,6 +10129,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/verify/intoto",      # in-toto verify guide (DEV2)
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)
+                              "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
                               )
 
 
