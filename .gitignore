@@ -19,6 +19,8 @@ szl_energy_ledger.jsonl
 .szl_brain_overlay.jsonl
 # Local council / approval runtime state created by focused tests and dev runs; never release.
 .a11oy-state/
+# Bounded pytest basetemp directories used when the OS temp root is sandbox-inaccessible.
+.pytest-*/
 # Runtime energy-operator ledger/state (Dev 1) — persisted counts, never committed
 artifacts/energy_operator_ledger.json
 artifacts/energy_operator_ledger.json.tmp
