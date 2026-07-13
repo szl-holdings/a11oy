@@ -47,9 +47,6 @@ from __future__ import annotations
 import pathlib
 import re
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
-
 DOCTRINE = {"version": "v11", "lambda": "Conjecture 1", "sovereign": False}
 
 # --------------------------------------------------------------------------- #
@@ -604,9 +601,13 @@ function surfCls(label) {{ return SURF_CLASS[label] || 'unavailable'; }}
 </body></html>"""
 
 
-def register(app: FastAPI, ns: str = "a11oy") -> str:
+def register(app, ns: str = "a11oy") -> str:
     """Mount GET /frontier (HTML) + GET /api/<ns>/v1/frontier/page-manifest (JSON).
     ADDITIVE — registered before the SPA catch-all; touches no existing route."""
+
+    # Keep the pure manifest builders importable in bounded/offline evidence
+    # jobs where the web-serving dependency is intentionally absent.
+    from fastapi.responses import HTMLResponse, JSONResponse
 
     @app.get("/frontier", include_in_schema=False)
     async def frontier_page() -> HTMLResponse:  # noqa: ANN202
