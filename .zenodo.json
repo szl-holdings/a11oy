@@ -1,0 +1,46 @@
+{
+  "title": "A11oy: governed AI execution fabric",
+  "description": "A11oy is an Apache-2.0 governed-AI execution fabric for policy-gated actions, operator approvals, signed receipts, evidence-bound retrieval, numerical-computing experiments, and local/self-hosted inference. Capability states fail closed: configured is not operational, simulated is not measured, and a conjecture is never promoted to a theorem without proof.",
+  "upload_type": "software",
+  "license": "Apache-2.0",
+  "version": "1.1.0",
+  "creators": [
+    {
+      "name": "Lutar, Stephen P., Jr.",
+      "affiliation": "SZL Holdings LLC",
+      "orcid": "0009-0001-0110-4173"
+    }
+  ],
+  "keywords": [
+    "governed AI",
+    "agentic AI",
+    "signed receipts",
+    "provenance",
+    "sovereign AI",
+    "formal verification",
+    "observability",
+    "self-hosted inference"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.19944926",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication"
+    },
+    {
+      "identifier": "10.5281/zenodo.20434276",
+      "relation": "isSupplementedBy",
+      "resource_type": "other"
+    },
+    {
+      "identifier": "https://a-11-oy.com",
+      "relation": "isIdenticalTo",
+      "resource_type": "software"
+    },
+    {
+      "identifier": "https://github.com/szl-holdings/a11oy",
+      "relation": "isSourceOf",
+      "resource_type": "software"
+    }
+  ]
+}

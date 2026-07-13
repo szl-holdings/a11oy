@@ -14,6 +14,28 @@ Every item carries an HONEST capability label per Doctrine v11 (MEASURED /
 MODELED / SIMULATION / ROADMAP / SAMPLE). Λ remains **Conjecture 1** (never a
 theorem); the locked-8 set stays at 8. No label is upgraded here.
 
+### Added — v1.1.0 operational-evidence candidate
+- **Brain evidence reranker** — three content-addressed canonical source
+  families (SZL-Lake, Lean/Mathlib, formulas) produce eight deterministic,
+  licensed rows across train/eval/test. The remaining 9,463 raw graph nodes are
+  quarantined when license, revision, or freshness evidence is absent. Proof
+  credit remains zero; the model and evaluation remain **BLOCKED** pending real
+  receipts.
+- **Preregistered numerical-computing dataset** — 1,328 deterministic cases
+  spanning declared matrix families, dimensions, condition strata, seeds, and
+  tolerances. Dataset readiness is distinct from external MATLAB/Octave engine
+  availability and benchmark claims.
+- **M1 model gate** — corpus, tokenizer, training receipt, offline reload,
+  evaluation, provider identity, and GPU admission are evaluated independently.
+  A valid adapter package does not become promoted or operational without a
+  loadable local PEFT runtime and passing inference receipt.
+- **Formal conjecture lab** — machine-readable proof obligations preserve
+  theorem/conjecture boundaries and fail closed when formal evidence is absent.
+- **Release identity surface** — canonical and legacy domains, associated
+  research DOIs, GitHub release state, and the software-version DOI are exposed
+  as separate fields. The v1.1.0 DOI remains `PENDING_ZENODO_READBACK` until a
+  GitHub release is archived and a resolvable Zenodo version record is returned.
+
 ### Added — governed-AI capabilities
 - **Governed behavior-transfer harness** — model behavior-transfer harness wired
   into the `/code` run-loop and `/llm/route` (PRs #759, #763).
