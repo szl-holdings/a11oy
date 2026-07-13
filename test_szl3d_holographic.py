@@ -163,7 +163,8 @@ def test_shell_has_nine_lazy_surface_slots():
     for sid in ("energy", "fabric", "pnt", "counter-uas", "governance",
                 "pinn", "router", "anatomy", "estate"):
         assert f"/static/3d/surfaces/{sid}.js" in html, f"shell missing slot {sid}"
-    assert 'role="tablist"' in html
+    assert 'aria-label="Estate surface command center"' in html
+    assert 'aria-current", "page"' in html
     assert "import(" in html                          # lazy per-tab module import
     assert "__SZL3D_SHELL__" in html                  # headless test hook
 

@@ -34,8 +34,9 @@
     collapsible CATEGORY dropdowns. Replaces the old flat wall of ~84 pills so the flagship
     surfaces stand out and the rest group behind one-tap dropdowns. Accents are proof-teal
     (0x3af4c8) — NEVER purple (doctrine v11 palette). */
- .tabs{display:flex;flex-direction:column;gap:0;padding:8px 12px;border-bottom:1px solid var(--line);
+.tabs{display:flex;flex-direction:column;gap:0;padding:8px 12px;border-bottom:1px solid var(--line);
   background:#070d15;flex:0 0 auto;position:relative;z-index:18}
+ .tabs[data-browse="true"],.tabs:focus-within{z-index:40}
  .navrow{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;overflow-x:auto;
   -webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
  .navrow::-webkit-scrollbar{display:none}
@@ -44,12 +45,12 @@
  .tab{font:11.5px ui-monospace,monospace;padding:6px 12px;border-radius:7px;border:1px solid var(--line);
   background:#0a121b;color:var(--para);cursor:pointer;letter-spacing:.3px;transition:.12s;white-space:nowrap}
  .tab:hover{border-color:var(--proof);color:var(--cream)}
- .tab[aria-selected="true"]{background:#12202b;color:var(--cream);border-color:var(--proof);
+ .tab[data-active="true"]{background:#12202b;color:var(--cream);border-color:var(--proof);
   box-shadow:0 0 0 1px var(--proof) inset}
  /* Featured (flagship) pills — proof-teal star + accent so Brain/Anatomy stand out. */
  .tab--feat{border-color:#20323e;color:var(--cream);background:#0b1620}
  .tab--feat .star{color:var(--proof);margin-right:5px}
- .tab--feat[aria-selected="true"]{border-color:var(--proof);
+ .tab--feat[data-active="true"]{border-color:var(--proof);
   box-shadow:0 0 0 1px var(--proof) inset,0 0 10px rgba(58,244,200,.25)}
  /* Category dropdown buttons — ▸ caret rotates to ▾ when the panel is open. */
  .catbtn{font:11px ui-monospace,monospace;padding:6px 11px;border-radius:7px;border:1px solid var(--line);
@@ -96,9 +97,9 @@
   color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.2px;flex:0 0 auto;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6}
  #surface-caption:empty{display:none}
- footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
+footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   background:#070d15;color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6;
-  white-space:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  white-space:normal;overflow:visible;line-height:1.35}
  a{color:var(--teal);text-decoration:none}
 
  /* ---- Mobile / touch (<=640px) ---------------------------------------- */
@@ -132,7 +133,7 @@
     + the public /verify, sitting over the live 3D stage (which boots underneath).
     Additive: dismisses to reveal the estate; every stat carries an honest label and
     degrades to NO-LIVE-DATA if its same-origin endpoint 404s / is unreachable. */
- #intro{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;
+ #intro{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:16px;padding:26px 20px;overflow-y:auto;
   background:radial-gradient(120% 120% at 50% 0%,rgba(11,22,32,.90),rgba(5,7,13,.96));
   -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);text-align:center}
@@ -186,7 +187,7 @@
  <a href="/verify" class="badge" title="Public receipt verifier — paste a signed Khipu receipt / DSSE envelope for a PASS/FAIL panel">✓ verify</a>
  <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
 </header>
-<nav class="tabs" id="tabs" role="tablist" aria-label="Estate surfaces" data-browse="false">
+<nav class="tabs" id="tabs" aria-label="Estate surface command center" data-browse="false">
  <div class="navtools">
   <input class="surface-search" id="surface-search" type="search"
    placeholder="Find a surface (Ctrl/⌘ K)" autocomplete="off" spellcheck="false"
@@ -195,8 +196,8 @@
   <span class="navmeta" id="surface-results-count">All surfaces indexed</span>
   <button class="navmode" id="nav-mode" type="button" aria-expanded="false" aria-controls="surface-browser">Browse surfaces</button>
  </div>
- <div class="panel" id="search-panel" role="group" aria-label="Surface search results" data-open="false"></div>
- <div class="surface-browser" id="surface-browser">
+ <div class="panel" id="search-panel" role="region" aria-label="Surface search results" data-open="false"></div>
+ <div class="surface-browser" id="surface-browser" role="region" aria-label="All estate surfaces">
   <div class="navrow" id="featured-row"><span class="navlabel">★ Featured</span></div>
   <div class="navrow" id="cat-row"><span class="navlabel">Categories</span></div>
   <div id="cat-panels"></div>
@@ -207,7 +208,7 @@
  <div id="fallback">3D unavailable on this device — the holographic estate needs a WebGL2 or WebGPU canvas.<br>
   All underlying data is still available as JSON at the per-surface endpoints.</div>
  <!-- Landing overlay (Dev4): coherent honest entry over the live estate. -->
- <div id="intro" role="dialog" aria-label="a11oy holographic estate — landing overview" hidden>
+  <div id="intro" role="dialog" aria-modal="true" tabindex="-1" aria-label="a11oy holographic estate — landing overview" hidden>
   <div class="intro-eyebrow">SZL Holdings · Doctrine v11 · Λ = Conjecture 1</div>
   <h2>The governed agentic substrate, rendered as a holographic estate</h2>
   <p class="intro-sub">Every value each surface shows traces to a real same-origin a11oy endpoint and
@@ -442,7 +443,7 @@ async function rebootStage() {
   // never accumulates duplicate canvases / leaked contexts.
   try { stageEl.querySelectorAll("canvas").forEach((c) => c.remove()); } catch (_) {}
   fallbackEl.style.display = "none";
-  await selectSurface(active);
+  await selectSurface(active, "none");
 }
 
 function clearScene() {
@@ -457,9 +458,16 @@ function clearScene() {
   // reset per-frame callbacks by re-booting frame list is overkill; surfaces guard on null.
 }
 
-async function selectSurface(id) {
+async function selectSurface(id, historyMode = "replace") {
   const def = SURFACES.find((s) => s.id === id);
   if (!def) return;
+  if (current && current.def && current.def.id === id) {
+    _highlight(id);
+    if (historyMode === "replace" && location.hash !== "#" + id) {
+      history.replaceState(null, "", "#" + id);
+    }
+    return;
+  }
   const token = ++loadToken;
   // visual selection state: mark every tab button with this id (a flagship appears both in
   // the ★ Featured row and inside its category panel), auto-open the active category, and
@@ -486,7 +494,8 @@ async function selectSurface(id) {
   try {
     surface.mount(ctx);
     current = { def, instance: surface };
-    history.replaceState(null, "", "#" + id);
+    if (historyMode === "push") history.pushState(null, "", "#" + id);
+    else if (historyMode === "replace") history.replaceState(null, "", "#" + id);
   } catch (e) {
     console.error("[holographic] surface mount threw", id, e);
   }
@@ -506,6 +515,7 @@ const CATS = [
   ["proof", "Proof & Attestation"],
   ["energy", "Energy & Sovereign"],
   ["defense", "Defense & Fleet"],
+  ["finance", "Finance & Markets"],
   ["rl", "RL & Training"],
   ["more", "More"],
 ];
@@ -521,8 +531,10 @@ const navMode = document.getElementById("nav-mode");
 const activeSurface = document.querySelector("#active-surface strong");
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
+let searchLimit = 36;
 
 function _clearSearch() {
+  searchLimit = 36;
   if (searchInput) searchInput.value = "";
   if (searchPanel) { searchPanel.textContent = ""; searchPanel.dataset.open = "false"; }
   if (searchCount) searchCount.textContent = SURFACES.length + " surfaces indexed";
@@ -553,10 +565,10 @@ function _shortLabel(s) {
 }
 
 function _makeTab(s, feat) {
-  const b = document.createElement("button");
+  const b = document.createElement("a");
   b.className = "tab" + (feat ? " tab--feat" : "");
+  b.href = "#" + s.id;
   b.dataset.id = s.id; b.dataset.cat = catOf(s);
-  b.setAttribute("role", "tab"); b.setAttribute("aria-selected", "false");
   b.title = s.title; // full honest title on hover
   b.setAttribute("aria-label", s.title);
   if (feat) {
@@ -565,13 +577,27 @@ function _makeTab(s, feat) {
   } else {
     b.textContent = _shortLabel(s);
   }
-  b.addEventListener("click", () => {
-    selectSurface(s.id);
+  b.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    selectSurface(s.id, "push");
     _clearSearch();
     _setBrowser(false);
     openCategory(catOf(s), false);
     // On the mobile horizontal strips, keep the tapped tab in view.
     try { b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (_) {}
+  });
+  b.addEventListener("keydown", (ev) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(ev.key)) return;
+    const peers = Array.from(b.parentElement?.querySelectorAll("[data-id]") || []);
+    if (!peers.length) return;
+    const here = Math.max(0, peers.indexOf(b));
+    let next = here;
+    if (ev.key === "Home") next = 0;
+    else if (ev.key === "End") next = peers.length - 1;
+    else if (ev.key === "ArrowLeft" || ev.key === "ArrowUp") next = (here - 1 + peers.length) % peers.length;
+    else next = (here + 1) % peers.length;
+    ev.preventDefault();
+    peers[next].focus();
   });
   return b;
 }
@@ -595,6 +621,7 @@ CATS.forEach(([cat, label]) => {
   const btn = document.createElement("button");
   btn.className = "catbtn"; btn.type = "button";
   btn.dataset.cat = cat; btn.setAttribute("aria-expanded", "false");
+  btn.id = "category-" + cat;
   const caret = document.createElement("span"); caret.className = "caret"; caret.textContent = "▸";
   btn.appendChild(caret);
   btn.appendChild(document.createTextNode(label + " "));
@@ -602,6 +629,9 @@ CATS.forEach(([cat, label]) => {
   btn.appendChild(cnt);
   const panel = document.createElement("div");
   panel.className = "panel"; panel.dataset.cat = cat; panel.dataset.open = "false";
+  panel.id = "category-panel-" + cat;
+  panel.setAttribute("aria-labelledby", btn.id);
+  btn.setAttribute("aria-controls", panel.id);
   items.forEach((s) => panel.appendChild(_makeTab(s, false)));
   btn.addEventListener("click", () => {
     _clearSearch();
@@ -623,16 +653,33 @@ if (searchInput && searchPanel) {
     openCategory("", false);
     const matches = SURFACES.filter((s) =>
       (s.id + " " + s.title + " " + catOf(s)).toLowerCase().includes(q));
-    matches.slice(0, 36).forEach((s) => searchPanel.appendChild(_makeTab(s, false)));
+    matches.slice(0, searchLimit).forEach((s) => searchPanel.appendChild(_makeTab(s, false)));
+    if (matches.length > searchLimit) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "navmode";
+      more.textContent = `Show ${Math.min(36, matches.length - searchLimit)} more`;
+      more.setAttribute("aria-label", `Show more results; ${matches.length - searchLimit} remain`);
+      more.addEventListener("click", () => { searchLimit += 36; renderSearch(); });
+      searchPanel.appendChild(more);
+    }
     searchPanel.dataset.open = "true";
-    if (searchCount) searchCount.textContent = matches.length + " match" + (matches.length === 1 ? "" : "es");
+    if (searchCount) searchCount.textContent =
+      `${Math.min(searchLimit, matches.length)} of ${matches.length} match${matches.length === 1 ? "" : "es"}`;
   };
-  searchInput.addEventListener("input", renderSearch);
+  searchInput.addEventListener("input", () => { searchLimit = 36; renderSearch(); });
   searchInput.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") { _clearSearch(); _setBrowser(false); searchInput.blur(); }
     if (ev.key === "Enter") {
       const first = searchPanel.querySelector("[data-id]");
       if (first) first.click();
+    }
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      const results = Array.from(searchPanel.querySelectorAll("[data-id]"));
+      if (results.length) {
+        ev.preventDefault();
+        results[ev.key === "ArrowUp" ? results.length - 1 : 0].focus();
+      }
     }
   });
   document.addEventListener("keydown", (ev) => {
@@ -660,8 +707,13 @@ function _highlight(id) {
     activeSurface.textContent = def ? _shortLabel(def) : id;
     activeSurface.title = def ? def.title : id;
   }
-  tabsEl.querySelectorAll("[data-id]").forEach((t) =>
-    t.setAttribute("aria-selected", String(t.dataset.id === id)));
+  const matches = Array.from(tabsEl.querySelectorAll("[data-id]"))
+    .filter((t) => t.dataset.id === id);
+  tabsEl.querySelectorAll("[data-id]").forEach((t) => {
+    t.dataset.active = String(t.dataset.id === id);
+    t.removeAttribute("aria-current");
+  });
+  if (matches.length) matches[0].setAttribute("aria-current", "page");
   Object.keys(_catBtns).forEach((c) =>
     _catBtns[c].setAttribute("data-hasactive", String(c === cat)));
 }
@@ -695,7 +747,13 @@ window.__SZL3D_SHELL__ = {
 
 // initial surface from hash or default to the Atlas front door (Wave 27 unifier)
 const initial = (location.hash || "").replace("#", "");
-selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "atlas");
+selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "atlas", "replace");
+window.addEventListener("hashchange", () => {
+  const requested = (location.hash || "").replace("#", "");
+  if (!SURFACES.some((s) => s.id === requested)) return;
+  if (current && current.def && current.def.id === requested) return;
+  selectSurface(requested, "none");
+});
 
 // ---- Landing / intro overlay (Dev4, Wave R) --------------------------------
 // A coherent honest entry: the estate boots live underneath while this panel shows the
@@ -758,14 +816,40 @@ selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "atlas");
     }
   }
 
-  function openIntro() { introEl.hidden = false; loadBrain(); loadEstate(); }
+  let introReturnFocus = null;
+  const introBackground = [document.querySelector("header"), tabsEl, document.querySelector("footer")]
+    .filter(Boolean);
+  function introFocusable() {
+    return Array.from(introEl.querySelectorAll(
+      'button:not([disabled]),a[href],input:not([disabled]),[tabindex]:not([tabindex="-1"])'));
+  }
+  function openIntro() {
+    introReturnFocus = document.activeElement;
+    _clearSearch();
+    _setBrowser(false);
+    introBackground.forEach((el) => { el.inert = true; });
+    introEl.hidden = false;
+    loadBrain(); loadEstate();
+    requestAnimationFrame(() => (document.getElementById("intro-enter") || introEl).focus());
+  }
   function closeIntro() {
     introEl.hidden = true;
+    introBackground.forEach((el) => { el.inert = false; });
     try { sessionStorage.setItem("szl3d_intro_seen", "1"); } catch (_) {}
+    if (introReturnFocus && introReturnFocus.focus) introReturnFocus.focus();
   }
+  introEl.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") { ev.preventDefault(); closeIntro(); return; }
+    if (ev.key !== "Tab") return;
+    const focusable = introFocusable();
+    if (!focusable.length) { ev.preventDefault(); introEl.focus(); return; }
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  });
 
   introEl.querySelectorAll("[data-go]").forEach((b) =>
-    b.addEventListener("click", () => { closeIntro(); selectSurface(b.dataset.go); }));
+    b.addEventListener("click", () => { closeIntro(); selectSurface(b.dataset.go, "push"); }));
   const enterBtn = document.getElementById("intro-enter");
   if (enterBtn) enterBtn.addEventListener("click", closeIntro);
   const reopen = document.getElementById("intro-reopen");
