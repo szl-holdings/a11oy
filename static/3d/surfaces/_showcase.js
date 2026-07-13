@@ -308,6 +308,9 @@ export function createShowcase(ctx, opts = {}) {
 //   fadeNear  : number                   camera distance at full opacity (default 8)
 //   fadeFar   : number                   camera distance at min opacity  (default 60)
 //   minOpacity: number                   floor opacity for far labels (default 0.15)
+//   avoidOverlap: boolean                suppress lower-ranked colliding labels
+//   minGap    : number                   collision padding in CSS pixels (default 8)
+//   maxLength : number                   persistent-label character cap (hover stays full)
 //   container : DOM                      overlay host (default ctx.container)
 // ---------------------------------------------------------------------------
 export function createSceneLabels(ctx, opts = {}) {
@@ -329,6 +332,9 @@ export function createSceneLabels(ctx, opts = {}) {
   const fadeNear = opts.fadeNear != null ? opts.fadeNear : 8;
   const fadeFar = opts.fadeFar != null ? opts.fadeFar : 60;
   const minOpacity = opts.minOpacity != null ? opts.minOpacity : 0.15;
+  const avoidOverlap = opts.avoidOverlap === true;
+  const minGap = Math.max(0, opts.minGap != null ? opts.minGap : 8);
+  const maxLength = Math.max(12, opts.maxLength || 54);
 
   const layer = document.createElement("div");
   layer.className = "szl-lbl-layer";
@@ -387,7 +393,18 @@ export function createSceneLabels(ctx, opts = {}) {
     canvas.addEventListener("pointerleave", _onLeave, { passive: true });
   }
 
-  function _place(el, obj, text, isHover) {
+  function _visibleText(text, isHover) {
+    const raw = String(text || "");
+    if (isHover || raw.length <= maxLength) return raw;
+    return raw.slice(0, maxLength - 1).replace(/\s+\S*$/, "") + "…";
+  }
+
+  function _overlaps(a, b) {
+    return !(a.right + minGap <= b.left || b.right + minGap <= a.left ||
+      a.bottom + minGap <= b.top || b.bottom + minGap <= a.top);
+  }
+
+  function _place(el, obj, text, isHover, occupied) {
     if (!obj) { el.style.display = "none"; return; }
     obj.getWorldPosition(proj);
     const dist = camera.position.distanceTo(proj);
@@ -399,24 +416,41 @@ export function createSceneLabels(ctx, opts = {}) {
     // fade with distance, size-capped (font stays fixed → size cap)
     let op = 1;
     if (dist > fadeNear) op = Math.max(minOpacity, 1 - (dist - fadeNear) / Math.max(1, fadeFar - fadeNear));
-    el.textContent = text;
+    el.textContent = _visibleText(text, isHover);
     el.style.left = x + "px";
     el.style.top = y + "px";
     el.style.opacity = String(isHover ? Math.max(op, 0.9) : op);
     el.style.display = "block";
+    // Persistent labels are processed in descending importance. When two labels would
+    // collide, retain the higher-ranked one and suppress the lower-ranked label. Hover
+    // remains full-fidelity and is never suppressed.
+    if (avoidOverlap && occupied && !isHover && el.getBoundingClientRect) {
+      const er = el.getBoundingClientRect();
+      const lr = layer.getBoundingClientRect();
+      const box = {
+        left: er.left - lr.left, right: er.right - lr.left,
+        top: er.top - lr.top, bottom: er.bottom - lr.top,
+      };
+      if (occupied.some((prior) => _overlaps(box, prior))) {
+        el.style.display = "none";
+        return;
+      }
+      occupied.push(box);
+    }
   }
 
   function update() {
     const objs = getObjects();
     // persistent top-N by weight
     if (topN) {
+      const occupied = [];
       const ranked = objs
         .map((o) => ({ o, w: getWeight(o) }))
         .sort((a, b) => b.w - a.w)
         .slice(0, topN);
       for (let i = 0; i < pool.length; i++) {
         const item = ranked[i];
-        if (item && item.o) _place(pool[i], item.o, getText(item.o) || "", false);
+        if (item && item.o) _place(pool[i], item.o, getText(item.o) || "", false, occupied);
         else pool[i].style.display = "none";
       }
     }
