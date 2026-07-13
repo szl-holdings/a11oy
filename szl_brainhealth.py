@@ -54,7 +54,10 @@ import datetime
 import hashlib
 import importlib
 import json
+import pathlib
 import re
+import threading
+import time
 from typing import Any, Callable
 
 try:  # numpy is allowed; used only for the modeled mean, guarded so a missing wheel is honest.
@@ -91,6 +94,43 @@ TRUSTWORTHY = "TRUSTWORTHY"
 DEGRADED = "DEGRADED"
 UNTRUSTWORTHY = "UNTRUSTWORTHY"
 INSUFFICIENT_SIGNAL = "INSUFFICIENT-SIGNAL"
+
+# Operational readiness is deliberately separate from epistemic/query trust.  A service can
+# load its index and expose every honesty component while a particular question still needs to
+# abstain.  Conflating these two states made the blank dashboard query look like a failed brain.
+SERVICE_READY = "READY"
+SERVICE_DEGRADED = "DEGRADED"
+QUERY_EVALUATED = "EVALUATED"
+QUERY_NOT_EVALUATED = "NOT-EVALUATED"
+
+EVIDENCE_CLASSES = ("PROVED", "OPEN", "REFUTED", "EXPERIMENTAL", "UNKNOWN")
+_ROOT = pathlib.Path(__file__).resolve().parent
+CORPUS_SOURCE_PATHS = {
+    "szl_lake": _ROOT / "data" / "szl-lake" / "evidence-manifest.json",
+    "formula": _ROOT / "corpus" / "formulas" / "a11oy__gates_manifest.json",
+    "lean": _ROOT / "docs" / "thesis" / "v18" / "lean_source_MANIFEST.json",
+}
+
+CORPUS_MANIFEST_CONTRACT = {
+    "schema_version": "szl.brain.corpus-evidence.v1",
+    "required_top_level": ["schema_version", "source_type", "version", "entries"],
+    "entry_required": ["id", "evidence_class", "artifact_sha256"],
+    "entry_optional": ["sorry_count", "proof_receipt", "refutation_receipt", "source_path"],
+    "proof_rule": (
+        "PROVED credit requires explicit evidence_class=PROVED, sorry_count=0, and a local "
+        "proof_receipt with verified=true, kernel_commit, and matching artifact_sha256"
+    ),
+    "non_uplift_rule": "OPEN, REFUTED, EXPERIMENTAL, UNKNOWN, and any sorry_count>0 add zero proof/trust credit",
+}
+
+_REFRESH_LOCK = threading.Lock()
+_REFRESH_COOLDOWN_SECONDS = 5.0
+_LAST_REFRESH_MONOTONIC = 0.0
+
+
+def _client_is_loopback(host: str | None) -> bool:
+    """Fail-closed client check for the local-only cache rebuild endpoint."""
+    return str(host or "").strip().lower() in {"127.0.0.1", "::1", "localhost", "testclient"}
 
 VERDICTS = (TRUSTWORTHY, DEGRADED, UNTRUSTWORTHY, INSUFFICIENT_SIGNAL)
 
@@ -148,7 +188,7 @@ COMPONENTS: list[dict] = [
         "funcs": ("build_provenance",),
         "call_style": "ns_q_k",
         "value_keys": ("trust_value", "provenance_coverage", "lineage_coverage", "score", "value"),
-        "adverse": ("unprovenanced", "no-lineage", "no lineage", "unsourced"),
+        "adverse": ("unprovenanced", "untraceable", "no-lineage", "no lineage", "unsourced"),
     },
     {
         "key": "contradiction",
@@ -439,6 +479,303 @@ def _gather_component(spec: dict, q: str, k: int, ns: str = "a11oy") -> dict:
     return base
 
 
+def _component_module_readiness() -> list[dict]:
+    """Probe import/entrypoint readiness without running a query or inventing query evidence."""
+    checks = []
+    for spec in COMPONENTS:
+        fn = _resolve_callable(spec)
+        checks.append({
+            "key": spec["key"],
+            "module": spec["module"],
+            "ready": callable(fn),
+            "entrypoint": spec["funcs"][0],
+        })
+    return checks
+
+
+def _source_snapshot_metadata(ns: str = "a11oy") -> dict:
+    """Small, source-authored snapshot manifest; never substitutes request time for capture time."""
+    try:
+        import a11oy_brain_graph as graph_module
+        import szl_brain_api as brain_api
+
+        graph = graph_module.get_brain_graph(ns)
+        index = brain_api.get_index(ns)
+        sources = graph.get("sources") if isinstance(graph.get("sources"), dict) else {}
+        repos = sources.get("repos") if isinstance(sources.get("repos"), dict) else {}
+        harvest = sources.get("harvest") if isinstance(sources.get("harvest"), dict) else {}
+        return {
+            "available": True,
+            "label": graph.get("label", MODELED),
+            "graph_generated_at": graph.get("generated"),
+            "graph_content_hash": getattr(index, "content_hash", None),
+            "node_count": graph.get("node_count"),
+            "link_count": graph.get("link_count"),
+            "distinct_artifacts": graph.get("distinct_artifacts"),
+            "sources": {
+                "surfaces": sources.get("surfaces"),
+                "formulas": sources.get("formulas"),
+                "repos": repos,
+                "topics": sources.get("topics"),
+                "harvest": harvest,
+            },
+            "capture_evidence": {
+                "repo_snapshot_captured": repos.get("captured"),
+                "repo_snapshot_source": repos.get("source"),
+                "harvest_files": list(harvest.get("files") or []),
+                "harvest_source": harvest.get("source"),
+            },
+            "freshness_rule": (
+                "only source-provided captured_at/harvested_at values count as recency; "
+                "graph_generated_at is cache-build time and is never treated as source freshness"
+            ),
+            "refresh_scope": "bounded committed local sources; no network, no source-date rewrite",
+        }
+    except Exception as exc:
+        return {
+            "available": False,
+            "label": UNAVAILABLE,
+            "error": str(exc)[:200],
+            "freshness_rule": "no source timestamp fabricated while snapshot is unavailable",
+            "refresh_scope": "bounded committed local sources; no network, no source-date rewrite",
+        }
+
+
+def _classify_corpus_entry(entry: dict) -> dict:
+    """Apply the no-uplift evidence lattice to one normalized manifest entry."""
+    declared = str(entry.get("evidence_class") or "UNKNOWN").upper()
+    if declared not in EVIDENCE_CLASSES:
+        declared = "UNKNOWN"
+    try:
+        sorry_count = max(0, int(entry.get("sorry_count") or 0))
+    except (TypeError, ValueError):
+        sorry_count = 0
+    artifact_sha = str(entry.get("artifact_sha256") or "")
+    proof = entry.get("proof_receipt") if isinstance(entry.get("proof_receipt"), dict) else {}
+    proof_valid = bool(
+        declared == "PROVED" and sorry_count == 0 and artifact_sha
+        and proof.get("verified") is True
+        and isinstance(proof.get("kernel_commit"), str) and proof.get("kernel_commit")
+        and proof.get("artifact_sha256") == artifact_sha
+    )
+    if sorry_count > 0:
+        effective = "OPEN"
+        reason = "sorry/admit obligations remain; cannot be PROVED"
+    elif declared == "PROVED" and not proof_valid:
+        effective = "UNKNOWN"
+        reason = "PROVED declaration lacks a matching verified local kernel receipt"
+    else:
+        effective = declared
+        reason = "explicit manifest class retained under the no-uplift lattice"
+    return {
+        "id": str(entry.get("id") or entry.get("source_path") or "unknown"),
+        "declared_class": declared,
+        "effective_class": effective,
+        "sorry_count": sorry_count,
+        "artifact_sha256": artifact_sha or None,
+        "proof_receipt_valid": proof_valid,
+        "proof_credit": 1 if effective == "PROVED" and proof_valid else 0,
+        "trust_uplift_eligible": bool(effective == "PROVED" and proof_valid),
+        "reason": reason,
+    }
+
+
+def _legacy_manifest_entries(source_key: str, data: Any) -> list[dict]:
+    """Normalize existing local manifests conservatively; never infer PROVED from filenames."""
+    if isinstance(data, dict) and isinstance(data.get("entries"), list):
+        return [dict(e) for e in data["entries"] if isinstance(e, dict)]
+    if source_key == "lean" and isinstance(data, dict):
+        out = []
+        for row in data.get("files") or []:
+            if not isinstance(row, dict):
+                continue
+            sorry = int(row.get("sorry_count") or 0)
+            out.append({
+                "id": row.get("rel_repo") or row.get("dataset_path"),
+                "source_path": row.get("rel_repo"),
+                "artifact_sha256": row.get("sha256"),
+                "sorry_count": sorry,
+                "evidence_class": "OPEN" if sorry > 0 else "EXPERIMENTAL",
+            })
+        return out
+    if source_key == "formula" and isinstance(data, list):
+        out = []
+        for row in data:
+            if not isinstance(row, dict):
+                continue
+            status = str(row.get("lean_status") or "").lower()
+            evidence_class = "OPEN" if status == "phantom" else (
+                "EXPERIMENTAL" if status == "real" else "UNKNOWN")
+            out.append({
+                "id": row.get("name"),
+                "source_path": row.get("lean_file"),
+                "artifact_sha256": None,
+                "sorry_count": 1 if status == "phantom" else 0,
+                "evidence_class": evidence_class,
+            })
+        return out
+    return []
+
+
+def build_corpus_source_contract() -> dict:
+    """Read only versioned local manifests and classify evidence without network access."""
+    sources = []
+    counts = {c: 0 for c in EVIDENCE_CLASSES}
+    proof_credit = 0
+    for source_key, path in CORPUS_SOURCE_PATHS.items():
+        if not path.is_file():
+            sources.append({
+                "source_type": source_key,
+                "status": "SOURCE_UNAVAILABLE",
+                "path": str(path.relative_to(_ROOT)),
+                "contract": CORPUS_MANIFEST_CONTRACT,
+                "entries": [],
+            })
+            continue
+        try:
+            raw = path.read_bytes()
+            data = json.loads(raw.decode("utf-8"))
+            entries = [_classify_corpus_entry(e) for e in _legacy_manifest_entries(source_key, data)]
+            for entry in entries:
+                counts[entry["effective_class"]] += 1
+                proof_credit += entry["proof_credit"]
+            sources.append({
+                "source_type": source_key,
+                "status": "INGESTED-LOCAL",
+                "path": str(path.relative_to(_ROOT)),
+                "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+                "version": (data.get("schema_version") or data.get("version") or data.get("generated"))
+                           if isinstance(data, dict) else None,
+                "entries": entries,
+            })
+        except Exception as exc:
+            sources.append({
+                "source_type": source_key,
+                "status": "SOURCE_UNAVAILABLE",
+                "path": str(path.relative_to(_ROOT)),
+                "error": str(exc)[:160],
+                "contract": CORPUS_MANIFEST_CONTRACT,
+                "entries": [],
+            })
+    return {
+        "ok": True,
+        "endpoint": "brain/health/corpus-sources",
+        "label": MODELED,
+        "schema_version": CORPUS_MANIFEST_CONTRACT["schema_version"],
+        "evidence_classes": list(EVIDENCE_CLASSES),
+        "manifest_contract": CORPUS_MANIFEST_CONTRACT,
+        "sources": sources,
+        "summary": {
+            "counts": counts,
+            "proof_credit": proof_credit,
+            "trust_uplift_from_non_proved": 0,
+            "network_access": False,
+            "gpu_training_started": False,
+        },
+        "note": (
+            "existing legacy manifests are translated conservatively: zero-sorry source files "
+            "remain EXPERIMENTAL without a verified kernel receipt; sorry/phantom entries are "
+            "OPEN; no 180/200 proof claim is inferred"
+        ),
+        "timestamp_utc": _now_iso(),
+    }
+
+
+def _service_readiness(ns: str = "a11oy", snapshot: dict | None = None) -> dict:
+    """Operational/service readiness only.  It is never a synonym for query trust."""
+    module_checks = _component_module_readiness()
+    snapshot = snapshot if isinstance(snapshot, dict) else _source_snapshot_metadata(ns)
+    modules_ready = all(c["ready"] for c in module_checks)
+    index_ready = bool(snapshot.get("available") and snapshot.get("graph_content_hash")
+                       and isinstance(snapshot.get("node_count"), int)
+                       and snapshot.get("node_count") > 0)
+    operational = modules_ready and index_ready
+    return {
+        "status": SERVICE_READY if operational else SERVICE_DEGRADED,
+        "operational": operational,
+        "query_trust_equivalent": False,
+        "checks": {
+            "brain_index_readable": index_ready,
+            "honesty_components_loadable": modules_ready,
+            "component_modules": module_checks,
+        },
+        "note": (
+            "READY means the local graph/index and honesty evaluators can serve requests; it does "
+            "not mean any query is trustworthy. Query trust remains a separate evidence verdict."
+        ),
+    }
+
+
+def _remediation_plan(components: list[dict], query_evaluated: bool, ns: str) -> list[dict]:
+    """Return concrete next actions for observed gaps; actions never change verdicts by fiat."""
+    base = f"/api/{ns}/v1/brain/health"
+    if not query_evaluated:
+        return [{
+            "component": "query",
+            "action": "submit a non-empty q parameter to run grounding/provenance/conflict/uncertainty",
+            "endpoint": f"GET {base}?q=<question>&k=12",
+            "effect_on_trust": "none until evidence is evaluated",
+        }]
+
+    actions = []
+    adverse = {c.get("key"): c.get("adverse_reason") for c in components
+               if c.get("signal") == SIG_ADVERSE}
+    if "freshness" in adverse:
+        actions.append({
+            "component": "freshness",
+            "action": (
+                "reindex the bounded committed local sources, then replace stale/undated source "
+                "snapshots only through a separately reviewed harvest carrying real capture times"
+            ),
+            "endpoint": f"POST {base}/refresh",
+            "limitation": (
+                "local reindex clears caches but cannot make old evidence fresh or rewrite capture times"
+            ),
+        })
+    if "grounding" in adverse:
+        actions.append({
+            "component": "grounding",
+            "action": "narrow the query or ingest a cited local source that directly covers its terms",
+            "effect_on_trust": "re-evaluate; no automatic upgrade",
+        })
+    if "provenance" in adverse:
+        actions.append({
+            "component": "provenance",
+            "action": "attach source/url and an honest label to every supporting node, then reindex",
+            "effect_on_trust": "re-evaluate; no automatic upgrade",
+        })
+    if "contradiction" in adverse:
+        actions.append({
+            "component": "contradiction",
+            "action": "inspect the reported conflict pairs; resolve sources or narrow the claim scope",
+            "effect_on_trust": "re-evaluate; conflicts remain adverse until evidence changes",
+        })
+    if "uncertainty" in adverse:
+        actions.append({
+            "component": "uncertainty",
+            "action": "narrow the question and require a more concentrated, source-cited retrieval",
+            "effect_on_trust": "re-evaluate; abstention remains active until uncertainty falls",
+        })
+    return actions
+
+
+def _unevaluated_components() -> list[dict]:
+    checks = {c["key"]: c for c in _component_module_readiness()}
+    return [{
+        "key": spec["key"],
+        "title": spec["title"],
+        "module": spec["module"],
+        "available": False,
+        "service_available": bool(checks[spec["key"]]["ready"]),
+        "label": UNAVAILABLE,
+        "value": None,
+        "signal": None,
+        "adverse_reason": None,
+        "evaluation_status": QUERY_NOT_EVALUATED,
+        "note": "no query was supplied; component was not invoked and no query evidence was fabricated",
+    } for spec in COMPONENTS]
+
+
 # ---------------------------------------------------------------------------
 # Rollup assembly — pure computation over ONLY the available components. Mints nothing.
 # ---------------------------------------------------------------------------
@@ -485,8 +822,16 @@ def _modeled_trust(components: list[dict]) -> float | None:
 def build_rollup(q: str = "", k: int = 12, ns: str = "a11oy") -> dict:
     """Gather every brain-honesty component (available ones read VERBATIM, missing ones
     UNAVAILABLE) and roll the AVAILABLE ones into ONE honest brain-trust verdict."""
-    components = [_gather_component(spec, q, k, ns=ns) for spec in COMPONENTS]
-    verdict, reason = _decide_verdict(components)
+    q = (q or "").strip()
+    query_evaluated = bool(q)
+    if query_evaluated:
+        components = [_gather_component(spec, q, k, ns=ns) for spec in COMPONENTS]
+        verdict, reason = _decide_verdict(components)
+    else:
+        components = _unevaluated_components()
+        verdict = INSUFFICIENT_SIGNAL
+        reason = ("no query supplied; epistemic trust was NOT EVALUATED. Operational readiness "
+                  "is reported separately and is never promoted into a query-trust verdict")
 
     available = [c for c in components if c["available"]]
     unavailable = [c for c in components if not c["available"]]
@@ -501,7 +846,9 @@ def build_rollup(q: str = "", k: int = 12, ns: str = "a11oy") -> dict:
                     for c in available if c["signal"] == SIG_ADVERSE],
         "min_components_required": MIN_COMPONENTS,
     }
-    trust = _modeled_trust(components)
+    trust = _modeled_trust(components) if query_evaluated else None
+    snapshot = _source_snapshot_metadata(ns)
+    readiness = _service_readiness(ns, snapshot=snapshot)
 
     return {
         "ok": True,
@@ -512,6 +859,14 @@ def build_rollup(q: str = "", k: int = 12, ns: str = "a11oy") -> dict:
         "label": MODELED,
         "query": q,
         "k": k,
+        "query_assessment": {
+            "status": QUERY_EVALUATED if query_evaluated else QUERY_NOT_EVALUATED,
+            "evaluated": query_evaluated,
+            "note": ("component evidence evaluated for this query" if query_evaluated else
+                     "blank q is a service-status view only; no answer trust was inferred"),
+        },
+        "service_readiness": readiness,
+        "source_snapshot": snapshot,
         "verdict": verdict,
         "verdict_reason": reason,
         "modeled_trust": trust,
@@ -524,6 +879,7 @@ def build_rollup(q: str = "", k: int = 12, ns: str = "a11oy") -> dict:
                  "honesty — advances no detection/fusion/effector/targeting/cueing capability."),
         "components": components,
         "summary": summary,
+        "remediation": _remediation_plan(components, query_evaluated, ns),
         "doctrine": {
             "label_top": MODELED,
             "locked_proven": LOCKED_COUNT,
@@ -559,6 +915,7 @@ def _canonical_core(rollup: dict) -> str:
     volatile timestamp), so the digest attests the VERDICT + component evidence, not the clock."""
     core = {
         "query": rollup.get("query"),
+        "query_assessment": rollup.get("query_assessment"),
         "verdict": rollup.get("verdict"),
         "modeled_trust": rollup.get("modeled_trust"),
         "summary": rollup.get("summary"),
@@ -568,6 +925,10 @@ def _canonical_core(rollup: dict) -> str:
              "adverse_reason": c.get("adverse_reason")}
             for c in rollup.get("components", [])
         ],
+        "source_snapshot": {
+            "graph_content_hash": (rollup.get("source_snapshot") or {}).get("graph_content_hash"),
+            "capture_evidence": (rollup.get("source_snapshot") or {}).get("capture_evidence"),
+        },
     }
     return json.dumps(core, sort_keys=True, separators=(",", ":"), default=str)
 
@@ -587,6 +948,96 @@ def _content_receipt(rollup: dict) -> dict:
                  "RECEIPT-ON-WRITE, never on a GET read. No signature fabricated."),
         "computed_at": _now_iso(),
     }
+
+
+def _refresh_receipt(core: dict) -> dict:
+    canonical = json.dumps(core, sort_keys=True, separators=(",", ":"), default=str)
+    return {
+        "kind": "szl.brainhealth.bounded-local-reindex",
+        "algorithm": "sha256",
+        "content_sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        "signed": False,
+        "mode": "UNSIGNED-CONTENT-DIGEST",
+        "receipt_on": "write (POST refresh)",
+        "note": (
+            "unsigned digest of the bounded local reindex result; no source timestamps were "
+            "rewritten and no signature was fabricated"
+        ),
+        "computed_at": _now_iso(),
+    }
+
+
+def handle_refresh(ns: str = "a11oy") -> dict:
+    """Rebuild only the in-process graph/index from committed local sources.
+
+    This is intentionally not a network harvest and cannot make stale evidence fresh.  It is a
+    bounded cache/index write with a receipt so operators can distinguish "reindexed" from
+    "source evidence updated".
+    """
+    global _LAST_REFRESH_MONOTONIC
+    if not _REFRESH_LOCK.acquire(blocking=False):
+        return {
+            "ok": False, "endpoint": "brain/health/refresh", "label": UNAVAILABLE,
+            "outcome": "REINDEX-IN-PROGRESS", "retry_after_seconds": _REFRESH_COOLDOWN_SECONDS,
+            "source_freshness_changed": False, "receipt": None,
+        }
+    now = time.monotonic()
+    if _LAST_REFRESH_MONOTONIC and now - _LAST_REFRESH_MONOTONIC < _REFRESH_COOLDOWN_SECONDS:
+        retry = round(_REFRESH_COOLDOWN_SECONDS - (now - _LAST_REFRESH_MONOTONIC), 3)
+        _REFRESH_LOCK.release()
+        return {
+            "ok": False, "endpoint": "brain/health/refresh", "label": UNAVAILABLE,
+            "outcome": "REINDEX-COOLDOWN", "retry_after_seconds": retry,
+            "source_freshness_changed": False, "receipt": None,
+        }
+    before = _source_snapshot_metadata(ns)
+    try:
+        import szl_brain_api as brain_api
+
+        # get_index(refresh=True) refreshes the graph exactly once and rebuilds the index.
+        brain_api.get_index(ns, refresh=True)
+        after = _source_snapshot_metadata(ns)
+        core = {
+            "scope": "BOUNDED-COMMITTED-LOCAL-SOURCES",
+            "network_access": False,
+            "source_timestamps_rewritten": False,
+            "before_content_hash": before.get("graph_content_hash"),
+            "after_content_hash": after.get("graph_content_hash"),
+            "node_count": after.get("node_count"),
+            "link_count": after.get("link_count"),
+            "capture_evidence": after.get("capture_evidence"),
+        }
+        return {
+            "ok": True,
+            "endpoint": "brain/health/refresh",
+            "label": MODELED,
+            "outcome": "REINDEXED",
+            "changed": core["before_content_hash"] != core["after_content_hash"],
+            "source_freshness_changed": False,
+            "before": before,
+            "after": after,
+            "receipt": _refresh_receipt(core),
+            "note": (
+                "local caches/index rebuilt from committed bounded sources. This does not refresh "
+                "old capture dates; update source snapshots through a reviewed harvest if stale."
+            ),
+            "timestamp_utc": _now_iso(),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "endpoint": "brain/health/refresh",
+            "label": UNAVAILABLE,
+            "outcome": "REINDEX-FAILED",
+            "source_freshness_changed": False,
+            "error": str(exc)[:200],
+            "receipt": None,
+            "note": "no source timestamps changed and no receipt minted over a failed reindex",
+            "timestamp_utc": _now_iso(),
+        }
+    finally:
+        _LAST_REFRESH_MONOTONIC = time.monotonic()
+        _REFRESH_LOCK.release()
 
 
 # ---------------------------------------------------------------------------
@@ -615,7 +1066,16 @@ def handle_info(ns: str = "a11oy") -> dict:
             "info": f"GET  {base}/info",
             "health": f"GET  {base}?q=&k=",
             "receipt": f"POST {base}/receipt",
+            "bounded_local_reindex": f"POST {base}/refresh",
+            "corpus_sources": f"GET  {base}/corpus-sources",
         },
+        "state_separation": {
+            "service_readiness": "can the graph/index and evaluators serve a request?",
+            "query_trust": "does the evidence support this specific non-empty query?",
+            "invariant": "service READY never promotes query trust",
+            "empty_query": QUERY_NOT_EVALUATED,
+        },
+        "source_snapshot": _source_snapshot_metadata(ns),
         "verdicts": list(VERDICTS),
         "verdict_legend": {
             TRUSTWORTHY: "enough components available and ALL OK; none UNAVAILABLE",
@@ -699,6 +1159,11 @@ def register(app, ns: str = "a11oy") -> str:
         """Live brain-trust rollup verdict + per-component value/label/available (pure read)."""
         return JSONResponse(handle_health(q, k, ns))
 
+    @app.get(f"{base}/corpus-sources")
+    def _brainhealth_corpus_sources():
+        """Versioned local evidence manifests under the no-uplift proof lattice."""
+        return JSONResponse(build_corpus_source_contract())
+
     async def _brainhealth_receipt(request):
         """POST: rollup + UNSIGNED SHA-256 content digest (RECEIPT-ON-WRITE). Reads q/k from the
         query string when present; the body is otherwise ignored (a pure rollup compute)."""
@@ -718,6 +1183,7 @@ def register(app, ns: str = "a11oy") -> str:
         pass
 
     rec_path = f"{base}/receipt"
+    refresh_path = f"{base}/refresh"
     add_route = getattr(getattr(app, "router", None), "add_route", None)
     add_api_route = getattr(app, "add_api_route", None)
     try:
@@ -733,7 +1199,50 @@ def register(app, ns: str = "a11oy") -> str:
               file=__import__("sys").stderr)
         return "brainhealth-wired:2(get-only)"
 
-    return "brainhealth-wired:3"
+    async def _brainhealth_refresh(request):
+        """POST: bounded local cache/index rebuild with an unsigned result receipt."""
+        client = getattr(request, "client", None)
+        host = getattr(client, "host", None)
+        if not _client_is_loopback(host):
+            return JSONResponse({
+                "ok": False,
+                "endpoint": "brain/health/refresh",
+                "label": UNAVAILABLE,
+                "outcome": "LOCAL-CLIENT-REQUIRED",
+                "source_freshness_changed": False,
+                "receipt": None,
+                "note": "bounded local reindex rejects non-loopback clients; no auth bypass",
+            }, status_code=403)
+        result = handle_refresh(ns)
+        status = 200
+        if result.get("outcome") == "REINDEX-IN-PROGRESS":
+            status = 409
+        elif result.get("outcome") == "REINDEX-COOLDOWN":
+            status = 429
+        elif not result.get("ok"):
+            status = 503
+        return JSONResponse(result, status_code=status)
+
+    try:
+        import fastapi as _fastapi
+        _brainhealth_refresh.__annotations__["request"] = _fastapi.Request
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        if callable(add_route):
+            app.router.add_route(refresh_path, _brainhealth_refresh, methods=["POST"])
+        elif callable(add_api_route):
+            app.add_api_route(refresh_path, _brainhealth_refresh, methods=["POST"])
+        else:  # pragma: no cover
+            from starlette.routing import Route
+            app.router.routes.append(Route(refresh_path, _brainhealth_refresh, methods=["POST"]))
+    except Exception as exc:  # additive register must never break boot
+        print(f"[{ns}] brainhealth refresh POST route NOT wired (guarded): {exc!r}",
+              file=__import__("sys").stderr)
+        return "brainhealth-wired:3(no-refresh)"
+
+    return "brainhealth-wired:5"
 
 
 # ---------------------------------------------------------------------------

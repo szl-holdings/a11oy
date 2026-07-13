@@ -38,6 +38,7 @@ const TITLE = "Brain Health · can the brain be trusted for this query right now
 
 // same-origin, relative — no CDN, no cross-origin fetch. PURE-READ rollup endpoint.
 const EP = "/api/a11oy/v1/brain/health";
+const REFRESH_EP = "/api/a11oy/v1/brain/health/refresh";
 
 // signal / verdict hues — approved palette only, no green
 const C_OK       = 0x3af4c8;  // proof-teal   — TRUSTWORTHY / signal OK
@@ -82,6 +83,10 @@ const S = {
   trustCeil: null,
   lambda:    null,
   locked:    null,
+  service:   null,
+  queryEval: null,
+  snapshot:  null,
+  remediation: [],
   state:     "init",
 };
 
@@ -204,6 +209,10 @@ function _onData(j) {
   S.unavail = typeof sm.components_unavailable === "number" ? sm.components_unavailable : null;
 
   S.components = Array.isArray(j && j.components) ? j.components : [];
+  S.service = j && j.service_readiness ? j.service_readiness : null;
+  S.queryEval = j && j.query_assessment ? j.query_assessment : null;
+  S.snapshot = j && j.source_snapshot ? j.source_snapshot : null;
+  S.remediation = Array.isArray(j && j.remediation) ? j.remediation : [];
 
   const d = (j && j.doctrine) || {};
   S.trustCeil = typeof d.trust_ceiling === "number" ? d.trust_ceiling : null;
@@ -292,6 +301,8 @@ function _buildOverlay() {
     r.appendChild(l); r.appendChild(v); return r;
   }
   grid.appendChild(kpiRow("bh-verdict", "verdict"));
+  grid.appendChild(kpiRow("bh-service", "service readiness"));
+  grid.appendChild(kpiRow("bh-query",   "query assessment"));
   grid.appendChild(kpiRow("bh-trust",   "modeled trust (≤0.97)"));
   grid.appendChild(kpiRow("bh-total",   "components total"));
   grid.appendChild(kpiRow("bh-avail",   "available"));
@@ -299,6 +310,8 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("bh-locked",  "locked proofs"));
   grid.appendChild(kpiRow("bh-ceil",    "trust ceiling"));
   grid.appendChild(kpiRow("bh-lambda",  "Λ"));
+  grid.appendChild(kpiRow("bh-hash",    "source snapshot hash"));
+  grid.appendChild(kpiRow("bh-captured", "repo snapshot captured"));
   card.appendChild(grid);
   host.appendChild(card);
 
@@ -307,6 +320,26 @@ function _buildOverlay() {
   listWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:170px;overflow:auto";
   _el["list"] = listWrap;
   host.appendChild(listWrap);
+
+  const remed = document.createElement("div");
+  remed.style.cssText = "font-size:10px;color:#9fb1bf;line-height:1.5;border:1px solid #1d2a36;border-radius:7px;padding:7px 9px";
+  _el["remediation"] = remed;
+  host.appendChild(remed);
+
+  const refresh = document.createElement("button");
+  refresh.textContent = "reindex committed local snapshot";
+  refresh.title = "Rebuild the local graph/index cache. This cannot make old evidence fresh.";
+  refresh.style.cssText = "font:10.5px ui-monospace,monospace;padding:5px 10px;border-radius:7px;border:1px solid #5b8dee;background:#0a1117;color:#b9c8ff;cursor:pointer;width:fit-content";
+  refresh.addEventListener("click", async () => {
+    refresh.disabled = true; refresh.textContent = "reindexing local snapshot…";
+    try {
+      const r = await fetch(REFRESH_EP, { method: "POST", headers: { accept: "application/json" } });
+      const j = await r.json();
+      refresh.textContent = j && j.ok ? "reindexed · source freshness unchanged" : "reindex failed honestly";
+    } catch (_) { refresh.textContent = "reindex unavailable"; }
+    finally { setTimeout(() => { refresh.disabled = false; refresh.textContent = "reindex committed local snapshot"; }, 3000); }
+  });
+  host.appendChild(refresh);
 
   const leg = document.createElement("div");
   leg.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.6";
@@ -393,6 +426,8 @@ function _paintOverlay() {
     _show.setChip("vrd", vrd, { text: "verdict" });
   }
   _set("bh-verdict", vrd);
+  _set("bh-service", t || (S.service && S.service.status ? S.service.status : "—"));
+  _set("bh-query", t || (S.queryEval && S.queryEval.status ? S.queryEval.status : "—"));
   _set("bh-trust",   t || (S.trust != null ? String(S.trust) : "—"));
   _set("bh-total",   t || _n(S.total));
   _set("bh-avail",   t || _n(S.avail));
@@ -400,6 +435,15 @@ function _paintOverlay() {
   _set("bh-locked",  t || (S.locked != null ? String(S.locked) : "—"));
   _set("bh-ceil",    t || (S.trustCeil != null ? String(S.trustCeil) : "—"));
   _set("bh-lambda",  t || (S.lambda || "—"));
+  _set("bh-hash", t || (S.snapshot && S.snapshot.graph_content_hash ? S.snapshot.graph_content_hash : "—"));
+  const capture = S.snapshot && S.snapshot.capture_evidence;
+  _set("bh-captured", t || (capture && capture.repo_snapshot_captured ? capture.repo_snapshot_captured : "UNKNOWN"));
+  if (_el["remediation"]) {
+    const actions = Array.isArray(S.remediation) ? S.remediation : [];
+    _el["remediation"].textContent = actions.length
+      ? "Next: " + actions.map((a) => a.component + " — " + a.action).join(" | ")
+      : "No automatic trust upgrade. Re-evaluate only after source evidence changes.";
+  }
   if (_plain) _applyPlain();
 }
 
@@ -427,6 +471,7 @@ export function unmount() {
   S.label = S.verdict = S.reason = null;
   S.trust = S.total = S.avail = S.unavail = null;
   S.components = [];
+  S.service = S.queryEval = S.snapshot = null; S.remediation = [];
   S.trustCeil = S.lambda = S.locked = null; S.state = "init";
 }
 

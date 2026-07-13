@@ -22,6 +22,7 @@ sibling modules ship in separate not-yet-merged PRs:
 Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 """
 import pytest
+import types
 
 pytest.importorskip("starlette.testclient")
 from fastapi.testclient import TestClient  # noqa: E402
@@ -32,6 +33,8 @@ import szl_brainhealth as bh  # noqa: E402
 HEALTH = "/api/a11oy/v1/brain/health"
 INFO = "/api/a11oy/v1/brain/health/info"
 RECEIPT = "/api/a11oy/v1/brain/health/receipt"
+REFRESH = "/api/a11oy/v1/brain/health/refresh"
+CORPUS_SOURCES = "/api/a11oy/v1/brain/health/corpus-sources"
 VERDICTS = {bh.TRUSTWORTHY, bh.DEGRADED, bh.UNTRUSTWORTHY, bh.INSUFFICIENT_SIGNAL}
 
 
@@ -63,11 +66,11 @@ def _force_unavailable(monkeypatch, *keys):
 # 1. registration + ordering
 # --------------------------------------------------------------------------- #
 def test_routes_registered_before_catchalls():
-    for path in (HEALTH, INFO, RECEIPT):
+    for path in (HEALTH, INFO, RECEIPT, REFRESH, CORPUS_SOURCES):
         assert _route_index(path) is not None, f"{path} not registered"
     spa = _route_index("/{full_path:path}")
     proxy = _route_index("/api/a11oy/{path:path}")
-    for path in (HEALTH, INFO, RECEIPT):
+    for path in (HEALTH, INFO, RECEIPT, REFRESH, CORPUS_SOURCES):
         idx = _route_index(path)
         if spa is not None:
             assert idx < spa, f"{path} ({idx}) must precede the SPA catch-all ({spa})"
@@ -86,6 +89,108 @@ def test_get_health_answers_and_mints_nothing():
     assert j["ok"] is True and j["label"] == "MODELED"
     assert j["verdict"] in VERDICTS
     assert "receipt" not in j, "GET health is a PURE READ — must mint NO receipt"
+
+
+def test_empty_query_is_service_view_not_fake_query_failure(monkeypatch):
+    """Blank dashboard polling must not run query components or emit a tiny trust score."""
+    for key in _ALL_KEYS:
+        monkeypatch.setitem(
+            bh._PROBE_OVERRIDES, key,
+            lambda q, k: (_ for _ in ()).throw(AssertionError("blank q invoked component")),
+        )
+    monkeypatch.setattr(bh, "_source_snapshot_metadata", lambda ns: {
+        "available": True, "graph_content_hash": "abc", "node_count": 12,
+        "capture_evidence": {"repo_snapshot_captured": "2026-07-07"},
+    })
+    monkeypatch.setattr(bh, "_service_readiness", lambda ns, snapshot=None: {
+        "status": bh.SERVICE_READY, "operational": True, "query_trust_equivalent": False,
+    })
+    agg = bh.build_rollup("", 12)
+    assert agg["query_assessment"]["status"] == bh.QUERY_NOT_EVALUATED
+    assert agg["service_readiness"]["status"] == bh.SERVICE_READY
+    assert agg["verdict"] == bh.INSUFFICIENT_SIGNAL
+    assert agg["modeled_trust"] is None
+    assert all(c["evaluation_status"] == bh.QUERY_NOT_EVALUATED for c in agg["components"])
+
+
+def test_untraceable_provenance_is_adverse(monkeypatch):
+    _stub(monkeypatch, "grounding", {"label": "MODELED", "grounding_confidence": 0.9})
+    _stub(monkeypatch, "provenance", {
+        "label": "MODELED", "verdict": "UNTRACEABLE",
+        "coverage": {"fraction_traceable_to_source": 0.0},
+    })
+    _force_unavailable(monkeypatch, "freshness", "contradiction", "uncertainty")
+    agg = bh.build_rollup("specific query", 4)
+    assert agg["verdict"] == bh.UNTRUSTWORTHY
+    assert {a["key"] for a in agg["summary"]["adverse"]} == {"provenance"}
+
+
+def test_bounded_refresh_reindexes_but_never_claims_freshness(monkeypatch):
+    snapshots = iter([
+        {"available": True, "graph_content_hash": "old", "node_count": 10,
+         "capture_evidence": {"repo_snapshot_captured": "2026-07-07"}},
+        {"available": True, "graph_content_hash": "new", "node_count": 11,
+         "capture_evidence": {"repo_snapshot_captured": "2026-07-07"}},
+    ])
+    monkeypatch.setattr(bh, "_source_snapshot_metadata", lambda ns: next(snapshots))
+    called = []
+    monkeypatch.setitem(__import__("sys").modules, "szl_brain_api", types.SimpleNamespace(
+        get_index=lambda ns, refresh=False: called.append((ns, refresh))))
+    monkeypatch.setattr(bh, "_LAST_REFRESH_MONOTONIC", 0.0)
+    out = bh.handle_refresh("a11oy")
+    assert out["ok"] is True and out["outcome"] == "REINDEXED"
+    assert out["changed"] is True and out["source_freshness_changed"] is False
+    assert called == [("a11oy", True)]
+    assert out["receipt"]["signed"] is False
+    assert len(out["receipt"]["content_sha256"]) == 64
+    second = bh.handle_refresh("a11oy")
+    assert second["ok"] is False and second["outcome"] == "REINDEX-COOLDOWN"
+    monkeypatch.setattr(bh, "_LAST_REFRESH_MONOTONIC", 0.0)
+
+
+def test_refresh_client_guard_fails_closed():
+    assert bh._client_is_loopback("127.0.0.1") is True
+    assert bh._client_is_loopback("::1") is True
+    assert bh._client_is_loopback("testclient") is True
+    assert bh._client_is_loopback("10.0.0.7") is False
+    assert bh._client_is_loopback(None) is False
+
+
+def test_testclient_is_allowed_to_call_local_refresh_route(monkeypatch):
+    monkeypatch.setattr(bh, "handle_refresh", lambda ns: {
+        "ok": True, "outcome": "REINDEXED", "source_freshness_changed": False,
+        "receipt": {"signed": False},
+    })
+    with TestClient(serve.app) as c:
+        r = c.post(REFRESH)
+    assert r.status_code == 200
+    assert r.json()["outcome"] == "REINDEXED"
+
+
+def test_nonproved_corpus_classes_never_raise_proof_or_trust():
+    rows = [
+        {"id": "open", "evidence_class": "OPEN", "artifact_sha256": "a" * 64},
+        {"id": "refuted", "evidence_class": "REFUTED", "artifact_sha256": "b" * 64},
+        {"id": "sorry", "evidence_class": "PROVED", "artifact_sha256": "c" * 64,
+         "sorry_count": 1, "proof_receipt": {"verified": True, "kernel_commit": "k",
+                                                 "artifact_sha256": "c" * 64}},
+        {"id": "no-receipt", "evidence_class": "PROVED", "artifact_sha256": "d" * 64},
+    ]
+    got = [bh._classify_corpus_entry(row) for row in rows]
+    assert [r["effective_class"] for r in got] == ["OPEN", "REFUTED", "OPEN", "UNKNOWN"]
+    assert all(r["proof_credit"] == 0 and not r["trust_uplift_eligible"] for r in got)
+
+
+def test_proved_requires_matching_verified_kernel_receipt():
+    sha = "e" * 64
+    got = bh._classify_corpus_entry({
+        "id": "proved", "evidence_class": "PROVED", "artifact_sha256": sha,
+        "sorry_count": 0,
+        "proof_receipt": {"verified": True, "kernel_commit": "c7c0ba17",
+                          "artifact_sha256": sha},
+    })
+    assert got["effective_class"] == "PROVED"
+    assert got["proof_credit"] == 1 and got["trust_uplift_eligible"] is True
 
 
 def test_get_info_is_static_pure_read():
