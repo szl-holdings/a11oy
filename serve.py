@@ -1268,7 +1268,22 @@ except Exception as _szl_brainhealth_e:  # pragma: no cover
 # READ (signs/mints nothing on GET). Adds NOTHING to the locked-8; Λ stays Conjecture 1;
 # trust ceiling 0.97. Additive, try/except-guarded, same register() pattern, BEFORE the SPA
 # catch-all. Must register AFTER the frontier index (which it reads).
+# BRAIN EVIDENCE RERANKER + OUROBOROS LOCAL FEED (wave 22). This is a
+# readiness/data boundary, not a trainer. It inventories every raw Brain node,
+# requires canonical content-addressed corpus manifests before admitting rows,
+# and reports dataset, evaluation, and model readiness independently. The local
+# feed write path is loopback-only, bounded, checkpointed, and kill-switched.
 try:
+    import szl_brain_reranker as _szl_brain_reranker
+    _brain_reranker_paths = _szl_brain_reranker.register(app, ns="a11oy")
+    print(f"[a11oy] Brain evidence-reranker registered: {_brain_reranker_paths}",
+          file=__import__("sys").stderr)
+except Exception as _szl_brain_reranker_e:  # pragma: no cover
+    print(f"[a11oy] Brain evidence-reranker NOT registered: {_szl_brain_reranker_e!r}; "
+          "SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    # Status aggregate remains registered after the evidence-reranker block above.
     import szl_status_aggregate as _szl_status_aggregate
     _szl_status_aggregate.register(app, ns="a11oy")
     print("[a11oy] Operational STATUS aggregate registered: /api/a11oy/v1/status (honest per-subsystem/surface health, drift-proof)", file=__import__("sys").stderr)

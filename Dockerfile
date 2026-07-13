@@ -1585,6 +1585,9 @@ COPY szl_brainconsensus.py ./szl_brainconsensus.py
 # brainqueryaudit.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/`
 # above. RECORDS/OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
+# Wave 22: content-addressed corpus admission + fail-closed Brain reranker/feed.
+# No model weights, trainer, or network harvester are included.
+COPY szl_braincorpus.py szl_brain_reranker.py ./
 # BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME
 # honest brain graph: for a node id or a query's top nodes it reports HOW each node
 # ENTERED the graph, read VERBATIM from the node's OWN real origin fields
