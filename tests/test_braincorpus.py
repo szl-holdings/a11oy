@@ -32,6 +32,20 @@ def _receipt(artifact_sha: str, **overrides):
     return {**body, "receipt_sha256": corpus.sha256_json(body)}
 
 
+def _artifact_receipt(artifact_sha: str, source_path: str, source_sha: str, **overrides):
+    body = {
+        "schema_version": corpus.ARTIFACT_RECEIPT_SCHEMA,
+        "verified": True,
+        "artifact_sha256": artifact_sha,
+        "source_assets": [{
+            "path": source_path, "sha256": source_sha, "license": "Apache-2.0",
+        }],
+        "proof_credit": 0,
+    }
+    body.update(overrides)
+    return {**body, "receipt_sha256": corpus.sha256_json(body)}
+
+
 def _manifest(source_type: str, entries, **overrides):
     body = {
         "schema_version": corpus.SCHEMA_VERSION,
@@ -141,6 +155,49 @@ def test_nonproved_classes_are_content_verified_but_quarantined_from_trust(tmp_p
     assert row["disposition"] == "QUARANTINED_NON_PROOF"
     assert row["proof_credit"] == 0
     assert row["trust_uplift_eligible"] is False
+
+
+def test_artifact_receipt_binds_local_licensed_assets_without_proof_uplift(tmp_path):
+    artifact = b"grounded reranker examples"
+    source = b"source bytes"
+    (tmp_path / "artifacts").mkdir()
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "artifacts" / "rows.json").write_bytes(artifact)
+    (tmp_path / "assets" / "source.txt").write_bytes(source)
+    artifact_sha = _sha(artifact)
+    receipt = _artifact_receipt(artifact_sha, "assets/source.txt", _sha(source))
+    _write_json(tmp_path / corpus.DEFAULT_MANIFESTS["formula"], _manifest("formula", [{
+        "id": "formula-source-v1", "evidence_class": "EXPERIMENTAL",
+        "source_path": "artifacts/rows.json", "artifact_sha256": artifact_sha,
+        "artifact_receipt": receipt,
+    }]))
+    row = _source(corpus.build_corpus_status(tmp_path, environ={}), "formula")["entries"][0]
+    assert row["artifact_verified"] is True
+    assert row["artifact_receipt_valid"] is True
+    assert row["artifact_receipt"]["source_asset_count"] == 1
+    assert row["artifact_receipt"]["proof_credit"] == 0
+    assert row["proof_credit"] == 0
+    assert row["disposition"] == "QUARANTINED_NON_PROOF"
+
+
+def test_tampered_artifact_receipt_is_quarantined(tmp_path):
+    artifact = b"grounded reranker examples"
+    source = b"source bytes"
+    (tmp_path / "artifacts").mkdir()
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "artifacts" / "rows.json").write_bytes(artifact)
+    (tmp_path / "assets" / "source.txt").write_bytes(source)
+    artifact_sha = _sha(artifact)
+    receipt = _artifact_receipt(artifact_sha, "assets/source.txt", "0" * 64)
+    _write_json(tmp_path / corpus.DEFAULT_MANIFESTS["formula"], _manifest("formula", [{
+        "id": "formula-source-v1", "evidence_class": "EXPERIMENTAL",
+        "source_path": "artifacts/rows.json", "artifact_sha256": artifact_sha,
+        "artifact_receipt": receipt,
+    }]))
+    row = _source(corpus.build_corpus_status(tmp_path, environ={}), "formula")["entries"][0]
+    assert row["artifact_receipt_valid"] is False
+    assert row["effective_class"] == "UNKNOWN"
+    assert "ARTIFACT_RECEIPT_ASSET_SHA_MISMATCH:0" in row["quarantine_reasons"]
 
 
 def test_conflicting_formula_ids_are_quarantined_across_sources(tmp_path):
