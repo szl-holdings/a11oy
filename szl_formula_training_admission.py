@@ -174,6 +174,7 @@ def _brain_and_m1_state(root: pathlib.Path) -> dict[str, Any]:
 
     m1_manifest = _load_json(root, M1_MANIFEST)
     m1_ids: set[str] = set()
+    m1_training_eligible = 0
     m1_rows = 0
     with (root / M1_BRAIN_LEDGER).open("r", encoding="utf-8") as stream:
         for line_number, line in enumerate(stream, start=1):
@@ -184,17 +185,21 @@ def _brain_and_m1_state(root: pathlib.Path) -> dict[str, Any]:
             if not node_id or node_id in m1_ids:
                 raise AdmissionError(f"M1_NODE_ID_INVALID:{line_number}:{node_id}")
             m1_ids.add(node_id)
+            if row.get("training_eligible") is not False or row.get("training_decision") != "QUARANTINE":
+                m1_training_eligible += 1
             m1_rows += 1
     manifest_rows = int(
         (((m1_manifest.get("ledgers") or {}).get("brain_nodes") or {}).get("rows"))
         or 0
     )
-    if manifest_rows != m1_rows or m1_rows != 9462:
+    if manifest_rows != m1_rows or m1_rows != raw_count:
         raise AdmissionError(f"M1_LEDGER_COUNT_MISMATCH:{manifest_rows}:{m1_rows}")
     added = sorted(current_ids - m1_ids)
     removed = sorted(m1_ids - current_ids)
-    if added != ["surface:brainreranker", "surface:numericsdataset"] or removed:
+    if added or removed:
         raise AdmissionError(f"UNEXPECTED_M1_DRIFT:{added}:{removed}")
+    if m1_training_eligible:
+        raise AdmissionError(f"M1_RAW_TRAINING_ELIGIBILITY:{m1_training_eligible}")
 
     formula_nodes = {
         str(node.get("formula_id")): node
@@ -619,18 +624,19 @@ def _build_manifest(
                 "reason_counts": inv["reason_counts"],
                 "training_text_rows_emitted": 0,
             },
-            "stale_m1": {
+            "m1_alignment": {
                 "manifest_path": M1_MANIFEST.as_posix(),
                 "manifest_sha256": _sha_file(root / M1_MANIFEST),
                 "brain_ledger_path": M1_BRAIN_LEDGER.as_posix(),
                 "brain_ledger_sha256": _sha_file(root / M1_BRAIN_LEDGER),
                 "brain_ledger_rows": state["m1_rows"],
                 "current_raw_nodes": inv["raw_node_count"],
-                "stale": True,
+                "aligned": True,
                 "current_only_node_ids": state["added"],
                 "m1_only_node_ids": state["removed"],
-                "historical_training_state": m1_manifest.get("training_state"),
-                "admission": "QUARANTINE_AS_CURRENT_TRAINING_SOURCE",
+                "training_state": m1_manifest.get("training_state"),
+                "raw_training_eligible_rows": 0,
+                "admission": "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED",
             },
             "lean_mathlib": {
                 "inventory": _lean_inventory(root)["tree"],
@@ -686,7 +692,6 @@ def _build_manifest(
             "receipt_path": RECEIPT.as_posix(),
         },
         "blockers": [
-            "The current 9,464-node Brain is two nodes ahead of the 9,462-row M1 ledger.",
             "F1-F23 are reused by different runtime and proof-pack statements; same-ID proof transfer is forbidden.",
             "Only item-level source agreement can resolve KERNEL_ACCEPTED; summary counts are not sufficient.",
             "SZL-Lake has two experimental examples and proof status NOT_EVALUATED.",

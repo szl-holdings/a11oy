@@ -2,7 +2,7 @@
   "candidate_id": "a11oy-evidence-1.5b-sft-lora",
   "coverage": {
     "abstention_examples": 115,
-    "distinct_artifacts": 4227,
+    "distinct_artifacts": 4229,
     "formula_records_current_versioned_sources": 123,
     "formula_requested_200_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
     "formula_roles": {
@@ -26,29 +26,29 @@
     "negative_examples": 0,
     "node_decision_coverage": 1.0,
     "node_decisions": {
-      "INCLUDE_TRAIN_CONTEXT": 138,
-      "INDEX_ONLY_DUPLICATE_FORMULA": 23,
-      "QUARANTINE": 9301
+      "QUARANTINE": 9464
     },
-    "node_decisions_expected": 9462,
-    "node_decisions_total": 9462,
+    "node_decisions_expected": 9464,
+    "node_decisions_total": 9464,
     "node_safety": {
-      "ALLOW_VERSIONED_LOCAL_METADATA": 138,
-      "FORMULA_DUPLICATE_INDEX_ONLY": 23,
       "QUARANTINE_LICENSE_UNKNOWN": 4066,
-      "QUARANTINE_PERSON_METADATA": 5235
+      "QUARANTINE_PERSON_METADATA": 5235,
+      "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA": 23,
+      "QUARANTINE_RAW_GRAPH_NOT_ADMITTED": 140
     },
     "person_metadata": 5235,
-    "quarantined_or_excluded_nodes": 9301
+    "quarantined_or_excluded_nodes": 9464,
+    "raw_nodes_training_quarantined": 9464,
+    "training_eligible_nodes": 0
   },
   "leakage_policy": "all rows from one source_family have exactly one split; formula families are HOLDOUT; quarantined rows are never training text",
   "ledgers": {
     "brain_nodes": {
-      "bytes": 13119845,
+      "bytes": 13368264,
       "path": "brain-ingest-ledger.jsonl",
-      "rows": 9462,
+      "rows": 9464,
       "schema": "szl.m1-brain-ingest-decision/v1",
-      "sha256": "8a0c82f8745c8b80ccb161e19ba625d3433219eacba4126fc3262a60758e74e5"
+      "sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"
     },
     "formulas": {
       "bytes": 163362,
@@ -71,8 +71,8 @@
   "schema": "szl.m1-corpus-ingestion-manifest/v1",
   "source_family_split": {
     "a11oy-versioned-runtime": {
-      "rows": 138,
-      "split": "TRAIN"
+      "rows": 140,
+      "split": "QUARANTINE"
     },
     "academic-publication-metadata": {
       "rows": 1492,
@@ -82,8 +82,12 @@
       "rows": 5235,
       "split": "QUARANTINE"
     },
+    "brain-raw-formula-index": {
+      "rows": 23,
+      "split": "QUARANTINE"
+    },
     "canonical-formula-registry": {
-      "rows": 46,
+      "rows": 23,
       "split": "HOLDOUT"
     },
     "dataset-benchmark-metadata": {
@@ -108,13 +112,13 @@
     }
   },
   "source_snapshot": {
-    "brain_graph_receipt_id": "brain-graph:sha256:c72c422f62dc91f82f04f0bc344ffcd909ab1a0ce7df62f40419fb0c55dd59f4",
-    "brain_graph_sha256": "c72c422f62dc91f82f04f0bc344ffcd909ab1a0ce7df62f40419fb0c55dd59f4",
-    "distinct_artifact_count": 4227,
-    "link_count_reported_by_graph": 14229,
+    "brain_graph_receipt_id": "brain-graph:sha256:57ec4315704c6632772ac85f6f4e491c5fa7a3aeb78e7e7e1e650539f5e469ed",
+    "brain_graph_sha256": "57ec4315704c6632772ac85f6f4e491c5fa7a3aeb78e7e7e1e650539f5e469ed",
+    "distinct_artifact_count": 4229,
+    "link_count_reported_by_graph": 14234,
     "network_fetches": 0,
     "person_metadata_count": 5235,
-    "raw_node_count": 9462,
+    "raw_node_count": 9464,
     "versioned_sources_only": true
   },
   "training_relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",

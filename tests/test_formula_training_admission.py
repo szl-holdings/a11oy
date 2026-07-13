@@ -17,19 +17,17 @@ def test_committed_artifacts_rebuild_byte_for_byte():
     assert len(result["artifact_receipt_sha256"]) == 64
 
 
-def test_current_brain_is_9464_and_m1_is_explicitly_stale_by_two():
+def test_current_brain_and_m1_are_aligned_and_raw_rows_remain_quarantined():
     artifacts = admission.build_artifacts(ROOT)
     source = artifacts["manifest"]["source_snapshot"]
     assert source["brain"]["raw_node_count"] == 9464
     assert source["brain"]["quarantined_node_count"] == 9464
     assert source["brain"]["training_text_rows_emitted"] == 0
-    assert source["stale_m1"]["brain_ledger_rows"] == 9462
-    assert source["stale_m1"]["stale"] is True
-    assert source["stale_m1"]["current_only_node_ids"] == [
-        "surface:brainreranker",
-        "surface:numericsdataset",
-    ]
-    assert source["stale_m1"]["m1_only_node_ids"] == []
+    assert source["m1_alignment"]["brain_ledger_rows"] == 9464
+    assert source["m1_alignment"]["aligned"] is True
+    assert source["m1_alignment"]["current_only_node_ids"] == []
+    assert source["m1_alignment"]["m1_only_node_ids"] == []
+    assert source["m1_alignment"]["raw_training_eligible_rows"] == 0
 
 
 def test_crosswalk_scopes_colliding_ids_and_covers_every_status():

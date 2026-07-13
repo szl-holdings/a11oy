@@ -24,8 +24,8 @@ GRAPH_LEDGER = OUT_DIR / "brain-ingest-ledger.jsonl"
 FORMULA_LEDGER = OUT_DIR / "formula-curriculum-ledger.jsonl"
 CORPUS_MANIFEST = OUT_DIR / "corpus-ingestion-manifest.json"
 EVALUATION_MANIFEST = OUT_DIR / "evaluation-manifest.json"
-EXPECTED_RAW_NODES = 9462
-EXPECTED_DISTINCT_ARTIFACTS = 4227
+EXPECTED_RAW_NODES = 9464
+EXPECTED_DISTINCT_ARTIFACTS = 4229
 PERSON_KINDS = {"person", "author"}
 LOCAL_LICENSED_KINDS = {"estate", "endpoint", "topic", "surface", "formula"}
 FORMULA_STATUS_VOCABULARY = ["KERNEL_ACCEPTED", "CONDITIONAL", "OPEN", "REFUTED"]
@@ -57,7 +57,10 @@ def _source_family(node: dict[str, Any]) -> str:
     if kind in PERSON_KINDS:
         return "authorship-person-metadata"
     if kind == "formula":
-        return "canonical-formula-registry"
+        # The raw graph row is an index duplicate, not the canonical formula
+        # curriculum record.  Keep it in its own family so the raw inventory
+        # can remain quarantined while the canonical record stays HOLDOUT.
+        return "brain-raw-formula-index"
     if kind in {"estate", "endpoint", "topic", "surface"} and int(node.get("layer", -1)) >= 0:
         return "a11oy-versioned-runtime"
     if kind == "repo" or "github" in source or "gitlab" in source:
@@ -72,10 +75,8 @@ def _source_family(node: dict[str, Any]) -> str:
 
 
 def _split_for_family(family: str) -> str:
-    if family == "a11oy-versioned-runtime":
-        return "TRAIN"
-    if family in {"canonical-formula-registry", "thesis-formula-corpus"}:
-        return "HOLDOUT"
+    # Raw Brain rows are inventory, never training data.  Admitted canonical
+    # rows are built by the separate evidence/formula generators.
     return "QUARANTINE"
 
 
@@ -151,13 +152,14 @@ def _build_node_rows(nodes: list[dict[str, Any]], evaluation_receipt_id: str,
         formula_id = str(node.get("formula_id") or "") if kind == "formula" else ""
         formula_status = _formula_status(formula_id, FORMULA_META.get(formula_id, {})) if formula_id else None
         if is_person:
-            safety, decision = "QUARANTINE_PERSON_METADATA", "QUARANTINE"
-        elif not locally_licensed:
-            safety, decision = "QUARANTINE_LICENSE_UNKNOWN", "QUARANTINE"
+            safety = "QUARANTINE_PERSON_METADATA"
         elif kind == "formula":
-            safety, decision = "FORMULA_DUPLICATE_INDEX_ONLY", "INDEX_ONLY_DUPLICATE_FORMULA"
+            safety = "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA"
+        elif not locally_licensed:
+            safety = "QUARANTINE_LICENSE_UNKNOWN"
         else:
-            safety, decision = "ALLOW_VERSIONED_LOCAL_METADATA", "INCLUDE_TRAIN_CONTEXT"
+            safety = "QUARANTINE_RAW_GRAPH_NOT_ADMITTED"
+        decision = "QUARANTINE"
         canonical_text = _node_canonical_text(node)
         capture = node.get("captured_at") or node.get("harvested_at")
         freshness = "CAPTURED_SOURCE_DATE" if capture else (
@@ -188,6 +190,7 @@ def _build_node_rows(nodes: list[dict[str, Any]], evaluation_receipt_id: str,
             "freshness": {"state": freshness, "captured_at": capture},
             "safety_decision": safety,
             "training_decision": decision,
+            "training_eligible": False,
             "formula_id": formula_id or None,
             "formula_status": formula_status,
             "formula_receipt_id": formula_receipts.get(formula_id) if formula_id else None,
@@ -328,6 +331,8 @@ def build() -> dict[str, Any]:
             "person_metadata": len(node_rows) - distinct,
             "node_decisions": dict(sorted(node_decisions.items())),
             "node_safety": dict(sorted(node_safety.items())),
+            "raw_nodes_training_quarantined": sum(not bool(row["training_eligible"]) for row in node_rows),
+            "training_eligible_nodes": sum(bool(row["training_eligible"]) for row in node_rows),
             "formula_records_current_versioned_sources": len(formula_rows),
             "formula_requested_200_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
             "formula_status_vocabulary": FORMULA_STATUS_VOCABULARY,
@@ -335,7 +340,7 @@ def build() -> dict[str, Any]:
             "formula_roles": dict(sorted(formula_roles.items())),
             "abstention_examples": sum(bool(row["abstention_required"]) for row in formula_rows),
             "negative_examples": sum(bool(row["negative_example"]) for row in formula_rows),
-            "quarantined_or_excluded_nodes": sum(value for key, value in node_decisions.items() if key.startswith("QUARANTINE")),
+            "quarantined_or_excluded_nodes": sum(not bool(row["training_eligible"]) for row in node_rows),
             "missing_item_level_license_nodes": sum(row["license"]["state"] == "UNKNOWN_ITEM_LEVEL_LICENSE" for row in node_rows),
             "missing_source_timestamp_nodes": sum(row["freshness"]["state"] == "UNKNOWN_NO_SOURCE_TIMESTAMP" for row in node_rows),
         },

@@ -15,7 +15,6 @@
     }
   },
   "blockers": [
-    "The current 9,464-node Brain is two nodes ahead of the 9,462-row M1 ledger.",
     "F1-F23 are reused by different runtime and proof-pack statements; same-ID proof transfer is forbidden.",
     "Only item-level source agreement can resolve KERNEL_ACCEPTED; summary counts are not sufficient.",
     "SZL-Lake has two experimental examples and proof status NOT_EVALUATED.",
@@ -49,7 +48,7 @@
     "training_admission": "BLOCKED_PENDING_NAMESPACE_AND_SOURCE_RECONCILIATION",
     "tranche_rows": 148
   },
-  "manifest_receipt_sha256": "7f53edf8be6c6b7521059ee7d2432162daeae0dee07cbb6807c3f488a2ae8984",
+  "manifest_receipt_sha256": "6a2f6ff3a29184f6b9e3acd359cb4a447656ce648dbf3244b6168c74225df406",
   "schema_version": "szl.formula-training-admission-manifest.v1",
   "source_snapshot": {
     "brain": {
@@ -109,21 +108,19 @@
         }
       ]
     },
-    "stale_m1": {
-      "admission": "QUARANTINE_AS_CURRENT_TRAINING_SOURCE",
+    "m1_alignment": {
+      "admission": "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED",
+      "aligned": true,
       "brain_ledger_path": "model_release/m1/brain-ingest-ledger.jsonl",
-      "brain_ledger_rows": 9462,
-      "brain_ledger_sha256": "8a0c82f8745c8b80ccb161e19ba625d3433219eacba4126fc3262a60758e74e5",
-      "current_only_node_ids": [
-        "surface:brainreranker",
-        "surface:numericsdataset"
-      ],
+      "brain_ledger_rows": 9464,
+      "brain_ledger_sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d",
+      "current_only_node_ids": [],
       "current_raw_nodes": 9464,
-      "historical_training_state": "NOT_RUN",
       "m1_only_node_ids": [],
       "manifest_path": "model_release/m1/corpus-ingestion-manifest.json",
-      "manifest_sha256": "1349828f5b9af5949e4d31d582abffe0b75e37c1708bb1b2127021c8055d5f6d",
-      "stale": true
+      "manifest_sha256": "6f5e0d9ecb60d8aa52fc229a42ad37d62fc7fa7406993a0b8352b2b574fb40a4",
+      "raw_training_eligible_rows": 0,
+      "training_state": "NOT_RUN"
     },
     "szl_lake": {
       "admission": "HOLDOUT_EVIDENCE_ONLY",

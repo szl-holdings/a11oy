@@ -5,9 +5,10 @@ A11oy evidence path:
 
 `DORMANT_RAW -> NORMALIZED_ARTIFACT -> FORMULA_LINK -> ADMISSION_DECISION -> QUERY_READY_CONTEXT`
 
-The result is deliberately holdout-only. The current Brain has 9,464 raw nodes,
-while the historical M1 ledger has 9,462 rows. All 9,464 raw nodes remain
-quarantined and zero raw-node text rows are emitted.
+The result is deliberately holdout-only. The current Brain and M1 decision
+ledger are aligned at 9,464 raw nodes. All 9,464 raw nodes remain quarantined,
+zero raw-node text rows are emitted, and zero raw graph rows are
+training-eligible.
 
 The critical crosswalk finding is that `F1` through `F23` are reused by two
 different namespaces:

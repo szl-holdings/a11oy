@@ -78,7 +78,7 @@ def _fixture(tmp_path: Path, monkeypatch) -> dict:
     evaluation_receipt_id = f"m1-evaluation:sha256:{evaluation_spec['sha256']}"
     brain_rows = []
     for index, (role, decision, license_state, split) in enumerate((
-        ("DISTINCT_ARTIFACT", "INDEX_ONLY_DUPLICATE_FORMULA", "VERSIONED_REPOSITORY_LICENSE", "HOLDOUT"),
+        ("DISTINCT_ARTIFACT", "QUARANTINE", "VERSIONED_REPOSITORY_LICENSE", "QUARANTINE"),
         ("ATTRIBUTION_METADATA", "QUARANTINE", "UNKNOWN_ITEM_LEVEL_LICENSE", "QUARANTINE"),
     )):
         text = f"fixture Brain row {index}"
@@ -88,11 +88,12 @@ def _fixture(tmp_path: Path, monkeypatch) -> dict:
             "brain_anatomy_receipt_id": receipt_id, "node_id": f"fixture-node-{index}",
             "canonical_artifact_id": f"fixture-node-{index}" if role == "DISTINCT_ARTIFACT" else None,
             "artifact_role": role, "kind": "formula" if index == 0 else "person",
-            "source_family": "fixture-formula-0" if index == 0 else "fixture-person",
+            "source_family": "fixture-raw-formula" if index == 0 else "fixture-person",
             "source_family_split": split, "provenance": {"source": "fixture"},
             "license": {"state": license_state}, "freshness": {"state": "VERSION_BOUND_NOT_TIME_FRESH"},
             "safety_decision": "ALLOW_VERSIONED_LOCAL_METADATA" if index == 0 else "QUARANTINE_PERSON_METADATA",
-            "training_decision": decision, "formula_id": "FX0" if index == 0 else None,
+            "training_decision": decision, "training_eligible": False,
+            "formula_id": "FX0" if index == 0 else None,
             "formula_status": "KERNEL_ACCEPTED" if index == 0 else None,
             "formula_receipt_id": f"formula:sha256:{10:064x}" if index == 0 else None,
             "evaluation_receipt_id": evaluation_receipt_id, "canonical_text": text,
@@ -134,13 +135,15 @@ def _fixture(tmp_path: Path, monkeypatch) -> dict:
         },
         "coverage": {
             "node_decisions_total": 2, "node_decisions_expected": 2, "node_decision_coverage": 1.0,
-            "distinct_artifacts": 1, "person_metadata": 1, "quarantined_or_excluded_nodes": 1,
+            "distinct_artifacts": 1, "person_metadata": 1, "quarantined_or_excluded_nodes": 2,
+            "raw_nodes_training_quarantined": 2, "training_eligible_nodes": 0,
             "formula_records_current_versioned_sources": 4,
             "formula_requested_200_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
             "formula_status": {status: 1 for status in roles}, "abstention_examples": 2, "negative_examples": 1,
         },
         "source_family_split": {
             "fixture-person": {"split": "QUARANTINE", "rows": 1},
+            "fixture-raw-formula": {"split": "QUARANTINE", "rows": 1},
             **{f"fixture-formula-{index}": {"split": "HOLDOUT", "rows": 1} for index in range(4)},
         },
         "resulting_evaluation_receipt": {
@@ -186,6 +189,7 @@ def _fixture(tmp_path: Path, monkeypatch) -> dict:
         "corpus_policy": {"expected_raw_nodes": 2, "expected_distinct_artifacts": 1,
                            "expected_formula_records": 4, "require_full_decision_coverage": True,
                            "require_source_family_isolation": True, "allow_unknown_license_for_training": False,
+                           "require_raw_brain_training_quarantine": True,
                            "training_relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER"},
         "base": {**base_identity, "files": base_files}, "adapter": {"files": adapter_files},
         "evidence": {"candidate_manifest": candidate_spec, "evaluation_manifest": evaluation_spec,
@@ -240,7 +244,7 @@ def test_exact_artifact_receipt_and_gpu_chain_enables_only_experimental(tmp_path
     assert status["stages"]["weights"]["state"] == gate.PASS
     assert status["stages"]["corpus"]["state"] == "FULL_DECISION_LEDGER_VERIFIED"
     assert status["corpus_coverage"]["node_decisions_total"] == 2
-    assert status["corpus_coverage"]["quarantined_or_excluded_nodes"] == 1
+    assert status["corpus_coverage"]["quarantined_or_excluded_nodes"] == 2
     assert status["stages"]["load"]["state"] == "READY_TO_LOAD"
     assert status["stages"]["evaluation"]["state"] == "EVIDENCE_VERIFIED_WITH_LIMITS"
     assert status["stages"]["inference"]["state"] == "ENABLED_EXPERIMENTAL_LOCAL_ONLY"
@@ -373,11 +377,14 @@ def test_committed_full_corpus_ledgers_are_exact_complete_and_not_promoted():
     evidence = gate._corpus_evidence(manifest)
     assert evidence["state"] == gate.PASS
     coverage = evidence["coverage"]
-    assert coverage["node_decisions_total"] == 9462
+    assert coverage["node_decisions_total"] == 9464
     assert coverage["node_decision_coverage"] == 1.0
-    assert coverage["distinct_artifacts"] == 4227
+    assert coverage["distinct_artifacts"] == 4229
     assert coverage["person_metadata"] == 5235
-    assert coverage["quarantined_or_excluded_nodes"] == 9301
+    assert coverage["quarantined_or_excluded_nodes"] == 9464
+    assert coverage["raw_nodes_training_quarantined"] == 9464
+    assert coverage["training_eligible_nodes"] == 0
+    assert coverage["node_decisions"] == {"QUARANTINE": 9464}
     assert coverage["formula_records_current_versioned_sources"] == 123
     assert coverage["formula_requested_200_claim"] == "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES"
     assert coverage["formula_status"] == {
@@ -388,6 +395,6 @@ def test_committed_full_corpus_ledgers_are_exact_complete_and_not_promoted():
     assert evidence["training_state"] == "NOT_RUN"
     assert evidence["release_state"] == "NOT_PROMOTED"
     assert evidence["quality_claim"] == "NOT_ESTABLISHED"
-    assert evidence["brain_ledger"]["rows"] == 9462
-    assert evidence["brain_ledger"]["distinct_artifact_rows"] == 4227
+    assert evidence["brain_ledger"]["rows"] == 9464
+    assert evidence["brain_ledger"]["distinct_artifact_rows"] == 4229
     assert evidence["formula_ledger"]["rows"] == 123

@@ -388,6 +388,12 @@ def _corpus_evidence(manifest: dict[str, Any]) -> dict[str, Any]:
         mismatches.append("distinct artifact coverage")
     if coverage.get("node_decisions_total") != expected_nodes or coverage.get("node_decisions_expected") != expected_nodes or coverage.get("node_decision_coverage") != 1.0:
         mismatches.append("decision coverage")
+    if policy.get("require_raw_brain_training_quarantine") is True and (
+        coverage.get("raw_nodes_training_quarantined") != expected_nodes
+        or coverage.get("training_eligible_nodes") != 0
+        or brain.get("decisions") != {"QUARANTINE": expected_nodes}
+    ):
+        mismatches.append("raw Brain training quarantine")
     if coverage.get("formula_records_current_versioned_sources") != expected_formulas or formulas.get("rows") != expected_formulas:
         mismatches.append("formula coverage")
     if resulting.get("receipt_id") != evaluation_receipt_id or resulting.get("sha256") != evaluation_spec.get("sha256"):
@@ -409,6 +415,8 @@ def _corpus_evidence(manifest: dict[str, Any]) -> dict[str, Any]:
         mismatches.append("source family isolation")
     if policy.get("allow_unknown_license_for_training") is not False:
         mismatches.append("unknown-license policy")
+    if policy.get("require_raw_brain_training_quarantine") is not True:
+        mismatches.append("raw Brain quarantine policy")
     if mismatches:
         return _result(BLOCKED, "corpus manifest coverage contract mismatch", mismatches=mismatches,
                        manifest=summary_check, brain_ledger=brain, formula_ledger=formulas)

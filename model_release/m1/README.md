@@ -13,9 +13,9 @@ reported as `NOT_PROMOTED`, `NOT_ESTABLISHED`, and
   `a11oy.m1.local-peft/v1`; remote URLs and provider fallbacks are forbidden.
 - Live GPU identity, free memory, utilization, and temperature must pass the
   fixed admission policy immediately before inference.
-- `brain-ingest-ledger.jsonl` contains one decision for every one of the 9,462
-  current Brain nodes: 4,227 non-person artifacts and 5,235 person-attribution
-  nodes.
+- `brain-ingest-ledger.jsonl` contains one quarantine decision for every one of
+  the 9,464 current Brain nodes: 4,229 non-person artifacts and 5,235
+  person-attribution nodes. Zero raw graph rows are training-eligible.
 - `formula-curriculum-ledger.jsonl` contains the 123 records found in current
   versioned sources: 23 canonical PURIQ records and 100 thesis records. The
   requested count of 200 is explicitly `NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES`.
@@ -38,7 +38,7 @@ python szl_m1_corpus_manifest.py
 ```
 
 Generation is deterministic and local-only. It fails unless the Brain graph is
-exactly 9,462 nodes / 4,227 distinct artifacts. It performs no web requests,
+exactly 9,464 nodes / 4,229 distinct artifacts. It performs no web requests,
 downloads, training, publishing, signing, or promotion.
 
 ## Runtime configuration

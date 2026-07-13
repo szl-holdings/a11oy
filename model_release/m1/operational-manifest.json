@@ -23,12 +23,13 @@
     "maximum_temperature_c": 75
   },
   "corpus_policy": {
-    "expected_raw_nodes": 9462,
-    "expected_distinct_artifacts": 4227,
+    "expected_raw_nodes": 9464,
+    "expected_distinct_artifacts": 4229,
     "expected_formula_records": 123,
     "require_full_decision_coverage": true,
     "require_source_family_isolation": true,
     "allow_unknown_license_for_training": false,
+    "require_raw_brain_training_quarantine": true,
     "training_relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER"
   },
   "base": {
@@ -60,10 +61,10 @@
     ]
   },
   "evidence": {
-    "candidate_manifest": {"path": "candidate-manifest.json", "bytes": 1866, "sha256": "18eb0f5467dece106bb4aac474e0e2f58fb6b41b3f39c183241b9d788b76957e"},
+    "candidate_manifest": {"path": "candidate-manifest.json", "bytes": 1866, "sha256": "dea5275bda0a0f86896dda8b74588609faea45a9a2a680297f51a15dbaa8616d"},
     "evaluation_manifest": {"path": "evaluation-manifest.json", "bytes": 1253, "sha256": "620518beedbd9de22b6e7a68031c4b26793f070318429664d0f2e0aa8c8ba63e"},
-    "corpus_ingestion_manifest": {"path": "corpus-ingestion-manifest.json", "bytes": 3740, "sha256": "1349828f5b9af5949e4d31d582abffe0b75e37c1708bb1b2127021c8055d5f6d"},
-    "brain_ingest_ledger": {"path": "brain-ingest-ledger.jsonl", "rows": 9462, "bytes": 13119845, "sha256": "8a0c82f8745c8b80ccb161e19ba625d3433219eacba4126fc3262a60758e74e5"},
+    "corpus_ingestion_manifest": {"path": "corpus-ingestion-manifest.json", "bytes": 3844, "sha256": "6f5e0d9ecb60d8aa52fc229a42ad37d62fc7fa7406993a0b8352b2b574fb40a4"},
+    "brain_ingest_ledger": {"path": "brain-ingest-ledger.jsonl", "rows": 9464, "bytes": 13368264, "sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"},
     "formula_curriculum_ledger": {"path": "formula-curriculum-ledger.jsonl", "rows": 123, "bytes": 163362, "sha256": "028ff018a9574af2356b23ac581c1eb4087c170e689ca221fdb59ace4cae63a8"},
     "training_receipt": {"path": "training_receipt.json", "bytes": 5562, "sha256": "6f66ae555c81ac1e2fb01b88bf23216ecc181f7dbd6b4ddb1325e3496c683823", "internal_sha256": "ccf05e37957bd0326d458afd601e67beca0334af109e88c1c25ef47e7f97d59a"},
     "reload_receipt": {"path": "adapter_reload_smoke.json", "bytes": 1015, "sha256": "78a9a25c395589038169e33905e6d990e0930568d4cecc11a57bd7cf4768e38c"}
