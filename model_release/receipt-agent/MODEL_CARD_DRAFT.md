@@ -19,7 +19,7 @@ tags:
 
 # SZL-ReceiptAgent-1.5B
 
-> **MODEL PROGRAM - NOT A WEIGHT RELEASE**  
+> **MODEL PROGRAM - NOT A WEIGHT RELEASE**<br>
 > Release: `NOT_PROMOTED` | Quality: `NOT_ESTABLISHED` | Weights: `NOT_CREATED` | Inference: `UNAVAILABLE`
 
 **A small sovereign agent that must carry its evidence, uncertainty, formula status, and execution boundary inside every response.**
