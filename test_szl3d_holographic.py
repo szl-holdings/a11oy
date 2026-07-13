@@ -175,6 +175,41 @@ def test_shell_uses_local_importmap_not_cdn():
     assert '"three/addons/": "/static/3d/vendor/three/addons/"' in html
 
 
+def test_shell_defaults_to_graph_dominant_progressive_disclosure():
+    html = _read("holographic.html")
+    assert 'data-browse="false"' in html
+    assert 'id="surface-browser"' in html
+    assert 'id="surface-search"' in html
+    assert 'id="active-surface"' in html
+    assert 'aria-controls="surface-browser"' in html
+    assert 'SURFACES.filter((s) => s.flag)' in html
+    assert 'CATS.forEach(([cat, label]) =>' in html
+    assert 'const matches = SURFACES.filter((s) =>' in html
+    assert '_setBrowser(false)' in html
+
+
+def test_brain_visual_lod_is_bounded_and_collision_aware():
+    src = _read("surfaces/brain.js")
+    assert "MAX_NODES  = 1650" in src
+    assert "LABEL_MESH_MAX = 144" in src
+    assert "MAX_EDGES  = 5200" in src
+    assert "FIRE_MAX   = 160" in src
+    assert "Math.log2(1 + deg)" in src
+    assert "return Math.min(r, 0.30)" in src
+    assert "_group.scale.setScalar(0.66)" in src
+    assert "topN: 3" in src
+    assert "avoidOverlap: true" in src
+    assert "maxLength: 38" in src
+
+
+def test_shared_scene_labels_support_priority_collision_suppression():
+    src = _read("surfaces/_showcase.js")
+    assert "const avoidOverlap = opts.avoidOverlap === true" in src
+    assert "function _overlaps(a, b)" in src
+    assert "occupied.some((prior) => _overlaps(box, prior))" in src
+    assert "if (isHover || raw.length <= maxLength)" in src
+
+
 def test_all_nine_surface_stubs_follow_contract():
     # Every surface (including energy, now a standalone fully-wired showcase)
     # follows the same contract: ES-module default export, mount/unmount, a live
