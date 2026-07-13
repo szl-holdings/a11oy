@@ -249,6 +249,18 @@ conflict-flagged, or is stale-dominant; too few available components yields
   `GET /api/{ns}/v1/brain/health?q=&k=` · `POST /api/{ns}/v1/brain/health/receipt`
 - **Label:** MODELED (a rollup view; component labels are never upgraded).
 
+Operational readiness is deliberately separate from query trust. A blank `q` is a
+service-status view: it reports whether the committed graph/index and evaluators are ready,
+marks the query `NOT-EVALUATED`, returns no modeled trust number, and invokes no query
+component. `READY` never promotes an epistemic verdict. Every health response also exposes
+the graph content hash, committed harvest files, and the repository snapshot's real capture
+date; graph build time is never substituted for source freshness.
+
+`POST /api/{ns}/v1/brain/health/refresh` performs a bounded in-memory reindex from committed
+local sources and emits an unsigned content-digest receipt. It performs no network harvest
+and cannot make old or undated evidence fresh. Updating source snapshots still requires a
+separately reviewed harvest carrying real capture evidence.
+
 ### brainwatch — honesty-posture drift monitor
 
 **Question:** *Is the graph's honesty posture drifting over time?* It computes a deterministic
