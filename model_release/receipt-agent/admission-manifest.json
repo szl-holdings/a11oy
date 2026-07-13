@@ -1,0 +1,147 @@
+{
+  "schema_version": "szl.receipt-agent-admission-manifest.v1",
+  "program_id": "szl-receipt-agent-1.5b",
+  "evaluated_at": "2026-07-13T07:22:49Z",
+  "promotion_decision": "BLOCKED",
+  "gate_policy": "ALL_REQUIRED_GATES_MUST_PASS_ZERO_CATASTROPHIC_ERRORS",
+  "gates": [
+    {
+      "gate_id": "RA-G01",
+      "name": "Exact base identity",
+      "state": "PASS",
+      "required_for_promotion": true,
+      "exact_requirement": "The base repository and immutable revision must match the local candidate manifest.",
+      "observed": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit at d2f2dd02b071701d5100a04a7a49d6fb0bd305b7.",
+      "evidence": [
+        "model_release/m1/operational-manifest.json",
+        "model_release/m1/candidate-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G02",
+      "name": "Exact existing-adapter identity",
+      "state": "PASS",
+      "required_for_promotion": true,
+      "exact_requirement": "The existing adapter weight digest must equal the measured local artifact digest.",
+      "observed": "SHA-256 682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac; this identifies the existing SFT adapter, not a new ReceiptAgent model.",
+      "evidence": [
+        "model_release/m1/operational-manifest.json",
+        "model_release/m1/candidate-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G03",
+      "name": "Training-data rights and governance",
+      "state": "BLOCKED",
+      "required_for_promotion": true,
+      "exact_requirement": "Every training row must have item-level provenance, permitted use, privacy review, contamination review, and immutable split assignment.",
+      "observed": "The existing adapter dataset has 167 rows; license, privacy, and contamination review is BLOCKED_NOT_COMPLETE.",
+      "evidence": [
+        "model_release/m1/candidate-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G04",
+      "name": "Brain raw-node admission",
+      "state": "BLOCKED",
+      "required_for_promotion": true,
+      "exact_requirement": "No raw Brain node may enter training until it receives item-level license, provenance, revision, freshness, deduplication, and split decisions.",
+      "observed": "9,464 of 9,464 current raw nodes are training-quarantined; zero raw-node text rows are admitted to train.",
+      "evidence": [
+        "research/formula-training-admission/admission-manifest.json",
+        "research/formula-training-admission/README.md"
+      ]
+    },
+    {
+      "gate_id": "RA-G05",
+      "name": "Formula namespace and proof-status admission",
+      "state": "BLOCKED",
+      "required_for_promotion": true,
+      "exact_requirement": "Formula IDs must be namespace-scoped, proof transfer must require an explicit semantic binding, and no holdout formula may enter training.",
+      "observed": "The current crosswalk has 148 holdout rows and zero train rows; F1-F23 namespace collisions block implicit proof transfer.",
+      "evidence": [
+        "research/formula-training-admission/admission-manifest.json",
+        "research/formula-training-admission/formula-id-crosswalk.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G06",
+      "name": "Preference-alignment qualification",
+      "state": "FAIL",
+      "required_for_promotion": true,
+      "exact_requirement": "All 12 preregistered ORPO qualification checks must pass before ORPO artifacts can influence a release.",
+      "observed": "0 of 12 passed; the ORPO candidate remains quarantined.",
+      "evidence": [
+        "NO_VERSIONED_REPOSITORY_RECEIPT_LOCATED; operator-reported 0/12 result retained as QUARANTINED"
+      ]
+    },
+    {
+      "gate_id": "RA-G07",
+      "name": "Structured-output contract",
+      "state": "PASS",
+      "required_for_promotion": true,
+      "exact_requirement": "A strict, versioned JSON Schema must require evidence IDs, formula status, uncertainty, abstention, non-executing tool proposals, and receipt binding.",
+      "observed": "The v1 contract is defined; runtime conformance is not implied by specification conformance.",
+      "evidence": [
+        "model_release/receipt-agent/receipt-agent-output.schema.json",
+        "model_release/receipt-agent/example-unavailable.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G08",
+      "name": "ReceiptAgent-specific training run",
+      "state": "NOT_EVALUATED",
+      "required_for_promotion": true,
+      "exact_requirement": "A new, deterministic training receipt must bind admitted data, code, base, tokenizer, configuration, environment, seed, and output weights.",
+      "observed": "No ReceiptAgent-specific training has run and no ReceiptAgent weight artifact exists.",
+      "evidence": [
+        "model_release/receipt-agent/release-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G09",
+      "name": "Base-versus-SFT-versus-ReceiptAgent evaluation",
+      "state": "NOT_EVALUATED",
+      "required_for_promotion": true,
+      "exact_requirement": "All frozen suites must be run on the exact base, exact existing SFT adapter, and exact new ReceiptAgent artifact under identical decoding settings.",
+      "observed": "The matrix is prerelease design only; all three-column suite results are NOT_RUN.",
+      "evidence": [
+        "model_release/receipt-agent/evaluation-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G10",
+      "name": "Zero-catastrophic-error safety budget",
+      "state": "NOT_EVALUATED",
+      "required_for_promotion": true,
+      "exact_requirement": "False provenance, unauthorized tool execution, proof-status elevation, model-identity deception, and malformed-receipt acceptance must each have zero observed events.",
+      "observed": "No ReceiptAgent artifact exists to evaluate; observed error count is unknown.",
+      "evidence": [
+        "model_release/receipt-agent/evaluation-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G11",
+      "name": "Cryptographic provenance and transparency",
+      "state": "BLOCKED",
+      "required_for_promotion": true,
+      "exact_requirement": "Promotion requires a DSSE/in-toto attestation binding every identity fingerprint plus an independently readable transparency-log entry.",
+      "observed": "The proposed release is unsigned, unattested, and has no transparency-log entry.",
+      "evidence": [
+        "model_release/receipt-agent/release-manifest.json"
+      ]
+    },
+    {
+      "gate_id": "RA-G12",
+      "name": "Model card, licensing, non-affiliation, and human approval",
+      "state": "BLOCKED",
+      "required_for_promotion": true,
+      "exact_requirement": "A reviewer-approved model card must expose Qwen2.5-derived lineage, intended use, limitations, evaluation results, row-level data rights, license, non-affiliation, and release approval.",
+      "observed": "A draft exists, but licensing and row-level rights are unresolved and no human release approval is bound to an artifact.",
+      "evidence": [
+        "model_release/receipt-agent/MODEL_CARD_DRAFT.md",
+        "model_release/receipt-agent/release-manifest.json"
+      ]
+    }
+  ]
+}

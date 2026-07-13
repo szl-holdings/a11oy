@@ -1,0 +1,39 @@
+{
+  "schema_version": "szl.receipt-agent-output.v1",
+  "response_id": "response:unavailable-example-0001",
+  "model_identity": {
+    "candidate_id": "SZL-ReceiptAgent-1.5B",
+    "release_state": "NOT_PROMOTED",
+    "base_repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "base_revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "adapter_sha256": null
+  },
+  "status": "UNAVAILABLE",
+  "answer": null,
+  "evidence": [],
+  "formulae": [],
+  "uncertainty": {
+    "confidence": null,
+    "calibration_state": "NOT_EVALUATED",
+    "basis": "No promoted ReceiptAgent artifact exists and no inference was run."
+  },
+  "abstention": {
+    "required": true,
+    "code": "MODEL_UNAVAILABLE",
+    "detail": "The release program is a specification only. Training, evaluation, attestation, publication, and promotion remain incomplete."
+  },
+  "tool_proposal": {
+    "state": "NONE",
+    "tool_id": null,
+    "arguments_sha256": null,
+    "requires_human_approval": true,
+    "execution_receipt_id": null
+  },
+  "receipt_binding": {
+    "state": "NOT_AVAILABLE",
+    "request_sha256": "7a4e67e8fc8037691c60e8fe7a869f268e9b3bc375421850fd5770e03e66d121",
+    "evidence_set_sha256": null,
+    "policy_snapshot_sha256": "4755a60949f3a7636e70185b8048c6341915b9f6f403711730d89f5ac83b0687",
+    "receipt_id": null
+  }
+}
