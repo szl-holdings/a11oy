@@ -15,6 +15,7 @@ import json
 import os
 import platform
 import subprocess
+import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,13 @@ from typing import Any, Iterator
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = ROOT / "benchmarks" / "ouroboros_ablation" / "protocol-v0.1.0.json"
 DEFAULT_RECEIPT = ROOT / "benchmarks" / "ouroboros_ablation" / "receipt-v0.1.0.json"
+
+# Direct script execution places ``scripts/`` rather than the repository root
+# on ``sys.path``. Bind imports to this checked-out revision explicitly so the
+# runner exercises the local ``serve`` module instead of depending on caller
+# working-directory behavior or an installed package with the same name.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def _canonical_bytes(value: Any) -> bytes:
