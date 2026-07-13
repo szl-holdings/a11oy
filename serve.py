@@ -365,6 +365,26 @@ async def quantum_utility_receipt_replay(request: Request) -> JSONResponse:
         )
 
 
+# External numerical-engine frontier (wave 18). The module accepts only fixed
+# matrix solve, symmetric-eigenvalue, and reference-vector operations. GNU
+# Octave and MATLAB remain external installations; missing engine, offline
+# license configuration, POSIX resource limits, or network isolation reports
+# UNAVAILABLE. Results are unsigned deterministic digests with zero proof/trust
+# uplift. Registration is early so these routes precede both catch-alls.
+try:
+    import szl_numerics_adapter as _szl_numerics_adapter
+
+    _NUMERICS_ADAPTER_STATUS = _szl_numerics_adapter.register(app, ns="a11oy")
+except Exception as _numerics_adapter_error:  # pragma: no cover - honest optional degradation
+    _NUMERICS_ADAPTER_STATUS = {
+        "registered": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_numerics_adapter_error).__name__,
+        "proof_uplift": 0,
+        "trust_uplift": 0,
+    }
+
+
 def _optional_module_absent(exc: Exception, module: str, surface: str,
                             *, stream=None) -> bool:
     """Log a direct optional-module absence without a noisy traceback.
