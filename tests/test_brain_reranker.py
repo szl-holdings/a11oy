@@ -90,6 +90,29 @@ def test_missing_canonical_manifests_fail_closed_with_zero_rows(tmp_path):
     assert result["evaluation_readiness"]["status"] == rr.BLOCKED
 
 
+def test_committed_default_manifests_produce_only_grounded_nonproof_rows(tmp_path):
+    root = pathlib.Path(__file__).resolve().parents[1]
+    result = rr.build_dataset(repo_root=root, environ={}, ledger_path=tmp_path / "rows.jsonl")
+    assert result["dataset_readiness"] == {"status": rr.READY, "reasons": []}
+    assert len(result["rows"]) == 8
+    assert result["split_counts"] == {"train": 3, "eval": 2, "test": 3}
+    assert result["example_type_counts"] == {
+        "positive": 3, "negative": 2, "abstention": 2, "refutation": 1,
+    }
+    assert result["quarantined_rows"] == []
+    assert result["training_triggered"] is False
+    assert result["model_readiness"]["status"] == rr.BLOCKED
+    assert result["evaluation_readiness"]["status"] == rr.BLOCKED
+    assert all(not row["brain_node_id"].startswith("person:") for row in result["rows"])
+    assert len({row["source_receipt_sha256"] for row in result["rows"]}) == 3
+    status = rr._corpus_admission.build_corpus_status(root, environ={})
+    entries = [entry for source in status["sources"] for entry in source["entries"]]
+    assert len(entries) == 3
+    assert all(entry["artifact_verified"] for entry in entries)
+    assert all(entry["artifact_receipt_valid"] for entry in entries)
+    assert all(entry["proof_credit"] == 0 for entry in entries)
+
+
 def test_all_raw_nodes_receive_an_honest_decision(tmp_path):
     raw_nodes, graph_error = rr._graph_nodes("a11oy")
     assert graph_error is None and raw_nodes

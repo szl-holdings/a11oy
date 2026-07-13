@@ -240,6 +240,7 @@ def _canonical_context(repo_root: pathlib.Path | str | None,
                 "manifest_origin": origin,
                 "artifact_path": artifact,
                 "artifact_sha256": str(entry.get("artifact_sha256") or "").lower(),
+                "artifact_receipt": entry.get("artifact_receipt"),
                 "proof_receipt": entry.get("proof_receipt"),
                 "evidence_class": entry.get("effective_class"),
             }
@@ -400,7 +401,9 @@ def _row_core(example: Mapping[str, Any], source: Mapping[str, Any],
     if declared_source_hash != source_hash: errors.append("BRAIN_SOURCE_HASH_MISMATCH")
     if errors:
         return None, sorted(set(errors))
-    source_receipt = (source.get("proof_receipt") or {}).get("receipt_sha256")
+    source_receipt = (source.get("artifact_receipt") or {}).get("receipt_sha256")
+    if not _is_sha(source_receipt):
+        source_receipt = (source.get("proof_receipt") or {}).get("receipt_sha256")
     if not _is_sha(source_receipt):
         source_receipt = _sha({
             "source_manifest_sha256": source["manifest_sha256"],

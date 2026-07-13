@@ -24,6 +24,7 @@ from typing import Any, Mapping, Sequence
 
 SCHEMA_VERSION = "szl.brain.corpus-evidence.v1"
 PROOF_RECEIPT_SCHEMA = "szl.lean-kernel-proof-receipt.v1"
+ARTIFACT_RECEIPT_SCHEMA = "szl.brain.artifact-receipt.v1"
 SOURCE_TYPES = ("szl_lake", "lean_mathlib", "formula")
 EVIDENCE_CLASSES = ("PROVED", "OPEN", "REFUTED", "EXPERIMENTAL", "UNKNOWN")
 
@@ -52,6 +53,13 @@ MANIFEST_CONTRACT = {
     "evidence_classes": list(EVIDENCE_CLASSES),
     "required_top_level": ["schema_version", "source_type", "version", "entries"],
     "entry_required": ["id", "evidence_class", "source_path", "artifact_sha256"],
+    "artifact_receipt_optional": {
+        "schema_version": ARTIFACT_RECEIPT_SCHEMA,
+        "purpose": (
+            "bind the admitted artifact to exact local source bytes and licenses; this "
+            "receipt never grants mathematical proof credit"
+        ),
+    },
     "proof_receipt_required_for_proved": [
         "schema_version", "verified", "artifact_sha256", "sorry_count",
         "kernel_commit", "lean_commit", "mathlib_commit", "receipt_sha256",
@@ -160,12 +168,88 @@ def _entry_shell(entry: Any, source_type: str, ordinal: int) -> dict[str, Any]:
         "effective_class": "UNKNOWN",
         "artifact_sha256": None,
         "artifact_verified": False,
+        "artifact_receipt_valid": False,
         "proof_receipt_valid": False,
         "proof_credit": 0,
         "trust_uplift_eligible": False,
         "disposition": "QUARANTINED",
         "quarantine_reasons": [],
     }
+
+
+def _validate_artifact_receipt(
+    receipt: Any,
+    artifact_sha256: str,
+    artifact_boundary: pathlib.Path,
+) -> tuple[bool, list[str], dict[str, Any] | None]:
+    """Verify an optional local-byte receipt without upgrading proof status."""
+    if receipt is None:
+        return False, [], None
+    if not isinstance(receipt, dict):
+        return False, ["ARTIFACT_RECEIPT_NOT_OBJECT"], None
+    reasons: list[str] = []
+    if receipt.get("schema_version") != ARTIFACT_RECEIPT_SCHEMA:
+        reasons.append("ARTIFACT_RECEIPT_SCHEMA_MISMATCH")
+    if receipt.get("verified") is not True:
+        reasons.append("ARTIFACT_RECEIPT_NOT_VERIFIED")
+    if str(receipt.get("artifact_sha256") or "").lower() != artifact_sha256:
+        reasons.append("ARTIFACT_RECEIPT_ARTIFACT_MISMATCH")
+    if receipt.get("proof_credit") not in {0, 0.0}:
+        reasons.append("ARTIFACT_RECEIPT_PROOF_CREDIT_FORBIDDEN")
+
+    assets = receipt.get("source_assets")
+    if not isinstance(assets, list) or not assets:
+        reasons.append("ARTIFACT_RECEIPT_SOURCE_ASSETS_REQUIRED")
+        assets = []
+    elif len(assets) > 128:
+        reasons.append("ARTIFACT_RECEIPT_TOO_MANY_SOURCE_ASSETS")
+        assets = assets[:128]
+    public_assets: list[dict[str, Any]] = []
+    for ordinal, asset in enumerate(assets):
+        if not isinstance(asset, dict):
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_NOT_OBJECT:{ordinal}")
+            continue
+        path_value = str(asset.get("path") or "").strip()
+        expected = str(asset.get("sha256") or "").lower()
+        license_id = str(asset.get("license") or "").strip()
+        if not path_value:
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_PATH_REQUIRED:{ordinal}")
+            continue
+        relative = pathlib.Path(path_value)
+        path = (artifact_boundary / relative).resolve() if not relative.is_absolute() else None
+        if path is None or not _inside(path, artifact_boundary):
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_PATH_FORBIDDEN:{ordinal}")
+            continue
+        if not _SHA256_RE.fullmatch(expected):
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_SHA_INVALID:{ordinal}")
+        if not license_id or license_id.upper() == "UNKNOWN":
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_LICENSE_UNKNOWN:{ordinal}")
+        actual, size, read_error = _sha256_file(path, MAX_ARTIFACT_BYTES)
+        if read_error:
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_{read_error}:{ordinal}")
+        elif actual != expected:
+            reasons.append(f"ARTIFACT_RECEIPT_ASSET_SHA_MISMATCH:{ordinal}")
+        public_assets.append({
+            "path": path_value.replace("\\", "/"),
+            "sha256": expected or None,
+            "license": license_id or None,
+            "bytes": size,
+        })
+
+    stored = str(receipt.get("receipt_sha256") or "").lower()
+    body = {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    if not _SHA256_RE.fullmatch(stored) or stored != sha256_json(body):
+        reasons.append("ARTIFACT_RECEIPT_DIGEST_MISMATCH")
+    public = {
+        "schema_version": receipt.get("schema_version"),
+        "verified": receipt.get("verified") is True,
+        "artifact_sha256": str(receipt.get("artifact_sha256") or "").lower() or None,
+        "proof_credit": receipt.get("proof_credit"),
+        "source_asset_count": len(public_assets),
+        "source_assets": public_assets,
+        "receipt_sha256": stored or None,
+    }
+    return not reasons, reasons, public
 
 
 def _validate_toolchain(manifest: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]:
@@ -295,6 +379,13 @@ def _validate_entry(
         reasons.append("INVALID_SORRY_COUNT")
         sorry_count = 0
     out["sorry_count"] = sorry_count
+
+    artifact_receipt_valid, artifact_receipt_reasons, artifact_receipt_public = (
+        _validate_artifact_receipt(entry.get("artifact_receipt"), expected, artifact_boundary)
+    )
+    reasons.extend(artifact_receipt_reasons)
+    out["artifact_receipt_valid"] = artifact_receipt_valid
+    out["artifact_receipt"] = artifact_receipt_public
 
     if declared == "PROVED":
         if sorry_count != 0:
