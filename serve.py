@@ -385,6 +385,25 @@ except Exception as _numerics_adapter_error:  # pragma: no cover - honest option
     }
 
 
+# Preregistered numerical evaluator dataset (wave 22). This is a separate
+# evidence surface from engine execution: 1,328 deterministic case definitions
+# are read-only; authenticated run receipts append to an integrity-linked
+# ledger. Missing engines, reference evidence, network denial, or licensing
+# evidence remain UNAVAILABLE/NOT_EVALUATED and never become synthetic results.
+try:
+    import szl_numerics_dataset as _szl_numerics_dataset
+
+    _NUMERICS_DATASET_STATUS = _szl_numerics_dataset.register(app, ns="a11oy")
+except Exception as _numerics_dataset_error:  # pragma: no cover - honest optional degradation
+    _NUMERICS_DATASET_STATUS = {
+        "registered": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_numerics_dataset_error).__name__,
+        "proof_uplift": 0,
+        "trust_uplift": 0,
+    }
+
+
 # Formal Conjecture Lab (wave 19). Declarations and formal artifacts are
 # bounded local writes. No prover command is exposed. A transition to a kernel
 # result requires an externally produced DSSE receipt verified against the
