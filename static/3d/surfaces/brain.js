@@ -65,9 +65,9 @@ const LAYER_R = { "-1": 8.5, "0": 4.2, "1": 2.0, "2": 3.2, "3": 1.6 };
 // render budget (LOD): keep the estate core + this many top-connected leaders
 const FIELD_TOP  = 480;   // default top-connected field leaders
 const MAX_NODES  = 1650;  // hard cap on rendered nodes (mobile-safe)
-const LABEL_MESH_MAX = 220; // nodes drawn as individual meshes (labelable)
-const MAX_EDGES  = 6500;  // rendered edge cap
-const FIRE_MAX   = 220;   // simultaneous firing pulses
+const LABEL_MESH_MAX = 144; // bounded interactive leaders; long tail stays instanced
+const MAX_EDGES  = 5200;  // visual edge cap (the API still exposes the complete graph)
+const FIRE_MAX   = 160;   // simultaneous firing pulses
 
 let _stage = null, _THREE = null, _ctx = null, _group = null, _show = null;
 let _badge = null, _polls = [], _frameReg = false, _t0 = 0;
@@ -140,10 +140,12 @@ function _nodeColor(n) {
 }
 function _nodeRadius(n) {
   const deg = n.degree || 0;
-  let r = 0.14 + 0.055 * Math.sqrt(deg);
-  if (n.locked) r = Math.max(r, 0.42);
-  if (n.kind === "estate") r = Math.max(r, 0.55);
-  return Math.min(r, 0.9);
+  // Log degree prevents a handful of hubs from occluding the graph. Degree still controls
+  // size, but the visual cannot turn a popular node into an opaque wall.
+  let r = 0.08 + 0.035 * Math.log2(1 + deg);
+  if (n.locked) r = Math.max(r, 0.22);
+  if (n.kind === "estate") r = Math.max(r, 0.28);
+  return Math.min(r, 0.30);
 }
 
 // -------------------------------------------------------------------------- //
@@ -152,6 +154,9 @@ function _nodeRadius(n) {
 function mount(ctx) {
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   _group = new _THREE.Group();
+  // Center the bounded graph in the viewport left by the compact evidence card.
+  _group.position.x = 1.0;
+  _group.scale.setScalar(0.66);
   _stage.scene.add(_group);
   _t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
   _sphereGeo = new _THREE.SphereGeometry(1, 10, 8);
@@ -173,7 +178,8 @@ function mount(ctx) {
       objects: () => _labelMeshes,
       text: (o) => (o.userData && o.userData.node && (o.userData.node.title || o.userData.node.id)) || "",
       weight: (o) => (o.userData && o.userData.node && o.userData.node.degree) || 0,
-      topN: 12, hover: true, fadeNear: 10, fadeFar: 70,
+      topN: 3, hover: true, fadeNear: 12, fadeFar: 55,
+      avoidOverlap: true, minGap: 10, maxLength: 38,
     });
   }
 

@@ -34,9 +34,11 @@
     collapsible CATEGORY dropdowns. Replaces the old flat wall of ~84 pills so the flagship
     surfaces stand out and the rest group behind one-tap dropdowns. Accents are proof-teal
     (0x3af4c8) — NEVER purple (doctrine v11 palette). */
- .tabs{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);
-  background:#070d15;flex:0 0 auto}
- .navrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+ .tabs{display:flex;flex-direction:column;gap:0;padding:8px 12px;border-bottom:1px solid var(--line);
+  background:#070d15;flex:0 0 auto;position:relative;z-index:18}
+ .navrow{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+ .navrow::-webkit-scrollbar{display:none}
  .navlabel{font:9.5px ui-monospace,monospace;color:var(--para);letter-spacing:.6px;
   text-transform:uppercase;opacity:.7;margin-right:2px;flex:0 0 auto}
  .tab{font:11.5px ui-monospace,monospace;padding:6px 12px;border-radius:7px;border:1px solid var(--line);
@@ -60,9 +62,31 @@
  .catbtn[data-hasactive="true"]{box-shadow:0 0 0 1px var(--proof) inset}
  .catbtn .count{font-size:9px;color:var(--para);opacity:.7}
  /* Drop panel: the tabs of the currently-open category (only one open at a time). */
- .panel{display:none;gap:6px;flex-wrap:wrap;padding:8px;margin-top:2px;
-  border:1px solid var(--line);border-radius:9px;background:#08111a}
+ .panel{display:none;gap:6px;flex-wrap:wrap;padding:8px;margin-top:2px;max-height:180px;
+  overflow-y:auto;border:1px solid var(--line);border-radius:9px;background:#08111a}
  .panel[data-open="true"]{display:flex}
+ .navtools{display:grid;grid-template-columns:minmax(260px,1fr) minmax(210px,auto) auto auto;
+  gap:7px;align-items:center;min-height:34px}
+ .surface-search{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;
+  background:#08111a;color:var(--cream);padding:7px 10px;font:11.5px ui-monospace,monospace;
+  outline:none;letter-spacing:.2px}
+ .surface-search:focus{border-color:var(--proof);box-shadow:0 0 0 1px var(--proof)}
+ .surface-search::placeholder{color:#70818e}
+ .navmeta{font:10px ui-monospace,monospace;color:var(--para);white-space:nowrap}
+ .navmode{border:1px solid var(--line);border-radius:8px;background:#0a121b;color:var(--para);
+  padding:7px 10px;font:10.5px ui-monospace,monospace;cursor:pointer;white-space:nowrap}
+ .navmode:hover{border-color:var(--proof);color:var(--cream)}
+ .active-surface{display:flex;align-items:center;gap:7px;min-width:0;padding:0 8px;
+  border-left:1px solid var(--line);font:10px ui-monospace,monospace;color:var(--para)}
+ .active-surface span{font-size:9px;letter-spacing:.8px;color:var(--proof)}
+ .active-surface strong{font-weight:500;color:var(--cream);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;max-width:32vw}
+ .surface-browser{display:none;position:absolute;left:12px;right:12px;top:calc(100% + 1px);
+  padding:9px;border:1px solid var(--line);border-top-color:#20323e;border-radius:0 0 10px 10px;
+  background:rgba(7,13,21,.98);box-shadow:0 18px 40px rgba(0,0,0,.56);z-index:20}
+ .tabs[data-browse="true"] .surface-browser{display:flex;flex-direction:column;gap:7px}
+ #search-panel{position:absolute;left:12px;right:12px;top:calc(100% + 1px);z-index:22;
+  margin:0;box-shadow:0 18px 40px rgba(0,0,0,.56)}
  #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
  #stage{position:absolute;inset:0}
  #stage canvas{display:block;width:100%;height:100%;touch-action:none}
@@ -85,13 +109,15 @@
   header .badge{font-size:9.5px;padding:2px 6px}
   #three-rev-badge,#cdn-badge{display:none}
   .tabs{padding:7px 10px;gap:5px}
+  .navtools{grid-template-columns:minmax(0,1fr) auto}
+  .navmeta,.active-surface{display:none}
   /* Featured + category rows each scroll horizontally so they never build a tall wall;
      the tapped-open panel wraps below, height-capped so it never shoves the stage off. */
-  .navrow{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
-  .navrow::-webkit-scrollbar{height:4px}
-  .navrow::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .navrow{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .navrow::-webkit-scrollbar{display:none}
   .navlabel{position:sticky;left:0;background:#070d15;z-index:1}
   .tab,.catbtn{padding:7px 11px;font-size:11px;flex:0 0 auto}
+  .surface-browser{left:8px;right:8px;max-height:52vh;overflow:auto}
   .panel[data-open="true"]{flex-wrap:wrap;max-height:34vh;overflow-y:auto}
   footer{font-size:9px;padding:5px 10px}
   /* Give the 3D stage a guaranteed usable share of the screen on phones (100dvh-safe). */
@@ -160,10 +186,21 @@
  <a href="/verify" class="badge" title="Public receipt verifier — paste a signed Khipu receipt / DSSE envelope for a PASS/FAIL panel">✓ verify</a>
  <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
 </header>
-<nav class="tabs" id="tabs" role="tablist" aria-label="Estate surfaces">
- <div class="navrow" id="featured-row"><span class="navlabel">★ Featured</span></div>
- <div class="navrow" id="cat-row"><span class="navlabel">Categories</span></div>
- <div id="cat-panels"></div>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Estate surfaces" data-browse="false">
+ <div class="navtools">
+  <input class="surface-search" id="surface-search" type="search"
+   placeholder="Find a surface (Ctrl/⌘ K)" autocomplete="off" spellcheck="false"
+   aria-label="Find an estate surface" aria-controls="search-panel"/>
+  <div class="active-surface" id="active-surface" aria-live="polite"><span>ACTIVE</span><strong>Loading surface</strong></div>
+  <span class="navmeta" id="surface-results-count">All surfaces indexed</span>
+  <button class="navmode" id="nav-mode" type="button" aria-expanded="false" aria-controls="surface-browser">Browse surfaces</button>
+ </div>
+ <div class="panel" id="search-panel" role="group" aria-label="Surface search results" data-open="false"></div>
+ <div class="surface-browser" id="surface-browser">
+  <div class="navrow" id="featured-row"><span class="navlabel">★ Featured</span></div>
+  <div class="navrow" id="cat-row"><span class="navlabel">Categories</span></div>
+  <div id="cat-panels"></div>
+ </div>
 </nav>
 <div id="stage-wrap">
  <div id="stage"></div>
@@ -219,6 +256,7 @@ import * as THREE from "three";
 
 // The 9 surface slots the other devs fill. Lazy-loaded per tab.
 const SURFACES = [
+  { id: "integritycontrol", cat: "governance", short: "Integrity Control Plane", title: "Integrity Control Plane · read-only Waqay Security Loop + Claim Integrity manifests · PROPOSAL_ONLY boundary · effectors=0 · signatures honestly UNSIGNED until a real signer and external verifier exist", mod: "/static/3d/surfaces/integritycontrol.js" },
   { id: "atlas", cat: "map", flag: true,       title: "Atlas",       mod: "/static/3d/surfaces/atlas.js" },
   { id: "frontier", cat: "map",    title: "Frontier",    mod: "/static/3d/surfaces/frontier.js" },
   { id: "neuromorphic", cat: "more", title: "Neuromorphic", mod: "/static/3d/surfaces/neuromorphic.js" },
@@ -474,8 +512,31 @@ const catOf = (s) => s.cat || "more";
 const featuredRow = document.getElementById("featured-row");
 const catRow = document.getElementById("cat-row");
 const catPanels = document.getElementById("cat-panels");
+const searchInput = document.getElementById("surface-search");
+const searchPanel = document.getElementById("search-panel");
+const searchCount = document.getElementById("surface-results-count");
+const navMode = document.getElementById("nav-mode");
+const activeSurface = document.querySelector("#active-surface strong");
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
+
+function _clearSearch() {
+  if (searchInput) searchInput.value = "";
+  if (searchPanel) { searchPanel.textContent = ""; searchPanel.dataset.open = "false"; }
+  if (searchCount) searchCount.textContent = SURFACES.length + " surfaces indexed";
+}
+
+// Command-center default: the graph owns the viewport. The complete registry remains one
+// click away in an overlay drawer and every surface remains indexed by the search field.
+function _setBrowser(open) {
+  const on = !!open;
+  tabsEl.dataset.browse = String(on);
+  if (navMode) {
+    navMode.setAttribute("aria-expanded", String(on));
+    navMode.textContent = on ? "Close browser" : "Browse surfaces";
+  }
+  if (!on) openCategory("", false);
+}
 
 // Short pill label: first 1-2 " · "-separated segments of the honest title, capped.
 // The FULL honest title is preserved verbatim in the tooltip (b.title) and in the
@@ -504,6 +565,9 @@ function _makeTab(s, feat) {
   }
   b.addEventListener("click", () => {
     selectSurface(s.id);
+    _clearSearch();
+    _setBrowser(false);
+    openCategory(catOf(s), false);
     // On the mobile horizontal strips, keep the tapped tab in view.
     try { b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (_) {}
   });
@@ -537,11 +601,52 @@ CATS.forEach(([cat, label]) => {
   const panel = document.createElement("div");
   panel.className = "panel"; panel.dataset.cat = cat; panel.dataset.open = "false";
   items.forEach((s) => panel.appendChild(_makeTab(s, false)));
-  btn.addEventListener("click", () => openCategory(cat, panel.dataset.open !== "true"));
+  btn.addEventListener("click", () => {
+    _clearSearch();
+    openCategory(cat, panel.dataset.open !== "true");
+  });
   catRow.appendChild(btn);
   catPanels.appendChild(panel);
   _panels[cat] = panel; _catBtns[cat] = btn;
 });
+
+// Indexed surface finder: every surface stays reachable without a permanent wall of pills.
+// Matching is deterministic over id, title and category; nothing is generated.
+if (searchInput && searchPanel) {
+  const renderSearch = () => {
+    const q = searchInput.value.trim().toLowerCase();
+    searchPanel.textContent = "";
+    if (!q) { _clearSearch(); return; }
+    _setBrowser(false);
+    openCategory("", false);
+    const matches = SURFACES.filter((s) =>
+      (s.id + " " + s.title + " " + catOf(s)).toLowerCase().includes(q));
+    matches.slice(0, 36).forEach((s) => searchPanel.appendChild(_makeTab(s, false)));
+    searchPanel.dataset.open = "true";
+    if (searchCount) searchCount.textContent = matches.length + " match" + (matches.length === 1 ? "" : "es");
+  };
+  searchInput.addEventListener("input", renderSearch);
+  searchInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") { _clearSearch(); _setBrowser(false); searchInput.blur(); }
+    if (ev.key === "Enter") {
+      const first = searchPanel.querySelector("[data-id]");
+      if (first) first.click();
+    }
+  });
+  document.addEventListener("keydown", (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") {
+      ev.preventDefault(); searchInput.focus(); searchInput.select();
+    }
+  });
+  _clearSearch();
+}
+
+if (navMode) {
+  navMode.addEventListener("click", () => {
+    _clearSearch();
+    _setBrowser(tabsEl.dataset.browse !== "true");
+  });
+}
 
 // Mark every tab button carrying `id` as selected (a flagship is in both the Featured row
 // and its category panel), auto-open the active surface's category, and proof-teal-flag the
@@ -549,9 +654,12 @@ CATS.forEach(([cat, label]) => {
 function _highlight(id) {
   const def = SURFACES.find((s) => s.id === id);
   const cat = def ? catOf(def) : null;
+  if (activeSurface) {
+    activeSurface.textContent = def ? _shortLabel(def) : id;
+    activeSurface.title = def ? def.title : id;
+  }
   tabsEl.querySelectorAll("[data-id]").forEach((t) =>
     t.setAttribute("aria-selected", String(t.dataset.id === id)));
-  if (cat && _panels[cat]) openCategory(cat, true);
   Object.keys(_catBtns).forEach((c) =>
     _catBtns[c].setAttribute("data-hasactive", String(c === cat)));
 }

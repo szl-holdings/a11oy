@@ -276,6 +276,11 @@ class DurableKhipu:
         self._lock = threading.RLock()
         self.backend = "memory"
         self._mem: List[Dict[str, Any]] = []
+        # SQLite connections are deliberately short-lived. A process-global
+        # connection kept the database file locked on Windows and made clean
+        # restart/deployment tests fail at directory teardown. Each operation
+        # opens a transaction-scoped connection instead; the on-disk chain is the
+        # state, not a connection object.
         self._db: Optional[sqlite3.Connection] = None
         self._json_path: Optional[str] = None
 
@@ -287,14 +292,13 @@ class DurableKhipu:
 
         try:
             os.makedirs(os.path.dirname(self._path), exist_ok=True)
-            self._db = sqlite3.connect(self._path, check_same_thread=False)
-            self._db.execute(
-                "CREATE TABLE IF NOT EXISTS khipu ("
-                "seq INTEGER PRIMARY KEY, action TEXT NOT NULL, "
-                "payload TEXT NOT NULL, prev TEXT NOT NULL, "
-                "digest TEXT NOT NULL, ts REAL NOT NULL)"
-            )
-            self._db.commit()
+            with sqlite3.connect(self._path, timeout=30.0) as db:
+                db.execute(
+                    "CREATE TABLE IF NOT EXISTS khipu ("
+                    "seq INTEGER PRIMARY KEY, action TEXT NOT NULL, "
+                    "payload TEXT NOT NULL, prev TEXT NOT NULL, "
+                    "digest TEXT NOT NULL, ts REAL NOT NULL)"
+                )
             self.backend = "sqlite"
         except Exception:  # disk unwritable -> JSON file fallback
             try:
@@ -313,21 +317,24 @@ class DurableKhipu:
         return hashlib.sha3_256(raw).hexdigest()
 
     def _all(self) -> List[Dict[str, Any]]:
-        if self.backend == "sqlite" and self._db is not None:
-            cur = self._db.execute(
-                "SELECT seq, action, payload, prev, digest, ts FROM khipu ORDER BY seq"
-            )
+        if self.backend == "sqlite":
+            with sqlite3.connect(self._path, timeout=30.0) as db:
+                rows = db.execute(
+                    "SELECT seq, action, payload, prev, digest, ts "
+                    "FROM khipu ORDER BY seq"
+                ).fetchall()
             return [
                 {"seq": r[0], "action": r[1], "payload": json.loads(r[2]),
                  "prev": r[3], "digest": r[4], "ts": r[5]}
-                for r in cur.fetchall()
+                for r in rows
             ]
         return list(self._mem)
 
     def count(self) -> int:
         with self._lock:
-            if self.backend == "sqlite" and self._db is not None:
-                return int(self._db.execute("SELECT COUNT(*) FROM khipu").fetchone()[0])
+            if self.backend == "sqlite":
+                with sqlite3.connect(self._path, timeout=30.0) as db:
+                    return int(db.execute("SELECT COUNT(*) FROM khipu").fetchone()[0])
             return len(self._mem)
 
     def head(self) -> str:
@@ -338,22 +345,36 @@ class DurableKhipu:
     def emit(self, action: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload = payload or {}
         with self._lock:
-            rows = self._all()
-            prev = rows[-1]["digest"] if rows else _GENESIS
-            seq = len(rows)
-            body = {"organ": self.organ, "ns": self.ns, "seq": seq,
-                    "action": action, "payload": payload, "prev": prev}
-            digest = self._digest(body)
-            ts = time.time()
-            rec = dict(body, digest=digest, ts=ts)
-            if self.backend == "sqlite" and self._db is not None:
-                self._db.execute(
-                    "INSERT INTO khipu(seq, action, payload, prev, digest, ts) "
-                    "VALUES (?,?,?,?,?,?)",
-                    (seq, action, json.dumps(payload, sort_keys=True), prev, digest, ts),
-                )
-                self._db.commit()
+            if self.backend == "sqlite":
+                # BEGIN IMMEDIATE serializes concurrent writers, including two
+                # independently-opened stores after a rolling process restart.
+                with sqlite3.connect(self._path, timeout=30.0) as db:
+                    db.execute("BEGIN IMMEDIATE")
+                    last = db.execute(
+                        "SELECT seq, digest FROM khipu ORDER BY seq DESC LIMIT 1"
+                    ).fetchone()
+                    seq = int(last[0]) + 1 if last else 0
+                    prev = str(last[1]) if last else _GENESIS
+                    body = {"organ": self.organ, "ns": self.ns, "seq": seq,
+                            "action": action, "payload": payload, "prev": prev}
+                    digest = self._digest(body)
+                    ts = time.time()
+                    rec = dict(body, digest=digest, ts=ts)
+                    db.execute(
+                        "INSERT INTO khipu(seq, action, payload, prev, digest, ts) "
+                        "VALUES (?,?,?,?,?,?)",
+                        (seq, action, json.dumps(payload, sort_keys=True), prev, digest, ts),
+                    )
+                return rec
             else:
+                rows = self._all()
+                prev = rows[-1]["digest"] if rows else _GENESIS
+                seq = len(rows)
+                body = {"organ": self.organ, "ns": self.ns, "seq": seq,
+                        "action": action, "payload": payload, "prev": prev}
+                digest = self._digest(body)
+                ts = time.time()
+                rec = dict(body, digest=digest, ts=ts)
                 self._mem.append(rec)
                 if self.backend == "json" and self._json_path:
                     with open(self._json_path, "w") as fh:
@@ -609,6 +630,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     # Gradio whose combined schema generation can raise; in that case we fall
     # back to FastAPI's get_openapi over THIS app's own APIRoutes (still a real,
     # auto-generated spec — never a hand-written stub).
+    @app.get("/openapi.json", include_in_schema=False)
     @app.get(f"/api/{organ}/openapi.json", include_in_schema=False)
     async def _organ_openapi():
         try:
@@ -642,7 +664,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                     status_code=500,
                 )
 
-    report["registered"].append(f"openapi:/api/{organ}/openapi.json")
+    report["registered"].append(
+        f"openapi:/api/{organ}/openapi.json+alias:/openapi.json")
 
     # ---- 9: honest footer -------------------------------------------------
     @app.get("/honest", tags=["doctrine"])

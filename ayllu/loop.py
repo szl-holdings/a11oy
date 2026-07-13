@@ -70,6 +70,9 @@ async def run_turn(
     answer: Optional[str] = None
     model: Optional[str] = None
     stub: Optional[bool] = None
+    timed_out = False
+    token_budget: Optional[int] = None
+    timeout_s: Optional[float] = None
     energy_receipt: Any = None
 
     if model_complete is None:
@@ -101,11 +104,16 @@ async def run_turn(
                 answer = result.get("text")
                 model = result.get("model")
                 stub = result.get("stub")
+                timed_out = bool(result.get("timeout", False))
+                token_budget = result.get("token_budget")
+                timeout_s = result.get("timeout_s")
                 energy_receipt = result.get("energy_receipt")
             else:
                 answer = str(result)
             honesty = "answer produced by a11oy's model backend" + (
                 " (clearly-labeled stub — no inference credential set)" if stub else "")
+            if isinstance(result, dict) and result.get("honesty"):
+                honesty = str(result["honesty"])
         except Exception as exc:
             honesty = (f"model backend raised: {str(exc)[:120]} "
                        "(honest — no fabricated answer)")
@@ -122,6 +130,9 @@ async def run_turn(
         "answer": answer,
         "model": model,
         "stub": stub,
+        "timeout": timed_out,
+        "token_budget": token_budget,
+        "timeout_s": timeout_s,
         "energy_receipt": energy_receipt,
         "honesty": honesty,
         "evidence": [],
