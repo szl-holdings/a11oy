@@ -268,6 +268,7 @@ def test_routes_are_json_and_precede_catchalls():
         assert inventory.headers["content-type"].startswith("application/json")
         assert inventory.json()["limit"] == 3
         status = client.get(paths[1]); assert status.status_code == 200
-        assert status.json()["dataset"]["status"] == rr.BLOCKED
+        assert status.json()["dataset"]["status"] == rr.READY
+        assert status.json()["dataset"]["row_count"] == 8
         v6 = client.get("/body-3d-v6", follow_redirects=False)
         assert v6.status_code == 307 and "brainreranker" in v6.headers["location"]
