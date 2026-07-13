@@ -1,0 +1,71 @@
+{
+  "schema": "szl.m1-operational-manifest/v1",
+  "candidate_id": "a11oy-evidence-1.5b-sft-lora",
+  "release_state": "NOT_PROMOTED",
+  "quality_claim": "NOT_ESTABLISHED",
+  "provider": {
+    "id": "a11oy.m1.local-peft/v1",
+    "transport": "IN_PROCESS_ONLY",
+    "network_allowed": false,
+    "expected_gpu_name": "NVIDIA GeForce RTX 5050 Laptop GPU"
+  },
+  "inference_policy": {
+    "tier": "EXPERIMENTAL_LOCAL_ONLY",
+    "production_eligible": false,
+    "max_prompt_chars": 2048,
+    "max_new_tokens": 128,
+    "max_request_bytes": 32768,
+    "concurrency": 1
+  },
+  "gpu_admission": {
+    "minimum_free_memory_mib": 2800,
+    "maximum_utilization_pct": 25,
+    "maximum_temperature_c": 75
+  },
+  "corpus_policy": {
+    "expected_raw_nodes": 9462,
+    "expected_distinct_artifacts": 4227,
+    "expected_formula_records": 123,
+    "require_full_decision_coverage": true,
+    "require_source_family_isolation": true,
+    "allow_unknown_license_for_training": false,
+    "training_relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER"
+  },
+  "base": {
+    "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "architecture": "Qwen2ForCausalLM",
+    "license": "Apache-2.0",
+    "license_evidence": "REPORTED_CACHED_AND_OFFICIAL_CARD",
+    "files": [
+      {"path": "config.json", "bytes": 1338, "sha256": "7dc54a8c2b362c0090547190abae63572ba7a39606c51c60d5ed3af9129cd6ce"},
+      {"path": "generation_config.json", "bytes": 270, "sha256": "409eda00f5fe7d1c29c2c0335823449a4fda6af454b6638b96044fce19186cc5"},
+      {"path": "model.safetensors", "bytes": 1143327694, "sha256": "4be8a58f9cdd190ac6014bee8e42968fa5520296509cad8e85a77cbd217ce653"},
+      {"path": "added_tokens.json", "bytes": 605, "sha256": "58b54bbe36fc752f79a24a271ef66a0a0830054b4dfad94bde757d851968060b"},
+      {"path": "merges.txt", "bytes": 1671853, "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"},
+      {"path": "special_tokens_map.json", "bytes": 614, "sha256": "b5acd1507cb3a3539e63369cb4a2b675a599cf13afe62282d371518288967797"},
+      {"path": "tokenizer.json", "bytes": 11421896, "sha256": "9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa"},
+      {"path": "tokenizer_config.json", "bytes": 7362, "sha256": "0553ada6e92b1a29b4431c72782c6e5e6ab675ef0b20ceb2833cd1074c7fb932"},
+      {"path": "vocab.json", "bytes": 2776833, "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"}
+    ]
+  },
+  "adapter": {
+    "files": [
+      {"path": "adapter/adapter_config.json", "bytes": 1409, "sha256": "7f5efb77ba4bd859eef29d6f90968daed12c4128caf5da6840db5fdd08543cd8"},
+      {"path": "adapter/adapter_model.safetensors", "bytes": 18516456, "sha256": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac"},
+      {"path": "adapter/chat_template.jinja", "bytes": 2561, "sha256": "8aa40ce145adb73cb3a75194dc0224702a95850ec5275cabb728496bbd749fc6"},
+      {"path": "adapter/tokenizer.json", "bytes": 11422264, "sha256": "46dea4168cb14cd912fece6b6c96d96fa6e9ba4316e4635f0f2289a09fc2798e"},
+      {"path": "adapter/tokenizer_config.json", "bytes": 4575, "sha256": "64263f8f7cc506f8b3b2218928e7aed1dc2fafc44104fd327229221b839a9128"},
+      {"path": "adapter/training_args.bin", "bytes": 5841, "sha256": "4868a03471f60bc3cc6211da466f6fdce9e877c52cdccd9e72d9996fe6e017f5"}
+    ]
+  },
+  "evidence": {
+    "candidate_manifest": {"path": "candidate-manifest.json", "bytes": 1866, "sha256": "18eb0f5467dece106bb4aac474e0e2f58fb6b41b3f39c183241b9d788b76957e"},
+    "evaluation_manifest": {"path": "evaluation-manifest.json", "bytes": 1253, "sha256": "620518beedbd9de22b6e7a68031c4b26793f070318429664d0f2e0aa8c8ba63e"},
+    "corpus_ingestion_manifest": {"path": "corpus-ingestion-manifest.json", "bytes": 3740, "sha256": "1349828f5b9af5949e4d31d582abffe0b75e37c1708bb1b2127021c8055d5f6d"},
+    "brain_ingest_ledger": {"path": "brain-ingest-ledger.jsonl", "rows": 9462, "bytes": 13119845, "sha256": "8a0c82f8745c8b80ccb161e19ba625d3433219eacba4126fc3262a60758e74e5"},
+    "formula_curriculum_ledger": {"path": "formula-curriculum-ledger.jsonl", "rows": 123, "bytes": 163362, "sha256": "028ff018a9574af2356b23ac581c1eb4087c170e689ca221fdb59ace4cae63a8"},
+    "training_receipt": {"path": "training_receipt.json", "bytes": 5562, "sha256": "6f66ae555c81ac1e2fb01b88bf23216ecc181f7dbd6b4ddb1325e3496c683823", "internal_sha256": "ccf05e37957bd0326d458afd601e67beca0334af109e88c1c25ef47e7f97d59a"},
+    "reload_receipt": {"path": "adapter_reload_smoke.json", "bytes": 1015, "sha256": "78a9a25c395589038169e33905e6d990e0930568d4cecc11a57bd7cf4768e38c"}
+  }
+}

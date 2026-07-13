@@ -1,0 +1,122 @@
+{
+  "candidate_id": "a11oy-evidence-1.5b-sft-lora",
+  "coverage": {
+    "abstention_examples": 115,
+    "distinct_artifacts": 4227,
+    "formula_records_current_versioned_sources": 123,
+    "formula_requested_200_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
+    "formula_roles": {
+      "HOLDOUT_ABSTENTION": 115,
+      "HOLDOUT_POSITIVE": 8
+    },
+    "formula_status": {
+      "CONDITIONAL": 0,
+      "KERNEL_ACCEPTED": 8,
+      "OPEN": 115,
+      "REFUTED": 0
+    },
+    "formula_status_vocabulary": [
+      "KERNEL_ACCEPTED",
+      "CONDITIONAL",
+      "OPEN",
+      "REFUTED"
+    ],
+    "missing_item_level_license_nodes": 9301,
+    "missing_source_timestamp_nodes": 9267,
+    "negative_examples": 0,
+    "node_decision_coverage": 1.0,
+    "node_decisions": {
+      "INCLUDE_TRAIN_CONTEXT": 138,
+      "INDEX_ONLY_DUPLICATE_FORMULA": 23,
+      "QUARANTINE": 9301
+    },
+    "node_decisions_expected": 9462,
+    "node_decisions_total": 9462,
+    "node_safety": {
+      "ALLOW_VERSIONED_LOCAL_METADATA": 138,
+      "FORMULA_DUPLICATE_INDEX_ONLY": 23,
+      "QUARANTINE_LICENSE_UNKNOWN": 4066,
+      "QUARANTINE_PERSON_METADATA": 5235
+    },
+    "person_metadata": 5235,
+    "quarantined_or_excluded_nodes": 9301
+  },
+  "leakage_policy": "all rows from one source_family have exactly one split; formula families are HOLDOUT; quarantined rows are never training text",
+  "ledgers": {
+    "brain_nodes": {
+      "bytes": 13119845,
+      "path": "brain-ingest-ledger.jsonl",
+      "rows": 9462,
+      "schema": "szl.m1-brain-ingest-decision/v1",
+      "sha256": "8a0c82f8745c8b80ccb161e19ba625d3433219eacba4126fc3262a60758e74e5"
+    },
+    "formulas": {
+      "bytes": 163362,
+      "path": "formula-curriculum-ledger.jsonl",
+      "rows": 123,
+      "schema": "szl.m1-formula-curriculum-decision/v1",
+      "sha256": "028ff018a9574af2356b23ac581c1eb4087c170e689ca221fdb59ace4cae63a8"
+    }
+  },
+  "quality_claim": "NOT_ESTABLISHED",
+  "release_state": "NOT_PROMOTED",
+  "resulting_evaluation_receipt": {
+    "bytes": 1253,
+    "path": "evaluation-manifest.json",
+    "promotion_decision": "NOT_PROMOTED",
+    "receipt_id": "m1-evaluation:sha256:620518beedbd9de22b6e7a68031c4b26793f070318429664d0f2e0aa8c8ba63e",
+    "sha256": "620518beedbd9de22b6e7a68031c4b26793f070318429664d0f2e0aa8c8ba63e",
+    "state": "INCOMPLETE"
+  },
+  "schema": "szl.m1-corpus-ingestion-manifest/v1",
+  "source_family_split": {
+    "a11oy-versioned-runtime": {
+      "rows": 138,
+      "split": "TRAIN"
+    },
+    "academic-publication-metadata": {
+      "rows": 1492,
+      "split": "QUARANTINE"
+    },
+    "authorship-person-metadata": {
+      "rows": 5235,
+      "split": "QUARANTINE"
+    },
+    "canonical-formula-registry": {
+      "rows": 46,
+      "split": "HOLDOUT"
+    },
+    "dataset-benchmark-metadata": {
+      "rows": 44,
+      "split": "QUARANTINE"
+    },
+    "other-graph-metadata": {
+      "rows": 3,
+      "split": "QUARANTINE"
+    },
+    "repository-metadata": {
+      "rows": 2362,
+      "split": "QUARANTINE"
+    },
+    "research-landscape-metadata": {
+      "rows": 165,
+      "split": "QUARANTINE"
+    },
+    "thesis-formula-corpus": {
+      "rows": 100,
+      "split": "HOLDOUT"
+    }
+  },
+  "source_snapshot": {
+    "brain_graph_receipt_id": "brain-graph:sha256:c72c422f62dc91f82f04f0bc344ffcd909ab1a0ce7df62f40419fb0c55dd59f4",
+    "brain_graph_sha256": "c72c422f62dc91f82f04f0bc344ffcd909ab1a0ce7df62f40419fb0c55dd59f4",
+    "distinct_artifact_count": 4227,
+    "link_count_reported_by_graph": 14229,
+    "network_fetches": 0,
+    "person_metadata_count": 5235,
+    "raw_node_count": 9462,
+    "versioned_sources_only": true
+  },
+  "training_relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",
+  "training_state": "NOT_RUN"
+}

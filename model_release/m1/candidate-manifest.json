@@ -1,0 +1,53 @@
+{
+  "schema": "szl.hf-model-candidate/v1",
+  "candidate_id": "a11oy-evidence-1.5b-sft-lora",
+  "artifact_class": "peft_adapter_candidate",
+  "evidence_label": "MEASURED",
+  "release_state": "NOT_PROMOTED",
+  "quality_claim": "NOT_ESTABLISHED",
+  "contains_weights": false,
+  "weight_reference_only": true,
+  "base": {
+    "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "architecture": "Qwen2ForCausalLM",
+    "license": "Apache-2.0",
+    "license_evidence": "REPORTED_CACHED_AND_OFFICIAL_CARD"
+  },
+  "adapter_reference": {
+    "source_path": "operator-configured:A11OY_M1_RUN_ROOT/adapter/adapter_model.safetensors",
+    "bytes": 18516456,
+    "sha256": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac",
+    "copied_into_candidate": false
+  },
+  "dataset": {
+    "records": 167,
+    "train_records": 151,
+    "evaluation_records": 16,
+    "sha256": "5c6f6bc042813ce3881145cefc75c40012422cd5d5d4e8a3edee0bdd231c85af",
+    "split_seed": 3407,
+    "split_sha256": "d56d1d72b8d6ac1c267139e3e77523584d117998b8edebe7ea3eeac52dfe577f",
+    "license_privacy_contamination_review": "BLOCKED_NOT_COMPLETE"
+  },
+  "full_corpus_proposal": {
+    "relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",
+    "manifest_path": "corpus-ingestion-manifest.json",
+    "manifest_sha256": "1349828f5b9af5949e4d31d582abffe0b75e37c1708bb1b2127021c8055d5f6d",
+    "brain_raw_nodes": 9462,
+    "brain_distinct_artifacts": 4227,
+    "formula_records": 123,
+    "training_state": "NOT_RUN"
+  },
+  "promotion": {
+    "state": "BLOCKED",
+    "reason": "BROAD_UNSEEN_EVALUATION_AND_DATA_GOVERNANCE_NOT_COMPLETE",
+    "human_approval_bound_to_candidate": false
+  },
+  "external_mutations": {
+    "download": false,
+    "upload": false,
+    "publish": false,
+    "deploy": false,
+    "train": false
+  }
+}

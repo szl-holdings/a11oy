@@ -403,6 +403,26 @@ except Exception as _formal_conjecture_lab_error:  # pragma: no cover - honest o
     }
 
 
+# M1 experimental model operational gate (wave 22). The candidate remains
+# NOT_PROMOTED and no weights are bundled. The module front-moves its exact
+# status/infer/page routes ahead of both catch-alls and runs only a local,
+# bounded PEFT turn after byte-exact artifact/receipt verification, GPU
+# admission, and provider-identity binding. Missing evidence reports structured
+# BLOCKED/UNAVAILABLE; there is no remote-provider or download fallback.
+try:
+    import szl_m1_model_gate as _szl_m1_model_gate
+
+    _M1_MODEL_GATE_STATUS = _szl_m1_model_gate.register(app, ns="a11oy")
+except Exception as _m1_model_gate_error:  # pragma: no cover - honest optional degradation
+    _M1_MODEL_GATE_STATUS = {
+        "registered": False,
+        "operational_state": "UNAVAILABLE",
+        "release_state": "NOT_PROMOTED",
+        "production_eligible": False,
+        "reason": type(_m1_model_gate_error).__name__,
+    }
+
+
 def _optional_module_absent(exc: Exception, module: str, surface: str,
                             *, stream=None) -> bool:
     """Log a direct optional-module absence without a noisy traceback.
@@ -10221,6 +10241,7 @@ except Exception as _kl_e:
 _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/live/", "v1/code/", "v1/seismic/", "v1/feeds/",
                               "v1/govern/",
+                              "v1/models/m1",       # M1 local-only experimental gate
                               "v1/verify/intoto",      # in-toto verify guide (DEV2)
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)

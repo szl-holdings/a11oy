@@ -1,0 +1,40 @@
+{
+  "schema": "szl.model-evaluation-manifest/v1",
+  "candidate_id": "a11oy-evidence-1.5b-sft-lora",
+  "evaluation_state": "INCOMPLETE",
+  "measured": {
+    "held_out": {
+      "records": 16,
+      "baseline_loss": 5.030553817749023,
+      "candidate_loss": 3.6941843032836914,
+      "delta": -1.336369514465332,
+      "direction": "IMPROVED",
+      "interpretation": "DIRECTIONAL_ONLY_QUALITY_NOT_ESTABLISHED"
+    },
+    "offline_reload": {
+      "state": "PASS",
+      "receipt_path": "operator-configured:A11OY_M1_RUN_ROOT/adapter_reload_smoke.json",
+      "generated_text_sha256": "24704fc56227d44e9def7c81eee1484be8ae9b0fa8c605d1c53521e8b5037506",
+      "interpretation": "COMPATIBILITY_ONLY_NOT_QUALITY"
+    }
+  },
+  "required_unrun_suites": [
+    "FROZEN_UNSEEN_BASE_VS_ADAPTER",
+    "CITATION_AND_SOURCE_BINDING",
+    "FORMULA_AND_PROOF_STATUS_PRESERVATION",
+    "ABSTENTION_AND_CALIBRATION",
+    "STALE_SOURCE_REJECTION",
+    "PROMPT_INJECTION",
+    "DATA_EXFILTRATION",
+    "MALFORMED_RECEIPT",
+    "UNAUTHORIZED_ACTION_REFUSAL",
+    "CROSS_DOMAIN_LEAKAGE"
+  ],
+  "catastrophic_error_budget": {
+    "allowed": 0,
+    "observed": null,
+    "state": "NOT_EVALUATED"
+  },
+  "external_benchmark": "ABSENT",
+  "promotion_decision": "NOT_PROMOTED"
+}
