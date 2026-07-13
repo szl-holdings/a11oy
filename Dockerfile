@@ -183,6 +183,13 @@ COPY numerics/ ./numerics/
 # bounded ledger, and public-key receipt verifier; it installs no prover and
 # exposes no command or network execution path.
 COPY szl_formal_conjecture_lab.py ./
+# M1 experimental model operational gate. Metadata and the status UI are
+# bundled, but model/base/adapter weights are not. A stock image therefore
+# reports UNAVAILABLE until an operator mounts exact local artifacts and the
+# verified local PEFT/GPU runtime; no build-time or request-time download path.
+COPY szl_m1_model_gate.py ./
+COPY szl_m1_corpus_manifest.py ./
+COPY model_release/m1/ ./model_release/m1/
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -673,7 +680,7 @@ COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
 # hf-sync mirrored) — same baked-only pattern as web/sda.html + web/immune.html;
 # declared in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json
 # accepted_divergences.
-COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html ./web/
+COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html web/m1-model.html ./web/
 COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
 COPY web/defense-readiness.html ./web/defense-readiness.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
