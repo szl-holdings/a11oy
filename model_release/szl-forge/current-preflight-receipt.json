@@ -18,7 +18,7 @@
       "id": "CURRICULUM_ADMISSION",
       "state": "PASS",
       "manifest_sha256": "63b6e0af8a121a1b52c7fe808b820d7945411c27730fb4824b33a5e4a772c3f1",
-      "contract_sha256": "201016a2ef216bd85b7285d3438d08b81a28866d656ddeccd19b6a0cd6168bb7",
+      "contract_sha256": "bfe587092bca4a37f293550278042accefe79eed72090ca374f8a2a78ecb51a2",
       "source_sha256": "2b24edf2097f971ef1887141a4c294b9d4af808470888b6b8a4ce41488665a59",
       "draft_schema_sha256": "05803c2aa83af206850c6f6760916b89ac61bf7109111115b7ae6e1d720006b9",
       "train_rows": 30,
@@ -77,18 +77,37 @@
       ]
     },
     {
+      "id": "SOURCE_CONTROL",
+      "state": "CLEAN_REVIEWED_COMMIT",
+      "commit": "e0d1ca4de193e799ce869c141c7c785fe35e1b5c",
+      "git_executable_sha256": "c53279919fdea03474bb23b465b3a82287157491f1bd69a5eb82dd9831582333",
+      "required_clean_scope": [
+        "model_release/szl-forge/Invoke-SZLForgeQueue.ps1",
+        "model_release/szl-forge/curriculum-source.json",
+        "model_release/szl-forge/generated/curriculum-manifest.json",
+        "model_release/szl-forge/generated/eval.jsonl",
+        "model_release/szl-forge/generated/train.jsonl",
+        "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
+        "model_release/szl-forge/szl_forge_training.py",
+        "model_release/szl-forge/training-contract.json",
+        "model_release/m1/operational-manifest.json",
+        "tests/test_szl_forge_training_path.py"
+      ],
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
       "id": "GPU_ADMISSION",
       "state": "BLOCKED",
       "reason": "GPU admission thresholds were not maintained",
       "samples": [
         {
-          "measured_at_unix_ns": 1783929951637505900,
+          "measured_at_unix_ns": 1783930308949239600,
           "gpu_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
           "memory_total_mib": 8151,
-          "memory_used_mib": 1332,
-          "memory_free_mib": 6579,
-          "utilization_pct": 7,
-          "temperature_c": 66
+          "memory_used_mib": 1317,
+          "memory_free_mib": 6594,
+          "utilization_pct": 4,
+          "temperature_c": 74
         }
       ]
     }
