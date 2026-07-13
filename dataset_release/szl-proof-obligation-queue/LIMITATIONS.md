@@ -27,4 +27,3 @@
     schemas, and transformations. It does not cure unknown or incompatible
     rights in upstream material. Public release remains blocked pending
     item-level review and human approval.
-

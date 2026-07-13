@@ -1,7 +1,7 @@
 # A11oy operational union wave 23
 
-Date: 2026-07-13  
-Branch: `codex/operational-union-wave23`  
+Date: 2026-07-13<br>
+Branch: `codex/operational-union-wave23`<br>
 Status: **local integration candidate; not merged or deployed**
 
 This ledger separates repository presence, local verification, and public operational state. It is not a release announcement. A feature is not described as live merely because code, a model card, or a route exists.

@@ -23,4 +23,3 @@ approval are complete.
 copyright license term. It means the repository has not established the rights,
 provenance, split, and evaluation conditions required to claim these records as
 approved model-training data.
-

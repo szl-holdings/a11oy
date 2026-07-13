@@ -44,4 +44,3 @@ admission counts, summary metrics, and limitations. It deliberately excludes
 all raw-node text, canonical document text, query text, and per-query results.
 The source label `MEASURED_LOCAL_PILOT` is preserved and does not imply
 independent replication or external validity.
-
