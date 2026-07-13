@@ -174,7 +174,6 @@ def atomize_text(text: str) -> dict[str, Any]:
         "atoms": atoms,
     }
 
-
 def _validate_semantic_signal(signal: Any) -> tuple[dict[str, Any] | None, str | None]:
     if signal is None:
         return None, None
@@ -473,4 +472,3 @@ def info() -> dict[str, Any]:
         ],
         "not_implemented_here": ["HTTP registration", "persistence", "signing", "effectors"],
     }
-

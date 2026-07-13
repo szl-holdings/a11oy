@@ -277,6 +277,24 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             validate(invalid, self.output_schema)
 
+    def test_model_card_is_detailed_without_claiming_a_release(self) -> None:
+        card = (PROGRAM / "MODEL_CARD_DRAFT.md").read_text(encoding="utf-8")
+        required_markers = (
+            "MODEL PROGRAM - NOT A WEIGHT RELEASE",
+            "9,464 raw nodes",
+            "148 rows",
+            "0 approved for reuse",
+            "szl.receipt-agent-output.v1",
+            "The catastrophic-error budget is **zero**",
+            "PLANNED_NOT_CREATED",
+            "model program specification, not a released model",
+        )
+        for marker in required_markers:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, card)
+        self.assertNotIn("trained on all 200 formulas", card.lower())
+        self.assertNotIn("quality: established", card.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
