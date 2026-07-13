@@ -179,6 +179,7 @@ COPY szl_quantum_utility.py ./
 # the API reports UNAVAILABLE.
 COPY szl_numerics_adapter.py ./
 COPY szl_numerics_dataset.py ./
+COPY szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/
 # Wave 19 formal-conjecture receipt lab. This copies only the strict contract,
 # bounded ledger, and public-key receipt verifier; it installs no prover and
