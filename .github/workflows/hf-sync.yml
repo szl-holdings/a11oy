@@ -28,6 +28,7 @@ on:
       - "web/**"
       - "static/**"
       - "static-vendor/**"
+      - "numerics/**"
       - "src/**"
       - "corpus/**"
       - "*.html"

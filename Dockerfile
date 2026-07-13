@@ -172,6 +172,13 @@ COPY szl_claim_rupture_gate.py ./
 # Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
 # SDK, QPU call, credential path, external effector, or finance-engine coupling.
 COPY szl_quantum_utility.py ./
+# Wave 18 numerical-engine frontier. These are only the Apache-2.0 host contract
+# and fixed data-only Octave script. GNU Octave, MATLAB, proprietary Engine
+# libraries, license material, and packages are deliberately NOT installed or
+# copied. Without an operator-provided external engine and isolation controls,
+# the API reports UNAVAILABLE.
+COPY szl_numerics_adapter.py ./
+COPY numerics/ ./numerics/
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
