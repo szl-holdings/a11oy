@@ -6,7 +6,26 @@ on:
 permissions:
   contents: read
 jobs:
+  provider-gate:
+    name: Provider release honesty gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install provider-gate test dependencies
+        run: python -m pip install fastapi starlette httpx pytest
+      - name: Prove provider honesty, durable receipts, and HTTP boundaries
+        run: >-
+          python -m pytest -q
+          tests/test_provider_release_gate.py
+          test_provider_http.py
+          test_sovereign_registry_dev2.py
+          tests/test_sovereign_backend.py
+
   attach:
+    needs: provider-gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -65,6 +84,7 @@ jobs:
       packages: write
       attestations: write
   sign-receipts:
+    needs: provider-gate
     name: Sign governance + Khipu receipts (Sigstore keyless)
     runs-on: ubuntu-latest
     permissions:

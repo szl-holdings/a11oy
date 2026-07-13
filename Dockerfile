@@ -196,6 +196,10 @@ COPY model_release/m1/ ./model_release/m1/
 # it; the runtime never invents a DOI from the version number.
 COPY szl_release_identity.py ./
 COPY zenodo-readback.json ./
+# Shared fail-closed provider transport. Registry adapters opt in to private
+# destinations explicitly; this module performs pinned DNS validation, bounded
+# redirect handling, response-size limits, and secret-safe deterministic errors.
+COPY szl_provider_http.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.

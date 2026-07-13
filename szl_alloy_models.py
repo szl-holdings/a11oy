@@ -366,7 +366,11 @@ def _local_generate(prompt: str, max_tokens: int = 256) -> dict:
                 {"role": "user", "content": prompt}]
         out = llm.create_chat_completion(messages=msgs, max_tokens=max_tokens, temperature=0.2)
         text = (out.get("choices") or [{}])[0].get("message", {}).get("content", "")
-        return {"served_locally": True, "text": text, "backend": "llama.cpp",
+        if not isinstance(text, str) or not text.strip():
+            return {"served_locally": False, "text": None,
+                    "honest_label": "llama.cpp returned an empty response",
+                    "backend": "llama.cpp", "tower_side": True}
+        return {"served_locally": True, "text": text.strip(), "backend": "llama.cpp",
                 "tower_side": False, "latency_ms": int((time.time() - t0) * 1000),
                 "gguf_sha256_fp": _gguf_sha(_gguf_path())}
     except Exception as e:
@@ -617,6 +621,24 @@ def alloy_governed_suggest(prompt: str, task_hint: str = "code", lam: float = 0.
         "doctrine": DOCTRINE, "lambda_status": LAMBDA_STATUS,
         "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
+    generation_receipt = {"ok": False, "inference_receipted": False,
+                          "reason": "no successful local generation to receipt"}
+    if out["served_locally"] and gen.get("text"):
+        try:
+            import szl_governed_infer as _gi
+            generation_receipt = _gi.record_provider_generation(
+                prompt, gen["text"], chosen["model_id"],
+                tokens=0, base_url="llama.cpp://local")
+        except Exception as exc:
+            generation_receipt = {
+                "ok": False, "inference_receipted": False,
+                "reason": "durable receipt unavailable: %s" % type(exc).__name__}
+    out["generation_receipt"] = generation_receipt
+    out["inference_receipted"] = bool(
+        generation_receipt.get("inference_receipted"))
+    out["operational"] = bool(out["served_locally"]
+                              and out["inference_receipted"])
+    out["honest_stub"] = not out["operational"]
     if do_consensus:
         # Honest demo consensus over production-eligible models' routing scores
         # (answer_key is a coarse bucket of the routed score — a real, deterministic
@@ -666,7 +688,7 @@ def unify_into_registry() -> dict:
                 "tier": 90,  # alloy band sits outside the legacy 0-5 closed tiers
                 "operator_mirrored": False,
                 "ecosystem_mirror": ["killinchu"],
-                "honest_stub": (not _production_eligible(m)) or (m["tier_band"] != "demo_cpu"),
+                "honest_stub": True,
                 "notes": "open-weight alloy; " + m.get("serving", ""),
             })
             report["added"].append(m["model_id"])
@@ -736,15 +758,49 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
 
     async def _health(request):
         path = _gguf_path()
+        backend_live = backend_available()
+        receipt_state = {"inference_receipted": False,
+                         "successful_receipt_count": 0,
+                         "chain_ok": True,
+                         "latest_receipt_hash": None}
+        if backend_live:
+            try:
+                import szl_governed_infer as _gi
+                demo_statuses = [
+                    _gi.inference_receipt_status(m["model_id"])
+                    for m in ALLOY_ROSTER if m.get("tier_band") == "demo_cpu"
+                ]
+                proven = [s for s in demo_statuses
+                          if s.get("inference_receipted")]
+                receipt_state = (proven[-1] if proven else {
+                    "inference_receipted": False,
+                    "successful_receipt_count": 0,
+                    "chain_ok": all(s.get("chain_ok", False)
+                                    for s in demo_statuses),
+                    "latest_receipt_hash": None,
+                })
+            except Exception as exc:
+                receipt_state["chain_ok"] = False
+                receipt_state["reason"] = (
+                    "receipt ledger unavailable: %s" % type(exc).__name__)
+        operational = bool(backend_live
+                           and receipt_state.get("inference_receipted"))
         return JSONResponse({
-            "backend": "llama.cpp", "backend_available": backend_available(),
+            "backend": "llama.cpp", "backend_available": backend_live,
             "gguf_present": bool(path), "gguf_path": path,
             "gguf_sha256_fp": _gguf_sha(path), "backend_error": _LLAMA_ERR,
-            "live_demo_possible": backend_available(),
-            "honest_label": ("LIVE local CPU serving ready (llama.cpp + GGUF present)."
-                             if backend_available() else
-                             "No local GGUF in this CPU Space -> capable tier is tower-side (honest). "
-                             "Mount /app/models/*.gguf or set A11OY_ALLOY_GGUF to serve the demo tier live."),
+            "live_demo_possible": backend_live,
+            "inference_receipted": bool(receipt_state.get("inference_receipted")),
+            "operational": operational,
+            "honest_stub": not operational,
+            "receipt_state": receipt_state,
+            "honest_label": ("LIVE_RECEIPTED: local CPU serving has durable inference proof."
+                             if operational else
+                             ("REACHABLE_UNRECEIPTED: llama.cpp + GGUF load, but no "
+                              "durable successful-inference receipt exists yet."
+                              if backend_live else
+                              "No local GGUF in this CPU Space -> capable tier is tower-side (honest). "
+                              "Mount /app/models/*.gguf or set A11OY_ALLOY_GGUF to serve the demo tier live.")),
             "doctrine": DOCTRINE,
         })
 
