@@ -57,9 +57,6 @@ import json
 import os
 import re
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-
 import a11oy_frontier_page as _frontier
 import szl_puriq_formulas as _puriq
 
@@ -555,13 +552,17 @@ def filtered_graph(ns: str = "a11oy", *, layer=None, axis=None, source=None,
     return view
 
 
-def register(app: FastAPI, ns: str = "a11oy") -> str:
+def register(app, ns: str = "a11oy") -> str:
     """Mount GET /api/<ns>/v1/brain/graph. ADDITIVE — before the SPA catch-all.
 
     Pure read; harvests the real estate + committed field-leader JSONL into a
     layered node/link graph (cached). Signs nothing (receipt-on-write, never on
     GET). Query params: ?layer=<int> ?axis=<token> ?source=<token>
     ?kind=<token> ?summary=1 (counts only)."""
+
+    # Keep the pure graph harvester importable for canonical, offline reindex
+    # jobs. Web dependencies are required only when routes are mounted.
+    from fastapi.responses import JSONResponse
 
     @app.get(f"/api/{ns}/v1/brain/graph")
     async def brain_graph(layer: int = None, axis: str = None,

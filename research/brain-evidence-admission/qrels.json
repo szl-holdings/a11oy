@@ -1,0 +1,25 @@
+{
+  "schema_version": "szl.brain.evidence-qrels.v1",
+  "protocol_id": "brain-canonical-retrieval-pilot-v1",
+  "label_source": "MANUAL_SEMANTIC_JUDGMENT",
+  "adjudicator_count": 1,
+  "training_eligible": false,
+  "model_training_use": "PROHIBITED",
+  "queries": [
+    {"query_id": "Q01", "query": "Which evidence document identifies the Euler-Khipu DAG Identity formula F1?", "expected_action": "ANSWER", "relevant_document_ids": ["formula:F1"]},
+    {"query_id": "Q02", "query": "Find the Khipu formula whose primitive is Euler chi equals V minus E plus F equals 2.", "expected_action": "ANSWER", "relevant_document_ids": ["formula:F1"]},
+    {"query_id": "Q03", "query": "Which evidence document reports the Baudhayana Orthogonality Bound formula F10?", "expected_action": "ANSWER", "relevant_document_ids": ["formula:F10"]},
+    {"query_id": "Q04", "query": "Find the Lambda-spine formula with the Baudhayana Sulba square-root-of-two approximation 577 over 408.", "expected_action": "ANSWER", "relevant_document_ids": ["formula:F10"]},
+    {"query_id": "Q05", "query": "Which evidence document keeps Bekenstein A-Cap formula F23 at Conjecture 1?", "expected_action": "ANSWER", "relevant_document_ids": ["formula:F23"]},
+    {"query_id": "Q06", "query": "Find the A-organ formula based on the Bekenstein bound and holography.", "expected_action": "ANSWER", "relevant_document_ids": ["formula:F23"]},
+    {"query_id": "Q07", "query": "Which repository node identifies the local Lean mathlib repository lutar-lean?", "expected_action": "ANSWER", "relevant_document_ids": ["repo:lutar-lean"]},
+    {"query_id": "Q08", "query": "Find the Brain evidence for the lutar-lean repository.", "expected_action": "ANSWER", "relevant_document_ids": ["repo:lutar-lean"]},
+    {"query_id": "Q09", "query": "Which repository node identifies the local SZL-Lake evidence store szl-lake?", "expected_action": "ANSWER", "relevant_document_ids": ["repo:szl-lake"]},
+    {"query_id": "Q10", "query": "Find the Brain evidence for the szl-lake repository.", "expected_action": "ANSWER", "relevant_document_ids": ["repo:szl-lake"]},
+    {"query_id": "Q11", "query": "What CUDA kernel benchmark latency did the Brain measure on Blackwell?", "expected_action": "ABSTAIN", "relevant_document_ids": []},
+    {"query_id": "Q12", "query": "Which Zenodo DOI was minted for the Brain reranker dataset?", "expected_action": "ABSTAIN", "relevant_document_ids": []},
+    {"query_id": "Q13", "query": "What theorem proves the Riemann hypothesis?", "expected_action": "ABSTAIN", "relevant_document_ids": []},
+    {"query_id": "Q14", "query": "Report the measured MATLAB sparse solver runtime for the largest preregistered matrix.", "expected_action": "ABSTAIN", "relevant_document_ids": []},
+    {"query_id": "Q15", "query": "Which deployed defense customer approved autonomous execution?", "expected_action": "ABSTAIN", "relevant_document_ids": []}
+  ]
+}
