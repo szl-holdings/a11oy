@@ -1,0 +1,184 @@
+{
+  "artifacts": {
+    "crosswalk": {
+      "bytes": 161227,
+      "path": "research/formula-training-admission/formula-id-crosswalk.json",
+      "receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52",
+      "sha256": "cde0b70299a673f7e64aae7598f38cde038ec47bf7c48612abf9ea2f91bdc832"
+    },
+    "receipt_path": "research/formula-training-admission/artifact-receipt.json",
+    "tranche": {
+      "bytes": 81940,
+      "path": "research/formula-training-admission/admission-tranche.jsonl",
+      "rows": 148,
+      "sha256": "951db654168ea732f84fd185234227a555b13e013ee182d8bce89eae62fb35fe"
+    }
+  },
+  "blockers": [
+    "The current 9,464-node Brain is two nodes ahead of the 9,462-row M1 ledger.",
+    "F1-F23 are reused by different runtime and proof-pack statements; same-ID proof transfer is forbidden.",
+    "Only item-level source agreement can resolve KERNEL_ACCEPTED; summary counts are not sufficient.",
+    "SZL-Lake has two experimental examples and proof status NOT_EVALUATED.",
+    "The canonical query pilot contains no committed latency measurement."
+  ],
+  "claims_boundary": {
+    "external_service_mutated": false,
+    "latency_claimed": false,
+    "locked_count_changed": false,
+    "model_promoted": false,
+    "network_used": false,
+    "proof_credit_added": 0,
+    "raw_node_text_emitted": false,
+    "training_triggered": false
+  },
+  "decision_summary": {
+    "brain_formula_duplicates_index_only": 23,
+    "executable_formula_records": 23,
+    "formula_crosswalk_rows": 146,
+    "holdout_rows": 148,
+    "raw_brain_nodes_quarantined": 9464,
+    "raw_brain_rows_emitted": 0,
+    "resolved_status_counts": {
+      "CONDITIONAL": 28,
+      "KERNEL_ACCEPTED": 2,
+      "OPEN": 115,
+      "REFUTED": 1
+    },
+    "szl_lake_rows": 2,
+    "train_rows": 0,
+    "training_admission": "BLOCKED_PENDING_NAMESPACE_AND_SOURCE_RECONCILIATION",
+    "tranche_rows": 148
+  },
+  "manifest_receipt_sha256": "7f53edf8be6c6b7521059ee7d2432162daeae0dee07cbb6807c3f488a2ae8984",
+  "schema_version": "szl.formula-training-admission-manifest.v1",
+  "source_snapshot": {
+    "brain": {
+      "distinct_artifact_count": 4229,
+      "formula_node_count": 23,
+      "graph_content_sha256": "536f73f051baf0a99b75c1bb204388e8b7398f00250b47f332dd95488371924a",
+      "inventory_sha256": "d3980630b0f60d2ab0b7d64d41ea1f2d9c7664ea8c030426a7f4c8008bd04dc7",
+      "person_metadata_count": 5235,
+      "quarantined_node_count": 9464,
+      "raw_node_count": 9464,
+      "reason_counts": {
+        "DUPLICATE_CANONICAL_KEY": 3747,
+        "FRESHNESS_UNKNOWN": 9430,
+        "LICENSE_UNKNOWN": 9464,
+        "PROVENANCE_UNKNOWN": 185,
+        "REVISION_UNKNOWN": 9464
+      },
+      "training_text_rows_emitted": 0
+    },
+    "canonical_query_context": {
+      "canonical_rows_observed": 8,
+      "evidence_manifest_path": "research/brain-evidence-admission/evidence-manifest.json",
+      "evidence_manifest_sha256": "7629111e688c4780b90f66b958a4d15c66bcbed2959b8f46714ec07f7fcc070e",
+      "index_path": "research/brain-evidence-admission/canonical-index.json",
+      "index_sha256": "342f28c5f718c4a0dd3f1f0f1c1e47e0345bb98bed84359af0151b2ffbef0031",
+      "latency_status": "NOT_EVALUATED",
+      "status": "COMPLETE_LOCAL_PILOT",
+      "unique_document_count": 5
+    },
+    "lean_mathlib": {
+      "binding_rule": "exact declaration plus agreeing item-level status required",
+      "inventory": {
+        "commit": "c4d13795689601324fce0236351bfe0ade990a43",
+        "note": "STAGED-ADVISORY: line numbers sampled from file reads; full line table requires lake build --log in CI",
+        "path": "proofs/lean-theorem-tree.json",
+        "sha256": "85d4a58c08123d7aa26a180b819a3a84e8045c63afe76e4179b21b1056f0cb04",
+        "total_declarations": 269
+      },
+      "source_files": [
+        {
+          "bytes": 40724,
+          "declaration_count": 88,
+          "path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+          "sha256": "0a7ea54762a96b335d3e6e082835542dbd0a22c1ea08db8d7315f77adb1dd8ea"
+        },
+        {
+          "bytes": 5258,
+          "declaration_count": 20,
+          "path": "proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean",
+          "sha256": "847d2e332017a5bfe3e7823092acf0245840f6b20f3d6f1544f723fd1607612e"
+        },
+        {
+          "bytes": 12007,
+          "declaration_count": 8,
+          "path": "proofs/lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
+          "sha256": "ea7667f8c20deb469396d822273ede4577e53d5ce0f273dee590a4928b617525"
+        }
+      ]
+    },
+    "stale_m1": {
+      "admission": "QUARANTINE_AS_CURRENT_TRAINING_SOURCE",
+      "brain_ledger_path": "model_release/m1/brain-ingest-ledger.jsonl",
+      "brain_ledger_rows": 9462,
+      "brain_ledger_sha256": "8a0c82f8745c8b80ccb161e19ba625d3433219eacba4126fc3262a60758e74e5",
+      "current_only_node_ids": [
+        "surface:brainreranker",
+        "surface:numericsdataset"
+      ],
+      "current_raw_nodes": 9464,
+      "historical_training_state": "NOT_RUN",
+      "m1_only_node_ids": [],
+      "manifest_path": "model_release/m1/corpus-ingestion-manifest.json",
+      "manifest_sha256": "1349828f5b9af5949e4d31d582abffe0b75e37c1708bb1b2127021c8055d5f6d",
+      "stale": true
+    },
+    "szl_lake": {
+      "admission": "HOLDOUT_EVIDENCE_ONLY",
+      "artifact_path": "data/szl-lake/reranker-evidence.json",
+      "artifact_sha256": "320158450a3a8207b437a885221e9ae00ee72807a5c6ad4dbb95ad7fbb3a3c4a",
+      "example_count": 2,
+      "manifest_path": "data/szl-lake/evidence-manifest.json",
+      "manifest_sha256": "a245b451ebea0e4d1a3c4a7fcc5e949c5106ffd9a1058fbc93a020bfff79bfd4",
+      "proof_status": "NOT_EVALUATED"
+    },
+    "thesis": {
+      "extracted_formula_count": 100,
+      "knowledge_path": "knowledge.json",
+      "knowledge_sha256": "17abc10c45c188bd7c147ea43f3937c2fd80e3017fac452ab67d6a6eee9a7ed5",
+      "proof_pack_formula_count": 23,
+      "static_path": "static/thesis.json",
+      "static_sha256": "e330dcadf6768d2e1f7076df3087860bf318dc6485a9376604af136194de5b4c"
+    }
+  },
+  "status": "COMPLETE_FAIL_CLOSED_HOLDOUT_ONLY",
+  "workflow": {
+    "name": "A11OY_EVIDENCE_ADMISSION",
+    "stages": [
+      {
+        "decision": "QUARANTINE_AGGREGATE_ONLY",
+        "record_count": 9464,
+        "stage": "DORMANT_RAW",
+        "training_text_rows_emitted": 0
+      },
+      {
+        "decision": "BOUNDED_METADATA_ONLY",
+        "record_count": 148,
+        "stage": "NORMALIZED_ARTIFACT"
+      },
+      {
+        "decision": "NAMESPACE_SCOPED_PROOF_TRANSFER_BLOCKED",
+        "record_count": 146,
+        "stage": "FORMULA_LINK"
+      },
+      {
+        "holdout_rows": 148,
+        "quarantined_raw_nodes": 9464,
+        "stage": "ADMISSION_DECISION",
+        "train_rows": 0
+      },
+      {
+        "document_count": 5,
+        "latency": {
+          "milliseconds": null,
+          "status": "NOT_EVALUATED"
+        },
+        "source": "research/brain-evidence-admission/canonical-index.json",
+        "stage": "QUERY_READY_CONTEXT",
+        "training_eligible": false
+      }
+    ]
+  }
+}
