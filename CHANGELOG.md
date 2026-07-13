@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-13
+
 Release record of the capabilities shipped by the post-1.0.0 "waves" of work.
 Every item carries an HONEST capability label per Doctrine v11 (MEASURED /
 MODELED / SIMULATION / ROADMAP / SAMPLE). Λ remains **Conjecture 1** (never a
 theorem); the locked-8 set stays at 8. No label is upgraded here.
 
-### Added — v1.1.0 operational-evidence candidate
+### Added — operational evidence
 - **Brain evidence reranker** — three content-addressed canonical source
   families (SZL-Lake, Lean/Mathlib, formulas) produce eight deterministic,
   licensed rows across train/eval/test. Those rows are derived from the three
@@ -85,7 +87,7 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
   durable-ledger **storage pressure**, DSSE **signer availability** (live vs
   `UNSIGNED-LOCAL`), and a **frontier-endpoint liveness count** (live vs
   degraded tiles). No fabrication: a down sub-source reports UNAVAILABLE.
-- **Release-record `[Unreleased]` section** (this section) + the
+- **Versioned v1.1.0 release record** (this section) + the
   `GET /api/a11oy/v1/version` inspection endpoint.
 
 ### Security / honesty
@@ -124,5 +126,6 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
 ### Notes
 - Warhacker June 9, 2026 release
 
-[Unreleased]: https://github.com/szl-holdings/a11oy/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/szl-holdings/a11oy/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/szl-holdings/a11oy/releases/tag/v1.1.0
 [1.0.0]: https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0
