@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: >
+  This dataset is an unpublished candidate with DOI PENDING. Cite only after a
+  verified archive record replaces the pending identifier.
+type: dataset
+title: "SZL Proof-Obligation Queue and Receipt-Scoped Formula Crosswalk"
+version: "0.1.0"
+license: Apache-2.0
+repository-code: "https://github.com/szl-holdings/a11oy"
+url: "https://a-11-oy.com"
+abstract: >
+  A receipt-scoped, holdout-only formula crosswalk and deterministic
+  proof-obligation queue derived from the A11oy formula-admission and bounded
+  Brain-evidence artifacts. The package adds no proof credit, contains no raw
+  Brain text, and admits zero rows for model training. DOI PENDING; not peer
+  reviewed or independently replicated.
+keywords:
+  - proof-obligations
+  - formal-verification
+  - lean
+  - mathlib
+  - provenance
+  - content-receipts
+  - evidence-admission
+  - governed-ai
+authors:
+  - family-names: "Lutar"
+    given-names: "Stephen P., Jr."
+    affiliation: "SZL Holdings LLC"
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+contact:
+  - family-names: "Lutar"
+    given-names: "Stephen P., Jr."
+    affiliation: "SZL Holdings LLC"
+    email: "contact@szlholdings.com"
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+
