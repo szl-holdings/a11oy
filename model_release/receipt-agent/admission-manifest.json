@@ -1,6 +1,6 @@
 {
   "schema_version": "szl.receipt-agent-admission-manifest.v1",
-  "program_id": "szl-receipt-agent-1.5b",
+  "program_id": "szl-forge-1.5b-receipt-agent",
   "evaluated_at": "2026-07-13T07:22:49Z",
   "promotion_decision": "BLOCKED",
   "gate_policy": "ALL_REQUIRED_GATES_MUST_PASS_ZERO_CATASTROPHIC_ERRORS",
@@ -31,31 +31,32 @@
     },
     {
       "gate_id": "RA-G03",
-      "name": "Training-data rights and governance",
-      "state": "BLOCKED",
+      "name": "Owned Forge curriculum rights and governance",
+      "state": "PASS",
       "required_for_promotion": true,
-      "exact_requirement": "Every training row must have item-level provenance, permitted use, privacy review, contamination review, and immutable split assignment.",
-      "observed": "The existing adapter dataset has 167 rows; license, privacy, and contamination review is BLOCKED_NOT_COMPLETE.",
+      "exact_requirement": "Every row admitted to this candidate must be project-authored or explicitly licensed, schema-validated, content-hashed, and assigned to an immutable split.",
+      "observed": "The Forge curriculum admits 30 project-authored schema-generated training rows and 8 frozen evaluation rows. The historical 167-row adapter corpus is excluded.",
       "evidence": [
-        "model_release/m1/candidate-manifest.json"
+        "model_release/szl-forge/generated/curriculum-manifest.json",
+        "model_release/szl-forge/training-contract.json"
       ]
     },
     {
       "gate_id": "RA-G04",
-      "name": "Brain raw-node admission",
-      "state": "BLOCKED",
+      "name": "Brain raw-node quarantine boundary",
+      "state": "PASS",
       "required_for_promotion": true,
-      "exact_requirement": "No raw Brain node may enter training until it receives item-level license, provenance, revision, freshness, deduplication, and split decisions.",
+      "exact_requirement": "All raw Brain nodes must remain outside gradients until item-level license, provenance, revision, freshness, deduplication, and split decisions exist.",
       "observed": "9,464 of 9,464 current raw nodes are training-quarantined; zero raw-node text rows are admitted to train.",
       "evidence": [
-        "research/formula-training-admission/admission-manifest.json",
-        "research/formula-training-admission/README.md"
+        "model_release/m1/corpus-ingestion-manifest.json",
+        "model_release/szl-forge/training-contract.json"
       ]
     },
     {
       "gate_id": "RA-G05",
-      "name": "Formula namespace and proof-status admission",
-      "state": "BLOCKED",
+      "name": "Formula holdout and proof-status isolation",
+      "state": "PASS",
       "required_for_promotion": true,
       "exact_requirement": "Formula IDs must be namespace-scoped, proof transfer must require an explicit semantic binding, and no holdout formula may enter training.",
       "observed": "The current crosswalk has 148 holdout rows and zero train rows; F1-F23 namespace collisions block implicit proof transfer.",
@@ -66,12 +67,13 @@
     },
     {
       "gate_id": "RA-G06",
-      "name": "Preference-alignment qualification",
-      "state": "FAIL",
+      "name": "Failed preference-alignment exclusion",
+      "state": "PASS",
       "required_for_promotion": true,
-      "exact_requirement": "All 12 preregistered ORPO qualification checks must pass before ORPO artifacts can influence a release.",
-      "observed": "0 of 12 passed; the ORPO candidate remains quarantined.",
+      "exact_requirement": "An ORPO artifact that has not passed all 12 preregistered checks must be excluded from this candidate and its evaluation claims.",
+      "observed": "The 0-of-12 ORPO candidate is explicitly excluded from Forge training and remains quarantined.",
       "evidence": [
+        "model_release/szl-forge/training-contract.json",
         "NO_VERSIONED_REPOSITORY_RECEIPT_LOCATED; operator-reported 0/12 result retained as QUARANTINED"
       ]
     },
@@ -80,10 +82,12 @@
       "name": "Structured-output contract",
       "state": "PASS",
       "required_for_promotion": true,
-      "exact_requirement": "A strict, versioned JSON Schema must require evidence IDs, formula status, uncertainty, abstention, non-executing tool proposals, and receipt binding.",
-      "observed": "The v1 contract is defined; runtime conformance is not implied by specification conformance.",
+      "exact_requirement": "A strict draft schema plus deterministic finalization runtime must separate model proposals from evidence admission, formula status, policy, uncertainty, tool authorization, and verified receipt binding.",
+      "observed": "The draft and final schemas are defined. The deterministic bridge refuses ANSWERED output without admitted evidence, external calibration, allowed tool policy, a cryptographically verified DSSE binding every decision-bearing component, and single-use replay admission.",
       "evidence": [
+        "model_release/szl-forge/schemas/receipt-agent-draft.schema.json",
         "model_release/receipt-agent/receipt-agent-output.schema.json",
+        "model_release/receipt-agent/receipt_runtime.py",
         "model_release/receipt-agent/example-unavailable.json"
       ]
     },

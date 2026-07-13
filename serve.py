@@ -385,6 +385,26 @@ except Exception as _numerics_adapter_error:  # pragma: no cover - honest option
     }
 
 
+# Yupaq governed computation plane (wave 23).  This is the strict binding layer
+# over the existing Quant, Quantum Utility, MATLAB/Octave, Lean/mathlib,
+# formula-admission, Brain, Lambda, OTel, and SZL-Lake organs.  It accepts only
+# fixed typed operations; arbitrary code, paths, URLs, packages, provider
+# credentials, and shell arguments are structurally impossible.  Registration
+# remains early so the local routes precede both proxy and SPA catch-alls.
+try:
+    import szl_yupaq_compute as _szl_yupaq_compute
+
+    _YUPAQ_COMPUTE_STATUS = _szl_yupaq_compute.register(app, ns="a11oy")
+except Exception as _yupaq_compute_error:  # pragma: no cover - honest optional degradation
+    _YUPAQ_COMPUTE_STATUS = {
+        "registered": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_yupaq_compute_error).__name__,
+        "proof_uplift": 0,
+        "trust_uplift": 0,
+    }
+
+
 # Preregistered numerical evaluator dataset (wave 22). This is a separate
 # evidence surface from engine execution: 1,328 deterministic case definitions
 # are read-only; authenticated run receipts append to an integrity-linked
@@ -1006,8 +1026,8 @@ except Exception as _szl_op_e:  # pragma: no cover
 # router, bounded-autonomy AgentLoop, and DSSE receipts. Deliberately drops the tribe's
 # unbounded "fully agentic" mandate for a11oy's fail-closed Λ-gate. See ayllu/INGEST.md.
 # Additive, try/except-guarded, same register() pattern. Model backend IS wired via
-# ayllu.backend -> a11oy_code_orchestrator (live iff an inference credential is set on
-# the Space; a clearly-labeled deterministic stub otherwise - never a fabricated answer).
+# ayllu.backend -> a11oy_code_orchestrator (live when a local endpoint answers or a
+# remote credential is present; a clearly-labeled deterministic stub otherwise).
 try:
     import a11oy_ayllu as _a11oy_ayllu
     print("[a11oy] " + _a11oy_ayllu.register(app, ns="a11oy"), file=__import__("sys").stderr)
@@ -3696,8 +3716,8 @@ except Exception as _formulas_exc:  # additive: never break the Space if the mod
 # in this file, so FastAPI's ordered matching routes /api/a11oy/code/* here
 # rather than proxying to Node. Wrapped in try/except so a missing optional dep
 # (huggingface_hub / openai) can NEVER take down the existing SPA + gates API.
-# NO BANDAID: if no inference credential is present the orchestrator returns an
-# honest 503 at call time — it is never faked here.
+# NO BANDAID: if neither a reachable local endpoint nor a credentialed remote
+# provider is available, the orchestrator refuses or emits its labeled stub.
 # ---------------------------------------------------------------------------
 try:
     import a11oy_code_orchestrator as _a11oy_code
@@ -10292,6 +10312,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)
                               "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
+                              "v1/compute/",           # Yupaq governed computation plane
                               "v1/formal-conjecture-lab/",  # Fail-closed formal receipt lab
                               )
 

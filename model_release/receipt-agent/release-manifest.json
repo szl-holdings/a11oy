@@ -1,7 +1,7 @@
 {
   "schema_version": "szl.receipt-agent-release-manifest.v1",
-  "program_id": "szl-receipt-agent-1.5b",
-  "proposed_model_id": "SZL-ReceiptAgent-1.5B",
+  "program_id": "szl-forge-1.5b-receipt-agent",
+  "proposed_model_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
   "release_state": "NOT_PROMOTED",
   "quality_claim": "NOT_ESTABLISHED",
   "artifact_relation": "PROPOSED_PROGRAM_EXISTING_ADAPTER_NOT_YET_ESTABLISHED_AS_RECEIPT_AGENT",
@@ -26,31 +26,31 @@
   },
   "hf_artifact_family": [
     {
-      "target_id": "SZLHOLDINGS/SZL-ReceiptAgent-1.5B",
+      "target_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
       "artifact_type": "MODEL_ADAPTER",
       "state": "PLANNED_NOT_CREATED",
       "promotion_dependency": "All admission and evaluation gates pass; publish a PEFT adapter only, with the exact base revision pinned."
     },
     {
-      "target_id": "SZLHOLDINGS/SZL-ReceiptAgent-1.5B-Eval",
+      "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Eval",
       "artifact_type": "EVALUATION_DATASET",
       "state": "PLANNED_NOT_CREATED",
       "promotion_dependency": "Preregistered frozen suites have row-level rights, immutable splits, and receipts."
     },
     {
-      "target_id": "SZLHOLDINGS/SZL-ReceiptAgent-Schemas",
+      "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Schemas",
       "artifact_type": "SCHEMA_DATASET",
       "state": "PLANNED_NOT_CREATED",
       "promotion_dependency": "Versioned schemas, conformance fixtures, and validation results are complete."
     },
     {
-      "target_id": "SZLHOLDINGS/SZL-ReceiptAgent-Demo",
+      "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Demo",
       "artifact_type": "SPACE",
       "state": "PLANNED_NOT_CREATED",
       "promotion_dependency": "The Space loads the pinned adapter and returns schema-valid receipts under a fail-closed runtime probe."
     },
     {
-      "target_id": "SZLHOLDINGS/SZL-ReceiptAgent-Collection",
+      "target_id": "SZLHOLDINGS/SZL-Forge-Collection",
       "artifact_type": "COLLECTION",
       "state": "PLANNED_NOT_CREATED",
       "promotion_dependency": "The model, evaluation data, schemas, and Space are independently available and mutually hash-bound."
@@ -64,7 +64,7 @@
     "license_gate": "BLOCKED"
   },
   "non_affiliation": [
-    "SZL-ReceiptAgent-1.5B is a proposed SZL Holdings program and is not affiliated with, sponsored by, or endorsed by Alibaba Cloud or the Qwen team.",
+    "SZL-Forge-1.5B-ReceiptAgent-v1 is a proposed SZL Holdings program and is not affiliated with, sponsored by, or endorsed by Alibaba Cloud or the Qwen team.",
     "Use of an Unsloth-hosted base snapshot does not imply affiliation with, sponsorship by, or endorsement by Unsloth or Hugging Face.",
     "The program is not Claude, is not affiliated with Anthropic, and must never use a third-party model or product name to obscure its Qwen2.5-derived lineage."
   ],

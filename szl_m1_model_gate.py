@@ -798,11 +798,11 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     before = {id(route) for route in app.router.routes}
 
     @app.get(prefix)
-    async def m1_status() -> JSONResponse:
+    async def m1_status():  # noqa: ANN202
         return JSONResponse(operational_status())
 
     @app.post(f"{prefix}/infer")
-    async def m1_infer(request: Request) -> JSONResponse:
+    async def m1_infer(request: Request):  # noqa: ANN202
         try:
             manifest = _load_manifest()
             payload = await _bounded_json(request, int(manifest["inference_policy"]["max_request_bytes"]))

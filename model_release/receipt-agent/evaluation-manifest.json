@@ -1,6 +1,6 @@
 {
   "schema_version": "szl.receipt-agent-evaluation-manifest.v1",
-  "program_id": "szl-receipt-agent-1.5b",
+  "program_id": "szl-forge-1.5b-receipt-agent",
   "evaluation_state": "INCOMPLETE",
   "promotion_decision": "NOT_PROMOTED",
   "comparators": {
@@ -14,7 +14,7 @@
       "state": "NOT_PROMOTED"
     },
     "proposed_receipt_agent": {
-      "id": "SZL-ReceiptAgent-1.5B",
+      "id": "SZL-Forge-1.5B-ReceiptAgent-v1",
       "state": "NO_WEIGHT_ARTIFACT_TRAINING_NOT_RUN"
     }
   },

@@ -1,0 +1,62 @@
+{
+  "schema_version": "szl.ayllu.model-family-binding/v1",
+  "council_id": "A11oy-Ayllu",
+  "family_id": "SZL-Forge-1.5B",
+  "state": "ROUTER_INTEGRATED_FORGE_PROFILE_NOT_PINNED",
+  "personas_are": "PROMPT_AND_RUNTIME_ROLES_SHARING_ONE_ROUTED_MODEL_BACKEND",
+  "ayllu_specific_weights_present": false,
+  "actual_model_authority": "PER_TURN_ROUTER_AND_RECEIPT_EVIDENCE",
+  "profile_pin_evidence_required": [
+    "base_revision",
+    "adapter_sha256",
+    "served_model_identity",
+    "model_load_receipt",
+    "reload_inference_evaluation"
+  ],
+  "profile_mappings": {
+    "Amaru": "Operator-v1",
+    "Ruwaq": "Operator-v1",
+    "Yupaq": "ReceiptAgent-v1",
+    "Qhaway": "Sentinel-v1",
+    "Maskaq": "BrainNavigator-v1",
+    "Hampiq": "Anatomy-v1",
+    "Yanapaq": "Operator-v1",
+    "Chaka": "Operator-v1",
+    "Kamachiq": "Operator-v1",
+    "Qhatuq": "ReceiptAgent-v1",
+    "Willakuq": "ReceiptAgent-v1"
+  },
+  "compute_binding": {
+    "plane_id": "SZL-Yupaq",
+    "authority": "PROPOSAL_ONLY",
+    "direct_dispatch_active": false,
+    "effectors": 0,
+    "automatic_commit": false,
+    "human_approval_required": true,
+    "operations_source": "model_release/szl-compute-plane.json"
+  },
+  "hard_boundaries": {
+    "model_may_propose": true,
+    "model_may_execute": false,
+    "model_may_approve_own_proposal": false,
+    "model_may_sign_evidence": false,
+    "model_may_self_certify": false,
+    "model_text_is_verified_truth": false
+  },
+  "request_limits": {
+    "body_bytes": 24576,
+    "prompt_chars": 6000,
+    "council_participants": 5,
+    "debate_participants": 3,
+    "rate_limit_scope": "PROCESS_LOCAL",
+    "automatic_lounge_publish": false
+  },
+  "runtime": {
+    "module": "a11oy_ayllu.py",
+    "binding_module": "ayllu/model_binding.py",
+    "binding_endpoint": "/api/a11oy/v1/ayllu/model-binding",
+    "council_endpoint": "/api/a11oy/v1/ayllu/council",
+    "compute_capabilities": "/api/a11oy/v1/compute/capabilities",
+    "compute_submit": "/api/a11oy/v1/compute/jobs"
+  }
+}

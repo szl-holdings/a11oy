@@ -1,15 +1,19 @@
-# SZL-ReceiptAgent-1.5B release program
+# SZL-Forge-1.5B — ReceiptAgent release program
 
 This directory specifies a bounded, honesty-first release program for a
-proposed model named **SZL-ReceiptAgent-1.5B**. It is a release design, not a
+proposed model named **SZL-Forge-1.5B-ReceiptAgent-v1**. It is a release design, not a
 model release. No ReceiptAgent-specific training run, weight artifact,
 evaluation result, signature, upload, deployment, or promotion is represented
 here.
 
-The purpose is narrow: a small model that can produce a strict response
-envelope binding an answer or abstention to evidence IDs, formula namespaces
-and statuses, uncertainty, a non-executing tool proposal, and an external
-receipt. A useful release would make those controls measurable. It would not
+The purpose is narrow: a small model that produces a strict unsigned draft
+containing an answer or abstention, evidence IDs, formula references,
+uncertainty, and a non-executing tool proposal. Deterministic runtime code in
+`receipt_runtime.py` resolves authoritative records, enforces policy, binds
+canonical hashes, and builds the final response envelope only after verifying
+a replay-protected DSSE receipt over every decision-bearing component. Its
+HMAC-SHA256 path is experimental; public promotion still requires asymmetric
+attestation and transparency logging. A useful release would make those controls measurable. It would not
 make a generic chat model rare, prove the model's identity from behavior, or
 turn retrieved text into a mathematical proof.
 
@@ -31,6 +35,10 @@ evaluation substrate. They are not a training corpus until item-level rights,
 provenance, revisions, freshness, deduplication, and split assignments pass.
 
 ## Contract
+
+The adapter contract is `szl.forge-receipt-draft.v1`; the final runtime contract
+is `szl.receipt-agent-output.v1`. They are deliberately different. The model
+proposes. The deterministic runtime validates, resolves, gates, and receipts.
 
 `receipt-agent-output.schema.json` requires each response to separate:
 
@@ -87,11 +95,11 @@ fingerprints are supplemental regression signals, not proof of weight identity.
 
 The proposed family is declared in `release-manifest.json`:
 
-- `SZLHOLDINGS/SZL-ReceiptAgent-1.5B` — PEFT adapter, never a renamed full base;
-- `SZLHOLDINGS/SZL-ReceiptAgent-1.5B-Eval` — frozen, rights-reviewed evaluation set;
-- `SZLHOLDINGS/SZL-ReceiptAgent-Schemas` — schemas and conformance fixtures;
-- `SZLHOLDINGS/SZL-ReceiptAgent-Demo` — fail-closed Space with live load and inference receipts; and
-- `SZLHOLDINGS/SZL-ReceiptAgent-Collection` — collection created last, after every member exists.
+- `SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent` — PEFT adapter, never a renamed full base;
+- `SZLHOLDINGS/SZL-Forge-ReceiptAgent-Eval` — frozen, rights-reviewed evaluation set;
+- `SZLHOLDINGS/SZL-Forge-ReceiptAgent-Schemas` — schemas and conformance fixtures;
+- `SZLHOLDINGS/SZL-Forge-ReceiptAgent-Demo` — fail-closed Space with live load and inference receipts; and
+- `SZLHOLDINGS/SZL-Forge-Collection` — collection created last, after every member exists.
 
 Each ID is `PLANNED_NOT_CREATED`. The family should be published only after
 independent model-load, output-conformance, and inference receipts pass. A

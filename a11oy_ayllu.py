@@ -4,8 +4,8 @@ Follows a11oy's module convention: expose `register(app, ns="a11oy") -> str`, mo
 by serve.py inside a try/except guard so a11oy boots unaffected if anything here fails.
 
 The model backend is a11oy's OWN orchestrator (see ayllu/backend.py): ask/council now
-produce REAL answers when an inference credential is present on the Space, and an
-honest, clearly-labeled stub otherwise — never a fabricated answer. Cost is bounded:
+produce REAL answers when a reachable local endpoint or credentialed remote provider
+is available, and an honest, clearly-labeled stub otherwise — never a fabricated answer. Cost is bounded:
 prompt length is capped, council fan-out is capped, and ask/council carry a process-
 wide rate limit (429 + Retry-After).
 
@@ -63,12 +63,14 @@ from ayllu import __version__ as _AYLLU_VERSION
 from ayllu import backend as _backend
 from ayllu.lounge import Lounge
 from ayllu.loop import run_turn
+from ayllu.model_binding import family_binding, persona_binding
 from ayllu.personas import ROSTER, get_persona
 
 __version__ = _AYLLU_VERSION
 
 # ---- cost + abuse bounds (public Space; real token cost once live) -----------
 MAX_PROMPT_CHARS = 6000
+MAX_BODY_BYTES = 24 * 1024
 COUNCIL_MAX = 5                                     # hard cap on participants / call
 COUNCIL_DEBATE_MAX = 3  # debate doubles model calls; tighter cap bounds cost
 ASK_MAX_TOKENS = 384
@@ -81,8 +83,39 @@ COUNCIL_CONTRACT_VERSION = "2.0"
 COUNCIL_SCHEMA = "szl.ayllu.evidence-bound-council/v2"
 NEMO_ARTIFACT = "https://huggingface.co/SZLHOLDINGS/szl-nemo"
 
-# One process-wide lounge (in-memory, honest source labels).
+# One process-wide opt-in lounge (in-memory, honest source labels). Public ask and
+# council handlers do not automatically publish caller output into it.
 _LOUNGE = Lounge()
+
+
+class _BodyTooLarge(ValueError):
+    pass
+
+
+async def _bounded_json_body(request: "Request") -> Dict[str, Any]:
+    """Read one bounded JSON object before any paid inference is attempted."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            size = int(declared)
+        except ValueError as exc:
+            raise ValueError("invalid content-length") from exc
+        if size < 0:
+            raise ValueError("invalid content-length")
+        if size > MAX_BODY_BYTES:
+            raise _BodyTooLarge(f"request body exceeds {MAX_BODY_BYTES} bytes")
+    data = bytearray()
+    async for chunk in request.stream():
+        if len(data) + len(chunk) > MAX_BODY_BYTES:
+            raise _BodyTooLarge(f"request body exceeds {MAX_BODY_BYTES} bytes")
+        data.extend(chunk)
+    try:
+        value = json.loads(bytes(data).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("invalid JSON body") from exc
+    if not isinstance(value, dict):
+        raise ValueError("request body must be a JSON object")
+    return value
 
 
 class _RateBucket:
@@ -277,6 +310,7 @@ def council_manifest(ns: str = "a11oy",
             "outer Council DSSE receipt",
         ],
         "limits": {
+            "request_body_bytes": MAX_BODY_BYTES,
             "prompt_chars": MAX_PROMPT_CHARS,
             "participants": COUNCIL_MAX,
             "debate_participants": COUNCIL_DEBATE_MAX,
@@ -311,6 +345,8 @@ def council_manifest(ns: str = "a11oy",
                 "not SZL-trained weights. Council answers use the live A11OY router."
             ),
         },
+        "model_family": family_binding(
+            namespace=ns, backend_status=_backend.backend_status()),
         "evaluation": {
             "council_effectiveness": "NOT_MEASURED",
             "required_next": (
@@ -350,7 +386,9 @@ def _nemo_council_route(prompt: str, sign_fn=None) -> Dict[str, Any]:
 
 
 def _build_council_contract(prompt: str, result: Dict[str, Any],
-                            nemo_route: Dict[str, Any]) -> Dict[str, Any]:
+                            nemo_route: Dict[str, Any],
+                            ns: str = "a11oy") -> Dict[str, Any]:
+    family = family_binding(namespace=ns, backend_status=_backend.backend_status())
     rounds = result.get("rounds") or []
     turn_evidence = []
     for turn in rounds:
@@ -368,6 +406,11 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
             "output_sha256": (hashlib.sha256(str(answer).encode("utf-8")).hexdigest()
                               if answer is not None else None),
             "energy_receipt_sha256": _receipt_sha(turn.get("energy_receipt")),
+            "model_binding": turn.get("model_binding"),
+            "model_binding_sha256": (
+                _sha256_json(turn["model_binding"])
+                if isinstance(turn.get("model_binding"), dict) else None
+            ),
         })
     replay_material = {
         "contract_version": COUNCIL_CONTRACT_VERSION,
@@ -398,6 +441,8 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
         "correctness_state": "NOT_VERIFIED",
         "prompt_sha256": replay_material["prompt_sha256"],
         "turn_evidence": turn_evidence,
+        "model_family": family,
+        "model_family_binding_sha256": _sha256_json(family),
         "routing": nemo_route,
         "formula_path": [
             {"id": "lambda-aggregate", "state": "CONJECTURE_1_ADVISORY"},
@@ -614,7 +659,8 @@ section[id]{scroll-margin-top:72px}
 <h1>Ayllu</h1>
 <p class="sub">The AlloyScape tribe, ingested and reborn as a11oy's own agent community —
 <span id="count">?</span> personas, one guarded loop. v__VERSION__ ·
-<span title="Curated, cited text appended to every persona's system prompt — no weights changed anywhere.">knowledge instilled, never "trained"</span></p>
+<span title="Curated, cited text appended to every persona's system prompt — no weights changed anywhere.">knowledge instilled, never "trained"</span> ·
+<span id="family">model binding loading</span></p>
 
 <section class="card" id="sec-ask">
   <h2>Ask a persona</h2>
@@ -649,14 +695,14 @@ section[id]{scroll-margin-top:72px}
 <section class="card" id="sec-roster">
   <h2>Roster</h2>
   <table id="roster"><thead><tr><th>Persona</th><th>Quechua</th><th>Archetype</th>
-  <th>a11oy domain</th><th>Autonomy</th><th>Knowledge</th></tr></thead><tbody></tbody></table>
+  <th>a11oy domain</th><th>Forge intent</th><th>Autonomy</th><th>Knowledge</th></tr></thead><tbody></tbody></table>
   <div class="src" style="margin-top:6px">"Instilled ✓" = the shared, cited Wave-13 leaders
   corpus is appended to that persona's system prompt at runtime. No model weights are
   changed anywhere — this is knowledge instillation, not training.</div>
 </section>
 
 <section class="card" id="sec-lounge">
-  <h2>Lounge <button id="refreshlounge" class="mini">refresh</button></h2>
+  <h2>Opt-in lounge <button id="refreshlounge" class="mini">refresh</button></h2>
   <div id="lounge" class="out"></div>
 </section>
 
@@ -691,7 +737,8 @@ section[id]{scroll-margin-top:72px}
 <div class="law"><b>Bounded-autonomy law.</b> Every persona runs under a11oy's
 fail-closed Λ-gate; state-changing actions require two-person attestation. The tribe's
 "always execute" mandate is deliberately <b>not</b> adopted. Answers come from a11oy's
-own model backend + router; when no inference credential is set on this Space,
+own model backend + router; when neither a reachable local backend nor a remote
+inference credential is available,
 <code>ask</code>/<code>council</code> return a clearly-labeled stub — never a fabricated
 answer. Debate mode is bounded to exactly two rounds. These turns do direct completion
 only (no tool dispatch yet).</div>
@@ -744,6 +791,9 @@ async function loadRoster(){
   badge.textContent=mode.toUpperCase();
   badge.className='badge '+(mode==='live'?'live':mode==='stub'?'stub':'warn');
   badge.title=b.note||'';
+  const mf=data.model_family||{}, family=document.getElementById('family');
+  family.textContent=(mf.family_id||'model family unknown')+' · '+(mf.binding_state||'UNAVAILABLE');
+  family.title='Profile intent only. The actual model is named by each turn receipt.';
   const sel=document.getElementById('persona'), csel=document.getElementById('councilsel');
   const rows=[];
   (data.personas||[]).forEach(p=>{
@@ -751,8 +801,10 @@ async function loadRoster(){
     o.textContent=p.name+' — '+p.domain;sel.appendChild(o);
     csel.appendChild(o.cloneNode(true));
     const kn=p.knowledge_instilled?'instilled ✓':'—';
+    const mb=p.model_binding||{};
     rows.push(`<tr><td>${chip(p.name)} <b>${esc(p.name)}</b></td><td>${esc(p.quechua)}</td>`
       +`<td>${esc(p.archetype)}</td><td>${esc(p.domain)}</td>`
+      +`<td>${esc(mb.primary_profile||'UNBOUND')}</td>`
       +`<td>${esc(p.autonomy_level)}</td><td class="src">${kn}</td></tr>`);
   });
   document.querySelector('#roster tbody').innerHTML=rows.join('');
@@ -910,16 +962,25 @@ def register(app, ns: str = "a11oy") -> str:
             return None
 
     async def _roster(request: "Request") -> "JSONResponse":
+        backend = _backend.backend_status()
         return JSONResponse({
             "count": len(ROSTER),
             "namespace": ns,
-            "personas": [p.metadata() for p in ROSTER],
-            "backend": _backend.backend_status(),
+            "personas": [
+                {**p.metadata(), "model_binding": persona_binding(p.name)}
+                for p in ROSTER
+            ],
+            "backend": backend,
+            "model_family": family_binding(namespace=ns, backend_status=backend),
             "law": "a11oy bounded-autonomy (fail-closed Λ-gate); the tribe's unbounded "
                    "'always execute' mandate is NOT adopted",
             "provenance": "ingested from the AlloyScape tribe design; see ayllu/INGEST.md",
             "version": __version__,
         })
+
+    async def _model_binding(request: "Request") -> "JSONResponse":
+        return JSONResponse(family_binding(
+            namespace=ns, backend_status=_backend.backend_status()))
 
     async def _council_manifest(request: "Request") -> "JSONResponse":
         storage = getattr(request.app.state, "ayllu_council_khipu_storage",
@@ -933,12 +994,12 @@ def register(app, ns: str = "a11oy") -> str:
                 {"error": "rate limited (process-wide ask budget)", "retry_after_s": retry},
                 status_code=429, headers={"Retry-After": str(retry)})
         try:
-            body = await request.json()
-        except Exception as e:
-            return JSONResponse({"error": f"invalid JSON: {e}"}, status_code=400)
-        if not isinstance(body, dict):
-            return JSONResponse({"error": "request body must be a JSON object"},
-                                status_code=422)
+            body = await _bounded_json_body(request)
+        except _BodyTooLarge as exc:
+            return JSONResponse({"error": str(exc), "max_bytes": MAX_BODY_BYTES},
+                                status_code=413)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         name = body.get("persona")
         prompt = body.get("prompt")
         if not name or not prompt:
@@ -967,20 +1028,28 @@ def register(app, ns: str = "a11oy") -> str:
 
         turn = await run_turn(p, prompt, model_complete=_ask_complete,
                               difficulty=difficulty)
+        binding = turn["model_binding"]
         ask_id = str(uuid.uuid4())
+        # Bind the exact answer value returned to the caller.  An empty string is
+        # a valid (if unhelpful) model output and must not silently fall through
+        # to the honesty explanation in the signed receipt.
+        answer = turn.get("answer")
+        output_text = answer if answer is not None else (turn.get("honesty") or "")
         receipt = _make_receipt({
             "ask_id": ask_id,
             "persona": p.name,
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
+            "output_sha256": hashlib.sha256(output_text.encode()).hexdigest(),
             "tier_advisory": turn.get("tier", {}).get("route"),
             "model": turn.get("model"),
             "stub": turn.get("stub"),
             "energy_receipt_sha256": _receipt_sha(turn.get("energy_receipt")),
+            "family_id": binding["family_id"],
+            "profile_intent": binding["primary_profile"],
+            "binding_state": binding["binding_state"],
+            "model_binding_sha256": _sha256_json(binding),
             "honesty": turn.get("honesty"),
         }, sign_fn=_runtime_signer(request))
-        _LOUNGE.post(
-            p.name, turn.get("answer") or turn.get("honesty"),
-            source=("brain" if turn.get("answer") is not None else "persona-fallback"))
         return JSONResponse({"ask_id": ask_id, "turn": turn, "receipt": receipt})
 
     async def _council(request: "Request") -> "JSONResponse":
@@ -991,12 +1060,12 @@ def register(app, ns: str = "a11oy") -> str:
                  "retry_after_s": retry},
                 status_code=429, headers={"Retry-After": str(retry)})
         try:
-            body = await request.json()
-        except Exception as e:
-            return JSONResponse({"error": f"invalid JSON: {e}"}, status_code=400)
-        if not isinstance(body, dict):
-            return JSONResponse({"error": "request body must be a JSON object"},
-                                status_code=422)
+            body = await _bounded_json_body(request)
+        except _BodyTooLarge as exc:
+            return JSONResponse({"error": str(exc), "max_bytes": MAX_BODY_BYTES},
+                                status_code=413)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         prompt = body.get("prompt")
         if not prompt:
             return JSONResponse({"error": "'prompt' is required"}, status_code=422)
@@ -1033,13 +1102,14 @@ def register(app, ns: str = "a11oy") -> str:
                 timeout_s=COUNCIL_TURN_TIMEOUT_S)
 
         result = await _LOUNGE.deliberate(
-            prompt, personas, model_complete=_council_complete, debate=debate)
+            prompt, personas, model_complete=_council_complete, debate=debate,
+            publish_to_lounge=False)
         if cap_note:
             result["cap_note"] = cap_note
         council_id = str(uuid.uuid4())
         signer = _runtime_signer(request)
         nemo_route = _nemo_council_route(prompt, sign_fn=signer)
-        contract = _build_council_contract(prompt, result, nemo_route)
+        contract = _build_council_contract(prompt, result, nemo_route, ns=ns)
         store = getattr(request.app.state, "ayllu_council_khipu", council_store)
         storage = getattr(request.app.state, "ayllu_council_khipu_storage",
                           council_storage)
@@ -1055,6 +1125,8 @@ def register(app, ns: str = "a11oy") -> str:
             "evidence_state": contract["evidence_state"],
             "replay_key": contract["replay"]["key"],
             "turn_evidence": contract["turn_evidence"],
+            "model_family_binding_sha256": contract[
+                "model_family_binding_sha256"],
             "nemo_route_receipt_sha256": _receipt_sha(
                 (contract.get("routing") or {}).get("receipt")),
             "human_checkpoint": contract["human_checkpoint"],
@@ -1079,6 +1151,9 @@ def register(app, ns: str = "a11oy") -> str:
     app.add_api_route(f"/api/{ns}/v1/ayllu/roster", _roster, methods=["GET"],
                       tags=["ayllu"],
                       summary="a11oy-native agent roster + live/stub backend status")
+    app.add_api_route(f"/api/{ns}/v1/ayllu/model-binding", _model_binding,
+                      methods=["GET"], tags=["ayllu"],
+                      summary="Honest SZL-Forge family and Yupaq proposal binding")
     app.add_api_route(f"/api/{ns}/v1/ayllu/ask", _ask, methods=["POST"],
                       tags=["ayllu"],
                       summary="Ask one persona — bounded, honest, receipted")
@@ -1089,13 +1164,13 @@ def register(app, ns: str = "a11oy") -> str:
                       tags=["ayllu"],
                       summary="Bounded multi-persona deliberation (capped fan-out; optional 2-round debate mode after arXiv:2305.14325)")
     app.add_api_route(f"/api/{ns}/v1/ayllu/lounge", _lounge_feed, methods=["GET"],
-                      tags=["ayllu"], summary="Recent collaboration lounge feed")
+                      tags=["ayllu"], summary="Opt-in collaboration lounge feed")
     app.add_api_route("/ayllu", _page, methods=["GET"], include_in_schema=False)
 
     return (
         f"ok — ayllu registered: {len(ROSTER)} personas; live model backend "
         f"({_backend.backend_status().get('mode')}); bounded-autonomy Λ-gate; "
-        f"/ayllu + /api/{ns}/v1/ayllu/roster|ask|council|lounge; "
+        f"/ayllu + /api/{ns}/v1/ayllu/roster|model-binding|ask|council|lounge; "
         f"debate-mode council; council_khipu={council_storage.get('backend')} "
         f"(process_restart_durable={council_storage.get('durable')}, "
         f"redeploy=NOT_VERIFIED); version={__version__}"

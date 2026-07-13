@@ -852,6 +852,18 @@ def has_inference_credential() -> bool:
     return bool(_resolve_hf_token()) or any(_resolve_provider_keys().values())
 
 
+def inference_backend_ready() -> bool:
+    """True when either a reachable local backend or remote credential is usable.
+
+    A local Ollama/LM Studio-style endpoint may intentionally require no API key.
+    This is distinct from :func:`has_inference_credential`: it never relabels a
+    no-key local service as credentialed, and an unreachable local URL does not
+    make the remote fallback live without a real remote credential.
+    """
+    _base, is_local = _serving_base()
+    return bool(is_local or has_inference_credential())
+
+
 def honest_stub_text(user_msg: str, decision: dict[str, Any]) -> str:
     """Deterministic, CLEARLY-LABELED stub. NEVER a fabricated model answer.
 
@@ -861,14 +873,15 @@ def honest_stub_text(user_msg: str, decision: dict[str, Any]) -> str:
     """
     snippet = (user_msg or "").strip().replace("\n", " ")[:160]
     return (
-        "**[deterministic stub \u2014 inference token not yet set]**\n\n"
+        "**[deterministic stub \u2014 no usable inference backend]**\n\n"
         "a11oy.code received your request"
         + (f" (\u201c{snippet}\u201d)" if snippet else "")
         + f" and routed it to tier **{decision.get('tier')}** \u2192 model "
         f"`{decision.get('model')}` (license {decision.get('license_class')}). "
         "The PURIQ \u039b-gate, tier selection and the signed Khipu receipt below are "
-        "REAL deterministic math. The **model completion itself is unavailable** because no "
-        "inference credential is configured on this Space \u2014 so no answer is fabricated "
+        "REAL deterministic math. The **model completion itself is unavailable** because "
+        "neither a reachable local endpoint nor a credentialed remote provider is available "
+        "\u2014 so no answer is fabricated "
         "(Zero-Bandaid Law).\n\n"
         "_To enable live generation, paste a valid token into the Space secret_ `HF_TOKEN` "
         "_(Settings \u2192 Variables and secrets). Generation then goes live instantly \u2014 no redeploy._"
@@ -906,19 +919,21 @@ async def _call_model(client: httpx.AsyncClient, model: str, payload: dict[str, 
 async def agent_model_complete(messages: list[dict], **kw) -> dict[str, Any]:
     """model_complete callable injected into the agent loop's FINALIZE step.
 
-    If a real inference credential is present, calls the live model (resilient
-    fallback walk). Otherwise returns the CLEARLY-LABELED deterministic stub —
-    the agentic control-flow already ran for real (Zero-Bandaid Law)."""
-    if not has_inference_credential():
+    If a reachable local endpoint or credentialed remote provider is available,
+    calls the live model (resilient fallback walk). Otherwise returns the
+    CLEARLY-LABELED deterministic stub — the agentic control-flow already ran
+    for real (Zero-Bandaid Law)."""
+    if not inference_backend_ready():
         last = next((m.get("content") for m in reversed(messages)
                      if m.get("role") == "user"), "")
         snippet = (last if isinstance(last, str) else json.dumps(last)).strip()[:160]
         stub_text = (
-            "**[deterministic stub — inference token not yet set]**\n\n"
+            "**[deterministic stub — no usable inference backend]**\n\n"
             "The a11oy Code agent's governed control-flow (plan DAG, per-step Λ-gate, "
             "PURIQ gate, typed evidence, signed Khipu receipts) executed FOR REAL. The "
-            "model-authored synthesis is unavailable because no inference credential is "
-            f"configured on this Space (set the secret {_code_secret_name()}), so no answer "
+            "model-authored synthesis is unavailable because neither a reachable local "
+            f"endpoint nor a credentialed remote provider (secret {_code_secret_name()}) "
+            "is available, so no answer "
             "is fabricated (Zero-Bandaid Law)."
             + (f" Request: \u201c{snippet}\u201d." if snippet else ""))
         out = {"text": stub_text, "model": "deterministic-stub", "stub": True}
@@ -1090,7 +1105,13 @@ async def _call_model_resilient(
         seen.add(m)
         try:
             data = await _call_model(client, m, payload)
-            return data, m
+            observed = data.get("model") if isinstance(data, dict) else None
+            if isinstance(observed, str) and observed.strip():
+                model_used = observed.strip()
+            else:
+                _base, is_local = _serving_base()
+                model_used = _map_model_for_local(m) if is_local else m
+            return data, model_used
         except Exception as exc:  # provider 4xx/5xx, timeout, etc.
             last_exc = exc
             _METRICS["router_fallbacks_total"] = _METRICS.get("router_fallbacks_total", 0) + 1
@@ -1911,7 +1932,7 @@ async def agent_status() -> JSONResponse:
         "guards": {"max_steps": _agent.MAX_STEPS,
                    "max_reflect_depth": _agent.MAX_REFLECT_DEPTH,
                    "lambda_floor": _agent.LAMBDA_FLOOR},
-        "mode": "live" if has_inference_credential() else "deterministic_stub",
+        "mode": "live" if inference_backend_ready() else "deterministic_stub",
         "token_secret": _code_secret_name(),
         "recent_reflections": _agent.recent_reflections(limit=10),
     })
@@ -2384,13 +2405,14 @@ async def chat_stream(request: Request):
             return
 
         # ----------------------------------------------------------------
-        # HONEST-STUB BRANCH: if there is NO inference credential, do NOT
+        # HONEST-STUB BRANCH: if there is no reachable local backend and no
+        # credentialed remote backend, do NOT
         # error out and do NOT fabricate. Stream a clearly-labeled stub plus
         # the real signed receipt, then finish cleanly. This keeps the tab
         # fully operational (routing + Lambda + receipt) while being honest
-        # that the model text is unavailable until a token is pasted.
+        # that the model text is unavailable until a backend becomes usable.
         # ----------------------------------------------------------------
-        if not has_inference_credential():
+        if not inference_backend_ready():
             stub = honest_stub_text(user_msg, decision)
             for word in re.findall(r"\S+\s*", stub):
                 yield sse("token", {"text": word})

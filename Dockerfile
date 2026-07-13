@@ -163,6 +163,10 @@ COPY knowledge.json ./static/knowledge.json
 # registers live. (dockerfile-copy-guard verifies these sources exist on main.)
 COPY a11oy_ayllu.py ./
 COPY ayllu/ ./ayllu/
+# Canonical model-family/control-plane evidence ships with the runtime image so
+# deployed status surfaces can be audited against the same release contracts.
+COPY model_release/szl-forge-family.json model_release/szl-compute-plane.json model_release/szl-ayllu-binding.json ./model_release/
+COPY model_release/receipt-agent/ ./model_release/receipt-agent/
 # Waqay Security Loop wave 15: pure read-only proposal contract.  The module
 # exposes zero external effectors; serve.py registers only its manifest GET.
 COPY szl_waqay_security_loop.py ./
@@ -181,6 +185,13 @@ COPY szl_numerics_adapter.py ./
 COPY szl_numerics_dataset.py ./
 COPY szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/
+# Wave 23 Yupaq governed computation plane.  It ships only the strict routing
+# contract and delegates to already-copied engines; it installs no new runtime,
+# prover, provider SDK, or proprietary dependency.
+COPY szl_yupaq_compute.py ./
+COPY proofs/lean-theorem-tree.json ./proofs/lean-theorem-tree.json
+COPY research/formula-training-admission/admission-manifest.json ./research/formula-training-admission/admission-manifest.json
+COPY data/szl-lake/evidence-manifest.json ./data/szl-lake/evidence-manifest.json
 # Wave 19 formal-conjecture receipt lab. This copies only the strict contract,
 # bounded ledger, and public-key receipt verifier; it installs no prover and
 # exposes no command or network execution path.

@@ -19,7 +19,7 @@
       "const": "szl.receipt-agent-evaluation-manifest.v1"
     },
     "program_id": {
-      "const": "szl-receipt-agent-1.5b"
+      "const": "szl-forge-1.5b-receipt-agent"
     },
     "evaluation_state": {
       "const": "INCOMPLETE"
@@ -81,7 +81,7 @@
           ],
           "properties": {
             "id": {
-              "const": "SZL-ReceiptAgent-1.5B"
+              "const": "SZL-Forge-1.5B-ReceiptAgent-v1"
             },
             "state": {
               "const": "NO_WEIGHT_ARTIFACT_TRAINING_NOT_RUN"

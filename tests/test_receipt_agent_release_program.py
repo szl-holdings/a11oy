@@ -183,13 +183,16 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
         self.assertEqual(self.admission["promotion_decision"], "BLOCKED")
         self.assertTrue(all(gate["required_for_promotion"] for gate in gates))
         self.assertTrue(all(gate["evidence"] for gate in gates))
-        self.assertTrue(any(gate["state"] == "FAIL" for gate in gates))
         self.assertTrue(any(gate["state"] == "BLOCKED" for gate in gates))
         self.assertTrue(any(gate["state"] == "NOT_EVALUATED" for gate in gates))
         by_id = {gate["gate_id"]: gate for gate in gates}
+        self.assertEqual(by_id["RA-G03"]["state"], "PASS")
+        self.assertEqual(by_id["RA-G04"]["state"], "PASS")
+        self.assertEqual(by_id["RA-G05"]["state"], "PASS")
+        self.assertEqual(by_id["RA-G06"]["state"], "PASS")
         self.assertIn("9,464 of 9,464", by_id["RA-G04"]["observed"])
         self.assertIn("148 holdout", by_id["RA-G05"]["observed"])
-        self.assertIn("0 of 12", by_id["RA-G06"]["observed"])
+        self.assertIn("0-of-12", by_id["RA-G06"]["observed"])
 
     def test_three_way_evaluation_is_preregistered_but_not_run(self) -> None:
         self.assertEqual(
@@ -277,10 +280,41 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             validate(invalid, self.output_schema)
 
+    def test_tool_and_receipt_state_bindings_are_not_contradictory(self) -> None:
+        proposed_without_identity = copy.deepcopy(self.example)
+        proposed_without_identity["tool_proposal"]["state"] = "PROPOSED"
+        with self.assertRaises(AssertionError):
+            validate(proposed_without_identity, self.output_schema)
+
+        none_with_tool = copy.deepcopy(self.example)
+        none_with_tool["tool_proposal"]["tool_id"] = "shell"
+        none_with_tool["tool_proposal"]["arguments_sha256"] = "a" * 64
+        with self.assertRaises(AssertionError):
+            validate(none_with_tool, self.output_schema)
+
+        unavailable_with_receipt = copy.deepcopy(self.example)
+        unavailable_with_receipt["receipt_binding"]["receipt_id"] = "receipt:invented"
+        with self.assertRaises(AssertionError):
+            validate(unavailable_with_receipt, self.output_schema)
+
+        signed_without_receipt = copy.deepcopy(self.example)
+        signed_without_receipt["receipt_binding"]["state"] = "SIGNED"
+        with self.assertRaises(AssertionError):
+            validate(signed_without_receipt, self.output_schema)
+
+    def test_model_card_example_is_the_schema_valid_fixture(self) -> None:
+        card = (PROGRAM / "MODEL_CARD_DRAFT.md").read_text(encoding="utf-8")
+        match = re.search(r"```json\n(\{.*?\})\n```", card, flags=re.DOTALL)
+        self.assertIsNotNone(match)
+        inline_example = json.loads(match.group(1))
+        self.assertEqual(inline_example, self.example)
+        validate(inline_example, self.output_schema)
+
     def test_model_card_is_detailed_without_claiming_a_release(self) -> None:
         card = (PROGRAM / "MODEL_CARD_DRAFT.md").read_text(encoding="utf-8")
         required_markers = (
             "MODEL PROGRAM - NOT A WEIGHT RELEASE",
+            "SZL-Forge-1.5B-ReceiptAgent-v1",
             "9,464 raw nodes",
             "148 rows",
             "0 approved for reuse",

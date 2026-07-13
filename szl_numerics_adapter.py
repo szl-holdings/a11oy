@@ -489,11 +489,11 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     prefix = f"/api/{ns}/v1/numerics"
 
     @app.get(f"{prefix}/status")
-    async def numerics_status() -> JSONResponse:
+    async def numerics_status():  # noqa: ANN202
         return JSONResponse(engine_status())
 
     @app.post(f"{prefix}/run/{{engine}}")
-    async def numerics_run(engine: str, request: Request) -> JSONResponse:
+    async def numerics_run(engine: str, request: Request):  # noqa: ANN202
         try:
             result = run_engine(engine, await _bounded_json_body(request))
         except ContractError as exc:
@@ -501,7 +501,7 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
         return JSONResponse(result, status_code=200 if result["state"] == "RESULT" else 503)
 
     @app.post(f"{prefix}/compare")
-    async def numerics_compare(request: Request) -> JSONResponse:
+    async def numerics_compare(request: Request):  # noqa: ANN202
         try:
             result = compare_engines(await _bounded_json_body(request))
         except ContractError as exc:

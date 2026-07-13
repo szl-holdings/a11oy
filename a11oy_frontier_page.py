@@ -963,11 +963,11 @@ def register(app, ns: str = "a11oy") -> str:
     from fastapi.responses import HTMLResponse, JSONResponse
 
     @app.get("/frontier", include_in_schema=False)
-    async def frontier_page() -> HTMLResponse:  # noqa: ANN202
+    async def frontier_page():  # noqa: ANN202
         return HTMLResponse(_page_html(ns))
 
     @app.get(f"/api/{ns}/v1/frontier/surfaces")
-    async def frontier_surfaces() -> JSONResponse:  # noqa: ANN202
+    async def frontier_surfaces():  # noqa: ANN202
         """Machine-verifiable manifest of every 3D frontier surface.
 
         id + title + honesty label (parsed from the surface source, verbatim) +
@@ -975,7 +975,7 @@ def register(app, ns: str = "a11oy") -> str:
         return JSONResponse(build_surfaces_manifest(ns))
 
     @app.get(f"/api/{ns}/v1/frontier/page-manifest", include_in_schema=False)
-    async def frontier_page_manifest() -> JSONResponse:  # noqa: ANN202
+    async def frontier_page_manifest():  # noqa: ANN202
         return JSONResponse({
             "section": "Frontier",
             "page": "/frontier",

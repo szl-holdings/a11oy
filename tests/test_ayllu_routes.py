@@ -15,6 +15,7 @@ route IS registered, it just returns 422 instead of running. So this guard boots
 the ayllu routes on a bare app and exercises them for real (no mocks, no network).
 """
 import asyncio
+import hashlib
 import sys
 import time
 from types import SimpleNamespace
@@ -86,6 +87,32 @@ def test_ask_unknown_persona_is_404():
     assert r.status_code == 404
 
 
+def test_ask_receipt_binds_an_empty_answer_exactly(monkeypatch):
+    async def empty_answer(**_kwargs):
+        return {
+            "text": "",
+            "model": "local-test-model",
+            "stub": False,
+            "honesty": "answer produced by the test backend",
+        }
+
+    monkeypatch.setattr(a11oy_ayllu._backend, "model_complete", empty_answer)
+    monkeypatch.setattr(
+        a11oy_ayllu,
+        "_make_receipt",
+        lambda payload, sign_fn=None: payload,
+    )
+    a11oy_ayllu._ASK_BUCKET._hits.clear()
+    response = _client().post(
+        "/api/a11oy/v1/ayllu/ask",
+        json={"persona": "Amaru", "prompt": "Return an empty answer"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["turn"]["answer"] == ""
+    assert body["receipt"]["output_sha256"] == hashlib.sha256(b"").hexdigest()
+
+
 def test_council_contract_never_promotes_model_text_to_verified_truth():
     result = {
         "participants": ["Amaru"],
@@ -121,6 +148,7 @@ def test_council_fanout_uses_bounded_tokens_and_one_parallel_deadline(monkeypatc
         "debate": False,
     })
     assert response.status_code == 200
+    assert response.json()["result"]["published_to_lounge"] is False
     assert len(calls) == 3
     assert {c["kwargs"]["max_tokens"] for c in calls} == {
         a11oy_ayllu.COUNCIL_MAX_TOKENS}

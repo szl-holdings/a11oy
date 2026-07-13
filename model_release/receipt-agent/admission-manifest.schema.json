@@ -17,7 +17,7 @@
       "const": "szl.receipt-agent-admission-manifest.v1"
     },
     "program_id": {
-      "const": "szl-receipt-agent-1.5b"
+      "const": "szl-forge-1.5b-receipt-agent"
     },
     "evaluated_at": {
       "type": "string",

@@ -2,7 +2,7 @@
   "schema_version": "szl.receipt-agent-output.v1",
   "response_id": "response:unavailable-example-0001",
   "model_identity": {
-    "candidate_id": "SZL-ReceiptAgent-1.5B",
+    "candidate_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
     "release_state": "NOT_PROMOTED",
     "base_repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
     "base_revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",

@@ -17,14 +17,14 @@ tags:
 - experimental
 ---
 
-# SZL-ReceiptAgent-1.5B
+# SZL-Forge-1.5B — ReceiptAgent profile
 
 > **MODEL PROGRAM - NOT A WEIGHT RELEASE**<br>
 > Release: `NOT_PROMOTED` | Quality: `NOT_ESTABLISHED` | Weights: `NOT_CREATED` | Inference: `UNAVAILABLE`
 
 **A small sovereign agent that must carry its evidence, uncertainty, formula status, and execution boundary inside every response.**
 
-This card is the prerelease contract for SZL-ReceiptAgent-1.5B. It is intentionally published before weights so that the model is judged against a frozen contract rather than a story written after training. A card-only repository must never be counted as a loadable model.
+This card is the prerelease contract for `SZL-Forge-1.5B-ReceiptAgent-v1`, the first governed profile in the SZL-Forge family. It is intentionally published before weights so that the model is judged against a frozen contract rather than a story written after training. A card-only repository must never be counted as a loadable model.
 
 ## Why this model should exist
 
@@ -53,10 +53,11 @@ ReceiptAgent is not positioned as a Claude imitation, an "uncensored" derivative
 | Layer | Role | Inside the weights? |
 |---|---|---:|
 | Qwen2.5 1.5B base | Language and instruction prior | Yes |
-| ReceiptAgent PEFT adapter | Structured evidence/abstention behavior | Planned |
+| ReceiptAgent PEFT adapter | Unsigned structured draft proposals | Planned |
 | 9,464-node A11oy Brain | Retrieval and evaluation substrate | No |
 | Formula crosswalk / Lean / mathlib status | Namespaced evidence and verification targets | No |
 | Ouroboros loop | Retrieve, verify, approve, observe, learn orchestration | No |
+| Deterministic ReceiptAgent runtime | Resolve evidence/formulae, bind hashes, and build the final envelope | No |
 | A11oy policy gates | Authorization and effect control | No |
 | DSSE/in-toto receipt layer | Signing, identity, and replay verification | No |
 
@@ -86,9 +87,11 @@ The Brain and formula system can make the released model more useful **without b
 
 No card may claim training on "all 200 formulas," the Brain, Lean, mathlib, GitHub, publications, or Hugging Face until row-level admission evidence proves the exact statement. The current repository evidence supports 148 formula crosswalk rows, not a verified 200-formula training set.
 
-## Output contract
+## Two-stage output contract
 
-Every output must validate against `szl.receipt-agent-output.v1`. The envelope separates:
+The adapter is intended to be trained to emit only `szl.forge-receipt-draft.v1`; ReceiptAgent-specific weights do not yet exist. It cannot admit evidence, grant proof status, authorize execution, or sign a receipt. `receipt_runtime.py` validates a candidate draft, resolves identifiers against immutable catalogs, applies policy, computes canonical hashes, and builds `szl.receipt-agent-output.v1`. It can validate and bind model identity fields supplied in a caller-provided external run-receipt mapping; it does not independently query or authenticate the serving runtime, so public promotion still requires a trusted model-load receipt verifier.
+
+An `ANSWERED` final envelope is impossible unless the runtime cryptographically verifies a replay-protected receipt binding the draft, answer, model identity, request, evidence set, formula set, calibration, tool proposal, and policy snapshot. Otherwise the bridge returns a typed abstention. The local bridge supports non-stub HMAC-SHA256 DSSE for experimental operation; public promotion still requires asymmetric DSSE/in-toto attestation and an independently readable transparency-log record. The final envelope separates:
 
 - model identity and release state;
 - `ANSWERED`, `ABSTAINED`, or `UNAVAILABLE` status;
@@ -98,13 +101,21 @@ Every output must validate against `szl.receipt-agent-output.v1`. The envelope s
 - a non-executing tool proposal requiring approval; and
 - request, evidence-set, policy-snapshot, and external-receipt bindings.
 
-An answered response without at least one `ADMITTED_REFERENCE` is invalid. An abstained or unavailable response cannot carry answer text. A proposed tool action cannot carry an execution receipt. Proof transfer is forbidden unless the formula status and independent verification receipt authorize it.
+An answered response without at least one `ADMITTED_REFERENCE` is invalid. An abstained or unavailable response cannot carry answer text. A proposed tool action cannot carry an execution receipt. Proof transfer is forbidden unless the formula status and independent verification receipt authorize it. The model itself never emits the signed final envelope.
 
 Illustrative **unavailable** response:
 
 ```json
 {
   "schema_version": "szl.receipt-agent-output.v1",
+  "response_id": "response:unavailable-example-0001",
+  "model_identity": {
+    "candidate_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
+    "release_state": "NOT_PROMOTED",
+    "base_repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "base_revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "adapter_sha256": null
+  },
   "status": "UNAVAILABLE",
   "answer": null,
   "evidence": [],
@@ -112,20 +123,25 @@ Illustrative **unavailable** response:
   "uncertainty": {
     "confidence": null,
     "calibration_state": "NOT_EVALUATED",
-    "basis": "No promoted ReceiptAgent artifact is loaded."
+    "basis": "No promoted ReceiptAgent artifact exists and no inference was run."
   },
   "abstention": {
     "required": true,
     "code": "MODEL_UNAVAILABLE",
-    "detail": "No promoted model and no signed inference receipt are available."
+    "detail": "The release program is a specification only. Training, evaluation, attestation, publication, and promotion remain incomplete."
   },
   "tool_proposal": {
     "state": "NONE",
+    "tool_id": null,
+    "arguments_sha256": null,
     "requires_human_approval": true,
     "execution_receipt_id": null
   },
   "receipt_binding": {
     "state": "NOT_AVAILABLE",
+    "request_sha256": "7a4e67e8fc8037691c60e8fe7a869f268e9b3bc375421850fd5770e03e66d121",
+    "evidence_set_sha256": null,
+    "policy_snapshot_sha256": "4755a60949f3a7636e70185b8048c6341915b9f6f403711730d89f5ac83b0687",
     "receipt_id": null
   }
 }
@@ -198,11 +214,11 @@ The adapter will be published only after all of the following are independently 
 
 ## Planned Hugging Face release family
 
-- `SZLHOLDINGS/SZL-ReceiptAgent-1.5B` - PEFT adapter; never a renamed full base
-- `SZLHOLDINGS/SZL-ReceiptAgent-1.5B-Eval` - frozen rights-reviewed evaluation set
-- `SZLHOLDINGS/SZL-ReceiptAgent-Schemas` - schemas and conformance fixtures
-- `SZLHOLDINGS/SZL-ReceiptAgent-Demo` - fail-closed Space with live receipts
-- `SZLHOLDINGS/SZL-ReceiptAgent-Collection` - created last, after every member resolves
+- `SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent` - PEFT adapter; never a renamed full base
+- `SZLHOLDINGS/SZL-Forge-ReceiptAgent-Eval` - frozen rights-reviewed evaluation set
+- `SZLHOLDINGS/SZL-Forge-ReceiptAgent-Schemas` - schemas and conformance fixtures
+- `SZLHOLDINGS/SZL-Forge-ReceiptAgent-Demo` - fail-closed Space with live receipts
+- `SZLHOLDINGS/SZL-Forge-Collection` - created last, after every member resolves
 
 All five targets are currently `PLANNED_NOT_CREATED`.
 

@@ -63,6 +63,16 @@ The release contract exists. ReceiptAgent-specific weights do not. Planned Huggi
 
 The 9,464 Brain nodes and 148 formula holdout rows are external retrieval/evaluation substrates, not training data. No claim of training on "all nodes" or "200 formulas" is supported by current admission evidence.
 
+### Ayllu model council and Yupaq compute boundary
+
+Ayllu is now locally integrated with `SZL-Forge-1.5B` as a governed model-facing council. Its eleven personas are prompt/runtime roles sharing the routed A11oy model backend; they are not eleven independently trained weights. Every persona has a declared Forge profile intent, and every turn records the actual routed model separately.
+
+The binding remains `ROUTER_INTEGRATED_FORGE_PROFILE_NOT_PINNED`. A model name in configuration is not proof that Forge weights loaded. Promotion requires a receipt binding the immutable base revision, adapter SHA-256, served model identity, load event, and reload evaluation.
+
+The council is proposal-only. It cannot dispatch tools, execute external actions, approve its own proposals, sign evidence, or certify its own output. Yupaq is exposed as a typed external computation plane with fixed operations. Its stateful routes now require a bearer hash held in the secret store and isolate the process-local job cache by derived owner ID. Automatic Ayllu-to-Yupaq dispatch remains disabled pending durable replay storage, independent approval, and killable worker-isolation evidence.
+
+Local no-key OpenAI-compatible inference is treated as live only when the configured endpoint answers its liveness probe. An unreachable local URL does not make the router path live without a real remote credential. Model replies are labeled `model-unverified`; they are not mislabeled as grounded Brain answers or automatically republished into the public lounge.
+
 ## Verification matrix
 
 Current branch validation at the pre-ledger model commit executed 183 of 236 newly added test cases with zero assertion failures. Additional focused publication/model checks passed after that matrix:
@@ -71,6 +81,8 @@ Current branch validation at the pre-ledger model commit executed 183 of 236 new
 - Companion dataset: 9/9
 - Publication surfaces: 2/2
 - M1/formula reconciliation: 10/10 reported by the focused generator/gate run
+- Ayllu/Forge/Yupaq/ReceiptAgent/OpenAPI/publication union: 135 tests and 21 subtests passed
+- Formula implementation suite: 51/51 passed in a separate focused run (some overlap with the union gate)
 
 Other checks that passed:
 
@@ -82,7 +94,9 @@ Other checks that passed:
 - current-tree and integration-range whitespace checks; and
 - Git object integrity.
 
-Exactly 53 route/integration tests remain environment-blocked because the permitted runtime lacks compatible `pytest`, `fastapi`, and `starlette` dependencies. The full API server and computed-layout browser verification have therefore not run in this workspace. An offline `pnpm` restore also attempted npm attestation lookups and was denied by the network sandbox; no dependency versions were changed.
+The assembled FastAPI OpenAPI document now generates successfully. Pre-existing duplicate operation-ID warnings remain visible and are not being described as resolved.
+
+A compatible local verification environment is now available, and the focused Ayllu/Forge/Yupaq/ReceiptAgent route and OpenAPI checks pass. This does not replace the repository's full CI matrix or production deployment verification. Computed-layout browser verification and an exact deployed-build readback remain pending. An earlier offline `pnpm` restore attempted npm attestation lookups and was denied by the network sandbox; no dependency versions were changed.
 
 ## GPU state
 

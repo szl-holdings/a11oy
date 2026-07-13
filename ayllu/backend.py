@@ -3,9 +3,9 @@
 Honest wiring: ayllu never talks to a provider directly. It delegates to
 `a11oy_code_orchestrator.agent_model_complete`, which owns model routing (route()),
 resilient fallback, and per-completion energy receipts, and which returns a
-CLEARLY-LABELED deterministic stub (never a fabricated answer) when no inference
-credential is configured. The live/stub decision is a11oy's, resolved at RUNTIME —
-it flips the instant a token is set on the Space, with no redeploy.
+CLEARLY-LABELED deterministic stub (never a fabricated answer) when neither a
+reachable local endpoint nor a credentialed remote provider is available. The
+live/stub decision is a11oy's, resolved at RUNTIME with no redeploy.
 
 Each turn is wrapped in an a11oy OTel span (szl_observability.span) when present.
 Everything here is guarded: if a11oy's modules are absent, model_complete returns an
@@ -48,7 +48,9 @@ def backend_status() -> dict[str, Any]:
             has_cred = bool(orch._resolve_hf_token()) or any(
                 orch._resolve_provider_keys().values())
             _base, local_ready = orch._serving_base()
-            backend_ready = bool(orch.has_inference_credential())
+            readiness = getattr(orch, "inference_backend_ready", None)
+            backend_ready = bool(readiness() if callable(readiness)
+                                 else orch.has_inference_credential() or local_ready)
             cred_checked = True
         except Exception:
             cred_checked = False

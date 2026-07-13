@@ -65,7 +65,10 @@ async def run_turn(
     """
     diff = persona.default_difficulty if difficulty is None else float(difficulty)
     tier = select_tier(diff)
-    system = persona.system_prompt()
+    from .model_binding import persona_binding, prompt_contract
+
+    binding = persona_binding(persona.name)
+    system = persona.system_prompt() + "\n\n" + prompt_contract(binding)
 
     answer: Optional[str] = None
     model: Optional[str] = None
@@ -111,12 +114,19 @@ async def run_turn(
             else:
                 answer = str(result)
             honesty = "answer produced by a11oy's model backend" + (
-                " (clearly-labeled stub — no inference credential set)" if stub else "")
+                " (clearly-labeled stub — no reachable local or credentialed remote backend)"
+                if stub else "")
             if isinstance(result, dict) and result.get("honesty"):
                 honesty = str(result["honesty"])
         except Exception as exc:
             honesty = (f"model backend raised: {str(exc)[:120]} "
                        "(honest — no fabricated answer)")
+
+    binding = persona_binding(
+        persona.name,
+        actual_model=model,
+        backend_mode=("stub" if stub else "live" if model else "unavailable"),
+    )
 
     return {
         "persona": persona.name,
@@ -134,6 +144,7 @@ async def run_turn(
         "token_budget": token_budget,
         "timeout_s": timeout_s,
         "energy_receipt": energy_receipt,
+        "model_binding": binding,
         "honesty": honesty,
         "evidence": [],
     }
