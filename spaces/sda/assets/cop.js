@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — replit-sync/hf_spaces/hf_sda_space/assets/cop.js
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /* ============================================================================
  * SZL SDA — cop.js
  * The Common Operating Picture canvas: fused tracks as moving blips, anomaly

@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — services/customer-portal/.github/CONTRIBUTING.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # Contributing
 
 Thank you for considering a contribution to this SZL Holdings repository.

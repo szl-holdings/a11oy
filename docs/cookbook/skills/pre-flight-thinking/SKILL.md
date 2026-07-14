@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — .agents/skills/pre-flight-thinking/SKILL.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 ---
 name: pre-flight-thinking
 description: Structured thinking checklist to run before writing or modifying code. Use this before any non-trivial implementation to force problem restatement, assumption listing, smallest-change identification, and failure-mode enumeration. Adapted from the Superpowers "force structured thinking before coding" pattern.

@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — .agents/skills/react-component-review/SKILL.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 ---
 name: react-component-review
 description: Review React/Vite components for quality, performance, and correctness. Use when auditing a component before shipping, after a design handoff, or when a component feels slow or buggy. Adapted from the Awesome Claude Code React patterns and Claude Agent Blueprints collections.
