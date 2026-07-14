@@ -14,7 +14,7 @@ trl>=1.8.0
 datasets>=2.20.0
 accelerate>=0.33.0
 bitsandbytes>=0.43.1
-sentencepiece>=0.2.0
+sentencepiece>=0.2.2
 # For the GGUF export step (llama.cpp's convert_lora_to_gguf.py):
 gguf>=0.9.0
 safetensors>=0.4.3
