@@ -1,0 +1,27 @@
+# MOVE ME to .github/workflows/vendor-sync-check.yml
+# (committed under scripts/ because the automation token that opened this PR
+# does not carry the 'workflow' OAuth scope required to write workflow files —
+# stated honestly rather than worked around.)
+name: vendor-sync-check
+
+# Guard: every file vendored from szl-holdings/platform must stay byte-identical
+# to the pinned monorepo commit (vendor.manifest.json). Edit the monorepo, never
+# the flagship copy. After `sync_from_monorepo.sh sync` applies attribution
+# headers, flip the check below to `check --strict-headers`.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  vendor-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify vendored files match the monorepo pin
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/sync_from_monorepo.sh check
