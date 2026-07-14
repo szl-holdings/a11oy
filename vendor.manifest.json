@@ -1,0 +1,663 @@
+{
+  "_doctrine": "The monorepo szl-holdings/platform is the explicit source of truth for every file listed here. Edit there, never here. scripts/sync_from_monorepo.sh check verifies byte-fidelity against the pin; sync refreshes and applies attribution headers. STATUS.md open action.",
+  "monorepo": "szl-holdings/platform",
+  "pin": "e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea",
+  "files": {
+    ".devcontainer/devcontainer.json": {
+      "source": ".devcontainer/devcontainer.json",
+      "header": false
+    },
+    ".editorconfig": {
+      "source": ".editorconfig",
+      "header": true
+    },
+    ".gitattributes": {
+      "source": ".gitattributes",
+      "header": true
+    },
+    ".github/CODEOWNERS": {
+      "source": ".github/CODEOWNERS",
+      "header": false
+    },
+    ".github/workflows/dco.yml": {
+      "source": ".github/workflows/dco.yml",
+      "header": true
+    },
+    ".github/workflows/pin-check.yml": {
+      "source": ".github/workflows/pin-check.yml",
+      "header": true
+    },
+    "SECURITY.md": {
+      "source": "SECURITY.md",
+      "header": true
+    },
+    "SUPPORT.md": {
+      "source": "SUPPORT.md",
+      "header": true
+    },
+    "ayni_os/__init__.py": {
+      "source": "packages/ayni-os/ayni_os/__init__.py",
+      "header": true
+    },
+    "console/anatomy-map/lib/three.min.js": {
+      "source": "replit-sync/hf_spaces/anatomy/lib/three.min.js",
+      "header": false
+    },
+    "console/anatomy-map/style.css": {
+      "source": "replit-sync/hf_spaces/anatomy/style.css",
+      "header": true
+    },
+    "docs/brand/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/brand/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "docs/brand/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "docs/brand/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "docs/cookbook/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/cookbook/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "docs/cookbook/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "docs/cookbook/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "docs/cookbook/CODEOWNERS": {
+      "source": "CODEOWNERS",
+      "header": false
+    },
+    "docs/cookbook/skills/dead-code-detector/SKILL.md": {
+      "source": ".agents/skills/dead-code-detector/SKILL.md",
+      "header": true
+    },
+    "docs/cookbook/skills/monorepo-impact-analysis/SKILL.md": {
+      "source": ".agents/skills/monorepo-impact-analysis/SKILL.md",
+      "header": true
+    },
+    "docs/cookbook/skills/pre-flight-thinking/SKILL.md": {
+      "source": ".agents/skills/pre-flight-thinking/SKILL.md",
+      "header": true
+    },
+    "docs/cookbook/skills/react-component-review/SKILL.md": {
+      "source": ".agents/skills/react-component-review/SKILL.md",
+      "header": true
+    },
+    "docs/cookbook/skills/typescript-refactor/SKILL.md": {
+      "source": ".agents/skills/typescript-refactor/SKILL.md",
+      "header": true
+    },
+    "docs/developers/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/developers/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "docs/developers/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "docs/developers/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "docs/papers/puriq-preprint/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/papers/puriq-preprint/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "docs/papers/puriq-preprint/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "docs/papers/puriq-preprint/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "docs/site/.editorconfig": {
+      "source": ".editorconfig",
+      "header": true
+    },
+    "docs/site/.gitattributes": {
+      "source": ".gitattributes",
+      "header": true
+    },
+    "docs/site/.github/CODEOWNERS": {
+      "source": ".github/CODEOWNERS",
+      "header": false
+    },
+    "docs/site/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/site/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "docs/site/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "docs/site/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "docs/site/.gitleaks.toml": {
+      "source": "services/customer-portal/.gitleaks.toml",
+      "header": true
+    },
+    "docs/site/SECURITY.md": {
+      "source": "SECURITY.md",
+      "header": true
+    },
+    "docs/site/SUPPORT.md": {
+      "source": "SUPPORT.md",
+      "header": true
+    },
+    "docs/trust/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/trust/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "docs/trust/CODEOWNERS": {
+      "source": "CODEOWNERS",
+      "header": false
+    },
+    "docs/vessels/warhacker-demo/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "docs/vessels/warhacker-demo/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "docs/vessels/warhacker-demo/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "docs/vessels/warhacker-demo/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "organs/amaru/SECURITY.md": {
+      "source": "SECURITY.md",
+      "header": true
+    },
+    "organs/amaru/SUPPORT.md": {
+      "source": "SUPPORT.md",
+      "header": true
+    },
+    "organs/amaru/szl_khipu_lmdb.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
+      "header": true
+    },
+    "organs/amaru/szl_live_wires.py": {
+      "source": "packages/wire-d/wire_d/core.py",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/depth-allocator.ts": {
+      "source": "packages/codex-kernel/src/depth-allocator.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/dresden-venus.ts": {
+      "source": "packages/codex-kernel/src/dresden-venus.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/hash.ts": {
+      "source": "packages/codex-kernel/src/hash.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/index.ts": {
+      "source": "packages/codex-kernel/src/index.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/kernel.ts": {
+      "source": "packages/codex-kernel/src/kernel.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/ledger.ts": {
+      "source": "packages/codex-kernel/src/ledger.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/receipts.ts": {
+      "source": "packages/codex-kernel/src/receipts.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/replay.ts": {
+      "source": "packages/codex-kernel/src/replay.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/types.ts": {
+      "source": "packages/codex-kernel/src/types.ts",
+      "header": true
+    },
+    "organs/amaru/web/src/vendor/codex-kernel/validators.ts": {
+      "source": "packages/codex-kernel/src/validators.ts",
+      "header": true
+    },
+    "organs/sentra/SECURITY.md": {
+      "source": "SECURITY.md",
+      "header": true
+    },
+    "organs/sentra/SUPPORT.md": {
+      "source": "SUPPORT.md",
+      "header": true
+    },
+    "organs/sentra/szl_khipu_lmdb.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
+      "header": true
+    },
+    "organs/sentra/szl_live_wires.py": {
+      "source": "packages/wire-d/wire_d/core.py",
+      "header": true
+    },
+    "organs/sentra/web/.replit-artifact/artifact.toml": {
+      "source": "artifacts/sentra/.replit-artifact/artifact.toml",
+      "header": true
+    },
+    "organs/sentra/web/src/components/AccessDeniedNotice.tsx": {
+      "source": "artifacts/sentra/src/components/AccessDeniedNotice.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/components/CognitiveBreadcrumbs.tsx": {
+      "source": "artifacts/sentra/src/components/CognitiveBreadcrumbs.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/components/CopyLinkButton.tsx": {
+      "source": "artifacts/sentra/src/components/CopyLinkButton.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/components/atlas-prism-counsel-panel.tsx": {
+      "source": "artifacts/sentra/src/components/atlas-prism-counsel-panel.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/components/tradecraft-panel.tsx": {
+      "source": "artifacts/sentra/src/components/tradecraft-panel.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/data/agent-mesh.ts": {
+      "source": "artifacts/sentra/src/data/agent-mesh.ts",
+      "header": true
+    },
+    "organs/sentra/web/src/data/darpa-mto-research.ts": {
+      "source": "artifacts/sentra/src/data/darpa-mto-research.ts",
+      "header": true
+    },
+    "organs/sentra/web/src/data/seed-data.ts": {
+      "source": "artifacts/sentra/src/data/seed-data.ts",
+      "header": true
+    },
+    "organs/sentra/web/src/lib/cognitive-nav.ts": {
+      "source": "artifacts/sentra/src/lib/cognitive-nav.ts",
+      "header": true
+    },
+    "organs/sentra/web/src/lib/executive-safe-mode-context.tsx": {
+      "source": "artifacts/sentra/src/lib/executive-safe-mode-context.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/lib/live-badge.tsx": {
+      "source": "artifacts/sentra/src/lib/live-badge.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/lib/sentinel-analytics.ts": {
+      "source": "artifacts/sentra/src/lib/sentinel-analytics.ts",
+      "header": true
+    },
+    "organs/sentra/web/src/lib/use-step-up.ts": {
+      "source": "artifacts/sentra/src/lib/use-step-up.ts",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/atlas-artifacts.tsx": {
+      "source": "artifacts/sentra/src/pages/atlas-artifacts.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/breach-cost-predictor.tsx": {
+      "source": "artifacts/sentra/src/pages/breach-cost-predictor.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/business-impact-map.tsx": {
+      "source": "artifacts/sentra/src/pages/business-impact-map.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/cognitive-attack-path.tsx": {
+      "source": "artifacts/sentra/src/pages/cognitive-attack-path.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/compliance-evidence.tsx": {
+      "source": "artifacts/sentra/src/pages/compliance-evidence.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/compliance/compliance-risks.tsx": {
+      "source": "artifacts/sentra/src/pages/compliance/compliance-risks.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/compliance/financial-compliance.tsx": {
+      "source": "artifacts/sentra/src/pages/compliance/financial-compliance.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/compliance/milestones-trends.tsx": {
+      "source": "artifacts/sentra/src/pages/compliance/milestones-trends.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/compliance/readiness-dashboard.tsx": {
+      "source": "artifacts/sentra/src/pages/compliance/readiness-dashboard.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/compliance/vendor-risk.tsx": {
+      "source": "artifacts/sentra/src/pages/compliance/vendor-risk.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/consciousness.tsx": {
+      "source": "artifacts/sentra/src/pages/consciousness.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/containment-rules.tsx": {
+      "source": "artifacts/sentra/src/pages/containment-rules.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/control-evidence-graph.tsx": {
+      "source": "artifacts/sentra/src/pages/control-evidence-graph.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/crisis-arena-architect-profile.tsx": {
+      "source": "artifacts/sentra/src/pages/crisis-arena-architect-profile.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/crisis-arena-leaderboard.tsx": {
+      "source": "artifacts/sentra/src/pages/crisis-arena-leaderboard.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/cyber-innovation-roadmap.tsx": {
+      "source": "artifacts/sentra/src/pages/cyber-innovation-roadmap.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/cyber-insurance-intel.tsx": {
+      "source": "artifacts/sentra/src/pages/cyber-insurance-intel.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/cyber-insurance-score.tsx": {
+      "source": "artifacts/sentra/src/pages/cyber-insurance-score.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/decision-center.tsx": {
+      "source": "artifacts/sentra/src/pages/decision-center.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/digital-twin.tsx": {
+      "source": "artifacts/sentra/src/pages/digital-twin.tsx",
+      "header": true
+    },
+    "organs/sentra/web/src/pages/document-engine.tsx": {
+      "source": "artifacts/sentra/src/pages/document-engine.tsx",
+      "header": true
+    },
+    "platform-services/api-server/README.md": {
+      "source": "artifacts/api-server/README.md",
+      "header": true
+    },
+    "platform-services/api-server/package.json": {
+      "source": "artifacts/api-server/package.json",
+      "header": false
+    },
+    "platform-services/api-server/src/middlewares/global-auth-enforcer.ts": {
+      "source": "artifacts/api-server/src/middlewares/global-auth-enforcer.ts",
+      "header": true
+    },
+    "platform-services/api-server/src/routes/ouroboros.ts": {
+      "source": "artifacts/api-server/src/routes/ouroboros.ts",
+      "header": true
+    },
+    "proofs/lean-kernel/.gitattributes": {
+      "source": "replit-sync/hf_spaces/anatomy/.gitattributes",
+      "header": true
+    },
+    "proofs/lean-kernel/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "proofs/lean-kernel/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "proofs/lean-kernel/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "proofs/lean-kernel/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "proofs/lean-kernel/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "proofs/lean-kernel/data/reference-vectors.json": {
+      "source": "packages/ouroboros-invariant/reference-vectors/reference-vectors.json",
+      "header": false
+    },
+    "proofs/lutar-lean/.editorconfig": {
+      "source": ".editorconfig",
+      "header": true
+    },
+    "proofs/lutar-lean/.gitattributes": {
+      "source": ".gitattributes",
+      "header": true
+    },
+    "proofs/lutar-lean/.github/CODEOWNERS": {
+      "source": ".github/CODEOWNERS",
+      "header": false
+    },
+    "proofs/lutar-lean/.github/CODE_OF_CONDUCT.md": {
+      "source": "services/customer-portal/.github/CODE_OF_CONDUCT.md",
+      "header": true
+    },
+    "proofs/lutar-lean/.github/CONTRIBUTING.md": {
+      "source": "services/customer-portal/.github/CONTRIBUTING.md",
+      "header": true
+    },
+    "proofs/lutar-lean/.github/ISSUE_TEMPLATE/config.yml": {
+      "source": "services/customer-portal/.github/ISSUE_TEMPLATE/config.yml",
+      "header": true
+    },
+    "proofs/lutar-lean/.github/pull_request_template.md": {
+      "source": "services/customer-portal/.github/pull_request_template.md",
+      "header": true
+    },
+    "proofs/lutar-lean/.gitleaks.toml": {
+      "source": "services/customer-portal/.gitleaks.toml",
+      "header": true
+    },
+    "proofs/lutar-lean/CODEOWNERS": {
+      "source": "CODEOWNERS",
+      "header": false
+    },
+    "proofs/lutar-lean/SECURITY.md": {
+      "source": "SECURITY.md",
+      "header": true
+    },
+    "proofs/lutar-lean/SUPPORT.md": {
+      "source": "SUPPORT.md",
+      "header": true
+    },
+    "proofs/lutar-lean/reference-vectors.json": {
+      "source": "packages/ouroboros-invariant/reference-vectors/reference-vectors.json",
+      "header": false
+    },
+    "runtime/ouroboros/.devcontainer/devcontainer.json": {
+      "source": ".devcontainer/devcontainer.json",
+      "header": false
+    },
+    "runtime/ouroboros/CODEOWNERS": {
+      "source": "CODEOWNERS",
+      "header": false
+    },
+    "runtime/ouroboros/packages/ouroboros/src/types.ts": {
+      "source": "packages/unified-kernel/src/loop/vendor_ouroboros/types.ts",
+      "header": true
+    },
+    "runtime/ouroboros/src/consistency.ts": {
+      "source": "packages/unified-kernel/src/loop/vendor_ouroboros/consistency.ts",
+      "header": true
+    },
+    "runtime/ouroboros/src/loop-kernel.ts": {
+      "source": "packages/unified-kernel/src/loop/vendor_ouroboros/loop-kernel.ts",
+      "header": true
+    },
+    "runtime/ouroboros/src/types.ts": {
+      "source": "packages/unified-kernel/src/loop/vendor_ouroboros/types.ts",
+      "header": true
+    },
+    "spaces/immune/.gitattributes": {
+      "source": "replit-sync/hf_spaces/anatomy/.gitattributes",
+      "header": true
+    },
+    "spaces/orbital/vendor3d/OrbitControls.js": {
+      "source": "replit-sync/hf_spaces/cathedral_live_src/vendor/OrbitControls.js",
+      "header": true
+    },
+    "spaces/orbital/vendor3d/three.module.min.js": {
+      "source": "replit-sync/hf_energy_space/assets/three.module.min.js",
+      "header": false
+    },
+    "spaces/sda/assets/THREE_LICENSE.txt": {
+      "source": "replit-sync/hf_energy_space/assets/THREE_LICENSE.txt",
+      "header": true
+    },
+    "spaces/sda/assets/cop.js": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/assets/cop.js",
+      "header": true
+    },
+    "spaces/sda/assets/favicon.svg": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/assets/favicon.svg",
+      "header": false
+    },
+    "spaces/sda/assets/scene.js": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/assets/scene.js",
+      "header": true
+    },
+    "spaces/sda/assets/snapshot-compute-pool.json": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/assets/snapshot-compute-pool.json",
+      "header": false
+    },
+    "spaces/sda/assets/style.css": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/assets/style.css",
+      "header": true
+    },
+    "spaces/sda/assets/szl_verify_widget.js": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js",
+      "header": true
+    },
+    "spaces/sda/assets/three.module.min.js": {
+      "source": "replit-sync/hf_energy_space/assets/three.module.min.js",
+      "header": false
+    },
+    "spaces/sda/index.html": {
+      "source": "replit-sync/hf_spaces/hf_sda_space/index.html",
+      "header": true
+    },
+    "src/a11oy/harvest/harvest_budget.py": {
+      "source": "apps/agentic-gpu/harvest_budget.py",
+      "header": true
+    },
+    "static-vendor/3d-force-graph.min.js": {
+      "source": "replit-sync/hf_spaces/hf_khipu_space/vendor/3d-force-graph.min.js",
+      "header": false
+    },
+    "static/vendor3d/OrbitControls.js": {
+      "source": "replit-sync/hf_spaces/cathedral_live_src/vendor/OrbitControls.js",
+      "header": true
+    },
+    "static/vendor3d/THREE_LICENSE.txt": {
+      "source": "replit-sync/hf_energy_space/assets/THREE_LICENSE.txt",
+      "header": true
+    },
+    "static/vendor3d/three.module.min.js": {
+      "source": "replit-sync/hf_energy_space/assets/three.module.min.js",
+      "header": false
+    },
+    "szl_chain_of_title.py": {
+      "source": "replit-sync/szl_chain_of_title.py",
+      "header": true
+    },
+    "szl_khipu_lmdb.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
+      "header": true
+    },
+    "szl_unified_formulas.py": {
+      "source": "replit-sync/szl_unified_formulas.py",
+      "header": true
+    },
+    "team/AUDIT/elevate/FORGE_BOX_ENERGY.md": {
+      "source": "replit-sync/FORGE_BOX_ENERGY_v2.md",
+      "header": true
+    },
+    "web/HOLOGRAM_NOTES.md": {
+      "source": "replit-sync/energy_engine/HOLOGRAM_NOTES.md",
+      "header": true
+    },
+    "web/src/components/DefenseDataState.tsx": {
+      "source": "artifacts/a11oy/src/components/DefenseDataState.tsx",
+      "header": true
+    },
+    "web/src/components/ui/Badge.tsx": {
+      "source": "artifacts/a11oy/src/components/ui/Badge.tsx",
+      "header": true
+    },
+    "web/src/components/ui/DrawerPanel.tsx": {
+      "source": "artifacts/a11oy/src/components/ui/DrawerPanel.tsx",
+      "header": true
+    },
+    "web/src/data/agiConvergenceData.ts": {
+      "source": "artifacts/a11oy/src/data/agiConvergenceData.ts",
+      "header": true
+    },
+    "web/src/data/blueprint.ts": {
+      "source": "artifacts/a11oy/src/data/blueprint.ts",
+      "header": true
+    },
+    "web/src/data/brands.ts": {
+      "source": "artifacts/a11oy/src/data/brands.ts",
+      "header": true
+    },
+    "web/src/data/components.ts": {
+      "source": "artifacts/a11oy/src/data/components.ts",
+      "header": true
+    },
+    "web/src/data/fabric/index.ts": {
+      "source": "artifacts/a11oy/src/data/fabric/index.ts",
+      "header": true
+    },
+    "web/src/data/findings.ts": {
+      "source": "artifacts/a11oy/src/data/findings.ts",
+      "header": true
+    },
+    "web/src/data/releases.ts": {
+      "source": "artifacts/a11oy/src/data/releases.ts",
+      "header": true
+    }
+  }
+}
