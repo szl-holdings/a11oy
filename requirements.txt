@@ -25,7 +25,7 @@ py_ecc>=8.0.0
 # ECDSA-P256 cert + Rekor transparency log. Optional at runtime — only CI jobs
 # with `id-token: write` can mint a real signature; every other runtime keeps the
 # HONEST dsse_envelope() placeholder (DsseSigningUnavailable, never a fake sig).
-sigstore>=4.3.0
+sigstore>=4.4.0
 # ADDITIVE (szl-substrate extraction POC): the shared substrate package is the
 # single source of truth for modules duplicated across a11oy + killinchu
 # (szl-holdings/szl-substrate). a11oy_autoreview.py (szl_calibration) and
