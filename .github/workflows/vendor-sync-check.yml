@@ -20,4 +20,4 @@ jobs:
       - name: Verify vendored files match the monorepo pin
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: bash scripts/sync_from_monorepo.sh check
+        run: bash scripts/sync_from_monorepo.sh check --strict-headers
