@@ -13430,6 +13430,26 @@ except Exception as _szl_source_error:  # additive: never take down the SPA
     )
 
 
+# ============================================================================
+# FORGE FAMILY WALL (2026-07-14): /api/forge/family — the public evidence wall
+# for the owner-forged model family (ReceiptAgent + Khipu). Server-side ed25519
+# re-verification on every request; receipts fetched from the public HF model
+# repos (bytes cached briefly, verification never skipped). Front-moved inside
+# the module so the exact JSON route wins over the SPA history fallback and the
+# /api proxy. Moves the wall onto a-11-oy.com so a11oy.net can retire.
+# ============================================================================
+try:
+    import a11oy_forge_family as _a11oy_forge_family
+
+    _forge_family_result = _a11oy_forge_family.register(app)
+    print(f"[a11oy] forge-family wall registered (front-moved): {_forge_family_result}", file=sys.stderr)
+except Exception as _forge_family_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] forge-family wall NOT registered (non-fatal): {_forge_family_error!r}",
+        file=sys.stderr,
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

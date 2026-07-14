@@ -1620,6 +1620,12 @@ COPY szl_spend_cap.py ./szl_spend_cap.py
 COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py ./
 COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
 
+# FORGE-FAMILY WALL (2026-07-14): /api/forge/family — server-side ed25519
+# re-verification of the owner-signed model receipts (ReceiptAgent + Khipu),
+# fetched from the public HF model repos. Moves the family wall onto
+# a-11-oy.com so a11oy.net can retire. Additive module, front-moved route.
+COPY a11oy_forge_family.py ./a11oy_forge_family.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
