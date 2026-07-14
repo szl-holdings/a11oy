@@ -1,3 +1,5 @@
+# VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — apps/agentic-gpu/harvest_budget.py
+# DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 """harvest_budget.py — Proven sponge budget for the wasted-energy harvest.
 
 Grounds the soak-window batch admission in the founder's own kernel-proven

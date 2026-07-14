@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — services/customer-portal/CODE_OF_CONDUCT.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
