@@ -13,6 +13,7 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "resolve-shared-peer-ref.py"
+WORKFLOW = HERE / "workflows" / "shared-file-drift.yml"
 REPOSITORY = "szl-holdings/killinchu"
 SHA = "9fb553e483cd887f57799cf264424227d68db155"
 
@@ -95,6 +96,20 @@ class ResolverTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
         self.assertEqual(values, {})
+
+
+class WorkflowTests(unittest.TestCase):
+    def test_peer_is_verified_before_checkout(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        verify = workflow.index("- name: Verify pinned peer is the declared open PR head")
+        checkout = workflow.index("- name: Checkout killinchu (verified sibling)")
+        self.assertLess(verify, checkout)
+
+    def test_peer_comparison_uses_visible_delimiter(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("| join(\" \")", workflow)
+        self.assertIn('expected="open main ${PEER_REF}"', workflow)
+        self.assertNotIn('expected="open\\tmain\\t${PEER_REF}"', workflow)
 
 
 MARKER = f"Shared-source-peer: {REPOSITORY}#234@{SHA}"

@@ -51,12 +51,6 @@ jobs:
         run: >-
           python3 self/.github/resolve-shared-peer-ref.py
           --expected-repository=szl-holdings/killinchu
-      - name: Checkout killinchu (sibling)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: ${{ steps.peer.outputs.repository }}
-          ref: ${{ steps.peer.outputs.ref }}
-          path: sibling
       - name: Verify pinned peer is the declared open PR head
         if: steps.peer.outputs.source == 'pinned-peer-pr'
         env:
@@ -65,11 +59,11 @@ jobs:
           PEER_PULL_REQUEST: ${{ steps.peer.outputs.pull_request }}
           PEER_REF: ${{ steps.peer.outputs.ref }}
         run: |
-          actual="$(gh api "repos/${PEER_REPOSITORY}/pulls/${PEER_PULL_REQUEST}" --jq '[.state, .base.ref, .head.sha] | @tsv')"
-          expected="open\tmain\t${PEER_REF}"
+          actual="$(gh api "repos/${PEER_REPOSITORY}/pulls/${PEER_PULL_REQUEST}" --jq '[.state, .base.ref, .head.sha] | join(" ")')"
+          expected="open main ${PEER_REF}"
           if [ "$actual" != "$expected" ]; then
             echo "::error::Pinned peer must remain the exact head of an open PR targeting main."
-            printf 'expected: %b\nactual:   %s\n' "$expected" "$actual"
+            printf 'expected: %s\nactual:   %s\n' "$expected" "$actual"
             exit 1
           fi
           {
@@ -79,6 +73,12 @@ jobs:
             echo "- pull request: \`#${PEER_PULL_REQUEST}\`"
             echo "- immutable head: \`${PEER_REF}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Checkout killinchu (verified sibling)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ steps.peer.outputs.repository }}
+          ref: ${{ steps.peer.outputs.ref }}
+          path: sibling
       - name: Compare shared source files
         run: >-
           python3 self/.github/shared-file-drift-check.py self sibling
