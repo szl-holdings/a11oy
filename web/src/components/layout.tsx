@@ -120,9 +120,9 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'SENTRA OPS ⬡',
+    label: 'TENAX OPS ⬡',
     items: [
-      { href: '/sentra-ops', label: 'Sentra Operations' },
+      { href: '/sentra-ops', label: 'TENAX Operations' },
     ],
   },
   {

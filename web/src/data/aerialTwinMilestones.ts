@@ -83,9 +83,9 @@ const M2_SIONNA_EVAL: MilestonePack = {
     {
       id: 'twin-engine',
       name: 'Sandboxed twin engine',
-      oneLine: 'Sionna RT runs inside a Sentra capability compartment with no egress to RF hardware.',
+      oneLine: 'Sionna RT runs inside a TENAX capability compartment with no egress to RF hardware.',
       detail: 'Capability compartment strips the egress namespace down to a read-only scene store and a write-only CIR sink. Engine version, ruleset version, and scene hash are captured per call.',
-      module: 'Sentra Sandbox + A11oy Capability Registry',
+      module: 'TENAX Sandbox + A11oy Capability Registry',
     },
     {
       id: 'reference-scene',
@@ -105,8 +105,8 @@ const M2_SIONNA_EVAL: MilestonePack = {
       id: 'mirror-eval-gate',
       name: 'Mirror Eval CIR gate',
       oneLine: 'Every CIR batch is compared against a frozen baseline. Excess delta blocks downstream promotion.',
-      detail: 'Default metric is per-tap complex-amplitude L2 distance, with thresholds per scene. Failures are routed to the Sentra Approval Queue.',
-      module: 'A11oy Mirror Eval + Sentra Approval Queue',
+      detail: 'Default metric is per-tap complex-amplitude L2 distance, with thresholds per scene. Failures are routed to the TENAX Approval Queue.',
+      module: 'A11oy Mirror Eval + TENAX Approval Queue',
     },
     {
       id: 'planner-action',
@@ -134,7 +134,7 @@ const M2_SIONNA_EVAL: MilestonePack = {
     },
   ],
   guardrails: [
-    { layer: 'Sandbox', control: 'Engine has no egress to RF hardware. Outputs are write-only to the evidence vault.', enforcedBy: 'Sentra capability compartment + connector firewall.' },
+    { layer: 'Sandbox', control: 'Engine has no egress to RF hardware. Outputs are write-only to the evidence vault.', enforcedBy: 'TENAX capability compartment + connector firewall.' },
     { layer: 'Reproducibility', control: 'Scene hash, ruleset hash, seed, and engine version are required for every call.', enforcedBy: 'A11oy capability registry pre-call validator.' },
     { layer: 'Promotion', control: 'No CIR batch is consumed downstream until the Mirror Eval gate passes.', enforcedBy: 'Mirror Eval policy attached to aerial.twin.simulate.' },
   ],
@@ -215,7 +215,7 @@ const M3_VESSELS_PORT: MilestonePack = {
   ],
   guardrails: [
     { layer: 'Inputs', control: 'Public OSM and cadastral data only. Owner-provided port plans flow through the gated ingestion in milestone 4.', enforcedBy: 'A11oy ingestion gate.' },
-    { layer: 'Emission', control: 'Twin reads, never transmits. Vessels asset registry is read-only from the twin\u2019s side.', enforcedBy: 'Sentra connector firewall.' },
+    { layer: 'Emission', control: 'Twin reads, never transmits. Vessels asset registry is read-only from the twin\u2019s side.', enforcedBy: 'TENAX connector firewall.' },
     { layer: 'Asset binding', control: 'No twin output is published without a live Vessels asset ID.', enforcedBy: 'Cerberus emit gate.' },
   ],
   related: ['sionna-eval', 'sentra-anomaly', 'attestation-soc2'],
@@ -272,8 +272,8 @@ const M4_TERRA_BUILDING: MilestonePack = {
       id: 'geometry-intake',
       name: 'Owner-provided geometry intake',
       oneLine: 'Sandboxed ingestion path for owner-supplied floor plans (DWG / IFC / GLB).',
-      detail: 'Conversion runs in a Sentra capability compartment with no egress. Output is committed to the per-tenant scene partition only.',
-      module: 'Sentra Sandbox + A11oy Ingestion Gate',
+      detail: 'Conversion runs in a TENAX capability compartment with no egress. Output is committed to the per-tenant scene partition only.',
+      module: 'TENAX Sandbox + A11oy Ingestion Gate',
     },
   ],
   oss: [
@@ -295,24 +295,24 @@ const M4_TERRA_BUILDING: MilestonePack = {
   ],
   guardrails: [
     { layer: 'Tenant scope', control: 'Owner-provided geometry stays on-tenant. Federated layer pools statistics only (milestone 6).', enforcedBy: 'Cerberus per-tenant partition.' },
-    { layer: 'Ingestion', control: 'All owner geometry conversion runs in a sandboxed compartment with no network egress.', enforcedBy: 'Sentra capability compartment.' },
+    { layer: 'Ingestion', control: 'All owner geometry conversion runs in a sandboxed compartment with no network egress.', enforcedBy: 'TENAX capability compartment.' },
     { layer: 'Provenance', control: 'Every PDF carries a signature chain back to the scene + ruleset + engine version.', enforcedBy: 'Hephaestus provenance gate + Cerberus.' },
   ],
   related: ['vessels-port', 'attestation-soc2'],
 };
 
 // ---------------------------------------------------------------------------
-// 5 \u2014 Sentra RF anomaly classifier
+// 5 \u2014 TENAX RF anomaly classifier
 // ---------------------------------------------------------------------------
 
 const M5_SENTRA_ANOMALY: MilestonePack = {
   slug: 'sentra-anomaly',
   number: 5,
   phase: '7\u201312',
-  title: 'Sentra RF anomaly classifier',
-  tagline: 'A twin-vs-reality delta classifier (rogue cell, jammer, IMSI catcher). Promoted via Mirror Eval. Findings flow into the Sentra Approval Queue.',
+  title: 'TENAX RF anomaly classifier',
+  tagline: 'A twin-vs-reality delta classifier (rogue cell, jammer, IMSI catcher). Promoted via Mirror Eval. Findings flow into the TENAX Approval Queue.',
   doctrine:
-    'Use the twin as the predicted baseline. Compare against owner-licensed spectrum captures. Anything the twin says cannot exist becomes a finding for Sentra to triage. Three classes at v1: rogue base station, broadband jamming, IMSI catcher.',
+    'Use the twin as the predicted baseline. Compare against owner-licensed spectrum captures. Anything the twin says cannot exist becomes a finding for TENAX to triage. Three classes at v1: rogue base station, broadband jamming, IMSI catcher.',
   kpis: [
     { label: 'CLASSES', value: '3', sub: 'rogue cell · jammer · IMSI catcher' },
     { label: 'DELTA METRIC', value: 'CIR L2', sub: 'per-tap distance' },
@@ -331,8 +331,8 @@ const M5_SENTRA_ANOMALY: MilestonePack = {
       id: 'classifier',
       name: 'Three-class anomaly classifier',
       oneLine: 'Rogue cell, broadband jamming, and IMSI catcher classes at v1.',
-      detail: 'Trained on synthetic adversarial CIRs generated in twin only. Classifier head is small and explainable; per-class scores are surfaced in the Sentra finding card.',
-      module: 'Sentra Risk Engine + Silver RL Planner',
+      detail: 'Trained on synthetic adversarial CIRs generated in twin only. Classifier head is small and explainable; per-class scores are surfaced in the TENAX finding card.',
+      module: 'TENAX Risk Engine + Silver RL Planner',
     },
     {
       id: 'promotion-gate',
@@ -344,9 +344,9 @@ const M5_SENTRA_ANOMALY: MilestonePack = {
     {
       id: 'approval-queue',
       name: 'Approval Queue integration',
-      oneLine: 'Every finding lands in the Sentra Approval Queue with the twin baseline and the captured signal as evidence.',
+      oneLine: 'Every finding lands in the TENAX Approval Queue with the twin baseline and the captured signal as evidence.',
       detail: 'Operator can accept, dismiss with reason, or escalate. All actions are written to the Cerberus ledger.',
-      module: 'Sentra Approval Queue + Cerberus',
+      module: 'TENAX Approval Queue + Cerberus',
     },
     {
       id: 'evidence-binding',
@@ -370,13 +370,13 @@ const M5_SENTRA_ANOMALY: MilestonePack = {
     {
       module: 'A11oy xApp Candidate Registration',
       capability: 'Classifier is packaged as a twin-trained xApp candidate with manifest, lifecycle hooks, and policy slots.',
-      detail: 'At this milestone the classifier stops at a Sentra finding. Promotion to a real RIC is the milestone-7 deliverable.',
+      detail: 'At this milestone the classifier stops at a TENAX finding. Promotion to a real RIC is the milestone-7 deliverable.',
     },
   ],
   guardrails: [
     { layer: 'Captures', control: 'Real-world captures must be owner-licensed or owner-owned. No third-party spectrum scraping.', enforcedBy: 'A11oy ingestion gate + Hephaestus capture attestation.' },
-    { layer: 'Sandbox', control: 'All adversarial training runs in twin only. No live emission from any classifier path.', enforcedBy: 'Sentra capability compartment.' },
-    { layer: 'Decision', control: 'Findings are advisory until a human operator approves. No autonomous take-down.', enforcedBy: 'Sentra Approval Queue + Constitution rule.' },
+    { layer: 'Sandbox', control: 'All adversarial training runs in twin only. No live emission from any classifier path.', enforcedBy: 'TENAX capability compartment.' },
+    { layer: 'Decision', control: 'Findings are advisory until a human operator approves. No autonomous take-down.', enforcedBy: 'TENAX Approval Queue + Constitution rule.' },
   ],
   related: ['sionna-eval', 'ric-binding', 'attestation-soc2'],
 };
@@ -405,7 +405,7 @@ const M6_FEDERATED_LEDGER: MilestonePack = {
       name: 'Per-tenant CIR statistics aggregator',
       oneLine: 'On-tenant aggregator that emits descriptors (delay-spread distribution, K-factor, pathloss exponents) \u2014 never raw CIRs.',
       detail: 'Runs inside the tenant\u2019s capability compartment. Output schema is fixed and auditable. Differential-privacy noise is added before emission for sensitive descriptors.',
-      module: 'A11oy Federation + Sentra Sandbox',
+      module: 'A11oy Federation + TENAX Sandbox',
     },
     {
       id: 'pooling-contract',
@@ -499,8 +499,8 @@ const M7_RIC_BINDING: MilestonePack = {
       id: 'o1-management',
       name: 'O1 management interface',
       oneLine: 'Twin exposes the standard O1 management surface for configuration and FCAPS.',
-      detail: 'Read-only at v1: configuration is sourced from the A11oy capability registry rather than O1 NETCONF writes. O1 alarms feed the Sentra finding stream.',
-      module: 'A11oy O1 Adapter + Sentra',
+      detail: 'Read-only at v1: configuration is sourced from the A11oy capability registry rather than O1 NETCONF writes. O1 alarms feed the TENAX finding stream.',
+      module: 'A11oy O1 Adapter + TENAX',
     },
     {
       id: 'xapp-registry',
@@ -514,7 +514,7 @@ const M7_RIC_BINDING: MilestonePack = {
       name: 'Twin \u2192 staging \u2192 prod promotion lane',
       oneLine: 'A typed lane with dual-key approval and a 24h staging soak before any production xApp activation.',
       detail: 'Each transition emits a signed evidence record. A staging failure rolls back automatically; a prod failure pages the on-call and rolls back.',
-      module: 'A11oy Promotion Engine + Sentra Approval Queue',
+      module: 'A11oy Promotion Engine + TENAX Approval Queue',
     },
   ],
   oss: [
@@ -531,7 +531,7 @@ const M7_RIC_BINDING: MilestonePack = {
     {
       module: 'A11oy A1 Receiver',
       capability: 'Typed A1 policy objects with lifecycle and conflict resolution.',
-      detail: 'Policies must register as typed capabilities. Conflicts defer to the Sentra Approval Queue rather than a silent override.',
+      detail: 'Policies must register as typed capabilities. Conflicts defer to the TENAX Approval Queue rather than a silent override.',
     },
     {
       module: 'A11oy Deployment Manager',
@@ -540,7 +540,7 @@ const M7_RIC_BINDING: MilestonePack = {
     },
   ],
   guardrails: [
-    { layer: 'Promotion', control: 'No xApp lands in production without dual-key approval and a 24h staging soak.', enforcedBy: 'A11oy promotion engine + Sentra Approval Queue.' },
+    { layer: 'Promotion', control: 'No xApp lands in production without dual-key approval and a 24h staging soak.', enforcedBy: 'A11oy promotion engine + TENAX Approval Queue.' },
     { layer: 'Configuration', control: 'O1 is read-only at v1; configuration writes flow through the A11oy capability registry instead.', enforcedBy: 'A11oy O1 adapter policy.' },
     { layer: 'Provenance', control: 'Every E2 subscription, A1 policy, and xApp deployment carries a signed provenance footer.', enforcedBy: 'Hephaestus + Cerberus.' },
   ],
@@ -558,7 +558,7 @@ const M8_AI_RAN: MilestonePack = {
   title: 'AI-RAN inference path',
   tagline: 'Twin-trained ML blocks (beam prediction, channel estimation) served via a CUDA-accelerated runtime behind the connector firewall.',
   doctrine:
-    'The first ML blocks promoted from twin to inference. Beam prediction and channel estimation at v1, both trained in twin, both compared A/B against the classical baseline. Runtime sits behind the Sentra connector firewall.',
+    'The first ML blocks promoted from twin to inference. Beam prediction and channel estimation at v1, both trained in twin, both compared A/B against the classical baseline. Runtime sits behind the TENAX connector firewall.',
   kpis: [
     { label: 'ML BLOCKS', value: '2', sub: 'beam · channel-est' },
     { label: 'TRAINING SOURCE', value: 'twin only', sub: 'no production data' },
@@ -583,16 +583,16 @@ const M8_AI_RAN: MilestonePack = {
     {
       id: 'runtime',
       name: 'Inference runtime sandbox',
-      oneLine: 'CUDA-accelerated inference in a Sentra capability compartment with pinned model artefacts.',
+      oneLine: 'CUDA-accelerated inference in a TENAX capability compartment with pinned model artefacts.',
       detail: 'Compartment has read-only access to the model store and write-only access to the inference-log sink. Model loading is gated by signature verification.',
-      module: 'Sentra Sandbox + A11oy Model Router',
+      module: 'TENAX Sandbox + A11oy Model Router',
     },
     {
       id: 'firewall',
       name: 'Connector-firewall path',
-      oneLine: 'All inference traffic flows through Sentra\u2019s connector firewall with per-block egress allowlists.',
+      oneLine: 'All inference traffic flows through TENAX\u2019s connector firewall with per-block egress allowlists.',
       detail: 'Beam predictor and channel estimator have no egress beyond the inference-log sink and the model-router callback.',
-      module: 'Sentra Connector Firewall',
+      module: 'TENAX Connector Firewall',
     },
     {
       id: 'provenance',
@@ -611,7 +611,7 @@ const M8_AI_RAN: MilestonePack = {
     {
       module: 'A11oy Inference Runtime',
       capability: 'CUDA-accelerated PHY runtime with classical baseline + ML block + A/B selector co-deployed in every slot.',
-      detail: 'Runtime sits behind the Sentra connector firewall. ML block can be disabled in one switch without taking the slot offline.',
+      detail: 'Runtime sits behind the TENAX connector firewall. ML block can be disabled in one switch without taking the slot offline.',
     },
     {
       module: 'A11oy Classical Baseline',
@@ -622,7 +622,7 @@ const M8_AI_RAN: MilestonePack = {
   guardrails: [
     { layer: 'Training data', control: 'Models are trained on twin-derived data only at v1. No production data ingestion.', enforcedBy: 'A11oy model registry policy.' },
     { layer: 'A/B safety', control: 'Classical baseline is always co-deployed. ML block can be disabled in one switch.', enforcedBy: 'A11oy Model Router.' },
-    { layer: 'Egress', control: 'Inference compartment has no network egress beyond the log sink and router callback.', enforcedBy: 'Sentra connector firewall.' },
+    { layer: 'Egress', control: 'Inference compartment has no network egress beyond the log sink and router callback.', enforcedBy: 'TENAX connector firewall.' },
     { layer: 'Provenance', control: 'Every batch carries a signed manifest covering model + training set + ruleset + runtime.', enforcedBy: 'Hephaestus + Cerberus.' },
   ],
   related: ['ric-binding', 'attestation-soc2'],
@@ -652,7 +652,7 @@ const M9_ATTESTATION_SOC2: MilestonePack = {
       name: 'SOC 2 control mapping',
       oneLine: 'Mapping table that ties each attestation field to a SOC 2 CC6 / CC7 control statement.',
       detail: 'Versioned alongside the Constitution. Audited by the same review path as any policy change. Mapping diff appears in the auditor export.',
-      module: 'Sentra Compliance Engine + Constitution',
+      module: 'TENAX Compliance Engine + Constitution',
     },
     {
       id: 'pdf-generator',
@@ -673,7 +673,7 @@ const M9_ATTESTATION_SOC2: MilestonePack = {
       name: 'Audit trail export',
       oneLine: 'JSONL + PDF export for the auditor: every attestation, every approval, every revocation.',
       detail: 'Export is reproducible from Cerberus and is itself signed. Auditor receives the export plus the signature.',
-      module: 'Sentra Compliance Engine',
+      module: 'TENAX Compliance Engine',
     },
     {
       id: 'recertification',

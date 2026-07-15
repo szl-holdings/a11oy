@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea — artifacts/a11oy/src/data/fabric/index.ts
+// VENDORED FROM szl-holdings/platform@653b4ba95e6ae03630a922631139481875809d0b — artifacts/a11oy/src/data/fabric/index.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 export type { VerticalProfile, DomainTwin, FabricSignal, FabricRisk, FabricDecision, FabricOutcome, FabricEvidence, FabricAgent, RoadmapPhase, FabricKpis, InnovationSeed, VerticalId, SignalStatus, SignalType, RiskCategory, RiskStatus, DecisionStatus, DecisionType, EvidenceType, EvidenceStatus, GovernanceState, MaturityStage, PriorityLevel } from './types';
 export { VERTICALS, VERTICAL_MAP } from './verticals';
