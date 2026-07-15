@@ -528,7 +528,7 @@ function _safeSourceHref(n) {
   for (let i = 0; i < candidates.length; i++) {
     const raw = typeof candidates[i] === "string" ? candidates[i].trim() : "";
     if (!raw) continue;
-    // A leading single slash is a same-origin path. Protocol-relative URLs are
+    // One initial slash denotes a same-origin path. Protocol-relative URLs are
     // external and deliberately rejected here.
     if (/^\/(?![\/\\])/.test(raw)) {
       try {

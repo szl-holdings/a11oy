@@ -13,8 +13,9 @@ weights as SZL weights.
 - repository: `nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16`
 - immutable revision: `dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f`
 - architecture: `NemotronHForCausalLM` / `nemotron_h`
-- weight SHA-256: `55d4e2519456c4a9bddf596b0748d630e3b2ce6ff6f4c2b7ed3e07e2b00dad42`
-- tokenizer SHA-256: `623c34567aebb18582765289fbe23d901c62704d6518d71866e0e58db892b5b7`
+- weight SHA-256: recorded in the machine-readable
+  `model_release/szl-nemo/training-contract.json` receipt
+- tokenizer SHA-256: recorded in the same machine-readable receipt
 - license: NVIDIA Nemotron Open Model License
 - official license URL:
   <https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-nemotron-open-model-license/>

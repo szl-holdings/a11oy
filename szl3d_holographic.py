@@ -132,6 +132,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "agentops", "cat": "reasoning", "title": "Agent Ops · bounded operate loop (ground→act→self-eval→gate, Ouroboros-bounded, writer≠judge)", "owner": "WaveP-Dev5"},
     {"id": "lgmi", "cat": "governance", "title": "LGMI · Λ-Governed Mechanistic Interpretability (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "gnqs", "cat": "quant", "title": "GNQS · Governed-Norm Quantization Stability (synthesis)", "owner": "WaveP-Dev4"},
+    {"id": "numericsdataset", "cat": "quant", "title": "Numerics Dataset · 1,328 frozen matrix cases + append-only engine evidence · preregistered inputs are never shown as measured results · MATCH/CONFLICT/UNAVAILABLE · proof uplift=0", "owner": "Wave18"},
     {"id": "casta", "cat": "defense", "title": "CASTA · Clean-room Anomaly × Streaming Test-time Adaptation (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "frontierindex", "cat": "brain", "title": "Frontier Index · honest ecosystem catalog · per-surface backend label + citations + native/fallback (self-audited)", "owner": "WaveQ-Dev5"},
     {"id": "sparsemoe", "cat": "quant", "title": "Extreme-Sparsity MoE Analyzer · activation-ratio ↔ inference-cost tradeoff (STRUCTURAL-ONLY)", "owner": "WaveP-Dev4"},

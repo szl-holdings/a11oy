@@ -100,7 +100,7 @@ def test_surface_wires_honest_inventory_provenance_and_safe_links():
     assert 'method: "POST"' not in source
     assert "fraction_traceable_to_source" in source
 
-    # Only http(s) URLs or one-leading-slash same-origin paths become links.
+    # Only http(s) URLs or same-origin paths with one initial slash become links.
     assert "parsed.protocol === \"http:\" || parsed.protocol === \"https:\"" in source
     assert "^\\/(?![\\/\\\\])" in source
     assert "local.origin === window.location.origin" in source
