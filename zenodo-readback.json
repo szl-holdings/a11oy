@@ -1,0 +1,11 @@
+{
+  "status": "PENDING_ZENODO_READBACK",
+  "software_version": "1.1.0",
+  "release_tag": "v1.1.0",
+  "doi": null,
+  "doi_url": null,
+  "record_url": null,
+  "verified_at": null,
+  "verification_source": null,
+  "metadata_sha256": null
+}

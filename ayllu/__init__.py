@@ -5,9 +5,10 @@ agent-personas sharing one guarded tool loop, an always-on daemon, an autonomy g
 and a collaboration lounge) and rebuilds it in a11oy's idiom: the active-flux model
 router, the bounded-autonomy AgentLoop, and DSSE receipts.
 
-It deliberately does NOT adopt the tribe's "fully agentic, no sandbox" mandate. Every
-persona here runs under a11oy's fail-closed Λ-gate. See INGEST.md for the full mapping
-and boundary.
+It deliberately does NOT adopt the tribe's "fully agentic, no sandbox" mandate.
+The current runtime performs bounded direct completions with no tool dispatch. A
+separate autonomy gate exists for a future approved tool loop, but it is not claimed
+as active. See INGEST.md for the full mapping and boundary.
 
 Public surface:
     from ayllu.personas import ROSTER, get_persona, load_soul
@@ -18,7 +19,7 @@ Public surface:
 """
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 NAMESPACE_DEFAULT = "a11oy"
 
 __all__ = ["__version__", "NAMESPACE_DEFAULT"]

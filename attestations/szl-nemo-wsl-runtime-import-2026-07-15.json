@@ -1,0 +1,86 @@
+{
+  "base_snapshot": "/mnt/c/Users/steph/Documents/Codex/2026-07-11/i-w/work/a11oy-frontier-wave18/model_release/szl-nemo/base-snapshot",
+  "cuda": {
+    "available": true,
+    "capability": [
+      12,
+      0
+    ],
+    "device": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "free_total_bytes": [
+      7405043712,
+      8546484224
+    ],
+    "runtime": "12.8"
+  },
+  "custom_code_sha256": {
+    "configuration_nemotron_h.py": "07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff",
+    "modeling_nemotron_h.py": "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4"
+  },
+  "dynamic_module": {
+    "config_class": "transformers_modules.base-snapshot.configuration_nemotron_h.NemotronHConfig",
+    "config_source": "/tmp/szl-nemo-probe-hf-modules-6i1orx2u/transformers_modules/base-snapshot/configuration_nemotron_h.py",
+    "config_source_sha256": "07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff",
+    "hybrid_override_pattern": "M-M-M-MM-M-M*-M-M*-M-M-M*-M-M-MM*-MMM-M-M-",
+    "model_class": "transformers_modules.base-snapshot.modeling_nemotron_h.NemotronHForCausalLM",
+    "model_source": "/tmp/szl-nemo-probe-hf-modules-6i1orx2u/transformers_modules/base-snapshot/modeling_nemotron_h.py",
+    "model_source_sha256": "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4",
+    "tokenizer_class": "transformers.tokenization_utils_fast.PreTrainedTokenizerFast"
+  },
+  "dynamic_module_cache": {
+    "initial_entry_count": 0,
+    "lifecycle": "DELETED_WHEN_PROBE_EXITS",
+    "source_policy": "PINNED_SNAPSHOT_HASH_VERIFIED_BEFORE_TRANSFORMERS_IMPORT",
+    "state": "FRESH_PROCESS_UNIQUE_CACHE"
+  },
+  "effects": {
+    "artifacts_published": false,
+    "external_mutations": [],
+    "model_instantiated": false,
+    "network_access_permitted_by_probe": false,
+    "weights_loaded": false
+  },
+  "kernel_symbols": {
+    "mamba_chunk_scan_combined": true,
+    "mamba_split_conv1d_scan_combined": true,
+    "rmsnorm_fn": true
+  },
+  "mode": "config",
+  "network_namespace": {
+    "default_routes": [],
+    "interfaces": [
+      "lo"
+    ],
+    "isolated_no_default_route": true,
+    "offline_environment": {
+      "DO_NOT_TRACK": "1",
+      "HF_DATASETS_OFFLINE": "1",
+      "HF_HUB_DISABLE_TELEMETRY": "1",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1"
+    }
+  },
+  "observed_at_unix_s": 1784133545,
+  "packages": {
+    "accelerate": "1.12.0",
+    "bitsandbytes": "0.49.2",
+    "causal-conv1d": "1.6.2.post1",
+    "datasets": "3.2.0",
+    "huggingface-hub": "0.36.2",
+    "mamba-ssm": "2.3.2.post1",
+    "peft": "0.14.0",
+    "tokenizers": "0.21.4",
+    "torch": "2.10.0+cu128",
+    "transformers": "4.48.3",
+    "trl": "0.15.2"
+  },
+  "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "schema": "szl.nemo.wsl-runtime-probe.v1",
+  "source_sha256": {
+    "probe": "37be64aa7d7fd56648191c1645578fd8d903d34bad031e4fa25dafca807b7d8e",
+    "setup": "4500c2f0f3ef4fbbf793e4f909415ee023fe1801167ba39f355bf1368b8764c0"
+  },
+  "status": "PASS",
+  "training_started": false
+}

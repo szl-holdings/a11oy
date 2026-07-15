@@ -4,13 +4,24 @@
 
 This repo ships via `.github/workflows/release.yml` (OPS WAVE A, item 13).
 
-## Flow (on push to `main`)
+## Flow
 
-1. **Version bump** — simple monotonic counter `v0.1.N` (next-tag computed from existing tags).
-2. **Tag + GitHub Release** — created via `softprops/action-gh-release`, auto-generated notes.
-3. **Sign artifacts** — `cosign sign-blob` keyless (GitHub OIDC); `.sig` + `.crt` attached to the release.
-4. **SLSA L1 provenance** — `slsa-framework/slsa-github-generator` generic generator emits
-   `provenance-<tag>.intoto.jsonl` attached to the release.
+1. **Freeze source and metadata** — merge a test-clean commit to `main`; ensure
+   `CITATION.cff`, `.zenodo.json`, `CHANGELOG.md`, package version, and release
+   notes agree.
+2. **Create the GitHub tag and release** — the current workflow is triggered by
+   the GitHub `release.created` event. A push to `main` alone does **not** create
+   a release.
+3. **Attach evidence** — `.github/workflows/release.yml` generates a CycloneDX
+   SBOM, GitHub build/SBOM attestations, Sigstore keyless DSSE receipt signatures,
+   and uploads the resulting assets to the release.
+4. **Archive through Zenodo** — when the repository's GitHub/Zenodo integration
+   is enabled, Zenodo archives the immutable release and returns a version DOI.
+   Read that DOI back from Zenodo and verify it resolves before adding it to the
+   release identity. Never type or predict a DOI.
+5. **Publish product links** — after DOI readback, update the version DOI on
+   `a-11-oy.com`; `a11oy.net` remains a permanent redirect to the canonical
+   domain.
 
 ## Verifying a release
 

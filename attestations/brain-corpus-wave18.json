@@ -1,0 +1,41 @@
+{
+  "schema_version": "szl.brain.corpus-bridge-receipt.v1",
+  "base_commit": "33161ebdb3a56120de26fbd92a992485c331beb0",
+  "branch": "codex/brain-corpus-wave18",
+  "files": {
+    "szl_braincorpus.py": "eb8432c39e01112ba8e9e00a6d75205050225c1140db322c04b9bcae61ced8d5",
+    "szl_brainhealth.py": "4bab7bc6b41ec683cad6d22ca0b005f35721eeb44a6cd9e04e1d9f39c38180a1",
+    "tests/test_braincorpus.py": "50ce37857fcd17f68ec13344a478146e4884703d7a2c708279a12ae46ebe2c20",
+    "tests/test_brainhealth.py": "ec96b16ec8feb3ab84fc0428af0e037703ed4488e934d32f04aeed79a6e41924"
+  },
+  "checks": {
+    "py_compile": "PASS",
+    "pure_contract_tests": {
+      "status": "PASS",
+      "passed": 9
+    },
+    "git_diff_check": "PASS",
+    "focused_secret_scan": "PASS",
+    "pytest": {
+      "status": "NOT_RUN",
+      "reason": "pytest is not installed in the bounded runtime"
+    },
+    "fastapi_route_runtime": {
+      "status": "NOT_RUN",
+      "reason": "FastAPI is not installed in the bounded runtime"
+    }
+  },
+  "effects": {
+    "network": 0,
+    "gpu_training": 0,
+    "writes_outside_worktree": 0,
+    "trust_threshold_changes": 0
+  },
+  "current_source_status": {
+    "szl_lake": "SOURCE_UNAVAILABLE",
+    "lean_mathlib": "SOURCE_UNAVAILABLE",
+    "formula": "SOURCE_UNAVAILABLE",
+    "proof_credit": 0
+  },
+  "receipt_sha256": "70208a7464e54d1f794ae4fa572c68580fd1df4d2bd89a18e769538b3677fba8"
+}

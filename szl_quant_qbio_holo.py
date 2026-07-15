@@ -103,10 +103,19 @@ def _qbio_status() -> Dict[str, Any]:
         comp = qb.compass(50.0)
         lam = qb.lambda_v5(0.9, 121.5, 130.0)
         sources = dict(getattr(qb, "SOURCES", {}))
+        verification_scope = getattr(
+            qb, "VERIFICATION_SCOPE", "COMPUTATIONAL_REPRODUCIBILITY_ONLY"
+        )
+        verification_boundary = getattr(
+            qb,
+            "VERIFICATION_BOUNDARY",
+            "Executed deterministic model output; not experimental validation.",
+        )
         models = [
             {"model": "Mitchell proton-motive force",
              "equation": "Δp = ΔΨ − (2.3 RT / F)·ΔpH (mV)",
              "value_mV": pmf_single, "status": "VERIFIED",
+             "verification_scope": verification_scope,
              "source": sources.get("Mitchell pmf (Nobel)"),
              "endpoint": f"{base}/pmf"},
             {"model": "Two-ion K+/H+ pmf correction",
@@ -115,10 +124,12 @@ def _qbio_status() -> Dict[str, Any]:
             {"model": "Lindblad / GKSL coherence decay",
              "equation": "dρ/dt = −(i/ħ)[H,ρ] + Σ γ_k (L_k ρ L_k† − ½{L_k†L_k, ρ})",
              "fitted_tau_c": coh.get("tau_c"), "status": "VERIFIED",
+             "verification_scope": verification_scope,
              "endpoint": f"{base}/coherence"},
             {"model": "Radical-pair magnetoreception (singlet yield)",
              "angular_contrast": comp.get("angular_contrast"),
              "compass_works": comp.get("works"), "status": "VERIFIED",
+             "verification_scope": verification_scope,
              "fidelity": "reduced single-nucleus closed-form (full model contrast ~0.378)",
              "endpoint": f"{base}/compass"},
             {"model": "SZL Λ-v5 closure gate",
@@ -150,8 +161,12 @@ def _qbio_status() -> Dict[str, Any]:
         "live_paths": live_paths,
         "summary_endpoint": summary_src,
         "models": models,
+        "verification_scope": verification_scope if models else "UNAVAILABLE",
+        "verification_boundary": verification_boundary if models else (
+            "Backing model unavailable; no verification claim emitted."
+        ),
         "status_legend": {
-            "VERIFIED": "executed model, reproduces on every call",
+            "VERIFIED": "executed deterministic model, reproduces on every call; not experimental validation",
             "PROPOSED": "SZL-proposed construct (two-ion pmf, Λ-v5 gate)",
             "NARRATIVE": "Jack Kruse framing only — NOT load-bearing math",
         },

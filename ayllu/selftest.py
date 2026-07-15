@@ -48,7 +48,8 @@ def main() -> None:
     # Lounge deliberation, honest (no backend => no fabricated answers).
     lounge = Lounge()
     res = asyncio.run(lounge.deliberate(
-        "What are the risks?", [get_persona("qhatuq"), get_persona("qhaway")]))
+        "What are the risks?", [get_persona("qhatuq"), get_persona("qhaway")],
+        publish_to_lounge=True))
     assert len(res["rounds"]) == 2
     assert all(r["answer"] is None for r in res["rounds"])
     assert len(lounge.recent()) == 2
@@ -64,8 +65,8 @@ def main() -> None:
         assert wired["stub"] is True and wired["answer"] and \
             "honest" in wired["answer"].lower(), wired
 
-    print(f"AYLLU SELFTEST OK — {len(ROSTER)} personas; tier router + bounded loop "
-          f"honest fallbacks; Λ-gate fail-closed; lounge honest; backend mode="
+    print(f"AYLLU SELFTEST OK - {len(ROSTER)} personas; tier router + bounded loop "
+          f"honest fallbacks; Lambda-gate fail-closed; lounge honest; backend mode="
           f"{st['mode']}.")
 
 

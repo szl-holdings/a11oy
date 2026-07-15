@@ -1,0 +1,63 @@
+{
+  "admission_summary": {
+    "canonical_rows_observed": 8,
+    "raw_graph_nodes_admitted": 0,
+    "raw_graph_nodes_excluded": 9464,
+    "raw_graph_nodes_observed": 9464,
+    "unique_document_count": 5
+  },
+  "claims_boundary": {
+    "doi_minted": false,
+    "external_validity": "NOT_ESTABLISHED",
+    "independent_replication": false,
+    "model_promotion_allowed": false,
+    "model_trust_delta": 0,
+    "network_used": false,
+    "peer_reviewed": false,
+    "proof_credit": 0,
+    "training_triggered": false
+  },
+  "evidence_label": "MEASURED_LOCAL_PILOT",
+  "inclusion_boundary": {
+    "canonical_document_text_included": false,
+    "per_query_results_included": false,
+    "query_text_included": false,
+    "raw_brain_content_included": false,
+    "summary_metrics_included": true,
+    "training_eligible": false
+  },
+  "limitations": [
+    "The corpus has only five unique canonical documents and fifteen manually judged queries.",
+    "There is one adjudicator and no inter-rater reliability measurement.",
+    "Canonical source timestamps are absent, so semantic source freshness remains UNKNOWN.",
+    "The baseline is lexical BM25; no learned reranker or independent external corpus was evaluated.",
+    "Results do not generalize to the 9,000-plus-node raw Brain graph, which remained excluded."
+  ],
+  "metrics": {
+    "answerable_abstention_rate": 0.2,
+    "answerable_query_count": 10,
+    "canonical_license_coverage": 1.0,
+    "canonical_source_timestamp_coverage": 0.0,
+    "mean_reciprocal_rank": 1.0,
+    "ndcg_at_3": 1.0,
+    "overall_action_accuracy": 0.866666666667,
+    "query_count": 15,
+    "raw_graph_source_timestamp_coverage": 0.003592561285,
+    "recall_at_1": 1.0,
+    "recall_at_3": 1.0,
+    "unanswerable_abstention_accuracy": 1.0,
+    "unanswerable_query_count": 5
+  },
+  "pilot_status": "COMPLETE_LOCAL_PILOT",
+  "schema_version": "szl.proof-obligation-brain-summary.v1",
+  "source": {
+    "commit": "706894f52a45f80a5c440aeaafc52eec33fafc23",
+    "manifest_file_sha256": "7629111e688c4780b90f66b958a4d15c66bcbed2959b8f46714ec07f7fcc070e",
+    "manifest_path": "research/brain-evidence-admission/evidence-manifest.json",
+    "manifest_receipt_sha256": "a75ffbfddab45b7fe7b4f8e799cb8740e2d15877d1e9e8d37f3d8de64e9de685",
+    "protocol_id": "brain-canonical-retrieval-pilot-v1",
+    "results_file_sha256": "5c636b5746555ee83dd6733edaeaf79afeb44e2ee5ed323a693e1693b5453dbe",
+    "results_path": "research/brain-evidence-admission/evaluation-results.json",
+    "results_receipt_sha256": "0c7b6d0ec479a9b5c13062c10f02fd354e38144dca8934bd28cac88b684b3ab3"
+  }
+}

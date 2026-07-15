@@ -199,6 +199,268 @@ async def frontier_projects_snapshot() -> JSONResponse:
     return JSONResponse(primary_project_registry_snapshot(fetch_live=False))
 
 
+# Quantum Utility Gate (wave 16): bounded proposal-only analysis.  The core is
+# pure stdlib and has no provider/QPU/network/filesystem/process effectors.  It
+# is deliberately separate from the finance szl_gpu_quant engine; the existing
+# szl_vqc surface remains MODELED/SIMULATED and is not hardware evidence.
+try:
+    from szl_quantum_utility import (
+        ContractError as QuantumUtilityContractError,
+        info as quantum_utility_info_payload,
+        replay_receipt as quantum_utility_replay,
+        run_with_receipt as quantum_utility_run,
+    )
+    _QUANTUM_UTILITY_READY = True
+except Exception:  # pragma: no cover - honest optional degradation
+    QuantumUtilityContractError = ValueError  # type: ignore[misc,assignment]
+    quantum_utility_info_payload = None  # type: ignore[assignment]
+    quantum_utility_replay = None  # type: ignore[assignment]
+    quantum_utility_run = None  # type: ignore[assignment]
+    _QUANTUM_UTILITY_READY = False
+
+
+_QUANTUM_UTILITY_BODY_LIMIT = 256 * 1024
+
+
+class _QuantumUtilityPayloadTooLarge(ValueError):
+    pass
+
+
+async def _quantum_utility_body(request: Request) -> dict[str, Any]:
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except ValueError as exc:
+            raise QuantumUtilityContractError("content-length must be a non-negative integer") from exc
+        if declared_length < 0:
+            raise QuantumUtilityContractError("content-length must be a non-negative integer")
+        if declared_length > _QUANTUM_UTILITY_BODY_LIMIT:
+            raise _QuantumUtilityPayloadTooLarge("request body exceeds 256 KiB")
+
+    body_buffer = bytearray()
+    async for chunk in request.stream():
+        if len(body_buffer) + len(chunk) > _QUANTUM_UTILITY_BODY_LIMIT:
+            raise _QuantumUtilityPayloadTooLarge("request body exceeds 256 KiB")
+        body_buffer.extend(chunk)
+    body = bytes(body_buffer)
+    try:
+        value = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise QuantumUtilityContractError("request body must be one JSON object") from exc
+    if not isinstance(value, dict):
+        raise QuantumUtilityContractError("request body must be one JSON object")
+    return value
+
+
+def _quantum_utility_unavailable() -> JSONResponse:
+    return JSONResponse(
+        {
+            "ready": False,
+            "label": "UNAVAILABLE",
+            "mode": "UNAVAILABLE",
+            "effectors": 0,
+            "provider_calls": 0,
+            "qpu_calls": 0,
+        },
+        status_code=503,
+    )
+
+
+async def _quantum_utility_operation(request: Request, operation: str) -> JSONResponse:
+    if not _QUANTUM_UTILITY_READY or quantum_utility_run is None:
+        return _quantum_utility_unavailable()
+    try:
+        return JSONResponse(quantum_utility_run(operation, await _quantum_utility_body(request)))
+    except _QuantumUtilityPayloadTooLarge as exc:
+        return JSONResponse(
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "accepted": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
+            status_code=413,
+        )
+    except QuantumUtilityContractError as exc:
+        return JSONResponse(
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "accepted": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
+            status_code=422,
+        )
+
+
+@app.get("/api/a11oy/v1/quantum-utility/info")
+async def quantum_utility_info() -> JSONResponse:
+    if not _QUANTUM_UTILITY_READY or quantum_utility_info_payload is None:
+        return _quantum_utility_unavailable()
+    return JSONResponse(quantum_utility_info_payload())
+
+
+@app.post("/api/a11oy/v1/quantum-utility/qubo/baseline")
+async def quantum_utility_qubo_baseline(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "QUBO_EXACT_BASELINE")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/hamiltonian/shot-plan")
+async def quantum_utility_hamiltonian_shot_plan(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "HAMILTONIAN_SHOT_PLAN")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/counterfactual/score")
+async def quantum_utility_counterfactual_score(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "COUNTERFACTUAL_SCORE")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/claim/rupture-gate")
+async def quantum_utility_claim_gate(request: Request) -> JSONResponse:
+    return await _quantum_utility_operation(request, "QUANTUM_ADVANTAGE_GATE")
+
+
+@app.post("/api/a11oy/v1/quantum-utility/receipt/replay")
+async def quantum_utility_receipt_replay(request: Request) -> JSONResponse:
+    if not _QUANTUM_UTILITY_READY or quantum_utility_replay is None:
+        return _quantum_utility_unavailable()
+    try:
+        return JSONResponse(quantum_utility_replay(await _quantum_utility_body(request)))
+    except _QuantumUtilityPayloadTooLarge as exc:
+        return JSONResponse(
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "valid": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
+            status_code=413,
+        )
+    except QuantumUtilityContractError as exc:
+        return JSONResponse(
+            {
+                "ready": True,
+                "label": "STRUCTURAL-ONLY",
+                "valid": False,
+                "error": str(exc),
+                "mode": "PROPOSAL_ONLY",
+                "effectors": 0,
+                "provider_calls": 0,
+                "qpu_calls": 0,
+            },
+            status_code=422,
+        )
+
+
+# External numerical-engine frontier (wave 18). The module accepts only fixed
+# matrix solve, symmetric-eigenvalue, and reference-vector operations. GNU
+# Octave and MATLAB remain external installations; missing engine, offline
+# license configuration, POSIX resource limits, or network isolation reports
+# UNAVAILABLE. Results are unsigned deterministic digests with zero proof/trust
+# uplift. Registration is early so these routes precede both catch-alls.
+try:
+    import szl_numerics_adapter as _szl_numerics_adapter
+
+    _NUMERICS_ADAPTER_STATUS = _szl_numerics_adapter.register(app, ns="a11oy")
+except Exception as _numerics_adapter_error:  # pragma: no cover - honest optional degradation
+    _NUMERICS_ADAPTER_STATUS = {
+        "registered": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_numerics_adapter_error).__name__,
+        "proof_uplift": 0,
+        "trust_uplift": 0,
+    }
+
+
+# Yupaq governed computation plane (wave 23).  This is the strict binding layer
+# over the existing Quant, Quantum Utility, MATLAB/Octave, Lean/mathlib,
+# formula-admission, Brain, Lambda, OTel, and SZL-Lake organs.  It accepts only
+# fixed typed operations; arbitrary code, paths, URLs, packages, provider
+# credentials, and shell arguments are structurally impossible.  Registration
+# remains early so the local routes precede both proxy and SPA catch-alls.
+try:
+    import szl_yupaq_compute as _szl_yupaq_compute
+
+    _YUPAQ_COMPUTE_STATUS = _szl_yupaq_compute.register(app, ns="a11oy")
+except Exception as _yupaq_compute_error:  # pragma: no cover - honest optional degradation
+    _YUPAQ_COMPUTE_STATUS = {
+        "registered": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_yupaq_compute_error).__name__,
+        "proof_uplift": 0,
+        "trust_uplift": 0,
+    }
+
+
+# Preregistered numerical evaluator dataset (wave 22). This is a separate
+# evidence surface from engine execution: 1,328 deterministic case definitions
+# are read-only; authenticated run receipts append to an integrity-linked
+# ledger. Missing engines, reference evidence, network denial, or licensing
+# evidence remain UNAVAILABLE/NOT_EVALUATED and never become synthetic results.
+try:
+    import szl_numerics_dataset as _szl_numerics_dataset
+
+    _NUMERICS_DATASET_STATUS = _szl_numerics_dataset.register(app, ns="a11oy")
+except Exception as _numerics_dataset_error:  # pragma: no cover - honest optional degradation
+    _NUMERICS_DATASET_STATUS = {
+        "registered": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_numerics_dataset_error).__name__,
+        "proof_uplift": 0,
+        "trust_uplift": 0,
+    }
+
+
+# Formal Conjecture Lab (wave 19). Declarations and formal artifacts are
+# bounded local writes. No prover command is exposed. A transition to a kernel
+# result requires an externally produced DSSE receipt verified against the
+# embedded public cosign key and bound to the exact server-computed statement
+# and artifact hashes. KERNEL_ACCEPTED is evidence only, never proof promotion.
+try:
+    import szl_formal_conjecture_lab as _szl_formal_conjecture_lab
+
+    _FORMAL_CONJECTURE_LAB_STATUS = _szl_formal_conjecture_lab.register(app, ns="a11oy")
+except Exception as _formal_conjecture_lab_error:  # pragma: no cover - honest optional degradation
+    _FORMAL_CONJECTURE_LAB_STATUS = {
+        "registered": False,
+        "kernel_execution": "UNAVAILABLE",
+        "proof_promotion": "DISABLED",
+        "reason": type(_formal_conjecture_lab_error).__name__,
+    }
+
+
+# M1 experimental model operational gate (wave 22). The candidate remains
+# NOT_PROMOTED and no weights are bundled. The module front-moves its exact
+# status/infer/page routes ahead of both catch-alls and runs only a local,
+# bounded PEFT turn after byte-exact artifact/receipt verification, GPU
+# admission, and provider-identity binding. Missing evidence reports structured
+# BLOCKED/UNAVAILABLE; there is no remote-provider or download fallback.
+try:
+    import szl_m1_model_gate as _szl_m1_model_gate
+
+    _M1_MODEL_GATE_STATUS = _szl_m1_model_gate.register(app, ns="a11oy")
+except Exception as _m1_model_gate_error:  # pragma: no cover - honest optional degradation
+    _M1_MODEL_GATE_STATUS = {
+        "registered": False,
+        "operational_state": "UNAVAILABLE",
+        "release_state": "NOT_PROMOTED",
+        "production_eligible": False,
+        "reason": type(_m1_model_gate_error).__name__,
+    }
+
 def _optional_module_absent(exc: Exception, module: str, surface: str,
                             *, stream=None) -> bool:
     """Log a direct optional-module absence without a noisy traceback.
@@ -763,8 +1025,8 @@ except Exception as _szl_op_e:  # pragma: no cover
 # router, bounded-autonomy AgentLoop, and DSSE receipts. Deliberately drops the tribe's
 # unbounded "fully agentic" mandate for a11oy's fail-closed Λ-gate. See ayllu/INGEST.md.
 # Additive, try/except-guarded, same register() pattern. Model backend IS wired via
-# ayllu.backend -> a11oy_code_orchestrator (live iff an inference credential is set on
-# the Space; a clearly-labeled deterministic stub otherwise - never a fabricated answer).
+# ayllu.backend -> a11oy_code_orchestrator (live when a local endpoint answers or a
+# remote credential is present; a clearly-labeled deterministic stub otherwise).
 try:
     import a11oy_ayllu as _a11oy_ayllu
     print("[a11oy] " + _a11oy_ayllu.register(app, ns="a11oy"), file=__import__("sys").stderr)
@@ -1025,7 +1287,22 @@ except Exception as _szl_brainhealth_e:  # pragma: no cover
 # READ (signs/mints nothing on GET). Adds NOTHING to the locked-8; Λ stays Conjecture 1;
 # trust ceiling 0.97. Additive, try/except-guarded, same register() pattern, BEFORE the SPA
 # catch-all. Must register AFTER the frontier index (which it reads).
+# BRAIN EVIDENCE RERANKER + OUROBOROS LOCAL FEED (wave 22). This is a
+# readiness/data boundary, not a trainer. It inventories every raw Brain node,
+# requires canonical content-addressed corpus manifests before admitting rows,
+# and reports dataset, evaluation, and model readiness independently. The local
+# feed write path is loopback-only, bounded, checkpointed, and kill-switched.
 try:
+    import szl_brain_reranker as _szl_brain_reranker
+    _brain_reranker_paths = _szl_brain_reranker.register(app, ns="a11oy")
+    print(f"[a11oy] Brain evidence-reranker registered: {_brain_reranker_paths}",
+          file=__import__("sys").stderr)
+except Exception as _szl_brain_reranker_e:  # pragma: no cover
+    print(f"[a11oy] Brain evidence-reranker NOT registered: {_szl_brain_reranker_e!r}; "
+          "SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    # Status aggregate remains registered after the evidence-reranker block above.
     import szl_status_aggregate as _szl_status_aggregate
     _szl_status_aggregate.register(app, ns="a11oy")
     print("[a11oy] Operational STATUS aggregate registered: /api/a11oy/v1/status (honest per-subsystem/surface health, drift-proof)", file=__import__("sys").stderr)
@@ -2939,12 +3216,6 @@ async def _safe_json_body(request: Request):
         return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
 
 
-# ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
-try:
-    from vsp_otel.middleware import install as install_vsp; install_vsp(app)
-except Exception as _vsp_e:
-    import sys as _vsp_sys; print(f"[a11oy] vsp-otel wire skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
-
 # ADDITIVE: OTel — instrument FastAPI app
 try:
     _szl_otel_setup(fastapi_app=app)
@@ -2963,6 +3234,12 @@ except Exception as _otel_e:
 try:
     import vsp_otel.middleware as _vsp_otel
     _vsp_otel.install(app)
+    app.add_api_route(
+        "/api/a11oy/v1/observability/status",
+        lambda: JSONResponse(_vsp_otel.status(app)),
+        methods=["GET"],
+        include_in_schema=False,
+    )
     import sys as _vsp_sys
     print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
 except Exception as _vsp_e:
@@ -3438,8 +3715,8 @@ except Exception as _formulas_exc:  # additive: never break the Space if the mod
 # in this file, so FastAPI's ordered matching routes /api/a11oy/code/* here
 # rather than proxying to Node. Wrapped in try/except so a missing optional dep
 # (huggingface_hub / openai) can NEVER take down the existing SPA + gates API.
-# NO BANDAID: if no inference credential is present the orchestrator returns an
-# honest 503 at call time — it is never faked here.
+# NO BANDAID: if neither a reachable local endpoint nor a credentialed remote
+# provider is available, the orchestrator refuses or emits its labeled stub.
 # ---------------------------------------------------------------------------
 try:
     import a11oy_code_orchestrator as _a11oy_code
@@ -6683,22 +6960,34 @@ async def a11oy_mcp_call_inline(request: Request):
 async def a11oy_version():
     """Founder inspection: what build is live, when was it deployed, provenance."""
     import os as _szlv_os
+    from szl_release_identity import release_identity as _release_identity
+
+    _identity = _release_identity()
+    _release_tag = _identity.get("release_tag")
+    _release_assets_ready = bool(_release_tag)
     return {
-        "name": "a11oy",
-        "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "1d2540609a07d41b4d333fc58ea1f74f852e8f53"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
-        "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
+        **_identity,
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA") or "UNKNOWN",
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA") or "UNKNOWN",
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME") or "UNKNOWN",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
         "p6_status": "SIGNED_OFF",
         "p6_grader_score": "14/14",
         "p6_sign_off_url": "https://github.com/szl-holdings/szl-holdings/blob/main/SHARED_LEDGER/a11oy/SIGN_OFF.md",
         "verify": {
-            "cosign": "cosign verify ghcr.io/szl-holdings/a11oy:v1.0.0 --certificate-identity-regexp=szl-holdings",
-            "sbom": "https://github.com/szl-holdings/a11oy/releases/download/v1.0.0/a11oy-sbom.cdx.json",
-            "honest": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest",
+            "release_assets_status": "CONFIGURED_UNVERIFIED" if _release_assets_ready else "PENDING_RELEASE",
+            "cosign": (
+                f"cosign verify ghcr.io/szl-holdings/a11oy:{_release_tag} --certificate-identity-regexp=szl-holdings"
+                if _release_assets_ready
+                else None
+            ),
+            "sbom": (
+                f"https://github.com/szl-holdings/a11oy/releases/download/{_release_tag}/a11oy-sbom.cdx.json"
+                if _release_assets_ready
+                else None
+            ),
+            "honest": "https://a-11-oy.com/api/a11oy/v1/honest",
         },
         # ADDITIVE (waveL Dev2): machine-readable release record of the waves'
         # shipped capabilities with HONEST labels. Mirrors CHANGELOG.md; the
@@ -8104,7 +8393,25 @@ def _a11oy_canonical(obj) -> bytes:
 def _a11oy_sign_receipt(payload_obj) -> dict:
     """Produce a DSSE envelope over the canonical JSON of payload_obj using the
     in-image ephemeral key. Honest UNSIGNED marker if key unavailable."""
-    body = _a11oy_canonical(payload_obj)
+    key_identity = {
+        "keyid": _A11OY_KEYID,
+        "verify_key_url": "/api/a11oy/cosign.pub",
+        "key_scope": "PROCESS_BOOT_EPHEMERAL",
+        "key_lifetime": "UNTIL_PROCESS_RESTART",
+        "key_fingerprint_sha256": (
+            _hashv2.sha256((_A11OY_PUB_PEM or "").strip().encode()).hexdigest()
+            if _A11OY_PUB_PEM else None
+        ),
+    }
+    # Key discovery is part of the signed statement, not mutable envelope-only
+    # metadata. Verifiers must pin this same-origin URL and compare the fetched
+    # key fingerprint with this signed value before accepting a signature.
+    if isinstance(payload_obj, dict):
+        signed_payload = dict(payload_obj)
+    else:
+        signed_payload = {"value": payload_obj}
+    signed_payload["_signing_identity"] = key_identity
+    body = _a11oy_canonical(signed_payload)
     to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
     env = {
         "payloadType": _A11OY_PAYLOAD_TYPE,
@@ -8112,6 +8419,12 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
         "_dsse": "DSSEv1",
         "_pae_sha256": _hashv2.sha256(to_sign).hexdigest(),
         "_signed_at": _dtv2.now(_tzv2.utc).isoformat(),
+        # Duplicated for operator ergonomics; the authoritative values are the
+        # identical fields inside the signed payload's _signing_identity.
+        "verify_key_url": key_identity["verify_key_url"],
+        "key_scope": key_identity["key_scope"],
+        "key_lifetime": key_identity["key_lifetime"],
+        "key_fingerprint_sha256": key_identity["key_fingerprint_sha256"],
     }
     if _A11OY_PRIV is None:
         env["signatures"] = []
@@ -8124,7 +8437,8 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     env["signed"] = True
     env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
                       "in-image key generated at server boot. Verify in-browser "
-                      "against /cosign.pub; a tampered byte fails. Key resets on rebuild.")
+                      "against /api/a11oy/cosign.pub; a tampered byte fails. "
+                      "Key resets on process restart.")
     return env
 
 
@@ -10017,9 +10331,13 @@ except Exception as _kl_e:
 _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/live/", "v1/code/", "v1/seismic/", "v1/feeds/",
                               "v1/govern/",
+                              "v1/models/m1",       # M1 local-only experimental gate
                               "v1/verify/intoto",      # in-toto verify guide (DEV2)
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)
+                              "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
+                              "v1/compute/",           # Yupaq governed computation plane
+                              "v1/formal-conjecture-lab/",  # Fail-closed formal receipt lab
                               )
 
 
@@ -12171,8 +12489,8 @@ except Exception as _op_e:
 
 # ============================================================================
 # SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
-# AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
-# Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /
+# AGENT RUNTIME built on the exact public Nemotron 3 Nano 4B recipe and registry
+# manifest. NEVER claims SZL fine-tuning / from-scratch / 550B /
 # local-Nemotron-Ultra / a cert. The differentiator is the GOVERNED-MoE
 # domain-expert router: "experts" = domain heads (counter-uas / maritime /
 # governance / code / finance), routed by a Λ-governed (Conjecture 1, advisory
@@ -12223,7 +12541,7 @@ except Exception as _nemo_e:
 # szl_willay_gateway) via their OWN idempotent register() helpers, and adds the
 # missing honest GET /api/a11oy/v1/<surface>/status for nemo + qhawaq + waqay +
 # yupay + willay. SZL-Nemo /status summarizes a11oy_nemo_core.model_card() (model
-# = governed Qwen3-32B, Apache-2.0, served via the governed gateway; NEVER a
+# = governed Nemotron 3 Nano 4B recipe, served only after exact runtime identity; NEVER a
 # from-scratch model). Each /status is signed into a Khipu receipt (Conjecture 2).
 # Honest LIVE lifecycle (each surface has real runtime substance) with ROADMAP
 # sub-items labeled inline. 0 codenames. Front-inserted BEFORE the SPA catch-all.

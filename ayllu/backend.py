@@ -3,9 +3,9 @@
 Honest wiring: ayllu never talks to a provider directly. It delegates to
 `a11oy_code_orchestrator.agent_model_complete`, which owns model routing (route()),
 resilient fallback, and per-completion energy receipts, and which returns a
-CLEARLY-LABELED deterministic stub (never a fabricated answer) when no inference
-credential is configured. The live/stub decision is a11oy's, resolved at RUNTIME —
-it flips the instant a token is set on the Space, with no redeploy.
+CLEARLY-LABELED deterministic stub (never a fabricated answer) when neither a
+reachable local endpoint nor a credentialed remote provider is available. The
+live/stub decision is a11oy's, resolved at RUNTIME with no redeploy.
 
 Each turn is wrapped in an a11oy OTel span (szl_observability.span) when present.
 Everything here is guarded: if a11oy's modules are absent, model_complete returns an
@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
+import json
 from typing import Any, Optional
 
 
@@ -48,10 +50,20 @@ def backend_status() -> dict[str, Any]:
             has_cred = bool(orch._resolve_hf_token()) or any(
                 orch._resolve_provider_keys().values())
             _base, local_ready = orch._serving_base()
-            backend_ready = bool(orch.has_inference_credential())
+            readiness = getattr(orch, "inference_backend_ready", None)
+            backend_ready = bool(readiness() if callable(readiness)
+                                 else orch.has_inference_credential() or local_ready)
             cred_checked = True
         except Exception:
             cred_checked = False
+
+    profile_runtime = None
+    if orch is not None:
+        try:
+            profile_status = getattr(orch, "forge_profile_runtime_status", None)
+            profile_runtime = profile_status() if callable(profile_status) else None
+        except Exception:
+            profile_runtime = None
 
     if orch is None:
         mode = "unavailable"
@@ -81,6 +93,7 @@ def backend_status() -> dict[str, Any]:
                      "clearly-labeled deterministic stub, no fabrication."),
         }.get(mode, ""),
         "backend": "a11oy_code_orchestrator.agent_model_complete",
+        "forge_profiles": profile_runtime,
     }
 
 
@@ -117,10 +130,63 @@ async def model_complete(
             }
         bounded_tokens = max(1, min(int(max_tokens), 2048))
         bounded_timeout = max(0.1, min(float(timeout_s), 120.0))
+        profile = None
+        try:
+            from .model_binding import persona_binding
+
+            profile = persona_binding(persona or "")["primary_profile"]
+        except Exception:
+            profile = None
+
+        grounding = None
+        if profile == "BrainNavigator-v1":
+            try:
+                grounding = await asyncio.to_thread(
+                    _o.agent_rag_context, prompt or "", k=6)
+            except Exception as exc:
+                grounding = {
+                    "schema": "szl.brain.navigator-context/v1",
+                    "state": "ABSTAIN_RETRIEVAL_ERROR",
+                    "ready": False,
+                    "content_access": "HANDLES_ONLY",
+                    "handles": [],
+                    "evidence": [],
+                    "honesty": f"Brain retrieval raised {type(exc).__name__}; no grounding fabricated",
+                }
+            if not grounding.get("ready"):
+                attestation = None
+                try:
+                    attestation = await asyncio.to_thread(
+                        _o.attest_local_model, profile)
+                except Exception:
+                    pass
+                return {
+                    "text": None,
+                    "model": ((attestation or {}).get("expected_model") or "khipu-unavailable"),
+                    "stub": True,
+                    "timeout": False,
+                    "token_budget": bounded_tokens,
+                    "timeout_s": bounded_timeout,
+                    "honesty": (grounding.get("honesty") or
+                                "no Brain evidence cleared the retrieval gate; abstaining"),
+                    "grounding": grounding,
+                    "model_attestation": attestation,
+                }
+            messages[1]["content"] = (
+                (prompt or "")
+                + "\n\nCANDIDATE_HANDLES_JSON (controller-provided; no node content):\n"
+                + json.dumps(grounding["handles"], sort_keys=True,
+                             separators=(",", ":"), ensure_ascii=False)
+                + "\nReturn a retrieval plan using only offered nodeId values. "
+                  "If none supports the query, return ABSTAIN with zero citations."
+            )
+            grounding["augmented_prompt_sha256"] = hashlib.sha256(
+                messages[1]["content"].encode("utf-8")).hexdigest()
         try:
             result = await asyncio.wait_for(
                 _o.agent_model_complete(
-                    messages, max_tokens=bounded_tokens, temperature=temperature),
+                    messages, max_tokens=bounded_tokens, temperature=temperature,
+                    local_profile=profile),
                 timeout=bounded_timeout,
             )
         except asyncio.TimeoutError:
@@ -159,8 +225,79 @@ async def model_complete(
                 "timeout_s": bounded_timeout,
                 "honesty": "model backend returned a non-contract value; no answer was used",
             }
+        answer = result.get("text", "")
+        if profile == "BrainNavigator-v1" and grounding is not None:
+            citation_state = "NOT_DECLARED_UNSTRUCTURED_OUTPUT"
+            cited_node_ids: list[str] = []
+            citation_error = None
+            if isinstance(answer, str):
+                candidate = answer.strip()
+                if candidate.startswith("```") and candidate.endswith("```"):
+                    candidate = candidate[3:-3].strip()
+                    if candidate.lower().startswith("json"):
+                        candidate = candidate[4:].lstrip()
+                try:
+                    parsed_answer = json.loads(candidate)
+                except (TypeError, ValueError):
+                    parsed_answer = None
+                if isinstance(parsed_answer, dict):
+                    declared = (
+                        parsed_answer.get("citedNodeIds")
+                        if "citedNodeIds" in parsed_answer
+                        else parsed_answer.get("cited_node_ids")
+                        if "cited_node_ids" in parsed_answer
+                        else None
+                    )
+                    if declared is not None:
+                        if (not isinstance(declared, list)
+                                or any(not isinstance(item, str) or not item
+                                       for item in declared)):
+                            citation_state = "INVALID_CITATION_CONTRACT"
+                            citation_error = "cited node IDs must be a list of non-empty strings"
+                        else:
+                            cited_node_ids = list(dict.fromkeys(declared))
+                            offered = {
+                                row.get("nodeId") for row in grounding.get("handles", [])
+                                if isinstance(row, dict) and isinstance(row.get("nodeId"), str)
+                            }
+                            unknown = sorted(set(cited_node_ids) - offered)
+                            if unknown:
+                                citation_state = "UNKNOWN_CITATION_REFUSED"
+                                citation_error = (
+                                    "model cited node IDs outside the controller-offered handle set"
+                                )
+                            else:
+                                citation_state = "CITATIONS_WITHIN_OFFERED_HANDLES"
+            grounding["citation_validation"] = {
+                "state": citation_state,
+                "cited_node_ids": cited_node_ids,
+                "cited_node_ids_sha256": hashlib.sha256(json.dumps(
+                    cited_node_ids, sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False
+                ).encode("utf-8")).hexdigest(),
+            }
+            if citation_error:
+                grounding["citation_validation"]["honesty"] = citation_error
+                rejected_output_sha256 = (
+                    hashlib.sha256(answer.encode("utf-8")).hexdigest()
+                    if isinstance(answer, str) else None
+                )
+                grounding["rejected_model_output_sha256"] = rejected_output_sha256
+                return {
+                    "text": None,
+                    "model": result.get("model"),
+                    "stub": True,
+                    "timeout": bool(result.get("timeout", False)),
+                    "token_budget": bounded_tokens,
+                    "timeout_s": bounded_timeout,
+                    "honesty": citation_error + "; no ungrounded model text returned",
+                    "raw_model_output_sha256": rejected_output_sha256,
+                    "energy_receipt": result.get("energy_receipt"),
+                    "model_attestation": result.get("model_attestation"),
+                    "grounding": grounding,
+                }
         return {
-            "text": result.get("text", ""),
+            "text": answer,
             "model": result.get("model"),
             "stub": bool(result.get("stub")),
             "timeout": bool(result.get("timeout", False)),
@@ -168,4 +305,6 @@ async def model_complete(
             "timeout_s": bounded_timeout,
             "honesty": result.get("honesty"),
             "energy_receipt": result.get("energy_receipt"),
+            "model_attestation": result.get("model_attestation"),
+            "grounding": grounding,
         }

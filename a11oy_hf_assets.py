@@ -159,11 +159,11 @@ def register(app, ns: str = "a11oy") -> str:
     base = f"/api/{ns}/v1/assets"
 
     @app.get(base + "/manifest")
-    async def _assets_manifest() -> "JSONResponse":  # noqa
+    async def _assets_manifest():  # noqa: ANN202
         return JSONResponse(manifest())
 
     @app.get(base + "/{key}")
-    async def _asset_one(key: str) -> "JSONResponse":  # noqa
+    async def _asset_one(key: str):  # noqa: ANN202
         return JSONResponse(asset_status(key))
 
     new = app.router.routes[n_before:]

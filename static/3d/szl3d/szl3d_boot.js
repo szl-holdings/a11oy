@@ -174,14 +174,47 @@ export async function boot(container, opts = {}) {
   if (bloomReq) { try { await _buildComposer(); } catch (e) { if (console) console.warn("[szl3d] bloom unavailable:", e && e.message); } }
 
   // -------- sizing --------
-  function _size() {
+  // `window.resize` alone misses layout-only changes (drawer expansion, dvh
+  // updates, split-pane resizing, font/tool-bar reflow).  Observe the element
+  // that actually owns the canvas as well.  The observer is deliberately
+  // coalesced to one animation-frame callback and `_size` deduplicates equal
+  // dimensions, preventing renderer.setSize() from creating a resize loop.
+  let _disposed = false;
+  let _lastWidth = 0, _lastHeight = 0;
+  let _observerRaf = 0;
+  let _resizeObserver = null;
+
+  function _dimensions() {
     const w = Math.max(1, host.clientWidth || canvas.clientWidth || 1);
     const h = Math.max(1, host.clientHeight || canvas.clientHeight || 1);
+    return { w, h };
+  }
+
+  function _size() {
+    if (_disposed) return;
+    const { w, h } = _dimensions();
+    _lastWidth = w;
+    _lastHeight = h;
     renderer.setSize(w, h, false);
     if (composer) composer.setSize(w, h);
     if (bloomPass && bloomPass.resolution) bloomPass.resolution.set(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+  }
+
+  function _queueObservedSize() {
+    if (_disposed || _observerRaf) return;
+    const { w, h } = _dimensions();
+    if (w === _lastWidth && h === _lastHeight) return;
+    if (typeof requestAnimationFrame === "function") {
+      _observerRaf = requestAnimationFrame(() => {
+        _observerRaf = 0;
+        _size();
+      });
+      return;
+    }
+    // Non-browser/headless fallback: ResizeObserver itself is already async.
+    _size();
   }
 
   const _frameCbs = [];
@@ -216,7 +249,14 @@ export async function boot(container, opts = {}) {
   }
 
   function dispose() {
+    _disposed = true;
     stop();
+    if (_observerRaf && typeof cancelAnimationFrame !== "undefined") {
+      cancelAnimationFrame(_observerRaf);
+      _observerRaf = 0;
+    }
+    try { if (_resizeObserver) _resizeObserver.disconnect(); } catch (_) {}
+    _resizeObserver = null;
     try { if (controls) controls.dispose(); } catch (_) {}
     try { if (composer && composer.dispose) composer.dispose(); } catch (_) {}
     try { renderer.dispose(); } catch (_) {}
@@ -224,6 +264,15 @@ export async function boot(container, opts = {}) {
   }
 
   if (typeof window !== "undefined") window.addEventListener("resize", _size);
+  if (typeof ResizeObserver !== "undefined") {
+    try {
+      _resizeObserver = new ResizeObserver(_queueObservedSize);
+      _resizeObserver.observe(host);
+    } catch (_) {
+      // Unsupported/non-Element hosts retain the existing window resize path.
+      _resizeObserver = null;
+    }
+  }
   _size();
 
   const stage = {

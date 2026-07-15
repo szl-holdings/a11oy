@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>SZL-Nemo — Sovereign Governed Agent Model · SZL Holdings</title>
-<meta name="description" content="SZL-Nemo: a sovereign, governed, self-improving AGENT model built ON an open base (default Qwen3-32B, Apache-2.0). We did NOT train a foundation model from scratch; there is no 550B SZL model and no local Nemotron-Ultra. OUR contribution is the governed-MoE domain-expert router (Λ-governed, signed every selection), MTP/speculative-decode default, Reflexion+Voyager+τ-bench self-improvement, and tiered sovereign-local/cloud-NIM serving — every step a tamper-evident DSSE receipt."/>
+<meta name="description" content="SZL-Nemo: an identity-bound local inference recipe built on NVIDIA Nemotron 3 Nano 4B, with governed routing and signed receipts. The recipe is not an SZL fine-tune; readiness and quality are reported separately."/>
 <!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image and served same-origin at
      /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN.
      The --display/--mono stacks fall back to a geometric system sans / system mono so
@@ -107,11 +107,11 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
 </div>
 
 <div class="wrap">
-  <h1>SZL-Nemo <span class="badge" id="b_model">EXPERIMENTAL · SKELETON</span></h1>
+  <h1>SZL-Nemo <span class="badge" id="b_model">RUNTIME-BOUND · NOT FINE-TUNED</span></h1>
   <div class="lede">
-    <b>SZL-Nemo</b> is our <b>sovereign, governed, self-improving agent model</b> — delivered here as a
-    <b>live skeleton + architecture</b>. <b id="framing">Built ON an open base (default Qwen3-32B, Apache-2.0);
-    governed &amp; sovereign.</b> The differentiator is an <b>auditable MoE</b>: a query is routed to
+    <b>SZL-Nemo</b> is an <b>identity-bound local recipe and governed orchestration runtime</b>.
+    <b id="framing">Built on NVIDIA Nemotron 3 Nano 4B; the weights are NVIDIA's and are not SZL-fine-tuned.</b>
+    The differentiator is an <b>auditable domain router</b>: a query is routed to
     <b>domain-expert heads</b> by a <b>Λ-governed router</b> (Conjecture 1, advisory floor &lt; 1.0) that reuses
     the active-flux router crossover and the RouteLLM Thompson posteriors — and <b>every expert selection emits a
     signed DSSE receipt</b>.
@@ -121,7 +121,7 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
     We did <b class="hi">NOT</b> train a foundation model from scratch — there is <b class="hi">no 550B SZL model</b> and
     <b class="hi">no local Nemotron-Ultra</b> (cloud tier only). OUR contribution is the governance layer:
     governed-MoE domain-expert routing, MTP / speculative-decode default, Reflexion + Voyager + τ-bench
-    self-improvement, tiered sovereign-local (2-GPU) / cloud-NIM serving, and tamper-evident signed receipts.
+    self-improvement experiments, exact-tag local serving, and tamper-evident signed receipts.
     <span class="hi">sovereign:true</span> only with a live per-GPU <code>gpu_reachable</code> probe; the cloud tier is
     always <code>sovereign:false</code>. Every number is <b>MEASURED</b> (live) or <b>ROADMAP</b> — never fabricated.
     Λ = Conjecture 1 (advisory, never a pass/fail oracle); trust &lt; 100%; locked-8 @ c7c0ba17; 0 runtime JS CDN;
@@ -227,7 +227,7 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
     <div class="panel">
       <h2>MTP / Speculative Decoding <span class="meta">inference default</span></h2>
       <div class="desc">Speedup <code>S = (k+1) / (k(1−α)+1)</code> (Leviathan et al. 2022). Draft model serves k tokens,
-        target accepts at rate α. Reuses Dev C's draft-model wiring; box config is ROADMAP→Forge.</div>
+        target accepts at rate α. This remains ROADMAP and is not enabled on the verified Ollama path.</div>
       <div class="kv" id="mtp_kv">—</div>
     </div>
     <!-- SELF-IMPROVEMENT -->
@@ -265,8 +265,8 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
   </div>
 
   <div class="footer" id="footer">
-    SZL-Nemo skeleton · <span id="f_diag">diag —</span><br/>
-    Sources: Qwen3-32B (Apache-2.0) · speculative decoding arXiv:2211.17192 · Reflexion arXiv:2303.11366 ·
+    SZL-Nemo runtime-bound recipe · <span id="f_diag">diag —</span><br/>
+    Sources: NVIDIA Nemotron 3 Nano 4B · speculative decoding arXiv:2211.17192 · Reflexion arXiv:2303.11366 ·
     Voyager arXiv:2305.16291 · τ-bench arXiv:2406.12045 · RouteLLM (lm-sys) · active-flux crossover IEEE/APEC 911711 ·
     Nemotron via NVIDIA NIM build.nvidia.com. Receipts: DSSE ECDSA-P256-SHA256, verify against /cosign.pub.
   </div>

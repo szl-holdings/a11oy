@@ -1,0 +1,199 @@
+{
+  "schema_version": "szl.forge-family.v1",
+  "family_id": "SZL-Forge-1.5B",
+  "family_type": "QWEN2_5_DERIVED_MULTI_ADAPTER_SOVEREIGN_AGENT_FAMILY",
+  "base": {
+    "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "relation": "PEFT_ADAPTERS_NOT_INDEPENDENT_PRETRAINING",
+    "license_reported": "Apache-2.0"
+  },
+  "naming_boundary": {
+    "szl_1_reserved": true,
+    "reason": "SZL-1 is reserved for a future independently pretrained base with its own corpus, tokenizer or architecture decision, compute receipts, and benchmark suite."
+  },
+  "profiles": [
+    {
+      "profile_id": "ReceiptAgent-v1",
+      "model_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
+      "hf_target": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "weight_artifact_required": true,
+      "state": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
+      "role": "Evidence-bound drafts in independently signed runtime receipt envelopes, abstention, formula references, and proposal-only tools; the model is never the signer.",
+      "runtime": "model_release/receipt-agent/receipt_runtime.py",
+      "training_contract": "model_release/szl-forge/training-contract.json",
+      "runtime_tag": "receiptagent:latest",
+      "artifact_honesty": "Remote weights and signed receipts exist, but the receipt-declared adapter/full-weight hashes do not match the published LFS artifacts; promotion remains blocked."
+    },
+    {
+      "profile_id": "BrainNavigator-v1",
+      "model_id": "SZL-Khipu-1.5B-BrainNavigator-v1",
+      "hf_target": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+      "weight_artifact_required": true,
+      "state": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
+      "role": "Graph navigation, retrieval planning, contradiction discovery, and evidence-path explanation over the A11oy Brain.",
+      "retrieval_surface": "A11oy Brain / Khipu",
+      "runtime_tag": "khipu:latest",
+      "training_blocker": "Signed training/evaluation receipts exist, but published adapter/full-weight and GGUF identities are not cryptographically reconciled to the declared artifacts; abstention evaluation is also below promotion quality.",
+      "artifact_honesty": "The model is usable as an experimental HANDLES_ONLY navigator; it is not promoted or represented as a fully artifact-bound release."
+    },
+    {
+      "profile_id": "Operator-v1",
+      "model_id": "SZL-A11oy-1.5B-Operator-v1",
+      "hf_target": "SZLHOLDINGS/SZL-A11oy-1.5B-Operator",
+      "weight_artifact_required": true,
+      "state": "PLANNED_TOOL_CONTRACT_REQUIRED",
+      "role": "Routes work through the a-11-oy.com and a11oy.net governed API and tool fabric.",
+      "runtime_surface": "A11oy governed command layer",
+      "training_blocker": "Versioned tool schemas, authorization fixtures, and effect-free evaluation are not frozen."
+    },
+    {
+      "profile_id": "Sentinel-v1",
+      "model_id": "SZL-Sentinel-1.5B-v1",
+      "hf_target": "SZLHOLDINGS/SZL-Sentinel-1.5B",
+      "weight_artifact_required": true,
+      "state": "PLANNED_SECURITY_ADMISSION_REQUIRED",
+      "role": "Unified Killinchu and Immune profile for adversarial triage, policy defense, and proposal-only remediation.",
+      "runtime_surface": "Killinchu + A11oy Immune",
+      "training_blocker": "Security examples require authorization, sensitive-data review, red-team split isolation, and zero-unsafe-action evaluation."
+    },
+    {
+      "profile_id": "Anatomy-v1",
+      "model_id": "SZL-Anatomy-1.5B-v1",
+      "hf_target": "SZLHOLDINGS/SZL-Anatomy-1.5B",
+      "weight_artifact_required": true,
+      "state": "PLANNED_ONTOLOGY_ADMISSION_REQUIRED",
+      "role": "Dependency reasoning, failure propagation, and digital-twin explanation over Body and Anatomy v5/v6.",
+      "runtime_surface": "A11oy Anatomy / Body digital twin",
+      "training_blocker": "The versioned ontology, counterfactual fixtures, and topology holdout are not frozen."
+    }
+  ],
+  "interface_surfaces": [
+    {
+      "surface_id": "A11oy-Holographic",
+      "state": "INTERFACE_NOT_MODEL",
+      "role": "Three-dimensional command and evidence visualization for all model profiles.",
+      "reason": "Presentation, navigation, and spatial state remain outside model weights so they can evolve independently."
+    },
+    {
+      "surface_id": "SZL-Yupaq",
+      "state": "BOUNDED_CORE_IMPLEMENTED_LIVE_VERIFICATION_PENDING",
+      "role": "Validates and executes typed numerical, quant, proof-inventory, formula, Brain, Lambda, and Lake jobs with receipts.",
+      "runtime": "szl_yupaq_compute.py",
+      "manifest": "model_release/szl-compute-plane.json"
+    },
+    {
+      "surface_id": "A11oy-Ayllu",
+      "state": "COUNCIL_RUNTIME_NOT_MODEL",
+      "role": "Eleven bounded persona roles share the routed model backend and carry Forge profile intent without claiming separately trained weights.",
+      "runtime": "a11oy_ayllu.py",
+      "binding_manifest": "model_release/szl-ayllu-binding.json"
+    },
+    {
+      "surface_id": "SZL-Khipu-Second-Brain-v1",
+      "state": "COMPOUND_MODEL_EXPERIMENTAL_ARTIFACT_AND_EVAL_GATES_OPEN",
+      "role": "Combines the BrainNavigator profile, persistent hybrid evidence memory, handles-only controller, abstention policy, and signed turn receipts without relabeling indexed nodes as weights.",
+      "runtime": "a11oy_org_rag.py + a11oy_code_orchestrator.py + ayllu/backend.py",
+      "binding_manifest": "model_release/szl-khipu-second-brain.json"
+    }
+  ],
+  "governed_organs": {
+    "ayllu": "Governed multi-persona council; proposal-only with zero effectors and per-turn actual-model evidence.",
+    "ouroboros": "Iterative admission, planning, compute, verification, gating, receipt, observation, and learning loop outside weights.",
+    "codex_workers": "Task-scoped research, build, math, test, review, and provenance workers with signed handoffs.",
+    "invariant": "Fail-closed gate; never delegated to model confidence.",
+    "lambda": "Executable advisory aggregator; unconditional uniqueness remains Conjecture 1.",
+    "formula_registry": "Typed namespace and proof-status catalog; no proof transfer by bare formula ID.",
+    "lean_mathlib": "Independent formal verification plane.",
+    "szl_lake": "Evidence and receipt substrate outside weights.",
+    "otel": "Trace and measured-runtime evidence outside weights."
+  },
+  "brain_policy": {
+    "raw_nodes_observed": 9464,
+    "raw_nodes_available_to_retrieval_and_evaluation": 9464,
+    "raw_nodes_admitted_to_gradients": 0,
+    "current_state": "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
+    "admission_engine": "szl_brain_training_admission.py",
+    "admission_contract": "szl.brain-training-admission-report.v1",
+    "admission_requirement": "Each gradient row requires Ed25519-signed allowlisted evidence for rights, provenance, immutable revision, freshness, deduplication, contamination analysis, and a frozen cross-run split assignment.",
+    "required_signed_inputs": [
+      "protected_eval_content_sha256_list",
+      "signed_evidence_trust_store",
+      "signed_prior_split_ledger_descriptor"
+    ]
+  },
+  "formula_policy": {
+    "thesis_extracted_formula_count": 100,
+    "namespace_crosswalk_records": 146,
+    "holdout_rows": 148,
+    "lean_declarations": 269,
+    "requested_200_formula_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
+    "rows_admitted_to_gradients": 0,
+    "proof_transfer_requirement": "EXACT_NAMESPACE_PLUS_DECLARATION_PLUS_CRYPTOGRAPHIC_RECEIPT"
+  },
+  "external_inference_council": {
+    "default_role": "REVIEW_EVAL_OR_SYNTHETIC_PROPOSAL_ONLY",
+    "training_reuse_default": "DENY_UNTIL_PROVIDER_TERMS_AND_ROW_PROVENANCE_PASS",
+    "required_row_fields": [
+      "provider_id",
+      "model_id",
+      "provider_terms_snapshot_sha256",
+      "prompt_sha256",
+      "output_sha256",
+      "rights_basis",
+      "human_or_policy_admission",
+      "split"
+    ],
+    "private_data_to_third_party_allowed": false,
+    "free_or_unlimited_capacity_assumed": false
+  },
+  "compute_fabric": {
+    "governed_compute_plane": "SZL-Yupaq",
+    "compute_plane_manifest": "model_release/szl-compute-plane.json",
+    "cpu_mesh_roles": [
+      "parse",
+      "deduplicate",
+      "redact",
+      "schema_validate",
+      "hash",
+      "graph_build",
+      "admit",
+      "evaluate"
+    ],
+    "gpu_roles": [
+      "bounded_qlora_training",
+      "reload_inference",
+      "measured_evaluation"
+    ],
+    "api_roles": [
+      "teacher_review_when_terms_permit",
+      "runtime_tools_outside_weights",
+      "provider_failover"
+    ]
+  },
+  "otel_receipt_requirements": [
+    "run_id",
+    "profile_id",
+    "code_commit",
+    "dataset_manifest_sha256",
+    "base_snapshot_sha256_set",
+    "adapter_sha256",
+    "gpu_identity",
+    "temperature_samples",
+    "memory_samples",
+    "latency_p50_p95",
+    "energy_when_measured",
+    "failure_state",
+    "reload_state"
+  ],
+  "promotion": {
+    "automatic": false,
+    "profile_independent": true,
+    "requires_weight_artifact": true,
+    "requires_frozen_evaluation": true,
+    "requires_zero_catastrophic_errors": true,
+    "requires_human_approval": true,
+    "requires_dsse_in_toto_attestation": true,
+    "requires_transparency_log": true
+  }
+}
