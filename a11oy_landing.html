@@ -83,7 +83,23 @@
   .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .nav nav a{padding:8px 13px;border-radius:10px;color:var(--sub);font-size:14px;font-weight:500;transition:.15s}
   .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
-  @media(max-width:680px){.nav nav a.hide-sm{display:none}}
+  @media(max-width:680px){
+    .nav .wrap{height:64px;padding-inline:14px;gap:10px}
+    .nav .brand{min-width:0;flex:1;gap:8px}
+    .nav .brand svg{width:25px;height:25px;flex:0 0 25px}
+    .nav .brand > span{min-width:0;line-height:1.05}
+    .nav .brand .sub{display:block;margin-left:0!important;margin-top:4px;font-size:9px;letter-spacing:1.25px;white-space:nowrap}
+    .nav nav{margin-left:0;flex:0 0 auto;flex-wrap:nowrap;gap:0}
+    .nav nav a.hide-sm,.nav nav a:not(.btn){display:none}
+    .nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px}
+    .nav-cta-full{display:none}
+    .nav-cta-short{display:inline}
+  }
+  @media(min-width:681px){.nav-cta-short{display:none}}
+  @media(max-width:350px){
+    .nav .brand .sub{display:none}
+    .nav nav .btn{padding-inline:10px}
+  }
 
   /* ---- buttons ---- */
   .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 21px;border-radius:9px;
@@ -323,7 +339,7 @@
       <a class="hide-sm" href="/console#arena">Eval arena</a>
       <a class="hide-sm" href="/observability">Observability</a>
       <a href="/trust">Evidence</a>
-      <a class="btn btn-primary" href="/console">Open the command center →</a>
+      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
   </div>
 </header>
