@@ -38,6 +38,7 @@
   "static/energy_3d.js",
   "static/vendor3d/OrbitControls.js",
   "static/vendor3d/three.module.min.js",
+  "web/agentic-gpu.html",
   "web/autoreview.html",
   "web/code.html",
   "web/constitution.html",

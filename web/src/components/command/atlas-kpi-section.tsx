@@ -45,7 +45,7 @@ const DOMAIN_CONFIG: Omit<
   | 'pendingActions'
   | 'worldline'
 >[] = [
-  { domain: 'aegis', label: 'Sentra — Cyber Resilience', color: '#c9b787', appPath: '/sentra', icon: Shield },
+  { domain: 'aegis', label: 'TENAX — Cyber Resilience', color: '#c9b787', appPath: '/sentra', icon: Shield },
   {
     domain: 'terra',
     label: "DOMAINE — Real Estate",

@@ -36,7 +36,7 @@ export function MarketingNav() {
                   href="/sentra/"
                   className="block p-2 hover:bg-white/5 rounded text-white transition-colors"
                 >
-                  Sentra
+                  TENAX
                 </Link>
                 <Link
                   href="/marketing/apps/prism"

@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>a11oy — Proven Energy Engine · SZL Holdings</title>
-<meta name="description" content="Live, honest view of the agentic-GPU engine: sovereign GPU posture (NVIDIA RTX 5000 @ betterwithage), the Bekenstein-gated energy+information budget ledger (F19/TH6, proven inequality), and the off-peak power window. Energy figures are SAMPLE/ESTIMATE — no real power meter is wired. No free-energy claims."/>
+<meta name="description" content="Live, honest view of the agentic-GPU engine: sovereign GPU posture (NVIDIA RTX 5000 @ betterwithage), the Bekenstein-gated energy+information budget ledger (F19/TH6, proven inequality), and the off-peak power window. Energy figures are MODELED — no real power meter is wired. No free-energy claims."/>
 <!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
 <script type="importmap">
 {
@@ -106,8 +106,8 @@ td.bad{color:var(--red);}
   </span>
 </div>
 <div class="wrap">
-  <h1>Proven Energy Engine<span class="badge">honest GPU posture · Bekenstein-gated budget (F19/TH6) · SAMPLE energy</span></h1>
-  <p class="lede">The agentic-GPU engine, live. <b>sovereign:true</b> only when the local GPU actually serves (NVIDIA RTX 5000 @ betterwithage, Ollama/vLLM) — read from <b>/code/healthz</b>, else router fallback. Every receipt clears the <b>Bekenstein gate</b> (<code>shannon_bits ≤ output_bytes·8</code>, F19/TH6 — a <b>proven inequality</b>) and the ledger sums it. <b>Energy figures are SAMPLE/ESTIMATE</b> — no real power meter is wired, so joules are labeled, never presented as measured. <b>No free-energy / perpetual-motion claims.</b></p>
+  <h1>Proven Energy Engine<span class="badge">honest GPU posture · Bekenstein-gated budget (F19/TH6) · MODELED energy</span></h1>
+  <p class="lede">The agentic-GPU engine, live. <b>sovereign:true</b> only when the local GPU actually serves (NVIDIA RTX 5000 @ betterwithage, Ollama/vLLM) — read from <b>/code/healthz</b>, else router fallback. Every receipt clears the <b>Bekenstein gate</b> (<code>shannon_bits ≤ output_bytes·8</code>, F19/TH6 — a <b>proven inequality</b>) and the ledger sums it. <b>Energy figures are MODELED</b> — no real power meter is wired, so joules are labeled, never presented as measured. <b>No free-energy / perpetual-motion claims.</b></p>
   <div class="econ"><span class="k">Why it matters:</span> sovereignty and energy efficiency are <span class="hi">measured-or-labeled, never assumed</span> — the half-state (claiming more energy or sovereignty than is real) is the only unacceptable outcome, so this surface refuses to over-claim.</div>
     <div class="subnav" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.1rem 0 1.2rem;">
     <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:.2rem;">Explore live:</span>
@@ -116,31 +116,31 @@ td.bad{color:var(--red);}
     <a class="flag" href="/energy-harvest" style="border-color:var(--gold-line);background:var(--gold-soft);">&#9638; Grid Energy Harvest</a>
   </div>
   <div class="cards">
-    <div class="card"><div class="lbl">Sovereign</div><div class="big" id="c_sov">—</div><div class="sub">local GPU serving?</div></div>
-    <div class="card"><div class="lbl">Tasks gated</div><div class="big" id="c_tasks" style="color:var(--blue)">—</div><div class="sub">Bekenstein ledger</div></div>
-    <div class="card"><div class="lbl">All within bound</div><div class="big" id="c_within" style="color:var(--green)">—</div><div class="sub">F19/TH6 gate</div></div>
-    <div class="card"><div class="lbl">Total joules <span class="sample">sample</span></div><div class="big" id="c_joules" style="color:var(--warn)">—</div><div class="sub">estimate · not metered</div></div>
+    <div class="card"><div class="lbl">Sovereign</div><div class="big" id="c_sov">standby</div><div class="sub">local GPU serving?</div></div>
+    <div class="card"><div class="lbl">Tasks gated</div><div class="big" id="c_tasks" style="color:var(--blue)">standby</div><div class="sub">Bekenstein ledger</div></div>
+    <div class="card"><div class="lbl">All within bound</div><div class="big" id="c_within" style="color:var(--green)">standby</div><div class="sub">F19/TH6 gate</div></div>
+    <div class="card"><div class="lbl">Total joules <span class="sample">modeled</span></div><div class="big" id="c_joules" style="color:var(--warn)">standby</div><div class="sub">estimate · not metered</div></div>
   </div>
   <div class="grid2">
     <div class="panel">
       <h2>(1) GPU engine status<span class="meta">/code/healthz</span></h2>
       <div class="kv" id="hz_kv" style="display:none">
         <div><span class="k">Hardware</span><span class="v">NVIDIA RTX 5000 @ betterwithage</span></div>
-        <div><span class="k">Sovereign</span><span class="v" id="hz_sov">—</span></div>
-        <div><span class="k">Inference path</span><span class="v" id="hz_inf">—</span></div>
-        <div><span class="k">Backend / mode</span><span class="v" id="hz_back">—</span></div>
-        <div><span class="k">GPU</span><span class="v" id="hz_gpu">—</span></div>
-        <div><span class="k">Doctrine</span><span class="v" id="hz_doc">—</span></div>
-        <div><span class="k">Posture</span><span class="v" id="hz_posture">—</span></div>
+        <div><span class="k">Sovereign</span><span class="v" id="hz_sov">standby</span></div>
+        <div><span class="k">Inference path</span><span class="v" id="hz_inf">standby</span></div>
+        <div><span class="k">Backend / mode</span><span class="v" id="hz_back">standby</span></div>
+        <div><span class="k">GPU</span><span class="v" id="hz_gpu">standby</span></div>
+        <div><span class="k">Doctrine</span><span class="v" id="hz_doc">standby</span></div>
+        <div><span class="k">Posture</span><span class="v" id="hz_posture">standby</span></div>
       </div>
       <div class="empty" id="hz_empty">/code/healthz unreachable — posture cannot be confirmed. Showing no sovereignty claim (honest empty-state).</div>
     </div>
     <div class="panel">
       <h2>(4) Power window<span class="meta">off-peak clock</span></h2>
       <div class="win" id="win">
-        <div class="cell" data-w="cheap"><div class="t">Cheap (off-peak)</div><div class="v">—</div></div>
-        <div class="cell" data-w="normal"><div class="t">Normal</div><div class="v">—</div></div>
-        <div class="cell" data-w="dear"><div class="t">Dear (peak)</div><div class="v">—</div></div>
+        <div class="cell" data-w="cheap"><div class="t">Cheap (off-peak)</div><div class="v">standby</div></div>
+        <div class="cell" data-w="normal"><div class="t">Normal</div><div class="v">standby</div></div>
+        <div class="cell" data-w="dear"><div class="t">Dear (peak)</div><div class="v">standby</div></div>
       </div>
       <div class="simnote"><b>Client-side estimate:</b> the window (cheap / normal / dear) is computed from <b>your local clock</b> as an off-peak heuristic (cheap before 08:00 / after 20:00) — it mirrors the engine's off-peak provider but is <b>not</b> a live tariff feed. No price is claimed as metered.</div>
     </div>
@@ -150,8 +150,8 @@ td.bad{color:var(--red);}
     <div class="bek" id="bek" style="display:none">
       <div class="bek-bar"><div class="bek-fill" id="bek_fill" style="width:0%"></div><div class="bek-ceiling" title="ceiling = Σ output_bytes·8"></div></div>
       <div class="bek-lbl">
-        <span>Σ shannon_bits: <span id="bek_sh" style="color:var(--teal)">—</span></span>
-        <span>ceiling Σ n·8: <span id="bek_ceil" style="color:var(--gold)">—</span> · <span id="bek_pct">—</span></span>
+        <span>Σ shannon_bits: <span id="bek_sh" style="color:var(--teal)">standby</span></span>
+        <span>ceiling Σ n·8: <span id="bek_ceil" style="color:var(--gold)">standby</span> · <span id="bek_pct">standby</span></span>
       </div>
       <div class="simnote" id="bek_note"><b>Proven inequality (F19/TH6):</b> empirical byte-entropy is always ≤ n·8, so the fill never exceeds the gold ceiling unless an upstream over-claim occurs (then it turns red). Kernel-checked in EnergyBudgetWitness.lean (0-sorry).</div>
     </div>
@@ -162,23 +162,23 @@ td.bad{color:var(--red);}
     <div class="scrollx" id="led_wrap" style="display:none">
       <table>
         <thead><tr>
-          <th>task_hash</th><th>bytes</th><th>shannon_bits</th><th>bekenstein n·8</th><th>within</th><th>energy_source</th><th>joules_est <span class="sample">sample</span></th><th>ts</th>
+          <th>task_hash</th><th>bytes</th><th>shannon_bits</th><th>bekenstein n·8</th><th>within</th><th>energy_source</th><th>joules_est <span class="sample">modeled</span></th><th>ts</th>
         </tr></thead>
         <tbody id="led_body"></tbody>
       </table>
     </div>
     <div class="empty" id="led_empty">No per-task receipts available. The in-memory ledger resets on process restart; track a task via <code>/v1/energy/budget?bytes=…</code> to populate it. Showing summary only if present.</div>
-    <div class="simnote"><b>joules_est is SAMPLE/ESTIMATE</b> — no real power meter is wired (doctrine v11/v12). The <b>within</b> check is the real, proven F19/TH6 gate: <code>shannon_bits ≤ output_bytes·8</code>.</div>
+    <div class="simnote"><b>joules_est is MODELED</b> — no real power meter is wired (doctrine v11/v12). The <b>within</b> check is the real, proven F19/TH6 gate: <code>shannon_bits ≤ output_bytes·8</code>.</div>
   </div>
   <div class="panel" id="frugality_panel">
     <h2>Frugality &rarr; energy <span class="meta">a11oy Restraint · less code = fewer tokens = fewer joules</span></h2>
     <div class="cards" style="margin-bottom:.4rem;">
-      <div class="card"><div class="lbl">Frugality rate</div><div class="big" id="fe_rate" style="color:var(--teal)">—</div><div class="sub" id="fe_dec">decisions that cut code</div></div>
-      <div class="card"><div class="lbl">Lines saved</div><div class="big" id="fe_loc" style="color:var(--gold)">—</div><div class="sub">cumulative (MODELED)</div></div>
-      <div class="card"><div class="lbl">Tokens saved</div><div class="big" id="fe_tok" style="color:var(--cream)">—</div><div class="sub">≈ lines × tokens/LOC</div></div>
-      <div class="card"><div class="lbl">Joules saved <span id="fe_jlbl" class="sample">sample</span></div><div class="big" id="fe_j" style="color:var(--warn)">—</div><div class="sub" id="fe_jpt">J/token —</div></div>
+      <div class="card"><div class="lbl">Frugality rate</div><div class="big" id="fe_rate" style="color:var(--teal)">standby</div><div class="sub" id="fe_dec">decisions that cut code</div></div>
+      <div class="card"><div class="lbl">Lines saved</div><div class="big" id="fe_loc" style="color:var(--gold)">standby</div><div class="sub">cumulative (MODELED)</div></div>
+      <div class="card"><div class="lbl">Tokens saved</div><div class="big" id="fe_tok" style="color:var(--cream)">standby</div><div class="sub">≈ lines × tokens/LOC</div></div>
+      <div class="card"><div class="lbl">Joules saved <span id="fe_jlbl" class="sample">sample</span></div><div class="big" id="fe_j" style="color:var(--warn)">standby</div><div class="sub" id="fe_jpt">J/token —</div></div>
     </div>
-    <div class="simnote" id="fe_note"><b>Joules-saved = tokens-saved × J/token.</b> The J/token is the LIVE on-box MEASURED figure ONLY when the sovereign GPU probe is live (label MEASURED); otherwise our honest SAMPLE constant — same single source of truth as the rest of this page. Lines-saved is OUR MODELED ladder figure, never Ponytail's measured numbers. Ladder adopted from <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail (MIT)</a>; governed (signed receipts + Λ). See the full bench at <a href="/restraint-bench">/restraint-bench</a>.</div>
+    <div class="simnote" id="fe_note"><b>Joules-saved = tokens-saved × J/token.</b> The J/token is the LIVE on-box MEASURED figure ONLY when the sovereign GPU probe is live (label MEASURED); otherwise our honest MODELED constant — same single source of truth as the rest of this page. Lines-saved is OUR MODELED ladder figure, never Ponytail's measured numbers. Ladder adopted from <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail (MIT)</a>; governed (signed receipts + Λ). See the full bench at <a href="/restraint-bench">/restraint-bench</a>.</div>
   </div>
   <div class="panel" id="energy3d_panel">
     <h2>(5) Holographic 3D Energy Ops<span class="meta" id="e3d_count">16-19 live 3D graphs · 0 CDN · WebGPU/WebGL2</span>
@@ -191,7 +191,7 @@ td.bad{color:var(--red);}
       <code>szl3d_live.poll</code> to a real a11oy energy endpoint
       (<code>/energy/operator/status</code>, <code>/energy/ledger</code>, <code>/energy/projection</code>,
       <code>/harvest/posture</code>, <code>/compute-pool</code>) and carrying its doctrine <b>honesty chip</b>
-      (MEASURED / MODELED / SAMPLE / STRUCTURAL-ONLY). Nothing is fabricated: on 404 a graph shows
+      (MEASURED / MODELED / STRUCTURAL-ONLY). Nothing is fabricated: on 404 a graph shows
       <b>NO-LIVE-DATA</b>, on a degraded payload it shows <b>DEGRADED</b> — never a fake number. Same shared module as
       <a href="/holographic">/holographic</a> and <code>/energy-holographic</code>. WebGPU with WebGL2 fallback.
     </div>
@@ -203,7 +203,7 @@ td.bad{color:var(--red);}
   </div>
 
   <div class="footnote">
-    <b>Honest by design.</b> Posture is <b>derived</b> from /code/healthz: GREEN only when <code>sovereign:true</code> AND <code>inference=self-hosted-gpu</code>; MAINTENANCE when reachable but on router fallback; DOWN when unreachable — sovereignty is <b>never assumed</b>. The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry). <b>All energy figures are SAMPLE/ESTIMATE</b> until a real meter is wired. <b>No free-energy / perpetual-motion claims.</b> Λ trust = <b>Conjecture 1</b> (machine-checked FALSE — advisory, never a theorem). Coherence governor C(t)=C₀·e^(−t/τ_c) via /v1/qbio/coherence is EXPERIMENTAL. <b>0 runtime CDN</b> — system fonts and all 3D libs served same-origin from /static/3d/vendor.
+    <b>Honest by design.</b> Posture is <b>derived</b> from /code/healthz: GREEN only when <code>sovereign:true</code> AND <code>inference=self-hosted-gpu</code>; MAINTENANCE when reachable but on router fallback; DOWN when unreachable — sovereignty is <b>never assumed</b>. The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry). <b>All energy figures are MODELED</b> until a real meter is wired. <b>No free-energy / perpetual-motion claims.</b> Λ trust = <b>Conjecture 1</b> (machine-checked FALSE — advisory, never a theorem). Coherence governor C(t)=C₀·e^(−t/τ_c) via /v1/qbio/coherence is EXPERIMENTAL. <b>0 runtime CDN</b> — system fonts and all 3D libs served same-origin from /static/3d/vendor.
   </div>
 </div>
 <script>
@@ -326,11 +326,11 @@ async function loadFrugalityEnergy(){
   $('fe_loc').textContent=c.cumulative_lines_saved!=null?c.cumulative_lines_saved:'—';
   $('fe_tok').textContent=c.cumulative_tokens_saved!=null?fmt(c.cumulative_tokens_saved,0):'—';
   $('fe_j').textContent=c.cumulative_joules_saved_total!=null?fmt(c.cumulative_joules_saved_total,0)+' J':'—';
-  const lbl=String(c.joules_label||'SAMPLE').toUpperCase();
+  const lbl=String(c.joules_label||'MODELED').toUpperCase();
   const jb=$('fe_jlbl');
   jb.textContent=lbl.toLowerCase();
   jb.style.color=(lbl==='MEASURED')?'var(--green)':'var(--yellow)';
-  $('fe_jpt').textContent='J/token '+(jpt.j_per_token!=null?fmt(jpt.j_per_token,4):'—')+' · '+String(jpt.label||'SAMPLE').toUpperCase();
+  $('fe_jpt').textContent='J/token '+(jpt.j_per_token!=null?fmt(jpt.j_per_token,4):'—')+' · '+String(jpt.label||'MODELED').toUpperCase();
 }
 async function loadAll(){loadWindow();await Promise.all([loadHealthz(),loadBudget(),loadFrugalityEnergy()]);}
 loadAll();

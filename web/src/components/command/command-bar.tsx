@@ -73,7 +73,7 @@ const PLATFORM_APPS: PlatformApp[] = [
   },
   {
     href: '/sentra/',
-    label: 'Sentra — Cyber Resilience Command',
+    label: 'TENAX — Cyber Resilience Command',
     description: 'Investor-facing deck and Series A narrative',
     icon: Presentation,
     color: '#c9b787',
@@ -91,7 +91,7 @@ const PLATFORM_APPS: PlatformApp[] = [
   },
   {
     href: '/sentra/',
-    label: 'Sentra — Cyber Resilience',
+    label: 'TENAX — Cyber Resilience',
     description: 'Cyber resilience command and incident orchestration',
     icon: ShieldCheck,
     color: '#22c55e',

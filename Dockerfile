@@ -1373,7 +1373,7 @@ COPY static/energy_3d.js ./static/energy_3d.js
 # GitHub-built image via this per-file COPY, served from /app/web/) and declared an
 # accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
 # as web/immune.html + web/energy.html). Codename-free.
-COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
+COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # served at /code by _ptg_serve("code.html"); binds to the REAL engine endpoints
 # (a11oy_code_engine) + the a11oy_code_runloop orchestrator. Same baked-only per-file

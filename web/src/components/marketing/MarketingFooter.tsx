@@ -21,7 +21,7 @@ export function MarketingFooter() {
           <ul className="space-y-3">
             <li>
               <Link href="/sentra/" className="hover:text-white transition-colors">
-                Sentra
+                TENAX
               </Link>
             </li>
             <li>
