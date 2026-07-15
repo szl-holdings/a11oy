@@ -67,25 +67,25 @@ Python is an explicit non-retryable refusal for this architecture.
 cd /mnt/c/Users/steph/Documents/Codex/2026-07-11/i-w/work/a11oy-frontier-wave18
 
 # Network-capable dependency provisioning, with exact official wheel digests.
-./model_release/szl-nemo/setup_wsl_runtime.sh
+bash ./model_release/szl-nemo/setup_wsl_runtime.sh
 
 BASE="$PWD/model_release/szl-nemo/base-snapshot"
 ACK="ACK_NVIDIA_NEMOTRON_LICENSE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
 CONFIRM="TRAIN_SZL_NEMO_GOVERNED_ADAPTER_V1"
 
 # Imports, pinned dynamic-code hashes, kernel symbols, and the fixed GPU gate.
-./model_release/szl-nemo/run_wsl_governed.sh \
+bash ./model_release/szl-nemo/run_wsl_governed.sh \
   --mode preflight --base-snapshot "$BASE"
 
 # Required before training: isolated 4-bit load plus one in-memory LoRA
 # forward/backward/optimizer step. No adapter is saved and no quality is claimed.
-./model_release/szl-nemo/run_wsl_governed.sh \
+bash ./model_release/szl-nemo/run_wsl_governed.sh \
   --mode capacity --base-snapshot "$BASE" \
   --receipt "$PWD/attestations/szl-nemo-capacity-2026-07-15.json" \
   --confirmation "$CONFIRM" --license-acknowledgement "$ACK"
 
 # Only after the capacity receipt passes and the reviewed source scope is clean.
-./model_release/szl-nemo/run_wsl_governed.sh \
+bash ./model_release/szl-nemo/run_wsl_governed.sh \
   --mode train --base-snapshot "$BASE" \
   --output-dir "$PWD/model_release/szl-nemo/runs/governed-adapter-v1" \
   --confirmation "$CONFIRM" --license-acknowledgement "$ACK"
@@ -99,6 +99,14 @@ the launcher never stops another process. Capacity and training execute inside
 and SZL-Nemo use the same fail-closed repository GPU lease; a second acquisition
 is refused rather than allowing concurrent training.
 
+The durable WSL queue resolves and measures the Bash interpreter explicitly,
+then invokes the launcher through that interpreter. It therefore does not rely
+on Git preserving a shell script's executable bit. The legacy PowerShell
+`queue-train` mode is retired and fails closed; it remains available only for
+non-mutating status inspection. Status reads the contract and base path only;
+it creates no queue directory, rebuilds no curriculum, launches no subprocess,
+and writes no receipt.
+
 ## Bounded WSL queue
 
 For unattended admission watching, use the Linux-only durable queue instead of
@@ -107,7 +115,9 @@ acknowledgements before creating a queue, and records only their SHA-256
 digests. Every transition is appended to `events.jsonl`; every completed stage
 and attempt gets an immutable receipt; `state.json` is an atomic current-state
 projection. A crash leaves the queue locked for operator review rather than
-guessing whether training ran.
+guessing whether training ran. Training-start evidence is always one of
+`PROVEN_TRUE`, `PROVEN_FALSE`, or `UNKNOWN`; a missing or malformed receipt is
+never collapsed to `false`.
 
 ```bash
 QUEUE="$PWD/model_release/szl-nemo/szl_nemo_wsl_queue.py"
@@ -142,17 +152,21 @@ Inspect a queue without mutating it:
 A completed run must contain:
 
 - `adapter/adapter_model.safetensors` plus its exact inventory;
-- preflight, runtime, GPU, training, and input-identity evidence;
+- preflight, runtime, GPU, training, and input-identity evidence, including
+  ordered initial/final watchdog samples with the exact fixed thresholds;
 - an exact-base adapter reload;
 - results for all eight held-out behavior rows, including failures;
-- a DSSE candidate summary; and
+- an immutable `training-evidence.json` digest binding runtime, reviewed source,
+  base, curriculum, step count, adapter inventory, and reload evaluation;
+- a signed and cryptographically verified DSSE candidate summary binding that
+  training-evidence digest; and
 - an immutable terminal training receipt.
 
-Even a passing run is only `CANDIDATE_GENERATED_NOT_PROMOTED`. Public promotion
-still requires a verified organization-identity DSSE signature, transparency-log
-entry, cold restart, served-tag attestation, independent Hub readback, preserved
-NVIDIA notice, and human approval. The scripts do not upload, publish, deploy, or
-promote.
+An unsigned envelope is terminal operator review, never a queue PASS. Even a
+signed, passing run is only `CANDIDATE_GENERATED_NOT_PROMOTED`. Public promotion
+still requires a transparency-log entry, cold restart, served-tag attestation,
+independent Hub readback, preserved NVIDIA notice, and human approval. The
+scripts do not upload, publish, deploy, or promote.
 
 ## Current measured blockers
 
