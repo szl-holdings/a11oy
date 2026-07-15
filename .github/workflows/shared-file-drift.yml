@@ -10,12 +10,16 @@ name: Shared-source drift guard
 # .github/shared-file-drift-check.py) so it stays current automatically. It is a
 # ratchet: files that are currently identical must stay identical, while the
 # pre-existing accepted divergences live in .github/shared-file-drift-allow.txt.
+# A coordinated cross-repository PR may pin the sibling's exact open-PR head in
+# its body as `Shared-source-peer: owner/repo#PR@40-hex-sha`.  Branch names are
+# never accepted.  Push/schedule/manual runs always compare main to main.
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, edited]
   schedule:
     - cron: '23 6 * * 1'  # Mondays 06:23 UTC
   workflow_dispatch:
@@ -36,16 +40,45 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: self
-      - name: Checkout killinchu (sibling)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: szl-holdings/killinchu
-          ref: main
-          path: sibling
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
+      - name: Self-test immutable sibling resolver
+        run: python3 self/.github/test-resolve-shared-peer-ref.py
+      - name: Resolve immutable sibling ref
+        id: peer
+        run: >-
+          python3 self/.github/resolve-shared-peer-ref.py
+          --expected-repository=szl-holdings/killinchu
+      - name: Checkout killinchu (sibling)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ steps.peer.outputs.repository }}
+          ref: ${{ steps.peer.outputs.ref }}
+          path: sibling
+      - name: Verify pinned peer is the declared open PR head
+        if: steps.peer.outputs.source == 'pinned-peer-pr'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PEER_REPOSITORY: ${{ steps.peer.outputs.repository }}
+          PEER_PULL_REQUEST: ${{ steps.peer.outputs.pull_request }}
+          PEER_REF: ${{ steps.peer.outputs.ref }}
+        run: |
+          actual="$(gh api "repos/${PEER_REPOSITORY}/pulls/${PEER_PULL_REQUEST}" --jq '[.state, .base.ref, .head.sha] | @tsv')"
+          expected="open\tmain\t${PEER_REF}"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Pinned peer must remain the exact head of an open PR targeting main."
+            printf 'expected: %b\nactual:   %s\n' "$expected" "$actual"
+            exit 1
+          fi
+          {
+            echo "### Shared-source peer pin"
+            echo
+            echo "- repository: \`${PEER_REPOSITORY}\`"
+            echo "- pull request: \`#${PEER_PULL_REQUEST}\`"
+            echo "- immutable head: \`${PEER_REF}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Compare shared source files
         run: >-
           python3 self/.github/shared-file-drift-check.py self sibling
