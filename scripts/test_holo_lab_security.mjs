@@ -29,7 +29,7 @@ assert.equal(
   'an injected quote must not terminate data-id',
 );
 assert.ok(
-  source.includes('data-id="${escAttr(n.id)}"'),
+  source.includes(`data-id="\${escAttr(n.id)}"`),
   'untrusted node identifiers must use the attribute-context escaper',
 );
 assert.ok(
