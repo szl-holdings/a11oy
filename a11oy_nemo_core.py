@@ -1,12 +1,12 @@
 """
 a11oy_nemo_core.py — SZL-NEMO CORE (Lane I1).
 
-SZL-Nemo is OUR sovereign, governed, self-improving agent model — delivered here
-as a LIVE SKELETON + architecture on a11oy. The HONEST framing, repeated in every
+SZL-Nemo is an SZL-governed recipe and orchestration runtime built on NVIDIA
+Nemotron 3 Nano 4B. The HONEST framing, repeated in every
 payload and on the tab, is:
 
-    "SZL-Nemo — built on an OPEN base (e.g. Qwen3-32B Apache-2.0 / GLM MIT),
-     governed & sovereign."
+    "SZL-Nemo — built on NVIDIA Nemotron 3 Nano 4B under its upstream license,
+     governed and served on SZL-controlled infrastructure when verified."
 
 NEVER claim: from-scratch training, 550B parameters, local Nemotron-Ultra, or a
 certification. We did NOT train a foundation model. OUR contribution is the
@@ -62,6 +62,9 @@ import math
 import os
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -69,38 +72,46 @@ from datetime import datetime, timezone
 # governance/routing/self-improvement layer — NOT a from-scratch foundation model.
 # ---------------------------------------------------------------------------
 NEMO_NAME = "SZL-Nemo"
-NEMO_VERSION = "0.1.0-skeleton"
+NEMO_VERSION = "0.2.0-runtime-bound"
+NEMO_UPSTREAM_OLLAMA_MODEL = "nemotron-3-nano:4b"
+NEMO_SERVED_MODEL = os.environ.get("SZL_NEMO_MODEL", "szl-nemo:latest").strip()
+NEMO_OLLAMA_URL = os.environ.get(
+    "SZL_NEMO_OLLAMA_URL", "http://127.0.0.1:11436"
+).strip().rstrip("/")
+NEMO_EXPECTED_REGISTRY_MANIFEST_SHA256 = (
+    "6cc467f054393a55e98a74098abde0c762ffb6d1d8cd64becf30458f38886197"
+)
 NEMO_ARTIFACT = {
     "repo_id": "SZLHOLDINGS/szl-nemo",
     "url": "https://huggingface.co/SZLHOLDINGS/szl-nemo",
     "kind": "configuration-recipe",
     "weights_present": False,
-    "training_state": "NOT_PERFORMED",
+    "training_state": "NOT_FINE_TUNED",
+    "upstream_ollama_model": NEMO_UPSTREAM_OLLAMA_MODEL,
+    "expected_registry_manifest_sha256": NEMO_EXPECTED_REGISTRY_MANIFEST_SHA256,
     "honesty": (
         "The Hub artifact currently contains a model card and Modelfile recipe, "
         "not SZL-trained weights. It must not be described as a fine-tuned model."
     ),
 }
 
-# The honest base options (open weights, cited). We pick Qwen3-32B (Apache-2.0) as
-# the DEFAULT sovereign-local base because it fits the 2-GPU plan (TP=2). GLM (MIT)
-# is offered as an alternative. NEVER imply from-scratch / 550B.
+# Exact public recipe: NVIDIA Nemotron 3 Nano 4B through a content-bound Ollama
+# registry manifest. The prompt and governed runtime are SZL work; the weights are not.
 NEMO_BASE = {
-    "default_base": "Qwen3-32B",
-    "default_base_license": "Apache-2.0",
-    "default_base_url": "https://huggingface.co/Qwen/Qwen3-32B",
-    "alternatives": [
-        {"name": "GLM-4 (GLM family)", "license": "MIT",
-         "url": "https://huggingface.co/THUDM"},
-        {"name": "Qwen2.5-Coder-32B-Instruct", "license": "Apache-2.0",
-         "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct"},
-    ],
+    "default_base": "NVIDIA Nemotron 3 Nano 4B",
+    "default_base_tag": NEMO_UPSTREAM_OLLAMA_MODEL,
+    "default_base_license": "NVIDIA Nemotron Open Model License",
+    "default_base_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16",
+    "gguf_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF",
+    "license_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16/blob/main/LICENSE",
+    "registry_manifest_sha256": NEMO_EXPECTED_REGISTRY_MANIFEST_SHA256,
+    "alternatives": [],
     "honest_framing": (
-        "SZL-Nemo is built ON an OPEN base (default Qwen3-32B, Apache-2.0). We did "
-        "NOT train a foundation model from scratch; there is NO 550B SZL model and "
-        "no local Nemotron-Ultra. OUR contribution is the governed-MoE domain-expert "
-        "router + MTP/speculative-decode default + Reflexion/Voyager self-improvement "
-        "+ signed-every-step receipts + Λ governance. Honest always."),
+        "SZL-Nemo is a governed Ollama recipe built ON NVIDIA Nemotron 3 Nano 4B. "
+        "SZL did NOT fine-tune or train these weights. OUR contribution is the "
+        "doctrine prompt, governed domain router, runtime identity binding, and "
+        "signed receipts. The exact upstream registry manifest must match before "
+        "the local tier can report READY."),
     "never_claim": ["from-scratch training", "550B parameters", "local Nemotron-Ultra",
                     "any certification (FedRAMP/IronBank/CMMC/ATO)"],
 }
@@ -158,13 +169,13 @@ DOCTRINE = {
 # (Leviathan et al. 2022 / Dev C #2). We mark the acceptance rate ILLUSTRATIVE
 # until the box emits real accept/draft counters → then it flips to MEASURED.
 MTP_DEFAULT = {
-    "enabled_default": True,
-    "draft_model": "Qwen2.5-Coder-1.5B-Instruct",
-    "target_model": "Qwen3-32B (open base)",
+    "enabled_default": False,
+    "draft_model": None,
+    "target_model": NEMO_UPSTREAM_OLLAMA_MODEL,
     "num_speculative_tokens_k": 4,
     "acceptance_rate_alpha": 0.8,   # ILLUSTRATIVE until box emits accept/draft counters
     "label_when_unmeasured": "ROADMAP",
-    "source": "speculative decoding (Leviathan et al. arXiv:2211.17192) + Dev C draft-model wiring",
+    "source": "speculative decoding (Leviathan et al. arXiv:2211.17192); not enabled on the verified Ollama path",
 }
 
 _LOCK = threading.RLock()
@@ -603,12 +614,149 @@ def mtp_view():
 
 
 # ---------------------------------------------------------------------------
-# INFER (skeleton) — a governed inference turn: route → pick serving tier → MTP
-# default → SIGNED receipt. App-layer skeleton: it does NOT run the open base
-# in-image (that is the sovereign-local box / cloud-NIM tier, ROADMAP/cloud). It
-# returns the GOVERNED PLAN + signed receipt, honestly labelled SKELETON.
+# LOCAL RUNTIME — fail closed to a loopback-only Ollama service.  Readiness binds
+# both the mutable upstream tag and the derived SZL recipe tag.  A reachable port
+# alone is not enough and a model's prose is never accepted as identity evidence.
 # ---------------------------------------------------------------------------
-def infer(query: str, top_k: int = 2, sign_fn=None):
+def _ollama_base_url() -> str:
+    parsed = urllib.parse.urlsplit(NEMO_OLLAMA_URL)
+    if parsed.scheme != "http" or parsed.username or parsed.password:
+        raise ValueError("SZL-Nemo requires a credential-free loopback HTTP URL")
+    if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise ValueError("SZL-Nemo refuses non-loopback Ollama endpoints")
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise ValueError("SZL-Nemo Ollama URL must not contain path/query/fragment")
+    return NEMO_OLLAMA_URL
+
+
+def _ollama_json(path: str, payload=None, timeout_s: float = 8.0):
+    base = _ollama_base_url()
+    body = None
+    headers = {"Accept": "application/json"}
+    method = "GET"
+    if payload is not None:
+        body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+        method = "POST"
+    req = urllib.request.Request(base + path, data=body, method=method, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout_s) as response:
+        if response.status != 200:
+            raise RuntimeError("Ollama returned HTTP %s" % response.status)
+        raw = response.read(8 * 1024 * 1024 + 1)
+        if len(raw) > 8 * 1024 * 1024:
+            raise RuntimeError("Ollama response exceeded the bounded receipt limit")
+        value = json.loads(raw.decode("utf-8"))
+        if not isinstance(value, dict):
+            raise RuntimeError("Ollama returned a non-object response")
+        return value
+
+
+def _normal_model_tag(value: str) -> str:
+    value = (value or "").strip()
+    return value if ":" in value else value + ":latest"
+
+
+def nemo_runtime_status() -> dict:
+    expected = NEMO_EXPECTED_REGISTRY_MANIFEST_SHA256.lower()
+    try:
+        data = _ollama_json("/api/tags")
+        observed = {}
+        for item in data.get("models") or []:
+            if not isinstance(item, dict):
+                continue
+            name = _normal_model_tag(str(item.get("name") or item.get("model") or ""))
+            if name:
+                observed[name] = str(item.get("digest") or "").lower()
+        upstream = _normal_model_tag(NEMO_UPSTREAM_OLLAMA_MODEL)
+        served = _normal_model_tag(NEMO_SERVED_MODEL)
+        upstream_digest = observed.get(upstream)
+        served_digest = observed.get(served)
+        manifest_match = upstream_digest == expected
+        ready = bool(manifest_match and served_digest)
+        return {
+            "schema": "szl.nemo.runtime-status/v1",
+            "state": "READY" if ready else "UNAVAILABLE",
+            "transport": "OLLAMA_LOOPBACK",
+            "endpoint": _ollama_base_url(),
+            "served_model": served,
+            "served_model_digest": served_digest,
+            "upstream_model": upstream,
+            "upstream_registry_manifest_sha256": upstream_digest,
+            "expected_registry_manifest_sha256": expected,
+            "upstream_manifest_match": manifest_match,
+            "weights_origin": "NVIDIA",
+            "szl_fine_tuned": False,
+            "training_state": "NOT_FINE_TUNED",
+            "honesty": (
+                "Runtime and immutable upstream identity are verified; model quality "
+                "remains unestablished." if ready else
+                "Required exact upstream and derived recipe tags are not both verified."
+            ),
+        }
+    except Exception as exc:
+        return {
+            "schema": "szl.nemo.runtime-status/v1",
+            "state": "UNAVAILABLE",
+            "transport": "OLLAMA_LOOPBACK",
+            "endpoint": NEMO_OLLAMA_URL,
+            "served_model": _normal_model_tag(NEMO_SERVED_MODEL),
+            "served_model_digest": None,
+            "upstream_model": _normal_model_tag(NEMO_UPSTREAM_OLLAMA_MODEL),
+            "upstream_registry_manifest_sha256": None,
+            "expected_registry_manifest_sha256": expected,
+            "upstream_manifest_match": False,
+            "weights_origin": "NVIDIA",
+            "szl_fine_tuned": False,
+            "training_state": "NOT_FINE_TUNED",
+            "error_type": type(exc).__name__,
+            "honesty": "Local runtime is unavailable; no model output is fabricated.",
+        }
+
+
+def _live_nemo_generate(query: str, runtime: dict) -> dict:
+    if runtime.get("state") != "READY":
+        raise RuntimeError("SZL-Nemo runtime identity is not READY")
+    started = time.perf_counter_ns()
+    result = _ollama_json("/api/generate", {
+        "model": runtime["served_model"],
+        "prompt": query,
+        "stream": False,
+        # Nemotron is a reasoning model.  Ollama otherwise places its bounded
+        # generation in the separate `thinking` field and may exhaust the token
+        # budget before emitting `response`.  This public inference contract
+        # needs an answer, not a hidden reasoning trace, so disable thinking
+        # explicitly and continue to fail closed on an empty response.
+        "think": False,
+        "keep_alive": "5m",
+        "options": {"temperature": 0.2, "num_predict": 384},
+    }, timeout_s=180.0)
+    answer = result.get("response")
+    if not isinstance(answer, str) or not answer.strip():
+        raise RuntimeError("Ollama returned no answer text")
+    observed_model = _normal_model_tag(str(result.get("model") or ""))
+    if observed_model != runtime["served_model"]:
+        raise RuntimeError("served model identity mismatch")
+    return {
+        "state": "ANSWERED_UNVERIFIED",
+        "answer": answer.strip(),
+        "answer_sha256": hashlib.sha256(answer.strip().encode("utf-8")).hexdigest(),
+        "observed_model": observed_model,
+        "served_model_digest": runtime["served_model_digest"],
+        "upstream_registry_manifest_sha256": runtime["upstream_registry_manifest_sha256"],
+        "latency_ms": round((time.perf_counter_ns() - started) / 1_000_000, 3),
+        "eval_count": result.get("eval_count"),
+        "eval_duration_ns": result.get("eval_duration"),
+        "load_duration_ns": result.get("load_duration"),
+        "quality_state": "UNVERIFIED_MODEL_OUTPUT",
+        "training_state": "NOT_FINE_TUNED",
+    }
+
+
+# ---------------------------------------------------------------------------
+# INFER — plan by default for library callers; the HTTP endpoint explicitly asks
+# for execution.  A failed runtime stays UNAVAILABLE and never turns into demo text.
+# ---------------------------------------------------------------------------
+def infer(query: str, top_k: int = 2, sign_fn=None, execute: bool = False):
     route = govern_route(query, top_k=top_k, sign_fn=None)  # inner decision (re-signed below)
     primary = route["experts"][0] if route["experts"] else None
     serving = (primary or {}).get("serving_crossover", {})
@@ -621,18 +769,37 @@ def infer(query: str, top_k: int = 2, sign_fn=None):
         "routed_experts": route["experts_selected"],
         "primary_expert": (primary or {}).get("expert_id"),
         "serving_tier": tier_choice,
-        "serving_where": "sovereign-local (2-GPU)" if tier_choice == "small/local"
+        "serving_where": "sovereign-local Ollama" if tier_choice == "small/local"
                          else "cloud-NIM-frontier (Nemotron Ultra)",
         "mtp": mtp_view(),
         "overall_lambda_advisory": route["overall_lambda_advisory"],
+        "execution_requested": bool(execute),
+        "runtime": nemo_runtime_status(),
         "skeleton_note": (
-            "SKELETON — this returns the GOVERNED INFERENCE PLAN + a signed receipt. "
-            "SZL-Nemo does NOT run the open base in-image; generation happens on the "
-            "sovereign-local 2-GPU tier (ROADMAP→Forge) or the cloud-NIM tier. No "
-            "model output is fabricated."),
+            "Plan-only library call; set execute=true through the HTTP endpoint for "
+            "a fail-closed local generation. No model output is fabricated."),
         "tiers": tiers_view(),
         "ts_utc": datetime.now(timezone.utc).isoformat(),
     }
+    if execute:
+        try:
+            plan["generation"] = _live_nemo_generate(query, plan["runtime"])
+            plan["execution_state"] = "ANSWERED_UNVERIFIED"
+            plan["skeleton_note"] = (
+                "A real local model generated this output. Runtime identity and hashes "
+                "are measured; correctness and fine-tuning quality are not established."
+            )
+        except Exception as exc:
+            plan["generation"] = None
+            plan["execution_state"] = "UNAVAILABLE"
+            plan["runtime_error_type"] = type(exc).__name__
+            plan["skeleton_note"] = (
+                "Execution was requested but the exact runtime/model identity did not "
+                "complete. No fallback or demo answer was fabricated."
+            )
+    else:
+        plan["generation"] = None
+        plan["execution_state"] = "NOT_REQUESTED"
     # If the routed primary expert is CODE, this turn is on the code-emission
     # path: gate the intended diff through R1's restraint ladder and attach the
     # chosen rung + signed restraint receipt (honest PENDING if R1 not live yet).
@@ -656,8 +823,8 @@ def nemo_code(query: str, intent: str | None = None, intensity: str = "full",
     """A governed code-emission turn. `intent` is the natural-language description
     of the diff SZL-Nemo is about to write (defaults to the query). We route it
     through restraint BEFORE emitting, surface the rung + ceilings + lines-saved,
-    and sign the combined decision. SZL-Nemo does NOT run the open base in-image
-    (generation is the sovereign-local/cloud tier, ROADMAP/cloud) — this returns
+    and sign the combined decision. Code generation is not performed by this path;
+    this returns
     the GOVERNED, restraint-gated code PLAN + a signed receipt, honestly labelled."""
     task = (intent or query or "").strip()
     route = govern_route(query, top_k=2, sign_fn=None)
@@ -676,9 +843,8 @@ def nemo_code(query: str, intent: str | None = None, intensity: str = "full",
         "overall_lambda_advisory": route["overall_lambda_advisory"],
         "skeleton_note": (
             "GOVERNED CODE PLAN — the intended diff is routed through a11oy "
-            "Restraint (R1) BEFORE any code is emitted. SZL-Nemo does NOT run the "
-            "open base in-image; generation happens on the sovereign-local 2-GPU "
-            "tier (ROADMAP→Forge) or cloud-NIM tier. No code is fabricated here."),
+            "Restraint (R1) BEFORE any code is emitted. This endpoint creates a "
+            "governed plan only; no code is fabricated here."),
         "ponytail": _PONYTAIL,
         "doctrine": DOCTRINE,
         "ts_utc": datetime.now(timezone.utc).isoformat(),
@@ -695,56 +861,22 @@ def nemo_code(query: str, intent: str | None = None, intensity: str = "full",
 # sovereign:true ONLY from the live gpu_reachable probe (Dev C). cloud = false.
 # ---------------------------------------------------------------------------
 def tiers_view():
-    en = _energy()
-    sovereign = False
-    base_url = None
-    probe_note = "szl_energy_sovereign unavailable in-process; honest default not-sovereign."
-    if en is not None and hasattr(en, "_sovereign_state"):
-        try:
-            st = en._sovereign_state()
-            sovereign = bool(en._gpu_reachable(st)) if hasattr(en, "_gpu_reachable") else False
-            base_url = st.get("base_url")
-            probe_note = st.get("honest_note") or (
-                "live gpu_reachable probe: sovereign=%s" % sovereign)
-        except Exception as e:
-            probe_note = "probe error (%s); honest default not-sovereign." % type(e).__name__
-    # Model-aware honesty: the node being reachable (the sovereign brain, e.g.
-    # qwen2.5-coder:7b today) does NOT make the SZL-Nemo Qwen3-32B / 2-GPU tier live.
-    # Labelling a 32B that is served NOWHERE as MEASURED would be the half-state. This
-    # tier is MEASURED/sovereign ONLY when a 32B base is genuinely served; otherwise it
-    # is ROADMAP while honestly naming what IS served on the reachable node.
-    _served_model = (os.environ.get("SZL_LOCAL_LLM_MODEL")
-                     or os.environ.get("A11OY_LOCAL_LLM_MODEL") or "").strip()
-    _base_served = bool(sovereign) and ("32b" in _served_model.lower())
-    if _base_served:
-        _local_honesty = ("MEASURED — a live probe confirms the named 32B base is "
-                          "served on our GPU. NEVER claim local Nemotron-Ultra.")
-    elif sovereign:
-        _local_honesty = ("Node reachable now serving %r (the sovereign brain); the "
-                          "SZL-Nemo Qwen3-32B / 2-GPU serve is ROADMAP (founder-gated: "
-                          "one 7B-class GPU is reachable, no 32B / no vLLM TP=2 / 2nd "
-                          "card asleep) — see FORGE_SZL_NEMO.md. NEVER claim local "
-                          "Nemotron-Ultra." % (_served_model or "a small local model"))
-    else:
-        _local_honesty = ("Not reachable; honest ROADMAP. sovereign:true for this tier "
-                          "ONLY when a live probe confirms the 32B base is served on our "
-                          "GPU. NEVER claim local Nemotron-Ultra.")
+    runtime = nemo_runtime_status()
+    ready = runtime.get("state") == "READY"
     local_tier = {
         "tier_id": "sovereign-local",
-        "title": "Sovereign-Local (2-GPU)",
+        "title": "Sovereign-Local Nemotron Recipe",
         "where": "gpu",
-        "sovereign": _base_served,   # the 32B tier is sovereign ONLY when a 32B is actually served
-        "gpu_reachable": bool(sovereign),  # node reachability (the live sovereign brain) — honest
-        "node_serving_now": (_served_model or None),
+        "sovereign": ready,
+        "gpu_reachable": ready,
+        "node_serving_now": runtime.get("served_model") if ready else None,
         "base_model": NEMO_BASE["default_base"] + " (open base, " +
                       NEMO_BASE["default_base_license"] + ")",
-        "plan": ("2 GPUs (a-11-oy.com GPU + RTX 4000): vLLM TP=2 OR heterogeneous "
-                 "role-split (RTX 4000 = Auto-Review classifier + speculative draft + "
-                 "embeddings). Per NEMOTRON_TWO_GPU_PLAN.md."),
-        "base_url": base_url,
-        "probe_note": probe_note,
-        "label": "MEASURED" if _base_served else "ROADMAP",
-        "honesty": _local_honesty,
+        "plan": "Exact Ollama recipe on SZL-controlled local hardware.",
+        "base_url": runtime.get("endpoint"),
+        "probe_note": runtime,
+        "label": "MEASURED" if ready else "UNAVAILABLE",
+        "honesty": runtime.get("honesty"),
     }
     cloud_tier = {
         "tier_id": "cloud-NIM-frontier",
@@ -767,8 +899,8 @@ def tiers_view():
         "schema": "szl.nemo.tiers/v1",
         "model": NEMO_NAME,
         "tiers": [local_tier, cloud_tier],
-        "future": ("TIER 3 — when the supercomputer arrives, register Nemotron "
-                   "Ultra/Super as a LOCAL tier (same gateway; zero app rework)."),
+        "future": ("Larger local or cloud tiers remain separate candidates and must "
+                   "pass their own identity, license, quality, and runtime receipts."),
         "doctrine": ("sovereign:true only via live probe; measured > datasheet; "
                      "0 CDN; signed receipts; never commit a key."),
         "ts_utc": datetime.now(timezone.utc).isoformat(),
@@ -938,20 +1070,21 @@ def model_card():
     return {
         "schema": "szl.nemo.model_card/v1",
         "name": NEMO_NAME, "version": NEMO_VERSION,
-        "one_liner": ("SZL-Nemo — a sovereign, governed, self-improving AGENT model "
-                      "built ON an open base (default Qwen3-32B, Apache-2.0)."),
+        "one_liner": ("SZL-Nemo — a governed local recipe and orchestration runtime "
+                      "built on NVIDIA Nemotron 3 Nano 4B."),
         "base": NEMO_BASE,
         "hub_artifact": NEMO_ARTIFACT,
         "what_is_ours": [
             "Governed-MoE DOMAIN-EXPERT router (Λ-governed, signed every selection) — the differentiator.",
-            "MTP / speculative decoding as the inference default (app-layer; box ROADMAP→Forge).",
+            "Fail-closed loopback serving with exact upstream and derived-tag identity binding.",
             "Reflexion + Voyager + τ-bench self-improvement loop that SIGNS the measured delta.",
-            "Tiered sovereign-local (2-GPU) / cloud-NIM-frontier gateway with honest where/sovereign labels.",
+            "Tiered local/cloud gateway with honest where/sovereign labels.",
             "Tamper-evident DSSE ECDSA-P256 signed receipts on every governed step.",
         ],
         "what_is_NOT_ours": [
-            "The base weights (open, cited above — Apache-2.0 / MIT).",
+            "The base weights (NVIDIA, cited above, under the upstream model license).",
             "We did NOT train a foundation model from scratch.",
+            "The current SZL-Nemo recipe is NOT an SZL fine-tune.",
             "There is NO 550B SZL model and NO local Nemotron-Ultra (cloud tier only).",
         ],
         "experts": [{"id": e["id"], "title": e["title"], "desc": e["desc"]} for e in NEMO_EXPERTS],
@@ -960,8 +1093,11 @@ def model_card():
         "tiers": tiers_view(),
         "doctrine": DOCTRINE,
         "never_claim": NEMO_BASE["never_claim"],
+        "runtime": nemo_runtime_status(),
         "sources": {
-            "base_qwen3": NEMO_BASE["default_base_url"],
+            "base_nemotron": NEMO_BASE["default_base_url"],
+            "base_license": NEMO_BASE["license_url"],
+            "hub_recipe": NEMO_ARTIFACT["url"],
             "speculative_decoding": "https://arxiv.org/abs/2211.17192",
             "reflexion": "https://arxiv.org/abs/2303.11366",
             "voyager": "https://arxiv.org/abs/2305.16291",
@@ -1021,7 +1157,10 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         if not q:
             return JSONResponse({"error": "missing 'query'"}, status_code=400)
         top_k = int(d.get("top_k", 2))
-        return JSONResponse(infer(q, top_k=top_k, sign_fn=sign_fn))
+        execute_value = str(d.get("execute", "true")).strip().lower()
+        execute = execute_value not in {"0", "false", "no", "off"}
+        return JSONResponse(infer(q, top_k=top_k, sign_fn=sign_fn,
+                                  execute=execute))
 
     async def _code_ep(request):
         if request.method == "POST":
@@ -1060,6 +1199,7 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
     async def _diag_ep(request):
         return JSONResponse({
             "status": "ok", "model": NEMO_NAME, "version": NEMO_VERSION,
+            "runtime": nemo_runtime_status(),
             "signer_present": sign_fn is not None,
             "signer_label": signer_label,
             "reuse": {

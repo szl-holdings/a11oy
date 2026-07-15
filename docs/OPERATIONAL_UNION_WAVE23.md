@@ -143,3 +143,70 @@ The Zenodo credential previously pasted into chat must be revoked and replaced i
 ## Research direction
 
 The defensible frontier is not a persona clone or an unverifiable claim that a small model solved open mathematics. It is a compact sovereign model whose outputs carry typed evidence and whose external runtime can prove what was retrieved, proposed, approved, executed, and observed. That combination is unusual; rarity and market leadership still require independent evaluation, adoption, and reproducible public receipts.
+
+## Post-wave 23 local verification addendum — 2026-07-15
+
+This addendum does not rewrite the July 13 snapshot above. It records a later local
+integration measurement and does not imply merge, release, Hugging Face publication,
+or deployment to `a-11-oy.com`, `a11oy.net`, or Killinchu.
+
+- The exact local tags `receiptagent:latest` and `khipu:latest` were observed and
+  used for ReceiptAgent/Yupaq and BrainNavigator/Maskaq turns respectively.
+- Both local turn envelopes were independently verified under DSSE. The Maskaq turn
+  also bound its model attestation, grounding, and six-handle evidence set to the
+  receipt. The verification key was process-boot-ephemeral, so these are scoped local
+  receipts rather than organization-identity signatures or transparency-log entries.
+- The earlier 29-file seed observation was superseded by the atomic-generation
+  rebuild below and is not a release candidate. The stale local attestation is
+  intentionally excluded from staging.
+- ReceiptAgent and BrainNavigator remain unpromoted. Their exact local tags and signed
+  turns do not reconcile the declared adapter/full-weight hashes with published
+  artifacts; the release identity remains unbound or in conflict.
+- The fail-closed row-level admission engine in
+  `szl_brain_training_admission.py` is implemented and covered by focused local
+  regression tests. It does not bulk-admit the Brain inventory. All 9,464 canonical
+  raw rows remain outside gradients, the admitted training-row count remains zero,
+  and no training run was started.
+- The current scoped verification summary is versioned at
+  `attestations/forge-second-brain-live-2026-07-15.json`. Its claims boundary keeps
+  model promotion, dense retrieval, and training explicitly false.
+- A fresh ReceiptAgent training preflight verified the 30-row train / 8-row eval
+  curriculum and the exact immutable 1.5B base snapshot, including its
+  `model.safetensors` hash. Training correctly remained blocked: the RTX 5050 had
+  6,369 MiB free against the non-weakenable 6,656 MiB admission floor. The measured
+  refusal is versioned at
+  `attestations/forge-training-preflight-local-2026-07-15.json`; no training,
+  upload, publication, or deployment occurred.
+- After the atomic generation upgrade, the local RAG seed rebuilt with 488 corpus
+  chunks and a separate 9,464-handle canonical Brain plane. A second process boot
+  revalidated the persisted generation as `VERIFIED_ON_REHYDRATE`. The independent
+  live harness then exercised Maskaq (`khipu:latest`) and Yupaq
+  (`receiptagent:latest`), verified both DSSE signatures and every prompt, model,
+  grounding, evidence, handle, citation, answer, and turn digest, and wrote PASS
+  artifact SHA-256
+  `0cfc363216624561f8faa080908fef4757db8267c40dafe07526b1cc502c9d8a`.
+  A privacy-safe copy is versioned at
+  `attestations/forge-second-brain-live-2026-07-15.json`.
+- The stale port-8765 process was replaced with the current runtime-bound API.
+  `SZL-Nemo` then served the exact local `szl-nemo:latest` tag whose manifest is
+  `0d7777be553e3a9000b0a6d266936184f64cef1d5e567a85b74c418cf79d8c27`,
+  bound to upstream `nemotron-3-nano:4b` manifest
+  `6cc467f054393a55e98a74098abde0c762ffb6d1d8cd64becf30458f38886197`.
+  The call returned a real answer in `847.435 ms`; its DSSE signature and declared
+  PAE digest were independently verified against the same-origin process-boot key.
+  The evidence is versioned at `attestations/szl-nemo-live-2026-07-15.json`.
+  This is a runtime-qualified governed NVIDIA recipe, not an SZL fine-tune; quality
+  remains `UNVERIFIED_MODEL_OUTPUT`.
+- A governed ReceiptAgent training queue is running with fixed, non-weakenable
+  admission thresholds. It remains `WAITING_FOR_ADMISSION`; no training, upload,
+  publication, or deployment has occurred. After the Nemo receipt the model was
+  explicitly unloaded, but the latest GPU sample still failed the fixed thermal and
+  free-VRAM gates, so the queue correctly continued waiting.
+- `model_release/szl-hf-bucket-topology.json` now specifies separated mutable build,
+  held-out evaluation, and sanitized runtime-evidence planes. Every consumable prefix
+  requires a signed manifest, full SHA-256 and byte-count readback, and a final
+  conditionally-created `COMPLETED.json`. Buckets remain noncanonical and are still
+  `DECLARED_PLAN_NOT_CREATED`; versioned Hub repositories, signed release receipts,
+  GitHub releases, and Zenodo records remain the publication authorities. The three
+  private buckets were then created and independently read back as private and empty
+  (`0` bytes, `0` files); no object was uploaded and no release was published.

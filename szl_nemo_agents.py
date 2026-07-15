@@ -42,8 +42,8 @@ HONESTY (Doctrine v11 — NEVER violate)
     ROADMAP inside the same payload (e.g. SZL-Nemo's on-box 2-GPU serving + Z3
     cross-check for qhawaq + numpy-SIMD perf for waqay). We NEVER fake-LIVE a
     capability that is not running, and we NEVER fabricate a metric.
-  * SZL-Nemo is a GOVERNED model built on an OPEN base (default Qwen3-32B,
-    Apache-2.0). We NEVER claim a from-scratch model, 550B params, a local
+  * SZL-Nemo is a governed recipe built on NVIDIA Nemotron 3 Nano 4B. We NEVER
+    claim an SZL fine-tune, a from-scratch model, 550B params, a local
     Nemotron-Ultra, or any certification. The base/license are read straight from
     a11oy_nemo_core.NEMO_BASE.
   * locked theorems = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17
@@ -159,8 +159,8 @@ def _khipu_sign(surface: str, summary: dict) -> dict:
 # /status BUILDERS — each reads ONLY the real backing module's live data.
 # ===========================================================================
 def _nemo_status() -> dict:
-    """SZL-Nemo: governed Qwen3-32B (Apache-2.0) base. LIVE governed-MoE router +
-    signed receipts + τ-bench self-improvement; on-box 2-GPU serving is ROADMAP."""
+    """SZL-Nemo: governed Nemotron 3 Nano 4B recipe. Router and runtime
+    readiness are reported independently; the recipe is not an SZL fine-tune."""
     base = {}
     experts: list = []
     tiers: list = []
@@ -179,7 +179,8 @@ def _nemo_status() -> dict:
         nemo_version = card.get("version")
     except Exception as e:  # noqa: BLE001
         nemo_name, nemo_version = "SZL-Nemo", None
-        base = {"default_base": "Qwen3-32B", "default_base_license": "Apache-2.0",
+        base = {"default_base": "NVIDIA Nemotron 3 Nano 4B",
+                "default_base_license": "NVIDIA Nemotron Open Model License",
                 "_note": "a11oy_nemo_core not importable here (%r)" % e}
 
     payload = {
@@ -189,23 +190,24 @@ def _nemo_status() -> dict:
         "lifecycle": "LIVE",
         "model": nemo_name,
         "version": nemo_version,
-        "model_governed": "%s (governed)" % base.get("default_base", "Qwen3-32B"),
-        "base": base.get("default_base", "Qwen3-32B"),
-        "base_license": base.get("default_base_license", "Apache-2.0"),
+        "model_governed": "%s (governed recipe)" % base.get("default_base", "UNKNOWN"),
+        "base": base.get("default_base", "UNKNOWN"),
+        "base_license": base.get("default_base_license", "UNKNOWN"),
         "base_url": base.get("default_base_url"),
-        "served_tier": "governed gateway (governed-MoE domain-expert router); "
-                       "sovereign-local 2-GPU serving is ROADMAP→Forge, cloud-NIM tier sovereign:false",
-        "provenance": ("SZL-Nemo is OUR governance/routing/self-improvement layer wrapped "
-                       "around an OPEN base (default Qwen3-32B, Apache-2.0). We did NOT train "
-                       "a foundation model from scratch."),
+        "served_tier": "exact-tag loopback Ollama runtime when identity-bound; "
+                       "cloud-NIM tier remains sovereign:false",
+        "provenance": ("SZL-Nemo is the SZL governance/routing layer wrapped around "
+                       "NVIDIA Nemotron 3 Nano 4B. The recipe is not an SZL fine-tune; "
+                       "runtime readiness and model identity are separate evidence."),
         "what_is_live": [
             "Λ-governed domain-expert MoE router (signed selection receipts) — LIVE",
             "τ-bench self-improvement loop signing the measured delta — LIVE",
             "model card / tiers / experts endpoints — LIVE",
+            "exact upstream-manifest and derived-tag runtime probe — LIVE",
         ],
         "what_is_roadmap": [
-            "On-box sovereign-local 2-GPU serving (Forge, founder-gated) — ROADMAP",
-            "MTP / speculative decoding on-box config — ROADMAP (app-layer view only)",
+            "Fine-tuned SZL-Nemo weights — NOT CREATED",
+            "MTP / speculative decoding — ROADMAP (not enabled on verified Ollama path)",
         ],
         "experts": experts,
         "tiers": tiers,
@@ -537,8 +539,11 @@ def _selftest() -> dict:
         out[name] = {"lifecycle": s["lifecycle"], "khipu_kind": s.get("khipu", {}).get("kind")}
     # SZL-Nemo honesty: governed open base, never from-scratch.
     n = _nemo_status()
-    assert n["base_license"] in ("Apache-2.0",), n["base_license"]
-    assert "from-scratch" not in json.dumps(n).lower() or "did NOT train" in json.dumps(n)
+    assert n["base_license"] == "NVIDIA Nemotron Open Model License", n["base_license"]
+    rendered = json.dumps(n).lower()
+    assert ("from-scratch" not in rendered
+            or "not an szl fine-tune" in rendered
+            or "did not train" in rendered)
     out["nemo_base"] = (n["base"], n["base_license"])
     # No banned codename leaks anywhere.
     served = json.dumps(served_parts).lower()

@@ -25,6 +25,13 @@ szl_energy_ledger.jsonl
 artifacts/energy_operator_ledger.json
 artifacts/energy_operator_ledger.json.tmp
 
+# Local runtime databases and append-only Khipu turn receipts. Historical,
+# intentionally versioned fixtures remain tracked; new runtime state must not
+# enter a release or model artifact by accident.
+data/*.sqlite3
+data/*.db
+khipu/**/*.ndjson
+
 # DEV A gap-closure (2026-06-30): reverse-imported SZLHOLDINGS/immune Space is a
 # Node app whose deployable IS its built dist/. Re-include this ONE governed snapshot
 # (see spaces/immune/PROVENANCE.md) while the repo-wide `dist/` ignore stays for real

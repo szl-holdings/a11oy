@@ -8394,7 +8394,25 @@ def _a11oy_canonical(obj) -> bytes:
 def _a11oy_sign_receipt(payload_obj) -> dict:
     """Produce a DSSE envelope over the canonical JSON of payload_obj using the
     in-image ephemeral key. Honest UNSIGNED marker if key unavailable."""
-    body = _a11oy_canonical(payload_obj)
+    key_identity = {
+        "keyid": _A11OY_KEYID,
+        "verify_key_url": "/api/a11oy/cosign.pub",
+        "key_scope": "PROCESS_BOOT_EPHEMERAL",
+        "key_lifetime": "UNTIL_PROCESS_RESTART",
+        "key_fingerprint_sha256": (
+            _hashv2.sha256((_A11OY_PUB_PEM or "").strip().encode()).hexdigest()
+            if _A11OY_PUB_PEM else None
+        ),
+    }
+    # Key discovery is part of the signed statement, not mutable envelope-only
+    # metadata. Verifiers must pin this same-origin URL and compare the fetched
+    # key fingerprint with this signed value before accepting a signature.
+    if isinstance(payload_obj, dict):
+        signed_payload = dict(payload_obj)
+    else:
+        signed_payload = {"value": payload_obj}
+    signed_payload["_signing_identity"] = key_identity
+    body = _a11oy_canonical(signed_payload)
     to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
     env = {
         "payloadType": _A11OY_PAYLOAD_TYPE,
@@ -8402,6 +8420,12 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
         "_dsse": "DSSEv1",
         "_pae_sha256": _hashv2.sha256(to_sign).hexdigest(),
         "_signed_at": _dtv2.now(_tzv2.utc).isoformat(),
+        # Duplicated for operator ergonomics; the authoritative values are the
+        # identical fields inside the signed payload's _signing_identity.
+        "verify_key_url": key_identity["verify_key_url"],
+        "key_scope": key_identity["key_scope"],
+        "key_lifetime": key_identity["key_lifetime"],
+        "key_fingerprint_sha256": key_identity["key_fingerprint_sha256"],
     }
     if _A11OY_PRIV is None:
         env["signatures"] = []
@@ -8414,7 +8438,8 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     env["signed"] = True
     env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
                       "in-image key generated at server boot. Verify in-browser "
-                      "against /cosign.pub; a tampered byte fails. Key resets on rebuild.")
+                      "against /api/a11oy/cosign.pub; a tampered byte fails. "
+                      "Key resets on process restart.")
     return env
 
 
@@ -12465,8 +12490,8 @@ except Exception as _op_e:
 
 # ============================================================================
 # SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
-# AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
-# Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /
+# AGENT RUNTIME built on the exact public Nemotron 3 Nano 4B recipe and registry
+# manifest. NEVER claims SZL fine-tuning / from-scratch / 550B /
 # local-Nemotron-Ultra / a cert. The differentiator is the GOVERNED-MoE
 # domain-expert router: "experts" = domain heads (counter-uas / maritime /
 # governance / code / finance), routed by a Λ-governed (Conjecture 1, advisory
@@ -12517,7 +12542,7 @@ except Exception as _nemo_e:
 # szl_willay_gateway) via their OWN idempotent register() helpers, and adds the
 # missing honest GET /api/a11oy/v1/<surface>/status for nemo + qhawaq + waqay +
 # yupay + willay. SZL-Nemo /status summarizes a11oy_nemo_core.model_card() (model
-# = governed Qwen3-32B, Apache-2.0, served via the governed gateway; NEVER a
+# = governed Nemotron 3 Nano 4B recipe, served only after exact runtime identity; NEVER a
 # from-scratch model). Each /status is signed into a Khipu receipt (Conjecture 2).
 # Honest LIVE lifecycle (each surface has real runtime substance) with ROADMAP
 # sub-items labeled inline. 0 codenames. Front-inserted BEFORE the SPA catch-all.

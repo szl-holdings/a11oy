@@ -31,6 +31,7 @@ on:
       - "numerics/**"
       - "src/**"
       - "corpus/**"
+      - "model_release/**"
       - "*.html"
       - "knowledge.json"
       - "README.md"

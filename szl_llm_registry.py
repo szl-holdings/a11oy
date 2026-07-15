@@ -425,6 +425,11 @@ _SOVEREIGN_ENV = "SZL_LOCAL_LLM_URL"
 # SZL_LOCAL_LLM_URL). Never fabricates reachability — a live call still proves it.
 # See box-scripts/litellm_config.yaml + research/SOVEREIGN_MESH_RUNBOOK.md.
 _GATEWAY_ENV = "A11OY_SOVEREIGN_GATEWAY_URL"
+# Code/Forge uses these names for the endpoint that actually serves turns.  The
+# global health rollup is backed by this registry, so it must resolve the same
+# endpoint instead of silently probing the legacy localhost default.  Ordered
+# exactly as a11oy_code_orchestrator._sovereign_base_url().
+_CODE_SOVEREIGN_ENVS = ("A11OY_BRAIN_URL", "A11OY_MODEL_BASE_URL")
 # Optional bearer for a bearer-protected gateway (LiteLLM master_key). The SECRET
 # is NEVER logged or returned — only attached as an Authorization header on the
 # guarded outbound call. Falls back to SZL_LOCAL_LLM_KEY. Unset => no header.
@@ -455,27 +460,38 @@ _SOVEREIGN_DEFAULT_URL = "http://localhost:11434/v1"
 def _sovereign_base() -> str:
     """Resolve the sovereign base URL from env.
 
-    Prefers the unified mesh gateway (A11OY_SOVEREIGN_GATEWAY_URL, the LiteLLM
-    load-balancer over both GPU boxes: omen + betterwithage). Falls back to the
-    single-node SZL_LOCAL_LLM_URL, then to the OpenAI-compatible Tower endpoint
-    (http://localhost:11434/v1) when neither is set, so the backend always has a
-    concrete target to reachability-probe. The probe/generate paths normalise a
+    Prefers the Code/Forge serving endpoint (A11OY_BRAIN_URL then
+    A11OY_MODEL_BASE_URL) so the global health rollup observes the same endpoint
+    that actually serves turns. Falls back to the unified mesh gateway
+    (A11OY_SOVEREIGN_GATEWAY_URL), the legacy single-node SZL_LOCAL_LLM_URL, then
+    the OpenAI-compatible Tower endpoint (http://localhost:11434/v1). The
+    probe/generate paths normalise a
     trailing `/v1` back to the Ollama root for native /api calls, so either form
     (`.../11434` or `.../11434/v1`) works. This is a guarded preference only — it
     never asserts the endpoint is reachable; a live call still proves it.
     """
-    gw = (os.environ.get(_GATEWAY_ENV, "") or "").strip()
-    if gw:
-        return gw.rstrip("/")
-    val = (os.environ.get(_SOVEREIGN_ENV, "") or "").strip().rstrip("/")
-    return val or _SOVEREIGN_DEFAULT_URL
+    for env_name in (*_CODE_SOVEREIGN_ENVS, _GATEWAY_ENV, _SOVEREIGN_ENV):
+        val = (os.environ.get(env_name, "") or "").strip()
+        if val:
+            return val.rstrip("/")
+    return _SOVEREIGN_DEFAULT_URL
+
+
+def _sovereign_env_used() -> str | None:
+    """Return the endpoint env NAME selected by :func:`_sovereign_base`.
+
+    The value is deliberately never returned or logged here.  ``None`` means
+    the guarded localhost default is being probed without operator intent.
+    """
+    for env_name in (*_CODE_SOVEREIGN_ENVS, _GATEWAY_ENV, _SOVEREIGN_ENV):
+        if (os.environ.get(env_name, "") or "").strip():
+            return env_name
+    return None
 
 
 def _sovereign_env_present() -> bool:
-    """True only when the sovereign gateway URL (A11OY_SOVEREIGN_GATEWAY_URL) or
-    the single-node SZL_LOCAL_LLM_URL was explicitly set (operator intent)."""
-    return bool((os.environ.get(_GATEWAY_ENV, "") or "").strip()
-                or (os.environ.get(_SOVEREIGN_ENV, "") or "").strip())
+    """True only when an accepted serving-endpoint env was explicitly set."""
+    return _sovereign_env_used() is not None
 
 
 def _ollama_root(base: str) -> str:
@@ -605,6 +621,8 @@ def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, A
     env_present = _sovereign_env_present()
     out: dict[str, Any] = {
         "env_var": _SOVEREIGN_ENV,
+        "env_used": _sovereign_env_used(),
+        "accepted_endpoint_envs": [*_CODE_SOVEREIGN_ENVS, _GATEWAY_ENV, _SOVEREIGN_ENV],
         "env_present": env_present,
         "base_url": base or None,
         "live": False,
@@ -1030,7 +1048,7 @@ def _enrich_model(m: dict, *, probe_local: bool = False) -> dict:
         out["configured"] = env_present
         out["wired"] = False
         out["provider"] = m.get("provider", _SOVEREIGN_PROVENANCE)
-        out["env_used"] = _SOVEREIGN_ENV
+        out["env_used"] = _sovereign_env_used() or _SOVEREIGN_ENV
         out["env_present"] = env_present
         out["base_url"] = base or m.get("api_base")
         out["is_local"] = True
@@ -1807,7 +1825,13 @@ def register(app: FastAPI) -> dict:
             "selected_node": matrix.get("selected"),
             "own_metal_first": True,
             "fallthrough_to_cloud": (not any_reachable),
-            "env_vars": {"primary": _SOVEREIGN_ENV, "nodes": _SOVEREIGN_NODES_ENV},
+            "env_vars": {
+                "primary": _SOVEREIGN_ENV,
+                "code_primary": list(_CODE_SOVEREIGN_ENVS),
+                "gateway": _GATEWAY_ENV,
+                "nodes": _SOVEREIGN_NODES_ENV,
+            },
+            "env_used": _sovereign_env_used(),
             # ── Backward-compatible single-node (primary) fields ──
             "env_var": _SOVEREIGN_ENV,
             "env_present": env_present,

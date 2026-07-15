@@ -18,20 +18,24 @@
       "model_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
       "hf_target": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
       "weight_artifact_required": true,
-      "state": "TRAINING_PATH_READY_GPU_BLOCKED",
-      "role": "Unsigned evidence-bound drafts, abstention, formula references, and proposal-only tools.",
+      "state": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
+      "role": "Evidence-bound drafts in independently signed runtime receipt envelopes, abstention, formula references, and proposal-only tools; the model is never the signer.",
       "runtime": "model_release/receipt-agent/receipt_runtime.py",
-      "training_contract": "model_release/szl-forge/training-contract.json"
+      "training_contract": "model_release/szl-forge/training-contract.json",
+      "runtime_tag": "receiptagent:latest",
+      "artifact_honesty": "Remote weights and signed receipts exist, but the receipt-declared adapter/full-weight hashes do not match the published LFS artifacts; promotion remains blocked."
     },
     {
       "profile_id": "BrainNavigator-v1",
       "model_id": "SZL-Khipu-1.5B-BrainNavigator-v1",
       "hf_target": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
       "weight_artifact_required": true,
-      "state": "PLANNED_DATASET_ADMISSION_REQUIRED",
+      "state": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
       "role": "Graph navigation, retrieval planning, contradiction discovery, and evidence-path explanation over the A11oy Brain.",
       "retrieval_surface": "A11oy Brain / Khipu",
-      "training_blocker": "A graph-navigation curriculum with row-level provenance and frozen retrieval evaluation does not yet exist."
+      "runtime_tag": "khipu:latest",
+      "training_blocker": "Signed training/evaluation receipts exist, but published adapter/full-weight and GGUF identities are not cryptographically reconciled to the declared artifacts; abstention evaluation is also below promotion quality.",
+      "artifact_honesty": "The model is usable as an experimental HANDLES_ONLY navigator; it is not promoted or represented as a fully artifact-bound release."
     },
     {
       "profile_id": "Operator-v1",
@@ -84,6 +88,13 @@
       "role": "Eleven bounded persona roles share the routed model backend and carry Forge profile intent without claiming separately trained weights.",
       "runtime": "a11oy_ayllu.py",
       "binding_manifest": "model_release/szl-ayllu-binding.json"
+    },
+    {
+      "surface_id": "SZL-Khipu-Second-Brain-v1",
+      "state": "COMPOUND_MODEL_EXPERIMENTAL_ARTIFACT_AND_EVAL_GATES_OPEN",
+      "role": "Combines the BrainNavigator profile, persistent hybrid evidence memory, handles-only controller, abstention policy, and signed turn receipts without relabeling indexed nodes as weights.",
+      "runtime": "a11oy_org_rag.py + a11oy_code_orchestrator.py + ayllu/backend.py",
+      "binding_manifest": "model_release/szl-khipu-second-brain.json"
     }
   ],
   "governed_organs": {
@@ -101,8 +112,15 @@
     "raw_nodes_observed": 9464,
     "raw_nodes_available_to_retrieval_and_evaluation": 9464,
     "raw_nodes_admitted_to_gradients": 0,
-    "current_state": "RETRIEVAL_AND_EVAL_AVAILABLE_TRAINING_QUARANTINED",
-    "admission_requirement": "Each gradient row requires rights, provenance, immutable revision, freshness, deduplication, contamination analysis, and split assignment."
+    "current_state": "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
+    "admission_engine": "szl_brain_training_admission.py",
+    "admission_contract": "szl.brain-training-admission-report.v1",
+    "admission_requirement": "Each gradient row requires Ed25519-signed allowlisted evidence for rights, provenance, immutable revision, freshness, deduplication, contamination analysis, and a frozen cross-run split assignment.",
+    "required_signed_inputs": [
+      "protected_eval_content_sha256_list",
+      "signed_evidence_trust_store",
+      "signed_prior_split_ledger_descriptor"
+    ]
   },
   "formula_policy": {
     "thesis_extracted_formula_count": 100,

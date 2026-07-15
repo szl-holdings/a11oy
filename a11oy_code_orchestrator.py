@@ -153,21 +153,21 @@ def _local_endpoint_reachable(base: str, timeout: float = 2.0) -> bool:
 
     HONESTY GATE: setting A11OY_MODEL_BASE_URL is an INTENT, not proof the GPU is
     actually serving. We only claim sovereign:true when the endpoint's OpenAI-
-    compatible /models (or root) actually answers. If it's set but unreachable
+    compatible /models actually returns bounded JSON. If it's set but unreachable
     (e.g. a tailnet endpoint the Space can't reach), we honestly report a router
-    fallback instead of a false sovereign banner. Pure stdlib, short timeout,
-    never raises. NOTE: this reflects ENDPOINT liveness; the chat-serving path
+    fallback instead of a false sovereign banner. The probe uses the same pinned,
+    redirect-revalidating SSRF guard as model identity reads. NOTE: this reflects
+    ENDPOINT liveness; the chat-serving path
     wiring to this endpoint is tracked separately (see #324)."""
-    import urllib.request as _u
-    for path in ("/models", ""):
-        try:
-            req = _u.Request(base.rstrip("/") + path, method="GET")
-            with _u.urlopen(req, timeout=timeout) as r:  # noqa: S310 (trusted op-set base)
-                if 200 <= getattr(r, "status", r.getcode()) < 500:
-                    return True
-        except Exception:  # noqa: BLE001 - any failure => not reachable, stay honest
-            continue
-    return False
+    try:
+        payload = _endpoint_json(
+            base.rstrip("/") + "/models",
+            timeout=timeout,
+            allow_private=True,
+        )
+        return isinstance(payload, dict)
+    except Exception:  # noqa: BLE001 - any failure => not reachable, stay honest
+        return False
 
 
 def _sovereign_inference_state() -> dict:
@@ -263,6 +263,252 @@ def _map_model_for_local(model: str) -> str:
     if "coder" in low or "code" in low:
         return A11OY_LOCAL_MODEL_MAP.get("coder", model)
     return A11OY_LOCAL_MODEL_MAP.get("default", model)
+
+
+# Forge profiles are runtime intents, not claims that five separately-trained
+# adapters exist.  Two exact tags are real on the current sovereign runtime
+# (ReceiptAgent and Khipu); the remaining roles intentionally share szl1 until
+# separately-qualified weights and receipts exist.  Read overrides at call time
+# so an operator can change a loaded tag without rebuilding the service.
+_FORGE_PROFILE_DEFAULTS = {
+    "ReceiptAgent-v1": "receiptagent:latest",
+    "BrainNavigator-v1": "khipu:latest",
+    "Operator-v1": "szl1:latest",
+    "Sentinel-v1": "szl1:latest",
+    "Anatomy-v1": "szl1:latest",
+}
+_FORGE_PROFILE_ENV = {
+    "ReceiptAgent-v1": "A11OY_FORGE_RECEIPT_MODEL",
+    "BrainNavigator-v1": "A11OY_FORGE_BRAIN_MODEL",
+    "Operator-v1": "A11OY_FORGE_OPERATOR_MODEL",
+    "Sentinel-v1": "A11OY_FORGE_SENTINEL_MODEL",
+    "Anatomy-v1": "A11OY_FORGE_ANATOMY_MODEL",
+}
+
+
+def forge_profile_model_map() -> dict[str, str]:
+    """Return the exact local tag intended for every governed Forge profile.
+
+    ``A11OY_FORGE_PROFILE_MODELS_JSON`` is an additive whole-map override.  Bad
+    JSON or unknown keys are ignored rather than weakening the profile boundary.
+    """
+    out = {
+        profile: (os.environ.get(_FORGE_PROFILE_ENV[profile]) or default).strip()
+        for profile, default in _FORGE_PROFILE_DEFAULTS.items()
+    }
+    try:
+        raw = os.environ.get("A11OY_FORGE_PROFILE_MODELS_JSON", "").strip()
+        override = json.loads(raw) if raw else {}
+        if isinstance(override, dict):
+            for profile, tag in override.items():
+                if profile in out and isinstance(tag, str) and tag.strip():
+                    out[profile] = tag.strip()
+    except Exception:
+        pass
+    return out
+
+
+def _endpoint_json(url: str, *, body: dict[str, Any] | None = None,
+                   timeout: float = 2.0, allow_private: bool = False) -> dict[str, Any]:
+    """Fetch a bounded provider document through the shared SSRF guard.
+
+    Private/loopback access is never inferred from the URL.  Callers must grant
+    it explicitly, and only do so for the operator-configured self-hosted base.
+    The shared transport pins validated DNS answers, revalidates every redirect,
+    rejects link-local metadata destinations, and enforces request/response caps.
+    """
+    try:
+        from szl_provider_http import http_json as _provider_http_json
+    except Exception as exc:  # pragma: no cover - packaged runtime always includes it
+        raise RuntimeError("PROVIDER_HTTP_UNAVAILABLE") from exc
+
+    encoded = (None if body is None else json.dumps(
+        body, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8"))
+    parsed, error = _provider_http_json(
+        url,
+        method="POST" if encoded is not None else "GET",
+        body=encoded,
+        timeout=timeout,
+        max_response_bytes=4 * 1024 * 1024,
+        max_redirects=2,
+        allow_private=allow_private,
+    )
+    if error:
+        raise RuntimeError(f"PROVIDER_HTTP:{error}")
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _served_model_ids(base: str, timeout: float = 2.0) -> list[str]:
+    try:
+        payload = _endpoint_json(
+            base.rstrip("/") + "/models", timeout=timeout, allow_private=True)
+    except Exception:
+        return []
+    rows = payload.get("data") or payload.get("models") or []
+    out: list[str] = []
+    if isinstance(rows, list):
+        for row in rows:
+            value = row.get("id") if isinstance(row, dict) else row
+            if isinstance(value, str) and value.strip():
+                out.append(value.strip())
+    return sorted(set(out), key=str.lower)
+
+
+def _model_origin(base: str) -> str:
+    from urllib.parse import urlsplit as _split, urlunsplit as _unsplit
+
+    parts = _split(base)
+    return _unsplit((parts.scheme, parts.netloc, "", "", "")).rstrip("/")
+
+
+def attest_local_model(profile_id: str, *, timeout: float = 2.0) -> dict[str, Any]:
+    """Attest one exact served tag without equating endpoint liveness to model load.
+
+    A matching OpenAI ``/models`` identity is mandatory.  When the endpoint is
+    Ollama-compatible, ``/api/show`` additionally binds family, quantization,
+    template, parameters, and the local GGUF blob digest.  A live tag is still
+    ``ARTIFACT_UNBOUND`` until a release manifest supplies and matches an expected
+    immutable blob digest; this deliberately prevents a same-name model swap.
+    """
+    models = forge_profile_model_map()
+    expected = models.get(profile_id)
+    base, is_local = _serving_base()
+    result: dict[str, Any] = {
+        "schema": "szl.forge.local-model-attestation/v1",
+        "profile_id": profile_id,
+        "expected_model": expected,
+        "base_url": base,
+        "local_endpoint": bool(is_local),
+        "observed_at_unix": int(time.time()),
+        "artifact_binding": "UNBOUND",
+    }
+    if not expected:
+        result.update({"state": "UNKNOWN_PROFILE", "available": False})
+        return result
+    if not is_local:
+        result.update({"state": "LOCAL_ENDPOINT_UNAVAILABLE", "available": False})
+        return result
+    served = _served_model_ids(base, timeout=timeout)
+    # Model identifiers are cryptographic identity inputs, not display labels.
+    # Case-folding here would let a differently named tag impersonate a profile.
+    exact = expected if expected in served else None
+    result["served_model_count"] = len(served)
+    result["served_models_sha256"] = hashlib.sha256(
+        json.dumps(served, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    if exact is None:
+        result.update({
+            "state": "MODEL_TAG_MISSING",
+            "available": False,
+            "honesty": "endpoint is live but the exact profile tag is absent",
+        })
+        return result
+
+    result.update({
+        "state": "TAG_ATTESTED_ARTIFACT_UNBOUND",
+        "available": True,
+        "served_model": exact,
+    })
+    try:
+        show = _endpoint_json(
+            _model_origin(base) + "/api/show", body={"model": exact},
+            timeout=timeout, allow_private=True)
+        details = show.get("details") if isinstance(show.get("details"), dict) else {}
+        modelfile = str(show.get("modelfile") or "")
+        layer_digests = sorted(set(
+            value.lower() for value in re.findall(
+                r"sha256[:-]([0-9a-fA-F]{64})(?![0-9a-fA-F])", modelfile)
+        ))
+        result["runtime"] = "ollama"
+        result["model_details"] = {
+            "format": details.get("format"),
+            "family": details.get("family"),
+            "parameter_size": details.get("parameter_size"),
+            "quantization_level": details.get("quantization_level"),
+        }
+        result["model_manifest_sha256"] = hashlib.sha256(json.dumps(
+            show, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")).hexdigest()
+        result["modelfile_sha256"] = hashlib.sha256(
+            modelfile.encode("utf-8")).hexdigest()
+        result["modelfile_layer_sha256"] = layer_digests
+        # Compatibility field remains singular only when the manifest really
+        # contains one layer.  Multiple layers must never be collapsed to the
+        # first regex match.
+        result["weights_blob_sha256"] = (
+            layer_digests[0] if len(layer_digests) == 1 else None)
+        for field in ("details", "model_info", "capabilities", "license"):
+            if field in show:
+                result[field + "_sha256"] = hashlib.sha256(json.dumps(
+                    show.get(field), sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False
+                ).encode("utf-8")).hexdigest()
+        for field in ("template", "parameters", "system"):
+            value = str(show.get(field) or "")
+            result[field + "_sha256"] = hashlib.sha256(value.encode("utf-8")).hexdigest()
+        try:
+            tags = _endpoint_json(
+                _model_origin(base) + "/api/tags", timeout=timeout,
+                allow_private=True)
+            rows = tags.get("models") if isinstance(tags.get("models"), list) else []
+            tag_row = next((row for row in rows if isinstance(row, dict) and (
+                row.get("name") == exact or row.get("model") == exact)), None)
+            if tag_row is not None:
+                result["tag_manifest_sha256"] = hashlib.sha256(json.dumps(
+                    tag_row, sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False
+                ).encode("utf-8")).hexdigest()
+                runtime_digest = tag_row.get("digest")
+                result["runtime_model_digest"] = (
+                    runtime_digest.lower()
+                    if isinstance(runtime_digest, str)
+                    and re.fullmatch(r"[0-9a-fA-F]{64}", runtime_digest)
+                    else None
+                )
+            else:
+                result["tag_manifest_state"] = "EXACT_TAG_NOT_IN_OLLAMA_TAGS"
+        except Exception as exc:
+            result["tag_manifest_state"] = "UNAVAILABLE"
+            result["tag_manifest_error_type"] = type(exc).__name__
+    except Exception as exc:
+        result["runtime"] = "openai-compatible"
+        result["show_state"] = "UNAVAILABLE"
+        result["show_error_type"] = type(exc).__name__
+    result["attestation_sha256"] = hashlib.sha256(
+        json.dumps(result, sort_keys=True, separators=(",", ":"),
+                   ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    return result
+
+
+def forge_profile_runtime_status() -> dict[str, Any]:
+    """Shallow exact-tag inventory for status/UI surfaces (one /models read)."""
+    base, is_local = _serving_base()
+    served = _served_model_ids(base) if is_local else []
+    exact_served = set(served)
+    profiles = {}
+    for profile, tag in forge_profile_model_map().items():
+        actual = tag if tag in exact_served else None
+        profiles[profile] = {
+            "expected_model": tag,
+            "available": actual is not None,
+            "served_model": actual,
+            "state": ("EXACT_TAG_OBSERVED_ARTIFACT_UNBOUND" if actual is not None
+                      else "MODEL_TAG_MISSING" if is_local
+                      else "LOCAL_ENDPOINT_UNAVAILABLE"),
+            "separate_profile_weights_claimed": profile in {
+                "ReceiptAgent-v1", "BrainNavigator-v1"},
+        }
+    return {
+        "schema": "szl.forge.profile-runtime-status/v1",
+        "local_endpoint": bool(is_local),
+        "base_url": base,
+        "served_model_count": len(served),
+        "profiles": profiles,
+        "honesty": ("exact tag observation is not release-artifact identity; turn-level "
+                    "attestation remains authoritative"),
+    }
 
 
 def _serving_base_selftest() -> dict:
@@ -888,11 +1134,12 @@ def honest_stub_text(user_msg: str, decision: dict[str, Any]) -> str:
     )
 
 
-async def _call_model_stream(client: httpx.AsyncClient, model: str, payload: dict[str, Any]
+async def _call_model_stream(client: httpx.AsyncClient, model: str, payload: dict[str, Any],
+                             *, local_model: str | None = None
                              ) -> AsyncGenerator[bytes, None]:
     base, is_local = _serving_base()  # #324: serve local when reachable, else router
     body = dict(payload)
-    body["model"] = _map_model_for_local(model) if is_local else model
+    body["model"] = (local_model or _map_model_for_local(model)) if is_local else model
     body["stream"] = True
     async with client.stream("POST", f"{base}/chat/completions",
                              headers=_inference_headers(is_local), json=body, timeout=120.0) as resp:
@@ -904,10 +1151,11 @@ async def _call_model_stream(client: httpx.AsyncClient, model: str, payload: dic
                 yield (line + "\n").encode()
 
 
-async def _call_model(client: httpx.AsyncClient, model: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def _call_model(client: httpx.AsyncClient, model: str, payload: dict[str, Any],
+                      *, local_model: str | None = None) -> dict[str, Any]:
     base, is_local = _serving_base()  # #324: serve local when reachable, else router
     body = dict(payload)
-    body["model"] = _map_model_for_local(model) if is_local else model
+    body["model"] = (local_model or _map_model_for_local(model)) if is_local else model
     body["stream"] = False
     resp = await client.post(f"{base}/chat/completions",
                              headers=_inference_headers(is_local), json=body, timeout=120.0)
@@ -947,17 +1195,67 @@ async def agent_model_complete(messages: list[dict], **kw) -> dict[str, Any]:
                "temperature": kw.get("temperature", 0.4)}
     candidates = [decision["model"], *decision.get("fallbacks", [])]
     _, is_local = _serving_base()  # honest sovereign posture for the receipt
+    local_profile = kw.get("local_profile")
+    local_model = None
+    model_attestation = None
+    if is_local and isinstance(local_profile, str) and local_profile:
+        local_model = forge_profile_model_map().get(local_profile)
+        model_attestation = attest_local_model(local_profile)
+        if not model_attestation.get("available"):
+            honesty = (
+                "exact Forge profile model is not loaded; refusing to relabel or use a "
+                "different local model"
+            )
+            out = {
+                "text": None,
+                "model": local_model or "unavailable",
+                "stub": True,
+                "honesty": honesty,
+                "model_attestation": model_attestation,
+            }
+            rcpt = _emit_turn_receipt(honesty, out["model"], True, True)
+            if rcpt is not None:
+                out["energy_receipt"] = rcpt
+            return out
     try:
-        data, model_used = await _call_model_resilient(client, candidates, payload)
+        if local_model:
+            data, model_used = await _call_model_resilient(
+                client, candidates, payload, local_model=local_model)
+        else:
+            data, model_used = await _call_model_resilient(client, candidates, payload)
+        if local_model and model_attestation is not None:
+            attested_tag = model_attestation.get("served_model")
+            if model_used != attested_tag:
+                honesty = (
+                    "model response identity did not exactly match the case-sensitive "
+                    "attested served tag; refusing the response"
+                )
+                out = {
+                    "text": None,
+                    "model": model_used,
+                    "stub": True,
+                    "honesty": honesty,
+                    "model_identity_state": "RESPONSE_TAG_MISMATCH",
+                    "attested_served_model": attested_tag,
+                    "model_attestation": model_attestation,
+                }
+                rcpt = _emit_turn_receipt(honesty, model_used, is_local, True)
+                if rcpt is not None:
+                    out["energy_receipt"] = rcpt
+                return out
         text = (data.get("choices", [{}])[0].get("message", {}) or {}).get("content", "") or ""
-        out = {"text": text, "model": model_used, "stub": False}
+        out = {"text": text, "model": model_used, "stub": False,
+               "model_attestation": model_attestation,
+               "model_identity_state": (
+                   "EXACT_ATTESTED_TAG" if local_model else "PROVIDER_REPORTED")}
         rcpt = _emit_turn_receipt(text, model_used, is_local, False)
         if rcpt is not None:
             out["energy_receipt"] = rcpt
         return out
     except Exception as exc:
         err_text = f"[honest error: live model call failed: {str(exc)[:200]}]"
-        out = {"text": err_text, "model": "error", "stub": True}
+        out = {"text": err_text, "model": "error", "stub": True,
+               "model_attestation": model_attestation}
         rcpt = _emit_turn_receipt(err_text, "error", is_local, True)
         if rcpt is not None:
             out["energy_receipt"] = rcpt
@@ -1090,8 +1388,120 @@ def _agent_rag_query(q: str, **kw) -> dict[str, Any]:
     return _orgrag.query(q, k=kw.get("k", 6), emit_receipt=khipu_emit)
 
 
+def agent_rag_context(q: str, *, k: int = 6) -> dict[str, Any]:
+    """Return evidence-bound Brain handles for a governed navigator model.
+
+    Node content remains in the controller.  The model receives only handles and
+    synthetic metadata, matching the Khipu model contract.  The API response can
+    independently resolve each selected handle against the evidence-set digest.
+    """
+    raw = _agent_rag_query(q, k=max(1, min(int(k), 12)))
+    chunks = raw.get("chunks") if isinstance(raw, dict) else []
+    chunks = chunks if isinstance(chunks, list) else []
+    handles: list[dict[str, Any]] = []
+    evidence: list[dict[str, Any]] = []
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            continue
+        ev = chunk.get("evidence") if isinstance(chunk.get("evidence"), dict) else {}
+        handle = {
+            "nodeId": chunk.get("node_id"),
+            "chunkId": chunk.get("chunk_id"),
+            "title": chunk.get("title"),
+            "repo": chunk.get("repo"),
+            "path": chunk.get("path"),
+            "corpus": chunk.get("corpus"),
+            "lambda": chunk.get("lambda"),
+            "scores": chunk.get("scores"),
+            "sha256": chunk.get("sha256"),
+        }
+        handles.append(handle)
+        evidence.append({
+            "node_id": chunk.get("node_id"),
+            "chunk_id": chunk.get("chunk_id"),
+            "sha256": chunk.get("sha256"),
+            "path": ev.get("path") or chunk.get("path"),
+            "source": ev.get("source") or chunk.get("source"),
+            "citation": ev.get("citation"),
+        })
+    evidence_set = raw.get("evidence_set") if isinstance(raw, dict) else None
+    if not isinstance(evidence_set, list):
+        evidence_set = evidence
+
+    def _membership_row(row: Any, *, handle: bool) -> tuple[Any, Any, Any] | None:
+        if not isinstance(row, dict):
+            return None
+        node_id = row.get("nodeId") if handle else row.get("node_id")
+        chunk_id = row.get("chunkId") if handle else row.get("chunk_id")
+        digest = row.get("sha256")
+        if not all(isinstance(value, str) and value for value in (
+                node_id, chunk_id, digest)):
+            return None
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            return None
+        return node_id, chunk_id, digest
+
+    handle_members = [_membership_row(row, handle=True) for row in handles]
+    evidence_members = [_membership_row(row, handle=False) for row in evidence_set]
+    membership_rows_valid = (
+        all(row is not None for row in handle_members)
+        and all(row is not None for row in evidence_members)
+    )
+    handle_member_set = {row for row in handle_members if row is not None}
+    evidence_member_set = {row for row in evidence_members if row is not None}
+    handle_evidence_set_equivalent = (
+        membership_rows_valid
+        and len(handle_members) == len(handle_member_set)
+        and len(evidence_members) == len(evidence_member_set)
+        and handle_member_set == evidence_member_set
+    )
+    computed_evidence_sha = hashlib.sha256(json.dumps(
+        evidence_set, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")).hexdigest()
+    raw_evidence_sha = raw.get("evidence_set_sha256") if isinstance(raw, dict) else None
+    raw_digest_present = (
+        isinstance(raw_evidence_sha, str)
+        and re.fullmatch(r"[0-9a-f]{64}", raw_evidence_sha) is not None
+    )
+    evidence_digest_matches = (
+        not raw_digest_present or raw_evidence_sha == computed_evidence_sha
+    )
+    evidence_sha = raw_evidence_sha if raw_digest_present else computed_evidence_sha
+    handles_sha = hashlib.sha256(json.dumps(
+        handles, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")).hexdigest()
+    ready = (bool(raw.get("ok")) and bool(handles)
+             and not bool(raw.get("i_dont_know")) and evidence_digest_matches
+             and handle_evidence_set_equivalent)
+    return {
+        "schema": "szl.brain.navigator-context/v1",
+        "state": (
+            "GROUNDED_HANDLES_READY" if ready
+            else "ABSTAIN_EVIDENCE_DIGEST_CONFLICT" if not evidence_digest_matches
+            else "ABSTAIN_HANDLE_EVIDENCE_SET_MISMATCH"
+            if not handle_evidence_set_equivalent
+            else "ABSTAIN_NO_GROUNDED_HANDLES"
+        ),
+        "ready": ready,
+        "content_access": "HANDLES_ONLY",
+        "query_sha256": hashlib.sha256((q or "").encode("utf-8")).hexdigest(),
+        "handles": handles,
+        "evidence": evidence_set,
+        "evidence_set_sha256": evidence_sha,
+        "evidence_digest_matches": evidence_digest_matches,
+        "handle_evidence_set_equivalent": handle_evidence_set_equivalent,
+        "handles_sha256": handles_sha,
+        "grounded_count": len(handles),
+        "lambda_floor": raw.get("lambda_floor"),
+        "dense_used": raw.get("dense_used"),
+        "khipu_hash": raw.get("khipu_hash"),
+        "honesty": raw.get("honest_note") or raw.get("honest_error"),
+    }
+
+
 async def _call_model_resilient(
-    client: httpx.AsyncClient, models: list[str], payload: dict[str, Any]
+    client: httpx.AsyncClient, models: list[str], payload: dict[str, Any],
+    *, local_model: str | None = None
 ) -> tuple[dict[str, Any], str]:
     """Bounded fallback walk over [primary, *fallbacks]. Returns (response, model_used).
     On rate-limit / unavailable-model / provider errors it advances to the next
@@ -1104,13 +1514,16 @@ async def _call_model_resilient(
             continue
         seen.add(m)
         try:
-            data = await _call_model(client, m, payload)
+            if local_model:
+                data = await _call_model(client, m, payload, local_model=local_model)
+            else:
+                data = await _call_model(client, m, payload)
             observed = data.get("model") if isinstance(data, dict) else None
             if isinstance(observed, str) and observed.strip():
                 model_used = observed.strip()
             else:
                 _base, is_local = _serving_base()
-                model_used = _map_model_for_local(m) if is_local else m
+                model_used = (local_model or _map_model_for_local(m)) if is_local else m
             return data, model_used
         except Exception as exc:  # provider 4xx/5xx, timeout, etc.
             last_exc = exc

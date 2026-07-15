@@ -15,9 +15,10 @@ from typing import Any, Mapping
 
 
 SCHEMA = "szl.ayllu.model-family-binding/v1"
+SECOND_BRAIN_SCHEMA = "szl.khipu.compound-second-brain.v1"
 FAMILY_ID = "SZL-Forge-1.5B"
 COMPUTE_PLANE = "SZL-Yupaq"
-BINDING_STATE = "ROUTER_INTEGRATED_FORGE_PROFILE_NOT_PINNED"
+BINDING_STATE = "PROFILE_AWARE_LOCAL_ROUTING_ARTIFACT_BINDING_PARTIAL"
 
 _ALL_COMPUTE_OPERATIONS = (
     "formula.org_lambda.weighted_geomean",
@@ -32,8 +33,8 @@ _ALL_COMPUTE_OPERATIONS = (
 )
 
 _PROFILE_STATES = {
-    "ReceiptAgent-v1": "TRAINING_PATH_READY_GPU_BLOCKED",
-    "BrainNavigator-v1": "PLANNED_DATASET_ADMISSION_REQUIRED",
+    "ReceiptAgent-v1": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
+    "BrainNavigator-v1": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
     "Operator-v1": "PLANNED_TOOL_CONTRACT_REQUIRED",
     "Sentinel-v1": "PLANNED_SECURITY_ADMISSION_REQUIRED",
     "Anatomy-v1": "PLANNED_ONTOLOGY_ADMISSION_REQUIRED",
@@ -139,6 +140,8 @@ def persona_binding(
     *,
     actual_model: Any = None,
     backend_mode: str | None = None,
+    model_attestation: Mapping[str, Any] | None = None,
+    grounding: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return one role's immutable model/control-plane binding."""
     canonical = next((key for key in _PERSONA_BINDINGS if key.lower() == (name or "").lower()), None)
@@ -146,6 +149,32 @@ def persona_binding(
         raise KeyError(f"unknown Ayllu persona: {name}")
     binding = copy.deepcopy(_PERSONA_BINDINGS[canonical])
     primary = binding["primary_profile"]
+    attestation = copy.deepcopy(dict(model_attestation or {})) or None
+    grounding_summary = None
+    if grounding:
+        grounding_summary = {
+            "schema": grounding.get("schema"),
+            "state": grounding.get("state"),
+            "content_access": grounding.get("content_access"),
+            "query_sha256": grounding.get("query_sha256"),
+            "evidence_set_sha256": grounding.get("evidence_set_sha256"),
+            "handles_sha256": grounding.get("handles_sha256"),
+            "augmented_prompt_sha256": grounding.get("augmented_prompt_sha256"),
+            "handle_evidence_set_equivalent": grounding.get(
+                "handle_evidence_set_equivalent"),
+            "citation_validation": copy.deepcopy(
+                grounding.get("citation_validation")),
+            "rejected_model_output_sha256": grounding.get(
+                "rejected_model_output_sha256"),
+            "grounded_count": grounding.get("grounded_count"),
+        }
+    attested_served_model = (
+        attestation.get("served_model") if attestation is not None else None)
+    model_identity_reconciled = (
+        actual_model == attested_served_model
+        if isinstance(attested_served_model, str) and attested_served_model
+        else None
+    )
     binding.update({
         "schema": SCHEMA,
         "persona": canonical,
@@ -155,6 +184,16 @@ def persona_binding(
         "actual_model": actual_model,
         "backend_mode": backend_mode or "NOT_OBSERVED",
         "actual_model_authority": "turn receipt and router evidence",
+        "attested_served_model": attested_served_model,
+        "model_identity_reconciled": model_identity_reconciled,
+        "model_attestation": attestation,
+        "model_attestation_sha256": (
+            _canonical_sha256(attestation) if attestation is not None else None
+        ),
+        "grounding": grounding_summary,
+        "grounding_sha256": (
+            _canonical_sha256(grounding_summary) if grounding_summary is not None else None
+        ),
         "compute_plane": COMPUTE_PLANE,
         "authority": "PROPOSAL_ONLY",
         "hard_boundaries": copy.deepcopy(_HARD_BOUNDARIES),
@@ -169,15 +208,17 @@ def family_binding(
 ) -> dict[str, Any]:
     """Return the machine-readable Ayllu-to-Forge family contract."""
     status = dict(backend_status or {})
+    profile_runtime = status.get("forge_profiles")
     return {
         "schema": SCHEMA,
         "family_id": FAMILY_ID,
         "binding_state": BINDING_STATE,
         "runtime_backend": status,
         "runtime_backend_is_profile_pinned": False,
+        "runtime_profile_status": profile_runtime,
         "profile_pin_requirement": (
-            "A promoted adapter must be loaded by the local OpenAI-compatible endpoint "
-            "and named by A11OY_LOCAL_GENERAL_MODEL; the turn receipt remains authoritative."
+            "The exact profile tag must be observed, its immutable weight/blob digest must "
+            "match a signed release manifest, and the turn receipt must bind that attestation."
         ),
         "personas": [persona_binding(name) for name in _PERSONA_BINDINGS],
         "compute": {
@@ -189,6 +230,135 @@ def family_binding(
             "stateful_routes_require_auth": True,
         },
         "hard_boundaries": copy.deepcopy(_HARD_BOUNDARIES),
+    }
+
+
+def second_brain_binding(
+    *,
+    namespace: str = "a11oy",
+    backend_status: Mapping[str, Any] | None = None,
+    rag_status: Mapping[str, Any] | None = None,
+    signer_ready: bool = False,
+) -> dict[str, Any]:
+    """Describe the Khipu Second Brain as an evidence-bound compound model.
+
+    The generator tag, persistent retrieval index, controller, and receipt
+    verifier are independent components.  Keeping that separation explicit
+    prevents an index row count from being mislabeled as parameters or trained
+    weights while still exposing one operational system contract.
+    """
+    backend = copy.deepcopy(dict(backend_status or {}))
+    rag = copy.deepcopy(dict(rag_status or {}))
+    profile_runtime = (
+        (backend.get("forge_profiles") or {}).get("profiles") or {}
+    ).get("BrainNavigator-v1") or {}
+    exact_tag_observed = bool(profile_runtime.get("available"))
+    index_ready = bool(rag.get("built"))
+    ready = exact_tag_observed and index_ready
+    if ready:
+        state = "READY_FOR_GROUNDED_NAVIGATION_ARTIFACT_UNBOUND"
+    elif not exact_tag_observed and not index_ready:
+        state = "UNAVAILABLE_MODEL_AND_INDEX"
+    elif not exact_tag_observed:
+        state = "UNAVAILABLE_MODEL_TAG_MISSING"
+    else:
+        state = "UNAVAILABLE_INDEX_NOT_BUILT"
+    return {
+        "schema": SECOND_BRAIN_SCHEMA,
+        "system_id": "SZL-Khipu-Second-Brain-v1",
+        "system_type": "COMPOUND_MODEL_WITH_EXTERNAL_EVIDENCE_MEMORY",
+        "state": state,
+        "ready_for_grounded_navigation": ready,
+        "live_grounded_turn_verified_this_request": False,
+        "signer_ready_this_request": bool(signer_ready),
+        "promotion_state": "BLOCKED_ARTIFACT_AND_EVAL_GATES",
+        "profile": {
+            "profile_id": "BrainNavigator-v1",
+            "expected_model": profile_runtime.get("expected_model", "khipu:latest"),
+            "served_model": profile_runtime.get("served_model"),
+            "exact_tag_observed": exact_tag_observed,
+            "artifact_binding": "UNBOUND",
+            "turn_level_attestation_required": True,
+        },
+        "memory": {
+            "kind": "PERSISTENT_SQLITE_HYBRID_RETRIEVAL_GRAPH",
+            "built": index_ready,
+            "document_count": rag.get("document_count", rag.get("files")),
+            "chunk_count": rag.get("chunk_count", rag.get("chunks")),
+            "corpus_chunk_count": rag.get(
+                "corpus_chunk_count", rag.get("chunk_count", rag.get("chunks"))
+            ),
+            "brain_handle_count": rag.get("brain_handle_count", 0),
+            "brain_handle_plane": rag.get("brain_handle_plane"),
+            "training_authority_rows": rag.get("training_authority_rows", 0),
+            "node_count": rag.get("node_count"),
+            "edge_count": rag.get("edge_count"),
+            "generation_id": rag.get("generation_id"),
+            "generation_digest_sha256": rag.get("generation_digest_sha256"),
+            "integrity_state": rag.get("integrity_state"),
+            "rehydration_state": rag.get("rehydration_state"),
+            "corpus": rag.get("corpus"),
+            "index_mode": rag.get("mode"),
+            "scope_boundary": (
+                "Corpus chunks and the canonical 9,464-node Brain handle plane are "
+                "separate, independently counted retrieval planes. Handles preserve "
+                "source and quarantine metadata and grant no gradient authority."
+            ),
+            "evidence_access": "HANDLES_ONLY_TO_MODEL; CONTENT_STAYS_IN_CONTROLLER",
+        },
+        "grounding": {
+            "ask_endpoint": f"/api/{namespace}/v1/ayllu/ask",
+            "persona": "Maskaq",
+            "query_endpoint": f"/api/{namespace}/code/rag/query",
+            "required_receipt_fields": [
+                "evidence_set_sha256",
+                "handles_sha256",
+                "augmented_prompt_sha256",
+                "grounding_sha256",
+                "model_attestation_sha256",
+                "turn_output_sha256",
+            ],
+            "abstain_when_ungrounded": True,
+        },
+        "training_boundary": {
+            "raw_brain_nodes_observed": 9464,
+            "raw_brain_nodes_admitted_to_gradients": 0,
+            "admission_is_row_level": True,
+            "admission_engine": "szl_brain_training_admission.py",
+            "admission_contract": "szl.brain-training-admission-report.v1",
+            "evidence_security": "ED25519_ALLOWLISTED_ISSUER_TOOL_KEY",
+            "required_signed_inputs": [
+                "protected_eval_content_sha256_list",
+                "signed_evidence_trust_store",
+                "signed_prior_split_ledger_descriptor",
+            ],
+            "current_state": (
+                "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED"
+            ),
+            "required": [
+                "stable_node_id",
+                "content_sha256",
+                "immutable_source_revision",
+                "rights_basis_and_license",
+                "source_timestamp_and_freshness",
+                "canonical_state",
+                "dedup_group",
+                "contamination_result",
+                "immutable_split",
+                "cross_run_split_ledger_binding",
+            ],
+            "honesty": (
+                "All graph nodes may participate in retrieval and evaluation; only "
+                "independently admitted rows may enter gradients."
+            ),
+        },
+        "hard_boundaries": {
+            "index_is_model_weights": False,
+            "retrieval_is_training": False,
+            "model_can_read_raw_node_content": False,
+            "model_can_write_canonical_memory": False,
+            "model_can_self_certify_grounding": False,
+        },
     }
 
 
@@ -213,12 +383,20 @@ def prompt_contract(binding: Mapping[str, Any]) -> str:
     )
 
 
+def _canonical_sha256(value: Any) -> str:
+    return __import__("hashlib").sha256(json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")).hexdigest()
+
+
 __all__ = [
     "BINDING_STATE",
     "COMPUTE_PLANE",
     "FAMILY_ID",
     "SCHEMA",
+    "SECOND_BRAIN_SCHEMA",
     "family_binding",
     "persona_binding",
     "prompt_contract",
+    "second_brain_binding",
 ]

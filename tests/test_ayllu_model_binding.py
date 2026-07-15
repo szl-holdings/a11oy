@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 import a11oy_ayllu
 import a11oy_code_orchestrator as orchestrator
 import szl_yupaq_compute
-from ayllu.model_binding import family_binding, persona_binding
+from ayllu.model_binding import family_binding, persona_binding, second_brain_binding
 from ayllu.personas import ROSTER
 
 
@@ -64,7 +64,7 @@ def test_all_personas_map_once_to_declared_forge_profiles():
 def test_ayllu_compute_authority_is_proposal_only_and_allowlisted():
     binding = family_binding(namespace="union")
     assert binding["family_id"] == "SZL-Forge-1.5B"
-    assert binding["binding_state"] == "ROUTER_INTEGRATED_FORGE_PROFILE_NOT_PINNED"
+    assert binding["binding_state"] == "PROFILE_AWARE_LOCAL_ROUTING_ARTIFACT_BINDING_PARTIAL"
     assert binding["compute"]["capabilities_endpoint"].startswith(
         "/api/union/v1/compute/")
     assert set(binding["compute"]["allowed_operations"]) == set(
@@ -78,6 +78,63 @@ def test_ayllu_compute_authority_is_proposal_only_and_allowlisted():
     yupaq = persona_binding("Yupaq")
     assert yupaq["authority"] == "PROPOSAL_ONLY"
     assert set(yupaq["compute_operations"]) == set(szl_yupaq_compute.OPERATIONS)
+
+
+def test_second_brain_is_a_compound_model_not_a_false_weight_claim():
+    manifest = json.loads((
+        ROOT / "model_release/szl-khipu-second-brain.json").read_text())
+    runtime = second_brain_binding(
+        namespace="braincheck",
+        backend_status={
+            "forge_profiles": {
+                "profiles": {
+                    "BrainNavigator-v1": {
+                        "expected_model": "khipu:latest",
+                        "served_model": "khipu:latest",
+                        "available": True,
+                    }
+                }
+            }
+        },
+        rag_status={
+            "built": True,
+            "document_count": 575,
+            "chunk_count": 575,
+            "brain_handle_count": 9464,
+            "training_authority_rows": 0,
+            "integrity_state": "VERIFIED_ON_REHYDRATE",
+            "generation_id": "test-generation",
+        },
+        signer_ready=True,
+    )
+    assert runtime["ready_for_grounded_navigation"] is True
+    assert runtime["state"] == "READY_FOR_GROUNDED_NAVIGATION_ARTIFACT_UNBOUND"
+    assert runtime["live_grounded_turn_verified_this_request"] is False
+    assert runtime["signer_ready_this_request"] is True
+    assert runtime["hard_boundaries"]["index_is_model_weights"] is False
+    assert runtime["training_boundary"]["raw_brain_nodes_admitted_to_gradients"] == 0
+    assert runtime["memory"]["brain_handle_count"] == 9464
+    assert runtime["memory"]["training_authority_rows"] == 0
+    assert runtime["memory"]["integrity_state"] == "VERIFIED_ON_REHYDRATE"
+    assert runtime["training_boundary"]["admission_engine"] == (
+        "szl_brain_training_admission.py")
+    assert runtime["training_boundary"]["current_state"] == (
+        "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED")
+    assert runtime["grounding"]["ask_endpoint"].startswith(
+        "/api/braincheck/v1/ayllu/")
+    assert manifest["claims_boundary"]["raw_node_count_is_parameter_count"] is False
+    assert manifest["brain_training_policy"]["admission_engine"] == (
+        "szl_brain_training_admission.py")
+    policy = manifest["brain_training_policy"]
+    assert policy["candidate_schema"] == "szl.brain-training-candidate.v1"
+    assert "content" in policy["candidate_required_inputs"]
+    assert "canonical_status" in policy["derived_decision_fields"]
+    assert "canonical_state" not in policy["candidate_required_inputs"]
+    for item in policy["current_inventory_evidence"].values():
+        path = ROOT / item["path"]
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["file_sha256"]
+    assert manifest["components"]["navigator_profile"]["authority"] == (
+        "PROPOSE_RETRIEVAL_PLAN_ONLY")
 
 
 def test_roster_manifest_and_binding_endpoint_expose_same_family_contract():

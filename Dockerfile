@@ -165,8 +165,12 @@ COPY a11oy_ayllu.py ./
 COPY ayllu/ ./ayllu/
 # Canonical model-family/control-plane evidence ships with the runtime image so
 # deployed status surfaces can be audited against the same release contracts.
-COPY model_release/szl-forge-family.json model_release/szl-compute-plane.json model_release/szl-ayllu-binding.json ./model_release/
+COPY model_release/szl-forge-family.json model_release/szl-compute-plane.json model_release/szl-ayllu-binding.json model_release/szl-khipu-second-brain.json ./model_release/
 COPY model_release/receipt-agent/ ./model_release/receipt-agent/
+# Brain-derived rows remain quarantined until this deterministic, fail-closed
+# admission engine validates immutable provenance, rights, contamination, and
+# split obligations. Shipping the CLI does not start training or admit rows.
+COPY szl_brain_training_admission.py ./
 # Waqay Security Loop wave 15: pure read-only proposal contract.  The module
 # exposes zero external effectors; serve.py registers only its manifest GET.
 COPY szl_waqay_security_loop.py ./
@@ -1673,7 +1677,14 @@ COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3
 ARG SZL_GIT_SHA=unknown
 ARG SZL_BUILD_TIME=unknown
 ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
-    SZL_BUILD_TIME=${SZL_BUILD_TIME}
+    SZL_BUILD_TIME=${SZL_BUILD_TIME} \
+    A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db
+
+# The Second Brain's SQLite index is rebuildable, but a mounted /app/data keeps
+# the active generation across process/container replacement. Deployments that
+# do not attach storage will rebuild and report that fact; they never claim
+# cross-redeploy durability.
+VOLUME ["/app/data"]
 CMD ["python", "serve.py"]
 
 

@@ -1,0 +1,35 @@
+{
+  "schema": "szl.nemo.release-manifest/v1",
+  "candidate_id": "SZL-Nemo-runtime-recipe-v1",
+  "artifact_kind": "OLLAMA_CONFIGURATION_RECIPE",
+  "release_state": "RUNTIME_QUALIFICATION_PENDING",
+  "weights_present_in_repository": false,
+  "szl_fine_tuned": false,
+  "training_state": "NOT_FINE_TUNED",
+  "hub": {
+    "repository": "SZLHOLDINGS/szl-nemo",
+    "revision": "7866203c481d1baadadcb3dc81a6934d770868bc"
+  },
+  "base": {
+    "repository": "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16",
+    "ollama_tag": "nemotron-3-nano:4b",
+    "expected_ollama_registry_manifest_sha256": "6cc467f054393a55e98a74098abde0c762ffb6d1d8cd64becf30458f38886197",
+    "license": "NVIDIA Nemotron Open Model License",
+    "license_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16/blob/main/LICENSE"
+  },
+  "served_model": "szl-nemo:latest",
+  "required_receipts": [
+    "upstream-manifest-match",
+    "derived-model-digest",
+    "clean-load-and-generate",
+    "identity-disclosure",
+    "held-out-behavior-evaluation",
+    "restart-and-reload"
+  ],
+  "promotion": {
+    "automatic": false,
+    "runtime_ready_requires_all_identity_receipts": true,
+    "trained_and_weighted_claim_allowed": false,
+    "reason": "The current artifact is a governed recipe over upstream weights, not an SZL fine-tune."
+  }
+}

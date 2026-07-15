@@ -22,16 +22,24 @@ class SZLForgeFamilyTests(unittest.TestCase):
         self.assertTrue(all(item["weight_artifact_required"] is True for item in profiles))
         self.assertTrue(all(item["hf_target"].startswith("SZLHOLDINGS/") for item in profiles))
 
-    def test_only_receipt_agent_claims_an_executable_path(self) -> None:
+    def test_two_signed_profiles_remain_blocked_on_artifact_binding(self) -> None:
         states = {item["profile_id"]: item["state"] for item in self.registry["profiles"]}
-        self.assertEqual(states["ReceiptAgent-v1"], "TRAINING_PATH_READY_GPU_BLOCKED")
-        self.assertTrue(all(state.startswith("PLANNED_") for key, state in states.items() if key != "ReceiptAgent-v1"))
+        conflict = "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT"
+        self.assertEqual(states["ReceiptAgent-v1"], conflict)
+        self.assertEqual(states["BrainNavigator-v1"], conflict)
+        self.assertTrue(all(state.startswith("PLANNED_") for key, state in states.items()
+                            if key not in {"ReceiptAgent-v1", "BrainNavigator-v1"}))
 
     def test_brain_and_external_inference_remain_fail_closed(self) -> None:
         brain = self.registry["brain_policy"]
         self.assertEqual(brain["raw_nodes_observed"], 9464)
         self.assertEqual(brain["raw_nodes_available_to_retrieval_and_evaluation"], 9464)
         self.assertEqual(brain["raw_nodes_admitted_to_gradients"], 0)
+        self.assertEqual(brain["admission_engine"], "szl_brain_training_admission.py")
+        self.assertEqual(
+            brain["current_state"],
+            "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
+        )
         council = self.registry["external_inference_council"]
         self.assertEqual(council["training_reuse_default"], "DENY_UNTIL_PROVIDER_TERMS_AND_ROW_PROVENANCE_PASS")
         self.assertFalse(council["private_data_to_third_party_allowed"])
@@ -63,6 +71,11 @@ class SZLForgeFamilyTests(unittest.TestCase):
         self.assertEqual(formulas["lean_declarations"], 269)
         self.assertEqual(formulas["requested_200_formula_claim"], "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES")
         self.assertEqual(formulas["rows_admitted_to_gradients"], 0)
+
+    def test_second_brain_release_and_admission_engine_ship_in_image(self) -> None:
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("model_release/szl-khipu-second-brain.json", dockerfile)
+        self.assertIn("COPY szl_brain_training_admission.py ./", dockerfile)
 
 
 if __name__ == "__main__":

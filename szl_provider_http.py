@@ -134,11 +134,14 @@ def _classify_address(value: str, *, allow_private: bool) -> str | None:
         address = address.ipv4_mapped
 
     # Link-local is always denied: it includes the common cloud metadata path.
+    # ``ipaddress`` also classifies IPv6 loopback (``::1``) as reserved on some
+    # Python versions.  Loopback is an explicitly supported self-hosted target,
+    # so do not let that implementation detail override ``allow_private=True``.
     if (
         address.is_unspecified
         or address.is_multicast
-        or address.is_reserved
         or address.is_link_local
+        or (address.is_reserved and not address.is_loopback)
     ):
         return "DESTINATION_FORBIDDEN"
 

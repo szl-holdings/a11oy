@@ -63,7 +63,7 @@ from ayllu import __version__ as _AYLLU_VERSION
 from ayllu import backend as _backend
 from ayllu.lounge import Lounge
 from ayllu.loop import run_turn
-from ayllu.model_binding import family_binding, persona_binding
+from ayllu.model_binding import family_binding, persona_binding, second_brain_binding
 from ayllu.personas import ROSTER, get_persona
 
 __version__ = _AYLLU_VERSION
@@ -82,6 +82,7 @@ COUNCIL_DEFAULT = ["Amaru", "Kamachiq", "Qhatuq"]  # architect · orchestrator �
 COUNCIL_CONTRACT_VERSION = "2.0"
 COUNCIL_SCHEMA = "szl.ayllu.evidence-bound-council/v2"
 NEMO_ARTIFACT = "https://huggingface.co/SZLHOLDINGS/szl-nemo"
+RUNTIME_VERIFY_KEY_URL = "/api/a11oy/cosign.pub"
 
 # One process-wide opt-in lounge (in-memory, honest source labels). Public ask and
 # council handlers do not automatically publish caller output into it.
@@ -177,7 +178,11 @@ def _make_receipt(payload: Dict[str, Any], sign_fn=None) -> Dict[str, Any]:
         try:
             env = sign_fn(payload)
             if isinstance(env, dict):
-                return env
+                out = dict(env)
+                out.setdefault("verify_key_url", RUNTIME_VERIFY_KEY_URL)
+                out.setdefault("key_scope", "PROCESS_BOOT_EPHEMERAL")
+                out.setdefault("key_lifetime", "UNTIL_PROCESS_RESTART")
+                return out
             honesty = "UNSIGNED - runtime signer returned a non-object; no signature fabricated."
         except Exception as exc:
             honesty = (f"UNSIGNED - runtime signer raised ({str(exc)[:80]}); "
@@ -333,7 +338,7 @@ def council_manifest(ns: str = "a11oy",
         "reproduce": {
             "manifest": base + "/council/manifest",
             "verifier": f"/api/{ns}/v1/verify/receipt",
-            "public_key": "/cosign.pub",
+            "public_key": RUNTIME_VERIFY_KEY_URL,
         },
         "nemo": {
             "artifact": NEMO_ARTIFACT,
@@ -393,6 +398,12 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
     turn_evidence = []
     for turn in rounds:
         answer = turn.get("answer")
+        honesty = turn.get("honesty")
+        grounding = turn.get("grounding") if isinstance(
+            turn.get("grounding"), dict) else {}
+        citation_validation = grounding.get("citation_validation")
+        answer_sha = (hashlib.sha256(answer.encode("utf-8")).hexdigest()
+                      if isinstance(answer, str) else None)
         turn_evidence.append({
             "persona": turn.get("persona"),
             "round": turn.get("round"),
@@ -403,13 +414,38 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
             "timeout_s": turn.get("timeout_s"),
             "correctness_state": ("NOT_APPLICABLE_STUB" if bool(turn.get("stub"))
                                   else "UNVERIFIED_MODEL_OUTPUT"),
-            "output_sha256": (hashlib.sha256(str(answer).encode("utf-8")).hexdigest()
-                              if answer is not None else None),
+            "answer_present": answer is not None,
+            "answer_sha256": answer_sha,
+            "output_sha256": answer_sha,
+            "honesty_sha256": (hashlib.sha256(str(honesty).encode("utf-8")).hexdigest()
+                               if honesty is not None else None),
+            "turn_output_sha256": _sha256_json({
+                "answer": answer,
+                "honesty": honesty,
+                "stub": bool(turn.get("stub")),
+                "timeout": bool(turn.get("timeout", False)),
+                "model": turn.get("model"),
+            }),
             "energy_receipt_sha256": _receipt_sha(turn.get("energy_receipt")),
             "model_binding": turn.get("model_binding"),
             "model_binding_sha256": (
                 _sha256_json(turn["model_binding"])
                 if isinstance(turn.get("model_binding"), dict) else None
+            ),
+            "model_attestation_sha256": (
+                turn.get("model_binding", {}).get("model_attestation_sha256")
+                if isinstance(turn.get("model_binding"), dict) else None
+            ),
+            "grounding_sha256": (
+                turn.get("model_binding", {}).get("grounding_sha256")
+                if isinstance(turn.get("model_binding"), dict) else None
+            ),
+            "evidence_set_sha256": grounding.get("evidence_set_sha256"),
+            "handles_sha256": grounding.get("handles_sha256"),
+            "augmented_prompt_sha256": grounding.get("augmented_prompt_sha256"),
+            "citation_validation_sha256": (
+                _sha256_json(citation_validation)
+                if isinstance(citation_validation, dict) else None
             ),
         })
     replay_material = {
@@ -477,7 +513,7 @@ def _build_council_contract(prompt: str, result: Dict[str, Any],
             "key": "sha256:" + _sha256_json(replay_material),
             "material": replay_material,
             "verifier": "/api/a11oy/v1/verify/receipt",
-            "public_key": "/cosign.pub",
+            "public_key": RUNTIME_VERIFY_KEY_URL,
         },
         "training": {
             "artifact": NEMO_ARTIFACT,
@@ -571,7 +607,7 @@ radial-gradient(50% 35% at 10% 110%,rgba(212,164,68,.05),transparent 60%)}
 main{max-width:980px;margin:0 auto;padding:36px 22px;position:relative;z-index:1}
 h1{color:var(--teal);margin:0 0 4px;font-size:26px;display:flex;align-items:center;gap:10px}
 h2{font-size:16px;margin:0 0 10px;color:var(--fg)}
-.sub{color:var(--dim);margin:0 0 22px}
+.sub,#family{color:var(--dim);margin:0 0 22px;min-width:0;overflow-wrap:anywhere}
 .badge{font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:20px;
 border:1px solid var(--line);color:var(--dim)}
 .badge.live{color:#0a1;background:#0a2a17;border-color:#1c5}
@@ -635,12 +671,13 @@ section[id]{scroll-margin-top:72px}
 .tgl{display:flex;gap:7px;align-items:center;color:var(--dim);font-size:13px;margin:0 0 8px}
 .tgl input{width:auto}
 .prov{color:var(--dim);font-size:11px;margin-top:14px;line-height:1.6}
+.small,.src,.contract,.rcpt,.prov,.ans{min-width:0;overflow-wrap:anywhere}
 @media (max-width:720px){
  main{padding:24px 14px}
  .tb-wrap{padding:9px 14px;flex-wrap:nowrap}
  .tb-brand{flex:0 0 auto}
- .tb-nav{flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+ .tb-nav{flex:1 1 auto;min-width:0;max-width:100%;flex-wrap:nowrap;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-inline:contain}
  .tb-nav::-webkit-scrollbar{display:none}
  .tb-nav a{flex:0 0 auto}
  .card{padding:14px}
@@ -653,7 +690,7 @@ section[id]{scroll-margin-top:72px}
 </style></head><body>
 <header class="topbar"><div class="tb-wrap">
 <a class="tb-brand" href="/ayllu">Ayllu <span id="badge" class="badge">…</span></a>
-<nav class="tb-nav"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-organism">Organism</a><a href="#sec-mesh">Mesh</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
+<nav class="tb-nav" aria-label="Ayllu sections"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-organism">Second Brain</a><a href="#sec-mesh">Mesh</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
 </div></header>
 <main>
 <h1>Ayllu</h1>
@@ -712,12 +749,14 @@ section[id]{scroll-margin-top:72px}
   organism. These panels read the same governed endpoints as the command centre — an
   unavailable endpoint says so rather than faking a value.</div>
   <div class="grid">
+    <div class="panel"><h3>Khipu Second Brain <span class="small" id="sb-badge">…</span></h3><div id="sb-out" class="small">loading…</div></div>
     <div class="panel"><h3>Formulas <span class="small" id="f-badge">…</span></h3><div id="f-out" class="small">loading…</div></div>
     <div class="panel"><h3>Doctrine lock <span class="small" id="d-badge">…</span></h3><div id="d-out" class="small">loading…</div></div>
     <div class="panel"><h3>Sovereign energy <span class="small" id="e-badge">…</span></h3><div id="e-out" class="small">loading…</div></div>
   </div>
   <div class="links">
     <a href="/living-anatomy">Living anatomy</a>
+    <a href="/api/__NS__/v1/ayllu/second-brain">Second Brain contract</a>
     <a href="/formulas">PURIQ formulas</a>
     <a href="/wires">The constitution</a>
     <a href="/api/__NS__/v1/brain/graph" title="Full brain graph JSON (~4 MB)">Brain graph (raw JSON)</a>
@@ -877,6 +916,30 @@ async function loadLounge(){
 document.getElementById('refreshlounge').onclick=loadLounge;
 function unavailable(el,status){el.innerHTML='<span class="src">endpoint unavailable ('
   +esc(String(status))+') — shown honestly, not faked.</span>';}
+async function loadSecondBrain(){
+  const badge=document.getElementById('sb-badge'), out=document.getElementById('sb-out');
+  const {ok,status,data}=await j(api('second-brain'));
+  if(!ok){badge.textContent='offline';unavailable(out,status);return;}
+  const ready=!!data.ready_for_grounded_navigation;
+  const profile=data.profile||{}, memory=data.memory||{}, training=data.training_boundary||{};
+  badge.textContent=ready?'ready':'gated';
+  out.innerHTML='<div class="kpi">'+esc(ready?'GROUNDED':'NOT READY')+'</div>'
+    +'<div class="small">'+esc(data.system_id||'SZL-Khipu-Second-Brain-v1')+'</div>'
+    +'<div class="lg small">model '+esc(profile.served_model||profile.expected_model||'unavailable')
+    +' · exact tag '+esc(profile.exact_tag_observed?'observed':'missing')+'</div>'
+    +'<div class="lg small">memory '+esc(memory.built?'built':'not built')
+    +' · '+esc(String(memory.document_count??'—'))+' docs · '
+    +esc(String(memory.chunk_count??'—'))+' chunks · '
+    +esc(String(memory.node_count??'—'))+' graph nodes</div>'
+    +'<div class="lg small">Brain handles '+esc(String(memory.brain_handle_count??0))
+    +' · gradient authority '+esc(String(memory.training_authority_rows??0))
+    +' · integrity '+esc(memory.integrity_state||memory.rehydration_state||'not evaluated')+'</div>'
+    +'<div class="lg small">gradient admission '
+    +esc(String(training.raw_brain_nodes_admitted_to_gradients??0))+' / '
+    +esc(String(training.raw_brain_nodes_observed??'—'))
+    +' · '+esc(data.promotion_state||data.state||'UNKNOWN')+'</div>'
+    +'<div class="src" style="margin-top:6px">Compound model: navigator + persistent evidence memory + governed controller + receipts. Indexed nodes are not mislabeled as weights.</div>';
+}
 async function loadFormulas(){
   const b=document.getElementById('f-badge'), out=document.getElementById('f-out');
   const {ok,status,data}=await j(gapi('formulas'));
@@ -932,7 +995,7 @@ async function loadObs(){
   out.innerHTML='<div class="lg"><b>observability</b><pre class="src" style="white-space:pre-wrap;margin:.3rem 0 0">'
     +esc(JSON.stringify(data.melt||data,null,2).slice(0,600))+'</pre></div>';
 }
-loadRoster();loadLounge();loadMesh();loadObs();loadFormulas();loadDoctrine();loadEnergy();
+loadRoster();loadLounge();loadMesh();loadObs();loadSecondBrain();loadFormulas();loadDoctrine();loadEnergy();
 </script>
 </body></html>"""
 
@@ -982,6 +1045,23 @@ def register(app, ns: str = "a11oy") -> str:
         return JSONResponse(family_binding(
             namespace=ns, backend_status=_backend.backend_status()))
 
+    async def _second_brain(request: "Request") -> "JSONResponse":
+        try:
+            import a11oy_org_rag as _org_rag
+            rag = _org_rag.status()
+        except Exception as exc:
+            rag = {
+                "built": False,
+                "state": "UNAVAILABLE",
+                "honesty": f"Brain status unavailable ({type(exc).__name__})",
+            }
+        return JSONResponse(second_brain_binding(
+            namespace=ns,
+            backend_status=_backend.backend_status(),
+            rag_status=rag,
+            signer_ready=callable(getattr(request.app.state, "szl_sign_receipt", None)),
+        ))
+
     async def _council_manifest(request: "Request") -> "JSONResponse":
         storage = getattr(request.app.state, "ayllu_council_khipu_storage",
                           council_storage)
@@ -1029,17 +1109,34 @@ def register(app, ns: str = "a11oy") -> str:
         turn = await run_turn(p, prompt, model_complete=_ask_complete,
                               difficulty=difficulty)
         binding = turn["model_binding"]
+        grounding = turn.get("grounding") if isinstance(
+            turn.get("grounding"), dict) else {}
+        citation_validation = grounding.get("citation_validation")
         ask_id = str(uuid.uuid4())
-        # Bind the exact answer value returned to the caller.  An empty string is
-        # a valid (if unhelpful) model output and must not silently fall through
-        # to the honesty explanation in the signed receipt.
+        # Bind the answer and honesty channels independently.  None means no
+        # answer; an empty string is a present answer and hashes as SHA256("").
         answer = turn.get("answer")
-        output_text = answer if answer is not None else (turn.get("honesty") or "")
+        honesty = turn.get("honesty")
+        answer_sha = (hashlib.sha256(answer.encode("utf-8")).hexdigest()
+                      if isinstance(answer, str) else None)
+        honesty_sha = (hashlib.sha256(str(honesty).encode("utf-8")).hexdigest()
+                       if honesty is not None else None)
+        turn_output_sha = _sha256_json({
+            "answer": answer,
+            "honesty": honesty,
+            "stub": bool(turn.get("stub")),
+            "timeout": bool(turn.get("timeout", False)),
+            "model": turn.get("model"),
+        })
         receipt = _make_receipt({
             "ask_id": ask_id,
             "persona": p.name,
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
-            "output_sha256": hashlib.sha256(output_text.encode()).hexdigest(),
+            "answer_present": answer is not None,
+            "answer_sha256": answer_sha,
+            "output_sha256": answer_sha,
+            "honesty_sha256": honesty_sha,
+            "turn_output_sha256": turn_output_sha,
             "tier_advisory": turn.get("tier", {}).get("route"),
             "model": turn.get("model"),
             "stub": turn.get("stub"),
@@ -1048,6 +1145,15 @@ def register(app, ns: str = "a11oy") -> str:
             "profile_intent": binding["primary_profile"],
             "binding_state": binding["binding_state"],
             "model_binding_sha256": _sha256_json(binding),
+            "model_attestation_sha256": binding.get("model_attestation_sha256"),
+            "grounding_sha256": binding.get("grounding_sha256"),
+            "evidence_set_sha256": grounding.get("evidence_set_sha256"),
+            "handles_sha256": grounding.get("handles_sha256"),
+            "augmented_prompt_sha256": grounding.get("augmented_prompt_sha256"),
+            "citation_validation_sha256": (
+                _sha256_json(citation_validation)
+                if isinstance(citation_validation, dict) else None
+            ),
             "honesty": turn.get("honesty"),
         }, sign_fn=_runtime_signer(request))
         return JSONResponse({"ask_id": ask_id, "turn": turn, "receipt": receipt})
@@ -1154,6 +1260,9 @@ def register(app, ns: str = "a11oy") -> str:
     app.add_api_route(f"/api/{ns}/v1/ayllu/model-binding", _model_binding,
                       methods=["GET"], tags=["ayllu"],
                       summary="Honest SZL-Forge family and Yupaq proposal binding")
+    app.add_api_route(f"/api/{ns}/v1/ayllu/second-brain", _second_brain,
+                      methods=["GET"], tags=["ayllu"],
+                      summary="Khipu compound Second Brain runtime and training boundary")
     app.add_api_route(f"/api/{ns}/v1/ayllu/ask", _ask, methods=["POST"],
                       tags=["ayllu"],
                       summary="Ask one persona — bounded, honest, receipted")

@@ -77,6 +77,8 @@ async def run_turn(
     token_budget: Optional[int] = None
     timeout_s: Optional[float] = None
     energy_receipt: Any = None
+    model_attestation: Any = None
+    grounding: Any = None
 
     if model_complete is None:
         honesty = ("model backend not injected — no answer fabricated. This turn "
@@ -111,6 +113,8 @@ async def run_turn(
                 token_budget = result.get("token_budget")
                 timeout_s = result.get("timeout_s")
                 energy_receipt = result.get("energy_receipt")
+                model_attestation = result.get("model_attestation")
+                grounding = result.get("grounding")
             else:
                 answer = str(result)
             honesty = "answer produced by a11oy's model backend" + (
@@ -126,6 +130,8 @@ async def run_turn(
         persona.name,
         actual_model=model,
         backend_mode=("stub" if stub else "live" if model else "unavailable"),
+        model_attestation=model_attestation,
+        grounding=grounding,
     )
 
     return {
@@ -144,7 +150,10 @@ async def run_turn(
         "token_budget": token_budget,
         "timeout_s": timeout_s,
         "energy_receipt": energy_receipt,
+        "model_attestation": model_attestation,
+        "grounding": grounding,
         "model_binding": binding,
         "honesty": honesty,
-        "evidence": [],
+        "evidence": (grounding.get("evidence", [])
+                     if isinstance(grounding, dict) else []),
     }
