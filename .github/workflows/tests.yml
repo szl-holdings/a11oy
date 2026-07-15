@@ -26,6 +26,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Holo Lab attribute-escape regression
+        run: node scripts/test_holo_lab_security.mjs
       - name: Enable corepack and install pnpm 10.33.3
         run: |
           corepack enable

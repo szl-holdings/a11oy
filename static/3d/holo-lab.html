@@ -241,12 +241,20 @@
       return r.json();
     }
     function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    function escAttr(s){
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
     function kchip(kind){ const c=kindColor(kind).map(v=>Math.round(v*255));
       return `<span class="k" style="background:rgb(${c[0]},${c[1]},${c[2]})">${esc(kind||'node')}</span>`; }
     function seedRow(n){
       const sc = (typeof n.score==='number') ? n.score.toFixed(3)
                : (typeof n.salience==='number' ? n.salience.toExponential(1) : '');
-      return `<div class="seed" data-id="${esc(n.id)}">${kchip(n.kind)}`
+      return `<div class="seed" data-id="${escAttr(n.id)}">${kchip(n.kind)}`
            + `<span class="t">${esc(n.title||n.id)}</span><span class="sc">${sc}</span></div>`;
     }
 
