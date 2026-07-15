@@ -6,8 +6,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+from contextlib import nullcontext
 from pathlib import Path
 import socket
+import subprocess
 import types
 
 import pytest
@@ -73,6 +75,118 @@ def test_train_requires_confirmation_and_license_ack_before_gpu_or_model_load(tm
             contract["training"]["confirmation_phrase"],
             "WRONG",
         )
+
+
+def test_cli_refusal_preserves_receipt_proof_that_training_started(monkeypatch, tmp_path, capsys):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    output = tmp_path / "run"
+
+    def fail_after_start(_snapshot, observed_output, _confirmation, _ack, _cache):
+        nemo_train.atomic_json(
+            observed_output / "receipts" / "training-receipt.json",
+            {
+                "schema_version": "szl.nemo.training-receipt.v1",
+                "state": "FAILED_NOT_PROMOTED",
+                "training_started_at_unix_ns": 1,
+                "promotion": "NOT_PROMOTED",
+            },
+        )
+        raise nemo_train.GateRefused("post-start fixture refusal")
+
+    monkeypatch.setattr(nemo_train, "training_mutex", lambda: nullcontext())
+    monkeypatch.setattr(
+        nemo_train, "fresh_hf_modules_cache", lambda: nullcontext({"state": "FIXTURE"})
+    )
+    monkeypatch.setattr(nemo_train, "train", fail_after_start)
+    code = nemo_train.main(
+        [
+            "train",
+            "--base-snapshot",
+            str(tmp_path / "base"),
+            "--output-dir",
+            str(output),
+            "--confirmation",
+            contract["training"]["confirmation_phrase"],
+            "--license-acknowledgement",
+            contract["base"]["license_acknowledgement"],
+        ]
+    )
+    assert code == 3
+    payload = json.loads(capsys.readouterr().err)
+    assert payload["effects"]["training_started"] == nemo_train.TRAINING_START_PROVEN_TRUE
+
+
+def test_training_start_receipt_state_is_tri_state(tmp_path):
+    output = tmp_path / "run"
+    assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_UNKNOWN
+    nemo_train.atomic_json(
+        output / "receipts" / "training-receipt.json",
+        {"schema_version": "wrong", "training_started_at_unix_ns": 1},
+    )
+    assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_UNKNOWN
+    nemo_train.atomic_json(
+        output / "receipts" / "training-receipt.json",
+        {
+            "schema_version": "szl.nemo.training-receipt.v1",
+            "state": "RUNNING_NOT_PROMOTED",
+        },
+    )
+    assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_PROVEN_FALSE
+    for state in (
+        "TRAINING_STARTED_NOT_PROMOTED",
+        "FAILED_NOT_PROMOTED",
+        "CANDIDATE_PASS_NOT_PROMOTED",
+    ):
+        nemo_train.atomic_json(
+            output / "receipts" / "training-receipt.json",
+            {
+                "schema_version": "szl.nemo.training-receipt.v1",
+                "state": state,
+            },
+        )
+        assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_UNKNOWN
+
+
+def test_dsse_verifier_is_pinned_in_clean_scope_and_dirty_scope_refuses(monkeypatch, tmp_path):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    assert "szl_dsse.py" in contract["source_control"]["paths"]
+    _module, identity = nemo_train._load_pinned_dsse(contract)
+    assert identity == {
+        "path": contract["dsse"]["verifier_path"],
+        "sha256": contract["dsse"]["verifier_sha256"],
+        "key_id": contract["dsse"]["key_id"],
+        "public_key_fingerprint_sha256": contract["dsse"][
+            "public_key_fingerprint_sha256"
+        ],
+    }
+
+    git = tmp_path / "git"
+    git.write_text("fixture", encoding="utf-8")
+    monkeypatch.setenv(contract["source_control"]["git_executable_env"], str(git))
+
+    def fake_run(command, **_kwargs):
+        if "rev-parse" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="a" * 40 + "\n", stderr="")
+        return subprocess.CompletedProcess(
+            command, 0, stdout=" M szl_dsse.py\n", stderr=""
+        )
+
+    monkeypatch.setattr(nemo_train.subprocess, "run", fake_run)
+    with pytest.raises(nemo_train.GateRefused, match="scope is dirty"):
+        nemo_train.git_identity(contract)
+
+
+def test_dsse_verifier_replacement_and_key_substitution_refuse():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    replaced = json.loads(json.dumps(contract))
+    replaced["dsse"]["verifier_sha256"] = "0" * 64
+    with pytest.raises(nemo_train.GateRefused, match="source mismatch"):
+        nemo_train._load_pinned_dsse(replaced)
+
+    wrong_key = json.loads(json.dumps(contract))
+    wrong_key["dsse"]["public_key_fingerprint_sha256"] = "0" * 64
+    with pytest.raises(nemo_train.GateRefused, match="key identity mismatch"):
+        nemo_train._load_pinned_dsse(wrong_key)
 
 
 def test_capacity_probe_requires_both_acknowledgements_before_receipt_or_model_load(tmp_path):
@@ -355,12 +469,16 @@ def test_setup_probe_and_contract_pin_the_same_training_runtime():
         assert f'"{package}": "{version}"' in probe, f"probe does not bind {distribution} {version}"
 
 
-def test_native_windows_queue_is_non_retryable():
+def test_legacy_powershell_queue_train_is_retired_and_status_is_read_only():
     queue = (ROOT / "model_release" / "szl-nemo" / "Invoke-SZLNemoFineTuneQueue.ps1").read_text(encoding="utf-8")
-    refusal = queue.index("UNAVAILABLE_NATIVE_WINDOWS")
-    loop = queue.index("for ($Attempt = 1")
-    assert refusal < loop
-    assert "exit 4" in queue[refusal:loop]
+    refusal = queue.index("Legacy PowerShell queue-train is retired")
+    status = queue.index("READ_ONLY_STATUS")
+    assert refusal < status
+    assert "szl_nemo_wsl_queue.py" in queue[refusal:status]
+    assert "New-Item" not in queue
+    assert "& $Python" not in queue
+    assert "Set-Content" not in queue
+    assert "WriteAllText" not in queue
 
 
 def test_trl_lane_uses_the_pinned_048_api_and_capacity_is_network_isolated():

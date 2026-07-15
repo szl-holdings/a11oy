@@ -149,8 +149,8 @@
       "local_artifacts": [
         {
           "path": "model_release/szl-nemo/training-contract.json",
-          "bytes": 8547,
-          "sha256": "bfa195c10ec64291cd3262b8eb2dc74f1f0072d1379935c18b92322e6ed8f363",
+          "bytes": 9675,
+          "sha256": "a924596868a8a5c17b2bc1a9b515ca0b0788d6ccddeed207b9ee3353ba1333a7",
           "role": "TRAINING_CONTRACT"
         },
         {
@@ -185,15 +185,15 @@
         },
         {
           "path": "model_release/szl-nemo/szl_nemo_finetune.py",
-          "bytes": 61373,
-          "sha256": "2199fa5613f244a6650d39b462d3b5b47e1b594e12f7f089eeb997787d59fdb5",
+          "bytes": 70318,
+          "sha256": "ba96fcbdf13d847042dc10c288f910b9197c8b9a97d8bb927a07733c0428fcb8",
           "role": "OFFLINE_TRAINER"
         },
         {
           "path": "model_release/szl-nemo/Invoke-SZLNemoFineTuneQueue.ps1",
-          "bytes": 6662,
-          "sha256": "092555812d0614f6c994d7685ed7c8d8096eb3eaa4798f2b22c60f453c3f68b7",
-          "role": "GOVERNED_QUEUE"
+          "bytes": 2059,
+          "sha256": "32ef37a7d74896a6f47a4185e896536ae68960216ad3911488f4a2322b78869b",
+          "role": "LEGACY_WINDOWS_STATUS_AND_QUEUE_TRAIN_REFUSAL"
         },
         {
           "path": "model_release/szl-nemo/MODEL_CARD_TRAINED_CANDIDATE_DRAFT.md",
@@ -215,9 +215,15 @@
         },
         {
           "path": "model_release/szl-nemo/run_wsl_governed.sh",
-          "bytes": 4143,
-          "sha256": "eea036ee30442e93723bb853b2c57a0d417641a2bfb8e4b8d02e099ddb73c3ef",
+          "bytes": 4732,
+          "sha256": "13ab809ce94ea25768950c93c57c73f92c2b2135d8f7c7f178163ad2256aa818",
           "role": "GOVERNED_WSL_LAUNCHER"
+        },
+        {
+          "path": "model_release/szl-nemo/szl_nemo_wsl_queue.py",
+          "bytes": 52144,
+          "sha256": "152e56ece59e0239867fc31e08799f29823e7134d421dadd49757a905d0d194f",
+          "role": "DURABLE_GOVERNED_WSL_QUEUE"
         },
         {
           "path": "attestations/szl-nemo-pinned-code-static-review-2026-07-15.json",

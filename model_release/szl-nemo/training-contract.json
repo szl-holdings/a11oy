@@ -127,12 +127,38 @@
       "model_release/szl-nemo/generated/eval.jsonl",
       "model_release/szl-nemo/generated/train.jsonl",
       "model_release/szl-nemo/run_wsl_governed.sh",
+      "model_release/szl-nemo/szl_nemo_wsl_queue.py",
       "model_release/szl-nemo/szl_nemo_finetune.py",
       "model_release/szl-nemo/setup_wsl_runtime.sh",
       "model_release/szl-nemo/training-contract.json",
       "model_release/szl-nemo/wsl_runtime_probe.py",
-      "tests/test_szl_nemo_finetune_path.py"
+      "szl_dsse.py",
+      "tests/test_szl_nemo_finetune_path.py",
+      "tests/test_szl_nemo_wsl_queue.py"
     ]
+  },
+  "dsse": {
+    "verifier_path": "szl_dsse.py",
+    "verifier_sha256": "513e986da67873a55849871bb6f48f7f33ebe7635f54c1351a572fd6de4368ec",
+    "key_id": "szlholdings-cosign",
+    "public_key_fingerprint_sha256": "d3028f8aecd0841f684e1c7fd7b06de7a211dc6fc09c34163003798b391bcf71",
+    "ambient_module_allowed": false
+  },
+  "governed_queue": {
+    "implementation": "model_release/szl-nemo/szl_nemo_wsl_queue.py",
+    "operating_system": "WSL2_OR_LINUX",
+    "sequence": ["PREFLIGHT", "ISOLATED_CAPACITY", "ISOLATED_TRAIN"],
+    "maximum_attempts": 240,
+    "minimum_retry_seconds": 30,
+    "retryable_states": ["PURE_GPU_ADMISSION_REFUSAL", "SHARED_GPU_LEASE_BUSY"],
+    "retry_after_training_invoked": false,
+    "journal": "ATOMIC_APPEND_ONLY_EVENTS_PLUS_IMMUTABLE_ATTEMPT_RECEIPTS",
+    "thresholds_may_be_weakened": false,
+    "processes_may_be_stopped_automatically": false,
+    "network_fetch_allowed": false,
+    "upload_allowed": false,
+    "publish_allowed": false,
+    "promotion_allowed": false
   },
   "gpu_admission": {
     "minimum_free_memory_mib": 6656,
