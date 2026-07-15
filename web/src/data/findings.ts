@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — artifacts/a11oy/src/data/findings.ts
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 export interface Finding {
   id: string;
   surface: string;
@@ -13,7 +15,7 @@ export interface Finding {
 export const findings: Finding[] = [
   {
     id: 'f-1',
-    surface: 'Sentra - Dashboard',
+    surface: 'TENAX - Dashboard',
     category: 'contrast',
     severity: 'critical',
     description: 'Insufficient contrast ratio for incident severity text.',

@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — .agents/skills/typescript-refactor/SKILL.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 ---
 name: typescript-refactor
 description: Systematic TypeScript refactoring patterns for this pnpm monorepo. Use when extracting shared logic, improving type safety, eliminating any/unknown casts, or restructuring modules across packages. Adapted from Awesome Claude Code TypeScript patterns collection.

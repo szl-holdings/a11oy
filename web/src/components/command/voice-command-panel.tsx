@@ -33,7 +33,7 @@ const T = {
  */
 const ARTIFACT_ROUTE_MAP: Array<{ keywords: string[]; path: string; label: string; external: boolean }> = [
   // External ecosystem apps
-  { keywords: ['aegis', 'sentra', 'defense', 'cyber', 'cyber resilience', 'intelligence command', 'cyber command'], path: '/sentra/', label: 'Sentra', external: true },
+  { keywords: ['aegis', 'sentra', 'defense', 'cyber', 'cyber resilience', 'intelligence command', 'cyber command'], path: '/sentra/', label: 'TENAX', external: true },
   { keywords: ['vessels', 'maritime', 'fleet', 'ship'], path: '/vessels/', label: 'SEXTANT', external: true },
   { keywords: ['terra', 'real estate'], path: '/terra/', label: 'DOMAINE', external: true },
   { keywords: ['counsel', 'legal', 'matter command'], path: '/counsel/', label: 'Counsel', external: true },

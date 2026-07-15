@@ -38,6 +38,7 @@ from urllib.request import Request, urlopen
 
 # Surface slots (id, human title) — the frontier tier + the 9 estate surfaces.
 SURFACES: List[Dict[str, str]] = [
+    {"id": "integritycontrol", "cat": "governance", "title": "Integrity Control Plane", "owner": "Wave15"},
     {"id": "atlas", "cat": "map", "flag": True, "title": "Atlas", "owner": "Wave27"},
     {"id": "frontier", "cat": "map", "title": "Frontier", "owner": "Dev0"},
     {"id": "neuromorphic", "cat": "more", "title": "Neuromorphic", "owner": "Dev0"},

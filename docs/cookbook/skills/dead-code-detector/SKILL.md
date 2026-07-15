@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — .agents/skills/dead-code-detector/SKILL.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 ---
 name: dead-code-detector
 description: Find and safely remove dead code (unused exports, unreachable branches, stale feature flags, orphaned files) across the TypeScript/React monorepo. Use when doing a cleanup sprint, before a major refactor, or when bundle size needs reducing. Adapted from Antigravity Awesome Skills dead-code patterns.

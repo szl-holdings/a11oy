@@ -1,3 +1,5 @@
+# VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — .github/workflows/pin-check.yml
+# DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 name: Pin Check
 
 # Thin caller — delegates to the org-wide reusable SHA-pin check so this repo's

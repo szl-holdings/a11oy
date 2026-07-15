@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>a11oy — Agentic GPU Operator · SZL Holdings</title>
-<meta name="description" content="Live operator view of the SZL Agentic GPU engine (RTX 5000 @ betterwithage): sovereign-inference posture, reactive-vs-proactive scheduler activity, energy window, and served-by tier. Honest by design — sovereign:true only when the local box actually serves; energy figures are SAMPLE/ESTIMATE until a real meter is wired."/>
+<meta name="description" content="Live operator view of the SZL Agentic GPU engine (RTX 5000 @ betterwithage): sovereign-inference posture, reactive-vs-proactive scheduler activity, energy window, and served-by tier. Honest by design — sovereign:true only when the local box actually serves; energy figures are MODELED until a real meter is wired."/>
 <!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
      /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
 <style>
@@ -99,16 +99,16 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
   <p class="lede">The <b>operator console</b> for the resident agentic GPU engine. One GPU runs a <b>reactive lane</b> (Chaski/Code turns, Priority&nbsp;0) that <b>preempts</b> a <b>proactive lane</b> (background agenda, Priority&nbsp;1) — proactive throughput <b>never starves</b> reactive latency (Agent.xpu pattern, arXiv:2506.24045). Proactive dispatch is <b>energy-gated</b>: heavy background work only fires in a <b>cheap / surplus</b> power window. This view reads the <b>real</b> <span class="mono">/code/healthz</span> sovereign posture live, and degrades honestly when the energy-budget and scheduler-status endpoints are not yet wired.</p>
   <div class="econ"><span class="k">Why it matters:</span> a resident engine that <span class="hi">harvests wasted surplus power</span> for background work while <span class="hi">guaranteeing interactive latency</span> turns an idle box into a sovereign compute asset — and the <span class="hi">sovereign:true flag is honest</span>: it is asserted ONLY when this node actually serves the turn locally.</div>
   <div class="cards">
-    <div class="card"><div class="lbl">Sovereign posture</div><div class="big" id="c_sov">—</div><div class="sub" id="c_sov_sub">probing /code/healthz</div></div>
-    <div class="card"><div class="lbl">Served-by tier</div><div class="big" id="c_served" style="color:var(--blue)">—</div><div class="sub" id="c_served_sub">inference path</div></div>
-    <div class="card"><div class="lbl">Energy window</div><div class="big" id="c_window" style="color:var(--gold)">—</div><div class="sub" id="c_window_sub">cheap / normal / dear</div></div>
-    <div class="card"><div class="lbl">Last preemption</div><div class="big" id="c_preempt" style="color:var(--yellow)">—</div><div class="sub">reactive over proactive</div></div>
+    <div class="card"><div class="lbl">Sovereign posture</div><div class="big" id="c_sov">standby</div><div class="sub" id="c_sov_sub">probing /code/healthz</div></div>
+    <div class="card"><div class="lbl">Served-by tier</div><div class="big" id="c_served" style="color:var(--blue)">standby</div><div class="sub" id="c_served_sub">inference path</div></div>
+    <div class="card"><div class="lbl">Energy window</div><div class="big" id="c_window" style="color:var(--gold)">standby</div><div class="sub" id="c_window_sub">cheap / normal / dear</div></div>
+    <div class="card"><div class="lbl">Last preemption</div><div class="big" id="c_preempt" style="color:var(--yellow)">standby</div><div class="sub">reactive over proactive</div></div>
   </div>
   <div class="grid2">
     <div class="panel">
       <h2>GPU node &amp; sovereign inference<span class="meta">/code/healthz · live</span></h2>
       <div class="kv" id="nodekv">
-        <div class="row"><span class="k">probing…</span><span class="v">—</span></div>
+        <div class="row"><span class="k">probing…</span><span class="v">standby</span></div>
       </div>
       <div class="simnote" id="sovnote"><b>Honest posture gate:</b> <span class="mono">sovereign:true</span> is reported ONLY when the local box endpoint actually answers this process; otherwise turns serve via the HF Router and the flag stays <span class="mono">false</span> (the half-state — banner "sovereign" while the router serves — is the one unacceptable outcome).</div>
     </div>
@@ -117,13 +117,13 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
       <div class="queues">
         <div class="qbox reactive">
           <div class="qlbl">Reactive queue · P0</div>
-          <div class="qn" id="q_reactive">—</div>
+          <div class="qn" id="q_reactive">standby</div>
           <div class="qsub">Chaski / Code turns · preempts</div>
           <div class="bar"><i id="q_reactive_bar" style="width:0;background:var(--red)"></i></div>
         </div>
         <div class="qbox proactive">
           <div class="qlbl">Proactive queue · P1</div>
-          <div class="qn" id="q_proactive">—</div>
+          <div class="qn" id="q_proactive">standby</div>
           <div class="qsub">background agenda · energy-gated</div>
           <div class="bar"><i id="q_proactive_bar" style="width:0;background:var(--blue)"></i></div>
         </div>
@@ -134,10 +134,10 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
   </div>
   <div class="grid2" style="margin-top:1rem">
     <div class="panel">
-      <h2>Energy window &amp; budget ledger<span class="meta">/v1/energy/budget · SAMPLE</span></h2>
+      <h2>Energy window &amp; budget ledger<span class="meta">/v1/energy/budget · MODELED</span></h2>
       <div class="kv" id="energykv"></div>
-      <div class="empty" id="energyempty" style="display:none"><b>Energy-budget endpoint not wired yet.</b> <span class="mono">GET /v1/energy/budget</span> (Bekenstein-gated receipt + ledger, PR&nbsp;#328) is not registered on this server. The only honest live signal today is the off-peak clock; no power meter is wired, so all joules would be <span class="mono">SAMPLE/ESTIMATE</span>. This panel populates once the budget layer is registered.</div>
-      <div class="simnote"><b>SAMPLE/ESTIMATE:</b> no real power meter is wired (doctrine v11/v12). Every joule / price figure shown is an estimate until a physical meter feeds the ledger. NO free-energy or perpetual-motion claim is made — the engine harvests <i>wasted</i> surplus and proves <i>bounded</i> information work.</div>
+      <div class="empty" id="energyempty" style="display:none"><b>Energy-budget endpoint not wired yet.</b> <span class="mono">GET /v1/energy/budget</span> (Bekenstein-gated receipt + ledger, PR&nbsp;#328) is not registered on this server. The only honest live signal today is the off-peak clock; no power meter is wired, so all joules would be <span class="mono">MODELED</span>. This panel populates once the budget layer is registered.</div>
+      <div class="simnote"><b>MODELED:</b> no real power meter is wired (doctrine v11/v12). Every joule / price figure shown is an estimate until a physical meter feeds the ledger. NO free-energy or perpetual-motion claim is made — the engine harvests <i>wasted</i> surplus and proves <i>bounded</i> information work.</div>
     </div>
     <div class="panel">
       <h2>Posture receipt<span class="meta">raw probe tape</span></h2>
@@ -145,7 +145,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     </div>
   </div>
   <div class="footnote">
-    <b>Honest by design.</b> Sovereign posture, inference path, and served-by tier are read <b>live</b> from <span class="mono">/api/a11oy/code/healthz</span>; <span class="mono">sovereign:true</span> is asserted <b>only</b> when the local endpoint actually serves the turn (mirrors the serving path — no overclaim). The <b>scheduler-status</b> and <b>energy-budget</b> panels <b>degrade gracefully</b> with a labeled empty-state when their endpoints are absent (they are not yet deployed on the box). All energy figures are <b>SAMPLE/ESTIMATE</b> — no power meter is wired. <b>No free-energy claim.</b> Λ = Conjecture 1 (advisory). 0 runtime CDN.
+    <b>Honest by design.</b> Sovereign posture, inference path, and served-by tier are read <b>live</b> from <span class="mono">/api/a11oy/code/healthz</span>; <span class="mono">sovereign:true</span> is asserted <b>only</b> when the local endpoint actually serves the turn (mirrors the serving path — no overclaim). The <b>scheduler-status</b> and <b>energy-budget</b> panels <b>degrade gracefully</b> with a labeled empty-state when their endpoints are absent (they are not yet deployed on the box). All energy figures are <b>MODELED</b> — no power meter is wired. <b>No free-energy claim.</b> Λ = Conjecture 1 (advisory). 0 runtime CDN.
   </div>
 </div>
 <script>
@@ -256,7 +256,7 @@ async function load(){
       row('Σ shannon_bits', esc(bud.total_shannon_bits ?? '—')),
       row('Σ bekenstein_bits', esc(bud.total_bekenstein_bound_bits ?? '—')),
       row('all_within_bound', bud.all_within_bound===false ? pill('VIOLATION','bad') : (bud.all_within_bound===true?pill('true','ok'):'—')),
-      row('Σ joules_est', `${esc(bud.total_joules_est ?? '—')} <span style="color:var(--warn)">SAMPLE</span>`),
+      row('Σ joules_est', `${esc(bud.total_joules_est ?? 'standby')} <span style="color:var(--warn)">MODELED</span>`),
       row('gate', `<span style="font-size:10px">${esc(bud.gate||'—')}</span>`),
     ].join('');
     $('energyempty').style.display='none';

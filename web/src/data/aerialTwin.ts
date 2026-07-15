@@ -3,7 +3,7 @@
 //
 // All nine milestones are operational. Each primitive, engine module, and
 // vertical binding is live and Constitution-bound. Adoption of any element
-// requires a Sentra approval workflow per the Glasswing doctrine.
+// requires a TENAX approval workflow per the Glasswing doctrine.
 
 export const AERIAL_TWIN_VERSION = '1.0.0';
 
@@ -107,7 +107,7 @@ export const ENGINE_MODULES: readonly EngineModule[] = [
     oneLine:
       'Differentiable ray tracer that turns a 3D scene into trainable channel data with full gradient flow.',
     capability:
-      'Handles all path types — line-of-sight, reflected, diffracted (UTD), and scattered — against per-surface material catalogues. GPU-accelerated, scene-hash anchored, and sandboxed inside a Sentra capability compartment with no egress to RF hardware.',
+      'Handles all path types — line-of-sight, reflected, diffracted (UTD), and scattered — against per-surface material catalogues. GPU-accelerated, scene-hash anchored, and sandboxed inside a TENAX capability compartment with no egress to RF hardware.',
     primitive: 'differentiable-ray-tracing',
   },
   {
@@ -207,9 +207,9 @@ export const VERTICAL_BINDINGS: readonly VerticalBinding[] = [
   },
   {
     id: 'sentra',
-    vertical: 'Sentra \u2014 Cyber Resilience Command',
+    vertical: 'TENAX \u2014 Cyber Resilience Command (ex-Sentra \u2014 organ retired 2026-07)',
     context:
-      'Sentra operates the EDR mesh, SIEM connectors, and Approval Queue. The site-specific RF twin lets Sentra reason about the RF surface as a first-class asset class, with findings flowing directly into the existing evidence vault.',
+      'TENAX operates the EDR mesh, SIEM connectors, and Approval Queue. The site-specific RF twin lets TENAX reason about the RF surface as a first-class asset class, with findings flowing directly into the existing evidence vault.',
     useCases: [
       'Rogue base station detection: compare twin-predicted signal envelope to real-world spectrum captures.',
       'IMSI catcher fingerprinting in a known scene context.',
@@ -267,23 +267,23 @@ export const INNOVATION_SEEDS: readonly InnovationSeed[] = [
     novelty:
       'The A11oy planner discipline — typed plans, Constitution admission, dual-key approval — is applied to RAN automation, a domain where most tooling today operates without structured governance.',
     status: 'integrated',
-    module: 'A11oy Planner + Sentra Policy Engine',
+    module: 'A11oy Planner + TENAX Policy Engine',
   },
   {
     id: 'defensive-rf-redteam',
     name: 'Defensive RF red-team in twin',
     oneLine:
-      'Jamming, spoofing, and rogue-cell scenarios run in the twin only. Outcomes feed the Sentra Risk Engine.',
+      'Jamming, spoofing, and rogue-cell scenarios run in the twin only. Outcomes feed the TENAX Risk Engine.',
     novelty:
-      'The frontier red-teaming model from the Mythos Layer is applied to the RF surface. No live spectrum is ever touched; all adversarial scenarios are sandboxed and approval-gated before outcomes are promoted to the Sentra risk surface.',
+      'The frontier red-teaming model from the Mythos Layer is applied to the RF surface. No live spectrum is ever touched; all adversarial scenarios are sandboxed and approval-gated before outcomes are promoted to the TENAX risk surface.',
     status: 'active',
-    module: 'Sentra Sandbox + Adversarial Resilience',
+    module: 'TENAX Sandbox + Adversarial Resilience',
   },
   {
     id: 'coverage-attestation',
     name: 'Site-specific coverage attestation',
     oneLine:
-      'Combine Terra / Vessels asset registry + twin output + Sentra risk engine into a signed coverage report.',
+      'Combine Terra / Vessels asset registry + twin output + TENAX risk engine into a signed coverage report.',
     novelty:
       'A cross-product surface that turns a transient simulation result into a durable, signed artefact bound to a parcel or vessel ID. The attestation is externally verifiable through the Cerberus evidence chain.',
     status: 'adoptable',
@@ -315,7 +315,7 @@ export const ROADMAP: readonly RoadmapMilestone[] = [
     title: 'Ray propagation evaluation harness',
     detail:
       'Sandboxed twin engine operational against a reference scene catalogue entry. CIRs are hash-anchored and reproducible across runs; Mirror Eval gate is live.',
-    module: 'A11oy Mirror Eval + Sentra Sandbox',
+    module: 'A11oy Mirror Eval + TENAX Sandbox',
   },
   {
     id: 'milestone-vessels-port',
@@ -333,10 +333,10 @@ export const ROADMAP: readonly RoadmapMilestone[] = [
   },
   {
     id: 'milestone-sentra-anomaly',
-    title: 'Sentra RF anomaly classifier',
+    title: 'TENAX RF anomaly classifier',
     detail:
       'Anomaly classifier trained on twin-vs-reality deltas, promoted through Mirror Eval, and integrated with the Approval Queue. Findings flow into the evidence vault.',
-    module: 'Sentra Risk Engine + Silver RL Planner',
+    module: 'TENAX Risk Engine + Silver RL Planner',
   },
   {
     id: 'milestone-federated-ledger',
@@ -357,14 +357,14 @@ export const ROADMAP: readonly RoadmapMilestone[] = [
     title: 'AI-RAN inference path',
     detail:
       'Twin-trained ML blocks (beam prediction, channel estimation) are served via a CUDA-accelerated runtime behind the connector firewall and active in production.',
-    module: 'A11oy Model Router + Sentra Connector Firewall',
+    module: 'A11oy Model Router + TENAX Connector Firewall',
   },
   {
     id: 'milestone-attestation-soc2',
     title: 'Coverage attestation as SOC2 artefact',
     detail:
       'Signed coverage attestations are cross-referenced into the SOC2 Type II control surface as evidence of connectivity controls.',
-    module: 'Sentra Compliance Engine + Cerberus',
+    module: 'TENAX Compliance Engine + Cerberus',
   },
 ];
 
@@ -387,7 +387,7 @@ export const GUARDRAILS: readonly Guardrail[] = [
   {
     layer: 'Emission',
     control: 'The twin reads. The twin never transmits. No active probing of real spectrum from any twin path.',
-    enforcedBy: 'Sentra connector firewall + capability compartment that strips egress to RF hardware.',
+    enforcedBy: 'TENAX connector firewall + capability compartment that strips egress to RF hardware.',
   },
   {
     layer: 'Tenant scope',
@@ -397,7 +397,7 @@ export const GUARDRAILS: readonly Guardrail[] = [
   {
     layer: 'Closed-loop approval',
     control: 'Any RIC xApp promotion against real spectrum requires dual-key approval and a 24h staging soak.',
-    enforcedBy: 'Sentra Approval Queue + Constitution rule engine.',
+    enforcedBy: 'TENAX Approval Queue + Constitution rule engine.',
   },
   {
     layer: 'Provenance',

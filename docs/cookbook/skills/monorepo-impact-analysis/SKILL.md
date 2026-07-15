@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — .agents/skills/monorepo-impact-analysis/SKILL.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 ---
 name: monorepo-impact-analysis
 description: Analyze the blast radius of a proposed change across this pnpm monorepo before implementing it. Use before any edit that touches a shared package, a public API, a database schema, or a route. Adapted from Claude Agent Blueprints monorepo patterns.

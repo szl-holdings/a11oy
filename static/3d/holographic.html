@@ -552,6 +552,24 @@ function _setBrowser(open) {
   if (!on) openCategory("", false);
 }
 
+function _clearSearch() {
+  if (searchInput) searchInput.value = "";
+  if (searchPanel) { searchPanel.textContent = ""; searchPanel.dataset.open = "false"; }
+  if (searchCount) searchCount.textContent = SURFACES.length + " surfaces indexed";
+}
+
+// Command-center default: the graph owns the viewport. The complete registry remains one
+// click away in an overlay drawer and every surface remains indexed by the search field.
+function _setBrowser(open) {
+  const on = !!open;
+  tabsEl.dataset.browse = String(on);
+  if (navMode) {
+    navMode.setAttribute("aria-expanded", String(on));
+    navMode.textContent = on ? "Close browser" : "Browse surfaces";
+  }
+  if (!on) openCategory("", false);
+}
+
 // Short pill label: first 1-2 " · "-separated segments of the honest title, capped.
 // The FULL honest title is preserved verbatim in the tooltip (b.title) and in the
 // footer caption when the surface is selected — nothing is dropped, only de-cluttered.

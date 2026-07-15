@@ -1,3 +1,5 @@
+# VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — packages/ayni-os/ayni_os/__init__.py
+# DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 """AYNI-OS — time-reversible (event-sourced) reciprocity runtime.
 
 HONEST SCOPE:

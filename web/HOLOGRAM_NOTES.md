@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — replit-sync/energy_engine/HOLOGRAM_NOTES.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # Holographic Command Bridge — build notes (`web/hologram.html`)
 
 A single 3D immersive surface that renders the SZL **agentic-GPU as a living

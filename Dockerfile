@@ -1420,7 +1420,7 @@ COPY static/energy_3d.js ./static/energy_3d.js
 # GitHub-built image via this per-file COPY, served from /app/web/) and declared an
 # accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
 # as web/immune.html + web/energy.html). Codename-free.
-COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
+COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # served at /code by _ptg_serve("code.html"); binds to the REAL engine endpoints
 # (a11oy_code_engine) + the a11oy_code_runloop orchestrator. Same baked-only per-file
@@ -1669,6 +1669,12 @@ COPY szl_spend_cap.py ./szl_spend_cap.py
 # --- buildkit max-depth fix: per-file COPYs grouped into one layer (no file dropped; every source token preserved). ---
 COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py ./
 COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
+
+# FORGE-FAMILY WALL (2026-07-14): /api/forge/family — server-side ed25519
+# re-verification of the owner-signed model receipts (ReceiptAgent + Khipu),
+# fetched from the public HF model repos. Moves the family wall onto
+# a-11-oy.com so a11oy.net can retire. Additive module, front-moved route.
+COPY a11oy_forge_family.py ./a11oy_forge_family.py
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build

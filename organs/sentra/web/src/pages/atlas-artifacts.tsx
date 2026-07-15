@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — artifacts/sentra/src/pages/atlas-artifacts.tsx
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { useCallback, useEffect, useState } from 'react';
 
 const BG = { surface: '#0a0d14', card: '#0f131e' };

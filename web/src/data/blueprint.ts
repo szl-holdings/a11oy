@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — artifacts/a11oy/src/data/blueprint.ts
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { DOMAIN_PROFILES } from '@szl-holdings/domain-profiles';
 
 export const SEVEN_PRINCIPLES = [
@@ -202,7 +204,7 @@ export const APPLICATIONS: ApplicationEntry[] = [
     registryProfileId: 'aegis',
   },
   {
-    id: 'sentra', name: 'Sentra', vertical: 'Cyber Resilience', sector: 'Cyber',
+    id: 'tenax', name: 'TENAX', vertical: 'Cyber Resilience', sector: 'Cyber',
     status: 'operational', tier: 'Enterprise',
     description: 'Cyber resilience command — posture monitoring, threat surface analysis, CISO intelligence, and incident escalation with governed approval flow.',
     icon: '⬡', color: '#c9b787',

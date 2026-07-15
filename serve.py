@@ -461,7 +461,6 @@ except Exception as _m1_model_gate_error:  # pragma: no cover - honest optional 
         "reason": type(_m1_model_gate_error).__name__,
     }
 
-
 def _optional_module_absent(exc: Exception, module: str, surface: str,
                             *, stream=None) -> bool:
     """Log a direct optional-module absence without a noisy traceback.
@@ -13745,6 +13744,26 @@ try:
 except Exception as _szl_source_error:  # additive: never take down the SPA
     print(
         f"[a11oy] deployment-source attestation NOT registered (non-fatal): {_szl_source_error!r}",
+        file=sys.stderr,
+    )
+
+
+# ============================================================================
+# FORGE FAMILY WALL (2026-07-14): /api/forge/family — the public evidence wall
+# for the owner-forged model family (ReceiptAgent + Khipu). Server-side ed25519
+# re-verification on every request; receipts fetched from the public HF model
+# repos (bytes cached briefly, verification never skipped). Front-moved inside
+# the module so the exact JSON route wins over the SPA history fallback and the
+# /api proxy. Moves the wall onto a-11-oy.com so a11oy.net can retire.
+# ============================================================================
+try:
+    import a11oy_forge_family as _a11oy_forge_family
+
+    _forge_family_result = _a11oy_forge_family.register(app)
+    print(f"[a11oy] forge-family wall registered (front-moved): {_forge_family_result}", file=sys.stderr)
+except Exception as _forge_family_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] forge-family wall NOT registered (non-fatal): {_forge_family_error!r}",
         file=sys.stderr,
     )
 

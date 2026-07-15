@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — artifacts/sentra/src/pages/control-evidence-graph.tsx
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { useStandardQuery } from '@szl-holdings/api-client-react';
 import { Badge } from '@szl-holdings/shared-ui/ui/badge';
 import { cn } from '@szl-holdings/shared-ui/utils';

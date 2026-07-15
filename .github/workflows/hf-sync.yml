@@ -44,4 +44,10 @@ permissions:
 jobs:
   deploy:
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f # main
+    with:
+      # truth-pass 2026-07-15: prune Space files under directory COPY sources
+      # (console/, corpus/, ...) that are gone from git — otherwise stale prebuilt
+      # SPA chunks (e.g. the fabricated pre-truth-pass Atlas bundle) live on the
+      # Space forever even after GitHub removes them.
+      prune: true
     secrets: inherit

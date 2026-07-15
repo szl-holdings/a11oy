@@ -1,3 +1,5 @@
+<!-- VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — replit-sync/FORGE_BOX_ENERGY_v2.md -->
+<!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # FORGE_BOX_ENERGY.md — Sovereign GPU box order (Lane C: Sovereign Inference + Energy)
 
 > **FOUNDER-APPROVAL-GATED.** The sovereign GPU box (a-11-oy.com; Hetzner, RTX 5000,

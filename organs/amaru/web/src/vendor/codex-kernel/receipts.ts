@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — packages/codex-kernel/src/receipts.ts
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /**
  * Decision receipts — the human-readable, replayable record of why a step
  * committed. Each receipt is keyed by `receipt_id` and indexed in the

@@ -1,3 +1,5 @@
+# VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — packages/wire-d/wire_d/core.py
+# DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 SZL Holdings · Yachay — Live 3D Wires (PURIQ / Doctrine v12 = v11 + Puriq)
 # Doctrine v11 LOCKED: 749 declarations · 14 unique axioms · 163 sorries · 13-axis

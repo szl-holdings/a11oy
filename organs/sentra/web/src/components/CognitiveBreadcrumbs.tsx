@@ -1,3 +1,5 @@
+// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — artifacts/sentra/src/components/CognitiveBreadcrumbs.tsx
+// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { ChevronRight, Home } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { COGNITIVE_ROUTES, clearCrumbs, popToPath, useCrumbs } from '../lib/cognitive-nav';
