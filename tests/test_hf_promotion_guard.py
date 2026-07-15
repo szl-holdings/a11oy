@@ -46,13 +46,27 @@ def test_contract_hashes_cards_prefixes_and_blocked_decisions_pass_offline() -> 
     assert report["network_accessed"] is False
     assert report["credentials_accessed"] is False
     assert report["promotion_performed"] is False
-    assert len(report["observed_artifacts"]) == 20
+    manifest = _load_manifest()
+    expected_artifacts = sum(len(candidate["local_artifacts"]) for candidate in manifest["candidates"])
+    assert len(report["observed_artifacts"]) == expected_artifacts
+    assert {item["hash_basis"] for item in report["observed_artifacts"]} <= {
+        "UTF8_LF",
+        "RAW_BYTES",
+    }
     assert set(report["candidate_decisions"]) == {
         "SZL-Nemo-runtime-recipe-v1",
         "SZL-Nemo-Governed-Adapter-v1",
         "SZL-Forge-1.5B-ReceiptAgent-v1",
     }
     assert all(value.startswith("BLOCKED_") for value in report["candidate_decisions"].values())
+
+
+def test_manifest_text_identity_is_clone_stable_across_line_endings(tmp_path: Path) -> None:
+    lf = tmp_path / "lf.json"
+    crlf = tmp_path / "crlf.json"
+    lf.write_bytes(b'{"state":"PASS"}\n')
+    crlf.write_bytes(b'{"state":"PASS"}\r\n')
+    assert _GUARD._artifact_identity(lf) == _GUARD._artifact_identity(crlf)
 
 
 def test_manifest_validates_against_draft_2020_12_schema() -> None:

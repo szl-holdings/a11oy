@@ -31,6 +31,10 @@
   },
   "required_receipts_for_trained_candidate": [
     "immutable-upstream-revision-and-file-set",
+    "pinned-nvidia-custom-code-and-imported-source-digests",
+    "linux-mamba-causal-convolution-runtime-identity",
+    "bounded-quantized-load-forward-backward-capacity-receipt",
+    "os-network-namespace-denial-receipt",
     "nemotron-compatible-adapter-config-and-weight-digests",
     "training-data-admission-and-split-ledger",
     "training-environment-and-run-receipt",

@@ -4,7 +4,7 @@
   "title": "SZL offline Hugging Face promotion guard",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schema_version", "manifest_id", "as_of", "mode", "network_access_allowed", "credential_access_allowed", "automatic_upload_allowed", "canonical_authority", "bucket_authority", "topology_contract", "candidates", "global_release_predicate", "forbidden_file_extensions", "external_mutations"],
+  "required": ["$schema", "schema_version", "manifest_id", "as_of", "mode", "network_access_allowed", "credential_access_allowed", "automatic_upload_allowed", "canonical_authority", "bucket_authority", "local_artifact_hash_basis", "topology_contract", "candidates", "global_release_predicate", "forbidden_file_extensions", "external_mutations"],
   "properties": {
     "$schema": {"const": "./promotion-manifest.schema.json"},
     "schema_version": {"const": "szl.hf-promotion-manifest.v1"},
@@ -16,6 +16,7 @@
     "automatic_upload_allowed": {"const": false},
     "canonical_authority": {"const": "VERSIONED_HUGGING_FACE_REPOSITORY_PLUS_SIGNED_RELEASE_RECEIPT"},
     "bucket_authority": {"const": "MUTABLE_NONCANONICAL_STAGING_ONLY"},
+    "local_artifact_hash_basis": {"const": "TEXT_UTF8_LF_BINARY_RAW"},
     "topology_contract": {"const": "model_release/szl-hf-bucket-topology.json"},
     "candidates": {
       "type": "array",

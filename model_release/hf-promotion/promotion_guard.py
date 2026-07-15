@@ -24,6 +24,8 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SAFE_ATTEMPT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$")
 SAFE_TEXT_EXTENSIONS = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
 SAFE_MODEL_EXTENSIONS = {".safetensors"}
+CANONICAL_LF_EXTENSIONS = SAFE_TEXT_EXTENSIONS | {".py", ".ps1", ".sh", ".toml"}
+CANONICAL_LF_FILENAMES = {"Modelfile"}
 
 
 class PromotionGuardError(RuntimeError):
@@ -36,6 +38,27 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _artifact_identity(path: Path) -> tuple[int, str, str]:
+    """Return a clone-stable identity for a manifest-bound artifact.
+
+    Git stores the repository's text artifacts with LF endings. Windows tools
+    can materialize CRLF in a working tree despite that contract, so hashing
+    raw text bytes makes an otherwise identical release fail on Linux. Text is
+    therefore decoded strictly as UTF-8 and normalized to LF before hashing;
+    future binary payloads remain byte-exact.
+    """
+
+    raw = path.read_bytes()
+    if path.suffix.lower() in CANONICAL_LF_EXTENSIONS or path.name in CANONICAL_LF_FILENAMES:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise PromotionGuardError(f"manifest-bound text is not UTF-8: {path}") from exc
+        canonical = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+        return len(canonical), hashlib.sha256(canonical).hexdigest(), "UTF8_LF"
+    return len(raw), hashlib.sha256(raw).hexdigest(), "RAW_BYTES"
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -77,6 +100,7 @@ def audit_contract(
         "credential_access_allowed": False,
         "automatic_upload_allowed": False,
         "bucket_authority": "MUTABLE_NONCANONICAL_STAGING_ONLY",
+        "local_artifact_hash_basis": "TEXT_UTF8_LF_BINARY_RAW",
     }
     for field, expected in expected_top.items():
         if manifest.get(field) != expected:
@@ -148,8 +172,7 @@ def audit_contract(
             if not path.is_file():
                 errors.append(f"{candidate_id}: missing local artifact {relative}")
                 continue
-            actual_bytes = path.stat().st_size
-            actual_sha = _sha256(path)
+            actual_bytes, actual_sha, hash_basis = _artifact_identity(path)
             if actual_bytes != artifact["bytes"]:
                 errors.append(
                     f"{candidate_id}: byte mismatch for {relative}: "
@@ -161,7 +184,13 @@ def audit_contract(
                     f"expected {artifact['sha256']}, got {actual_sha}"
                 )
             observations.append(
-                {"candidate_id": candidate_id, "path": relative, "bytes": actual_bytes, "sha256": actual_sha}
+                {
+                    "candidate_id": candidate_id,
+                    "path": relative,
+                    "bytes": actual_bytes,
+                    "sha256": actual_sha,
+                    "hash_basis": hash_basis,
+                }
             )
 
         card_contract = candidate.get("model_card_truth", {})

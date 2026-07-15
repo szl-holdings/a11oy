@@ -2,8 +2,20 @@
   "schema_version": "szl.nemo.training-contract.v1",
   "contract_id": "szl-nemo-governed-adapter-v1",
   "candidate_id": "SZL-Nemo-Governed-Adapter-v1",
-  "release_state": "EXECUTABLE_CANDIDATE_NOT_TRAINED",
+  "release_state": "WSL_MAMBA_IMPORT_QUALIFIED_CAPACITY_NOT_RUN",
   "quality_claim": "NOT_ESTABLISHED",
+  "evidence_lineage": {
+    "static_preflight_path": "attestations/szl-nemo-finetune-preflight-local-2026-07-15.json",
+    "static_preflight_git_blob_sha1": "13ff0bf8ce2997d10833302da3a4fce89a055eaf",
+    "static_preflight_canonical_lf_sha256": "d4cf658183c5aeef7787772c5501ecb486413a2cfc1878d59975eff0a5ce4aef",
+    "scope": "STATIC_FILE_AND_LICENSE_INTEGRITY_ONLY",
+    "runtime_readiness_established": false,
+    "pinned_code_static_review_path": "attestations/szl-nemo-pinned-code-static-review-2026-07-15.json",
+    "pinned_code_static_review_canonical_lf_sha256": "e689d484dda27ffc7bf74e60601a3619557dd11b82d51949fadb3c1ee10b5cc4",
+    "wsl_runtime_import_receipt_path": "attestations/szl-nemo-wsl-runtime-import-2026-07-15.json",
+    "wsl_runtime_import_receipt_canonical_lf_sha256": "26a8b1ee52a0bd4eb149e93e9524a33c964346edab564f8856c6a88f1fff66b6",
+    "wsl_runtime_import_receipt_scope": "OS_NETWORK_ISOLATED_CONFIG_AND_CUSTOM_CLASS_IMPORT_NO_WEIGHTS"
+  },
   "base": {
     "repository": "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16",
     "revision": "dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
@@ -14,7 +26,13 @@
     "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-nemotron-open-model-license/",
     "license_acknowledgement": "ACK_NVIDIA_NEMOTRON_LICENSE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
     "network_download_allowed_during_training": false,
-    "trust_remote_code": false,
+    "trust_remote_code": true,
+    "remote_code_policy": "PINNED_OFFICIAL_NVIDIA_FILES_ONLY",
+    "remote_code_security_review": "BOUNDED_LEXICAL_REVIEW_RECEIPT_ONLY_NOT_SECURITY_PROOF",
+    "auto_map": {
+      "AutoConfig": "configuration_nemotron_h.NemotronHConfig",
+      "AutoModelForCausalLM": "modeling_nemotron_h.NemotronHForCausalLM"
+    },
     "required_files": [
       {"path": "config.json", "bytes": 1430, "git_blob_sha1": "d5c7a47cb23bd312350c648a3c917130d1531ee3"},
       {"path": "model.safetensors", "bytes": 7947142640, "sha256": "55d4e2519456c4a9bddf596b0748d630e3b2ce6ff6f4c2b7ed3e07e2b00dad42"},
@@ -22,7 +40,9 @@
       {"path": "tokenizer_config.json", "bytes": 188034, "git_blob_sha1": "f0048c22e792605128ad1dc342dd6fee7d0c7972"},
       {"path": "chat_template.jinja", "bytes": 10504, "git_blob_sha1": "67ca3ce54a7118ed74d6fd793b7cc9fd6b2a9f03"},
       {"path": "generation_config.json", "bytes": 171, "git_blob_sha1": "f97082414e74f1bdc96f7ccd2d6100fc8edeb7b1"},
-      {"path": "special_tokens_map.json", "bytes": 420, "git_blob_sha1": "0d5c2c9dba131d5da20e58336dd09b022142ea50"}
+      {"path": "special_tokens_map.json", "bytes": 420, "git_blob_sha1": "0d5c2c9dba131d5da20e58336dd09b022142ea50"},
+      {"path": "configuration_nemotron_h.py", "bytes": 12119, "sha256": "07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff"},
+      {"path": "modeling_nemotron_h.py", "bytes": 78629, "sha256": "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4"}
     ]
   },
   "curriculum": {
@@ -50,6 +70,7 @@
     "method": "QLORA_SFT",
     "max_steps": 96,
     "max_sequence_length": 768,
+    "capacity_probe_sequence_length": 128,
     "per_device_batch_size": 1,
     "gradient_accumulation_steps": 8,
     "learning_rate": 0.0001,
@@ -67,23 +88,37 @@
     "minimum_output_free_bytes": 12884901888
   },
   "runtime": {
+    "operating_system_allowlist": ["Linux"],
+    "native_windows_state": "UNAVAILABLE_MAMBA_KERNELS",
+    "execution_lane": "WSL2_OR_LINUX_NVIDIA_CUDA",
     "python_minor_allowlist": ["3.12"],
-    "torch_exact_allowlist": ["2.10.0+cu130"],
-    "minimum_cuda_runtime": [13, 0],
+    "torch_exact_allowlist": ["2.10.0+cu128"],
+    "minimum_cuda_runtime": [12, 8],
     "minimum_device_capability": [12, 0],
     "required_device_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
     "package_exact": {
-      "transformers": "5.5.0",
-      "trl": "0.24.0",
-      "peft": "0.19.1",
-      "bitsandbytes": "0.49.2"
+      "transformers": "4.48.3",
+      "trl": "0.15.2",
+      "peft": "0.14.0",
+      "datasets": "3.2.0",
+      "accelerate": "1.12.0",
+      "bitsandbytes": "0.49.2",
+      "mamba-ssm": "2.3.2.post1",
+      "causal-conv1d": "1.6.2.post1",
+      "tokenizers": "0.21.4",
+      "huggingface-hub": "0.36.2"
     },
-    "package_required_measured": ["accelerate", "datasets", "tokenizers", "huggingface-hub"]
+    "package_required_measured": ["safetensors", "einops", "tilelang", "apache-tvm-ffi", "quack-kernels"],
+    "module_required": ["mamba_ssm", "causal_conv1d"],
+    "requires_pinned_custom_model_class_import": true
   },
   "source_control": {
     "require_clean_scope": true,
     "git_executable_env": "SZL_NEMO_GIT",
     "paths": [
+      "attestations/szl-nemo-finetune-preflight-local-2026-07-15.json",
+      "attestations/szl-nemo-pinned-code-static-review-2026-07-15.json",
+      "attestations/szl-nemo-wsl-runtime-import-2026-07-15.json",
       "model_release/szl-nemo/.gitignore",
       "model_release/szl-nemo/Invoke-SZLNemoFineTuneQueue.ps1",
       "model_release/szl-nemo/curriculum-source.json",
@@ -91,8 +126,11 @@
       "model_release/szl-nemo/generated/curriculum-manifest.json",
       "model_release/szl-nemo/generated/eval.jsonl",
       "model_release/szl-nemo/generated/train.jsonl",
+      "model_release/szl-nemo/run_wsl_governed.sh",
       "model_release/szl-nemo/szl_nemo_finetune.py",
+      "model_release/szl-nemo/setup_wsl_runtime.sh",
       "model_release/szl-nemo/training-contract.json",
+      "model_release/szl-nemo/wsl_runtime_probe.py",
       "tests/test_szl_nemo_finetune_path.py"
     ]
   },

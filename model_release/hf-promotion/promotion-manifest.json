@@ -9,6 +9,7 @@
   "automatic_upload_allowed": false,
   "canonical_authority": "VERSIONED_HUGGING_FACE_REPOSITORY_PLUS_SIGNED_RELEASE_RECEIPT",
   "bucket_authority": "MUTABLE_NONCANONICAL_STAGING_ONLY",
+  "local_artifact_hash_basis": "TEXT_UTF8_LF_BINARY_RAW",
   "topology_contract": "model_release/szl-hf-bucket-topology.json",
   "candidates": [
     {
@@ -59,8 +60,8 @@
       "local_artifacts": [
         {
           "path": "model_release/szl-nemo/release-manifest.json",
-          "bytes": 2349,
-          "sha256": "e07144961b9e786096c3ba0bf1c2f7be169f9390b639bb7566fceb4c0096d8c3",
+          "bytes": 2572,
+          "sha256": "12e01c005fa08a1061b417d9bb413fe288d7f210da2390953a8e985ab43fbc4a",
           "role": "RELEASE_CONTRACT"
         },
         {
@@ -71,8 +72,8 @@
         },
         {
           "path": "model_release/szl-nemo/MODEL_CARD_DRAFT.md",
-          "bytes": 3075,
-          "sha256": "48148a20f1c0dca83cf59cf9c7e10d75f3dcf18e53ef22ff5fa0e1a8a60c2127",
+          "bytes": 3073,
+          "sha256": "8b26957d2cd70abfae24548ffed51021e72d92bfd80ed533124d3c203671bdbb",
           "role": "MODEL_CARD"
         },
         {
@@ -131,7 +132,7 @@
         "path": "model_release/szl-nemo/MODEL_CARD_TRAINED_CANDIDATE_DRAFT.md",
         "required_literals": [
           "TRAINING CANDIDATE - NO ADAPTER WEIGHTS YET",
-          "EXECUTABLE_CANDIDATE_NOT_TRAINED",
+          "WSL_MAMBA_IMPORT_QUALIFIED_CAPACITY_NOT_RUN",
           "Quality: `NOT_ESTABLISHED`",
           "SZL adapter weights | `ABSENT`",
           "Exact base revision | `dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f`",
@@ -148,8 +149,8 @@
       "local_artifacts": [
         {
           "path": "model_release/szl-nemo/training-contract.json",
-          "bytes": 6091,
-          "sha256": "8740c5ecaad027a94b56b805f7b3a9490068d73e0db7e3d2747d33c570593562",
+          "bytes": 8547,
+          "sha256": "bfa195c10ec64291cd3262b8eb2dc74f1f0072d1379935c18b92322e6ed8f363",
           "role": "TRAINING_CONTRACT"
         },
         {
@@ -166,52 +167,89 @@
         },
         {
           "path": "model_release/szl-nemo/generated/curriculum-manifest.json",
-          "bytes": 1912,
-          "sha256": "37998329a53249c54318c82ce632d3d3c0dd2241553872b9d14027007eee6ae8",
+          "bytes": 1860,
+          "sha256": "91a8da734af0e5d96c7bc236872060d726209ebddfb1f5974f537830020be358",
           "role": "CURRICULUM_MANIFEST"
         },
         {
           "path": "model_release/szl-nemo/generated/train.jsonl",
-          "bytes": 21725,
-          "sha256": "cf24e98cfbbd1d186365ec05e6bf1f5a8ca600c275e9e52b23096d895670f8ee",
+          "bytes": 21701,
+          "sha256": "513b58282a1a3ccb34145167d4acd8525093ecd2ad9a29c0a8f9af8cd46ac3fd",
           "role": "TRAIN_SPLIT"
         },
         {
           "path": "model_release/szl-nemo/generated/eval.jsonl",
-          "bytes": 5975,
-          "sha256": "020651cc66151762425b20cb10a3ebea56afcc9e3d5afe73afbc5661b85310d6",
+          "bytes": 5967,
+          "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d",
           "role": "HELD_OUT_EVAL_SPLIT"
         },
         {
           "path": "model_release/szl-nemo/szl_nemo_finetune.py",
-          "bytes": 37412,
-          "sha256": "1246758acd597f7274645910e720df9143b5e99598461b38cca676c71b55ed83",
+          "bytes": 61373,
+          "sha256": "2199fa5613f244a6650d39b462d3b5b47e1b594e12f7f089eeb997787d59fdb5",
           "role": "OFFLINE_TRAINER"
         },
         {
           "path": "model_release/szl-nemo/Invoke-SZLNemoFineTuneQueue.ps1",
-          "bytes": 6148,
-          "sha256": "d5417bab943c6878978972fd2e3b8c3ead1aa7e3b605fcab2268a833e54d3c72",
+          "bytes": 6662,
+          "sha256": "092555812d0614f6c994d7685ed7c8d8096eb3eaa4798f2b22c60f453c3f68b7",
           "role": "GOVERNED_QUEUE"
         },
         {
           "path": "model_release/szl-nemo/MODEL_CARD_TRAINED_CANDIDATE_DRAFT.md",
-          "bytes": 3274,
-          "sha256": "a27dd6ff05b77f83d325bdee4e8786dcf1f8d057c0b67f18eca6d30b1047b23f",
+          "bytes": 4620,
+          "sha256": "767eb40945b6a1ee462779b5d1b36b9068edec6ff4031b095c375b2cc7107df8",
           "role": "MODEL_CARD"
+        },
+        {
+          "path": "model_release/szl-nemo/setup_wsl_runtime.sh",
+          "bytes": 5344,
+          "sha256": "4500c2f0f3ef4fbbf793e4f909415ee023fe1801167ba39f355bf1368b8764c0",
+          "role": "PINNED_WSL_RUNTIME_SETUP"
+        },
+        {
+          "path": "model_release/szl-nemo/wsl_runtime_probe.py",
+          "bytes": 10362,
+          "sha256": "37be64aa7d7fd56648191c1645578fd8d903d34bad031e4fa25dafca807b7d8e",
+          "role": "OS_ISOLATED_RUNTIME_PROBE"
+        },
+        {
+          "path": "model_release/szl-nemo/run_wsl_governed.sh",
+          "bytes": 4143,
+          "sha256": "eea036ee30442e93723bb853b2c57a0d417641a2bfb8e4b8d02e099ddb73c3ef",
+          "role": "GOVERNED_WSL_LAUNCHER"
+        },
+        {
+          "path": "attestations/szl-nemo-pinned-code-static-review-2026-07-15.json",
+          "bytes": 1507,
+          "sha256": "e689d484dda27ffc7bf74e60601a3619557dd11b82d51949fadb3c1ee10b5cc4",
+          "role": "PINNED_CODE_STATIC_REVIEW"
+        },
+        {
+          "path": "attestations/szl-nemo-wsl-runtime-import-2026-07-15.json",
+          "bytes": 3085,
+          "sha256": "26a8b1ee52a0bd4eb149e93e9524a33c964346edab564f8856c6a88f1fff66b6",
+          "role": "WSL_RUNTIME_IMPORT_ATTESTATION"
+        },
+        {
+          "path": "attestations/szl-nemo-runtime-compatibility-windows-2026-07-15.json",
+          "bytes": 4242,
+          "sha256": "e90c46dbe590ad621e992c48b6b36db3ea83a95a8b7d49eccc8f54b0b046aa97",
+          "role": "NATIVE_WINDOWS_REFUSAL_ATTESTATION"
         }
       ],
       "qualification_gates": [
         {"gate_id": "NEMO-FT-G01", "name": "project_authored_curriculum_and_holdout", "state": "PASS", "blocking": true, "evidence": "The generated 24-row train and 8-row held-out split are deterministic and project-authored; raw Brain and formula rows remain excluded."},
-        {"gate_id": "NEMO-FT-G02", "name": "immutable_base_local_preflight", "state": "BLOCKED", "blocking": true, "evidence": "The contract pins the remote revision and expected files, but the 7,947,142,640-byte safetensors transfer has not completed and no full local hash preflight receipt exists."},
-        {"gate_id": "NEMO-FT-G03", "name": "gpu_admission_and_training_run", "state": "NOT_RUN", "blocking": true, "evidence": "No governed SZL-Nemo adapter training completion receipt is bound to this candidate."},
-        {"gate_id": "NEMO-FT-G04", "name": "adapter_safetensors_and_config", "state": "ABSENT", "blocking": true, "evidence": "No SZL-Nemo Governed Adapter safetensors or adapter config exists."},
-        {"gate_id": "NEMO-FT-G05", "name": "clean_reload_and_exact_eval", "state": "NOT_RUN", "blocking": true, "evidence": "No trained adapter exists to rebind to the exact NVIDIA base and evaluate."},
-        {"gate_id": "NEMO-FT-G06", "name": "broader_safety_identity_resource_restart", "state": "NOT_RUN", "blocking": true, "evidence": "The eight-row training holdout is necessary but not sufficient for release quality, safety, resource, or recovery claims."},
-        {"gate_id": "NEMO-FT-G07", "name": "license_notice_and_adapter_review", "state": "BLOCKED", "blocking": true, "evidence": "The base license is pinned; the exact adapter artifact and separate release license review do not yet exist."},
-        {"gate_id": "NEMO-FT-G08", "name": "organization_identity_attestation_and_log", "state": "ABSENT", "blocking": true, "evidence": "No exact-candidate asymmetric DSSE/in-toto statement or transparency-log entry exists."},
-        {"gate_id": "NEMO-FT-G09", "name": "human_release_approval", "state": "ABSENT", "blocking": true, "evidence": "No named human approval is bound to an exact adapter digest."},
-        {"gate_id": "NEMO-FT-G10", "name": "independent_hub_readback", "state": "NOT_RUN", "blocking": true, "evidence": "The target repository does not exist and no candidate was uploaded."}
+        {"gate_id": "NEMO-FT-G02", "name": "immutable_base_and_custom_code_static_integrity", "state": "PASS", "blocking": true, "evidence": "The full 7,947,142,640-byte safetensors file, tokenizer, configuration, and two pinned NVIDIA custom-code files passed exact local hash verification. This is static evidence only."},
+        {"gate_id": "NEMO-FT-G03", "name": "linux_mamba_runtime_import_load_and_capacity", "state": "BLOCKED", "blocking": true, "evidence": "The OS-network-isolated WSL2 import receipt passes exact package, kernel-symbol, CUDA identity, and imported-code hashes without loading weights. Quantized model-load and forward/backward capacity remain NOT_RUN."},
+        {"gate_id": "NEMO-FT-G04", "name": "gpu_admission_and_training_run", "state": "NOT_RUN", "blocking": true, "evidence": "No governed SZL-Nemo adapter training completion receipt is bound to this candidate."},
+        {"gate_id": "NEMO-FT-G05", "name": "adapter_safetensors_and_config", "state": "ABSENT", "blocking": true, "evidence": "No SZL-Nemo Governed Adapter safetensors or adapter config exists."},
+        {"gate_id": "NEMO-FT-G06", "name": "clean_reload_and_exact_eval", "state": "NOT_RUN", "blocking": true, "evidence": "No trained adapter exists to rebind to the exact NVIDIA base and evaluate."},
+        {"gate_id": "NEMO-FT-G07", "name": "broader_safety_identity_resource_restart", "state": "NOT_RUN", "blocking": true, "evidence": "The eight-row training holdout is necessary but not sufficient for release quality, safety, resource, or recovery claims."},
+        {"gate_id": "NEMO-FT-G08", "name": "license_notice_and_adapter_review", "state": "BLOCKED", "blocking": true, "evidence": "The base license is pinned; the exact adapter artifact and separate release license review do not yet exist."},
+        {"gate_id": "NEMO-FT-G09", "name": "organization_identity_attestation_and_log", "state": "ABSENT", "blocking": true, "evidence": "No exact-candidate asymmetric DSSE/in-toto statement or transparency-log entry exists."},
+        {"gate_id": "NEMO-FT-G10", "name": "human_release_approval", "state": "ABSENT", "blocking": true, "evidence": "No named human approval is bound to an exact adapter digest."},
+        {"gate_id": "NEMO-FT-G11", "name": "independent_hub_readback", "state": "NOT_RUN", "blocking": true, "evidence": "The target repository does not exist and no candidate was uploaded."}
       ]
     },
     {
@@ -294,8 +332,8 @@
         },
         {
           "path": "model_release/szl-forge/generated/curriculum-manifest.json",
-          "bytes": 1198,
-          "sha256": "63b6e0af8a121a1b52c7fe808b820d7945411c27730fb4824b33a5e4a772c3f1",
+          "bytes": 1160,
+          "sha256": "a1cbb414bfc133a43cbd10a928d7d1141c7607a19a1b9d3b580a007773f5d9f4",
           "role": "ADMITTED_CURRICULUM_MANIFEST"
         }
       ],

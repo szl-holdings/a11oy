@@ -12,10 +12,15 @@ from __future__ import annotations
 import argparse
 import base64
 from contextlib import contextmanager
+import gc
 import hashlib
+import importlib
 import importlib.metadata
+import inspect
 import json
+import math
 import os
+import platform
 from pathlib import Path
 import shutil
 import socket
@@ -26,6 +31,7 @@ import threading
 import time
 import traceback
 from typing import Any, Iterable
+import uuid
 
 
 HERE = Path(__file__).resolve().parent
@@ -46,6 +52,8 @@ SYSTEM_PROMPT = (
 )
 FETCH_CONFIRMATION = "FETCH_SZL_NEMO_BASE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
 PAYLOAD_TYPE = "application/vnd.szl.nemo-training+json"
+SHARED_GPU_TRAINING_LEASE_DIR = REPO / "model_release" / "szl-forge" / "queue-state" / "gpu-training.lease"
+GPU_TRAINING_LEASE_OWNER = "owner.json"
 
 
 class GateRefused(RuntimeError):
@@ -74,6 +82,10 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_canonical_lf(path: Path) -> str:
+    return sha256_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n"))
+
+
 def git_blob_sha1(path: Path) -> str:
     size = path.stat().st_size
     digest = hashlib.sha1()
@@ -94,14 +106,20 @@ def load_object(path: Path) -> dict[str, Any]:
 def atomic_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
     temporary.replace(path)
 
 
 def atomic_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text("".join(canonical_json(row) + "\n" for row in rows), encoding="utf-8")
+    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write("".join(canonical_json(row) + "\n" for row in rows))
+        stream.flush()
+        os.fsync(stream.fileno())
     temporary.replace(path)
 
 
@@ -123,6 +141,26 @@ def _validate_contract_assets(contract: dict[str, Any]) -> None:
     ):
         if not path.is_file() or sha256_file(path) != expected:
             raise GateRefused(f"pinned curriculum asset mismatch: {path.name}")
+    evidence = contract.get("evidence_lineage", {})
+    evidence_assets = (
+        (
+            REPO / str(evidence.get("static_preflight_path", "")),
+            evidence.get("static_preflight_canonical_lf_sha256"),
+        ),
+        (
+            REPO / str(evidence.get("pinned_code_static_review_path", "")),
+            evidence.get("pinned_code_static_review_canonical_lf_sha256"),
+        ),
+        (
+            REPO / str(evidence.get("wsl_runtime_import_receipt_path", "")),
+            evidence.get("wsl_runtime_import_receipt_canonical_lf_sha256"),
+        ),
+    )
+    for path, expected in evidence_assets:
+        if not isinstance(expected, str) or len(expected) != 64:
+            raise GateRefused("pinned evidence lineage hash is invalid")
+        if not path.is_file() or sha256_canonical_lf(path) != expected:
+            raise GateRefused(f"pinned evidence lineage mismatch: {path.name}")
 
 
 def validate_source(source: dict[str, Any], contract: dict[str, Any]) -> None:
@@ -238,6 +276,16 @@ def validate_curriculum() -> dict[str, Any]:
     return observed
 
 
+def curriculum_input_identity() -> dict[str, Any]:
+    """Bind the exact admitted files used by one capacity/training process."""
+
+    return {
+        "manifest": {"bytes": MANIFEST_PATH.stat().st_size, "sha256": sha256_file(MANIFEST_PATH)},
+        "train": {"bytes": TRAIN_PATH.stat().st_size, "sha256": sha256_file(TRAIN_PATH)},
+        "eval": {"bytes": EVAL_PATH.stat().st_size, "sha256": sha256_file(EVAL_PATH)},
+    }
+
+
 def _safe_child(root: Path, relative: str) -> Path:
     candidate = Path(relative)
     if candidate.is_absolute() or ".." in candidate.parts:
@@ -271,7 +319,94 @@ def verify_base(snapshot: Path) -> list[dict[str, Any]]:
     base = contract["base"]
     if config.get("model_type") != base["model_type"] or config.get("vocab_size") != base["vocab_size"] or base["architecture"] not in config.get("architectures", []):
         raise GateRefused("base architecture identity mismatch")
+    if config.get("auto_map") != base["auto_map"]:
+        raise GateRefused("pinned NVIDIA custom-code mapping mismatch")
     return observed
+
+
+def verify_nemotron_execution_lane(snapshot: Path) -> dict[str, Any]:
+    """Prove that the pinned NVIDIA custom class is importable on this host.
+
+    Hashing the files is necessary but not sufficient.  NVIDIA's implementation
+    is Linux-only and imports the Mamba/causal-convolution CUDA extensions.  A
+    preflight cannot pass until those exact runtime dependencies and the pinned
+    custom model class load locally without a network request.
+    """
+
+    contract = load_object(CONTRACT_PATH)
+    runtime = contract["runtime"]
+    observed_os = platform.system()
+    if observed_os not in runtime["operating_system_allowlist"]:
+        raise GateRefused(
+            "SZL-Nemo training is unavailable on native Windows: the pinned "
+            "NVIDIA implementation requires Linux Mamba and causal-convolution "
+            "CUDA kernels; use the governed WSL2/Linux lane"
+        )
+
+    modules: dict[str, str] = {}
+    for module_name in runtime["module_required"]:
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as exc:
+            raise GateRefused(
+                f"required Linux runtime module is unavailable: {module_name} "
+                f"({type(exc).__name__})"
+            ) from exc
+        modules[module_name] = str(getattr(module, "__version__", "UNKNOWN"))
+
+    try:
+        from transformers import AutoConfig, AutoTokenizer
+        from transformers.dynamic_module_utils import get_class_from_dynamic_module
+
+        config = AutoConfig.from_pretrained(
+            str(snapshot), local_files_only=True, trust_remote_code=True
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            str(snapshot), local_files_only=True, trust_remote_code=True
+        )
+        model_class = get_class_from_dynamic_module(
+            contract["base"]["auto_map"]["AutoModelForCausalLM"],
+            str(snapshot),
+            local_files_only=True,
+        )
+    except Exception as exc:
+        raise GateRefused(
+            "pinned NVIDIA custom config/model class failed local import: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+
+    if config.model_type != contract["base"]["model_type"]:
+        raise GateRefused("loaded custom config identity does not match contract")
+    if model_class.__name__ != contract["base"]["architecture"]:
+        raise GateRefused("loaded custom model class identity does not match contract")
+    expected_code = {
+        item["path"]: item["sha256"]
+        for item in contract["base"]["required_files"]
+        if item["path"] in {"configuration_nemotron_h.py", "modeling_nemotron_h.py"}
+    }
+    loaded_code = {
+        "configuration_nemotron_h.py": Path(inspect.getfile(type(config))).resolve(),
+        "modeling_nemotron_h.py": Path(inspect.getfile(model_class)).resolve(),
+    }
+    loaded_code_receipt: list[dict[str, Any]] = []
+    for name, path in loaded_code.items():
+        digest = sha256_file(path)
+        if digest != expected_code.get(name):
+            raise GateRefused(f"loaded pinned NVIDIA code hash mismatch: {name}")
+        loaded_code_receipt.append({"path": str(path), "sha256": digest})
+    return {
+        "schema_version": "szl.nemo.execution-lane-receipt.v1",
+        "state": "PASS",
+        "operating_system": observed_os,
+        "execution_lane": runtime["execution_lane"],
+        "remote_code_policy": contract["base"]["remote_code_policy"],
+        "qualification_scope": "CUSTOM_CLASS_IMPORT_BEFORE_MODEL_LOAD",
+        "config_class": type(config).__name__,
+        "model_class": model_class.__name__,
+        "tokenizer_class": type(tokenizer).__name__,
+        "modules": modules,
+        "loaded_code": loaded_code_receipt,
+    }
 
 
 def query_gpu() -> dict[str, Any]:
@@ -300,6 +435,8 @@ def sample_gpu(policy: dict[str, Any], count: int, interval: int) -> list[dict[s
 def verify_runtime(torch_module: Any) -> dict[str, Any]:
     contract = load_object(CONTRACT_PATH)
     runtime = contract["runtime"]
+    if platform.system() not in runtime["operating_system_allowlist"]:
+        raise GateRefused("operating system is outside the SZL-Nemo runtime allowlist")
     minor = f"{sys.version_info.major}.{sys.version_info.minor}"
     if minor not in runtime["python_minor_allowlist"] or str(torch_module.__version__) not in runtime["torch_exact_allowlist"]:
         raise GateRefused("Python or torch identity is outside the measured allowlist")
@@ -359,6 +496,108 @@ def deny_python_network() -> Iterable[dict[str, Any]]:
         socket.socket, socket.create_connection, socket.getaddrinfo = original_socket, original_create, original_getaddrinfo
 
 
+@contextmanager
+def offline_framework_environment() -> Iterable[dict[str, str]]:
+    required = {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "HF_DATASETS_OFFLINE": "1",
+        "WANDB_DISABLED": "true",
+        "TOKENIZERS_PARALLELISM": "false",
+        "HF_HUB_DISABLE_TELEMETRY": "1",
+        "DO_NOT_TRACK": "1",
+        "NO_PROXY": "*",
+    }
+    previous = {key: os.environ.get(key) for key in required}
+    os.environ.update(required)
+    try:
+        yield dict(required)
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+@contextmanager
+def fresh_hf_modules_cache() -> Iterable[dict[str, Any]]:
+    """Force pinned custom code through a new, empty cache for this process.
+
+    The immutable snapshot is verified before Transformers is imported. A
+    process-unique cache then prevents a stale or previously tampered dynamic
+    module from winning lookup before its executed source can be checked.
+    """
+
+    previous = os.environ.get("HF_MODULES_CACHE")
+    with tempfile.TemporaryDirectory(prefix="szl-nemo-hf-modules-") as directory:
+        cache = Path(directory)
+        if any(cache.iterdir()):
+            raise GateRefused("fresh Transformers module cache is not empty")
+        os.environ["HF_MODULES_CACHE"] = str(cache)
+        receipt = {
+            "state": "FRESH_PROCESS_UNIQUE_CACHE",
+            "initial_entry_count": 0,
+            "lifecycle": "DELETED_WHEN_COMMAND_EXITS",
+            "source_policy": "IMMUTABLE_SNAPSHOT_HASH_VERIFIED_BEFORE_IMPORT",
+        }
+        try:
+            yield receipt
+        finally:
+            if previous is None:
+                os.environ.pop("HF_MODULES_CACHE", None)
+            else:
+                os.environ["HF_MODULES_CACHE"] = previous
+
+
+def verify_loaded_model_source(model: Any, contract: dict[str, Any], phase: str) -> dict[str, Any]:
+    """Bind an instantiated base class to the exact reviewed NVIDIA source."""
+
+    source = Path(inspect.getfile(type(model))).resolve()
+    digest = sha256_file(source)
+    expected = next(
+        item["sha256"]
+        for item in contract["base"]["required_files"]
+        if item["path"] == "modeling_nemotron_h.py"
+    )
+    if digest != expected:
+        raise GateRefused(f"{phase} loaded NVIDIA model source hash mismatch")
+    return {
+        "phase": phase,
+        "class": f"{type(model).__module__}.{type(model).__qualname__}",
+        "source": str(source),
+        "source_sha256": digest,
+    }
+
+
+def verify_linux_network_namespace() -> dict[str, Any]:
+    """Require the WSL/Linux training process to have no non-loopback network."""
+
+    if platform.system() != "Linux":
+        raise GateRefused("Linux network namespace is required for SZL-Nemo training")
+    interface_root = Path("/sys/class/net")
+    if not interface_root.is_dir():
+        raise GateRefused("network namespace interfaces cannot be measured")
+    interfaces = sorted(path.name for path in interface_root.iterdir())
+    non_loopback = [name for name in interfaces if name != "lo"]
+    routes = Path("/proc/net/route").read_text(encoding="utf-8")
+    default_routes = [
+        line for line in routes.splitlines()[1:]
+        if len(line.split()) > 1 and line.split()[1] == "00000000"
+    ]
+    if non_loopback or default_routes:
+        raise GateRefused(
+            "OS network namespace is not isolated; invoke training through "
+            "unshare --user --map-root-user --net"
+        )
+    return {
+        "state": "OS_NETWORK_NAMESPACE_DENIED",
+        "interfaces": interfaces,
+        "default_route_count": len(default_routes),
+        "namespace_link": os.readlink("/proc/self/ns/net"),
+    }
+
+
 class RuntimeGuard:
     def __init__(self, contract: dict[str, Any]) -> None:
         self.maximum_seconds = contract["training"]["maximum_wall_clock_seconds"]
@@ -394,36 +633,106 @@ class RuntimeGuard:
         return {"state": "TRIPPED" if self.reason else "PASS", "reason": self.reason, "samples": self.samples, "cooperative_interrupt_only": True}
 
 
-@contextmanager
-def training_mutex() -> Iterable[None]:
-    # Share the established Forge lease so ReceiptAgent and SZL-Nemo can never
-    # load/train on the same laptop GPU concurrently after independent probes.
-    path = REPO / "model_release" / "szl-forge" / "queue-state" / "training.lock"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    stream = path.open("a+b")
-    if stream.seek(0, os.SEEK_END) == 0:
-        stream.write(b"0"); stream.flush()
-    stream.seek(0)
+def _atomic_lease_owner(path: Path, value: dict[str, Any]) -> None:
+    token = str(value["owner_token"])
+    temporary = path / f".{GPU_TRAINING_LEASE_OWNER}.{token}.tmp"
     try:
-        if os.name == "nt":
-            import msvcrt
-            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError as exc:
-        stream.close(); raise GateRefused("another governed SZL training process holds the shared GPU lease") from exc
-    try:
-        yield
+        with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path / GPU_TRAINING_LEASE_OWNER)
     finally:
-        stream.seek(0)
-        if os.name == "nt":
-            import msvcrt
-            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
-        stream.close()
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _lease_holder(path: Path) -> str:
+    try:
+        owner = load_object(path / GPU_TRAINING_LEASE_OWNER)
+    except (OSError, ValueError, json.JSONDecodeError, GateRefused):
+        return "owner metadata unavailable"
+    return (
+        f"pid={owner.get('pid', 'UNKNOWN')} host={owner.get('hostname', 'UNKNOWN')} "
+        f"runtime={owner.get('runtime', 'UNKNOWN')}"
+    )
+
+
+def _remove_owned_lease(path: Path, owner_token: str) -> None:
+    owner_path = path / GPU_TRAINING_LEASE_OWNER
+    try:
+        owner = load_object(owner_path)
+    except (OSError, ValueError, json.JSONDecodeError, GateRefused):
+        return
+    if owner.get("owner_token") != owner_token:
+        return
+    owner_path.unlink()
+    try:
+        path.rmdir()
+    except OSError:
+        # Never recursively delete unexpected or stale lease evidence.
+        pass
+
+
+@contextmanager
+def training_mutex(path: Path = SHARED_GPU_TRAINING_LEASE_DIR) -> Iterable[Path]:
+    """Hold the same atomic repository lease from native Windows or WSL."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.mkdir()
+    except FileExistsError as exc:
+        raise GateRefused(
+            "another governed SZL training process holds the shared GPU lease "
+            f"({ _lease_holder(path) }); stale leases require operator review"
+        ) from exc
+    except OSError as exc:
+        raise GateRefused("shared GPU lease directory could not be created") from exc
+
+    owner_token = uuid.uuid4().hex
+    owner = {
+        "schema_version": "szl.gpu-training-lease-owner.v1",
+        "owner_token": owner_token,
+        "pid": os.getpid(),
+        "hostname": socket.gethostname(),
+        "runtime": f"{os.name}:{sys.platform}",
+        "runner": str(Path(__file__).resolve()),
+        "acquired_at_unix_ns": time.time_ns(),
+        "arbitration": "ATOMIC_DIRECTORY_CREATION",
+        "stale_policy": "OPERATOR_REVIEW_REQUIRED",
+        "automatic_stale_deletion": False,
+    }
+    try:
+        _atomic_lease_owner(path, owner)
+    except Exception as exc:
+        try:
+            path.rmdir()
+        except OSError:
+            pass
+        raise GateRefused("shared GPU lease owner metadata could not be published") from exc
+    try:
+        yield path
+    finally:
+        _remove_owned_lease(path, owner_token)
+
+
+def _preflight_receipt(contract: dict[str, Any], state: str, checks: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "schema_version": "szl.nemo.preflight-receipt.v1",
+        "contract_id": contract.get("contract_id"),
+        "state": state,
+        "measured_at_unix_ns": time.time_ns(),
+        "observed_operating_system": platform.system(),
+        "contract_sha256": sha256_file(CONTRACT_PATH),
+        "runner_sha256": sha256_file(Path(__file__)),
+        "evidence_lineage": contract.get("evidence_lineage"),
+        "checks": checks,
+        "effects": {
+            "training_started": False,
+            "uploaded": False,
+            "published": False,
+            "deployed": False,
+        },
+    }
 
 
 def preflight(snapshot: Path | None, check_gpu: bool = False, probe: bool = False) -> dict[str, Any]:
@@ -436,16 +745,25 @@ def preflight(snapshot: Path | None, check_gpu: bool = False, probe: bool = Fals
             raise GateRefused("base snapshot was not supplied")
         files = verify_base(snapshot); checks.append({"id": "IMMUTABLE_NVIDIA_BASE", "state": "PASS", "revision": contract["base"]["revision"], "files": files})
         checks.append({"id": "LICENSE_LINEAGE", "state": "PASS", "license": contract["base"]["license"], "url": contract["base"]["license_url"], "operator_ack_required_for_training": True})
+        try:
+            with offline_framework_environment() as offline_flags, deny_python_network() as python_network:
+                lane = verify_nemotron_execution_lane(snapshot)
+            lane["python_network_guard"] = python_network
+            lane["framework_offline_flags"] = offline_flags
+            checks.append({"id": "LINUX_MAMBA_EXECUTION_LANE", "state": "PASS", **lane})
+        except Exception as exc:
+            checks.append({"id": "LINUX_MAMBA_EXECUTION_LANE", "state": "BLOCKED", "observed_operating_system": platform.system(), "required_operating_systems": contract["runtime"]["operating_system_allowlist"], "reason": str(exc)})
+            return _preflight_receipt(contract, "BLOCKED", checks)
         if check_gpu:
             count = contract["gpu_admission"]["probe_samples"] if probe else contract["gpu_admission"]["training_soak_samples"]
             samples = sample_gpu(contract["gpu_admission"], count, contract["gpu_admission"]["sample_interval_seconds"])
             checks.append({"id": "GPU_ADMISSION", "state": "PASS", "samples": samples})
-        return {"schema_version": "szl.nemo.preflight-receipt.v1", "contract_id": contract["contract_id"], "state": "PASS", "checks": checks, "effects": {"training_started": False, "uploaded": False, "published": False, "deployed": False}}
+        return _preflight_receipt(contract, "PASS", checks)
     except GPUAdmissionRefused as exc:
         checks.append({"id": "GPU_ADMISSION", "state": "BLOCKED", "reason": str(exc), "samples": exc.samples})
     except Exception as exc:
         checks.append({"id": "REFUSAL", "state": "BLOCKED", "reason": str(exc)})
-    return {"schema_version": "szl.nemo.preflight-receipt.v1", "contract_id": contract.get("contract_id"), "state": "BLOCKED", "checks": checks, "effects": {"training_started": False, "uploaded": False, "published": False, "deployed": False}}
+    return _preflight_receipt(contract, "BLOCKED", checks)
 
 
 def fetch_base(destination: Path, confirmation: str) -> dict[str, Any]:
@@ -482,7 +800,213 @@ def _sign_summary(summary: dict[str, Any]) -> dict[str, Any]:
     return {"envelope": envelope, "verification": verdict, "promotion_eligible_signature": bool(envelope.get("signed") and verdict.get("verified"))}
 
 
-def train(snapshot: Path, output: Path, confirmation: str, license_acknowledgement: str) -> int:
+def capacity_probe(
+    snapshot: Path,
+    receipt_path: Path,
+    confirmation: str,
+    license_acknowledgement: str,
+    module_cache_receipt: dict[str, Any] | None = None,
+) -> int:
+    """Prove this exact GPU can execute one bounded in-memory QLoRA step.
+
+    This is deliberately stronger than importing the NVIDIA custom class and
+    deliberately weaker than a training run.  It writes no adapter or model
+    weights, makes no quality claim, and cannot promote a candidate.  It must
+    run inside the same OS-level network namespace and fixed GPU admission gate
+    used for training.
+    """
+
+    contract = load_object(CONTRACT_PATH)
+    settings = contract["training"]
+    if confirmation != settings["confirmation_phrase"]:
+        raise GateRefused("exact capacity-probe confirmation is required")
+    if license_acknowledgement != contract["base"]["license_acknowledgement"]:
+        raise GateRefused("exact NVIDIA license acknowledgement is required")
+
+    receipt: dict[str, Any] = {
+        "schema_version": "szl.nemo.capacity-probe-receipt.v1",
+        "contract_id": contract["contract_id"],
+        "state": "RUNNING_NOT_TRAINED_NOT_PROMOTED",
+        "started_at_unix_ns": time.time_ns(),
+        "contract_sha256": sha256_file(CONTRACT_PATH),
+        "runner_sha256": sha256_file(Path(__file__)),
+        "base_revision": contract["base"]["revision"],
+        "dynamic_module_cache": module_cache_receipt,
+        "training_started": False,
+        "effects": {
+            "training_run_started": False,
+            "capacity_optimization_step_started": False,
+            "capacity_optimization_step_completed": False,
+            "adapter_written": False,
+            "uploaded": False,
+            "published": False,
+            "deployed": False,
+            "promoted": False,
+        },
+    }
+    atomic_json(receipt_path, receipt)
+
+    try:
+        source_control = git_identity(contract)
+        admission = preflight(snapshot, check_gpu=True, probe=True)
+        receipt["preflight"] = admission
+        if admission["state"] != "PASS":
+            receipt.update({"state": "BLOCKED_NOT_TRAINED_NOT_PROMOTED", "completed_at_unix_ns": time.time_ns()})
+            atomic_json(receipt_path, receipt)
+            return 3
+
+        before = verify_base(snapshot)
+        curriculum_before = curriculum_input_identity()
+        capacity_row = next(iter(iter_jsonl(TRAIN_PATH)), None)
+        if capacity_row is None:
+            raise GateRefused("capacity probe has no admitted training row")
+        if curriculum_input_identity() != curriculum_before:
+            raise GateRefused("curriculum inputs changed while capacity row was admitted")
+        namespace = verify_linux_network_namespace()
+        receipt.update(
+            {
+                "source_control": source_control,
+                "base_files_before": before,
+                "curriculum_inputs_before": curriculum_before,
+                "os_network_namespace": namespace,
+            }
+        )
+        atomic_json(receipt_path, receipt)
+
+        with offline_framework_environment() as offline_flags, deny_python_network() as network_control, RuntimeGuard(contract) as guard:
+            import torch
+            from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+            from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+            receipt["runtime_identity"] = verify_runtime(torch)
+            receipt["framework_offline_flags"] = offline_flags
+            receipt["python_network_control"] = network_control
+            bf16 = bool(torch.cuda.is_bf16_supported())
+            compute_dtype = torch.bfloat16 if bf16 else torch.float16
+            quant = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_compute_dtype=compute_dtype,
+            )
+            torch.cuda.reset_peak_memory_stats()
+            guard.check("capacity-before-model-load")
+            load_started = time.monotonic_ns()
+            tokenizer = AutoTokenizer.from_pretrained(
+                str(snapshot), local_files_only=True, trust_remote_code=True
+            )
+            model = AutoModelForCausalLM.from_pretrained(
+                str(snapshot),
+                local_files_only=True,
+                quantization_config=quant,
+                device_map={"": 0},
+                trust_remote_code=True,
+                use_safetensors=True,
+                low_cpu_mem_usage=True,
+            )
+            receipt["model_load_duration_ms"] = (time.monotonic_ns() - load_started) // 1_000_000
+            receipt["loaded_model_class"] = verify_loaded_model_source(
+                model, contract, "capacity"
+            )
+            model.config.use_cache = False
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+            lora = LoraConfig(
+                r=settings["lora_rank"],
+                lora_alpha=settings["lora_alpha"],
+                lora_dropout=settings["lora_dropout"],
+                bias="none",
+                task_type="CAUSAL_LM",
+                target_modules=settings["target_modules"],
+            )
+            model = get_peft_model(model, lora)
+            trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
+            if not trainable:
+                raise GateRefused("capacity probe produced no trainable adapter parameters")
+
+            row = capacity_row
+            text = tokenizer.apply_chat_template(
+                row["messages"], tokenize=False, add_generation_prompt=False
+            )
+            sequence_length = int(settings["capacity_probe_sequence_length"])
+            encoded = tokenizer(
+                text,
+                return_tensors="pt",
+                truncation=True,
+                max_length=sequence_length,
+            )
+            device = next(parameter.device for parameter in model.parameters() if parameter.device.type == "cuda")
+            encoded = {key: value.to(device) for key, value in encoded.items()}
+            model.train()
+            optimizer = torch.optim.AdamW(trainable, lr=settings["learning_rate"])
+            optimizer.zero_grad(set_to_none=True)
+            guard.check("capacity-before-forward")
+            receipt["effects"]["capacity_optimization_step_started"] = True
+            atomic_json(receipt_path, receipt)
+            step_started = time.monotonic_ns()
+            output = model(**encoded, labels=encoded["input_ids"])
+            loss = float(output.loss.detach().cpu())
+            if not math.isfinite(loss):
+                raise GateRefused("capacity probe loss is not finite")
+            output.loss.backward()
+            optimizer.step()
+            torch.cuda.synchronize()
+            guard.check("capacity-after-optimizer-step")
+            receipt["effects"]["capacity_optimization_step_completed"] = True
+            step_duration_ms = (time.monotonic_ns() - step_started) // 1_000_000
+
+            receipt.update(
+                {
+                    "state": "PASS_CAPACITY_ONLY_NOT_TRAINED_NOT_PROMOTED",
+                    "completed_at_unix_ns": time.time_ns(),
+                    "probe": {
+                        "record_id": row.get("record_id"),
+                        "sequence_tokens": int(encoded["input_ids"].shape[-1]),
+                        "sequence_limit": sequence_length,
+                        "loss": loss,
+                        "step_duration_ms": step_duration_ms,
+                        "trainable_parameters": sum(parameter.numel() for parameter in trainable),
+                        "peak_vram_allocated_bytes": int(torch.cuda.max_memory_allocated()),
+                        "peak_vram_reserved_bytes": int(torch.cuda.max_memory_reserved()),
+                        "compute_dtype": str(compute_dtype),
+                    },
+                    "runtime_guard": guard.receipt(),
+                    "base_files_after": verify_base(snapshot),
+                    "curriculum_inputs_after": curriculum_input_identity(),
+                    "source_control_after": git_identity(contract),
+                }
+            )
+            if receipt["base_files_before"] != receipt["base_files_after"]:
+                raise GateRefused("base inputs changed during capacity probe")
+            if receipt["curriculum_inputs_before"] != receipt["curriculum_inputs_after"]:
+                raise GateRefused("curriculum inputs changed during capacity probe")
+            if receipt["source_control"] != receipt["source_control_after"]:
+                raise GateRefused("training source identity changed during capacity probe")
+            atomic_json(receipt_path, receipt)
+            del optimizer, output, encoded, model
+            gc.collect()
+            torch.cuda.empty_cache()
+            return 0
+    except Exception as exc:
+        receipt.update(
+            {
+                "state": "FAILED_NOT_TRAINED_NOT_PROMOTED",
+                "completed_at_unix_ns": time.time_ns(),
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "traceback_sha256": sha256_bytes(traceback.format_exc().encode("utf-8")),
+            }
+        )
+        atomic_json(receipt_path, receipt)
+        raise
+
+
+def train(
+    snapshot: Path,
+    output: Path,
+    confirmation: str,
+    license_acknowledgement: str,
+    module_cache_receipt: dict[str, Any] | None = None,
+) -> int:
     contract = load_object(CONTRACT_PATH)
     if confirmation != contract["training"]["confirmation_phrase"]:
         raise GateRefused("exact training confirmation is required")
@@ -502,8 +1026,15 @@ def train(snapshot: Path, output: Path, confirmation: str, license_acknowledgeme
     if source_control != source_control_before:
         raise GateRefused("training source identity changed during admission")
     before = verify_base(snapshot)
+    validate_curriculum()
+    curriculum_before = curriculum_input_identity()
+    train_rows = list(iter_jsonl(TRAIN_PATH))
+    eval_rows = list(iter_jsonl(EVAL_PATH))
+    if curriculum_input_identity() != curriculum_before:
+        raise GateRefused("curriculum inputs changed while rows were admitted")
     os.environ.update({"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "HF_DATASETS_OFFLINE": "1", "WANDB_DISABLED": "true", "TOKENIZERS_PARALLELISM": "false", "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1", "NO_PROXY": "*"})
-    receipt: dict[str, Any] = {"schema_version": "szl.nemo.training-receipt.v1", "contract_id": contract["contract_id"], "state": "RUNNING_NOT_PROMOTED", "started_at_unix_ns": time.time_ns(), "source_control": source_control, "contract_sha256": sha256_file(CONTRACT_PATH), "runner_sha256": sha256_file(Path(__file__)), "curriculum_manifest_sha256": sha256_file(MANIFEST_PATH), "base_files_before": before, "license": contract["base"]["license"], "network_download_allowed": False, "upload_allowed": False, "promotion": "NOT_PROMOTED"}
+    network_namespace = verify_linux_network_namespace()
+    receipt: dict[str, Any] = {"schema_version": "szl.nemo.training-receipt.v1", "contract_id": contract["contract_id"], "state": "RUNNING_NOT_PROMOTED", "started_at_unix_ns": time.time_ns(), "source_control": source_control, "contract_sha256": sha256_file(CONTRACT_PATH), "runner_sha256": sha256_file(Path(__file__)), "curriculum_manifest_sha256": sha256_file(MANIFEST_PATH), "curriculum_inputs_before": curriculum_before, "admitted_train_rows": len(train_rows), "admitted_eval_rows": len(eval_rows), "base_files_before": before, "dynamic_module_cache": module_cache_receipt, "license": contract["base"]["license"], "network_download_allowed": False, "os_network_namespace": network_namespace, "upload_allowed": False, "promotion": "NOT_PROMOTED"}
     atomic_json(receipts / "training-receipt.json", receipt)
     try:
         with deny_python_network() as network_control, RuntimeGuard(contract) as guard:
@@ -524,16 +1055,16 @@ def train(snapshot: Path, output: Path, confirmation: str, license_acknowledgeme
                 def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> Any:
                     guard.check(f"step-{state.global_step}-end"); return control
             guard.check("before-model-load")
-            tokenizer = AutoTokenizer.from_pretrained(str(snapshot), local_files_only=True, trust_remote_code=False)
-            model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map="auto", trust_remote_code=False, use_safetensors=True, low_cpu_mem_usage=True)
+            tokenizer = AutoTokenizer.from_pretrained(str(snapshot), local_files_only=True, trust_remote_code=True)
+            model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map="auto", trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
+            receipt["loaded_model_class"] = verify_loaded_model_source(model, contract, "training")
             model.config.use_cache = False
             model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
-            rows = list(iter_jsonl(TRAIN_PATH))
-            texts = [tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=False) for row in rows]
+            texts = [tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=False) for row in train_rows]
             dataset = Dataset.from_dict({"text": texts})
             settings = contract["training"]
             lora = LoraConfig(r=settings["lora_rank"], lora_alpha=settings["lora_alpha"], lora_dropout=settings["lora_dropout"], bias="none", task_type="CAUSAL_LM", target_modules=settings["target_modules"])
-            arguments = SFTConfig(output_dir=str(output / "trainer"), max_steps=settings["max_steps"], per_device_train_batch_size=settings["per_device_batch_size"], gradient_accumulation_steps=settings["gradient_accumulation_steps"], learning_rate=settings["learning_rate"], warmup_ratio=settings["warmup_ratio"], optim=settings["optimizer"], seed=settings["seed"], bf16=bf16, fp16=not bf16, max_length=settings["max_sequence_length"], dataset_text_field="text", logging_steps=1, save_strategy="no", report_to="none", gradient_checkpointing=True)
+            arguments = SFTConfig(output_dir=str(output / "trainer"), max_steps=settings["max_steps"], per_device_train_batch_size=settings["per_device_batch_size"], gradient_accumulation_steps=settings["gradient_accumulation_steps"], learning_rate=settings["learning_rate"], warmup_ratio=settings["warmup_ratio"], optim=settings["optimizer"], seed=settings["seed"], bf16=bf16, fp16=not bf16, max_seq_length=settings["max_sequence_length"], dataset_text_field="text", logging_steps=1, save_strategy="no", report_to="none", gradient_checkpointing=True)
             trainer = SFTTrainer(model=model, processing_class=tokenizer, train_dataset=dataset, peft_config=lora, args=arguments, callbacks=[ThermalGuard()])
             receipt["state"] = "TRAINING_STARTED_NOT_PROMOTED"; receipt["training_started_at_unix_ns"] = time.time_ns(); atomic_json(receipts / "training-receipt.json", receipt)
             result = trainer.train(); guard.check("after-training")
@@ -548,10 +1079,11 @@ def train(snapshot: Path, output: Path, confirmation: str, license_acknowledgeme
             receipt.update({"state": "TRAINING_COMPLETED_EVALUATION_REQUIRED", "training_completed_at_unix_ns": time.time_ns(), "global_steps": int(result.global_step), "training_loss": float(result.training_loss), "peak_vram_reserved_bytes": int(torch.cuda.max_memory_reserved()), "adapter_files_sha256": sha256_file(receipts / "adapter-files.json")})
             atomic_json(receipts / "training-receipt.json", receipt)
             del trainer, model; torch.cuda.empty_cache()
-            reload_model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map="auto", trust_remote_code=False, use_safetensors=True, low_cpu_mem_usage=True)
+            reload_model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map="auto", trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
+            receipt["reloaded_model_class"] = verify_loaded_model_source(reload_model, contract, "reload")
             reload_model = PeftModel.from_pretrained(reload_model, str(adapter), is_trainable=False, local_files_only=True); reload_model.eval()
             results: list[dict[str, Any]] = []
-            for row in iter_jsonl(EVAL_PATH):
+            for row in eval_rows:
                 guard.check(row["record_id"])
                 prompt = tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=True, enable_thinking=False)
                 inputs = tokenizer(prompt, return_tensors="pt").to(reload_model.device)
@@ -565,9 +1097,16 @@ def train(snapshot: Path, output: Path, confirmation: str, license_acknowledgeme
             after = verify_base(snapshot)
             if before != after:
                 raise GateRefused("base inputs changed during training")
+            validate_curriculum()
+            curriculum_after = curriculum_input_identity()
+            if curriculum_before != curriculum_after:
+                raise GateRefused("curriculum inputs changed during training")
+            source_control_after = git_identity(contract)
+            if source_control != source_control_after:
+                raise GateRefused("training source identity changed during training")
             summary = {"schema_version": "szl.nemo.candidate-summary.v1", "contract_id": contract["contract_id"], "base_revision": contract["base"]["revision"], "adapter_files_receipt_sha256": sha256_file(receipts / "adapter-files.json"), "reload_evaluation_receipt_sha256": sha256_file(receipts / "reload-evaluation-receipt.json"), "evaluation_state": reload_state, "runtime_guard": guard.receipt(), "promotion": "NOT_PROMOTED"}
             signed = _sign_summary(summary); atomic_json(receipts / "candidate-summary.dsse.json", signed)
-            receipt.update({"state": "CANDIDATE_GENERATED_NOT_PROMOTED" if reload_state == "PASS" else "EVALUATION_FAILED_NOT_PROMOTED", "completed_at_unix_ns": time.time_ns(), "base_files_after": after, "reload_evaluation_receipt_sha256": sha256_file(receipts / "reload-evaluation-receipt.json"), "candidate_summary_dsse_sha256": sha256_file(receipts / "candidate-summary.dsse.json"), "organization_signature_verified": signed["promotion_eligible_signature"], "runtime_guard": guard.receipt(), "promotion": "NOT_PROMOTED"})
+            receipt.update({"state": "CANDIDATE_GENERATED_NOT_PROMOTED" if reload_state == "PASS" else "EVALUATION_FAILED_NOT_PROMOTED", "completed_at_unix_ns": time.time_ns(), "base_files_after": after, "curriculum_inputs_after": curriculum_after, "source_control_after": source_control_after, "reload_evaluation_receipt_sha256": sha256_file(receipts / "reload-evaluation-receipt.json"), "candidate_summary_dsse_sha256": sha256_file(receipts / "candidate-summary.dsse.json"), "organization_signature_verified": signed["promotion_eligible_signature"], "runtime_guard": guard.receipt(), "promotion": "NOT_PROMOTED"})
             atomic_json(receipts / "training-receipt.json", receipt)
             return 0 if reload_state == "PASS" else 4
     except Exception as exc:
@@ -582,6 +1121,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("build")
     fetch = sub.add_parser("fetch-base"); fetch.add_argument("--destination", type=Path, required=True); fetch.add_argument("--confirmation", required=True)
     check = sub.add_parser("preflight"); check.add_argument("--base-snapshot", type=Path); check.add_argument("--check-gpu", action="store_true"); check.add_argument("--probe", action="store_true"); check.add_argument("--receipt", type=Path)
+    capacity = sub.add_parser("capacity-probe"); capacity.add_argument("--base-snapshot", type=Path, required=True); capacity.add_argument("--receipt", type=Path, required=True); capacity.add_argument("--confirmation", required=True); capacity.add_argument("--license-acknowledgement", required=True)
     run = sub.add_parser("train"); run.add_argument("--base-snapshot", type=Path, required=True); run.add_argument("--output-dir", type=Path, required=True); run.add_argument("--confirmation", required=True); run.add_argument("--license-acknowledgement", required=True)
     args = parser.parse_args(argv)
     try:
@@ -591,10 +1131,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "fetch-base":
             print(json.dumps(fetch_base(args.destination, args.confirmation), indent=2)); return 0
         if args.command == "preflight":
-            result = preflight(args.base_snapshot, args.check_gpu, args.probe)
+            with fresh_hf_modules_cache() as module_cache:
+                result = preflight(args.base_snapshot, args.check_gpu, args.probe)
+                result["dynamic_module_cache"] = module_cache
             if args.receipt: atomic_json(args.receipt, result)
             print(json.dumps(result, indent=2)); return 0 if result["state"] == "PASS" else 3
-        with training_mutex(): return train(args.base_snapshot, args.output_dir, args.confirmation, args.license_acknowledgement)
+        if args.command == "capacity-probe":
+            with training_mutex(), fresh_hf_modules_cache() as module_cache:
+                return capacity_probe(args.base_snapshot, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
+        with training_mutex(), fresh_hf_modules_cache() as module_cache:
+            return train(args.base_snapshot, args.output_dir, args.confirmation, args.license_acknowledgement, module_cache)
     except GateRefused as exc:
         print(json.dumps({"state": "BLOCKED", "reason": str(exc), "effects": {"training_started": False, "uploaded": False, "published": False, "deployed": False}}, indent=2), file=sys.stderr)
         return 3

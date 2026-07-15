@@ -29,6 +29,7 @@ import threading
 import time
 import traceback
 from typing import Any, Callable, Iterable
+import uuid
 
 
 HERE = Path(__file__).resolve().parent
@@ -60,6 +61,8 @@ ANSWER_ABSTENTION_CODES = ABSTENTION_CODES - {"NONE", "MODEL_UNAVAILABLE"}
 MAX_RETAINED_COMPLETION_CHARS = 8192
 FORGE_CANDIDATE_PAYLOAD_TYPE = "application/vnd.szl.forge-candidate+json"
 FORGE_CAPACITY_PAYLOAD_TYPE = "application/vnd.szl.forge-capacity-probe+json"
+SHARED_GPU_TRAINING_LEASE_DIR = HERE / "queue-state" / "gpu-training.lease"
+GPU_TRAINING_LEASE_OWNER = "owner.json"
 
 
 class GateRefused(RuntimeError):
@@ -110,14 +113,20 @@ def iter_jsonl(path: Path) -> Iterable[dict[str, Any]]:
 def atomic_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
     temporary.replace(path)
 
 
 def atomic_text(path: Path, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(value, encoding="utf-8")
+    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(value)
+        stream.flush()
+        os.fsync(stream.fileno())
     temporary.replace(path)
 
 
@@ -607,37 +616,97 @@ def sample_gpu(policy: dict[str, Any], count: int, interval: int, query: Callabl
     return samples
 
 
-@contextmanager
-def training_mutex(path: Path = HERE / "queue-state" / "training.lock") -> Iterable[Path]:
-    """Hold one process-wide training lease across admission, training, and reload."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    stream = path.open("a+b")
-    stream.seek(0, os.SEEK_END)
-    if stream.tell() == 0:
-        stream.write(b"0")
-        stream.flush()
-    stream.seek(0)
+def _atomic_lease_owner(path: Path, value: dict[str, Any]) -> None:
+    """Publish owner metadata only after the exclusive lease directory exists."""
+    token = str(value["owner_token"])
+    temporary = path / f".{GPU_TRAINING_LEASE_OWNER}.{token}.tmp"
     try:
-        if os.name == "nt":
-            import msvcrt
-            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path / GPU_TRAINING_LEASE_OWNER)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _lease_holder(path: Path) -> str:
+    owner_path = path / GPU_TRAINING_LEASE_OWNER
+    try:
+        owner = load_json(owner_path)
+    except (OSError, ValueError, json.JSONDecodeError, GateRefused):
+        return "owner metadata unavailable"
+    return (
+        f"pid={owner.get('pid', 'UNKNOWN')} host={owner.get('hostname', 'UNKNOWN')} "
+        f"runtime={owner.get('runtime', 'UNKNOWN')}"
+    )
+
+
+def _remove_owned_lease(path: Path, owner_token: str) -> None:
+    """Remove only this process's lease; never reap another or a stale lease."""
+    owner_path = path / GPU_TRAINING_LEASE_OWNER
+    try:
+        owner = load_json(owner_path)
+    except (OSError, ValueError, json.JSONDecodeError, GateRefused):
+        return
+    if owner.get("owner_token") != owner_token:
+        return
+    owner_path.unlink()
+    try:
+        path.rmdir()
+    except OSError:
+        # Unexpected contents are evidence requiring operator review. Never
+        # recursively delete a lease directory.
+        pass
+
+
+@contextmanager
+def training_mutex(path: Path = SHARED_GPU_TRAINING_LEASE_DIR) -> Iterable[Path]:
+    """Hold one Windows/WSL-visible GPU lease across the governed operation.
+
+    ``mkdir`` is the cross-runtime arbitration primitive on the repository's
+    shared DrvFS/NTFS path. A lease left by a crash is intentionally not
+    deleted or time-expired automatically.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.mkdir()
+    except FileExistsError as exc:
+        raise GateRefused(
+            "another governed SZL training process holds the exclusive lease "
+            f"({ _lease_holder(path) }); stale leases require operator review"
+        ) from exc
     except OSError as exc:
-        stream.close()
-        raise GateRefused("another SZL-Forge training process holds the exclusive lease") from exc
+        raise GateRefused("shared GPU lease directory could not be created") from exc
+
+    owner_token = uuid.uuid4().hex
+    owner = {
+        "schema_version": "szl.gpu-training-lease-owner.v1",
+        "owner_token": owner_token,
+        "pid": os.getpid(),
+        "hostname": socket.gethostname(),
+        "runtime": f"{os.name}:{sys.platform}",
+        "runner": str(Path(__file__).resolve()),
+        "acquired_at": datetime.now(timezone.utc).isoformat(),
+        "arbitration": "ATOMIC_DIRECTORY_CREATION",
+        "stale_policy": "OPERATOR_REVIEW_REQUIRED",
+        "automatic_stale_deletion": False,
+    }
+    try:
+        _atomic_lease_owner(path, owner)
+    except Exception as exc:
+        # The directory was created by this process but never became a valid
+        # published lease, so bounded rollback is safe.
+        try:
+            path.rmdir()
+        except OSError:
+            pass
+        raise GateRefused("shared GPU lease owner metadata could not be published") from exc
     try:
         yield path
     finally:
-        stream.seek(0)
-        if os.name == "nt":
-            import msvcrt
-            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
-        stream.close()
+        _remove_owned_lease(path, owner_token)
 
 
 class PythonNetworkDenied(OSError):

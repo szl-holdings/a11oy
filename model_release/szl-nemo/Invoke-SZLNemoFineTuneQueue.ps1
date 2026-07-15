@@ -79,6 +79,14 @@ function Write-State {
   Move-Item -LiteralPath $Temporary -Destination $StatePath -Force
 }
 
+# The pinned NVIDIA custom implementation is Linux-only and requires compiled
+# Mamba/causal-convolution CUDA extensions.  Exit once with an explicit state;
+# runtime incompatibility is not a retryable GPU-admission failure.
+if ($env:OS -eq 'Windows_NT' -and $Contract.runtime.native_windows_state -eq 'UNAVAILABLE_MAMBA_KERNELS') {
+  Write-State -State 'UNAVAILABLE_NATIVE_WINDOWS' -Reason 'Use the governed WSL2/Linux queue. Native Windows cannot import the pinned NVIDIA Mamba CUDA implementation.'
+  exit 4
+}
+
 if ($Mode -eq 'status') {
   & $Python $Runner preflight --base-snapshot $BaseSnapshot
   $ExitCode = $LASTEXITCODE

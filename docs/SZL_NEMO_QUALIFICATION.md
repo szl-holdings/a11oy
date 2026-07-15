@@ -58,6 +58,23 @@ Nemotron uses `nemotron_h` with vocabulary 131,072. The Qwen adapter is therefor
 not an SZL-Nemo adapter and must never be renamed, merged into, or advertised as
 one.
 
+A separate governed fine-tuning contract now pins NVIDIA's 7,947,142,640-byte
+BF16 base, tokenizer, and two official custom-code files. That contract does not
+change the status above. Native Transformers 5.5 rejects the upstream hybrid
+pattern, and the exact NVIDIA model class requires Linux `mamba_ssm` and
+`causal_conv1d` CUDA extensions. Native Windows is therefore unavailable for
+this training lane. WSL2 sees the RTX 5050, and the pinned Torch 2.10.0+cu128,
+Transformers 4.48.3, Mamba 2.3.2.post1, and causal-conv1d 1.6.2.post1 stack has
+passed exact ABI, kernel-symbol, imported-code, and OS-network-isolation checks.
+That is import qualification, not model readiness: the bounded quantized
+load/forward/backward capacity receipt must still pass before training.
+
+The qualification probe and trainer now create a fresh, process-unique
+Transformers dynamic-module cache. Pinned NVIDIA source files are hashed before
+import, and the executed config/model class sources are hashed again after
+import. Full training also freezes admitted train/eval rows in memory and
+rechecks both dataset and Git identities before signing a candidate summary.
+
 ## Remaining promotion blockers
 
 1. Runtime code verifies the exact upstream manifest and existence of the derived
@@ -67,9 +84,12 @@ one.
    transparency-log publication remains absent.
 3. No latency distribution, energy, safety, tool-use, refusal, citation, or
    preregistered held-out task-evaluation suite exists yet.
-4. No Nemotron-compatible adapter, trainer state, admitted training dataset,
+4. A 24-row project-authored training split and separate 8-row held-out split
+   are admitted, but no Nemotron-compatible adapter, completed trainer state,
    training receipt, or independent post-training evaluation exists.
-5. The Hub card should expose explicit `base_model` metadata and preserve the
+5. The Linux Mamba import runtime is qualified; bounded model load and one-step
+   forward/backward capacity remain unrun.
+6. The Hub card should expose explicit `base_model` metadata and preserve the
    NVIDIA license/notice lineage. The recipe and any future trained candidate
    should be versioned as distinct artifacts.
 

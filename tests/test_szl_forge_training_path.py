@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import socket
 import tempfile
@@ -132,12 +133,26 @@ class SZLForgeTrainingPathTests(unittest.TestCase):
             forge._verify_contract_assets(contract)
 
     def test_training_mutex_refuses_a_second_local_training_process(self) -> None:
+        self.assertEqual(
+            forge.SHARED_GPU_TRAINING_LEASE_DIR,
+            ROOT / "model_release" / "szl-forge" / "queue-state" / "gpu-training.lease",
+        )
         with tempfile.TemporaryDirectory() as directory:
-            lock_path = Path(directory) / "training.lock"
-            with forge.training_mutex(lock_path):
+            lease_path = Path(directory) / "gpu-training.lease"
+            with forge.training_mutex(lease_path):
+                owner_path = lease_path / forge.GPU_TRAINING_LEASE_OWNER
+                self.assertTrue(owner_path.is_file())
+                owner = forge.load_json(owner_path)
+                self.assertEqual(owner["schema_version"], "szl.gpu-training-lease-owner.v1")
+                self.assertEqual(owner["pid"], os.getpid())
+                self.assertEqual(owner["arbitration"], "ATOMIC_DIRECTORY_CREATION")
+                self.assertEqual(owner["stale_policy"], "OPERATOR_REVIEW_REQUIRED")
+                self.assertFalse(owner["automatic_stale_deletion"])
                 with self.assertRaisesRegex(forge.GateRefused, "exclusive lease"):
-                    with forge.training_mutex(lock_path):
+                    with forge.training_mutex(lease_path):
                         self.fail("second training lease should not be acquired")
+                self.assertEqual(forge.load_json(owner_path)["owner_token"], owner["owner_token"])
+            self.assertFalse(lease_path.exists())
 
     def test_python_network_control_denies_and_restores_socket_functions(self) -> None:
         original_socket = socket.socket
@@ -341,6 +356,13 @@ class SZLForgeTrainingPathTests(unittest.TestCase):
         self.assertEqual(len(first), 512)
         self.assertEqual(first, second)
         self.assertEqual(first[2], 9)
+
+    def test_generated_curriculum_is_byte_deterministic_lf(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            forge.build_curriculum(output)
+            for name in ("train.jsonl", "eval.jsonl", "curriculum-manifest.json"):
+                self.assertNotIn(b"\r", (output / name).read_bytes())
 
 
 if __name__ == "__main__":

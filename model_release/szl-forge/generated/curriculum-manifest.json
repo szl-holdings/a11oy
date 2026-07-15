@@ -15,12 +15,12 @@
   "train": {
     "path": "train.jsonl",
     "rows": 30,
-    "sha256": "2af4951a08c8bad70233d15dec54ffb1671d105d6ad9824103194f8d291d2942"
+    "sha256": "f81d0e57ef5cefdc88f49605d50b4bc74348f235f59bd915174f018364b30a41"
   },
   "eval": {
     "path": "eval.jsonl",
     "rows": 8,
-    "sha256": "c55b885b162b565983fa395b2e395a0355b254c85e9b565ef392bb3456158e9b"
+    "sha256": "abfe8969701083c18c68972ef324cb0a03aa4df2fbf4a047f771b954251ed5d6"
   },
   "excluded_training_classes": [
     "BRAIN_RAW_NODE",

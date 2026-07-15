@@ -1,0 +1,113 @@
+{
+  "schema_version": "szl.nemo.preflight-receipt.v1",
+  "contract_id": "szl-nemo-governed-adapter-v1",
+  "state": "BLOCKED",
+  "measured_at_unix_ns": 1784133614992229600,
+  "observed_operating_system": "Windows",
+  "contract_sha256": "bfa195c10ec64291cd3262b8eb2dc74f1f0072d1379935c18b92322e6ed8f363",
+  "runner_sha256": "2199fa5613f244a6650d39b462d3b5b47e1b594e12f7f089eeb997787d59fdb5",
+  "evidence_lineage": {
+    "static_preflight_path": "attestations/szl-nemo-finetune-preflight-local-2026-07-15.json",
+    "static_preflight_git_blob_sha1": "13ff0bf8ce2997d10833302da3a4fce89a055eaf",
+    "static_preflight_canonical_lf_sha256": "d4cf658183c5aeef7787772c5501ecb486413a2cfc1878d59975eff0a5ce4aef",
+    "scope": "STATIC_FILE_AND_LICENSE_INTEGRITY_ONLY",
+    "runtime_readiness_established": false,
+    "pinned_code_static_review_path": "attestations/szl-nemo-pinned-code-static-review-2026-07-15.json",
+    "pinned_code_static_review_canonical_lf_sha256": "e689d484dda27ffc7bf74e60601a3619557dd11b82d51949fadb3c1ee10b5cc4",
+    "wsl_runtime_import_receipt_path": "attestations/szl-nemo-wsl-runtime-import-2026-07-15.json",
+    "wsl_runtime_import_receipt_canonical_lf_sha256": "26a8b1ee52a0bd4eb149e93e9524a33c964346edab564f8856c6a88f1fff66b6",
+    "wsl_runtime_import_receipt_scope": "OS_NETWORK_ISOLATED_CONFIG_AND_CUSTOM_CLASS_IMPORT_NO_WEIGHTS"
+  },
+  "checks": [
+    {
+      "id": "PINNED_CONTRACT_ASSETS",
+      "state": "PASS"
+    },
+    {
+      "id": "PROJECT_AUTHORED_CURRICULUM",
+      "state": "PASS",
+      "train_rows": 24,
+      "eval_rows": 8
+    },
+    {
+      "id": "IMMUTABLE_NVIDIA_BASE",
+      "state": "PASS",
+      "revision": "dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
+      "files": [
+        {
+          "path": "config.json",
+          "bytes": 1430,
+          "git_blob_sha1": "d5c7a47cb23bd312350c648a3c917130d1531ee3"
+        },
+        {
+          "path": "model.safetensors",
+          "bytes": 7947142640,
+          "sha256": "55d4e2519456c4a9bddf596b0748d630e3b2ce6ff6f4c2b7ed3e07e2b00dad42"
+        },
+        {
+          "path": "tokenizer.json",
+          "bytes": 17077484,
+          "sha256": "623c34567aebb18582765289fbe23d901c62704d6518d71866e0e58db892b5b7"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "bytes": 188034,
+          "git_blob_sha1": "f0048c22e792605128ad1dc342dd6fee7d0c7972"
+        },
+        {
+          "path": "chat_template.jinja",
+          "bytes": 10504,
+          "git_blob_sha1": "67ca3ce54a7118ed74d6fd793b7cc9fd6b2a9f03"
+        },
+        {
+          "path": "generation_config.json",
+          "bytes": 171,
+          "git_blob_sha1": "f97082414e74f1bdc96f7ccd2d6100fc8edeb7b1"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "bytes": 420,
+          "git_blob_sha1": "0d5c2c9dba131d5da20e58336dd09b022142ea50"
+        },
+        {
+          "path": "configuration_nemotron_h.py",
+          "bytes": 12119,
+          "sha256": "07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff"
+        },
+        {
+          "path": "modeling_nemotron_h.py",
+          "bytes": 78629,
+          "sha256": "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4"
+        }
+      ]
+    },
+    {
+      "id": "LICENSE_LINEAGE",
+      "state": "PASS",
+      "license": "NVIDIA Nemotron Open Model License",
+      "url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-nemotron-open-model-license/",
+      "operator_ack_required_for_training": true
+    },
+    {
+      "id": "LINUX_MAMBA_EXECUTION_LANE",
+      "state": "BLOCKED",
+      "observed_operating_system": "Windows",
+      "required_operating_systems": [
+        "Linux"
+      ],
+      "reason": "SZL-Nemo training is unavailable on native Windows: the pinned NVIDIA implementation requires Linux Mamba and causal-convolution CUDA kernels; use the governed WSL2/Linux lane"
+    }
+  ],
+  "effects": {
+    "training_started": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false
+  },
+  "dynamic_module_cache": {
+    "state": "FRESH_PROCESS_UNIQUE_CACHE",
+    "initial_entry_count": 0,
+    "lifecycle": "DELETED_WHEN_COMMAND_EXITS",
+    "source_policy": "IMMUTABLE_SNAPSHOT_HASH_VERIFIED_BEFORE_IMPORT"
+  }
+}

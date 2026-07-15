@@ -9,9 +9,10 @@ Current decisions:
 - `SZL-Nemo-runtime-recipe-v1`: a locally runtime-qualified configuration
   recipe over NVIDIA weights. It is not SZL-fine-tuned and weight promotion is
   blocked.
-- `SZL-Nemo-Governed-Adapter-v1`: a separate executable offline training
-  candidate with a project-authored 24/8 split. It is not trained, evaluated,
-  or promoted, and no adapter payload exists.
+- `SZL-Nemo-Governed-Adapter-v1`: a separate pinned training candidate with a
+  project-authored 24/8 split. Native Windows is unavailable. Its OS-isolated
+  WSL2/Linux Mamba import lane is qualified, while model load/capacity remains
+  unrun. It is not trained, evaluated, or promoted, and no adapter payload exists.
 - `SZL-Forge-1.5B-ReceiptAgent-v1`: a planned PEFT adapter. Training is still
   blocked by GPU admission and no ReceiptAgent-specific adapter exists.
 
@@ -29,6 +30,10 @@ Run the offline integrity audit:
 ```powershell
 python model_release/hf-promotion/promotion_guard.py audit
 ```
+
+Manifest-bound text identities are strict UTF-8 normalized to LF before byte
+counting and SHA-256. Binary identities remain raw-byte exact. This makes the
+same reviewed commit verifiable from native Windows, WSL, and Linux clones.
 
 The future `stage-plan` command inventories a local payload only after every
 blocking gate in the checked-in manifest is `PASS`. Today it deliberately exits

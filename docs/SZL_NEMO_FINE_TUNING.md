@@ -1,7 +1,8 @@
 # SZL-Nemo governed fine-tuning path
 
-Status: **executable candidate; no SZL-Nemo adapter has been trained or
-promoted**.
+Status: **pinned candidate; native-Windows training unavailable; governed
+WSL2/Linux Mamba import lane qualified; capacity/training not run; no SZL-Nemo
+adapter has been trained or promoted**.
 
 This path creates a distinct LoRA/QLoRA candidate. It does not modify the
 runtime-qualified `szl-nemo:latest` Ollama recipe and does not rename NVIDIA's
@@ -18,9 +19,25 @@ weights as SZL weights.
 - official license URL:
   <https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-nemotron-open-model-license/>
 
-The trainer uses the built-in Transformers `nemotron_h` implementation with
-`trust_remote_code=False`. Training requires an explicit acknowledgement of the
-pinned upstream license. This is an engineering control, not legal advice.
+The upstream configuration contains NVIDIA's hybrid pattern character `-` for
+dense MLP layers. The built-in Transformers 5.5 implementation does not accept
+that pattern, so using it would alter or reject the official architecture. The
+trainer therefore permits `trust_remote_code=True` only for the two upstream
+NVIDIA files pinned into the immutable snapshot:
+
+- `configuration_nemotron_h.py` — SHA-256
+  `07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff`
+- `modeling_nemotron_h.py` — SHA-256
+  `ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4`
+
+The custom implementation imports `mamba_ssm` and `causal_conv1d` CUDA
+extensions. NVIDIA declares Linux as the supported operating system. Native
+Windows is therefore fail-closed as `UNAVAILABLE_MAMBA_KERNELS`; the training
+lane is WSL2/Linux with NVIDIA CUDA. Preflight now imports the pinned custom
+configuration and model class in addition to verifying hashes, so a file-only
+check cannot be mistaken for runtime readiness. Training also requires an
+explicit acknowledgement of the pinned upstream license. This is an engineering
+control, not legal advice.
 
 ## Admitted curriculum
 
@@ -42,41 +59,44 @@ provenance, freshness, and contamination decisions authorize a later tranche.
 
 ## Commands
 
-Use the same Python 3.12 environment recorded in the contract.
+Use Python 3.12 only through the pinned WSL2/Linux environment. Native Windows
+Python is an explicit non-retryable refusal for this architecture.
 
-```powershell
-$Python = 'C:\Users\steph\AppData\Local\Programs\Python\Python312\python.exe'
-$Runner = 'model_release\szl-nemo\szl_nemo_finetune.py'
+```bash
+cd /mnt/c/Users/steph/Documents/Codex/2026-07-11/i-w/work/a11oy-frontier-wave18
 
-# Deterministically rebuild and validate the project-authored curriculum.
-& $Python $Runner build
+# Network-capable dependency provisioning, with exact official wheel digests.
+./model_release/szl-nemo/setup_wsl_runtime.sh
 
-# Separate, explicit network stage. This fetches only the pinned public base.
-& $Python $Runner fetch-base `
-  --destination 'model_release\szl-nemo\base-snapshot' `
-  --confirmation 'FETCH_SZL_NEMO_BASE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f'
+BASE="$PWD/model_release/szl-nemo/base-snapshot"
+ACK="ACK_NVIDIA_NEMOTRON_LICENSE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
+CONFIRM="TRAIN_SZL_NEMO_GOVERNED_ADAPTER_V1"
 
-# Local-only validation. Add --check-gpu --probe for the fixed 3-sample gate.
-& $Python $Runner preflight `
-  --base-snapshot 'model_release\szl-nemo\base-snapshot'
+# Imports, pinned dynamic-code hashes, kernel symbols, and the fixed GPU gate.
+./model_release/szl-nemo/run_wsl_governed.sh \
+  --mode preflight --base-snapshot "$BASE"
 
-# Queue without weakening thresholds or stopping another process.
-& 'model_release\szl-nemo\Invoke-SZLNemoFineTuneQueue.ps1' `
-  -Mode queue-train `
-  -BaseSnapshot 'model_release\szl-nemo\base-snapshot' `
-  -OutputDirectory 'model_release\szl-nemo\runs' `
-  -Confirmation 'TRAIN_SZL_NEMO_GOVERNED_ADAPTER_V1' `
-  -LicenseAcknowledgement 'ACK_NVIDIA_NEMOTRON_LICENSE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f' `
-  -Python $Python `
-  -GitExecutable 'C:\Users\steph\AppData\Local\OpenAI\Codex\tools\mingit-2.55.0.2\cmd\git.exe'
+# Required before training: isolated 4-bit load plus one in-memory LoRA
+# forward/backward/optimizer step. No adapter is saved and no quality is claimed.
+./model_release/szl-nemo/run_wsl_governed.sh \
+  --mode capacity --base-snapshot "$BASE" \
+  --receipt "$PWD/attestations/szl-nemo-capacity-2026-07-15.json" \
+  --confirmation "$CONFIRM" --license-acknowledgement "$ACK"
+
+# Only after the capacity receipt passes and the reviewed source scope is clean.
+./model_release/szl-nemo/run_wsl_governed.sh \
+  --mode train --base-snapshot "$BASE" \
+  --output-dir "$PWD/model_release/szl-nemo/runs/governed-adapter-v1" \
+  --confirmation "$CONFIRM" --license-acknowledgement "$ACK"
 ```
 
-The queue performs a three-sample probe. The runner then performs a fixed
+The launcher performs a three-sample probe, and the trainer performs a fixed
 eleven-sample soak before model load. Current gates require at least 6,656 MiB
-free VRAM, at most 10% utilization, and at most 60 C. They are intentionally not
-weakened and the queue never stops another process. ReceiptAgent and SZL-Nemo
-also share the same exclusive GPU-training lease, so their queues cannot train
-concurrently even if both probes pass.
+free VRAM, at most 10% utilization, and at most 60 C. They are not weakened and
+the launcher never stops another process. Capacity and training execute inside
+`unshare --user --map-root-user --net`, with only loopback present. ReceiptAgent
+and SZL-Nemo use the same fail-closed repository GPU lease; a second acquisition
+is refused rather than allowing concurrent training.
 
 ## Candidate outputs and receipts
 
@@ -97,15 +117,28 @@ promote.
 
 ## Current measured blockers
 
-At the time this path was added:
+Current measured state:
 
-- the exact BF16 snapshot was not present in the local Hugging Face cache;
-- the laptop showed 5,215 MiB free VRAM and 69 C, below the fixed admission
-  requirement of 6,656 MiB free and above the 60 C temperature ceiling;
-- no Nemotron-compatible SZL adapter existed; and
+- the exact 7,947,142,640-byte BF16 weight and tokenizer are locally present and
+  hash-verified;
+- the two exact NVIDIA custom-code files are locally present and hash-verified;
+- native Windows rejects the official custom model class because the required
+  Mamba CUDA extension is unavailable;
+- WSL2 sees the NVIDIA GPU; Torch 2.10.0+cu128, Transformers 4.48.3, Mamba
+  2.3.2.post1, causal-conv1d 1.6.2.post1, the C++11 ABI, and `pip check` have
+  passed in the isolated environment;
+- every custom-code command uses a fresh, process-unique `HF_MODULES_CACHE`
+  after the pinned NVIDIA snapshot hashes pass, then re-hashes the executed
+  config/model sources against those pins;
+- training freezes admitted train/eval rows in memory and rechecks their exact
+  file identities and the reviewed Git scope before a candidate summary can be
+  signed;
+- a pinned dynamic-class import receipt, quantized model-load capacity receipt,
+  and actual training receipt are still required before any adapter claim;
+- no Nemotron-compatible SZL adapter exists; and
 - no trained-candidate reload, held-out evaluation, organization DSSE,
-  transparency-log, or Hub readback receipt existed.
+  transparency-log, or Hub readback receipt exists.
 
-Therefore the honest current state remains **not trained**. The path is now
-executable and evidence-producing, but it will wait rather than fabricate a
-successful fine-tune.
+Therefore the honest current state remains **not trained**. Kernel compatibility
+is established; model capacity, optimization, held-out quality, and promotion
+are not. The path waits rather than fabricating a successful fine-tune.
