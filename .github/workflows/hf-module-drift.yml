@@ -38,4 +38,4 @@ jobs:
       # requests compare the exact proposed source with the exact reconciled
       # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      hf-ref: ${{ github.event_name == 'pull_request' && 'bb4e1dd70ed2249310d911db4a48a7c958568a37' || 'main' }}
+      hf-ref: ${{ github.event_name == 'pull_request' && 'da2854ccd3b6c36839b8ae71685873bf27eefe3e' || 'main' }}
