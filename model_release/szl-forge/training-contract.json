@@ -61,7 +61,7 @@
   "training": {
     "method": "QLORA_SFT",
     "max_steps": 64,
-    "max_sequence_length": 1024,
+    "max_sequence_length": 512,
     "per_device_batch_size": 1,
     "gradient_accumulation_steps": 8,
     "learning_rate": 0.0002,
@@ -73,9 +73,13 @@
     "target_modules": "all-linear",
     "optimizer": "paged_adamw_8bit",
     "confirmation_phrase": "TRAIN_SZL_FORGE_RECEIPT_AGENT_1_5B",
+    "capacity_probe_confirmation_phrase": "MEASURE_SZL_FORGE_QWEN15B_SEQ512_CAPACITY",
     "maximum_wall_clock_seconds": 7200,
     "watchdog_interval_seconds": 5,
-    "minimum_output_free_bytes": 4294967296
+    "minimum_output_free_bytes": 4294967296,
+    "checkpoint_steps": 8,
+    "checkpoint_limit": 2,
+    "resume_requires_explicit_command": true
   },
   "runtime": {
     "identity_policy": "MEASURED_AT_RUN_FAIL_CLOSED",
@@ -104,6 +108,7 @@
     "require_clean_scope": true,
     "git_executable_env": "SZL_FORGE_GIT",
     "paths": [
+      "a11oy_signing_key.py",
       "model_release/szl-forge/Invoke-SZLForgeQueue.ps1",
       "model_release/szl-forge/curriculum-source.json",
       "model_release/szl-forge/generated/curriculum-manifest.json",
@@ -134,7 +139,8 @@
     "training-receipt.json",
     "adapter-files.json",
     "reload-evaluation-receipt.json",
-    "final-input-integrity-receipt.json"
+    "final-input-integrity-receipt.json",
+    "candidate-run.dsse.json"
   ],
   "promotion": {
     "automatic": false,

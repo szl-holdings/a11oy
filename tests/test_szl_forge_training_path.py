@@ -239,6 +239,109 @@ class SZLForgeTrainingPathTests(unittest.TestCase):
             self.assertEqual(exit_code, 5)
             self.assertFalse((root / "output").exists())
 
+    def test_checkpoint_selection_requires_name_state_and_incomplete_step_agreement(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            good = output / "trainer" / "checkpoint-8"
+            good.mkdir(parents=True)
+            (good / "trainer_state.json").write_text(json.dumps({"global_step": 8}), encoding="utf-8")
+            (good / "adapter_model.safetensors").write_bytes(b"checkpoint")
+            mismatched = output / "trainer" / "checkpoint-16"
+            mismatched.mkdir()
+            (mismatched / "trainer_state.json").write_text(json.dumps({"global_step": 15}), encoding="utf-8")
+            (mismatched / "adapter_model.safetensors").write_bytes(b"bad")
+
+            path, step, inventory = forge._latest_checkpoint(output, maximum_steps=64)
+            self.assertEqual(path, good)
+            self.assertEqual(step, 8)
+            self.assertTrue(any(item["path"] == "adapter_model.safetensors" for item in inventory))
+
+            with self.assertRaisesRegex(forge.GateRefused, "resumable"):
+                forge._latest_checkpoint(output, maximum_steps=8)
+
+    def test_candidate_attestation_is_real_verified_run_evidence_not_release_approval(self) -> None:
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+
+        key = ec.generate_private_key(ec.SECP256R1())
+        public_pem = key.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("ascii")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "candidate.dsse.json"
+            envelope = forge._sign_candidate_attestation(
+                {"candidate_id": "fixture", "state": "NOT_PROMOTED"},
+                path,
+                key_loader=lambda: (key, public_pem, "ephemeral", ""),
+            )
+            self.assertTrue(envelope["signature_verified"])
+            self.assertEqual(envelope["key_source"], "EPHEMERAL_PROCESS_KEY")
+            self.assertFalse(envelope["release_authority"])
+            self.assertEqual(envelope["transparency_log_state"], "NOT_RECORDED")
+            self.assertEqual(forge.load_json(path), envelope)
+            payload = forge._verify_run_attestation(envelope, forge.FORGE_CANDIDATE_PAYLOAD_TYPE)
+            self.assertEqual(payload["candidate_id"], "fixture")
+
+    def test_contract_has_bounded_crash_recovery_policy(self) -> None:
+        contract = forge.load_json(forge.CONTRACT_PATH)
+        training = contract["training"]
+        self.assertEqual(training["checkpoint_steps"], 8)
+        self.assertEqual(training["checkpoint_limit"], 2)
+        self.assertIs(training["resume_requires_explicit_command"], True)
+        self.assertEqual(training["max_sequence_length"], 512)
+        self.assertEqual(
+            training["capacity_probe_confirmation_phrase"],
+            "MEASURE_SZL_FORGE_QWEN15B_SEQ512_CAPACITY",
+        )
+        self.assertEqual(contract["gpu_admission"]["minimum_free_memory_mib"], 6656)
+        self.assertEqual(contract["gpu_admission"]["maximum_utilization_pct"], 10)
+        self.assertEqual(contract["gpu_admission"]["maximum_temperature_c"], 60)
+
+    def test_capacity_probe_rejects_overlength_before_source_or_gpu_work(self) -> None:
+        contract = forge.load_json(forge.CONTRACT_PATH)
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(forge.GateRefused, "exceeds the laptop profile ceiling"):
+                forge._run_capacity_probe_locked(
+                    Path(directory) / "missing-base",
+                    Path(directory) / "receipt.json",
+                    contract["training"]["capacity_probe_confirmation_phrase"],
+                    513,
+                )
+
+    def test_capacity_probe_refuses_preexisting_dsse_sidecar(self) -> None:
+        contract = forge.load_json(forge.CONTRACT_PATH)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "receipt.json"
+            output.with_name("receipt.dsse.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(forge.GateRefused, "append-only"):
+                forge._run_capacity_probe_locked(
+                    root / "missing-base",
+                    output,
+                    contract["training"]["capacity_probe_confirmation_phrase"],
+                    512,
+                )
+
+    def test_capacity_probe_token_builder_is_exact_and_deterministic(self) -> None:
+        class FakeTokenizer:
+            eos_token_id = 9
+
+            @staticmethod
+            def apply_chat_template(messages, tokenize=False, add_generation_prompt=False):
+                self = messages[0]["content"]
+                return self
+
+            @staticmethod
+            def encode(text, add_special_tokens=False):
+                return [len(text), 7]
+
+        first = forge._exact_probe_token_ids(FakeTokenizer(), 512)
+        second = forge._exact_probe_token_ids(FakeTokenizer(), 512)
+        self.assertEqual(len(first), 512)
+        self.assertEqual(first, second)
+        self.assertEqual(first[2], 9)
+
 
 if __name__ == "__main__":
     unittest.main()

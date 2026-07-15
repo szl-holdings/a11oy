@@ -1,23 +1,23 @@
 param(
-  [ValidateSet('status', 'queue-train', 'resume-train')]
+  [ValidateSet('status', 'queue-train')]
   [string]$Mode = 'status',
   [Parameter(Mandatory = $true)]
   [string]$BaseSnapshot,
   [string]$OutputDirectory = '',
   [string]$Confirmation = '',
+  [string]$LicenseAcknowledgement = '',
   [ValidateRange(1, 240)]
   [int]$MaxAttempts = 30,
   [ValidateRange(30, 3600)]
   [int]$RetrySeconds = 120,
   [string]$Python = 'python',
-  [string]$GitExecutable = $env:SZL_FORGE_GIT
+  [string]$GitExecutable = $env:SZL_NEMO_GIT
 )
 
 $ErrorActionPreference = 'Stop'
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Runner = Join-Path $Here 'szl_forge_training.py'
+$Runner = Join-Path $Here 'szl_nemo_finetune.py'
 $Contract = Get-Content -Raw -LiteralPath (Join-Path $Here 'training-contract.json') | ConvertFrom-Json
-$RequiredConfirmation = $Contract.training.confirmation_phrase
 $StateDirectory = Join-Path $Here 'queue-state'
 New-Item -ItemType Directory -Path $StateDirectory -Force | Out-Null
 
@@ -25,31 +25,32 @@ if (-not (Test-Path -LiteralPath $Runner -PathType Leaf)) { throw "Missing runne
 if (-not (Test-Path -LiteralPath $BaseSnapshot -PathType Container)) { throw "Missing immutable base snapshot: $BaseSnapshot" }
 if (-not [string]::IsNullOrWhiteSpace($GitExecutable)) {
   if (-not (Test-Path -LiteralPath $GitExecutable -PathType Leaf)) { throw "Missing Git executable: $GitExecutable" }
-  $env:SZL_FORGE_GIT = (Resolve-Path -LiteralPath $GitExecutable).Path
+  $env:SZL_NEMO_GIT = (Resolve-Path -LiteralPath $GitExecutable).Path
 }
-if ($Mode -in @('queue-train', 'resume-train') -and $Confirmation -cne $RequiredConfirmation) {
+if ($Mode -eq 'queue-train' -and $Confirmation -cne $Contract.training.confirmation_phrase) {
   throw 'Exact training confirmation phrase is required.'
 }
-if ($Mode -in @('queue-train', 'resume-train') -and [string]::IsNullOrWhiteSpace($OutputDirectory)) {
-  throw 'OutputDirectory is required for queue-train and resume-train.'
+if ($Mode -eq 'queue-train' -and $LicenseAcknowledgement -cne $Contract.base.license_acknowledgement) {
+  throw 'Exact NVIDIA license acknowledgement is required.'
 }
-if ($Mode -eq 'resume-train' -and -not (Test-Path -LiteralPath $OutputDirectory -PathType Container)) {
-  throw 'resume-train requires the exact interrupted run directory.'
+if ($Mode -eq 'queue-train' -and [string]::IsNullOrWhiteSpace($OutputDirectory)) {
+  throw 'OutputDirectory is required for queue-train.'
 }
 
 & $Python $Runner build
 if ($LASTEXITCODE -ne 0) { throw "Curriculum build failed with exit code $LASTEXITCODE" }
 
-$QueueId = 'szl-forge-{0}' -f (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss-fff')
+$QueueId = 'szl-nemo-{0}' -f (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss-fff')
 $StatePath = Join-Path $StateDirectory "$QueueId.json"
 $Attempts = @()
 
 function Write-State {
   param([string]$State, [string]$Reason, [bool]$TrainingStarted = $false)
   $Document = [ordered]@{
-    schema_version = 'szl.forge-queue-state.v1'
+    schema_version = 'szl.nemo.queue-state.v1'
     queue_id = $QueueId
     contract_id = $Contract.contract_id
+    candidate_id = $Contract.candidate_id
     mode = $Mode
     state = $State
     reason = $Reason
@@ -60,11 +61,9 @@ function Write-State {
       thresholds_may_be_weakened = $false
       processes_may_be_stopped_automatically = $false
       exclusive_training_lease_required = $true
-      runtime_identity_fail_closed = $true
-      network_download_allowed = $false
-      python_socket_connections_allowed = $false
-      os_network_namespace = 'NOT_ESTABLISHED'
+      network_download_allowed_during_training = $false
       upload_allowed = $false
+      promotion_automatic = $false
     }
     attempts = $Attempts
     effects = [ordered]@{
@@ -72,6 +71,7 @@ function Write-State {
       uploaded = $false
       published = $false
       deployed = $false
+      promoted = $false
     }
   }
   $Temporary = "$StatePath.tmp"
@@ -82,7 +82,7 @@ function Write-State {
 if ($Mode -eq 'status') {
   & $Python $Runner preflight --base-snapshot $BaseSnapshot
   $ExitCode = $LASTEXITCODE
-  Write-State -State $(if ($ExitCode -eq 0) { 'READY_FOR_GPU_ADMISSION' } else { 'BLOCKED' }) -Reason 'Status mode never samples the GPU or starts training.'
+  Write-State -State $(if ($ExitCode -eq 0) { 'READY_FOR_GPU_ADMISSION' } else { 'BLOCKED' }) -Reason 'Status mode validates the immutable base and curriculum but never starts training.'
   exit $ExitCode
 }
 
@@ -99,14 +99,9 @@ for ($Attempt = 1; $Attempt -le $MaxAttempts; $Attempt++) {
   }
   if ($ProbeExit -eq 0) {
     Write-State -State 'TRAINING_SOAK' -Reason 'Three-sample probe passed; the runner must still pass the fixed eleven-sample soak.'
-    $AttemptOutput = if ($Mode -eq 'resume-train') {
-      (Resolve-Path -LiteralPath $OutputDirectory).Path
-    } else {
-      Join-Path $OutputDirectory "$QueueId-attempt-$Attempt"
-    }
+    $AttemptOutput = Join-Path $OutputDirectory "$QueueId-attempt-$Attempt"
     $Attempts[-1]['attempt_output'] = $AttemptOutput
-    $RunnerCommand = if ($Mode -eq 'resume-train') { 'resume' } else { 'train' }
-    & $Python $Runner $RunnerCommand --base-snapshot $BaseSnapshot --output-dir $AttemptOutput --confirmation $Confirmation
+    & $Python $Runner train --base-snapshot $BaseSnapshot --output-dir $AttemptOutput --confirmation $Confirmation --license-acknowledgement $LicenseAcknowledgement
     $TrainExit = $LASTEXITCODE
     $Attempts[-1]['train_exit_code'] = $TrainExit
     $TrainingReceiptPath = Join-Path $AttemptOutput 'receipts\training-receipt.json'
@@ -121,20 +116,19 @@ for ($Attempt = 1; $Attempt -le $MaxAttempts; $Attempt++) {
     }
     $Attempts[-1]['training_started'] = $TrainingActuallyStarted
     if ($TrainExit -eq 0) {
-      Write-State -State 'CANDIDATE_GENERATED_NOT_PROMOTED' -Reason 'Training, reload, and schema evaluation completed. Promotion remains a separate human-approved gate.' -TrainingStarted $true
+      Write-State -State 'CANDIDATE_GENERATED_NOT_PROMOTED' -Reason 'Training, adapter reload, and held-out evaluation completed. DSSE, transparency, served-tag, and human promotion remain separate gates.' -TrainingStarted $true
       exit 0
     }
     if ($TrainExit -ne 3) {
       Write-State -State 'ABORTED_NOT_PROMOTED' -Reason "Training path returned non-retryable exit code $TrainExit." -TrainingStarted $TrainingActuallyStarted
       exit $TrainExit
     }
-    $Attempts[-1]['classification'] = 'GPU_SOAK_REFUSED_BEFORE_MODEL_LOAD'
   } elseif ($ProbeExit -ne 3) {
     Write-State -State 'ABORTED_NOT_PROMOTED' -Reason "Probe returned unexpected exit code $ProbeExit."
     exit $ProbeExit
   }
   if ($Attempt -lt $MaxAttempts) {
-    Write-State -State 'WAITING_FOR_ADMISSION' -Reason 'A fixed gate refused the run; no threshold was weakened.'
+    Write-State -State 'WAITING_FOR_ADMISSION' -Reason 'A fixed gate refused the run; no threshold was weakened and no process was stopped.'
     Start-Sleep -Seconds $RetrySeconds
   }
 }

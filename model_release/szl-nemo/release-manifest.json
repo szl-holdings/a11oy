@@ -1,14 +1,17 @@
 {
-  "schema": "szl.nemo.release-manifest/v1",
+  "$schema": "./release-manifest.schema.json",
+  "schema_version": "szl.nemo.release-manifest.v2",
   "candidate_id": "SZL-Nemo-runtime-recipe-v1",
   "artifact_kind": "OLLAMA_CONFIGURATION_RECIPE",
-  "release_state": "RUNTIME_QUALIFICATION_PENDING",
+  "release_state": "RUNTIME_QUALIFIED_RECIPE_NOT_FINE_TUNED",
+  "quality_claim": "NOT_ESTABLISHED",
   "weights_present_in_repository": false,
   "szl_fine_tuned": false,
   "training_state": "NOT_FINE_TUNED",
   "hub": {
     "repository": "SZLHOLDINGS/szl-nemo",
-    "revision": "7866203c481d1baadadcb3dc81a6934d770868bc"
+    "revision": "7866203c481d1baadadcb3dc81a6934d770868bc",
+    "repository_role": "VERSIONED_CONFIGURATION_RECIPE_NOT_WEIGHT_REPOSITORY"
   },
   "base": {
     "repository": "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16",
@@ -17,19 +20,32 @@
     "license": "NVIDIA Nemotron Open Model License",
     "license_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16/blob/main/LICENSE"
   },
-  "served_model": "szl-nemo:latest",
-  "required_receipts": [
-    "upstream-manifest-match",
-    "derived-model-digest",
-    "clean-load-and-generate",
-    "identity-disclosure",
-    "held-out-behavior-evaluation",
-    "restart-and-reload"
+  "runtime_qualification": {
+    "state": "LOCAL_LIVE_VERIFIED",
+    "served_model": "szl-nemo:latest",
+    "served_model_digest": "0d7777be553e3a9000b0a6d266936184f64cef1d5e567a85b74c418cf79d8c27",
+    "attestation_path": "attestations/szl-nemo-live-2026-07-15.json",
+    "attestation_sha256": "8cbd3f5e0ece21e08fc2fdc06a947c71216ddc83415327b9501fa501d8cfa1fb",
+    "signature_scope": "PROCESS_BOOT_EPHEMERAL",
+    "quality_state": "UNVERIFIED_MODEL_OUTPUT"
+  },
+  "required_receipts_for_trained_candidate": [
+    "immutable-upstream-revision-and-file-set",
+    "nemotron-compatible-adapter-config-and-weight-digests",
+    "training-data-admission-and-split-ledger",
+    "training-environment-and-run-receipt",
+    "clean-adapter-load-and-generate",
+    "held-out-behavior-and-safety-evaluation",
+    "cold-warm-restart-and-reload",
+    "organization-identity-dsse-and-transparency-log",
+    "independent-hub-readback"
   ],
   "promotion": {
     "automatic": false,
-    "runtime_ready_requires_all_identity_receipts": true,
+    "recipe_runtime_ready": true,
+    "trained_candidate_ready": false,
     "trained_and_weighted_claim_allowed": false,
-    "reason": "The current artifact is a governed recipe over upstream weights, not an SZL fine-tune."
+    "canonical_model_upload_allowed": false,
+    "reason": "The current artifact is a governed recipe over upstream NVIDIA weights. No Nemotron-compatible SZL adapter, admitted training run, held-out qualification, or organization-identity release attestation exists."
   }
 }
