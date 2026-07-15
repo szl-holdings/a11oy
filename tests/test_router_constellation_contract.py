@@ -11,10 +11,17 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 ROUTER = ROOT / "console" / "static" / "viz" / "router"
+WORKFLOW = ROOT / ".github" / "workflows" / "router-constellation-contract.yml"
 
 
 def source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def test_workflow_pins_the_offline_test_runner():
+    workflow = source(WORKFLOW)
+    assert "pytest==9.0.3" in workflow
+    assert "pip install pytest\n" not in workflow
 
 
 def test_router_has_render_safe_accessible_fallback():

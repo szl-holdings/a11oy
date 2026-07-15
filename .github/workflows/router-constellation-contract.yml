@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install pytest
-        run: python -m pip install pytest
+        run: python -m pip install 'pytest==9.0.3'
       - name: Run offline router contracts
         run: python -m pytest tests/test_router_constellation_contract.py -q
       - name: Parse browser modules
