@@ -69,6 +69,13 @@ passed exact ABI, kernel-symbol, imported-code, and OS-network-isolation checks.
 That is import qualification, not model readiness: the bounded quantized
 load/forward/backward capacity receipt must still pass before training.
 
+The candidate also includes a bounded WSL/Linux watcher that sequences pinned
+preflight, network-isolated capacity proof, and network-isolated training. It
+uses the same atomic GPU lease as ReceiptAgent, persists an append-only event
+journal plus immutable attempt receipts, and retries only pure GPU-admission or
+lease contention. It does not change the measured model state: no capacity pass,
+adapter, exact-base reload, or held-out evaluation receipt exists yet.
+
 The qualification probe and trainer now create a fresh, process-unique
 Transformers dynamic-module cache. Pinned NVIDIA source files are hashed before
 import, and the executed config/model class sources are hashed again after

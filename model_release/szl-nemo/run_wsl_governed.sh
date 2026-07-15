@@ -13,6 +13,7 @@ OUTPUT=""
 RECEIPT=""
 CONFIRMATION=""
 LICENSE_ACKNOWLEDGEMENT=""
+PREFLIGHT_RECEIPT=""
 
 usage() {
   cat <<'EOF'
@@ -20,6 +21,9 @@ Usage:
   run_wsl_governed.sh --base-snapshot PATH [--mode preflight]
   run_wsl_governed.sh --base-snapshot PATH --mode capacity --receipt PATH \
     --confirmation EXACT_PHRASE --license-acknowledgement EXACT_PHRASE
+
+All modes accept --preflight-receipt PATH so a queue can bind the admission
+receipt to one immutable attempt directory.
   run_wsl_governed.sh --base-snapshot PATH --mode train --output-dir PATH \
     --confirmation EXACT_PHRASE --license-acknowledgement EXACT_PHRASE
 EOF
@@ -33,6 +37,7 @@ while (($#)); do
     --receipt) RECEIPT="${2:?missing receipt path}"; shift 2 ;;
     --confirmation) CONFIRMATION="${2:?missing confirmation}"; shift 2 ;;
     --license-acknowledgement) LICENSE_ACKNOWLEDGEMENT="${2:?missing acknowledgement}"; shift 2 ;;
+    --preflight-receipt) PREFLIGHT_RECEIPT="${2:?missing preflight receipt path}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -70,11 +75,17 @@ fi
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
+export HF_HUB_DISABLE_TELEMETRY=1
+export DO_NOT_TRACK=1
+export WANDB_DISABLED=true
 export TOKENIZERS_PARALLELISM=false
+export NO_PROXY='*'
 
 "$PYTHON" "$RUNNER" build
 
-PREFLIGHT_RECEIPT="$HERE/queue-state/wsl-preflight-$(date -u +%Y%m%dT%H%M%SZ).json"
+if [[ -z "$PREFLIGHT_RECEIPT" ]]; then
+  PREFLIGHT_RECEIPT="$HERE/queue-state/wsl-preflight-$(date -u +%Y%m%dT%H%M%SZ).json"
+fi
 mkdir -p "$(dirname "$PREFLIGHT_RECEIPT")"
 set +e
 "$PYTHON" "$RUNNER" preflight \
@@ -110,7 +121,11 @@ if [[ "$MODE" == "capacity" ]]; then
       HF_HUB_OFFLINE=1 \
       TRANSFORMERS_OFFLINE=1 \
       HF_DATASETS_OFFLINE=1 \
+      HF_HUB_DISABLE_TELEMETRY=1 \
+      DO_NOT_TRACK=1 \
+      WANDB_DISABLED=true \
       TOKENIZERS_PARALLELISM=false \
+      NO_PROXY='*' \
     "$PYTHON" "$RUNNER" capacity-probe \
       --base-snapshot "$BASE" \
       --receipt "$RECEIPT" \
@@ -124,7 +139,11 @@ exec unshare --user --map-root-user --net -- \
     HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
     HF_DATASETS_OFFLINE=1 \
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    DO_NOT_TRACK=1 \
+    WANDB_DISABLED=true \
     TOKENIZERS_PARALLELISM=false \
+    NO_PROXY='*' \
   "$PYTHON" "$RUNNER" train \
     --base-snapshot "$BASE" \
     --output-dir "$OUTPUT" \

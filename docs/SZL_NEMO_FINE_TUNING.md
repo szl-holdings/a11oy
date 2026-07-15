@@ -99,6 +99,44 @@ the launcher never stops another process. Capacity and training execute inside
 and SZL-Nemo use the same fail-closed repository GPU lease; a second acquisition
 is refused rather than allowing concurrent training.
 
+## Bounded WSL queue
+
+For unattended admission watching, use the Linux-only durable queue instead of
+an open-ended shell loop. It requires the exact training and NVIDIA-license
+acknowledgements before creating a queue, and records only their SHA-256
+digests. Every transition is appended to `events.jsonl`; every completed stage
+and attempt gets an immutable receipt; `state.json` is an atomic current-state
+projection. A crash leaves the queue locked for operator review rather than
+guessing whether training ran.
+
+```bash
+QUEUE="$PWD/model_release/szl-nemo/szl_nemo_wsl_queue.py"
+PYTHON="$HOME/.venvs/szl-nemo-torch210-cu128/bin/python"
+
+"$PYTHON" "$QUEUE" run \
+  --base-snapshot "$BASE" \
+  --output-root "$PWD/model_release/szl-nemo/runs" \
+  --python "$PYTHON" \
+  --confirmation "$CONFIRM" \
+  --license-acknowledgement "$ACK" \
+  --max-attempts 30 \
+  --retry-seconds 120
+```
+
+The only retryable outcomes are a pure fixed GPU-admission refusal and an
+already-held shared GPU lease. A malformed receipt, runtime failure, capacity
+failure after model load, or any failure after training is invoked stops the
+queue for operator review. The queue never runs dependency setup or base fetch,
+never weakens the 6,656 MiB / 10% / 60 C admission gates, never terminates a
+process, and never uploads, publishes, deploys, or promotes an artifact.
+
+Inspect a queue without mutating it:
+
+```bash
+"$PYTHON" "$QUEUE" status \
+  --queue-dir "$PWD/model_release/szl-nemo/queue-state/wsl/<queue-id>"
+```
+
 ## Candidate outputs and receipts
 
 A completed run must contain:
