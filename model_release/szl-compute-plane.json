@@ -1,0 +1,174 @@
+{
+  "schema_version": "szl.compute-plane-manifest.v1",
+  "plane_id": "SZL-Yupaq",
+  "display_name": "Yupaq Governed Computation Plane",
+  "state": "BOUNDED_CORE_IMPLEMENTED_LIVE_VERIFICATION_PENDING",
+  "runtime": "szl_yupaq_compute.py",
+  "api": {
+    "capabilities": "/api/a11oy/v1/compute/capabilities",
+    "submit": "/api/a11oy/v1/compute/jobs",
+    "job": "/api/a11oy/v1/compute/jobs/{job_id}",
+    "receipt": "/api/a11oy/v1/compute/receipts/{job_id}",
+    "verify": "/api/a11oy/v1/compute/receipts/verify"
+  },
+  "model_boundary": {
+    "inside_weights": "Typed job proposal and abstention behavior only after a separately admitted curriculum exists.",
+    "outside_weights": [
+      "numerical execution",
+      "Lean kernel checking",
+      "formula status resolution",
+      "Lambda gating",
+      "policy and authorization",
+      "Lake persistence",
+      "DSSE signing and verification",
+      "OpenTelemetry evidence",
+      "Ouroboros stage control"
+    ],
+    "rule": "MODEL_PROPOSES; YUPAQ_VALIDATES_SCHEMA; ENGINE_COMPUTES; HONESTY_LABELS; RECEIPT_BINDS"
+  },
+  "target_ouroboros_loop_not_fully_runtime_wired": [
+    "ADMIT",
+    "PLAN",
+    "RETRIEVE",
+    "COMPUTE",
+    "CROSSCHECK",
+    "PROVE_OR_LABEL_OPEN",
+    "LAMBDA_ADVISORY_GATE",
+    "POLICY_APPROVAL",
+    "SIGN",
+    "APPEND_TO_LAKE",
+    "OBSERVE",
+    "LEARN_FROM_ADMITTED_OUTCOME"
+  ],
+  "current_runtime_path": [
+    "AUTHENTICATE",
+    "VALIDATE_SCHEMA",
+    "EXECUTE_NAMED_ENGINE",
+    "APPLY_OUTPUT_AND_POST_HOC_RUNTIME_BOUNDS",
+    "LABEL_EVIDENCE_STATE",
+    "BIND_RECEIPT",
+    "APPEND_TO_LAKE_WHEN_AVAILABLE"
+  ],
+  "authorization": {
+    "stateful_routes_require_bearer": true,
+    "secret_store_value": "A11OY_COMPUTE_TOKEN_SHA256",
+    "owner_isolation": "SHA256_PREFIX_DERIVED_NON_SECRET_OWNER_ID",
+    "replay_scope": "PROCESS_LOCAL_BOUNDED_PUBLIC_PROMOTION_PENDING_DURABLE_INDEX"
+  },
+  "codex_worker_roles": {
+    "Maskaq": "external research and source grounding",
+    "Ruwaq": "implementation and reproducible build",
+    "Yupaq": "mathematical computation and proof-status discipline",
+    "Qhaway": "adversarial and failure-path evaluation",
+    "Willakuq": "provenance, receipt, and archival handoff",
+    "Kamachiq": "sequencing and approval-bound orchestration"
+  },
+  "proposal_sources": {
+    "A11oy-Ayllu": {
+      "binding_manifest": "model_release/szl-ayllu-binding.json",
+      "authority": "PROPOSAL_ONLY",
+      "direct_dispatch_active": false,
+      "effectors": 0,
+      "automatic_commit": false,
+      "note": "Ayllu model text can draft allowlisted typed jobs; it cannot submit or execute them automatically."
+    }
+  },
+  "current_operations": [
+    "formula.org_lambda.weighted_geomean",
+    "quant.sample.pipeline",
+    "quantum.qubo.exact_baseline",
+    "numerics.external.run",
+    "numerics.external.compare",
+    "proof.lean.inventory",
+    "formula.admission.inventory",
+    "brain.corpus.inventory",
+    "lake.evidence.inventory"
+  ],
+  "compute_packs": [
+    {
+      "pack_id": "proof-forge",
+      "state": "INVENTORY_IMPLEMENTED_FRESH_KERNEL_JOB_PENDING",
+      "engines": ["Lean 4.13.0", "mathlib 4.13.0", "Lake"],
+      "local_assets": ["proofs/lutar-lean", "proofs/lean-theorem-tree.json"]
+    },
+    {
+      "pack_id": "numerical-lab",
+      "state": "CONTRACT_IMPLEMENTED_EXTERNAL_ENGINES_HOST_DEPENDENT",
+      "engines": ["GNU Octave external process", "MATLAB external licensed service"],
+      "local_assets": ["szl_numerics_adapter.py", "numerics/dataset_preregistration.json"],
+      "preregistered_cases": 1328
+    },
+    {
+      "pack_id": "quant-risk",
+      "state": "CPU_REFERENCE_SAMPLE_ONLY_NO_BACKTEST",
+      "engines": ["Ledoit-Wolf/Marcenko-Pastur", "TDA fracture", "HJB/Kelly"],
+      "local_assets": ["szl_gpu_quant.py"]
+    },
+    {
+      "pack_id": "uncertainty-lab",
+      "state": "PARTIAL_EXISTING_CONFORMAL_AND_CALIBRATION_ORGANS",
+      "engines": ["conformal prediction", "calibration", "counterfactual utility"],
+      "local_assets": ["szl_conformal.py", "szl_calibration.py", "szl_quantum_utility.py"]
+    },
+    {
+      "pack_id": "sciml-digital-twin",
+      "state": "PARTIAL_EXISTING_PINN_AND_ANATOMY_ORGANS",
+      "engines": ["PINN inverse", "CALPHAD inverse", "Body/Anatomy topology"],
+      "local_assets": ["szl_pinn_inverse.py", "szl_calphad_inverse.py", "szl_anatomy_loop.py"]
+    },
+    {
+      "pack_id": "verifiable-compute",
+      "state": "DSSE_AND_LAKE_CODE_PATH_PRESENT_LIVE_PROMOTION_GATED",
+      "engines": ["OpenTelemetry", "DSSE", "in-toto", "SZL Lake"],
+      "local_assets": ["vsp_otel", "szl_dsse.py", "szl_intoto.py", "szl_lake_store.py"]
+    }
+  ],
+  "brain_accounting": {
+    "raw_nodes": 9464,
+    "distinct_artifacts": 4229,
+    "retrieval_and_eval_available": 9464,
+    "gradient_eligible": 0,
+    "state": "ALL_RAW_NODES_QUARANTINED_FOR_TRAINING"
+  },
+  "formula_accounting": {
+    "thesis_extracted": 100,
+    "crosswalk_records": 146,
+    "holdout_rows": 148,
+    "resolved_status_counts": {
+      "KERNEL_ACCEPTED": 2,
+      "CONDITIONAL": 28,
+      "OPEN": 115,
+      "REFUTED": 1
+    },
+    "lean_declarations": 269,
+    "requested_200_formula_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
+    "training_eligible_rows": 0,
+    "proof_transfer_rule": "EXACT_NAMESPACE_PLUS_DECLARATION_PLUS_RECEIPT_REQUIRED"
+  },
+  "lambda": {
+    "operation": "formula.org_lambda.weighted_geomean",
+    "runtime_state": "EXECUTABLE_ADVISORY",
+    "uniqueness": "CONJECTURE_1_OPEN",
+    "proof_uplift": 0,
+    "namespace_collision_guard": "No bare F-number receives proof credit across formula registries."
+  },
+  "hard_boundaries": {
+    "arbitrary_code": false,
+    "arbitrary_expressions": false,
+    "arbitrary_paths": false,
+    "arbitrary_urls": false,
+    "arbitrary_packages": false,
+    "credentials_in_job_payload": false,
+    "private_data_to_external_inference": false,
+    "missing_engine_fallback": "UNAVAILABLE",
+    "unverified_proof_promotion": false
+  },
+  "next_release_gates": [
+    "Fresh authenticated Lean kernel job queue with mutex, timeout, source pin, axiom and sorry receipts",
+    "Linux isolated Octave worker and operator-licensed MATLAB worker receipts",
+    "Real licensed market-data walk-forward evaluation before any live quant claim",
+    "Persistent replay index correlated to Lake chain and OpenTelemetry trace IDs",
+    "Row-level rights and provenance admission for Brain and formula-derived curricula",
+    "Asymmetric DSSE signer identity and transparency-log evidence for public promotion"
+  ]
+}

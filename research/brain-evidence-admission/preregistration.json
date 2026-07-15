@@ -1,0 +1,63 @@
+{
+  "schema_version": "szl.brain.evidence-evaluation-preregistration.v1",
+  "protocol_id": "brain-canonical-retrieval-pilot-v1",
+  "frozen_at_utc": "2026-07-13T06:00:00Z",
+  "purpose": "Measure a deterministic retrieval and abstention baseline over the content-addressed canonical Brain evidence subset without training or trust promotion.",
+  "admission": {
+    "allowed_source_types": ["formula", "lean_mathlib", "szl_lake"],
+    "require_verified_artifact": true,
+    "require_valid_artifact_receipt": true,
+    "require_known_license_for_every_source_asset": true,
+    "raw_graph_nodes_allowed": false,
+    "duplicate_documents_collapsed_by": ["brain_node_id", "brain_node_sha256", "evidence_text"],
+    "unknown_source_freshness_policy": "REPORT_UNKNOWN_WITHOUT_TRUST_UPLIFT"
+  },
+  "bounds": {
+    "max_raw_nodes_observed": 20000,
+    "max_canonical_rows": 500,
+    "max_unique_documents": 100,
+    "max_queries": 100,
+    "max_query_chars": 1024,
+    "max_document_chars": 12000
+  },
+  "ranking": {
+    "algorithm": "BM25",
+    "token_pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+    "stopwords": ["a", "an", "and", "are", "as", "at", "be", "by", "does", "for", "from", "has", "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "what", "which", "with"],
+    "k1": 1.2,
+    "b": 0.75,
+    "tie_break": "document_id_ascending",
+    "top_k": [1, 3]
+  },
+  "abstention": {
+    "rule": "ABSTAIN_IF_NO_POSITIVE_BM25_OR_TOP_QUERY_TOKEN_COVERAGE_BELOW_THRESHOLD",
+    "minimum_top_query_token_coverage": 0.34
+  },
+  "metrics": [
+    "recall_at_1",
+    "recall_at_3",
+    "mean_reciprocal_rank",
+    "ndcg_at_3",
+    "answerable_abstention_rate",
+    "unanswerable_abstention_accuracy",
+    "overall_action_accuracy",
+    "canonical_license_coverage",
+    "canonical_source_timestamp_coverage",
+    "raw_graph_source_timestamp_coverage"
+  ],
+  "evidence_labels": {
+    "label_file": "qrels.json",
+    "separate_from_index": true,
+    "training_eligible": false,
+    "model_training_use": "PROHIBITED"
+  },
+  "claims_boundary": {
+    "evidence_class": "MEASURED_LOCAL_PILOT",
+    "proof_credit": 0,
+    "model_trust_delta": 0,
+    "model_promotion_allowed": false,
+    "training_triggered": false,
+    "network_used": false,
+    "external_validity": "NOT_ESTABLISHED"
+  }
+}

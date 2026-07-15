@@ -1,0 +1,59 @@
+name: Verify Zenodo release DOI and propose readback
+
+on:
+  workflow_dispatch:
+    inputs:
+      doi:
+        description: "Public Zenodo software-version DOI"
+        required: true
+        type: string
+      tag:
+        description: "Exact immutable GitHub release tag"
+        required: true
+        default: "v1.1.0"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  verify-and-propose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install bounded readback test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi starlette httpx pytest
+      - name: Verify public Zenodo record
+        env:
+          A11OY_ZENODO_DOI: ${{ inputs.doi }}
+          A11OY_RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          python scripts/verify_zenodo_release.py \
+            --doi "$A11OY_ZENODO_DOI" \
+            --tag "$A11OY_RELEASE_TAG" \
+            --write zenodo-readback.json
+          python -m pytest -q tests/test_release_identity.py tests/test_verify_zenodo_release.py
+      - name: Commit verified readback on a review branch
+        env:
+          A11OY_ZENODO_DOI: ${{ inputs.doi }}
+          A11OY_RELEASE_TAG: ${{ inputs.tag }}
+          BRANCH: automation/zenodo-readback-${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "a11oy-release-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add zenodo-readback.json
+          git commit -s -m "chore(release): verify Zenodo DOI readback"
+          git push origin "HEAD:$BRANCH"
+          gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "$BRANCH" \
+            --title "chore(release): verify Zenodo DOI readback" \
+            --body "Public Zenodo API readback verified **$A11OY_ZENODO_DOI** against immutable release **$A11OY_RELEASE_TAG**. Merging this receipt activates the DOI on the version API and canonical company surface."

@@ -50,6 +50,7 @@ import json
 import math
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -551,6 +552,9 @@ class BrainIndex:
         Returns a REAL grounding subgraph regardless. Generated prose is ONLY
         produced if a sovereign model is reachable; otherwise it is honestly
         UNAVAILABLE — never fabricated."""
+        # Monotonic server timing only.  This measures elapsed work in this
+        # process; it is not a browser, transport, or end-to-end latency claim.
+        started_ns = time.perf_counter_ns()
         seeds = self.search(q, k=max(5, k))
         seed_ids = [s["id"] for s in seeds]
         personalization = None
@@ -577,9 +581,21 @@ class BrainIndex:
                       if c in self.community_summaries]
 
         answer, answer_label, model = self._maybe_generate(q, grounding, global_ctx)
+        elapsed_ms = round((time.perf_counter_ns() - started_ns) / 1_000_000, 3)
         return {
             "label": LBL_MODELED,
             "query": q,
+            "query_latency": {
+                "label": "MEASURED",
+                "value_ms": elapsed_ms,
+                "unit": "milliseconds",
+                "clock": "time.perf_counter_ns (monotonic)",
+                "basis": "server-observed elapsed duration for this request",
+                "scope": ("BrainIndex.ask retrieval, graph expansion, community context, "
+                          "and optional sovereign generation"),
+                "excludes": ("response serialization, network transport, and browser "
+                             "render time"),
+            },
             "retrieval": "hippoRAG-PPR(local) ⊕ graphRAG-community(global), "
                          "LightRAG-mix merge",
             "seeds": seeds,
@@ -652,11 +668,19 @@ class BrainIndex:
         }
 
     def index_status(self) -> dict:
+        # Raw graph facts are exposed together so clients cannot accidentally
+        # conflate people, distinct artifacts, dedupe lineage, or admission.
+        raw_node_count = self.graph.get("node_count", len(self.nodes))
+        raw_link_count = self.graph.get("link_count", len(self.links))
         return {
             "label": LBL_MODELED,
             "content_hash": self.content_hash,
-            "node_count": len(self.nodes),
-            "link_count": len(self.links),
+            "raw_node_count": raw_node_count,
+            "node_count": raw_node_count,
+            "link_count": raw_link_count,
+            "distinct_artifacts": self.graph.get("distinct_artifacts"),
+            "person_node_count": self.graph.get("person_node_count"),
+            "artifact_note": self.graph.get("artifact_note"),
             "embed_source": self.embed_source,
             "embed_tier": self.embed_tier,
             "embed_dim": self.embed_dim,
@@ -673,7 +697,8 @@ class BrainIndex:
                 "ollama_embeddings": self.embed_source.startswith("ollama"),
             },
             "note": ("hash-embedding similarity is MODELED (a deterministic "
-                     "token-overlap proxy), NEVER MEASURED."),
+                     "token-overlap proxy), NEVER MEASURED. Graph counts come "
+                     "from the current graph and do not imply training admission."),
         }
 
 
@@ -783,6 +808,10 @@ def _selftest() -> None:
 
     st = idx.index_status()
     assert st["embed_tier"] == LBL_MODELED, "embeddings are MODELED, never MEASURED"
+    assert st["raw_node_count"] == idx.graph["node_count"]
+    assert st["link_count"] == idx.graph["link_count"]
+    assert st["distinct_artifacts"] == idx.graph.get("distinct_artifacts")
+    assert st["person_node_count"] == idx.graph.get("person_node_count")
     assert st["vector_backend"] in (
         "sqlite-vec", "numpy-cosine", "python-cosine"), st["vector_backend"]
     assert st["community_count"] >= 1, "at least one community"
@@ -820,6 +849,9 @@ def _selftest() -> None:
     a = idx.ask("what proves the estate thesis", k=8)
     assert a["grounding_subgraph"]["node_count"] >= 1, "real grounding subgraph"
     assert a["cited_node_ids"], "cited node ids present"
+    assert a["query_latency"]["label"] == "MEASURED"
+    assert "perf_counter_ns" in a["query_latency"]["clock"]
+    assert "browser" in a["query_latency"]["excludes"]
     if a["answer_model"] is None:
         assert a["answer"] is None and a["answer_label"] == LBL_UNAVAILABLE, \
             "no model => UNAVAILABLE, never a fabricated answer"

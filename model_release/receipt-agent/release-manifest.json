@@ -1,0 +1,99 @@
+{
+  "schema_version": "szl.receipt-agent-release-manifest.v1",
+  "program_id": "szl-forge-1.5b-receipt-agent",
+  "proposed_model_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
+  "release_state": "NOT_PROMOTED",
+  "quality_claim": "NOT_ESTABLISHED",
+  "artifact_relation": "PROPOSED_PROGRAM_EXISTING_ADAPTER_NOT_YET_ESTABLISHED_AS_RECEIPT_AGENT",
+  "existing_adapter": {
+    "base_repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "base_revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+    "adapter_sha256": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac",
+    "dataset_rows": 167,
+    "dataset_review": "BLOCKED_NOT_COMPLETE",
+    "evaluation_state": "INCOMPLETE"
+  },
+  "current_data_boundary": {
+    "brain_raw_nodes": 9464,
+    "brain_raw_nodes_training_quarantined": 9464,
+    "brain_raw_rows_admitted_to_train": 0,
+    "formula_crosswalk_rows": 148,
+    "formula_holdout_rows": 148,
+    "formula_train_rows": 0,
+    "orpo_checks_passed": 0,
+    "orpo_checks_total": 12,
+    "orpo_state": "QUARANTINED"
+  },
+  "hf_artifact_family": [
+    {
+      "target_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "artifact_type": "MODEL_ADAPTER",
+      "state": "PLANNED_NOT_CREATED",
+      "promotion_dependency": "All admission and evaluation gates pass; publish a PEFT adapter only, with the exact base revision pinned."
+    },
+    {
+      "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Eval",
+      "artifact_type": "EVALUATION_DATASET",
+      "state": "PLANNED_NOT_CREATED",
+      "promotion_dependency": "Preregistered frozen suites have row-level rights, immutable splits, and receipts."
+    },
+    {
+      "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Schemas",
+      "artifact_type": "SCHEMA_DATASET",
+      "state": "PLANNED_NOT_CREATED",
+      "promotion_dependency": "Versioned schemas, conformance fixtures, and validation results are complete."
+    },
+    {
+      "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Demo",
+      "artifact_type": "SPACE",
+      "state": "PLANNED_NOT_CREATED",
+      "promotion_dependency": "The Space loads the pinned adapter and returns schema-valid receipts under a fail-closed runtime probe."
+    },
+    {
+      "target_id": "SZLHOLDINGS/SZL-Forge-Collection",
+      "artifact_type": "COLLECTION",
+      "state": "PLANNED_NOT_CREATED",
+      "promotion_dependency": "The model, evaluation data, schemas, and Space are independently available and mutually hash-bound."
+    }
+  ],
+  "licensing": {
+    "base_license_reported": "Apache-2.0",
+    "base_license_evidence": "REPORTED_CACHED_AND_OFFICIAL_CARD",
+    "adapter_release_license": "PENDING_LEGAL_AND_LINEAGE_REVIEW",
+    "dataset_license": "PENDING_ROW_LEVEL_RIGHTS_REVIEW",
+    "license_gate": "BLOCKED"
+  },
+  "non_affiliation": [
+    "SZL-Forge-1.5B-ReceiptAgent-v1 is a proposed SZL Holdings program and is not affiliated with, sponsored by, or endorsed by Alibaba Cloud or the Qwen team.",
+    "Use of an Unsloth-hosted base snapshot does not imply affiliation with, sponsorship by, or endorsement by Unsloth or Hugging Face.",
+    "The program is not Claude, is not affiliated with Anthropic, and must never use a third-party model or product name to obscure its Qwen2.5-derived lineage."
+  ],
+  "identity_and_attestation": {
+    "required_fingerprints": [
+      "base_repository_and_revision",
+      "base_file_sha256_set",
+      "adapter_config_sha256",
+      "adapter_weight_sha256",
+      "tokenizer_sha256_set",
+      "chat_template_sha256",
+      "training_dataset_manifest_sha256",
+      "training_split_sha256",
+      "training_code_commit",
+      "environment_lock_sha256",
+      "evaluation_manifest_sha256",
+      "output_schema_sha256"
+    ],
+    "behavioral_fingerprint_role": "SUPPLEMENTAL_NOT_PROOF_OF_IDENTITY",
+    "dsse_attestation": "REQUIRED_FOR_PROMOTION_NOT_PRESENT",
+    "transparency_log": "REQUIRED_FOR_PROMOTION_NOT_PRESENT",
+    "current_state": "UNATTESTED"
+  },
+  "external_mutations": {
+    "trained": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false,
+    "signed": false,
+    "promoted": false
+  }
+}

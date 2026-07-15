@@ -1,0 +1,139 @@
+{
+  "admission_boundary": {
+    "canonical_sources_only": true,
+    "evaluation_labels_present": false,
+    "known_source_asset_licenses_required": true,
+    "valid_artifact_receipt_required": true,
+    "verified_artifact_required": true
+  },
+  "canonical_rows_observed": 8,
+  "claims_boundary": {
+    "model_trust_delta": 0,
+    "network_used": false,
+    "proof_credit": 0,
+    "training_triggered": false
+  },
+  "documents": [
+    {
+      "brain_node_sha256": "a721e69c3d9eb3bbacf045de991ed08d522f1ac35f6dcad8b584d20effbb107b",
+      "brain_source_sha256": "fe3c78b19cb9da7c3a231ef67f8e647b8325b57f59c62ac6787199fa7e4afd08",
+      "document_id": "formula:F1",
+      "evidence_class": "EXPERIMENTAL",
+      "license_status": "VERIFIED",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "proof_credit": 0,
+      "source_artifact_sha256": "529396cc266690a73a7d9356d9abf9c476b75adc9449c6d904c1c29425dc1be8",
+      "source_entry_id": "brain-reranker-formula-v1",
+      "source_manifest_sha256": "6949e18b77cc4a38868ce18d7277f87e6c8fe4537ed4853ac651fcdbc4f10c99",
+      "source_receipt_sha256": "4b15d7ec7ab5e1a6fdd11088ebd0f56c939b9e662429c9bc5902924ea842ab46",
+      "source_timestamp_status": "UNKNOWN",
+      "source_type": "formula",
+      "text": "Euler-Khipu DAG Identity is a formula in the SZL Brain knowledge graph. Formula F1 sits in the Khipu organ. Its primitive is: Euler chi=V-E+F=2. Proof status: PROVED. Flagged locked-8 (adds nothing; not modified here).",
+      "training_eligible": false,
+      "trust_uplift_eligible": false
+    },
+    {
+      "brain_node_sha256": "c4b70ca1097f144138ba011345ae308fef1c31997e15e163ab19d04ecda510fc",
+      "brain_source_sha256": "3e2e4337cb02b0b903d98e25350d6ba641e614d63e3e90670e6c06e386138125",
+      "document_id": "formula:F10",
+      "evidence_class": "EXPERIMENTAL",
+      "license_status": "VERIFIED",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "proof_credit": 0,
+      "source_artifact_sha256": "529396cc266690a73a7d9356d9abf9c476b75adc9449c6d904c1c29425dc1be8",
+      "source_entry_id": "brain-reranker-formula-v1",
+      "source_manifest_sha256": "6949e18b77cc4a38868ce18d7277f87e6c8fe4537ed4853ac651fcdbc4f10c99",
+      "source_receipt_sha256": "4b15d7ec7ab5e1a6fdd11088ebd0f56c939b9e662429c9bc5902924ea842ab46",
+      "source_timestamp_status": "UNKNOWN",
+      "source_type": "formula",
+      "text": "Baudhayana Orthogonality Bound is a formula in the SZL Brain knowledge graph. Formula F10 sits in the Lambda-spine organ. Its primitive is: Baudhayana Sulba sqrt2=577/408. Proof status: UNATTEMPTED.",
+      "training_eligible": false,
+      "trust_uplift_eligible": false
+    },
+    {
+      "brain_node_sha256": "d460225ff7acb2e5141f505790ff70db1f69bd06e3df583c98a90f131eb86655",
+      "brain_source_sha256": "2c3ddf68ddd6fd7773d131d31fc56f11760764fb4e3fc082be419a59e68a22e8",
+      "document_id": "formula:F23",
+      "evidence_class": "EXPERIMENTAL",
+      "license_status": "VERIFIED",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "proof_credit": 0,
+      "source_artifact_sha256": "529396cc266690a73a7d9356d9abf9c476b75adc9449c6d904c1c29425dc1be8",
+      "source_entry_id": "brain-reranker-formula-v1",
+      "source_manifest_sha256": "6949e18b77cc4a38868ce18d7277f87e6c8fe4537ed4853ac651fcdbc4f10c99",
+      "source_receipt_sha256": "4b15d7ec7ab5e1a6fdd11088ebd0f56c939b9e662429c9bc5902924ea842ab46",
+      "source_timestamp_status": "UNKNOWN",
+      "source_type": "formula",
+      "text": "Bekenstein A-Cap is a formula in the SZL Brain knowledge graph. Formula F23 sits in the A organ. Its primitive is: Bekenstein bound + 't Hooft holography. Proof status: CONJECTURE_1. Conjecture: Conjecture 1.",
+      "training_eligible": false,
+      "trust_uplift_eligible": false
+    },
+    {
+      "brain_node_sha256": "496408b0685764de047f6a0d2b9747355dbff4fe5fa4df647be6038737e17f8c",
+      "brain_source_sha256": "ab2c68a92cd7dcfd0c20e716f487bd675797b3291451c2dd4ccc420fb36a936d",
+      "document_id": "repo:lutar-lean",
+      "evidence_class": "EXPERIMENTAL",
+      "license_status": "VERIFIED",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "proof_credit": 0,
+      "source_artifact_sha256": "d5bf057229cba1ca5f96d5c97df202f34080c94a1f966fc81d2816ad29bac652",
+      "source_entry_id": "brain-reranker-lean-mathlib-v1",
+      "source_manifest_sha256": "5b641991141c98847528e5af41120a2a2c3064eb87fba67a20cf93e6355640db",
+      "source_receipt_sha256": "f63a2a0d6e12e5450032babf58ec2134dbc78766e1fc3ca5fc1b7581a49eb2db",
+      "source_timestamp_status": "UNKNOWN",
+      "source_type": "lean_mathlib",
+      "text": "lutar-lean is a repo in the SZL Brain knowledge graph.",
+      "training_eligible": false,
+      "trust_uplift_eligible": false
+    },
+    {
+      "brain_node_sha256": "1fdee0f5a73208018afbc5e291536b7101d33373d9f02ab326880f33074dccb6",
+      "brain_source_sha256": "0d0dd5a5121d0ebe2ab341a0797c7addc56a8ec1b9f54b0349e29f88e2741f0b",
+      "document_id": "repo:szl-lake",
+      "evidence_class": "EXPERIMENTAL",
+      "license_status": "VERIFIED",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "proof_credit": 0,
+      "source_artifact_sha256": "320158450a3a8207b437a885221e9ae00ee72807a5c6ad4dbb95ad7fbb3a3c4a",
+      "source_entry_id": "brain-reranker-szl-lake-v1",
+      "source_manifest_sha256": "a245b451ebea0e4d1a3c4a7fcc5e949c5106ffd9a1058fbc93a020bfff79bfd4",
+      "source_receipt_sha256": "8f4f8cdd93a55d201ced1ae63a8906b064c4ee9bbe504e16d9d4582d9b48ca6f",
+      "source_timestamp_status": "UNKNOWN",
+      "source_type": "szl_lake",
+      "text": "szl-lake is a repo in the SZL Brain knowledge graph.",
+      "training_eligible": false,
+      "trust_uplift_eligible": false
+    }
+  ],
+  "index_receipt_sha256": "05de63827271daee11888d0f1e43e558bca30ff6f4d969da807fd7e6e617f658",
+  "preregistration_commit_sha": "3e465d9bc1f5abbdaf37c3aa30e7a08b422a6ab3",
+  "preregistration_content_sha256": "46681a277dc0a5d214669b8fdbcb7d3a813d2b1c31b3803d04200bb7d5f7d31b",
+  "protocol_id": "brain-canonical-retrieval-pilot-v1",
+  "raw_graph": {
+    "admitted_to_index": 0,
+    "excluded_from_index": 9464,
+    "observed_node_count": 9464,
+    "quarantined_node_count": 9464,
+    "reason_counts": {
+      "DUPLICATE_CANONICAL_KEY": 3747,
+      "FRESHNESS_UNKNOWN": 9430,
+      "LICENSE_UNKNOWN": 9464,
+      "PROVENANCE_UNKNOWN": 185,
+      "REVISION_UNKNOWN": 9464
+    }
+  },
+  "schema_version": "szl.brain.canonical-index.v1",
+  "source_dataset_sha256": "f78d6f7c6c7d7c4afd6031b9a7147d4dbd9e4f19674db55560263831e0770200",
+  "source_inventory_sha256": "d3980630b0f60d2ab0b7d64d41ea1f2d9c7664ea8c030426a7f4c8008bd04dc7",
+  "unique_document_count": 5
+}

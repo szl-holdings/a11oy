@@ -15,6 +15,7 @@ route IS registered, it just returns 422 instead of running. So this guard boots
 the ayllu routes on a bare app and exercises them for real (no mocks, no network).
 """
 import asyncio
+import hashlib
 import sys
 import time
 from types import SimpleNamespace
@@ -51,6 +52,48 @@ def test_roster_returns_200_not_query_param_422():
     assert "mode" in d["backend"]
 
 
+def test_second_brain_route_exposes_compound_runtime_boundary(monkeypatch):
+    monkeypatch.setattr(
+        a11oy_ayllu._backend,
+        "backend_status",
+        lambda: {
+            "mode": "live",
+            "forge_profiles": {
+                "profiles": {
+                    "BrainNavigator-v1": {
+                        "expected_model": "khipu:latest",
+                        "served_model": "khipu:latest",
+                        "available": True,
+                    }
+                }
+            },
+        },
+    )
+    import a11oy_org_rag
+
+    monkeypatch.setattr(
+        a11oy_org_rag,
+        "status",
+        lambda: {
+            "built": True,
+            "document_count": 12,
+            "chunk_count": 34,
+            "brain_handle_count": 9464,
+            "training_authority_rows": 0,
+            "integrity_state": "VERIFIED_AT_PUBLISH",
+        },
+    )
+    response = _client().get("/api/a11oy/v1/ayllu/second-brain")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["system_type"] == "COMPOUND_MODEL_WITH_EXTERNAL_EVIDENCE_MEMORY"
+    assert body["ready_for_grounded_navigation"] is True
+    assert body["profile"]["artifact_binding"] == "UNBOUND"
+    assert body["memory"]["brain_handle_count"] == 9464
+    assert body["memory"]["training_authority_rows"] == 0
+    assert body["hard_boundaries"]["model_can_read_raw_node_content"] is False
+
+
 def test_page_and_lounge_are_200():
     c = _client()
     page = c.get("/ayllu")
@@ -62,7 +105,14 @@ def test_page_and_lounge_are_200():
         "The /ayllu page must link back to the command centre (/console).")
     assert "Â·" not in page.text, "Council output must not ship mojibake separators."
     assert "@media (max-width:720px)" in page.text
+    assert "overflow-wrap:anywhere" in page.text
+    assert 'aria-label="Ayllu sections"' in page.text
+    assert "overflow-x:hidden" not in page.text
     assert 'id="councilout" class="out" aria-live="polite"' in page.text
+    assert 'id="sb-out"' in page.text
+    assert "/api/a11oy/v1/ayllu/second-brain" in page.text
+    assert "gradient admission" in page.text
+    assert "Brain handles" in page.text
     assert "data:{error:'request unavailable'}" in page.text
     lr = c.get("/api/a11oy/v1/ayllu/lounge")
     assert lr.status_code == 200
@@ -84,6 +134,77 @@ def test_ask_unknown_persona_is_404():
     r = _client().post(
         "/api/a11oy/v1/ayllu/ask", json={"persona": "nobody", "prompt": "hi"})
     assert r.status_code == 404
+
+
+def test_ask_receipt_binds_an_empty_answer_exactly(monkeypatch):
+    async def empty_answer(**_kwargs):
+        return {
+            "text": "",
+            "model": "local-test-model",
+            "stub": False,
+            "honesty": "answer produced by the test backend",
+        }
+
+    monkeypatch.setattr(a11oy_ayllu._backend, "model_complete", empty_answer)
+    monkeypatch.setattr(
+        a11oy_ayllu,
+        "_make_receipt",
+        lambda payload, sign_fn=None: payload,
+    )
+    a11oy_ayllu._ASK_BUCKET._hits.clear()
+    response = _client().post(
+        "/api/a11oy/v1/ayllu/ask",
+        json={"persona": "Amaru", "prompt": "Return an empty answer"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["turn"]["answer"] == ""
+    assert body["receipt"]["output_sha256"] == hashlib.sha256(b"").hexdigest()
+
+
+def test_ask_receipt_binds_handles_and_exact_augmented_prompt(monkeypatch):
+    async def grounded_answer(**_kwargs):
+        return {
+            "text": '{"decision":"PLAN","citedNodeIds":["node-1"]}',
+            "model": "khipu:latest",
+            "stub": False,
+            "honesty": "bounded grounded plan",
+            "model_attestation": {
+                "served_model": "khipu:latest",
+                "model_manifest_sha256": "a" * 64,
+                "modelfile_sha256": "b" * 64,
+                "modelfile_layer_sha256": ["c" * 64],
+            },
+            "grounding": {
+                "schema": "szl.brain.navigator-context/v1",
+                "state": "GROUNDED_HANDLES_READY",
+                "evidence_set_sha256": "d" * 64,
+                "handles_sha256": "e" * 64,
+                "augmented_prompt_sha256": "f" * 64,
+                "handle_evidence_set_equivalent": True,
+                "grounded_count": 1,
+                "citation_validation": {
+                    "state": "CITATIONS_WITHIN_OFFERED_HANDLES",
+                    "cited_node_ids": ["node-1"],
+                },
+            },
+        }
+
+    monkeypatch.setattr(a11oy_ayllu._backend, "model_complete", grounded_answer)
+    monkeypatch.setattr(
+        a11oy_ayllu, "_make_receipt", lambda payload, sign_fn=None: payload)
+    a11oy_ayllu._ASK_BUCKET._hits.clear()
+    response = _client().post(
+        "/api/a11oy/v1/ayllu/ask",
+        json={"persona": "Maskaq", "prompt": "ground this"},
+    )
+    assert response.status_code == 200
+    receipt = response.json()["receipt"]
+    assert receipt["evidence_set_sha256"] == "d" * 64
+    assert receipt["handles_sha256"] == "e" * 64
+    assert receipt["augmented_prompt_sha256"] == "f" * 64
+    assert len(receipt["citation_validation_sha256"]) == 64
+    assert len(receipt["model_attestation_sha256"]) == 64
 
 
 def test_council_contract_never_promotes_model_text_to_verified_truth():
@@ -121,6 +242,7 @@ def test_council_fanout_uses_bounded_tokens_and_one_parallel_deadline(monkeypatc
         "debate": False,
     })
     assert response.status_code == 200
+    assert response.json()["result"]["published_to_lounge"] is False
     assert len(calls) == 3
     assert {c["kwargs"]["max_tokens"] for c in calls} == {
         a11oy_ayllu.COUNCIL_MAX_TOKENS}

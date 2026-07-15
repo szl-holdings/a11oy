@@ -1,0 +1,563 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-receipt-agent-output-v1.json",
+  "title": "SZL ReceiptAgent structured output",
+  "description": "Fail-closed response envelope. It separates generated text from evidence, formula status, uncertainty, proposed tools, and external receipt binding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "response_id",
+    "model_identity",
+    "status",
+    "answer",
+    "evidence",
+    "formulae",
+    "uncertainty",
+    "abstention",
+    "tool_proposal",
+    "receipt_binding"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.receipt-agent-output.v1"
+    },
+    "response_id": {
+      "type": "string",
+      "pattern": "^response:[A-Za-z0-9._:-]{8,128}$"
+    },
+    "model_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "release_state",
+        "base_repository",
+        "base_revision",
+        "adapter_sha256"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_state": {
+          "enum": [
+            "NOT_PROMOTED",
+            "EXPERIMENTAL",
+            "PROMOTED"
+          ]
+        },
+        "base_repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "adapter_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "ANSWERED",
+        "ABSTAINED",
+        "UNAVAILABLE"
+      ]
+    },
+    "answer": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "content_sha256",
+          "support_role",
+          "admission_state"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^(brain|artifact|source|receipt):[A-Za-z0-9._:/-]+$"
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "support_role": {
+            "enum": [
+              "SUPPORTS",
+              "CONTRADICTS",
+              "CONTEXT"
+            ]
+          },
+          "admission_state": {
+            "enum": [
+              "ADMITTED_REFERENCE",
+              "QUERY_READY_EVAL_ONLY",
+              "QUARANTINED",
+              "UNKNOWN"
+            ]
+          },
+          "source_uri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^https://"
+          }
+        }
+      }
+    },
+    "formulae": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "formula_id",
+          "namespace",
+          "status",
+          "proof_transfer_allowed",
+          "formula_receipt_sha256"
+        ],
+        "properties": {
+          "formula_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "namespace": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "KERNEL_ACCEPTED",
+              "CONDITIONAL",
+              "OPEN",
+              "REFUTED",
+              "NOT_EVALUATED"
+            ]
+          },
+          "proof_transfer_allowed": {
+            "type": "boolean"
+          },
+          "formula_receipt_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "proof_transfer_allowed": {
+                  "const": true
+                }
+              },
+              "required": [
+                "proof_transfer_allowed"
+              ]
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "const": "KERNEL_ACCEPTED"
+                },
+                "formula_receipt_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confidence",
+        "calibration_state",
+        "basis"
+      ],
+      "properties": {
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "calibration_state": {
+          "enum": [
+            "CALIBRATED",
+            "UNCALIBRATED",
+            "NOT_EVALUATED"
+          ]
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "abstention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "code",
+        "detail"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "code": {
+          "enum": [
+            "NONE",
+            "MODEL_UNAVAILABLE",
+            "EVIDENCE_NOT_ADMITTED",
+            "EVIDENCE_INSUFFICIENT",
+            "FORMULA_NAMESPACE_CONFLICT",
+            "RECEIPT_INVALID",
+            "POLICY_DENIED",
+            "UNCERTAINTY_TOO_HIGH"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tool_proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "tool_id",
+        "arguments_sha256",
+        "requires_human_approval",
+        "execution_receipt_id"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "NONE",
+            "PROPOSED"
+          ]
+        },
+        "tool_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arguments_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "requires_human_approval": {
+          "const": true
+        },
+        "execution_receipt_id": {
+          "type": "null"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "NONE"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "tool_id": {
+                "const": null
+              },
+              "arguments_sha256": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "PROPOSED"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "tool_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "arguments_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "receipt_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "request_sha256",
+        "evidence_set_sha256",
+        "policy_snapshot_sha256",
+        "receipt_id"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "SIGNED",
+            "UNSIGNED",
+            "NOT_AVAILABLE"
+          ]
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "evidence_set_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "policy_snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "receipt_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "SIGNED"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_set_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "receipt_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "UNSIGNED",
+                  "NOT_AVAILABLE"
+                ]
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt_id": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "NOT_AVAILABLE"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_set_sha256": {
+                "const": null
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ABSTAINED",
+              "UNAVAILABLE"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "answer": {
+            "const": null
+          },
+          "abstention": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            }
+          },
+          "tool_proposal": {
+            "properties": {
+              "state": {
+                "const": "NONE"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "ANSWERED"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "model_identity": {
+            "properties": {
+              "adapter_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "minItems": 1,
+            "items": {
+              "properties": {
+                "admission_state": {
+                  "const": "ADMITTED_REFERENCE"
+                }
+              }
+            }
+          },
+          "abstention": {
+            "properties": {
+              "required": {
+                "const": false
+              },
+              "code": {
+                "const": "NONE"
+              }
+            }
+          },
+          "uncertainty": {
+            "properties": {
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "calibration_state": {
+                "const": "CALIBRATED"
+              }
+            }
+          },
+          "receipt_binding": {
+            "properties": {
+              "state": {
+                "const": "SIGNED"
+              },
+              "evidence_set_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "receipt_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

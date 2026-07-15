@@ -1,0 +1,375 @@
+{
+  "$schema": "./szl-hf-bucket-topology.schema.json",
+  "schema_version": "szl.hf-bucket.topology.v1",
+  "contract_id": "SZL-HF-Bucket-Topology-v1",
+  "as_of": "2026-07-15",
+  "status": "CREATED_PRIVATE_EMPTY_VERIFIED",
+  "scope": {
+    "owner_namespace": "SZLHOLDINGS",
+    "system_id": "SZL-Forge",
+    "storage_class": "HUGGING_FACE_STORAGE_BUCKET",
+    "canonical_release_store": false,
+    "authoritative_claim": "Hugging Face Storage Buckets are mutable, non-versioned object storage suitable for checkpoints, logs, and intermediate artifacts; finished public artifacts remain in versioned Hub repositories.",
+    "remote_creation_performed_by_this_contract": true,
+    "remote_mutation_performed_by_this_contract": true,
+    "credential_use_performed_by_this_contract": true
+  },
+  "topology": [
+    {
+      "bucket_id": "szl-forge-build-staging",
+      "qualified_name": "SZLHOLDINGS/szl-forge-build-staging",
+      "status": "CREATED_PRIVATE_EMPTY_VERIFIED",
+      "remote_observation": {
+        "url": "https://huggingface.co/buckets/SZLHOLDINGS/szl-forge-build-staging",
+        "private": true,
+        "created_at": "2026-07-15T12:49:46+00:00",
+        "size_bytes": 0,
+        "total_files": 0
+      },
+      "canonical": false,
+      "mutability": "MUTABLE_NON_VERSIONED",
+      "purpose": "Ephemeral training checkpoints, optimizer state, resumable upload shards, candidate adapters, and build receipts before independent qualification.",
+      "allowed_object_classes": [
+        "INTERMEDIATE_CHECKPOINT",
+        "CANDIDATE_ADAPTER",
+        "OPTIMIZER_STATE",
+        "TRAINING_LOG_SANITIZED",
+        "BUILD_RECEIPT",
+        "SIGNED_ATTEMPT_MANIFEST",
+        "SIGNED_COMPLETION_MARKER"
+      ],
+      "key_layout": {
+        "attempt_prefix": "attempts/{attempt_id}/",
+        "payload_prefix": "attempts/{attempt_id}/payload/",
+        "control_prefix": "attempts/{attempt_id}/_control/",
+        "manifest_key": "attempts/{attempt_id}/_control/manifest.dsse.json",
+        "completion_marker_key": "attempts/{attempt_id}/_control/COMPLETED.json"
+      },
+      "retention_policy": "DELETE_AFTER_CANONICAL_PUBLISH_READBACK_AND_RECEIPT_OR_30_DAYS",
+      "reader_acceptance": "ONLY_COMPLETED_ATTEMPTS_WITH_VERIFIED_MANIFEST_SIGNATURE_AND_FULL_HASH_READBACK",
+      "may_publish_canonical_release": false
+    },
+    {
+      "bucket_id": "szl-forge-eval-staging",
+      "qualified_name": "SZLHOLDINGS/szl-forge-eval-staging",
+      "status": "CREATED_PRIVATE_EMPTY_VERIFIED",
+      "remote_observation": {
+        "url": "https://huggingface.co/buckets/SZLHOLDINGS/szl-forge-eval-staging",
+        "private": true,
+        "created_at": "2026-07-15T12:49:48+00:00",
+        "size_bytes": 0,
+        "total_files": 0
+      },
+      "canonical": false,
+      "mutability": "MUTABLE_NON_VERSIONED",
+      "purpose": "Held-out evaluation outputs, benchmark run bundles, resource observations, red-team findings, and candidate qualification receipts separated from training objects.",
+      "allowed_object_classes": [
+        "EVALUATION_OUTPUT",
+        "BENCHMARK_RUN_BUNDLE",
+        "RESOURCE_OBSERVATION",
+        "RED_TEAM_FINDING_SANITIZED",
+        "QUALIFICATION_RECEIPT",
+        "SIGNED_ATTEMPT_MANIFEST",
+        "SIGNED_COMPLETION_MARKER"
+      ],
+      "key_layout": {
+        "attempt_prefix": "attempts/{attempt_id}/",
+        "payload_prefix": "attempts/{attempt_id}/payload/",
+        "control_prefix": "attempts/{attempt_id}/_control/",
+        "manifest_key": "attempts/{attempt_id}/_control/manifest.dsse.json",
+        "completion_marker_key": "attempts/{attempt_id}/_control/COMPLETED.json"
+      },
+      "retention_policy": "DELETE_AFTER_CANONICAL_EVAL_DATASET_READBACK_AND_RECEIPT_OR_90_DAYS",
+      "reader_acceptance": "ONLY_COMPLETED_ATTEMPTS_WITH_VERIFIED_MANIFEST_SIGNATURE_AND_FULL_HASH_READBACK",
+      "may_publish_canonical_release": false
+    },
+    {
+      "bucket_id": "szl-forge-runtime-evidence",
+      "qualified_name": "SZLHOLDINGS/szl-forge-runtime-evidence",
+      "status": "CREATED_PRIVATE_EMPTY_VERIFIED",
+      "remote_observation": {
+        "url": "https://huggingface.co/buckets/SZLHOLDINGS/szl-forge-runtime-evidence",
+        "private": true,
+        "created_at": "2026-07-15T12:49:50+00:00",
+        "size_bytes": 0,
+        "total_files": 0
+      },
+      "canonical": false,
+      "mutability": "MUTABLE_NON_VERSIONED",
+      "purpose": "Sanitized runtime traces, exact-served-model observations, restart evidence, bounded receipt batches, and noncanonical observability exports.",
+      "allowed_object_classes": [
+        "RUNTIME_TRACE_SANITIZED",
+        "MODEL_LOAD_OBSERVATION",
+        "RESTART_RECOVERY_OBSERVATION",
+        "RECEIPT_BATCH",
+        "OTEL_EXPORT_SANITIZED",
+        "SIGNED_ATTEMPT_MANIFEST",
+        "SIGNED_COMPLETION_MARKER"
+      ],
+      "key_layout": {
+        "attempt_prefix": "batches/{attempt_id}/",
+        "payload_prefix": "batches/{attempt_id}/payload/",
+        "control_prefix": "batches/{attempt_id}/_control/",
+        "manifest_key": "batches/{attempt_id}/_control/manifest.dsse.json",
+        "completion_marker_key": "batches/{attempt_id}/_control/COMPLETED.json"
+      },
+      "retention_policy": "DELETE_AFTER_CANONICAL_RECEIPT_DATASET_READBACK_AND_RECEIPT_OR_30_DAYS",
+      "reader_acceptance": "ONLY_COMPLETED_ATTEMPTS_WITH_VERIFIED_MANIFEST_SIGNATURE_AND_FULL_HASH_READBACK",
+      "may_publish_canonical_release": false
+    }
+  ],
+  "two_phase_completion_protocol": {
+    "protocol_id": "SZL-BUCKET-COMPLETION-v1",
+    "hash_algorithm": "SHA-256",
+    "signature_envelope": "DSSE_PAE",
+    "manifest_media_type": "application/vnd.szlh.bucket-manifest.v1+json",
+    "marker_media_type": "application/vnd.szlh.bucket-completed.v1+json",
+    "attempt_id_requirement": "UUIDV7_OR_CONTENT_DERIVED_UNIQUE_IDENTIFIER_NEVER_REUSED",
+    "phase_1_stage_and_verify": [
+      "Create a never-reused attempt prefix and upload payload objects without a COMPLETED marker.",
+      "Compute each payload SHA-256 and byte count locally before upload and retain that local inventory outside the mutable bucket.",
+      "Create a canonical-JSON manifest binding bucket qualified name, attempt id, object key, SHA-256, byte count, media type, producer identity, source revision, rights evidence, and created-at timestamp.",
+      "Sign the manifest as a DSSE PAE envelope using the bucket-stager attestation key; the release-approval key is never available to the stager.",
+      "Upload the signed manifest, then GET every payload object and the signed manifest from the bucket and recompute their SHA-256 and byte counts from readback bytes.",
+      "An independent readback verifier records a signed readback receipt only when every object, manifest digest, manifest signature, expected key, and expected byte count matches."
+    ],
+    "phase_2_complete": [
+      "After a valid independent readback receipt exists, the completion-marker writer creates COMPLETED.json last under the same attempt control prefix.",
+      "COMPLETED.json binds the exact signed-manifest SHA-256, readback-receipt SHA-256, attempt id, bucket qualified name, verifier key id, verification time, and state COMPLETED.",
+      "The completion marker is signed by the independent verifier and uploaded with a conditional create operation that refuses overwrite.",
+      "The marker is read back and its bytes, signature, manifest reference, and SHA-256 are verified before the attempt becomes consumable."
+    ],
+    "consumer_acceptance_predicate": [
+      "COMPLETED marker exists at the exact control key and has state COMPLETED.",
+      "Marker and manifest DSSE signatures validate against separate allowlisted role keys.",
+      "Marker manifest_sha256 equals the SHA-256 of the read-back signed manifest bytes.",
+      "Every declared object is present and its read-back SHA-256 and byte count match the signed manifest.",
+      "No undeclared object under the payload prefix is selected, loaded, executed, evaluated, published, or otherwise consumed.",
+      "The attempt id, bucket qualified name, rights evidence, source revision, and release candidate id match the requested candidate.",
+      "No mutable alias, filename, ETag, UI status, object presence, or bucket audit event substitutes for content hashes and signatures."
+    ],
+    "invalidating_events": [
+      "ANY_PAYLOAD_OR_CONTROL_OBJECT_OVERWRITE",
+      "ANY_PAYLOAD_OR_CONTROL_OBJECT_DELETE",
+      "MANIFEST_SIGNATURE_FAILURE",
+      "MARKER_SIGNATURE_FAILURE",
+      "READBACK_HASH_OR_SIZE_MISMATCH",
+      "UNDECLARED_PAYLOAD_OBJECT",
+      "RIGHTS_OR_SOURCE_BINDING_MISMATCH",
+      "ATTEMPT_ID_REUSE"
+    ],
+    "incomplete_prefix_policy": "FAIL_CLOSED_IGNORE_AND_EVENTUALLY_GARBAGE_COLLECT",
+    "bucket_audit_log_is_release_proof": false
+  },
+  "signed_manifest_required_fields": [
+    "schema_version",
+    "bucket_qualified_name",
+    "attempt_id",
+    "release_candidate_id",
+    "producer_identity",
+    "producer_key_id",
+    "source_repository",
+    "source_revision",
+    "base_model_repository_if_applicable",
+    "base_model_revision_if_applicable",
+    "license_spdx_or_license_ref",
+    "rights_evidence_sha256",
+    "training_admission_receipt_sha256_if_applicable",
+    "objects[].key",
+    "objects[].sha256",
+    "objects[].bytes",
+    "objects[].media_type",
+    "created_at",
+    "expires_at",
+    "dsse_signature"
+  ],
+  "forbidden_content": [
+    {
+      "code": "ACCESS_TOKEN_OR_CREDENTIAL",
+      "description": "Hugging Face tokens, S3-derived credentials, API keys, passwords, session cookies, SSH keys, or cloud credentials in payloads, metadata, logs, or manifests.",
+      "exception_allowed": false
+    },
+    {
+      "code": "SIGNING_PRIVATE_KEY",
+      "description": "Private signing material, seed phrases, key-encryption passwords, or release-approval key material.",
+      "exception_allowed": false
+    },
+    {
+      "code": "RAW_PII_PHI_PCI",
+      "description": "Unredacted personal, health, payment-card, biometric, or identity data.",
+      "exception_allowed": false
+    },
+    {
+      "code": "CUSTOMER_CONFIDENTIAL_RAW_CONTENT",
+      "description": "Customer documents, prompts, completions, source code, logs, or attachments without explicit contractual storage and publication authority.",
+      "exception_allowed": false
+    },
+    {
+      "code": "RIGHTS_UNKNOWN_OR_UNLICENSED_CORPUS",
+      "description": "Training or evaluation content lacking row-level source, license or rights basis, revision, and provenance evidence.",
+      "exception_allowed": false
+    },
+    {
+      "code": "UNADMITTED_BRAIN_ROWS",
+      "description": "Brain, Lake, formula, note, or graph rows that have not passed the signed training-admission and split-ledger contract.",
+      "exception_allowed": false
+    },
+    {
+      "code": "PROTECTED_EVAL_ANSWER_KEY_IN_TRAINING",
+      "description": "Held-out evaluation prompts, reference answers, hidden labels, judge keys, or contamination-inducing derivatives in any training or checkpoint staging path.",
+      "exception_allowed": false
+    },
+    {
+      "code": "UNQUALIFIED_MODEL_WEIGHT_OR_ADAPTER",
+      "description": "Weights or adapters without exact base identity, immutable revision, license lineage, load receipt, and held-out qualification state.",
+      "exception_allowed": false
+    },
+    {
+      "code": "MALWARE_OR_UNTRUSTED_EXECUTABLE",
+      "description": "Unscanned executable code, pickle payloads, arbitrary remote code, or binary plugins outside the approved artifact and sandbox policy.",
+      "exception_allowed": false
+    },
+    {
+      "code": "UNSANITIZED_RUNTIME_TELEMETRY",
+      "description": "Runtime traces, prompts, completions, stack traces, environment dumps, or OpenTelemetry exports before secret and sensitive-data scrubbing.",
+      "exception_allowed": false
+    },
+    {
+      "code": "CANONICAL_RELEASE_ONLY_COPY",
+      "description": "The only surviving or authoritative copy of a model, dataset, Space, release receipt, paper, DOI archive, or source release.",
+      "exception_allowed": false
+    },
+    {
+      "code": "MUTABLE_ALIAS_AS_ARTIFACT_IDENTITY",
+      "description": "Use of latest, main, filename, ETag, bucket URL, or object presence as a substitute for an immutable revision and content digest.",
+      "exception_allowed": false
+    }
+  ],
+  "release_authorities": [
+    {
+      "role_id": "bucket-stager",
+      "credential_scope": "WRITE_ONLY_TO_ASSIGNED_ATTEMPT_PAYLOAD_AND_MANIFEST_PREFIX",
+      "may_stage_payload": true,
+      "may_write_completion_marker": false,
+      "may_approve_release": false,
+      "may_publish_canonical_repo": false,
+      "may_record_transparency_receipt": false
+    },
+    {
+      "role_id": "independent-readback-verifier",
+      "credential_scope": "READ_BUCKET_AND_CREATE_ONLY_COMPLETION_MARKER_PREFIX",
+      "may_stage_payload": false,
+      "may_write_completion_marker": true,
+      "may_approve_release": false,
+      "may_publish_canonical_repo": false,
+      "may_record_transparency_receipt": true
+    },
+    {
+      "role_id": "release-approver",
+      "credential_scope": "SIGN_APPROVAL_DECISION_ONLY_NO_BUCKET_OR_REPO_WRITE",
+      "may_stage_payload": false,
+      "may_write_completion_marker": false,
+      "may_approve_release": true,
+      "may_publish_canonical_repo": false,
+      "may_record_transparency_receipt": true
+    },
+    {
+      "role_id": "canonical-hub-publisher",
+      "credential_scope": "WRITE_ONLY_TO_EXACT_APPROVED_VERSIONED_MODEL_DATASET_OR_SPACE_REPOSITORY",
+      "may_stage_payload": false,
+      "may_write_completion_marker": false,
+      "may_approve_release": false,
+      "may_publish_canonical_repo": true,
+      "may_record_transparency_receipt": true
+    },
+    {
+      "role_id": "runtime-evidence-writer",
+      "credential_scope": "WRITE_ONLY_TO_ASSIGNED_RUNTIME_BATCH_PAYLOAD_AND_MANIFEST_PREFIX",
+      "may_stage_payload": true,
+      "may_write_completion_marker": false,
+      "may_approve_release": false,
+      "may_publish_canonical_repo": false,
+      "may_record_transparency_receipt": false
+    }
+  ],
+  "authority_separation_constraints": [
+    "A single credential or role may not both stage payload and write its COMPLETED marker.",
+    "A single credential or role may not both approve a release and publish that release.",
+    "Bucket ownership, object presence, a COMPLETED marker, or a valid staging signature never grants canonical release authority.",
+    "Canonical publication requires an independently signed completion receipt, a separately signed release approval, and exact digest readback from the versioned destination repository.",
+    "Release signing and approval private keys are never stored in, mounted from, or derived from a bucket."
+  ],
+  "canonical_promotion": {
+    "bucket_role": "NONCANONICAL_MUTABLE_SOURCE_STAGING_ONLY",
+    "allowed_destination_types": [
+      "VERSIONED_HF_MODEL_REPOSITORY",
+      "VERSIONED_HF_DATASET_REPOSITORY",
+      "VERSIONED_HF_SPACE_REPOSITORY",
+      "GITHUB_RELEASE",
+      "ZENODO_ARCHIVE"
+    ],
+    "required_before_publish": [
+      "SIGNED_COMPLETION_MARKER_PASS",
+      "FULL_OBJECT_HASH_READBACK_PASS",
+      "RIGHTS_AND_PROVENANCE_GATE_PASS",
+      "BASE_AND_LICENSE_LINEAGE_GATE_PASS_IF_MODEL",
+      "HELD_OUT_QUALIFICATION_GATE_PASS_IF_MODEL",
+      "SECURITY_AND_SECRET_SCAN_PASS",
+      "SIGNED_HUMAN_RELEASE_APPROVAL"
+    ],
+    "required_after_publish": [
+      "CANONICAL_DESTINATION_DIGEST_READBACK_PASS",
+      "RELEASE_RECEIPT_RECORDED",
+      "MODEL_DATASET_OR_SPACE_CARD_PRESENT",
+      "COLLECTION_UPDATED_ONLY_AFTER_MEMBER_READBACK"
+    ],
+    "automatic_promotion": false,
+    "bucket_deletion_after_promotion_is_release_revocation": false
+  },
+  "primary_sources": [
+    {
+      "id": "hf-storage-buckets",
+      "url": "https://huggingface.co/docs/hub/storage-buckets",
+      "evidence_label": "PRIMARY_REPORTED",
+      "claim": "Buckets are mutable, non-versioned object storage intended for checkpoints, logs, and intermediate data; repositories remain the versioned publication surface."
+    },
+    {
+      "id": "hf-storage-buckets-access",
+      "url": "https://huggingface.co/docs/hub/storage-buckets-access",
+      "evidence_label": "PRIMARY_REPORTED",
+      "claim": "Buckets support hf:// access, CLI sync, mounts, Jobs and Spaces volume mounts, and S3-compatible access patterns."
+    },
+    {
+      "id": "hf-storage-buckets-s3",
+      "url": "https://huggingface.co/docs/hub/storage-buckets-s3",
+      "evidence_label": "PRIMARY_REPORTED",
+      "claim": "The S3-compatible gateway uses scoped credentials derived from Hugging Face user access tokens and applies only to Storage Buckets."
+    },
+    {
+      "id": "hf-storage-buckets-security",
+      "url": "https://huggingface.co/docs/hub/storage-buckets-security",
+      "evidence_label": "PRIMARY_REPORTED",
+      "claim": "Bucket access uses Hub controls and operations can be represented in organization audit logs; this contract does not treat audit events as content-integrity or release proof."
+    }
+  ],
+  "claims_boundary": {
+    "buckets_created": true,
+    "objects_uploaded": false,
+    "credentials_created_or_used": true,
+    "training_started": false,
+    "model_qualified": false,
+    "canonical_artifact_published": false,
+    "bucket_object_is_versioned_release": false,
+    "bucket_audit_event_is_content_proof": false,
+    "completed_marker_is_release_approval": false
+  },
+  "external_mutations": {
+    "hugging_face_bucket_create": true,
+    "hugging_face_bucket_write": false,
+    "hugging_face_bucket_delete": false,
+    "hugging_face_repo_publish": false,
+    "github_push_or_release": false,
+    "zenodo_deposit_or_publish": false,
+    "token_or_secret_use": true
+  }
+}

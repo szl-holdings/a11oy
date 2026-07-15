@@ -74,7 +74,7 @@ import json
 import math
 import os
 import re
-import resource
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -82,6 +82,11 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+try:  # POSIX-only; Windows must import the engine but refuse code execution.
+    import resource
+except ImportError:  # pragma: no cover - exercised on Windows
+    resource = None
 
 # ---- reuse the PROVEN loop primitives (single source of truth for chain semantics)
 try:
@@ -344,6 +349,35 @@ _FORBIDDEN_CALLS = ("open(", "eval(", "exec(", "compile(", "__import__", "input(
                     "os.remove", "os.rmdir", "os.unlink", "os.environ", "os.popen",
                     "os.fork", "os.kill")
 
+_UNSHARE = shutil.which("unshare") if os.name == "posix" else None
+
+
+def sandbox_capability() -> dict:
+    """Describe the fixed isolation prerequisites without attempting execution.
+
+    Importability is deliberately separate from executability: Windows can serve
+    diagnostics and governed planning, but it cannot claim an isolated code engine
+    without POSIX rlimits and a real network namespace boundary.
+    """
+    missing = []
+    if os.name != "posix":
+        missing.append("POSIX_HOST")
+    if resource is None:
+        missing.append("POSIX_RESOURCE_LIMITS")
+    if not _UNSHARE:
+        missing.append("UNSHARE_NET_NAMESPACE")
+    return {
+        "state": "READY_TO_PROBE" if not missing else "UNAVAILABLE",
+        "missing": missing,
+        "resource_limits": resource is not None,
+        "network_namespace_command": _UNSHARE,
+        "honesty": (
+            "Execution still requires a successful per-run unshare --net probe."
+            if not missing else
+            "Code execution is refused because the fixed isolation prerequisites are absent."
+        ),
+    }
+
 
 def _static_screen(code: str) -> dict:
     """Static pre-screen BEFORE execution (defense in depth — the loop's policy gate
@@ -439,6 +473,20 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
                 "stdout": "", "stderr": "unsupported language: %s" % lang, "exit": -1,
                 "isolation": "n/a"}
 
+    capability = sandbox_capability()
+    if capability["state"] != "READY_TO_PROBE":
+        return {
+            "ok": False,
+            "execution_state": "UNAVAILABLE",
+            "error": "fixed sandbox isolation prerequisites unavailable",
+            "stdout": "",
+            "stderr": "missing: %s" % ", ".join(capability["missing"]),
+            "exit": -1,
+            "elapsed_ms": 0.0,
+            "isolation": "UNAVAILABLE — no code executed",
+            "capability": capability,
+        }
+
     def _limits():
         # child-only resource limits (POSIX). Applied in the forked child pre-exec.
         try:
@@ -472,8 +520,29 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
         )
         src.write_text(preamble + (code or ""))
         try:
+            # A command being present is not evidence that this host permits a
+            # network namespace.  Prove the exact boundary immediately before
+            # the run; fail closed if the kernel denies it.
+            probe = subprocess.run(
+                [_UNSHARE, "--net", "--", sys.executable, "-I", "-S", "-c",
+                 "print('SZL_NETNS_READY')"],
+                cwd=box, env=env, capture_output=True, text=True, timeout=3,
+                preexec_fn=_limits,
+            )
+            if probe.returncode != 0 or probe.stdout.strip() != "SZL_NETNS_READY":
+                return {
+                    "ok": False,
+                    "execution_state": "UNAVAILABLE",
+                    "error": "network namespace probe failed",
+                    "stdout": "",
+                    "stderr": (probe.stderr or "unshare --net did not establish isolation")[:4000],
+                    "exit": probe.returncode,
+                    "elapsed_ms": round((time.time() - t0) * 1000, 1),
+                    "isolation": "UNAVAILABLE — no user code executed",
+                    "capability": capability,
+                }
             proc = subprocess.run(
-                [sys.executable, "-I", "-S", str(src)],   # -I isolated, -S no site
+                [_UNSHARE, "--net", "--", sys.executable, "-I", "-S", str(src)],
                 cwd=box, env=env, capture_output=True, text=True,
                 timeout=timeout_s + 1, preexec_fn=_limits,
             )
@@ -483,7 +552,7 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
             return {"ok": proc.returncode == 0, "stdout": out, "stderr": err,
                     "exit": proc.returncode, "elapsed_ms": dt,
                     "isolation": ("sandboxed (restricted subprocess): separate process, "
-                                  "CPU+memory+fsize+nproc rlimits, network disabled, %ss "
+                                  "CPU+memory+fsize+nproc rlimits, unshare --net, %ss "
                                   "wall-clock timeout, minimal env. Full seccomp/container "
                                   "isolation on the tower/UDS pod." % timeout_s)}
         except subprocess.TimeoutExpired:

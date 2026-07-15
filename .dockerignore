@@ -30,6 +30,11 @@ __pycache__
 **/__pycache__
 *.pyc
 
+# Host-local runtime state is recreated or mounted explicitly at deployment.
+data/*.sqlite3
+data/*.db
+khipu/**/*.ndjson
+
 # Editor / OS cruft
 .DS_Store
 *.log

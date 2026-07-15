@@ -1,0 +1,146 @@
+{
+  "schema_version": "szl.khipu.compound-second-brain.v1",
+  "system_id": "SZL-Khipu-Second-Brain-v1",
+  "system_type": "COMPOUND_MODEL_WITH_EXTERNAL_EVIDENCE_MEMORY",
+  "state": "EXPERIMENTAL_RUNTIME_INTEGRATED_ARTIFACT_AND_EVAL_GATES_OPEN",
+  "components": {
+    "navigator_profile": {
+      "profile_id": "BrainNavigator-v1",
+      "expected_runtime_tag": "khipu:latest",
+      "hf_target": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+      "artifact_state": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
+      "authority": "PROPOSE_RETRIEVAL_PLAN_ONLY"
+    },
+    "evidence_memory": {
+      "engine": "a11oy_org_rag.py",
+      "persistence": "SQLITE_PLUS_PERSISTED_GRAPH_AND_BUILD_META",
+      "retrieval": "HYBRID_LEXICAL_OPTIONAL_DENSE_PLUS_GRAPH",
+      "content_boundary": "MODEL_RECEIVES_HANDLES_AND_SYNTHETIC_METADATA_ONLY",
+      "answer_policy": "CITED_EVIDENCE_OR_ABSTAIN"
+    },
+    "controller": {
+      "engine": "a11oy_code_orchestrator.py",
+      "profile_router": "EXACT_TAG_REQUIRED",
+      "served_identity": "TURN_LEVEL_ATTESTATION",
+      "artifact_identity": "UNBOUND_UNTIL_RELEASE_DIGEST_MATCHES"
+    },
+    "governance": {
+      "council": "A11oy-Ayllu",
+      "persona": "Maskaq",
+      "execution_authority": "NONE",
+      "canonical_memory_write_authority": "NONE",
+      "receipt_key": "/api/a11oy/cosign.pub"
+    }
+  },
+  "runtime_endpoints": {
+    "status": "/api/a11oy/v1/ayllu/second-brain",
+    "ask": "/api/a11oy/v1/ayllu/ask",
+    "rag_status": "/api/a11oy/code/rag/status",
+    "rag_query": "/api/a11oy/code/rag/query"
+  },
+  "required_turn_receipts": [
+    "model_attestation_sha256",
+    "evidence_set_sha256",
+    "grounding_sha256",
+    "turn_output_sha256"
+  ],
+  "brain_training_policy": {
+    "raw_nodes_observed": 9464,
+    "raw_nodes_admitted_to_gradients": 0,
+    "current_state": "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
+    "admission_engine": "szl_brain_training_admission.py",
+    "admission_test": "tests/test_brain_training_admission.py",
+    "admission_contract": "szl.brain-training-admission-report.v1",
+    "admission_evidence_security": {
+      "signature": "ED25519",
+      "trust_model": "ALLOWLISTED_ISSUER_TOOL_KEY_TRIPLE",
+      "content_binding": "EXACT_CONTENT_SOURCE_REVISION_RIGHTS_AND_CONTAMINATION",
+      "cross_run_isolation": "SIGNED_DETERMINISTIC_SPLIT_LEDGER",
+      "self_attestation_allowed": false
+    },
+    "required_admission_inputs": [
+      "protected_eval_content_sha256_list",
+      "signed_evidence_trust_store",
+      "signed_prior_split_ledger_descriptor"
+    ],
+    "current_inventory_obligations": {
+      "license_or_rights_unknown": 9464,
+      "immutable_source_revision_unknown": 9464,
+      "freshness_unknown": 9430,
+      "duplicate_candidates": 3747,
+      "provenance_unknown": 185
+    },
+    "current_inventory_evidence": {
+      "source_admission_manifest": {
+        "path": "dataset_release/szl-proof-obligation-queue/data/source-admission-manifest.json",
+        "file_sha256": "7c151850c533e23572d634a75be8c9611bd59c404f7b444f07d205f257013d8f"
+      },
+      "m1_brain_ingest_ledger": {
+        "path": "model_release/m1/brain-ingest-ledger.jsonl",
+        "rows": 9464,
+        "file_sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"
+      },
+      "m1_corpus_manifest": {
+        "path": "model_release/m1/corpus-ingestion-manifest.json",
+        "file_sha256": "6f5e0d9ecb60d8aa52fc229a42ad37d62fc7fa7406993a0b8352b2b574fb40a4"
+      }
+    },
+    "candidate_schema": "szl.brain-training-candidate.v1",
+    "decision_schema": "szl.brain-training-admission-decision.v1",
+    "report_schema": "szl.brain-training-admission-report.v1",
+    "candidate_required_inputs": [
+      "node_id",
+      "content",
+      "content_sha256",
+      "source.uri",
+      "source.revision",
+      "source.timestamp_utc",
+      "source.evidence",
+      "rights.basis",
+      "rights.license",
+      "rights.evidence",
+      "contamination.result",
+      "contamination.method",
+      "contamination.checked_against",
+      "contamination.evidence",
+      "split"
+    ],
+    "derived_decision_fields": [
+      "canonical_status",
+      "canonical_node_id",
+      "dedup_group",
+      "freshness.state",
+      "source.status",
+      "rights.status",
+      "contamination.observed_result",
+      "training_eligible",
+      "evaluation_eligible",
+      "reason_codes",
+      "decision_receipt_sha256"
+    ],
+    "forbidden_shortcuts": [
+      "ASSUME_RIGHTS_FROM_REPOSITORY_OWNERSHIP",
+      "COPY_EVALUATION_QRELS_INTO_TRAINING",
+      "TREAT_RETRIEVAL_AS_TRAINING",
+      "LABEL_INDEX_NODES_AS_PARAMETERS",
+      "WEAKEN_GATES_TO_REACH_A_TARGET_ROW_COUNT"
+    ]
+  },
+  "promotion": {
+    "automatic": false,
+    "requires_artifact_digest_reconciliation": true,
+    "requires_frozen_brain_qrels": true,
+    "requires_temporal_and_contradiction_negatives": true,
+    "requires_citation_correctness": true,
+    "requires_abstention_calibration": true,
+    "requires_restart_recovery_receipt": true,
+    "requires_human_approval": true
+  },
+  "claims_boundary": {
+    "index_is_model_weights": false,
+    "retrieval_is_training": false,
+    "raw_node_count_is_parameter_count": false,
+    "operational_status_requires_live_readback": true,
+    "model_output_is_verified_truth": false
+  }
+}

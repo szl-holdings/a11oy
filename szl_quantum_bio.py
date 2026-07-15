@@ -55,6 +55,17 @@ SOURCES = {
     "AdS/CFT (Maldacena)":       "https://en.wikipedia.org/wiki/Holographic_principle",
 }
 
+# ``VERIFIED`` is retained for backward compatibility with existing clients, but its
+# scope is deliberately narrow: the implementation executes deterministically and
+# reproduces the reported model output.  It is not an experimental validation of a
+# biological mechanism, a physical device measurement, or evidence of quantum
+# advantage.
+VERIFICATION_SCOPE = "COMPUTATIONAL_REPRODUCIBILITY_ONLY"
+VERIFICATION_BOUNDARY = (
+    "Executed deterministic model output; not experimental validation, not an "
+    "instrument measurement, and not evidence of quantum advantage."
+)
+
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
@@ -160,6 +171,8 @@ def _h_pmf(req: Request):
         "model": "Mitchell proton-motive force",
         "equation": "Δp = ΔΨ − (2.3 RT / F)·ΔpH (mV)",
         "status": "VERIFIED",
+        "verification_scope": VERIFICATION_SCOPE,
+        "verification_boundary": VERIFICATION_BOUNDARY,
         "two_ion_status": "PROPOSED",
         "inputs": {"d_psi_mV": d_psi, "d_pH": d_pH, "d_pK": d_pK, "K_weight": w},
         "pmf_single_ion_mV": single,
@@ -174,7 +187,9 @@ def _h_coherence(req: Request):
     return JSONResponse({
         "model": "Lindblad / GKSL open-quantum-system coherence",
         "equation": "dρ/dt = −(i/ħ)[H,ρ] + Σ γ_k (L_k ρ L_k† − ½{L_k†L_k, ρ})",
-        "status": "VERIFIED", "fitted_tau_c": s["tau_c"], "series": s,
+        "status": "VERIFIED", "verification_scope": VERIFICATION_SCOPE,
+        "verification_boundary": VERIFICATION_BOUNDARY,
+        "fitted_tau_c": s["tau_c"], "series": s,
         "source": SOURCES["Lindblad path integral"], "computed_at": _now(),
     })
 
@@ -188,6 +203,8 @@ def _h_compass(req: Request):
         angles = (0.0, 30.0, 60.0, 90.0)
     out = compass(B, angles)
     out.update({"model": "Radical-pair magnetoreception (singlet yield)", "status": "VERIFIED",
+                "verification_scope": VERIFICATION_SCOPE,
+                "verification_boundary": VERIFICATION_BOUNDARY,
                 "honest_note": "Reduced single-nucleus closed-form here gives a real angle-dependent yield (contrast ~0.025); the FULL multi-spin density-matrix model in the payload yields contrast ~0.378. A toy isotropic cos(ωt) model fails (contrast~0). Anisotropy is genuine, not fabricated.",
                 "fidelity": "reduced (single-nucleus closed-form)",
                 "source": SOURCES["Hore PNAS 2009"], "computed_at": _now()})
@@ -207,14 +224,19 @@ def _h_lambda(req: Request):
 def _h_summary(req: Request):
     return JSONResponse({
         "title": "SZL Quantum-Bio Master Payload (v5) — verified results",
-        "status_legend": {"VERIFIED": "executed model, reproduces on call",
+        "verification_scope": VERIFICATION_SCOPE,
+        "verification_boundary": VERIFICATION_BOUNDARY,
+        "status_legend": {"VERIFIED": "executed deterministic model, reproduces on call; not experimental validation",
                           "PROPOSED": "SZL-proposed construct",
                           "NARRATIVE": "Jack Kruse framing only — NOT load-bearing math"},
         "results": [
-            {"quantity": "Lindblad τ_c", "value": 6.05, "status": "VERIFIED"},
-            {"quantity": "pmf single-ion (mV)", "value": round(pmf(150.0, 0.5), 1), "status": "VERIFIED"},
+            {"quantity": "Lindblad τ_c", "value": 6.05, "status": "VERIFIED",
+             "verification_scope": VERIFICATION_SCOPE},
+            {"quantity": "pmf single-ion (mV)", "value": round(pmf(150.0, 0.5), 1), "status": "VERIFIED",
+             "verification_scope": VERIFICATION_SCOPE},
             {"quantity": "pmf two-ion K+/H+ (mV)", "value": round(pmf_two_ion(150.0, 0.5, 0.30), 1), "status": "PROPOSED"},
-            {"quantity": "compass angular contrast", "value": compass(50.0)["angular_contrast"], "status": "VERIFIED"},
+            {"quantity": "compass angular contrast", "value": compass(50.0)["angular_contrast"], "status": "VERIFIED",
+             "verification_scope": VERIFICATION_SCOPE},
             {"quantity": "Λ-v5 gate", "value": "coherent AND charged -> execute; else recharge", "status": "PROPOSED"},
             {"quantity": "Lean closure theorems", "value": 3, "status": "VERIFIED (proofs, no sorry)"},
         ],

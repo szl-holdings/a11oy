@@ -57,7 +57,11 @@ def test_health_honest_unavailable_when_down(client):
         assert k in h, f"health must return required key {k!r}"
     assert h["reachable"] is False
     assert h["label"] == "UNAVAILABLE"
-    assert h["model"] == MODEL_TAG
+    assert h["model"] is None
+    assert h["canonical_model"] == MODEL_TAG
+    assert h["model_ready"] is False
+    assert h["inference_receipted"] is False
+    assert h["operational"] is False
     assert h["provider"] == PROVIDER
     assert h["url"].endswith("/v1")
 
@@ -102,4 +106,5 @@ def test_probe_never_raises_and_reports_unavailable():
     assert "UNAVAILABLE" in p["note"]
     g = reg.sovereign_generate("hi", base="http://127.0.0.1:59999/v1", timeout=0.4)
     assert g["live"] is False and g["text"] is None  # never fabricated text
-    assert "UNAVAILABLE" in g["note"]
+    assert g["model_ready"] is False
+    assert "no executable model" in g["note"]

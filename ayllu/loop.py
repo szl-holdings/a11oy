@@ -65,7 +65,10 @@ async def run_turn(
     """
     diff = persona.default_difficulty if difficulty is None else float(difficulty)
     tier = select_tier(diff)
-    system = persona.system_prompt()
+    from .model_binding import persona_binding, prompt_contract
+
+    binding = persona_binding(persona.name)
+    system = persona.system_prompt() + "\n\n" + prompt_contract(binding)
 
     answer: Optional[str] = None
     model: Optional[str] = None
@@ -74,6 +77,8 @@ async def run_turn(
     token_budget: Optional[int] = None
     timeout_s: Optional[float] = None
     energy_receipt: Any = None
+    model_attestation: Any = None
+    grounding: Any = None
 
     if model_complete is None:
         honesty = ("model backend not injected — no answer fabricated. This turn "
@@ -108,15 +113,26 @@ async def run_turn(
                 token_budget = result.get("token_budget")
                 timeout_s = result.get("timeout_s")
                 energy_receipt = result.get("energy_receipt")
+                model_attestation = result.get("model_attestation")
+                grounding = result.get("grounding")
             else:
                 answer = str(result)
             honesty = "answer produced by a11oy's model backend" + (
-                " (clearly-labeled stub — no inference credential set)" if stub else "")
+                " (clearly-labeled stub — no reachable local or credentialed remote backend)"
+                if stub else "")
             if isinstance(result, dict) and result.get("honesty"):
                 honesty = str(result["honesty"])
         except Exception as exc:
             honesty = (f"model backend raised: {str(exc)[:120]} "
                        "(honest — no fabricated answer)")
+
+    binding = persona_binding(
+        persona.name,
+        actual_model=model,
+        backend_mode=("stub" if stub else "live" if model else "unavailable"),
+        model_attestation=model_attestation,
+        grounding=grounding,
+    )
 
     return {
         "persona": persona.name,
@@ -134,6 +150,10 @@ async def run_turn(
         "token_budget": token_budget,
         "timeout_s": timeout_s,
         "energy_receipt": energy_receipt,
+        "model_attestation": model_attestation,
+        "grounding": grounding,
+        "model_binding": binding,
         "honesty": honesty,
-        "evidence": [],
+        "evidence": (grounding.get("evidence", [])
+                     if isinstance(grounding, dict) else []),
     }

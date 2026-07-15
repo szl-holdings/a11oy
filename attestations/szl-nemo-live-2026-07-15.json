@@ -1,0 +1,51 @@
+{
+  "schema": "szl.nemo.live-attestation/v1",
+  "status": "LOCAL_LIVE_VERIFIED",
+  "observed_at": "2026-07-15T12:47:38.477505+00:00",
+  "source_revision": "1e27b7a910886a1cad931fb265321d9d2fb35153",
+  "working_tree_dirty_at_observation": true,
+  "endpoint": "http://127.0.0.1:8765/api/a11oy/v1/nemo/infer",
+  "query": "State exactly the upstream base model, the upstream producer, and whether SZL fine-tuned these weights. Use one sentence and do not speculate.",
+  "runtime": {
+    "transport": "OLLAMA_LOOPBACK",
+    "ollama_endpoint": "http://127.0.0.1:11436",
+    "state": "READY",
+    "observed_model": "szl-nemo:latest",
+    "served_model_digest": "0d7777be553e3a9000b0a6d266936184f64cef1d5e567a85b74c418cf79d8c27",
+    "upstream_model": "nemotron-3-nano:4b",
+    "upstream_registry_manifest_sha256": "6cc467f054393a55e98a74098abde0c762ffb6d1d8cd64becf30458f38886197",
+    "upstream_manifest_match": true,
+    "weights_origin": "NVIDIA",
+    "szl_fine_tuned": false,
+    "training_state": "NOT_FINE_TUNED"
+  },
+  "generation": {
+    "execution_state": "ANSWERED_UNVERIFIED",
+    "answer": "The upstream base model is NVIDIA's open Nemotron 3 Nano, produced by NVIDIA, and SZL did not fine-tune these weights.",
+    "answer_sha256": "e6657e265847329832cf83c325a2daf55ed6f6171fbbb34e7a03bdd7a87a18d4",
+    "latency_ms": 847.435,
+    "eval_count": 35,
+    "eval_duration_ns": 474549000,
+    "load_duration_ns": 244613800,
+    "quality_state": "UNVERIFIED_MODEL_OUTPUT"
+  },
+  "receipt": {
+    "signed": true,
+    "signature_verified_independently": true,
+    "payload_type": "application/vnd.szl.receipt+json",
+    "pae_sha256": "a0946e5bbcfb000adc9dee8d34ec6eb33619a6c426e24b31c26faab84675f729",
+    "declared_pae_sha256_match": true,
+    "key_scope": "PROCESS_BOOT_EPHEMERAL",
+    "key_lifetime": "UNTIL_PROCESS_RESTART",
+    "key_fingerprint_sha256": "f6d73f0c9362d8bbbab4e77293df4b10aa5986e685319de18cb6541ad1fb24c6",
+    "verification_method": "ECDSA-P256-SHA256 over reconstructed DSSE PAE using the same-origin /api/a11oy/cosign.pub key"
+  },
+  "claim_boundary": {
+    "runtime_identity_verified": true,
+    "local_generation_verified": true,
+    "szl_training_claimed": false,
+    "model_quality_claimed": false,
+    "promotion_claimed": false,
+    "note": "This receipt verifies the live runtime identity and signed response path. It does not establish fine-tuning, general quality, safety, or release readiness."
+  }
+}

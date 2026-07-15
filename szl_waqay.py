@@ -816,11 +816,11 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     n_before = len(app.router.routes)
 
     @app.get(f"/api/{ns}/v1/waqay/doctrine", include_in_schema=False)
-    async def _doctrine() -> JSONResponse:
+    async def _doctrine():  # noqa: ANN202
         return JSONResponse({"doctrine": DOCTRINE, "trust_ceiling": TRUST_CEILING})
 
     @app.get(f"/api/{ns}/v1/waqay/demo", include_in_schema=False)
-    async def _demo(req: Request) -> JSONResponse:
+    async def _demo(req: Request):  # noqa: ANN202
         try:
             bw = int(req.query_params.get("bits", "2"))
         except Exception:
@@ -829,7 +829,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse(demo(query=q, bit_width=bw if bw in (2, 4) else 2))
 
     @app.post(f"/api/{ns}/v1/waqay/search", include_in_schema=False)
-    async def _search(req: Request) -> JSONResponse:
+    async def _search(req: Request):  # noqa: ANN202
         try:
             body = await req.json()
         except Exception:
@@ -839,7 +839,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse(demo(query=q, bit_width=bw if bw in (2, 4) else 2))
 
     @app.get(f"/api/{ns}/v1/waqay/receipts", include_in_schema=False)
-    async def _receipts() -> JSONResponse:
+    async def _receipts():  # noqa: ANN202
         tail = _RECEIPTS[-20:]
         return JSONResponse({"count": len(_RECEIPTS),
                              "receipts": [{"payload": r["payload"],
@@ -847,7 +847,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
                                           for r in tail]})
 
     @app.post(f"/api/{ns}/v1/waqay/verify", include_in_schema=False)
-    async def _verify(req: Request) -> JSONResponse:
+    async def _verify(req: Request):  # noqa: ANN202
         try:
             body = await req.json()
         except Exception:
@@ -856,7 +856,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse(verify_receipt(env))
 
     @app.get("/waqay", include_in_schema=False)
-    async def _page() -> HTMLResponse:
+    async def _page():  # noqa: ANN202
         return HTMLResponse(_PAGE_HTML.replace("{NS}", ns))
 
     # Move the WAQAY routes just appended (the tail beyond n_before) to the FRONT,
