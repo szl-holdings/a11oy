@@ -252,7 +252,7 @@ function setOperationalState(stats,state,detail){
   const signalLabel = document.getElementById('signalLabel');
   document.getElementById('signalValue').textContent = String(Math.round(stats.servedThisWindow));
   if(state === 'responding'){
-    pill.textContent = 'ENDPOINT · RESPONDING'; pill.className = 'pill responding';
+    pill.textContent = 'CATALOG ENDPOINT · RESPONDING'; pill.className = 'pill responding';
     signalLabel.textContent = 'catalog pulse · not QPS';
     source.textContent = `Validated response · ${stats.source}`;
     routeMode.textContent = stats.honesty || 'Endpoint-derived catalog signal; not production traffic.';

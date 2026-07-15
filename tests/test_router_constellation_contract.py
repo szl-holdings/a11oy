@@ -39,12 +39,14 @@ def test_status_requires_validated_endpoint_data_and_never_calls_it_qps():
     assert "routes.length !== payload.routes.length" in app
     assert "router stats signal does not equal route total" in app
     assert "stats.source !== 'szl_brain.TIERS'" in app
-    assert "ENDPOINT · RESPONDING" in app
+    assert "CATALOG ENDPOINT · RESPONDING" in app
     assert "catalog pulse · not QPS" in app
     assert "MODELED decision signal" in app
     assert "response age, not model age" in app
     assert 'id="qps"' not in html
     assert "served / poll" not in html
+    assert "open LLMs" not in html
+    assert "registered models" in html
 
 
 def test_unknown_endpoint_model_is_not_mapped_to_an_unrelated_registry_node():
