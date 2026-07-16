@@ -235,7 +235,7 @@
   },
   "dsse": {
     "verifier_path": "szl_dsse.py",
-    "verifier_sha256": "513e986da67873a55849871bb6f48f7f33ebe7635f54c1351a572fd6de4368ec",
+    "verifier_sha256": "35fc29ba510abb66397f230397c5fd6a0354aa95f64f2115f82380c269423de5",
     "key_id": "szlholdings-cosign",
     "public_key_fingerprint_sha256": "d3028f8aecd0841f684e1c7fd7b06de7a211dc6fc09c34163003798b391bcf71",
     "ambient_module_allowed": false
