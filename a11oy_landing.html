@@ -11,7 +11,8 @@
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
   Receipts are signed on write, never on GET. Every claim deep-links a live surface to check.
   DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
-  preserved verbatim below. KANCHAY palette. No purple. No a11oy.net (sunset domain).
+  preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
+  canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
 <html lang="en">
@@ -20,7 +21,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>a11oy — Governed Inference · AI that signs its work and refuses to lie</title>
 <meta name="description" content="Governed Inference: AI that signs its work and refuses to lie. Every answer arrives with a signed receipt you can verify yourself — offline, in your own browser. When the model is not sure, it refuses rather than guesses. 8 Lean-proven theorems back the kernel; a 144-entry genome is graded across 4 honest tiers." />
-<link rel="icon" href="/social-preview.svg" />
+<link rel="canonical" href="https://a-11-oy.com/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://a-11-oy.com/" />
+<meta property="og:title" content="a11oy — Governed Inference" />
+<meta property="og:description" content="AI that signs its work, exposes its evidence, and refuses when it cannot support an answer." />
+<meta property="og:image" content="https://a-11-oy.com/social-preview-v5.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1280" />
+<meta property="og:image:height" content="640" />
+<meta property="og:image:alt" content="a11oy Governed Inference — evidence-labelled ecosystem and Anatomy v5" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://a-11-oy.com/social-preview-v5.png" />
+<meta name="twitter:image:alt" content="a11oy Governed Inference — evidence-labelled ecosystem and Anatomy v5" />
+<link rel="icon" type="image/svg+xml" href="/social-preview-v5.svg" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "a11oy Governed Inference",
+  "url": "https://a-11-oy.com/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web",
+  "creator": {
+    "@type": "Organization",
+    "name": "SZL Holdings",
+    "sameAs": [
+      "https://github.com/szl-holdings",
+      "https://huggingface.co/SZLHOLDINGS"
+    ]
+  }
+}
+</script>
 <style>
   /* ---- vendored fonts (0 CDN; served from /vendor/fonts/*.woff2 by serve.py) ---- */
   @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;
@@ -279,6 +311,16 @@
   .muted{color:var(--ghost)}
   .skel{color:var(--ghost);font-family:var(--mono)}
 
+  /* ecosystem atlas — public estate snapshot, never implied live until API reads */
+  .estate-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:24px 0}
+  .estate-cell{border:1px solid var(--border);border-radius:13px;padding:15px;
+    background:linear-gradient(155deg,rgba(17,30,50,.72),rgba(8,16,29,.88))}
+  .estate-cell b{display:block;color:var(--proof);font:600 1.45rem var(--mono);margin-bottom:4px}
+  .estate-cell span{color:var(--ghost);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  .estate-links{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+  @media(max-width:900px){.estate-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:520px){.estate-grid{grid-template-columns:repeat(2,1fr)}}
+
   /* ---- honesty strip (MEASURED/REPORTED/UNKNOWN/CONJECTURE) ---- */
   .honesty{border-top:1px solid var(--border);border-bottom:1px solid var(--border);
     background:linear-gradient(180deg,rgba(10,16,30,0.6),rgba(10,16,30,0.22))}
@@ -310,6 +352,7 @@
   .data-state{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;border:1px solid var(--border);
     color:var(--ghost);font:10px var(--mono);letter-spacing:.06em;white-space:nowrap}
   .data-state.live{color:var(--proof);border-color:rgba(58,244,200,.35);background:var(--proof-dim)}
+  .data-state.amber{color:var(--gold);border-color:rgba(215,185,107,.4);background:rgba(215,185,107,.08)}
   .data-state.down{color:var(--down);border-color:rgba(232,116,110,.38);background:rgba(232,116,110,.07)}
   .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
   @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
@@ -334,6 +377,8 @@
     </a>
     <nav>
       <a class="hide-sm" href="#surfaces">Surfaces</a>
+      <a class="hide-sm" href="/ecosystem">Ecosystem</a>
+      <a class="hide-sm" href="/anatomy-v5">Anatomy v5</a>
       <a class="hide-sm" href="#proof">The proof</a>
       <a class="hide-sm" href="#honesty">Honesty</a>
       <a class="hide-sm" href="/console#arena">Eval arena</a>
@@ -359,6 +404,7 @@
         sure, it returns an honest <b>BLOCKED</b> instead of a confident guess.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="/console">Open the command center →</a>
+        <a class="btn btn-lattice" href="/ecosystem">Explore the ecosystem</a>
         <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
       </div>
       <div class="hero-stats">
@@ -575,7 +621,7 @@
   <div class="body-embed" id="body-embed">
     <div class="poster" id="body-poster">
       <div class="pulse-ring" aria-hidden="true"></div>
-      <h3>The Living Brain &amp; Body</h3>
+      <h3>The Living Brain &amp; Body · Anatomy v5</h3>
       <p>Two live 3D views of the same governed organism: a <b>moldable brain</b> whose eight lobes
         are wired to live public reads (Hub assets, GitHub repos, proved theorems, organ vitals,
         the harnessed open-weights frontier) &mdash; sculpt its cortex with your pointer &mdash;
@@ -583,8 +629,35 @@
       <div class="cta-row" style="justify-content:center">
         <button class="btn btn-lattice" id="brain-load" type="button">🧠 Mold the brain in-frame</button>
         <button class="btn btn-ghost" id="body-load" type="button">Load the living body</button>
+        <a class="btn btn-primary" href="/anatomy-v5">Open the live digital twin →</a>
         <a class="btn btn-ghost" href="/living-anatomy" target="_blank" rel="noopener">Open full-screen →</a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== PUBLIC ECOSYSTEM ATLAS ====================== -->
+<section class="band" id="ecosystem">
+  <div class="wrap">
+    <p class="kick">Public estate · snapshot observed 2026-07-16</p>
+    <h2>Models, kernels, data, and Spaces — one evidence-labelled map.</h2>
+    <p class="sub" style="max-width:790px">The atlas joins Hugging Face artifacts to their GitHub producers without pretending that a reachable URL proves alignment. Counts below are the dated public inventory snapshot; the atlas API upgrades them to LIVE or CACHED when its versioned source answers.</p>
+    <div class="estate-grid" aria-label="Public ecosystem snapshot counts">
+      <div class="estate-cell"><b>15</b><span>Models</span></div>
+      <div class="estate-cell"><b>10</b><span>Governed kernels</span></div>
+      <div class="estate-cell"><b>24</b><span>Datasets</span></div>
+      <div class="estate-cell"><b>26</b><span>Spaces</span></div>
+      <div class="estate-cell"><b>22</b><span>Collections</span></div>
+      <div class="estate-cell"><b>1</b><span>Public bucket</span></div>
+    </div>
+    <div class="estate-links">
+      <a class="btn btn-primary" href="/ecosystem">Open ecosystem atlas →</a>
+      <a class="btn btn-lattice" href="/anatomy-v5">Open Anatomy v5</a>
+      <a class="btn btn-ghost" href="/models">Models</a>
+      <a class="btn btn-ghost" href="/kernels">Kernels</a>
+      <a class="btn btn-ghost" href="/ecosystem/brain">Brain</a>
+      <a class="btn btn-ghost" href="/ecosystem/holographic">Holographic</a>
+      <a class="btn btn-ghost" href="/spaces">All Spaces</a>
     </div>
   </div>
 </section>
@@ -645,6 +718,8 @@
       </div>
       <div class="lk"><strong style="color:var(--ink)">Product</strong>
         <a href="/console">Command center</a>
+        <a href="/ecosystem">Ecosystem atlas</a>
+        <a href="/anatomy-v5">Anatomy v5 · digital twin</a>
         <a href="/console#genome">Genome registry</a>
         <a href="/verify">Verify a receipt</a>
         <a href="/living-anatomy">Living anatomy · 3D</a>
@@ -829,7 +904,8 @@
   function pulseState(key, state, detail){
     const chip = $("pulse-"+key+"-state");
     const body = $("pulse-"+key+"-detail");
-    if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE" || state === "REACHABLE") ? "live" : "down"); }
+    const amberStates = new Set(["CACHED","STALE_CACHE","SNAPSHOT","MODELED","OBSERVED","AVAILABLE","DEGRADED"]);
+    if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE" || state === "REACHABLE") ? "live" : (amberStates.has(state) ? "amber" : "down")); }
     if(body) body.textContent = detail;
   }
   async function pulseJSON(url){
@@ -847,8 +923,9 @@
         .catch(() => pulseState("health", "UNAVAILABLE", "Runtime health did not answer this session.")),
       pulseJSON("/api/a11oy/v1/readiness/tab-matrix?view=summary").then(d => {
         const s = d.summary && d.summary.summary || {};
-        if(!d.available) throw new Error("matrix unavailable");
-        pulseState("contract", "REACHABLE", (s.tabs || "Published")+" tabs · "+(s.endpoints || "declared")+" endpoint contracts · SNAPSHOT.");
+        if(!d.matrix_available) throw new Error("matrix unavailable");
+        const checked = Boolean(d.probe_verdict_available);
+        pulseState("contract", checked ? "REACHABLE" : "SNAPSHOT", (s.tabs || "Published")+" tabs · "+(s.endpoints || "declared")+" endpoint contracts · "+(checked ? "deployment probe attached." : "static contract; deployment probe pending."));
       }).catch(() => pulseState("contract", "UNAVAILABLE", "Tab contract is not bundled with this deployment.")),
       pulseJSON("/api/a11oy/v1/ledger").then(d => pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source."))
         .catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),

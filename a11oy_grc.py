@@ -3,6 +3,7 @@
 """a11oy_grc.py — in-product GRC ALIGNMENT surface (Lane I5).
 
 Mounts a11oy's Governance / Compliance surface:
+  * GET /api/a11oy/v1/grc          — capability index + canonical endpoint links.
   * GET /api/a11oy/v1/grc/matrix   — honest ISO 42001 / NIST AI RMF / 800-53 / EU AI Act
                                      coverage matrix (COVERED / PARTIAL / ROADMAP / NA).
   * GET /api/a11oy/v1/grc/mapping  — 13 Λ axes → NIST AI RMF MEASURE 2 (+ Credo AI labels),
@@ -480,11 +481,16 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     def _oscal():
         return JSONResponse(_merged_oscal())     # R5: base + Restraint OSCAL reqs
 
+    def _info():
+        return JSONResponse(info(ns))
+
     for prefix in (f"/api/{ns}/v1/grc", "/v1/grc"):
+        app.add_api_route(prefix, _info, methods=["GET"])
         app.add_api_route(f"{prefix}/matrix", _matrix, methods=["GET"])
         app.add_api_route(f"{prefix}/mapping", _mapping, methods=["GET"])
         app.add_api_route(f"{prefix}/oscal", _oscal, methods=["GET"])
-        app.add_api_route(f"{prefix}/info", lambda: JSONResponse(info(ns)), methods=["GET"])
+        app.add_api_route(f"{prefix}/info", _info, methods=["GET"])
+        registered.append(f"GET {prefix}")
         registered.append(f"GET {prefix}/matrix")
 
     _html = _page_html(ns)
@@ -522,9 +528,9 @@ def _selftest() -> None:
                 '</body></html>')
 
     c = TestClient(app)
-    for ep in ["/api/a11oy/v1/grc/matrix", "/api/a11oy/v1/grc/mapping",
+    for ep in ["/api/a11oy/v1/grc", "/api/a11oy/v1/grc/matrix", "/api/a11oy/v1/grc/mapping",
                "/api/a11oy/v1/grc/oscal", "/api/a11oy/v1/grc/info",
-               "/v1/grc/matrix", "/grc", "/compliance"]:
+               "/v1/grc", "/v1/grc/matrix", "/grc", "/compliance"]:
         r = c.get(ep)
         assert r.status_code == 200, (ep, r.status_code)
     # honesty checks on the page

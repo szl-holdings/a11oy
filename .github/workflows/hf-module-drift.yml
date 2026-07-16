@@ -42,4 +42,4 @@ jobs:
       # so PR trees compare equal; see docs/DOCKERFILE_NOTES.md for the earlier
       # wave-24 lane history). Pin the immutable HF commit, never the movable
       # branch name.
-      hf-ref: ${{ github.event_name == 'pull_request' && '5cddfefb3fd01d297249fddadeaebbd68c2785c6' || 'main' }}
+      hf-ref: ${{ github.event_name == 'pull_request' && 'be00018219667ac6dfe61046c66521087357e038' || 'main' }}

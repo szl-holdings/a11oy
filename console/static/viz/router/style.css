@@ -44,6 +44,9 @@ body.scene-unavailable .fallback-kicker{color:var(--hatun-400)}
 #hud header{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;pointer-events:auto}
 .brand{font:750 13px var(--mono);letter-spacing:.16em;padding:7px 13px;border-left:3px solid var(--yuyay-400);border-radius:3px;
   background:linear-gradient(90deg,rgba(24,48,71,.96),rgba(13,31,49,.38));text-shadow:0 0 18px rgba(58,244,200,.45)}
+.global-links{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.global-links a{padding:6px 8px;border:1px solid rgba(102,149,181,.38);border-radius:7px;background:rgba(7,20,34,.78);color:var(--text-sub);font:700 9px var(--mono);text-decoration:none}
+.global-links a:hover,.global-links a:focus-visible{color:var(--yuyay-300);border-color:var(--yuyay-400)}
 .pill{font:700 10px var(--mono);letter-spacing:.04em;padding:5px 9px;border-radius:999px;border:1px solid var(--border);background:rgba(16,32,50,.93);color:var(--text-sub)}
 .pill.responding{color:#03150d;background:var(--green);border-color:#6affab;box-shadow:0 0 24px rgba(56,223,130,.25)}
 .pill.modeled{color:#241900;background:var(--hatun-400);border-color:#ffe5a4;box-shadow:0 0 24px rgba(255,211,106,.18)}
@@ -113,6 +116,7 @@ body.scene-ready .label-layer{opacity:1}
 @media(max-width:680px){
   #hud{padding:9px;gap:7px;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr auto auto}
   #hud header{gap:6px}.brand{font-size:10px;padding:6px 8px}.pill{font-size:8px;padding:4px 6px}.sov{font-size:9px}.sov small{display:none}
+  .global-links a{font-size:8px;padding:4px 5px}.global-links a:nth-child(3){display:none}
   .telemetry{width:min(190px,48vw);padding:10px;align-self:start;margin-top:8px}.panel .row b{font-size:16px}.panel .row small{font-size:8px}
   .source-state,.freshness-state{font-size:8px}.panel .legend{gap:6px;font-size:8px}
   .route-panel{width:min(210px,49vw);padding:10px;align-self:start;margin-top:8px;max-height:42vh}.route-feed{max-height:31vh}.route-feed li{padding:6px 6px 6px 10px}.route-feed strong{font-size:9px}.route-feed span{font-size:8px}

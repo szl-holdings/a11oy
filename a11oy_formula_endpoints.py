@@ -120,7 +120,13 @@ def register(app, ns: str = "a11oy") -> str:
 
     @app.get(f"/api/{ns}/v1/formulas/index")
     async def _formulas_index():
-        return JSONResponse({"wired": _INDEX, "count": len(_INDEX), "doctrine": "v11"})
+        return JSONResponse({
+            "state": "AVAILABLE",
+            "wired": _INDEX,
+            "count": len(_INDEX),
+            "doctrine": "v11",
+            "honesty": "Static runtime registry availability; not a live execution signal.",
+        })
 
     @app.get(f"/api/{ns}/v1/formulas/verify")
     async def _formulas_verify():

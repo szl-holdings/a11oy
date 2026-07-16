@@ -38,15 +38,18 @@ client = TestClient(serve.app)
 
 
 # ---------------------------------------------------------------------------
-# FIX 1 — /v1/router/stats is live, real, and scene-compatible
+# FIX 1 — /v1/router/stats is explicit about catalog evidence and modeled load
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("path", ["/v1/router/stats", "/api/a11oy/v1/router/stats"])
-def test_router_stats_is_live_200(path):
+def test_router_stats_is_available_and_honestly_modeled(path):
     r = client.get(path)
-    assert r.status_code == 200, f"{path} must be live (was {r.status_code})"
+    assert r.status_code == 200, f"{path} must be available (was {r.status_code})"
     j = r.json()
-    assert j["mode"] == "live"
+    assert j["state"] == "MODELED"
+    assert j["mode"] == "modeled"
+    assert j["throughput_state"] == "MODELED"
+    assert j["catalog_state"] in {"LIVE", "FALLBACK"}
     assert isinstance(j["routes"], list) and len(j["routes"]) >= 5
 
 
@@ -74,6 +77,7 @@ def test_router_stats_derives_from_real_brain_catalog():
     real_ids = {t["id"] for t in szl_brain.TIERS}
     j = client.get("/v1/router/stats").json()
     assert j["source"] == "szl_brain.TIERS"
+    assert j["catalog_state"] == "LIVE"
     served_models = {route["model"] for route in j["routes"]}
     assert served_models <= real_ids, (
         f"router/stats served models not in real catalog: {served_models - real_ids}"
