@@ -1802,17 +1802,18 @@ except Exception as _szl_rs_e:  # pragma: no cover
 
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
-# eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
+# eigenvalue clipping; PURE-STDLIB CPU reference today, distinct cuML GPU path ROADMAP), L2 TDA-
 # Fracture (correlation→distance d=√(2(1−ρ)), Betti β0/β1 at a COMMON fixed filtration
 # radius, fracture f_t=|Δβ0|+|Δβ1|, anomaly |z|>2.5; giotto-tda on GPU else stdlib union-
-# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). EVERY
-# result is a DSSE-SIGNED receipt (REAL ECDSA in-Space, honest UNSIGNED marker locally).
+# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). Each
+# result carries a DSSE envelope: REAL ECDSA only when the runtime key is present,
+# otherwise an explicit UNSIGNED marker. Read-only claim routes never sign.
 # HONEST LABELS: SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED — NEVER live-trading,
 # NEVER a backtest not run. Adds /quant tab + /api/a11oy/v1/quant/{pca,tda,kelly,pipeline,
 # tiers,verify-claims}. tiers reuses Dev C szl_energy_sovereign.energy_fields_for_receipt()
 # and sovereign:true ONLY on a live gpu_reachable probe. Additive, try/except-guarded,
 # before the SPA catch-all. Cites Ledoit-Wolf, Laloux/Bouchaud/Potters, Gidea-Katz
-# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, Brodetsky.
+# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, and Ripser++.
 try:
     import szl_gpu_quant as _szl_gpu_quant
     _szl_gpu_quant.register(app, ns="a11oy")

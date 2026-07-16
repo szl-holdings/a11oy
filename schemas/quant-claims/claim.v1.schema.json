@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/quant-claims/claim.v1.schema.json",
+  "title": "SZL Quant External Claim Resolution v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_id",
+    "claim",
+    "external_report",
+    "protocol",
+    "required_hardware_class",
+    "measurement_receipt_id",
+    "blocked_by",
+    "szl_label",
+    "szl_measured",
+    "measurement_gate"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.quant.claim/v1"},
+    "claim_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+    "claim": {"type": "string", "minLength": 1, "maxLength": 240},
+    "external_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "units", "scope", "source"],
+      "properties": {
+        "value": {"type": "string", "minLength": 1, "maxLength": 120},
+        "units": {"type": "string", "minLength": 1, "maxLength": 80},
+        "scope": {"type": "string", "minLength": 1, "maxLength": 500},
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["organization", "title", "url", "kind"],
+          "properties": {
+            "organization": {"type": "string", "minLength": 1, "maxLength": 120},
+            "title": {"type": "string", "minLength": 1, "maxLength": 240},
+            "url": {"type": "string", "pattern": "^https://"},
+            "kind": {
+              "enum": ["OFFICIAL_VENDOR_REPORT", "OFFICIAL_RESEARCH", "OFFICIAL_DOCS", "OFFICIAL_MODEL_CARD", "ACADEMIC_PAPER"]
+            }
+          }
+        }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "metric", "unit", "description", "requires_energy"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+        "metric": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,95}$"},
+        "unit": {"type": "string", "minLength": 1, "maxLength": 80},
+        "description": {"type": "string", "minLength": 1, "maxLength": 500},
+        "requires_energy": {"type": "boolean"}
+      }
+    },
+    "required_hardware_class": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,95}$"},
+    "measurement_receipt_id": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      ]
+    },
+    "blocked_by": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1, "maxLength": 240},
+      "uniqueItems": true
+    },
+    "szl_label": {"enum": ["ROADMAP", "MEASURED", "UNVERIFIED", "CONFLICT"]},
+    "szl_measured": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric", "value", "unit", "estimator", "confidence_interval", "summary_tolerance"],
+          "properties": {
+            "metric": {"type": "string"},
+            "value": {"type": "number"},
+            "unit": {"type": "string"},
+            "estimator": {"enum": ["mean", "median"]},
+            "summary_tolerance": {"type": "number", "minimum": 0},
+            "confidence_interval": {
+              "oneOf": [
+                {"type": "null"},
+                {
+                  "type": "array",
+                  "prefixItems": [{"type": "number"}, {"type": "number"}],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "measurement_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["promoted", "reason", "receipt_id"],
+      "properties": {
+        "promoted": {"type": "boolean"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 240},
+        "receipt_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          ]
+        }
+      }
+    }
+  }
+}
