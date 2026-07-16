@@ -38,8 +38,8 @@ jobs:
       # requests compare the exact proposed source with the exact reconciled
       # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      # Space main after the wave-24 model-lane sync (hf-sync + hourly backend
-      # mirror both converged on the shrunk post-outage Dockerfile -- see
-      # docs/DOCKERFILE_NOTES.md). Pin the immutable HF commit, never the
-      # movable branch name.
-      hf-ref: ${{ github.event_name == 'pull_request' && '39600350db126849605254ccc3869e4c2a7614d6' || 'main' }}
+      # Space main after the holographic dedupe push (fix applied Space-first
+      # so PR trees compare equal; see docs/DOCKERFILE_NOTES.md for the earlier
+      # wave-24 lane history). Pin the immutable HF commit, never the movable
+      # branch name.
+      hf-ref: ${{ github.event_name == 'pull_request' && '5cddfefb3fd01d297249fddadeaebbd68c2785c6' || 'main' }}
