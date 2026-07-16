@@ -157,7 +157,7 @@ export interface KhipuDemo {
   readonly error?: string;
 }
 
-/** The 5 operator-console routes, derived from the mined a11oy MCP route surface. */
+/** The 6 operator-console routes, derived from the mined a11oy MCP route surface. */
 export const CONSOLE_ROUTES = [
   { path: "/", label: "Health", source: "GET /healthz + GET /readyz" },
   { path: "/ledger", label: "Proof Ledger", source: "GET /v1/ledger" },
