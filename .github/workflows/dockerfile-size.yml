@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11
+#
+# Hugging Face hard-kills Space builds whose Dockerfile exceeds 128 KiB
+# (131072 bytes): the build job exits 255 BEFORE emitting any log line, so the
+# failure is silent and undebuggable from the Space UI. Empirically isolated
+# and reproduced on probe Spaces on 2026-07-16 (129,979 B builds fine;
+# 132,979 B dies pre-log). Full incident rationale: docs/DOCKERFILE_NOTES.md.
+#
+# Budget is 124 KiB to leave growth headroom before the hard limit.
+name: dockerfile-size-guard
+on:
+  push:
+    branches: [main]
+    paths: ['Dockerfile', '.github/workflows/dockerfile-size.yml']
+  pull_request:
+    paths: ['Dockerfile', '.github/workflows/dockerfile-size.yml']
+permissions:
+  contents: read
+jobs:
+  dockerfile-size:
+    name: Dockerfile under HF 128KiB build limit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v5.0.1
+      - name: Enforce 124 KiB budget (hard HF limit is 128 KiB)
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          size = os.path.getsize("Dockerfile")
+          budget, hard = 126976, 131072
+          print(f"Dockerfile: {size} bytes (budget {budget}, HF hard limit {hard})")
+          if size > budget:
+              print("::error file=Dockerfile::Dockerfile exceeds the 124KiB budget. "
+                    "Above 128KiB Hugging Face kills Space builds pre-log (exit 255, empty build log). "
+                    "Condense comments into docs/DOCKERFILE_NOTES.md instead.")
+              sys.exit(1)
+          PY
