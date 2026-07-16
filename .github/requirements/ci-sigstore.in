@@ -1,2 +1,2 @@
 sigstore>=2.0.0
-pytest
+pytest==9.0.3
