@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import gc
 import hashlib
 import importlib
@@ -85,6 +85,141 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def host_memory_sample() -> dict[str, Any]:
+    """Read Linux MemAvailable and process RSS/high-water marks.
+
+    The governed execution lane is Linux/WSL2.  A missing procfs entry is
+    reported as UNKNOWN rather than inferred or converted into a pass.
+    """
+
+    status_path = Path("/proc/self/status")
+    meminfo_path = Path("/proc/meminfo")
+    if not status_path.is_file() or not meminfo_path.is_file():
+        return {"state": "UNKNOWN_PROCFS_UNAVAILABLE"}
+    wanted = {"VmRSS": "rss_bytes", "VmHWM": "peak_rss_bytes"}
+    observed: dict[str, Any] = {
+        "state": "MEASURED_PROCFS",
+        "measured_at_unix_ns": time.time_ns(),
+    }
+    try:
+        for line in status_path.read_text(encoding="utf-8").splitlines():
+            key, separator, value = line.partition(":")
+            if separator and key in wanted:
+                fields = value.strip().split()
+                if len(fields) == 2 and fields[1] == "kB":
+                    observed[wanted[key]] = int(fields[0]) * 1024
+        for line in meminfo_path.read_text(encoding="utf-8").splitlines():
+            key, separator, value = line.partition(":")
+            if separator and key == "MemAvailable":
+                fields = value.strip().split()
+                if len(fields) == 2 and fields[1] == "kB":
+                    observed["mem_available_bytes"] = int(fields[0]) * 1024
+                break
+    except (OSError, ValueError):
+        return {"state": "UNKNOWN_PROCFS_READ_FAILED"}
+    if any(
+        field not in observed
+        for field in ("rss_bytes", "peak_rss_bytes", "mem_available_bytes")
+    ):
+        return {"state": "UNKNOWN_PROCFS_FIELDS_MISSING"}
+    return observed
+
+
+def evaluate_host_ram_sample(
+    sample: dict[str, Any], policy: dict[str, Any], baseline: dict[str, Any]
+) -> dict[str, Any]:
+    """Evaluate one procfs sample so bounds are enforced during execution."""
+
+    if policy.get("unknown_measurement_action") != "REFUSE_CALIBRATION":
+        raise GateRefused("activation-offload host-RAM UNKNOWN policy is not fail closed")
+    if (
+        sample.get("state") != "MEASURED_PROCFS"
+        or baseline.get("state") != "MEASURED_PROCFS"
+    ):
+        raise GateRefused("activation-offload host-RAM evidence is UNKNOWN")
+    bytes_per_mib = 1024 * 1024
+    minimum_available = int(policy["minimum_mem_available_mib"]) * bytes_per_mib
+    maximum_rss = int(policy["maximum_process_rss_mib"]) * bytes_per_mib
+    maximum_delta = int(policy["maximum_process_rss_delta_mib"]) * bytes_per_mib
+    if minimum_available <= 0 or maximum_rss <= 0 or maximum_delta <= 0:
+        raise GateRefused("activation-offload host-RAM thresholds are invalid")
+    baseline_rss = int(baseline["rss_bytes"])
+    baseline_peak_rss = int(baseline["peak_rss_bytes"])
+    rss = int(sample["rss_bytes"])
+    peak_rss = int(sample["peak_rss_bytes"])
+    mem_available = int(sample["mem_available_bytes"])
+    rss_delta = max(0, rss - baseline_rss)
+    peak_rss_delta = max(0, peak_rss - baseline_peak_rss)
+    violations: list[str] = []
+    if mem_available < minimum_available:
+        violations.append("MEM_AVAILABLE_BELOW_FLOOR")
+    if rss > maximum_rss or peak_rss > maximum_rss:
+        violations.append("PROCESS_RSS_ABOVE_CEILING")
+    if rss_delta > maximum_delta or peak_rss_delta > maximum_delta:
+        violations.append("PROCESS_RSS_DELTA_ABOVE_CEILING")
+    assessment = {
+        "stage": sample.get("stage"),
+        "mem_available_mib": mem_available // bytes_per_mib,
+        "rss_mib": rss // bytes_per_mib,
+        "peak_rss_mib": peak_rss // bytes_per_mib,
+        "rss_delta_mib": rss_delta // bytes_per_mib,
+        "peak_rss_delta_mib": peak_rss_delta // bytes_per_mib,
+        "state": "PASS" if not violations else "FAIL",
+        "violations": violations,
+    }
+    if violations:
+        raise GateRefused(
+            "activation-offload host-RAM threshold failed at "
+            f"{sample.get('stage')}: " + ", ".join(violations)
+        )
+    return assessment
+
+
+def append_governed_host_memory_sample(
+    samples: list[dict[str, Any]], stage: str, policy: dict[str, Any]
+) -> dict[str, Any]:
+    """Append and immediately enforce a host-RAM sample."""
+
+    sample = {"stage": stage, **host_memory_sample()}
+    samples.append(sample)
+    baseline = samples[0]
+    evaluation = evaluate_host_ram_sample(sample, policy, baseline)
+    sample["admission"] = evaluation
+    return sample
+
+
+def evaluate_host_ram_admission(
+    samples: list[dict[str, Any]], policy: dict[str, Any]
+) -> dict[str, Any]:
+    """Require every declared host-RAM phase before calibration can pass."""
+
+    required_stages = policy.get("required_sample_stages")
+    if not isinstance(required_stages, list) or not all(
+        isinstance(stage, str) and stage for stage in required_stages
+    ):
+        raise GateRefused("activation-offload host-RAM stages are malformed")
+    observed_by_stage = {
+        sample.get("stage"): sample
+        for sample in samples
+        if isinstance(sample, dict) and isinstance(sample.get("stage"), str)
+    }
+    if any(stage not in observed_by_stage for stage in required_stages):
+        raise GateRefused("activation-offload host-RAM evidence is missing a required stage")
+    baseline = observed_by_stage["before_model_load"]
+    evaluations = [
+        evaluate_host_ram_sample(observed_by_stage[stage], policy, baseline)
+        for stage in required_stages
+    ]
+    return {
+        "state": "PASS",
+        "measurement_source": policy.get("measurement_source"),
+        "policy": policy,
+        "samples": evaluations,
+        "violations": [],
+        "training_authority": False,
+    }
 
 
 def _pinned_dsse_identity(contract: dict[str, Any]) -> dict[str, str]:
@@ -505,6 +640,122 @@ def sample_gpu(policy: dict[str, Any], count: int, interval: int) -> list[dict[s
     return samples
 
 
+def physical_gpu_phase_sample(stage: str) -> dict[str, Any]:
+    """Sample physical free VRAM without turning UNKNOWN into a failure claim."""
+
+    try:
+        return {
+            "stage": stage,
+            "state": "MEASURED_NVIDIA_SMI",
+            **query_gpu(),
+        }
+    except Exception as exc:
+        return {
+            "stage": stage,
+            "state": "UNKNOWN_GPU_QUERY_FAILED",
+            "error_type": type(exc).__name__,
+        }
+
+
+def evaluate_activation_offload_adoption(
+    samples: list[dict[str, Any]],
+    requirements: dict[str, Any],
+    sequence_tokens: int,
+    loss_is_finite: bool,
+    adapter_gradients_are_finite: bool,
+) -> dict[str, Any]:
+    """Assess empirical adoption evidence without granting training authority.
+
+    A failed empirical predicate does not erase a valid calibration result.  A
+    passing predicate remains NOT_EVALUATED for profile adoption while the
+    contract's independent review is outstanding.
+    """
+
+    required_phases = requirements.get("required_vram_headroom_phases")
+    if not isinstance(required_phases, list) or not all(
+        isinstance(stage, str) and stage for stage in required_phases
+    ):
+        raise GateRefused("activation-offload VRAM adoption phases are malformed")
+    observed_by_stage = {
+        sample.get("stage"): sample
+        for sample in samples
+        if isinstance(sample, dict) and isinstance(sample.get("stage"), str)
+    }
+    missing = [stage for stage in required_phases if stage not in observed_by_stage]
+    unknown = [
+        stage
+        for stage in required_phases
+        if stage in observed_by_stage
+        and observed_by_stage[stage].get("state") != "MEASURED_NVIDIA_SMI"
+    ]
+    minimum_required = int(requirements["minimum_measured_vram_headroom_mib"])
+    if minimum_required <= 0:
+        raise GateRefused("activation-offload VRAM adoption threshold is invalid")
+
+    predicate: dict[str, Any] = {
+        "state": "NOT_EVALUATED",
+        "measurement_source": requirements.get("vram_measurement_source"),
+        "minimum_required_free_memory_mib": minimum_required,
+        "required_phases": required_phases,
+        "missing_phases": missing,
+        "unknown_phases": unknown,
+        "minimum_observed_free_memory_mib": None,
+        "sequence_tokens": sequence_tokens,
+        "loss_is_finite": loss_is_finite,
+        "adapter_gradients_are_finite": adapter_gradients_are_finite,
+    }
+    if not missing and not unknown:
+        phase_samples = [observed_by_stage[stage] for stage in required_phases]
+        required_gpu = load_object(CONTRACT_PATH)["runtime"]["required_device_name"]
+        identity_matches = all(
+            sample.get("gpu_name") == required_gpu for sample in phase_samples
+        )
+        minimum_observed = min(
+            int(sample["memory_free_mib"]) for sample in phase_samples
+        )
+        predicate.update(
+            {
+                "minimum_observed_free_memory_mib": minimum_observed,
+                "gpu_identity_matches": identity_matches,
+            }
+        )
+        predicate["state"] = (
+            "PASS"
+            if identity_matches
+            and minimum_observed >= minimum_required
+            and sequence_tokens == 768
+            and loss_is_finite
+            and adapter_gradients_are_finite
+            else "FAIL"
+        )
+
+    independent_review_required = requirements.get("independent_review_required") is True
+    if predicate["state"] == "FAIL":
+        adoption_state = "FAIL"
+        reason = "EMPIRICAL_ADOPTION_PREDICATE_FAILED"
+    elif predicate["state"] == "NOT_EVALUATED":
+        adoption_state = "NOT_EVALUATED"
+        reason = "PHYSICAL_VRAM_EVIDENCE_INCOMPLETE_OR_UNKNOWN"
+    elif independent_review_required:
+        adoption_state = "NOT_EVALUATED"
+        reason = "EMPIRICAL_PREDICATE_PASSED_INDEPENDENT_REVIEW_REQUIRED"
+    else:
+        adoption_state = "PASS"
+        reason = "ALL_DECLARED_ADOPTION_REQUIREMENTS_SATISFIED"
+    return {
+        "state": adoption_state,
+        "reason": reason,
+        "empirical_predicate": predicate,
+        "independent_review": {
+            "required": independent_review_required,
+            "state": "NOT_EVALUATED" if independent_review_required else "NOT_REQUIRED",
+        },
+        "training_authority": False,
+        "queue_progression_allowed": False,
+        "canonical_gpu_threshold_changed": False,
+    }
+
+
 def verify_runtime(torch_module: Any) -> dict[str, Any]:
     contract = load_object(CONTRACT_PATH)
     runtime = contract["runtime"]
@@ -910,23 +1161,38 @@ def preflight(
     snapshot: Path | None,
     check_gpu: bool = False,
     probe: bool = False,
+    gpu_profile_key: str = "canonical_capacity",
     gpu_policy: dict[str, Any] | None = None,
-    gpu_check_id: str = "GPU_ADMISSION",
+    gpu_check_id: str | None = None,
 ) -> dict[str, Any]:
     contract = load_object(CONTRACT_PATH)
-    effective_gpu_policy = gpu_policy or contract["gpu_admission"]
+    declared_gpu_profiles = {
+        "canonical_capacity": (contract["gpu_admission"], "GPU_ADMISSION"),
+        "low_vram_calibration": (
+            contract["low_vram_calibration"]["gpu_admission"],
+            "GPU_LOW_VRAM_CALIBRATION_ATTEMPT_FLOOR",
+        ),
+        "activation_offload_calibration": (
+            contract["activation_offload_calibration"]["gpu_admission"],
+            "GPU_ACTIVATION_OFFLOAD_CALIBRATION_ATTEMPT_FLOOR",
+        ),
+    }
+    selected = declared_gpu_profiles.get(gpu_profile_key)
+    if selected is None:
+        return _preflight_receipt(
+            contract,
+            "BLOCKED",
+            [{"id": "REFUSAL", "state": "BLOCKED", "reason": "unknown GPU profile key"}],
+        )
+    declared_gpu_policy, declared_gpu_check_id = selected
+    effective_gpu_policy = declared_gpu_policy if gpu_policy is None else gpu_policy
+    effective_gpu_check_id = declared_gpu_check_id if gpu_check_id is None else gpu_check_id
     checks: list[dict[str, Any]] = []
     try:
-        if check_gpu or gpu_policy is not None or gpu_check_id != "GPU_ADMISSION":
-            calibration_policy = contract["low_vram_calibration"]["gpu_admission"]
-            if effective_gpu_policy == contract["gpu_admission"]:
-                if gpu_check_id != "GPU_ADMISSION":
-                    raise GateRefused("canonical GPU policy must retain its canonical check identity")
-            elif effective_gpu_policy == calibration_policy:
-                if gpu_check_id != "GPU_LOW_VRAM_CALIBRATION_ATTEMPT_FLOOR":
-                    raise GateRefused("calibration GPU policy must retain its non-training check identity")
-            else:
-                raise GateRefused("GPU policy override is not a contract-declared profile")
+        if effective_gpu_policy != declared_gpu_policy:
+            raise GateRefused("GPU policy override is not the selected contract-declared profile")
+        if effective_gpu_check_id != declared_gpu_check_id:
+            raise GateRefused("GPU policy must retain its selected profile check identity")
         _validate_contract_assets(contract); checks.append({"id": "PINNED_CONTRACT_ASSETS", "state": "PASS"})
         manifest = validate_curriculum(); checks.append({"id": "PROJECT_AUTHORED_CURRICULUM", "state": "PASS", "train_rows": manifest["train"]["rows"], "eval_rows": manifest["eval"]["rows"]})
         if snapshot is None:
@@ -946,10 +1212,10 @@ def preflight(
             policy = effective_gpu_policy
             count = policy["probe_samples"] if probe else policy["training_soak_samples"]
             samples = sample_gpu(policy, count, policy["sample_interval_seconds"])
-            checks.append({"id": gpu_check_id, "state": "PASS", "policy": policy, "samples": samples})
+            checks.append({"id": effective_gpu_check_id, "state": "PASS", "policy": policy, "samples": samples})
         return _preflight_receipt(contract, "PASS", checks)
     except GPUAdmissionRefused as exc:
-        checks.append({"id": gpu_check_id, "state": "BLOCKED", "reason": str(exc), "policy": effective_gpu_policy, "samples": exc.samples})
+        checks.append({"id": effective_gpu_check_id, "state": "BLOCKED", "reason": str(exc), "policy": effective_gpu_policy, "samples": exc.samples})
     except Exception as exc:
         checks.append({"id": "REFUSAL", "state": "BLOCKED", "reason": str(exc)})
     return _preflight_receipt(contract, "BLOCKED", checks)
@@ -1006,7 +1272,7 @@ def capacity_probe(
     confirmation: str,
     license_acknowledgement: str,
     module_cache_receipt: dict[str, Any] | None = None,
-    calibration: bool = False,
+    probe_kind: str = "canonical_capacity",
 ) -> int:
     """Prove this exact GPU can execute one bounded in-memory QLoRA step.
 
@@ -1019,39 +1285,61 @@ def capacity_probe(
 
     contract = load_object(CONTRACT_PATH)
     settings = contract["training"]
-    calibration_profile = contract["low_vram_calibration"] if calibration else None
+    if probe_kind not in {
+        "canonical_capacity",
+        "low_vram_calibration",
+        "activation_offload_calibration",
+    }:
+        raise GateRefused("unknown capacity probe kind")
+    calibration = probe_kind != "canonical_capacity"
+    activation_offload = probe_kind == "activation_offload_calibration"
+    calibration_profile = contract.get(probe_kind) if calibration else None
+    host_ram_policy = (
+        calibration_profile.get("host_ram_admission")
+        if activation_offload and calibration_profile is not None
+        else None
+    )
+    if activation_offload and not isinstance(host_ram_policy, dict):
+        raise GateRefused("activation-offload host-RAM policy is absent")
     expected_confirmation = (
         calibration_profile["confirmation_phrase"]
         if calibration_profile is not None
         else settings["confirmation_phrase"]
     )
     if confirmation != expected_confirmation:
-        qualifier = "low-VRAM calibration" if calibration else "capacity-probe"
+        qualifier = (
+            "activation-offload calibration"
+            if activation_offload
+            else "low-VRAM calibration"
+            if calibration
+            else "capacity-probe"
+        )
         raise GateRefused(f"exact {qualifier} confirmation is required")
     if license_acknowledgement != contract["base"]["license_acknowledgement"]:
         raise GateRefused("exact NVIDIA license acknowledgement is required")
     schema_version = (
         calibration_profile["receipt_schema_version"]
         if calibration_profile is not None
-        else "szl.nemo.capacity-probe-receipt.v1"
+        else settings["capacity_probe_receipt_schema_version"]
     )
+    state_prefix = "ACTIVATION_OFFLOAD_" if activation_offload else ""
     running_state = (
-        "RUNNING_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        f"RUNNING_{state_prefix}CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
         if calibration
         else "RUNNING_NOT_TRAINED_NOT_PROMOTED"
     )
     blocked_state = (
-        "BLOCKED_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        f"BLOCKED_{state_prefix}CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
         if calibration
         else "BLOCKED_NOT_TRAINED_NOT_PROMOTED"
     )
     pass_state = (
-        "PASS_CALIBRATION_ONLY_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        f"PASS_{state_prefix}CALIBRATION_ONLY_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
         if calibration
         else "PASS_CAPACITY_ONLY_NOT_TRAINED_NOT_PROMOTED"
     )
     failed_state = (
-        "FAILED_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        f"FAILED_{state_prefix}CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
         if calibration
         else "FAILED_NOT_TRAINED_NOT_PROMOTED"
     )
@@ -1079,6 +1367,35 @@ def capacity_probe(
         "base_revision": contract["base"]["revision"],
         "dynamic_module_cache": module_cache_receipt,
         "training_started": False,
+        "activation_offload": {
+            "enabled": activation_offload,
+            "mechanism": (
+                calibration_profile.get("mechanism")
+                if activation_offload and calibration_profile is not None
+                else None
+            ),
+            "pin_memory": (
+                calibration_profile.get("pin_memory")
+                if activation_offload and calibration_profile is not None
+                else None
+            ),
+            "saved_tensor_transfer_bytes": {
+                "state": "UNKNOWN_NO_STABLE_PUBLIC_COUNTER"
+            },
+            "claim_scope": (
+                "API_ACTIVE_PLUS_EMPIRICAL_PEAK_ONLY" if activation_offload else None
+            ),
+            "parameter_offload": False,
+            "optimizer_offload": False,
+            "training_admission_effect": "NONE" if activation_offload else None,
+        },
+        "adoption_assessment": {
+            "state": "NOT_EVALUATED",
+            "reason": "CALIBRATION_NOT_COMPLETED",
+            "training_authority": False,
+            "queue_progression_allowed": False,
+            "canonical_gpu_threshold_changed": False,
+        },
         "effects": {
             "training_run_started": False,
             "capacity_optimization_step_started": False,
@@ -1090,6 +1407,7 @@ def capacity_probe(
             "promoted": False,
             "training_authorized": False,
             "queue_progression_allowed": not calibration,
+            "canonical_capacity_satisfied": False,
             "canonical_threshold_changed": False,
         },
     }
@@ -1104,24 +1422,16 @@ def capacity_probe(
     output: Any = None
     trainable: list[Any] | None = None
     micro_step_memory: list[dict[str, Any]] = []
+    host_memory_samples: list[dict[str, Any]] = []
+    physical_gpu_phase_samples: list[dict[str, Any]] = []
 
     try:
         source_control = git_identity(contract)
-        probe_policy = (
-            calibration_profile["gpu_admission"]
-            if calibration_profile is not None
-            else contract["gpu_admission"]
-        )
         admission = preflight(
             snapshot,
             check_gpu=True,
             probe=True,
-            gpu_policy=probe_policy,
-            gpu_check_id=(
-                "GPU_LOW_VRAM_CALIBRATION_ATTEMPT_FLOOR"
-                if calibration
-                else "GPU_ADMISSION"
-            ),
+            gpu_profile_key=probe_kind,
         )
         receipt["preflight"] = admission
         if admission["state"] != "PASS":
@@ -1179,6 +1489,13 @@ def capacity_probe(
                 bnb_4bit_compute_dtype=compute_dtype,
             )
             torch.cuda.reset_peak_memory_stats()
+            if activation_offload:
+                append_governed_host_memory_sample(
+                    host_memory_samples, "before_model_load", host_ram_policy
+                )
+                physical_gpu_phase_samples.append(
+                    physical_gpu_phase_sample("before_model_load")
+                )
             guard.check("capacity-before-model-load")
             load_started = time.monotonic_ns()
             tokenizer = AutoTokenizer.from_pretrained(
@@ -1201,6 +1518,14 @@ def capacity_probe(
             receipt["loaded_model_class"] = verify_loaded_model_source(
                 model, contract, "capacity"
             )
+            if activation_offload:
+                torch.cuda.synchronize()
+                append_governed_host_memory_sample(
+                    host_memory_samples, "after_model_load", host_ram_policy
+                )
+                physical_gpu_phase_samples.append(
+                    physical_gpu_phase_sample("after_model_load")
+                )
             model.config.use_cache = False
             model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
             lora = LoraConfig(
@@ -1240,8 +1565,18 @@ def capacity_probe(
             model.train()
             optimizer = PagedAdamW8bit(trainable, lr=float(settings["learning_rate"]))
             optimizer.zero_grad(set_to_none=True)
+            if activation_offload:
+                append_governed_host_memory_sample(
+                    host_memory_samples, "before_forward", host_ram_policy
+                )
+                physical_gpu_phase_samples.append(
+                    physical_gpu_phase_sample("before_forward")
+                )
             guard.check("capacity-before-forward")
             receipt["effects"]["capacity_optimization_step_started"] = True
+            receipt["activation_offload"]["context_entered"] = False
+            receipt["activation_offload"]["context_exited"] = False
+            receipt["activation_offload"]["backward_completed_inside_context"] = False
             atomic_json(receipt_path, receipt)
             step_started = time.monotonic_ns()
             accumulation = int(
@@ -1253,12 +1588,55 @@ def capacity_probe(
             micro_step_memory = []
             for micro_step in range(accumulation):
                 guard.check(f"capacity-micro-step-{micro_step}")
-                output = model(**encoded, labels=labels)
-                loss = float(output.loss.detach().cpu())
-                if not math.isfinite(loss):
-                    raise GateRefused("capacity probe loss is not finite")
-                losses.append(loss)
-                (output.loss / accumulation).backward()
+                if activation_offload:
+                    graph = getattr(torch.autograd, "graph", None)
+                    save_on_cpu = getattr(graph, "save_on_cpu", None)
+                    if not callable(save_on_cpu):
+                        raise GateRefused("pinned torch runtime lacks save_on_cpu")
+                    if calibration_profile.get("pin_memory") is not False:
+                        raise GateRefused("activation-offload profile must keep pin_memory false")
+                    offload_context = save_on_cpu(pin_memory=False, device_type="cuda")
+                else:
+                    offload_context = nullcontext()
+                with offload_context:
+                    if activation_offload:
+                        receipt["activation_offload"]["context_entered"] = True
+                    output = model(**encoded, labels=labels)
+                    loss = float(output.loss.detach().cpu())
+                    if not math.isfinite(loss):
+                        raise GateRefused("capacity probe loss is not finite")
+                    losses.append(loss)
+                    backward_hook = None
+                    if activation_offload:
+                        def sample_during_backward(gradient: Any) -> Any:
+                            append_governed_host_memory_sample(
+                                host_memory_samples,
+                                f"during_backward_{micro_step + 1}",
+                                host_ram_policy,
+                            )
+                            return gradient
+
+                        backward_hook = output.loss.register_hook(sample_during_backward)
+                    try:
+                        (output.loss / accumulation).backward()
+                    finally:
+                        if backward_hook is not None:
+                            backward_hook.remove()
+                    if activation_offload:
+                        receipt["activation_offload"][
+                            "backward_completed_inside_context"
+                        ] = True
+                if activation_offload:
+                    receipt["activation_offload"]["context_exited"] = True
+                    torch.cuda.synchronize()
+                    append_governed_host_memory_sample(
+                        host_memory_samples,
+                        f"after_backward_{micro_step + 1}",
+                        host_ram_policy,
+                    )
+                    physical_gpu_phase_samples.append(
+                        physical_gpu_phase_sample(f"after_backward_{micro_step + 1}")
+                    )
                 micro_step_memory.append(
                     {
                         "micro_step": micro_step + 1,
@@ -1267,10 +1645,68 @@ def capacity_probe(
                     }
                 )
                 del output
+            trainable_gradient_tensors = 0
+            finite_gradient_tensors = 0
+            frozen_parameters_with_gradients = 0
+            gradient_l2_squared = 0.0
+            for parameter in model.parameters():
+                if parameter.requires_grad:
+                    if parameter.grad is None:
+                        continue
+                    trainable_gradient_tensors += 1
+                    if bool(torch.isfinite(parameter.grad).all().item()):
+                        finite_gradient_tensors += 1
+                    gradient_l2_squared += float(
+                        parameter.grad.detach().float().pow(2).sum().cpu()
+                    )
+                elif parameter.grad is not None:
+                    frozen_parameters_with_gradients += 1
+            gradient_receipt = {
+                "trainable_gradient_tensors": trainable_gradient_tensors,
+                "finite_gradient_tensors": finite_gradient_tensors,
+                "all_trainable_gradients_finite": (
+                    trainable_gradient_tensors > 0
+                    and finite_gradient_tensors == trainable_gradient_tensors
+                ),
+                "frozen_parameters_with_gradients": frozen_parameters_with_gradients,
+                "l2_norm": math.sqrt(gradient_l2_squared),
+            }
+            if not gradient_receipt["all_trainable_gradients_finite"]:
+                raise GateRefused("capacity probe adapter gradients are absent or non-finite")
+            if frozen_parameters_with_gradients:
+                raise GateRefused("capacity probe produced gradients on frozen parameters")
             optimizer.step()
             torch.cuda.synchronize()
+            if activation_offload:
+                append_governed_host_memory_sample(
+                    host_memory_samples, "after_optimizer", host_ram_policy
+                )
+                physical_gpu_phase_samples.append(
+                    physical_gpu_phase_sample("after_optimizer")
+                )
+                receipt["activation_offload"]["host_ram_admission"] = (
+                    evaluate_host_ram_admission(host_memory_samples, host_ram_policy)
+                )
+            if activation_offload and not all(
+                receipt["activation_offload"].get(field) is True
+                for field in (
+                    "context_entered",
+                    "context_exited",
+                    "backward_completed_inside_context",
+                )
+            ):
+                raise GateRefused("activation-offload context evidence is incomplete")
             guard.check("capacity-after-optimizer-step")
             receipt["effects"]["capacity_optimization_step_completed"] = True
+            receipt["effects"]["canonical_capacity_satisfied"] = not calibration
+            if activation_offload:
+                receipt["adoption_assessment"] = evaluate_activation_offload_adoption(
+                    physical_gpu_phase_samples,
+                    calibration_profile["adoption_requirements"],
+                    int(encoded["input_ids"].shape[-1]),
+                    all(math.isfinite(loss) for loss in losses),
+                    bool(gradient_receipt["all_trainable_gradients_finite"]),
+                )
             step_duration_ms = (time.monotonic_ns() - step_started) // 1_000_000
             guard.finalize()
             runtime_guard = guard.receipt()
@@ -1295,6 +1731,10 @@ def capacity_probe(
                         "gradient_accumulation_micro_steps": accumulation,
                         "micro_step_memory": micro_step_memory,
                         "device_map": {"": 0},
+                        "activation_offload": {"enabled": activation_offload},
+                        "host_memory_samples": host_memory_samples,
+                        "physical_gpu_phase_samples": physical_gpu_phase_samples,
+                        "gradient_receipt": gradient_receipt,
                     },
                     "runtime_guard": runtime_guard,
                     "base_files_after": verify_base(snapshot),
@@ -1314,6 +1754,10 @@ def capacity_probe(
         failure_evidence: dict[str, Any] = {
             "completed_micro_steps": len(micro_step_memory),
             "micro_step_memory": micro_step_memory,
+            "host_memory_samples": host_memory_samples,
+            "physical_gpu_phase_samples": physical_gpu_phase_samples,
+            "activation_offload": receipt.get("activation_offload"),
+            "adoption_assessment": receipt.get("adoption_assessment"),
         }
         if guard is not None:
             try:
@@ -1386,7 +1830,31 @@ def low_vram_calibration(
         confirmation,
         license_acknowledgement,
         module_cache_receipt,
-        calibration=True,
+        probe_kind="low_vram_calibration",
+    )
+
+
+def activation_offload_calibration(
+    snapshot: Path,
+    receipt_path: Path,
+    confirmation: str,
+    license_acknowledgement: str,
+    module_cache_receipt: dict[str, Any] | None = None,
+) -> int:
+    """Measure exact-shape saved-tensor CPU offload without training authority.
+
+    This profile keeps the canonical 768-token shape and paged optimizer but
+    is intentionally excluded from the queue.  A pass is evidence for a later
+    profile-adoption review; it does not lower the canonical admission floor.
+    """
+
+    return capacity_probe(
+        snapshot,
+        receipt_path,
+        confirmation,
+        license_acknowledgement,
+        module_cache_receipt,
+        probe_kind="activation_offload_calibration",
     )
 
 
@@ -1589,6 +2057,7 @@ def main(argv: list[str] | None = None) -> int:
     check = sub.add_parser("preflight"); check.add_argument("--base-snapshot", type=Path); check.add_argument("--check-gpu", action="store_true"); check.add_argument("--probe", action="store_true"); check.add_argument("--receipt", type=Path)
     capacity = sub.add_parser("capacity-probe"); capacity.add_argument("--base-snapshot", type=Path, required=True); capacity.add_argument("--receipt", type=Path, required=True); capacity.add_argument("--confirmation", required=True); capacity.add_argument("--license-acknowledgement", required=True)
     calibrate = sub.add_parser("calibrate-vram"); calibrate.add_argument("--base-snapshot", type=Path, required=True); calibrate.add_argument("--receipt", type=Path, required=True); calibrate.add_argument("--confirmation", required=True); calibrate.add_argument("--license-acknowledgement", required=True)
+    offload = sub.add_parser("calibrate-activation-offload"); offload.add_argument("--base-snapshot", type=Path, required=True); offload.add_argument("--receipt", type=Path, required=True); offload.add_argument("--confirmation", required=True); offload.add_argument("--license-acknowledgement", required=True)
     run = sub.add_parser("train"); run.add_argument("--base-snapshot", type=Path, required=True); run.add_argument("--output-dir", type=Path, required=True); run.add_argument("--confirmation", required=True); run.add_argument("--license-acknowledgement", required=True)
     args = parser.parse_args(argv)
     try:
@@ -1609,6 +2078,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "calibrate-vram":
             with training_mutex(), fresh_hf_modules_cache() as module_cache:
                 return low_vram_calibration(args.base_snapshot, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
+        if args.command == "calibrate-activation-offload":
+            with training_mutex(), fresh_hf_modules_cache() as module_cache:
+                return activation_offload_calibration(args.base_snapshot, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
         with training_mutex(), fresh_hf_modules_cache() as module_cache:
             return train(args.base_snapshot, args.output_dir, args.confirmation, args.license_acknowledgement, module_cache)
     except GateRefused as exc:

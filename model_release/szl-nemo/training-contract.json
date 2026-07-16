@@ -71,6 +71,7 @@
     "max_steps": 96,
     "max_sequence_length": 768,
     "capacity_probe_sequence_length": 768,
+    "capacity_probe_receipt_schema_version": "szl.nemo.capacity-probe-receipt.v2",
     "capacity_profile_id": "RTX5050_LAPTOP_NEMO4B_NF4_R16_PAGED8_SEQ768_V3",
     "capacity_probe_scope": "EXACT_MAX_SEQUENCE_TRAINING_SHAPE_GATE_PERMITS_CONFIRMED_TRAINING_IF_ALL_OTHER_GATES_PASS",
     "per_device_batch_size": 1,
@@ -109,6 +110,70 @@
       "processes_may_be_stopped_automatically": false
     },
     "training_admission_effect": "NONE",
+    "may_modify_canonical_gpu_admission": false,
+    "may_enqueue_training": false,
+    "adapter_write_allowed": false,
+    "upload_allowed": false,
+    "publish_allowed": false,
+    "promotion_allowed": false
+  },
+  "activation_offload_calibration": {
+    "profile_id": "RTX5050_NEMOTRONH4B_NF4_R16_PAGED8_SEQ768_SAVE_ON_CPU_V1",
+    "receipt_schema_version": "szl.nemo.activation-offload-calibration-receipt.v1",
+    "confirmation_phrase": "CALIBRATE_SZL_NEMO_ACTIVATION_OFFLOAD_V1",
+    "sequence_length": 768,
+    "gradient_accumulation_micro_steps": 1,
+    "maximum_wall_clock_seconds": 3600,
+    "optimizer": "paged_adamw_8bit",
+    "mechanism": "torch.autograd.graph.save_on_cpu",
+    "pin_memory": false,
+    "parameter_offload": false,
+    "optimizer_offload": false,
+    "expected_tradeoff": "LOWER_GPU_ACTIVATION_MEMORY_WITH_HIGHER_HOST_MEMORY_AND_TRANSFER_LATENCY",
+    "gpu_admission": {
+      "minimum_free_memory_mib": 5120,
+      "minimum_free_memory_claim": "ACTIVATION_OFFLOAD_EXPERIMENT_FLOOR_NOT_TRAINING_THRESHOLD",
+      "maximum_utilization_pct": 10,
+      "maximum_temperature_c": 60,
+      "probe_samples": 3,
+      "training_soak_samples": 3,
+      "sample_interval_seconds": 30,
+      "thresholds_may_be_weakened": false,
+      "processes_may_be_stopped_automatically": false
+    },
+    "host_ram_admission": {
+      "measurement_source": "LINUX_PROCFS_MEMINFO_AND_SELF_STATUS",
+      "minimum_mem_available_mib": 6144,
+      "maximum_process_rss_mib": 16384,
+      "maximum_process_rss_delta_mib": 12288,
+      "required_sample_stages": [
+        "before_model_load",
+        "after_model_load",
+        "before_forward",
+        "during_backward_1",
+        "after_backward_1",
+        "after_optimizer"
+      ],
+      "unknown_measurement_action": "REFUSE_CALIBRATION",
+      "thresholds_may_be_weakened": false
+    },
+    "adoption_requirements": {
+      "minimum_measured_vram_headroom_mib": 384,
+      "vram_measurement_source": "NVIDIA_SMI_PHYSICAL_DEVICE_FREE_MEMORY",
+      "required_vram_headroom_phases": [
+        "before_model_load",
+        "after_model_load",
+        "before_forward",
+        "after_backward_1",
+        "after_optimizer"
+      ],
+      "unknown_vram_measurement_state": "NOT_EVALUATED",
+      "loss_must_be_finite": true,
+      "adapter_gradients_must_be_finite": true,
+      "canonical_768_token_shape_required": true,
+      "independent_review_required": true
+    },
+    "training_admission_effect": "NONE_UNTIL_SEPARATE_CANONICAL_PROFILE_ADOPTION",
     "may_modify_canonical_gpu_admission": false,
     "may_enqueue_training": false,
     "adapter_write_allowed": false,

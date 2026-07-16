@@ -433,16 +433,56 @@ def preflight_outcome(result: StageResult) -> str:
     return "TERMINAL_REFUSAL"
 
 
+def _finite_nonnegative_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        number = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return False
+    return math.isfinite(number) and number >= 0.0
+
+
+def _canonical_capacity_probe_evidence_pass(probe: object) -> bool:
+    if not isinstance(probe, dict):
+        return False
+    loss = probe.get("loss")
+    gradients = probe.get("gradient_receipt")
+    if (
+        not _finite_nonnegative_number(loss)
+        or not isinstance(gradients, dict)
+    ):
+        return False
+    trainable = gradients.get("trainable_gradient_tensors")
+    finite = gradients.get("finite_gradient_tensors")
+    frozen = gradients.get("frozen_parameters_with_gradients")
+    l2_norm = gradients.get("l2_norm")
+    return (
+        type(trainable) is int
+        and trainable > 0
+        and type(finite) is int
+        and finite == trainable
+        and gradients.get("all_trainable_gradients_finite") is True
+        and type(frozen) is int
+        and frozen == 0
+        and _finite_nonnegative_number(l2_norm)
+    )
+
+
 def capacity_outcome(result: StageResult, launcher_preflight: dict[str, Any] | None = None) -> str:
     receipt = result.receipt
     effects = receipt.get("effects") if isinstance(receipt, dict) else None
     probe = receipt.get("probe") if isinstance(receipt, dict) else None
+    activation_offload = (
+        receipt.get("activation_offload") if isinstance(receipt, dict) else None
+    )
     contract = _load_object(CONTRACT_PATH)
     training = contract["training"]
     if (
         result.exit_code == 0
         and receipt
-        and receipt.get("schema_version") == "szl.nemo.capacity-probe-receipt.v1"
+        and receipt.get("schema_version")
+        == training["capacity_probe_receipt_schema_version"]
         and receipt.get("state") == CAPACITY_PASS
         and receipt.get("training_started") is False
         and receipt.get("profile_id") == training["capacity_profile_id"]
@@ -457,6 +497,7 @@ def capacity_outcome(result: StageResult, launcher_preflight: dict[str, Any] | N
         and effects.get("promoted") is False
         and effects.get("training_authorized") is False
         and effects.get("queue_progression_allowed") is True
+        and effects.get("canonical_capacity_satisfied") is True
         and effects.get("canonical_threshold_changed") is False
         and isinstance(probe, dict)
         and probe.get("profile_id") == training["capacity_profile_id"]
@@ -468,6 +509,10 @@ def capacity_outcome(result: StageResult, launcher_preflight: dict[str, Any] | N
         and probe["sequence_tokens"] == training["max_sequence_length"]
         and probe["sequence_limit"] == training["max_sequence_length"]
         and probe.get("device_map") == {"": 0}
+        and probe.get("activation_offload") == {"enabled": False}
+        and _canonical_capacity_probe_evidence_pass(probe)
+        and isinstance(activation_offload, dict)
+        and activation_offload.get("enabled") is False
     ):
         try:
             _validate_runtime_guard(receipt.get("runtime_guard"), _load_object(CONTRACT_PATH))
