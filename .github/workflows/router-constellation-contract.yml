@@ -37,12 +37,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install pinned test runtime
-        run: >-
-          python -m pip install
-          'pytest==9.0.3'
-          'fastapi==0.139.0'
-          'starlette==1.3.1'
-          'httpx==0.28.1'
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run offline router contracts
         run: python -m pytest tests/test_router_constellation_contract.py -q
       - name: Prove visualization assets are delivered as files

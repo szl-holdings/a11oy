@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install provider-gate test dependencies
-        run: python -m pip install fastapi starlette httpx pytest
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Prove provider honesty, durable receipts, and HTTP boundaries
         run: >-
           python -m pytest -q

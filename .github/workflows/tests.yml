@@ -59,9 +59,8 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
-          python -m pip install --upgrade pip
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run operator & reason endpoint tests
         # Scoped to this module only: it boots serve.py in-process with no network
         # and guards the Task #516 governed operator/reason surface against 404
@@ -80,10 +79,9 @@ jobs:
           python-version: "3.12"
       - name: Install pytest (guard + _INDEX import are stdlib-only)
         run: |
-          python -m pip install --upgrade pip
           # a11oy_formula_registry_guard is pure stdlib; importing a11oy_formula_endpoints
           # does not require FastAPI (the framework import is lazy inside register()).
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Verify every served formula is corpus-backed or honestly experimental
         # PROOF-CARRYING FORMULA REGISTRY GUARD: a11oy_formula_registry_guard.py checks
         # every wired formula (a11oy_formula_endpoints._INDEX) against the bundled
@@ -105,11 +103,10 @@ jobs:
           python-version: "3.12"
       - name: Install pytest (test + szl_formulas are stdlib-only; no torch)
         run: |
-          python -m pip install --upgrade pip
           # The flagship Λ path (szl_formulas.lambda_aggregate) is pure-stdlib and the
           # test re-derives the published szl-lambda-gate kernel's OWN canonical
           # reference in-file — so NO torch and NO Hugging Face Hub download are needed.
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Assert flagship Λ has not drifted from the published kernel
         # WIRING-DRIFT GUARD: the universal HF kernel szl-lambda-gate is a torch port of
         # a canonical pure-Python Λ reference; the flagship keeps its own stdlib inline
@@ -132,9 +129,8 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
-          python -m pip install --upgrade pip
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run demo-critical route-table guard
         # RECURRING REGRESSION GUARD: szl_* route REGISTRATIONS keep getting dropped
         # from serve.py during mesh/rebrand refactors while the handler modules stay
@@ -157,9 +153,8 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
-          python -m pip install --upgrade pip
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run energy-operator autostart + /readyz guard
         # REDEPLOY-STALL GUARD: on every box redeploy the service restarted with the
         # energy operator loop STOPPED even though the GPU lungs stayed reachable, so
@@ -184,9 +179,8 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (FastAPI TestClient over a real hardened app)
         run: |
-          python -m pip install --upgrade pip
           # szl_be_hardening builds a FastAPI app; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run backend hardening surface tests
         # Real HTTP tests (no mocks) over a freshly hardened app: health/readiness
         # probes, pydantic input validation, error envelopes, trace headers, the real
@@ -207,8 +201,7 @@ jobs:
           python-version: "3.12"
       - name: Install pytest (the guard imports szl_energy_sovereign; stdlib-only otherwise)
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run energy /metrics egress-scrub guard
         # PRIVATE-IP EGRESS-LEAK GUARD: /api/a11oy/v1/energy/metrics must never render the
         # raw private joule-meter address in the served JSON `exporter` field (same private-IP
@@ -232,8 +225,7 @@ jobs:
           python-version: "3.12"
       - name: Install pytest (the guard only reads files; no network, no deps)
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run Evidence auto-refresh surface guard
         # Task #878: locks the Evidence & Research tab's "auto-refreshing" pill +
         # genuine 180s background re-probe (marker evidence-autorecheck-539) into
@@ -254,11 +246,10 @@ jobs:
           python-version: "3.12"
       - name: Install pytest (these tests are stdlib-only otherwise)
         run: |
-          python -m pip install --upgrade pip
           # The receipt-monitor verifier tests are fully offline: every Sigstore/Rekor
           # round-trip is monkeypatched and no receipt body is actually verified, so no
           # sigstore/cryptography SDK, network, or org key is ever needed — only pytest.
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run receipt-monitor verifier tests
         # Enforces the safety contracts of the scheduled receipt re-checkers on every
         # push/PR so a regression can't merge green:
@@ -343,11 +334,10 @@ jobs:
           python-version: "3.12"
       - name: Install Sigstore SDK + pytest
         run: |
-          python -m pip install --upgrade pip
           # Same verify path the production rekor-recheck / release-receipt-verify
           # workflows use. No signing, so no id-token: write — this only VERIFIES an
           # already-signed receipt against the public Sigstore trust root.
-          python -m pip install "sigstore>=2.0.0" pytest
+          python -m pip install --require-hashes -r .github/requirements/ci-sigstore.txt
       - name: Genuine receipt verifies AND a tampered copy is rejected (no monkeypatch)
         # Integration negative-proof (issue #408): runs scripts/tamper_release_receipt.py
         # on a committed GENUINE receipt fixture and asserts scripts/verify_release_receipts.py
@@ -518,10 +508,9 @@ jobs:
           python-version: "3.12"
       - name: Install test deps (cryptography exercises the sign->verify round-trip)
         run: |
-          python -m pip install --upgrade pip
           # PAE + divergence locks are pure stdlib; cryptography enables the real
           # ECDSA-P256 round-trip assertion (skipped gracefully if unavailable).
-          pip install cryptography pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Lock szl_dsse DSSE PAE family + divergence from szl-receipt
         # RECEIPT-BUS UNIFICATION GUARD (audit 2026-07-03): the estate has two
         # incompatible DSSE PAE families. szl_dsse.py uses the DSSE-v1 SPEC /
@@ -548,10 +537,9 @@ jobs:
           python-version: "3.12"
       - name: Install test deps (cryptography exercises the Ed25519 sign->verify round-trip)
         run: |
-          python -m pip install --upgrade pip
           # PAE + divergence locks are pure stdlib; cryptography enables the real
           # Ed25519 round-trip assertion (skipped gracefully if unavailable).
-          pip install cryptography
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Lock sign_cert_dsse DSSE PAE family + divergence from szl-receipt
         # RECEIPT-BUS UNIFICATION GUARD (audit 2026-07-03): sign_cert_dsse.py is
         # the on-metal physical-bounds-certificate signer. It uses the DSSE-v1
@@ -577,9 +565,8 @@ jobs:
           python-version: "3.12"
       - name: Install test deps (a11oy_frontier_page imports FastAPI; TestClient smokes the route)
         run: |
-          python -m pip install --upgrade pip
           # a11oy_frontier_page imports fastapi at module top; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Assert the 3D-surface manifest is honest and single-source
         # HONEST SINGLE-SOURCE GUARD: GET /api/a11oy/v1/frontier/surfaces rolls up every
         # 3D holographic frontier surface. This test independently re-parses the SURFACES
@@ -603,8 +590,7 @@ jobs:
           python-version: "3.11"
       - name: Install pytest (the probe is monkeypatched — no real network, no httpx)
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Federation + honesty guard for szl_v4_fleet PEER_HEALTH_URLS
         # FEDERATION HONESTY GUARD (audit 2026-07-03): immune-standalone and yarqa
         # are genuinely-live standalone Spaces (/healthz=200) that were proxied as
@@ -628,9 +614,8 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
-          python -m pip install --upgrade pip
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Frontier-endpoint contract — the 422 / silent-degrade safety net
         # SAFETY NET (Wave J, Dev 3): every /api/a11oy/v1/* frontier endpoint that the
         # surface .js files actually fetch (harness, vqc, eval, attest, interpretability,
@@ -660,8 +645,7 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
-          python -m pip install --upgrade pip
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Operational status aggregate — honest, drift-proof per-subsystem/surface health
         # WAVE R DEV 2: GET /api/a11oy/v1/status is the operational-dashboard back-end.
         # This gate boots the REAL app in-process (no mocks, no network) and asserts it is
@@ -683,8 +667,7 @@ jobs:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
-          python -m pip install --upgrade pip
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Guarded-surface wrapper — honest 200 UNAVAILABLE instead of a bare 500
         # WAVE R DEV 2: szl_guarded_surface installs one additive ASGI middleware so an
         # unhandled exception from any JSON API surface (/api/…) becomes an HONEST 200
@@ -706,8 +689,7 @@ jobs:
           python-version: "3.12"
       - name: Install pytest (guard is pure stdlib — AST scan, no framework)
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: No dead guarded imports (silent-no-op feature regressions)
         # SILENT-NO-OP DEAD-IMPORT GUARD (audit 2026-07-07): serve.py wires optional
         # features behind `try: import <mod>; <mod>.register(app); except: print(...)`.
@@ -738,8 +720,7 @@ jobs:
           python-version: "3.11"
       - name: Install pytest (szl_durable_ledger + szl_energy_ledger + joule_billing are stdlib-only; no fastapi needed)
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Guard the "database or disk is full" fix — bounded rotating store + honest UNAVAILABLE
         # DISK-FULL GUARD (waveJ Dev1, waveI_gapsB Gap 3): the receipt/energy ledger used an
         # UNBOUNDED append-only JSONL file that grew until the container disk filled
@@ -769,8 +750,7 @@ jobs:
           python-version: "3.12"
       - name: Install test deps (szl_llm_registry boots via Starlette TestClient; no network)
         run: |
-          python -m pip install --upgrade pip
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Guard the sovereign backend honest-UNAVAILABLE contract (Wave M, DEV 1)
         # WAVE M DEV 1: `szl-sovereign-local` (model tag llama3-szl-finetuned-q4, Ollama,
         # Doctrine-v11 system prompt) is the founder's OWN-METAL model on the Tower, served
@@ -794,9 +774,8 @@ jobs:
           python-version: "3.11"
       - name: Install deps (serve.py boots in-process via Starlette TestClient; no network)
         run: |
-          python -m pip install --upgrade pip
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
-          pip install fastapi starlette httpx pytest
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Negative control — the honesty checker must reject planted drift first
         # ORG GUARD PATTERN (cf. constellation-honesty-guard.yml self-test job): a guard is
         # only trusted after it PROVES it can catch a lie. --selftest feeds the checker a toy
@@ -829,8 +808,7 @@ jobs:
           python-version: "3.12"
       - name: Install scoped test dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest jsonschema fastapi httpx cryptography==49.0.0
+          pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Verify signed-evidence admission and fail-closed estate surfaces
         # Fully offline: live Hub reads are monkeypatched. The gate validates the
         # strict registry schema, immutable pins, Brain/gradient truth, DSSE-required

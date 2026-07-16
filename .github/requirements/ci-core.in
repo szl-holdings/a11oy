@@ -1,0 +1,7 @@
+fastapi
+starlette
+httpx
+pytest
+jsonschema
+cryptography==49.0.0
+pyyaml
