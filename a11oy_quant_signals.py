@@ -21,6 +21,18 @@ HONESTY DOCTRINE (law — labels only REDUCE claims):
     advisory only.
   * The receipt's own _doctrine.disclaimer text is reproduced VERBATIM on
     the page banner — never paraphrased.
+  * The AUTONOMOUS LEDGER section reads the unprotected `ledger` data branch
+    written 6-hourly by szl-quant's scheduled-paper workflow. Cron is
+    best-effort: gaps mean runs did not fire — the ledger MEASURES what
+    happened, promises nothing. Track-record numbers are rendered VERBATIM
+    from the SIGNED trackrecord receipt (nulls stay null with the receipt's
+    own note) — never computed or paraphrased here. The chain receipt's
+    signature is verified here (tip); the FULL chain is independently walked
+    in CI on every append, and the command to walk it yourself is published.
+  * The ledger section is an INDEPENDENT failure domain: if the ledger fetch
+    fails (e.g. tree-API rate limit), that section fails CLOSED with the real
+    error while the genesis wall keeps its own guarantees. Never stale-as-
+    fresh, never a fabricated result — in either section.
 
 Verification detail (mirrors a11oy_forge_family.py's server-side, fail-closed,
 key-pinned design; reuses the image's `cryptography` lib — no new deps):
@@ -49,6 +61,7 @@ import hashlib
 import html
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -82,6 +95,16 @@ _RECEIPT_NAMES = (
 _VERIFY_CMD = "node verify/verify.mjs --pubkey keys/engine_pubkey.json --dir receipts/"
 _REPO_URL = "https://github.com/szl-holdings/szl-quant"
 
+# Autonomous ledger (data branch written by scheduled-paper; 6-hourly cron,
+# best-effort). Discovery via ONE unauthenticated tree-API call (cached like
+# receipt bytes -> <=12 calls/h, far under the 60/h anonymous budget); receipt
+# bytes come from raw.githubusercontent on the ledger branch.
+_LEDGER_BRANCH = "ledger"
+_LEDGER_RAW = f"https://raw.githubusercontent.com/szl-holdings/szl-quant/{_LEDGER_BRANCH}"
+_LEDGER_TREE_API = f"https://api.github.com/repos/szl-holdings/szl-quant/git/trees/{_LEDGER_BRANCH}?recursive=1"
+_LEDGER_SOURCE = f"szl-holdings/szl-quant@{_LEDGER_BRANCH}"
+_VERIFY_CHAIN_CMD = "node verify/verify.mjs --pubkey keys/engine_pubkey.json --chain ledger/"
+
 # Estate palette (Doctrine): dark background + teal / blue / gold accents.
 _BG = "#0a0e12"
 _PANEL = "#0f151b"
@@ -95,6 +118,8 @@ _MUTE = "#7d93a6"
 _byte_cache: dict = {}
 # engine pubkey bytes cache: {"at": epoch, "bytes": bytes}
 _pubkey_cache: dict = {}
+# ledger tree listing cache: {"at": epoch, "data": dict}
+_ledger_tree_cache: dict = {}
 
 
 def _now_iso() -> str:
@@ -146,6 +171,59 @@ async def _fetch_receipt_bytes(client: httpx.AsyncClient, name: str) -> bytes:
     data = await _fetch_bytes(client, _url_for(name))
     _byte_cache[name] = {"at": time.time(), "bytes": data}
     return data
+
+
+def _ledger_url_for(run_dir: str, name: str) -> str:
+    return f"{_LEDGER_RAW}/ledger/{run_dir}/{name.replace('$', '%24')}"
+
+
+async def _fetch_ledger_listing(client: httpx.AsyncClient) -> dict:
+    """Discover ledger run dirs + latest run's files from ONE tree-API call
+    (cached _CACHE_TTL_SECONDS). MEASURED from the tree at fetch time."""
+    cached = _ledger_tree_cache.get("t")
+    if cached and (time.time() - cached["at"]) < _CACHE_TTL_SECONDS:
+        return cached["data"]
+    raw = await _fetch_bytes(client, _LEDGER_TREE_API)
+    tree = json.loads(raw)
+    if tree.get("truncated"):
+        # Fail closed rather than show a partial ledger as complete.
+        raise RuntimeError("ledger tree listing truncated by API — refusing partial view")
+    blobs = [t["path"] for t in tree.get("tree", [])
+             if t.get("type") == "blob" and t.get("path", "").startswith("ledger/")]
+    run_dirs = sorted({p.split("/")[1] for p in blobs if p.count("/") >= 2})
+    if not run_dirs:
+        raise RuntimeError("ledger branch has no run directories")
+    latest = run_dirs[-1]
+    latest_files = sorted(p.split("/", 2)[2] for p in blobs
+                          if p.startswith(f"ledger/{latest}/") and p.count("/") == 2)
+    data = {
+        "runDirs": run_dirs,
+        "latest": latest,
+        "latestFiles": latest_files,
+        "receiptsRecorded": len(blobs),
+    }
+    _ledger_tree_cache["t"] = {"at": time.time(), "data": data}
+    return data
+
+
+async def _fetch_ledger_receipt_bytes(client: httpx.AsyncClient, run_dir: str, name: str) -> bytes:
+    key = f"ledger/{run_dir}/{name}"
+    cached = _byte_cache.get(key)
+    if cached and (time.time() - cached["at"]) < _CACHE_TTL_SECONDS:
+        return cached["bytes"]
+    data = await _fetch_bytes(client, _ledger_url_for(run_dir, name))
+    _byte_cache[key] = {"at": time.time(), "bytes": data}
+    return data
+
+
+def _run_dir_utc(run_dir: str) -> str:
+    """Human ISO from a run-dir name like 20260716T142836Z_run8 (derived from
+    the NAME the workflow stamped — labeled as such where shown)."""
+    m = re.match(r"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z_run(\d+)$", run_dir)
+    if not m:
+        return ""
+    y, mo, d, h, mi, s, _n = m.groups()
+    return f"{y}-{mo}-{d}T{h}:{mi}:{s}Z"
 
 
 def _resolve_pin(pubkey_bytes: bytes) -> dict:
@@ -275,6 +353,39 @@ def _summarize(payload: dict) -> dict:
         summary["asset"] = asset.get("symbol", "")
         summary["populationSize"] = wf.get("populationSize")
         summary["outOfSampleBars"] = wf.get("outOfSampleBars")
+    elif "trackrecord" in predicate_type or "track-record" in predicate_type:
+        smry = predicate.get("summary") or {}
+        aggs = smry.get("aggregates") or {}
+        summary["kind"] = "trackrecord"
+        summary["generatedAtIso"] = smry.get("generatedAtIso", "")
+        summary["honesty"] = smry.get("honesty", "")
+        for hz, agg in sorted(aggs.items()):
+            if not isinstance(agg, dict):
+                continue
+            hit = agg.get("hitRate")
+            summary[f"{hz}"] = (
+                f"{agg.get('label', '')}: realized n={agg.get('nRealized')} "
+                f"pending={agg.get('nPending')} hitRate="
+                f"{'null' if hit is None else hit}"
+            )
+            if hit is None and agg.get("note"):
+                summary[f"{hz}Note"] = str(agg.get("note"))
+    elif "chain" in predicate_type:
+        smry = predicate.get("summary") or {}
+        summary["kind"] = "chain"
+        for field in ("seq", "prev", "prevSha256", "headSha256", "sha256", "sealedRun"):
+            if smry.get(field) is not None:
+                summary[field] = smry.get(field)
+        coverage = smry.get("coverage") or {}
+        if coverage:
+            summary["coverage"] = (f"{coverage.get('dirs')} dir(s), "
+                                   f"{coverage.get('files')} file(s) sealed")
+    elif "session" in predicate_type:
+        smry = predicate.get("summary") or {}
+        summary["kind"] = "session"
+        for field in ("startedAtIso", "finishedAtIso", "signals", "blocked", "assetsConsidered"):
+            if smry.get(field) is not None:
+                summary[field] = smry.get(field)
     else:
         summary["kind"] = "unknown"
     return {"summary": summary, "doctrine": doctrine}
@@ -305,14 +416,82 @@ async def _collect() -> dict:
     return {"pin": pin, "receipts": receipts}
 
 
+def _ledger_card_order(name: str) -> tuple:
+    """Display order inside a run: signals, trackrecord, session, chain."""
+    rank = 0 if name.startswith("signal_") else \
+           1 if name.startswith("trackrecord_") else \
+           2 if name.startswith("session_") else \
+           3 if name.startswith("chain_") else 4
+    return (rank, name)
+
+
+async def _collect_ledger() -> dict:
+    """Fetch + verify the latest autonomous-ledger run. Independent failure
+    domain: raises on failure; caller renders that section fail-closed."""
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        pubkey_bytes = await _fetch_pubkey_bytes(client)
+        pin = _resolve_pin(pubkey_bytes)
+        listing = await _fetch_ledger_listing(client)
+        receipts = []
+        for name in sorted(listing["latestFiles"], key=_ledger_card_order):
+            if not name.endswith(".json"):
+                continue  # INDEX.md etc. — only receipts are verifiable
+            raw = await _fetch_ledger_receipt_bytes(client, listing["latest"], name)
+            result = _verify_envelope(raw, pin)
+            extra = _summarize(result["payload"])
+            receipts.append({
+                "name": f"ledger/{listing['latest']}/{name}",
+                "verified": result["verified"],
+                "checks": result["checks"],
+                "keyId": result["sigKeyId"],
+                "summary": extra["summary"],
+                "doctrine": extra["doctrine"],
+                "envelope": result["envelope"],
+                "payload": result["payload"],
+                "receiptSha256": _sha256_hex(raw),
+            })
+    return {
+        "pin": pin,
+        "source": _LEDGER_SOURCE,
+        "runsRecorded": len(listing["runDirs"]),
+        "receiptsRecorded": listing["receiptsRecorded"],
+        "latestRun": listing["latest"],
+        "latestRunUtc": _run_dir_utc(listing["latest"]),
+        "receipts": receipts,
+    }
+
+
 # ---------------------------------------------------------------------------
 # JSON API
 # ---------------------------------------------------------------------------
 async def _signals_api():
+    ledger_block = {"ok": False, "source": _LEDGER_SOURCE, "receipts": [],
+                    "note": ("Autonomous 6-hourly paper sessions appended by CI. Cron is "
+                             "best-effort; gaps mean runs did not fire — the ledger MEASURES "
+                             "what happened, promises nothing."),
+                    "chainVerifyCommand": _VERIFY_CHAIN_CMD}
+    try:
+        ledger = await _collect_ledger()
+        ledger_block.update({
+            "ok": ledger["pin"]["pinOk"] and all(r["verified"] for r in ledger["receipts"]),
+            "runsRecorded": ledger["runsRecorded"],
+            "receiptsRecorded": ledger["receiptsRecorded"],
+            "latestRun": ledger["latestRun"],
+            "latestRunUtc": ledger["latestRunUtc"],
+            "measuredFrom": "ledger git tree + receipt bytes at fetch time",
+            "receipts": [
+                {"name": r["name"], "verified": r["verified"], "keyId": r["keyId"],
+                 "checks": r["checks"], "summary": r["summary"], "doctrine": r["doctrine"]}
+                for r in ledger["receipts"]
+            ],
+        })
+    except Exception as ledger_err:  # independent fail-closed domain
+        ledger_block["error"] = f"ledger unavailable: {type(ledger_err).__name__}: {ledger_err}"
     try:
         data = await _collect()
         pin = data["pin"]
         return {
+            "ledger": ledger_block,
             "ok": pin["pinOk"] and all(r["verified"] for r in data["receipts"]),
             "wall": "quant-signals",
             "source": _SOURCE,
@@ -347,6 +526,7 @@ async def _signals_api():
             "pinnedKeyId": None,
             "posture": "ADVISORY_PAPER_ONLY — no execution, no custody, NOT financial advice",
             "receipts": [],
+            "ledger": ledger_block,
             "fetchedAt": _now_iso(),
             "error": f"receipts unavailable: {type(err).__name__}: {err}",
         }
@@ -404,6 +584,17 @@ def _render_page(data: dict) -> str:
 
     cards = []
     for i, r in enumerate(receipts):
+        cards.append(_card_html(r, f"g{i}"))
+
+    cards_html = "".join(cards)
+    pinned_id = e(pin["keyId"]) if pin["pinOk"] else "—"
+    ledger_html = _ledger_section_html(data.get("ledger"))
+    return _page_shell(e(disclaimer), pin_line, ledger_html, cards_html, pinned_id)
+
+
+def _card_html(r: dict, dom_id: str) -> str:
+    e = html.escape
+    if True:
         verified = r["verified"]
         badge = "VERIFIED" if verified else "VERIFICATION FAILED"
         badge_color = _TEAL if verified else _GOLD
@@ -445,7 +636,7 @@ def _render_page(data: dict) -> str:
         raw_envelope = _pretty(r["envelope"])
         raw_payload = _pretty(r["payload"])
 
-        cards.append(f"""
+        return f"""
       <article class="card" data-quantsignals-card="s1">
         <header class="card-head">
           <span class="case">{e(str(r['name']))}</span>
@@ -459,19 +650,49 @@ def _render_page(data: dict) -> str:
         </details>
         <details>
           <summary>Raw DSSE envelope (JSON)</summary>
-          <pre id="env-{i}">{e(raw_envelope)}</pre>
-          <button class="copy" data-target="env-{i}">Copy envelope JSON</button>
+          <pre id="env-{dom_id}">{e(raw_envelope)}</pre>
+          <button class="copy" data-target="env-{dom_id}">Copy envelope JSON</button>
         </details>
         <details>
           <summary>Decoded in-toto payload (JSON)</summary>
-          <pre id="pay-{i}">{e(raw_payload)}</pre>
-          <button class="copy" data-target="pay-{i}">Copy payload JSON</button>
+          <pre id="pay-{dom_id}">{e(raw_payload)}</pre>
+          <button class="copy" data-target="pay-{dom_id}">Copy payload JSON</button>
         </details>
-      </article>""")
+      </article>"""
 
-    cards_html = "".join(cards)
-    pinned_id = e(pin["keyId"]) if pin["pinOk"] else "—"
 
+def _ledger_section_html(ledger) -> str:
+    """Autonomous-ledger section. Independent fail-closed domain: on error the
+    section states the real error; it never fabricates and never hides."""
+    e = html.escape
+    head = (f"<h2 class='sect'>Autonomous receipt ledger "
+            f"<span class='src'>({e(_LEDGER_SOURCE)})</span></h2>"
+            "<p class='sub'>Appended every ~6&nbsp;hours by szl-quant's <code>scheduled-paper</code> CI "
+            "job: paper session → DSSE-sign → independent re-verify → hash-chain seal. "
+            "GitHub cron is <strong>best-effort</strong>: gaps mean runs did not fire — the ledger "
+            "MEASURES what happened, promises nothing.</p>")
+    if not ledger or ledger.get("error") or not ledger.get("receipts"):
+        reason = (ledger or {}).get("error") or "ledger data unavailable"
+        return (head +
+                f"<div class='pin' style='border-color:{_GOLD}'>FAIL-CLOSED: {e(str(reason))}. "
+                "This section will not show stale or invented ledger state.</div>")
+    stats = (f"<div class='pin'>MEASURED from the ledger tree at fetch time: "
+             f"<strong>{int(ledger['runsRecorded'])}</strong> run(s) recorded · "
+             f"<strong>{int(ledger['receiptsRecorded'])}</strong> file(s) · latest run "
+             f"<code>{e(ledger['latestRun'])}</code>"
+             + (f" (started {e(ledger['latestRunUtc'])} UTC, from the run-dir name)"
+                if ledger.get("latestRunUtc") else "") +
+             f"<br><span style='color:{_MUTE}'>Chain tip signature is verified here, server-side; "
+             "the FULL chain is independently walked in CI on every append. Walk it yourself:</span>"
+             f"<pre id='verify-chain-cmd'>{e(_VERIFY_CHAIN_CMD)}</pre>"
+             "<button class='copy' data-target='verify-chain-cmd'>Copy chain-walk command</button></div>")
+    cards = "".join(_card_html(r, f"l{i}") for i, r in enumerate(ledger["receipts"]))
+    return head + stats + cards
+
+
+def _page_shell(disclaimer_html: str, pin_line: str, ledger_html: str,
+                cards_html: str, pinned_id: str) -> str:
+    e = html.escape  # used by the footer links/commands below
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -524,6 +745,9 @@ def _render_page(data: dict) -> str:
   footer a {{ color:{_TEAL}; text-decoration:none; }}
   footer a:hover {{ text-decoration:underline; }}
   footer pre {{ margin:.5rem 0; }}
+  h2.sect {{ font-size:1.12rem; color:#fff; margin:1.9rem 0 .4rem; }}
+  h2.sect .src {{ color:{_MUTE}; font-size:.85rem; font-weight:400; }}
+  .pin pre {{ margin:.45rem 0 .2rem; }}
 </style>
 </head>
 <body>
@@ -531,13 +755,15 @@ def _render_page(data: dict) -> str:
     <h1>Quant Signals — signed, verifiable</h1>
     <p class="sub">Doctrine-governed quant engine · every signal &amp; backtest ships a
        DSSE-signed receipt, re-verified server-side against a pinned key on every request.</p>
-    <div class="banner" data-quantsignals-banner="s1">{e(disclaimer)}</div>
+    <div class="banner" data-quantsignals-banner="s1">{disclaimer_html}</div>
     <div class="pin">{pin_line}
       <br><span style="color:{_MUTE}">A VERIFIED badge proves INTEGRITY + ORIGIN only — that the
       receipt was signed by the pinned engine key and not tampered with. It is
       <strong>never</strong> a claim of accuracy or profitability. Λ is Conjecture&nbsp;1 (open),
       never a theorem.</span>
     </div>
+{ledger_html}
+    <h2 class="sect">Genesis session <span class="src">(static origin set, szl-quant@main receipts/)</span></h2>
 {cards_html}
     <footer>
       Source of truth: <a href="{e(_REPO_URL)}" rel="noopener">{e(_REPO_URL)}</a>
@@ -583,6 +809,10 @@ async def _signals_page():
     from starlette.responses import HTMLResponse
     try:
         data = await _collect()
+        try:
+            data["ledger"] = await _collect_ledger()
+        except Exception as ledger_err:  # independent fail-closed domain
+            data["ledger"] = {"error": f"{type(ledger_err).__name__}: {ledger_err}"}
         return HTMLResponse(_render_page(data))
     except Exception as page_error:  # fail-closed: never a fabricated page
         body, status = _fail_closed_page(
@@ -604,5 +834,5 @@ def register(app, ns: str = "a11oy") -> str:
             if getattr(route, "path", None) == target:
                 app.router.routes.insert(0, app.router.routes.pop(index))
                 break
-    return (f"{_API_ROUTE} + {_PAGE_ROUTE} (szl-quant@main signed receipts; "
-            f"server-verified, pinned key, fail-closed)")
+    return (f"{_API_ROUTE} + {_PAGE_ROUTE} (szl-quant@main genesis receipts + "
+            f"@{_LEDGER_BRANCH} autonomous ledger; server-verified, pinned key, fail-closed)")
