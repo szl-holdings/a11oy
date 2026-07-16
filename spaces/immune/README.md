@@ -1,59 +1,86 @@
 ---
-title: IMMUNE Investor Demo
-emoji: 🔒
+title: SZL Immune
+emoji: "🛡️"
 colorFrom: indigo
 colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: false
 license: apache-2.0
-short_description: Append-only SHA-256 receipt chain + HUKLLA tripwires demo
+short_description: Deterministic-first inspection with fail-closed tool authority and DSSE receipts
 ---
 
-# IMMUNE — Verifiable AI You Can't Fake
+# SZL Immune v0.1
 
-**Stage:** LIVE · MEASURED — append-only SHA-256 receipt chain + HUKLLA tripwires; receipts and hashes run for real.
+SZL Immune is a source-backed inspection boundary for prompts, retrieved passages,
+memory records, tool responses, and proposed tool actions. It does not claim that a
+classifier exists when weights are absent. It does not let a public demo mutate global
+state. It does not authorize a tool without both a qualified, immutable-pinned local
+classifier and a real Ed25519-signed receipt.
 
-Investor demo for IMMUNE: the governed AI safety layer. A self-contained deployment that shows:
+## Decision order
 
-- **Append-only SHA-256 receipt chain** — every action sealed into a tamper-evident hash-linked ledger
-- **GATE admission gate** — governed access control, no fabricated green lights
-- **HUKLLA tripwires** — honest refusal of unverifiable queries; no hallucinated answers
-- **Live threat feeds** — Sigstore Rekor, MITRE ATLAS, OWASP LLM Top 10 with honest `LIVE / REFERENCE / UNAVAILABLE` labels per source
+1. Parse a fixed request schema and apply bounded canonicalization.
+2. Evaluate source trust, actor identity, Unicode changes, secret/shell/role/encoding,
+   egress, and capability rules.
+3. Run HUKLLA tripwires, explicitly reporting `NOT_IMPLEMENTED` where evidence is absent.
+4. Invoke the local classifier adapter only after deterministic controls pass.
+5. Apply highest-risk-wins policy.
+6. Hash the input and action, then append a DSSE/Ed25519 receipt when a signer exists.
+7. Permit tool execution only after a qualified classifier and signed receipt exist.
 
-Nothing here is faked. Every externally-sourced datum carries an honest provenance label.
+Receipt appends are serialized and use an explicit file-descriptor
+`open → write → fsync → close` sequence. Public request counters reset every 60 seconds;
+the independent session TTL remains 30 minutes and both timestamps are exposed by the
+session-state contract.
+
+The current repository contains no model weights. The default classifier target is a
+third-party baseline identifier only; it remains `UNAVAILABLE` until all of these are
+supplied and verified locally:
+
+- exact 40-character immutable model revision;
+- SHA-256 hashes and local paths for weights and tokenizer;
+- local adapter implementation;
+- runtime and device identity;
+- an Ed25519-signed qualification receipt whose key ID is explicitly allowed through
+  `IMMUNE_QUALIFICATION_KEYID`.
 
 ## API
 
-| Endpoint | What |
-|---|---|
-| `GET /api/immune/state` | Ledger count + lastHash |
-| `GET /api/immune/ledger/verify` | Chain integrity check — `ok: true` on clean chain |
-| `GET /api/immune/ledger` | Full append-only receipt ledger |
+| Method | Endpoint | Contract |
+|---|---|---|
+| `GET` | `/api/immune/v1/status` | Service, policy, classifier, signer, and chain evidence |
+| `POST` | `/api/immune/v1/inspect` | Deterministic-first input inspection |
+| `POST` | `/api/immune/v1/tool-authorize` | Fail-closed tool authorization |
+| `GET` | `/api/immune/v1/receipts/{receiptId}` | DSSE envelope and public receipt payload |
+| `GET` | `/api/immune/v1/tripwires` | Implemented and unimplemented HUKLLA tripwires |
+| `GET/POST` | `/api/immune/v1/session/state` | Session-scoped demo state only |
+| `GET` | `/openapi.json` | OpenAPI 3.1 contract |
 
-## Related
+Legacy `POST /api/immune/state` and reset/global ledger mutation are denied. The legacy
+`GET /api/immune/state` response is derived from the caller's session and never exposes a
+global mutable mode.
 
-- [a11oy Space](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) — governed command platform
-- [killinchu Space](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) — edge organ
-- [hatun-mcp](https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp) — governed MCP server
-- [a11oy-verifiable-corpus](https://huggingface.co/datasets/SZLHOLDINGS/a11oy-verifiable-corpus) — live receipt ledger
+## Run and verify
 
----
+Requires Node 20 or newer; there are no runtime package dependencies.
 
-*SZL Holdings · Doctrine v11 LOCKED · SLSA L1 honest · Apache-2.0*  
-*Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>*
+```bash
+npm run contracts:check
+npm test
+npm start
+```
 
----
+To enable signed receipts, place a base64 Ed25519 PKCS#8 private key (or 32-byte seed) in
+the approved secret store as `IMMUNE_SIGNING_KEY`. Never commit it. Runtime receipts are
+written to `data/immune/v1-receipts.jsonl` or `IMMUNE_LEDGER_PATH`. Signer and
+qualification key IDs are full 64-character SHA-256 digests of their SPKI public keys.
 
-## Source & provenance
+## Prior art boundary
 
-This is a self-contained SZL demo Space — its full source (Dockerfile, `index.html`,
-app/vendor assets) lives **in this Space's own repository** and rebuilds directly here;
-it is not generated from a hidden source. It is part of the SZL ecosystem:
+The design is informed by defense-in-depth work including CaMeL, AgentDojo, NeMo
+Guardrails, garak, PyRIT, and OWASP guidance. Those projects are references, not evidence
+that this implementation inherits their measurements or endorsements. SZL-specific claims
+remain limited to tests and receipts emitted by this source tree.
 
-> **Governed AI you can prove** — every decision comes with a signed, verifiable
-> receipt, built on public data, running on your own hardware.
-
-Flagship: **a11oy — Command Center** ([SZLHOLDINGS/a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)).
-Naming glossary & org: [github.com/szl-holdings](https://github.com/szl-holdings).
-Public-data only · honest by design · nothing fabricated.
+Apache-2.0 · SZL Holdings · fail closed · no fabricated green states
