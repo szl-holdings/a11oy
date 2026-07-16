@@ -126,7 +126,7 @@ def test_second_brain_is_a_compound_model_not_a_false_weight_claim():
     assert manifest["brain_training_policy"]["admission_engine"] == (
         "szl_brain_training_admission.py")
     policy = manifest["brain_training_policy"]
-    assert policy["candidate_schema"] == "szl.brain-training-candidate.v1"
+    assert policy["candidate_schema"] == "szl.brain-training-candidate.v2"
     assert "content" in policy["candidate_required_inputs"]
     assert "canonical_status" in policy["derived_decision_fields"]
     assert "canonical_state" not in policy["candidate_required_inputs"]

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl.brain-raw-snapshot.v1.json",
+  "title": "SZL raw Brain snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "integrity",
+    "counts",
+    "facets",
+    "claims_boundary",
+    "snapshot_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.brain-raw-snapshot.v1"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "schema", "bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "schema": {"const": "szl.m1-brain-ingest-decision/v1"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_canonicalization",
+        "leaf_domain",
+        "node_domain",
+        "odd_leaf_rule",
+        "merkle_root_sha256"
+      ],
+      "properties": {
+        "row_canonicalization": {"const": "SORTED_COMPACT_JSON_UTF8_V1"},
+        "leaf_domain": {"const": "szl.brain.raw-row.v1"},
+        "node_domain": {"const": "szl.brain.merkle-node.v1"},
+        "odd_leaf_rule": {"const": "DUPLICATE_LAST"},
+        "merkle_root_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "unique_node_ids",
+        "distinct_content_sha256",
+        "duplicate_content_rows",
+        "person_rows",
+        "training_eligible_rows"
+      ],
+      "properties": {
+        "rows": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "unique_node_ids": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "distinct_content_sha256": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "duplicate_content_rows": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "person_rows": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "training_eligible_rows": {"const": 0}
+      }
+    },
+    "facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_family",
+        "source",
+        "license_state",
+        "freshness_state",
+        "safety_decision",
+        "training_decision"
+      ],
+      "properties": {
+        "kind": {"$ref": "#/$defs/countMap"},
+        "source_family": {"$ref": "#/$defs/countMap"},
+        "source": {"$ref": "#/$defs/countMap"},
+        "license_state": {"$ref": "#/$defs/countMap"},
+        "freshness_state": {"$ref": "#/$defs/countMap"},
+        "safety_decision": {"$ref": "#/$defs/countMap"},
+        "training_decision": {"$ref": "#/$defs/countMap"}
+      }
+    },
+    "claims_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rights_established",
+        "privacy_clearance_established",
+        "training_authorized",
+        "training_triggered",
+        "model_promotion_allowed",
+        "proof_credit"
+      ],
+      "properties": {
+        "rights_established": {"const": false},
+        "privacy_clearance_established": {"const": false},
+        "training_authorized": {"const": false},
+        "training_triggered": {"const": false},
+        "model_promotion_allowed": {"const": false},
+        "proof_credit": {"const": 0}
+      }
+    },
+    "snapshot_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "countMap": {
+      "type": "object",
+      "propertyNames": {"minLength": 1},
+      "additionalProperties": {"type": "integer", "minimum": 0, "maximum": 20000}
+    }
+  }
+}
