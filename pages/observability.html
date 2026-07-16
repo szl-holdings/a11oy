@@ -38,8 +38,9 @@
     .ribbon .sep{color:var(--dim);}
     .ribbon .teal{color:var(--teal);}
     .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
-    .ribbon a{margin-left:auto;color:var(--muted);text-decoration:none;}
-    .ribbon a:hover{color:var(--gold);}
+    .ribbon .navlinks{margin-left:auto;display:flex;gap:.8rem;align-items:center;}
+    .ribbon .navlinks a{color:var(--muted);text-decoration:none;}
+    .ribbon .navlinks a:hover{color:var(--gold);}
     .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);
       box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
     @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
@@ -163,7 +164,7 @@
   <span>AI OBSERVABILITY</span><span class="sep">/</span>
   <span>MELT · SIGNED TRACES</span><span class="sep">/</span>
   <span class="live"><span class="live-dot"></span>LIVE · RT</span>
-  <a href="/warhacker">Warhacker &rarr;</a>
+  <nav class="navlinks" aria-label="a11oy navigation"><a href="/">Home</a><a href="/ecosystem">Ecosystem</a><a href="/anatomy-v5">Anatomy v5</a><a href="/console">Console</a></nav>
 </div>
 
 <section class="hero">

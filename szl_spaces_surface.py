@@ -3,8 +3,8 @@
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 """szl_spaces_surface.py — console "Spaces" surface (health API + tiles + nav).
 
-ADDITIVE, self-contained, SHARED (byte-identical in a11oy + killinchu). The console
-companion to szl_spaces_proxy: a LIVE health view of the whole HF Spaces estate plus a
+ADDITIVE, self-contained, SHARED across a11oy + killinchu. The console companion to
+the canonical handoff module: a LIVE health view of the whole HF Spaces estate plus a
 clean tiles page and ONE idempotent nav item, following the additive-injector pattern
 (a11oy_nav_wireup.py / killinchu_nav_wireup.py).
 
@@ -12,20 +12,21 @@ ROUTES (additive, inserted at the FRONT of the router so they beat the SPA + Nod
 catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
 
   GET  /api/<ns>/v1/spaces/health  -> for each Space, an HONEST status:
-        {name, title, stage, app_reachable, url, proxy_url}
+        {name, slug, title, sdk, stage, app_reachable, url, canonical_url, proxy_url}
         - stage          : runtime.stage from the HF API
                            (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>),
                            or "unknown" if that API call degrades. LABELLED as HF-API.
-        - app_reachable  : a REAL same-origin server-side probe of
+        - app_reachable  : a REAL server-side probe of
                            https://szlholdings-<name>.hf.space/ (HEAD, short timeout).
                            true ONLY when the probe really succeeded. Never fabricated.
         Degrade -> stage:"unknown", app_reachable:false. NEVER a faked stage/200.
 
   GET/HEAD /spaces                 -> a clean tiles page (one card per Space: honest
-        title, live status dot fed by /health, "Open in a-11-oy.com" -> /spaces/<name>,
-        "Open on HF" -> hf.space url). Pure inline markup, 0 browser CDN. The status
-        dots are filled by a tiny inline fetch of the SAME-ORIGIN /health JSON (not a
-        CDN; the data is our own server-side-probed endpoint).
+        title, live status dot fed by /health, canonical isolated hf.space app link,
+        and a separate huggingface.co repository link).
+        No upstream app executes inside the a11oy or Killinchu origin. Pure inline
+        markup, 0 browser CDN. Status dots are filled by a tiny inline fetch of the
+        SAME-ORIGIN /health JSON (our own server-side-probed endpoint).
 
 NAV: a BaseHTTPMiddleware injector adds ONE nav item "Spaces" -> /spaces into the
 console left-nav (before <div class="side-foot">, with nav-group / nav-item fallbacks).
@@ -54,25 +55,46 @@ from typing import Any
 
 _ORG = "SZLHOLDINGS"
 _ORG_PREFIX = "szlholdings-"
+SPACE_TILE_ORIGIN_MODE = "canonical-isolated-hf/v1"
 
-# The 11 live Spaces + their honest, public titles (NOT codenames — each Space's own
-# name). a11oy + killinchu are listed as tiles linking to their own canonical hosts;
-# they are NOT reverse-proxied by szl_spaces_proxy (self / own-host).
+# Audited 26-Space public estate. Names are exact Hub repository names and titles are
+# the current public card titles observed during the 2026-07-16 alignment audit. Runtime
+# state is deliberately NOT frozen here: /health measures it on every cache refresh and
+# degrades to unknown/false when evidence is unavailable. ``slug`` is the lowercase,
+# same-origin route key; it differs from ``name`` only for the Hub repository ``README``.
+# a11oy + killinchu retain the historical own-host classification in the health payload,
+# but every tile now opens its canonical isolated Hugging Face application origin.
 SPACES: list[dict[str, str]] = [
-    {"name": "immune",              "title": "Immune — Verifiable Screening"},
-    {"name": "sda",                 "title": "SDA — Space Domain Awareness"},
-    {"name": "anatomy",             "title": "Anatomy — Canonical Formula Registry"},
-    {"name": "cathedral",           "title": "Cathedral — Estate Cathedral"},
-    {"name": "energy",              "title": "Energy — Sovereign Compute"},
-    {"name": "yarqa",               "title": "Yarqa — Data Channel"},
-    {"name": "khipu-constellation", "title": "Khipu Constellation — Receipt Mesh"},
-    {"name": "llm-router-live",     "title": "LLM Router (Live)"},
-    {"name": "hatun-mcp",           "title": "Hatun — MCP Server"},
-    {"name": "a11oy",               "title": "a11oy — Brand Orchestration Layer"},
-    {"name": "killinchu",           "title": "Killinchu — Edge Console"},
+    {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker"},
+    {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker"},
+    {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker"},
+    {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker"},
+    {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static"},
+    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "gradio"},
+    {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static"},
+    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static"},
+    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "gradio"},
+    {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker"},
+    {"name": "holographic", "slug": "holographic", "title": "Holographic Estate", "sdk": "docker"},
+    {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker"},
+    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker"},
+    {"name": "lambda-gate-holo", "slug": "lambda-gate-holo", "title": "Λ Gate — Conjecture 1, never green", "sdk": "static"},
+    {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker"},
+    {"name": "README", "slug": "readme", "title": "SZL Holdings — Governed-AI Command Platform", "sdk": "static"},
+    {"name": "receipt-chain-live", "slug": "receipt-chain-live", "title": "Receipt Chain Live", "sdk": "static"},
+    {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker"},
+    {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static"},
+    {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static"},
+    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "gradio"},
+    {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static"},
+    {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static"},
+    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker"},
+    {"name": "szl-provctl-live", "slug": "szl-provctl-live", "title": "szl-provctl-live", "sdk": "static"},
+    {"name": "yarqa", "slug": "yarqa", "title": "yarqa — Plug-Flow Compartments (live or sample, always honest)", "sdk": "docker"},
 ]
-# Spaces served on their OWN canonical host (not reverse-proxied here): the tile's
-# primary "open" link points at HF rather than /spaces/<name>.
+_SPACE_BY_NAME = {sp["name"]: sp for sp in SPACES}
+_SPACE_BY_SLUG = {sp["slug"]: sp for sp in SPACES}
+# Product Spaces retained as metadata for consumers that distinguish flagship hosts.
 _OWN_HOST = {"a11oy", "killinchu"}
 
 _DOCTRINE = {
@@ -85,22 +107,47 @@ _DOCTRINE = {
 
 _PROBE_TIMEOUT = 6.0
 _HF_API_TIMEOUT = 6.0
-_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 11x.
+_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 26x.
 _HEALTH_CACHE: dict[str, Any] = {"ts": 0.0, "payload": None}
+_RUNNING_STAGES = {"RUNNING"}
+
+
+def _space_record(identifier: str) -> dict[str, str]:
+    """Resolve only audited inventory identifiers; fail closed for unknown names."""
+    record = _SPACE_BY_NAME.get(identifier) or _SPACE_BY_SLUG.get(identifier)
+    if record is None:
+        raise ValueError("unknown Space identifier: %s" % identifier)
+    return record
 
 
 def hf_url(name: str) -> str:
-    return f"https://{_ORG_PREFIX}{name}.hf.space"
+    record = _space_record(name)
+    host_suffix = ".static.hf.space" if record["sdk"] == "static" else ".hf.space"
+    return f"https://{_ORG_PREFIX}{record['slug']}{host_suffix}"
 
 
 def hf_api_url(name: str) -> str:
-    return f"https://huggingface.co/api/spaces/{_ORG}/{name}"
+    record = _space_record(name)
+    return f"https://huggingface.co/api/spaces/{_ORG}/{record['name']}"
+
+
+def hf_repo_url(name: str) -> str:
+    record = _space_record(name)
+    return f"https://huggingface.co/spaces/{_ORG}/{record['name']}"
+
+
+def canonical_url(name: str) -> str:
+    """Canonical isolated application origin for an audited Space."""
+    return hf_url(name)
 
 
 def proxy_url(name: str) -> str:
-    """Where the tile's primary "open" link points. Own-host Spaces -> their HF host;
-    everyone else -> the same-origin reverse proxy at /spaces/<name>."""
-    return hf_url(name) if name in _OWN_HOST else f"/spaces/{name}"
+    """Deprecated compatibility alias for ``canonical_url``.
+
+    No upstream Space executes under the host application's origin; interactive
+    apps, streaming, cookies, and authentication stay isolated on Hugging Face.
+    """
+    return canonical_url(name)
 
 
 def _resolve_client() -> Any:
@@ -143,17 +190,21 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
     """HONEST per-Space status. app_reachable is a REAL HEAD probe; stage is from the
     HF API. Any failure degrades to honest false/'unknown' — never fabricated."""
     name = sp["name"]
+    slug = sp["slug"]
     result: dict[str, Any] = {
         "name": name,
+        "slug": slug,
         "title": sp["title"],
+        "sdk": sp["sdk"],
         "url": hf_url(name),
+        "canonical_url": canonical_url(name),
         "proxy_url": proxy_url(name),
-        "own_host": name in _OWN_HOST,
+        "own_host": slug in _OWN_HOST,
         "stage": "unknown",         # from HF API; HF-API-labelled below
         "stage_source": "hf-api",
         "app_reachable": False,     # REAL probe; only true when the probe truly succeeds
     }
-    # (1) REAL same-origin liveness probe of the Space app. Try the shared async httpx
+    # (1) REAL liveness probe of the canonical Space app. Try the shared async httpx
     #     client first; on None/failure fall back to the PROVEN stdlib urllib path.
     probed = False
     if client is not None:
@@ -214,14 +265,45 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
         except Exception as e:
             result["stage_error"] = type(e).__name__
 
+    result["state"] = _space_health_state(result)
     return result
 
 
+def _space_health_state(space: dict[str, Any]) -> str:
+    """Derive one conservative, user-facing state from observed row evidence."""
+    reachable = bool(space.get("app_reachable"))
+    stage = str(space.get("stage") or "unknown").upper()
+    if reachable and stage in _RUNNING_STAGES:
+        return "LIVE"
+    if not reachable and stage == "UNKNOWN":
+        return "UNAVAILABLE"
+    return "DEGRADED"
+
+
+def _aggregate_health_state(spaces: list[dict[str, Any]]) -> str:
+    """Derive a conservative top-level state from the observed Space rows."""
+    if not spaces:
+        return "UNAVAILABLE"
+    states = [_space_health_state(row) for row in spaces]
+    if all(state == "LIVE" for state in states):
+        return "LIVE"
+    if all(state == "UNAVAILABLE" for state in states):
+        return "UNAVAILABLE"
+    return "DEGRADED"
+
+
 async def spaces_health() -> dict[str, Any]:
-    """Aggregate honest health for all 11 Spaces (short TTL cache)."""
+    """Aggregate honest health for the audited 26-Space estate (short TTL cache)."""
     now = time.monotonic()
     if _HEALTH_CACHE["payload"] is not None and (now - _HEALTH_CACHE["ts"]) < _HEALTH_CACHE_TTL:
-        return _HEALTH_CACHE["payload"]
+        cached = _HEALTH_CACHE["payload"]
+        # Return a new top-level mapping: label the transport as CACHED while
+        # preserving the original aggregate verdict for auditability.
+        return {
+            **cached,
+            "state": "CACHED",
+            "cached_state": cached.get("state", "UNAVAILABLE"),
+        }
 
     client = _resolve_client()
     # Probe every Space concurrently. _probe_one handles client=None internally by
@@ -231,14 +313,17 @@ async def spaces_health() -> dict[str, Any]:
     spaces = list(await _asyncio.gather(*[_probe_one(client, sp) for sp in SPACES]))
 
     payload = {
+        "state": _aggregate_health_state(spaces),
         "count": len(spaces),
         "spaces": spaces,
         "labels": {
+            "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
+            "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING; partial evidence is DEGRADED",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
-            "app_reachable": "REAL same-origin server-side HEAD/GET probe of the Space app",
+            "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
             "degrade": "stage:'unknown' + app_reachable:false; never fabricated",
         },
-        "note": "Server-side probed; 0 browser CDN. Honest live/unknown only.",
+        "note": "Server-side probed; 0 browser CDN. Honest LIVE/DEGRADED/UNAVAILABLE; cache reuse is explicitly CACHED.",
         "doctrine": _DOCTRINE,
         "fetchedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
@@ -256,52 +341,71 @@ def _tiles_page(ns: str) -> bytes:
     cards = []
     for sp in SPACES:
         name = sp["name"]
+        slug = sp["slug"]
         title = sp["title"]
-        primary = proxy_url(name)
-        primary_label = "Open on HF" if name in _OWN_HOST else "Open in a-11-oy.com"
+        primary = canonical_url(name)
+        primary_label = "Open isolated app"
         cards.append(
             '<article class="sp-card" data-space="%s">'
             '<header class="sp-head">'
             '<span class="sp-dot" data-dot="%s" title="status">&#9679;</span>'
             '<h2 class="sp-title">%s</h2></header>'
+            '<div class="sp-kind">%s &middot; %s</div>'
             '<div class="sp-stage" data-stage="%s">stage: <span>checking&hellip;</span></div>'
             '<div class="sp-links">'
-            '<a class="sp-open" href="%s">%s</a>'
-            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">Open on HF &#8599;</a>'
+            '<a class="sp-open" href="%s" rel="noopener" target="_blank">%s &#8599;</a>'
+            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View repository &#8599;</a>'
             '</div></article>'
-            % (name, name, title, name, primary, primary_label, hf_url(name))
+            % (slug, slug, title, name, sp["sdk"], slug,
+               primary, primary_label, hf_repo_url(name))
         )
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>Spaces &middot; a11oy</title>'
+        '<title>Spaces &middot; ' + ns + '</title>'
         '<style>'
         ':root{color-scheme:dark}'
         '*{box-sizing:border-box}'
         'body{margin:0;background:#0b0f14;color:#cdd6e0;'
         'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}'
-        '.sp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.25rem}'
+        '.sp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.25rem;min-width:0}'
         '.sp-h1{color:#e7eef6;font-size:1.6rem;margin:0 0 .25rem}'
-        '.sp-sub{color:#8a96a3;margin:0 0 1.6rem}'
-        '.sp-grid{display:grid;gap:1rem;'
+        '.sp-sub{color:#8a96a3;margin:0 0 .75rem;overflow-wrap:anywhere}'
+        '.sp-health{display:flex;align-items:center;gap:.45rem;min-height:44px;'
+        'color:#8a96a3;margin:0 0 1rem}'
+        '.sp-health strong{border:1px solid #3b4654;border-radius:999px;padding:.22rem .55rem;'
+        'color:#9fb0c0;font-size:.76rem;letter-spacing:.04em}'
+        '.sp-health strong.live{border-color:#3ad07a;color:#3ad07a}'
+        '.sp-health strong.degraded{border-color:#c9a23a;color:#c9a23a}'
+        '.sp-health strong.unavailable{border-color:#e0593a;color:#e0593a}'
+        '.sp-health strong.cached,.sp-health strong.checking{border-color:#697787;color:#9fb0c0}'
+        '.sp-grid{display:grid;gap:1rem;min-width:0;'
         'grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}'
         '.sp-card{background:#121821;border:1px solid #1d2632;border-radius:12px;'
-        'padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem}'
-        '.sp-head{display:flex;align-items:center;gap:.55rem}'
+        'padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem;min-width:0}'
+        '.sp-head{display:flex;align-items:center;gap:.55rem;min-width:0}'
         '.sp-dot{color:#5b6675;font-size:.7rem;line-height:1}'
         '.sp-dot.up{color:#3ad07a}.sp-dot.down{color:#e0593a}.sp-dot.unknown{color:#c9a23a}'
-        '.sp-title{font-size:1rem;margin:0;color:#e7eef6;font-weight:600}'
-        '.sp-stage{color:#7c8794;font-size:.82rem}'
+        '.sp-title{font-size:1rem;margin:0;color:#e7eef6;font-weight:600;min-width:0;overflow-wrap:anywhere}'
+        '.sp-kind{color:#697787;font-size:.76rem;overflow-wrap:anywhere}'
+        '.sp-stage{color:#7c8794;font-size:.82rem;overflow-wrap:anywhere}'
         '.sp-stage span{color:#9fb0c0}'
         '.sp-links{margin-top:auto;display:flex;gap:.9rem;flex-wrap:wrap;padding-top:.4rem}'
+        '.sp-links a{display:inline-flex;align-items:center;min-height:44px;padding:.4rem .15rem}'
         '.sp-open{color:#d4a444;text-decoration:none;font-weight:600}'
         '.sp-hf{color:#7c8794;text-decoration:none}'
-        '.sp-foot{color:#5b6675;font-size:.8rem;margin-top:1.6rem}'
+        '.sp-foot{color:#5b6675;font-size:.8rem;margin-top:1.6rem;overflow-wrap:anywhere}'
+        '@media(max-width:375px){'
+        '.sp-wrap{padding:1.25rem .75rem}.sp-grid{grid-template-columns:minmax(0,1fr)}'
+        '.sp-links{gap:.15rem}.sp-links a{flex:1 1 100%}}'
         '</style></head>'
         '<body><main class="sp-wrap">'
         '<h1 class="sp-h1">Hugging Face Spaces</h1>'
-        '<p class="sp-sub">All live Spaces, surfaced on a-11-oy.com &mdash; server-side '
-        'reverse proxy + honest live health. 0 browser CDN.</p>'
+        '<p class="sp-sub">All 26 audited Spaces in one evidence-labelled registry. '
+        'Apps open on their canonical isolated Hugging Face origin; health is probed '
+        'server-side. Legacy <code>/spaces/&lt;slug&gt;</code> links are no-store 307 handoffs.</p>'
+        '<p class="sp-health">Estate health: '
+        '<strong id="sp-estate-health" class="checking" aria-live="polite">CHECKING</strong></p>'
         '<div class="sp-grid">' + "".join(cards) + '</div>'
         '<p class="sp-foot">Status dot &amp; stage are filled from the same-origin '
         '<code>/api/' + ns + '/v1/spaces/health</code> endpoint (real server-side probe '
@@ -309,16 +413,33 @@ def _tiles_page(ns: str) -> bytes:
         '</main>'
         '<script>'
         '(function(){'
-        'fetch("/api/' + ns + '/v1/spaces/health").then(function(r){return r.json();})'
-        '.then(function(d){(d.spaces||[]).forEach(function(s){'
-        'var card=document.querySelector(\'[data-space="\'+s.name+\'"]\');if(!card)return;'
+        'var estate=document.getElementById("sp-estate-health");'
+        'function estateState(raw,cached){'
+        'var allowed={LIVE:1,DEGRADED:1,UNAVAILABLE:1,CACHED:1};'
+        'raw=String(raw||"UNAVAILABLE").toUpperCase();if(!allowed[raw])raw="UNAVAILABLE";'
+        'var label=raw;if(raw==="CACHED")label="CACHED \\u00b7 "+String(cached||"UNAVAILABLE").toUpperCase()+" snapshot";'
+        'if(estate){estate.className=raw.toLowerCase();estate.textContent=label;}}'
+        'function healthUnavailable(){estateState("UNAVAILABLE");'
+        'var cards=document.querySelectorAll(".sp-card");for(var i=0;i<cards.length;i++){'
+        'var dot=cards[i].querySelector(".sp-dot");if(dot){dot.classList.remove("up","unknown");'
+        'dot.classList.add("down");dot.title="UNAVAILABLE / health fetch failed";}'
+        'var st=cards[i].querySelector(".sp-stage span");if(st)st.textContent="UNAVAILABLE \\u00b7 health fetch failed";}}'
+        'fetch("/api/' + ns + '/v1/spaces/health").then(function(r){'
+        'if(!r.ok)throw new Error("health "+r.status);return r.json();})'
+        '.then(function(d){estateState(d.state,d.cached_state);(d.spaces||[]).forEach(function(s){'
+        'var card=document.querySelector(\'[data-space="\'+(s.slug||s.name)+\'"]\');if(!card)return;'
         'var dot=card.querySelector(".sp-dot");'
+        'var stage=String(s.stage||"unknown").toUpperCase();'
+        'var state=String(s.state||((s.app_reachable&&stage==="RUNNING")?"LIVE":'
+        '((s.app_reachable||stage!=="UNKNOWN")?"DEGRADED":"UNAVAILABLE"))).toUpperCase();'
+        'if(state!=="LIVE"&&state!=="DEGRADED"&&state!=="UNAVAILABLE")state="UNAVAILABLE";'
         'if(dot){dot.classList.remove("up","down","unknown");'
-        'dot.classList.add(s.app_reachable?"up":(s.stage&&s.stage!=="unknown"?"unknown":"down"));'
-        'dot.title=(s.app_reachable?"reachable":"unreachable")+" / stage:"+(s.stage||"unknown");}'
+        'dot.classList.add(state==="LIVE"?"up":(state==="DEGRADED"?"unknown":"down"));'
+        'dot.title=state+" / "+(s.app_reachable?"reachable":"unreachable")+" / stage:"+(s.stage||"unknown");}'
         'var st=card.querySelector(".sp-stage span");'
-        'if(st){st.textContent=(s.stage||"unknown")+(s.app_reachable?" \\u00b7 reachable":" \\u00b7 unreachable");}'
-        '});}).catch(function(){});'
+        'if(st){st.textContent=state+" \\u00b7 "+(s.stage||"unknown")+'
+        '(s.app_reachable?" \\u00b7 reachable":" \\u00b7 unreachable");}'
+        '});}).catch(healthUnavailable);'
         '})();'
         '</script>'
         '</body></html>'
@@ -340,9 +461,9 @@ def _nav_item() -> bytes:
     """ONE 'Spaces' nav item, mirroring the console's own nav-item markup so it inherits
     the console styling (0 CDN, 0 codename). Globe glyph; honest label."""
     return (
-        '<div class="nav-item" data-nav-spaces="hf1" data-wireup-path="/spaces" '
-        'onclick="location.href=\'/spaces\'" style="cursor:pointer">'
-        '<span class="ico">\U0001F310</span>Spaces</div>'
+        '<a class="nav-item" data-nav-spaces="hf1" data-wireup-path="/spaces" '
+        'href="/spaces" style="cursor:pointer;text-decoration:none">'
+        '<span class="ico">\U0001F310</span>Spaces</a>'
     ).encode("utf-8")
 
 
@@ -404,7 +525,6 @@ def register(app, ns: str = "a11oy") -> str:
     at the FRONT of the router (beat the SPA + Node-proxy catch-alls), and attach the
     idempotent 'Spaces' nav injector. try/except-guarded by the caller."""
     try:
-        from fastapi.responses import JSONResponse  # noqa: F401
         from starlette.responses import Response, JSONResponse as _JSON
     except Exception as e:  # pragma: no cover
         return "unavailable: %r" % (e,)
@@ -414,12 +534,13 @@ def register(app, ns: str = "a11oy") -> str:
 
     async def _health(request):
         payload = await spaces_health()
-        return _JSON(payload)
+        return _JSON(payload, headers={"Cache-Control": "no-store"})
 
     async def _tiles(request):
+        headers = {"Cache-Control": "no-store"}
         if request.method.upper() == "HEAD":
-            return Response(content=b"", status_code=200, media_type="text/html")
-        return Response(content=tiles, status_code=200, media_type="text/html")
+            return Response(content=b"", status_code=200, media_type="text/html", headers=headers)
+        return Response(content=tiles, status_code=200, media_type="text/html", headers=headers)
 
     from starlette.routing import Route
     routes = [
@@ -446,7 +567,7 @@ def register(app, ns: str = "a11oy") -> str:
 # ---------------------------------------------------------------------------
 # Self-test — pure stdlib + starlette TestClient; no real network. Stubs the shared
 # client to assert: health degrades honestly (no client -> stage unknown + reachable
-# false), tiles page lists ALL 11 names + has the health-fetch JS, nav injects exactly
+# false), tiles page lists ALL 26 names + has the health-fetch JS, nav injects exactly
 # once + is idempotent + removes nothing, /spaces is NOT nav-injected.
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -454,15 +575,33 @@ if __name__ == "__main__":
     with open(__file__, "r", encoding="utf-8") as _fh:
         _ast.parse(_fh.read())
 
-    assert len(SPACES) == 11, len(SPACES)
+    assert len(SPACES) == 26, len(SPACES)
     tp = _tiles_page("a11oy")
     for sp in SPACES:
         assert sp["name"].encode() in tp, "tiles missing %s" % sp["name"]
         assert sp["title"].encode() in tp, "tiles missing title %s" % sp["title"]
+        assert canonical_url(sp["name"]).encode() in tp, "tiles missing canonical app origin"
+        assert hf_repo_url(sp["name"]).encode() in tp, "tiles missing repository link"
+        assert proxy_url(sp["name"]) == canonical_url(sp["name"]), "primary link must stay isolated"
     assert b"/api/a11oy/v1/spaces/health" in tp, "tiles must fetch the health endpoint"
     assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
-    # the only https in the page should be the hf.space open links (server-named, fine)
-    assert tp.count(b"https://huggingface.co") == 0, "tiles must not pull from HF CDN"
+    assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
+    assert b"canonical isolated Hugging Face origin" in tp
+    # Repository anchors are navigation only; no browser asset is loaded from HF.
+    assert tp.count(b"https://huggingface.co/spaces/") == len(SPACES)
+    assert b'<script src="https://' not in tp and b'<link href="https://' not in tp
+
+    running = {"app_reachable": True, "app_status": 200, "stage": "RUNNING"}
+    unknown = {"app_reachable": False, "stage": "unknown"}
+    http_200_unknown = {"app_reachable": True, "app_status": 200, "stage": "unknown"}
+    assert _aggregate_health_state([running, dict(running)]) == "LIVE"
+    assert _aggregate_health_state([unknown, dict(unknown)]) == "UNAVAILABLE"
+    assert _aggregate_health_state([running, unknown]) == "DEGRADED"
+    assert _aggregate_health_state([http_200_unknown]) == "DEGRADED", \
+        "HTTP 200 alone must never upgrade aggregate state to LIVE"
+    assert _space_health_state(running) == "LIVE"
+    assert _space_health_state(unknown) == "UNAVAILABLE"
+    assert _space_health_state(http_200_unknown) == "DEGRADED"
 
     from starlette.applications import Starlette
     from starlette.responses import HTMLResponse, PlainTextResponse
@@ -489,23 +628,36 @@ if __name__ == "__main__":
     assert st.startswith("ok:"), st
     c = TestClient(app)
 
-    # health: no httpx client wired -> falls back to the stdlib urllib probe (the proven
-    # outbound path on the box). Assert SHAPE + honesty: every space has a boolean
-    # app_reachable and a string stage; values are REAL (network) or honest unknown/false
-    # (no network) -- never fabricated. We do NOT require network in CI: both outcomes ok.
-    h = c.get("/api/a11oy/v1/spaces/health").json()
-    assert h["count"] == 11, h["count"]
+    # health: no httpx client wired -> falls back to the stdlib urllib probe. Stub that
+    # final outbound path so this self-test is hermetic and verifies the exact honest
+    # degrade contract for every audited Space (no network, no fabricated green state).
+    _self_mod = sys.modules[__name__]
+    _orig_probe = _self_mod._urllib_probe
+    def _offline(*_a, **_k):
+        raise OSError("simulated offline audit")
+    _self_mod._urllib_probe = _offline
+    _HEALTH_CACHE["ts"] = 0.0
+    _HEALTH_CACHE["payload"] = None
+    try:
+        health_response = c.get("/api/a11oy/v1/spaces/health")
+        h = health_response.json()
+    finally:
+        _self_mod._urllib_probe = _orig_probe
+        _HEALTH_CACHE["ts"] = 0.0
+        _HEALTH_CACHE["payload"] = None
+    assert h["count"] == 26, h["count"]
+    assert h["state"] == "UNAVAILABLE", h["state"]
+    assert health_response.headers["cache-control"] == "no-store"
     for s in h["spaces"]:
-        assert isinstance(s["app_reachable"], bool), "app_reachable must be a real bool"
-        assert isinstance(s["stage"], str), "stage must be a string (HF-API or 'unknown')"
-        # honest contract: if not reachable AND no stage, it must be the honest unknown/false
-        if not s["app_reachable"] and s["stage"] == "unknown":
-            pass  # honest degrade -- allowed
+        assert s["app_reachable"] is False, "offline probe must honestly degrade false"
+        assert s["stage"] == "unknown", "offline HF API must honestly degrade unknown"
+        assert s["state"] == "UNAVAILABLE", "offline row must fail closed"
     assert h["doctrine"]["locked_proven"] == ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 
     # tiles page resolves + lists all names
     t = c.get("/spaces")
     assert t.status_code == 200 and "text/html" in t.headers["content-type"], t.status_code
+    assert t.headers["cache-control"] == "no-store"
     for sp in SPACES:
         assert sp["name"] in t.text, "tiles page missing %s" % sp["name"]
 
@@ -514,12 +666,12 @@ if __name__ == "__main__":
     p2 = c.get("/console").text
     assert p1.count('data-nav-spaces="hf1"') == 1, "nav must inject exactly once"
     assert p2.count('data-nav-spaces="hf1"') == 1, "nav must be idempotent"
-    assert "location.href='/spaces'" in p1, "nav must link /spaces"
+    assert 'href="/spaces"' in p1, "nav must link /spaces with a real anchor"
     assert "Operate</div>" in p1 and "Existing</div>" in p1 and "footer</div>" in p1, \
         "must remove nothing from the SPA source"
     assert p1 == p2, "second console render must be byte-identical (idempotent)"
     # the tiles page itself must NOT be nav-injected (it has no console sidebar)
     assert 'data-nav-spaces="hf1"' not in c.get("/spaces").text, "/spaces must not be nav-injected"
 
-    print("szl_spaces_surface: ALL OK (11 spaces; honest degrade; tiles 0-CDN; nav "
-          "idempotent + additive; /spaces not self-injected)")
+    print("szl_spaces_surface: ALL OK (26 canonical isolated links; honest degrade; "
+          "tiles 0-CDN + no-store; nav idempotent + additive; /spaces not self-injected)")
