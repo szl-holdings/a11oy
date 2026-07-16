@@ -38,6 +38,8 @@ jobs:
       # requests compare the exact proposed source with the exact reconciled
       # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      # Non-live candidate branch wave23-pr932-candidate, reconciled from the
-      # exact PR source tree without mutating Space main or pruning HF-only files.
-      hf-ref: ${{ github.event_name == 'pull_request' && '0087883d2ac4fc8cd479030acfd67493279d94a8' || 'main' }}
+      # Non-live candidate branch wave23-pr935-v3-candidate, reconciled from the
+      # exact GitHub tree ba5e548f8913b698c0da7fbfa8f9f01afa470ba8 without
+      # mutating Space main or pruning HF-only files. Pin the immutable HF commit,
+      # never the movable branch name.
+      hf-ref: ${{ github.event_name == 'pull_request' && 'f7607bf1028a6934a08d0ec119e929708f243f40' || 'main' }}
