@@ -24,6 +24,9 @@ Usage:
   run_wsl_governed.sh --base-snapshot PATH --mode calibrate --receipt PATH \
     --confirmation CALIBRATE_SZL_NEMO_LOW_VRAM_V1 \
     --license-acknowledgement EXACT_PHRASE
+  run_wsl_governed.sh --base-snapshot PATH --mode activation-offload --receipt PATH \
+    --confirmation CALIBRATE_SZL_NEMO_ACTIVATION_OFFLOAD_V1 \
+    --license-acknowledgement EXACT_PHRASE
 
 All modes accept --preflight-receipt PATH so a queue can bind the admission
 receipt to one immutable attempt directory.
@@ -58,16 +61,16 @@ if [[ ! -f "$RUNNER" || ! -d "$BASE" ]]; then
   echo "UNAVAILABLE: runner or immutable base snapshot is absent" >&2
   exit 4
 fi
-if [[ "$MODE" != "preflight" && "$MODE" != "capacity" && "$MODE" != "calibrate" && "$MODE" != "train" ]]; then
-  echo "Mode must be preflight, capacity, calibrate, or train" >&2
+if [[ "$MODE" != "preflight" && "$MODE" != "capacity" && "$MODE" != "calibrate" && "$MODE" != "activation-offload" && "$MODE" != "train" ]]; then
+  echo "Mode must be preflight, capacity, calibrate, activation-offload, or train" >&2
   exit 2
 fi
 if [[ "$MODE" != "preflight" && ( -z "$CONFIRMATION" || -z "$LICENSE_ACKNOWLEDGEMENT" ) ]]; then
   echo "BLOCKED: capacity/train mode requires both exact acknowledgements" >&2
   exit 2
 fi
-if [[ ( "$MODE" == "capacity" || "$MODE" == "calibrate" ) && -z "$RECEIPT" ]]; then
-  echo "BLOCKED: capacity/calibrate mode requires an explicit --receipt path" >&2
+if [[ ( "$MODE" == "capacity" || "$MODE" == "calibrate" || "$MODE" == "activation-offload" ) && -z "$RECEIPT" ]]; then
+  echo "BLOCKED: capacity/calibration mode requires an explicit --receipt path" >&2
   exit 2
 fi
 if [[ "$MODE" == "train" && -z "$OUTPUT" ]]; then
@@ -91,7 +94,7 @@ if [[ -z "$PREFLIGHT_RECEIPT" ]]; then
 fi
 mkdir -p "$(dirname "$PREFLIGHT_RECEIPT")"
 set +e
-if [[ "$MODE" == "calibrate" ]]; then
+if [[ "$MODE" == "calibrate" || "$MODE" == "activation-offload" ]]; then
   "$PYTHON" "$RUNNER" preflight \
     --base-snapshot "$BASE" \
     --receipt "$PREFLIGHT_RECEIPT"
@@ -155,6 +158,25 @@ if [[ "$MODE" == "calibrate" ]]; then
       TOKENIZERS_PARALLELISM=false \
       NO_PROXY='*' \
     "$PYTHON" "$RUNNER" calibrate-vram \
+      --base-snapshot "$BASE" \
+      --receipt "$RECEIPT" \
+      --confirmation "$CONFIRMATION" \
+      --license-acknowledgement "$LICENSE_ACKNOWLEDGEMENT"
+fi
+
+if [[ "$MODE" == "activation-offload" ]]; then
+  mkdir -p "$(dirname "$RECEIPT")"
+  exec unshare --user --map-root-user --net -- \
+    env \
+      HF_HUB_OFFLINE=1 \
+      TRANSFORMERS_OFFLINE=1 \
+      HF_DATASETS_OFFLINE=1 \
+      HF_HUB_DISABLE_TELEMETRY=1 \
+      DO_NOT_TRACK=1 \
+      WANDB_DISABLED=true \
+      TOKENIZERS_PARALLELISM=false \
+      NO_PROXY='*' \
+    "$PYTHON" "$RUNNER" calibrate-activation-offload \
       --base-snapshot "$BASE" \
       --receipt "$RECEIPT" \
       --confirmation "$CONFIRMATION" \

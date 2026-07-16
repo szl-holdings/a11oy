@@ -178,7 +178,7 @@ def _runtime_guard():
 
 def _capacity():
     return {
-        "schema_version": "szl.nemo.capacity-probe-receipt.v1",
+        "schema_version": CONTRACT["training"]["capacity_probe_receipt_schema_version"],
         "state": queue.CAPACITY_PASS,
         "training_started": False,
         "profile_id": CONTRACT["training"]["capacity_profile_id"],
@@ -193,6 +193,7 @@ def _capacity():
             "promoted": False,
             "training_authorized": False,
             "queue_progression_allowed": True,
+            "canonical_capacity_satisfied": True,
             "canonical_threshold_changed": False,
         },
         "probe": {
@@ -203,7 +204,17 @@ def _capacity():
             "sequence_limit": CONTRACT["training"]["capacity_probe_sequence_length"],
             "sequence_tokens": CONTRACT["training"]["capacity_probe_sequence_length"],
             "device_map": {"": 0},
+            "activation_offload": {"enabled": False},
+            "loss": 0.25,
+            "gradient_receipt": {
+                "trainable_gradient_tensors": 4,
+                "finite_gradient_tensors": 4,
+                "all_trainable_gradients_finite": True,
+                "frozen_parameters_with_gradients": 0,
+                "l2_norm": 1.25,
+            },
         },
+        "activation_offload": {"enabled": False},
         "runtime_guard": _runtime_guard(),
     }
 
@@ -624,6 +635,111 @@ def test_low_vram_calibration_can_never_satisfy_queue_capacity(tmp_path):
         },
     }
     result = _stage_result("capacity", tmp_path, tmp_path / "calibration.json", receipt)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+def test_activation_offload_calibration_can_never_satisfy_queue_capacity(tmp_path):
+    receipt = _capacity()
+    receipt.update(
+        {
+            "schema_version": "szl.nemo.activation-offload-calibration-receipt.v1",
+            "state": "PASS_ACTIVATION_OFFLOAD_CALIBRATION_ONLY_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED",
+            "profile_id": CONTRACT["activation_offload_calibration"]["profile_id"],
+            "activation_offload": {
+                "enabled": True,
+                "context_entered": True,
+                "context_exited": True,
+                "backward_completed_inside_context": True,
+            },
+        }
+    )
+    receipt["effects"]["queue_progression_allowed"] = False
+    receipt["effects"]["canonical_capacity_satisfied"] = False
+    receipt["probe"]["profile_id"] = CONTRACT["activation_offload_calibration"][
+        "profile_id"
+    ]
+    receipt["probe"]["activation_offload"] = {"enabled": True}
+    result = _stage_result("capacity", tmp_path, tmp_path / "offload.json", receipt)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+def test_canonical_capacity_requires_explicitly_disabled_activation_offload(tmp_path):
+    forged = _capacity()
+    forged["probe"].pop("activation_offload")
+    result = _stage_result("capacity", tmp_path, tmp_path / "forged.json", forged)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+    malformed = _capacity()
+    malformed["activation_offload"] = []
+    result = _stage_result("capacity", tmp_path, tmp_path / "malformed.json", malformed)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    [
+        "trainable_gradient_tensors",
+        "finite_gradient_tensors",
+        "all_trainable_gradients_finite",
+        "frozen_parameters_with_gradients",
+        "l2_norm",
+    ],
+)
+def test_canonical_capacity_requires_complete_gradient_evidence(tmp_path, missing_field):
+    receipt = _capacity()
+    receipt["probe"]["gradient_receipt"].pop(missing_field)
+    result = _stage_result(
+        "capacity", tmp_path, tmp_path / f"missing-{missing_field}.json", receipt
+    )
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+@pytest.mark.parametrize("missing_field", ["loss", "gradient_receipt"])
+def test_canonical_capacity_requires_loss_and_gradient_receipt(tmp_path, missing_field):
+    receipt = _capacity()
+    receipt["probe"].pop(missing_field)
+    result = _stage_result(
+        "capacity", tmp_path, tmp_path / f"missing-{missing_field}.json", receipt
+    )
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+@pytest.mark.parametrize(
+    "bad_loss", [-0.01, True, "0.25", float("nan"), float("inf")]
+)
+def test_canonical_capacity_requires_finite_numeric_loss(tmp_path, bad_loss):
+    receipt = _capacity()
+    receipt["probe"]["loss"] = bad_loss
+    result = _stage_result("capacity", tmp_path, tmp_path / "bad-loss.json", receipt)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+@pytest.mark.parametrize(
+    ("field", "tampered_value"),
+    [
+        ("trainable_gradient_tensors", 0),
+        ("trainable_gradient_tensors", True),
+        ("finite_gradient_tensors", 3),
+        ("finite_gradient_tensors", True),
+        ("all_trainable_gradients_finite", False),
+        ("all_trainable_gradients_finite", 1),
+        ("frozen_parameters_with_gradients", 1),
+        ("frozen_parameters_with_gradients", False),
+        ("l2_norm", -0.01),
+        ("l2_norm", True),
+        ("l2_norm", "1.25"),
+        ("l2_norm", float("nan")),
+        ("l2_norm", float("inf")),
+    ],
+)
+def test_canonical_capacity_refuses_tampered_gradient_evidence(
+    tmp_path, field, tampered_value
+):
+    receipt = _capacity()
+    receipt["probe"]["gradient_receipt"][field] = tampered_value
+    result = _stage_result(
+        "capacity", tmp_path, tmp_path / f"tampered-{field}.json", receipt
+    )
     assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
 
 

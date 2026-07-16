@@ -149,8 +149,8 @@
       "local_artifacts": [
         {
           "path": "model_release/szl-nemo/training-contract.json",
-          "bytes": 9675,
-          "sha256": "a924596868a8a5c17b2bc1a9b515ca0b0788d6ccddeed207b9ee3353ba1333a7",
+          "bytes": 13656,
+          "sha256": "8015e5cd8b6a8b405ba5f6a5abfbfcac619d28ebedca751416105fe914fbc151",
           "role": "TRAINING_CONTRACT"
         },
         {
@@ -185,8 +185,8 @@
         },
         {
           "path": "model_release/szl-nemo/szl_nemo_finetune.py",
-          "bytes": 70318,
-          "sha256": "ba96fcbdf13d847042dc10c288f910b9197c8b9a97d8bb927a07733c0428fcb8",
+          "bytes": 101683,
+          "sha256": "631eb24ccede0c3d5a68d91312d6e4a5f414f4f391b7d2bf6f3ccb8178e3dfea",
           "role": "OFFLINE_TRAINER"
         },
         {
@@ -215,14 +215,14 @@
         },
         {
           "path": "model_release/szl-nemo/run_wsl_governed.sh",
-          "bytes": 4732,
-          "sha256": "13ab809ce94ea25768950c93c57c73f92c2b2135d8f7c7f178163ad2256aa818",
+          "bytes": 6609,
+          "sha256": "977c06caeda275a2ce760983ac4a8425b772d1ce085008af20c7284d1c6343e0",
           "role": "GOVERNED_WSL_LAUNCHER"
         },
         {
           "path": "model_release/szl-nemo/szl_nemo_wsl_queue.py",
-          "bytes": 52144,
-          "sha256": "152e56ece59e0239867fc31e08799f29823e7134d421dadd49757a905d0d194f",
+          "bytes": 56724,
+          "sha256": "e947f9df0a457fda6b371faeb864855ad65d07da71adfe425de78801c1650ac2",
           "role": "DURABLE_GOVERNED_WSL_QUEUE"
         },
         {
