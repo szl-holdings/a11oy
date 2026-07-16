@@ -113,41 +113,6 @@
     <span class="mono footer-note">Counsel-governed · A11oy-orchestrated</span>
   </div>
 </footer>
-
-<!-- SZL-FOURTH-WALL:v1:START — the page proves itself to the visitor. Claims-free: integrity & origin only. -->
-<section id="fourth-wall" style="background:#060D1F;border-top:1px solid #C9B787;padding:18px 24px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#8FA3BF;line-height:1.7">
-  <div style="max-width:980px;margin:0 auto">
-    <span style="color:#C9B787;letter-spacing:2px">⟨ 4TH WALL ⟩</span>
-    <span> You are reading rendered bytes. Don&rsquo;t trust them — hash them:</span>
-    <button id="fw-hash-btn" style="margin-left:8px;background:transparent;border:1px solid #3AF4C8;color:#3AF4C8;padding:2px 10px;border-radius:3px;font:inherit;cursor:pointer">hash this page in your browser</button>
-    <span id="fw-hash-out" style="color:#3AF4C8;word-break:break-all"></span>
-    <div style="margin-top:6px">canonical source: <a href="https://github.com/szl-holdings/a11oy/blob/main/index.html" style="color:#C9B787">szl-holdings/a11oy@main</a><span id="fw-main-sha"></span> · verify from outside:
-      <code style="color:#E8D9AE;background:#0B1F3A;padding:1px 6px;border-radius:3px">curl -s https://raw.githubusercontent.com/szl-holdings/a11oy/main/index.html | sha256sum</code>
-    </div>
-    <div style="margin-top:4px;color:#5c6f8a">This proves integrity &amp; origin of this page only — never the accuracy of anything written on it. Doctrine v11.</div>
-  </div>
-</section>
-<script>
-(function () {
-  var btn = document.getElementById("fw-hash-btn"), out = document.getElementById("fw-hash-out");
-  if (btn) btn.addEventListener("click", function () {
-    out.textContent = " hashing…";
-    fetch(window.location.pathname || "/", { cache: "reload" }).then(function (r) { return r.arrayBuffer(); })
-      .then(function (buf) { return crypto.subtle.digest("SHA-256", buf); })
-      .then(function (d) {
-        var h = Array.prototype.map.call(new Uint8Array(d), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
-        out.textContent = " sha256:" + h;
-      }).catch(function () { out.textContent = " hash failed — use the curl line below instead"; });
-  });
-  fetch("https://api.github.com/repos/szl-holdings/a11oy/commits/main", { headers: { Accept: "application/vnd.github+json" } })
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (j) { if (j && j.sha) document.getElementById("fw-main-sha").textContent = " (live main = " + j.sha.slice(0, 12) + ")"; })
-    .catch(function () {});
-})();
-</script>
-<!-- SZL-FOURTH-WALL:v1:END -->
-
-
 <!-- Rosie floating operator widget (additive). Canonical source: SZLHOLDINGS/README assets/rosie. -->
 <link rel="stylesheet" href="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.css">
 <script src="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.js"
