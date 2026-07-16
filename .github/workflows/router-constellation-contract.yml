@@ -1,0 +1,54 @@
+name: Router constellation contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'a11oy_landing.html'
+      - 'serve.py'
+      - 'console/static/viz/router/**'
+      - 'tests/test_router_constellation_contract.py'
+      - 'tests/test_viz_asset_delivery.py'
+      - '.github/workflows/router-constellation-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'a11oy_landing.html'
+      - 'serve.py'
+      - 'console/static/viz/router/**'
+      - 'tests/test_router_constellation_contract.py'
+      - 'tests/test_viz_asset_delivery.py'
+      - '.github/workflows/router-constellation-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contract:
+    name: Offline honesty, accessibility, and syntax contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Install pinned test runtime
+        run: >-
+          python -m pip install
+          'pytest==9.0.3'
+          'fastapi==0.139.0'
+          'starlette==1.3.1'
+          'httpx==0.28.1'
+      - name: Run offline router contracts
+        run: python -m pytest tests/test_router_constellation_contract.py -q
+      - name: Prove visualization assets are delivered as files
+        run: python -m pytest tests/test_viz_asset_delivery.py -q
+      - name: Parse browser modules
+        run: |
+          node --check console/static/viz/router/app.js
+          node --check console/static/viz/router/models.js
+          node --check console/static/viz/router/szl-mobile-controls.js

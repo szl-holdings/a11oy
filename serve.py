@@ -11293,14 +11293,20 @@ async def observability_page() -> Response:
 # (no Dockerfile change needed). These explicit routes serve the directory index for
 # both the clean /viz/<name> URL and the /static/viz/<name>/ URL (trailing-slash dir).
 # Per-file assets (style.css, app.js, models.js, real_sorries.json) are served by the
-# spa_fallback below (they physically exist under STATIC_DIR). Registered BEFORE the
-# SPA catch-all so the viz directory roots win over the history fallback.
+# explicit allowlisted viz_asset route below so a missing asset can never receive the
+# HTML SPA shell. Registered BEFORE the SPA catch-all so visualization routes win.
 # Files are shipped at console/static/viz/<name>/ so that, after `COPY console/ ./static/`,
 # they live at /app/static/static/viz/<name>/. The browser requests them at the URL
-# /static/viz/<name>/<asset>, which spa_fallback resolves to STATIC_DIR/static/viz/...
-# (i.e. /app/static/static/viz/...). This makes the /static/viz/ URL + its relative
-# assets (app.js, style.css, ...) resolve consistently.
+# /static/viz/<name>/<asset>, which resolves to STATIC_DIR/static/viz/...
+# (i.e. /app/static/static/viz/...). The clean /viz/ URL is intentionally supported,
+# too, because its index uses relative asset links.
 VIZ_DIR = STATIC_DIR / "static" / "viz"
+if not VIZ_DIR.is_dir():
+    # Source-tree fallback keeps local verification faithful to the container,
+    # where Docker copies console/ to /app/static/ before the app starts.
+    _source_viz_dir = Path(__file__).resolve().parent / "console" / "static" / "viz"
+    if _source_viz_dir.is_dir():
+        VIZ_DIR = _source_viz_dir
 _VIZ_NAMES = {"khipu", "doctrine", "router"}
 
 
@@ -11751,6 +11757,31 @@ async def viz_clean(name: str) -> Response:
 @app.get("/static/viz/{name}/")
 async def viz_static_dir(name: str) -> Response:
     return _viz_index(name)
+
+
+@app.get("/viz/{name}/{asset_path:path}")
+@app.get("/static/viz/{name}/{asset_path:path}")
+async def viz_asset(name: str, asset_path: str) -> Response:
+    """Serve visualization assets from either public URL without SPA fallback.
+
+    The clean ``/viz/<name>/`` page uses relative asset URLs, so those requests
+    arrive under ``/viz/<name>/<asset>`` rather than ``/static/viz/...``.  An
+    explicit, allowlisted route keeps missing or invalid assets from silently
+    receiving the SPA HTML shell (which browsers then reject as CSS/JavaScript).
+    """
+    if name not in _VIZ_NAMES or not asset_path:
+        return JSONResponse({"error": "visualization asset not found"}, status_code=404)
+
+    scene_root = (VIZ_DIR / name).resolve()
+    candidate = (scene_root / asset_path).resolve()
+    try:
+        candidate.relative_to(scene_root)
+    except ValueError:
+        return JSONResponse({"error": "visualization asset not found"}, status_code=404)
+
+    if not candidate.is_file():
+        return JSONResponse({"error": "visualization asset not found"}, status_code=404)
+    return FileResponse(candidate)
 
 
 # ---------------------------------------------------------------------------

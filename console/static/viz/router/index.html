@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0a0e14" />
-<title>LLM Graph-Router Live — SZL Holdings</title>
-<meta name="description" content="3D bipartite graph router: organs (query sources) at center, 7 tiers as rings, 30+ open LLMs as model nodes on the outer ring. Edges are weighted by a transparent affinity (quality x ctx-fit x cost x license). Clean-room concept after GraphRouter/Router-R1/LLMRouter. Prefers live /v1/router/stats; else shows the same graph decision locally." />
+<meta name="theme-color" content="#06101d" />
+<title>LLM Graph-Router Constellation — SZL Holdings</title>
+<meta name="description" content="Accessible model-tier constellation for the a11oy graph router. Validated endpoint responses, response age, and local modeled affinity are labelled separately; no render or configuration state is presented as live inference." />
 <link rel="stylesheet" href="style.css" />
 <script type="importmap">
 {
@@ -20,31 +20,55 @@
 </script>
 </head>
 <body>
-<div id="root"></div>
+<div id="sceneFallback" class="scene-fallback" role="status" aria-live="polite">
+  <div class="fallback-shell">
+    <span class="fallback-kicker">RENDER-SAFE ROUTER VIEW</span>
+    <h1>Model-tier constellation</h1>
+    <p id="fallbackReason">Loading the 3D renderer. If WebGPU, WebGL2, or the renderer modules are unavailable, this readable registry remains the source of truth.</p>
+    <div class="fallback-tiers" aria-label="Router tiers">
+      <span><b>T0</b> cached</span><span><b>T1</b> fast</span><span><b>T2</b> standard</span>
+      <span><b>T3</b> code</span><span><b>T4</b> reasoning</span><span><b>T5</b> long context</span>
+      <span><b>T6</b> multimodal</span>
+    </div>
+  </div>
+</div>
+<div id="root" aria-hidden="true"></div>
+<div class="holo-field" aria-hidden="true"></div>
 <div id="hud">
   <header>
     <span class="brand">LLM&nbsp;GRAPH-ROUTER</span>
-    <span id="livePill" class="pill demo">GRAPH ROUTER · local affinity</span>
-    <span id="renderPill" class="pill">init…</span>
+    <span id="livePill" class="pill pending">CHECKING ENDPOINT</span>
+    <span id="renderPill" class="pill">RENDER INIT</span>
     <label class="sov"><input type="checkbox" id="sov"/> Sovereign mode <small>(GREEN-only)</small></label>
   </header>
-  <div class="panel">
-    <div class="row"><b id="modelCount">0</b><small>open LLMs</small></div>
+  <section class="panel telemetry" aria-label="Router telemetry">
+    <div class="panel-kicker">CONSTELLATION STATUS</div>
+    <div class="row"><b id="modelCount">0</b><small>registered models</small></div>
     <div class="row"><b id="tierCount">7</b><small>tiers T0–T6</small></div>
-    <div class="row"><b id="qps">0</b><small>served / poll</small></div>
+    <div class="row"><b id="signalValue">—</b><small id="signalLabel">awaiting route signal</small></div>
+    <p id="sourceState" class="source-state">Endpoint not checked yet.</p>
+    <p id="freshnessState" class="freshness-state">No response received.</p>
     <div class="legend">
       <span><i style="background:#1f9d57"></i>GREEN</span>
       <span><i style="background:#cda64a"></i>AMBER</span>
       <span><i style="background:#c0392b"></i>RED</span>
     </div>
-  </div>
+  </section>
+  <aside class="route-panel" aria-label="Current route signals">
+    <div class="panel-kicker">ROUTE SIGNALS</div>
+    <p id="routeMode" class="route-mode">Waiting for a validated endpoint response.</p>
+    <ol id="routeFeed" class="route-feed"></ol>
+  </aside>
+  <nav id="tierRail" class="tier-rail" aria-label="Router tier legend"></nav>
   <footer>
-    <span>query organs · 7 tier rings · 30+ model nodes · edge weight = affinity × task share · glow = top-route</span>
-    <span id="lastPoll">—</span>
+    <span>query organs · 7 tier rings · 32 registry nodes · route glow is endpoint-derived or explicitly MODELED</span>
+    <span id="lastPoll">not polled</span>
   </footer>
 </div>
-<div id="card" class="card" hidden><button class="x" id="closeCard">×</button><div id="cardBody"></div></div>
-<div id="tip" class="tip" hidden></div>
+<div id="labelLayer" class="label-layer" aria-label="Persistent model and tier labels"></div>
+<div id="card" class="card" role="dialog" aria-modal="false" aria-label="Model details" hidden><button class="x" id="closeCard" aria-label="Close model details">×</button><div id="cardBody"></div></div>
+<div id="tip" class="tip" role="tooltip" hidden></div>
+<noscript><p class="noscript-note">JavaScript is unavailable. The tier registry above remains readable; live route status cannot be checked.</p></noscript>
 <script type="module" src="app.js"></script>
 </body>
 </html>
