@@ -42,8 +42,9 @@ function stable(value, depth = 0) {
   }
   if (Array.isArray(value)) return value.map((item) => stable(item, depth + 1));
   if (typeof value === "object") {
-    const out = {};
+    const out = Object.create(null);
     for (const key of Object.keys(value).sort()) {
+      if (["__proto__", "prototype", "constructor"].includes(key)) throw new RequestFault("PROTOTYPE_KEY_REJECTED", `prototype-sensitive key is not accepted: ${key}`);
       if (value[key] === undefined) throw new RequestFault("NON_CANONICAL_VALUE", "undefined values are not accepted");
       out[key] = stable(value[key], depth + 1);
     }
@@ -67,6 +68,12 @@ function assertObject(value, label) {
   }
 }
 
+function rejectUnknown(value, allowed, label) {
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) throw new RequestFault("UNKNOWN_FIELD", `unsupported ${label} field: ${key}`);
+  }
+}
+
 export function validateSessionId(value) {
   if (typeof value !== "string" || !SESSION_ID.test(value)) {
     throw new RequestFault("INVALID_SESSION", "x-immune-session must be 16-128 URL-safe characters");
@@ -76,12 +83,10 @@ export function validateSessionId(value) {
 
 export function validateInspectRequest(body, { toolRequired = false } = {}) {
   assertObject(body, "request");
-  const allowed = new Set(["sessionId", "content", "source", "actor", ...(toolRequired ? ["tool"] : [])]);
-  for (const key of Object.keys(body)) {
-    if (!allowed.has(key)) throw new RequestFault("UNKNOWN_FIELD", `unsupported request field: ${key}`);
-  }
+  rejectUnknown(body, new Set(["content", "source", "actor", ...(toolRequired ? ["tool"] : [])]), "request");
   const text = normalizeText(body.content);
   assertObject(body.source, "source");
+  rejectUnknown(body.source, new Set(["kind", "trust"]), "source");
   const kinds = new Set(["user", "tool_response", "retrieval", "memory", "system"]);
   const trusts = new Set(["trusted", "untrusted", "unknown"]);
   if (!kinds.has(body.source.kind)) throw new RequestFault("INVALID_SOURCE", "source.kind is invalid");
@@ -89,6 +94,9 @@ export function validateInspectRequest(body, { toolRequired = false } = {}) {
 
   const actor = body.actor ?? {};
   assertObject(actor, "actor");
+  rejectUnknown(actor, new Set(["id", "role", "scopes"]), "actor");
+  if (actor.id !== undefined && (typeof actor.id !== "string" || actor.id.length > 256)) throw new RequestFault("INVALID_ACTOR", "actor.id must be a string of at most 256 characters");
+  if (actor.role !== undefined && (typeof actor.role !== "string" || actor.role.length > 128)) throw new RequestFault("INVALID_ACTOR", "actor.role must be a string of at most 128 characters");
   const scopes = actor.scopes ?? [];
   if (!Array.isArray(scopes) || scopes.length > 64 || scopes.some((scope) => typeof scope !== "string" || scope.length > 128)) {
     throw new RequestFault("INVALID_ACTOR", "actor.scopes must contain at most 64 short strings");
@@ -97,11 +105,13 @@ export function validateInspectRequest(body, { toolRequired = false } = {}) {
   let tool = null;
   if (toolRequired) {
     assertObject(body.tool, "tool");
-    if (typeof body.tool.name !== "string" || !body.tool.name.trim()) throw new RequestFault("INVALID_TOOL", "tool.name is required");
-    if (typeof body.tool.capability !== "string" || !body.tool.capability.trim()) throw new RequestFault("INVALID_TOOL", "tool.capability is required");
+    rejectUnknown(body.tool, new Set(["name", "capability", "arguments"]), "tool");
+    if (typeof body.tool.name !== "string" || !body.tool.name.trim() || body.tool.name.length > 256) throw new RequestFault("INVALID_TOOL", "tool.name must be 1-256 characters");
+    if (typeof body.tool.capability !== "string" || !body.tool.capability.trim() || body.tool.capability.length > 256) throw new RequestFault("INVALID_TOOL", "tool.capability must be 1-256 characters");
+    if (!Object.hasOwn(body.tool, "arguments")) throw new RequestFault("INVALID_TOOL", "tool.arguments is required");
     tool = {
-      name: body.tool.name.slice(0, 256),
-      capability: body.tool.capability.slice(0, 256),
+      name: body.tool.name,
+      capability: body.tool.capability,
       arguments: stable(body.tool.arguments),
     };
   }
@@ -111,8 +121,8 @@ export function validateInspectRequest(body, { toolRequired = false } = {}) {
     normalization: { changed: text.changed, appliedNfkc: text.appliedNfkc, removedZeroWidth: text.removedZeroWidth },
     source: { kind: body.source.kind, trust: body.source.trust },
     actor: {
-      id: typeof actor.id === "string" ? actor.id.slice(0, 256) : null,
-      role: typeof actor.role === "string" ? actor.role.slice(0, 128) : null,
+      id: typeof actor.id === "string" ? actor.id : null,
+      role: typeof actor.role === "string" ? actor.role : null,
       scopes: [...new Set(scopes)].sort(),
     },
     tool,

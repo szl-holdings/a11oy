@@ -20,7 +20,15 @@ doctrine:
 - deterministic checks precede model classification;
 - an immutable-pinned adapter contract remains unavailable without real local artifacts;
 - tool authorization requires classifier qualification and a DSSE/Ed25519 receipt;
-- receipt payloads contain input/action hashes, never raw inspected content;
+- receipt payloads contain disclosed commitments, never raw inspected content; HMAC is
+  used when a runtime secret exists and unkeyed SHA-256 is labeled with dictionary risk;
+- signer key IDs are accepted only from a pinned runtime trust-root set;
+- chain verification binds record sequence, record and signed-payload previous hashes,
+  envelope hash, key identity, and Ed25519 signature before readback;
+- exact static assets and classifier artifacts use stable reads that reject symlink/reparse
+  resolution and detect file identity changes;
+- admission precedes expensive or mutating work at session, IP, global, concurrency, and
+  execution-deadline scopes;
 - missing tripwire signals are `NOT_IMPLEMENTED` / `NOT_EVALUATED`;
 - OpenAPI is the source for a generated route/enum contract;
 - the browser flow exposes Inspector → Innate → Adaptive → Receipt evidence.
@@ -38,7 +46,8 @@ runtime chain at `data/immune/v1-receipts.jsonl`.
   qualification receipt are committed. Adaptive classification is therefore
   `UNAVAILABLE` by design.
 - No signing key is committed. Signed receipts are `UNAVAILABLE` until an approved runtime
-  secret is present.
+  secret is present and its public key ID is pinned in the trusted-root set.
+- External transparency-log or timestamp anchoring is `ROADMAP` / `NOT_IMPLEMENTED`.
 - T09 trusted-clock-skew detection is not implemented because this standalone service has
   no independently trusted clock source.
 - Passing unit/integration tests establishes implementation behavior only; it is not an

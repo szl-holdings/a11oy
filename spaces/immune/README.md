@@ -26,10 +26,13 @@ classifier and a real Ed25519-signed receipt.
 3. Run HUKLLA tripwires, explicitly reporting `NOT_IMPLEMENTED` where evidence is absent.
 4. Invoke the local classifier adapter only after deterministic controls pass.
 5. Apply highest-risk-wins policy.
-6. Hash the input and action, then append a DSSE/Ed25519 receipt when a signer exists.
+6. Commit session, actor, input, and action with domain-separated HMAC-SHA-256 when the
+   runtime commitment secret exists, then append a DSSE/Ed25519 receipt.
 7. Permit tool execution only after a qualified classifier and signed receipt exist.
 
-Receipt appends are serialized and use an explicit file-descriptor
+All v1 requests pass per-session, per-IP, global, concurrency, and deadline admission
+before body parsing, ledger verification, classification, or receipt append. Rotating the
+session header does not bypass IP/global limits. Receipt appends are serialized and use an explicit file-descriptor
 `open → write → fsync → close` sequence. Public request counters reset every 60 seconds;
 the independent session TTL remains 30 minutes and both timestamps are exposed by the
 session-state contract.
@@ -39,8 +42,8 @@ third-party baseline identifier only; it remains `UNAVAILABLE` until all of thes
 supplied and verified locally:
 
 - exact 40-character immutable model revision;
-- SHA-256 hashes and local paths for weights and tokenizer;
-- local adapter implementation;
+- SHA-256 hashes and local paths for weights, tokenizer, and adapter bytes;
+- the exact `szl.immune.classifier-adapter/v1` adapter contract;
 - runtime and device identity;
 - an Ed25519-signed qualification receipt whose key ID is explicitly allowed through
   `IMMUNE_QUALIFICATION_KEYID`.
@@ -52,7 +55,7 @@ supplied and verified locally:
 | `GET` | `/api/immune/v1/status` | Service, policy, classifier, signer, and chain evidence |
 | `POST` | `/api/immune/v1/inspect` | Deterministic-first input inspection |
 | `POST` | `/api/immune/v1/tool-authorize` | Fail-closed tool authorization |
-| `GET` | `/api/immune/v1/receipts/{receiptId}` | DSSE envelope and public receipt payload |
+| `GET` | `/api/immune/v1/receipts/{receiptId}` | Verified, session-bound receipt when keyed readback is enabled |
 | `GET` | `/api/immune/v1/tripwires` | Implemented and unimplemented HUKLLA tripwires |
 | `GET/POST` | `/api/immune/v1/session/state` | Session-scoped demo state only |
 | `GET` | `/openapi.json` | OpenAPI 3.1 contract |
@@ -71,10 +74,29 @@ npm test
 npm start
 ```
 
+Every v1 operation requires `x-immune-session` (16-128 URL-safe characters). `429`
+responses expose `Retry-After`, `RateLimit-*`, and compatibility `X-RateLimit-*` headers.
+
 To enable signed receipts, place a base64 Ed25519 PKCS#8 private key (or 32-byte seed) in
-the approved secret store as `IMMUNE_SIGNING_KEY`. Never commit it. Runtime receipts are
+the approved secret store as `IMMUNE_SIGNING_KEY`, and pin its SHA-256 SPKI key ID in
+`IMMUNE_RECEIPT_TRUSTED_KEYIDS`. Never commit it. Runtime receipts are
 written to `data/immune/v1-receipts.jsonl` or `IMMUNE_LEDGER_PATH`. Signer and
 qualification key IDs are full 64-character SHA-256 digests of their SPKI public keys.
+
+Set a base64 secret of at least 32 bytes in `IMMUNE_COMMITMENT_KEY` for keyed commitments.
+Without it, low-entropy fields are marked `DICTIONARY_EXPOSURE_RISK` and public receipt
+retrieval is unavailable. With the key present, retrieval remains off unless
+`IMMUNE_RECEIPT_READBACK=1`, and is restricted to the originating session. Ledger size is
+bounded by `IMMUNE_LEDGER_MAX_RECORDS` and `IMMUNE_LEDGER_MAX_BYTES`. External anchoring
+is `ROADMAP` / `NOT_IMPLEMENTED`.
+
+Tool `ALLOW` additionally requires `IMMUNE_AUTHORITY_KEY` (base64, at least 32 bytes) and
+the request-bound `x-immune-authority` / `x-immune-authority-signature` headers issued by
+an approved upstream. `x-immune-session` is correlation and admission state, not identity.
+Authority assertions bind actor, source trust, normalized request hash, expiry, and a
+one-time JTI. The replay cache is process-local in v0.1; multi-replica production requires
+an atomic shared replay store before tool authorization can be considered available across
+replicas.
 
 ## Prior art boundary
 

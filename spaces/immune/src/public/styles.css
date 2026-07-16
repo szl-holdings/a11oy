@@ -16,6 +16,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; background: radial-gradient(circle at 8% -10%, #12313b 0, transparent 31rem), var(--bg); }
 button, input, select, textarea { font: inherit; }
+:where(button, input, select, textarea, summary, a):focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .shell { width: min(1480px, calc(100% - 48px)); margin-inline: auto; }
 .topbar { display: flex; justify-content: space-between; gap: 32px; align-items: end; padding-block: 72px 38px; border-bottom: 1px solid var(--line); }
 .eyebrow, .step p { margin: 0 0 10px; color: var(--cyan); font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; text-transform: uppercase; }
@@ -93,4 +94,7 @@ code { color: var(--cyan); }
   .facts div, .honesty-note { grid-template-columns: 1fr; gap: 5px; }
   fieldset { display: grid; }
   .session-row { align-items: start; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }

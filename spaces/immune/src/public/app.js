@@ -39,6 +39,7 @@ function renderDecision(data) {
   renderItems("tripwires", data.tripwires, (item) => ({ text: `${item.id} · ${item.implementationStatus} · ${item.evaluationState} — ${item.evidence.join("; ")}`, data: { state: item.evaluationState } }));
   renderClassifier(data.classifier);
   const verdict = byId("verdict");
+  verdict.setAttribute("role", "status");
   verdict.className = `verdict verdict-${data.decision.toLowerCase()}`;
   verdict.querySelector("strong").textContent = data.decision;
   verdict.querySelector("small").textContent = data.reasons.join(" · ");
@@ -96,6 +97,7 @@ byId("inspect-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = byId("run-button");
   button.disabled = true;
+  button.setAttribute("aria-busy", "true");
   const mode = document.querySelector('input[name="mode"]:checked').value;
   try {
     const body = {
@@ -105,7 +107,6 @@ byId("inspect-form").addEventListener("submit", async (event) => {
     };
     if (mode === "tool") {
       const capability = byId("tool-capability").value;
-      body.actor.scopes = capability ? [capability] : [];
       body.tool = { name: byId("tool-name").value, capability, arguments: JSON.parse(byId("tool-arguments").value || "{}") };
     }
     renderDecision(await api(`/api/immune/v1/${mode === "tool" ? "tool-authorize" : "inspect"}`, { method: "POST", body: JSON.stringify(body) }));
@@ -113,11 +114,13 @@ byId("inspect-form").addEventListener("submit", async (event) => {
     setText("session-count", `${session.requestCount} requests`);
   } catch (error) {
     const verdict = byId("verdict");
+    verdict.setAttribute("role", "alert");
     verdict.className = "verdict verdict-unavailable";
     verdict.querySelector("strong").textContent = "REQUEST FAILED";
     verdict.querySelector("small").textContent = error.message;
   } finally {
     button.disabled = false;
+    button.setAttribute("aria-busy", "false");
   }
 });
 

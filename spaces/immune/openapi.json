@@ -3,207 +3,67 @@
   "info": {
     "title": "SZL Immune API",
     "version": "0.1.0",
-    "description": "A fail-closed inspection and tool-authorization boundary. Model-backed classification and signed authorization remain unavailable until their exact runtime evidence exists."
+    "description": "Fail-closed inspection and tool authorization with pre-work admission, pinned classifier evidence, privacy-disclosed commitments, and a verified bounded DSSE receipt chain. External receipt anchoring is ROADMAP / NOT_IMPLEMENTED."
   },
   "servers": [{ "url": "/" }],
   "tags": [{ "name": "immune" }],
   "paths": {
     "/api/immune/v1/status": {
-      "get": {
-        "operationId": "getImmuneStatus",
-        "tags": ["immune"],
-        "responses": {
-          "200": {
-            "description": "Current measured and declared capability state",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StatusResponse" } } }
-          }
-        }
-      }
+      "get": { "operationId": "getImmuneStatus", "tags": ["immune"], "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }], "responses": { "200": { "description": "Current measured and declared capability state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StatusResponse" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "429": { "$ref": "#/components/responses/RateLimited" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } }
     },
     "/api/immune/v1/inspect": {
-      "post": {
-        "operationId": "inspectImmuneInput",
-        "tags": ["immune"],
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InspectRequest" } } }
-        },
-        "responses": {
-          "200": {
-            "description": "Deterministic inspection verdict with optional signed receipt",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DecisionResponse" } } }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "413": { "$ref": "#/components/responses/TooLarge" }
-        }
-      }
+      "post": { "operationId": "inspectImmuneInput", "tags": ["immune"], "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InspectRequest" } } } }, "responses": { "200": { "description": "Deterministic inspection verdict and signed receipt when the trusted signer is available", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DecisionResponse" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "413": { "$ref": "#/components/responses/TooLarge" }, "429": { "$ref": "#/components/responses/RateLimited" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } }
     },
     "/api/immune/v1/tool-authorize": {
-      "post": {
-        "operationId": "authorizeImmuneTool",
-        "tags": ["immune"],
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolAuthorizeRequest" } } }
-        },
-        "responses": {
-          "200": {
-            "description": "Authorization verdict; ALLOW requires a qualified classifier and signed receipt",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DecisionResponse" } } }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "413": { "$ref": "#/components/responses/TooLarge" }
-        }
-      }
+      "post": { "operationId": "authorizeImmuneTool", "tags": ["immune"], "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }, { "$ref": "#/components/parameters/ImmuneAuthority" }, { "$ref": "#/components/parameters/ImmuneAuthoritySignature" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolAuthorizeRequest" } } } }, "responses": { "200": { "description": "Authorization verdict; ALLOW requires a qualified classifier, keyed commitments, verified request-bound authority, and trusted signed receipt", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DecisionResponse" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "413": { "$ref": "#/components/responses/TooLarge" }, "429": { "$ref": "#/components/responses/RateLimited" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } }
     },
     "/api/immune/v1/receipts/{receiptId}": {
-      "get": {
-        "operationId": "getImmuneReceipt",
-        "tags": ["immune"],
-        "parameters": [{ "name": "receiptId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }],
-        "responses": {
-          "200": {
-            "description": "Stored DSSE envelope and decoded public payload",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReceiptResponse" } } }
-          },
-          "404": { "$ref": "#/components/responses/NotFound" }
-        }
-      }
+      "get": { "operationId": "getImmuneReceipt", "tags": ["immune"], "description": "Available only when keyed commitments and explicit receipt readback are enabled. Readback is restricted to the session commitment that created the receipt.", "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }, { "name": "receiptId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }], "responses": { "200": { "description": "Verified DSSE envelope and decoded privacy-disclosed payload", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReceiptResponse" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" }, "429": { "$ref": "#/components/responses/RateLimited" }, "503": { "$ref": "#/components/responses/Unavailable" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } }
     },
     "/api/immune/v1/tripwires": {
-      "get": {
-        "operationId": "getImmuneTripwires",
-        "tags": ["immune"],
-        "responses": {
-          "200": {
-            "description": "Tripwire implementation and evaluation state",
-            "content": { "application/json": { "schema": { "type": "object", "required": ["schemaVersion", "tripwires"], "properties": { "schemaVersion": { "const": "szl.immune.tripwires/v1" }, "tripwires": { "type": "array", "items": { "$ref": "#/components/schemas/Tripwire" } } } } } }
-          }
-        }
-      }
+      "get": { "operationId": "getImmuneTripwires", "tags": ["immune"], "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }], "responses": { "200": { "description": "Tripwire implementation and evaluation state", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "tripwires"], "properties": { "schemaVersion": { "const": "szl.immune.tripwires/v1" }, "tripwires": { "type": "array", "items": { "$ref": "#/components/schemas/Tripwire" } } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "429": { "$ref": "#/components/responses/RateLimited" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } }
     },
     "/api/immune/v1/session/state": {
-      "get": {
-        "operationId": "getImmuneSessionState",
-        "tags": ["immune"],
-        "responses": {
-          "200": { "description": "Session-scoped public demo state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" }
-        }
-      },
-      "post": {
-        "operationId": "updateImmuneSessionState",
-        "tags": ["immune"],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "properties": { "strictMode": { "type": "boolean" } } } } } },
-        "responses": {
-          "200": { "description": "Updated session-scoped state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" }
-        }
-      }
+      "get": { "operationId": "getImmuneSessionState", "tags": ["immune"], "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }], "responses": { "200": { "description": "Session-scoped public demo state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "429": { "$ref": "#/components/responses/RateLimited" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } },
+      "post": { "operationId": "updateImmuneSessionState", "tags": ["immune"], "parameters": [{ "$ref": "#/components/parameters/ImmuneSession" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionUpdate" } } } }, "responses": { "200": { "description": "Updated session-scoped state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "429": { "$ref": "#/components/responses/RateLimited" }, "504": { "$ref": "#/components/responses/DeadlineExceeded" } } }
     }
   },
   "components": {
+    "parameters": {
+      "ImmuneSession": { "name": "x-immune-session", "in": "header", "required": true, "description": "Opaque correlation and admission identifier; it is not authentication. Rotating it does not bypass IP or global limits.", "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$", "minLength": 16, "maxLength": 128 } },
+      "ImmuneAuthority": { "name": "x-immune-authority", "in": "header", "required": true, "description": "Base64url-encoded szl.immune.authority/v1 assertion, bound to the normalized request and carrying trusted actor/source claims. Required for ALLOW; missing or invalid authority fails closed.", "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 16, "maxLength": 8192 } },
+      "ImmuneAuthoritySignature": { "name": "x-immune-authority-signature", "in": "header", "required": true, "description": "Lowercase HMAC-SHA-256 over the authority assertion using the approved server-side authority key.", "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$", "minLength": 64, "maxLength": 64 } }
+    },
+    "headers": {
+      "RetryAfter": { "description": "Whole seconds before retry", "schema": { "type": "integer", "minimum": 1 } },
+      "RateLimitLimit": { "description": "Enforced fixed-window request limit", "schema": { "type": "integer", "minimum": 1 } },
+      "RateLimitRemaining": { "description": "Remaining requests in the applicable window", "schema": { "type": "integer", "minimum": 0 } },
+      "RateLimitReset": { "description": "Applicable window reset as Unix seconds", "schema": { "type": "integer", "minimum": 0 } },
+      "AdmissionScope": { "description": "Admission scope that accepted or rejected the request", "schema": { "type": "string" } }
+    },
     "responses": {
-      "BadRequest": { "description": "Request was invalid", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-      "TooLarge": { "description": "Request exceeded the bounded input size", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-      "NotFound": { "description": "Receipt was not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+      "BadRequest": { "description": "Request or required session header was invalid", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "TooLarge": { "description": "Request exceeded a bounded input size", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "NotFound": { "description": "Receipt was absent or not owned by this session", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "Unavailable": { "description": "Required trusted evidence or privacy configuration is unavailable", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "DeadlineExceeded": { "description": "Bounded request execution deadline expired", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "RateLimited": { "description": "Rejected before body parsing, ledger verification, classification, or receipt append", "headers": { "Retry-After": { "$ref": "#/components/headers/RetryAfter" }, "RateLimit-Limit": { "$ref": "#/components/headers/RateLimitLimit" }, "RateLimit-Remaining": { "$ref": "#/components/headers/RateLimitRemaining" }, "RateLimit-Reset": { "$ref": "#/components/headers/RateLimitReset" }, "X-RateLimit-Limit": { "$ref": "#/components/headers/RateLimitLimit" }, "X-RateLimit-Remaining": { "$ref": "#/components/headers/RateLimitRemaining" }, "X-RateLimit-Reset": { "$ref": "#/components/headers/RateLimitReset" }, "X-Immune-Admission-Scope": { "$ref": "#/components/headers/AdmissionScope" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
     },
     "schemas": {
-      "InspectRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["content", "source"],
-        "properties": {
-          "sessionId": { "type": "string" },
-          "content": { "type": "string", "maxLength": 65536 },
-          "source": { "type": "object", "additionalProperties": false, "required": ["kind", "trust"], "properties": { "kind": { "type": "string", "enum": ["user", "tool_response", "retrieval", "memory", "system"] }, "trust": { "type": "string", "enum": ["trusted", "untrusted", "unknown"] } } },
-          "actor": { "type": "object", "additionalProperties": false, "properties": { "id": { "type": "string" }, "role": { "type": "string" }, "scopes": { "type": "array", "items": { "type": "string" }, "maxItems": 64 } } }
-        }
-      },
-      "ToolAuthorizeRequest": {
-        "allOf": [
-          { "$ref": "#/components/schemas/InspectRequest" },
-          { "type": "object", "required": ["tool"], "properties": { "tool": { "type": "object", "additionalProperties": false, "required": ["name", "capability", "arguments"], "properties": { "name": { "type": "string" }, "capability": { "type": "string" }, "arguments": {} } } } }
-        ]
-      },
-      "DecisionResponse": {
-        "type": "object",
-        "required": ["schemaVersion", "decision", "reasons", "findings", "classifier", "receipt", "tripwires"],
-        "properties": {
-          "schemaVersion": { "const": "szl.immune.decision/v1" },
-          "decision": { "type": "string", "enum": ["ALLOW", "REVIEW", "DENY", "UNAVAILABLE"] },
-          "reasons": { "type": "array", "items": { "type": "string" } },
-          "findings": { "type": "array", "items": { "type": "object" } },
-          "classifier": { "$ref": "#/components/schemas/ClassifierStatus" },
-          "receipt": { "type": "object" },
-          "tripwires": { "type": "array", "items": { "$ref": "#/components/schemas/Tripwire" } }
-        }
-      },
-      "StatusResponse": {
-        "type": "object",
-        "required": ["schemaVersion", "service", "policy", "classifier", "signer", "capabilities"],
-        "properties": {
-          "schemaVersion": { "const": "szl.immune.status/v1" },
-          "service": { "type": "object" },
-          "policy": { "type": "object" },
-          "classifier": { "$ref": "#/components/schemas/ClassifierStatus" },
-          "signer": { "type": "object" },
-          "capabilities": { "type": "object" }
-        }
-      },
-      "ClassifierStatus": {
-        "type": "object",
-        "required": ["state", "modelId", "revision", "weightsSha256", "runtime", "device", "reasons"],
-        "properties": {
-          "state": { "type": "string", "enum": ["UNAVAILABLE", "THIRD_PARTY_BASELINE", "SZL_TRAINED_CANDIDATE", "QUALIFIED"] },
-          "modelId": { "type": ["string", "null"] },
-          "revision": { "type": ["string", "null"] },
-          "weightsSha256": { "type": ["string", "null"] },
-          "runtime": { "type": ["string", "null"] },
-          "device": { "type": ["string", "null"] },
-          "reasons": { "type": "array", "items": { "type": "string" } }
-        }
-      },
-      "Tripwire": {
-        "type": "object",
-        "required": ["id", "name", "implementationStatus", "evaluationState", "evidence"],
-        "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "implementationStatus": { "type": "string", "enum": ["IMPLEMENTED", "NOT_IMPLEMENTED"] },
-          "evaluationState": { "type": "string", "enum": ["FIRED", "CLEAR", "NOT_EVALUATED"] },
-          "evidence": { "type": "array", "items": { "type": "string" } }
-        }
-      },
-      "SessionState": {
-        "type": "object",
-        "required": ["schemaVersion", "sessionId", "strictMode", "requestCount", "windowStartedAt", "windowExpiresAt", "expiresAt"],
-        "properties": {
-          "schemaVersion": { "const": "szl.immune.session/v1" },
-          "sessionId": { "type": "string" },
-          "strictMode": { "type": "boolean" },
-          "requestCount": { "type": "integer", "minimum": 0 },
-          "windowStartedAt": { "type": "string", "format": "date-time" },
-          "windowExpiresAt": { "type": "string", "format": "date-time" },
-          "expiresAt": { "type": "string", "format": "date-time" }
-        }
-      },
-      "ReceiptResponse": {
-        "type": "object",
-        "required": ["schemaVersion", "receiptId", "envelope", "payload", "chain"],
-        "properties": {
-          "schemaVersion": { "const": "szl.immune.receipt-response/v1" },
-          "receiptId": { "type": "string" },
-          "envelope": { "type": "object" },
-          "payload": { "type": "object" },
-          "chain": { "type": "object" }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "required": ["error", "message"],
-        "properties": { "error": { "type": "string" }, "message": { "type": "string" } }
-      }
+      "Source": { "type": "object", "additionalProperties": false, "required": ["kind", "trust"], "properties": { "kind": { "type": "string", "enum": ["user", "tool_response", "retrieval", "memory", "system"] }, "trust": { "type": "string", "enum": ["trusted", "untrusted", "unknown"] } } },
+      "Actor": { "type": "object", "additionalProperties": false, "properties": { "id": { "type": "string", "maxLength": 256 }, "role": { "type": "string", "maxLength": 128 }, "scopes": { "type": "array", "items": { "type": "string", "maxLength": 128 }, "maxItems": 64 } } },
+      "Tool": { "type": "object", "additionalProperties": false, "required": ["name", "capability", "arguments"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 256 }, "capability": { "type": "string", "minLength": 1, "maxLength": 256 }, "arguments": {} } },
+      "InspectRequest": { "type": "object", "additionalProperties": false, "required": ["content", "source"], "properties": { "content": { "type": "string", "maxLength": 65536 }, "source": { "$ref": "#/components/schemas/Source" }, "actor": { "$ref": "#/components/schemas/Actor" } } },
+      "ToolAuthorizeRequest": { "type": "object", "additionalProperties": false, "required": ["content", "source", "tool"], "properties": { "content": { "type": "string", "maxLength": 65536 }, "source": { "$ref": "#/components/schemas/Source" }, "actor": { "$ref": "#/components/schemas/Actor" }, "tool": { "$ref": "#/components/schemas/Tool" } } },
+      "SessionUpdate": { "type": "object", "additionalProperties": false, "properties": { "strictMode": { "type": "boolean" } } },
+      "DecisionResponse": { "type": "object", "required": ["schemaVersion", "decision", "reasons", "findings", "classifier", "receipt", "tripwires", "privacy", "authority"], "properties": { "schemaVersion": { "const": "szl.immune.decision/v1" }, "decision": { "type": "string", "enum": ["ALLOW", "REVIEW", "DENY", "UNAVAILABLE"] }, "reasons": { "type": "array", "items": { "type": "string" } }, "findings": { "type": "array", "items": { "type": "object" } }, "classifier": { "$ref": "#/components/schemas/ClassifierStatus" }, "receipt": { "type": "object" }, "tripwires": { "type": "array", "items": { "$ref": "#/components/schemas/Tripwire" } }, "privacy": { "type": "object" }, "authority": { "$ref": "#/components/schemas/AuthorityStatus" } } },
+      "StatusResponse": { "type": "object", "required": ["schemaVersion", "service", "policy", "classifier", "signer", "privacy", "authority", "admission", "ledger", "capabilities", "chain"], "properties": { "schemaVersion": { "const": "szl.immune.status/v1" }, "service": { "type": "object" }, "policy": { "type": "object" }, "classifier": { "$ref": "#/components/schemas/ClassifierStatus" }, "signer": { "type": "object" }, "privacy": { "type": "object" }, "authority": { "$ref": "#/components/schemas/AuthorityStatus" }, "admission": { "type": "object" }, "ledger": { "type": "object" }, "capabilities": { "type": "object" }, "chain": { "type": "object" } } },
+      "AuthorityStatus": { "type": "object", "required": ["state"], "properties": { "state": { "type": "string", "enum": ["READY", "UNAVAILABLE", "VERIFIED", "UNVERIFIED_CALLER_ASSERTION", "NOT_REQUIRED"] }, "mode": { "type": "string" }, "reason": { "type": ["string", "null"] } } },
+      "ClassifierStatus": { "type": "object", "required": ["state", "modelId", "revision", "weightsSha256", "tokenizerSha256", "adapterSha256", "adapterContractVersion", "runtime", "device", "reasons"], "properties": { "state": { "type": "string", "enum": ["UNAVAILABLE", "THIRD_PARTY_BASELINE", "SZL_TRAINED_CANDIDATE", "QUALIFIED"] }, "modelId": { "type": ["string", "null"] }, "revision": { "type": ["string", "null"] }, "weightsSha256": { "type": ["string", "null"] }, "tokenizerSha256": { "type": ["string", "null"] }, "adapterSha256": { "type": ["string", "null"] }, "adapterContractVersion": { "type": ["string", "null"] }, "runtime": { "type": ["string", "null"] }, "device": { "type": ["string", "null"] }, "reasons": { "type": "array", "items": { "type": "string" } } } },
+      "Tripwire": { "type": "object", "required": ["id", "name", "implementationStatus", "evaluationState", "evidence"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "implementationStatus": { "type": "string", "enum": ["IMPLEMENTED", "NOT_IMPLEMENTED"] }, "evaluationState": { "type": "string", "enum": ["FIRED", "CLEAR", "NOT_EVALUATED"] }, "evidence": { "type": "array", "items": { "type": "string" } } } },
+      "SessionState": { "type": "object", "required": ["schemaVersion", "sessionId", "strictMode", "requestCount", "windowStartedAt", "windowExpiresAt", "expiresAt"], "properties": { "schemaVersion": { "const": "szl.immune.session/v1" }, "sessionId": { "type": "string" }, "strictMode": { "type": "boolean" }, "requestCount": { "type": "integer", "minimum": 0 }, "windowStartedAt": { "type": "string", "format": "date-time" }, "windowExpiresAt": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" } } },
+      "ReceiptResponse": { "type": "object", "required": ["schemaVersion", "receiptId", "verified", "envelope", "payload", "chain", "externalAnchor"], "properties": { "schemaVersion": { "const": "szl.immune.receipt-response/v1" }, "receiptId": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "verified": { "const": true }, "envelope": { "type": "object" }, "payload": { "type": "object" }, "chain": { "type": "object" }, "externalAnchor": { "type": "object" } } },
+      "ErrorResponse": { "type": "object", "required": ["error", "message"], "properties": { "error": { "type": "string" }, "message": { "type": "string" } } }
     }
   }
 }
