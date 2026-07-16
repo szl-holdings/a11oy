@@ -831,7 +831,7 @@ def register(app, ns: str) -> None:
             return JSONResponse(szl_cuas_compute(params if isinstance(params, dict) else None))
         except Exception as e:  # noqa: BLE001 — never 500 the surface; honest fail-open
             return JSONResponse({"label": "MODELED", "ok": False,
-                                 "error": {"code": "compute_error", "detail": str(e)[:160]},
+                                 "error": {"code": "compute_error", "detail": type(e).__name__},
                                  "status": "MODELED"})
 
     try:
