@@ -206,6 +206,175 @@ def test_capacity_probe_requires_both_acknowledgements_before_receipt_or_model_l
     assert not receipt.exists()
 
 
+def test_low_vram_calibration_requires_distinct_acknowledgement_and_never_weakens_training_gate(tmp_path):
+    receipt = tmp_path / "calibration.json"
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(nemo_train.GateRefused, match="low-VRAM calibration confirmation"):
+        nemo_train.low_vram_calibration(
+            tmp_path / "base",
+            receipt,
+            contract["training"]["confirmation_phrase"],
+            contract["base"]["license_acknowledgement"],
+        )
+    assert not receipt.exists()
+    assert contract["gpu_admission"]["minimum_free_memory_mib"] == 6656
+    profile = contract["low_vram_calibration"]
+    assert profile["gpu_admission"]["minimum_free_memory_claim"] == (
+        "CALIBRATION_ATTEMPT_FLOOR_NOT_TRAINING_THRESHOLD"
+    )
+    assert profile["training_admission_effect"] == "NONE"
+    assert profile["may_modify_canonical_gpu_admission"] is False
+    assert profile["may_enqueue_training"] is False
+    assert profile["adapter_write_allowed"] is False
+    assert profile["upload_allowed"] is False
+    assert profile["publish_allowed"] is False
+    assert profile["promotion_allowed"] is False
+
+
+def test_activation_offload_calibration_is_exact_shape_and_never_authorizes_training(
+    monkeypatch, tmp_path
+):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    profile = contract["activation_offload_calibration"]
+    assert profile["sequence_length"] == contract["training"]["max_sequence_length"] == 768
+    assert profile["optimizer"] == contract["training"]["optimizer"]
+    assert profile["mechanism"] == "torch.autograd.graph.save_on_cpu"
+    assert profile["pin_memory"] is False
+    assert profile["parameter_offload"] is False
+    assert profile["optimizer_offload"] is False
+    assert profile["adoption_requirements"]["minimum_measured_vram_headroom_mib"] == 384
+    for right in (
+        "may_modify_canonical_gpu_admission",
+        "may_enqueue_training",
+        "adapter_write_allowed",
+        "upload_allowed",
+        "publish_allowed",
+        "promotion_allowed",
+    ):
+        assert profile[right] is False
+    assert contract["gpu_admission"]["minimum_free_memory_mib"] == 6656
+
+    observed = {}
+
+    def fake_capacity(*args, **kwargs):
+        observed["args"] = args
+        observed["kwargs"] = kwargs
+        return 17
+
+    monkeypatch.setattr(nemo_train, "capacity_probe", fake_capacity)
+    code = nemo_train.activation_offload_calibration(
+        tmp_path / "base",
+        tmp_path / "receipt.json",
+        profile["confirmation_phrase"],
+        contract["base"]["license_acknowledgement"],
+        {"cache": "fresh"},
+    )
+    assert code == 17
+    assert observed["kwargs"] == {"probe_kind": "activation_offload_calibration"}
+
+
+def test_activation_offload_calibration_requires_its_own_ack_before_receipt(tmp_path):
+    receipt = tmp_path / "offload.json"
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(
+        nemo_train.GateRefused, match="activation-offload calibration confirmation"
+    ):
+        nemo_train.capacity_probe(
+            tmp_path / "base",
+            receipt,
+            contract["training"]["confirmation_phrase"],
+            contract["base"]["license_acknowledgement"],
+            probe_kind="activation_offload_calibration",
+        )
+    assert not receipt.exists()
+
+
+def test_unknown_capacity_probe_kind_refuses_before_receipt(tmp_path):
+    receipt = tmp_path / "unknown.json"
+    with pytest.raises(nemo_train.GateRefused, match="unknown capacity probe kind"):
+        nemo_train.capacity_probe(
+            tmp_path / "base",
+            receipt,
+            "anything",
+            "anything",
+            probe_kind="undeclared",
+        )
+    assert not receipt.exists()
+
+
+def test_host_memory_sample_is_measured_or_explicitly_unknown():
+    sample = nemo_train.host_memory_sample()
+    assert sample["state"] in {
+        "MEASURED_PROCFS",
+        "UNKNOWN_PROCFS_UNAVAILABLE",
+        "UNKNOWN_PROCFS_READ_FAILED",
+        "UNKNOWN_PROCFS_FIELDS_MISSING",
+    }
+    if sample["state"] == "MEASURED_PROCFS":
+        assert sample["rss_bytes"] > 0
+        assert sample["peak_rss_bytes"] >= sample["rss_bytes"]
+
+
+def test_capacity_and_calibration_receipts_are_append_only(tmp_path):
+    receipt = tmp_path / "existing.json"
+    receipt.write_text('{"sentinel":true}\n', encoding="utf-8")
+    before = receipt.read_bytes()
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(nemo_train.GateRefused, match="evidence is append-only"):
+        nemo_train.low_vram_calibration(
+            tmp_path / "base",
+            receipt,
+            contract["low_vram_calibration"]["confirmation_phrase"],
+            contract["base"]["license_acknowledgement"],
+        )
+    assert receipt.read_bytes() == before
+
+
+def test_initial_receipt_claim_is_exclusive(tmp_path):
+    receipt = tmp_path / "claim.json"
+    nemo_train.create_json_once(receipt, {"owner": "first"})
+    with pytest.raises(nemo_train.GateRefused, match="evidence is append-only"):
+        nemo_train.create_json_once(receipt, {"owner": "second"})
+    assert json.loads(receipt.read_text(encoding="utf-8")) == {"owner": "first"}
+
+
+def test_low_vram_calibration_failure_persists_fail_closed_receipt(monkeypatch, tmp_path):
+    receipt = tmp_path / "calibration-failed.json"
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    monkeypatch.setattr(
+        nemo_train,
+        "git_identity",
+        lambda _contract: (_ for _ in ()).throw(RuntimeError("fixture failure")),
+    )
+    monkeypatch.setattr(
+        nemo_train,
+        "query_gpu",
+        lambda: (_ for _ in ()).throw(RuntimeError("fixture GPU unavailable")),
+    )
+
+    with pytest.raises(RuntimeError, match="fixture failure"):
+        nemo_train.low_vram_calibration(
+            tmp_path / "base",
+            receipt,
+            contract["low_vram_calibration"]["confirmation_phrase"],
+            contract["base"]["license_acknowledgement"],
+        )
+
+    failed = json.loads(receipt.read_text(encoding="utf-8"))
+    assert failed["schema_version"] == contract["low_vram_calibration"]["receipt_schema_version"]
+    assert failed["state"] == "FAILED_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+    assert failed["error_type"] == "RuntimeError"
+    assert failed["training_started"] is False
+    assert failed["effects"]["training_authorized"] is False
+    assert failed["effects"]["queue_progression_allowed"] is False
+    assert failed["effects"]["adapter_written"] is False
+    assert failed["effects"]["uploaded"] is False
+    assert failed["effects"]["published"] is False
+    assert failed["effects"]["promoted"] is False
+    assert failed["failure_evidence"]["completed_micro_steps"] == 0
+    assert failed["failure_evidence"]["terminal_gpu_sample_error"] == "RuntimeError"
+
+
 def test_gpu_gate_is_fixed_and_fail_closed(monkeypatch):
     sample = {
         "measured_at_unix_ns": 1,
@@ -224,6 +393,49 @@ def test_gpu_gate_is_fixed_and_fail_closed(monkeypatch):
     assert exc.value.samples == [sample]
     assert policy["thresholds_may_be_weakened"] is False
     assert policy["processes_may_be_stopped_automatically"] is False
+
+
+def test_preflight_refuses_undeclared_or_mislabelled_gpu_policy():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    weakened = json.loads(json.dumps(contract["gpu_admission"]))
+    weakened["minimum_free_memory_mib"] = 1
+    receipt = nemo_train.preflight(
+        None,
+        check_gpu=True,
+        probe=True,
+        gpu_policy=weakened,
+        gpu_check_id="GPU_ADMISSION",
+    )
+    assert receipt["state"] == "BLOCKED"
+    assert receipt["checks"][0]["reason"] == (
+        "GPU policy override is not the selected contract-declared profile"
+    )
+
+    receipt = nemo_train.preflight(
+        None,
+        check_gpu=True,
+        probe=True,
+        gpu_profile_key="low_vram_calibration",
+        gpu_policy=contract["low_vram_calibration"]["gpu_admission"],
+        gpu_check_id="GPU_ADMISSION",
+    )
+    assert receipt["state"] == "BLOCKED"
+    assert "selected profile check identity" in receipt["checks"][0]["reason"]
+
+    receipt = nemo_train.preflight(
+        None,
+        check_gpu=True,
+        probe=True,
+        gpu_profile_key="activation_offload_calibration",
+        gpu_policy=contract["low_vram_calibration"]["gpu_admission"],
+        gpu_check_id="GPU_ACTIVATION_OFFLOAD_CALIBRATION_ATTEMPT_FLOOR",
+    )
+    assert receipt["state"] == "BLOCKED"
+    assert "selected contract-declared profile" in receipt["checks"][0]["reason"]
+
+    receipt = nemo_train.preflight(None, check_gpu=True, probe=True, gpu_policy={})
+    assert receipt["state"] == "BLOCKED"
+    assert "selected contract-declared profile" in receipt["checks"][0]["reason"]
 
 
 def test_python_network_guard_refuses_connections():
@@ -332,7 +544,8 @@ def test_contract_never_allows_automatic_promotion_or_external_release():
     assert required["modeling_nemotron_h.py"]["sha256"] == "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4"
     assert contract["runtime"]["operating_system_allowlist"] == ["Linux"]
     assert set(contract["runtime"]["module_required"]) == {"mamba_ssm", "causal_conv1d"}
-    assert contract["training"]["capacity_probe_sequence_length"] == 128
+    assert contract["training"]["capacity_probe_sequence_length"] == 768
+    assert contract["training"]["capacity_probe_sequence_length"] == contract["training"]["max_sequence_length"]
     assert contract["runtime"]["torch_exact_allowlist"] == ["2.10.0+cu128"]
     assert contract["runtime"]["minimum_cuda_runtime"] == [12, 8]
     assert contract["runtime"]["package_exact"] == {
@@ -494,9 +707,42 @@ def test_trl_lane_uses_the_pinned_048_api_and_capacity_is_network_isolated():
     assert "fresh_hf_modules_cache" in runner
     assert '"curriculum_inputs_before"' in runner
     assert '"source_control_after"' in runner
+    assert "from bitsandbytes.optim import PagedAdamW8bit" in runner
+    assert "optimizer = PagedAdamW8bit" in runner
+    assert 'padding="max_length"' in runner
+    assert 'labels = labels.masked_fill(encoded["attention_mask"] == 0, -100)' in runner
+    assert "torch.optim.AdamW" not in runner
+    assert 'device_map="auto"' not in runner
+    assert '"gradient_accumulation_micro_steps": accumulation' in runner
+    assert "del optimizer, output" not in runner
+    assert "failure_evidence" in runner
+    assert "optimizer = None" in runner
+    assert "torch_module.cuda.empty_cache()" in runner
     assert "for row in eval_rows" in runner
     assert "capacity-probe" in launcher
+    assert "calibrate-vram" in launcher
+    assert "--mode calibrate" in launcher
+    assert "calibrate-activation-offload" in launcher
+    assert "--mode activation-offload" in launcher
+    assert 'save_on_cpu(pin_memory=False, device_type="cuda")' in runner
     assert "unshare --user --map-root-user --net" in launcher
+
+
+def test_gpu_inventory_helper_is_read_only_and_reports_the_fixed_gap():
+    helper = (
+        ROOT / "model_release" / "szl-nemo" / "Measure-SZLNemoGpuInventory.ps1"
+    ).read_text(encoding="utf-8")
+    folded = helper.casefold()
+    assert "stop-process" not in folded
+    assert "taskkill" not in folded
+    assert "processes_stopped = $false" in folded
+    assert "wddm_counter_reported_not_nvml_resident" in folded
+    assert "minimum_free_memory_mib" in folded
+    assert "evidence is append-only" in folded
+    assert "[io.file]::move" in folded
+    assert "move-item -force" not in folded
+    assert "required_device_name" in folded
+    assert "unknown_unavailable" in folded
 
 
 def test_generated_curriculum_is_byte_deterministic_lf(tmp_path):
