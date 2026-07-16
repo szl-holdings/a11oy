@@ -79,6 +79,7 @@ jobs:
           repository: ${{ steps.peer.outputs.repository }}
           ref: ${{ steps.peer.outputs.ref }}
           path: sibling
+          persist-credentials: false
       - name: Compare shared source files
         run: >-
           python3 self/.github/shared-file-drift-check.py self sibling
