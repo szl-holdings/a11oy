@@ -1,6 +1,6 @@
 # a11oy operator console (SPA)
 
-A small, self-contained operator console for a11oy with **5 working routes**,
+A small, self-contained operator console for a11oy with **6 working routes**,
 each backed by a real `a11oy serve` HTTP endpoint.
 
 | Route | Label | a11oy endpoint |
@@ -10,6 +10,14 @@ each backed by a real `a11oy serve` HTTP endpoint.
 | `/receipt/:hash` | Receipt | `GET /v1/ledger/{hash}` |
 | `/verify` | Verify | `POST /v1/verify` |
 | `/policy` | Policy | `POST /v1/policy/evaluate` |
+| `/khipu-demo` | Khipu Demo | `GET /api/khipu/demo` |
+
+The `/khipu-demo` tab shows **three RECORDED** Khipu navigator traces
+(navigation success, governance abstain, and one honest abstain **failure**) with
+copy-to-clipboard buttons for the input JSON, output JSON, and the one-line local
+run command. It is explicitly **not live inference** and **not the signed-receipt
+artifact** — the traces were AGENT-RUN on the quantized (Q4_K_M) GGUF on CPU via
+llama.cpp, and ship in-image (no external fetch at runtime).
 
 ## Why this exists
 
