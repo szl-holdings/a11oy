@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/quant-claims/benchmark-run.v1.schema.json",
+  "title": "SZL Quant Benchmark Run v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "claim_id", "protocol", "subject", "baseline",
+    "dataset", "hardware", "software", "execution", "raw_trials", "measurement",
+    "correctness", "energy", "freshness", "review", "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.quant.benchmark-run/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "claim_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+    "protocol": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version", "sha256", "preregistered_at", "manifest"],
+      "properties": {
+        "id": {"type": "string"}, "version": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "preregistered_at": {"type": "string", "format": "date-time"},
+        "manifest": {
+          "type": "object", "additionalProperties": false,
+          "required": [
+            "id", "version", "metric", "unit", "preregistered_at", "minimum_trials",
+            "hardware_class", "requires_energy", "dataset_manifest_sha256"
+          ],
+          "properties": {
+            "id": {"type": "string"}, "version": {"type": "string"},
+            "metric": {"type": "string"}, "unit": {"type": "string"},
+            "preregistered_at": {"type": "string", "format": "date-time"},
+            "minimum_trials": {"type": "integer", "minimum": 3},
+            "hardware_class": {"type": "string"},
+            "requires_energy": {"type": "boolean"},
+            "dataset_manifest_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          }
+        }
+      }
+    },
+    "subject": {"$ref": "#/$defs/artifactSubject"},
+    "baseline": {"$ref": "#/$defs/artifactSubject"},
+    "dataset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifest_sha256", "split", "seeds", "rights_admitted"],
+      "properties": {
+        "manifest_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "split": {"type": "string"},
+        "seeds": {"type": "array", "minItems": 1, "items": {"type": "integer"}},
+        "rights_admitted": {"const": true}
+      }
+    },
+    "hardware": {
+      "type": "object", "additionalProperties": false,
+      "required": ["class", "devices", "driver", "cuda"],
+      "properties": {
+        "class": {"type": "string"},
+        "devices": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/device"}},
+        "driver": {"type": "string"}, "cuda": {"type": "string"}
+      }
+    },
+    "software": {
+      "type": "object", "additionalProperties": false,
+      "required": ["git_commit", "container_digest", "lock_sha256"],
+      "properties": {
+        "git_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "container_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "lock_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "execution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["started_at", "completed_at", "warmup_trials", "measured_trials", "config"],
+      "properties": {
+        "started_at": {"type": "string", "format": "date-time"},
+        "completed_at": {"type": "string", "format": "date-time"},
+        "warmup_trials": {"type": "integer", "minimum": 0},
+        "measured_trials": {"type": "integer", "minimum": 3},
+        "config": {"type": "object"}
+      }
+    },
+    "raw_trials": {
+      "type": "array", "minItems": 3,
+      "items": {"$ref": "#/$defs/rawTrial"}
+    },
+    "measurement": {"$ref": "#/$defs/measurement"},
+    "correctness": {"$ref": "#/$defs/correctness"},
+    "energy": {"$ref": "#/$defs/energy"},
+    "freshness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fresh_until"],
+      "properties": {"fresh_until": {"type": "string", "format": "date-time"}}
+    },
+    "review": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "reviewer", "reviewed_at"],
+      "properties": {
+        "status": {"const": "APPROVED"}, "reviewer": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "artifacts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["result_sha256", "result_bundle"],
+      "properties": {
+        "result_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "result_bundle": {
+          "type": "object", "additionalProperties": false,
+          "required": ["raw_trials", "measurement", "correctness", "energy"],
+          "properties": {
+            "raw_trials": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/rawTrial"}},
+            "measurement": {"$ref": "#/$defs/measurement"},
+            "correctness": {"$ref": "#/$defs/correctness"},
+            "energy": {"$ref": "#/$defs/energy"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifactSubject": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_id", "revision", "sha256", "license"],
+      "properties": {
+        "artifact_id": {"type": "string"}, "revision": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "license": {"type": "string", "minLength": 1}
+      }
+    },
+    "device": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "model", "count"],
+      "properties": {
+        "kind": {"enum": ["CPU", "GPU", "REMOTE_ACCELERATOR"]},
+        "model": {"type": "string", "minLength": 1},
+        "count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "rawTrial": {
+      "type": "object", "additionalProperties": false,
+      "required": ["trial", "value", "unit"],
+      "properties": {
+        "trial": {"type": "integer", "minimum": 1},
+        "value": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1}
+      }
+    },
+    "measurement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["metric", "value", "unit", "estimator", "confidence_interval", "summary_tolerance"],
+      "properties": {
+        "metric": {"type": "string", "minLength": 1},
+        "value": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "estimator": {"enum": ["mean", "median"]},
+        "summary_tolerance": {"type": "number", "minimum": 0},
+        "confidence_interval": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "items": false, "minItems": 2, "maxItems": 2}
+          ]
+        }
+      }
+    },
+    "correctness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["passed", "checks"],
+      "properties": {
+        "passed": {"const": true},
+        "checks": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["name", "passed", "tolerance"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "passed": {"const": true},
+              "tolerance": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
+    "energy": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "blocker"],
+          "properties": {
+            "status": {"const": "NOT_OBSERVABLE"},
+            "blocker": {"type": "string", "minLength": 1}
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": [
+            "status", "exporter_id", "sampled_at_start", "sampled_at_end",
+            "joules_before", "joules_after", "work_units_before", "work_units_after",
+            "work_unit", "fresh"
+          ],
+          "properties": {
+            "status": {"const": "MEASURED_DELTA"},
+            "exporter_id": {"type": "string", "minLength": 1},
+            "sampled_at_start": {"type": "string", "format": "date-time"},
+            "sampled_at_end": {"type": "string", "format": "date-time"},
+            "joules_before": {"type": "number", "minimum": 0},
+            "joules_after": {"type": "number", "minimum": 0},
+            "work_units_before": {"type": "number", "minimum": 0},
+            "work_units_after": {"type": "number", "minimum": 0},
+            "work_unit": {"type": "string", "minLength": 1},
+            "fresh": {"const": true}
+          }
+        }
+      ]
+    }
+  }
+}
