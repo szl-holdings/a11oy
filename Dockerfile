@@ -127,6 +127,7 @@ COPY ayllu/ ./ayllu/
 # Canonical model-family/control-plane evidence ships with the runtime image so
 # deployed status surfaces can be audited against the same release contracts.
 COPY model_release/szl-forge-family.json model_release/szl-compute-plane.json model_release/szl-ayllu-binding.json model_release/szl-khipu-second-brain.json ./model_release/
+COPY model_release/frontier-qualification/ ./model_release/frontier-qualification/
 COPY model_release/receipt-agent/ ./model_release/receipt-agent/
 # Brain-derived rows remain quarantined until this deterministic, fail-closed
 # admission engine validates immutable provenance, rights, contamination, and

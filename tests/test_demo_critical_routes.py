@@ -64,6 +64,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/genome",                    # formula-registry genome — console Genome panel reads it (4 honesty tiers)
     "/api/a11oy/v1/status",                    # Wave-R operational-dashboard back-end (honest per-subsystem/surface health rollup)
     "/api/a11oy/v1/frontier-index/catalog",    # Wave-Q honest ecosystem catalog the status aggregate is built on (drift-proof source)
+    "/api/a11oy/v1/models/frontier-adoption",  # Wave-26 pinned model-admission contract
+    "/api/a11oy/v1/models/estate",             # Wave-26 fail-closed live HF estate merge
 ]
 
 
