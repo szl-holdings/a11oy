@@ -1633,6 +1633,13 @@ COPY a11oy_forge_family.py ./a11oy_forge_family.py
 COPY a11oy_khipu_demo.py ./a11oy_khipu_demo.py
 COPY a11oy_khipu_demo_traces.json ./a11oy_khipu_demo_traces.json
 
+# KHIPU DEMO PAGE (2026-07-16): a11oy_khipu_demo_nav.py attaches the idempotent
+# /console + /elite left-nav entry (k1) linking the visitor-reachable /khipu-demo
+# server-rendered page (extended into a11oy_khipu_demo.py, already COPY'd above).
+# MUST be COPY'd or serve.py's guarded nav import falls back and the nav item is
+# missing. Idempotent BaseHTTPMiddleware; edits no SPA source; 0 CDN.
+COPY a11oy_khipu_demo_nav.py ./a11oy_khipu_demo_nav.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets

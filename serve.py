@@ -6324,6 +6324,7 @@ for _navmod, _navlabel in (
     ("a11oy_waqay_nav", "WAQAY"),
     ("a11oy_yupay_nav", "YUPAY"),
     ("a11oy_uds_portability_nav", "UDS Portability"),
+    ("a11oy_khipu_demo_nav", "Khipu Demo"),
 ):
     try:
         _nm = __import__(_navmod)
