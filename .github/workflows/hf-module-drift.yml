@@ -38,8 +38,9 @@ jobs:
       # requests compare the exact proposed source with the exact reconciled
       # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      # Non-live candidate branch wave23-pr935-v3-candidate, reconciled from the
-      # exact GitHub tree ba5e548f8913b698c0da7fbfa8f9f01afa470ba8 without
-      # mutating Space main or pruning HF-only files. Pin the immutable HF commit,
-      # never the movable branch name.
-      hf-ref: ${{ github.event_name == 'pull_request' && 'f7607bf1028a6934a08d0ec119e929708f243f40' || 'main' }}
+      # Space main reconciled with this tree after the 2026-07-16 outage: the
+      # Dockerfile is the shrunk copy (HF hard-kills Space builds pre-log once
+      # the Dockerfile exceeds 128 KiB -- see docs/DOCKERFILE_NOTES.md) and the
+      # two LFS assets deleted during outage debugging are restored. Pin the
+      # immutable HF commit, never the movable branch name.
+      hf-ref: ${{ github.event_name == 'pull_request' && '881ea105d97e0c8322885609ae94ba8b6803b68a' || 'main' }}
