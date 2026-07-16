@@ -43,4 +43,4 @@ jobs:
       # the Dockerfile exceeds 128 KiB -- see docs/DOCKERFILE_NOTES.md) and the
       # two LFS assets deleted during outage debugging are restored. Pin the
       # immutable HF commit, never the movable branch name.
-      hf-ref: ${{ github.event_name == 'pull_request' && '17dd1e49574d2fb119710e24cedbdaab7f0bb1dc' || 'main' }}
+      hf-ref: ${{ github.event_name == 'pull_request' && '881ea105d97e0c8322885609ae94ba8b6803b68a' || 'main' }}
