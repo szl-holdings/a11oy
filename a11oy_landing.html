@@ -913,7 +913,7 @@
     <div style="margin-top:6px">canonical source: <a href="https://github.com/szl-holdings/a11oy/blob/main/a11oy_landing.html" style="color:#C9B787">szl-holdings/a11oy@main</a><span id="fw-main-sha"></span> · verify from outside:
       <code style="color:#E8D9AE;background:#0B1F3A;padding:1px 6px;border-radius:3px">curl -s https://raw.githubusercontent.com/szl-holdings/a11oy/main/a11oy_landing.html | sha256sum</code>
     </div>
-    <div style="margin-top:4px;color:#5c6f8a">This proves integrity &amp; origin of this page only — never the accuracy of anything written on it. Doctrine v11. The served page may differ from source only by the deployer&rsquo;s declared asset-path rewrites — the attested sync workflow publishes each pushed file&rsquo;s sha256.</div>
+    <div style="margin-top:4px;color:#5c6f8a">This proves integrity &amp; origin of this page only — never the accuracy of anything written on it. Doctrine v11. Expect the two hashes to differ by exactly the declared deltas: the server injects the operator-widget <code>&lt;script&gt;</code> tag in-memory, and the deployer may rewrite asset paths. In-browser hash = bytes as served; curl hash = canonical source; the attested sync + drift guards bind the two.</div>
   </div>
 </section>
 <script>
