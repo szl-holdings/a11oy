@@ -13450,6 +13450,26 @@ except Exception as _forge_family_error:  # additive: never take down the SPA
     )
 
 
+# ============================================================================
+# KHIPU DEMO TAB (2026-07-16): /api/khipu/demo — serves THREE recorded Khipu
+# navigator traces (navigation / governance / abstain-failure) for the console
+# demo tab. RECORDED, AGENT-RUN, llama.cpp CPU, Q4_K_M quant — NOT live inference
+# and NOT the signed-receipt artifact. Trace data ships in-image
+# (a11oy_khipu_demo_traces.json); no external fetch at request time. Additive,
+# front-moved route so the exact JSON path wins over the SPA history fallback.
+# ============================================================================
+try:
+    import a11oy_khipu_demo as _a11oy_khipu_demo
+
+    _khipu_demo_result = _a11oy_khipu_demo.register(app)
+    print(f"[a11oy] khipu demo tab registered (front-moved): {_khipu_demo_result}", file=sys.stderr)
+except Exception as _khipu_demo_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] khipu demo tab NOT registered (non-fatal): {_khipu_demo_error!r}",
+        file=sys.stderr,
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

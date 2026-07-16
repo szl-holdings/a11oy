@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, Route, Router, Switch, useRoute } from "wouter";
-import { A11oyClient, CONSOLE_ROUTES, type OperationalReceipt } from "./a11oyClient.ts";
+import { A11oyClient, CONSOLE_ROUTES, type OperationalReceipt, type KhipuTrace } from "./a11oyClient.ts";
 
 // The SPA is deployed at /console/ (Vite base=/console/). Wouter must strip
 // that prefix from browser pathnames before matching routes.
@@ -137,6 +137,107 @@ function PolicyRoute() {
   );
 }
 
+// Gold honesty banner colour from the existing card badge palette.
+const GOLD = "#d7b96b";
+
+function CopyButton({ label, text }: { label: string; text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <button onClick={copy} style={{ marginRight: 8 }}>
+      {copied ? "copied ✓" : label}
+    </button>
+  );
+}
+
+function TraceCard({ trace, localRun }: { trace: KhipuTrace; localRun?: string }) {
+  const inputStr = JSON.stringify(trace.inputJson, null, 2);
+  // Pretty-print the model output if it parses; otherwise show the raw string.
+  let outputStr = trace.outputJson;
+  try {
+    outputStr = JSON.stringify(JSON.parse(trace.outputJson), null, 2);
+  } catch {
+    /* raw output is not JSON — show verbatim */
+  }
+  return (
+    <article style={{ border: "1px solid #2a2a2a", borderRadius: 6, padding: 12, marginBottom: 16 }}>
+      <h3 style={{ marginTop: 0 }}>
+        {trace.caseId}{" "}
+        <span style={{ fontSize: "0.7em", color: GOLD, textTransform: "uppercase" }}>[{trace.category}]</span>
+      </h3>
+      <p style={{ fontSize: "0.85em" }}>
+        source <code>{trace.sourceFile}</code> · decision <code>{String(trace.decision)}</code> ·
+        schema-valid <code>{String(trace.schemaValid)}</code> · seed <code>{trace.seed}</code>
+      </p>
+      <p style={{ fontSize: "0.9em" }}>{trace.verdict}</p>
+      <div style={{ margin: "8px 0" }}>
+        <CopyButton label="Copy input JSON" text={inputStr} />
+        <CopyButton label="Copy output JSON" text={outputStr} />
+        {localRun ? <CopyButton label="Copy local run command" text={localRun} /> : null}
+      </div>
+      <details>
+        <summary>Input JSON (prompt)</summary>
+        <pre>{inputStr}</pre>
+      </details>
+      <details>
+        <summary>Output JSON (model plan)</summary>
+        <pre>{outputStr}</pre>
+      </details>
+    </article>
+  );
+}
+
+function KhipuDemoRoute() {
+  const demo = useAsync(() => client.khipuDemo(), []);
+  const localRun = demo.data?.provenance?.localRunCommand;
+  return (
+    <section>
+      <h2>Khipu Demo</h2>
+      <div
+        style={{
+          border: `2px solid ${GOLD}`,
+          borderRadius: 6,
+          padding: 12,
+          marginBottom: 16,
+          color: GOLD,
+        }}
+      >
+        <strong>RECORDED · AGENT-RUN.</strong>{" "}
+        {demo.data?.provenance?.label ??
+          "RECORDED 2026-07-16, AGENT-RUN, llama.cpp CPU, Q4_K_M quant — not live inference, not the signed-receipt artifact"}
+        {demo.data?.provenance?.harnessSource ? (
+          <div style={{ fontSize: "0.8em", marginTop: 6 }}>
+            harness: <code>{demo.data.provenance.harnessSource}</code>
+          </div>
+        ) : null}
+        {localRun ? (
+          <div style={{ fontSize: "0.8em", marginTop: 6 }}>
+            local run (quant): <code>{localRun}</code>{" "}
+            <CopyButton label="Copy" text={localRun} />
+          </div>
+        ) : null}
+      </div>
+      {demo.loading ? (
+        <p>loading…</p>
+      ) : demo.error ? (
+        <p className="err">{demo.error}</p>
+      ) : demo.data?.ok === false ? (
+        <p className="err">{demo.data.error ?? "demo unavailable"}</p>
+      ) : (
+        (demo.data?.traces ?? []).map((t) => <TraceCard key={t.caseId} trace={t} localRun={localRun} />)
+      )}
+    </section>
+  );
+}
+
 export default function App() {
   return (
     <Router base={ROUTER_BASE}>
@@ -156,6 +257,7 @@ export default function App() {
             <Route path="/receipt/:hash" component={ReceiptRoute} />
             <Route path="/verify" component={VerifyRoute} />
             <Route path="/policy" component={PolicyRoute} />
+            <Route path="/khipu-demo" component={KhipuDemoRoute} />
             <Route>404 — not a console route</Route>
           </Switch>
         </main>

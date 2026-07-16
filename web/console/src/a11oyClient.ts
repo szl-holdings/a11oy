@@ -122,6 +122,39 @@ export class A11oyClient {
   evaluatePolicy(action: PolicyActionInput): Promise<PolicyDecision> {
     return this.postJson<PolicyDecision>("/v1/policy/evaluate", { action });
   }
+
+  /** Route 6 (Khipu demo) backing call — same-origin, in-image recorded traces. */
+  khipuDemo(): Promise<KhipuDemo> {
+    return this.getJson<KhipuDemo>("/api/khipu/demo");
+  }
+}
+
+export interface KhipuTrace {
+  readonly caseId: string;
+  readonly sourceFile: string;
+  readonly category: string;
+  readonly inputJson: unknown;
+  readonly outputJson: string;
+  readonly schemaValid: boolean;
+  readonly decision: string | null;
+  readonly verdict: string;
+  readonly seed: number;
+  readonly runtime: Record<string, unknown>;
+  readonly recordedAtUtc: string;
+}
+
+export interface KhipuDemoProvenance {
+  readonly label: string;
+  readonly reproCommands?: string[];
+  readonly harnessSource?: string;
+  readonly localRunCommand?: string;
+}
+
+export interface KhipuDemo {
+  readonly ok: boolean;
+  readonly traces: KhipuTrace[];
+  readonly provenance: KhipuDemoProvenance;
+  readonly error?: string;
 }
 
 /** The 5 operator-console routes, derived from the mined a11oy MCP route surface. */
@@ -131,4 +164,5 @@ export const CONSOLE_ROUTES = [
   { path: "/receipt/:hash", label: "Receipt", source: "GET /v1/ledger/{hash}" },
   { path: "/verify", label: "Verify", source: "POST /v1/verify" },
   { path: "/policy", label: "Policy", source: "POST /v1/policy/evaluate" },
+  { path: "/khipu-demo", label: "Khipu Demo", source: "GET /api/khipu/demo" },
 ] as const;

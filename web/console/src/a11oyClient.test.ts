@@ -57,6 +57,30 @@ function bootA11oyLike(): Promise<{ base: string; close: () => Promise<void> }> 
           rationale: `severity=${sev}`,
         });
       }
+      if (req.method === "GET" && url.pathname === "/api/khipu/demo") {
+        return reply(200, {
+          ok: true,
+          traces: [
+            {
+              caseId: "eval-navigate-0",
+              sourceFile: "eval.jsonl",
+              category: "navigation",
+              inputJson: { messages: [] },
+              outputJson: "{\"decision\":\"NAVIGATE\"}",
+              schemaValid: true,
+              decision: "NAVIGATE",
+              verdict: "SUCCESS",
+              seed: 0,
+              runtime: { quant: "Q4_K_M" },
+              recordedAtUtc: "2026-07-16T13:14:16Z",
+            },
+          ],
+          provenance: {
+            label: "RECORDED 2026-07-16, AGENT-RUN, llama.cpp CPU, Q4_K_M quant — not live inference, not the signed-receipt artifact",
+            localRunCommand: "ollama run hf.co/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF:Q4_K_M",
+          },
+        });
+      }
       reply(404, { error: "not found", path: url.pathname });
     });
   });
@@ -69,8 +93,8 @@ function bootA11oyLike(): Promise<{ base: string; close: () => Promise<void> }> 
   });
 }
 
-test("there are exactly 5 console routes, each citing its a11oy source endpoint", () => {
-  assert.equal(CONSOLE_ROUTES.length, 5);
+test("there are exactly 6 console routes, each citing its a11oy source endpoint", () => {
+  assert.equal(CONSOLE_ROUTES.length, 6);
   for (const r of CONSOLE_ROUTES) assert.ok(r.source.length > 0);
 });
 
@@ -134,6 +158,21 @@ test("policy route POSTs the action and returns allow/deny", async () => {
     assert.equal(allow.gate, "thresholdPolicySeverity");
     const deny = await c.evaluatePolicy({ actionId: "b", severity: "critical" });
     assert.equal(deny.decision, "deny");
+  } finally {
+    await srv.close();
+  }
+});
+
+test("khipu-demo route reads /api/khipu/demo (recorded, in-image traces)", async () => {
+  const srv = await bootA11oyLike();
+  try {
+    const c = new A11oyClient(srv.base);
+    const demo = await c.khipuDemo();
+    assert.equal(demo.ok, true);
+    assert.equal(demo.traces.length, 1);
+    assert.equal(demo.traces[0].category, "navigation");
+    assert.ok(demo.provenance.label.includes("RECORDED"));
+    assert.ok(demo.provenance.label.includes("not live inference"));
   } finally {
     await srv.close();
   }
