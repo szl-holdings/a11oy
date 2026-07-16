@@ -39,12 +39,15 @@ def test_touch_targets_focus_and_primary_navigation_are_accessible() -> None:
         assert "a:focus-visible,button:focus-visible,input:focus-visible" in html
         assert "outline:2px solid var(--teal)" in html
         assert "nav a{min-height:44px;display:inline-flex;align-items:center" in html
+        assert ".brand{min-height:44px;display:flex;align-items:center" in html
         assert ".tab{min-height:44px" in html
         assert "touch-action:manipulation" in html
 
     assert ".chip{min-height:44px" in ECOSYSTEM
+    assert ".search{min-height:44px" in ECOSYSTEM
     assert ".state[href]{min-height:44px" in ECOSYSTEM
     assert ".badges a.badge{min-height:44px" in ANATOMY
+    assert ".formula-tools input{min-height:44px" in ANATOMY
 
 
 def test_sticky_header_and_anatomy_tabs_have_non_colliding_mobile_contract() -> None:
