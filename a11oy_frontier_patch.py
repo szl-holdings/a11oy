@@ -37,17 +37,31 @@ async def _a11oy_frontier_health(request: Request):
 
 async def _a11oy_frontier_version(request: Request):
     import os as _os
+    from szl_release_identity import release_identity as _release_identity
+
+    identity = _release_identity()
+    release_tag = identity.get("release_tag")
+    release_assets_ready = bool(release_tag)
     return _FJSON({
-        "name": "a11oy", "version": "1.0.0",
-        "git_sha": _os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
-        "hf_space_sha": _os.getenv("SZL_HF_SHA", "d9eedb5f0c0eda5bca3831f27c8f7f056059fabe"),
-        "build_time": _os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
-        "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
+        **identity,
+        "git_sha": _os.getenv("SZL_GIT_SHA") or "UNKNOWN",
+        "hf_space_sha": _os.getenv("SZL_HF_SHA") or "UNKNOWN",
+        "build_time": _os.getenv("SZL_BUILD_TIME") or "UNKNOWN",
         "doctrine": _DOCTRINE, "kernel_commit": _KERNEL,
         "p6_status": "SIGNED_OFF", "p6_grader_score": "14/14",
         "verify": {
-            "cosign": "cosign verify ghcr.io/szl-holdings/a11oy:v1.0.0 --certificate-identity-regexp=szl-holdings",
-            "sbom": "https://github.com/szl-holdings/a11oy/releases/download/v1.0.0/a11oy-sbom.cdx.json",
+            "release_assets_status": "CONFIGURED_UNVERIFIED" if release_assets_ready else "PENDING_RELEASE",
+            "cosign": (
+                f"cosign verify ghcr.io/szl-holdings/a11oy:{release_tag} --certificate-identity-regexp=szl-holdings"
+                if release_assets_ready
+                else None
+            ),
+            "sbom": (
+                f"https://github.com/szl-holdings/a11oy/releases/download/{release_tag}/a11oy-sbom.cdx.json"
+                if release_assets_ready
+                else None
+            ),
+            "honest": "https://a-11-oy.com/api/a11oy/v1/honest",
         },
         # ADDITIVE (waveL Dev2): machine-readable release record of the waves'
         # shipped capabilities, HONEST labels. Canonical human record: CHANGELOG.md.

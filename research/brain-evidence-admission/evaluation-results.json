@@ -1,0 +1,490 @@
+{
+  "claims_boundary": {
+    "external_validity": "NOT_ESTABLISHED",
+    "label": "MEASURED_LOCAL_PILOT",
+    "model_promotion_allowed": false,
+    "model_trust_delta": 0,
+    "network_used": false,
+    "proof_credit": 0,
+    "training_triggered": false
+  },
+  "index_receipt_sha256": "05de63827271daee11888d0f1e43e558bca30ff6f4d969da807fd7e6e617f658",
+  "metrics": {
+    "answerable_abstention_rate": 0.2,
+    "answerable_query_count": 10,
+    "canonical_license_coverage": 1.0,
+    "canonical_source_timestamp_coverage": 0.0,
+    "mean_reciprocal_rank": 1.0,
+    "ndcg_at_3": 1.0,
+    "overall_action_accuracy": 0.866666666667,
+    "query_count": 15,
+    "raw_graph_source_timestamp_coverage": 0.003592561285,
+    "recall_at_1": 1.0,
+    "recall_at_3": 1.0,
+    "unanswerable_abstention_accuracy": 1.0,
+    "unanswerable_query_count": 5
+  },
+  "per_query": [
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q01",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "formula:F1"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 4.981026346323,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.625
+        },
+        {
+          "bm25_score": 0.687415827021,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.125
+        },
+        {
+          "bm25_score": 0.668052000908,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.125
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q02",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "formula:F1"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 6.493754880636,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.5
+        },
+        {
+          "bm25_score": 1.171412684822,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.142857142857
+        },
+        {
+          "bm25_score": 1.133068589776,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.142857142857
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q03",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "formula:F10"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 5.731250116426,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.625
+        },
+        {
+          "bm25_score": 1.423358362547,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.25
+        },
+        {
+          "bm25_score": 0.624101211375,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.125
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q04",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "formula:F10"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 7.434786429384,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.6
+        },
+        {
+          "bm25_score": 0.668052000908,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.1
+        },
+        {
+          "bm25_score": 0.624101211375,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.1
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q05",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "formula:F23"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 8.507425847484,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.666666666667
+        },
+        {
+          "bm25_score": 0.687415827021,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.111111111111
+        },
+        {
+          "bm25_score": 0.624101211375,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.111111111111
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q06",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "formula:F23"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 4.337601023923,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.571428571429
+        },
+        {
+          "bm25_score": 1.473551019747,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.285714285714
+        },
+        {
+          "bm25_score": 0.624101211375,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.142857142857
+        }
+      ]
+    },
+    {
+      "action_correct": false,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q07",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "repo:lutar-lean"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 1.90615474654,
+          "document_id": "repo:lutar-lean",
+          "query_token_coverage": 0.142857142857
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.0
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q08",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "repo:lutar-lean"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 2.025795389901,
+          "document_id": "repo:lutar-lean",
+          "query_token_coverage": 0.4
+        },
+        {
+          "bm25_score": 0.119640643361,
+          "document_id": "repo:szl-lake",
+          "query_token_coverage": 0.2
+        },
+        {
+          "bm25_score": 0.078132665052,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.2
+        }
+      ]
+    },
+    {
+      "action_correct": false,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q09",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "repo:szl-lake"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 3.81230949308,
+          "document_id": "repo:szl-lake",
+          "query_token_coverage": 0.142857142857
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.0
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ANSWER",
+      "ndcg_at_3": 1.0,
+      "predicted_action": "ANSWER",
+      "query_id": "Q10",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant_document_ids": [
+        "repo:szl-lake"
+      ],
+      "relevant_rank": 1,
+      "retrieved": [
+        {
+          "bm25_score": 2.025795389901,
+          "document_id": "repo:szl-lake",
+          "query_token_coverage": 0.4
+        },
+        {
+          "bm25_score": 0.119640643361,
+          "document_id": "repo:lutar-lean",
+          "query_token_coverage": 0.2
+        },
+        {
+          "bm25_score": 0.078132665052,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.2
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ABSTAIN",
+      "ndcg_at_3": 0.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q11",
+      "recall_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant_document_ids": [],
+      "relevant_rank": null,
+      "retrieved": [
+        {
+          "bm25_score": 0.119640643361,
+          "document_id": "repo:lutar-lean",
+          "query_token_coverage": 0.125
+        },
+        {
+          "bm25_score": 0.119640643361,
+          "document_id": "repo:szl-lake",
+          "query_token_coverage": 0.125
+        },
+        {
+          "bm25_score": 0.078132665052,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.125
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ABSTAIN",
+      "ndcg_at_3": 0.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q12",
+      "recall_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant_document_ids": [],
+      "relevant_rank": null,
+      "retrieved": [
+        {
+          "bm25_score": 0.119640643361,
+          "document_id": "repo:lutar-lean",
+          "query_token_coverage": 0.166666666667
+        },
+        {
+          "bm25_score": 0.119640643361,
+          "document_id": "repo:szl-lake",
+          "query_token_coverage": 0.166666666667
+        },
+        {
+          "bm25_score": 0.078132665052,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.166666666667
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ABSTAIN",
+      "ndcg_at_3": 0.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q13",
+      "recall_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant_document_ids": [],
+      "relevant_rank": null,
+      "retrieved": [
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.0
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ABSTAIN",
+      "ndcg_at_3": 0.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q14",
+      "recall_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant_document_ids": [],
+      "relevant_rank": null,
+      "retrieved": [
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.0
+        }
+      ]
+    },
+    {
+      "action_correct": true,
+      "expected_action": "ABSTAIN",
+      "ndcg_at_3": 0.0,
+      "predicted_action": "ABSTAIN",
+      "query_id": "Q15",
+      "recall_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant_document_ids": [],
+      "relevant_rank": null,
+      "retrieved": [
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F1",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F10",
+          "query_token_coverage": 0.0
+        },
+        {
+          "bm25_score": 0.0,
+          "document_id": "formula:F23",
+          "query_token_coverage": 0.0
+        }
+      ]
+    }
+  ],
+  "preregistration_commit_sha": "3e465d9bc1f5abbdaf37c3aa30e7a08b422a6ab3",
+  "preregistration_content_sha256": "46681a277dc0a5d214669b8fdbcb7d3a813d2b1c31b3803d04200bb7d5f7d31b",
+  "protocol_id": "brain-canonical-retrieval-pilot-v1",
+  "qrels_content_sha256": "796171b7460bd6b0f543cfd81589e2d2052e3580d1da340ce0cfab471aa26cb2",
+  "results_receipt_sha256": "0c7b6d0ec479a9b5c13062c10f02fd354e38144dca8934bd28cac88b684b3ab3",
+  "schema_version": "szl.brain.evidence-evaluation-results.v1"
+}

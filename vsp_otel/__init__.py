@@ -7,7 +7,7 @@ so cross-pod W3C traceparent propagation + OTLP/gRPC spans are uniform mesh-wide
 
 Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1.
 """
-from .middleware import install, make_traceparent, parse_traceparent  # noqa: F401
+from .middleware import install, make_traceparent, parse_traceparent, status  # noqa: F401
 
-__version__ = "0.1.0"
-__all__ = ["install", "make_traceparent", "parse_traceparent"]
+__version__ = "0.2.0"
+__all__ = ["install", "make_traceparent", "parse_traceparent", "status"]

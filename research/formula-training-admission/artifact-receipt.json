@@ -1,0 +1,14 @@
+{
+  "artifact_receipt_sha256": "df27c4ba5d1be785955559c4f760cb06bf6b9bcaf6933116525b3adce33796ba",
+  "artifacts": {
+    "research/formula-training-admission/admission-manifest.json": "7c151850c533e23572d634a75be8c9611bd59c404f7b444f07d205f257013d8f",
+    "research/formula-training-admission/admission-tranche.jsonl": "951db654168ea732f84fd185234227a555b13e013ee182d8bce89eae62fb35fe",
+    "research/formula-training-admission/formula-id-crosswalk.json": "cde0b70299a673f7e64aae7598f38cde038ec47bf7c48612abf9ea2f91bdc832"
+  },
+  "crosswalk_receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52",
+  "manifest_receipt_sha256": "6a2f6ff3a29184f6b9e3acd359cb4a447656ce648dbf3244b6168c74225df406",
+  "network_used": false,
+  "schema_version": "szl.formula-training-admission-artifact-receipt.v1",
+  "signature_status": "UNSIGNED_CONTENT_RECEIPT",
+  "training_triggered": false
+}

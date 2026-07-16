@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-forge-compound-product-v1.json",
+  "title": "SZL-Forge compound product consolidation contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "as_of",
+    "state",
+    "public_product",
+    "architecture_boundary",
+    "components",
+    "served_identity_contract",
+    "local_evidence",
+    "hub_topology",
+    "legacy_repo_migration",
+    "migration_preconditions",
+    "promotion_gates",
+    "release_sequence",
+    "claims_boundary",
+    "external_mutations"
+  ],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "szl.forge.compound-product.v1"},
+    "contract_id": {"const": "SZL-Forge-Compound-Product-v1"},
+    "as_of": {"type": "string", "format": "date"},
+    "state": {"const": "LOCAL_COMPOUND_RUNTIME_VERIFIED_REMOTE_CONSOLIDATION_NOT_EXECUTED"},
+    "public_product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_id", "display_name", "system_type", "single_checkpoint", "canonical_space_target", "canonical_collection_target", "public_claim", "release_state"],
+      "properties": {
+        "product_id": {"const": "SZL-Forge"},
+        "display_name": {"const": "SZL-Forge"},
+        "system_type": {"const": "COMPOUND_GOVERNED_AI_SYSTEM"},
+        "single_checkpoint": {"const": false},
+        "canonical_space_target": {"const": "SZLHOLDINGS/SZL-Forge"},
+        "canonical_collection_target": {"const": "SZLHOLDINGS/SZL-Forge-Collection"},
+        "public_claim": {"type": "string", "minLength": 80},
+        "release_state": {"const": "NOT_PUBLISHED_BY_THIS_CONTRACT"}
+      }
+    },
+    "architecture_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weight_bearing_component_ids", "non_weight_component_ids", "rule", "unified_experience_not_unified_weights"],
+      "properties": {
+        "weight_bearing_component_ids": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "non_weight_component_ids": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "rule": {"type": "string", "minLength": 100},
+        "unified_experience_not_unified_weights": {"const": true}
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["component_id", "component_type", "role", "weight_relation", "current_state", "source_of_truth"],
+        "properties": {
+          "component_id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "component_type": {"enum": ["MODEL_PROFILE_PEFT_ADAPTER", "EXTERNAL_EVIDENCE_MEMORY", "EXTERNAL_CONTROLLER", "EXTERNAL_AGENT_ORCHESTRATION", "EXTERNAL_POLICY_AND_SIGNING", "EXTERNAL_COMPUTE_AND_PROOF", "EXTERNAL_OBSERVABILITY"]},
+          "role": {"type": "string", "minLength": 30},
+          "weight_relation": {"enum": ["PEFT_ADAPTER_REQUIRES_EXACT_BASE", "NOT_MODEL_WEIGHTS"]},
+          "model_id": {"type": "string", "minLength": 1},
+          "base_repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+          "base_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "runtime_tag": {"type": "string", "pattern": "^[a-z0-9._-]+:[a-z0-9._-]+$"},
+          "hf_target": {"type": "string", "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"},
+          "current_state": {"type": "string", "minLength": 10},
+          "source_of_truth": {"type": "string", "minLength": 3}
+        },
+        "additionalProperties": false
+      }
+    },
+    "served_identity_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routing_claim", "required_per_turn_fields", "required_for_grounded_turns", "signature_envelope", "current_key_scope", "current_key_limitation", "promotion_key_requirement"],
+      "properties": {
+        "routing_claim": {"type": "string", "minLength": 80},
+        "required_per_turn_fields": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "required_for_grounded_turns": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "signature_envelope": {"const": "DSSE_PAE_ECDSA_P256_SHA256"},
+        "current_key_scope": {"const": "PROCESS_BOOT_EPHEMERAL"},
+        "current_key_limitation": {"type": "string", "minLength": 80},
+        "promotion_key_requirement": {"const": "RELEASE_SCOPED_KEY_WITH_PUBLISHED_VERIFICATION_MATERIAL_AND_TRANSPARENCY_LOG"}
+      }
+    },
+    "local_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_path", "receipt_sha256", "verification_state", "verified_exact_tags", "brain_handle_count", "brain_rows_admitted_to_gradients", "claim_boundary"],
+      "properties": {
+        "receipt_path": {"const": "attestations/forge-second-brain-live-2026-07-15.json"},
+        "receipt_sha256": {"pattern": "^[0-9a-f]{64}$"},
+        "verification_state": {"const": "PASS"},
+        "verified_exact_tags": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "brain_handle_count": {"const": 9464},
+        "brain_rows_admitted_to_gradients": {"const": 0},
+        "claim_boundary": {"type": "string", "minLength": 120}
+      }
+    },
+    "hub_topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["one_public_entrypoint", "canonical_collection", "weight_artifacts", "support_artifacts"],
+      "properties": {
+        "one_public_entrypoint": {"$ref": "#/$defs/hubArtifact"},
+        "canonical_collection": {"$ref": "#/$defs/hubArtifact"},
+        "weight_artifacts": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/hubArtifact"}},
+        "support_artifacts": {"type": "array", "minItems": 4, "items": {"$ref": "#/$defs/hubArtifact"}}
+      }
+    },
+    "legacy_repo_migration": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "source_observation", "semantic_type", "canonical_component_id", "destination_artifact_type", "planned_action", "merge_into_checkpoint", "state"],
+        "properties": {
+          "source_id": {"type": "string", "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"},
+          "source_observation": {"type": "string", "minLength": 20},
+          "semantic_type": {"type": "string", "minLength": 10},
+          "canonical_component_id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "destination_artifact_type": {"type": "string", "minLength": 10},
+          "planned_action": {"type": "string", "minLength": 20},
+          "merge_into_checkpoint": {"const": false},
+          "state": {"const": "DECLARED_PLAN_NOT_EXECUTED"}
+        }
+      }
+    },
+    "migration_preconditions": {"$ref": "#/$defs/nonEmptyStringSet"},
+    "promotion_gates": {
+      "type": "array",
+      "minItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gate_id", "state", "evidence"],
+        "properties": {
+          "gate_id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "state": {"enum": ["PASS_LOCAL_ONLY", "PARTIAL_LOCAL_EVIDENCE", "BLOCKING"]},
+          "evidence": {"type": "string", "minLength": 10}
+        }
+      }
+    },
+    "release_sequence": {"type": "array", "minItems": 8, "items": {"type": "string", "minLength": 40}},
+    "claims_boundary": {
+      "type": "object",
+      "minProperties": 9,
+      "additionalProperties": {"const": false}
+    },
+    "external_mutations": {
+      "type": "object",
+      "minProperties": 7,
+      "additionalProperties": {"const": false}
+    }
+  },
+  "$defs": {
+    "nonEmptyStringSet": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "hubArtifact": {
+      "type": "object",
+      "required": ["target_id", "artifact_type", "state"],
+      "properties": {
+        "target_id": {"type": "string", "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"},
+        "artifact_type": {"enum": ["SPACE", "COLLECTION", "MODEL_ADAPTER", "EVALUATION_DATASET", "SCHEMA_DATASET", "RECEIPT_DATASET"]},
+        "state": {"type": "string", "minLength": 10},
+        "role": {"type": "string", "minLength": 30}
+      },
+      "additionalProperties": false
+    }
+  }
+}

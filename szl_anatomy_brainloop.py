@@ -815,6 +815,23 @@ def salience_topk(k: int = 8, ns: str = "a11oy") -> list:
     return view.get("source_salience", [])[:k]
 
 
+def evidence_receipt_anatomy(node_id: str, ns: str = "a11oy") -> tuple:
+    """Existing Anatomy v5 bridge to the Brain evidence receipt contract.
+
+    This is a pure GET view: it reuses the reranker's deterministic per-node
+    anatomy and an already-written Ouroboros receipt when one matches the current
+    inventory. It never mints on read and returns explicit UNKNOWN/UNVERIFIED
+    fields when no written receipt exists.
+    """
+    try:
+        import szl_brain_reranker as _reranker
+        return _reranker.anatomy_receipt(str(node_id), ns)
+    except Exception as exc:
+        return ({"ok": False, "status": LABEL_UNAVAILABLE,
+                 "reason": f"evidence receipt unavailable: {type(exc).__name__}",
+                 "receipt_sha256": "UNKNOWN"}, 503)
+
+
 # --------------------------------------------------------------------------- #
 # Registration — POST /anatomy/pulse (write), GET /anatomy/salience (read).
 # Raw-Request handlers via app.router.add_route (fallback add_api_route). These
@@ -851,10 +868,17 @@ def register(app, ns: str = "a11oy") -> list:
         from starlette.responses import JSONResponse
         return JSONResponse(self_audit(ns=ns))
 
+    async def _evidence_receipt_handler(request: fastapi.Request):
+        from starlette.responses import JSONResponse
+        node_id = str(request.path_params.get("node_id") or "")
+        body, status = evidence_receipt_anatomy(node_id, ns)
+        return JSONResponse(body, status_code=status)
+
     routes = [
         (f"{base}/pulse", _pulse_handler, ["POST"]),
         (f"{base}/salience", _salience_handler, ["GET"]),
         (f"{base}/self-audit", _audit_handler, ["GET"]),
+        (f"{base}/evidence-receipt/{{node_id:path}}", _evidence_receipt_handler, ["GET"]),
     ]
     router = getattr(app, "router", None)
     add_route = getattr(router, "add_route", None) if router else None

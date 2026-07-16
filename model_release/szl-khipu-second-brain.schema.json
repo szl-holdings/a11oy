@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-khipu-second-brain.schema.json",
+  "title": "SZL Khipu compound Second Brain release contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "system_id",
+    "system_type",
+    "state",
+    "components",
+    "runtime_endpoints",
+    "required_turn_receipts",
+    "brain_training_policy",
+    "promotion",
+    "claims_boundary"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.khipu.compound-second-brain.v1"},
+    "system_id": {"const": "SZL-Khipu-Second-Brain-v1"},
+    "system_type": {"const": "COMPOUND_MODEL_WITH_EXTERNAL_EVIDENCE_MEMORY"},
+    "state": {"type": "string", "minLength": 1},
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["navigator_profile", "evidence_memory", "controller", "governance"],
+      "properties": {
+        "navigator_profile": {"$ref": "#/$defs/nonEmptyObject"},
+        "evidence_memory": {"$ref": "#/$defs/nonEmptyObject"},
+        "controller": {"$ref": "#/$defs/nonEmptyObject"},
+        "governance": {"$ref": "#/$defs/nonEmptyObject"}
+      }
+    },
+    "runtime_endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "ask", "rag_status", "rag_query"],
+      "properties": {
+        "status": {"$ref": "#/$defs/localPath"},
+        "ask": {"$ref": "#/$defs/localPath"},
+        "rag_status": {"$ref": "#/$defs/localPath"},
+        "rag_query": {"$ref": "#/$defs/localPath"}
+      }
+    },
+    "required_turn_receipts": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 3}
+    },
+    "brain_training_policy": {
+      "type": "object",
+      "required": [
+        "raw_nodes_observed",
+        "raw_nodes_admitted_to_gradients",
+        "current_state",
+        "admission_engine",
+        "admission_test",
+        "admission_contract",
+        "admission_evidence_security",
+        "required_admission_inputs",
+        "current_inventory_obligations",
+        "current_inventory_evidence",
+        "candidate_schema",
+        "decision_schema",
+        "report_schema",
+        "candidate_required_inputs",
+        "derived_decision_fields",
+        "forbidden_shortcuts"
+      ],
+      "properties": {
+        "raw_nodes_observed": {"type": "integer", "minimum": 0},
+        "raw_nodes_admitted_to_gradients": {"type": "integer", "minimum": 0},
+        "current_state": {"type": "string", "minLength": 1},
+        "admission_engine": {"type": "string", "pattern": "^[^/].*\\.py$"},
+        "admission_test": {"type": "string", "pattern": "^tests/.+\\.py$"},
+        "admission_contract": {"type": "string", "minLength": 1},
+        "admission_evidence_security": {
+          "type": "object",
+          "required": ["signature", "trust_model", "content_binding", "cross_run_isolation", "self_attestation_allowed"],
+          "properties": {
+            "signature": {"const": "ED25519"},
+            "trust_model": {"const": "ALLOWLISTED_ISSUER_TOOL_KEY_TRIPLE"},
+            "content_binding": {"type": "string", "minLength": 1},
+            "cross_run_isolation": {"const": "SIGNED_DETERMINISTIC_SPLIT_LEDGER"},
+            "self_attestation_allowed": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "required_admission_inputs": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "current_inventory_obligations": {"$ref": "#/$defs/nonEmptyObject"},
+        "current_inventory_evidence": {"$ref": "#/$defs/nonEmptyObject"},
+        "candidate_schema": {"type": "string", "minLength": 1},
+        "decision_schema": {"type": "string", "minLength": 1},
+        "report_schema": {"type": "string", "minLength": 1},
+        "candidate_required_inputs": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "derived_decision_fields": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "forbidden_shortcuts": {"$ref": "#/$defs/nonEmptyStringSet"}
+      },
+      "additionalProperties": true
+    },
+    "promotion": {
+      "type": "object",
+      "required": ["automatic", "requires_human_approval"],
+      "properties": {
+        "automatic": {"const": false},
+        "requires_human_approval": {"const": true}
+      },
+      "additionalProperties": {"type": "boolean"}
+    },
+    "claims_boundary": {
+      "type": "object",
+      "additionalProperties": {"type": "boolean"},
+      "required": [
+        "index_is_model_weights",
+        "retrieval_is_training",
+        "raw_node_count_is_parameter_count",
+        "operational_status_requires_live_readback",
+        "model_output_is_verified_truth"
+      ],
+      "properties": {
+        "index_is_model_weights": {"const": false},
+        "retrieval_is_training": {"const": false},
+        "raw_node_count_is_parameter_count": {"const": false},
+        "operational_status_requires_live_readback": {"const": true},
+        "model_output_is_verified_truth": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyObject": {"type": "object", "minProperties": 1},
+    "localPath": {"type": "string", "pattern": "^/api/"},
+    "nonEmptyStringSet": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

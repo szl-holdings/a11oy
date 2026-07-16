@@ -9,10 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-13
+
 Release record of the capabilities shipped by the post-1.0.0 "waves" of work.
 Every item carries an HONEST capability label per Doctrine v11 (MEASURED /
 MODELED / SIMULATION / ROADMAP / SAMPLE). Λ remains **Conjecture 1** (never a
 theorem); the locked-8 set stays at 8. No label is upgraded here.
+
+### Added — operational evidence
+- **Brain evidence reranker** — three content-addressed canonical source
+  families (SZL-Lake, Lean/Mathlib, formulas) produce eight deterministic,
+  licensed rows across train/eval/test. Those rows are derived from the three
+  canonical manifests, not admitted from the raw graph. All 9,464 raw graph
+  nodes remain quarantined where license, revision, or freshness evidence is
+  absent. Proof credit remains zero; the model and evaluation remain
+  **BLOCKED** pending real receipts.
+- **Preregistered numerical-computing dataset** — 1,328 deterministic cases
+  spanning declared matrix families, dimensions, condition strata, seeds, and
+  tolerances. Dataset readiness is distinct from external MATLAB/Octave engine
+  availability and benchmark claims.
+- **M1 model gate** — corpus, tokenizer, training receipt, offline reload,
+  evaluation, provider identity, and GPU admission are evaluated independently.
+  A valid adapter package does not become promoted or operational without a
+  loadable local PEFT runtime and passing inference receipt.
+- **Formal conjecture lab** — machine-readable proof obligations preserve
+  theorem/conjecture boundaries and fail closed when formal evidence is absent.
+- **Release identity surface** — canonical and legacy domains, associated
+  research DOIs, GitHub release state, and the software-version DOI are exposed
+  as separate fields. The v1.1.0 DOI remains `PENDING_ZENODO_READBACK` until a
+  GitHub release is archived and a resolvable Zenodo version record is returned.
 
 ### Added — governed-AI capabilities
 - **Governed behavior-transfer harness** — model behavior-transfer harness wired
@@ -62,7 +87,7 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
   durable-ledger **storage pressure**, DSSE **signer availability** (live vs
   `UNSIGNED-LOCAL`), and a **frontier-endpoint liveness count** (live vs
   degraded tiles). No fabrication: a down sub-source reports UNAVAILABLE.
-- **Release-record `[Unreleased]` section** (this section) + the
+- **Versioned v1.1.0 release record** (this section) + the
   `GET /api/a11oy/v1/version` inspection endpoint.
 
 ### Security / honesty
@@ -101,5 +126,6 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
 ### Notes
 - Warhacker June 9, 2026 release
 
-[Unreleased]: https://github.com/szl-holdings/a11oy/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/szl-holdings/a11oy/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/szl-holdings/a11oy/releases/tag/v1.1.0
 [1.0.0]: https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0

@@ -1,0 +1,52 @@
+{
+  "schema_version": "szl.nemo.curriculum-manifest.v1",
+  "contract_id": "szl-nemo-governed-adapter-v1",
+  "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
+  "source_sha256": "5f5ad66eb2447c24d2693ff703d534e9c92a0a2498d695f658dbd49fe263f604",
+  "schema_sha256": "6094cbf6835409464fa3b6cea439ab2ac84aa877ba470badf379143d2ea9a2cf",
+  "train": {
+    "path": "train.jsonl",
+    "rows": 24,
+    "sha256": "513b58282a1a3ccb34145167d4acd8525093ecd2ad9a29c0a8f9af8cd46ac3fd"
+  },
+  "eval": {
+    "path": "eval.jsonl",
+    "rows": 8,
+    "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
+  },
+  "excluded_from_gradients": [
+    {
+      "path": "model_release/m1/brain-ingest-ledger.jsonl",
+      "reason": "The 9464-node Brain remains retrieval/evaluation-only until row-level rights and provenance are admitted."
+    },
+    {
+      "path": "model_release/m1/formula-curriculum-ledger.jsonl",
+      "reason": "Formula rows remain holdout-only and must not contaminate evaluation."
+    },
+    {
+      "path": "research/formula-training-admission/admission-tranche.jsonl",
+      "reason": "Current formula admission records are holdout records, not training authority."
+    },
+    {
+      "path": "training/szl_seed.jsonl",
+      "reason": "Historical rows lack a complete rights/privacy/contamination review."
+    },
+    {
+      "path": "training/szl_brain_corpus.jsonl",
+      "reason": "Legacy Brain-derived text predates fail-closed admission."
+    },
+    {
+      "path": "training/szl_formula_corpus.jsonl",
+      "reason": "Legacy formula text would contaminate the frozen formula holdout."
+    },
+    {
+      "path": "training/szl_orpo.jsonl",
+      "reason": "The ORPO candidate failed qualification and remains quarantined."
+    }
+  ],
+  "external_mutations": {
+    "uploaded": false,
+    "published": false,
+    "deployed": false
+  }
+}

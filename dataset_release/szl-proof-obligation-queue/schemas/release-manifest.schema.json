@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-proof-obligation-dataset-release-v1.json",
+  "title": "SZL proof-obligation dataset release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "title",
+    "version",
+    "record_type",
+    "publication",
+    "dataset",
+    "source_snapshots",
+    "artifacts",
+    "schemas",
+    "license",
+    "claims_boundary",
+    "prohibited_claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.proof-obligation-dataset-release.v1"
+    },
+    "title": {
+      "const": "SZL Proof-Obligation Queue and Receipt-Scoped Formula Crosswalk"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "record_type": {
+      "const": "dataset"
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "doi",
+        "doi_url",
+        "peer_reviewed",
+        "zenodo_deposition_created",
+        "remote_mutation_performed",
+        "publish_allowed",
+        "blockers"
+      ],
+      "properties": {
+        "state": {"const": "UNPUBLISHED_CANDIDATE"},
+        "doi": {"const": "PENDING"},
+        "doi_url": {"const": "PENDING"},
+        "peer_reviewed": {"const": false},
+        "zenodo_deposition_created": {"const": false},
+        "remote_mutation_performed": {"const": false},
+        "publish_allowed": {"const": false},
+        "blockers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formula_crosswalk_rows",
+        "admission_tranche_rows",
+        "proof_obligation_queue_rows",
+        "queue_membership_counts",
+        "resolved_status_counts",
+        "tranche_kind_counts",
+        "training_eligible_rows",
+        "split"
+      ],
+      "properties": {
+        "formula_crosswalk_rows": {"type": "integer", "minimum": 0},
+        "admission_tranche_rows": {"type": "integer", "minimum": 0},
+        "proof_obligation_queue_rows": {"type": "integer", "minimum": 0},
+        "queue_membership_counts": {"$ref": "#/$defs/counts"},
+        "resolved_status_counts": {"$ref": "#/$defs/counts"},
+        "tranche_kind_counts": {"$ref": "#/$defs/counts"},
+        "training_eligible_rows": {"const": 0},
+        "split": {"const": "HOLDOUT_ONLY"}
+      }
+    },
+    "source_snapshots": {"type": "object"},
+    "artifacts": {
+      "type": "object",
+      "minProperties": 5,
+      "additionalProperties": {"$ref": "#/$defs/artifact"}
+    },
+    "schemas": {
+      "type": "object",
+      "required": ["release_manifest", "proof_obligation_record"],
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "license": {
+      "type": "object",
+      "required": ["spdx", "scope", "upstream_rights_rule"],
+      "properties": {
+        "spdx": {"const": "Apache-2.0"},
+        "scope": {"type": "string", "minLength": 1},
+        "upstream_rights_rule": {"type": "string", "minLength": 1}
+      }
+    },
+    "claims_boundary": {
+      "type": "object",
+      "required": [
+        "mathematical_proof_added",
+        "proof_credit_added",
+        "raw_brain_text_included",
+        "model_training_triggered",
+        "model_promotion_allowed",
+        "training_eligibility_claimed",
+        "independent_replication_claimed",
+        "peer_review_claimed"
+      ],
+      "properties": {
+        "mathematical_proof_added": {"const": false},
+        "proof_credit_added": {"const": 0},
+        "raw_brain_text_included": {"const": false},
+        "model_training_triggered": {"const": false},
+        "model_promotion_allowed": {"const": false},
+        "training_eligibility_claimed": {"const": false},
+        "independent_replication_claimed": {"const": false},
+        "peer_review_claimed": {"const": false}
+      }
+    },
+    "prohibited_claims": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "rows": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

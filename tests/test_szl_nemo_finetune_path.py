@@ -1,0 +1,514 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Offline gates for the governed SZL-Nemo fine-tuning candidate."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+from contextlib import nullcontext
+from pathlib import Path
+import socket
+import subprocess
+import types
+
+import pytest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+RUNNER = ROOT / "model_release" / "szl-nemo" / "szl_nemo_finetune.py"
+SPEC = importlib.util.spec_from_file_location("szl_nemo_finetune", RUNNER)
+assert SPEC and SPEC.loader
+nemo_train = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(nemo_train)
+
+
+def test_curriculum_is_deterministic_rights_scoped_and_disjoint(tmp_path):
+    first = nemo_train.build_curriculum(tmp_path / "first")
+    second = nemo_train.build_curriculum(tmp_path / "second")
+
+    assert first == second
+    assert first["train"]["rows"] == 24
+    assert first["eval"]["rows"] == 8
+    assert first["rights_basis"] == "PROJECT_AUTHORED_SCENARIOS"
+    assert first["external_mutations"] == {
+        "uploaded": False,
+        "published": False,
+        "deployed": False,
+    }
+
+    train = list(nemo_train.iter_jsonl(tmp_path / "first" / "train.jsonl"))
+    evaluation = list(nemo_train.iter_jsonl(tmp_path / "first" / "eval.jsonl"))
+    assert all(row["rights_basis"] == "PROJECT_AUTHORED_SCENARIOS" for row in train + evaluation)
+    train_prompts = {row["messages"][1]["content"].casefold() for row in train}
+    eval_prompts = {row["messages"][1]["content"].casefold() for row in evaluation}
+    assert train_prompts.isdisjoint(eval_prompts)
+
+
+def test_preflight_refuses_absent_base_without_starting_training():
+    result = nemo_train.preflight(None)
+
+    assert result["state"] == "BLOCKED"
+    assert result["effects"] == {
+        "training_started": False,
+        "uploaded": False,
+        "published": False,
+        "deployed": False,
+    }
+    assert "base snapshot" in result["checks"][-1]["reason"]
+
+
+def test_fetch_requires_exact_confirmation_before_hub_import(tmp_path):
+    with pytest.raises(nemo_train.GateRefused, match="exact base-fetch confirmation"):
+        nemo_train.fetch_base(tmp_path / "base", "WRONG")
+
+
+def test_train_requires_confirmation_and_license_ack_before_gpu_or_model_load(tmp_path):
+    with pytest.raises(nemo_train.GateRefused, match="exact training confirmation"):
+        nemo_train.train(tmp_path / "base", tmp_path / "out", "WRONG", "WRONG")
+
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(nemo_train.GateRefused, match="license acknowledgement"):
+        nemo_train.train(
+            tmp_path / "base",
+            tmp_path / "out",
+            contract["training"]["confirmation_phrase"],
+            "WRONG",
+        )
+
+
+def test_cli_refusal_preserves_receipt_proof_that_training_started(monkeypatch, tmp_path, capsys):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    output = tmp_path / "run"
+
+    def fail_after_start(_snapshot, observed_output, _confirmation, _ack, _cache):
+        nemo_train.atomic_json(
+            observed_output / "receipts" / "training-receipt.json",
+            {
+                "schema_version": "szl.nemo.training-receipt.v1",
+                "state": "FAILED_NOT_PROMOTED",
+                "training_started_at_unix_ns": 1,
+                "promotion": "NOT_PROMOTED",
+            },
+        )
+        raise nemo_train.GateRefused("post-start fixture refusal")
+
+    monkeypatch.setattr(nemo_train, "training_mutex", lambda: nullcontext())
+    monkeypatch.setattr(
+        nemo_train, "fresh_hf_modules_cache", lambda: nullcontext({"state": "FIXTURE"})
+    )
+    monkeypatch.setattr(nemo_train, "train", fail_after_start)
+    code = nemo_train.main(
+        [
+            "train",
+            "--base-snapshot",
+            str(tmp_path / "base"),
+            "--output-dir",
+            str(output),
+            "--confirmation",
+            contract["training"]["confirmation_phrase"],
+            "--license-acknowledgement",
+            contract["base"]["license_acknowledgement"],
+        ]
+    )
+    assert code == 3
+    payload = json.loads(capsys.readouterr().err)
+    assert payload["effects"]["training_started"] == nemo_train.TRAINING_START_PROVEN_TRUE
+
+
+def test_training_start_receipt_state_is_tri_state(tmp_path):
+    output = tmp_path / "run"
+    assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_UNKNOWN
+    nemo_train.atomic_json(
+        output / "receipts" / "training-receipt.json",
+        {"schema_version": "wrong", "training_started_at_unix_ns": 1},
+    )
+    assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_UNKNOWN
+    nemo_train.atomic_json(
+        output / "receipts" / "training-receipt.json",
+        {
+            "schema_version": "szl.nemo.training-receipt.v1",
+            "state": "RUNNING_NOT_PROMOTED",
+        },
+    )
+    assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_PROVEN_FALSE
+    for state in (
+        "TRAINING_STARTED_NOT_PROMOTED",
+        "FAILED_NOT_PROMOTED",
+        "CANDIDATE_PASS_NOT_PROMOTED",
+    ):
+        nemo_train.atomic_json(
+            output / "receipts" / "training-receipt.json",
+            {
+                "schema_version": "szl.nemo.training-receipt.v1",
+                "state": state,
+            },
+        )
+        assert nemo_train.observed_training_started(output) == nemo_train.TRAINING_START_UNKNOWN
+
+
+def test_dsse_verifier_is_pinned_in_clean_scope_and_dirty_scope_refuses(monkeypatch, tmp_path):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    assert "szl_dsse.py" in contract["source_control"]["paths"]
+    _module, identity = nemo_train._load_pinned_dsse(contract)
+    assert identity == {
+        "path": contract["dsse"]["verifier_path"],
+        "sha256": contract["dsse"]["verifier_sha256"],
+        "key_id": contract["dsse"]["key_id"],
+        "public_key_fingerprint_sha256": contract["dsse"][
+            "public_key_fingerprint_sha256"
+        ],
+    }
+
+    git = tmp_path / "git"
+    git.write_text("fixture", encoding="utf-8")
+    monkeypatch.setenv(contract["source_control"]["git_executable_env"], str(git))
+
+    def fake_run(command, **_kwargs):
+        if "rev-parse" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="a" * 40 + "\n", stderr="")
+        return subprocess.CompletedProcess(
+            command, 0, stdout=" M szl_dsse.py\n", stderr=""
+        )
+
+    monkeypatch.setattr(nemo_train.subprocess, "run", fake_run)
+    with pytest.raises(nemo_train.GateRefused, match="scope is dirty"):
+        nemo_train.git_identity(contract)
+
+
+def test_dsse_verifier_replacement_and_key_substitution_refuse():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    replaced = json.loads(json.dumps(contract))
+    replaced["dsse"]["verifier_sha256"] = "0" * 64
+    with pytest.raises(nemo_train.GateRefused, match="source mismatch"):
+        nemo_train._load_pinned_dsse(replaced)
+
+    wrong_key = json.loads(json.dumps(contract))
+    wrong_key["dsse"]["public_key_fingerprint_sha256"] = "0" * 64
+    with pytest.raises(nemo_train.GateRefused, match="key identity mismatch"):
+        nemo_train._load_pinned_dsse(wrong_key)
+
+
+def test_capacity_probe_requires_both_acknowledgements_before_receipt_or_model_load(tmp_path):
+    receipt = tmp_path / "capacity.json"
+    with pytest.raises(nemo_train.GateRefused, match="capacity-probe confirmation"):
+        nemo_train.capacity_probe(tmp_path / "base", receipt, "WRONG", "WRONG")
+    assert not receipt.exists()
+
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(nemo_train.GateRefused, match="license acknowledgement"):
+        nemo_train.capacity_probe(
+            tmp_path / "base",
+            receipt,
+            contract["training"]["confirmation_phrase"],
+            "WRONG",
+        )
+    assert not receipt.exists()
+
+
+def test_gpu_gate_is_fixed_and_fail_closed(monkeypatch):
+    sample = {
+        "measured_at_unix_ns": 1,
+        "gpu_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+        "memory_total_mib": 8151,
+        "memory_used_mib": 3000,
+        "memory_free_mib": 5151,
+        "utilization_pct": 1,
+        "temperature_c": 55,
+    }
+    monkeypatch.setattr(nemo_train, "query_gpu", lambda: dict(sample))
+    policy = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))["gpu_admission"]
+
+    with pytest.raises(nemo_train.GPUAdmissionRefused) as exc:
+        nemo_train.sample_gpu(policy, 3, 0)
+    assert exc.value.samples == [sample]
+    assert policy["thresholds_may_be_weakened"] is False
+    assert policy["processes_may_be_stopped_automatically"] is False
+
+
+def test_python_network_guard_refuses_connections():
+    with nemo_train.deny_python_network() as control:
+        assert control["state"] == "PYTHON_SOCKET_DENIED"
+        with pytest.raises(OSError, match="network denied"):
+            socket.create_connection(("127.0.0.1", 9))
+
+
+def test_shared_gpu_lease_publishes_owner_and_refuses_second_acquisition(tmp_path):
+    assert nemo_train.SHARED_GPU_TRAINING_LEASE_DIR == (
+        ROOT / "model_release" / "szl-forge" / "queue-state" / "gpu-training.lease"
+    )
+    lease_path = tmp_path / "gpu-training.lease"
+    with nemo_train.training_mutex(lease_path):
+        owner_path = lease_path / nemo_train.GPU_TRAINING_LEASE_OWNER
+        assert owner_path.is_file()
+        owner = json.loads(owner_path.read_text(encoding="utf-8"))
+        assert owner["schema_version"] == "szl.gpu-training-lease-owner.v1"
+        assert owner["pid"] == os.getpid()
+        assert owner["arbitration"] == "ATOMIC_DIRECTORY_CREATION"
+        assert owner["stale_policy"] == "OPERATOR_REVIEW_REQUIRED"
+        assert owner["automatic_stale_deletion"] is False
+        with pytest.raises(nemo_train.GateRefused, match="shared GPU lease"):
+            with nemo_train.training_mutex(lease_path):
+                pytest.fail("second training lease should not be acquired")
+        assert json.loads(owner_path.read_text(encoding="utf-8"))["owner_token"] == owner["owner_token"]
+    assert not lease_path.exists()
+
+
+def test_base_verifier_binds_files_and_architecture(monkeypatch, tmp_path):
+    config = {
+        "model_type": "nemotron_h",
+        "vocab_size": 131072,
+        "architectures": ["NemotronHForCausalLM"],
+        "auto_map": {
+            "AutoConfig": "configuration_nemotron_h.NemotronHConfig",
+            "AutoModelForCausalLM": "modeling_nemotron_h.NemotronHForCausalLM",
+        },
+    }
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    weight_path = tmp_path / "model.safetensors"
+    weight_path.write_bytes(b"fixture-weight")
+
+    original_load = nemo_train.load_object
+    fixture_contract = {
+        "base": {
+            "model_type": "nemotron_h",
+            "vocab_size": 131072,
+            "architecture": "NemotronHForCausalLM",
+            "auto_map": config["auto_map"],
+            "required_files": [
+                {
+                    "path": "config.json",
+                    "bytes": config_path.stat().st_size,
+                    "git_blob_sha1": nemo_train.git_blob_sha1(config_path),
+                },
+                {
+                    "path": "model.safetensors",
+                    "bytes": weight_path.stat().st_size,
+                    "sha256": nemo_train.sha256_file(weight_path),
+                },
+            ],
+        }
+    }
+
+    def fake_load(path):
+        if Path(path) == nemo_train.CONTRACT_PATH:
+            return fixture_contract
+        return original_load(path)
+
+    monkeypatch.setattr(nemo_train, "load_object", fake_load)
+    observed = nemo_train.verify_base(tmp_path)
+    assert {item["path"] for item in observed} == {"config.json", "model.safetensors"}
+
+    config["vocab_size"] = 151936
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    fixture_contract["base"]["required_files"][0].update(
+        bytes=config_path.stat().st_size,
+        git_blob_sha1=nemo_train.git_blob_sha1(config_path),
+    )
+    with pytest.raises(nemo_train.GateRefused, match="architecture identity"):
+        nemo_train.verify_base(tmp_path)
+
+
+def test_held_out_evaluation_enforces_required_and_forbidden_terms():
+    expected = {
+        "required_terms": ["UNKNOWN", "receipt"],
+        "forbidden_terms": ["measured throughput is"],
+    }
+    assert nemo_train._evaluate_output("UNKNOWN without a receipt.", expected)["state"] == "PASS"
+    failed = nemo_train._evaluate_output("Measured throughput is 9000.", expected)
+    assert failed["state"] == "FAIL"
+    assert failed["present_forbidden_terms"] == ["measured throughput is"]
+
+
+def test_contract_never_allows_automatic_promotion_or_external_release():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    assert contract["release_state"] == "WSL_MAMBA_IMPORT_QUALIFIED_CAPACITY_NOT_RUN"
+    assert contract["quality_claim"] == "NOT_ESTABLISHED"
+    assert contract["base"]["trust_remote_code"] is True
+    assert contract["base"]["remote_code_policy"] == "PINNED_OFFICIAL_NVIDIA_FILES_ONLY"
+    required = {item["path"]: item for item in contract["base"]["required_files"]}
+    assert required["configuration_nemotron_h.py"]["sha256"] == "07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff"
+    assert required["modeling_nemotron_h.py"]["sha256"] == "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4"
+    assert contract["runtime"]["operating_system_allowlist"] == ["Linux"]
+    assert set(contract["runtime"]["module_required"]) == {"mamba_ssm", "causal_conv1d"}
+    assert contract["training"]["capacity_probe_sequence_length"] == 128
+    assert contract["runtime"]["torch_exact_allowlist"] == ["2.10.0+cu128"]
+    assert contract["runtime"]["minimum_cuda_runtime"] == [12, 8]
+    assert contract["runtime"]["package_exact"] == {
+        "transformers": "4.48.3",
+        "trl": "0.15.2",
+        "peft": "0.14.0",
+        "datasets": "3.2.0",
+        "accelerate": "1.12.0",
+        "bitsandbytes": "0.49.2",
+        "mamba-ssm": "2.3.2.post1",
+        "causal-conv1d": "1.6.2.post1",
+        "tokenizers": "0.21.4",
+        "huggingface-hub": "0.36.2",
+    }
+    assert contract["promotion"]["automatic"] is False
+    assert contract["promotion"]["requires_signed_dsse"] is True
+    assert contract["promotion"]["requires_transparency_log"] is True
+    assert contract["external_mutations"] == {
+        "upload": False,
+        "publish": False,
+        "deploy": False,
+        "push": False,
+    }
+
+
+def test_native_windows_execution_lane_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Windows")
+
+    with pytest.raises(nemo_train.GateRefused, match="native Windows"):
+        nemo_train.verify_nemotron_execution_lane(tmp_path)
+
+
+def test_missing_linux_mamba_module_fails_before_custom_code_load(monkeypatch, tmp_path):
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Linux")
+
+    def missing(name):
+        raise ModuleNotFoundError(name)
+
+    monkeypatch.setattr(nemo_train.importlib, "import_module", missing)
+    with pytest.raises(nemo_train.GateRefused, match="mamba_ssm"):
+        nemo_train.verify_nemotron_execution_lane(tmp_path)
+
+
+def test_loaded_dynamic_code_must_match_pinned_source_hashes(monkeypatch, tmp_path):
+    import transformers
+    import transformers.dynamic_module_utils
+
+    auto_config = transformers.AutoConfig
+    auto_tokenizer = transformers.AutoTokenizer
+    original_import_module = nemo_train.importlib.import_module
+
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    for item in contract["base"]["required_files"]:
+        if item["path"] in {"configuration_nemotron_h.py", "modeling_nemotron_h.py"}:
+            (tmp_path / item["path"]).write_bytes(b"fixture")
+
+    class FakeConfig:
+        model_type = "nemotron_h"
+
+    class NemotronHForCausalLM:
+        pass
+
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Linux")
+    def import_module(name, *args, **kwargs):
+        if name in {"mamba_ssm", "causal_conv1d"}:
+            return types.SimpleNamespace(__version__="fixture")
+        return original_import_module(name, *args, **kwargs)
+
+    monkeypatch.setattr(nemo_train.importlib, "import_module", import_module)
+    monkeypatch.setattr(
+        auto_config,
+        "from_pretrained",
+        lambda *_args, **_kwargs: FakeConfig(),
+    )
+    monkeypatch.setattr(
+        auto_tokenizer,
+        "from_pretrained",
+        lambda *_args, **_kwargs: types.SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        transformers.dynamic_module_utils,
+        "get_class_from_dynamic_module",
+        lambda *_args, **_kwargs: NemotronHForCausalLM,
+    )
+
+    with pytest.raises(nemo_train.GateRefused, match="loaded pinned NVIDIA code hash mismatch"):
+        nemo_train.verify_nemotron_execution_lane(tmp_path)
+
+
+def test_training_requires_linux_network_namespace(monkeypatch):
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Windows")
+    with pytest.raises(nemo_train.GateRefused, match="Linux network namespace"):
+        nemo_train.verify_linux_network_namespace()
+
+
+def test_historical_static_preflight_is_preserved_and_scoped():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    lineage = contract["evidence_lineage"]
+    path = ROOT / lineage["static_preflight_path"]
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+
+    assert receipt["state"] == "PASS"
+    assert all(check["id"] != "LINUX_MAMBA_EXECUTION_LANE" for check in receipt["checks"])
+    assert nemo_train.sha256_canonical_lf(path) == lineage["static_preflight_canonical_lf_sha256"]
+    assert lineage["scope"] == "STATIC_FILE_AND_LICENSE_INTEGRITY_ONLY"
+    assert lineage["runtime_readiness_established"] is False
+
+
+def test_wsl_import_receipt_is_hash_bound_and_never_claims_model_readiness():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    lineage = contract["evidence_lineage"]
+    path = ROOT / lineage["wsl_runtime_import_receipt_path"]
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+
+    assert nemo_train.sha256_canonical_lf(path) == lineage["wsl_runtime_import_receipt_canonical_lf_sha256"]
+    assert lineage["wsl_runtime_import_receipt_scope"] == "OS_NETWORK_ISOLATED_CONFIG_AND_CUSTOM_CLASS_IMPORT_NO_WEIGHTS"
+    assert receipt["status"] == "PASS"
+    assert receipt["network_namespace"]["interfaces"] == ["lo"]
+    assert receipt["network_namespace"]["default_routes"] == []
+    assert receipt["training_started"] is False
+    assert receipt["effects"]["weights_loaded"] is False
+    assert receipt["effects"]["model_instantiated"] is False
+
+
+def test_setup_probe_and_contract_pin_the_same_training_runtime():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    setup = (ROOT / "model_release" / "szl-nemo" / "setup_wsl_runtime.sh").read_text(encoding="utf-8")
+    probe = (ROOT / "model_release" / "szl-nemo" / "wsl_runtime_probe.py").read_text(encoding="utf-8")
+
+    assert "torch==2.10.0" in setup and '"2.10.0+cu128"' in probe
+    for package, version in contract["runtime"]["package_exact"].items():
+        distribution = package.replace("-", "_") if package in {"mamba-ssm", "causal-conv1d"} else package
+        assert version in setup, f"setup does not pin {package}=={version}"
+        assert f'"{package}": "{version}"' in probe, f"probe does not bind {distribution} {version}"
+
+
+def test_legacy_powershell_queue_train_is_retired_and_status_is_read_only():
+    queue = (ROOT / "model_release" / "szl-nemo" / "Invoke-SZLNemoFineTuneQueue.ps1").read_text(encoding="utf-8")
+    refusal = queue.index("Legacy PowerShell queue-train is retired")
+    status = queue.index("READ_ONLY_STATUS")
+    assert refusal < status
+    assert "szl_nemo_wsl_queue.py" in queue[refusal:status]
+    assert "New-Item" not in queue
+    assert "& $Python" not in queue
+    assert "Set-Content" not in queue
+    assert "WriteAllText" not in queue
+
+
+def test_trl_lane_uses_the_pinned_048_api_and_capacity_is_network_isolated():
+    runner = RUNNER.read_text(encoding="utf-8")
+    launcher = (ROOT / "model_release" / "szl-nemo" / "run_wsl_governed.sh").read_text(encoding="utf-8")
+
+    assert "max_seq_length=settings[\"max_sequence_length\"]" in runner
+    assert "max_length=settings[\"max_sequence_length\"]" not in runner
+    assert '"PASS_CAPACITY_ONLY_NOT_TRAINED_NOT_PROMOTED"' in runner
+    assert '"capacity_optimization_step_started": False' in runner
+    assert '"capacity_optimization_step_completed": False' in runner
+    assert "loaded NVIDIA model source hash mismatch" in runner
+    assert "fresh_hf_modules_cache" in runner
+    assert '"curriculum_inputs_before"' in runner
+    assert '"source_control_after"' in runner
+    assert "for row in eval_rows" in runner
+    assert "capacity-probe" in launcher
+    assert "unshare --user --map-root-user --net" in launcher
+
+
+def test_generated_curriculum_is_byte_deterministic_lf(tmp_path):
+    nemo_train.build_curriculum(tmp_path)
+    for name in ("train.jsonl", "eval.jsonl", "curriculum-manifest.json"):
+        assert b"\r" not in (tmp_path / name).read_bytes()
+
+
+def test_dynamic_module_cache_is_fresh_process_unique_and_removed():
+    with nemo_train.fresh_hf_modules_cache() as receipt:
+        cache = Path(os.environ["HF_MODULES_CACHE"])
+        assert cache.is_dir()
+        assert list(cache.iterdir()) == []
+        assert receipt["state"] == "FRESH_PROCESS_UNIQUE_CACHE"
+    assert not cache.exists()

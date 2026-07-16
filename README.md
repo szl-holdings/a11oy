@@ -38,8 +38,12 @@ ecosystem-stage: "operational"
 [![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/a11oy/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](LICENSE)
 [![Λ Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture%201%20%C2%B7%20Theorem%20U%20conditional-B79BD6?style=flat-square)](https://github.com/szl-holdings/lutar-lean/blob/main/BOUNTY.md)
+[![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![Formal artifacts DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
+[![Evidence-Typed Governance preprint](https://zenodo.org/badge/DOI/10.5281/zenodo.21332317.svg)](https://doi.org/10.5281/zenodo.21332317)
+[![Fail-Closed Services preprint](https://zenodo.org/badge/DOI/10.5281/zenodo.21332338.svg)](https://doi.org/10.5281/zenodo.21332338)
 
-**[Open a11oy →](https://a-11-oy.com)** · **[Try on Hugging Face →](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)**
+**[Open a11oy →](https://a-11-oy.com)** · **[Legacy alias →](https://a11oy.net)** · **[Try on Hugging Face →](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)**
 
 </div>
 
@@ -168,7 +172,10 @@ python3 .github/shared-module-hash-check.py --update
 - [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md)
 - [Governed run-loop recipe](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/02-willay-gated-turn.md)
 - [Proof library — lutar-lean](https://github.com/szl-holdings/lutar-lean)
-- [Thesis DOI — Zenodo](https://doi.org/10.5281/zenodo.19944926)
+- [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
+- [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) — the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
+- [Canonical product surface](https://a-11-oy.com) · [legacy `a11oy.net` redirect](https://a11oy.net)
 
 ---
 

@@ -50,12 +50,13 @@ We took the architecture. We did **not** take:
 
 - **Model tier** — `ayllu/loop.py` asks `a11oy_active_flux_router.router_crossover`
   for the small/local-vs-large/cloud route; honest fallback when absent.
-- **Bounded execution** — each turn runs through `a11oy_agent_loop.AgentLoop` with
-  a11oy's Λ fail-closed gate; honest fallback when absent.
+- **Bounded direct completion** — each current turn uses the shared A11oy router,
+  bounded tokens, bounded timeout, and zero tool dispatch. `ayllu.autonomy.gate`
+  remains available for a future approved tool loop but is not claimed as active.
 - **Receipts** — `a11oy_ayllu.py` signs with `szl_dsse` when present, else emits an
   honest UNSIGNED DSSE envelope (never a fabricated signature).
-- **Routes** — `register(app, ns="a11oy")` mounts `/api/{ns}/v1/ayllu/roster|ask|
-  council|lounge` and the `/ayllu` page, same shape as `a11oy_v4_agent`.
+- **Routes** — `register(app, ns="a11oy")` mounts `/api/{ns}/v1/ayllu/roster|`
+  `model-binding|ask|council|lounge` and the `/ayllu` page.
 
 ## Provenance & boundary
 
