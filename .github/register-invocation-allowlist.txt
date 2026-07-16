@@ -30,6 +30,7 @@ szl_governance_gateway      # wired via a string-name dynamic register loop in s
 szl_mission_ledger          # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_sovereign_search        # wired via a string-name dynamic register loop in serve.py (dynamic import)
 a11oy_uds_portability_nav   # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
+a11oy_khipu_demo_nav        # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
 a11oy_waqay_nav             # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
 a11oy_willay_nav            # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
 a11oy_yupay_nav             # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)

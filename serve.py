@@ -6601,6 +6601,7 @@ for _navmod, _navlabel in (
     ("a11oy_waqay_nav", "WAQAY"),
     ("a11oy_yupay_nav", "YUPAY"),
     ("a11oy_uds_portability_nav", "UDS Portability"),
+    ("a11oy_khipu_demo_nav", "Khipu Demo"),
 ):
     try:
         _nm = __import__(_navmod)
@@ -13764,6 +13765,26 @@ try:
 except Exception as _forge_family_error:  # additive: never take down the SPA
     print(
         f"[a11oy] forge-family wall NOT registered (non-fatal): {_forge_family_error!r}",
+        file=sys.stderr,
+    )
+
+
+# ============================================================================
+# KHIPU DEMO TAB (2026-07-16): /api/khipu/demo — serves THREE recorded Khipu
+# navigator traces (navigation / governance / abstain-failure) for the console
+# demo tab. RECORDED, AGENT-RUN, llama.cpp CPU, Q4_K_M quant — NOT live inference
+# and NOT the signed-receipt artifact. Trace data ships in-image
+# (a11oy_khipu_demo_traces.json); no external fetch at request time. Additive,
+# front-moved route so the exact JSON path wins over the SPA history fallback.
+# ============================================================================
+try:
+    import a11oy_khipu_demo as _a11oy_khipu_demo
+
+    _khipu_demo_result = _a11oy_khipu_demo.register(app)
+    print(f"[a11oy] khipu demo tab registered (front-moved): {_khipu_demo_result}", file=sys.stderr)
+except Exception as _khipu_demo_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] khipu demo tab NOT registered (non-fatal): {_khipu_demo_error!r}",
         file=sys.stderr,
     )
 
