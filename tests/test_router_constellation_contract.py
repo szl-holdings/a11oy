@@ -20,7 +20,10 @@ def source(path: Path) -> str:
 
 def test_workflow_pins_the_offline_test_runner():
     workflow = source(WORKFLOW)
-    assert "pytest==9.0.3" in workflow
+    lockfile = source(ROOT / ".github" / "requirements" / "ci-core.txt")
+    assert "--require-hashes" in workflow
+    assert ".github/requirements/ci-core.txt" in workflow
+    assert "pytest==9.0.3" in lockfile
     assert "pip install pytest\n" not in workflow
 
 
