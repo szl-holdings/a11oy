@@ -1,0 +1,411 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-frontier-adoption-v1.json",
+  "title": "SZL frontier model adoption and Hugging Face estate contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "as_of",
+    "status",
+    "evidence_policy",
+    "brain_model_truth",
+    "flagship_strategy",
+    "github_estate_strategy",
+    "candidates",
+    "hf_estate",
+    "external_mutations"
+  ],
+  "properties": {
+    "$schema": {"const": "./frontier-adoption.schema.json"},
+    "schema_version": {"const": "szl.frontier-adoption.v1"},
+    "as_of": {"type": "string", "format": "date"},
+    "status": {"const": "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION"},
+    "evidence_policy": {"$ref": "#/$defs/evidencePolicy"},
+    "brain_model_truth": {"$ref": "#/$defs/brainTruth"},
+    "flagship_strategy": {"$ref": "#/$defs/flagshipStrategy"},
+    "github_estate_strategy": {"$ref": "#/$defs/githubEstateStrategy"},
+    "candidates": {
+      "type": "array",
+      "minItems": 9,
+      "items": {"$ref": "#/$defs/candidate"}
+    },
+    "hf_estate": {"$ref": "#/$defs/hfEstate"},
+    "external_mutations": {"$ref": "#/$defs/externalMutations"}
+  },
+  "$defs": {
+    "sha40": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "httpsUrl": {"type": "string", "format": "uri", "pattern": "^https://"},
+    "nonEmptyStrings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "evidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstream_facts",
+        "local_measurements_present",
+        "download_performed_by_this_contract",
+        "promotion_authority",
+        "unknown_repository_policy",
+        "zero_download_policy"
+      ],
+      "properties": {
+        "upstream_facts": {"const": "PRIMARY_REPORTED_NOT_LOCAL_MEASUREMENT"},
+        "local_measurements_present": {"const": false},
+        "download_performed_by_this_contract": {"const": false},
+        "promotion_authority": {"const": false},
+        "unknown_repository_policy": {"const": "DENY"},
+        "zero_download_policy": {"const": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"}
+      }
+    },
+    "brainTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_nodes_observed",
+        "raw_nodes_available_to_retrieval_and_evaluation",
+        "raw_nodes_admitted_to_gradients",
+        "current_weight_model",
+        "current_weight_model_relation",
+        "current_release_limit",
+        "next_release_predicate"
+      ],
+      "properties": {
+        "raw_nodes_observed": {"const": 9464},
+        "raw_nodes_available_to_retrieval_and_evaluation": {"const": 9464},
+        "raw_nodes_admitted_to_gradients": {"const": 0},
+        "current_weight_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"},
+        "current_weight_model_relation": {
+          "const": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT"
+        },
+        "current_release_limit": {
+          "const": "OWNER_EVALUATED_2_OF_6_ABSTENTION_CORRECT_AND_SIGNED_RECEIPT_ARTIFACT_BINDING_CONFLICT_BLOCK_AUTONOMOUS_HIGH_STAKES_OR_PROMOTION"
+        },
+        "next_release_predicate": {"$ref": "#/$defs/nonEmptyStrings"}
+      }
+    },
+    "flagshipStrategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_model",
+        "distribution_model",
+        "specialist_candidate",
+        "unification_mode",
+        "tensor_merge_authorized",
+        "strategy"
+      ],
+      "properties": {
+        "primary_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"},
+        "distribution_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"},
+        "specialist_candidate": {"const": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"},
+        "unification_mode": {"const": "ONE_PRODUCT_FAMILY_ROUTER_COLLECTION_AND_SHARED_EVALS"},
+        "tensor_merge_authorized": {"const": false},
+        "strategy": {"$ref": "#/$defs/nonEmptyStrings"}
+      }
+    },
+    "githubEstateLayer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "canonical_repositories", "responsibility", "assertion_basis"],
+      "properties": {
+        "layer": {"type": "string", "minLength": 1},
+        "canonical_repositories": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}
+        },
+        "responsibility": {"type": "string", "minLength": 1},
+        "assertion_basis": {"type": "string", "minLength": 1},
+        "in_repository_artifacts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "githubEstateStrategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_reported_repository_count",
+        "attachment_entries_observed",
+        "inventory_complete",
+        "public_github_repositories_observed",
+        "public_archived_observed",
+        "public_readback_as_of",
+        "public_readback_source",
+        "reconciliation_state",
+        "reported_not_publicly_readback",
+        "publicly_observed_outside_attachment",
+        "canonical_flow",
+        "layers",
+        "code_to_weight_policy",
+        "unclassified_repository_policy",
+        "archive_policy",
+        "known_alignment_gaps"
+      ],
+      "properties": {
+        "source_reported_repository_count": {"const": 54},
+        "attachment_entries_observed": {"type": "integer", "minimum": 1, "maximum": 54},
+        "inventory_complete": {"const": false},
+        "public_github_repositories_observed": {"const": 50},
+        "public_archived_observed": {"const": 9},
+        "public_readback_as_of": {"type": "string", "format": "date"},
+        "public_readback_source": {"$ref": "#/$defs/httpsUrl"},
+        "reconciliation_state": {
+          "const": "SOURCE_REPORT_54_PUBLIC_READBACK_50_ATTACHMENT_TRUNCATED_REVIEW_REQUIRED"
+        },
+        "reported_not_publicly_readback": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "publicly_observed_outside_attachment": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "canonical_flow": {"type": "string", "minLength": 1},
+        "layers": {
+          "type": "array",
+          "minItems": 8,
+          "items": {"$ref": "#/$defs/githubEstateLayer"}
+        },
+        "code_to_weight_policy": {
+          "const": "CODE_REPOSITORIES_ARE_SERVICES_LIBRARIES_OR_EVIDENCE_NOT_MODEL_WEIGHTS"
+        },
+        "unclassified_repository_policy": {
+          "const": "DISCOVER_CLASSIFY_FAIL_CLOSED_NO_ARCHIVE"
+        },
+        "archive_policy": {
+          "const": "ARCHIVE_ONLY_AFTER_REPLACEMENT_REDIRECT_HEALTH_AND_PROVENANCE_VERIFICATION"
+        },
+        "known_alignment_gaps": {"$ref": "#/$defs/nonEmptyStrings"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "bytes", "sha256"],
+      "properties": {
+        "filename": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "revision",
+        "model_card_url",
+        "license_expression",
+        "license_kind",
+        "license_evidence_url",
+        "artifact_inventory"
+      ],
+      "properties": {
+        "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"},
+        "revision": {"$ref": "#/$defs/sha40"},
+        "model_card_url": {"$ref": "#/$defs/httpsUrl"},
+        "license_expression": {"type": "string", "minLength": 1},
+        "license_kind": {
+          "enum": ["OPEN_SOURCE_REPORTED", "CUSTOM_RESTRICTED", "MIXED_CODE_AND_WEIGHT_LICENSES"]
+        },
+        "license_evidence_url": {"$ref": "#/$defs/httpsUrl"},
+        "artifact_inventory": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/artifact"}
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_url", "revision", "custom_code_policy"],
+      "properties": {
+        "repository_url": {"$ref": "#/$defs/httpsUrl"},
+        "revision": {"anyOf": [{"$ref": "#/$defs/sha40"}, {"const": "MODEL_CARD_ONLY"}]},
+        "custom_code_policy": {
+          "enum": [
+            "PIN_HASH_REVIEW_AND_RUN_OFFLINE",
+            "PIN_RUNTIME_FORK_AND_RUN_OFFLINE",
+            "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY",
+            "NO_EXECUTION_QUARANTINED"
+          ]
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority",
+        "decision",
+        "artifact_class",
+        "upstream",
+        "runtime",
+        "local_state",
+        "allowed_operations",
+        "prohibited_operations",
+        "required_evidence_by_operation",
+        "adoption_plan",
+        "hard_blockers",
+        "non_claims",
+        "sources"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "priority": {"enum": ["P0", "P1", "P2", "P3"]},
+        "decision": {
+          "enum": [
+            "LOCAL_QUALIFY",
+            "REMOTE_ONLY",
+            "METHODS_ONLY",
+            "EVALUATION_ONLY_INFERENCE_ARTIFACT",
+            "QUARANTINE_PROVENANCE_UNRESOLVED",
+            "QUARANTINE_RESTRICTED_IDENTITY_MODEL"
+          ]
+        },
+        "artifact_class": {
+          "enum": [
+            "FULL_CHECKPOINT",
+            "GGUF_INFERENCE_ARTIFACT",
+            "ADAPTER_WITH_EXTERNAL_BASE",
+            "REMOTE_FRONTIER_MODEL",
+            "METHOD_REFERENCE"
+          ]
+        },
+        "upstream": {"$ref": "#/$defs/upstream"},
+        "runtime": {"$ref": "#/$defs/runtime"},
+        "local_state": {
+          "enum": [
+            "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
+            "REMOTE_NOT_LOCAL_CANDIDATE",
+            "METHOD_REFERENCE_NOT_WEIGHT_CANDIDATE",
+            "QUARANTINED_NO_EXECUTION"
+          ]
+        },
+        "allowed_operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED", "ADOPT_METHOD"]}
+        },
+        "prohibited_operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "TRAIN",
+              "SERVE_PRODUCTION",
+              "PROMOTE",
+              "MERGE_WEIGHTS",
+              "INGEST_UPSTREAM_TRAINING_TRACES",
+              "IDENTITY_EDIT_REAL_PERSON"
+            ]
+          }
+        },
+        "required_evidence_by_operation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "DOWNLOAD_PINNED": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+            "EVALUATE_SANDBOXED": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+            "ADOPT_METHOD": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "adoption_plan": {"$ref": "#/$defs/nonEmptyStrings"},
+        "hard_blockers": {"$ref": "#/$defs/nonEmptyStrings"},
+        "non_claims": {"$ref": "#/$defs/nonEmptyStrings"},
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/httpsUrl"}
+        }
+      }
+    },
+    "estateRepo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "observed_revision",
+        "artifact_class",
+        "weight_bearing",
+        "strategy",
+        "canonical_family",
+        "delete_authorized"
+      ],
+      "properties": {
+        "repository_id": {"type": "string", "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"},
+        "observed_revision": {"$ref": "#/$defs/sha40"},
+        "artifact_class": {
+          "enum": [
+            "WEIGHT_MODEL",
+            "QUANTIZED_WEIGHT_MODEL",
+            "KERNEL_LIBRARY",
+            "MODEL_PROGRAM_LEDGER",
+            "GOVERNANCE_SUBSTRATE",
+            "BLOCKED_EVIDENCE_EXHIBIT"
+          ]
+        },
+        "weight_bearing": {"type": "boolean"},
+        "strategy": {
+          "enum": [
+            "KEEP_FLAGSHIP_BLOCKED_ARTIFACT_BINDING_CONFLICT",
+            "KEEP_LABELED_ARTIFACT_TARGET_ROLE_UNESTABLISHED_BINDING_CONFLICT",
+            "KEEP_DISTRIBUTION_FORMAT",
+            "KEEP_AND_GROUP_KERNEL_COLLECTION",
+            "KEEP_PROGRAM_LEDGER_UNTIL_QUALIFIED_WEIGHT_RELEASE",
+            "KEEP_GOVERNANCE_ARTIFACT_NOT_MARKETED_AS_MODEL",
+            "KEEP_QUARANTINED_WITH_EXPLICIT_BLOCKED_LABEL"
+          ]
+        },
+        "canonical_family": {"type": "string", "minLength": 1},
+        "delete_authorized": {"const": false}
+      }
+    },
+    "hfEstate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["organization", "metadata_state", "live_counts_embedded", "repositories", "archive_predicate"],
+      "properties": {
+        "organization": {"const": "SZLHOLDINGS"},
+        "metadata_state": {"const": "PINNED_CLASSIFICATION_LIVE_COUNTS_FETCHED_AT_RUNTIME"},
+        "live_counts_embedded": {"const": false},
+        "repositories": {
+          "type": "array",
+          "minItems": 15,
+          "items": {"$ref": "#/$defs/estateRepo"}
+        },
+        "archive_predicate": {"$ref": "#/$defs/nonEmptyStrings"}
+      }
+    },
+    "externalMutations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weights_downloaded", "model_trained", "hub_repository_deleted", "hub_repository_archived", "hub_repository_mutated", "model_promoted"],
+      "properties": {
+        "weights_downloaded": {"const": false},
+        "model_trained": {"const": false},
+        "hub_repository_deleted": {"const": false},
+        "hub_repository_archived": {"const": false},
+        "hub_repository_mutated": {"const": false},
+        "model_promoted": {"const": false}
+      }
+    }
+  }
+}

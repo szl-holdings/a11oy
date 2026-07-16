@@ -1,0 +1,556 @@
+{
+  "$schema": "./frontier-adoption.schema.json",
+  "schema_version": "szl.frontier-adoption.v1",
+  "as_of": "2026-07-16",
+  "status": "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION",
+  "evidence_policy": {
+    "upstream_facts": "PRIMARY_REPORTED_NOT_LOCAL_MEASUREMENT",
+    "local_measurements_present": false,
+    "download_performed_by_this_contract": false,
+    "promotion_authority": false,
+    "unknown_repository_policy": "DENY",
+    "zero_download_policy": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"
+  },
+  "brain_model_truth": {
+    "raw_nodes_observed": 9464,
+    "raw_nodes_available_to_retrieval_and_evaluation": 9464,
+    "raw_nodes_admitted_to_gradients": 0,
+    "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+    "current_weight_model_relation": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT",
+    "current_release_limit": "OWNER_EVALUATED_2_OF_6_ABSTENTION_CORRECT_AND_SIGNED_RECEIPT_ARTIFACT_BINDING_CONFLICT_BLOCK_AUTONOMOUS_HIGH_STAKES_OR_PROMOTION",
+    "next_release_predicate": [
+      "Admit every proposed gradient row through the signed Brain training-admission contract; raw node count alone is never training authority.",
+      "Keep canonical Brain content outside weights and retrieve it through a provenance-bound hybrid index; train only the navigation, abstention, citation, and tool-use behavior that passes rights and contamination gates.",
+      "Demonstrate statistically meaningful gains on a frozen independent BrainQrels split with per-case receipts, confidence intervals, zero invented node identifiers, and materially improved abstention.",
+      "Bind the exact base, adapter, data split, trainer, runtime, evaluation, license review, and human release decision in a signed candidate receipt before any v2 promotion."
+    ]
+  },
+  "flagship_strategy": {
+    "primary_model": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+    "distribution_model": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+    "specialist_candidate": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+    "unification_mode": "ONE_PRODUCT_FAMILY_ROUTER_COLLECTION_AND_SHARED_EVALS",
+    "tensor_merge_authorized": false,
+    "strategy": [
+      "Market one coherent SZL-Khipu product family: BrainNavigator is the experimental flagship, GGUF is its local distribution, and the artifact labeled ReceiptAgent remains a candidate whose target role and behavior are not established.",
+      "Package the commercial surface as SZL Khipu Research OS: Khipu proposes bounded plans; SZL-Lake and the Brain retrieve immutable evidence; the formula registry supplies typed obligations; Lean and mathlib verify supported proof terms; and Ayllu plus SZL Router enforce bounded tool use and abstention. If ReceiptAgent behavior is later established, its target role is receipt drafting only; the governed runtime must validate and bind drafts and an external signer must emit DSSE receipts.",
+      "Keep both Khipu and ReceiptAgent experimental and unpromoted until the canonical Forge manifest's signed-receipt artifact-binding conflict is reconciled against the published files and independently read back.",
+      "Route every computation through the existing SZL-Yupaq typed compute plane (model_release/szl-compute-plane.json and szl_yupaq_compute.py); engines compute outside model weights and remain UNAVAILABLE when their real runtime, license, isolation, or receipt evidence is absent.",
+      "Unify the model cards, collection, Space demo, router contract, evaluation dashboard, citations, and feedback loop; do not merge distinct adapters or weights without an ablation proving the merged artifact is better.",
+      "Move kernels, formula libraries, invariants, Ouroboros, provenance controls, and signing tools into a named supporting-kernel collection so they strengthen the flagship without pretending to be language-model weights.",
+      "Use the next release to fix the measured abstention weakness and add independently reproducible Brain navigation receipts, not to multiply repository names."
+    ]
+  },
+  "github_estate_strategy": {
+    "source_reported_repository_count": 54,
+    "attachment_entries_observed": 30,
+    "inventory_complete": false,
+    "public_github_repositories_observed": 50,
+    "public_archived_observed": 9,
+    "public_readback_as_of": "2026-07-16",
+    "public_readback_source": "https://github.com/orgs/szl-holdings/repositories",
+    "reconciliation_state": "SOURCE_REPORT_54_PUBLIC_READBACK_50_ATTACHMENT_TRUNCATED_REVIEW_REQUIRED",
+    "reported_not_publicly_readback": ["szl-org-health", "szl-substrate", "pitch-collateral"],
+    "publicly_observed_outside_attachment": [
+      "immune",
+      "anatomy",
+      "governed-receipt-spec",
+      "szl-guardrail-receipt",
+      "lambda-gate-holo",
+      "energy-attest-holo",
+      "szl-kernels-live",
+      "szl-provctl-live",
+      "szl-holdings.github.io",
+      "khipu-sda-core"
+    ],
+    "canonical_flow": "a11oy -> hatun-mcp -> szl-router -> szl-forge profiles -> szl-yupaq compute -> szl-lake and szl-receipt -> anatomy -> approved verticals",
+    "layers": [
+      {
+        "layer": "company-governance-and-brand",
+        "canonical_repositories": [".github", "szl-brand", "szl-doctrine", "docs-site"],
+        "responsibility": "Organization policy, community health, brand assets, documentation, and measured estate health.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "control-plane",
+        "canonical_repositories": ["a11oy", "platform"],
+        "responsibility": "Governed user and API control plane plus product integration; shared-substrate ownership remains a reconciliation item.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "tool-and-inference-routing",
+        "canonical_repositories": ["hatun-mcp", "szl-router", "szl-mesh", "khipu-consensus"],
+        "responsibility": "Typed tool exposure, canonical model routing, distributed coordination, and witnessed agreement.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "qualified-weight-program",
+        "canonical_repositories": ["szl-forge"],
+        "responsibility": "Training and qualification recipes for Khipu and ReceiptAgent profiles; no other repository becomes weights by association.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "evidence-and-observability",
+        "canonical_repositories": ["szl-lake", "szl-receipt", "vsp-otel", "szl-telemetry", "szl-energy-attest"],
+        "responsibility": "Append-only evidence, DSSE receipts, telemetry, tracing, resource evidence, and public counters.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "proof-and-formula-tiers",
+        "canonical_repositories": ["lutar-lean", "lean-kernel", "szl-formula-ledger", "szl-lambda-gate"],
+        "responsibility": "Separate theorem-source, executable-kernel, formula-status, and advisory-aggregation tiers; extracted formulas are not automatically proven.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "bounded-computation",
+        "canonical_repositories": ["szl-quant", "yarqa"],
+        "responsibility": "Typed quantitative and scientific computation behind Yupaq with real external-engine receipts and explicit domain limits.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK_PLUS_LOCAL_ARTIFACT_READBACK",
+        "in_repository_artifacts": ["szl_yupaq_compute.py", "model_release/szl-compute-plane.json"]
+      },
+      {
+        "layer": "governed-loops-and-build",
+        "canonical_repositories": ["ouroboros", "szl-build-env", "warhacker-demo"],
+        "responsibility": "Bounded recursion, reproducible local build fabric, and defensive dry-run verification.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "publications-and-commercial-evidence",
+        "canonical_repositories": ["szl-papers"],
+        "responsibility": "Preprints, thesis lineage, release evidence, and claims constrained to independently verifiable artifacts.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      },
+      {
+        "layer": "presentation-and-anatomy",
+        "canonical_repositories": ["anatomy"],
+        "responsibility": "Generated evidence visualization and estate anatomy; it consumes canonical manifests and does not create proof or readiness.",
+        "assertion_basis": "PUBLIC_GITHUB_READBACK_OUTSIDE_TRUNCATED_ATTACHMENT"
+      },
+      {
+        "layer": "vertical-applications",
+        "canonical_repositories": ["killinchu"],
+        "responsibility": "Human-governed defensive application surfaces consuming the common control, routing, evidence, and compute layers.",
+        "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
+      }
+    ],
+    "code_to_weight_policy": "CODE_REPOSITORIES_ARE_SERVICES_LIBRARIES_OR_EVIDENCE_NOT_MODEL_WEIGHTS",
+    "unclassified_repository_policy": "DISCOVER_CLASSIFY_FAIL_CLOSED_NO_ARCHIVE",
+    "archive_policy": "ARCHIVE_ONLY_AFTER_REPLACEMENT_REDIRECT_HEALTH_AND_PROVENANCE_VERIFICATION",
+    "known_alignment_gaps": [
+      "The supplied 54-repository attachment is truncated after pitch-collateral, so the machine inventory is explicitly incomplete and unseen repositories remain unclassified.",
+      "The public Brain surfaces do not yet share one signed manifest or retrieval plane: one reports 9,464 raw graph nodes while another exposes a 536-chunk fallback.",
+      "a11oy.net and a-11-oy.com require explicit domain, backend, repository-identity, and flagship-link parity before the estate can be called unified.",
+      "The Machine Innovate hardening files described in the working thread are absent from the checked repository and need a recoverable branch, commit, or pull request.",
+      "SZL Forge and SZL Mesh documentation contain stale or conflicting readiness language and must be generated from qualified manifests.",
+      "Hatun MCP and routing logic have overlapping copies; Hatun MCP and SZL Router should be canonical versioned dependencies rather than source duplication."
+    ]
+  },
+  "candidates": [
+    {
+      "id": "moss-transcribe-diarize-09b",
+      "priority": "P0",
+      "decision": "LOCAL_QUALIFY",
+      "artifact_class": "FULL_CHECKPOINT",
+      "upstream": {
+        "repository_id": "OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        "revision": "e6d68cdfcddbdad1a7e8454f0cb859cad76e2502",
+        "model_card_url": "https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize/blob/e6d68cdfcddbdad1a7e8454f0cb859cad76e2502/README.md",
+        "license_expression": "Apache-2.0",
+        "license_kind": "OPEN_SOURCE_REPORTED",
+        "license_evidence_url": "https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize/blob/e6d68cdfcddbdad1a7e8454f0cb859cad76e2502/README.md",
+        "artifact_inventory": [
+          {
+            "filename": "model-00000-of-00001.safetensors",
+            "bytes": 1817113576,
+            "sha256": "9a0ceb4ab7330357db3ff583dba8d83625d5b733b00e1d55d6970e11b07026c4"
+          }
+        ]
+      },
+      "runtime": {
+        "repository_url": "https://github.com/OpenMOSS/MOSS-Transcribe-Diarize",
+        "revision": "eda4b9f13f1574765a80438c9797780a9bd48112",
+        "custom_code_policy": "PIN_HASH_REVIEW_AND_RUN_OFFLINE"
+      },
+      "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
+      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
+        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "custom_code_review_sha256", "network_isolation_receipt_sha256", "rights_cleared_audio_manifest_sha256", "resource_preflight_receipt_sha256", "heldout_split_sha256"]
+      },
+      "adoption_plan": [
+        "Qualify as the Lake and Brain audio-evidence ingress specialist: timestamped speaker segments become content-addressed evidence candidates, never automatically trusted facts.",
+        "Measure WER or CER, cpWER or DER, timestamp error, hallucinated-segment count, schema parse rate, real-time factor, cold load, peak VRAM and RAM, thermals, and restart identity on rights-cleared audio.",
+        "Emit a signed transcript receipt that binds the source audio hash, runtime revision, model revision, decoding parameters, and segment output before canonical Brain admission."
+      ],
+      "hard_blockers": [
+        "No pinned custom-code review or offline execution receipt exists locally.",
+        "No rights-cleared audio evaluation set or local quality/resource receipt exists.",
+        "No production authorization follows from the upstream card or paper."
+      ],
+      "non_claims": [
+        "The upstream paper and model card are not local quality measurements.",
+        "Registering this candidate does not download, load, train, serve, or promote it."
+      ],
+      "sources": [
+        "https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        "https://github.com/OpenMOSS/MOSS-Transcribe-Diarize",
+        "https://arxiv.org/abs/2601.01554"
+      ]
+    },
+    {
+      "id": "bonsai-27b-q1-local",
+      "priority": "P0",
+      "decision": "LOCAL_QUALIFY",
+      "artifact_class": "GGUF_INFERENCE_ARTIFACT",
+      "upstream": {
+        "repository_id": "prism-ml/Bonsai-27B-gguf",
+        "revision": "0cf7e3d21581b169b4df1de8bf01316000e2fbb7",
+        "model_card_url": "https://huggingface.co/prism-ml/Bonsai-27B-gguf/blob/0cf7e3d21581b169b4df1de8bf01316000e2fbb7/README.md",
+        "license_expression": "Apache-2.0",
+        "license_kind": "OPEN_SOURCE_REPORTED",
+        "license_evidence_url": "https://huggingface.co/prism-ml/Bonsai-27B-gguf/blob/0cf7e3d21581b169b4df1de8bf01316000e2fbb7/LICENSE.txt",
+        "artifact_inventory": [
+          {
+            "filename": "Bonsai-27B-Q1_0.gguf",
+            "bytes": 3803452480,
+            "sha256": "17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0"
+          }
+        ]
+      },
+      "runtime": {
+        "repository_url": "https://github.com/PrismML-Eng/llama.cpp",
+        "revision": "62061f91088281e65071cc38c5f69ee95c39f14e",
+        "custom_code_policy": "PIN_RUNTIME_FORK_AND_RUN_OFFLINE"
+      },
+      "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
+      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
+        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "build_flags_sha256", "network_isolation_receipt_sha256", "resource_preflight_receipt_sha256", "heldout_split_sha256", "restart_receipt_sha256"]
+      },
+      "adoption_plan": [
+        "Run the first independent 1-bit local inference qualification at a fixed 4096-token context without drafter or multimodal projector artifacts.",
+        "Compare quality per byte, tokens per second, first-token latency, peak VRAM and RAM, thermal envelope, OOM behavior, restart identity, citation integrity, and refusal behavior against Khipu Q4_K_M and conventional Q4 controls.",
+        "Adopt only measured low-bit kernel and KV-cache techniques that reproduce locally; never rebrand Prism weights or vendor benchmark tables as SZL results."
+      ],
+      "hard_blockers": [
+        "The required runtime fork and exact GGUF have not been locally built, loaded, or measured.",
+        "No independent quality, safety, resource, or restart receipt exists.",
+        "The GGUF is an inference artifact and is categorically not a training input."
+      ],
+      "non_claims": [
+        "The reported fit and performance figures are upstream claims, not measurements on the RTX 5050 laptop.",
+        "Registering the artifact does not qualify it for the router or production serving."
+      ],
+      "sources": [
+        "https://huggingface.co/prism-ml/Bonsai-27B-gguf",
+        "https://github.com/PrismML-Eng/llama.cpp",
+        "https://github.com/PrismML-Eng/Bonsai-demo"
+      ]
+    },
+    {
+      "id": "ternary-bonsai-27b-eval",
+      "priority": "P2",
+      "decision": "EVALUATION_ONLY_INFERENCE_ARTIFACT",
+      "artifact_class": "GGUF_INFERENCE_ARTIFACT",
+      "upstream": {
+        "repository_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+        "revision": "20e435f518bd5b882795954aba81e80a91894321",
+        "model_card_url": "https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf/blob/20e435f518bd5b882795954aba81e80a91894321/README.md",
+        "license_expression": "Apache-2.0",
+        "license_kind": "OPEN_SOURCE_REPORTED",
+        "license_evidence_url": "https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf/blob/20e435f518bd5b882795954aba81e80a91894321/LICENSE.txt",
+        "artifact_inventory": [
+          {
+            "filename": "Ternary-Bonsai-27B-Q2_0.gguf",
+            "bytes": 7165121600,
+            "sha256": "868c11714cf8fe47f5ec9eeb2be0ab1a337112886f92ee0ede6b855c4fa31757"
+          }
+        ]
+      },
+      "runtime": {
+        "repository_url": "https://github.com/PrismML-Eng/llama.cpp",
+        "revision": "62061f91088281e65071cc38c5f69ee95c39f14e",
+        "custom_code_policy": "PIN_RUNTIME_FORK_AND_RUN_OFFLINE"
+      },
+      "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
+      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
+        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "group_format_compatibility_receipt_sha256", "network_isolation_receipt_sha256", "resource_preflight_receipt_sha256", "restart_receipt_sha256", "heldout_split_sha256"]
+      },
+      "adoption_plan": [
+        "Use only as a ternary compression comparison arm against 1-bit Bonsai and conventional Q4; record full-GPU OOM as FAIL and label CPU or hybrid offload as a separate execution class.",
+        "Measure at 4096 tokens with exact group-format compatibility and immutable runtime identity before any inference-quality comparison."
+      ],
+      "hard_blockers": [
+        "The selected GGUF alone is 7.17 GB and upstream reports an approximately 8.4 GB 4K peak; an 8 GB laptop fit is not established.",
+        "Group-128 Q2_0 requires the pinned Prism runtime fork; mainline compatibility cannot be assumed.",
+        "Training from a GGUF inference artifact is prohibited."
+      ],
+      "non_claims": [
+        "Upstream memory and benchmark tables are not local evidence.",
+        "A reduced-layer CPU or GPU-offload diagnostic is not a full-GPU qualification."
+      ],
+      "sources": [
+        "https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf",
+        "https://github.com/PrismML-Eng/Bonsai-demo"
+      ]
+    },
+    {
+      "id": "thinking-machines-inkling-methods",
+      "priority": "P1",
+      "decision": "REMOTE_ONLY",
+      "artifact_class": "REMOTE_FRONTIER_MODEL",
+      "upstream": {
+        "repository_id": "thinkingmachines/Inkling",
+        "revision": "86b4d430ab871652a707666b89203a866888c5e5",
+        "model_card_url": "https://huggingface.co/thinkingmachines/Inkling/blob/86b4d430ab871652a707666b89203a866888c5e5/README.md",
+        "license_expression": "Apache-2.0 AND Thinking-Machines-Model-AUP",
+        "license_kind": "MIXED_CODE_AND_WEIGHT_LICENSES",
+        "license_evidence_url": "https://huggingface.co/thinkingmachines/Inkling/blob/86b4d430ab871652a707666b89203a866888c5e5/README.md",
+        "artifact_inventory": []
+      },
+      "runtime": {
+        "repository_url": "https://huggingface.co/thinkingmachines/Inkling",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
+      },
+      "local_state": "REMOTE_NOT_LOCAL_CANDIDATE",
+      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "ADOPT_METHOD": ["method_source_revision", "independent_ablation_plan_sha256", "rights_review_sha256", "local_evaluation_protocol_sha256"]
+      },
+      "adoption_plan": [
+        "Implement controllable reasoning budgets in Ayllu and the router, then measure answer quality, thinking tokens, latency, energy, and abstention as a Pareto surface.",
+        "Use tool-schema randomization and multimodal evaluation ideas in first-party curricula; never ingest unavailable training traces or copy branding."
+      ],
+      "hard_blockers": ["The model is far beyond the local hardware envelope.", "No local measurement or provider authorization exists."],
+      "non_claims": ["A method reference is not an SZL model qualification.", "The registry does not download or route private data to the upstream model."],
+      "sources": ["https://huggingface.co/thinkingmachines/Inkling", "https://thinkingmachines.ai/news/introducing-inkling/", "https://github.com/thinking-machines-lab/tinker-cookbook"]
+    },
+    {
+      "id": "glm52-methods",
+      "priority": "P1",
+      "decision": "REMOTE_ONLY",
+      "artifact_class": "REMOTE_FRONTIER_MODEL",
+      "upstream": {
+        "repository_id": "zai-org/GLM-5.2",
+        "revision": "b4734de4facf877f85769a911abafc5283eab3d9",
+        "model_card_url": "https://huggingface.co/zai-org/GLM-5.2/blob/b4734de4facf877f85769a911abafc5283eab3d9/README.md",
+        "license_expression": "MIT-weights AND Apache-2.0-code",
+        "license_kind": "MIXED_CODE_AND_WEIGHT_LICENSES",
+        "license_evidence_url": "https://huggingface.co/zai-org/GLM-5.2/blob/b4734de4facf877f85769a911abafc5283eab3d9/README.md",
+        "artifact_inventory": []
+      },
+      "runtime": {
+        "repository_url": "https://github.com/zai-org/GLM-5",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
+      },
+      "local_state": "REMOTE_NOT_LOCAL_CANDIDATE",
+      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "ADOPT_METHOD": ["method_source_revision", "independent_sparse_index_ablation_sha256", "local_acceptance_metric_protocol_sha256"]
+      },
+      "adoption_plan": [
+        "Prototype shared sparse-attention indexing and index-cache reuse on compact SZL models, with retrieval fidelity and memory receipts.",
+        "Measure speculative-decoding acceptance, long-horizon completion, and reasoning-budget tradeoffs independently of upstream benchmark claims."
+      ],
+      "hard_blockers": ["The model is not a local hardware candidate.", "No remote provider qualification, price, privacy, or latency receipt exists."],
+      "non_claims": ["Architecture study does not make GLM weights part of SZL.", "No upstream benchmark is relabeled as local evidence."],
+      "sources": ["https://huggingface.co/zai-org/GLM-5.2", "https://github.com/zai-org/GLM-5", "https://arxiv.org/abs/2602.15763", "https://arxiv.org/abs/2603.12201"]
+    },
+    {
+      "id": "tencent-hy3-methods",
+      "priority": "P1",
+      "decision": "REMOTE_ONLY",
+      "artifact_class": "REMOTE_FRONTIER_MODEL",
+      "upstream": {
+        "repository_id": "tencent/Hy3",
+        "revision": "89ffd53fb6d74429378ba77b39c91c8cba02d288",
+        "model_card_url": "https://huggingface.co/tencent/Hy3/blob/89ffd53fb6d74429378ba77b39c91c8cba02d288/README.md",
+        "license_expression": "Apache-2.0",
+        "license_kind": "OPEN_SOURCE_REPORTED",
+        "license_evidence_url": "https://huggingface.co/tencent/Hy3/blob/89ffd53fb6d74429378ba77b39c91c8cba02d288/README.md",
+        "artifact_inventory": []
+      },
+      "runtime": {
+        "repository_url": "https://github.com/Tencent-Hunyuan/Hy3",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
+      },
+      "local_state": "REMOTE_NOT_LOCAL_CANDIDATE",
+      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "ADOPT_METHOD": ["method_source_revision", "product_feedback_rights_manifest_sha256", "tool_recovery_eval_protocol_sha256", "reasoning_effort_ablation_sha256"]
+      },
+      "adoption_plan": [
+        "Add explicit low, medium, and high reasoning-effort levels to governed routing with fixed spend, latency, energy, and quality ceilings.",
+        "Adopt tool-call recovery tests, scaffold-variance tests, and product-feedback admission controls in the Forge evaluation program."
+      ],
+      "hard_blockers": ["The model requires infrastructure far beyond the laptop.", "No local or remote execution receipt exists."],
+      "non_claims": ["Product-feedback methodology does not authorize reuse of Tencent data.", "No Hy3 weights are merged into an SZL artifact."],
+      "sources": ["https://huggingface.co/tencent/Hy3", "https://github.com/Tencent-Hunyuan/Hy3"]
+    },
+    {
+      "id": "thinkingcap-evaluation-methods",
+      "priority": "P0",
+      "decision": "METHODS_ONLY",
+      "artifact_class": "METHOD_REFERENCE",
+      "upstream": {
+        "repository_id": "bottlecapai/ThinkingCap-Qwen3.6-27B",
+        "revision": "2cbd89d3fff9274633aa7b979643c75a9a81cabd",
+        "model_card_url": "https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B/blob/2cbd89d3fff9274633aa7b979643c75a9a81cabd/README.md",
+        "license_expression": "Apache-2.0",
+        "license_kind": "OPEN_SOURCE_REPORTED",
+        "license_evidence_url": "https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B/blob/2cbd89d3fff9274633aa7b979643c75a9a81cabd/README.md",
+        "artifact_inventory": []
+      },
+      "runtime": {
+        "repository_url": "https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
+      },
+      "local_state": "METHOD_REFERENCE_NOT_WEIGHT_CANDIDATE",
+      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "ADOPT_METHOD": ["method_source_revision", "five_seed_protocol_sha256", "paired_base_candidate_protocol_sha256", "safety_retention_protocol_sha256"]
+      },
+      "adoption_plan": [
+        "Add five-seed confidence intervals and paired base-versus-candidate comparisons to SZL-Nemo and Khipu qualification.",
+        "Measure answer quality per thinking token, loop rate, truncation rate, safety retention, latency, and energy rather than reporting one cherry-picked score."
+      ],
+      "hard_blockers": ["The 27B weights do not fit the laptop comfortably.", "The curated training data is not sufficiently documented for reuse."],
+      "non_claims": ["Evaluation methodology is adopted only after an SZL ablation.", "No ThinkingCap weight or training row becomes an SZL asset."],
+      "sources": ["https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B"]
+    },
+    {
+      "id": "qwythos-claude-traces-quarantine",
+      "priority": "P3",
+      "decision": "QUARANTINE_PROVENANCE_UNRESOLVED",
+      "artifact_class": "FULL_CHECKPOINT",
+      "upstream": {
+        "repository_id": "empero-ai/Qwythos-9B-Claude-Mythos-5-1M",
+        "revision": "14a29bae5143091aeaf87ad37120de4cd57d592c",
+        "model_card_url": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M/blob/14a29bae5143091aeaf87ad37120de4cd57d592c/README.md",
+        "license_expression": "Apache-2.0-reported-for-weights",
+        "license_kind": "MIXED_CODE_AND_WEIGHT_LICENSES",
+        "license_evidence_url": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M/blob/14a29bae5143091aeaf87ad37120de4cd57d592c/README.md",
+        "artifact_inventory": [
+          {
+            "filename": "model.safetensors",
+            "bytes": 18819722392,
+            "sha256": "fcec8f5e4cfa9893df83d9c5429d49ad7d1a5509960522f5fce0a7b6dacbd78a"
+          }
+        ]
+      },
+      "runtime": {
+        "repository_url": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_EXECUTION_QUARANTINED"
+      },
+      "local_state": "QUARANTINED_NO_EXECUTION",
+      "allowed_operations": ["READ_METADATA"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {},
+      "adoption_plan": [
+        "Study only the general evaluation patterns for tool-grounded self-correction, assistant-only loss, repetition-loop detection, and exact-identifier retrieval.",
+        "Do not ingest the reported Claude trace corpus or model weights into any SZL training or release path."
+      ],
+      "hard_blockers": [
+        "The card reports more than 500 million Claude Mythos or Fable trace tokens but does not publish a row-level rights and provenance ledger.",
+        "An Apache label on the weight repository does not establish rights to every training trace or derivative use.",
+        "The model is described as uncensored and lacks the evidence required for governed production serving."
+      ],
+      "non_claims": ["Metadata review is not license clearance.", "No trace, weight, or output is authorized for SZL training."],
+      "sources": ["https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M"]
+    },
+    {
+      "id": "krea2-identity-edit-quarantine",
+      "priority": "P3",
+      "decision": "QUARANTINE_RESTRICTED_IDENTITY_MODEL",
+      "artifact_class": "ADAPTER_WITH_EXTERNAL_BASE",
+      "upstream": {
+        "repository_id": "conradlocke/krea2-identity-edit",
+        "revision": "8f3856364fcee7db52116f72558fce0c233eaac4",
+        "model_card_url": "https://huggingface.co/conradlocke/krea2-identity-edit/blob/8f3856364fcee7db52116f72558fce0c233eaac4/README.md",
+        "license_expression": "Krea-Community-License-custom",
+        "license_kind": "CUSTOM_RESTRICTED",
+        "license_evidence_url": "https://huggingface.co/conradlocke/krea2-identity-edit/blob/8f3856364fcee7db52116f72558fce0c233eaac4/LICENSE.pdf",
+        "artifact_inventory": [
+          {
+            "filename": "krea2_identity_edit_v1_1_r64.safetensors",
+            "bytes": 457111048,
+            "sha256": "f20684520077d8463dbbc5f892ac319b4cf4307d0299da2dbf6bf5d69ad0ab1d"
+          }
+        ]
+      },
+      "runtime": {
+        "repository_url": "https://huggingface.co/conradlocke/krea2-identity-edit",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_EXECUTION_QUARANTINED"
+      },
+      "local_state": "QUARANTINED_NO_EXECUTION",
+      "allowed_operations": ["READ_METADATA"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {},
+      "adoption_plan": [
+        "Study dual visual conditioning, edit-locality metrics, rank-reduced adapters, and model-card regression disclosure only.",
+        "Keep identity editing out of the Brain, defense, and autonomous execution paths."
+      ],
+      "hard_blockers": [
+        "The custom Krea license includes commercial, moderation, and disclosure conditions that require exact legal review.",
+        "The adapter does not establish the resource envelope or license of its external base.",
+        "Real-person identity editing requires consent, impersonation, biometric, abuse, and disclosure controls that do not exist in this contract."
+      ],
+      "non_claims": ["A small adapter file does not prove that the full base fits locally.", "No identity-editing capability is authorized for production."],
+      "sources": [
+        "https://huggingface.co/conradlocke/krea2-identity-edit",
+        "https://huggingface.co/conradlocke/krea2-identity-edit/blob/main/LICENSE.pdf"
+      ]
+    }
+  ],
+  "hf_estate": {
+    "organization": "SZLHOLDINGS",
+    "metadata_state": "PINNED_CLASSIFICATION_LIVE_COUNTS_FETCHED_AT_RUNTIME",
+    "live_counts_embedded": false,
+    "repositories": [
+      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator", "observed_revision": "6a9b18a2d2768cfa6a13eb2f932d503cd00e5866", "artifact_class": "WEIGHT_MODEL", "weight_bearing": true, "strategy": "KEEP_FLAGSHIP_BLOCKED_ARTIFACT_BINDING_CONFLICT", "canonical_family": "SZL-Khipu", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF", "observed_revision": "4838c1468bd2ac90ee8db7120420d196ea085305", "artifact_class": "QUANTIZED_WEIGHT_MODEL", "weight_bearing": true, "strategy": "KEEP_DISTRIBUTION_FORMAT", "canonical_family": "SZL-Khipu", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent", "observed_revision": "4cc1fc12f630feab487eed34b2bda9c7a14778d6", "artifact_class": "WEIGHT_MODEL", "weight_bearing": true, "strategy": "KEEP_LABELED_ARTIFACT_TARGET_ROLE_UNESTABLISHED_BINDING_CONFLICT", "canonical_family": "SZL-Khipu", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-nemo", "observed_revision": "c68649bcb7e8e20e87446033d7f6900d92263fe3", "artifact_class": "MODEL_PROGRAM_LEDGER", "weight_bearing": false, "strategy": "KEEP_PROGRAM_LEDGER_UNTIL_QUALIFIED_WEIGHT_RELEASE", "canonical_family": "SZL-Nemo", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-kernels", "observed_revision": "d36d88bfb42ca5ac010360f41be8efc7de0662e0", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-governed-norm", "observed_revision": "9ac6e3001c7aac5bd80dcee57dd71939b3d6257a", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-lambda-gate", "observed_revision": "f4a787fbe552a242b5d117a1cb39e35fd9ff3215", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-invariants", "observed_revision": "e5da97adb690f37d9d5d314a7e7404aff8ee0964", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-formulas", "observed_revision": "090ae9a700f3aa77876f341bc84c1f8e3c507eea", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-ouroboros", "observed_revision": "e0a6a6596224a6ee98e56dffcb5490df2998d19c", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-provctl", "observed_revision": "f207e81765528a042c430ed991e3c02a7092d2df", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-govsign", "observed_revision": "d9cb07b045cc99a85058654a899e55e86092c777", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/governed-inference-meter", "observed_revision": "ccf5dd886633130d0735ae16ed726df1a8eda20b", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/a11oy-v19-substrate", "observed_revision": "9da51773c98298078854c8015c5deef90627aefa", "artifact_class": "GOVERNANCE_SUBSTRATE", "weight_bearing": false, "strategy": "KEEP_GOVERNANCE_ARTIFACT_NOT_MARKETED_AS_MODEL", "canonical_family": "A11oy-Substrate", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-blocked", "observed_revision": "5559070398f5799635bd48b98310fde1e779c2fc", "artifact_class": "BLOCKED_EVIDENCE_EXHIBIT", "weight_bearing": false, "strategy": "KEEP_QUARANTINED_WITH_EXPLICIT_BLOCKED_LABEL", "canonical_family": "SZL-Governance-Evidence", "delete_authorized": false}
+    ],
+    "archive_predicate": [
+      "Archive only after proving the repository contains no unique weights, adapters, kernels, receipts, citations, DOI references, discussions, or inbound links.",
+      "Publish a replacement location and redirect notice, preserve an immutable release and readback receipt, and wait through a deprecation window before archival.",
+      "Delete only for legal, security, or privacy necessity with a retained tombstone receipt; download count is never sufficient authority."
+    ]
+  },
+  "external_mutations": {
+    "weights_downloaded": false,
+    "model_trained": false,
+    "hub_repository_deleted": false,
+    "hub_repository_archived": false,
+    "hub_repository_mutated": false,
+    "model_promoted": false
+  }
+}
