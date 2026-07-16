@@ -113,7 +113,21 @@ def _stage_result(stage, attempt_dir, receipt_path, receipt, exit_code=0):
 
 
 def _preflight(state="PASS"):
-    checks = [{"id": "GPU_ADMISSION", "state": state}]
+    policy = CONTRACT["gpu_admission"]
+    sample = {
+        "gpu_name": CONTRACT["runtime"]["required_device_name"],
+        "memory_free_mib": policy["minimum_free_memory_mib"],
+        "utilization_pct": policy["maximum_utilization_pct"],
+        "temperature_c": policy["maximum_temperature_c"],
+    }
+    checks = [
+        {
+            "id": "GPU_ADMISSION",
+            "state": state,
+            "policy": policy,
+            "samples": [dict(sample) for _ in range(policy["probe_samples"])],
+        }
+    ]
     return {
         "schema_version": "szl.nemo.preflight-receipt.v1",
         "state": "PASS" if state == "PASS" else "BLOCKED",
@@ -167,9 +181,28 @@ def _capacity():
         "schema_version": "szl.nemo.capacity-probe-receipt.v1",
         "state": queue.CAPACITY_PASS,
         "training_started": False,
+        "profile_id": CONTRACT["training"]["capacity_profile_id"],
+        "contract_sha256": queue._sha256_file(queue.CONTRACT_PATH),
+        "runner_sha256": queue._sha256_file(queue.HERE / "szl_nemo_finetune.py"),
         "effects": {
             "capacity_optimization_step_completed": True,
             "adapter_written": False,
+            "uploaded": False,
+            "published": False,
+            "deployed": False,
+            "promoted": False,
+            "training_authorized": False,
+            "queue_progression_allowed": True,
+            "canonical_threshold_changed": False,
+        },
+        "probe": {
+            "profile_id": CONTRACT["training"]["capacity_profile_id"],
+            "optimizer": CONTRACT["training"]["optimizer"],
+            "optimizer_class": "PagedAdamW8bit",
+            "gradient_accumulation_micro_steps": CONTRACT["training"]["gradient_accumulation_steps"],
+            "sequence_limit": CONTRACT["training"]["capacity_probe_sequence_length"],
+            "sequence_tokens": CONTRACT["training"]["capacity_probe_sequence_length"],
+            "device_map": {"": 0},
         },
         "runtime_guard": _runtime_guard(),
     }
@@ -575,6 +608,58 @@ def test_capacity_refuses_a_tripped_runtime_guard(tmp_path):
     receipt["runtime_guard"] = {"state": "TRIPPED", "reason": "thermal ceiling"}
     result = _stage_result("capacity", tmp_path, tmp_path / "capacity.json", receipt)
     assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+def test_low_vram_calibration_can_never_satisfy_queue_capacity(tmp_path):
+    receipt = {
+        "schema_version": "szl.nemo.low-vram-calibration-receipt.v1",
+        "state": "PASS_CALIBRATION_ONLY_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED",
+        "effects": {
+            "capacity_optimization_step_completed": True,
+            "training_authorized": False,
+        },
+        "runtime_guard": {
+            "state": "PASS",
+            "samples": [{"stage": "initial"}, {"stage": "final"}],
+        },
+    }
+    result = _stage_result("capacity", tmp_path, tmp_path / "calibration.json", receipt)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+def test_stale_capacity_receipt_cannot_authorize_training(tmp_path):
+    stale = _capacity()
+    stale.pop("profile_id")
+    stale["probe"].pop("optimizer_class")
+    result = _stage_result("capacity", tmp_path, tmp_path / "stale-capacity.json", stale)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+def test_short_sequence_capacity_receipt_cannot_authorize_training(tmp_path):
+    short = _capacity()
+    short["probe"]["sequence_tokens"] = 128
+    result = _stage_result("capacity", tmp_path, tmp_path / "short-capacity.json", short)
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+@pytest.mark.parametrize("identity_field", ["contract_sha256", "runner_sha256"])
+def test_capacity_receipt_must_bind_current_contract_and_runner(tmp_path, identity_field):
+    stale = _capacity()
+    stale[identity_field] = "0" * 64
+    result = _stage_result(
+        "capacity", tmp_path, tmp_path / f"stale-{identity_field}.json", stale
+    )
+    assert queue.capacity_outcome(result) == "TERMINAL_REFUSAL"
+
+
+def test_static_preflight_pass_without_canonical_gpu_samples_is_refused(tmp_path):
+    static = {
+        "schema_version": "szl.nemo.preflight-receipt.v1",
+        "state": "PASS",
+        "checks": [{"id": "PINNED_CONTRACT_ASSETS", "state": "PASS"}],
+    }
+    result = _stage_result("preflight", tmp_path, tmp_path / "static-preflight.json", static)
+    assert queue.preflight_outcome(result) == "TERMINAL_REFUSAL"
 
 
 def test_capacity_refuses_runtime_guard_without_initial_and_final_samples(tmp_path):
