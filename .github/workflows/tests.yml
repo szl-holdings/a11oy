@@ -519,7 +519,7 @@ jobs:
           python -m pip install --upgrade pip
           # PAE + divergence locks are pure stdlib; cryptography enables the real
           # ECDSA-P256 round-trip assertion (skipped gracefully if unavailable).
-          pip install cryptography
+          pip install cryptography pytest
       - name: Lock szl_dsse DSSE PAE family + divergence from szl-receipt
         # RECEIPT-BUS UNIFICATION GUARD (audit 2026-07-03): the estate has two
         # incompatible DSSE PAE families. szl_dsse.py uses the DSSE-v1 SPEC /
@@ -531,6 +531,8 @@ jobs:
         # divergence from szl-receipt, and the honest UNSIGNED path — turning a
         # future naive "just import szl-receipt" refactor into a red gate.
         run: python3 -m unittest tests.test_szl_dsse_parity -v
+      - name: Verify shared credential and receipt hardening
+        run: pytest tests/test_shared_security_hardening.py -q
 
   python-sign-cert-dsse-parity:
     name: DSSE PAE parity — sign_cert_dsse Ed25519 cosign-family, diverges from szl-receipt (offline)

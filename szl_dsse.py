@@ -66,12 +66,13 @@ for SZL Khipu receipts, backed by the SZLHOLDINGS **Cosign** keypair.
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from typing import Any
+
+from szl_content_address import sha256_content_address
 
 KEYID = "szlholdings-cosign"
 KHIPU_PAYLOAD_TYPE = "application/vnd.szl.khipu+json"
@@ -151,7 +152,9 @@ def signing_available() -> bool:
 
 
 def public_key_fingerprint() -> str:
-    return hashlib.sha256(COSIGN_PUBLIC_PEM.strip().encode()).hexdigest()
+    return sha256_content_address(
+        COSIGN_PUBLIC_PEM.strip().encode(), purpose="public-key"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +174,7 @@ def sign_payload(payload_obj: Any, payload_type: str = KHIPU_PAYLOAD_TYPE) -> di
         "payloadType": payload_type,
         "payload": base64.b64encode(body).decode("ascii"),
         "_dsse": "DSSEv1",
-        "_pae_sha256": hashlib.sha256(to_sign).hexdigest(),
+        "_pae_sha256": sha256_content_address(to_sign, purpose="dsse-pae"),
         "_signed_at": datetime.now(timezone.utc).isoformat(),
     }
     priv = _load_private_key()
@@ -210,7 +213,7 @@ def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
             return {**out, "verified": False, "reason": "no signatures (unsigned envelope)"}
         body = base64.b64decode(payload_b64)
         to_verify = pae(payload_type, body)
-        out["pae_sha256"] = hashlib.sha256(to_verify).hexdigest()
+        out["pae_sha256"] = sha256_content_address(to_verify, purpose="dsse-pae")
         pub = _load_public_key()
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives import hashes

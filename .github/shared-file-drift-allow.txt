@@ -59,3 +59,11 @@ szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (ap
 #     the hub roster itself), so this backend registration is intentionally a11oy-
 #     specific. Reconcile if/when killinchu adopts the same sovereign backend entry.
 szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sovereign-local); killinchu mirrors via /llm/ecosystem-mirror
+
+# --- TEMPORARY coordinated security rollout (a11oy #928 + killinchu #231).
+# Remove these three entries as soon as both PRs are on main. The PR branches
+# carry byte-identical hardened copies; the exception only breaks the circular
+# cross-repo CI dependency while the first half lands.
+szl_connectors/governance.py  # TEMP: coordinated nested-secret scrub rollout
+szl_connectors/oauth.py       # TEMP: coordinated public OAuth-scope separation
+szl_dsse.py                   # TEMP: coordinated content-address separation

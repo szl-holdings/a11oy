@@ -91,6 +91,23 @@ PROVIDER_OAUTH: dict[str, dict[str, str]] = {
     },
 }
 
+# Keep public scopes in a separate container from endpoint metadata whose
+# ``token`` key is (correctly but over-broadly) treated as sensitive by taint
+# analysis. Receipt content uses this public-only map, so no credential-like
+# container can flow into a protocol content address.
+PROVIDER_SCOPES: dict[str, str] = {
+    "salesforce": "api refresh_token",
+    "hubspot": "crm.objects.contacts.read crm.objects.companies.read crm.objects.deals.read",
+    "zoho_crm": "ZohoCRM.modules.ALL ZohoCRM.org.READ",
+    "slack": "channels:read chat:write users:read",
+    "okta": "okta.users.read okta.groups.read",
+    "entra": "https://graph.microsoft.com/.default offline_access",
+    "auth0": "read:users read:logs",
+    "dynamics_crm": "https://{org}.api.crm.dynamics.com/.default offline_access",
+    "netsuite": "rest_webservices",
+    "servicenow": "useraccount",
+}
+
 
 # Domain-separation salt + work factor for deriving the state-signing key.
 _STATE_KDF_SALT = b"szl.killinchu.oauth-state.v1"
@@ -224,18 +241,19 @@ def exchange_code(connector_id: str, *, code: str, state: str, redirect_uri: str
                 "provider_detail": str(body)[:200]}
     refresh = body.get("refresh_token", "")
     access = body.get("access_token", "")
+    public_scope = PROVIDER_SCOPES.get(connector_id, "")
     # credential-bound DSSE receipt — fingerprint ONLY, never the token value.
     from .governance import receipt_for_write
     rcpt = receipt_for_write(
         connector_id=connector_id,
         action={"method": "oauth.credential_bound", "object": "refresh_token",
-                "scope": cfg.get("scope", "")},
+                "scope": public_scope},
         lambda_value=0.9,
         cred_fingerprints={
             "refresh_token": cred_fingerprint(refresh) if refresh else "absent",
             "access_token": cred_fingerprint(access) if access else "absent",
         },
-        result_summary={"granted_scope": cfg.get("scope", ""),
+        result_summary={"granted_scope": public_scope,
                         "note": "secret persisted to Space secret store only; never committed"},
     )
     return {
