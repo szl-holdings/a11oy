@@ -369,7 +369,47 @@ def _only_gpu_admission_blocked(receipt: dict[str, Any] | None) -> bool:
         for check in checks
         if check.get("state") == "BLOCKED"
     ]
-    return blocked == ["GPU_ADMISSION"]
+    if blocked != ["GPU_ADMISSION"]:
+        return False
+    contract = _load_object(CONTRACT_PATH)
+    blocked_check = next(check for check in checks if check.get("state") == "BLOCKED")
+    return blocked_check.get("policy") == contract["gpu_admission"]
+
+
+def _canonical_gpu_admission_pass(receipt: dict[str, Any]) -> bool:
+    contract = _load_object(CONTRACT_PATH)
+    policy = contract["gpu_admission"]
+    checks = receipt.get("checks")
+    if not isinstance(checks, list):
+        return False
+    matches = [
+        check
+        for check in checks
+        if isinstance(check, dict) and check.get("id") == "GPU_ADMISSION"
+    ]
+    if len(matches) != 1:
+        return False
+    check = matches[0]
+    samples = check.get("samples")
+    if (
+        check.get("state") != "PASS"
+        or check.get("policy") != policy
+        or not isinstance(samples, list)
+        or len(samples) != int(policy["probe_samples"])
+    ):
+        return False
+    required_device = contract["runtime"]["required_device_name"]
+    return all(
+        isinstance(sample, dict)
+        and sample.get("gpu_name") == required_device
+        and type(sample.get("memory_free_mib")) is int
+        and sample["memory_free_mib"] >= int(policy["minimum_free_memory_mib"])
+        and type(sample.get("utilization_pct")) is int
+        and sample["utilization_pct"] <= int(policy["maximum_utilization_pct"])
+        and type(sample.get("temperature_c")) is int
+        and sample["temperature_c"] <= int(policy["maximum_temperature_c"])
+        for sample in samples
+    )
 
 
 def _lease_busy(result: StageResult) -> bool:
@@ -385,6 +425,7 @@ def preflight_outcome(result: StageResult) -> str:
         and result.receipt
         and result.receipt.get("schema_version") == "szl.nemo.preflight-receipt.v1"
         and result.receipt.get("state") == "PASS"
+        and _canonical_gpu_admission_pass(result.receipt)
     ):
         return "PASS"
     if _lease_busy(result) or (result.exit_code == 3 and _only_gpu_admission_blocked(result.receipt)):
@@ -395,15 +436,38 @@ def preflight_outcome(result: StageResult) -> str:
 def capacity_outcome(result: StageResult, launcher_preflight: dict[str, Any] | None = None) -> str:
     receipt = result.receipt
     effects = receipt.get("effects") if isinstance(receipt, dict) else None
+    probe = receipt.get("probe") if isinstance(receipt, dict) else None
+    contract = _load_object(CONTRACT_PATH)
+    training = contract["training"]
     if (
         result.exit_code == 0
         and receipt
         and receipt.get("schema_version") == "szl.nemo.capacity-probe-receipt.v1"
         and receipt.get("state") == CAPACITY_PASS
         and receipt.get("training_started") is False
+        and receipt.get("profile_id") == training["capacity_profile_id"]
+        and receipt.get("contract_sha256") == _sha256_file(CONTRACT_PATH)
+        and receipt.get("runner_sha256") == _sha256_file(HERE / "szl_nemo_finetune.py")
         and isinstance(effects, dict)
         and effects.get("capacity_optimization_step_completed") is True
         and effects.get("adapter_written") is False
+        and effects.get("uploaded") is False
+        and effects.get("published") is False
+        and effects.get("deployed") is False
+        and effects.get("promoted") is False
+        and effects.get("training_authorized") is False
+        and effects.get("queue_progression_allowed") is True
+        and effects.get("canonical_threshold_changed") is False
+        and isinstance(probe, dict)
+        and probe.get("profile_id") == training["capacity_profile_id"]
+        and probe.get("optimizer") == training["optimizer"]
+        and probe.get("optimizer_class") == "PagedAdamW8bit"
+        and probe.get("gradient_accumulation_micro_steps") == training["gradient_accumulation_steps"]
+        and probe.get("sequence_limit") == training["capacity_probe_sequence_length"]
+        and type(probe.get("sequence_tokens")) is int
+        and probe["sequence_tokens"] == training["max_sequence_length"]
+        and probe["sequence_limit"] == training["max_sequence_length"]
+        and probe.get("device_map") == {"": 0}
     ):
         try:
             _validate_runtime_guard(receipt.get("runtime_guard"), _load_object(CONTRACT_PATH))

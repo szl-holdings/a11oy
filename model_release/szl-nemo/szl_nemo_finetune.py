@@ -170,6 +170,21 @@ def atomic_json(path: Path, value: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def create_json_once(path: Path, value: dict[str, Any]) -> None:
+    """Claim an append-only evidence path without a check-then-replace race."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except FileExistsError as exc:
+        raise GateRefused(
+            "capacity or calibration receipt path already exists; evidence is append-only"
+        ) from exc
+
+
 def atomic_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -657,9 +672,22 @@ def verify_linux_network_namespace() -> dict[str, Any]:
 
 
 class RuntimeGuard:
-    def __init__(self, contract: dict[str, Any]) -> None:
-        self.maximum_seconds = contract["training"]["maximum_wall_clock_seconds"]
-        self.maximum_temperature = contract["gpu_admission"]["maximum_training_temperature_c"]
+    def __init__(
+        self,
+        contract: dict[str, Any],
+        maximum_temperature: int | None = None,
+        maximum_seconds: int | None = None,
+    ) -> None:
+        self.maximum_seconds = (
+            int(maximum_seconds)
+            if maximum_seconds is not None
+            else contract["training"]["maximum_wall_clock_seconds"]
+        )
+        self.maximum_temperature = (
+            int(maximum_temperature)
+            if maximum_temperature is not None
+            else contract["gpu_admission"]["maximum_training_temperature_c"]
+        )
         self.interval = contract["training"]["watchdog_interval_seconds"]
         self.started_at_unix_ns = time.time_ns()
         self.started_monotonic_ns = time.monotonic_ns()
@@ -701,9 +729,32 @@ class RuntimeGuard:
         return self
 
     def __exit__(self, exc_type: Any, *_args: Any) -> None:
-        if exc_type is None and self.finalized_at_unix_ns is None:
-            self.finalize()
-        self.stop.set(); self.thread.join(timeout=self.interval + 2)
+        if exc_type is None:
+            if self.finalized_at_unix_ns is None:
+                self.finalize()
+        else:
+            self.finalize_failure()
+        self.stop.set()
+        if self.thread_started:
+            self.thread.join(timeout=self.interval + 2)
+
+    def finalize_failure(self) -> None:
+        """Capture terminal guard evidence without masking the primary error."""
+
+        self.stop.set()
+        if self.thread_started:
+            self.thread.join(timeout=self.interval + 2)
+        if self.finalized_at_unix_ns is not None:
+            return
+        try:
+            self._record("failure")
+        except Exception as exc:
+            if self.reason is None:
+                self.reason = f"GPU watchdog failed: {type(exc).__name__}"
+        self.finalized_at_unix_ns = time.time_ns()
+        self.elapsed_monotonic_ms = (
+            time.monotonic_ns() - self.started_monotonic_ns
+        ) // 1_000_000
 
     def check(self, stage: str) -> None:
         if (time.monotonic_ns() - self.started_monotonic_ns) / 1_000_000_000 > self.maximum_seconds:
@@ -855,10 +906,27 @@ def _preflight_receipt(contract: dict[str, Any], state: str, checks: list[dict[s
     }
 
 
-def preflight(snapshot: Path | None, check_gpu: bool = False, probe: bool = False) -> dict[str, Any]:
+def preflight(
+    snapshot: Path | None,
+    check_gpu: bool = False,
+    probe: bool = False,
+    gpu_policy: dict[str, Any] | None = None,
+    gpu_check_id: str = "GPU_ADMISSION",
+) -> dict[str, Any]:
     contract = load_object(CONTRACT_PATH)
+    effective_gpu_policy = gpu_policy or contract["gpu_admission"]
     checks: list[dict[str, Any]] = []
     try:
+        if check_gpu or gpu_policy is not None or gpu_check_id != "GPU_ADMISSION":
+            calibration_policy = contract["low_vram_calibration"]["gpu_admission"]
+            if effective_gpu_policy == contract["gpu_admission"]:
+                if gpu_check_id != "GPU_ADMISSION":
+                    raise GateRefused("canonical GPU policy must retain its canonical check identity")
+            elif effective_gpu_policy == calibration_policy:
+                if gpu_check_id != "GPU_LOW_VRAM_CALIBRATION_ATTEMPT_FLOOR":
+                    raise GateRefused("calibration GPU policy must retain its non-training check identity")
+            else:
+                raise GateRefused("GPU policy override is not a contract-declared profile")
         _validate_contract_assets(contract); checks.append({"id": "PINNED_CONTRACT_ASSETS", "state": "PASS"})
         manifest = validate_curriculum(); checks.append({"id": "PROJECT_AUTHORED_CURRICULUM", "state": "PASS", "train_rows": manifest["train"]["rows"], "eval_rows": manifest["eval"]["rows"]})
         if snapshot is None:
@@ -875,12 +943,13 @@ def preflight(snapshot: Path | None, check_gpu: bool = False, probe: bool = Fals
             checks.append({"id": "LINUX_MAMBA_EXECUTION_LANE", "state": "BLOCKED", "observed_operating_system": platform.system(), "required_operating_systems": contract["runtime"]["operating_system_allowlist"], "reason": str(exc)})
             return _preflight_receipt(contract, "BLOCKED", checks)
         if check_gpu:
-            count = contract["gpu_admission"]["probe_samples"] if probe else contract["gpu_admission"]["training_soak_samples"]
-            samples = sample_gpu(contract["gpu_admission"], count, contract["gpu_admission"]["sample_interval_seconds"])
-            checks.append({"id": "GPU_ADMISSION", "state": "PASS", "samples": samples})
+            policy = effective_gpu_policy
+            count = policy["probe_samples"] if probe else policy["training_soak_samples"]
+            samples = sample_gpu(policy, count, policy["sample_interval_seconds"])
+            checks.append({"id": gpu_check_id, "state": "PASS", "policy": policy, "samples": samples})
         return _preflight_receipt(contract, "PASS", checks)
     except GPUAdmissionRefused as exc:
-        checks.append({"id": "GPU_ADMISSION", "state": "BLOCKED", "reason": str(exc), "samples": exc.samples})
+        checks.append({"id": gpu_check_id, "state": "BLOCKED", "reason": str(exc), "policy": effective_gpu_policy, "samples": exc.samples})
     except Exception as exc:
         checks.append({"id": "REFUSAL", "state": "BLOCKED", "reason": str(exc)})
     return _preflight_receipt(contract, "BLOCKED", checks)
@@ -937,6 +1006,7 @@ def capacity_probe(
     confirmation: str,
     license_acknowledgement: str,
     module_cache_receipt: dict[str, Any] | None = None,
+    calibration: bool = False,
 ) -> int:
     """Prove this exact GPU can execute one bounded in-memory QLoRA step.
 
@@ -949,15 +1019,60 @@ def capacity_probe(
 
     contract = load_object(CONTRACT_PATH)
     settings = contract["training"]
-    if confirmation != settings["confirmation_phrase"]:
-        raise GateRefused("exact capacity-probe confirmation is required")
+    calibration_profile = contract["low_vram_calibration"] if calibration else None
+    expected_confirmation = (
+        calibration_profile["confirmation_phrase"]
+        if calibration_profile is not None
+        else settings["confirmation_phrase"]
+    )
+    if confirmation != expected_confirmation:
+        qualifier = "low-VRAM calibration" if calibration else "capacity-probe"
+        raise GateRefused(f"exact {qualifier} confirmation is required")
     if license_acknowledgement != contract["base"]["license_acknowledgement"]:
         raise GateRefused("exact NVIDIA license acknowledgement is required")
+    schema_version = (
+        calibration_profile["receipt_schema_version"]
+        if calibration_profile is not None
+        else "szl.nemo.capacity-probe-receipt.v1"
+    )
+    running_state = (
+        "RUNNING_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        if calibration
+        else "RUNNING_NOT_TRAINED_NOT_PROMOTED"
+    )
+    blocked_state = (
+        "BLOCKED_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        if calibration
+        else "BLOCKED_NOT_TRAINED_NOT_PROMOTED"
+    )
+    pass_state = (
+        "PASS_CALIBRATION_ONLY_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        if calibration
+        else "PASS_CAPACITY_ONLY_NOT_TRAINED_NOT_PROMOTED"
+    )
+    failed_state = (
+        "FAILED_CALIBRATION_NOT_TRAINED_NOT_QUALIFIED_NOT_PROMOTED"
+        if calibration
+        else "FAILED_NOT_TRAINED_NOT_PROMOTED"
+    )
+    profile_id = (
+        calibration_profile["profile_id"]
+        if calibration_profile is not None
+        else settings["capacity_profile_id"]
+    )
+    optimizer_name = (
+        calibration_profile["optimizer"]
+        if calibration_profile is not None
+        else settings["optimizer"]
+    )
+    if optimizer_name != "paged_adamw_8bit" or optimizer_name != settings["optimizer"]:
+        raise GateRefused("capacity optimizer profile does not match the training contract")
 
     receipt: dict[str, Any] = {
-        "schema_version": "szl.nemo.capacity-probe-receipt.v1",
+        "schema_version": schema_version,
         "contract_id": contract["contract_id"],
-        "state": "RUNNING_NOT_TRAINED_NOT_PROMOTED",
+        "profile_id": profile_id,
+        "state": running_state,
         "started_at_unix_ns": time.time_ns(),
         "contract_sha256": sha256_file(CONTRACT_PATH),
         "runner_sha256": sha256_file(Path(__file__)),
@@ -973,16 +1088,44 @@ def capacity_probe(
             "published": False,
             "deployed": False,
             "promoted": False,
+            "training_authorized": False,
+            "queue_progression_allowed": not calibration,
+            "canonical_threshold_changed": False,
         },
     }
-    atomic_json(receipt_path, receipt)
+    create_json_once(receipt_path, receipt)
+
+    guard: RuntimeGuard | None = None
+    torch_module: Any = None
+    optimizer: Any = None
+    model: Any = None
+    tokenizer: Any = None
+    encoded: dict[str, Any] | None = None
+    output: Any = None
+    trainable: list[Any] | None = None
+    micro_step_memory: list[dict[str, Any]] = []
 
     try:
         source_control = git_identity(contract)
-        admission = preflight(snapshot, check_gpu=True, probe=True)
+        probe_policy = (
+            calibration_profile["gpu_admission"]
+            if calibration_profile is not None
+            else contract["gpu_admission"]
+        )
+        admission = preflight(
+            snapshot,
+            check_gpu=True,
+            probe=True,
+            gpu_policy=probe_policy,
+            gpu_check_id=(
+                "GPU_LOW_VRAM_CALIBRATION_ATTEMPT_FLOOR"
+                if calibration
+                else "GPU_ADMISSION"
+            ),
+        )
         receipt["preflight"] = admission
         if admission["state"] != "PASS":
-            receipt.update({"state": "BLOCKED_NOT_TRAINED_NOT_PROMOTED", "completed_at_unix_ns": time.time_ns()})
+            receipt.update({"state": blocked_state, "completed_at_unix_ns": time.time_ns()})
             atomic_json(receipt_path, receipt)
             return 3
 
@@ -1004,11 +1147,26 @@ def capacity_probe(
         )
         atomic_json(receipt_path, receipt)
 
-        with offline_framework_environment() as offline_flags, deny_python_network() as network_control, RuntimeGuard(contract) as guard:
+        guard = RuntimeGuard(
+            contract,
+            maximum_temperature=(
+                calibration_profile["gpu_admission"]["maximum_temperature_c"]
+                if calibration_profile is not None
+                else None
+            ),
+            maximum_seconds=(
+                calibration_profile["maximum_wall_clock_seconds"]
+                if calibration_profile is not None
+                else None
+            ),
+        )
+        with offline_framework_environment() as offline_flags, deny_python_network() as network_control, guard:
             import torch
+            from bitsandbytes.optim import PagedAdamW8bit
             from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
             from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
+            torch_module = torch
             receipt["runtime_identity"] = verify_runtime(torch)
             receipt["framework_offline_flags"] = offline_flags
             receipt["python_network_control"] = network_control
@@ -1026,6 +1184,10 @@ def capacity_probe(
             tokenizer = AutoTokenizer.from_pretrained(
                 str(snapshot), local_files_only=True, trust_remote_code=True
             )
+            if tokenizer.pad_token_id is None:
+                if tokenizer.eos_token_id is None:
+                    raise GateRefused("capacity tokenizer has no pad or EOS token")
+                tokenizer.pad_token = tokenizer.eos_token
             model = AutoModelForCausalLM.from_pretrained(
                 str(snapshot),
                 local_files_only=True,
@@ -1058,27 +1220,53 @@ def capacity_probe(
             text = tokenizer.apply_chat_template(
                 row["messages"], tokenize=False, add_generation_prompt=False
             )
-            sequence_length = int(settings["capacity_probe_sequence_length"])
+            sequence_length = int(
+                calibration_profile["sequence_length"]
+                if calibration_profile is not None
+                else settings["capacity_probe_sequence_length"]
+            )
             encoded = tokenizer(
                 text,
                 return_tensors="pt",
                 truncation=True,
                 max_length=sequence_length,
+                padding="max_length",
             )
             device = next(parameter.device for parameter in model.parameters() if parameter.device.type == "cuda")
             encoded = {key: value.to(device) for key, value in encoded.items()}
+            labels = encoded["input_ids"].clone()
+            if "attention_mask" in encoded:
+                labels = labels.masked_fill(encoded["attention_mask"] == 0, -100)
             model.train()
-            optimizer = torch.optim.AdamW(trainable, lr=settings["learning_rate"])
+            optimizer = PagedAdamW8bit(trainable, lr=float(settings["learning_rate"]))
             optimizer.zero_grad(set_to_none=True)
             guard.check("capacity-before-forward")
             receipt["effects"]["capacity_optimization_step_started"] = True
             atomic_json(receipt_path, receipt)
             step_started = time.monotonic_ns()
-            output = model(**encoded, labels=encoded["input_ids"])
-            loss = float(output.loss.detach().cpu())
-            if not math.isfinite(loss):
-                raise GateRefused("capacity probe loss is not finite")
-            output.loss.backward()
+            accumulation = int(
+                calibration_profile["gradient_accumulation_micro_steps"]
+                if calibration_profile is not None
+                else settings["gradient_accumulation_steps"]
+            )
+            losses: list[float] = []
+            micro_step_memory = []
+            for micro_step in range(accumulation):
+                guard.check(f"capacity-micro-step-{micro_step}")
+                output = model(**encoded, labels=labels)
+                loss = float(output.loss.detach().cpu())
+                if not math.isfinite(loss):
+                    raise GateRefused("capacity probe loss is not finite")
+                losses.append(loss)
+                (output.loss / accumulation).backward()
+                micro_step_memory.append(
+                    {
+                        "micro_step": micro_step + 1,
+                        "allocated_bytes": int(torch.cuda.memory_allocated()),
+                        "reserved_bytes": int(torch.cuda.memory_reserved()),
+                    }
+                )
+                del output
             optimizer.step()
             torch.cuda.synchronize()
             guard.check("capacity-after-optimizer-step")
@@ -1089,18 +1277,24 @@ def capacity_probe(
 
             receipt.update(
                 {
-                    "state": "PASS_CAPACITY_ONLY_NOT_TRAINED_NOT_PROMOTED",
+                    "state": pass_state,
                     "completed_at_unix_ns": time.time_ns(),
                     "probe": {
                         "record_id": row.get("record_id"),
                         "sequence_tokens": int(encoded["input_ids"].shape[-1]),
                         "sequence_limit": sequence_length,
-                        "loss": loss,
+                        "loss": sum(losses) / len(losses),
                         "step_duration_ms": step_duration_ms,
                         "trainable_parameters": sum(parameter.numel() for parameter in trainable),
                         "peak_vram_allocated_bytes": int(torch.cuda.max_memory_allocated()),
                         "peak_vram_reserved_bytes": int(torch.cuda.max_memory_reserved()),
                         "compute_dtype": str(compute_dtype),
+                        "profile_id": profile_id,
+                        "optimizer": optimizer_name,
+                        "optimizer_class": type(optimizer).__name__,
+                        "gradient_accumulation_micro_steps": accumulation,
+                        "micro_step_memory": micro_step_memory,
+                        "device_map": {"": 0},
                     },
                     "runtime_guard": runtime_guard,
                     "base_files_after": verify_base(snapshot),
@@ -1115,22 +1309,85 @@ def capacity_probe(
             if receipt["source_control"] != receipt["source_control_after"]:
                 raise GateRefused("training source identity changed during capacity probe")
             atomic_json(receipt_path, receipt)
-            del optimizer, output, encoded, model
-            gc.collect()
-            torch.cuda.empty_cache()
             return 0
     except Exception as exc:
+        failure_evidence: dict[str, Any] = {
+            "completed_micro_steps": len(micro_step_memory),
+            "micro_step_memory": micro_step_memory,
+        }
+        if guard is not None:
+            try:
+                guard.finalize_failure()
+            except Exception as evidence_exc:
+                failure_evidence["runtime_guard_finalize_error"] = type(evidence_exc).__name__
+            runtime_guard_receipt = guard.receipt()
+            failure_evidence["runtime_guard"] = runtime_guard_receipt
+            receipt["runtime_guard"] = runtime_guard_receipt
+        if torch_module is not None:
+            try:
+                failure_evidence.update(
+                    {
+                        "cuda_allocated_bytes": int(torch_module.cuda.memory_allocated()),
+                        "cuda_reserved_bytes": int(torch_module.cuda.memory_reserved()),
+                        "peak_vram_allocated_bytes": int(torch_module.cuda.max_memory_allocated()),
+                        "peak_vram_reserved_bytes": int(torch_module.cuda.max_memory_reserved()),
+                    }
+                )
+            except Exception as evidence_exc:
+                failure_evidence["cuda_evidence_error"] = type(evidence_exc).__name__
+        try:
+            failure_evidence["terminal_gpu_sample"] = query_gpu()
+        except Exception as evidence_exc:
+            failure_evidence["terminal_gpu_sample_error"] = type(evidence_exc).__name__
         receipt.update(
             {
-                "state": "FAILED_NOT_TRAINED_NOT_PROMOTED",
+                "state": failed_state,
                 "completed_at_unix_ns": time.time_ns(),
                 "error_type": type(exc).__name__,
                 "error": str(exc),
                 "traceback_sha256": sha256_bytes(traceback.format_exc().encode("utf-8")),
+                "failure_evidence": failure_evidence,
             }
         )
         atomic_json(receipt_path, receipt)
         raise
+    finally:
+        output = None
+        optimizer = None
+        encoded = None
+        trainable = None
+        model = None
+        tokenizer = None
+        gc.collect()
+        if torch_module is not None:
+            try:
+                torch_module.cuda.empty_cache()
+            except Exception:
+                pass
+
+
+def low_vram_calibration(
+    snapshot: Path,
+    receipt_path: Path,
+    confirmation: str,
+    license_acknowledgement: str,
+    module_cache_receipt: dict[str, Any] | None = None,
+) -> int:
+    """Measure a bounded non-qualifying QLoRA step below the training gate.
+
+    A pass is evidence for operator review only.  It cannot satisfy the queue's
+    canonical capacity schema, authorize training, write an adapter, or mutate
+    the fixed production admission thresholds.
+    """
+
+    return capacity_probe(
+        snapshot,
+        receipt_path,
+        confirmation,
+        license_acknowledgement,
+        module_cache_receipt,
+        calibration=True,
+    )
 
 
 def train(
@@ -1190,7 +1447,7 @@ def train(
                     guard.check(f"step-{state.global_step}-end"); return control
             guard.check("before-model-load")
             tokenizer = AutoTokenizer.from_pretrained(str(snapshot), local_files_only=True, trust_remote_code=True)
-            model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map="auto", trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
+            model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map={"": 0}, trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
             receipt["loaded_model_class"] = verify_loaded_model_source(model, contract, "training")
             model.config.use_cache = False
             model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
@@ -1213,7 +1470,7 @@ def train(
             receipt.update({"state": "TRAINING_COMPLETED_EVALUATION_REQUIRED", "training_completed_at_unix_ns": time.time_ns(), "global_steps": int(result.global_step), "training_loss": float(result.training_loss), "peak_vram_reserved_bytes": int(torch.cuda.max_memory_reserved()), "adapter_files_sha256": sha256_file(receipts / "adapter-files.json")})
             atomic_json(receipts / "training-receipt.json", receipt)
             del trainer, model; torch.cuda.empty_cache()
-            reload_model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map="auto", trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
+            reload_model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map={"": 0}, trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
             receipt["reloaded_model_class"] = verify_loaded_model_source(reload_model, contract, "reload")
             reload_model = PeftModel.from_pretrained(reload_model, str(adapter), is_trainable=False, local_files_only=True); reload_model.eval()
             results: list[dict[str, Any]] = []
@@ -1331,6 +1588,7 @@ def main(argv: list[str] | None = None) -> int:
     fetch = sub.add_parser("fetch-base"); fetch.add_argument("--destination", type=Path, required=True); fetch.add_argument("--confirmation", required=True)
     check = sub.add_parser("preflight"); check.add_argument("--base-snapshot", type=Path); check.add_argument("--check-gpu", action="store_true"); check.add_argument("--probe", action="store_true"); check.add_argument("--receipt", type=Path)
     capacity = sub.add_parser("capacity-probe"); capacity.add_argument("--base-snapshot", type=Path, required=True); capacity.add_argument("--receipt", type=Path, required=True); capacity.add_argument("--confirmation", required=True); capacity.add_argument("--license-acknowledgement", required=True)
+    calibrate = sub.add_parser("calibrate-vram"); calibrate.add_argument("--base-snapshot", type=Path, required=True); calibrate.add_argument("--receipt", type=Path, required=True); calibrate.add_argument("--confirmation", required=True); calibrate.add_argument("--license-acknowledgement", required=True)
     run = sub.add_parser("train"); run.add_argument("--base-snapshot", type=Path, required=True); run.add_argument("--output-dir", type=Path, required=True); run.add_argument("--confirmation", required=True); run.add_argument("--license-acknowledgement", required=True)
     args = parser.parse_args(argv)
     try:
@@ -1348,6 +1606,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "capacity-probe":
             with training_mutex(), fresh_hf_modules_cache() as module_cache:
                 return capacity_probe(args.base_snapshot, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
+        if args.command == "calibrate-vram":
+            with training_mutex(), fresh_hf_modules_cache() as module_cache:
+                return low_vram_calibration(args.base_snapshot, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
         with training_mutex(), fresh_hf_modules_cache() as module_cache:
             return train(args.base_snapshot, args.output_dir, args.confirmation, args.license_acknowledgement, module_cache)
     except GateRefused as exc:
