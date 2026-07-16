@@ -6325,6 +6325,7 @@ for _navmod, _navlabel in (
     ("a11oy_yupay_nav", "YUPAY"),
     ("a11oy_uds_portability_nav", "UDS Portability"),
     ("a11oy_khipu_demo_nav", "Khipu Demo"),
+    ("a11oy_quant_signals_nav", "Quant Signals"),
 ):
     try:
         _nm = __import__(_navmod)
@@ -13467,6 +13468,28 @@ try:
 except Exception as _khipu_demo_error:  # additive: never take down the SPA
     print(
         f"[a11oy] khipu demo tab NOT registered (non-fatal): {_khipu_demo_error!r}",
+        file=sys.stderr,
+    )
+
+
+# ============================================================================
+# QUANT SIGNALS WALL (2026-07-16): /api/quant/signals + /signals — the doctrine-
+# governed quant engine's DSSE-signed advisory receipts (szl-holdings/szl-quant
+# @main), re-verified SERVER-SIDE per request against a PINNED ed25519 engine key
+# (env A11OY_QUANT_ENGINE_KEYID). ADVISORY_PAPER_ONLY: no execution, no custody,
+# NOT financial advice. A VERIFIED badge proves INTEGRITY + ORIGIN only — never
+# accuracy or profitability. Λ = Conjecture 1 (open), never a theorem. Fail-closed
+# on fetch failure or pin mismatch. Additive, front-moved routes so the exact
+# paths win over the SPA history fallback.
+# ============================================================================
+try:
+    import a11oy_quant_signals as _a11oy_quant_signals
+
+    _quant_signals_result = _a11oy_quant_signals.register(app)
+    print(f"[a11oy] quant signals wall registered (front-moved): {_quant_signals_result}", file=sys.stderr)
+except Exception as _quant_signals_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] quant signals wall NOT registered (non-fatal): {_quant_signals_error!r}",
         file=sys.stderr,
     )
 

@@ -1640,6 +1640,15 @@ COPY a11oy_khipu_demo_traces.json ./a11oy_khipu_demo_traces.json
 # missing. Idempotent BaseHTTPMiddleware; edits no SPA source; 0 CDN.
 COPY a11oy_khipu_demo_nav.py ./a11oy_khipu_demo_nav.py
 
+# QUANT SIGNALS WALL (2026-07-16): /api/quant/signals + /signals — the quant
+# engine's DSSE-signed ADVISORY / PAPER-ONLY receipts (szl-holdings/szl-quant
+# @main), re-verified server-side per request against a PINNED ed25519 key. No
+# new deps (httpx + cryptography already in the image). Module + its idempotent
+# nav injector; the nav MUST be COPY'd or serve.py's guarded import falls back
+# and the /signals nav item is missing. Both edit no SPA source; 0 CDN.
+COPY a11oy_quant_signals.py ./a11oy_quant_signals.py
+COPY a11oy_quant_signals_nav.py ./a11oy_quant_signals_nav.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
 # time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
