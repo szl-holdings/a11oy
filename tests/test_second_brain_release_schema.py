@@ -37,18 +37,43 @@ def test_second_brain_manifest_validates_and_preserves_hard_boundaries() -> None
     assert manifest["promotion"]["requires_human_approval"] is True
     assert policy["admission_evidence_security"] == {
         "signature": "ED25519",
-        "trust_model": "ALLOWLISTED_ISSUER_TOOL_KEY_TRIPLE",
+        "trust_model": "ROOT_SIGNED_PURPOSE_SCOPED_ISSUER_TOOL_KEY",
         "content_binding": (
-            "EXACT_CONTENT_SOURCE_REVISION_RIGHTS_AND_CONTAMINATION"
+            "EXACT_CONTENT_SOURCE_IDENTITY_REVISION_AUTHOR_RIGHTSHOLDER_"
+            "PERMISSION_PRIVACY_REVIEW_AND_CONTAMINATION"
         ),
-        "cross_run_isolation": "SIGNED_DETERMINISTIC_SPLIT_LEDGER",
+        "cross_run_isolation": "POLICY_PINNED_SIGNED_SPLIT_LEDGER_HEAD",
+        "review_signer_binding": "REVIEWER_OWNED_KEY",
+        "terminal_artifact": "ED25519_SIGNED_MANIFEST",
         "self_attestation_allowed": False,
     }
     assert set(policy["required_admission_inputs"]) == {
         "protected_eval_content_sha256_list",
-        "signed_evidence_trust_store",
+        "purpose_scoped_evidence_trust_store",
+        "policy_root_signer",
+        "root_signed_policy_bundle",
         "signed_prior_split_ledger_descriptor",
+        "exact_split_ledger_head_sha256",
+        "reviewer_allowlist",
+        "artifact_signing_key",
+        "explicit_train_admission_switch",
     }
+    assert {
+        "source.identity",
+        "rights.author",
+        "rights.rightsholder",
+        "rights.permission_scope",
+        "privacy.pii_result",
+        "review.reviewer",
+        "review.reasons",
+    } <= set(policy["candidate_required_inputs"])
+    assert {
+        "privacy.status",
+        "review.status",
+        "reason_codes",
+        "decision_receipt_sha256",
+    } <= set(policy["derived_decision_fields"])
+    assert "ENABLE_TRAIN_ADMISSION_BY_DEFAULT" in policy["forbidden_shortcuts"]
 
 
 def test_inventory_evidence_is_content_addressed_and_present() -> None:
