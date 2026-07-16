@@ -101,7 +101,7 @@ def run_one(name: str, args: List[Any], kwargs: Dict[str, Any] | None = None) ->
     try:
         out = fn(*a, **(kwargs or {}))
     except Exception as exc:  # honest error surface
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": type(exc).__name__}
     jr = _jsonify(out)
     receipt = sha256(f"{name}|{args}|{jr}".encode()).hexdigest()
     return {

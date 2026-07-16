@@ -225,7 +225,7 @@ def _make_handlers(ns: str):
             snap = szl_sapa.compute_sapa()
             _record_point(snap)
         except Exception as exc:  # noqa: BLE001
-            return JSONResponse({"error": str(exc)[:200], "headline_label": szl_sapa.PENDING,
+            return JSONResponse({"error": type(exc).__name__, "headline_label": szl_sapa.PENDING,
                                  "joules_per_successful_goal": None, "ns": ns}, status_code=200)
         return JSONResponse({**snap, "ns": ns})
 
@@ -245,7 +245,7 @@ def _make_handlers(ns: str):
             except Exception:
                 pass
         except Exception as exc:  # noqa: BLE001
-            return JSONResponse({"error": str(exc)[:200], "signed": False, "ns": ns}, status_code=200)
+            return JSONResponse({"error": type(exc).__name__, "signed": False, "ns": ns}, status_code=200)
         return JSONResponse({**rec, "ns": ns,
                              "verify_at": "/api/%s/khipu/verify" % ns})
 
