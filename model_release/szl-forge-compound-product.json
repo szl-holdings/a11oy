@@ -1,0 +1,365 @@
+{
+  "$schema": "./szl-forge-compound-product.schema.json",
+  "schema_version": "szl.forge.compound-product.v1",
+  "contract_id": "SZL-Forge-Compound-Product-v1",
+  "as_of": "2026-07-15",
+  "state": "LOCAL_COMPOUND_RUNTIME_VERIFIED_REMOTE_CONSOLIDATION_NOT_EXECUTED",
+  "public_product": {
+    "product_id": "SZL-Forge",
+    "display_name": "SZL-Forge",
+    "system_type": "COMPOUND_GOVERNED_AI_SYSTEM",
+    "single_checkpoint": false,
+    "canonical_space_target": "SZLHOLDINGS/SZL-Forge",
+    "canonical_collection_target": "SZLHOLDINGS/SZL-Forge-Collection",
+    "public_claim": "A governed compound system that routes bounded model profiles through external evidence, policy, formal-compute, observability, and signed-receipt planes.",
+    "release_state": "NOT_PUBLISHED_BY_THIS_CONTRACT"
+  },
+  "architecture_boundary": {
+    "weight_bearing_component_ids": [
+      "receipt-agent-profile",
+      "khipu-brain-navigator-profile"
+    ],
+    "non_weight_component_ids": [
+      "khipu-evidence-memory",
+      "ouroboros-controller",
+      "ayllu-agent-council",
+      "invariant-provenance-policy-plane",
+      "formal-compute-plane",
+      "receipt-observability-plane"
+    ],
+    "rule": "Only an artifact with independently identified weights or an adapter plus its exact base may be called a model. Controllers, agents, APIs, indexes, formulas, proof checkers, policy rules, telemetry, and websites remain external system components.",
+    "unified_experience_not_unified_weights": true
+  },
+  "components": [
+    {
+      "component_id": "receipt-agent-profile",
+      "component_type": "MODEL_PROFILE_PEFT_ADAPTER",
+      "role": "Generate evidence-bound receipt and schema drafts; the runtime signs the receipt and the model never holds signing authority.",
+      "weight_relation": "PEFT_ADAPTER_REQUIRES_EXACT_BASE",
+      "model_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
+      "base_repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+      "base_revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+      "runtime_tag": "receiptagent:latest",
+      "hf_target": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "current_state": "LOCAL_EXACT_TAG_INFERENCE_VERIFIED_REMOTE_ARTIFACT_BINDING_CONFLICT",
+      "source_of_truth": "model_release/receipt-agent/release-manifest.json"
+    },
+    {
+      "component_id": "khipu-brain-navigator-profile",
+      "component_type": "MODEL_PROFILE_PEFT_ADAPTER",
+      "role": "Plan bounded retrieval, explain evidence paths, surface contradictions, and abstain when grounding is insufficient.",
+      "weight_relation": "PEFT_ADAPTER_REQUIRES_EXACT_BASE",
+      "model_id": "SZL-Khipu-1.5B-BrainNavigator-v1",
+      "base_repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+      "base_revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+      "runtime_tag": "khipu:latest",
+      "hf_target": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+      "current_state": "LOCAL_EXACT_TAG_GROUNDED_INFERENCE_VERIFIED_REMOTE_ARTIFACT_BINDING_CONFLICT",
+      "source_of_truth": "model_release/szl-khipu-second-brain.json"
+    },
+    {
+      "component_id": "khipu-evidence-memory",
+      "component_type": "EXTERNAL_EVIDENCE_MEMORY",
+      "role": "Versioned hybrid retrieval, evidence-set construction, bounded graph expansion, citation checking, and reversible memory admission.",
+      "weight_relation": "NOT_MODEL_WEIGHTS",
+      "current_state": "LOCAL_GENERATION_AND_9464_HANDLE_PLANE_VERIFIED_RAW_ROWS_NOT_ADMITTED_TO_GRADIENTS",
+      "source_of_truth": "model_release/szl-khipu-second-brain.json"
+    },
+    {
+      "component_id": "ouroboros-controller",
+      "component_type": "EXTERNAL_CONTROLLER",
+      "role": "Iterative plan, gate, execute, verify, receive, observe, and learn control loop.",
+      "weight_relation": "NOT_MODEL_WEIGHTS",
+      "current_state": "TRACKED_SOURCE_PRESENT_RUNTIME_QUALIFICATION_OUTSIDE_THIS_CONTRACT",
+      "source_of_truth": "model_release/szl-forge-family.json"
+    },
+    {
+      "component_id": "ayllu-agent-council",
+      "component_type": "EXTERNAL_AGENT_ORCHESTRATION",
+      "role": "Bounded persona roles share routed backends and carry profile intent; a persona is not a separately trained model without an exact weight artifact.",
+      "weight_relation": "NOT_MODEL_WEIGHTS",
+      "current_state": "LOCAL_COUNCIL_SOURCE_AND_BINDING_PRESENT",
+      "source_of_truth": "model_release/szl-ayllu-binding.json"
+    },
+    {
+      "component_id": "invariant-provenance-policy-plane",
+      "component_type": "EXTERNAL_POLICY_AND_SIGNING",
+      "role": "Fail-closed invariants, provenance admission, authorization, signature verification, and release-policy enforcement.",
+      "weight_relation": "NOT_MODEL_WEIGHTS",
+      "current_state": "TRACKED_SOURCE_PRESENT_REMOTE_PACKAGING_NOT_EXECUTED",
+      "source_of_truth": "model_release/szl-forge-family.json"
+    },
+    {
+      "component_id": "formal-compute-plane",
+      "component_type": "EXTERNAL_COMPUTE_AND_PROOF",
+      "role": "Typed formula execution, Lake operations, Lean/mathlib checking, numerical jobs, and independent proof obligations with receipts.",
+      "weight_relation": "NOT_MODEL_WEIGHTS",
+      "current_state": "BOUNDED_CORE_PRESENT_FULL_ENGINE_QUALIFICATION_OUTSIDE_THIS_CONTRACT",
+      "source_of_truth": "model_release/szl-compute-plane.json"
+    },
+    {
+      "component_id": "receipt-observability-plane",
+      "component_type": "EXTERNAL_OBSERVABILITY",
+      "role": "OpenTelemetry traces, model-load evidence, latency and resource observations, restart state, and content-addressed runtime receipts.",
+      "weight_relation": "NOT_MODEL_WEIGHTS",
+      "current_state": "LOCAL_LIVE_RECEIPT_PRESENT_DURABLE_RELEASE_SIGNING_PENDING",
+      "source_of_truth": "attestations/forge-second-brain-live-2026-07-15.json"
+    }
+  ],
+  "served_identity_contract": {
+    "routing_claim": "Every response names the profile requested and the exact model tag actually served; a fallback may not inherit the requested model identity.",
+    "required_per_turn_fields": [
+      "profile",
+      "exact_served_model",
+      "model_attestation_sha256",
+      "model_binding_sha256",
+      "prompt_sha256",
+      "answer_sha256",
+      "receipt_payload_sha256",
+      "receipt_signature_sha256"
+    ],
+    "required_for_grounded_turns": [
+      "grounding.evidence_set_sha256",
+      "grounding.augmented_prompt_sha256",
+      "grounding.cited_node_ids_sha256",
+      "grounding.handles_sha256",
+      "grounding.citation_count"
+    ],
+    "signature_envelope": "DSSE_PAE_ECDSA_P256_SHA256",
+    "current_key_scope": "PROCESS_BOOT_EPHEMERAL",
+    "current_key_limitation": "The local boot-scoped key proves the observed process instance; it is not a durable release identity or transparency-log entry.",
+    "promotion_key_requirement": "RELEASE_SCOPED_KEY_WITH_PUBLISHED_VERIFICATION_MATERIAL_AND_TRANSPARENCY_LOG"
+  },
+  "local_evidence": {
+    "receipt_path": "attestations/forge-second-brain-live-2026-07-15.json",
+    "receipt_sha256": "0cfc363216624561f8faa080908fef4757db8267c40dafe07526b1cc502c9d8a",
+    "verification_state": "PASS",
+    "verified_exact_tags": [
+      "khipu:latest",
+      "receiptagent:latest"
+    ],
+    "brain_handle_count": 9464,
+    "brain_rows_admitted_to_gradients": 0,
+    "claim_boundary": "This receipt verifies two loopback runtime turns and the handle plane. It does not prove training completion, remote Hub publication, remote artifact identity, benchmark quality, or production readiness."
+  },
+  "hub_topology": {
+    "one_public_entrypoint": {
+      "target_id": "SZLHOLDINGS/SZL-Forge",
+      "artifact_type": "SPACE",
+      "state": "PLANNED_REMOTE_STATE_NOT_ASSERTED",
+      "role": "Fail-closed product shell, system card, live readiness, selected profile, exact-served identity, citations, receipt download, and limitations."
+    },
+    "canonical_collection": {
+      "target_id": "SZLHOLDINGS/SZL-Forge-Collection",
+      "artifact_type": "COLLECTION",
+      "state": "PLANNED_CREATE_LAST_AFTER_MEMBER_READBACK",
+      "role": "Canonical inventory of independently typed model, dataset, schema, Space, and receipt artifacts."
+    },
+    "weight_artifacts": [
+      {
+        "target_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+        "artifact_type": "MODEL_ADAPTER",
+        "state": "REMOTE_BINDING_NOT_QUALIFIED"
+      },
+      {
+        "target_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+        "artifact_type": "MODEL_ADAPTER",
+        "state": "REMOTE_BINDING_NOT_QUALIFIED"
+      }
+    ],
+    "support_artifacts": [
+      {
+        "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Eval",
+        "artifact_type": "EVALUATION_DATASET",
+        "state": "PLANNED_NOT_CREATED_BY_THIS_CONTRACT"
+      },
+      {
+        "target_id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Schemas",
+        "artifact_type": "SCHEMA_DATASET",
+        "state": "PLANNED_NOT_CREATED_BY_THIS_CONTRACT"
+      },
+      {
+        "target_id": "SZLHOLDINGS/SZL-BrainQrels",
+        "artifact_type": "EVALUATION_DATASET",
+        "state": "PLANNED_NOT_CREATED_BY_THIS_CONTRACT"
+      },
+      {
+        "target_id": "SZLHOLDINGS/SZL-ModelReceipts",
+        "artifact_type": "RECEIPT_DATASET",
+        "state": "PLANNED_NOT_CREATED_BY_THIS_CONTRACT"
+      }
+    ]
+  },
+  "legacy_repo_migration": [
+    {
+      "source_id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_AND_TRACKED_REPOSITORY_REFERENCES_NOT_LIVE_READBACK",
+      "semantic_type": "SOFTWARE_AND_DILIGENCE_MIRROR",
+      "canonical_component_id": "receipt-observability-plane",
+      "destination_artifact_type": "SOFTWARE_REPOSITORY_OR_SPACE_ASSET",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/governed-inference-meter",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_AND_TRACKED_REPOSITORY_REFERENCES_NOT_LIVE_READBACK",
+      "semantic_type": "RUNTIME_TELEMETRY_SOFTWARE",
+      "canonical_component_id": "receipt-observability-plane",
+      "destination_artifact_type": "SOFTWARE_REPOSITORY_OR_SPACE_ASSET",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/szl-blocked",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_NOT_LIVE_READBACK",
+      "semantic_type": "QUARANTINE_AND_BLOCKER_LEDGER",
+      "canonical_component_id": "invariant-provenance-policy-plane",
+      "destination_artifact_type": "PRIVATE_OR_RIGHTS_REVIEWED_DATASET",
+      "planned_action": "PRESERVE_AUDIT_HISTORY_THEN_ARCHIVE_MODEL_REPO",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/szl-govsign",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_NOT_LIVE_READBACK",
+      "semantic_type": "SIGNING_AND_VERIFICATION_SOFTWARE",
+      "canonical_component_id": "invariant-provenance-policy-plane",
+      "destination_artifact_type": "SOFTWARE_REPOSITORY_OR_SPACE_ASSET",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/szl-provctl",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_NOT_LIVE_READBACK",
+      "semantic_type": "PROVENANCE_CONTROL_SOFTWARE",
+      "canonical_component_id": "invariant-provenance-policy-plane",
+      "destination_artifact_type": "SOFTWARE_REPOSITORY_OR_SPACE_ASSET",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/szl-invariants",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_NOT_LIVE_READBACK",
+      "semantic_type": "POLICY_RULESET_AND_TEST_FIXTURES",
+      "canonical_component_id": "invariant-provenance-policy-plane",
+      "destination_artifact_type": "DATASET_OR_SOFTWARE_LIBRARY",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/szl-ouroboros",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_NOT_LIVE_READBACK",
+      "semantic_type": "ORCHESTRATION_SOFTWARE",
+      "canonical_component_id": "ouroboros-controller",
+      "destination_artifact_type": "SOFTWARE_REPOSITORY_OR_SPACE_ASSET",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    },
+    {
+      "source_id": "SZLHOLDINGS/szl-formulas",
+      "source_observation": "USER_PROVIDED_HUB_SCREENSHOT_NOT_LIVE_READBACK",
+      "semantic_type": "FORMULA_DATASET_AND_COMPUTE_TOOLING",
+      "canonical_component_id": "formal-compute-plane",
+      "destination_artifact_type": "DATASET_AND_SOFTWARE_LIBRARY",
+      "planned_action": "PRESERVE_THEN_DEPRECATE_MODEL_CARD_WITH_CANONICAL_LINK",
+      "merge_into_checkpoint": false,
+      "state": "DECLARED_PLAN_NOT_EXECUTED"
+    }
+  ],
+  "migration_preconditions": [
+    "LIVE_HUB_REPO_TYPE_FILE_LFS_LICENSE_AND_VISIBILITY_READBACK",
+    "CONTENT_DOWNLOAD_AND_SHA256_PRESERVATION_MANIFEST",
+    "SECRET_PII_AND_PRIVATE_DATA_SCAN",
+    "DESTINATION_ARTIFACT_EXISTS_AND_UNAUTHENTICATED_READBACK_PASSES",
+    "LEGACY_CARD_NAMES_THE_CANONICAL_DESTINATION_AND_HONEST_ARTIFACT_TYPE",
+    "NO_LEGACY_REPO_DELETION_REQUIRED"
+  ],
+  "promotion_gates": [
+    {
+      "gate_id": "local-runtime-exact-tag-and-receipt",
+      "state": "PASS_LOCAL_ONLY",
+      "evidence": "attestations/forge-second-brain-live-2026-07-15.json"
+    },
+    {
+      "gate_id": "remote-weight-artifact-binding",
+      "state": "BLOCKING",
+      "evidence": "REMOTE_ADAPTER_BASE_AND_LFS_DIGEST_RECONCILIATION_NOT_ESTABLISHED"
+    },
+    {
+      "gate_id": "license-and-derivative-lineage",
+      "state": "BLOCKING",
+      "evidence": "PROFILE_AND_DATASET_RELEASE_LICENSE_REVIEW_INCOMPLETE"
+    },
+    {
+      "gate_id": "frozen-held-out-evaluation",
+      "state": "BLOCKING",
+      "evidence": "ROLE_SPECIFIC_QUALITY_AND_CATASTROPHIC_ERROR_GATES_NOT_ALL_PASSED"
+    },
+    {
+      "gate_id": "grounding-citation-and-abstention",
+      "state": "PARTIAL_LOCAL_EVIDENCE",
+      "evidence": "ONE_GROUNDED_LIVE_TURN_PASSED_HELD_OUT_BRAINQRELS_NOT_ESTABLISHED"
+    },
+    {
+      "gate_id": "security-rights-and-contamination",
+      "state": "BLOCKING",
+      "evidence": "CURRENT_9464_RAW_BRAIN_ROWS_REMAIN_OUTSIDE_GRADIENTS"
+    },
+    {
+      "gate_id": "resource-restart-and-recovery",
+      "state": "BLOCKING",
+      "evidence": "FULL_PREREGISTERED_RESOURCE_AND_RESTART_MATRIX_NOT_ATTACHED"
+    },
+    {
+      "gate_id": "durable-release-signing-and-transparency",
+      "state": "BLOCKING",
+      "evidence": "CURRENT_KEY_IS_PROCESS_BOOT_EPHEMERAL"
+    },
+    {
+      "gate_id": "public-hub-readback",
+      "state": "BLOCKING",
+      "evidence": "CANONICAL_SPACE_COLLECTION_AND_MEMBER_READBACK_NOT_EXECUTED_BY_THIS_CONTRACT"
+    },
+    {
+      "gate_id": "human-release-approval",
+      "state": "BLOCKING",
+      "evidence": "NO_FINAL_SIGNED_RELEASE_DECISION"
+    }
+  ],
+  "release_sequence": [
+    "Audit every named Hub repository through authenticated metadata and unauthenticated public readback.",
+    "Preserve every legacy file and LFS object in a content-addressed migration manifest before changing a card or visibility state.",
+    "Qualify the two weight-bearing profiles independently; a passing profile may not transfer promotion to another profile.",
+    "Publish the fail-closed SZL-Forge Space only when it reports dependency and profile readiness honestly.",
+    "Publish independently typed evaluation, schema, qrels, and receipt datasets with immutable revisions and provenance.",
+    "Create the canonical collection last, after every member resolves and its artifact type is correct.",
+    "Add deprecation and canonical-destination notices to legacy model cards; archive rather than delete after readback passes.",
+    "Verify the complete public graph from an unauthenticated client and retain a signed release receipt."
+  ],
+  "claims_boundary": {
+    "one_public_product_is_one_checkpoint": false,
+    "software_or_api_is_model_weights": false,
+    "brain_index_is_model_weights": false,
+    "retrieval_is_training": false,
+    "formula_text_is_formal_proof": false,
+    "agent_persona_is_separately_trained_model": false,
+    "local_runtime_receipt_proves_remote_release": false,
+    "model_card_proves_weights_exist": false,
+    "commercial_success_downloads_or_publicity_guaranteed": false
+  },
+  "external_mutations": {
+    "hub_repositories_modified": false,
+    "legacy_repositories_archived": false,
+    "models_trained": false,
+    "weights_uploaded": false,
+    "collection_created": false,
+    "space_deployed": false,
+    "product_promoted": false
+  }
+}

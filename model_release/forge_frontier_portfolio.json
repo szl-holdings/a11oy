@@ -1,0 +1,938 @@
+{
+  "$schema": "./forge_frontier_portfolio.schema.json",
+  "schema_id": "szl.forge.frontier-portfolio/v1",
+  "as_of": "2026-07-15",
+  "status": "RESEARCH_PLAN_NOT_EXECUTED",
+  "evidence_policy": {
+    "local_measurements_in_this_manifest": false,
+    "vendor_benchmarks_are_local_evidence": false,
+    "promotion_rule": "No model, dataset, retrieval component, or release is promoted from this portfolio until every applicable blocking gate has a reproducible local receipt tied to an immutable upstream revision and artifact hash.",
+    "labels": {
+      "PRIMARY_REPORTED": "A fact reported by the named upstream project's official repository, model card, specification, or paper; it is not a local measurement.",
+      "ENGINEERING_INFERENCE": "A bounded engineering judgment that must be tested on the target host before use or promotion.",
+      "DECLARED_PLAN": "A proposed SZL activity or artifact that this manifest does not claim has been executed.",
+      "LOCAL_MEASURED_REQUIRED": "A promotion condition that requires a reproducible local run and retained evidence.",
+      "NOT_MEASURED": "No qualifying local receipt is attached to this manifest."
+    }
+  },
+  "target_laptop_profile": {
+    "profile_id": "szl-laptop-8gb-class",
+    "declared_target_class": "Single Windows laptop GPU in the approximately 8 GB VRAM class",
+    "evidence_label": "DECLARED_PLAN",
+    "local_benchmark_status": "NOT_MEASURED",
+    "constraints": [
+      "Run an on-host preflight before downloading or loading any candidate weights.",
+      "Start with a bounded 8192-token or 16384-token context rather than treating an upstream maximum context as a local operating envelope.",
+      "Measure cold load, steady-state peak VRAM, first-token latency, generation throughput, thermals, restart behavior, and out-of-memory behavior.",
+      "Pin upstream revisions and record tokenizer, configuration, and weight hashes before training or evaluation.",
+      "Do not run concurrent training jobs or assume that free remote inference is free training compute.",
+      "Prefer adapter training over full-parameter training unless a measured resource receipt justifies a different method."
+    ]
+  },
+  "models": [
+    {
+      "id": "receipt-agent-v1-current",
+      "priority": "P0",
+      "role": "Governed receipt and schema generation",
+      "disposition": "COMPLETE_EXISTING_PROGRAM",
+      "upstream": {
+        "repository_id": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+        "url": "https://huggingface.co/unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "EXISTING_PROGRAM_PIN_MUST_BE_PRESERVED"
+      },
+      "primary_reported_facts": [
+        "The official repository identifies the artifact as a four-bit Qwen2.5 1.5B Instruct derivative.",
+        "The official repository reports Apache-2.0 licensing.",
+        "This is the upstream base already named by the current ReceiptAgent program; this portfolio does not claim its adapter has passed release gates."
+      ],
+      "laptop_feasibility": {
+        "classification": "TRAINING_CANDIDATE_AFTER_PREFLIGHT",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Preserve and verify the existing pinned upstream revision and all tokenizer, configuration, and weight hashes.",
+          "Measure clean model and adapter load on the target host without fallback substitution.",
+          "Measure peak VRAM, step time, thermals, checkpoint recovery, and out-of-memory behavior with the intended adapter recipe.",
+          "Run held-out receipt-schema validity, citation integrity, refusal, and replay-determinism evaluations."
+        ]
+      },
+      "promotion_scope": [
+        "Finish the existing adapter qualification before starting a replacement training program.",
+        "Publish as experimental only after identity, rights, contamination, task-quality, safety, resource, restart, and receipt-integrity gates pass."
+      ]
+    },
+    {
+      "id": "qwen35-2b-frontier",
+      "priority": "P1",
+      "role": "Compact multimodal generalist candidate for governed Forge tasks",
+      "disposition": "FRONTIER_BAKEOFF_CANDIDATE",
+      "upstream": {
+        "repository_id": "Qwen/Qwen3.5-2B",
+        "url": "https://huggingface.co/Qwen/Qwen3.5-2B",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card reports a 2B language model with a vision encoder.",
+        "The official model card reports native 262144-token context support.",
+        "The official model card reports Apache-2.0 licensing; its reported context limit is not a measured laptop operating point."
+      ],
+      "laptop_feasibility": {
+        "classification": "QUANTIZED_INFERENCE_FIRST_TRAINING_UNPROVEN",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin a concrete upstream revision and verify the exact processor, tokenizer, configuration, and weight hashes.",
+          "Prove the selected runtime supports the model architecture and multimodal processor without silent fallback.",
+          "Measure quantized cold load, peak VRAM, latency, throughput, thermals, bounded-context behavior, and restart determinism.",
+          "Attempt adapter training only after an isolated short-run feasibility test and held-out evaluation plan are approved."
+        ]
+      },
+      "promotion_scope": [
+        "Inference bakeoff against the existing ReceiptAgent base and text-only controls.",
+        "No training or product routing until the target laptop produces qualifying local receipts."
+      ]
+    },
+    {
+      "id": "qwen3-17b-control",
+      "priority": "P1",
+      "role": "Text-only compact generalist and adapter-training control",
+      "disposition": "BAKEOFF_CONTROL",
+      "upstream": {
+        "repository_id": "Qwen/Qwen3-1.7B",
+        "url": "https://huggingface.co/Qwen/Qwen3-1.7B",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 1.7B-parameter causal language model.",
+        "The official model card documents switchable thinking and non-thinking modes.",
+        "The official model card reports Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "TRAINING_CANDIDATE_AFTER_PREFLIGHT",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the upstream revision, tokenizer, configuration, and weights.",
+          "Measure quantized and supported training-precision load behavior on the target host.",
+          "Measure peak VRAM, step time, thermals, checkpoint restart, and out-of-memory behavior in a bounded adapter smoke run.",
+          "Evaluate thinking-mode policy, receipt-schema validity, grounded abstention, and latency separately."
+        ]
+      },
+      "promotion_scope": [
+        "Serve as a text-only control for the compact generalist bakeoff.",
+        "Qualify for adapter training only if it beats or complements the existing base on preregistered Forge tasks."
+      ]
+    },
+    {
+      "id": "granite33-2b-enterprise-control",
+      "priority": "P1",
+      "role": "Enterprise RAG, code, and function-calling control",
+      "disposition": "BAKEOFF_CONTROL",
+      "upstream": {
+        "repository_id": "ibm-granite/granite-3.3-2b-instruct",
+        "url": "https://huggingface.co/ibm-granite/granite-3.3-2b-instruct",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 2B instruction-tuned model.",
+        "The official model card describes intended use for retrieval-augmented generation, function calling, code, and long-context tasks.",
+        "The official model card reports Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "QUANTIZED_INFERENCE_FIRST_TRAINING_UNPROVEN",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision and artifacts.",
+          "Measure supported quantized load, peak VRAM, latency, throughput, thermals, bounded context, and restart behavior.",
+          "Validate tool-call schemas, citation behavior, and refusal semantics without relying on upstream benchmark summaries.",
+          "Treat any adapter training as unproven until an isolated local smoke run and resource receipt pass."
+        ]
+      },
+      "promotion_scope": [
+        "Control for tool use, RAG, and enterprise-style instruction adherence.",
+        "Remain a bakeoff candidate unless it produces superior local evidence for a defined Forge role."
+      ]
+    },
+    {
+      "id": "smollm3-3b-challenger",
+      "priority": "P2",
+      "role": "Transparent-training compact generalist inference challenger",
+      "disposition": "INFERENCE_CHALLENGER",
+      "upstream": {
+        "repository_id": "HuggingFaceTB/SmolLM3-3B",
+        "url": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 3B-parameter language model.",
+        "The official model card reports training on 11.2 trillion tokens and links training resources.",
+        "The official model card reports Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "INFERENCE_CHALLENGER_TRAINING_NOT_RECOMMENDED",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision and artifacts.",
+          "Measure quantized load, peak VRAM, latency, throughput, thermals, bounded-context behavior, and restart determinism.",
+          "Compare task quality per unit latency and memory against the smaller controls.",
+          "Do not schedule training on the target laptop unless a separate measured resource review approves it."
+        ]
+      },
+      "promotion_scope": [
+        "Inference-only challenger in the compact generalist bakeoff.",
+        "Exclude from the initial laptop training queue."
+      ]
+    },
+    {
+      "id": "qwen25-coder-15b-specialist",
+      "priority": "P1",
+      "role": "Code, patch, and structured repository-task specialist",
+      "disposition": "SPECIALIST_CANDIDATE",
+      "upstream": {
+        "repository_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies an instruction-tuned 1.5B code model.",
+        "The official model card describes code generation, reasoning, and fixing capabilities.",
+        "The official model card reports Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "TRAINING_CANDIDATE_AFTER_PREFLIGHT",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision, tokenizer, configuration, and weights.",
+          "Measure load, peak VRAM, step time, thermals, checkpoint restart, and out-of-memory behavior.",
+          "Evaluate patch applicability, test preservation, secret refusal, and hallucinated-file rates on held-out repositories.",
+          "Prove training/evaluation repository separation and deny benchmark test leakage."
+        ]
+      },
+      "promotion_scope": [
+        "Specialist adapter only; do not market it as a universal generalist.",
+        "Require executable patch and test receipts before promotion."
+      ]
+    },
+    {
+      "id": "phi4-mini-reasoning-math-specialist",
+      "priority": "P2",
+      "role": "Mathematical reasoning and proof-obligation inference challenger",
+      "disposition": "SPECIALIST_CANDIDATE",
+      "upstream": {
+        "repository_id": "microsoft/Phi-4-mini-reasoning",
+        "url": "https://huggingface.co/microsoft/Phi-4-mini-reasoning",
+        "license_spdx": "MIT",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 3.8B-parameter reasoning model.",
+        "The official model card scopes the model to mathematical reasoning.",
+        "The official model card reports MIT licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "INFERENCE_CHALLENGER_TRAINING_NOT_RECOMMENDED",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision and artifacts.",
+          "Measure quantized load, peak VRAM, latency, throughput, thermals, and restart behavior.",
+          "Score proof-obligation validity with Lean or another independent checker where a formal target exists.",
+          "Separate mathematical correctness from fluent explanation and record every counterexample or failed verification."
+        ]
+      },
+      "promotion_scope": [
+        "Math-only inference challenger for proof-obligation drafting and critique.",
+        "Never label generated text as a proof unless an independent checker and retained receipt validate it."
+      ]
+    },
+    {
+      "id": "qwen3-embedding-06b-second-brain",
+      "priority": "P0",
+      "role": "Instruction-aware multilingual dense retrieval component for the second Brain",
+      "disposition": "SECOND_BRAIN_COMPONENT",
+      "upstream": {
+        "repository_id": "Qwen/Qwen3-Embedding-0.6B",
+        "url": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 0.6B embedding model with a reported 32768-token context length.",
+        "The official model card reports user-selectable embedding dimensions from 32 through 1024 using Matryoshka representation learning.",
+        "The official model card reports instruction-aware support across more than 100 languages and Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "SERVICE_COMPONENT_CANDIDATE_AFTER_PREFLIGHT",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision, tokenizer, configuration, and weights.",
+          "Measure load, peak VRAM or RAM, embedding latency, batch throughput, thermals, and restart behavior.",
+          "Evaluate recall at multiple dimensions and bounded context sizes on a versioned SZL-BrainQrels split.",
+          "Verify language, formula, code, and citation retrieval separately; do not infer quality from upstream leaderboards."
+        ]
+      },
+      "promotion_scope": [
+        "Dense candidate generation in a hybrid second-Brain retrieval pipeline.",
+        "No index migration until local recall, latency, memory, and reindex receipts pass."
+      ]
+    },
+    {
+      "id": "qwen3-reranker-06b-second-brain",
+      "priority": "P0",
+      "role": "Instruction-aware candidate reranking component for the second Brain",
+      "disposition": "SECOND_BRAIN_COMPONENT",
+      "upstream": {
+        "repository_id": "Qwen/Qwen3-Reranker-0.6B",
+        "url": "https://huggingface.co/Qwen/Qwen3-Reranker-0.6B",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 0.6B text reranking model.",
+        "The official model card reports a 32768-token context length and instruction-aware multilingual support.",
+        "The official model card reports Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "SERVICE_COMPONENT_CANDIDATE_AFTER_PREFLIGHT",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision, tokenizer, configuration, and weights.",
+          "Measure load, peak VRAM or RAM, per-candidate latency, batch throughput, thermals, and restart behavior.",
+          "Evaluate nDCG, MRR, grounded answer rate, and abstention changes on a versioned SZL-BrainQrels split.",
+          "Prove that reranking cannot admit quarantined or rights-blocked evidence."
+        ]
+      },
+      "promotion_scope": [
+        "Rerank only already-admitted hybrid retrieval candidates.",
+        "No production routing until quality gains exceed the measured latency and resource cost."
+      ]
+    },
+    {
+      "id": "qwen3guard-gen-06b-safety",
+      "priority": "P1",
+      "role": "Independent input and output safety classification candidate",
+      "disposition": "SAFETY_COMPONENT",
+      "upstream": {
+        "repository_id": "Qwen/Qwen3Guard-Gen-0.6B",
+        "url": "https://huggingface.co/Qwen/Qwen3Guard-Gen-0.6B",
+        "license_spdx": "Apache-2.0",
+        "evidence_label": "PRIMARY_REPORTED",
+        "revision_policy": "PIN_BEFORE_ANY_DOWNLOAD"
+      },
+      "primary_reported_facts": [
+        "The official model card identifies a 0.6B generative safety model.",
+        "The official model card describes classification of user messages and assistant responses across safety categories and severity levels.",
+        "The official model card reports Apache-2.0 licensing."
+      ],
+      "laptop_feasibility": {
+        "classification": "SERVICE_COMPONENT_CANDIDATE_AFTER_PREFLIGHT",
+        "evidence_label": "ENGINEERING_INFERENCE",
+        "local_benchmark_status": "NOT_MEASURED",
+        "required_preflight": [
+          "Pin and hash the exact upstream revision, tokenizer, configuration, and weights.",
+          "Measure load, peak VRAM or RAM, classification latency, throughput, thermals, and restart behavior.",
+          "Evaluate false-negative and false-positive rates on a rights-cleared SZL-PolicyAdversarial split.",
+          "Keep deterministic policy rules and human approval authoritative; the classifier is not a policy oracle."
+        ]
+      },
+      "promotion_scope": [
+        "Independent safety signal in a defense-in-depth pipeline.",
+        "Never use the model as the sole authorization, release, or execution gate."
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "id": "SZL-ReceiptBench",
+      "role": "Versioned first-party benchmark and training collection for receipt schemas, tool calls, refusals, provenance, and replay determinism",
+      "status": "PROPOSED_NOT_BUILT",
+      "evidence_label": "DECLARED_PLAN",
+      "candidate_sources": [
+        {
+          "id": "Salesforce/xlam-function-calling-60k",
+          "url": "https://huggingface.co/datasets/Salesforce/xlam-function-calling-60k",
+          "license_spdx": "CC-BY-4.0",
+          "status": "OPTIONAL_PENDING_ROW_LEVEL_ADMISSION",
+          "evidence_label": "PRIMARY_REPORTED"
+        }
+      ],
+      "admission_gates": [
+        "Record source URL, immutable revision, content hash, retrieval timestamp, and derivation for every admitted row.",
+        "Attach rights evidence and complete row-level or derivation review before use.",
+        "Scan for PII, credentials, secrets, signed URLs, and production identifiers.",
+        "Run exact, fuzzy, and semantic deduplication before deterministic splitting.",
+        "Apply a benchmark contamination denylist and prove that evaluation rows cannot enter training splits.",
+        "Validate every schema-bearing example with the declared machine-readable schema."
+      ],
+      "required_release_artifacts": [
+        "Dataset card with intended use, limitations, composition, collection process, and evaluation exclusions",
+        "Croissant JSON-LD metadata",
+        "W3C PROV-compatible lineage export",
+        "Content-addressed row manifest and deterministic split manifest",
+        "SLSA or in-toto provenance attestation",
+        "Contamination and deduplication report"
+      ],
+      "forbidden_content": [
+        "Secrets, tokens, credentials, or signed URLs",
+        "Raw signed production receipts or private execution traces",
+        "Benchmark test data or data derived from benchmark answers",
+        "Rows with unknown or conflicting rights",
+        "Synthetic rows that are not explicitly labeled with generator, prompt, revision, and verifier provenance"
+      ]
+    },
+    {
+      "id": "SZL-BrainQrels",
+      "role": "Human-reviewed queries, relevance judgments, hard negatives, citations, abstention cases, and graph routes for second-Brain evaluation",
+      "status": "PROPOSED_NOT_BUILT",
+      "evidence_label": "DECLARED_PLAN",
+      "candidate_sources": [],
+      "admission_gates": [
+        "Admit only canonical Brain artifacts with source URL or local origin, immutable revision, hash, and timestamp.",
+        "Exclude quarantine, stale-without-label, rights-blocked, secret-bearing, and unverifiable nodes.",
+        "Use independent review for relevance labels and record adjudication disagreements.",
+        "Run exact, fuzzy, and semantic deduplication across queries, positives, and negatives.",
+        "Freeze deterministic train, development, and test splits by source family to prevent near-duplicate leakage.",
+        "Require explicit unanswerable and abstention examples rather than forcing every query to have an answer."
+      ],
+      "required_release_artifacts": [
+        "Dataset card and query taxonomy",
+        "Croissant JSON-LD metadata",
+        "W3C PROV-compatible evidence and judgment lineage",
+        "Content-addressed corpus and qrels manifests",
+        "SLSA or in-toto provenance attestation",
+        "Contamination, deduplication, and adjudication report"
+      ],
+      "forbidden_content": [
+        "Quarantined Brain nodes",
+        "Secrets, credentials, raw private conversations, or private human case data",
+        "Claims without a retained source or first-party artifact hash",
+        "Benchmark test documents or answer keys",
+        "Unknown-rights documents"
+      ]
+    },
+    {
+      "id": "SZL-FormulaProofObligations",
+      "role": "Formula-ID crosswalk, executable examples, counterexamples, proof obligations, checker receipts, and uncertainty labels",
+      "status": "PROPOSED_NOT_BUILT",
+      "evidence_label": "DECLARED_PLAN",
+      "candidate_sources": [
+        {
+          "id": "nvidia/OpenMathInstruct-2",
+          "url": "https://huggingface.co/datasets/nvidia/OpenMathInstruct-2",
+          "license_spdx": "CC-BY-4.0",
+          "status": "OPTIONAL_PENDING_ROW_LEVEL_ADMISSION",
+          "evidence_label": "PRIMARY_REPORTED"
+        }
+      ],
+      "admission_gates": [
+        "Assign stable formula and obligation IDs and retain exact source, revision, hash, and license evidence.",
+        "Separate definitions, conjectures, proved statements, falsified statements, heuristics, and empirical observations.",
+        "Require an executable reference implementation or formal statement when the obligation type permits it.",
+        "Validate claimed proofs with Lean or another independent checker and retain failure output; prose alone is not proof.",
+        "Run contamination checks against held-out math evaluations and prevent solution leakage across splits.",
+        "Deduplicate symbolic normal forms, natural-language paraphrases, and generated derivations."
+      ],
+      "required_release_artifacts": [
+        "Dataset card with epistemic labels and checker coverage",
+        "Croissant JSON-LD metadata",
+        "Formula-ID crosswalk and W3C PROV-compatible lineage",
+        "Content-addressed statements, implementations, and checker receipts",
+        "SLSA or in-toto provenance attestation",
+        "Contamination, deduplication, and unresolved-obligation report"
+      ],
+      "forbidden_content": [
+        "Unverified language-model output labeled as a proof",
+        "Secrets or proprietary source material without redistribution rights",
+        "Benchmark answer keys in training splits",
+        "Formulas with missing identity, source, status, or units where units apply",
+        "Unknown-rights rows"
+      ]
+    },
+    {
+      "id": "SZL-PolicyAdversarial",
+      "role": "Rights-cleared prompt-injection, unsafe-content, policy-conflict, exfiltration, and refusal evaluation collection",
+      "status": "PROPOSED_NOT_BUILT",
+      "evidence_label": "DECLARED_PLAN",
+      "candidate_sources": [
+        {
+          "id": "nvidia/Aegis-AI-Content-Safety-Dataset-2.0",
+          "url": "https://huggingface.co/datasets/nvidia/Aegis-AI-Content-Safety-Dataset-2.0",
+          "license_spdx": "CC-BY-4.0",
+          "status": "OPTIONAL_PENDING_ROW_LEVEL_ADMISSION",
+          "evidence_label": "PRIMARY_REPORTED"
+        },
+        {
+          "id": "allenai/wildguardmix",
+          "url": "https://huggingface.co/datasets/allenai/wildguardmix",
+          "license_spdx": "ODC-By-1.0",
+          "status": "OPTIONAL_PENDING_ROW_LEVEL_ADMISSION",
+          "evidence_label": "PRIMARY_REPORTED"
+        }
+      ],
+      "admission_gates": [
+        "Pin source revisions and record hashes, retrieval time, rights evidence, and transformations.",
+        "Perform row-level safety, privacy, and redistribution review before admission.",
+        "Scan for real credentials, secrets, personal data, malware payloads, and executable exploit content.",
+        "Deduplicate exact, fuzzy, semantic, and templated adversarial examples.",
+        "Keep evaluation attacks and templates isolated from training data.",
+        "Record policy version, label taxonomy, reviewer agreement, and disputed labels."
+      ],
+      "required_release_artifacts": [
+        "Dataset card with hazard handling and access limitations",
+        "Croissant JSON-LD metadata",
+        "W3C PROV-compatible source and annotation lineage",
+        "Content-addressed split and policy-version manifests",
+        "SLSA or in-toto provenance attestation",
+        "Contamination, deduplication, and reviewer-agreement report"
+      ],
+      "forbidden_content": [
+        "Live credentials, secrets, tokens, or signed URLs",
+        "Actionable malware or exploit material outside an approved controlled corpus",
+        "Unredacted personal data or private case records",
+        "Benchmark test attacks in training splits",
+        "Unknown-rights rows"
+      ]
+    },
+    {
+      "id": "SZL-CodeBench",
+      "role": "Held-out repository tasks for patch correctness, test preservation, secret refusal, provenance, and executable receipts",
+      "status": "PROPOSED_NOT_BUILT",
+      "evidence_label": "DECLARED_PLAN",
+      "candidate_sources": [
+        {
+          "id": "nvidia/OpenCodeInstruct",
+          "url": "https://huggingface.co/datasets/nvidia/OpenCodeInstruct",
+          "license_spdx": "CC-BY-4.0",
+          "status": "OPTIONAL_PENDING_ROW_LEVEL_ADMISSION",
+          "evidence_label": "PRIMARY_REPORTED"
+        }
+      ],
+      "admission_gates": [
+        "Retain repository URL, immutable revision, license evidence, file hashes, task derivation, and test provenance.",
+        "Admit only repositories and generated rows whose rights permit the intended use and redistribution.",
+        "Scan all snapshots and diffs for secrets, credentials, personal data, generated binaries, and malicious content.",
+        "Split by repository and upstream lineage to prevent file-level and near-duplicate leakage.",
+        "Exclude benchmark test sets and private repositories from training.",
+        "Require sandboxed executable tests and preserve stdout, stderr, exit code, resource, and patch receipts."
+      ],
+      "required_release_artifacts": [
+        "Dataset card with repository and language coverage",
+        "Croissant JSON-LD metadata",
+        "W3C PROV-compatible repository, task, patch, and test lineage",
+        "Content-addressed repository and split manifests",
+        "SLSA or in-toto provenance attestation",
+        "Contamination, secret-scan, license, and execution report"
+      ],
+      "forbidden_content": [
+        "Private source code without explicit authorization",
+        "Secrets, credentials, signed artifacts, or production configuration",
+        "Benchmark test solutions in training splits",
+        "Generated patches without source and verifier provenance",
+        "Unknown or incompatible license content"
+      ]
+    },
+    {
+      "id": "SZL-ModelReceipts",
+      "role": "Append-only, content-addressed model identity, environment, training, evaluation, safety, latency, energy, and release receipts",
+      "status": "PROPOSED_NOT_BUILT",
+      "evidence_label": "DECLARED_PLAN",
+      "candidate_sources": [],
+      "admission_gates": [
+        "Accept only schema-valid receipts bound to a model revision, dataset revision, code revision, environment fingerprint, and artifact hashes.",
+        "Cryptographically hash every receipt and preserve signing or attestation identity where available.",
+        "Reject mutable URLs, hand-entered benchmark numbers, missing units, missing timestamps, or missing command provenance.",
+        "Redact secrets and personal data while preserving a verifiable digest of protected material when permitted.",
+        "Separate vendor-reported, local-measured, inferred, and unknown fields in every receipt.",
+        "Detect replay, conflicting identity, and metric substitution before release admission."
+      ],
+      "required_release_artifacts": [
+        "Dataset card describing receipt schemas and trust boundaries",
+        "Croissant JSON-LD metadata",
+        "W3C PROV-compatible execution and artifact lineage",
+        "Content-addressed append-only receipt index",
+        "SLSA or in-toto provenance attestations",
+        "Schema, redaction, conflict, and replay audit report"
+      ],
+      "forbidden_content": [
+        "Secrets, access tokens, credentials, or signed URLs",
+        "Raw private prompts, user data, or production payloads",
+        "Hand-entered performance numbers without machine evidence",
+        "Receipts whose model, data, code, or environment identity cannot be resolved",
+        "Rewritten or deleted historical receipts outside a separately attested correction event"
+      ]
+    }
+  ],
+  "retrieval_architecture": {
+    "status": "DECLARED_NOT_IMPLEMENTED_BY_THIS_ARTIFACT",
+    "evidence_label": "ENGINEERING_INFERENCE",
+    "stages": [
+      "Retain immutable source bytes and content hashes before transformation.",
+      "Use Docling or another pinned parser to produce normalized text, layout, tables, formulas, images, and parser receipts.",
+      "Apply rights, provenance, freshness, secret, privacy, quarantine, and canonical-identity admission gates.",
+      "Build independently versioned lexical, dense, entity, relation, and community indexes.",
+      "Generate hybrid candidates with BM25 or equivalent lexical retrieval plus Qwen3-Embedding-0.6B dense retrieval after local qualification.",
+      "Expand admitted candidates through bounded graph neighborhoods with explicit edge provenance.",
+      "Rerank only admitted candidates with Qwen3-Reranker-0.6B after local qualification.",
+      "Route to a governed generator with citation requirements, policy gates, and a fail-closed abstention path.",
+      "Record retrieval, generation, verification, memory-write, latency, resource, and outcome receipts."
+    ],
+    "query_routes": {
+      "direct_fact": "Hybrid lexical and dense retrieval, bounded rerank, source-level citation, and abstention when evidence is insufficient.",
+      "entity_relation": "Hybrid retrieval followed by local provenance-bounded graph traversal; every returned edge must retain source and revision identity.",
+      "corpus_sensemaking": "GraphRAG-style local and global community summaries generated only from admitted evidence, with summaries treated as derived evidence rather than source truth.",
+      "investigative": "DRIFT-style iterative retrieval with a fixed budget, explicit hypotheses, conflict tracking, stop conditions, and a complete query trail."
+    },
+    "invariants": [
+      "Original bytes and normalized derivatives remain independently content-addressed.",
+      "Quarantined, rights-blocked, stale-without-label, secret-bearing, or unverifiable evidence cannot enter retrieval or memory writes.",
+      "Every answer claim cites admitted chunk, source, revision, and retrieval receipt; graph-derived claims also cite edge provenance.",
+      "The system abstains when evidence coverage, source identity, freshness, or conflict resolution is insufficient.",
+      "Memory writes require policy admission, provenance, confidence, conflict analysis, and a reversible correction trail.",
+      "Generated summaries and embeddings never replace the canonical source artifact.",
+      "Query budgets, model revisions, index revisions, parser revisions, and all fallbacks are visible in the receipt."
+    ]
+  },
+  "promotion_gates": [
+    {
+      "id": "upstream-identity",
+      "requirement": "Resolve an immutable upstream revision and locally verify tokenizer, processor, configuration, and every weight-file hash; refuse promotion on mismatch or substitution.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "rights-provenance",
+      "requirement": "Produce model, dataset, code, and derivative rights evidence with source revisions, row-level or derivation lineage, redistribution analysis, and a retained reviewer decision.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "contamination",
+      "requirement": "Run exact, fuzzy, semantic, source-family, and benchmark-denylist contamination tests and retain deterministic split manifests proving evaluation isolation.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "task-quality",
+      "requirement": "Pass preregistered held-out task metrics and baselines for the named model role, including failure cases, confidence intervals where appropriate, and no hand-entered scores.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "safety",
+      "requirement": "Pass role-specific refusal, prompt-injection, exfiltration, unsafe-content, privilege, and policy-conflict evaluations with retained false-negative and false-positive evidence.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "retrieval-quality",
+      "requirement": "Measure versioned qrels recall, MRR or nDCG, citation precision, grounded answer rate, conflict surfacing, and abstention behavior for every enabled retrieval route.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "resource-envelope",
+      "requirement": "Measure cold load, peak VRAM and RAM, first-token latency, throughput, energy or power where observable, thermals, bounded-context behavior, and out-of-memory failure on the declared target host.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "restart-recovery",
+      "requirement": "Demonstrate clean restart, checkpoint recovery where applicable, deterministic identity revalidation, index recovery, and fail-closed behavior when any required dependency is absent.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    },
+    {
+      "id": "receipt-integrity",
+      "requirement": "Validate append-only schema-correct receipts bound to model, data, code, environment, command, timestamp, units, outputs, and artifact hashes; test replay and conflicting-identity rejection.",
+      "required_evidence_label": "LOCAL_MEASURED_REQUIRED",
+      "current_status": "NOT_MEASURED",
+      "blocking": true
+    }
+  ],
+  "primary_sources": [
+    {
+      "id": "qwen35-2b-card",
+      "title": "Qwen3.5-2B model card",
+      "publisher": "Qwen",
+      "url": "https://huggingface.co/Qwen/Qwen3.5-2B",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "qwen3-17b-card",
+      "title": "Qwen3-1.7B model card",
+      "publisher": "Qwen",
+      "url": "https://huggingface.co/Qwen/Qwen3-1.7B",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "granite33-2b-card",
+      "title": "Granite 3.3 2B Instruct model card",
+      "publisher": "IBM",
+      "url": "https://huggingface.co/ibm-granite/granite-3.3-2b-instruct",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "smollm3-3b-card",
+      "title": "SmolLM3-3B model card",
+      "publisher": "Hugging Face",
+      "url": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "receipt-agent-upstream-card",
+      "title": "Qwen2.5 1.5B Instruct bnb 4-bit model card",
+      "publisher": "Unsloth",
+      "url": "https://huggingface.co/unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "qwen25-coder-15b-card",
+      "title": "Qwen2.5-Coder-1.5B-Instruct model card",
+      "publisher": "Qwen",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "phi4-mini-reasoning-card",
+      "title": "Phi-4-mini-reasoning model card",
+      "publisher": "Microsoft",
+      "url": "https://huggingface.co/microsoft/Phi-4-mini-reasoning",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "qwen3-embedding-06b-card",
+      "title": "Qwen3-Embedding-0.6B model card",
+      "publisher": "Qwen",
+      "url": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "qwen3-reranker-06b-card",
+      "title": "Qwen3-Reranker-0.6B model card",
+      "publisher": "Qwen",
+      "url": "https://huggingface.co/Qwen/Qwen3-Reranker-0.6B",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "qwen3guard-gen-06b-card",
+      "title": "Qwen3Guard-Gen-0.6B model card",
+      "publisher": "Qwen",
+      "url": "https://huggingface.co/Qwen/Qwen3Guard-Gen-0.6B",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "microsoft-graphrag-repository",
+      "title": "GraphRAG repository",
+      "publisher": "Microsoft",
+      "url": "https://github.com/microsoft/graphrag",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "graphrag-paper",
+      "title": "From Local to Global: A Graph RAG Approach to Query-Focused Summarization",
+      "publisher": "arXiv",
+      "url": "https://arxiv.org/abs/2404.16130",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "docling-repository",
+      "title": "Docling repository",
+      "publisher": "Docling Project",
+      "url": "https://github.com/docling-project/docling",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "w3c-prov-o",
+      "title": "PROV-O: The PROV Ontology",
+      "publisher": "World Wide Web Consortium",
+      "url": "https://www.w3.org/TR/prov-o/",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "mlcommons-croissant",
+      "title": "Croissant documentation",
+      "publisher": "MLCommons",
+      "url": "https://docs.mlcommons.org/croissant/",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "data-provenance-audit-paper",
+      "title": "The Data Provenance Initiative: A Large Scale Audit of Dataset Licensing and Attribution in AI",
+      "publisher": "arXiv",
+      "url": "https://arxiv.org/abs/2310.16787",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "data-provenance-initiative",
+      "title": "Data Provenance Initiative",
+      "publisher": "Data Provenance Initiative",
+      "url": "https://www.dataprovenance.org/",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "nemo-curator-repository",
+      "title": "NeMo Curator repository",
+      "publisher": "NVIDIA",
+      "url": "https://github.com/NVIDIA-NeMo/Curator",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "lm-eval-decontamination-guide",
+      "title": "Language Model Evaluation Harness task guide",
+      "publisher": "EleutherAI",
+      "url": "https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/task_guide.md",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "mmlu-cf-repository",
+      "title": "MMLU-CF repository",
+      "publisher": "Microsoft",
+      "url": "https://github.com/microsoft/MMLU-CF",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "model-cards-paper",
+      "title": "Model Cards for Model Reporting",
+      "publisher": "arXiv",
+      "url": "https://arxiv.org/abs/1810.03993",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "huggingface-model-cards",
+      "title": "Model Cards documentation",
+      "publisher": "Hugging Face",
+      "url": "https://huggingface.co/docs/hub/model-cards",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "datasheets-paper",
+      "title": "Datasheets for Datasets",
+      "publisher": "arXiv",
+      "url": "https://arxiv.org/abs/1803.09010",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "data-cards-paper",
+      "title": "Data Cards: Purposeful and Transparent Dataset Documentation for Responsible AI",
+      "publisher": "arXiv",
+      "url": "https://arxiv.org/abs/2204.01075",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "huggingface-dataset-cards",
+      "title": "Dataset Cards documentation",
+      "publisher": "Hugging Face",
+      "url": "https://huggingface.co/docs/hub/datasets-cards",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "slsa-provenance-v12",
+      "title": "SLSA Provenance v1.2",
+      "publisher": "SLSA",
+      "url": "https://slsa.dev/spec/v1.2/provenance",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "in-toto",
+      "title": "in-toto",
+      "publisher": "in-toto Project",
+      "url": "https://in-toto.io/",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "xlam-function-calling-60k-card",
+      "title": "xLAM function-calling 60k dataset card",
+      "publisher": "Salesforce",
+      "url": "https://huggingface.co/datasets/Salesforce/xlam-function-calling-60k",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "openmathinstruct2-card",
+      "title": "OpenMathInstruct-2 dataset card",
+      "publisher": "NVIDIA",
+      "url": "https://huggingface.co/datasets/nvidia/OpenMathInstruct-2",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "aegis-safety-dataset-card",
+      "title": "Aegis AI Content Safety Dataset 2.0 card",
+      "publisher": "NVIDIA",
+      "url": "https://huggingface.co/datasets/nvidia/Aegis-AI-Content-Safety-Dataset-2.0",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "wildguardmix-card",
+      "title": "WildGuardMix dataset card",
+      "publisher": "Allen Institute for AI",
+      "url": "https://huggingface.co/datasets/allenai/wildguardmix",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    },
+    {
+      "id": "opencodeinstruct-card",
+      "title": "OpenCodeInstruct dataset card",
+      "publisher": "NVIDIA",
+      "url": "https://huggingface.co/datasets/nvidia/OpenCodeInstruct",
+      "accessed_on": "2026-07-15",
+      "evidence_label": "PRIMARY_REPORTED"
+    }
+  ]
+}

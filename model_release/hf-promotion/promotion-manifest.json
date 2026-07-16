@@ -1,0 +1,387 @@
+{
+  "$schema": "./promotion-manifest.schema.json",
+  "schema_version": "szl.hf-promotion-manifest.v1",
+  "manifest_id": "SZL-HF-Promotion-Guard-v1",
+  "as_of": "2026-07-15",
+  "mode": "OFFLINE_AUDIT_ONLY",
+  "network_access_allowed": false,
+  "credential_access_allowed": false,
+  "automatic_upload_allowed": false,
+  "canonical_authority": "VERSIONED_HUGGING_FACE_REPOSITORY_PLUS_SIGNED_RELEASE_RECEIPT",
+  "bucket_authority": "MUTABLE_NONCANONICAL_STAGING_ONLY",
+  "local_artifact_hash_basis": "TEXT_UTF8_LF_BINARY_RAW",
+  "topology_contract": "model_release/szl-hf-bucket-topology.json",
+  "candidates": [
+    {
+      "candidate_id": "SZL-Nemo-runtime-recipe-v1",
+      "candidate_slug": "szl-nemo-runtime-recipe-v1",
+      "artifact_class": "CONFIGURATION_RECIPE",
+      "canonical_target": "SZLHOLDINGS/szl-nemo",
+      "target_kind": "MODEL",
+      "target_state": "EXISTS_RECIPE_ONLY_NO_SZL_WEIGHTS",
+      "promotion_decision": "BLOCKED_WEIGHT_PROMOTION_RECIPE_ONLY",
+      "allowed_public_payload_classes": [
+        "MODEL_CARD",
+        "OLLAMA_MODELFILE",
+        "RELEASE_MANIFEST",
+        "LICENSE_NOTICE",
+        "SANITIZED_RUNTIME_RECEIPT"
+      ],
+      "forbidden_public_payload_classes": [
+        "SZL_TRAINED_WEIGHT",
+        "SZL_ADAPTER",
+        "TRAINER_STATE",
+        "OPTIMIZER_STATE",
+        "UPSTREAM_WEIGHT_REDISTRIBUTION_WITHOUT_LICENSE_REVIEW"
+      ],
+      "bucket_prefixes": {
+        "build": "attempts/{attempt_id}/payload/szl-nemo-runtime-recipe-v1/",
+        "evaluation": "attempts/{attempt_id}/payload/szl-nemo-runtime-recipe-v1/",
+        "runtime": "batches/{attempt_id}/payload/szl-nemo-runtime-recipe-v1/"
+      },
+      "model_card_truth": {
+        "path": "model_release/szl-nemo/MODEL_CARD_DRAFT.md",
+        "required_literals": [
+          "CONFIGURATION RECIPE - NOT AN SZL WEIGHT RELEASE",
+          "RUNTIME_QUALIFIED_RECIPE_NOT_FINE_TUNED",
+          "license_name: NVIDIA Nemotron Open Model License",
+          "SZL fine-tuned: `false`",
+          "Model quality | `NOT_ESTABLISHED`",
+          "NVIDIA Nemotron Open Model License",
+          "Public inference | `disabled`"
+        ],
+        "forbidden_case_insensitive_literals": [
+          "szl-trained nemotron weights",
+          "fully fine-tuned",
+          "quality: established",
+          "production ready"
+        ]
+      },
+      "local_artifacts": [
+        {
+          "path": "model_release/szl-nemo/release-manifest.json",
+          "bytes": 2572,
+          "sha256": "12e01c005fa08a1061b417d9bb413fe288d7f210da2390953a8e985ab43fbc4a",
+          "role": "RELEASE_CONTRACT"
+        },
+        {
+          "path": "model_release/szl-nemo/release-manifest.schema.json",
+          "bytes": 3653,
+          "sha256": "7487478d3010931223105dcfbaa6b68264f0d2ec2cb5f096970223e5b88f64ff",
+          "role": "RELEASE_SCHEMA"
+        },
+        {
+          "path": "model_release/szl-nemo/MODEL_CARD_DRAFT.md",
+          "bytes": 3073,
+          "sha256": "8b26957d2cd70abfae24548ffed51021e72d92bfd80ed533124d3c203671bdbb",
+          "role": "MODEL_CARD"
+        },
+        {
+          "path": "model_release/szl-nemo/Modelfile",
+          "bytes": 678,
+          "sha256": "ec2d527cd22115c626fa663c9abcb6a7003c180f4fdb489ff79fdaba2da2b1b2",
+          "role": "RUNTIME_RECIPE"
+        },
+        {
+          "path": "attestations/szl-nemo-live-2026-07-15.json",
+          "bytes": 2432,
+          "sha256": "8cbd3f5e0ece21e08fc2fdc06a947c71216ddc83415327b9501fa501d8cfa1fb",
+          "role": "LOCAL_RUNTIME_ATTESTATION"
+        }
+      ],
+      "qualification_gates": [
+        {"gate_id": "NEMO-G01", "name": "upstream_identity_and_license", "state": "PASS", "blocking": true, "evidence": "release-manifest.json and local attestation bind NVIDIA origin, exact upstream manifest, and NVIDIA license."},
+        {"gate_id": "NEMO-G02", "name": "exact_local_load_and_generate", "state": "PASS", "blocking": true, "evidence": "One exact szl-nemo:latest loopback inference and process-boot DSSE receipt verified."},
+        {"gate_id": "NEMO-G03", "name": "nemotron_compatible_szl_adapter", "state": "ABSENT", "blocking": true, "evidence": "No Nemotron-compatible SZL adapter exists; the Qwen adapter is architecture- and vocabulary-incompatible."},
+        {"gate_id": "NEMO-G04", "name": "admitted_training_data_and_run", "state": "NOT_RUN", "blocking": true, "evidence": "No SZL-Nemo training contract execution or admitted training split exists."},
+        {"gate_id": "NEMO-G05", "name": "held_out_quality_safety_and_restart", "state": "NOT_RUN", "blocking": true, "evidence": "A single runtime identity probe is not a held-out model qualification suite."},
+        {"gate_id": "NEMO-G06", "name": "organization_identity_attestation_and_log", "state": "ABSENT", "blocking": true, "evidence": "The observed key is process-boot-ephemeral and no transparency-log release record exists."},
+        {"gate_id": "NEMO-G07", "name": "independent_hub_readback", "state": "NOT_RUN", "blocking": true, "evidence": "No trained candidate has been uploaded; therefore no immutable remote weight readback can exist."}
+      ]
+    },
+    {
+      "candidate_id": "SZL-Nemo-Governed-Adapter-v1",
+      "candidate_slug": "szl-nemo-governed-adapter-v1",
+      "artifact_class": "PEFT_ADAPTER",
+      "canonical_target": "SZLHOLDINGS/SZL-Nemo-Governed-Adapter",
+      "target_kind": "MODEL",
+      "target_state": "PLANNED_NOT_CREATED",
+      "promotion_decision": "BLOCKED_NOT_TRAINED_NOT_QUALIFIED",
+      "allowed_public_payload_classes": [
+        "PEFT_ADAPTER_SAFETENSORS",
+        "ADAPTER_CONFIG_JSON",
+        "MODEL_CARD",
+        "LICENSE_NOTICE",
+        "SIGNED_PROVENANCE",
+        "SANITIZED_EVALUATION_SUMMARY"
+      ],
+      "forbidden_public_payload_classes": [
+        "FULL_NVIDIA_BASE_WEIGHTS",
+        "PICKLE_OR_EXECUTABLE_MODEL_PAYLOAD",
+        "OPTIMIZER_STATE",
+        "TRAINER_STATE",
+        "HELD_OUT_ANSWER_KEYS",
+        "UNADMITTED_BRAIN_OR_FORMULA_ROWS"
+      ],
+      "bucket_prefixes": {
+        "build": "attempts/{attempt_id}/payload/szl-nemo-governed-adapter-v1/",
+        "evaluation": "attempts/{attempt_id}/payload/szl-nemo-governed-adapter-v1/",
+        "runtime": "batches/{attempt_id}/payload/szl-nemo-governed-adapter-v1/"
+      },
+      "model_card_truth": {
+        "path": "model_release/szl-nemo/MODEL_CARD_TRAINED_CANDIDATE_DRAFT.md",
+        "required_literals": [
+          "TRAINING CANDIDATE - NO ADAPTER WEIGHTS YET",
+          "WSL_MAMBA_IMPORT_QUALIFIED_CAPACITY_NOT_RUN",
+          "Quality: `NOT_ESTABLISHED`",
+          "SZL adapter weights | `ABSENT`",
+          "Exact base revision | `dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f`",
+          "NVIDIA Nemotron Open Model License",
+          "Public inference | `disabled`"
+        ],
+        "forbidden_case_insensitive_literals": [
+          "fully fine-tuned",
+          "quality: established",
+          "production ready",
+          "szl owns the nvidia base"
+        ]
+      },
+      "local_artifacts": [
+        {
+          "path": "model_release/szl-nemo/training-contract.json",
+          "bytes": 9675,
+          "sha256": "a924596868a8a5c17b2bc1a9b515ca0b0788d6ccddeed207b9ee3353ba1333a7",
+          "role": "TRAINING_CONTRACT"
+        },
+        {
+          "path": "model_release/szl-nemo/curriculum-source.json",
+          "bytes": 5155,
+          "sha256": "5f5ad66eb2447c24d2693ff703d534e9c92a0a2498d695f658dbd49fe263f604",
+          "role": "PROJECT_AUTHORED_CURRICULUM_SOURCE"
+        },
+        {
+          "path": "model_release/szl-nemo/curriculum-source.schema.json",
+          "bytes": 1822,
+          "sha256": "6094cbf6835409464fa3b6cea439ab2ac84aa877ba470badf379143d2ea9a2cf",
+          "role": "CURRICULUM_SCHEMA"
+        },
+        {
+          "path": "model_release/szl-nemo/generated/curriculum-manifest.json",
+          "bytes": 1860,
+          "sha256": "91a8da734af0e5d96c7bc236872060d726209ebddfb1f5974f537830020be358",
+          "role": "CURRICULUM_MANIFEST"
+        },
+        {
+          "path": "model_release/szl-nemo/generated/train.jsonl",
+          "bytes": 21701,
+          "sha256": "513b58282a1a3ccb34145167d4acd8525093ecd2ad9a29c0a8f9af8cd46ac3fd",
+          "role": "TRAIN_SPLIT"
+        },
+        {
+          "path": "model_release/szl-nemo/generated/eval.jsonl",
+          "bytes": 5967,
+          "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d",
+          "role": "HELD_OUT_EVAL_SPLIT"
+        },
+        {
+          "path": "model_release/szl-nemo/szl_nemo_finetune.py",
+          "bytes": 70318,
+          "sha256": "ba96fcbdf13d847042dc10c288f910b9197c8b9a97d8bb927a07733c0428fcb8",
+          "role": "OFFLINE_TRAINER"
+        },
+        {
+          "path": "model_release/szl-nemo/Invoke-SZLNemoFineTuneQueue.ps1",
+          "bytes": 2059,
+          "sha256": "32ef37a7d74896a6f47a4185e896536ae68960216ad3911488f4a2322b78869b",
+          "role": "LEGACY_WINDOWS_STATUS_AND_QUEUE_TRAIN_REFUSAL"
+        },
+        {
+          "path": "model_release/szl-nemo/MODEL_CARD_TRAINED_CANDIDATE_DRAFT.md",
+          "bytes": 4620,
+          "sha256": "767eb40945b6a1ee462779b5d1b36b9068edec6ff4031b095c375b2cc7107df8",
+          "role": "MODEL_CARD"
+        },
+        {
+          "path": "model_release/szl-nemo/setup_wsl_runtime.sh",
+          "bytes": 5344,
+          "sha256": "4500c2f0f3ef4fbbf793e4f909415ee023fe1801167ba39f355bf1368b8764c0",
+          "role": "PINNED_WSL_RUNTIME_SETUP"
+        },
+        {
+          "path": "model_release/szl-nemo/wsl_runtime_probe.py",
+          "bytes": 10362,
+          "sha256": "37be64aa7d7fd56648191c1645578fd8d903d34bad031e4fa25dafca807b7d8e",
+          "role": "OS_ISOLATED_RUNTIME_PROBE"
+        },
+        {
+          "path": "model_release/szl-nemo/run_wsl_governed.sh",
+          "bytes": 4732,
+          "sha256": "13ab809ce94ea25768950c93c57c73f92c2b2135d8f7c7f178163ad2256aa818",
+          "role": "GOVERNED_WSL_LAUNCHER"
+        },
+        {
+          "path": "model_release/szl-nemo/szl_nemo_wsl_queue.py",
+          "bytes": 52144,
+          "sha256": "152e56ece59e0239867fc31e08799f29823e7134d421dadd49757a905d0d194f",
+          "role": "DURABLE_GOVERNED_WSL_QUEUE"
+        },
+        {
+          "path": "attestations/szl-nemo-pinned-code-static-review-2026-07-15.json",
+          "bytes": 1507,
+          "sha256": "e689d484dda27ffc7bf74e60601a3619557dd11b82d51949fadb3c1ee10b5cc4",
+          "role": "PINNED_CODE_STATIC_REVIEW"
+        },
+        {
+          "path": "attestations/szl-nemo-wsl-runtime-import-2026-07-15.json",
+          "bytes": 3085,
+          "sha256": "26a8b1ee52a0bd4eb149e93e9524a33c964346edab564f8856c6a88f1fff66b6",
+          "role": "WSL_RUNTIME_IMPORT_ATTESTATION"
+        },
+        {
+          "path": "attestations/szl-nemo-runtime-compatibility-windows-2026-07-15.json",
+          "bytes": 4242,
+          "sha256": "e90c46dbe590ad621e992c48b6b36db3ea83a95a8b7d49eccc8f54b0b046aa97",
+          "role": "NATIVE_WINDOWS_REFUSAL_ATTESTATION"
+        }
+      ],
+      "qualification_gates": [
+        {"gate_id": "NEMO-FT-G01", "name": "project_authored_curriculum_and_holdout", "state": "PASS", "blocking": true, "evidence": "The generated 24-row train and 8-row held-out split are deterministic and project-authored; raw Brain and formula rows remain excluded."},
+        {"gate_id": "NEMO-FT-G02", "name": "immutable_base_and_custom_code_static_integrity", "state": "PASS", "blocking": true, "evidence": "The full 7,947,142,640-byte safetensors file, tokenizer, configuration, and two pinned NVIDIA custom-code files passed exact local hash verification. This is static evidence only."},
+        {"gate_id": "NEMO-FT-G03", "name": "linux_mamba_runtime_import_load_and_capacity", "state": "BLOCKED", "blocking": true, "evidence": "The OS-network-isolated WSL2 import receipt passes exact package, kernel-symbol, CUDA identity, and imported-code hashes without loading weights. Quantized model-load and forward/backward capacity remain NOT_RUN."},
+        {"gate_id": "NEMO-FT-G04", "name": "gpu_admission_and_training_run", "state": "NOT_RUN", "blocking": true, "evidence": "No governed SZL-Nemo adapter training completion receipt is bound to this candidate."},
+        {"gate_id": "NEMO-FT-G05", "name": "adapter_safetensors_and_config", "state": "ABSENT", "blocking": true, "evidence": "No SZL-Nemo Governed Adapter safetensors or adapter config exists."},
+        {"gate_id": "NEMO-FT-G06", "name": "clean_reload_and_exact_eval", "state": "NOT_RUN", "blocking": true, "evidence": "No trained adapter exists to rebind to the exact NVIDIA base and evaluate."},
+        {"gate_id": "NEMO-FT-G07", "name": "broader_safety_identity_resource_restart", "state": "NOT_RUN", "blocking": true, "evidence": "The eight-row training holdout is necessary but not sufficient for release quality, safety, resource, or recovery claims."},
+        {"gate_id": "NEMO-FT-G08", "name": "license_notice_and_adapter_review", "state": "BLOCKED", "blocking": true, "evidence": "The base license is pinned; the exact adapter artifact and separate release license review do not yet exist."},
+        {"gate_id": "NEMO-FT-G09", "name": "organization_identity_attestation_and_log", "state": "ABSENT", "blocking": true, "evidence": "No exact-candidate asymmetric DSSE/in-toto statement or transparency-log entry exists."},
+        {"gate_id": "NEMO-FT-G10", "name": "human_release_approval", "state": "ABSENT", "blocking": true, "evidence": "No named human approval is bound to an exact adapter digest."},
+        {"gate_id": "NEMO-FT-G11", "name": "independent_hub_readback", "state": "NOT_RUN", "blocking": true, "evidence": "The target repository does not exist and no candidate was uploaded."}
+      ]
+    },
+    {
+      "candidate_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
+      "candidate_slug": "szl-forge-1-5b-receipt-agent-v1",
+      "artifact_class": "PEFT_ADAPTER",
+      "canonical_target": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "target_kind": "MODEL",
+      "target_state": "PLANNED_NOT_CREATED",
+      "promotion_decision": "BLOCKED_NOT_TRAINED_NOT_QUALIFIED",
+      "allowed_public_payload_classes": [
+        "PEFT_ADAPTER_SAFETENSORS",
+        "ADAPTER_CONFIG_JSON",
+        "MODEL_CARD",
+        "LICENSE_NOTICE",
+        "SIGNED_PROVENANCE",
+        "SANITIZED_EVALUATION_SUMMARY"
+      ],
+      "forbidden_public_payload_classes": [
+        "FULL_BASE_WEIGHTS",
+        "PICKLE_OR_EXECUTABLE_MODEL_PAYLOAD",
+        "OPTIMIZER_STATE",
+        "TRAINER_STATE",
+        "HELD_OUT_ANSWER_KEYS",
+        "UNADMITTED_BRAIN_OR_FORMULA_ROWS"
+      ],
+      "bucket_prefixes": {
+        "build": "attempts/{attempt_id}/payload/szl-forge-1-5b-receipt-agent-v1/",
+        "evaluation": "attempts/{attempt_id}/payload/szl-forge-1-5b-receipt-agent-v1/",
+        "runtime": "batches/{attempt_id}/payload/szl-forge-1-5b-receipt-agent-v1/"
+      },
+      "model_card_truth": {
+        "path": "model_release/receipt-agent/MODEL_CARD_DRAFT.md",
+        "required_literals": [
+          "MODEL PROGRAM - NOT A WEIGHT RELEASE",
+          "Release: `NOT_PROMOTED`",
+          "Quality: `NOT_ESTABLISHED`",
+          "Weights: `NOT_CREATED`",
+          "9,464 raw nodes",
+          "0 approved for reuse",
+          "The catastrophic-error budget is **zero**"
+        ],
+        "forbidden_case_insensitive_literals": [
+          "trained on all 200 formulas",
+          "quality: established",
+          "fully trained",
+          "production ready"
+        ]
+      },
+      "local_artifacts": [
+        {
+          "path": "model_release/receipt-agent/release-manifest.json",
+          "bytes": 4096,
+          "sha256": "53b09d9aaa6ace50b78b32fc8cbd80fd33f3c850e9959fc65151cc6383c2767d",
+          "role": "RELEASE_CONTRACT"
+        },
+        {
+          "path": "model_release/receipt-agent/MODEL_CARD_DRAFT.md",
+          "bytes": 14168,
+          "sha256": "ad83bb7c5d6aa50d3385ba84c932b43fbb780987bbf1d7a280304d6bd623c5bb",
+          "role": "MODEL_CARD"
+        },
+        {
+          "path": "model_release/receipt-agent/admission-manifest.json",
+          "bytes": 7685,
+          "sha256": "17158bd5a5885d10af6ae8b8876d7092e39cdbe3f591e2a0a3b7a4598e742e24",
+          "role": "ADMISSION_CONTRACT"
+        },
+        {
+          "path": "model_release/receipt-agent/evaluation-manifest.json",
+          "bytes": 8144,
+          "sha256": "a785d74acee62f919f7155cf68cab45da8118f4347c0d87c0fd06d078cb36843",
+          "role": "EVALUATION_CONTRACT"
+        },
+        {
+          "path": "model_release/szl-forge/training-contract.json",
+          "bytes": 6029,
+          "sha256": "7cea52df2e56166dbf502b07f8e6fc41fcd84cc864c21d80c981aa76a880919c",
+          "role": "TRAINING_CONTRACT"
+        },
+        {
+          "path": "model_release/szl-forge/generated/curriculum-manifest.json",
+          "bytes": 1160,
+          "sha256": "a1cbb414bfc133a43cbd10a928d7d1141c7607a19a1b9d3b580a007773f5d9f4",
+          "role": "ADMITTED_CURRICULUM_MANIFEST"
+        }
+      ],
+      "qualification_gates": [
+        {"gate_id": "RA-HF-G01", "name": "immutable_base_file_set", "state": "PASS", "blocking": true, "evidence": "Pinned local Qwen2.5 base snapshot file set passed preflight."},
+        {"gate_id": "RA-HF-G02", "name": "project_authored_curriculum", "state": "PASS", "blocking": true, "evidence": "Deterministic 30-row train and 8-row eval curriculum manifest passed admission."},
+        {"gate_id": "RA-HF-G03", "name": "gpu_admission_and_training_run", "state": "BLOCKED", "blocking": true, "evidence": "GPU thermal/free-memory soak has not admitted a run; training_started=false."},
+        {"gate_id": "RA-HF-G04", "name": "adapter_safetensors_and_config", "state": "ABSENT", "blocking": true, "evidence": "No ReceiptAgent-specific adapter artifact exists."},
+        {"gate_id": "RA-HF-G05", "name": "clean_reload_and_exact_eval", "state": "NOT_RUN", "blocking": true, "evidence": "No trained adapter exists to reload or evaluate."},
+        {"gate_id": "RA-HF-G06", "name": "full_preregistered_evaluation", "state": "NOT_RUN", "blocking": true, "evidence": "The full frozen ReceiptAgent and formula/Brain holdout suites have not run."},
+        {"gate_id": "RA-HF-G07", "name": "license_and_row_rights", "state": "BLOCKED", "blocking": true, "evidence": "Adapter release license and any non-project-authored row reuse remain pending legal/lineage review."},
+        {"gate_id": "RA-HF-G08", "name": "organization_identity_attestation_and_log", "state": "ABSENT", "blocking": true, "evidence": "No exact-candidate asymmetric DSSE/in-toto statement or transparency-log entry exists."},
+        {"gate_id": "RA-HF-G09", "name": "human_release_approval", "state": "ABSENT", "blocking": true, "evidence": "No named human approval is bound to an exact candidate digest."},
+        {"gate_id": "RA-HF-G10", "name": "independent_hub_readback", "state": "NOT_RUN", "blocking": true, "evidence": "The target repository does not exist and no candidate was uploaded."}
+      ]
+    }
+  ],
+  "global_release_predicate": [
+    "Every blocking candidate gate is PASS for the exact artifact class being promoted.",
+    "Every local artifact path, byte count, and SHA-256 matches this manifest before staging.",
+    "The payload inventory contains only allowlisted non-executable formats and no symlinks.",
+    "The candidate base, tokenizer, adapter or recipe, data split, code revision, license, and card are mutually hash-bound.",
+    "Bucket staging uses a never-reused attempt id and candidate-specific prefix, then full independent readback and signed completion.",
+    "Canonical Hub publication is a separate named-human action followed by immutable revision and file-digest readback.",
+    "No bucket object, completion marker, local runtime tag, model card, or training process exit code alone authorizes publication."
+  ],
+  "forbidden_file_extensions": [
+    ".bin",
+    ".ckpt",
+    ".joblib",
+    ".pkl",
+    ".pickle",
+    ".pt",
+    ".pth",
+    ".pyc"
+  ],
+  "external_mutations": {
+    "bucket_objects_uploaded": false,
+    "model_or_dataset_repository_created": false,
+    "weights_or_adapter_published": false,
+    "space_deployed": false,
+    "collection_created": false,
+    "promotion_performed": false
+  }
+}

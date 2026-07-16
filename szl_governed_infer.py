@@ -65,6 +65,8 @@ LABEL_MEASURED = "MEASURED"
 LABEL_BOUNDED = "MEASURED_SHARED_BOUNDED"
 LABEL_MODELED = "MODELED"
 LABEL_UNAVAILABLE = "UNAVAILABLE"
+RECEIPT_SCHEMA_V1 = "szl.govern.brain-infer/v1"
+RECEIPT_SCHEMA_V2 = "szl.govern.inference/v2"
 
 # Grounding subgraph size (k) for the PPR retrieval.
 GROUND_K = 12
@@ -286,7 +288,8 @@ def _prev_hash():
 
 
 def _make_receipt(query, subgraph_ids, answer_digest, energy, tokens, model,
-                  prev_hash):
+                  prev_hash, *, answer_available=False,
+                  receipt_source="brain-infer", base_url=""):
     """Build a DSSE-style SHA-256 hash-chained receipt over the governed turn.
 
     tokens_per_joule is populated ONLY when BOTH a real output-token count and a
@@ -302,14 +305,22 @@ def _make_receipt(query, subgraph_ids, answer_digest, energy, tokens, model,
         # tokens_per_joule inherits the joule measurement's honest label.
         tpj_label = energy_label
     body = {
-        "schema": "szl.govern.brain-infer/v1",
+        "schema": RECEIPT_SCHEMA_V2,
         "chain_alg": "sha256",
+        "receipt_source": str(receipt_source or "unknown"),
         "q": query,
         "query_digest": _sha(query),
         "subgraph_ids": list(subgraph_ids),
         "subgraph_size": len(subgraph_ids),
         "answer_digest": answer_digest,
         "model": model,
+        "answer_available": bool(answer_available),
+        # A durable receipt is evidence of successful inference only when the
+        # provider returned real non-empty text and named the model that ran.
+        # Failed attempts still receive an attempt receipt, but never set this.
+        "inference_receipted": bool(answer_available and answer_digest
+                                      and model),
+        "base_url_sha256": _sha(base_url) if base_url else None,
         "joules": joules,
         "energy_label": energy_label,
         "tokens": int(tokens or 0),
@@ -325,7 +336,7 @@ def _make_receipt(query, subgraph_ids, answer_digest, energy, tokens, model,
 
 def _receipt_hash(body):
     """Canonical SHA-256 over the load-bearing receipt fields (chain link)."""
-    return _sha(
+    parts = [
         body.get("prev_hash", ""),
         body.get("query_digest", ""),
         body.get("answer_digest", ""),
@@ -335,7 +346,84 @@ def _receipt_hash(body):
         str(body.get("model")),
         body.get("node", ""),
         body.get("ts", ""),
-    )
+    ]
+    # Preserve verification of existing v1 receipts while binding every new
+    # inference-state field into the v2 hash.
+    if body.get("schema") == RECEIPT_SCHEMA_V2:
+        parts.extend([
+            body.get("receipt_source", ""),
+            str(bool(body.get("answer_available"))),
+            str(bool(body.get("inference_receipted"))),
+            body.get("base_url_sha256") or "",
+        ])
+    return _sha(*parts)
+
+
+def record_provider_generation(query, text, model, *, tokens=0, base_url=""):
+    """Persist one successful provider generation as a durable v2 receipt.
+
+    This is called only from POST/write paths after a provider returned real,
+    non-empty text.  Reachability, configuration, and a routing decision are not
+    enough.  The append is fsync'd and immediately replay-verified; failure is
+    returned honestly and never upgraded to receipted inference.
+    """
+    query = (query or "").strip()
+    text = (text or "").strip()
+    model = (model or "").strip()
+    if not query or not text or not model:
+        return {"ok": False, "inference_receipted": False,
+                "reason": "query, non-empty provider text, and model are required"}
+    try:
+        token_count = max(0, int(tokens or 0))
+    except (TypeError, ValueError):
+        token_count = 0
+    energy = {"joules": None, "label": LABEL_UNAVAILABLE,
+              "reason": "provider-route receipt did not bracket an NVML meter delta"}
+    with _LOCK:
+        prev = _prev_hash()
+        receipt = _make_receipt(
+            query, [], _sha(text), energy, token_count, model, prev,
+            answer_available=True, receipt_source="llm-route", base_url=base_url)
+        _append(receipt)
+        chain = _read_chain()
+        persisted = bool(chain and chain[-1].get("receipt_hash") == receipt["receipt_hash"])
+        verified = persisted and _verify_entry(chain[-1], prev)
+    return {
+        "ok": bool(verified),
+        "inference_receipted": bool(verified),
+        "receipt_hash": receipt["receipt_hash"] if verified else None,
+        "schema": receipt["schema"],
+        "reason": ("durable inference receipt appended and replay-verified"
+                   if verified else "receipt append could not be replay-verified"),
+    }
+
+
+def inference_receipt_status(model=""):
+    """Read-only successful-inference receipt status; never emits a receipt."""
+    wanted = (model or "").strip()
+    chain = _read_chain()
+    prev = ""
+    broken = []
+    successful = []
+    for idx, entry in enumerate(chain):
+        valid = _verify_entry(entry, prev)
+        if not valid:
+            broken.append(idx)
+        prev = entry.get("receipt_hash", prev)
+        entry_model = str(entry.get("model") or "")
+        model_match = (not wanted or entry_model == wanted
+                       or entry_model.endswith(":" + wanted))
+        if valid and entry.get("inference_receipted") is True and model_match:
+            successful.append(entry)
+    latest = successful[-1] if successful else None
+    return {
+        "inference_receipted": bool(successful and not broken),
+        "successful_receipt_count": len(successful),
+        "total_receipt_count": len(chain),
+        "chain_ok": not broken,
+        "latest_receipt_hash": latest.get("receipt_hash") if latest else None,
+        "latest_model": latest.get("model") if latest else None,
+    }
 
 
 def _append(receipt):
@@ -406,7 +494,12 @@ def govern_infer(query, ns="a11oy"):
             prev = _prev_hash()
             receipt = _make_receipt(query, subgraph_ids, answer_digest, energy,
                                     answer.get("tokens", 0), answer.get("model"),
-                                    prev)
+                                    prev,
+                                    answer_available=bool(answer.get("available")
+                                                          and ans_text),
+                                    receipt_source="brain-infer",
+                                    base_url=_local_llm_url()
+                                             or _sovereign_gateway())
             _append(receipt)
         dsse = _maybe_dsse(receipt)
 
@@ -476,6 +569,9 @@ def list_receipts(limit=50):
         "q": r.get("q"),
         "subgraph_size": r.get("subgraph_size"),
         "model": r.get("model"),
+        "receipt_source": r.get("receipt_source", "brain-infer"),
+        "answer_available": bool(r.get("answer_available")),
+        "inference_receipted": bool(r.get("inference_receipted")),
         "joules": r.get("joules"),
         "energy_label": r.get("energy_label"),
         "tokens": r.get("tokens"),

@@ -163,12 +163,59 @@ COPY knowledge.json ./static/knowledge.json
 # registers live. (dockerfile-copy-guard verifies these sources exist on main.)
 COPY a11oy_ayllu.py ./
 COPY ayllu/ ./ayllu/
+# Canonical model-family/control-plane evidence ships with the runtime image so
+# deployed status surfaces can be audited against the same release contracts.
+COPY model_release/szl-forge-family.json model_release/szl-compute-plane.json model_release/szl-ayllu-binding.json model_release/szl-khipu-second-brain.json ./model_release/
+COPY model_release/receipt-agent/ ./model_release/receipt-agent/
+# Brain-derived rows remain quarantined until this deterministic, fail-closed
+# admission engine validates immutable provenance, rights, contamination, and
+# split obligations. Shipping the CLI does not start training or admit rows.
+COPY szl_brain_training_admission.py ./
 # Waqay Security Loop wave 15: pure read-only proposal contract.  The module
 # exposes zero external effectors; serve.py registers only its manifest GET.
 COPY szl_waqay_security_loop.py ./
 # Claim-integrity Rupture Gate wave 15: contract-only, external signals only,
 # unsigned deterministic receipts, zero effectors.
 COPY szl_claim_rupture_gate.py ./
+# Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
+# SDK, QPU call, credential path, external effector, or finance-engine coupling.
+COPY szl_quantum_utility.py ./
+# Wave 18 numerical-engine frontier. These are only the Apache-2.0 host contract
+# and fixed data-only Octave script. GNU Octave, MATLAB, proprietary Engine
+# libraries, license material, and packages are deliberately NOT installed or
+# copied. Without an operator-provided external engine and isolation controls,
+# the API reports UNAVAILABLE.
+COPY szl_numerics_adapter.py ./
+COPY szl_numerics_dataset.py ./
+COPY szl_numerics_experiment.py ./
+COPY numerics/ ./numerics/
+# Wave 23 Yupaq governed computation plane.  It ships only the strict routing
+# contract and delegates to already-copied engines; it installs no new runtime,
+# prover, provider SDK, or proprietary dependency.
+COPY szl_yupaq_compute.py ./
+COPY proofs/lean-theorem-tree.json ./proofs/lean-theorem-tree.json
+COPY research/formula-training-admission/admission-manifest.json ./research/formula-training-admission/admission-manifest.json
+COPY data/szl-lake/evidence-manifest.json ./data/szl-lake/evidence-manifest.json
+# Wave 19 formal-conjecture receipt lab. This copies only the strict contract,
+# bounded ledger, and public-key receipt verifier; it installs no prover and
+# exposes no command or network execution path.
+COPY szl_formal_conjecture_lab.py ./
+# M1 experimental model operational gate. Metadata and the status UI are
+# bundled, but model/base/adapter weights are not. A stock image therefore
+# reports UNAVAILABLE until an operator mounts exact local artifacts and the
+# verified local PEFT/GPU runtime; no build-time or request-time download path.
+COPY szl_m1_model_gate.py ./
+COPY szl_m1_corpus_manifest.py ./
+COPY model_release/m1/ ./model_release/m1/
+# Canonical release identity and public Zenodo readback receipt. The readback
+# file ships in a PENDING state until a separately verified archive PR replaces
+# it; the runtime never invents a DOI from the version number.
+COPY szl_release_identity.py ./
+COPY zenodo-readback.json ./
+# Shared fail-closed provider transport. Registry adapters opt in to private
+# destinations explicitly; this module performs pinned DNS validation, bounded
+# redirect handling, response-size limits, and secret-safe deterministic errors.
+COPY szl_provider_http.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -659,7 +706,7 @@ COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
 # hf-sync mirrored) — same baked-only pattern as web/sda.html + web/immune.html;
 # declared in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json
 # accepted_divergences.
-COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html ./web/
+COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html web/m1-model.html ./web/
 COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
 COPY web/defense-readiness.html ./web/defense-readiness.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
@@ -1563,6 +1610,9 @@ COPY szl_brainconsensus.py ./szl_brainconsensus.py
 # brainqueryaudit.js ships via the existing whole-tree `COPY static/3d/ ./static/3d/`
 # above. RECORDS/OBSERVES only — adds NOTHING to the locked-8; Λ = Conjecture 1; trust 0.97.
 COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
+# Wave 22: content-addressed corpus admission + fail-closed Brain reranker/feed.
+# No model weights, trainer, or network harvester are included.
+COPY szl_braincorpus.py szl_brain_reranker.py ./
 # BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME
 # honest brain graph: for a node id or a query's top nodes it reports HOW each node
 # ENTERED the graph, read VERBATIM from the node's OWN real origin fields
@@ -1656,7 +1706,14 @@ COPY a11oy_quant_signals_nav.py ./a11oy_quant_signals_nav.py
 ARG SZL_GIT_SHA=unknown
 ARG SZL_BUILD_TIME=unknown
 ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
-    SZL_BUILD_TIME=${SZL_BUILD_TIME}
+    SZL_BUILD_TIME=${SZL_BUILD_TIME} \
+    A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db
+
+# The Second Brain's SQLite index is rebuildable, but a mounted /app/data keeps
+# the active generation across process/container replacement. Deployments that
+# do not attach storage will rebuild and report that fact; they never claim
+# cross-redeploy durability.
+VOLUME ["/app/data"]
 CMD ["python", "serve.py"]
 
 

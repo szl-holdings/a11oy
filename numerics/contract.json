@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/numerics-contract-v1.json",
+  "title": "a11oy external numerical-engine contract v1",
+  "request_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema", "request_id", "operation", "inputs", "tolerance"],
+    "properties": {
+      "schema": {"const": "szl.numerics.request/v1"},
+      "request_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$"},
+      "operation": {
+        "enum": ["MATRIX_SOLVE", "SYMMETRIC_EIGENVALUES", "VALIDATE_REFERENCE_VECTOR"]
+      },
+      "inputs": {"type": "object"},
+      "tolerance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["absolute", "relative"],
+        "properties": {
+          "absolute": {"type": "number", "minimum": 0, "maximum": 1},
+          "relative": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "allOf": [
+      {
+        "if": {"properties": {"operation": {"const": "SYMMETRIC_EIGENVALUES"}}},
+        "then": {
+          "properties": {
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["matrix"],
+              "properties": {"matrix": {"$ref": "#/$defs/matrix"}}
+            }
+          }
+        }
+      },
+      {
+        "if": {"properties": {"operation": {"const": "MATRIX_SOLVE"}}},
+        "then": {
+          "properties": {
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["matrix", "rhs"],
+              "properties": {
+                "matrix": {"$ref": "#/$defs/matrix"},
+                "rhs": {"$ref": "#/$defs/vector"}
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {"properties": {"operation": {"const": "VALIDATE_REFERENCE_VECTOR"}}},
+        "then": {
+          "properties": {
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["matrix", "rhs", "expected"],
+              "properties": {
+                "matrix": {"$ref": "#/$defs/matrix"},
+                "rhs": {"$ref": "#/$defs/vector"},
+                "expected": {"$ref": "#/$defs/vector"}
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "engine_response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema", "state", "operation", "values", "substrate_evidence"],
+    "properties": {
+      "schema": {"const": "szl.numerics.engine-response/v1"},
+      "state": {"const": "RESULT"},
+      "operation": {
+        "enum": ["MATRIX_SOLVE", "SYMMETRIC_EIGENVALUES", "VALIDATE_REFERENCE_VECTOR"]
+      },
+      "values": {"$ref": "#/$defs/vector"},
+      "substrate_evidence": {"enum": ["MEASURED", "UNKNOWN"]}
+    }
+  },
+  "matlab_external_service_cli": [
+    "ABSOLUTE_OPERATOR_CONFIGURED_EXECUTABLE",
+    "--json-input",
+    "HOST_TEMP_REQUEST_PATH",
+    "--json-output",
+    "HOST_TEMP_RESPONSE_PATH"
+  ],
+  "prohibited_fields": ["code", "expression", "function", "command", "path", "package", "url"],
+  "$defs": {
+    "number": {"type": "number", "minimum": -1000000000000, "maximum": 1000000000000},
+    "vector": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/number"}
+    },
+    "matrix": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/vector"}
+    }
+  }
+}

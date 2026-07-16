@@ -168,4 +168,3 @@ def test_info_exposes_open_rubric_and_read_only_surface():
     assert set(info["states"]) == set(rg.CLAIM_STATES)
     assert all(route["mutates"] is False for route in info["intended_read_only_api"])
     assert info["effectors_enabled"] == 0
-

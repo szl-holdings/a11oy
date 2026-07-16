@@ -638,16 +638,16 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     n_before = len(app.router.routes)
 
     @app.get(f"/api/{ns}/v1/yupay/doctrine", include_in_schema=False)
-    async def _doctrine() -> JSONResponse:
+    async def _doctrine():  # noqa: ANN202
         return JSONResponse(doctrine())
 
     @app.get(f"/api/{ns}/v1/yupay/demo", include_in_schema=False)
-    async def _demo(req: Request) -> JSONResponse:
+    async def _demo(req: Request):  # noqa: ANN202
         q = req.query_params.get("task")
         return JSONResponse(demo(task_prompt=q))
 
     @app.post(f"/api/{ns}/v1/yupay/compare", include_in_schema=False)
-    async def _compare(req: Request) -> JSONResponse:
+    async def _compare(req: Request):  # noqa: ANN202
         try:
             body = await req.json()
         except Exception:
@@ -659,7 +659,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse(governed_compare(task=t, data_label="MODELED"))
 
     @app.get(f"/api/{ns}/v1/yupay/receipts", include_in_schema=False)
-    async def _receipts() -> JSONResponse:
+    async def _receipts():  # noqa: ANN202
         tail = _RECEIPTS[-20:]
         return JSONResponse({"count": len(_RECEIPTS),
                              "receipts": [{"payload": r["payload"],
@@ -667,7 +667,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
                                           for r in tail]})
 
     @app.post(f"/api/{ns}/v1/yupay/verify", include_in_schema=False)
-    async def _verify(req: Request) -> JSONResponse:
+    async def _verify(req: Request):  # noqa: ANN202
         try:
             body = await req.json()
         except Exception:
@@ -676,7 +676,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse(verify_receipt(env))
 
     @app.get("/yupay", include_in_schema=False)
-    async def _page() -> HTMLResponse:
+    async def _page():  # noqa: ANN202
         return HTMLResponse(_PAGE_HTML.replace("{NS}", ns))
 
     # Move the YUPAY routes just appended (the tail beyond n_before) to the FRONT,

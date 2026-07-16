@@ -353,6 +353,17 @@ brain/harvest/energy_defense.jsonl
 training/data/brain_graph.json
 
 # ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-07-15, operational-union CI repair).
+# model_release/m1/brain-ingest-ledger.jsonl is the deterministic, generated
+# quarantine decision ledger for the same Brain graph above. Its only matching
+# retired-codename substrings occur inside the two exact third-party repository
+# identities documented in brain/harvest/energy_defense.jsonl. Rewording those
+# ids or provenance URLs would fabricate source identity. This exemption is
+# scoped to this one generated ledger; its generator and sibling M1 artifacts
+# remain scanned, and every ledger row remains training-ineligible.
+model_release/m1/brain-ingest-ledger.jsonl
+
+# ----------------------------------------------------------------------------
 # Doctrine grep-gate exemption (2026-07-07, Wave-N Dev5 trunk-guardian).
 # The robust banned-token scanner SOURCE + its self-test. Both ENUMERATE the
 # ban-list (the regex + positive/negative control fixtures) for DETECTION

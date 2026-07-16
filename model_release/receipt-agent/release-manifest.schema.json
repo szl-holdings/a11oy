@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-receipt-agent-release-manifest-v1.json",
+  "title": "SZL ReceiptAgent release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "program_id",
+    "proposed_model_id",
+    "release_state",
+    "quality_claim",
+    "artifact_relation",
+    "existing_adapter",
+    "current_data_boundary",
+    "hf_artifact_family",
+    "licensing",
+    "non_affiliation",
+    "identity_and_attestation",
+    "external_mutations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.receipt-agent-release-manifest.v1"
+    },
+    "program_id": {
+      "const": "szl-forge-1.5b-receipt-agent"
+    },
+    "proposed_model_id": {
+      "const": "SZL-Forge-1.5B-ReceiptAgent-v1"
+    },
+    "release_state": {
+      "const": "NOT_PROMOTED"
+    },
+    "quality_claim": {
+      "const": "NOT_ESTABLISHED"
+    },
+    "artifact_relation": {
+      "const": "PROPOSED_PROGRAM_EXISTING_ADAPTER_NOT_YET_ESTABLISHED_AS_RECEIPT_AGENT"
+    },
+    "existing_adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_repository",
+        "base_revision",
+        "adapter_sha256",
+        "dataset_rows",
+        "dataset_review",
+        "evaluation_state"
+      ],
+      "properties": {
+        "base_repository": {
+          "const": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"
+        },
+        "base_revision": {
+          "const": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7"
+        },
+        "adapter_sha256": {
+          "const": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac"
+        },
+        "dataset_rows": {
+          "const": 167
+        },
+        "dataset_review": {
+          "const": "BLOCKED_NOT_COMPLETE"
+        },
+        "evaluation_state": {
+          "const": "INCOMPLETE"
+        }
+      }
+    },
+    "current_data_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brain_raw_nodes",
+        "brain_raw_nodes_training_quarantined",
+        "brain_raw_rows_admitted_to_train",
+        "formula_crosswalk_rows",
+        "formula_holdout_rows",
+        "formula_train_rows",
+        "orpo_checks_passed",
+        "orpo_checks_total",
+        "orpo_state"
+      ],
+      "properties": {
+        "brain_raw_nodes": {
+          "const": 9464
+        },
+        "brain_raw_nodes_training_quarantined": {
+          "const": 9464
+        },
+        "brain_raw_rows_admitted_to_train": {
+          "const": 0
+        },
+        "formula_crosswalk_rows": {
+          "const": 148
+        },
+        "formula_holdout_rows": {
+          "const": 148
+        },
+        "formula_train_rows": {
+          "const": 0
+        },
+        "orpo_checks_passed": {
+          "const": 0
+        },
+        "orpo_checks_total": {
+          "const": 12
+        },
+        "orpo_state": {
+          "const": "QUARANTINED"
+        }
+      }
+    },
+    "hf_artifact_family": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_id",
+          "artifact_type",
+          "state",
+          "promotion_dependency"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"
+          },
+          "artifact_type": {
+            "enum": [
+              "MODEL_ADAPTER",
+              "EVALUATION_DATASET",
+              "SCHEMA_DATASET",
+              "SPACE",
+              "COLLECTION"
+            ]
+          },
+          "state": {
+            "const": "PLANNED_NOT_CREATED"
+          },
+          "promotion_dependency": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "licensing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_license_reported",
+        "base_license_evidence",
+        "adapter_release_license",
+        "dataset_license",
+        "license_gate"
+      ],
+      "properties": {
+        "base_license_reported": {
+          "const": "Apache-2.0"
+        },
+        "base_license_evidence": {
+          "const": "REPORTED_CACHED_AND_OFFICIAL_CARD"
+        },
+        "adapter_release_license": {
+          "const": "PENDING_LEGAL_AND_LINEAGE_REVIEW"
+        },
+        "dataset_license": {
+          "const": "PENDING_ROW_LEVEL_RIGHTS_REVIEW"
+        },
+        "license_gate": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "non_affiliation": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "identity_and_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_fingerprints",
+        "behavioral_fingerprint_role",
+        "dsse_attestation",
+        "transparency_log",
+        "current_state"
+      ],
+      "properties": {
+        "required_fingerprints": {
+          "type": "array",
+          "minItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "behavioral_fingerprint_role": {
+          "const": "SUPPLEMENTAL_NOT_PROOF_OF_IDENTITY"
+        },
+        "dsse_attestation": {
+          "const": "REQUIRED_FOR_PROMOTION_NOT_PRESENT"
+        },
+        "transparency_log": {
+          "const": "REQUIRED_FOR_PROMOTION_NOT_PRESENT"
+        },
+        "current_state": {
+          "const": "UNATTESTED"
+        }
+      }
+    },
+    "external_mutations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trained",
+        "uploaded",
+        "published",
+        "deployed",
+        "signed",
+        "promoted"
+      ],
+      "properties": {
+        "trained": {
+          "const": false
+        },
+        "uploaded": {
+          "const": false
+        },
+        "published": {
+          "const": false
+        },
+        "deployed": {
+          "const": false
+        },
+        "signed": {
+          "const": false
+        },
+        "promoted": {
+          "const": false
+        }
+      }
+    }
+  }
+}

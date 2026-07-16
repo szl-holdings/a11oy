@@ -47,9 +47,6 @@ from __future__ import annotations
 import pathlib
 import re
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
-
 DOCTRINE = {"version": "v11", "lambda": "Conjecture 1", "sovereign": False}
 
 # --------------------------------------------------------------------------- #
@@ -233,19 +230,23 @@ def _page_html(ns: str) -> str:
 <style>
   :root {{ --bg:#070b16; --panel:#101a2e; --ink:#e8eef7; --muted:#8aa0bd;
            --indigo:#4d8fcc; --terra:#c8643c; --gold:#d8a23c; --amber:#e8c074;
-           --green:#2fd07a; --warn:#c8893c; --violet:#9d7ad8; --red:#d8624a; }}
+           --green:#2fd07a; --warn:#c8893c; --violet:#9d7ad8; --red:#d8624a;
+           --honest-banner-h:3.1rem; }}
   * {{ box-sizing:border-box; }}
-  html,body {{ margin:0; min-height:100%; }}
+  html,body {{ margin:0; min-height:100%; max-width:100%; }}
+  html {{ overflow-x:clip; scroll-padding-top:calc(var(--honest-banner-h) + 1rem); }}
   body {{ font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;
-          background:radial-gradient(1200px 700px at 70% -10%, #14213b, var(--bg));
-          color:var(--ink); }}
+           background:radial-gradient(1200px 700px at 70% -10%, #14213b, var(--bg));
+           color:var(--ink); overflow-x:hidden; }}
   /* Persistent, unmissable HONEST banner — top of every viewport. */
   #honest-banner {{ position:fixed; top:0; left:0; right:0; z-index:50;
     background:linear-gradient(90deg, rgba(77,143,204,.22), rgba(157,122,216,.18));
     border-bottom:1px solid rgba(232,192,116,.5);
     color:var(--amber); font-family:ui-monospace,monospace; font-size:.8rem;
     letter-spacing:.05em; padding:.55rem 1rem;
-    display:flex; align-items:center; gap:.6rem; backdrop-filter:blur(4px); }}
+    display:flex; align-items:flex-start; gap:.6rem; line-height:1.4;
+    backdrop-filter:blur(4px); overflow-wrap:anywhere; }}
+  #honest-banner > span:last-child {{ min-width:0; }}
   #honest-banner .dot {{ width:.6rem; height:.6rem; border-radius:50%;
     background:var(--amber); box-shadow:0 0 8px var(--amber); flex:0 0 auto; }}
   #honest-banner b {{ color:var(--gold); }}
@@ -253,7 +254,7 @@ def _page_html(ns: str) -> str:
   #scene {{ position:fixed; inset:0; z-index:0; }}
   /* Scrollable content layer above the canvas. */
   #wrap {{ position:relative; z-index:1; max-width:1180px; margin:0 auto;
-           padding:4.2rem 1.2rem 4rem; }}
+           padding:calc(var(--honest-banner-h) + 1.1rem) 1.2rem 4rem; min-width:0; }}
   .plaque {{ font-family:ui-monospace,monospace; font-size:.7rem; letter-spacing:.12em;
              color:var(--muted); text-transform:uppercase; }}
   .plaque b {{ color:var(--gold); }}
@@ -273,17 +274,18 @@ def _page_html(ns: str) -> str:
   .lg.modeled  {{ color:var(--amber);  border-color:rgba(232,192,116,.45); background:rgba(232,192,116,.1); }}
   .lg.roadmap  {{ color:var(--violet); border-color:rgba(157,122,216,.5);  background:rgba(157,122,216,.1); }}
   .lg.sample   {{ color:var(--indigo); border-color:rgba(77,143,204,.45);  background:rgba(77,143,204,.1); }}
-  #grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  #grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));
            gap:1rem; margin-top:1.2rem; }}
   .card {{ background:rgba(16,26,46,.84); border:1px solid #21304d; border-radius:14px;
            padding:1rem 1.1rem; box-shadow:0 18px 40px -28px #000;
            backdrop-filter:blur(6px); position:relative; overflow:hidden;
-           display:flex; flex-direction:column; gap:.55rem; }}
+            display:flex; flex-direction:column; gap:.55rem; min-width:0; }}
   .card::before {{ content:""; position:absolute; inset:0 0 auto 0; height:3px;
                    background:var(--edge,var(--indigo)); opacity:.85; }}
   .card h3 {{ margin:.15rem 0 0; font-family:ui-monospace,monospace; font-size:.96rem;
               color:var(--ink); display:flex; align-items:center; gap:.5rem;
-              justify-content:space-between; }}
+               justify-content:space-between; }}
+  .card h3 > span:first-child {{ min-width:0; overflow-wrap:anywhere; }}
   .card .cat {{ font-family:ui-monospace,monospace; font-size:.62rem; letter-spacing:.1em;
                 text-transform:uppercase; color:var(--muted); }}
   .card .stat {{ font-size:.82rem; color:var(--ink); line-height:1.4; }}
@@ -300,11 +302,70 @@ def _page_html(ns: str) -> str:
   /* 3D-surface list — compact honest pills, one per surface. */
   #surfaces-section {{ margin-top:1.6rem; }}
   #surfaces-section h2 {{ font-size:clamp(1.1rem,2vw,1.4rem); margin:.2rem 0 0; }}
-  #surfaces-list {{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem; }}
-  .surface-pill {{ display:flex; align-items:center; gap:.5rem; background:rgba(16,26,46,.84);
-    border:1px solid #21304d; border-radius:10px; padding:.4rem .6rem;
-    font-family:ui-monospace,monospace; font-size:.72rem; color:var(--ink); }}
-  .surface-pill .sid {{ color:var(--muted); }}
+  .surface-tools {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(220px,300px);
+    gap:.75rem; align-items:end; margin-top:1rem; min-width:0; }}
+  .surface-tabs {{ display:flex; gap:.4rem; overflow-x:auto; padding:.15rem .1rem .45rem;
+    min-width:0; scrollbar-width:thin; overscroll-behavior-inline:contain; }}
+  .surface-tab {{ border:1px solid #21304d; border-radius:999px; padding:.42rem .72rem;
+    color:var(--muted); background:rgba(7,12,23,.7); font:600 .66rem/1 ui-monospace,monospace;
+    letter-spacing:.04em; white-space:nowrap; cursor:pointer; }}
+  .surface-tab[aria-selected="true"] {{ color:var(--ink); border-color:var(--gold);
+    background:rgba(216,162,60,.14); }}
+  .surface-search {{ display:grid; gap:.35rem; min-width:0; color:var(--muted);
+    font:600 .62rem/1.2 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }}
+  .surface-search input {{ width:100%; min-width:0; border:1px solid #2b3d60; border-radius:9px;
+    padding:.62rem .72rem; background:rgba(7,12,23,.86); color:var(--ink); font:inherit;
+    letter-spacing:0; text-transform:none; }}
+  #surfaces-list {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));
+    gap:.6rem; margin-top:1rem; min-width:0; }}
+  .surface-pill {{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.45rem .65rem;
+    align-items:start; min-width:0; background:rgba(16,26,46,.84); border:1px solid #21304d;
+    border-radius:11px; padding:.7rem .75rem; font-family:ui-monospace,monospace;
+    font-size:.72rem; color:var(--ink); text-decoration:none; overflow:hidden; }}
+  .surface-pill:hover {{ border-color:#3b537d; background:rgba(20,34,59,.92); }}
+  .surface-pill .surface-copy {{ min-width:0; display:grid; gap:.22rem; }}
+  .surface-pill .sid {{ color:var(--muted); overflow-wrap:anywhere; }}
+  .surface-pill .surface-title {{ min-width:0; line-height:1.35; overflow-wrap:anywhere; }}
+  .surface-pagination {{ display:flex; justify-content:space-between; align-items:center; gap:.75rem;
+    margin-top:.8rem; min-width:0; }}
+  .surface-pagination button {{ border:1px solid #2b3d60; border-radius:8px; padding:.46rem .72rem;
+    background:rgba(7,12,23,.82); color:var(--ink); font:600 .66rem/1 ui-monospace,monospace;
+    cursor:pointer; }}
+  .surface-pagination button:disabled {{ opacity:.38; cursor:not-allowed; }}
+  #surface-page-status {{ min-width:0; color:var(--muted); text-align:center;
+    font:500 .66rem/1.35 ui-monospace,monospace; overflow-wrap:anywhere; }}
+  .surface-empty {{ grid-column:1/-1; padding:1rem; border:1px dashed #2b3d60;
+    border-radius:10px; color:var(--muted); font:500 .72rem/1.5 ui-monospace,monospace; }}
+  #brain-section {{ margin-top:1.6rem; }}
+  .brain-shell {{ margin-top:.9rem; padding:1rem; border:1px solid #263858; border-radius:14px;
+    background:linear-gradient(145deg,rgba(16,26,46,.9),rgba(7,12,23,.88)); min-width:0; }}
+  .brain-head {{ display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }}
+  .brain-head > div {{ min-width:0; }}
+  .brain-head h2 {{ margin:0; font-size:clamp(1.1rem,2vw,1.4rem); }}
+  .brain-metrics {{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.55rem;
+    margin-top:.9rem; }}
+  .brain-metric {{ min-width:0; padding:.7rem; border:1px solid #21304d; border-radius:9px;
+    background:rgba(7,12,23,.64); }}
+  .brain-value {{ display:block; color:var(--ink); font:700 clamp(.9rem,2vw,1.15rem)/1.2 ui-monospace,monospace;
+    overflow-wrap:anywhere; }}
+  .brain-key {{ display:block; margin-top:.28rem; color:var(--muted);
+    font:500 .58rem/1.35 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }}
+  .brain-flow {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.45rem;
+    margin-top:.8rem; }}
+  .brain-step {{ min-width:0; padding:.6rem; border-radius:8px; border:1px solid rgba(77,143,204,.25);
+    color:#b9c9dd; font:500 .66rem/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }}
+  .brain-step b {{ display:block; color:var(--indigo); margin-bottom:.18rem; }}
+  .brain-query {{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.55rem; margin-top:.8rem; }}
+  .brain-query input {{ min-width:0; width:100%; border:1px solid #2b3d60; border-radius:9px;
+    padding:.7rem .75rem; background:#070c17; color:var(--ink); }}
+  .brain-query button {{ border:1px solid rgba(216,162,60,.55); border-radius:9px; padding:.65rem .85rem;
+    background:rgba(216,162,60,.12); color:var(--amber); font:600 .7rem/1 ui-monospace,monospace;
+    cursor:pointer; }}
+  #brain-result {{ margin-top:.65rem; min-width:0; padding:.65rem .75rem; border-radius:9px;
+    border:1px solid #1a2742; background:#070c17; color:#b9c9dd;
+    font:500 .68rem/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }}
+  .brain-links {{ display:flex; flex-wrap:wrap; gap:.45rem .8rem; margin-top:.7rem; }}
+  .brain-links a {{ color:var(--green); font:500 .68rem/1.4 ui-monospace,monospace; text-underline-offset:3px; }}
   /* Per-tile persistent honest banner on non-MEASURED tiles. */
   .tile-banner {{ font-family:ui-monospace,monospace; font-size:.66rem; line-height:1.4;
                   border-radius:8px; padding:.4rem .55rem; letter-spacing:.03em; }}
@@ -323,10 +384,46 @@ def _page_html(ns: str) -> str:
   .meta b {{ color:var(--ink); }}
   .status-line {{ font-family:ui-monospace,monospace; font-size:.74rem; color:var(--muted); margin-top:1.4rem; }}
   .status-line.err {{ color:var(--warn); }}
+  :where(a,button,input):focus-visible {{ outline:2px solid var(--gold); outline-offset:3px; }}
   a.back {{ color:var(--muted); text-decoration:none; font-size:.8rem; }}
   a.orbital-link {{ color:var(--amber); text-decoration:none; }}
   a.orbital-link:hover {{ text-decoration:underline; }}
   noscript {{ color:var(--amber); display:block; padding:4rem 1.5rem; }}
+  @media (max-width:900px) {{
+    .brain-metrics {{ grid-template-columns:repeat(3,minmax(0,1fr)); }}
+  }}
+  @media (max-width:720px) {{
+    :root {{ --honest-banner-h:6.8rem; }}
+    #honest-banner {{ padding:.5rem .7rem; font-size:.66rem; letter-spacing:.025em; }}
+    #scene {{ opacity:.22; pointer-events:none; }}
+    #wrap {{ padding-left:.75rem; padding-right:.75rem; }}
+    .surface-tools {{ grid-template-columns:minmax(0,1fr); }}
+    .surface-tabs {{ width:100%; }}
+    #surfaces-list, #grid {{ grid-template-columns:minmax(0,1fr); }}
+    .surface-pill {{ padding:.65rem; }}
+    .surface-pagination {{ align-items:stretch; }}
+    .surface-pagination button {{ flex:0 0 auto; }}
+    #surface-page-status {{ align-self:center; }}
+    .brain-metrics {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+    .brain-flow {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+  }}
+  @media (max-width:420px) {{
+    :root {{ --honest-banner-h:7.4rem; }}
+    .plaque {{ font-size:.62rem; letter-spacing:.08em; }}
+    h1 {{ font-size:1.65rem; }}
+    #legend, #rollup {{ gap:.35rem; }}
+    .surface-pagination {{ display:grid; grid-template-columns:1fr 1fr; }}
+    #surface-page-status {{ grid-column:1/-1; grid-row:1; }}
+    .brain-head {{ display:grid; }}
+    .brain-metrics, .brain-flow {{ grid-template-columns:minmax(0,1fr); }}
+    .brain-query {{ grid-template-columns:minmax(0,1fr); }}
+  }}
+  @media (prefers-reduced-motion:reduce) {{
+    html {{ scroll-behavior:auto; }}
+    #scene {{ display:none; }}
+    *, *::before, *::after {{ animation-duration:.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:.01ms !important; }}
+  }}
 </style></head>
 <body>
   <div id="honest-banner">
@@ -351,6 +448,48 @@ def _page_html(ns: str) -> str:
     </div>
     <div id="rollup"></div>
 
+    <section id="brain-section" aria-labelledby="brain-h">
+      <div class="brain-shell">
+        <div class="brain-head">
+          <div>
+            <div class="plaque">Evidence Brain / live governed reads</div>
+            <h2 id="brain-h">From indexed evidence to an answer or an honest abstention</h2>
+            <p class="sub">Counts come from the live Brain and corpus-admission APIs. Query round-trip
+              time is shown only after a real request. A dormant-to-active delta stays unavailable
+              until comparable before/after ingestion receipts exist.</p>
+          </div>
+          <span class="badge unavailable" id="brain-label">UNAVAILABLE</span>
+        </div>
+        <div class="brain-metrics" aria-label="Evidence Brain metrics">
+          <div class="brain-metric"><span class="brain-value" id="brain-node-count">--</span><span class="brain-key">Raw evidence nodes</span></div>
+          <div class="brain-metric"><span class="brain-value" id="brain-artifact-count">--</span><span class="brain-key">Distinct artifacts</span></div>
+          <div class="brain-metric"><span class="brain-value" id="brain-admitted-count">--</span><span class="brain-key">Governed corpus entries</span></div>
+          <div class="brain-metric"><span class="brain-value" id="brain-quarantine-count">--</span><span class="brain-key">Quarantined entries</span></div>
+          <div class="brain-metric"><span class="brain-value" id="brain-query-latency">NOT RUN</span><span class="brain-key">Measured client query RTT</span></div>
+          <div class="brain-metric"><span class="brain-value" id="brain-ingestion-delta">NOT MEASURED</span><span class="brain-key">Dormant to active delta</span></div>
+        </div>
+        <div class="brain-flow" aria-label="Source-grounded answer flow">
+          <div class="brain-step"><b>01 Query</b>bounded user question</div>
+          <div class="brain-step"><b>02 Retrieve</b>ranked graph evidence</div>
+          <div class="brain-step"><b>03 Ground</b>cited node identifiers</div>
+          <div class="brain-step"><b>04 Decide</b>MODELED answer or UNAVAILABLE</div>
+        </div>
+        <form class="brain-query" id="brain-query-form">
+          <label class="plaque" for="brain-query-input" style="position:absolute;left:-10000px">Evidence Brain question</label>
+          <input id="brain-query-input" name="q" type="search" autocomplete="off"
+            placeholder="Ask the graph; answers must cite retrieved node IDs"/>
+          <button type="submit">Run grounded query</button>
+        </form>
+        <div id="brain-result" role="status" aria-live="polite">Loading live Brain and corpus-admission status...</div>
+        <div class="brain-links">
+          <a href="/holographic#brainquery">Open Brain Query tab &rarr;</a>
+          <a href="/formulas">Inspect formula registry &rarr;</a>
+          <a href="/api/a11oy/v1/brain/stats">Raw Brain stats &rarr;</a>
+          <a href="/api/a11oy/v1/brain/health/corpus-sources">Corpus admission evidence &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- 3D holographic surfaces — count + honest labels, from the SAME manifest the
          holographic showcase is built from (one source of truth: /frontier/surfaces). -->
     <div id="surfaces-section">
@@ -359,7 +498,20 @@ def _page_html(ns: str) -> str:
         <code>/frontier/surfaces</code> — the same machine-verifiable manifest that names each
         surface's asset and its honest label (parsed from the surface source, never upgraded).</p>
       <div id="surfaces-rollup"></div>
-      <div id="surfaces-list"></div>
+      <div class="surface-tools">
+        <div class="surface-tabs" id="surface-filters" role="tablist"
+          aria-label="Filter holographic surfaces by honest label"></div>
+        <label class="surface-search" for="surface-search">Find any surface
+          <input id="surface-search" type="search" autocomplete="off"
+            placeholder="Search ID or title"/>
+        </label>
+      </div>
+      <div id="surfaces-list" role="list" aria-label="Holographic surface catalog"></div>
+      <nav class="surface-pagination" id="surface-pagination" aria-label="Holographic surface pages">
+        <button id="surface-prev" type="button">&larr; Previous</button>
+        <span id="surface-page-status" aria-live="polite">Waiting for surface manifest...</span>
+        <button id="surface-next" type="button">Next &rarr;</button>
+      </nav>
       <div class="status-line" id="surfaces-status">fetching /frontier/surfaces…</div>
     </div>
 
@@ -378,6 +530,17 @@ import * as THREE from 'three';
 import {{ OrbitControls }} from 'three/addons/OrbitControls.js';
 
 const MANIFEST_EP = {manifest_ep!r};
+const BRAIN_STATS_EP = '/api/a11oy/v1/brain/stats';
+const BRAIN_CORPUS_EP = '/api/a11oy/v1/brain/health/corpus-sources';
+const BRAIN_ASK_EP = '/api/a11oy/v1/brain/ask';
+const banner = document.getElementById('honest-banner');
+function syncBannerOffset() {{
+  const height = banner ? Math.ceil(banner.getBoundingClientRect().height) : 0;
+  if (height > 0) document.documentElement.style.setProperty('--honest-banner-h', height + 'px');
+}}
+if ('ResizeObserver' in window && banner) new ResizeObserver(syncBannerOffset).observe(banner);
+addEventListener('resize', syncBannerOffset, {{passive:true}});
+syncBannerOffset();
 
 const LABEL_CLASS = {{
   MEASURED:'measured', MODELED:'modeled', ROADMAP:'roadmap',
@@ -394,19 +557,22 @@ const EDGE_HEX = {{
 
 function esc(s) {{ return String(s).replace(/[&<>"']/g, c =>
   ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c])); }}
-function cls(label) {{ return LABEL_CLASS[label] || 'sample'; }}
+function cls(label) {{ return LABEL_CLASS[label] || 'unavailable'; }}
 
 // ---- three.js holographic ecosystem constellation (r160, vendored, 0 CDN) ----
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({{ canvas, antialias:true, alpha:true }});
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const compactCanvas = matchMedia('(max-width: 720px)');
+renderer.setPixelRatio(Math.min(devicePixelRatio, compactCanvas.matches ? 1 : 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
 camera.position.set(0, 6, 60);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.06;
 controls.enablePan = false; controls.enableZoom = false;
-controls.autoRotate = true; controls.autoRotateSpeed = 0.28;
+controls.autoRotate = !(reducedMotion.matches || compactCanvas.matches);
+controls.autoRotateSpeed = 0.28;
 
 scene.add(new THREE.AmbientLight(0x88aacc, 0.7));
 const key = new THREE.PointLight(0xffffff, 1.1); key.position.set(40, 50, 50); scene.add(key);
@@ -429,12 +595,29 @@ function resize() {{
 }}
 addEventListener('resize', resize); resize();
 
-(function loop() {{
-  requestAnimationFrame(loop);
+let animationFrame = 0;
+function renderFrame() {{
+  animationFrame = 0;
+  if (document.hidden || reducedMotion.matches || compactCanvas.matches) {{
+    renderer.render(scene, camera);
+    return;
+  }}
   controls.update();
   core.rotation.y += 0.0012; core.rotation.x += 0.0005;
   renderer.render(scene, camera);
-}})();
+  animationFrame = requestAnimationFrame(renderFrame);
+}}
+function applyMotionPolicy() {{
+  controls.autoRotate = !(reducedMotion.matches || compactCanvas.matches);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, compactCanvas.matches ? 1 : 2));
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  animationFrame = 0;
+  renderFrame();
+}}
+reducedMotion.addEventListener?.('change', applyMotionPolicy);
+compactCanvas.addEventListener?.('change', applyMotionPolicy);
+document.addEventListener('visibilitychange', applyMotionPolicy);
+applyMotionPolicy();
 
 // Place capability tiles evenly on a ring around the core, colored by honest label.
 function drawConstellation(tiles) {{
@@ -520,6 +703,87 @@ function fail(msg) {{
   if (el) {{ el.className = 'status-line err'; el.textContent = msg; }}
 }}
 
+function setBrainMetric(id, value) {{
+  const el = document.getElementById(id);
+  if (el) el.textContent = value == null ? '--' : String(value);
+}}
+function setBrainLabel(label) {{
+  const honest = label || 'UNAVAILABLE';
+  const el = document.getElementById('brain-label');
+  if (el) {{ el.textContent = honest; el.className = 'badge ' + cls(honest); }}
+}}
+
+(async function loadEvidenceBrain() {{
+  const result = document.getElementById('brain-result');
+  try {{
+    const [statsResponse, corpusResponse] = await Promise.all([
+      fetch(BRAIN_STATS_EP, {{headers:{{Accept:'application/json'}}}}),
+      fetch(BRAIN_CORPUS_EP, {{headers:{{Accept:'application/json'}}}}),
+    ]);
+    if (!statsResponse.ok || !corpusResponse.ok) throw new Error(
+      'status endpoints ' + statsResponse.status + '/' + corpusResponse.status);
+    const stats = await statsResponse.json();
+    const corpus = await corpusResponse.json();
+    const counts = corpus?.summary?.counts || {{}};
+    const admitted = Object.values(counts).reduce((total, value) => total + (Number(value) || 0), 0);
+    setBrainMetric('brain-node-count', stats.node_count);
+    setBrainMetric('brain-artifact-count', stats.distinct_artifacts);
+    setBrainMetric('brain-admitted-count', admitted);
+    setBrainMetric('brain-quarantine-count', corpus?.summary?.quarantined_entries);
+    setBrainMetric('brain-ingestion-delta', 'NOT MEASURED');
+    setBrainLabel(stats.label);
+    result.textContent = 'Live status loaded. Brain counts are ' + (stats.label || 'UNAVAILABLE') +
+      '; corpus admission is ' + (corpus.label || 'UNAVAILABLE') +
+      '. Raw graph and governed-corpus counts are different contracts; no ingestion uplift is inferred.';
+  }} catch (error) {{
+    setBrainLabel('UNAVAILABLE');
+    result.textContent = 'Brain status unavailable: ' + error + '. No counts or ingestion delta fabricated.';
+  }}
+}})();
+
+document.getElementById('brain-query-form').addEventListener('submit', async event => {{
+  event.preventDefault();
+  const input = document.getElementById('brain-query-input');
+  const button = event.currentTarget.querySelector('button');
+  const result = document.getElementById('brain-result');
+  const q = input.value.trim();
+  if (!q) {{
+    result.textContent = 'Enter a non-empty question. No query was run and no latency was inferred.';
+    return;
+  }}
+  button.disabled = true;
+  result.textContent = 'Running a source-grounded Brain query...';
+  const started = performance.now();
+  try {{
+    const response = await fetch(BRAIN_ASK_EP + '?q=' + encodeURIComponent(q) + '&k=12',
+      {{headers:{{Accept:'application/json'}}}});
+    const payload = await response.json();
+    if (!response.ok) throw new Error('query ' + response.status);
+    const elapsed = Math.round(performance.now() - started);
+    setBrainMetric('brain-query-latency', elapsed + ' ms');
+    const answerLabel = payload.answer_label || 'UNAVAILABLE';
+    const cited = Array.isArray(payload.cited_node_ids) ? payload.cited_node_ids.slice(0, 12) : [];
+    const groundingCount = payload?.grounding_subgraph?.node_count ?? cited.length;
+    const prose = typeof payload.answer === 'string' && payload.answer.trim()
+      ? payload.answer.trim().slice(0, 600) : '';
+    setBrainLabel(answerLabel);
+    result.textContent = prose
+      ? '[' + answerLabel + '] ' + prose + ' | cited: ' + (cited.join(', ') || 'none') +
+        ' | measured client RTT: ' + elapsed + ' ms'
+      : '[' + answerLabel + '] Grounding returned ' + groundingCount + ' nodes (' +
+        (cited.join(', ') || 'no cited IDs') + '). No generated prose was available; nothing fabricated. ' +
+        'Measured client RTT: ' + elapsed + ' ms.';
+  }} catch (error) {{
+    const elapsed = Math.round(performance.now() - started);
+    setBrainMetric('brain-query-latency', elapsed + ' ms');
+    setBrainLabel('UNAVAILABLE');
+    result.textContent = 'Brain query unavailable after a measured ' + elapsed + ' ms: ' + error +
+      '. No answer fabricated.';
+  }} finally {{
+    button.disabled = false;
+  }}
+}});
+
 (async function load() {{
   try {{
     const r = await fetch(MANIFEST_EP, {{ headers:{{Accept:'application/json'}} }});
@@ -563,6 +827,93 @@ const SURF_CLASS = {{
 }};
 function surfCls(label) {{ return SURF_CLASS[label] || 'unavailable'; }}
 
+const SURFACE_PAGE_SIZE = 12;
+let allSurfaces = [];
+let activeSurfaceLabel = 'ALL';
+let surfaceQuery = '';
+let surfacePage = 0;
+
+function matchingSurfaces() {{
+  const needle = surfaceQuery.toLowerCase();
+  return allSurfaces.filter(surface => {{
+    const label = surface.label || 'UNAVAILABLE';
+    const labelMatches = activeSurfaceLabel === 'ALL' || label === activeSurfaceLabel;
+    const text = [surface.id, surface.title, surface.asset, label].join(' ').toLowerCase();
+    return labelMatches && (!needle || text.includes(needle));
+  }});
+}}
+
+function renderSurfaceTabs(labelCounts) {{
+  const labels = ['ALL', ...Object.keys(labelCounts)];
+  const tabs = document.getElementById('surface-filters');
+  tabs.innerHTML = labels.map((label, index) => {{
+    const count = label === 'ALL' ? allSurfaces.length : (labelCounts[label] || 0);
+    return `<button type="button" class="surface-tab" role="tab" id="surface-tab-${{index}}"`
+      + ` data-label="${{esc(label)}}" aria-selected="${{label === activeSurfaceLabel}}"`
+      + ` aria-controls="surfaces-list" tabindex="${{label === activeSurfaceLabel ? 0 : -1}}"`
+      + `>${{esc(label)}} ${{esc(count)}}</button>`;
+  }}).join('');
+  const tabButtons = [...tabs.querySelectorAll('[role="tab"]')];
+  tabButtons.forEach((tab, index) => {{
+    tab.addEventListener('click', () => {{
+      activeSurfaceLabel = tab.dataset.label || 'ALL';
+      surfacePage = 0;
+      renderSurfaceTabs(labelCounts);
+      renderSurfaceCatalog();
+    }});
+    tab.addEventListener('keydown', event => {{
+      let target = null;
+      if (event.key === 'ArrowRight') target = (index + 1) % tabButtons.length;
+      else if (event.key === 'ArrowLeft') target = (index - 1 + tabButtons.length) % tabButtons.length;
+      else if (event.key === 'Home') target = 0;
+      else if (event.key === 'End') target = tabButtons.length - 1;
+      if (target == null) return;
+      event.preventDefault();
+      tabButtons[target].click();
+      document.querySelectorAll('#surface-filters [role="tab"]')[target]?.focus();
+    }});
+  }});
+}}
+
+function renderSurfaceCatalog() {{
+  const filtered = matchingSurfaces();
+  const pageCount = Math.max(1, Math.ceil(filtered.length / SURFACE_PAGE_SIZE));
+  surfacePage = Math.min(surfacePage, pageCount - 1);
+  const start = surfacePage * SURFACE_PAGE_SIZE;
+  const visible = filtered.slice(start, start + SURFACE_PAGE_SIZE);
+  const list = document.getElementById('surfaces-list');
+  list.innerHTML = visible.length ? visible.map(surface => {{
+    const label = surface.label || 'UNAVAILABLE';
+    const target = '/holographic#' + encodeURIComponent(surface.id || '');
+    return `<a class="surface-pill" role="listitem" href="${{target}}"`
+      + ` title="${{esc(surface.asset || '')}}" aria-label="Open ${{esc(surface.title || surface.id || 'surface')}}; ${{esc(label)}}">`
+      + `<span class="surface-copy"><span class="sid">${{esc(surface.id || '')}}</span>`
+      + `<span class="surface-title">${{esc(surface.title || '')}}</span></span>`
+      + `<span class="badge ${{surfCls(label)}}">${{esc(label)}}</span></a>`;
+  }}).join('') : '<div class="surface-empty">No surface matches this exact label and search. No result fabricated.</div>';
+
+  const first = filtered.length ? start + 1 : 0;
+  const last = Math.min(start + visible.length, filtered.length);
+  document.getElementById('surface-page-status').textContent =
+    'showing ' + first + '-' + last + ' of ' + filtered.length +
+    ' matching / ' + allSurfaces.length + ' total | page ' + (surfacePage + 1) + '/' + pageCount;
+  document.getElementById('surface-prev').disabled = surfacePage === 0;
+  document.getElementById('surface-next').disabled = surfacePage >= pageCount - 1 || filtered.length === 0;
+}}
+
+document.getElementById('surface-search').addEventListener('input', event => {{
+  surfaceQuery = event.target.value.trim();
+  surfacePage = 0;
+  renderSurfaceCatalog();
+}});
+document.getElementById('surface-prev').addEventListener('click', () => {{
+  if (surfacePage > 0) {{ surfacePage -= 1; renderSurfaceCatalog(); }}
+}});
+document.getElementById('surface-next').addEventListener('click', () => {{
+  const count = matchingSurfaces().length;
+  if ((surfacePage + 1) * SURFACE_PAGE_SIZE < count) {{ surfacePage += 1; renderSurfaceCatalog(); }}
+}});
+
 (async function loadSurfaces() {{
   const statusEl = document.getElementById('surfaces-status');
   try {{
@@ -581,14 +932,10 @@ function surfCls(label) {{ return SURF_CLASS[label] || 'unavailable'; }}
     chips.push(`<span class="chip">labels valid: <b>${{esc(String(s.labels_valid))}}</b></span>`);
     document.getElementById('surfaces-rollup').innerHTML = chips.join('');
 
-    // one honest pill per surface: id · title · label badge
-    document.getElementById('surfaces-list').innerHTML = surfaces.map(su => {{
-      const label = su.label || 'UNAVAILABLE';
-      return `<span class="surface-pill" title="${{esc(su.asset || '')}}">`
-        + `<span class="sid">${{esc(su.id)}}</span>`
-        + `<span>${{esc(su.title || '')}}</span>`
-        + `<span class="badge ${{surfCls(label)}}">${{esc(label)}}</span></span>`;
-    }}).join('');
+    // retain every surface, then render a bounded honest page: id + title + label.
+    allSurfaces = surfaces;
+    renderSurfaceTabs(lc);
+    renderSurfaceCatalog();
 
     statusEl.className = 'status-line';
     statusEl.textContent = (m.ok === false)
@@ -596,6 +943,9 @@ function surfCls(label) {{ return SURF_CLASS[label] || 'unavailable'; }}
       : ('live · ' + esc(m.count ?? surfaces.length) + ' surfaces from ' + esc(SURFACES_EP)
          + ' · labels_valid=' + esc(String(s.labels_valid)));
   }} catch (e) {{
+    allSurfaces = [];
+    renderSurfaceTabs({{}});
+    renderSurfaceCatalog();
     statusEl.className = 'status-line err';
     statusEl.textContent = 'surfaces unavailable: ' + e + ' (nothing fabricated — raw data at ' + SURFACES_EP + ')';
   }}
@@ -604,16 +954,20 @@ function surfCls(label) {{ return SURF_CLASS[label] || 'unavailable'; }}
 </body></html>"""
 
 
-def register(app: FastAPI, ns: str = "a11oy") -> str:
+def register(app, ns: str = "a11oy") -> str:
     """Mount GET /frontier (HTML) + GET /api/<ns>/v1/frontier/page-manifest (JSON).
     ADDITIVE — registered before the SPA catch-all; touches no existing route."""
 
+    # Keep the pure manifest builders importable in bounded/offline evidence
+    # jobs where the web-serving dependency is intentionally absent.
+    from fastapi.responses import HTMLResponse, JSONResponse
+
     @app.get("/frontier", include_in_schema=False)
-    async def frontier_page() -> HTMLResponse:  # noqa: ANN202
+    async def frontier_page():  # noqa: ANN202
         return HTMLResponse(_page_html(ns))
 
     @app.get(f"/api/{ns}/v1/frontier/surfaces")
-    async def frontier_surfaces() -> JSONResponse:  # noqa: ANN202
+    async def frontier_surfaces():  # noqa: ANN202
         """Machine-verifiable manifest of every 3D frontier surface.
 
         id + title + honesty label (parsed from the surface source, verbatim) +
@@ -621,7 +975,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
         return JSONResponse(build_surfaces_manifest(ns))
 
     @app.get(f"/api/{ns}/v1/frontier/page-manifest", include_in_schema=False)
-    async def frontier_page_manifest() -> JSONResponse:  # noqa: ANN202
+    async def frontier_page_manifest():  # noqa: ANN202
         return JSONResponse({
             "section": "Frontier",
             "page": "/frontier",
@@ -667,8 +1021,35 @@ def _selftest() -> None:
     assert 'id="surfaces-list"' in html and 'id="surfaces-rollup"' in html, \
         "surfaces section markers missing"
     assert "loadSurfaces" in html, "surfaces client loader missing"
+    # 8) responsive catalog retains every fetched surface in memory while rendering a
+    # bounded, filterable page; its exact honesty labels remain the filter contract.
+    for marker in (
+        'id="surface-filters"', 'role="tablist"', 'id="surface-search"',
+        'id="surface-prev"', 'id="surface-next"', 'id="surface-page-status"',
+        "const SURFACE_PAGE_SIZE = 12", "allSurfaces = surfaces",
+        "filtered.slice(start, start + SURFACE_PAGE_SIZE)",
+        "'/holographic#' + encodeURIComponent", "ArrowRight", "ArrowLeft",
+    ):
+        assert marker in html, f"responsive surface catalog marker missing: {marker}"
+    for marker in (
+        "--honest-banner-h", "ResizeObserver", "overflow-x:clip",
+        "overflow-wrap:anywhere", "@media (max-width:720px)",
+        "@media (max-width:420px)", "prefers-reduced-motion:reduce",
+    ):
+        assert marker in html, f"responsive shell marker missing: {marker}"
+    # 9) the Evidence Brain only displays live reads and measured client RTT; it
+    # never promises a latency target or invents an ingestion uplift.
+    for marker in (
+        "/api/a11oy/v1/brain/stats",
+        "/api/a11oy/v1/brain/health/corpus-sources",
+        "/api/a11oy/v1/brain/ask",
+        'id="brain-query-form"', "performance.now()", "cited_node_ids",
+        "NOT MEASURED", 'href="/formulas"',
+    ):
+        assert marker in html, f"Evidence Brain marker missing: {marker}"
+    assert "answers in 2 seconds" not in html.lower(), "unmeasured latency promise found"
 
-    # 8) the manifest builder parses the live registry honestly
+    # 10) the manifest builder parses the live registry honestly
     man = build_surfaces_manifest("a11oy")
     assert man["ok"] is True, f"surfaces manifest not ok: {man.get('error')}"
     assert man["count"] == len(man["surfaces"]) and man["count"] > 0, "surface count mismatch"

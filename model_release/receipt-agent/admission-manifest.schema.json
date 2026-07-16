@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-receipt-agent-admission-manifest-v1.json",
+  "title": "SZL ReceiptAgent admission manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "program_id",
+    "evaluated_at",
+    "promotion_decision",
+    "gate_policy",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.receipt-agent-admission-manifest.v1"
+    },
+    "program_id": {
+      "const": "szl-forge-1.5b-receipt-agent"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "promotion_decision": {
+      "const": "BLOCKED"
+    },
+    "gate_policy": {
+      "const": "ALL_REQUIRED_GATES_MUST_PASS_ZERO_CATASTROPHIC_ERRORS"
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gate_id",
+          "name",
+          "state",
+          "required_for_promotion",
+          "exact_requirement",
+          "observed",
+          "evidence"
+        ],
+        "properties": {
+          "gate_id": {
+            "type": "string",
+            "pattern": "^RA-G[0-9]{2}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "enum": [
+              "PASS",
+              "BLOCKED",
+              "FAIL",
+              "NOT_EVALUATED"
+            ]
+          },
+          "required_for_promotion": {
+            "const": true
+          },
+          "exact_requirement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

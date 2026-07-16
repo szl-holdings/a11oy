@@ -1,0 +1,72 @@
+{
+  "schema_version": "szl.nemo.preflight-receipt.v1",
+  "contract_id": "szl-nemo-governed-adapter-v1",
+  "state": "PASS",
+  "checks": [
+    {
+      "id": "PINNED_CONTRACT_ASSETS",
+      "state": "PASS"
+    },
+    {
+      "id": "PROJECT_AUTHORED_CURRICULUM",
+      "state": "PASS",
+      "train_rows": 24,
+      "eval_rows": 8
+    },
+    {
+      "id": "IMMUTABLE_NVIDIA_BASE",
+      "state": "PASS",
+      "revision": "dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
+      "files": [
+        {
+          "path": "config.json",
+          "bytes": 1430,
+          "git_blob_sha1": "d5c7a47cb23bd312350c648a3c917130d1531ee3"
+        },
+        {
+          "path": "model.safetensors",
+          "bytes": 7947142640,
+          "sha256": "55d4e2519456c4a9bddf596b0748d630e3b2ce6ff6f4c2b7ed3e07e2b00dad42"
+        },
+        {
+          "path": "tokenizer.json",
+          "bytes": 17077484,
+          "sha256": "623c34567aebb18582765289fbe23d901c62704d6518d71866e0e58db892b5b7"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "bytes": 188034,
+          "git_blob_sha1": "f0048c22e792605128ad1dc342dd6fee7d0c7972"
+        },
+        {
+          "path": "chat_template.jinja",
+          "bytes": 10504,
+          "git_blob_sha1": "67ca3ce54a7118ed74d6fd793b7cc9fd6b2a9f03"
+        },
+        {
+          "path": "generation_config.json",
+          "bytes": 171,
+          "git_blob_sha1": "f97082414e74f1bdc96f7ccd2d6100fc8edeb7b1"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "bytes": 420,
+          "git_blob_sha1": "0d5c2c9dba131d5da20e58336dd09b022142ea50"
+        }
+      ]
+    },
+    {
+      "id": "LICENSE_LINEAGE",
+      "state": "PASS",
+      "license": "NVIDIA Nemotron Open Model License",
+      "url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-nemotron-open-model-license/",
+      "operator_ack_required_for_training": true
+    }
+  ],
+  "effects": {
+    "training_started": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false
+  }
+}

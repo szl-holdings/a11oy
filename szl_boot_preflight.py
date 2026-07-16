@@ -143,6 +143,12 @@ _REGISTRY = [
             "Key identifier surfaced in verify receipts (non-secret).",
             default=None),
 
+    # ---- governed compute authority (store only the bearer SHA-256) ----
+    EnvSpec("A11OY_COMPUTE_TOKEN_SHA256", SECRET, "compute",
+            "SHA-256 of the bearer accepted by stateful Yupaq compute routes. "
+            "Absent => submit/readback routes fail closed.",
+            required=False, default=None),
+
     # ---- energy / GPU lungs (SECRET token + VARIABLE addressing/flags) ----
     EnvSpec("A11OY_GPU_TOKEN", SECRET, "energy",
             "Bearer token for the sovereign GPU node(s). Absent => joules are "

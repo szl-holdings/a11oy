@@ -17,9 +17,20 @@ szl_energy_ledger.jsonl
 *.ledger.jsonl
 # Governed-brain write-back overlay (append-only receipts written at run time; NOT shipped)
 .szl_brain_overlay.jsonl
+# Local council / approval runtime state created by focused tests and dev runs; never release.
+.a11oy-state/
+# Bounded pytest basetemp directories used when the OS temp root is sandbox-inaccessible.
+.pytest-*/
 # Runtime energy-operator ledger/state (Dev 1) — persisted counts, never committed
 artifacts/energy_operator_ledger.json
 artifacts/energy_operator_ledger.json.tmp
+
+# Local runtime databases and append-only Khipu turn receipts. Historical,
+# intentionally versioned fixtures remain tracked; new runtime state must not
+# enter a release or model artifact by accident.
+data/*.sqlite3
+data/*.db
+khipu/**/*.ndjson
 
 # DEV A gap-closure (2026-06-30): reverse-imported SZLHOLDINGS/immune Space is a
 # Node app whose deployable IS its built dist/. Re-include this ONE governed snapshot

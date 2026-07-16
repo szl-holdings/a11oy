@@ -31,11 +31,15 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@814ad6f7f4243b537c10d223215d1a3f61a3436e  # PR #198; repin to its squash SHA after merge
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@4c5f39bcde92e2fdc1652072cf6ab8e2b3ab5b21  # LFS content-identity guard
     with:
       hf-repo: SZLHOLDINGS/a11oy
       # GitHub and Hugging Face revisions are independent namespaces. Pull
       # requests compare the exact proposed source with the exact reconciled
       # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      hf-ref: ${{ github.event_name == 'pull_request' && 'bb4e1dd70ed2249310d911db4a48a7c958568a37' || 'main' }}
+      # Non-live candidate branch wave23-pr935-v3-candidate, reconciled from the
+      # exact GitHub tree ba5e548f8913b698c0da7fbfa8f9f01afa470ba8 without
+      # mutating Space main or pruning HF-only files. Pin the immutable HF commit,
+      # never the movable branch name.
+      hf-ref: ${{ github.event_name == 'pull_request' && 'f7607bf1028a6934a08d0ec119e929708f243f40' || 'main' }}

@@ -953,6 +953,16 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return HTMLResponse(_page_body(ns))
     paths.append("/body-3d")
 
+    # Incremental Anatomy v6 keeps the v5 body route untouched and opens the
+    # receipt-driven cortical surface in the shared sovereign Three.js shell.
+    # That surface renders no node, edge, or pulse without a measured inventory
+    # decision / written feed receipt from the Brain reranker API.
+    @app.get("/body-3d-v6")
+    async def _p_body_v6():  # noqa
+        from starlette.responses import RedirectResponse
+        return RedirectResponse("/holographic#brainreranker", status_code=307)
+    paths.append("/body-3d-v6")
+
     # ---- live JSON endpoints (wired to real evaluators + Khipu DAG + DSSE) ----
     @app.post(f"{base}/yuyay-13/vote")
     async def _e_yuyay(req: Request):  # noqa

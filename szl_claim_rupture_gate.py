@@ -473,4 +473,3 @@ def info() -> dict[str, Any]:
         ],
         "not_implemented_here": ["HTTP registration", "persistence", "signing", "effectors"],
     }
-

@@ -1,10 +1,11 @@
 """ayllu.lounge — the collaboration surface, learned from the tribe lounge/bus.
 
 The tribe let souls talk in a shared room. a11oy keeps that, in-memory and honest: each
-posted message carries a source label ("brain" when a real model answered, else
-"persona-fallback"), so a reader always knows whether they are seeing a grounded reply
-or an honest placeholder. `deliberate()` runs a BOUNDED council round — one honest turn
-per persona — and never fabricates when no backend is injected.
+posted message carries a source label ("model-unverified" when a model answered,
+else "persona-fallback"), so a reader never mistakes direct model text for grounded
+Brain retrieval. `deliberate()` runs a BOUNDED council round — one honest turn
+per persona — and never fabricates when no backend is injected. Publishing is
+explicit opt-in; public ask/council calls keep their output out of this feed.
 """
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ class Lounge:
         difficulty: float = 0.6,
         two_person_attested: bool = False,
         debate: bool = False,
+        publish_to_lounge: bool = False,
     ) -> dict[str, Any]:
         from .loop import run_turn
 
@@ -53,8 +55,10 @@ class Lounge:
         )))
         for p, turn in zip(personas, rounds):
             turn["round"] = 1
-            src = "brain" if turn.get("answer") is not None else "persona-fallback"
-            self.post(p.name, turn.get("answer") or turn.get("honesty"), source=src)
+            src = ("model-unverified" if turn.get("answer") is not None
+                   and not turn.get("stub") else "persona-fallback")
+            if publish_to_lounge:
+                self.post(p.name, turn.get("answer") or turn.get("honesty"), source=src)
 
         mode = "single-round"
         # Debate-then-converge (after arXiv:2305.14325, Multiagent Debate): one
@@ -88,10 +92,11 @@ class Lounge:
                 )))
                 for (p, _turn_prompt), turn in zip(debate_jobs, revised):
                     turn["round"] = 2
-                    src = ("brain" if turn.get("answer") is not None
-                           else "persona-fallback")
-                    self.post(p.name, turn.get("answer") or turn.get("honesty"),
-                              source=src)
+                    src = ("model-unverified" if turn.get("answer") is not None
+                           and not turn.get("stub") else "persona-fallback")
+                    if publish_to_lounge:
+                        self.post(p.name, turn.get("answer") or turn.get("honesty"),
+                                  source=src)
                     rounds.append(turn)
             else:
                 mode = "single-round"
@@ -101,6 +106,7 @@ class Lounge:
             "participants": [p.name for p in personas],
             "rounds": rounds,
             "mode": mode,
+            "published_to_lounge": publish_to_lounge,
             "note": "bounded council; each turn honest (no fabrication when a model "
                     "backend is absent); debate mode = exactly two rounds, "
                     "after arXiv:2305.14325",

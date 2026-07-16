@@ -119,14 +119,14 @@ def register(app, ns: str = "a11oy") -> str:
     n_before = len(app.router.routes)
 
     @app.get("/operator-organ")
-    async def _operator_page() -> Response:  # noqa
+    async def _operator_page():  # noqa: ANN202
         f = _PAGES / "operator_organ.html"
         if f.is_file():
             return FileResponse(str(f), media_type="text/html; charset=utf-8")
         return JSONResponse({"error": "operator organ page missing"}, status_code=404)
 
     @app.get("/operator-organ/app.js")
-    async def _operator_js() -> Response:  # noqa
+    async def _operator_js():  # noqa: ANN202
         f = _STATIC / "a11oy_operator_organ.js"
         if f.is_file():
             return FileResponse(
@@ -135,7 +135,7 @@ def register(app, ns: str = "a11oy") -> str:
         return JSONResponse({"error": "operator organ js missing"}, status_code=404)
 
     @app.get("/operator-organ/topology.json")
-    async def _operator_topology() -> Response:  # noqa
+    async def _operator_topology():  # noqa: ANN202
         try:
             topo = _build_topology(app)
             _CACHE["topo"] = topo

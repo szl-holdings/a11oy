@@ -25,10 +25,11 @@ The VRAM-resident, three-layer quant pipeline validated in GPU_QUANT_RESEARCH.md
 HONESTY SPINE (doctrine v11 — the non-negotiable part of this build):
   * EVERY output is a SAMPLE_SIGNAL: synthetic / illustrative returns, NOT a live feed,
     NO_BACKTEST_VALIDATED. We have NOT run a backtest. We do NOT claim live-trading.
-  * The compute path here is the HONEST CPU FALLBACK (pure-Python linear algebra +
+  * The compute path here is the HONEST CPU REFERENCE (pure-Python linear algebra +
     a pure-Python Vietoris-Rips β0/β1 over a thresholded distance graph). The GPU path
-    (cuML LedoitWolf + cuPy eigh + giotto-tda / Ripser++) is labeled ROADMAP — it flips
-    to MEASURED only on a sovereign GPU with those libs present (live gpu_reachable probe).
+    (cuML LedoitWolf + cuPy eigh + giotto-tda / Ripser++) is labeled ROADMAP. GPU
+    reachability and dependency imports are readiness only; MEASURED requires a distinct
+    accelerated path plus device/kernel/timing execution evidence.
   * Every receipt is SIGNED via szl_dsse.sign_payload (REAL ECDSA when the cosign key
     is present in the runtime; an explicit UNSIGNED honesty marker otherwise — never a
     fabricated signature). The label SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED is
@@ -105,8 +106,8 @@ def _np_present() -> bool:
 
 def _sovereign_state() -> dict:
     """LIVE sovereign-inference posture (delegated to the orchestrator — the authority).
-    Honest default not-sovereign on any failure. The GPU quant path may claim MEASURED
-    ONLY when gpu_reachable AND the cuML/cuPy/giotto stack is present."""
+    Honest default not-sovereign on any failure. This state is reachability evidence,
+    never proof that the finance quant pipeline executed on a GPU."""
     try:
         import a11oy_code_orchestrator as _orch  # type: ignore
         st = _orch._sovereign_inference_state()
@@ -127,23 +128,33 @@ def _gpu_reachable(state: dict | None = None) -> bool:
 def _compute_backend() -> dict:
     """Which compute path actually ran, honestly labeled.
 
-    GPU-MEASURED  -> a sovereign GPU is reachable AND cuML+cuPy+giotto are importable.
-    CPU-SAMPLE    -> the honest pure-Python fallback (what runs in this Space today).
+    The numerical layer implementations in this module are currently the pure-Python
+    reference path.  Dependency availability is *readiness*, not execution evidence:
+    merely finding a sovereign GPU and importing cuML/cuPy must never relabel CPU
+    results as GPU-MEASURED.  When an accelerated implementation is added it must
+    supply execution evidence (device, kernel/implementation id, and timing receipt)
+    before this contract can emit a MEASURED GPU label.
     """
     libs = _gpu_libs_present()
     reachable = _gpu_reachable()
-    gpu_path = reachable and libs.get("cuml") and libs.get("cupy")
+    acceleration_dependencies_ready = bool(
+        reachable and libs.get("cuml") and libs.get("cupy")
+    )
     return {
-        "backend": "GPU (cuML/cuPy)" if gpu_path else "CPU pure-Python fallback",
-        "label": "MEASURED" if gpu_path else "SAMPLE",
+        "backend": "CPU pure-Python reference",
+        "compute_path": "CPU_REFERENCE",
+        "label": "SAMPLE",
         "gpu_reachable": reachable,
         "gpu_libs_present": libs,
+        "acceleration_dependencies_ready": acceleration_dependencies_ready,
+        "acceleration_implementation_wired": False,
+        "execution_evidence": None,
         "honest_note": (
-            "Sovereign GPU reachable and RAPIDS stack present — Layers 1/3 run in VRAM (cuML LedoitWolf + cuPy eigh)."
-            if gpu_path else
-            "Honest CPU fallback: pure-Python linear algebra (Jacobi eigensolver) + pure-Python "
-            "Vietoris-Rips β0/β1. The cuML/cuPy/giotto-tda/Ripser++ GPU path is ROADMAP — it flips "
-            "to MEASURED only on a sovereign GPU with those libraries (live gpu_reachable probe)."),
+            "Pure-Python reference implementation executed: Jacobi eigensolver plus "
+            "pure-Python Vietoris-Rips β0/β1. GPU reachability and importable RAPIDS "
+            "dependencies indicate readiness only. The accelerated cuML/cuPy/Ripser++ "
+            "implementation is ROADMAP and cannot be labeled MEASURED until a distinct "
+            "device-executed path emits execution evidence."),
     }
 
 
@@ -757,7 +768,8 @@ def tiers_panel() -> dict:
             "config": "vLLM --tensor-parallel-size 2 shards ONE larger model across a-11-oy.com GPU + RTX 4000",
             "fits": "e.g. Qwen3-32B comfortably, or a quantized Nemotron-3-Super across combined VRAM",
             "gpus": [per_gpu("a-11-oy.com GPU"), per_gpu("NVIDIA RTX 4000 (Ada, ~20GB)")],
-            "label": "MEASURED" if reachable else "ROADMAP",
+            "label": "LIVE_REACHABLE" if reachable else "ROADMAP",
+            "execution_evidence": None,
         },
         {
             "tier": "sovereign-local · ROLE-SPLIT (recommended for agent loops)",
@@ -768,7 +780,8 @@ def tiers_panel() -> dict:
             "fits": "keeps the main GPU from stalling on inline review/draft — best fit for our agent+Auto-Review arch",
             "gpus": [per_gpu("a-11-oy.com GPU · primary model"),
                      per_gpu("RTX 4000 · classifier+draft+embeddings")],
-            "label": "MEASURED" if reachable else "ROADMAP",
+            "label": "LIVE_REACHABLE" if reachable else "ROADMAP",
+            "execution_evidence": None,
         },
         {
             "tier": "cloud · NVIDIA NIM (Nemotron 3 Ultra) — frontier/hard tier",
