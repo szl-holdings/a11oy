@@ -577,6 +577,17 @@ try:
     print("[a11oy] Backend hardening registered: /api/a11oy/v1/compute-pool-hardened (+ probe_fabric_pool/ttl_cache helpers)", file=__import__("sys").stderr)
 except Exception as _szl_bh_e:  # pragma: no cover
     print(f"[a11oy] Backend hardening NOT registered: {_szl_bh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
+# Explicit contract projection; the legacy TCP inventory remains unchanged.
+try:
+    import szl_compute_pool_contract as _szl_compute_pool_contract
+    _szl_pool_contract_paths = _szl_compute_pool_contract.register(app, ns="a11oy")
+    print(f"[a11oy] compute-pool/v1 contract registered: {_szl_pool_contract_paths}", file=__import__("sys").stderr)
+except Exception as _szl_pool_contract_error:  # pragma: no cover
+    print(
+        f"[a11oy] compute-pool/v1 contract NOT registered: {_szl_pool_contract_error!r}; legacy routes unaffected",
+        file=__import__("sys").stderr,
+    )
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
 # ── Observability / distributed tracing (devN) — szl_observability ──
@@ -13762,17 +13773,17 @@ try:
 
     _a11oy_source_observation = {
         "repository": "szl-holdings/a11oy",
-        "commit": "2ca22d0b337805a2d4e7e65af3f6738c401431a4",
+        "repository_url": "https://github.com/szl-holdings/a11oy",
         "path": "",
         "relation": "declared-source-with-hf-overlay",
-        "state": "VERIFIED_REFERENCE",
-        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/2ca22d0b337805a2d4e7e65af3f6738c401431a4",
+        # Source/deploy identities come from immutable build/runtime inputs.
+        # Missing inputs remain null/UNKNOWN; no commit is typed in by hand.
     }
     _szl_source_result = _szl_source_attestation.register(
         app,
         "SZLHOLDINGS/a11oy",
         _a11oy_source_observation,
-        "PENDING_GITHUB_SYNC",
+        "UNKNOWN",
     )
     print(f"[a11oy] deployment-source attestation registered: {_szl_source_result}", file=sys.stderr)
 except Exception as _szl_source_error:  # additive: never take down the SPA
