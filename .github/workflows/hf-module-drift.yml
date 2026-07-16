@@ -31,16 +31,15 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@4c5f39bcde92e2fdc1652072cf6ab8e2b3ab5b21  # LFS content-identity guard
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@7f98060dd3e3d4641fca1192cb182816c4fd72d3  # .github main: LFS content-identity verify (PR #203 squash; never pin a PR-branch sha - branch deletion makes it unresolvable and push runs die at startup)
     with:
       hf-repo: SZLHOLDINGS/a11oy
       # GitHub and Hugging Face revisions are independent namespaces. Pull
       # requests compare the exact proposed source with the exact reconciled
       # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      # Space main reconciled with this tree after the 2026-07-16 outage: the
-      # Dockerfile is the shrunk copy (HF hard-kills Space builds pre-log once
-      # the Dockerfile exceeds 128 KiB -- see docs/DOCKERFILE_NOTES.md) and the
-      # two LFS assets deleted during outage debugging are restored. Pin the
-      # immutable HF commit, never the movable branch name.
-      hf-ref: ${{ github.event_name == 'pull_request' && '881ea105d97e0c8322885609ae94ba8b6803b68a' || 'main' }}
+      # Space main after the wave-24 model-lane sync (hf-sync + hourly backend
+      # mirror both converged on the shrunk post-outage Dockerfile -- see
+      # docs/DOCKERFILE_NOTES.md). Pin the immutable HF commit, never the
+      # movable branch name.
+      hf-ref: ${{ github.event_name == 'pull_request' && '39600350db126849605254ccc3869e4c2a7614d6' || 'main' }}
