@@ -31,19 +31,12 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@3625b7e22d38b795f1b628420607c65066082b31  # .github PR #205: immutable trusted deployed-baseline verification
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@7f98060dd3e3d4641fca1192cb182816c4fd72d3  # .github main: LFS content-identity verify (PR #203 squash; never pin a PR-branch sha - branch deletion makes it unresolvable and push runs die at startup)
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      # Pull requests verify the immutable GitHub/HF deployment pair recorded
-      # on the exact protected base SHA, then report candidate-only deltas. The
-      # candidate is never compared to or deployed over the live Space.
-      mode: ${{ github.event_name == 'pull_request' && 'trusted-baseline' || 'direct' }}
-      deployment-lock-path: .github/hf-deployment-lock.json
-      trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
-      candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
       # GitHub and Hugging Face revisions are independent namespaces. Pull
-      # requests use the trusted baseline above; main/scheduled runs retain the
-      # direct live comparison.
+      # requests compare the exact proposed source with the exact reconciled
+      # Space deployment; main/scheduled runs compare each live main.
       github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       # Space main after the holographic dedupe push (fix applied Space-first
       # so PR trees compare equal; see docs/DOCKERFILE_NOTES.md for the earlier
