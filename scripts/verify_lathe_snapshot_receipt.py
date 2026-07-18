@@ -18,16 +18,38 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from sign_lathe_snapshot import (  # noqa: E402
     ARTIFACT_PATH,
+    MAX_SNAPSHOT_BYTES,
     PAYLOAD_TYPE,
     RECEIPT_SUBJECT_SCHEMA,
     SUBJECT_NAME,
+    _read_regular_file,
     load_validated_snapshot,
     receipt_subject,
 )
+import lathe_snapshot as lathe  # noqa: E402
 from szl_formulas import verify_dsse_real  # noqa: E402
 
 
 OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+IN_TOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json"
+IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
+GOVERNANCE_PREDICATE_TYPE = (
+    "https://szl-holdings.dev/attestations/governance-receipt/v1"
+)
+MAX_RECEIPT_BYTES = 32 * 1024 * 1024
+
+
+def load_receipt_envelope(path: Path) -> dict:
+    """Load one bounded, duplicate-free regular receipt file."""
+
+    raw = _read_regular_file(path, max_bytes=MAX_RECEIPT_BYTES)
+    try:
+        envelope = json.loads(raw, object_pairs_hook=lathe._json_object)
+    except (json.JSONDecodeError, UnicodeDecodeError, lathe.LatheSnapshotError) as exc:
+        raise ValueError("receipt is not valid duplicate-free UTF-8 JSON") from exc
+    if not isinstance(envelope, dict):
+        raise ValueError("receipt root must be a JSON object")
+    return envelope
 
 
 def _verified_dsse_envelope(envelope: dict) -> dict:
@@ -41,6 +63,8 @@ def _verified_dsse_envelope(envelope: dict) -> dict:
     for field in ("payloadType", "payload", "signatures"):
         if envelope.get(field) != bundled.get(field):
             raise ValueError(f"outer {field} does not match the verified Sigstore bundle")
+    if bundled.get("payloadType") != IN_TOTO_PAYLOAD_TYPE:
+        raise ValueError("bundled DSSE payload type is not in-toto JSON")
     return bundled
 
 
@@ -52,7 +76,27 @@ def _decode_statement(envelope: dict) -> dict:
         raise ValueError("envelope does not contain a valid in-toto statement") from exc
     if not isinstance(statement, dict):
         raise ValueError("in-toto statement must be a JSON object")
+    if statement.get("_type") != IN_TOTO_STATEMENT_TYPE:
+        raise ValueError("signed statement uses the wrong in-toto type")
+    if statement.get("predicateType") != GOVERNANCE_PREDICATE_TYPE:
+        raise ValueError("signed statement uses the wrong predicate type")
     return statement
+
+
+def verified_rekor_log_index(envelope: dict) -> int:
+    """Read the Rekor index from the same bundle verified by Sigstore."""
+
+    entries = (
+        ((envelope.get("_sigstore") or {}).get("bundle") or {})
+        .get("verificationMaterial", {})
+        .get("tlogEntries", [])
+    )
+    if not isinstance(entries, list) or len(entries) != 1:
+        raise ValueError("verified Sigstore bundle must contain exactly one Rekor entry")
+    log_index = entries[0].get("logIndex")
+    if not isinstance(log_index, int) or isinstance(log_index, bool) or log_index < 0:
+        raise ValueError("verified Sigstore bundle has an invalid Rekor log index")
+    return log_index
 
 
 def verify_subject(
@@ -115,14 +159,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        envelope = json.loads(Path(args.envelope).read_text(encoding="utf-8"))
+        envelope = load_receipt_envelope(Path(args.envelope))
         if envelope.get("_mode") != "SIGSTORE-KEYLESS":
             raise ValueError("receipt is not a real Sigstore keyless envelope")
-        result = verify_dsse_real(
+        verify_dsse_real(
             envelope,
             identity=args.identity,
             issuer=args.issuer,
         )
+        rekor_log_index = verified_rekor_log_index(envelope)
         snapshot = load_validated_snapshot(Path(args.snapshot))
         verify_subject(
             envelope,
@@ -138,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("[lathe-verify] VERIFIED")
     print(f"[lathe-verify] snapshot_digest={snapshot['digest']}")
-    print(f"[lathe-verify] rekor_log_index={result.get('rekor_log_index')}")
+    print(f"[lathe-verify] rekor_log_index={rekor_log_index}")
     print(f"[lathe-verify] identity={args.identity}")
     return 0
 

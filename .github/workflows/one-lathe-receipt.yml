@@ -10,6 +10,9 @@ on:
       - "scripts/sign_lathe_snapshot.py"
       - "scripts/verify_lathe_snapshot_receipt.py"
       - "tests/test_lathe_*.py"
+      - "szl_formulas.py"
+      - ".github/requirements/ci-core.txt"
+      - ".github/requirements/ci-sigstore.txt"
       - ".github/workflows/one-lathe-receipt.yml"
   push:
     branches: [main]
@@ -19,11 +22,18 @@ on:
       - "scripts/lathe_*.py"
       - "scripts/sign_lathe_snapshot.py"
       - "scripts/verify_lathe_snapshot_receipt.py"
+      - "szl_formulas.py"
+      - ".github/requirements/ci-core.txt"
+      - ".github/requirements/ci-sigstore.txt"
       - ".github/workflows/one-lathe-receipt.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: one-lathe-receipt-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -138,18 +148,28 @@ jobs:
             }
             const sourceName = process.env.RECEIPT.split('/').pop();
             const repoPath = `attestations/lathe/${sourceName.replace(/\.dsse\.json$/, `__rekor-${logIndex}.dsse.json`)}`;
-            const content = Buffer.from(JSON.stringify(receipt, null, 2) + '\n').toString('base64');
-            let existingSha;
+            const contentBytes = Buffer.from(JSON.stringify(receipt, null, 2) + '\n');
             try {
               const existing = await github.rest.repos.getContent({ owner, repo, path: repoPath, ref: branch });
-              existingSha = existing.data.sha;
+              if (Array.isArray(existing.data) || existing.data.type !== 'file') {
+                core.setFailed('Ledger path exists but is not a regular file.');
+                return;
+              }
+              const existingBytes = Buffer.from((existing.data.content || '').replace(/\s/g, ''), 'base64');
+              if (!existingBytes.equals(contentBytes)) {
+                core.setFailed('Append-only refusal: ledger path already exists with different bytes.');
+                return;
+              }
+              core.setOutput('path', repoPath);
+              core.setOutput('sha', existing.data.sha);
+              return;
             } catch (error) {
               if (error.status !== 404) throw error;
             }
             const written = await github.rest.repos.createOrUpdateFileContents({
-              owner, repo, path: repoPath, branch, sha: existingSha,
+              owner, repo, path: repoPath, branch,
               message: `chore(receipts): publish One Lathe receipt ${logIndex}\n\nSigned-off-by: Yachay <yachay@szlholdings.ai>`,
-              content,
+              content: contentBytes.toString('base64'),
             });
             core.setOutput('path', repoPath);
             core.setOutput('sha', written.data.content.sha);

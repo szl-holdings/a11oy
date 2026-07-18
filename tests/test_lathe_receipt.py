@@ -135,6 +135,65 @@ def test_outer_bundle_splice_is_rejected() -> None:
         raise AssertionError("outer/bundle splice unexpectedly passed")
 
 
+def test_statement_semantics_are_pinned() -> None:
+    snapshot = signer.load_validated_snapshot(SNAPSHOT)
+    for mutation, message in (
+        (("payloadType", "application/json"), "not in-toto JSON"),
+        (("_type", "https://example.invalid/Statement/v1"), "wrong in-toto type"),
+        (("predicateType", "https://example.invalid/predicate"), "wrong predicate type"),
+    ):
+        envelope = _envelope(snapshot)
+        field, value = mutation
+        if field == "payloadType":
+            envelope["payloadType"] = value
+            envelope["_sigstore"]["bundle"]["dsseEnvelope"]["payloadType"] = value
+        else:
+            statement = _statement(snapshot)
+            statement[field] = value
+            encoded = base64.b64encode(
+                json.dumps(statement, sort_keys=True, separators=(",", ":")).encode()
+            ).decode("ascii")
+            envelope["payload"] = encoded
+            envelope["_sigstore"]["bundle"]["dsseEnvelope"]["payload"] = encoded
+        try:
+            verifier.verify_subject(
+                envelope,
+                snapshot,
+                repository=REPOSITORY,
+                source_revision=REVISION,
+                workflow_identity=IDENTITY,
+            )
+        except ValueError as exc:
+            assert message in str(exc)
+        else:
+            raise AssertionError(f"semantic mutation {field} unexpectedly passed")
+
+
+def test_receipt_loader_refuses_oversized_and_symlink_inputs(tmp_path: Path) -> None:
+    oversized = tmp_path / "oversized.dsse.json"
+    oversized.write_bytes(b"{" + b" " * verifier.MAX_RECEIPT_BYTES + b"}")
+    try:
+        verifier.load_receipt_envelope(oversized)
+    except ValueError as exc:
+        assert "exceeds" in str(exc)
+    else:
+        raise AssertionError("oversized receipt unexpectedly loaded")
+
+    target = tmp_path / "target.dsse.json"
+    target.write_text("{}", encoding="utf-8")
+    link = tmp_path / "link.dsse.json"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        return
+    try:
+        verifier.load_receipt_envelope(link)
+    except ValueError as exc:
+        assert "symbolic link" in str(exc)
+    else:
+        raise AssertionError("symlink receipt unexpectedly loaded")
+
+
 def test_receipt_subject_rejects_unpinned_identity_and_bad_revision() -> None:
     snapshot = signer.load_validated_snapshot(SNAPSHOT)
     for revision, identity in (
