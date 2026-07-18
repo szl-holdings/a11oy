@@ -61,6 +61,11 @@ from datetime import datetime, timezone
 
 from szl_quant_claims import resolved_claims as _resolved_quant_claims
 
+try:
+    import szl_formula_registry as _formula_registry
+except Exception:  # pragma: no cover - missing registry stays explicit
+    _formula_registry = None
+
 # --- signed receipts: the SINGLE source of truth (never fabricate a signature) ----
 try:
     from szl_dsse import sign_payload as _sign_payload  # REAL ECDSA when key present
@@ -161,12 +166,38 @@ def _compute_backend() -> dict:
     }
 
 
+def _formula_doctrine() -> dict:
+    """Read the quant page's doctrine from the verified formula registry."""
+    if _formula_registry is None:
+        return {
+            "locked_proven": [], "locked_count": 0, "corpus": "UNAVAILABLE",
+            "kernel_commit": "UNAVAILABLE", "registry_digest": None,
+            "registry_signature": "UNAVAILABLE", "registry_status": "UNAVAILABLE",
+        }
+    try:
+        document = _formula_registry.load_registry(verify=True)
+        payload = document["payload"]
+        return {
+            "locked_proven": list(_formula_registry.LOCKED_PROVEN_IDS),
+            "locked_count": _formula_registry.LOCKED_PROVEN_COUNT,
+            "corpus": "registry-crosswalk (non-exhaustive)",
+            "kernel_commit": payload["locked_kernel_commit_prefix"],
+            "registry_digest": document["registry_digest"]["value"],
+            "registry_signature": document["signature"]["status"],
+            "registry_status": "VERIFIED",
+        }
+    except Exception as exc:  # fail closed; never fall back to stale doctrine
+        return {
+            "locked_proven": [], "locked_count": 0, "corpus": "UNAVAILABLE",
+            "kernel_commit": "UNAVAILABLE", "registry_digest": None,
+            "registry_signature": "UNAVAILABLE",
+            "registry_status": "UNAVAILABLE: " + type(exc).__name__,
+        }
+
+
 DOCTRINE = {
     "version": "v11",
-    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
-    "locked_count": 8,
-    "corpus": "749/14/163",
-    "kernel_commit": "c7c0ba17",
+    **_formula_doctrine(),
     "lambda": "Conjecture 1 (advisory floor; uniqueness machine-checked FALSE unconditionally; NOT a theorem)",
     "slsa": "L1 honest / L2 attested (.att emitted, not independently verified) / L3 roadmap",
 }
@@ -826,6 +857,15 @@ def verify_claims_panel() -> dict:
     """
     reachable = _gpu_reachable()
     rows = _resolved_quant_claims()
+    registry_basis = {
+        "status": DOCTRINE["registry_status"],
+        "digest": DOCTRINE["registry_digest"],
+        "signature": DOCTRINE["registry_signature"],
+        "locked_count": DOCTRINE["locked_count"],
+        "locked_ids": list(DOCTRINE["locked_proven"]),
+        "source": "formula_registry/formula-registry.v1.json",
+        "coverage": "non-exhaustive maturity crosswalk; not an inventory of every theorem",
+    }
     return {
         "service": "verify-the-claims",
         "doctrine": DOCTRINE["version"],
@@ -834,6 +874,7 @@ def verify_claims_panel() -> dict:
                     "approved DSSE benchmark receipt that passes every promotion obligation."),
         "gpu_reachable": reachable,
         "rows": rows,
+        "formula_registry": registry_basis,
         "honesty": ("External reports are narrowly scoped and cited, not endorsed. SZL-MEASURED stays "
                     "null/ROADMAP unless an immutable receipt passes schema, digest, signature, key-id, "
                     "protocol, hardware, correctness, review, and freshness checks. GET never signs."),
@@ -974,7 +1015,7 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
 <h2>Verify the Claims — externally reported vs SZL-MEASURED (signed)</h2>
 <section>__VERIFY__<p class="note">__VNOTE__</p></section>
 <footer>
-  <p class="lock">Doctrine __DV__ LOCKED · locked-proven=__LC__ {__LP__} · __CORPUS__ @ __KC__ · Λ = Conjecture 1 (NOT a theorem) · __SLSA__</p>
+  <p class="lock">Doctrine __DV__ LOCKED · locked-proven=__LC__ {__LP__} · __CORPUS__ @ __KC__ · registry=__RD__ (__RS__) · Λ = Conjecture 1 (NOT a theorem) · __SLSA__</p>
   <p>SAMPLE = honest synthetic fixture (not live) · MODELED = labeled model output (uncalibrated) · ROADMAP = wiring ready, not measured yet (never faked). Primary sources: Ledoit-Wolf · Laloux/Bouchaud/Potters · Gidea-Katz arXiv:1703.04385 · RAPIDS/cuML docs · Ripser++ arXiv:2003.07989 · NVIDIA Nemotron 3 Ultra research.</p>
 </footer>
 <script src="/static/shared/szl_label_engine.js"></script>
@@ -1011,6 +1052,8 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
         .replace("__LP__", ", ".join(d["locked_proven"])) \
         .replace("__CORPUS__", d["corpus"]) \
         .replace("__KC__", d["kernel_commit"]) \
+        .replace("__RD__", str(d.get("registry_digest") or "UNAVAILABLE")) \
+        .replace("__RS__", str(d.get("registry_status") or "UNAVAILABLE")) \
         .replace("__SLSA__", d["slsa"])
 
 
