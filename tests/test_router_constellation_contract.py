@@ -12,6 +12,8 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 ROUTER = ROOT / "console" / "static" / "viz" / "router"
 WORKFLOW = ROOT / ".github" / "workflows" / "router-constellation-contract.yml"
+CI_CORE_INPUT = ROOT / ".github" / "requirements" / "ci-core.in"
+CI_CORE_LOCK = ROOT / ".github" / "requirements" / "ci-core.txt"
 
 
 def source(path: Path) -> str:
@@ -20,7 +22,11 @@ def source(path: Path) -> str:
 
 def test_workflow_pins_the_offline_test_runner():
     workflow = source(WORKFLOW)
-    assert "pytest==9.0.3" in workflow
+    # The workflow installs the hash-locked CI runtime. Keep the pytest pin in
+    # the lock inputs instead of duplicating a second un-hashed install command.
+    assert "--require-hashes -r .github/requirements/ci-core.txt" in workflow
+    assert "pytest==9.0.3" in source(CI_CORE_INPUT)
+    assert "pytest==9.0.3" in source(CI_CORE_LOCK)
     assert "pip install pytest\n" not in workflow
 
 
