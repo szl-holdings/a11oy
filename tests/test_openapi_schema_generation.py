@@ -16,3 +16,6 @@ def test_assembled_openapi_schema_resolves_all_route_annotations() -> None:
     assert "/api/a11oy/v1/frontier/surfaces" in schema["paths"]
     assert "/api/a11oy/v1/compute/capabilities" in schema["paths"]
     assert "/api/a11oy/v1/ayllu/model-binding" in schema["paths"]
+    assert "/api/a11oy/v1/compute-pool/v1" in schema["paths"]
+    assert "/.well-known/szl-source.json" in schema["paths"]
+    assert "/.well-known/szl-source-v2.json" in schema["paths"]

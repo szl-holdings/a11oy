@@ -1,23 +1,16 @@
-# IMMUNE investor demo — self-contained image.
-# Build context = this deploy/ directory. Run build-standalone.sh FIRST to produce ./dist.
-#
-#   bash build-standalone.sh
-#   docker build -t immune-demo .
-#   docker run --rm -p 7860:7860 immune-demo
-#
-# The server bundle has all node deps inlined, so no npm install is needed at image
-# build time — the image stays small.
+# SZL Immune v0.1 — source-backed, dependency-free Node image.
+# Build context: spaces/immune
 FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 
 WORKDIR /app
 
-# Self-contained server bundle, the vite-built SPA, and the REAL receipt/evidence chain.
-COPY dist/immune-server.js ./immune-server.js
-COPY dist/public ./public
-COPY dist/data ./data
+# Canonical source and generated OpenAPI contract. Legacy dist/ remains in Git history
+# as deployment evidence, but this image never executes that opaque bundle.
+COPY package.json ./package.json
+COPY openapi.json ./openapi.json
+COPY src ./src
+RUN mkdir -p /app/data/immune
 
-# Hugging Face Spaces runs the container as a non-root user (UID 1000); the immune
-# ledger appends to ./data/immune, so that path must be writable by that user.
 RUN chmod -R a+rwX /app/data && chown -R 1000:1000 /app
 
 ENV NODE_ENV=production \
@@ -27,4 +20,4 @@ EXPOSE 7860
 
 USER 1000
 
-CMD ["node", "immune-server.js"]
+CMD ["node", "src/server/immune-server.mjs"]

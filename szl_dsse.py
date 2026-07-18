@@ -223,6 +223,13 @@ def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
         for s in sigs:
             sig_b64 = s.get("sig", "")
             keyid = s.get("keyid", "")
+            if keyid != KEYID:
+                results.append({
+                    "keyid": keyid,
+                    "verified": False,
+                    "reason": "unexpected keyid",
+                })
+                continue
             try:
                 sig = base64.b64decode(sig_b64)
                 pub.verify(sig, to_verify, ec.ECDSA(hashes.SHA256()))

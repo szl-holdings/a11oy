@@ -24,6 +24,8 @@ CONTRACT = json.loads(queue.CONTRACT_PATH.read_text(encoding="utf-8"))
 DSSE_IDENTITY = {
     "path": CONTRACT["dsse"]["verifier_path"],
     "sha256": CONTRACT["dsse"]["verifier_sha256"],
+    "content_address_path": CONTRACT["dsse"]["content_address_path"],
+    "content_address_sha256": CONTRACT["dsse"]["content_address_sha256"],
     "key_id": CONTRACT["dsse"]["key_id"],
     "public_key_fingerprint_sha256": CONTRACT["dsse"][
         "public_key_fingerprint_sha256"
@@ -825,6 +827,11 @@ def test_pinned_dsse_loader_rejects_replaced_source_and_key():
     replaced["dsse"]["verifier_sha256"] = "0" * 64
     with pytest.raises(queue.QueueRefused, match="source mismatch"):
         queue._load_pinned_dsse(replaced)
+
+    replaced_dependency = json.loads(json.dumps(CONTRACT))
+    replaced_dependency["dsse"]["content_address_sha256"] = "0" * 64
+    with pytest.raises(queue.QueueRefused, match="content-address dependency source mismatch"):
+        queue._load_pinned_dsse(replaced_dependency)
 
     wrong_key = json.loads(json.dumps(CONTRACT))
     wrong_key["dsse"]["public_key_fingerprint_sha256"] = "0" * 64
