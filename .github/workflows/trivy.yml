@@ -46,7 +46,6 @@ jobs:
       - name: Scan with Grype (fail build on HIGH/CRITICAL)
         id: grype
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
-        continue-on-error: true  # stale-DB non-applicable failures: see .grype.yaml ignore list
         with:
           path: "."
           fail-build: true
