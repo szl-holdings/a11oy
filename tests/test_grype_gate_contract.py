@@ -1,4 +1,5 @@
 from pathlib import Path
+import unittest
 
 
 WORKFLOW = Path(".github/workflows/trivy.yml")
@@ -11,20 +12,25 @@ def _grype_gate_block() -> str:
     return workflow[start:end]
 
 
-def test_grype_gate_cannot_swallow_scanner_failure() -> None:
-    block = _grype_gate_block()
-    assert "continue-on-error" not in block
+class GrypeGateContractTests(unittest.TestCase):
+    def test_grype_gate_cannot_swallow_scanner_failure(self) -> None:
+        block = _grype_gate_block()
+        self.assertNotIn("continue-on-error", block)
+
+    def test_grype_gate_fails_on_high_and_critical_findings(self) -> None:
+        block = _grype_gate_block()
+        self.assertIn("fail-build: true", block)
+        self.assertIn("severity-cutoff: high", block)
+
+    def test_grype_action_is_pinned_to_an_immutable_revision(self) -> None:
+        block = _grype_gate_block()
+        action_line = next(
+            line for line in block.splitlines() if "uses: anchore/scan-action@" in line
+        )
+        revision = action_line.split("@", 1)[1].split()[0]
+        self.assertEqual(len(revision), 40)
+        self.assertTrue(all(character in "0123456789abcdef" for character in revision))
 
 
-def test_grype_gate_fails_on_high_and_critical_findings() -> None:
-    block = _grype_gate_block()
-    assert "fail-build: true" in block
-    assert "severity-cutoff: high" in block
-
-
-def test_grype_action_is_pinned_to_an_immutable_revision() -> None:
-    block = _grype_gate_block()
-    action_line = next(line for line in block.splitlines() if "uses: anchore/scan-action@" in line)
-    revision = action_line.split("@", 1)[1].split()[0]
-    assert len(revision) == 40
-    assert all(character in "0123456789abcdef" for character in revision)
+if __name__ == "__main__":
+    unittest.main()
