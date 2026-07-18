@@ -20,7 +20,8 @@ The whole stack on one surface:
   - the multi-node sovereign GPU fabric (REAL reachability probe),
   - the MODELED orbital tier (links out to the /orbital page),
   - governance / restraint (codified doctrine + signed DSSE receipts),
-  - the ROADMAP composite inference-provenance-receipt play (clearly labeled).
+  - the composite inference-provenance capability (UNAVAILABLE until a real write
+    has minted an independently visible artifact).
 
 HONESTY (doctrine v11, non-negotiable):
   * A persistent honest banner is pinned to the top of every viewport and a
@@ -687,7 +688,7 @@ function tileCard(t) {{
   else if (label === 'SAMPLE')
     banner = `<div class="tile-banner sample">SAMPLE — illustrative value, never billable or live.</div>`;
   else if (label === 'UNAVAILABLE')
-    banner = `<div class="tile-banner unavailable">UNAVAILABLE — sub-source down right now; reported honestly, not faked.</div>`;
+    banner = `<div class="tile-banner unavailable">UNAVAILABLE — source, dependency, or required artifact is not operationally evidenced.</div>`;
   return `<div class="card" style="--edge:${{edge}}">
     <div class="cat">${{esc(t.category || '')}}</div>
     <h3><span>${{esc(t.name || '')}}</span><span class="badge ${{c}}">${{esc(label)}}</span></h3>
@@ -792,6 +793,11 @@ document.getElementById('brain-query-form').addEventListener('submit', async eve
     const tiles = m.capabilities || [];
     const s = m.summary || {{}};
     const lc = s.label_counts || {{}};
+    const source = s.source_reachability || {{state:'UNKNOWN'}};
+    const readiness = s.operational_readiness || {{state:'UNKNOWN', ready:false, blocked_tiles:[]}};
+    const blockedNames = Array.isArray(readiness.blocked_tiles)
+      ? readiness.blocked_tiles.map(row => row && row.name ? row.name : row).filter(Boolean)
+      : [];
 
     // roll-up chips (honest counts straight from the manifest)
     document.getElementById('rollup').innerHTML = [
@@ -799,18 +805,22 @@ document.getElementById('brain-query-form').addEventListener('submit', async eve
       `<span class="chip">MEASURED <b>${{esc(lc.MEASURED || 0)}}</b></span>`,
       `<span class="chip">MODELED <b>${{esc(lc.MODELED || 0)}}</b></span>`,
       `<span class="chip">ROADMAP <b>${{esc(lc.ROADMAP || 0)}}</b></span>`,
-      `<span class="chip">all sources live: <b>${{esc(String(s.all_sources_live))}}</b></span>`,
+      `<span class="chip">source reachability <b>${{esc(source.state || 'UNKNOWN')}}</b></span>`,
+      `<span class="chip">operational readiness <b>${{esc(readiness.state || 'UNKNOWN')}}</b></span>`,
       (s.degraded_tiles && s.degraded_tiles.length)
         ? `<span class="chip">degraded: <b>${{esc(s.degraded_tiles.join(', '))}}</b></span>` : '',
+      blockedNames.length
+        ? `<span class="chip">not ready: <b>${{esc(blockedNames.join(', '))}}</b></span>` : '',
     ].join('');
 
     document.getElementById('grid').innerHTML = tiles.map(tileCard).join('');
     drawConstellation(tiles);
 
     const el = document.getElementById('status');
-    el.textContent = 'live · composed from ' + esc(MANIFEST_EP) +
-      ' · ' + esc(s.tiles ?? tiles.length) + ' tiles · all_sources_live=' +
-      esc(String(s.all_sources_live));
+    el.textContent = 'manifest reachable · composed from ' + esc(MANIFEST_EP) +
+      ' · ' + esc(s.tiles ?? tiles.length) + ' tiles · source=' +
+      esc(source.state || 'UNKNOWN') + ' · operational=' +
+      esc(readiness.state || 'UNKNOWN');
     document.getElementById('subline').innerHTML =
       'Every capability we run, on one screen — composed live by <code>/frontier/manifest</code>. ' +
       'Each tile shows its <b>honest label</b> and a <b>link to the proof</b>. No label is upgraded.';

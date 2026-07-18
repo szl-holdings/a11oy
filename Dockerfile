@@ -142,6 +142,9 @@ COPY szl_waqay_security_loop.py ./
 # Claim-integrity Rupture Gate wave 15: contract-only, external signals only,
 # unsigned deterministic receipts, zero effectors.
 COPY szl_claim_rupture_gate.py ./
+COPY szl_involution_probe.py ./
+COPY szl_runtime_contracts.py ./
+COPY benchmarks/quant_live/receipts/latest.json ./benchmarks/quant_live/receipts/latest.json
 # Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
 # SDK, QPU call, credential path, external effector, or finance-engine coupling.
 COPY szl_quantum_utility.py ./

@@ -10,7 +10,7 @@ capability as a labeled tile. The manifest is REAL data pulled IN-PROCESS from t
 already-wired surfaces — it never fabricates a status, joule, receipt, or label:
 
   * energy operator  — szl_energy_operator.handle_status()      (MEASURED joules/jobs)
-  * energy ledger    — szl_energy_ledger.handle_ledger()         (signed receipt chain)
+  * energy ledger    — szl_energy_ledger.handle_ledger()         (tamper-evident chain)
   * energy provenance— szl_energy_provenance summary             (tamper-evident chain)
   * UDS bundle sig   — szl_uds_fleet narrative (cosign+Rekor pattern)  (label honest)
   * orbital tier     — szl_orbital_topology / _projection         (MODELED roadmap)
@@ -34,12 +34,12 @@ DOCTRINE v11 (this surface is a roll-up — be ruthless about honesty):
   - If a sub-source raises or is down, its tile says so honestly
     (label "UNAVAILABLE", ok:false, the error) — we degrade the tile, never the truth,
     and the manifest as a whole still returns 200 with the surviving tiles.
-  - The #1 frontier play (composite inference-provenance receipt) is surfaced ONLY as
-    a clearly-labeled ROADMAP concept tile that NAMES its existing parts (the MEASURED
-    joule receipt + the MODELED model-hash) — no fabricated composite artifact is minted.
+  - The composite inference-provenance capability is UNAVAILABLE until a real governed
+    action has minted an artifact. A read never creates one and an unminted capability is
+    never presented as operational merely because its source module is reachable.
 
-The composition is the whole point: SZL already holds the parts (signed energy
-receipts MEASURED, signed UDS bundle MEASURED, governance doctrine MEASURED, MODELED
+The composition is the whole point: SZL already holds the parts (tamper-evident
+energy receipts MEASURED, signed UDS bundle MEASURED, governance doctrine MEASURED, MODELED
 orbital roadmap). This manifest shows them as one frontier surface, honestly labeled.
 """
 from __future__ import annotations
@@ -57,7 +57,7 @@ UNAVAILABLE = "UNAVAILABLE"
 _API = "/api/a11oy/v1"
 
 # UNIVERSAL Khipu verifier (judge-facing audit layer, szl_khipu_verify). A reader
-# pastes ANY receipt digest from ANY organ and gets an INDEPENDENT, COMPUTED
+# pastes ANY receipt digest from ANY organ and gets a COMPUTED integrity
 # PASS|FAIL|NOT_FOUND (SHA3-256 seal recompute + prev-link re-walk to genesis).
 # This is the REAL endpoint each verifiable tile's `verify` field points to. Only
 # tiles whose receipts genuinely live in a shared szl_khipu organ DAG (immune,
@@ -105,6 +105,115 @@ def _unavailable_tile(name: str, category: str, provenance: dict, err: str) -> d
                  error=err)
 
 
+def _tile_operational_readiness(tile: dict) -> tuple[bool, list[str]]:
+    """Derive runtime readiness from tile evidence without upgrading its label.
+
+    A source can answer while its operator is stopped, its chain is empty, its
+    hardware is unreachable, or its required artifact has not been minted.
+    Reachability is therefore reported separately from operational readiness.
+    """
+    reasons: list[str] = []
+    label = str(tile.get("label") or UNAVAILABLE).upper()
+    status = str(tile.get("status") or "").upper()
+    evidence = tile.get("operational_evidence")
+
+    # Absence of a negative is not positive evidence. Every ready tile must name
+    # its exact bounded predicate and report that predicate satisfied.
+    if not isinstance(evidence, dict):
+        reasons.append("explicit_operational_evidence_missing")
+    else:
+        predicate = evidence.get("predicate")
+        if not isinstance(predicate, str) or not predicate.strip():
+            reasons.append("explicit_operational_predicate_missing")
+        if evidence.get("satisfied") is not True:
+            evidence_reasons = evidence.get("reasons")
+            if isinstance(evidence_reasons, list) and evidence_reasons:
+                reasons.extend(str(reason) for reason in evidence_reasons)
+            else:
+                reasons.append("explicit_operational_evidence_not_satisfied")
+
+    if not tile.get("ok", True):
+        reasons.append("source_unavailable")
+    if label in {UNAVAILABLE, MODELED, ROADMAP, SAMPLE}:
+        reasons.append(f"label_{label.lower()}_is_not_operational_evidence")
+    if any(token in status for token in ("UNAVAILABLE", "IDLE", "EMPTY", "STOPPED")):
+        reasons.append("status_not_running")
+    if tile.get("running") is False:
+        reasons.append("operator_stopped")
+    if tile.get("on_artifact_minted") is False:
+        reasons.append("artifact_not_minted")
+    if tile.get("on_orbit_hardware") is False:
+        reasons.append("hardware_not_present")
+    if "nodes_reachable" in tile and int(tile.get("nodes_reachable") or 0) < 1:
+        reasons.append("no_nodes_reachable")
+    if "reachable_nodes" in tile and int(tile.get("reachable_nodes") or 0) < 1:
+        reasons.append("no_nodes_reachable")
+    if "chain_length" in tile and int(tile.get("chain_length") or 0) < 1:
+        reasons.append("no_chain_entries")
+    if "length" in tile and int(tile.get("length") or 0) < 1:
+        reasons.append("no_chain_entries")
+    if "links_intact" in tile and tile.get("links_intact") is not True:
+        reasons.append("chain_links_not_verified")
+    if "chain_ok" in tile and tile.get("chain_ok") is not True:
+        reasons.append("chain_not_verified")
+    if "survives_redeploy" in tile and tile.get("survives_redeploy") is not True:
+        reasons.append("persistence_not_verified")
+    if tile.get("signature_required") is True and tile.get("signature_verified") is not True:
+        reasons.append("cryptographic_signature_not_verified")
+
+    unique_reasons = list(dict.fromkeys(reasons))
+    return not unique_reasons, unique_reasons
+
+
+def _runtime_signature_readiness(info: dict) -> tuple[bool, list[str], dict]:
+    """Require an observed runtime signer and a cryptographically verified receipt.
+
+    Static policy metadata such as ``signed_receipts=true`` describes an intended
+    contract. It is neither signer health nor proof that a signature was produced
+    and verified, so it cannot make the governance tile operational.
+    """
+    signer = info.get("signer_health") if isinstance(info.get("signer_health"), dict) else {}
+    verification = (info.get("receipt_verification")
+                    if isinstance(info.get("receipt_verification"), dict) else {})
+    method = str(verification.get("method") or "").strip()
+    method_upper = method.upper()
+    signature_count = verification.get("signature_count")
+    try:
+        signature_count = int(signature_count)
+    except (TypeError, ValueError):
+        signature_count = 0
+
+    reasons = []
+    if signer.get("observed_this_process") is not True:
+        reasons.append("signer_health_not_observed")
+    if signer.get("ready") is not True:
+        reasons.append("signer_not_ready")
+    if verification.get("observed_this_process") is not True:
+        reasons.append("receipt_verification_not_observed")
+    if verification.get("cryptographically_verified") is not True:
+        reasons.append("cryptographic_signature_not_verified")
+    if signature_count < 1:
+        reasons.append("verified_signature_missing")
+    if not method or "PLACEHOLDER" in method_upper or method_upper in {"HASH", "HASH_CHAIN"}:
+        reasons.append("cryptographic_verification_method_missing")
+
+    evidence = {
+        "signer_observed_this_process": signer.get("observed_this_process") is True,
+        "signer_ready": signer.get("ready") is True,
+        "signer_identity": signer.get("identity"),
+        "receipt_verification_observed_this_process": (
+            verification.get("observed_this_process") is True
+        ),
+        "cryptographically_verified": (
+            verification.get("cryptographically_verified") is True
+        ),
+        "signature_count": signature_count,
+        "verification_method": method or None,
+    }
+    unique_reasons = list(dict.fromkeys(reasons))
+    return not unique_reasons, unique_reasons, evidence
+
+
 # ---------------------------------------------------------------------------
 # Per-capability tile builders. Each pulls IN-PROCESS from the live surface.
 # ---------------------------------------------------------------------------
@@ -134,6 +243,11 @@ def _tile_energy_operator() -> dict:
         joules_measured_total=measured_total,
         measured_jobs=measured_jobs,
         jobs_done=st.get("jobs_done"),
+        operational_evidence={
+            "predicate": "energy operator reports running=true",
+            "satisfied": running,
+            "reasons": [] if running else ["operator_stopped"],
+        },
     )
 
 
@@ -151,14 +265,16 @@ def _tile_energy_ledger() -> dict:
     if isinstance(head, dict):
         head_digest = head.get("entry_digest") or head.get("digest") \
             or (head.get("receipt") or {}).get("payload_digest")
-    status = (f"OK ({chain_len} signed receipts, links_intact={links_intact})"
+    status = (f"OK ({chain_len} integrity-only receipts, links_intact={links_intact})"
               if chain_len else "IDLE (chain empty — no jobs minted yet)")
     return _tile(
-        "Signed energy ledger", "energy", status=status, label=MEASURED,
+        "Tamper-evident energy ledger", "energy", status=status, label=MEASURED,
         provenance={
             "endpoint": f"{_API}/energy/ledger",
-            "kind": "hash-chained JouleCharge receipt chain",
+            "kind": ("tamper-evident integrity-only JouleCharge hash chain; "
+                     "no cryptographic signature is verified by this surface"),
             "chain_head_digest": head_digest,
+            "signature_status": "NOT_VERIFIED_INTEGRITY_ONLY",
             "single_receipt": f"{_API}/energy/receipt/{{idempotency_key}}",
             # The energy ledger is its OWN hash-chained JouleCharge chain (not a shared
             # szl_khipu organ DAG), so its honest verify surface is the ledger endpoint
@@ -172,6 +288,17 @@ def _tile_energy_ledger() -> dict:
         persistence_label=persistence.get("label"),
         survives_redeploy=survives,
         persistence_note=persistence.get("note"),
+        operational_evidence={
+            "predicate": "non-empty ledger + intact links + verified redeploy persistence",
+            "satisfied": bool(chain_len and links_intact is True and survives),
+            "reasons": [
+                reason for failed, reason in (
+                    (not chain_len, "no_chain_entries"),
+                    (links_intact is not True, "chain_links_not_verified"),
+                    (not survives, "persistence_not_verified"),
+                ) if failed
+            ],
+        },
     )
 
 
@@ -179,7 +306,8 @@ def _tile_energy_provenance() -> dict:
     import szl_energy_provenance as ep
     summ = ep._CHAIN.summary()
     length = summ.get("length", 0)
-    status = (f"VERIFIED ({length} tamper-evident receipts)" if length
+    verify = summ.get("verify", {}) or {}
+    status = (f"INTEGRITY-VERIFIED ({length} tamper-evident receipts)" if length
               else "EMPTY (no receipts this process)")
     return _tile(
         "Energy provenance chain", "provenance", status=status, label=MEASURED,
@@ -188,12 +316,24 @@ def _tile_energy_provenance() -> dict:
             "kind": "tamper-evident hash-linked + Bekenstein-gated chain",
             "head_hash": summ.get("head_hash"),
             "link_rule": summ.get("link_rule"),
+            "signature_status": "NOT_VERIFIED_INTEGRITY_ONLY",
             # Its OWN Bekenstein-gated chain (not a shared szl_khipu organ) -> honest
             # verify surface is its own endpoint, re-walked. Not pointed at /khipu/verify.
             "verify": f"{_API}/energy/provenance",
         },
         length=length,
-        chain_status=summ.get("status"),
+        integrity_chain_status=summ.get("status"),
+        verification_scope="content and hash-link integrity only; authorship not verified",
+        operational_evidence={
+            "predicate": "non-empty provenance chain + computed chain verification",
+            "satisfied": bool(length and verify.get("ok") is True),
+            "reasons": [
+                reason for failed, reason in (
+                    (not length, "no_chain_entries"),
+                    (verify.get("ok") is not True, "chain_not_verified"),
+                ) if failed
+            ],
+        },
     )
 
 
@@ -219,6 +359,11 @@ def _tile_uds_bundle() -> dict:
             "sbom": "CycloneDX / SPDX in-toto attestation",
             "backing_module": backing,
         },
+        operational_evidence={
+            "predicate": "a concrete UDS attestation is independently verified at runtime",
+            "satisfied": False,
+            "reasons": ["runtime_attestation_receipt_not_observed"],
+        },
     )
 
 
@@ -243,6 +388,11 @@ def _tile_orbital() -> dict:
         # reachable_nodes is REAL-PROBE-ONLY and MUST be 0 — no orbital hardware to probe.
         reachable_nodes=reachable,
         note="every orbital node is modeled:true / reachable:false; a MODELED orbital joule is NEVER MEASURED",
+        operational_evidence={
+            "predicate": "at least one on-orbit hardware node is positively reachable",
+            "satisfied": False,
+            "reasons": ["hardware_not_present"],
+        },
     )
 
 
@@ -271,6 +421,11 @@ def _tile_compute_fabric() -> dict:
         # reachable / gpu_reachable are REAL-PROBE-ONLY facts.
         nodes_reachable=reachable_n,
         gpu_reachable=gpu_reachable,
+        operational_evidence={
+            "predicate": "at least one sovereign GPU node passes the live reachability probe",
+            "satisfied": gpu_reachable > 0,
+            "reasons": [] if gpu_reachable > 0 else ["no_sovereign_gpu_reachable"],
+        },
     )
 
 
@@ -281,35 +436,50 @@ def _tile_governance() -> dict:
         import szl_restraint as rs
     info = rs.info()
     doctrine = info.get("doctrine", {}) or {}
+    crypto_ready, crypto_reasons, crypto_evidence = _runtime_signature_readiness(info)
+    status = ("OK (runtime signer healthy; receipt signature cryptographically verified)"
+              if crypto_ready else
+              "DEGRADED (doctrine loaded; runtime signer/receipt verification not observed)")
     return _tile(
-        "Governance / restraint", "governance", status="OK (codified doctrine + signed receipts)",
+        "Governance / restraint", "governance", status=status,
         label=MEASURED,
         provenance={
             "endpoint": f"{_API}/restraint/info",
-            "kind": "codified restraint ladder; each decision -> a signed DSSE receipt",
+            "kind": ("codified restraint policy metadata; operational status additionally "
+                     "requires observed signer health and cryptographic receipt verification"),
             "doctrine_version": doctrine.get("version"),
             "kernel_commit": doctrine.get("kernel_commit"),
         },
-        signed_receipts=doctrine.get("signed_receipts"),
+        signed_receipts_declared=doctrine.get("signed_receipts"),
+        signer_health=crypto_evidence,
+        signature_required=True,
+        signature_verified=crypto_ready,
         runtime_cdn=doctrine.get("runtime_cdn"),
         lambda_=doctrine.get("lambda"),
+        operational_evidence={
+            "predicate": ("runtime signer health observed + at least one receipt signature "
+                          "cryptographically verified this process"),
+            "satisfied": crypto_ready,
+            "reasons": crypto_reasons,
+        },
     )
 
 
 def _concept_tile_inference_provenance() -> dict:
     """#1 frontier play — composite inference-provenance receipt (the inference-side C2PA).
 
-    LIVE capability, surfaced by READING the shared provenance Khipu chain — this tile
-    NEVER mints a receipt. The capstone surface szl_provenance_receipt composes ONE signed
-    Khipu envelope binding every guarantee for a single governed action (immune verdict +
+    Capability surfaced by READING the shared provenance Khipu chain — this tile
+    NEVER mints a receipt. The capstone surface szl_provenance_receipt composes ONE
+    tamper-evident Khipu envelope binding fields for a single governed action (immune verdict +
     PAC-Bayes bound + MEASURED/MODELED/SAMPLE energy label + governed model identity + Lean
-    backing) — but a receipt is signed ONLY when a real governed action POSTs
-    /provenance/receipt, never just because someone loaded this page. Here we READ the
+    backing). It becomes signed evidence only when a cryptographic DSSE signature is observed
+    and verified. A real governed action POSTs /provenance/receipt; loading this page never
+    creates evidence. Here we READ the
     chain head (depth + most-recent composite digest, if any) and re-verify chain
     integrity, so the tile honestly DESCRIBES the capability and points to where the real
     artifacts live (/provenance/receipt + the energy ledger) without growing the chain.
     Honesty held: a GET does not fabricate or mint a composite; if no composite exists yet
-    the tile says so honestly (ROADMAP, awaiting first real action)."""
+    the tile is UNAVAILABLE, awaiting a real governed write."""
     import szl_khipu
     import szl_provenance_receipt as pr
 
@@ -320,30 +490,61 @@ def _concept_tile_inference_provenance() -> dict:
     head = dag.head()
     # Most-recent composite digest already on the chain (a READ, never a mint).
     last_composite = None
+    last_composite_receipt = None
     for r in reversed(dag.tail(depth or 1)):
         if r.get("action") == "provenance.composite":
             last_composite = r.get("digest")
+            last_composite_receipt = r
             break
 
     minted = last_composite is not None
-    if minted:
-        status = (f"LIVE ({depth} signed receipts on the provenance chain; latest composite "
-                  "binds immune verdict + PAC-Bayes bound + energy label + governed model "
-                  "identity + Lean backing). Receipts mint ONLY on a real POST, never on a GET.")
+    signature = ((last_composite_receipt or {}).get("signature")
+                 if last_composite_receipt else None)
+    verification = ((last_composite_receipt or {}).get("cryptographic_verification")
+                    if isinstance((last_composite_receipt or {}).get(
+                        "cryptographic_verification"), dict) else {})
+    verification_method = str(verification.get("method") or "").strip()
+    try:
+        verified_signature_count = int(verification.get("signature_count") or 0)
+    except (TypeError, ValueError):
+        verified_signature_count = 0
+    signature_verified = bool(
+        minted
+        and verification.get("observed_this_process") is True
+        and verification.get("verified") is True
+        and verified_signature_count > 0
+        and verification_method
+        and "PLACEHOLDER" not in verification_method.upper()
+        and signature not in (None, "", "DSSE_PLACEHOLDER")
+    )
+    if minted and signature_verified:
+        status = (f"LIVE ({depth} receipts on the provenance chain; latest composite has an "
+                  "observed, cryptographically verified signature and binds immune verdict + "
+                  "PAC-Bayes bound + energy label + governed model identity + Lean backing).")
         label = MEASURED
-        note = ("inference-side C2PA, LIVE: each composite is a single signed Khipu envelope "
-                "composing the REAL immune verdict, the PAC-Bayes bound (ROADMAP Lean), the "
+        note = ("inference-side composite, LIVE: the latest Khipu envelope has an observed, "
+                "cryptographically verified signature and composes the REAL immune verdict, "
+                "the PAC-Bayes bound (ROADMAP Lean), the "
                 "MEASURED/MODELED/SAMPLE energy label, the governed model identity, and the "
-                "exact Lean backing. Each part KEEPS its own label; no label is upgraded; the "
-                "signature is the honest DSSE_PLACEHOLDER. This tile READS the chain — it does "
+                "exact Lean backing. Each part KEEPS its own label; no label is upgraded. "
+                "This tile READS the chain — it does "
                 "NOT mint a receipt per page view. POST the endpoint to mint one for a real "
                 "action, then GET it back by digest.")
+    elif minted:
+        status = (f"INTEGRITY-ONLY ({depth} hash-chained receipts; latest composite exists, "
+                  "but no cryptographically verified DSSE signature was observed)")
+        label = UNAVAILABLE
+        note = ("the composite is content-addressed and its Khipu prev-links re-walk, but "
+                "DSSE_PLACEHOLDER is not a signature and proves no authorship. The signed "
+                "composite capability remains operationally blocked until real DSSE evidence "
+                "is verified this process.")
     else:
-        status = ("ROADMAP (capability wired; no composite minted yet this process — a signed "
-                  "composite is created ONLY when a real governed action POSTs the endpoint)")
-        label = ROADMAP
-        note = ("inference-side C2PA capability is wired but no composite has been minted in "
-                "this process yet. A signed composite is created ONLY on a real POST to "
+        status = ("UNAVAILABLE (capability wired, but no composite receipt has been observed "
+                  "in this process; only a real governed POST can mint one)")
+        label = UNAVAILABLE
+        note = ("inference-side C2PA capability is reachable but not operationally evidenced: "
+                "no composite has been minted in "
+                "this process yet. A composite is created ONLY on a real POST to "
                 "/provenance/receipt (immune verdict + PAC-Bayes bound + energy label + "
                 "governed model identity + Lean backing) — never fabricated, never minted by "
                 "loading this manifest.")
@@ -352,10 +553,9 @@ def _concept_tile_inference_provenance() -> dict:
         "Composite inference-provenance receipt", "frontier-concept",
         status=status, label=label,
         provenance={
-            "kind": "composite composed in-process by CALLING the live surfaces and signed "
-                    "into the shared provenance Khipu chain (signature = honest "
-                    "DSSE_PLACEHOLDER, cosign founder-gated); this manifest tile READS the "
-                    "chain head and NEVER mints a receipt per page view",
+            "kind": ("composite composed in-process and recorded in a tamper-evident Khipu "
+                     "hash chain; DSSE_PLACEHOLDER is integrity-only metadata, not a "
+                     "cryptographic signature; this manifest READS and never mints"),
             "endpoint": f"{_API}/provenance/receipt",
             # Composite receipts live in the shared szl_khipu `provenance` organ, so a
             # judge can re-verify a composite digest TWO honest ways: the composite
@@ -368,16 +568,36 @@ def _concept_tile_inference_provenance() -> dict:
             "latest_composite_digest": last_composite,
             "chain_head": head,
             "chain_verified": chain.get("ok"),
+            "signature_status": ("CRYPTOGRAPHICALLY_VERIFIED" if signature_verified else
+                                 "NOT_VERIFIED_INTEGRITY_ONLY"),
+            "signature_verification_method": verification_method or None,
             "composes_measured": f"{_API}/immune/verdict (REAL fail-closed gate) + the "
                                  "MEASURED energy joule-truth path",
-            "composes_roadmap": f"{_API}/materials/certify (PAC-Bayes bound; Lean SORRY/ROADMAP)",
+            "open_dependencies": f"{_API}/materials/certify (PAC-Bayes/Lean evidence must "
+                                 "retain the status reported by that dependency)",
         },
         # READ facts straight off the chain — this tile mints nothing on a GET.
         on_artifact_minted=minted,
         composite_digest=last_composite,
         chain_ok=chain.get("ok"),
         chain_length=depth,
+        signature_required=True,
+        signature_verified=signature_verified,
         note=note,
+        operational_evidence={
+            "predicate": ("a composite exists, its Khipu integrity chain verifies, and its "
+                          "DSSE signature is cryptographically verified this process"),
+            "satisfied": bool(minted and depth > 0 and chain.get("ok") is True
+                              and signature_verified),
+            "reasons": [
+                reason for failed, reason in (
+                    (not minted, "artifact_not_minted"),
+                    (depth < 1, "no_chain_entries"),
+                    (chain.get("ok") is not True, "chain_not_verified"),
+                    (not signature_verified, "cryptographic_signature_not_verified"),
+                ) if failed
+            ],
+        },
     )
 
 
@@ -386,7 +606,7 @@ def _concept_tile_inference_provenance() -> dict:
 _TILE_SPECS: list[tuple[Callable[[], dict], str, str, dict]] = [
     (_tile_energy_operator, "Energy operator", "energy",
      {"endpoint": f"{_API}/energy/operator/status"}),
-    (_tile_energy_ledger, "Signed energy ledger", "energy",
+    (_tile_energy_ledger, "Tamper-evident energy ledger", "energy",
      {"endpoint": f"{_API}/energy/ledger"}),
     (_tile_energy_provenance, "Energy provenance chain", "provenance",
      {"endpoint": f"{_API}/energy/provenance"}),
@@ -430,7 +650,8 @@ def _build_manifest() -> dict:
         tiles.append(tile if tile is not None
                      else _unavailable_tile(name, category, prov, err or "unknown error"))
 
-    # #1 frontier play — always present, always ROADMAP, never a fabricated artifact.
+    # Composite capability — always present, but UNAVAILABLE until a real write has
+    # minted an artifact. A manifest read never creates operational evidence.
     concept, c_err = _safe(_concept_tile_inference_provenance)
     if concept is None:  # pragma: no cover — the concept tile is pure data
         concept = _unavailable_tile("Composite inference-provenance receipt",
@@ -441,47 +662,79 @@ def _build_manifest() -> dict:
     for t in tiles:
         label_counts[t["label"]] = label_counts.get(t["label"], 0) + 1
     degraded = [t["name"] for t in tiles if not t.get("ok", True)]
+    reachable = [t["name"] for t in tiles if t.get("ok", True)]
+    readiness_rows = []
+    for tile in tiles:
+        ready, reasons = _tile_operational_readiness(tile)
+        readiness_rows.append({"name": tile["name"], "ready": ready, "reasons": reasons})
+    blocked = [row for row in readiness_rows if not row["ready"]]
+    all_sources_reachable = len(degraded) == 0
+    operationally_ready = not blocked and bool(tiles)
 
     return {
         "ok": True,
         "endpoint": "frontier/manifest",
         "service": "a11oy.frontier.manifest",
         "what": ("one honest roll-up of the SZL governed-provenance ecosystem — every "
-                 "capability as a tile with its MEASURED/MODELED/ROADMAP/SAMPLE label and "
+                 "capability as a tile with its own honesty label and "
                  "a provenance pointer. Composed live, in-process, from the wired surfaces."),
         "doctrine": (
             "v11: REAL composed data only. No label is upgraded (orbital stays MODELED, "
             "ROADMAP stays ROADMAP). reachable/running/survives_redeploy are REAL-PROBE-ONLY "
             "and read straight from the live surfaces. A down sub-source yields an honest "
-            "UNAVAILABLE tile, never a fabricated OK. The #1 frontier composite receipt is a "
-            "ROADMAP concept that names its parts — no composite artifact is minted. "
+            "UNAVAILABLE tile, never a fabricated OK. The composite receipt remains "
+            "UNAVAILABLE until a real governed write has minted an artifact. "
             "Λ = Conjecture 1."
         ),
         "universal_verifier": {
-            "what": "judge-facing audit layer: paste ANY receipt digest from ANY shared "
+            "what": "judge-facing integrity layer: paste ANY receipt digest from ANY shared "
                     "szl_khipu organ (immune, materials, kverify, provenance, sda, "
-                    "nemo_agents) and get an INDEPENDENT, COMPUTED PASS|FAIL|NOT_FOUND",
+                    "nemo_agents) and get a COMPUTED hash-chain PASS|FAIL|NOT_FOUND",
             "verify_post": _KHIPU_VERIFY,
             "verify_link": _KHIPU_VERIFY_PATH,
             "organs": _KHIPU_ORGANS,
-            "method": "SHA3-256 seal recompute (the exact szl_khipu sealing scheme) + "
-                      "prev-link re-walk to genesis; digest_matches + "
-                      "chain_to_genesis_verified are COMPUTED, never asserted",
-            "signature_status": "DSSE_PLACEHOLDER (cosign founder-gated; never faked)",
-            "khipu_kind": "Conjecture 2 (chain INTEGRITY real; BFT/consensus is the conjecture)",
+            "method": "integrity-only SHA3-256 seal recompute + prev-link re-walk to genesis; "
+                      "digest_matches + chain_to_genesis_verified are COMPUTED, never "
+                      "asserted; this does not verify authorship",
+            "signature_status": ("NOT_VERIFIED_INTEGRITY_ONLY; DSSE_PLACEHOLDER is not a "
+                                 "cryptographic signature"),
+            "khipu_kind": ("tamper-evident integrity chain only; authorship remains blocked "
+                           "until a real DSSE signature is verified; BFT/consensus is "
+                           "Conjecture 2"),
         },
         "labels_legend": {
-            "MEASURED": "real measured/shipped capability (e.g. signed joule receipts, REAL probes)",
+            "MEASURED": ("real measured/shipped capability (e.g. tamper-evident joule "
+                         "receipts, REAL probes); MEASURED never implies signed"),
             "MODELED": "design artifact derived from a real measurement (e.g. orbital joules from ground coeff)",
             "ROADMAP": "named forward work; no fabricated artifact",
             "SAMPLE": "illustrative sample value, never billable/live",
-            "UNAVAILABLE": "sub-source down right now — reported honestly, not faked",
+            "UNAVAILABLE": "source, dependency, or required artifact unavailable right now",
         },
         "summary": {
             "tiles": len(tiles),
             "label_counts": label_counts,
             "degraded_tiles": degraded,
-            "all_sources_live": len(degraded) == 0,
+            "source_reachability": {
+                "state": "REACHABLE" if all_sources_reachable else "DEGRADED",
+                "all_sources_reachable": all_sources_reachable,
+                "reachable_tiles": reachable,
+                "unavailable_tiles": degraded,
+            },
+            "operational_readiness": {
+                "state": "READY" if operationally_ready else "NOT_READY",
+                "ready": operationally_ready,
+                "ready_tiles": [row["name"] for row in readiness_rows if row["ready"]],
+                "blocked_tiles": blocked,
+            },
+            # Deprecated for old clients. This value is intentionally stricter than source
+            # reachability and cannot be true while a required tile is stopped, unminted,
+            # modeled, sampled, or unavailable.
+            "all_sources_live": operationally_ready,
+            "all_sources_live_compatibility": {
+                "deprecated": True,
+                "meaning": "legacy alias for operational_readiness.ready; not source reachability",
+                "value": operationally_ready,
+            },
         },
         "capabilities": tiles,
         "timestamp_utc": _now_iso(),
@@ -574,7 +827,7 @@ if __name__ == "__main__":
 
     # 4) the #1 frontier composite tile READS the provenance chain; it NEVER mints a
     #    receipt on a manifest GET. A fresh process has an empty provenance chain, so the
-    #    tile is honestly ROADMAP / no-artifact; building the manifest must not grow it.
+    #    tile is honestly UNAVAILABLE / no-artifact; building the manifest must not grow it.
     import szl_khipu as _kh
     import szl_provenance_receipt as _pr
     _prov = _kh.get_dag(_pr._KHIPU_ORGAN, ns="a11oy")
@@ -584,10 +837,11 @@ if __name__ == "__main__":
     assert _after == _before, (
         f"manifest GET must NOT mint a provenance receipt (chain grew {_before}->{_after})")
     concept = next(t for t in tiles if t["category"] == "frontier-concept")
-    assert concept["label"] in (ROADMAP, MEASURED), concept["label"]
-    # On a fresh process (empty chain) the tile is honestly ROADMAP with no artifact.
+    assert concept["label"] in (UNAVAILABLE, MEASURED), concept["label"]
+    # On a fresh process (empty chain) the tile is honestly UNAVAILABLE with no artifact.
     if _before == 0:
-        assert concept["label"] == ROADMAP, "empty chain -> honest ROADMAP, no fabricated artifact"
+        assert concept["label"] == UNAVAILABLE, \
+            "empty chain -> honest UNAVAILABLE, no fabricated artifact"
         assert concept.get("on_artifact_minted") is False, "no composite minted by a GET"
         assert concept.get("composite_digest") is None, "no digest fabricated on a GET"
     assert concept["provenance"].get("chain_verified") is True, "provenance chain must verify"
@@ -596,6 +850,8 @@ if __name__ == "__main__":
 
     # 5) labels legend + summary present; degraded tiles (if any) reported honestly
     assert "labels_legend" in m and "summary" in m
+    assert "source_reachability" in m["summary"]
+    assert "operational_readiness" in m["summary"]
     print(f"[5] summary: {_json.dumps(m['summary'])}")
 
     print("\n--- tiles (name / label / status) ---")
@@ -603,5 +859,3 @@ if __name__ == "__main__":
         print(f"  - {t['name']:38s} {t['label']:11s} {t['status']}")
     print("\nok:true checks:5")
     _sys.exit(0)
-
-

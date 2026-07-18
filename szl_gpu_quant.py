@@ -30,10 +30,10 @@ HONESTY SPINE (doctrine v11 — the non-negotiable part of this build):
     (cuML LedoitWolf + cuPy eigh + giotto-tda / Ripser++) is labeled ROADMAP. GPU
     reachability and dependency imports are readiness only; MEASURED requires a distinct
     accelerated path plus device/kernel/timing execution evidence.
-  * Every receipt is SIGNED via szl_dsse.sign_payload (REAL ECDSA when the cosign key
-    is present in the runtime; an explicit UNSIGNED honesty marker otherwise — never a
-    fabricated signature). The label SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED is
-    embedded in the signed payload so the honesty claim is self-verifying.
+  * Every receipt is wrapped by szl_dsse.sign_payload (verified ECDSA when the cosign key
+    is present in the runtime; explicitly UNSIGNED otherwise — never a fabricated
+    signature). The label SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED is embedded
+    in the content-addressed payload and its signature state is reported separately.
   * No fabricated metric. No live-trading claim. No backtest claim. cuML speedups are
     cited to NVIDIA/STAC docs, never asserted as SZL-measured.
 
@@ -41,7 +41,7 @@ Routes (NEW; never collide):
   GET  /api/{ns}/v1/quant/pca        — Layer 1 PCA-Risk (LW + MP) on a SAMPLE universe
   GET  /api/{ns}/v1/quant/tda        — Layer 2 TDA fracture score f_t, z_t, Betti β0/β1
   GET  /api/{ns}/v1/quant/kelly      — Layer 3 HJB-Kelly weights w* with σ²_eff
-  GET  /api/{ns}/v1/quant/pipeline   — full 3-layer pass + ONE signed SAMPLE receipt
+  GET  /api/{ns}/v1/quant/pipeline   — full 3-layer pass + ONE DSSE-bearing SAMPLE receipt
   GET  /api/{ns}/v1/quant/tiers      — 2-GPU serve tier panel (TP=2 / role-split / NIM cloud)
   GET  /api/{ns}/v1/quant/verify-claims — NVIDIA datasheet vs SZL-MEASURED (honest, empty/ROADMAP)
   GET  /quant                        — unified mobile-first "Quant Engine" tab (0 CDN)
@@ -50,10 +50,12 @@ Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 """
 from __future__ import annotations
 
+import base64 as _base64
 import hashlib as _hashlib
 import json as _json
 import math as _math
 import os as _os
+from pathlib import Path as _Path
 import random as _random
 import time as _time
 from datetime import datetime, timezone
@@ -61,6 +63,7 @@ from datetime import datetime, timezone
 # --- signed receipts: the SINGLE source of truth (never fabricate a signature) ----
 try:
     from szl_dsse import sign_payload as _sign_payload  # REAL ECDSA when key present
+    from szl_dsse import verify_envelope as _verify_envelope
     _SIGN_AVAILABLE = True
 except Exception:  # pragma: no cover — defensive; honest unsigned fallback below
     _SIGN_AVAILABLE = False
@@ -78,6 +81,9 @@ except Exception:  # pragma: no cover — defensive; honest unsigned fallback be
             "honesty": ("UNSIGNED — szl_dsse not importable in this runtime; "
                         "no signature fabricated."),
         }
+
+    def _verify_envelope(_envelope):  # type: ignore
+        return {"verified": False, "reason": "szl_dsse verifier is unavailable"}
 
 _QUANT_PAYLOAD_TYPE = "application/vnd.szl.quant.receipt+json"
 
@@ -664,10 +670,10 @@ def layer3_hjb_kelly(l1=None, l2=None, gamma=0.5, kappa=1.0, stress=False):
 
 
 # =====================================================================================
-# FULL PIPELINE -> ONE signed SAMPLE receipt.
+# FULL PIPELINE -> ONE DSSE-bearing SAMPLE receipt.
 # =====================================================================================
 def run_pipeline(stress=False, gamma=0.5, kappa=1.0) -> dict:
-    """Full 3-layer pass + a single SIGNED SAMPLE receipt (DSSE over canonical JSON)."""
+    """Full 3-layer pass plus a DSSE envelope whose signature state is explicit."""
     returns = _sample_returns(stress=stress)
     l1 = layer1_pca_risk(returns=returns, stress=stress)
     l2 = layer2_tda_fracture(returns=returns, stress=stress)
@@ -815,7 +821,7 @@ def tiers_panel() -> dict:
 # =====================================================================================
 # VERIFY-THE-CLAIMS panel: NVIDIA datasheet vs SZL-MEASURED (honest; empty/ROADMAP).
 # =====================================================================================
-def verify_claims_panel() -> dict:
+def _legacy_verify_claims_panel() -> dict:
     """Side-by-side NVIDIA datasheet numbers vs SZL-MEASURED (signed). Honest: SZL columns
     are empty/ROADMAP until we actually measure on OUR harness. NEVER print the datasheet
     number as if it were ours."""
@@ -856,6 +862,366 @@ def verify_claims_panel() -> dict:
 
 
 # =====================================================================================
+# Receipt-gated local verification. The legacy static panel above is retained only as
+# historical code; this definition is authoritative for routes and the UI.
+# =====================================================================================
+_QUANT_RECEIPT_SCHEMA = "szl.quant-live-benchmark-receipt.v1"
+_QUANT_RECEIPT_SCOPE = "bounded local execution; not a replication of vendor-scale claims"
+_QUANT_RECEIPT_PAYLOAD_TYPE = "application/vnd.szl.quant-live-benchmark+json"
+
+
+def _dsse_signature_state(dsse):
+    """Classify a DSSE envelope from cryptographic evidence, not its flag."""
+    if not isinstance(dsse, dict):
+        return "INVALID_SIGNATURE"
+    signatures = dsse.get("signatures")
+    if not isinstance(signatures, list):
+        return "INVALID_SIGNATURE"
+    if dsse.get("signed") is True:
+        verdict = _verify_envelope(dsse)
+        if isinstance(verdict, dict) and verdict.get("verified") is True:
+            return "SIGNED_VERIFIED"
+        return "INVALID_SIGNATURE"
+    if signatures:
+        return "INVALID_SIGNATURE"
+    return "UNSIGNED_CONTENT_ADDRESSED"
+
+
+def _finite_number(value, field, minimum=None, maximum=None):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not _math.isfinite(float(value)):
+        raise ValueError("%s must be a finite number" % field)
+    number = float(value)
+    if minimum is not None and number < minimum:
+        raise ValueError("%s is below its allowed minimum" % field)
+    if maximum is not None and number > maximum:
+        raise ValueError("%s exceeds its allowed maximum" % field)
+    return number
+
+
+def _bounded_int(value, field, minimum=0, maximum=1_000_000):
+    if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
+        raise ValueError("%s must be an integer between %s and %s" % (field, minimum, maximum))
+    return value
+
+
+def _aware_timestamp(value, field):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("%s missing" % field)
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("%s is not an ISO-8601 timestamp" % field) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("%s must include a timezone" % field)
+    return parsed.astimezone(timezone.utc)
+
+
+def _validate_model_identity(identity, measurement, role):
+    if not isinstance(identity, dict):
+        raise ValueError("%s identity missing" % role)
+    if not isinstance(measurement, dict):
+        raise ValueError("%s measurement missing" % role)
+    requested = identity.get("requested_model")
+    if not isinstance(requested, str) or not requested.strip() or requested != measurement.get("model"):
+        raise ValueError("%s identity does not match measured model" % role)
+    manifest_hash = identity.get("show_response_sha256")
+    if not isinstance(manifest_hash, str) or len(manifest_hash) != 64:
+        raise ValueError("%s identity manifest hash missing" % role)
+    try:
+        int(manifest_hash, 16)
+    except ValueError as exc:
+        raise ValueError("%s identity manifest hash is not SHA-256" % role) from exc
+    lineage = identity.get("base_lineage")
+    if not isinstance(lineage, dict) or not any(
+        isinstance(lineage.get(key), str) and lineage.get(key).strip()
+        for key in ("base_ref", "parent_model", "base_digest")
+    ):
+        raise ValueError("%s base lineage missing" % role)
+    wall_ms = identity.get("show_wall_ms")
+    if wall_ms is not None:
+        _finite_number(wall_ms, "%s identity show_wall_ms" % role, 0.0)
+    return manifest_hash.lower()
+
+
+def _validate_model_measurement(measurement, role):
+    if not isinstance(measurement, dict):
+        raise ValueError("%s measurement missing" % role)
+    exact = measurement.get("exact_match")
+    retrieval = measurement.get("bounded_retrieval")
+    runtime = measurement.get("runtime")
+    if not isinstance(exact, dict) or not isinstance(retrieval, dict) or not isinstance(runtime, dict):
+        raise ValueError("%s semantic measurement sections missing" % role)
+    total = _bounded_int(exact.get("tasks_total"), "%s tasks_total" % role, 1, 10_000)
+    passed = _bounded_int(exact.get("tasks_passed"), "%s tasks_passed" % role, 0, total)
+    accuracy = _finite_number(exact.get("accuracy_pct"), "%s accuracy_pct" % role, 0.0, 100.0)
+    expected_accuracy = 100.0 * passed / total
+    if abs(accuracy - expected_accuracy) > 0.001:
+        raise ValueError("%s accuracy_pct is inconsistent with pass counts" % role)
+    probes_total = _bounded_int(retrieval.get("probes_total"), "%s probes_total" % role, 1, 10_000)
+    _bounded_int(retrieval.get("probes_passed"), "%s probes_passed" % role, 0, probes_total)
+    _bounded_int(
+        retrieval.get("max_prompt_eval_tokens"), "%s max_prompt_eval_tokens" % role, 0, 10_000_000
+    )
+    _bounded_int(runtime.get("requests"), "%s runtime requests" % role, 1, 100_000)
+    latency = _finite_number(runtime.get("p50_wall_ms"), "%s p50_wall_ms" % role, 0.000001)
+    tps = runtime.get("p50_tokens_per_second")
+    if tps is not None:
+        _finite_number(tps, "%s p50_tokens_per_second" % role, 0.000001)
+    return {"accuracy": accuracy, "latency": latency}
+
+
+def _validate_cpu_reference(reference, field):
+    if not isinstance(reference, dict):
+        raise ValueError("%s missing" % field)
+    _bounded_int(reference.get("repeats"), "%s repeats" % field, 1, 20)
+    minimum = _finite_number(reference.get("min_ms"), "%s min_ms" % field, 0.0)
+    p50 = _finite_number(reference.get("p50_ms"), "%s p50_ms" % field, 0.0)
+    maximum = _finite_number(reference.get("max_ms"), "%s max_ms" % field, 0.0)
+    if minimum > p50 or p50 > maximum:
+        raise ValueError("%s latency order is inconsistent" % field)
+    if reference.get("compute_path") != "CPU_REFERENCE":
+        raise ValueError("%s is not an explicit CPU reference" % field)
+    return p50
+
+
+def _validate_quant_receipt(envelope):
+    if not isinstance(envelope, dict):
+        raise ValueError("receipt envelope missing")
+    receipt = envelope.get("receipt")
+    if not isinstance(receipt, dict):
+        raise ValueError("receipt object missing")
+    if receipt.get("schema_version") != _QUANT_RECEIPT_SCHEMA:
+        raise ValueError("unsupported receipt schema")
+    if receipt.get("measurement_class") != "MEASURED":
+        raise ValueError("receipt is not a completed MEASURED execution")
+    if receipt.get("scope") != _QUANT_RECEIPT_SCOPE:
+        raise ValueError("receipt scope is not the bounded local harness")
+
+    claimed_digest = receipt.get("content_sha256")
+    unsigned_body = dict(receipt)
+    unsigned_body.pop("content_sha256", None)
+    observed_digest = _hashlib.sha256(
+        _json.dumps(unsigned_body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    if claimed_digest != observed_digest:
+        raise ValueError("content digest mismatch")
+
+    started = _aware_timestamp(receipt.get("started_at"), "started_at")
+    completed = _aware_timestamp(receipt.get("completed_at"), "completed_at")
+    now = datetime.now(timezone.utc)
+    if completed < started:
+        raise ValueError("completed_at precedes started_at")
+    if completed.timestamp() > now.timestamp() + 300:
+        raise ValueError("completed_at is implausibly in the future")
+
+    ollama = receipt.get("ollama")
+    if not isinstance(ollama, dict) or ollama.get("base_url_class") != "loopback-local":
+        raise ValueError("receipt is not bound to a loopback-local Ollama endpoint")
+    candidate = ollama.get("candidate")
+    baseline = ollama.get("baseline")
+    c_identity = _validate_model_identity(ollama.get("candidate_identity"), candidate, "candidate")
+    b_identity = _validate_model_identity(ollama.get("baseline_identity"), baseline, "baseline")
+    if c_identity == b_identity:
+        raise ValueError("candidate and baseline resolve to the same manifest")
+    stability = ollama.get("identity_stability")
+    if not isinstance(stability, dict) or stability.get("stable") is not True:
+        raise ValueError("model identity stability is not proven")
+    if not (
+        stability.get("candidate_before_sha256") == c_identity
+        and stability.get("candidate_after_sha256") == c_identity
+        and stability.get("baseline_before_sha256") == b_identity
+        and stability.get("baseline_after_sha256") == b_identity
+    ):
+        raise ValueError("model identity drift detected in receipt")
+
+    candidate_metrics = _validate_model_measurement(candidate, "candidate")
+    baseline_metrics = _validate_model_measurement(baseline, "baseline")
+    comparisons = receipt.get("comparisons")
+    if not isinstance(comparisons, dict):
+        raise ValueError("comparison metrics missing")
+    speed = _finite_number(
+        comparisons.get("candidate_vs_baseline_wall_speed_ratio"), "wall speed ratio", 0.000001
+    )
+    expected_speed = baseline_metrics["latency"] / candidate_metrics["latency"]
+    if abs(speed - expected_speed) > 0.0001:
+        raise ValueError("wall speed ratio is inconsistent with measured latency")
+    uplift = _finite_number(
+        comparisons.get("candidate_minus_baseline_exact_match_points"), "accuracy uplift", -100.0, 100.0
+    )
+    expected_uplift = candidate_metrics["accuracy"] - baseline_metrics["accuracy"]
+    if abs(uplift - expected_uplift) > 0.001:
+        raise ValueError("accuracy uplift is inconsistent with measured accuracy")
+
+    quant_reference = receipt.get("quant_reference")
+    if not isinstance(quant_reference, dict):
+        raise ValueError("quant reference section missing")
+    _validate_cpu_reference(quant_reference.get("pca_pipeline"), "pca_pipeline")
+    _validate_cpu_reference(quant_reference.get("tda_stress_pipeline"), "tda_stress_pipeline")
+    gpu_comparison = quant_reference.get("gpu_acceleration_comparison")
+    if not isinstance(gpu_comparison, str) or not gpu_comparison.startswith("UNAVAILABLE:"):
+        raise ValueError("GPU acceleration status is not an explicit structured refusal")
+
+    dsse = envelope.get("dsse")
+    if not isinstance(dsse, dict):
+        raise ValueError("DSSE status missing")
+    signatures = dsse.get("signatures")
+    if not isinstance(signatures, list):
+        raise ValueError("DSSE signatures must be a list")
+    embedded = dsse.get("payload")
+    if embedded is not None:
+        if dsse.get("payloadType") != _QUANT_RECEIPT_PAYLOAD_TYPE:
+            raise ValueError("DSSE payload type mismatch")
+        try:
+            decoded = _base64.b64decode(embedded, validate=True)
+        except Exception as exc:
+            raise ValueError("DSSE payload is not valid base64") from exc
+        expected = _json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        if decoded != expected:
+            raise ValueError("DSSE payload does not match receipt")
+    if dsse.get("signed") is True:
+        if not signatures or embedded is None:
+            raise ValueError("DSSE claims signed without signatures and payload")
+        verdict = _verify_envelope(dsse)
+        if not isinstance(verdict, dict) or verdict.get("verified") is not True:
+            reason = verdict.get("reason") if isinstance(verdict, dict) else None
+            suffix = ": " + str(reason) if reason else ""
+            raise ValueError("DSSE signature verification failed" + suffix)
+        signature_state = "SIGNED_VERIFIED"
+    elif signatures:
+        raise ValueError("unsigned DSSE contains signatures")
+    else:
+        signature_state = "UNSIGNED_CONTENT_ADDRESSED"
+
+    raw_fresh_seconds = _os.environ.get("SZL_QUANT_BENCH_FRESH_SECONDS", "604800")
+    try:
+        fresh_seconds = int(raw_fresh_seconds)
+    except ValueError as exc:
+        raise ValueError("SZL_QUANT_BENCH_FRESH_SECONDS must be an integer") from exc
+    if not 60 <= fresh_seconds <= 2_678_400:
+        raise ValueError("SZL_QUANT_BENCH_FRESH_SECONDS is outside the allowed range")
+    age_seconds = max(0, int((now - completed).total_seconds()))
+    return {
+        "envelope": envelope,
+        "age_seconds": age_seconds,
+        "freshness_state": "CURRENT" if age_seconds <= fresh_seconds else "HISTORICAL",
+        "candidate_manifest_sha256": c_identity,
+        "baseline_manifest_sha256": b_identity,
+        "signature_state": signature_state,
+    }
+
+
+def verify_claims_panel() -> dict:
+    """Read a bounded local benchmark receipt without producing side effects.
+
+    Missing, semantically inconsistent, stale-looking, or tampered data never
+    becomes a live claim. Valid old receipts remain visible as HISTORICAL.
+    """
+    configured_path = _os.environ.get("SZL_QUANT_BENCH_RECEIPT", "").strip()
+    receipt_candidates = ([_Path(configured_path)] if configured_path else [
+        _Path.home() / ".a11oy" / "receipts" / "quant-live-benchmark.json",
+        _Path(__file__).resolve().parent / "benchmarks" / "quant_live" / "receipts" / "latest.json",
+    ])
+    receipt_path = next((path for path in receipt_candidates if path.is_file()), receipt_candidates[0])
+    measured = None
+    validation = None
+    receipt_error = None
+    try:
+        if receipt_path.is_file() and receipt_path.stat().st_size <= 2_000_000:
+            envelope = _json.loads(receipt_path.read_text(encoding="utf-8"))
+            validation = _validate_quant_receipt(envelope)
+            measured = validation["envelope"]
+        else:
+            receipt_error = "measurement receipt absent"
+    except (OSError, ValueError, TypeError, _json.JSONDecodeError) as exc:
+        receipt_error = "%s: %s" % (type(exc).__name__, exc)
+
+    local = measured.get("receipt") if measured else {}
+    ollama = local.get("ollama", {})
+    candidate = ollama.get("candidate", {})
+    baseline = ollama.get("baseline", {})
+    comparisons = local.get("comparisons", {})
+    quant_reference = local.get("quant_reference", {})
+    freshness = (validation or {}).get("freshness_state", "NO_RECEIPT")
+    signature_state = (validation or {}).get("signature_state", "NO_RECEIPT")
+    signed = signature_state == "SIGNED_VERIFIED"
+
+    def cell(value, how):
+        if measured is None:
+            return {"szl_measured": None, "szl_label": "NOT_MEASURED", "how": how,
+                    "comparison_status": "NO_RECEIPT", "freshness_label": freshness}
+        return {"szl_measured": value, "szl_label": "MEASURED", "how": how,
+                "comparison_status": "BOUNDED_LOCAL_NOT_VENDOR_REPLICATION",
+                "freshness_label": freshness}
+
+    def no_gpu_claim(local_reference, how):
+        return {
+            "szl_measured": None,
+            "szl_label": "NOT_MEASURED",
+            "local_reference": local_reference if measured else None,
+            "local_reference_label": "MEASURED" if measured else "NOT_MEASURED",
+            "how": how,
+            "comparison_status": "NO_GPU_COMPARISON_RECEIPT" if measured else "NO_RECEIPT",
+            "freshness_label": freshness,
+        }
+
+    def vendor_row(claim, reported, values):
+        return {"claim": claim, "nvidia_datasheet": reported, "nvidia_label": "REPORTED", **values}
+
+    c_acc = candidate.get("exact_match", {})
+    c_ret = candidate.get("bounded_retrieval", {})
+    speed = comparisons.get("candidate_vs_baseline_wall_speed_ratio")
+    uplift = comparisons.get("candidate_minus_baseline_exact_match_points")
+    pca = quant_reference.get("pca_pipeline", {})
+    tda = quant_reference.get("tda_stress_pipeline", {})
+    rows = [
+        vendor_row("Nemotron speedup vs prior frontier", "up to 5x", no_gpu_claim(
+            ("%sx local Ollama wall-speed ratio vs %s" % (speed, baseline.get("model"))) if speed is not None else None,
+            "Local Ollama p50 wall latency is separate evidence; no vendor-frontier or GPU comparison receipt exists.")),
+        vendor_row("Reasoning/accuracy uplift", "+30%", cell(
+            ("%s percentage points vs local baseline" % uplift) if uplift is not None else None,
+            "Six preregistered deterministic exact-match operational probes; not a general reasoning benchmark.")),
+        vendor_row("Benchmark accuracy", "91%", cell(
+            ("%s%% (%s/%s exact match)" % (c_acc.get("accuracy_pct"), c_acc.get("tasks_passed"), c_acc.get("tasks_total"))) if c_acc else None,
+            "Bounded SZL exact-match operational suite; not NVIDIA's benchmark.")),
+        vendor_row("Long-context retrieval", "1M-token retrieval", cell(
+            ("%s/%s needles; max %s evaluated prompt tokens" % (c_ret.get("probes_passed"), c_ret.get("probes_total"), c_ret.get("max_prompt_eval_tokens"))) if c_ret else None,
+            "Bounded local needle probes; no one-million-token claim.")),
+        vendor_row("cuML PCA speedup (quant Layer 1)", "10-50x (S&P 500 scale); about 100x genomic", no_gpu_claim(
+            ("CPU reference p50 %s ms; GPU comparison UNAVAILABLE" % pca.get("p50_ms")) if pca else None,
+            "Measured CPU reference only; no distinct cuML execution receipt exists.")),
+        vendor_row("Ripser++ persistence (quant Layer 2)", "up to 30x vs CPU Ripser", no_gpu_claim(
+            ("CPU stress reference p50 %s ms; GPU comparison UNAVAILABLE" % tda.get("p50_ms")) if tda else None,
+            "Measured CPU reference only; no distinct Ripser++ execution receipt exists.")),
+    ]
+    for row in rows:
+        row.setdefault("local_reference", None)
+        row.setdefault("local_reference_label", "NOT_MEASURED")
+    return {
+        "service": "verify-the-claims",
+        "doctrine": DOCTRINE["version"],
+        "summary": (("Current" if freshness == "CURRENT" else "Historical")
+                    + " bounded %s receipt loaded; vendor-scale and GPU comparisons remain out of scope."
+                    % ("cryptographically verified DSSE" if signed else "unsigned content-addressed")
+                    if measured else "No valid local measurement receipt is available; no number is invented."),
+        "gpu_reachable": _gpu_reachable(),
+        "rows": rows,
+        "receipt": {"path_class": "operator-local", "loaded": bool(measured), "error": receipt_error,
+                    "content_sha256": local.get("content_sha256"), "completed_at": local.get("completed_at"),
+                    "dsse_signed": signed,
+                    "signature_state": signature_state,
+                    "freshness_state": freshness, "age_seconds": (validation or {}).get("age_seconds"),
+                    "candidate_manifest_sha256": (validation or {}).get("candidate_manifest_sha256"),
+                    "baseline_manifest_sha256": (validation or {}).get("baseline_manifest_sha256")},
+        "honesty": ("The NVIDIA column is a cited vendor claim, not an endorsement. The SZL column comes from a "
+                    "bounded local execution receipt and is not presented as a vendor-scale replication. Signature "
+                    "state is derived from cryptographic verification; unsigned content-addressed evidence is never "
+                    "displayed as signed."),
+        "citations": [CITATIONS["rapids_cuml"], CITATIONS["ripserpp"]],
+        "computed_at": _now_iso(),
+    }
+
+
+# =====================================================================================
 # Unified "Quant Engine" HTML tab (0 CDN; window.SZLLabels).
 # =====================================================================================
 def _html(pipe: dict, tiers: dict, verify: dict) -> str:
@@ -890,10 +1256,23 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
                + row("de-risk ratio", fmt(l3["derisk_ratio_vs_uninflated"]))
                + row("γ, κ", "%s, %s <small>(uncalibrated)</small>" % (l3["gamma"], l3["kappa"])))
     dsse = pipe["signed_receipt"]["dsse"]
-    signed = dsse.get("signed", False)
+    pipeline_signature_state = _dsse_signature_state(dsse)
+    pipeline_signed = pipeline_signature_state == "SIGNED_VERIFIED"
+    pipeline_receipt_title = (
+        "Verified Signed SAMPLE Receipt" if pipeline_signed else
+        "Unsigned SAMPLE Receipt" if pipeline_signature_state == "UNSIGNED_CONTENT_ADDRESSED" else
+        "Invalid DSSE SAMPLE Receipt"
+    )
+    pipeline_receipt_note = (
+        "DSSE signature verified against the configured SZL public key."
+        if pipeline_signed else
+        "Content-addressed DSSE envelope; no verified signature is present."
+        if pipeline_signature_state == "UNSIGNED_CONTENT_ADDRESSED" else
+        "DSSE signature is invalid or unverifiable; this receipt is not presented as signed."
+    )
     rc_body = (row("data source", "SAMPLE_SYNTHETIC")
                + row("pipeline", "<code>szl-gpu-quant-v0.1</code>")
-               + row("DSSE signed", fmt(signed))
+               + row("signature state", pipeline_signature_state)
                + row("PAE sha256", "<code>%s…</code>" % str(dsse.get("_pae_sha256", ""))[:16])
                + row("label", "<small>%s</small>" % SAMPLE_LABEL))
 
@@ -911,19 +1290,27 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
 
     vrows = ""
     for r in verify["rows"]:
-        vrows += ('<tr><td>%s</td><td class="ds">%s</td><td class="ms"><span class="pill-slot" '
-                  'data-label="%s"></span> %s</td></tr>' % (
-                      r["claim"], r["nvidia_datasheet"], r["szl_label"], fmt(r["szl_measured"])))
-    verify_tbl = ('<table class="vt"><thead><tr><th>Claim</th><th>NVIDIA datasheet</th>'
-                  '<th>SZL-MEASURED (signed)</th></tr></thead><tbody>%s</tbody></table>' % vrows)
+        vrows += ('<tr><td>%s</td><td class="ds"><span class="pill-slot" data-label="%s"></span> %s</td>'
+                  '<td class="ms"><span class="pill-slot" data-label="%s"></span> %s<br><small>%s</small></td>'
+                  '<td class="ms"><span class="pill-slot" data-label="%s"></span> %s</td></tr>' % (
+                      r["claim"], r["nvidia_label"], r["nvidia_datasheet"],
+                      r["szl_label"], fmt(r["szl_measured"]), r.get("freshness_label", "NO_RECEIPT"),
+                      r["local_reference_label"], fmt(r["local_reference"])))
+    verify_tbl = ('<table class="vt"><thead><tr><th>Claim</th><th>NVIDIA published</th>'
+                  '<th>SZL comparison</th><th>Separate local evidence</th></tr></thead>'
+                  '<tbody>%s</tbody></table>' % vrows)
+    receipt_view = verify.get("receipt", {})
+    receipt_line = ("loaded=%s · completed_at=%s · signature=%s · content_sha256=%s" % (
+        receipt_view.get("loaded"), receipt_view.get("completed_at") or "—",
+        receipt_view.get("signature_state") or "UNKNOWN",
+        (str(receipt_view.get("content_sha256") or "—")[:20] + "…")
+        if receipt_view.get("content_sha256") else "—"))
 
     cards = "".join([
         card("Layer 1 · PCA Risk (LW + MP)", l1["label"].split(" | ")[0].replace("_SIGNAL", ""), l1_body, l1["honest_note"]),
         card("Layer 2 · TDA Fracture (β0/β1)", "SAMPLE", l2_body, l2["honest_note"]),
         card("Layer 3 · HJB-Kelly Sizing", "MODELED", l3_body, l3["honest_note"]),
-        card("Signed SAMPLE Receipt", "SAMPLE", rc_body,
-             ("DSSE envelope over the canonical receipt — REAL ECDSA when the cosign key is in the "
-              "runtime, else an explicit UNSIGNED honesty marker (never a fabricated signature).")),
+        card(pipeline_receipt_title, "SAMPLE", rc_body, pipeline_receipt_note),
     ])
 
     return """<!doctype html>
@@ -959,15 +1346,15 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
 <header>
   <h1>Sovereign Quant Engine</h1>
   <p class="summary">__SUMMARY__</p>
-  <p class="sub">Three orthogonal risk signals per bar — PCA-Risk · TDA-Fracture · HJB-Kelly — each a SIGNED receipt, honestly labeled <b>SAMPLE_SIGNAL · NOT_LIVE · NO_BACKTEST_VALIDATED</b>. Not a trading instruction.</p>
+  <p class="sub">Three orthogonal risk signals per bar — PCA-Risk · TDA-Fracture · HJB-Kelly — with receipt state <b>__PIPE_SIG__</b>, honestly labeled <b>SAMPLE_SIGNAL · NOT_LIVE · NO_BACKTEST_VALIDATED</b>. Not a trading instruction.</p>
   <p class="state">backend=__BACKEND__ · gpu_reachable=__REACH__ · scenario=__SCEN__</p>
 </header>
-<h2>3-Layer Pipeline (signed SAMPLE receipt)</h2>
+<h2>3-Layer Pipeline (DSSE receipt: __PIPE_SIG__)</h2>
 <section class="grid">__CARDS__</section>
 <h2>2-GPU Sovereign Serve · Throttle Both</h2>
 <section class="grid">__TIERS__</section>
-<h2>Verify the Claims — NVIDIA datasheet vs SZL-MEASURED (signed)</h2>
-<section>__VERIFY__<p class="note">__VNOTE__</p></section>
+<h2>Verify the Claims — vendor statement vs bounded local receipt</h2>
+<section>__VERIFY__<p class="state">__VRECEIPT__</p><p class="note">__VNOTE__</p></section>
 <footer>
   <p class="lock">Doctrine __DV__ LOCKED · locked-proven=__LC__ {__LP__} · __CORPUS__ @ __KC__ · Λ = Conjecture 1 (NOT a theorem) · __SLSA__</p>
   <p>SAMPLE = honest synthetic fixture (not live) · MODELED = labeled model output (uncalibrated) · ROADMAP = wiring ready, not measured yet (never faked). Cites: Brodetsky (LinkedIn) · Ledoit-Wolf (honey.pdf) · Laloux/Bouchaud/Potters · Gidea-Katz arXiv:1703.04385 · RAPIDS/cuML · giotto-tda · Ripser++ arXiv:2003.07989.</p>
@@ -983,7 +1370,8 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
         title: (label === "SAMPLE") ? "Honest synthetic fixture — not a live feed, no backtest." :
                (label === "MODELED") ? "Labeled model output — uncalibrated, not measured." :
                (label === "LIVE") ? "Real backend wired and live." :
-               "Wiring ready; not measured yet. ROADMAP, never faked."});
+               (label === "NOT_MEASURED") ? "No valid execution receipt is loaded; no value is invented." :
+               "Capability state reported by the live surface."});
     }
     return '<span>' + label + '</span>';
   }
@@ -993,13 +1381,15 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
 })();
 </script>
 </body></html>""" \
-        .replace("__SUMMARY__", "VRAM-resident quant pipeline (honest CPU fallback today; GPU path ROADMAP)") \
+        .replace("__SUMMARY__", "Operational bounded quant pipeline; CPU reference measured, GPU comparison requires a kernel receipt") \
         .replace("__BACKEND__", str(backend["backend"])) \
         .replace("__REACH__", str(backend["gpu_reachable"])) \
         .replace("__SCEN__", str(pipe["scenario"])) \
+        .replace("__PIPE_SIG__", pipeline_signature_state) \
         .replace("__CARDS__", cards) \
         .replace("__TIERS__", tier_cards) \
         .replace("__VERIFY__", verify_tbl) \
+        .replace("__VRECEIPT__", receipt_line) \
         .replace("__VNOTE__", verify["honesty"]) \
         .replace("__DV__", d["version"]) \
         .replace("__LC__", str(d["locked_count"])) \
@@ -1099,10 +1489,11 @@ def _selftest() -> dict:
         assert t["sovereign"] == tp["gpu_reachable"], t
     out["tiers_sovereign_honest"] = True
 
-    # (f) Verify-claims: SZL-MEASURED column is empty/ROADMAP (never the datasheet number).
+    # (f) Verify-claims: without a receipt no measured number is invented.
     vc = verify_claims_panel()
-    assert all(r["szl_measured"] is None and r["szl_label"] == "ROADMAP" for r in vc["rows"]), vc
-    out["verify_claims_roadmap"] = True
+    if not vc["receipt"]["loaded"]:
+        assert all(r["szl_measured"] is None and r["szl_label"] == "NOT_MEASURED" for r in vc["rows"]), vc
+    out["verify_claims_receipt_gate"] = True
 
     # (g) HTML renders, non-trivial, no forbidden raw claims.
     h = _html(pipe, tp, vc)

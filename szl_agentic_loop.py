@@ -10,9 +10,11 @@
 # chained, signed receipt.
 #
 # WHAT IT EXPOSES (all registered BEFORE the SPA catch-all via routes.insert(0)):
-#   GET  /mcp/                          — MCP discovery card (canonical live MCP)
+#   GET  /mcp/                          — MCP runtime discovery (declaration only)
 #   POST /mcp/                          — MCP JSON-RPC (initialize, tools/list, tools/call)
 #   GET  /api/<ns>/v1/agent/tools       — plain tool catalog (mirror of MCP tools/list)
+#   GET  /api/<ns>/v1/agent/evidence    — observed, read-only receipt evidence
+#   GET  /api/<ns>/v1/agent/invocations — bounded, ephemeral receipt summaries
 #   POST /api/<ns>/v1/agent/run         — the GOVERNED AGENT RUN (the whole loop)
 #   POST /api/<ns>/v1/agent/verify-chain— re-verify a run's chained receipt
 #   GET  /ask-and-act                   — the consumer/investor UI (one button)
@@ -36,9 +38,16 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
+
+
+# The Hatun read surface exposes only a bounded, in-process summary of receipts
+# that this module actually observed creating. It is deliberately ephemeral: a
+# restart clears the feed, and no GET handler signs or appends anything.
+_HATUN_FEED_LIMIT = 32
 
 # ----------------------------------------------------------------------------
 # FORMULA WIRING (ADDITIVE 2026-06-06): the ~80 kernel-verified theorems wired
@@ -747,8 +756,13 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     from starlette.responses import JSONResponse, HTMLResponse
     from starlette.requests import Request
 
-    # in-memory chain of FULL runs (each run is itself a chained sub-ledger).
+    # In-memory chain of full runs (each run is itself a chained sub-ledger).
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
+
+    # Bounded read model derived only from receipts created by _do_run. This is
+    # not a durable ledger and it is never populated by a GET request.
+    _HATUN_EVIDENCE = []
+    _HATUN_EVIDENCE_LOCK = threading.Lock()
 
     def _do_run(query: str, action: str, severity: str, confidence: float,
                 reversible: bool, untrusted_input: str = "", approval_grant=None,
@@ -823,7 +837,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                         "quarantined": True,
                         "feeds_decision": False})
 
-        # ---- HOP 3: MCP tool-call (policy_check tool, via the canonical MCP) ----
+        # ---- HOP 3: MCP tool-call (policy_check tool, via the registered MCP) ----
         with tr.span("tool_call", "mcp") as sp:
             tool_name = "policy_check"
             tool_input = {"action": action, "severity": severity,
@@ -1023,6 +1037,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         sealed = _chain_receipt("emit", {"decision": decision,
                                          "emitted": effect["emitted"],
                                          "signed": bool(envelope.get("signed"))})
+        receipt_has_signature = bool(envelope.get("signed") and envelope.get("signatures"))
 
         # ---- OPERATOR + GRAPH + UNIFYING FORMULA WIRING (real, executed on the
         # ---- SEALED chain) — these mechanisms run on the actual receipts below.
@@ -1088,11 +1103,12 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                       "decision": decision}
         _RUN_CHAIN.append(run_record)
 
-        return {
+        result = {
             "run_id": tr.trace_id,
             "decision": decision,
             "emitted": effect["emitted"],
-            "summary": _plain_summary(decision, action, effect, reasons, trust, trust_pass),
+            "summary": _plain_summary(decision, action, effect, reasons, trust, trust_pass,
+                                      receipt_has_signature),
             "retrieved": chunks,
             "untrusted": {"present": bool(untrusted_input),
                           "excerpt": (untrusted_input or "")[:240],
@@ -1118,25 +1134,34 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             "signed_receipt": envelope,
             "chain_final_hash": prev_hash,
             "chain_depth": len(chain),
-            "signer": signer_label,
+            "signer": signer_label if receipt_has_signature else None,
+            "signer_claim_status": ("SIGNATURE_PRESENT_UNVERIFIED"
+                                    if receipt_has_signature else "UNAVAILABLE"),
             "verify_hint": ("Re-verify with POST /api/%s/v1/agent/verify-chain "
-                            "(send the whole run object back). The final receipt is "
-                            "signed; fetch /cosign.pub to verify offline." % ns),
+                            "(send the whole run object back). A signature is not called "
+                            "valid until that verifier succeeds." % ns),
             "doctrine": "v11",
             "honesty": ("Trust score is advisory (Conjecture 1). RAG retrieves over the "
-                        "in-image governance corpus. The receipt is %s." % signer_label),
+                        "in-image governance corpus. Receipt signature state is %s."
+                        % ("PRESENT_UNVERIFIED" if receipt_has_signature else "UNAVAILABLE")),
         }
+        _remember_hatun_receipt(result, decision_payload, tool_name)
+        return result
 
-    def _plain_summary(decision, action, effect, reasons, trust, trust_pass):
+    def _plain_summary(decision, action, effect, reasons, trust, trust_pass,
+                       receipt_has_signature):
+        receipt_note = ("A receipt envelope with signature bytes was produced; verification "
+                        "is a separate check." if receipt_has_signature else
+                        "The receipt is UNSIGNED because no signature evidence was available.")
         if decision == "ALLOW":
             return ("Allowed. After retrieving the relevant guidance, calling the policy "
                     "tool, passing the safety gate and the advisory trust check (score "
-                    "%.2f), the action \"%s\" was %s. A signed receipt was produced."
-                    % (trust, action, effect["effect"]))
+                    "%.2f), the action \"%s\" was %s. %s"
+                    % (trust, action, effect["effect"], receipt_note))
         why = "; ".join(reasons) if reasons else ("advisory trust score %.2f below the floor" % trust)
         return ("Blocked. The safety/trust gate denied \"%s\" because: %s. No action was "
-                "taken — only a signed deny receipt was produced. This is the gate working."
-                % (action, why))
+                "taken. %s This is the gate working."
+                % (action, why, receipt_note))
 
     def _verify_chain(run: dict):
         """Re-verify a run object: (1) chain integrity (each prev_hash links and each
@@ -1186,6 +1211,122 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             "note": ("Chain integrity recomputed independently from the receipt bodies "
                      "(two ways: prev_hash chain + Merkle root, P5/C13/C14). "
                      "Flip any byte in any receipt body and chain_intact becomes false."),
+        }
+
+    def _signature_evidence_status(run: dict, verification: dict) -> str:
+        """Classify only evidence present on an observed receipt.
+
+        A self-reported ``signed`` flag is not enough to call a signature
+        verified. Verification requires the host-provided verifier to have run
+        and returned a positive result.
+        """
+        envelope = run.get("signed_receipt") or {}
+        has_signature = bool(envelope.get("signed") and envelope.get("signatures"))
+        if (verify_fn is not None and has_signature
+                and verification.get("signature_valid") is True):
+            return "VERIFIED"
+        if verify_fn is not None and has_signature:
+            return "INVALID"
+        if has_signature:
+            return "PRESENT_UNVERIFIED"
+        return "UNAVAILABLE"
+
+    def _remember_hatun_receipt(run: dict, decision_payload: dict, tool_name: str) -> None:
+        """Append a bounded, redacted summary of an actual governed-run receipt."""
+        verification = _verify_chain(run)
+        signature_status = _signature_evidence_status(run, verification)
+        if run.get("decision") == "DENY":
+            outcome = "DENY"
+        elif run.get("emitted"):
+            outcome = "ALLOW_EMITTED"
+        else:
+            outcome = "ALLOW_HELD"
+        entry = {
+            "namespace": ns,
+            "ts": decision_payload.get("issued_at"),
+            "run_id": run.get("run_id"),
+            "source": "governed_agent_run_receipt",
+            "tool": tool_name,
+            "outcome": outcome,
+            "receipt_hash": run.get("chain_final_hash"),
+            "chain_depth": run.get("chain_depth"),
+            "chain_status": ("OBSERVED_INTACT"
+                             if verification.get("chain_intact") is True
+                             else "OBSERVED_BROKEN"),
+            "signature_status": signature_status,
+            "signer": signer_label if signature_status == "VERIFIED" else None,
+            "maturity": "OBSERVED",
+        }
+        with _HATUN_EVIDENCE_LOCK:
+            _HATUN_EVIDENCE.append(entry)
+            overflow = len(_HATUN_EVIDENCE) - _HATUN_FEED_LIMIT
+            if overflow > 0:
+                del _HATUN_EVIDENCE[:overflow]
+
+    def _hatun_invocation_contract() -> dict:
+        with _HATUN_EVIDENCE_LOCK:
+            items = [dict(item) for item in reversed(_HATUN_EVIDENCE)]
+        return {
+            "schema": "szl.hatun.invocation-feed.v1",
+            "namespace": ns,
+            "status": "OBSERVED" if items else "UNKNOWN",
+            "read_only": True,
+            "get_mints_receipt": False,
+            "ephemeral": True,
+            "limit": _HATUN_FEED_LIMIT,
+            "count": len(items),
+            "source": "bounded in-process summaries of actual governed agent-run receipts",
+            "items": items,
+        }
+
+    def _hatun_evidence_contract() -> dict:
+        feed = _hatun_invocation_contract()
+        items = feed["items"]
+        latest = items[0] if items else None
+        verified = next((item for item in items
+                         if item.get("signature_status") == "VERIFIED"), None)
+        if verified:
+            signer = {"status": "OBSERVED_VERIFIED", "label": verified.get("signer")}
+        elif any(item.get("signature_status") in ("PRESENT_UNVERIFIED", "INVALID")
+                 for item in items):
+            signer = {"status": "UNVERIFIED", "label": None}
+        elif items:
+            signer = {"status": "UNAVAILABLE", "label": None}
+        else:
+            signer = {"status": "UNKNOWN", "label": None}
+
+        return {
+            "schema": "szl.hatun.evidence.v1",
+            "namespace": ns,
+            "read_only": True,
+            "get_mints_receipt": False,
+            "runtime": {
+                "status": "AVAILABLE",
+                "mcp_endpoint": "/mcp/",
+                "protocol_version": "2024-11-05",
+            },
+            "tool_catalog": {
+                "status": "RUNTIME_DECLARED",
+                "count": len(_tool_catalog(ns)),
+                "evidence_boundary": "declaration and route presence; not execution proof",
+            },
+            "signer": signer,
+            "receipt_chain": {
+                "status": latest.get("chain_status") if latest else "UNKNOWN",
+                "observed_receipts": len(items),
+                "latest_receipt_hash": latest.get("receipt_hash") if latest else None,
+                "latest_chain_depth": latest.get("chain_depth") if latest else None,
+            },
+            "invocations": {
+                "status": feed["status"],
+                "count": feed["count"],
+                "ephemeral": True,
+                "endpoint": "/api/hatun/invocations" if ns == "a11oy"
+                            else "/api/%s/v1/agent/invocations" % ns,
+            },
+            "honesty": ("No receipt or signer claim is promoted by this GET. UNKNOWN and "
+                        "UNAVAILABLE remain visible until an observed governed run supplies "
+                        "the corresponding evidence."),
         }
 
     # ------------------------------------------------------------------ #
@@ -1398,7 +1539,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         except Exception:  # pragma: no cover - SGH must never take the cycle down
             return core
 
-    # ---- MCP JSON-RPC handler (canonical live MCP) ----
+    # ---- MCP JSON-RPC handler (runtime-declared MCP surface) ----
     async def _mcp_post(request: Request):
         try:
             body = await request.json()
@@ -1496,18 +1637,21 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return {"_error": True, "detail": "unknown tool: %s" % name}
 
     async def _mcp_get(request: Request):
-        # MCP discovery card — proves a real, live, canonical MCP surface.
+        # The response proves this route was reachable for this request. Its tool
+        # list remains a runtime declaration, not proof of tool execution.
         return JSONResponse({
             "name": "szl-%s-mcp" % ns,
-            "title": "SZL %s — canonical governed MCP" % ns,
+            "title": "SZL %s — governed MCP runtime" % ns,
             "protocol": "Model Context Protocol (JSON-RPC over Streamable HTTP)",
             "protocolVersion": "2024-11-05",
             "transport": {"post": "/mcp/  (JSON-RPC: initialize, tools/list, tools/call)"},
             "tools": _tool_catalog(ns),
             "tool_count": len(_tool_catalog(ns)),
-            "canonical": True,
-            "note": ("This is the single canonical live MCP for %s. The previously "
-                     "advertised standalone MCP Spaces are retired; this surface replaces them." % ns),
+            "runtime_status": "AVAILABLE",
+            "catalog_evidence": "RUNTIME_DECLARED",
+            "execution_evidence": "/api/%s/v1/agent/evidence" % ns,
+            "note": ("This GET confirms route reachability and returns the catalog declared "
+                     "by this runtime. It does not prove a tool ran or a receipt was signed."),
             "doctrine": "v11",
         })
 
@@ -1529,7 +1673,17 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
 
     async def _agent_tools(request: Request):
         return JSONResponse({"tools": _tool_catalog(ns), "count": len(_tool_catalog(ns)),
-                             "canonical_mcp": "/mcp/", "doctrine": "v11"})
+                             "mcp_endpoint": "/mcp/",
+                             "catalog_evidence": "RUNTIME_DECLARED",
+                             "doctrine": "v11"})
+
+    async def _agent_evidence(request: Request):
+        return JSONResponse(_hatun_evidence_contract(),
+                            headers={"Cache-Control": "no-store"})
+
+    async def _agent_invocations(request: Request):
+        return JSONResponse(_hatun_invocation_contract(),
+                            headers={"Cache-Control": "no-store"})
 
     async def _agent_governance_standards(request: Request):
         return JSONResponse(governance_standards_note())
@@ -1595,6 +1749,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/mcp", _mcp_any, methods=["GET", "POST"], name="%s_mcp_noslash" % ns),
         Route("/api/%s/v1/agent/run" % ns, _agent_run, methods=["POST"], name="%s_agent_run" % ns),
         Route("/api/%s/v1/agent/tools" % ns, _agent_tools, methods=["GET"], name="%s_agent_tools" % ns),
+        Route("/api/%s/v1/agent/evidence" % ns, _agent_evidence,
+              methods=["GET"], name="%s_agent_evidence" % ns),
+        Route("/api/%s/v1/agent/invocations" % ns, _agent_invocations,
+              methods=["GET"], name="%s_agent_invocations" % ns),
         Route("/api/%s/v1/agent/governance-standards" % ns, _agent_governance_standards,
               methods=["GET"], name="%s_agent_gov_standards" % ns),
         Route("/api/%s/v1/agent/verify-chain" % ns, _agent_verify, methods=["POST"], name="%s_agent_verify" % ns),
@@ -1602,6 +1760,13 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/ask-and-act", _ask_and_act_ui, methods=["GET"], name="%s_ask_and_act" % ns),
         Route("/governed-run", _ask_and_act_ui, methods=["GET"], name="%s_governed_run" % ns),
     ]
+    if ns == "a11oy":
+        routes.extend([
+            Route("/api/hatun/evidence", _agent_evidence, methods=["GET"],
+                  name="hatun_evidence"),
+            Route("/api/hatun/invocations", _agent_invocations, methods=["GET"],
+                  name="hatun_invocations"),
+        ])
     # insert at position 0 so they win over the SPA catch-all (the known gotcha).
     for r in reversed(routes):
         app.router.routes.insert(0, r)
