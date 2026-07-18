@@ -45,6 +45,11 @@ jobs:
   deploy:
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f # main
     with:
+      # Push events always deploy the protected main branch. A manual dispatch
+      # deploys the exact selected commit so a PR can be reconciled and its
+      # immutable HF drift check can evaluate the proposed source rather than
+      # silently redeploying stale main.
+      ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || 'main' }}
       # truth-pass 2026-07-15: prune Space files under directory COPY sources
       # (console/, corpus/, ...) that are gone from git — otherwise stale prebuilt
       # SPA chunks (e.g. the fabricated pre-truth-pass Atlas bundle) live on the
