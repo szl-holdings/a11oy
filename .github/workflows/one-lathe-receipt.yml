@@ -1,0 +1,184 @@
+name: One Lathe snapshot receipt
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "artifacts/lathe/**"
+      - "schemas/lathe/**"
+      - "scripts/lathe_*.py"
+      - "scripts/sign_lathe_snapshot.py"
+      - "scripts/verify_lathe_snapshot_receipt.py"
+      - "tests/test_lathe_*.py"
+      - ".github/workflows/one-lathe-receipt.yml"
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/lathe/**"
+      - "schemas/lathe/**"
+      - "scripts/lathe_*.py"
+      - "scripts/sign_lathe_snapshot.py"
+      - "scripts/verify_lathe_snapshot_receipt.py"
+      - ".github/workflows/one-lathe-receipt.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate bounded snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install validation dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Reproduce the checked-in candidate byte for byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/lathe_snapshot.py \
+            --input artifacts/lathe/program-input.v1.json \
+            --output "$RUNNER_TEMP/program-snapshot.v1.json"
+          cmp artifacts/lathe/program-snapshot.v1.json "$RUNNER_TEMP/program-snapshot.v1.json"
+      - name: Run One Lathe contract suites
+        run: python -m pytest -q tests/test_lathe_snapshot.py tests/test_lathe_receipt.py
+
+  sign-and-verify:
+    name: Sign and independently verify
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install signing dependencies
+        run: |
+          python -m pip install --require-hashes \
+            -r .github/requirements/ci-core.txt \
+            -r .github/requirements/ci-sigstore.txt
+      - name: Mint a real keyless DSSE receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "szl-holdings/a11oy"
+          test "$GITHUB_REF" = "refs/heads/main"
+          identity="https://github.com/szl-holdings/a11oy/.github/workflows/one-lathe-receipt.yml@refs/heads/main"
+          python scripts/sign_lathe_snapshot.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-revision "$GITHUB_SHA" \
+            --workflow-identity "$identity"
+      - name: Locate receipt
+        id: receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          receipts=(attestations/lathe/*.dsse.json)
+          test "${#receipts[@]}" -eq 1
+          echo "path=${receipts[0]}" >> "$GITHUB_OUTPUT"
+      - name: Independently verify identity, Rekor inclusion, and exact subject
+        env:
+          RECEIPT: ${{ steps.receipt.outputs.path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity="https://github.com/szl-holdings/a11oy/.github/workflows/one-lathe-receipt.yml@refs/heads/main"
+          python scripts/verify_lathe_snapshot_receipt.py "$RECEIPT" \
+            --snapshot artifacts/lathe/program-snapshot.v1.json \
+            --identity "$identity" \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-revision "$GITHUB_SHA"
+      - name: Upload verified receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: one-lathe-sigstore-receipt
+          path: ${{ steps.receipt.outputs.path }}
+          if-no-files-found: error
+      - name: Publish verified receipt to the append-only ledger branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: publish
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RECEIPT: ${{ steps.receipt.outputs.path }}
+        with:
+          script: |
+            const fs = require('fs');
+            const branch = 'governance-receipts';
+            const { owner, repo } = context.repo;
+            const receipt = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+            if (receipt._mode !== 'SIGSTORE-KEYLESS') {
+              core.setFailed('Refusing to publish a non-Sigstore receipt.');
+              return;
+            }
+            const entry = receipt?._sigstore?.bundle?.verificationMaterial?.tlogEntries?.[0];
+            const logIndex = entry?.logIndex;
+            if (logIndex === undefined || logIndex === null) {
+              core.setFailed('Verified receipt has no Rekor log index.');
+              return;
+            }
+            let branchExists = true;
+            try {
+              await github.rest.repos.getBranch({ owner, repo, branch });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              branchExists = false;
+            }
+            if (!branchExists) {
+              const main = await github.rest.git.getRef({ owner, repo, ref: 'heads/main' });
+              await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: main.data.object.sha });
+            }
+            const sourceName = process.env.RECEIPT.split('/').pop();
+            const repoPath = `attestations/lathe/${sourceName.replace(/\.dsse\.json$/, `__rekor-${logIndex}.dsse.json`)}`;
+            const content = Buffer.from(JSON.stringify(receipt, null, 2) + '\n').toString('base64');
+            let existingSha;
+            try {
+              const existing = await github.rest.repos.getContent({ owner, repo, path: repoPath, ref: branch });
+              existingSha = existing.data.sha;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            const written = await github.rest.repos.createOrUpdateFileContents({
+              owner, repo, path: repoPath, branch, sha: existingSha,
+              message: `chore(receipts): publish One Lathe receipt ${logIndex}\n\nSigned-off-by: Yachay <yachay@szlholdings.ai>`,
+              content,
+            });
+            core.setOutput('path', repoPath);
+            core.setOutput('sha', written.data.content.sha);
+      - name: Verify the exact ledger blob was recorded
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PATH_WRITTEN: ${{ steps.publish.outputs.path }}
+          SHA_WRITTEN: ${{ steps.publish.outputs.sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const expected = process.env.SHA_WRITTEN;
+            let observed;
+            let lastError;
+            for (let attempt = 1; attempt <= 5; attempt += 1) {
+              try {
+                const current = await github.rest.repos.getContent({
+                  owner, repo, path: process.env.PATH_WRITTEN, ref: 'governance-receipts'
+                });
+                observed = current.data.sha;
+                if (observed === expected) return;
+              } catch (error) {
+                lastError = error;
+                if (error.status !== 404 && error.status !== 409) throw error;
+              }
+              if (attempt < 5) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+              }
+            }
+            const detail = lastError ? `; last API status ${lastError.status}` : '';
+            core.setFailed(`Ledger blob mismatch after bounded retries: ${observed ?? 'missing'} != ${expected}${detail}`);
