@@ -29,15 +29,27 @@ function identity(stat) {
 async function openStable(file, { root = null, maxBytes }) {
   const requested = path.resolve(file);
   if (!confined(requested, root)) throw new StableFileError("file_outside_allowed_root");
-  const link = await lstat(requested, { bigint: true });
-  if (!link.isFile() || link.isSymbolicLink()) throw new StableFileError("file_not_regular_or_reparse");
-  const canonical = await realpath(requested);
-  if (normalizedPath(canonical) !== normalizedPath(requested)) throw new StableFileError("file_reparse_resolution_changed");
   const flags = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0);
-  const handle = await open(requested, flags);
+  let handle;
+  try {
+    // Open first and validate through the resulting descriptor.  Checking the
+    // path before open creates a time-of-check/time-of-use window.
+    handle = await open(requested, flags);
+  } catch (error) {
+    if (["ELOOP", "EMLINK"].includes(error?.code)) {
+      throw new StableFileError("file_not_regular_or_reparse");
+    }
+    throw error;
+  }
   try {
     const before = await handle.stat({ bigint: true });
     if (!before.isFile()) throw new StableFileError("opened_file_not_regular");
+    const link = await lstat(requested, { bigint: true });
+    if (!link.isFile() || link.isSymbolicLink()) throw new StableFileError("file_not_regular_or_reparse");
+    const canonical = await realpath(requested);
+    const canonicalRoot = root ? await realpath(path.resolve(root)) : null;
+    if (canonicalRoot && !confined(canonical, canonicalRoot)) throw new StableFileError("file_outside_allowed_root");
+    if (normalizedPath(canonical) !== normalizedPath(requested)) throw new StableFileError("file_reparse_resolution_changed");
     if (identity(before) !== identity(link)) throw new StableFileError("file_identity_changed_before_open");
     if (before.size > BigInt(maxBytes)) throw new StableFileError("file_size_limit_exceeded");
     return { requested, handle, before, beforeIdentity: identity(before) };
