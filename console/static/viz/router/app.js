@@ -205,8 +205,10 @@ function graphStats(){
 }
 
 function normalizeStats(payload){
-  if(!payload || typeof payload !== 'object' || payload.mode !== 'live' || !Array.isArray(payload.routes)){
-    throw new Error('router stats envelope is not a live route array');
+  if(!payload || typeof payload !== 'object' || payload.state !== 'MODELED' ||
+     payload.mode !== 'modeled' || payload.throughput_state !== 'MODELED' ||
+     !Array.isArray(payload.routes)){
+    throw new Error('router stats envelope is not an explicitly modeled route array');
   }
   const routes = payload.routes.map(route=>({
     organ:String(route?.organ ?? ''), tier:String(route?.tier ?? ''), model:String(route?.model ?? ''),
@@ -221,7 +223,8 @@ function normalizeStats(payload){
   const routeTotal = routes.reduce((sum,route)=>sum+route.throughput,0);
   if(Math.abs(routeTotal-Number(payload.servedThisWindow)) > 0.001) throw new Error('router stats signal does not equal route total');
   return {
-    mode:'endpoint', source:String(payload.source || 'unlabelled endpoint source'), routes,
+    mode:'endpoint', state:'MODELED', source:String(payload.source || 'unlabelled endpoint source'),
+    catalogState:String(payload.catalog_state || 'UNKNOWN'), throughputState:'MODELED', routes,
     servedThisWindow:Number(payload.servedThisWindow), honesty:String(payload.honesty || '')
   };
 }
@@ -237,7 +240,7 @@ function renderRouteFeed(stats,state){
     title.textContent = `${route.tier} · ${route.organ} → ${route.model}`;
     const detail = document.createElement('span');
     detail.textContent = state === 'responding'
-      ? `${Math.round(route.throughput)} catalog pulse · ${route.license}`
+      ? `${Math.round(route.throughput)} modeled load · ${route.license}`
       : `${Math.round(route.throughput)} modeled load · ${route.license}${route.task ? ` · ${route.task}` : ''}`;
     item.append(title,detail); feed.append(item);
   }
@@ -252,9 +255,9 @@ function setOperationalState(stats,state,detail){
   const signalLabel = document.getElementById('signalLabel');
   document.getElementById('signalValue').textContent = String(Math.round(stats.servedThisWindow));
   if(state === 'responding'){
-    pill.textContent = 'CATALOG ENDPOINT · RESPONDING'; pill.className = 'pill responding';
-    signalLabel.textContent = 'catalog pulse · not QPS';
-    source.textContent = `Validated response · ${stats.source}`;
+    pill.textContent = 'MODELED ENDPOINT · RESPONDING'; pill.className = 'pill modeled';
+    signalLabel.textContent = 'modeled load · not QPS';
+    source.textContent = `Validated response · catalog ${stats.catalogState} · ${stats.source}`;
     routeMode.textContent = stats.honesty || 'Endpoint-derived catalog signal; not production traffic.';
   }else if(state === 'degraded'){
     pill.textContent = 'DEGRADED · MODELED FALLBACK'; pill.className = 'pill degraded';

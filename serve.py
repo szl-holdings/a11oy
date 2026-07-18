@@ -2906,17 +2906,25 @@ try:
                 "layer": "a11oy readiness tab-matrix",
                 "honest": True,
                 "available": False,
+                "matrix_available": False,
+                "probe_verdict_available": False,
                 "note": ("tabs.json not bundled with this deploy; generate it with "
                          "tools/readiness-harness/gen_tabs_matrix.py"),
                 "checked_at": _now,
             }, status_code=200)
-        if verdict is not None:
+        _verdict_available = verdict is not None
+        if _verdict_available:
             verdict = dict(verdict)
             verdict["available"] = True
         return _RDJSON({
             "layer": "a11oy readiness tab-matrix",
             "honest": True,
-            "available": True,
+            # ``available`` now means a deployment probe verdict is available,
+            # not merely that the static tab inventory was bundled.  Keep the
+            # two facts separate so a matrix can never become a green deploy.
+            "available": _verdict_available,
+            "matrix_available": True,
+            "probe_verdict_available": _verdict_available,
             "matrix": matrix,
             "verdict": verdict or {
                 "available": False,
@@ -6426,13 +6434,13 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # ===========================================================================
 
 # ===========================================================================
-# ADDITIVE (FUNCTIONAL-PROOF squad, 2026-06-04): live /v1/router/stats.
+# ADDITIVE (FUNCTIONAL-PROOF squad, 2026-06-04): modeled /v1/router/stats.
 # The landing-page "LLM-Router Live" 3D scene (/static/viz/router/) polls
 # /v1/router/stats every 1s and otherwise renders "DEMO MODE". The endpoint
 # did not exist (404 -> the scene fell back to demo), so the advertised "live
-# data binding · sovereign mode" claim was unproven. This serves REAL router
-# state derived from the in-process szl_brain.TIERS catalog (no fabrication):
-# one route per tier, throughput = live token-bucket counter incremented per
+# data binding · sovereign mode" claim was unproven. This serves a REAL catalog
+# observation plus explicitly MODELED load derived from szl_brain.TIERS:
+# one route per tier, throughput = deterministic time-derived display signal per
 # poll, in the {routes:[{organ,tier,model,throughput,license}], servedThisWindow}
 # shape the scene's normalizeStats() consumes. Registered at BOTH the root path
 # (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
@@ -6445,9 +6453,10 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 import time as _rtr_time
 
 def _a11oy_router_stats_payload() -> dict:
-    """Live per-tier router stats from the real szl_brain catalog. Deterministic
-    throughput from a time-seeded counter (honest: in-memory, resets on rebuild)."""
-    tiers = _a11oy_pr_brain.TIERS if _A11OY_BRAIN_OK else [
+    """Catalog-derived routes with explicitly MODELED, non-traffic throughput."""
+    _real_tiers = getattr(_a11oy_pr_brain, "TIERS", None) if _A11OY_BRAIN_OK else None
+    _catalog_live = isinstance(_real_tiers, list) and bool(_real_tiers)
+    tiers = _real_tiers if _catalog_live else [
         {"id": "claude_sonnet_4_6", "rank": 0},
         {"id": "gemini_3_1_pro", "rank": 1},
         {"id": "gpt_5_4", "rank": 2},
@@ -6476,21 +6485,24 @@ def _a11oy_router_stats_payload() -> dict:
         })
         served += tp
     return {
-        "mode": "live",
+        "state": "MODELED",
+        "mode": "modeled",
+        "catalog_state": "LIVE" if _catalog_live else "FALLBACK",
+        "throughput_state": "MODELED",
         "routes": routes,
         "servedThisWindow": served,
         "tiers": [f"T{int(t.get('rank', i))}" for i, t in enumerate(tiers)],
-        "source": "szl_brain.TIERS" if _A11OY_BRAIN_OK else "honest_stub_catalog",
+        "source": "szl_brain.TIERS" if _catalog_live else "honest_stub_catalog",
         "doctrine": "v11",
-        "honesty": ("Throughput is a live in-memory counter (resets on Space rebuild). "
-                    "Tier catalog + license classes are real; per-poll throughput is "
-                    "deterministic, not a production traffic meter."),
+        "honesty": ("Tier catalog state is reported separately. Throughput and "
+                    "servedThisWindow are deterministic MODELED display signals, not "
+                    "production traffic, measured QPS, or completed inference."),
     }
 
 @app.get("/api/a11oy/v1/router/stats")
 @app.get("/v1/router/stats")
 async def _a11oy_router_stats() -> JSONResponse:
-    """Live LLM-router per-tier stats (feeds the /static/viz/router/ 3D scene)."""
+    """Catalog routes plus modeled load (feeds the /static/viz/router/ 3D scene)."""
     return JSONResponse(_a11oy_router_stats_payload())
 
 print("[a11oy] router/stats registered BEFORE proxy: /api/a11oy/v1/router/stats + /v1/router/stats", file=sys.stderr)
@@ -8568,19 +8580,21 @@ def _r3d_loop_meta(r: dict):
 def _r3d_router_metrics_payload() -> dict:
     rs = _a11oy_router_stats_payload()
     routes = rs.get("routes", [])
-    live = rs.get("source") == "szl_brain.TIERS"
     return {
-        "data_kind": "live" if live else "sample",
-        "mode": rs.get("mode", "live"),
+        "state": "MODELED",
+        "data_kind": "modeled",
+        "mode": "modeled",
+        "catalog_state": rs.get("catalog_state", "FALLBACK"),
+        "throughput_state": "MODELED",
         "routes": routes,
         "tiers": routes,
         "servedThisWindow": rs.get("servedThisWindow", 0),
         "width_depth_available": False,
         "source": rs.get("source", ""),
         "doctrine": "v11",
-        "honesty": ("Per-tier throughput / model / license from the router catalog -- LIVE "
-                    "when the brain catalog (szl_brain.TIERS) is up, else honest_stub_catalog fallback "
-                    "with data_kind DOWNGRADED to sample. Model width/depth shape is NOT measured, so any "
+        "honesty": ("Per-tier model and license come from the router catalog; catalog_state says whether "
+                    "that catalog is live or fallback. Throughput and display load remain MODELED, never "
+                    "measured traffic or QPS. Model width/depth shape is NOT measured, so any "
                     "width/depth scaling point stays a clearly-labelled SAMPLE. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -8594,10 +8608,12 @@ def _r3d_routing_graph_payload() -> dict:
     edges = [{"source": routes[i].get("tier"), "target": routes[i + 1].get("tier")}
              for i in range(len(routes) - 1)]
     ch = _r3d_chain(50)
-    live = rs.get("source") == "szl_brain.TIERS"
     return {
-        "data_kind": "live" if live else "sample",
-        "mode": rs.get("mode", "live"),
+        "state": "MODELED",
+        "data_kind": "modeled",
+        "mode": "modeled",
+        "catalog_state": rs.get("catalog_state", "FALLBACK"),
+        "throughput_state": "MODELED",
         "nodes": nodes,
         "edges": edges,
         "routes": routes,
@@ -8606,10 +8622,9 @@ def _r3d_routing_graph_payload() -> dict:
         "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
                     "is a DERIVED heuristic, never a measured loss"),
         "doctrine": "v11",
-        "honesty": ("Routing nodes/edges are the /router/stats per-tier catalog -- LIVE when the "
-                    "brain catalog (szl_brain.TIERS) is up, else honest_stub_catalog fallback with "
-                    "data_kind DOWNGRADED to sample (real "
-                    "organ -> tier -> model escalation path); receipts are the real in-image "
+        "honesty": ("Routing nodes/edges use the /router/stats catalog; catalog_state distinguishes "
+                    "the live brain catalog from the honest fallback. Throughput remains MODELED, never "
+                    "traffic or QPS. The organ -> tier -> model escalation path is catalog data; receipts are the real in-image "
                     "chain. The manifold surface is a derived heuristic, never a measured loss. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -13851,6 +13866,26 @@ try:
 except Exception as _quant_signals_error:  # additive: never take down the SPA
     print(
         f"[a11oy] quant signals wall NOT registered (non-fatal): {_quant_signals_error!r}",
+        file=sys.stderr,
+    )
+
+
+# ============================================================================
+# ECOSYSTEM ATLAS + ANATOMY V5 (2026-07-16): one versioned public inventory
+# projection for models, governed kernels, datasets, Spaces, collections, and
+# buckets, plus real /ecosystem category deep links and the read-only Anatomy v5
+# digital twin. The API labels LIVE/CACHED/SNAPSHOT/UNAVAILABLE and leaves rows
+# empty when only snapshot counts exist. Front-inserted so these exact routes win
+# over the SPA fallback; additive and non-fatal.
+# ============================================================================
+try:
+    import a11oy_ecosystem_atlas as _a11oy_ecosystem_atlas
+
+    _ecosystem_atlas_result = _a11oy_ecosystem_atlas.register(app, ns="a11oy")
+    print(f"[a11oy] ecosystem atlas registered (front-moved): {_ecosystem_atlas_result}", file=sys.stderr)
+except Exception as _ecosystem_atlas_error:
+    print(
+        f"[a11oy] ecosystem atlas NOT registered (non-fatal): {_ecosystem_atlas_error!r}",
         file=sys.stderr,
     )
 

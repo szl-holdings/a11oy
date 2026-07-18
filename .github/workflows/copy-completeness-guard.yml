@@ -90,5 +90,5 @@ jobs:
         # Proves the guard CATCHES a deliberately-missing transitive COPY
         # (the szl_energy_measured class) and does NOT flag covered modules.
         run: |
-          pip install --quiet pytest
+          pip install --quiet --require-hashes -r .github/requirements/ci-core.txt
           python3 -m pytest tests/test_copy_completeness_transitive.py -q

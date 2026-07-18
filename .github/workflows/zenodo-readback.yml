@@ -29,8 +29,7 @@ jobs:
           python-version: "3.12"
       - name: Install bounded readback test dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install fastapi starlette httpx pytest
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Verify public Zenodo record
         env:
           A11OY_ZENODO_DOI: ${{ inputs.doi }}

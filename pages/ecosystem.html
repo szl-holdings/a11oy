@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SZL Ecosystem Atlas · a11oy</title>
+  <meta name="description" content="Evidence-labelled map of SZL models, governed kernels, datasets, Spaces, Brain, Anatomy, Holographic surfaces, and source ownership.">
+  <link rel="canonical" href="https://a-11-oy.com/ecosystem">
+  <meta property="og:title" content="SZL Ecosystem Atlas · a11oy">
+  <meta property="og:description" content="Every public model, kernel, dataset, Space, collection, and governed surface in one evidence-labelled control plane.">
+  <style>
+    :root{--bg:#07100f;--panel:#0b1715;--panel2:#0e1d1a;--line:rgba(79,242,196,.17);--ink:#edf9f5;--muted:#8eaaa2;--teal:#3af4c8;--blue:#6c9cff;--gold:#d9bc75;--red:#ec827e;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--sans:Inter,ui-sans-serif,system-ui,sans-serif}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 80% -10%,rgba(62,144,130,.2),transparent 36%),linear-gradient(180deg,#06100e,#081210 55%,#050b0a);color:var(--ink);font-family:var(--sans)}
+    a{color:inherit;text-decoration:none}a,button{touch-action:manipulation}a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:3px}.skip{position:fixed;left:12px;top:8px;z-index:100;transform:translateY(-160%);border-radius:8px;background:var(--teal);color:#03100c;padding:10px 13px;font:12px var(--mono)}.skip:focus{transform:none}.wrap{width:min(1180px,calc(100% - 32px));margin:auto}.mono{font-family:var(--mono)}
+    header{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(6,16,14,.9);backdrop-filter:blur(18px)}
+    header .wrap{height:66px;display:flex;align-items:center;gap:18px}.brand{min-height:44px;display:flex;align-items:center;gap:11px;font-weight:760}.mark{width:28px;height:28px;border:1px solid var(--teal);border-radius:50%;display:grid;place-items:center;color:var(--teal);box-shadow:0 0 28px rgba(58,244,200,.22)}
+    nav{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}nav a{min-height:44px;display:inline-flex;align-items:center;font-size:13px;color:var(--muted);padding:9px 11px;border-radius:9px}nav a:hover{background:rgba(58,244,200,.07);color:var(--ink)}.primary{border:1px solid rgba(58,244,200,.38);color:var(--teal)!important}
+    .hero{padding:72px 0 42px}.eyebrow{font:11px var(--mono);letter-spacing:.16em;color:var(--teal);text-transform:uppercase}.hero h1{font-size:clamp(2.6rem,6vw,5.6rem);line-height:.93;letter-spacing:-.055em;margin:18px 0}.hero h1 span{color:transparent;background:linear-gradient(90deg,var(--teal),var(--blue));background-clip:text}.hero p{max-width:760px;color:var(--muted);font-size:1.08rem;line-height:1.7}.statebar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:24px}.state{font:11px var(--mono);border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted)}.state[href]{min-height:44px;display:inline-flex;align-items:center}.state.live{color:var(--teal);border-color:rgba(58,244,200,.4)}.state.cached{color:var(--gold);border-color:rgba(217,188,117,.42)}.state.bad{color:var(--red);border-color:rgba(236,130,126,.4)}
+    .counts{display:grid;grid-template-columns:repeat(7,minmax(100px,1fr));gap:10px;margin:20px 0 46px}.count{background:linear-gradient(160deg,rgba(14,29,26,.96),rgba(8,17,15,.96));border:1px solid var(--line);border-radius:14px;padding:16px}.count b{display:block;font:650 1.55rem var(--mono);color:var(--teal)}.count span{font:10px var(--mono);letter-spacing:.09em;color:var(--muted);text-transform:uppercase}
+    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.search{min-height:44px;flex:1;min-width:230px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;font:13px var(--mono)}.search:focus{outline:1px solid var(--teal)}
+    .tabs{display:flex;gap:7px;overflow:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;padding-bottom:10px;margin-bottom:16px}.tab{min-height:44px;border:1px solid var(--line);background:rgba(11,23,21,.75);color:var(--muted);padding:9px 12px;border-radius:999px;font:11px var(--mono);white-space:nowrap;cursor:pointer}.tab.active,.tab:hover{color:#04100c;background:var(--teal);border-color:var(--teal)}
+    .brief{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin:20px 0 26px}.brief>div{min-width:0;border:1px solid var(--line);border-radius:16px;background:linear-gradient(150deg,rgba(14,29,26,.9),rgba(7,15,13,.95));padding:22px}.brief h2{margin:0 0 9px;font-size:1.25rem}.brief p{margin:0;color:var(--muted);line-height:1.65}.links{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.chip{min-height:44px;display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:var(--teal);font:11px var(--mono)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding-bottom:70px}.grid>*{min-width:0}.card{display:flex;flex-direction:column;min-height:178px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(150deg,rgba(14,29,26,.9),rgba(7,15,13,.96));padding:18px;transition:.18s}.card:hover{border-color:rgba(58,244,200,.46);transform:translateY(-2px)}.kind{font:10px var(--mono);letter-spacing:.1em;color:var(--blue);text-transform:uppercase}.card h3{font-size:1rem;line-height:1.35;margin:10px 0;overflow-wrap:anywhere}.meta{display:grid;gap:6px;margin-top:auto;font:10.5px var(--mono);color:var(--muted)}.meta span{display:flex;justify-content:space-between;gap:12px;min-width:0}.meta b{min-width:0;font-weight:500;color:#c9dad5;text-align:right;overflow-wrap:anywhere}.open{margin-top:14px;color:var(--teal);font:11px var(--mono)}
+    .empty{grid-column:1/-1;border:1px dashed var(--line);border-radius:15px;padding:28px;color:var(--muted);text-align:center}.foot{border-top:1px solid var(--line);padding:35px 0 50px;color:var(--muted);font-size:12px;line-height:1.6}.foot .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}.foot a{color:var(--teal)}
+    @media(max-width:900px){.counts{grid-template-columns:repeat(4,minmax(0,1fr))}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brief{grid-template-columns:1fr}}
+    @media(max-width:800px){.brand small{display:none}}
+    @media(max-width:680px){header{position:static}header .wrap{height:auto;flex-wrap:wrap;padding:11px 0 8px}nav{width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}nav a{flex:0 0 auto}}
+    @media(max-width:620px){.hero{padding-top:45px}.counts{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}.search{min-width:0;width:100%}.meta span{align-items:flex-start;flex-direction:column;gap:3px}.meta b{text-align:left}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header><div class="wrap">
+    <a class="brand" href="/"><span class="mark">A</span><span>a11oy <small class="mono" style="color:var(--muted);font-weight:400">/ ecosystem atlas</small></span></a>
+    <nav aria-label="Primary"><a href="https://a11oy.net">Alloy cockpit</a><a href="/spaces">All Spaces</a><a href="/anatomy-v5">Anatomy v5</a><a href="/console">Command center</a><a class="primary" href="https://huggingface.co/SZLHOLDINGS">Hugging Face ↗</a></nav>
+  </div></header>
+  <main id="main">
+    <section class="hero"><div class="wrap">
+      <div class="eyebrow">SZL Holdings · public control plane</div>
+      <h1>One estate.<br><span>Every artifact visible.</span></h1>
+      <p>Models stay immutable. Kernels stay attributable. The Brain, Anatomy, Holographic surfaces, datasets, collections, Spaces, and GitHub producers meet here through one evidence-labelled registry.</p>
+      <div class="statebar"><span class="state" id="atlas-state" role="status" aria-live="polite">LOADING</span><span class="state" id="atlas-time">waiting for inventory</span><a class="state" href="/api/a11oy/v1/ecosystem/atlas">JSON evidence ↗</a></div>
+    </div></section>
+    <div class="wrap">
+      <section class="counts" id="counts"></section>
+      <section class="brief">
+        <div><h2>Control plane, not an artifact warehouse.</h2><p>The sites link signed or revision-pinned Hub artifacts. Training, conversion, and evaluation remain with their producer repositories; the router chooses eligible runtimes and the Brain supplies grounded context.</p><div class="links"><a class="chip" href="https://github.com/szl-holdings/szl-router">Router source ↗</a><a class="chip" href="https://github.com/szl-holdings/szl-forge">Forge source ↗</a><a class="chip" href="https://github.com/szl-holdings/lutar-lean">Proof kernel ↗</a></div></div>
+        <div><h2>Anatomy v5</h2><p>An evidence-labelled digital twin of the estate: organism health, inference nervous system, and the complete formula genome. Unavailable sources remain visibly unavailable.</p><div class="links"><a class="chip" href="/anatomy-v5">Open Anatomy v5 →</a><a class="chip" href="/living-anatomy">Current 3D anatomy →</a></div></div>
+      </section>
+      <section class="toolbar"><input class="search" id="search" type="search" placeholder="Search models, kernels, Spaces, owners, revisions…" aria-label="Search ecosystem"></section>
+      <section class="tabs" id="tabs" role="tablist" aria-label="Ecosystem categories"></section>
+      <section class="grid" id="grid" role="tabpanel" aria-label="Ecosystem resources" aria-live="polite" tabindex="0"><div class="empty">Loading the public estate inventory…</div></section>
+    </div>
+  </main>
+  <footer class="foot"><div class="wrap"><span>Counts and rows are labelled LIVE, CACHED, STALE_CACHE, SNAPSHOT, or UNAVAILABLE. Runtime stage proves reachability only.</span><span><a href="https://github.com/szl-holdings">GitHub</a> · <a href="https://huggingface.co/SZLHOLDINGS">Hugging Face</a> · <a href="/trust">Trust center</a></span></div></footer>
+  <script>
+    const API='/api/a11oy/v1/ecosystem/atlas';
+    const labels={models:'Models',kernels:'Kernels',brain:'Brain',anatomy:'Anatomy',holographic:'Holographic',datasets:'Datasets',spaces:'Spaces',collections:'Collections',buckets:'Buckets',killinchu:'Killinchu'};
+    const order=['models','kernels','brain','anatomy','holographic','datasets','spaces','collections','buckets','killinchu'];
+    let atlas=null, active='models', query='';
+    const pathKey=location.pathname.split('/').filter(Boolean).at(-1)||'models';
+    const hashKey=location.hash.slice(1);
+    if(order.includes(hashKey)) active=hashKey; else if(order.includes(pathKey)) active=pathKey;
+    function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function cardsFor(key){
+      if(!atlas)return[];
+      if(['brain','anatomy','holographic','killinchu'].includes(key))return atlas.curated?.[key]||[];
+      return atlas.resources?.[key]||[];
+    }
+    function renderCounts(){
+      const keys=['models','kernels','datasets','spaces','collections','buckets','public_resources_total'];
+      document.getElementById('counts').innerHTML=keys.map(k=>`<div class="count"><b>${esc(atlas?.counts?.[k]??'—')}</b><span>${esc(k.replaceAll('_',' '))}</span></div>`).join('');
+    }
+    function selectTab(key,{focus=false}={}){
+      active=key;history.replaceState(null,'','/ecosystem#'+active);renderTabs();renderGrid();if(focus)document.getElementById('tab-'+active)?.focus();
+    }
+    function renderTabs(){
+      document.getElementById('tabs').innerHTML=order.map(k=>`<button type="button" class="tab ${k===active?'active':''}" id="tab-${k}" data-tab="${k}" role="tab" aria-selected="${k===active}" aria-controls="grid" tabindex="${k===active?'0':'-1'}">${labels[k]} <span>${cardsFor(k).length||''}</span></button>`).join('');
+      document.getElementById('grid').setAttribute('aria-labelledby','tab-'+active);
+      const buttons=[...document.querySelectorAll('.tab')];buttons.forEach((button,index)=>{button.addEventListener('click',()=>selectTab(button.dataset.tab));button.addEventListener('keydown',event=>{let next;if(event.key==='ArrowRight')next=(index+1)%buttons.length;else if(event.key==='ArrowLeft')next=(index-1+buttons.length)%buttons.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=buttons.length-1;else return;event.preventDefault();selectTab(buttons[next].dataset.tab,{focus:true})})});
+    }
+    function renderGrid(){
+      const rows=cardsFor(active).filter(r=>JSON.stringify(r).toLowerCase().includes(query));
+      const grid=document.getElementById('grid');
+      if(!rows.length){grid.innerHTML=`<div class="empty">${atlas?.state==='SNAPSHOT'?'The live inventory is unavailable; snapshot counts remain visible without fabricating rows.':'No matching resources.'}</div>`;return;}
+      grid.innerHTML=rows.map(r=>{
+        const id=r.id||r.title||'Untitled'; const rev=r.revision?String(r.revision).slice(0,12):null;
+        const owner=r.owner||r.source_state||'source mapping pending'; const stage=r.runtime_stage||r.owner_state||null;
+        return `<a class="card" href="${esc(r.href||'#')}" ${String(r.href||'').startsWith('http')?'target="_blank" rel="noopener"':''}><div class="kind">${esc(r.kind||active)}</div><h3>${esc(id)}</h3><div class="meta">${rev?`<span>revision<b>${esc(rev)}</b></span>`:''}<span>owner/source<b>${esc(owner)}</b></span>${stage?`<span>state<b>${esc(stage)}</b></span>`:''}${r.license?`<span>license<b>${esc(r.license)}</b></span>`:''}</div><span class="open">Open evidence →</span></a>`;
+      }).join('');
+    }
+    document.getElementById('search').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();renderGrid();});
+    fetch(API,{headers:{accept:'application/json'}}).then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json()}).then(d=>{
+      atlas=d;const state=document.getElementById('atlas-state');const normalized=String(d.state||'UNAVAILABLE').trim().toUpperCase().replace(/[ -]+/g,'_');const evidenceStates=['LIVE','CACHED','STALE_CACHE','SNAPSHOT','DEGRADED','MODELED','OBSERVED','AVAILABLE','UNAVAILABLE'];const displayState=evidenceStates.includes(normalized)?normalized:'UNAVAILABLE';const amberStates=['CACHED','STALE_CACHE','SNAPSHOT','DEGRADED','MODELED','OBSERVED','AVAILABLE'];state.textContent=displayState;state.classList.add(displayState==='LIVE'?'live':(amberStates.includes(displayState)?'cached':'bad'));document.getElementById('atlas-time').textContent='observed '+(d.observed_at||'unknown');renderCounts();renderTabs();renderGrid();
+    }).catch(e=>{document.getElementById('atlas-state').textContent='UNAVAILABLE';document.getElementById('atlas-state').classList.add('bad');document.getElementById('atlas-time').textContent='inventory request failed';document.getElementById('grid').innerHTML='<div class="empty">Atlas endpoint unavailable. No rows were fabricated.</div>';});
+  </script>
+</body>
+</html>

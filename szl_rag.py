@@ -278,8 +278,8 @@ def _ensure_loaded() -> None:
             print(f"[szl_rag] READY — {len(corpus)} chunks, organs={list(indexes)}",
                   flush=True)
         except Exception as exc:  # honest degradation, never fake data
-            _state["error"] = f"{type(exc).__name__}: {exc}"
-            print(f"[szl_rag] NOT READY (honest stub mode): {_state['error']}", flush=True)
+            _state["error"] = type(exc).__name__
+            print(f"[szl_rag] NOT READY (honest stub mode): {type(exc).__name__}: {exc}", flush=True)
 
 
 def _compute_model_weight_sha256() -> None:
@@ -556,7 +556,7 @@ def rag(query: str, space: str, top_k: int = 5, with_response: bool = False,
     except Exception as exc:
         answer_block = {
             "answer": None,
-            "honest_error": f"LLM router unavailable: {type(exc).__name__}: {exc}",
+            "honest_error": f"LLM router unavailable: {type(exc).__name__}",
             "note": "Retrieval succeeded; generation tier not wired in this Space.",
         }
     out["with_response"] = True

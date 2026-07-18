@@ -268,7 +268,7 @@ def _ollama_generate(gpu_base: str, model: str, prompt: str,
             return None, "gpu returned non-object"
         return doc, None
     except Exception as exc:  # noqa: BLE001 — unreachable/timeout => OFFLINE
-        return None, "gpu unreachable: %s" % (str(exc)[:160])
+        return None, "gpu unreachable: %s" % (type(exc).__name__)
 
 
 # ======================================================================================
@@ -471,7 +471,7 @@ class JPTLedger:
             row["_persisted"] = True
         except Exception as exc:  # noqa: BLE001 — persist failed; row still in memory, flagged
             row["_persisted"] = False
-            row["_persist_error"] = str(exc)[:160]
+            row["_persist_error"] = type(exc).__name__
         return row
 
     def verify_chain(self) -> Dict[str, Any]:
@@ -885,7 +885,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
             return fn(*a, **k)
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return {"service": "jpt-organ", "label": MEASURED_LABEL,
-                    "error": "compute fail-open: %s" % (str(exc)[:160]), "honesty": _HONEST_NOTE}
+                    "error": "compute fail-open: %s" % (type(exc).__name__), "honesty": _HONEST_NOTE}
 
     try:
         from fastapi.responses import JSONResponse

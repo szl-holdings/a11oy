@@ -118,8 +118,17 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
         if callable(include_router):
             # Documented path: /api/<ns>/v1/ayni (+ /replay, /tinkuy). Resolves LOCALLY.
             app.include_router(_ayni_router, prefix=f"/api/{ns}")
-            # Legacy path: bare /v1/ayni — additive back-compat, breaks no caller.
-            app.include_router(_ayni_router)
+            # Legacy paths: current FastAPI versions de-duplicate a second inclusion
+            # of the same APIRouter object, even when its prefix differs.  Append the
+            # original APIRoute objects instead so the claimed bare /v1/* contract is
+            # actually present while the prefixed clones remain untouched.
+            existing_paths = {
+                getattr(route, "path", None) for route in app.router.routes
+            }
+            for route in getattr(_ayni_router, "routes", []):
+                if getattr(route, "path", None) not in existing_paths:
+                    app.router.routes.append(route)
+                    existing_paths.add(getattr(route, "path", None))
             included = True
         else:
             # Bare Starlette fallback: splice the router's routes onto app.router at

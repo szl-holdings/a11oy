@@ -58,7 +58,7 @@ try:
     import szl_kc_loop_forge as _forge  # type: ignore
 except Exception as _exc:  # pragma: no cover — honest failure marker, never fabricate data
     _forge = None
-    _IMPORT_ERROR = str(_exc)
+    _IMPORT_ERROR = type(_exc).__name__
 else:
     _IMPORT_ERROR = ""
 
@@ -384,7 +384,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
                 return JSONResponse(compute_metrics(seed=seed, cycles=cycles))
             except Exception as exc:  # pragma: no cover — never 500 the surface
                 return JSONResponse({"service": "loop-forge-metrics-ext", "label": MODELED_LABEL,
-                                     "error": "compute fail-open: %s" % (str(exc)[:160])},
+                                     "error": "compute fail-open: %s" % (type(exc).__name__)},
                                     status_code=200)
 
         add_api_route = getattr(app, "add_api_route", None)

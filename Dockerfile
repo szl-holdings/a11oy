@@ -115,6 +115,9 @@ COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
 # Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
 COPY console/ ./static/
+# Security discovery is maintained at repository root; copy it into the static
+# tree so /.well-known/security.txt resolves before the SPA fallback.
+COPY .well-known/security.txt ./static/.well-known/security.txt
 
 # Build cache-bust 2026-06-08T23:30Z (Wave23 instillation): knowledge.json was
 # … (full rationale: docs/DOCKERFILE_NOTES.md §4)
@@ -602,6 +605,11 @@ COPY a11oy_khipu_demo_nav.py ./a11oy_khipu_demo_nav.py
 # … (full rationale: docs/DOCKERFILE_NOTES.md §95)
 COPY a11oy_quant_signals.py ./a11oy_quant_signals.py
 COPY a11oy_quant_signals_nav.py ./a11oy_quant_signals_nav.py
+
+# ECOSYSTEM ATLAS + ANATOMY V5 (2026-07-16): versioned public inventory API,
+# real deep-link pages, and the read-only live digital twin. pages/ is copied
+# wholesale above; this per-file image copies only the new Python registrar.
+COPY a11oy_ecosystem_atlas.py ./a11oy_ecosystem_atlas.py
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # … (full rationale: docs/DOCKERFILE_NOTES.md §96)

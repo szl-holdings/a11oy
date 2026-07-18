@@ -42,12 +42,14 @@ def test_status_requires_validated_endpoint_data_and_never_calls_it_qps():
     app = source(ROUTER / "app.js")
 
     assert "normalizeStats(await response.json())" in app
-    assert "payload.mode !== 'live'" in app
+    assert "payload.state !== 'MODELED'" in app
+    assert "payload.mode !== 'modeled'" in app
+    assert "payload.throughput_state !== 'MODELED'" in app
     assert "routes.length !== payload.routes.length" in app
     assert "router stats signal does not equal route total" in app
     assert "stats.source !== 'szl_brain.TIERS'" in app
-    assert "CATALOG ENDPOINT · RESPONDING" in app
-    assert "catalog pulse · not QPS" in app
+    assert "MODELED ENDPOINT · RESPONDING" in app
+    assert "modeled load · not QPS" in app
     assert "MODELED decision signal" in app
     assert "response age, not model age" in app
     assert 'id="qps"' not in html

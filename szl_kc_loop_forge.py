@@ -869,7 +869,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
 
     def _fail_open(exc: Exception) -> Dict[str, Any]:
         return {"service": "loop-forge", "label": MODELED_LABEL,
-                "error": "compute fail-open: %s" % (str(exc)[:160])}
+                "error": "compute fail-open: %s" % type(exc).__name__}
 
     try:
         from fastapi.responses import JSONResponse
