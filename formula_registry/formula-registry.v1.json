@@ -4,7 +4,7 @@
     "algorithm": "sha256",
     "canonicalization": "SZL deterministic JSON for this restricted integer/string/boolean/array/object payload: UTF-8, object keys sorted, separators ',', ':', ensure_ascii=false",
     "scope": "payload",
-    "value": "c2b9f69861153423d18c876efb02914e4fab97fef08e43061faeccee989846f3"
+    "value": "87c77ac42251da0e7b28d743877c4888628d4b49cbca4d5d8618d04f921a23d9"
   },
   "signature": {
     "status": "UNSIGNED",
@@ -13,7 +13,7 @@
   "payload": {
     "registry_version": "1.0.0",
     "doctrine_version": "v11",
-    "coverage_scope": "Dispute-relevant maturity crosswalk for the Doctrine-v11 locked baseline, the challenged F4/F7/F22 classifications, and F23 Lambda status; this is not an inventory of every formula or theorem in the estate.",
+    "coverage_scope": "Dispute-relevant maturity crosswalk for the Doctrine-v11 locked baseline, the challenged F4/F7/F22 classifications, and F23 status; this is not an inventory of the full estate.",
     "exhaustive": false,
     "covered_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22", "F23"],
     "source_repository": "https://github.com/szl-holdings/lutar-lean",

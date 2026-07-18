@@ -163,7 +163,7 @@ def test_path_escape_signature_and_exhaustive_tamper_fail_closed():
 
 def test_handwritten_validator_rejects_metadata_drift_with_recomputed_digest():
     doctrine = copy.deepcopy(registry.REGISTRY)
-    doctrine["payload"]["doctrine_version"] = "v999"
+    doctrine["payload"]["doctrine_version"] = "invalid-version"
     _resign_digest_only(doctrine)
     with pytest.raises(ValueError, match="doctrine_version drift"):
         registry.validate_registry_document(doctrine, verify_source_hashes=False)

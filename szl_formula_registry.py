@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent
 REGISTRY_PATH = ROOT / "formula_registry" / "formula-registry.v1.json"
 EXPECTED_CANONICALIZATION = "SZL deterministic JSON for this restricted integer/string/boolean/array/object payload: UTF-8, object keys sorted, separators ',', ':', ensure_ascii=false"
 EXPECTED_UNSIGNED_REASON = "No approved signing key was available for this reconciliation wave. The deterministic digest is not a signature."
-EXPECTED_COVERAGE_SCOPE = "Dispute-relevant maturity crosswalk for the Doctrine-v11 locked baseline, the challenged F4/F7/F22 classifications, and F23 Lambda status; this is not an inventory of every formula or theorem in the estate."
+EXPECTED_COVERAGE_SCOPE = "Dispute-relevant maturity crosswalk for the Doctrine-v11 locked baseline, the challenged F4/F7/F22 classifications, and F23 status; this is not an inventory of the full estate."
 EXPECTED_POLICY = {
     "locked_set_rule": "Only the five formulas named by the canonical Doctrine-v11 locked-kernel report are LOCKED_PROVEN.",
     "experimental_rule": "A source declaration or CI-green experimental theorem does not promote a formula into the locked set.",
