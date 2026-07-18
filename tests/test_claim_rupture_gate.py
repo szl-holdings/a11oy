@@ -3,12 +3,27 @@
 
 import hashlib
 import json
+from pathlib import Path
+
+import pytest
+from jsonschema import Draft202012Validator
 
 import szl_claim_rupture_gate as rg
 
 
 SHA_A = "a" * 64
 SHA_B = "b" * 64
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _schema(name):
+    return json.loads((ROOT / "schemas" / "evidenceos" / name).read_text(encoding="utf-8"))
+
+
+def _validator(name):
+    schema = _schema(name)
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema)
 
 
 def _owner():
@@ -44,6 +59,185 @@ def _semantic(value):
     return {"value": value, "source_ref": "eval:calibrator-1", "method": "held-out calibration"}
 
 
+def _evaluate_payload():
+    return {
+        "claims": [_claim()],
+        "external_signals": {
+            "claim-1": {
+                "semantic_uncertainty": _semantic(0.2),
+                "factuality": _factuality(rg.SUPPORTED),
+            }
+        },
+        "contradictions": [],
+    }
+
+
+def test_atomize_request_contract_and_schema_are_strict_and_bounded():
+    parsed = rg.parse_atomize_request({"text": "  Claim one.  "})
+    assert parsed == {"text": "  Claim one.  "}
+    assert list(_validator("claim-atomize-request.v1.schema.json").iter_errors(parsed)) == []
+
+    invalid = [
+        None,
+        {},
+        {"text": 4},
+        {"text": " \n\t "},
+        {"text": "x", "ignored": True},
+        {"text": "x" * (rg.MAX_ATOMIZE_TEXT_CHARS + 1)},
+    ]
+    for payload in invalid:
+        with pytest.raises(rg.ClaimContractError):
+            rg.parse_atomize_request(payload)
+
+
+def test_evaluate_request_normalizes_defaults_and_matches_schema():
+    parsed = rg.parse_evaluate_request(_evaluate_payload())
+    assert parsed["claims"][0]["claim_id"] == "claim-1"
+    assert parsed["external_signals"]["claim-1"]["semantic_uncertainty"]["value"] == 0.2
+    assert parsed["contradictions"] == []
+    assert list(_validator("claim-evaluate-request.v1.schema.json").iter_errors(parsed)) == []
+
+    defaults = rg.parse_evaluate_request({"claims": []})
+    assert defaults == {"claims": [], "external_signals": {}, "contradictions": []}
+
+
+def test_contract_accepts_epistemic_incompleteness_for_fail_closed_rubric():
+    payload = {
+        "claims": [{
+            "claim_id": "claim-incomplete",
+            "statement": "This claim deliberately lacks complete evidence and ownership.",
+            "atomic": True,
+            "evidence_refs": [{"reference_id": "source-open", "provenance": {}}],
+            "consequence_owner": {},
+        }]
+    }
+    parsed = rg.parse_evaluate_request(payload)
+    row = rg.evaluate_claims(**parsed)["claims"][0]
+    assert row["state"] == rg.UNKNOWN
+    assert row["abstain_required"] is True
+    assert {"RG-004", "RG-005"}.issubset(row["rubric_codes"])
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda payload: payload.update({"unknown": True}),
+        lambda payload: payload["claims"][0].update({"unknown": True}),
+        lambda payload: payload["claims"][0]["evidence_refs"][0].update({"unknown": True}),
+        lambda payload: payload["external_signals"]["claim-1"].update({"unknown": True}),
+        lambda payload: payload["external_signals"]["claim-1"]["factuality"].update(
+            {"unknown": True}
+        ),
+    ],
+)
+def test_evaluate_request_rejects_unknown_fields_at_every_layer(mutate):
+    payload = _evaluate_payload()
+    mutate(payload)
+    with pytest.raises(rg.ClaimContractError, match="unknown field"):
+        rg.parse_evaluate_request(payload)
+
+
+def test_evaluate_request_rejects_cross_record_identifier_ambiguity():
+    duplicate = _evaluate_payload()
+    duplicate["claims"].append({**_claim(), "statement": "A second statement."})
+    with pytest.raises(rg.ClaimContractError, match="must be unique"):
+        rg.parse_evaluate_request(duplicate)
+
+    orphan_signal = _evaluate_payload()
+    orphan_signal["external_signals"] = {"missing-claim": {}}
+    with pytest.raises(rg.ClaimContractError, match="explicit claim_id"):
+        rg.parse_evaluate_request(orphan_signal)
+
+    orphan_contradiction = _evaluate_payload()
+    orphan_contradiction["contradictions"] = [{"claim_ids": ["missing-claim"]}]
+    with pytest.raises(rg.ClaimContractError, match="unknown claim_id"):
+        rg.parse_evaluate_request(orphan_contradiction)
+
+    invalid_subset = _evaluate_payload()
+    invalid_subset["claims"].append({**_claim(), "claim_id": "claim-2"})
+    invalid_subset["contradictions"] = [{
+        "claim_ids": ["claim-1"],
+        "refutes_claim_ids": ["claim-2"],
+    }]
+    with pytest.raises(rg.ClaimContractError, match="subset"):
+        rg.parse_evaluate_request(invalid_subset)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"claims": [{}] * (rg.MAX_CLAIMS + 1)},
+        {"claims": [{"statement": "x" * (rg.MAX_STATEMENT_CHARS + 1)}]},
+        {"claims": [{"evidence_refs": [{}] * (rg.MAX_EVIDENCE_REFS_PER_CLAIM + 1)}]},
+        {"claims": [], "contradictions": [{}] * (rg.MAX_CONTRADICTIONS + 1)},
+        {
+            "claims": [{"claim_id": f"c-{index}"} for index in range(rg.MAX_EXTERNAL_SIGNALS + 1)],
+            "external_signals": {
+                f"c-{index}": {} for index in range(rg.MAX_EXTERNAL_SIGNALS + 1)
+            },
+        },
+        {
+            "claims": [{"claim_id": f"c-{index}"} for index in range(rg.MAX_CLAIMS)],
+            "contradictions": [{
+                "claim_ids": [f"c-{index}" for index in range(rg.MAX_CLAIM_IDS_PER_CONTRADICTION)]
+                + ["c-extra"]
+            }],
+        },
+    ],
+)
+def test_evaluate_request_rejects_unbounded_work(payload):
+    with pytest.raises(rg.ClaimContractError):
+        rg.parse_evaluate_request(payload)
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    [
+        lambda payload: payload["external_signals"]["claim-1"]["semantic_uncertainty"].update(
+            {"value": True}
+        ),
+        lambda payload: payload["external_signals"]["claim-1"]["semantic_uncertainty"].update(
+            {"value": 1.01}
+        ),
+        lambda payload: payload["external_signals"]["claim-1"]["factuality"].update(
+            {"state": "CERTAIN"}
+        ),
+        lambda payload: payload["claims"][0]["evidence_refs"][0]["provenance"].update(
+            {"content_sha256": "not-a-digest"}
+        ),
+    ],
+)
+def test_evaluate_request_rejects_malformed_typed_signals(mutator):
+    payload = _evaluate_payload()
+    mutator(payload)
+    with pytest.raises(rg.ClaimContractError):
+        rg.parse_evaluate_request(payload)
+
+
+def test_runtime_and_json_schema_refuse_the_same_structural_attack_shapes():
+    validator = _validator("claim-evaluate-request.v1.schema.json")
+    structural_attacks = [
+        {"claims": [], "extra": "smuggled"},
+        {"claims": [{"atomic": 1}]},
+        {"claims": [{"evidence_refs": [{}] * (rg.MAX_EVIDENCE_REFS_PER_CLAIM + 1)}]},
+        {"claims": [], "external_signals": {" ": {}}},
+        {"claims": [], "contradictions": [{"status": "CONCEALED"}]},
+    ]
+    for payload in structural_attacks:
+        assert list(validator.iter_errors(payload)), payload
+        with pytest.raises(rg.ClaimContractError):
+            rg.parse_evaluate_request(payload)
+
+
+def test_parser_returns_a_detached_sanitized_copy():
+    payload = _evaluate_payload()
+    parsed = rg.parse_evaluate_request(payload)
+    payload["claims"][0]["statement"] = "mutated after validation"
+    payload["external_signals"]["claim-1"]["factuality"]["state"] = rg.REFUTED
+    assert parsed["claims"][0]["statement"] != "mutated after validation"
+    assert parsed["external_signals"]["claim-1"]["factuality"]["state"] == rg.SUPPORTED
+
+
 def test_structural_atomizer_never_pretends_semantic_atomicity():
     out = rg.atomize_text("Alpha passed.\nBeta remains open; Gamma is unknown.")
     assert out["candidate_count"] == 3
@@ -54,6 +248,29 @@ def test_structural_atomizer_never_pretends_semantic_atomicity():
     assert evaluation["overall_state"] == rg.UNKNOWN
     assert evaluation["gate_outcome"] == "ABSTAIN"
     assert all("RG-002" in a["rubric_codes"] for a in evaluation["claims"])
+
+
+def test_structural_atomizer_refuses_candidate_amplification():
+    with pytest.raises(rg.ClaimContractError, match="more than 32 candidates"):
+        rg.atomize_text("x. " * (rg.MAX_ATOMIZE_CANDIDATES + 1))
+
+
+def test_claim_identifiers_are_canonical_before_uniqueness_checks():
+    parsed = rg.parse_evaluate_request({"claims": [{"claim_id": "  claim-1  "}]})
+    assert parsed["claims"][0]["claim_id"] == "claim-1"
+
+    with pytest.raises(rg.ClaimContractError, match="unique"):
+        rg.parse_evaluate_request(
+            {"claims": [{"claim_id": "claim-1"}, {"claim_id": " claim-1 "}]}
+        )
+
+    with pytest.raises(rg.ClaimContractError, match="collide after identifier normalization"):
+        rg.parse_evaluate_request(
+            {
+                "claims": [{"claim_id": "claim-1"}],
+                "external_signals": {"claim-1": {}, " claim-1 ": {}},
+            }
+        )
 
 
 def test_missing_evidence_provenance_or_owner_fails_closed():

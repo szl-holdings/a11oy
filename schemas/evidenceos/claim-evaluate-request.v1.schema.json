@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/evidenceos/claim-evaluate-request.v1.schema.json",
+  "title": "EvidenceOS Claim Evaluate Request v1",
+  "description": "Bounded proposal-only request for deterministic claim-integrity evaluation.",
+  "$comment": "Cross-record invariants that JSON Schema cannot express are enforced by parse_evaluate_request after identifier whitespace normalization: explicit claim_id values are unique; external-signal keys and contradiction IDs reference explicit claim IDs; refutes_claim_ids is a subset of claim_ids.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claims"
+  ],
+  "properties": {
+    "claims": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/claim"
+      }
+    },
+    "external_signals": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/nonblankId"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/signalEnvelope"
+      }
+    },
+    "contradictions": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/contradiction"
+      }
+    }
+  },
+  "$defs": {
+    "nonblankId": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[\\s\\S]*\\S[\\s\\S]*$"
+    },
+    "boundedReference": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/boundedReference"
+        },
+        "content_sha256": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "receipt_ref": {
+          "$ref": "#/$defs/boundedReference"
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner_id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "accountability_scope": {
+          "type": "string",
+          "maxLength": 1024
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reference_id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "evidence_state": {
+          "$ref": "#/$defs/claimState"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "verification_ref": {
+          "$ref": "#/$defs/boundedReference"
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "$ref": "#/$defs/nonblankId"
+        },
+        "statement": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "atomic": {
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "consequence_owner": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/owner"
+            }
+          ]
+        }
+      }
+    },
+    "semanticSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "source_ref": {
+          "$ref": "#/$defs/boundedReference"
+        },
+        "method": {
+          "type": "string",
+          "maxLength": 256
+        }
+      }
+    },
+    "factualitySignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/claimState"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/boundedReference"
+        },
+        "method": {
+          "type": "string",
+          "maxLength": 256
+        }
+      }
+    },
+    "signalEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "semantic_uncertainty": {
+          "$ref": "#/$defs/semanticSignal"
+        },
+        "factuality": {
+          "$ref": "#/$defs/factualitySignal"
+        }
+      }
+    },
+    "contradiction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claim_ids": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonblankId"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "UNRESOLVED",
+            "CONFIRMED",
+            "RESOLVED"
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "refutes_claim_ids": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonblankId"
+          }
+        },
+        "resolution_ref": {
+          "$ref": "#/$defs/boundedReference"
+        }
+      }
+    },
+    "claimState": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "SUPPORTED",
+        "UNCERTAIN",
+        "REFUTED",
+        "UNKNOWN"
+      ]
+    }
+  }
+}
