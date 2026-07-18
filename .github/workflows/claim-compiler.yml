@@ -6,22 +6,40 @@ on:
     paths:
       - "serve.py"
       - "szl_claim_rupture_gate.py"
+      - "szl_public_claim_manifest.py"
       - "schemas/evidenceos/claim-*.v1.schema.json"
+      - "schemas/evidenceos/public-claim-*.v1.schema.json"
+      - "scripts/check_public_claim_manifest.py"
+      - "artifacts/evidenceos/manifests/**"
+      - "artifacts/evidenceos/receipts/**"
       - "static/3d/surfaces/integritycontrol.js"
       - "tests/test_claim_rupture_gate.py"
       - "tests/test_claim_compiler_routes.py"
       - "tests/test_integrity_control_surface.py"
+      - "tests/test_public_claim_manifest.py"
+      - ".github/requirements/ci-core.txt"
+      - ".github/requirements/ci-core.in"
+      - ".github/workflows/release.yml"
       - ".github/workflows/claim-compiler.yml"
   pull_request:
     branches: [main]
     paths:
       - "serve.py"
       - "szl_claim_rupture_gate.py"
+      - "szl_public_claim_manifest.py"
       - "schemas/evidenceos/claim-*.v1.schema.json"
+      - "schemas/evidenceos/public-claim-*.v1.schema.json"
+      - "scripts/check_public_claim_manifest.py"
+      - "artifacts/evidenceos/manifests/**"
+      - "artifacts/evidenceos/receipts/**"
       - "static/3d/surfaces/integritycontrol.js"
       - "tests/test_claim_rupture_gate.py"
       - "tests/test_claim_compiler_routes.py"
       - "tests/test_integrity_control_surface.py"
+      - "tests/test_public_claim_manifest.py"
+      - ".github/requirements/ci-core.txt"
+      - ".github/requirements/ci-core.in"
+      - ".github/workflows/release.yml"
       - ".github/workflows/claim-compiler.yml"
   workflow_dispatch: {}
 
@@ -46,14 +64,20 @@ jobs:
       - name: Install pinned test dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Compile owned Python boundaries
-        run: python -m py_compile szl_claim_rupture_gate.py serve.py tests/test_claim_compiler_routes.py
+        run: python -m py_compile szl_claim_rupture_gate.py szl_public_claim_manifest.py serve.py scripts/check_public_claim_manifest.py tests/test_claim_compiler_routes.py
       - name: Validate owned JSON schemas and JavaScript syntax
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          for path in sorted(Path("schemas/evidenceos").glob("claim-*.v1.schema.json")):
-              json.loads(path.read_text(encoding="utf-8"))
+          from jsonschema import Draft202012Validator
+          paths = {
+              *Path("schemas/evidenceos").glob("claim-*.v1.schema.json"),
+              *Path("schemas/evidenceos").glob("public-claim-*.v1.schema.json"),
+          }
+          for path in sorted(paths):
+              schema = json.loads(path.read_text(encoding="utf-8"))
+              Draft202012Validator.check_schema(schema)
           PY
           node --check static/3d/surfaces/integritycontrol.js
       - name: Run Claim Compiler contract suite
@@ -62,3 +86,4 @@ jobs:
           tests/test_claim_rupture_gate.py
           tests/test_claim_compiler_routes.py
           tests/test_integrity_control_surface.py
+          tests/test_public_claim_manifest.py

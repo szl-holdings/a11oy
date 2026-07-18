@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "manifest_id": "a11oy-integrity-control",
+  "revision": "wave37-source-scoped-pilot",
+  "generated_at": "2026-07-18T15:57:16Z",
+  "claims": [
+    {
+      "claim_id": "claim-compiler-focused-contract-pass",
+      "assertion": "At source revision 122ae740ab81e84f0dcd8f1bba94600114856ab9, the focused EvidenceOS Claim Compiler contract job completed with 52 tests passing and exit code 0.",
+      "maturity": "MEASURED",
+      "scope": "The cited GitHub Actions test job only; not production deployment, live endpoint behavior, semantic truth, or EvidenceOS completion across the wider estate.",
+      "owner": {
+        "owner_id": "szl-holdings:a11oy",
+        "accountability_scope": "EvidenceOS Claim Compiler source and test contract"
+      },
+      "consumers": [
+        "claim-compiler-ci",
+        "integrity-control"
+      ],
+      "source": {
+        "repository": "szl-holdings/a11oy",
+        "revision": "122ae740ab81e84f0dcd8f1bba94600114856ab9"
+      },
+      "evidence": [
+        {
+          "evidence_id": "claim-compiler-contract-ci-2026-07-18",
+          "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-07-18.json",
+          "content_sha256": "4ac3b960d0874581b0fd85592bc040f646c97e96f91b454efc08904c924399ce",
+          "collected_at": "2026-07-18T15:57:16Z",
+          "max_age_seconds": 2592000,
+          "kind": "TEST_RECEIPT",
+          "verification_ref": "https://github.com/szl-holdings/a11oy/actions/runs/29650985150/job/88097174545"
+        }
+      ],
+      "reproduction_argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_claim_rupture_gate.py",
+        "tests/test_claim_compiler_routes.py",
+        "tests/test_integrity_control_surface.py"
+      ]
+    }
+  ]
+}
