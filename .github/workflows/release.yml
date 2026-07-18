@@ -1,13 +1,17 @@
 name: Release artifacts — SBOM + DSSE attestation + build provenance
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   public-claim-gate:
     name: EvidenceOS public-claim release gate
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/public-claim-integrity.yml
 
   provider-gate:

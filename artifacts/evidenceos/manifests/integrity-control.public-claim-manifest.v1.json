@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "manifest_id": "a11oy-integrity-control",
   "revision": "wave37-source-scoped-pilot",
-  "generated_at": "2026-07-18T15:57:16Z",
+  "generated_at": "2026-07-18T15:57:18Z",
   "claims": [
     {
       "claim_id": "claim-compiler-focused-contract-pass",
@@ -25,8 +25,8 @@
         {
           "evidence_id": "claim-compiler-contract-ci-2026-07-18",
           "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-07-18.json",
-          "content_sha256": "4ac3b960d0874581b0fd85592bc040f646c97e96f91b454efc08904c924399ce",
-          "collected_at": "2026-07-18T15:57:16Z",
+          "content_sha256": "5efe08621c8c657f57420c5e03d59b9442bfee11fc9afe1f2d1c0c7f1cd56e98",
+          "collected_at": "2026-07-18T15:57:18Z",
           "max_age_seconds": 2592000,
           "kind": "TEST_RECEIPT",
           "verification_ref": "https://github.com/szl-holdings/a11oy/actions/runs/29650985150/job/88097174545"

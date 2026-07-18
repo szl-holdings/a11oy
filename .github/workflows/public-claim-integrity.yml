@@ -5,11 +5,12 @@ on:
     - cron: '17 9 * * *'
   workflow_call:
   pull_request:
-    branches: [main]
+    branches: [main, agent/evidenceos-claim-wave36]
     paths:
       - 'szl_public_claim_manifest.py'
       - 'schemas/evidenceos/public-claim-*.v1.schema.json'
       - 'scripts/check_public_claim_manifest.py'
+      - 'scripts/verify_public_claim_github_job.py'
       - 'artifacts/evidenceos/manifests/**'
       - 'artifacts/evidenceos/receipts/**'
       - 'tests/test_public_claim_manifest.py'
@@ -23,6 +24,7 @@ on:
       - 'szl_public_claim_manifest.py'
       - 'schemas/evidenceos/public-claim-*.v1.schema.json'
       - 'scripts/check_public_claim_manifest.py'
+      - 'scripts/verify_public_claim_github_job.py'
       - 'artifacts/evidenceos/manifests/**'
       - 'artifacts/evidenceos/receipts/**'
       - 'tests/test_public_claim_manifest.py'
@@ -34,6 +36,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   public-claim-integrity:
@@ -48,7 +51,7 @@ jobs:
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Compile pure boundaries and validate schemas
         run: |
-          python -m py_compile szl_public_claim_manifest.py scripts/check_public_claim_manifest.py
+          python -m py_compile szl_public_claim_manifest.py scripts/check_public_claim_manifest.py scripts/verify_public_claim_github_job.py
           python - <<'PY'
           import json
           from pathlib import Path
@@ -68,6 +71,15 @@ jobs:
           mapfile -d '' -t MANIFESTS < <(find artifacts/evidenceos/manifests -type f -name '*.json' -print0 | LC_ALL=C sort -z)
           test "${#MANIFESTS[@]}" -eq 1
           test "${MANIFESTS[0]}" = "artifacts/evidenceos/manifests/integrity-control.public-claim-manifest.v1.json"
+      - name: Verify immutable GitHub Actions job evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.verify_public_claim_github_job \
+            --manifest artifacts/evidenceos/manifests/integrity-control.public-claim-manifest.v1.json \
+            --repository-root . \
+            --expected-repository "${{ github.repository }}" \
+            --report public-claim-github-verification.json
       - name: Evaluate the explicit source-scoped manifest
         run: |
           EVALUATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -89,11 +101,13 @@ jobs:
           Draft202012Validator(manifest_schema).validate(manifest)
           Draft202012Validator(report_schema).validate(report)
           PY
-      - name: Upload unsigned deterministic report
-        if: always() && hashFiles('public-claim-report.json') != ''
+      - name: Upload unsigned deterministic reports
+        if: always() && hashFiles('public-claim-report.json', 'public-claim-github-verification.json') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: public-claim-report
-          path: public-claim-report.json
+          path: |
+            public-claim-report.json
+            public-claim-github-verification.json
           if-no-files-found: error
           retention-days: 14

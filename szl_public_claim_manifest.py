@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Sequence
 
@@ -56,7 +57,7 @@ MAX_MAX_AGE_SECONDS = 31_536_000
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _UTC_TIMESTAMP_RE = re.compile(
-    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$"
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?Z$"
 )
 _MATURITY_KINDS = {
     "PROVEN": frozenset({"FORMAL_PROOF"}),
@@ -133,6 +134,11 @@ def _timestamp(value: Any, path: str) -> tuple[str, datetime]:
     if parsed.microsecond:
         canonical += "." + f"{parsed.microsecond:06d}".rstrip("0")
     return canonical + "Z", parsed
+
+
+def canonical_utc_timestamp(value: Any, path: str = "$timestamp") -> str:
+    """Return the contract's canonical UTC timestamp representation."""
+    return _timestamp(value, path)[0]
 
 
 def _relative_path(value: Any, path: str) -> str:
@@ -416,7 +422,11 @@ def _evaluate_evidence(
     state = "NOT_EVALUATED"
     observed_digest: str | None = None
     collected_text, collected_at = _timestamp(evidence["collected_at"], "$evidence.collected_at")
-    age_seconds = int((as_of - collected_at).total_seconds())
+    age = as_of - collected_at
+    elapsed_seconds = age.total_seconds()
+    age_seconds = (
+        math.ceil(elapsed_seconds) if elapsed_seconds >= 0 else math.floor(elapsed_seconds)
+    )
 
     if collected_at > as_of:
         state = "UNKNOWN"
@@ -451,7 +461,7 @@ def _evaluate_evidence(
                 if contract_violations:
                     state = "UNKNOWN"
                     violations.extend(contract_violations)
-                elif age_seconds <= evidence["max_age_seconds"]:
+                elif age <= timedelta(seconds=evidence["max_age_seconds"]):
                     state = "CURRENT"
                 else:
                     state = "STALE"
@@ -566,7 +576,7 @@ def evaluate_public_claim_manifest(
 
 
 def strict_json_loads(text: str) -> Any:
-    """Decode JSON while refusing duplicate object keys."""
+    """Decode bounded-number JSON while refusing duplicates and non-finite values."""
     def pairs_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in pairs:
@@ -575,7 +585,35 @@ def strict_json_loads(text: str) -> Any:
             result[key] = value
         return result
 
+    def parse_int(raw: str) -> int:
+        digits = raw[1:] if raw.startswith("-") else raw
+        if len(digits) > 19:
+            raise PublicClaimContractError("JSON integer is outside the signed 64-bit range")
+        value = int(raw)
+        if not -(2 ** 63) <= value <= (2 ** 63) - 1:
+            raise PublicClaimContractError("JSON integer is outside the signed 64-bit range")
+        return value
+
+    def parse_float(raw: str) -> float:
+        value = float(raw)
+        if not math.isfinite(value):
+            raise PublicClaimContractError("JSON number must be finite")
+        return value
+
+    def parse_constant(raw: str) -> None:
+        raise PublicClaimContractError(f"non-standard JSON constant is refused: {raw}")
+
     try:
-        return json.loads(text, object_pairs_hook=pairs_hook)
+        return json.loads(
+            text,
+            object_pairs_hook=pairs_hook,
+            parse_constant=parse_constant,
+            parse_float=parse_float,
+            parse_int=parse_int,
+        )
+    except PublicClaimContractError:
+        raise
     except json.JSONDecodeError as exc:
         raise PublicClaimContractError(f"invalid JSON: {exc.msg}") from exc
+    except (OverflowError, ValueError) as exc:
+        raise PublicClaimContractError("invalid JSON number") from exc

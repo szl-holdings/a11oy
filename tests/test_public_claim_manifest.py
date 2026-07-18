@@ -10,6 +10,7 @@ import pytest
 from jsonschema import Draft202012Validator
 import szl_public_claim_manifest as pcm
 from scripts import check_public_claim_manifest as cli
+from scripts import verify_public_claim_github_job as github_verify
 
 
 AS_OF = "2026-07-18T12:00:00Z"
@@ -104,6 +105,19 @@ def test_stale_boundary_is_current_and_plus_one_is_stale(tmp_path):
     assert "FRESHNESS_SLA_EXCEEDED" in stale["claims"][0]["violations"]
 
 
+def test_fractional_second_past_freshness_boundary_is_stale(tmp_path):
+    manifest = _manifest(tmp_path)
+    report = _evaluate(
+        tmp_path,
+        manifest,
+        as_of="2026-07-18T12:01:00.000001Z",
+    )
+    evidence = report["claims"][0]["evidence"][0]
+    assert evidence["freshness_state"] == "STALE"
+    assert evidence["age_seconds"] == 61
+    assert "FRESHNESS_SLA_EXCEEDED" in evidence["violations"]
+
+
 def test_future_collection_timestamp_fails_closed(tmp_path):
     manifest = _manifest(tmp_path)
     manifest["claims"][0]["evidence"][0]["collected_at"] = "2026-07-18T12:00:01Z"
@@ -138,6 +152,20 @@ def test_non_utc_or_malformed_timestamps_are_contract_refusals(tmp_path, timesta
     manifest = _manifest(tmp_path)
     manifest["generated_at"] = timestamp
     with pytest.raises(pcm.PublicClaimContractError):
+        _evaluate(tmp_path, manifest)
+
+
+@pytest.mark.parametrize(
+    "timestamp",
+    [
+        "2026-07-18T12:00:00.1234567Z",
+        "2026-07-18T12:00:00.12345678Z",
+    ],
+)
+def test_more_than_six_fractional_timestamp_digits_are_refused(tmp_path, timestamp):
+    manifest = _manifest(tmp_path)
+    manifest["generated_at"] = timestamp
+    with pytest.raises(pcm.PublicClaimContractError, match="RFC 3339"):
         _evaluate(tmp_path, manifest)
 
 
@@ -298,6 +326,20 @@ def test_strict_json_rejects_duplicate_keys_at_any_depth():
         pcm.strict_json_loads('{"manifest_id":"a","nested":{"x":1,"x":2}}')
 
 
+@pytest.mark.parametrize(
+    "payload",
+    ['{"value":NaN}', '{"value":Infinity}', '{"value":-Infinity}', '{"value":1e309}'],
+)
+def test_strict_json_rejects_non_finite_numbers(payload):
+    with pytest.raises(pcm.PublicClaimContractError, match="finite|non-standard"):
+        pcm.strict_json_loads(payload)
+
+
+def test_strict_json_rejects_integers_outside_signed_64_bit_range():
+    with pytest.raises(pcm.PublicClaimContractError, match="signed 64-bit"):
+        pcm.strict_json_loads('{"value":' + ("9" * 5000) + "}")
+
+
 def test_parser_returns_detached_canonical_copy(tmp_path):
     manifest = _manifest(tmp_path)
     parsed = pcm.parse_public_claim_manifest(manifest)
@@ -346,6 +388,7 @@ def test_manifest_and_report_schemas_pin_runtime_bounds():
     assert manifest_schema["properties"]["claims"]["maxItems"] == pcm.MAX_CLAIMS
     assert manifest_schema["$defs"]["claim"]["properties"]["evidence"]["maxItems"] == pcm.MAX_EVIDENCE_PER_CLAIM
     assert manifest_schema["$defs"]["evidence"]["properties"]["max_age_seconds"]["maximum"] == pcm.MAX_MAX_AGE_SECONDS
+    assert "{1,6}" in manifest_schema["$defs"]["utcTimestamp"]["pattern"]
     assert report_schema["properties"]["decision_state"]["const"] == "PROPOSAL_ONLY"
     assert report_schema["properties"]["effectors_enabled"]["const"] == 0
     assert "manifest_content_sha256" in report_schema["required"]
@@ -407,6 +450,89 @@ def test_cli_refuses_oversized_manifest_before_json_decode(tmp_path, monkeypatch
         cli.load_manifest(path)
 
 
+def test_cli_refuses_huge_integer_without_an_unhandled_exception(tmp_path, capsys):
+    manifest_path = tmp_path / "huge-integer.json"
+    manifest_path.write_text('{"value":' + ("9" * 5000) + "}", encoding="utf-8")
+    assert cli.main([
+        "--manifest", str(manifest_path),
+        "--repository-root", str(tmp_path),
+        "--as-of", AS_OF,
+    ]) == 2
+    assert "REFUSE" in capsys.readouterr().err
+
+
+def _github_bound_manifest(root: Path) -> tuple[dict, Path]:
+    manifest = _manifest(root)
+    evidence = manifest["claims"][0]["evidence"][0]
+    evidence["verification_ref"] = (
+        "https://github.com/szl-holdings/a11oy/actions/runs/7/job/42"
+    )
+    receipt_path = root / evidence["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["source_url"] = evidence["verification_ref"]
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True), encoding="utf-8")
+    evidence["content_sha256"] = _sha(receipt_path)
+    manifest_path = root / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
+    return manifest, manifest_path
+
+
+def _trusted_github_api(url: str) -> dict:
+    if url.endswith("/actions/jobs/42"):
+        return {
+            "id": 42,
+            "run_id": 7,
+            "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/7/job/42",
+            "head_sha": "122ae740",
+            "status": "completed",
+            "conclusion": "success",
+            "name": "bounded route and core contract",
+            "completed_at": AS_OF,
+        }
+    if url.endswith("/actions/runs/7"):
+        return {
+            "id": 7,
+            "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/7",
+            "head_sha": "122ae740",
+            "status": "completed",
+            "conclusion": "success",
+            "name": "Claim Compiler contract",
+        }
+    raise AssertionError(f"unexpected API URL: {url}")
+
+
+def test_trusted_github_job_metadata_accepts_exact_cross_binding(tmp_path):
+    _, manifest_path = _github_bound_manifest(tmp_path)
+    report = github_verify.verify_manifest_github_jobs(
+        manifest_path=manifest_path,
+        repository_root=tmp_path,
+        expected_repository="szl-holdings/a11oy",
+        api_get=_trusted_github_api,
+    )
+    assert report["verified_receipt_count"] == 1
+    assert report["verifications"][0]["job_id"] == 42
+
+
+def test_editing_and_rehashing_timestamp_cannot_renew_trusted_job(tmp_path):
+    manifest, manifest_path = _github_bound_manifest(tmp_path)
+    evidence = manifest["claims"][0]["evidence"][0]
+    receipt_path = tmp_path / evidence["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["completed_at"] = "2026-07-18T12:00:01Z"
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True), encoding="utf-8")
+    evidence["collected_at"] = receipt["completed_at"]
+    evidence["content_sha256"] = _sha(receipt_path)
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
+
+    with pytest.raises(pcm.PublicClaimContractError, match="job completion time"):
+        github_verify.verify_manifest_github_jobs(
+            manifest_path=manifest_path,
+            repository_root=tmp_path,
+            expected_repository="szl-holdings/a11oy",
+            api_get=_trusted_github_api,
+        )
+
+
 def test_ci_covers_module_schemas_manifest_receipt_and_real_validation():
     root = Path(__file__).resolve().parents[1]
     workflow = (root / ".github/workflows/public-claim-integrity.yml").read_text(encoding="utf-8")
@@ -414,6 +540,7 @@ def test_ci_covers_module_schemas_manifest_receipt_and_real_validation():
     for expected in (
         "szl_public_claim_manifest.py",
         "schemas/evidenceos/public-claim-*.v1.schema.json",
+        "scripts/verify_public_claim_github_job.py",
         "artifacts/evidenceos/manifests/**",
         "artifacts/evidenceos/receipts/**",
         "tests/test_public_claim_manifest.py",
@@ -430,6 +557,12 @@ def test_ci_covers_module_schemas_manifest_receipt_and_real_validation():
     assert "Draft202012Validator(report_schema).validate(report)" in workflow
     assert "--require-hashes -r .github/requirements/ci-core.txt" in workflow
     assert "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in workflow
+    assert "branches: [main, agent/evidenceos-claim-wave36]" in workflow
+    assert "branches: [main, agent/evidenceos-claim-wave36]" in compiler
+    assert "actions: read" in workflow
+    assert "GITHUB_TOKEN: ${{ github.token }}" in workflow
+    assert "--expected-repository \"${{ github.repository }}\"" in workflow
+    assert "public-claim-github-verification.json" in workflow
 
 
 def test_release_waits_for_public_claim_gate():
@@ -437,3 +570,5 @@ def test_release_waits_for_public_claim_gate():
     release = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
     assert "uses: ./.github/workflows/public-claim-integrity.yml" in release
     assert "needs: [provider-gate, public-claim-gate]" in release
+    assert "types: [published]" in release
+    assert "types: [created]" not in release
