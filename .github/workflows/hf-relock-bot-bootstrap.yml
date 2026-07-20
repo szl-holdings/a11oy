@@ -1,0 +1,83 @@
+name: Bootstrap bot-authored HF relock PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/hf-relock-bot-bootstrap.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bootstrap:
+    name: Create independently reviewable relock PR
+    if: >-
+      github.event.pull_request.number == 987 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'stephenlutar2-hash'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BOT_BRANCH: automation/hf-relock-authority-20260720
+      BASE_SHA: a7c1646a51a43c6d754a73f82d36459f7f9663f9
+      EXPECTED_LOCK_SHA256: 4b9a1f492cd0a6e9449a673119d5f398b95c99837823974d9d9ed31469485359
+      EXPECTED_EVIDENCE_SHA256: 0ad79a4c3e11ab9c86f17bcf0b64e832b2e547cf2a39c04130f113949ca4a504
+    steps:
+      - name: Checkout exact PR head as candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Checkout exact protected base for bot branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.BASE_SHA }}
+          path: bot
+          fetch-depth: 1
+
+      - name: Validate candidate bytes and create bot-authored commit
+        run: |
+          set -euo pipefail
+          lock_sha=$(sha256sum candidate/.github/hf-deployment-lock.json | awk '{print $1}')
+          evidence_sha=$(sha256sum candidate/.github/workflows/hf-relock-evidence.yml | awk '{print $1}')
+          test "$lock_sha" = "$EXPECTED_LOCK_SHA256"
+          test "$evidence_sha" = "$EXPECTED_EVIDENCE_SHA256"
+
+          cd bot
+          git switch -c "$BOT_BRANCH"
+          cp ../candidate/.github/hf-deployment-lock.json .github/hf-deployment-lock.json
+          cp ../candidate/.github/workflows/hf-relock-evidence.yml .github/workflows/hf-relock-evidence.yml
+          git add .github/hf-deployment-lock.json .github/workflows/hf-relock-evidence.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(ci): re-lock verified running HF deployment" -m "Created from the independently green evidence in #987 so the founder can provide the required non-self review.\n\nRefs #986\n\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$BOT_BRANCH"
+
+      - name: Open bot-authored pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$BOT_BRANCH" \
+            --base main \
+            --title "fix(ci): re-lock verified running Hugging Face deployment" \
+            --body-file - <<'EOF'
+          ## Purpose
+
+          Bot-authored equivalent of #987, created so the founder can provide the required independent write-level review without using Carlota-1 or weakening branch protection.
+
+          ## Exact verified pair
+
+          - GitHub: `a7c1646a51a43c6d754a73f82d36459f7f9663f9`
+          - Hugging Face source/runtime: `918d41d1728c47c0c467dfc20e0086a88df9f43a`
+
+          The included fail-closed workflow verifies the exact lock bytes, zero managed-file drift, validator negative controls, and live governed API contracts. Source bytes are SHA-256 pinned by the one-shot bridge in #987.
+
+          Refs #986. Supersedes #987 after checks and founder review.
+          EOF
