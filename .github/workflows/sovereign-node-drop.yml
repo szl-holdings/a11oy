@@ -65,7 +65,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Run detector self-test (proves drop vs clean-offline vs never-seen)
         run: python3 scripts/test_check_sovereign_node_drop.py
 
@@ -79,7 +79,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout (main — for the checker script)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Restore previous sweep snapshot from the node-state branch
         id: prev
