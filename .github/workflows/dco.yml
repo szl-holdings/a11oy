@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@ed400a4f378330becd53346420b4d89ae8281dc5 — .github/workflows/dco.yml
+# VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — .github/workflows/dco.yml
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 name: DCO
 
@@ -22,7 +22,7 @@ jobs:
     name: DCO sign-off check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Validate DCO workflow contract

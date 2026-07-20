@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@ed400a4f378330becd53346420b4d89ae8281dc5 — replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js
+// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /* ============================================================================
  * SZL "ask the fabric" — verify-a-claim widget  (vendored, self-contained)

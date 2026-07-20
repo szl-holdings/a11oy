@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@ed400a4f378330becd53346420b4d89ae8281dc5 — artifacts/sentra/src/pages/compliance/vendor-risk.tsx
+// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — artifacts/sentra/src/pages/compliance/vendor-risk.tsx
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { AlertTriangle, CheckCircle, Clock, Search, Shield } from 'lucide-react';
 import { useState } from 'react';
