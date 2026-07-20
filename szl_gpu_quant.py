@@ -43,7 +43,7 @@ Routes (NEW; never collide):
   GET  /api/{ns}/v1/quant/kelly      — Layer 3 HJB-Kelly weights w* with σ²_eff
   GET  /api/{ns}/v1/quant/pipeline   — full 3-layer pass + ONE signed SAMPLE receipt
   GET  /api/{ns}/v1/quant/tiers      — 2-GPU serve tier panel (TP=2 / role-split / NIM cloud)
-  GET  /api/{ns}/v1/quant/verify-claims — NVIDIA datasheet vs SZL-MEASURED (honest, empty/ROADMAP)
+  GET  /api/{ns}/v1/quant/verify-claims — cited external reports vs verified SZL receipts
   GET  /quant                        — unified mobile-first "Quant Engine" tab (0 CDN)
 
 Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
@@ -51,12 +51,20 @@ Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 from __future__ import annotations
 
 import hashlib as _hashlib
+import html as _html_lib
 import json as _json
 import math as _math
 import os as _os
 import random as _random
 import time as _time
 from datetime import datetime, timezone
+
+from szl_quant_claims import resolved_claims as _resolved_quant_claims
+
+try:
+    import szl_formula_registry as _formula_registry
+except Exception:  # pragma: no cover - missing registry stays explicit
+    _formula_registry = None
 
 # --- signed receipts: the SINGLE source of truth (never fabricate a signature) ----
 try:
@@ -158,12 +166,38 @@ def _compute_backend() -> dict:
     }
 
 
+def _formula_doctrine() -> dict:
+    """Read the quant page's doctrine from the verified formula registry."""
+    if _formula_registry is None:
+        return {
+            "locked_proven": [], "locked_count": 0, "corpus": "UNAVAILABLE",
+            "kernel_commit": "UNAVAILABLE", "registry_digest": None,
+            "registry_signature": "UNAVAILABLE", "registry_status": "UNAVAILABLE",
+        }
+    try:
+        document = _formula_registry.load_registry(verify=True)
+        payload = document["payload"]
+        return {
+            "locked_proven": list(_formula_registry.LOCKED_PROVEN_IDS),
+            "locked_count": _formula_registry.LOCKED_PROVEN_COUNT,
+            "corpus": "registry-crosswalk (non-exhaustive)",
+            "kernel_commit": payload["locked_kernel_commit_prefix"],
+            "registry_digest": document["registry_digest"]["value"],
+            "registry_signature": document["signature"]["status"],
+            "registry_status": "VERIFIED",
+        }
+    except Exception as exc:  # fail closed; never fall back to stale doctrine
+        return {
+            "locked_proven": [], "locked_count": 0, "corpus": "UNAVAILABLE",
+            "kernel_commit": "UNAVAILABLE", "registry_digest": None,
+            "registry_signature": "UNAVAILABLE",
+            "registry_status": "UNAVAILABLE: " + type(exc).__name__,
+        }
+
+
 DOCTRINE = {
     "version": "v11",
-    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
-    "locked_count": 8,
-    "corpus": "749/14/163",
-    "kernel_commit": "c7c0ba17",
+    **_formula_doctrine(),
     "lambda": "Conjecture 1 (advisory floor; uniqueness machine-checked FALSE unconditionally; NOT a theorem)",
     "slsa": "L1 honest / L2 attested (.att emitted, not independently verified) / L3 roadmap",
 }
@@ -813,43 +847,37 @@ def tiers_panel() -> dict:
 
 
 # =====================================================================================
-# VERIFY-THE-CLAIMS panel: NVIDIA datasheet vs SZL-MEASURED (honest; empty/ROADMAP).
+# VERIFY-THE-CLAIMS panel: external reports vs SZL-MEASURED (honest; empty/ROADMAP).
 # =====================================================================================
 def verify_claims_panel() -> dict:
-    """Side-by-side NVIDIA datasheet numbers vs SZL-MEASURED (signed). Honest: SZL columns
-    are empty/ROADMAP until we actually measure on OUR harness. NEVER print the datasheet
-    number as if it were ours."""
+    """Resolve external reports against persisted, verified benchmark receipts.
+
+    This GET path never signs, writes, benchmarks, or promotes reachability. With the
+    default empty receipt registry every SZL value remains null/ROADMAP.
+    """
     reachable = _gpu_reachable()
-    rows = [
-        {"claim": "Nemotron speedup vs prior frontier", "nvidia_datasheet": "up to 5×",
-         "szl_measured": None, "szl_label": "ROADMAP",
-         "how": "OUR τ-bench + J/token harness on the NIM-routed Ultra tier"},
-        {"claim": "Reasoning/accuracy uplift", "nvidia_datasheet": "+30%",
-         "szl_measured": None, "szl_label": "ROADMAP",
-         "how": "OUR τ-bench score (MEASURED-by-SZL), signed receipt"},
-        {"claim": "Benchmark accuracy", "nvidia_datasheet": "91%",
-         "szl_measured": None, "szl_label": "ROADMAP",
-         "how": "OUR eval set, ECE/Brier calibrated"},
-        {"claim": "Long-context retrieval", "nvidia_datasheet": "1M-token retrieval",
-         "szl_measured": None, "szl_label": "ROADMAP",
-         "how": "OUR needle-in-haystack probe, signed"},
-        {"claim": "cuML PCA speedup (quant Layer 1)", "nvidia_datasheet": "10–50× (S&P 500 scale); ~100× genomic",
-         "szl_measured": None, "szl_label": "ROADMAP",
-         "how": "OUR Layer-1 LedoitWolf on the sovereign GPU vs CPU fallback, signed J/bar"},
-        {"claim": "Ripser++ persistence (quant Layer 2)", "nvidia_datasheet": "up to 30× vs CPU Ripser",
-         "szl_measured": None, "szl_label": "ROADMAP",
-         "how": "OUR Layer-2 VR persistence on the sovereign GPU, signed bar latency"},
-    ]
+    rows = _resolved_quant_claims()
+    registry_basis = {
+        "status": DOCTRINE["registry_status"],
+        "digest": DOCTRINE["registry_digest"],
+        "signature": DOCTRINE["registry_signature"],
+        "locked_count": DOCTRINE["locked_count"],
+        "locked_ids": list(DOCTRINE["locked_proven"]),
+        "source": "formula_registry/formula-registry.v1.json",
+        "coverage": "non-exhaustive maturity crosswalk; not an inventory of every theorem",
+    }
     return {
         "service": "verify-the-claims",
         "doctrine": DOCTRINE["version"],
-        "summary": ("EMPTY / ROADMAP until SZL measures on its own harness — this is the differentiator: "
-                    "we publish SZL-MEASURED (signed), never the datasheet number."),
+        "schema_version": "szl.quant.claim-panel/v1",
+        "summary": ("ROADMAP until a preregistered experiment writes a digest-addressed, "
+                    "approved DSSE benchmark receipt that passes every promotion obligation."),
         "gpu_reachable": reachable,
         "rows": rows,
-        "honesty": ("The 'NVIDIA datasheet' column is the vendor's published claim (cited, not endorsed). "
-                    "The 'SZL-MEASURED' column stays null/ROADMAP until we run OUR τ-bench + J/token + "
-                    "J/bar harness and SIGN the result. measured > datasheet, always. Never fabricated."),
+        "formula_registry": registry_basis,
+        "honesty": ("External reports are narrowly scoped and cited, not endorsed. SZL-MEASURED stays "
+                    "null/ROADMAP unless an immutable receipt passes schema, digest, signature, key-id, "
+                    "protocol, hardware, correctness, review, and freshness checks. GET never signs."),
         "citations": [CITATIONS["rapids_cuml"], CITATIONS["ripserpp"]],
         "computed_at": _now_iso(),
     }
@@ -909,12 +937,30 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
                 + gpus)
         tier_cards += card(t["tier"], t["label"], body, t.get("fits", ""))
 
+    def esc(value):
+        return _html_lib.escape(str(value), quote=True)
+
+    def measured_text(value):
+        if value is None:
+            return "—"
+        return "%s %s (%s)" % (value["value"], value["unit"], value["estimator"])
+
     vrows = ""
     for r in verify["rows"]:
-        vrows += ('<tr><td>%s</td><td class="ds">%s</td><td class="ms"><span class="pill-slot" '
-                  'data-label="%s"></span> %s</td></tr>' % (
-                      r["claim"], r["nvidia_datasheet"], r["szl_label"], fmt(r["szl_measured"])))
-    verify_tbl = ('<table class="vt"><thead><tr><th>Claim</th><th>NVIDIA datasheet</th>'
+        report = r["external_report"]
+        source = report["source"]
+        blocked = "; ".join(r["blocked_by"])
+        external = ('<strong>%s</strong> %s<br><a href="%s" rel="noopener noreferrer">%s — %s</a>'
+                    '<br><small>%s</small>' % (
+                        esc(report["value"]), esc(report["units"]), esc(source["url"]),
+                        esc(source["organization"]), esc(source["title"]), esc(report["scope"])))
+        measured = ('<span class="pill-slot" data-label="%s"></span> %s<br>'
+                    '<small>protocol=%s · blocked: %s</small>' % (
+                        esc(r["szl_label"]), esc(measured_text(r["szl_measured"])),
+                        esc(r["protocol"]["id"]), esc(blocked)))
+        vrows += '<tr><td>%s</td><td class="ds">%s</td><td class="ms">%s</td></tr>' % (
+            esc(r["claim"]), external, measured)
+    verify_tbl = ('<table class="vt"><thead><tr><th>Claim</th><th>Externally reported (not reproduced)</th>'
                   '<th>SZL-MEASURED (signed)</th></tr></thead><tbody>%s</tbody></table>' % vrows)
 
     cards = "".join([
@@ -966,11 +1012,11 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
 <section class="grid">__CARDS__</section>
 <h2>2-GPU Sovereign Serve · Throttle Both</h2>
 <section class="grid">__TIERS__</section>
-<h2>Verify the Claims — NVIDIA datasheet vs SZL-MEASURED (signed)</h2>
+<h2>Verify the Claims — externally reported vs SZL-MEASURED (signed)</h2>
 <section>__VERIFY__<p class="note">__VNOTE__</p></section>
 <footer>
-  <p class="lock">Doctrine __DV__ LOCKED · locked-proven=__LC__ {__LP__} · __CORPUS__ @ __KC__ · Λ = Conjecture 1 (NOT a theorem) · __SLSA__</p>
-  <p>SAMPLE = honest synthetic fixture (not live) · MODELED = labeled model output (uncalibrated) · ROADMAP = wiring ready, not measured yet (never faked). Cites: Brodetsky (LinkedIn) · Ledoit-Wolf (honey.pdf) · Laloux/Bouchaud/Potters · Gidea-Katz arXiv:1703.04385 · RAPIDS/cuML · giotto-tda · Ripser++ arXiv:2003.07989.</p>
+  <p class="lock">Doctrine __DV__ LOCKED · locked-proven=__LC__ {__LP__} · __CORPUS__ @ __KC__ · registry=__RD__ (__RS__) · Λ = Conjecture 1 (NOT a theorem) · __SLSA__</p>
+  <p>SAMPLE = honest synthetic fixture (not live) · MODELED = labeled model output (uncalibrated) · ROADMAP = wiring ready, not measured yet (never faked). Primary sources: Ledoit-Wolf · Laloux/Bouchaud/Potters · Gidea-Katz arXiv:1703.04385 · RAPIDS/cuML docs · Ripser++ arXiv:2003.07989 · NVIDIA Nemotron 3 Ultra research.</p>
 </footer>
 <script src="/static/shared/szl_label_engine.js"></script>
 <script>
@@ -1006,6 +1052,8 @@ def _html(pipe: dict, tiers: dict, verify: dict) -> str:
         .replace("__LP__", ", ".join(d["locked_proven"])) \
         .replace("__CORPUS__", d["corpus"]) \
         .replace("__KC__", d["kernel_commit"]) \
+        .replace("__RD__", str(d.get("registry_digest") or "UNAVAILABLE")) \
+        .replace("__RS__", str(d.get("registry_status") or "UNAVAILABLE")) \
         .replace("__SLSA__", d["slsa"])
 
 

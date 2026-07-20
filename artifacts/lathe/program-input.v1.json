@@ -1,0 +1,757 @@
+{
+  "schemaVersion": "szl.lathe.input.v1",
+  "programId": "szl-one-lathe-frontier-program",
+  "snapshotId": "one-lathe-wave34-candidate",
+  "generatedAt": "2026-07-18T15:00:00Z",
+  "generator": {
+    "name": "szl-one-lathe-snapshot",
+    "version": "1",
+    "source": "scripts/lathe_snapshot.py",
+    "revision": "sha256:b3c0d12ccf78a0634f23b60aaadffeb641512faa1fa9e904ab636536f11744bf"
+  },
+  "source": {
+    "type": "FILE",
+    "locator": "artifacts/lathe/program-input.v1.json"
+  },
+  "revision": "candidate:one-lathe-wave34",
+  "collectedAt": "2026-07-18T14:55:00Z",
+  "coverage": {
+    "bounded": true,
+    "discoveryMode": "EXPLICIT_INPUT_SET",
+    "scope": "Seven explicitly named One Lathe evidence lanes",
+    "bounds": [
+      "lane-count:7",
+      "network:none",
+      "mutation:none"
+    ],
+    "included": [
+      "brain-source",
+      "deployment-source",
+      "formula-registry-source",
+      "lake-dsse-source",
+      "lean-mathlib-map",
+      "numerical-engine-source",
+      "sovereign-inference-source"
+    ],
+    "excluded": [
+      "live API calls",
+      "private credentials",
+      "unbounded repository discovery"
+    ],
+    "missing": [
+      "independent runtime receipts",
+      "verified DSSE binding"
+    ],
+    "expectedCount": 7,
+    "observedCount": 7,
+    "complete": false
+  },
+  "maturity": "MODELED",
+  "operationalState": "NOT_EVALUATED",
+  "evidenceState": "PARTIAL",
+  "promotionEligible": false,
+  "records": [
+    {
+      "recordId": "lake-dsse-source",
+      "assetType": "RECEIPT",
+      "source": {
+        "type": "FILE",
+        "locator": "szl_lake_store.py"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for lake-dsse-source",
+        "bounds": [
+          "record:lake-dsse-source"
+        ],
+        "included": [
+          "lake-dsse-source"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "lake-dsse-source.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_lake_store.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:0b77e97608a9a90bbd695839f9502f29bf864cfb987172d7ce2f0924482e8eca",
+          "summary": "Lake and DSSE source boundary existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "lake-dsse-source.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named lake and dsse source boundary source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_lake_store.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for lake-dsse-source",
+            "bounds": [
+              "record:lake-dsse-source"
+            ],
+            "included": [
+              "lake-dsse-source"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "lake-dsse-source.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    },
+    {
+      "recordId": "brain-source",
+      "assetType": "BRAIN_SOURCE",
+      "source": {
+        "type": "FILE",
+        "locator": "szl_brain.py"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for brain-source",
+        "bounds": [
+          "record:brain-source"
+        ],
+        "included": [
+          "brain-source"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "brain-source.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_brain.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:720db17e868e091b5b965a3f06dec9bd4942c43182f883fe65b00d9246a4947e",
+          "summary": "Brain source boundary existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "brain-source.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named brain source boundary source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_brain.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for brain-source",
+            "bounds": [
+              "record:brain-source"
+            ],
+            "included": [
+              "brain-source"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "brain-source.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    },
+    {
+      "recordId": "formula-registry-source",
+      "assetType": "FORMULA_REGISTRY",
+      "source": {
+        "type": "FILE",
+        "locator": "a11oy_formula_registry_guard.py"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for formula-registry-source",
+        "bounds": [
+          "record:formula-registry-source"
+        ],
+        "included": [
+          "formula-registry-source"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "formula-registry-source.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "a11oy_formula_registry_guard.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:5cb33d2e6896e80348e9a4bf46bf95b1e67e12469af05cad4091142ba9c3547e",
+          "summary": "Formula admission boundary existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "formula-registry-source.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named formula admission boundary source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "a11oy_formula_registry_guard.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for formula-registry-source",
+            "bounds": [
+              "record:formula-registry-source"
+            ],
+            "included": [
+              "formula-registry-source"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "formula-registry-source.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    },
+    {
+      "recordId": "lean-mathlib-map",
+      "assetType": "FORMAL_PROOF_LINK",
+      "source": {
+        "type": "FILE",
+        "locator": "docs/anatomy-formula-runtime-map.json"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for lean-mathlib-map",
+        "bounds": [
+          "record:lean-mathlib-map"
+        ],
+        "included": [
+          "lean-mathlib-map"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "lean-mathlib-map.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "docs/anatomy-formula-runtime-map.json"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:ebdc6aaf177f65603e74e5c39a53affdc82d47bab68dd8accd912f4cbc07819c",
+          "summary": "Lean and mathlib evidence map existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "lean-mathlib-map.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named lean and mathlib evidence map source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "docs/anatomy-formula-runtime-map.json"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for lean-mathlib-map",
+            "bounds": [
+              "record:lean-mathlib-map"
+            ],
+            "included": [
+              "lean-mathlib-map"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "lean-mathlib-map.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    },
+    {
+      "recordId": "numerical-engine-source",
+      "assetType": "NUMERICAL_ENGINE",
+      "source": {
+        "type": "FILE",
+        "locator": "szl_numerics_adapter.py"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for numerical-engine-source",
+        "bounds": [
+          "record:numerical-engine-source"
+        ],
+        "included": [
+          "numerical-engine-source"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "numerical-engine-source.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_numerics_adapter.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:1a67e77bbdb42278f50cda50c4f1e782ae309db1d3728b9e72cfd848b3ff8222",
+          "summary": "Numerical engine adapter boundary existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "numerical-engine-source.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named numerical engine adapter boundary source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_numerics_adapter.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for numerical-engine-source",
+            "bounds": [
+              "record:numerical-engine-source"
+            ],
+            "included": [
+              "numerical-engine-source"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "numerical-engine-source.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    },
+    {
+      "recordId": "sovereign-inference-source",
+      "assetType": "INFERENCE_ARTIFACT",
+      "source": {
+        "type": "FILE",
+        "locator": "szl_model_harness.py"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for sovereign-inference-source",
+        "bounds": [
+          "record:sovereign-inference-source"
+        ],
+        "included": [
+          "sovereign-inference-source"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "sovereign-inference-source.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_model_harness.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:e9641b7044c04e1034dbcf73d0c0890e2620f1961667a3f7952dbd9cb426db15",
+          "summary": "Sovereign model qualification boundary existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "sovereign-inference-source.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named sovereign model qualification boundary source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "szl_model_harness.py"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for sovereign-inference-source",
+            "bounds": [
+              "record:sovereign-inference-source"
+            ],
+            "included": [
+              "sovereign-inference-source"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "sovereign-inference-source.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    },
+    {
+      "recordId": "deployment-source",
+      "assetType": "DEPLOYMENT",
+      "source": {
+        "type": "FILE",
+        "locator": "Dockerfile"
+      },
+      "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+      "collectedAt": "2026-07-18T14:55:00Z",
+      "coverage": {
+        "bounded": true,
+        "discoveryMode": "EXPLICIT_INPUT_SET",
+        "scope": "One named source file for deployment-source",
+        "bounds": [
+          "record:deployment-source"
+        ],
+        "included": [
+          "deployment-source"
+        ],
+        "excluded": [],
+        "missing": [],
+        "expectedCount": 1,
+        "observedCount": 1,
+        "complete": true
+      },
+      "maturity": "MEASURED",
+      "operationalState": "NOT_EVALUATED",
+      "evidenceState": "PARTIAL",
+      "promotionEligible": false,
+      "evidence": [
+        {
+          "evidenceId": "deployment-source.source.evidence",
+          "propertyKind": "PROVENANCE",
+          "kind": "SOURCE_FILE",
+          "source": {
+            "type": "FILE",
+            "locator": "Dockerfile"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "admissionState": "PARTIAL",
+          "digest": "sha256:4711ecfdab2874ebf97bb1c3607a7f528735e852c7d97ddd24c6f6b4a01a4715",
+          "summary": "Deployment image boundary existed at the recorded Git revision and content digest."
+        }
+      ],
+      "claims": [
+        {
+          "claimId": "deployment-source.source.claim",
+          "propertyKind": "PROVENANCE",
+          "propertyName": "bounded source identity",
+          "assertion": "The snapshot observed only the named deployment image boundary source file; runtime behavior was not evaluated.",
+          "maturity": "MEASURED",
+          "operationalState": "NOT_EVALUATED",
+          "evidenceState": "PARTIAL",
+          "source": {
+            "type": "FILE",
+            "locator": "Dockerfile"
+          },
+          "revision": "git:1d1490de657381ef7e7371d0f0383290ece5a936",
+          "collectedAt": "2026-07-18T14:55:00Z",
+          "coverage": {
+            "bounded": true,
+            "discoveryMode": "EXPLICIT_INPUT_SET",
+            "scope": "One named source file for deployment-source",
+            "bounds": [
+              "record:deployment-source"
+            ],
+            "included": [
+              "deployment-source"
+            ],
+            "excluded": [],
+            "missing": [],
+            "expectedCount": 1,
+            "observedCount": 1,
+            "complete": true
+          },
+          "evidenceIds": [
+            "deployment-source.source.evidence"
+          ],
+          "freshness": {
+            "evaluatedAt": "2026-07-18T14:55:00Z",
+            "maxAgeSeconds": 86400,
+            "status": "UNKNOWN"
+          },
+          "promotionEligible": false,
+          "blockers": [
+            "Runtime, license, deployment, and independent verification evidence were not evaluated by this source-only snapshot."
+          ]
+        }
+      ],
+      "blockers": [
+        "Property-specific runtime and independent verification evidence remain required."
+      ],
+      "risks": [
+        "Source presence and a content digest do not establish operational capability."
+      ]
+    }
+  ],
+  "risks": [
+    "The candidate is source-only and must not be presented as estate health or live verification."
+  ],
+  "blockers": [
+    "Independent verification and a signed receipt binding do not yet exist."
+  ],
+  "approvalDecision": {
+    "decision": "NOT_EVALUATED",
+    "scope": "Candidate snapshot generation only",
+    "actor": "one-lathe-generator",
+    "decidedAt": "2026-07-18T14:55:00Z",
+    "source": {
+      "type": "FILE",
+      "locator": "docs/ONE_LATHE_FRONTIER_PROGRAM.md"
+    },
+    "revision": "sha256:317610096fd7d8545e9dd6093864fa97c5a6c17da75c1463b86f7fb058c5f1c4"
+  },
+  "receiptBinding": {
+    "state": "NOT_EVALUATED",
+    "blockers": [
+      "No independently verified DSSE/Lake receipt binding exists for this candidate."
+    ]
+  }
+}

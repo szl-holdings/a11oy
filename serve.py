@@ -757,6 +757,17 @@ try:
     print("[a11oy] Backend hardening registered: /api/a11oy/v1/compute-pool-hardened (+ probe_fabric_pool/ttl_cache helpers)", file=__import__("sys").stderr)
 except Exception as _szl_bh_e:  # pragma: no cover
     print(f"[a11oy] Backend hardening NOT registered: {_szl_bh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
+# Explicit contract projection; the legacy TCP inventory remains unchanged.
+try:
+    import szl_compute_pool_contract as _szl_compute_pool_contract
+    _szl_pool_contract_paths = _szl_compute_pool_contract.register(app, ns="a11oy")
+    print(f"[a11oy] compute-pool/v1 contract registered: {_szl_pool_contract_paths}", file=__import__("sys").stderr)
+except Exception as _szl_pool_contract_error:  # pragma: no cover
+    print(
+        f"[a11oy] compute-pool/v1 contract NOT registered: {_szl_pool_contract_error!r}; legacy routes unaffected",
+        file=__import__("sys").stderr,
+    )
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
 # ── Observability / distributed tracing (devN) — szl_observability ──
@@ -1982,17 +1993,18 @@ except Exception as _szl_rs_e:  # pragma: no cover
 
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
-# eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
+# eigenvalue clipping; PURE-STDLIB CPU reference today, distinct cuML GPU path ROADMAP), L2 TDA-
 # Fracture (correlation→distance d=√(2(1−ρ)), Betti β0/β1 at a COMMON fixed filtration
 # radius, fracture f_t=|Δβ0|+|Δβ1|, anomaly |z|>2.5; giotto-tda on GPU else stdlib union-
-# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). EVERY
-# result is a DSSE-SIGNED receipt (REAL ECDSA in-Space, honest UNSIGNED marker locally).
+# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). Each
+# result carries a DSSE envelope: REAL ECDSA only when the runtime key is present,
+# otherwise an explicit UNSIGNED marker. Read-only claim routes never sign.
 # HONEST LABELS: SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED — NEVER live-trading,
 # NEVER a backtest not run. Adds /quant tab + /api/a11oy/v1/quant/{pca,tda,kelly,pipeline,
 # tiers,verify-claims}. tiers reuses Dev C szl_energy_sovereign.energy_fields_for_receipt()
 # and sovereign:true ONLY on a live gpu_reachable probe. Additive, try/except-guarded,
 # before the SPA catch-all. Cites Ledoit-Wolf, Laloux/Bouchaud/Potters, Gidea-Katz
-# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, Brodetsky.
+# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, and Ripser++.
 try:
     import szl_gpu_quant as _szl_gpu_quant
     _szl_gpu_quant.register(app, ns="a11oy")
@@ -13957,17 +13969,17 @@ try:
 
     _a11oy_source_observation = {
         "repository": "szl-holdings/a11oy",
-        "commit": "a077208dfa8b8be54b271a277b8c27092422c7e7",
+        "repository_url": "https://github.com/szl-holdings/a11oy",
         "path": "",
         "relation": "declared-source-with-hf-overlay",
-        "state": "VERIFIED_REFERENCE",
-        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/a077208dfa8b8be54b271a277b8c27092422c7e7",
+        # Source/deploy identities come from immutable build/runtime inputs.
+        # Missing inputs remain null/UNKNOWN; no commit is typed in by hand.
     }
     _szl_source_result = _szl_source_attestation.register(
         app,
         "SZLHOLDINGS/a11oy",
         _a11oy_source_observation,
-        "PENDING_GITHUB_SYNC",
+        "UNKNOWN",
     )
     print(f"[a11oy] deployment-source attestation registered: {_szl_source_result}", file=sys.stderr)
 except Exception as _szl_source_error:  # additive: never take down the SPA

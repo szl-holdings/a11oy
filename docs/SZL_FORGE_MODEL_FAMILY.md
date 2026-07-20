@@ -47,20 +47,28 @@ silently copied into gradients.
 
 The fail-closed admission engine in `szl_brain_training_admission.py` is now
 implemented and covered by focused regression tests. It evaluates bounded,
-caller-supplied candidate rows against content hashes, pinned source evidence,
-rights and license evidence, freshness, deterministic deduplication, contamination,
-and immutable train/eval assignment. Those tests establish gate behavior on test
+caller-supplied candidate rows against content hashes, stable source identity,
+pinned source evidence, author/rightsholder permission and license evidence,
+signed PII clearance, freshness, deterministic exact-content deduplication,
+held-out contamination, allowlisted signed review, and immutable train/eval
+assignment. Those tests establish gate behavior on test
 fixtures; they do not establish admission of the canonical Brain corpus. The current
 9,464 raw rows remain quarantined, zero rows are admitted to gradients, and no
 training run was started.
 
 Training admission is no longer allowed to trust a candidate's own JSON assertions.
-Every source, rights, and contamination statement must be Ed25519-signed by an
-allowlisted issuer/tool/key triple and must bind the exact content, source URI, and
-immutable revision. TRAIN additionally requires a frozen protected-evaluation hash
-set and a signed deterministic prior-run split ledger. Cross-run row reuse or split
-migration fails closed. These controls make a future gradient tranche possible; they
-do not manufacture rights for the present 9,464 harvested metadata rows.
+Every source, rights, privacy, review, and contamination statement must be
+Ed25519-signed by a purpose-scoped issuer/tool/key and must bind the exact content,
+source URI, and immutable revision. The review key is bound to the declared reviewer;
+it is not interchangeable with a source or policy key. TRAIN is disabled by default
+and requires an explicit operator switch, a frozen protected-evaluation hash set, a
+root-signed policy bundle, an exact policy-pinned prior split-ledger envelope SHA-256,
+and a distinct terminal-artifact signing key. Cross-run row reuse, split migration,
+mutable-key replacement, stale-ledger replay, and unsigned terminal artifacts fail
+closed. Evaluation admission is subject to the same rooted policy and signed-terminal
+boundary; an unrooted run is inspection only. Quarantine output is minimized to opaque
+row identity and reason codes. These controls make a future gradient tranche possible;
+they do not manufacture rights for the present 9,464 harvested metadata rows.
 
 This keeps Khipu continuously useful while its trainable tranche grows.
 

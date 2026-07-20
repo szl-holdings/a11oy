@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/compute-pool-inference-receipt.v1.schema.json",
+  "title": "A11oy Bounded Inference Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "issuer", "audience", "predicate_type", "measurement_contract", "node_id", "model_id", "model_digest_sha256", "observed_at", "request_sha256", "response_sha256", "duration_ms", "success", "serving", "bounds"],
+  "properties": {
+    "schema_version": {"const": "szl.compute-pool.inference-receipt/v1"},
+    "issuer": {"const": "a11oy-pool-attester"},
+    "audience": {"const": "a11oy-compute-pool"},
+    "predicate_type": {"const": "szl.compute-pool.inference-qualification/v1"},
+    "measurement_contract": {"const": "szl.compute-pool.measurement-contract/v1"},
+    "node_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "model_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "model_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "request_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "response_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "duration_ms": {"type": "number", "minimum": 0, "maximum": 3600000},
+    "success": {"type": "boolean"}, "serving": {"type": "boolean"},
+    "bounds": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timeout_ms", "max_input_tokens", "max_output_tokens"],
+      "properties": {
+        "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "max_input_tokens": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "max_output_tokens": {"type": "integer", "minimum": 1, "maximum": 1000000}
+      }
+    }
+  }
+}
