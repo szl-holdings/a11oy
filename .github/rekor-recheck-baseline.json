@@ -1,6 +1,6 @@
 {
-  "min_receipts": 12,
-  "recorded": "2026-06-30",
+  "min_receipts": 13,
+  "recorded": "2026-07-20",
   "source": "auto: dsse-receipts.yml high-water mark on publish",
   "note": "Auto-maintained high-water mark of published *.dsse.json receipts on the governance-receipts ledger branch. Raised by .github/workflows/dsse-receipts.yml after each successful publish; never lowered (the ledger is append-only). The static floor in main's .github/rekor-recheck-baseline.json (issue #320) is the manual minimum; rekor-recheck.yml enforces the larger of the two."
 }
