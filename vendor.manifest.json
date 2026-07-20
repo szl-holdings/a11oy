@@ -531,6 +531,10 @@
       "source": "packages/unified-kernel/src/loop/vendor_ouroboros/types.ts",
       "header": true
     },
+    "scripts/qa/check-dco-workflow.py": {
+      "source": "scripts/qa/check-dco-workflow.py",
+      "header": true
+    },
     "spaces/immune/.gitattributes": {
       "source": "replit-sync/hf_spaces/anatomy/.gitattributes",
       "header": true
