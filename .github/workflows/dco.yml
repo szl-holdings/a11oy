@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — .github/workflows/dco.yml
+# VENDORED FROM szl-holdings/platform@ed400a4f378330becd53346420b4d89ae8281dc5 — .github/workflows/dco.yml
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 name: DCO
 
@@ -25,6 +25,8 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Validate DCO workflow contract
+        run: python3 scripts/qa/check-dco-workflow.py
       - name: Check DCO on PR commits
         if: github.event_name == 'pull_request'
         env:
@@ -32,7 +34,7 @@ jobs:
         run: |
           echo "Checking Signed-off-by on PR commits..."
           # Get commits in this PR
-          COMMITS=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" --jq '.[].sha' 2>/dev/null || echo "")
+          COMMITS=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits?per_page=100" --jq '.[].sha' 2>/dev/null || echo "")
           if [ -z "$COMMITS" ]; then
             echo "No commits found — assuming OK"
             exit 0
