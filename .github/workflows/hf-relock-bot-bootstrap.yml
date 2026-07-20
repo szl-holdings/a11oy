@@ -22,8 +22,8 @@ jobs:
     env:
       BOT_BRANCH: automation/hf-relock-authority-20260720
       BASE_SHA: a7c1646a51a43c6d754a73f82d36459f7f9663f9
-      EXPECTED_LOCK_SHA256: 4b9a1f492cd0a6e9449a673119d5f398b95c99837823974d9d9ed31469485359
-      EXPECTED_EVIDENCE_SHA256: 0ad79a4c3e11ab9c86f17bcf0b64e832b2e547cf2a39c04130f113949ca4a504
+      EXPECTED_LOCK_SHA256: f2b77336f2f2a682949d4d8cd0c3fbafc7cf58f09790767c0ca94c04d6c2002c
+      EXPECTED_EVIDENCE_SHA256: 2e159b27853f97db6d6bd2a8d3b5297504aabb704d199a2b4287af89006a049e
     steps:
       - name: Checkout exact PR head as candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
