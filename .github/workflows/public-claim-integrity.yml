@@ -1,0 +1,113 @@
+name: EvidenceOS public-claim integrity
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_call:
+  pull_request:
+    branches: [main, agent/evidenceos-claim-wave36]
+    paths:
+      - 'szl_public_claim_manifest.py'
+      - 'schemas/evidenceos/public-claim-*.v1.schema.json'
+      - 'scripts/check_public_claim_manifest.py'
+      - 'scripts/verify_public_claim_github_job.py'
+      - 'artifacts/evidenceos/manifests/**'
+      - 'artifacts/evidenceos/receipts/**'
+      - 'tests/test_public_claim_manifest.py'
+      - '.github/requirements/ci-core.txt'
+      - '.github/requirements/ci-core.in'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/public-claim-integrity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'szl_public_claim_manifest.py'
+      - 'schemas/evidenceos/public-claim-*.v1.schema.json'
+      - 'scripts/check_public_claim_manifest.py'
+      - 'scripts/verify_public_claim_github_job.py'
+      - 'artifacts/evidenceos/manifests/**'
+      - 'artifacts/evidenceos/receipts/**'
+      - 'tests/test_public_claim_manifest.py'
+      - '.github/requirements/ci-core.txt'
+      - '.github/requirements/ci-core.in'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/public-claim-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  public-claim-integrity:
+    name: bounded freshness and maturity contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: Install hash-locked test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Compile pure boundaries and validate schemas
+        run: |
+          python -m py_compile szl_public_claim_manifest.py scripts/check_public_claim_manifest.py scripts/verify_public_claim_github_job.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          for path in (
+              'schemas/evidenceos/public-claim-manifest.v1.schema.json',
+              'schemas/evidenceos/public-claim-report.v1.schema.json',
+          ):
+              schema = json.loads(Path(path).read_text(encoding='utf-8'))
+              Draft202012Validator.check_schema(schema)
+          PY
+      - name: Run adversarial contract suite
+        run: python -m pytest -q tests/test_public_claim_manifest.py
+      - name: Refuse unreviewed manifest fan-out in the v1 pilot
+        run: |
+          test -z "$(find artifacts/evidenceos/manifests -mindepth 1 -type l -print -quit)"
+          mapfile -d '' -t MANIFESTS < <(find artifacts/evidenceos/manifests -type f -name '*.json' -print0 | LC_ALL=C sort -z)
+          test "${#MANIFESTS[@]}" -eq 1
+          test "${MANIFESTS[0]}" = "artifacts/evidenceos/manifests/integrity-control.public-claim-manifest.v1.json"
+      - name: Verify immutable GitHub Actions job evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.verify_public_claim_github_job \
+            --manifest artifacts/evidenceos/manifests/integrity-control.public-claim-manifest.v1.json \
+            --repository-root . \
+            --expected-repository "${{ github.repository }}" \
+            --report public-claim-github-verification.json
+      - name: Evaluate the explicit source-scoped manifest
+        run: |
+          EVALUATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python -m scripts.check_public_claim_manifest \
+            --manifest artifacts/evidenceos/manifests/integrity-control.public-claim-manifest.v1.json \
+            --repository-root . \
+            --as-of "$EVALUATED_AT" \
+            --report public-claim-report.json
+      - name: Validate the real manifest and generated report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          manifest = json.loads(Path('artifacts/evidenceos/manifests/integrity-control.public-claim-manifest.v1.json').read_text(encoding='utf-8'))
+          report = json.loads(Path('public-claim-report.json').read_text(encoding='utf-8'))
+          manifest_schema = json.loads(Path('schemas/evidenceos/public-claim-manifest.v1.schema.json').read_text(encoding='utf-8'))
+          report_schema = json.loads(Path('schemas/evidenceos/public-claim-report.v1.schema.json').read_text(encoding='utf-8'))
+          Draft202012Validator(manifest_schema).validate(manifest)
+          Draft202012Validator(report_schema).validate(report)
+          PY
+      - name: Upload unsigned deterministic reports
+        if: always() && hashFiles('public-claim-report.json', 'public-claim-github-verification.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-claim-report
+          path: |
+            public-claim-report.json
+            public-claim-github-verification.json
+          if-no-files-found: error
+          retention-days: 14

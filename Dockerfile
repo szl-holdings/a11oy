@@ -139,9 +139,12 @@ COPY szl_brain_training_admission.py ./
 # Waqay Security Loop wave 15: pure read-only proposal contract.  The module
 # exposes zero external effectors; serve.py registers only its manifest GET.
 COPY szl_waqay_security_loop.py ./
-# Claim-integrity Rupture Gate wave 15: contract-only, external signals only,
-# unsigned deterministic receipts, zero effectors.
+# Claim-integrity Rupture Gate / EvidenceOS Claim Compiler: external signals
+# only, unsigned deterministic receipts, zero effectors.  The exact request
+# schemas ship beside the module so served OpenAPI cannot drift from the
+# reviewed source contracts.
 COPY szl_claim_rupture_gate.py ./
+COPY schemas/evidenceos/ ./schemas/evidenceos/
 # Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
 # SDK, QPU call, credential path, external effector, or finance-engine coupling.
 COPY szl_quantum_utility.py ./
