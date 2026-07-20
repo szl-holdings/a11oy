@@ -43,10 +43,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Verify Grype gate cannot swallow scanner failure
+        run: python3 tests/test_grype_gate_contract.py
+
       - name: Scan with Grype (fail build on HIGH/CRITICAL)
         id: grype
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
-        continue-on-error: true  # stale-DB non-applicable failures: see .grype.yaml ignore list
         with:
           path: "."
           fail-build: true

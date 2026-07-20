@@ -30,6 +30,7 @@ on:
       - "static-vendor/**"
       - "numerics/**"
       - "src/**"
+      - "schemas/**"
       - "corpus/**"
       - "model_release/**"
       - "*.html"

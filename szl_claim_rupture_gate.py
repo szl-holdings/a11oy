@@ -43,8 +43,400 @@ SEMANTIC_UNCERTAINTY_ABSTAIN_THRESHOLD = 0.66
 MODULE_ID = "szl-claim-rupture-gate"
 CONTRACT_VERSION = "1.0.0"
 
+# HTTP adapters may apply a smaller byte limit before decoding JSON.  These limits are
+# the semantic contract after decoding: they bound every collection and string that the
+# pure evaluator can traverse.  They are mirrored in schemas/evidenceos and pinned by
+# tests so a route cannot silently accept more work than the core contract promises.
+MAX_ATOMIZE_TEXT_CHARS = 32_768
+MAX_ATOMIZE_CANDIDATES = 32
+MAX_CLAIMS = 32
+MAX_EVIDENCE_REFS_PER_CLAIM = 8
+MAX_CONTRADICTIONS = 32
+MAX_EXTERNAL_SIGNALS = 32
+MAX_CLAIM_IDS_PER_CONTRADICTION = 32
+MAX_ID_CHARS = 128
+MAX_STATEMENT_CHARS = 4_096
+MAX_REFERENCE_CHARS = 512
+MAX_METHOD_CHARS = 256
+MAX_ACCOUNTABILITY_SCOPE_CHARS = 1_024
+
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _SPLIT_RE = re.compile(r"(?:\r?\n)+|(?<=[.!?;])\s+")
+
+
+class ClaimContractError(ValueError):
+    """A deterministic request-contract refusal.
+
+    This is deliberately a ``ValueError`` so thin HTTP adapters can map it to 422
+    without importing a web framework into this pure module.  It is not an epistemic
+    claim verdict: structurally valid but incomplete evidence still reaches the gate and
+    receives the appropriate RG-* abstention code.
+    """
+
+
+def _contract_error(path: str, message: str) -> ClaimContractError:
+    return ClaimContractError(f"{path}: {message}")
+
+
+def _object(value: Any, path: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise _contract_error(path, "must be an object")
+    return value
+
+
+def _exact_keys(value: Mapping[str, Any], allowed: set[str], path: str) -> None:
+    extras = sorted(str(key) for key in value if not isinstance(key, str) or key not in allowed)
+    if extras:
+        raise _contract_error(path, f"unknown field(s): {', '.join(extras)}")
+
+
+def _string(
+    value: Any,
+    path: str,
+    *,
+    maximum: int,
+    nonblank: bool = False,
+    pattern: re.Pattern[str] | None = None,
+) -> str:
+    if not isinstance(value, str):
+        raise _contract_error(path, "must be a string")
+    if len(value) > maximum:
+        raise _contract_error(path, f"must be at most {maximum} characters")
+    if nonblank and not value.strip():
+        raise _contract_error(path, "must not be blank")
+    if pattern is not None and not pattern.fullmatch(value):
+        raise _contract_error(path, "has an invalid format")
+    return value
+
+
+def _boolean(value: Any, path: str) -> bool:
+    if not isinstance(value, bool):
+        raise _contract_error(path, "must be a boolean")
+    return value
+
+
+def _number(value: Any, path: str, *, minimum: float, maximum: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise _contract_error(path, "must be a number")
+    normalized = float(value)
+    if not minimum <= normalized <= maximum:
+        raise _contract_error(path, f"must be between {minimum} and {maximum}")
+    return normalized
+
+
+def _array(value: Any, path: str, *, maximum: int) -> Sequence[Any]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        raise _contract_error(path, "must be an array")
+    if len(value) > maximum:
+        raise _contract_error(path, f"must contain at most {maximum} items")
+    return value
+
+
+def _optional_string(
+    source: Mapping[str, Any],
+    key: str,
+    path: str,
+    *,
+    maximum: int,
+    pattern: re.Pattern[str] | None = None,
+) -> str | None:
+    if key not in source:
+        return None
+    return _string(source[key], f"{path}.{key}", maximum=maximum, pattern=pattern)
+
+
+def _identifier(value: Any, path: str) -> str:
+    """Return the canonical identifier used by all cross-record comparisons."""
+    return _string(
+        value,
+        path,
+        maximum=MAX_ID_CHARS,
+        nonblank=True,
+    ).strip()
+
+
+def _parse_provenance(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(raw, {"source_id", "content_sha256", "receipt_ref"}, path)
+    out: dict[str, Any] = {}
+    source_id = _optional_string(raw, "source_id", path, maximum=MAX_REFERENCE_CHARS)
+    digest = _optional_string(
+        raw, "content_sha256", path, maximum=64, pattern=_SHA256_RE,
+    )
+    receipt_ref = _optional_string(raw, "receipt_ref", path, maximum=MAX_REFERENCE_CHARS)
+    if source_id is not None:
+        out["source_id"] = source_id
+    if digest is not None:
+        out["content_sha256"] = digest
+    if receipt_ref is not None:
+        out["receipt_ref"] = receipt_ref
+    return out
+
+
+def _parse_owner(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(raw, {"owner_id", "accountability_scope"}, path)
+    out: dict[str, Any] = {}
+    owner_id = _optional_string(raw, "owner_id", path, maximum=MAX_ID_CHARS)
+    scope = _optional_string(
+        raw, "accountability_scope", path, maximum=MAX_ACCOUNTABILITY_SCOPE_CHARS,
+    )
+    if owner_id is not None:
+        out["owner_id"] = owner_id
+    if scope is not None:
+        out["accountability_scope"] = scope
+    return out
+
+
+def _parse_evidence(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(
+        raw,
+        {"reference_id", "evidence_state", "provenance", "verification_ref"},
+        path,
+    )
+    out: dict[str, Any] = {}
+    reference_id = _optional_string(raw, "reference_id", path, maximum=MAX_ID_CHARS)
+    if reference_id is not None:
+        out["reference_id"] = reference_id
+    if "evidence_state" in raw:
+        state = _string(raw["evidence_state"], f"{path}.evidence_state", maximum=16)
+        if state not in CLAIM_STATES:
+            raise _contract_error(f"{path}.evidence_state", "must be a known claim state")
+        out["evidence_state"] = state
+    if "provenance" in raw:
+        out["provenance"] = _parse_provenance(raw["provenance"], f"{path}.provenance")
+    verification_ref = _optional_string(
+        raw, "verification_ref", path, maximum=MAX_REFERENCE_CHARS,
+    )
+    if verification_ref is not None:
+        out["verification_ref"] = verification_ref
+    return out
+
+
+def _parse_claim(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(
+        raw,
+        {"claim_id", "statement", "atomic", "evidence_refs", "consequence_owner"},
+        path,
+    )
+    out: dict[str, Any] = {}
+    claim_id = _identifier(raw["claim_id"], f"{path}.claim_id") if "claim_id" in raw else None
+    statement = _optional_string(raw, "statement", path, maximum=MAX_STATEMENT_CHARS)
+    if claim_id is not None:
+        out["claim_id"] = claim_id
+    if statement is not None:
+        out["statement"] = statement
+    if "atomic" in raw:
+        out["atomic"] = _boolean(raw["atomic"], f"{path}.atomic")
+    if "evidence_refs" in raw:
+        rows = _array(
+            raw["evidence_refs"],
+            f"{path}.evidence_refs",
+            maximum=MAX_EVIDENCE_REFS_PER_CLAIM,
+        )
+        out["evidence_refs"] = [
+            _parse_evidence(row, f"{path}.evidence_refs[{index}]")
+            for index, row in enumerate(rows)
+        ]
+    if "consequence_owner" in raw:
+        owner = raw["consequence_owner"]
+        out["consequence_owner"] = (
+            None if owner is None else _parse_owner(owner, f"{path}.consequence_owner")
+        )
+    return out
+
+
+def _parse_semantic_signal(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(raw, {"value", "source_ref", "method"}, path)
+    out: dict[str, Any] = {}
+    if "value" in raw:
+        out["value"] = _number(raw["value"], f"{path}.value", minimum=0.0, maximum=1.0)
+    source_ref = _optional_string(raw, "source_ref", path, maximum=MAX_REFERENCE_CHARS)
+    method = _optional_string(raw, "method", path, maximum=MAX_METHOD_CHARS)
+    if source_ref is not None:
+        out["source_ref"] = source_ref
+    if method is not None:
+        out["method"] = method
+    return out
+
+
+def _parse_factuality_signal(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(raw, {"state", "source_ref", "method"}, path)
+    out: dict[str, Any] = {}
+    if "state" in raw:
+        state = _string(raw["state"], f"{path}.state", maximum=16)
+        if state not in CLAIM_STATES:
+            raise _contract_error(f"{path}.state", "must be a known claim state")
+        out["state"] = state
+    source_ref = _optional_string(raw, "source_ref", path, maximum=MAX_REFERENCE_CHARS)
+    method = _optional_string(raw, "method", path, maximum=MAX_METHOD_CHARS)
+    if source_ref is not None:
+        out["source_ref"] = source_ref
+    if method is not None:
+        out["method"] = method
+    return out
+
+
+def _parse_signal_envelope(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(raw, {"semantic_uncertainty", "factuality"}, path)
+    out: dict[str, Any] = {}
+    if "semantic_uncertainty" in raw:
+        out["semantic_uncertainty"] = _parse_semantic_signal(
+            raw["semantic_uncertainty"], f"{path}.semantic_uncertainty",
+        )
+    if "factuality" in raw:
+        out["factuality"] = _parse_factuality_signal(
+            raw["factuality"], f"{path}.factuality",
+        )
+    return out
+
+
+def _parse_contradiction(value: Any, path: str) -> dict[str, Any]:
+    raw = _object(value, path)
+    _exact_keys(
+        raw,
+        {"claim_ids", "status", "provenance", "refutes_claim_ids", "resolution_ref"},
+        path,
+    )
+    out: dict[str, Any] = {}
+    if "claim_ids" in raw:
+        ids = _array(
+            raw["claim_ids"], path + ".claim_ids", maximum=MAX_CLAIM_IDS_PER_CONTRADICTION,
+        )
+        parsed_ids = [
+            _identifier(item, f"{path}.claim_ids[{index}]")
+            for index, item in enumerate(ids)
+        ]
+        if len(set(parsed_ids)) != len(parsed_ids):
+            raise _contract_error(path + ".claim_ids", "must not contain duplicates")
+        out["claim_ids"] = parsed_ids
+    if "status" in raw:
+        status = _string(raw["status"], path + ".status", maximum=16)
+        if status not in {"UNRESOLVED", "CONFIRMED", "RESOLVED"}:
+            raise _contract_error(path + ".status", "must be UNRESOLVED, CONFIRMED, or RESOLVED")
+        out["status"] = status
+    if "provenance" in raw:
+        out["provenance"] = _parse_provenance(raw["provenance"], path + ".provenance")
+    if "refutes_claim_ids" in raw:
+        ids = _array(
+            raw["refutes_claim_ids"],
+            path + ".refutes_claim_ids",
+            maximum=MAX_CLAIM_IDS_PER_CONTRADICTION,
+        )
+        refutes = [
+            _identifier(item, f"{path}.refutes_claim_ids[{index}]")
+            for index, item in enumerate(ids)
+        ]
+        if len(set(refutes)) != len(refutes):
+            raise _contract_error(path + ".refutes_claim_ids", "must not contain duplicates")
+        out["refutes_claim_ids"] = refutes
+    resolution_ref = _optional_string(
+        raw, "resolution_ref", path, maximum=MAX_REFERENCE_CHARS,
+    )
+    if resolution_ref is not None:
+        out["resolution_ref"] = resolution_ref
+    return out
+
+
+def parse_atomize_request(payload: Any) -> dict[str, str]:
+    """Validate and normalize the structural atomization request envelope."""
+    raw = _object(payload, "$atomize")
+    _exact_keys(raw, {"text"}, "$atomize")
+    if "text" not in raw:
+        raise _contract_error("$atomize.text", "is required")
+    text = _string(
+        raw["text"],
+        "$atomize.text",
+        maximum=MAX_ATOMIZE_TEXT_CHARS,
+        nonblank=True,
+    )
+    return {"text": text}
+
+
+def parse_evaluate_request(payload: Any) -> dict[str, Any]:
+    """Validate a bounded evaluation envelope without asserting evidence completeness.
+
+    Missing provenance, ownership, evidence, or signal fields are deliberately accepted:
+    they are epistemic failures that the RG rubric must expose as UNKNOWN/ABSTAIN.  Unknown
+    fields, ambiguous identifiers, invalid types, and unbounded work are contract failures.
+    """
+    raw = _object(payload, "$evaluate")
+    _exact_keys(raw, {"claims", "external_signals", "contradictions"}, "$evaluate")
+    if "claims" not in raw:
+        raise _contract_error("$evaluate.claims", "is required")
+    claim_rows = _array(raw["claims"], "$evaluate.claims", maximum=MAX_CLAIMS)
+    claims = [
+        _parse_claim(row, f"$evaluate.claims[{index}]")
+        for index, row in enumerate(claim_rows)
+    ]
+
+    explicit_ids = [claim["claim_id"] for claim in claims if "claim_id" in claim]
+    if len(explicit_ids) != len(set(explicit_ids)):
+        raise _contract_error("$evaluate.claims", "claim_id values must be unique")
+    known_ids = set(explicit_ids)
+
+    signal_rows: Mapping[str, Any] = {}
+    if "external_signals" in raw:
+        signal_rows = _object(raw["external_signals"], "$evaluate.external_signals")
+        if len(signal_rows) > MAX_EXTERNAL_SIGNALS:
+            raise _contract_error(
+                "$evaluate.external_signals",
+                f"must contain at most {MAX_EXTERNAL_SIGNALS} properties",
+            )
+    signals: dict[str, Any] = {}
+    for claim_id, value in signal_rows.items():
+        parsed_id = _identifier(claim_id, "$evaluate.external_signals.<claim_id>")
+        if parsed_id in signals:
+            raise _contract_error(
+                "$evaluate.external_signals",
+                f"keys collide after identifier normalization: {parsed_id}",
+            )
+        if parsed_id not in known_ids:
+            raise _contract_error(
+                f"$evaluate.external_signals.{parsed_id}",
+                "does not reference an explicit claim_id",
+            )
+        signals[parsed_id] = _parse_signal_envelope(
+            value, f"$evaluate.external_signals.{parsed_id}",
+        )
+
+    contradiction_rows: Sequence[Any] = []
+    if "contradictions" in raw:
+        contradiction_rows = _array(
+            raw["contradictions"],
+            "$evaluate.contradictions",
+            maximum=MAX_CONTRADICTIONS,
+        )
+    contradictions = [
+        _parse_contradiction(row, f"$evaluate.contradictions[{index}]")
+        for index, row in enumerate(contradiction_rows)
+    ]
+    for index, contradiction in enumerate(contradictions):
+        affected = set(contradiction.get("claim_ids", []))
+        refuted = set(contradiction.get("refutes_claim_ids", []))
+        unknown = (affected | refuted) - known_ids
+        if unknown:
+            raise _contract_error(
+                f"$evaluate.contradictions[{index}]",
+                f"unknown claim_id value(s): {', '.join(sorted(unknown))}",
+            )
+        outside = refuted - affected
+        if outside:
+            raise _contract_error(
+                f"$evaluate.contradictions[{index}].refutes_claim_ids",
+                "must be a subset of claim_ids",
+            )
+
+    return {
+        "claims": claims,
+        "external_signals": signals,
+        "contradictions": contradictions,
+    }
 
 
 # Open, inspectable error/abstention rubric.  Codes are stable API data, not prose-only
@@ -152,6 +544,10 @@ def atomize_text(text: str) -> dict[str, Any]:
     """
     source = text if isinstance(text, str) else ""
     pieces = [p.strip(" \t-*\u2022") for p in _SPLIT_RE.split(source) if p.strip(" \t-*\u2022")]
+    if len(pieces) > MAX_ATOMIZE_CANDIDATES:
+        raise ClaimContractError(
+            f"structural atomization produced more than {MAX_ATOMIZE_CANDIDATES} candidates"
+        )
     atoms = []
     for index, statement in enumerate(pieces):
         atoms.append({

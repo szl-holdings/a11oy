@@ -148,16 +148,142 @@ async def waqay_security_loop_manifest() -> JSONResponse:
     return JSONResponse({"ready": True, **security_loop_manifest()})
 
 
-# Claim Rupture Gate (wave 15): contract-only exposure.  The module consumes
-# externally supplied uncertainty/factuality evidence but never invents a score,
-# upgrades a claim, persists a decision, or invokes an effector.  Evaluation
-# POST routes remain absent pending identity/policy/abuse review.
+# Claim Rupture Gate / EvidenceOS Claim Compiler: bounded, computational-read
+# exposure.  The module consumes externally supplied uncertainty/factuality
+# evidence but never invents a score, upgrades a claim, persists a decision,
+# signs a result, or invokes an effector.  The request boundary is byte-bounded
+# before JSON parsing; the core validators then enforce the closed contracts.
 try:
-    from szl_claim_rupture_gate import info as claim_rupture_gate_info
+    from szl_claim_rupture_gate import (
+        ClaimContractError as _ClaimContractError,
+        atomize_text as _claim_atomize_text,
+        evaluate_claims as _claim_evaluate_claims,
+        info as claim_rupture_gate_info,
+        parse_atomize_request as _parse_claim_atomize_request,
+        parse_evaluate_request as _parse_claim_evaluate_request,
+    )
+    _claim_schema_root = Path(__file__).resolve().parent / "schemas" / "evidenceos"
+    _CLAIM_ATOMIZE_REQUEST_SCHEMA = json.loads(
+        (_claim_schema_root / "claim-atomize-request.v1.schema.json").read_text(encoding="utf-8")
+    )
+    _CLAIM_EVALUATE_REQUEST_SCHEMA = json.loads(
+        (_claim_schema_root / "claim-evaluate-request.v1.schema.json").read_text(encoding="utf-8")
+    )
     _CLAIM_RUPTURE_GATE_READY = True
 except Exception:  # pragma: no cover - honest optional degradation
+    _ClaimContractError = ValueError  # type: ignore[misc,assignment]
+    _claim_atomize_text = None  # type: ignore[assignment]
+    _claim_evaluate_claims = None  # type: ignore[assignment]
     claim_rupture_gate_info = None  # type: ignore[assignment]
+    _parse_claim_atomize_request = None  # type: ignore[assignment]
+    _parse_claim_evaluate_request = None  # type: ignore[assignment]
+    _CLAIM_ATOMIZE_REQUEST_SCHEMA = {
+        "type": "object",
+        "description": "Claim Compiler contract unavailable in this runtime.",
+    }
+    _CLAIM_EVALUATE_REQUEST_SCHEMA = {
+        "type": "object",
+        "description": "Claim Compiler contract unavailable in this runtime.",
+    }
     _CLAIM_RUPTURE_GATE_READY = False
+
+
+_CLAIM_INTEGRITY_BODY_LIMIT = 64 * 1024
+
+
+class _ClaimIntegrityPayloadTooLarge(ValueError):
+    pass
+
+
+def _claim_integrity_error(status_code: int, code: str, message: str) -> JSONResponse:
+    unavailable = status_code == 503
+    return JSONResponse(
+        {
+            "ready": not unavailable,
+            "accepted": False,
+            "module": "szl-claim-rupture-gate",
+            "contract_version": "1.0.0",
+            "decision_state": "UNAVAILABLE" if unavailable else "PROPOSAL_ONLY",
+            "effectors_enabled": 0,
+            "error": {"code": code, "message": message},
+        },
+        status_code=status_code,
+    )
+
+
+async def _claim_integrity_body(request: Request) -> dict[str, Any]:
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type != "application/json":
+        raise _ClaimContractError("content-type must be application/json")
+
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except ValueError as exc:
+            raise _ClaimContractError("content-length must be a non-negative integer") from exc
+        if declared_length < 0:
+            raise _ClaimContractError("content-length must be a non-negative integer")
+        if declared_length > _CLAIM_INTEGRITY_BODY_LIMIT:
+            raise _ClaimIntegrityPayloadTooLarge("request body exceeds 64 KiB")
+
+    body_buffer = bytearray()
+    async for chunk in request.stream():
+        if len(body_buffer) + len(chunk) > _CLAIM_INTEGRITY_BODY_LIMIT:
+            raise _ClaimIntegrityPayloadTooLarge("request body exceeds 64 KiB")
+        body_buffer.extend(chunk)
+
+    def _closed_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise _ClaimContractError(f"duplicate JSON field: {key}")
+            result[key] = value
+        return result
+
+    try:
+        payload = json.loads(
+            bytes(body_buffer).decode("utf-8"),
+            object_pairs_hook=_closed_object,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise _ClaimContractError("request body must be one JSON object") from exc
+    if not isinstance(payload, dict):
+        raise _ClaimContractError("request body must be one JSON object")
+    return payload
+
+
+def _claim_integrity_unavailable() -> JSONResponse:
+    return _claim_integrity_error(503, "claim_compiler_unavailable", "claim compiler is unavailable")
+
+
+_CLAIM_INTEGRITY_ERROR_RESPONSES = {
+    413: {"description": "Request body exceeds the 64 KiB byte boundary."},
+    422: {"description": "Request JSON violates the closed Claim Compiler contract."},
+    503: {"description": "The in-process Claim Compiler failed to load."},
+}
+
+_CLAIM_ATOMIZE_OPENAPI = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": _CLAIM_ATOMIZE_REQUEST_SCHEMA,
+            }
+        },
+    }
+}
+
+_CLAIM_EVALUATE_OPENAPI = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": _CLAIM_EVALUATE_REQUEST_SCHEMA,
+            }
+        },
+    }
+}
 
 
 @app.get("/api/a11oy/v1/claim-integrity/info")
@@ -171,7 +297,61 @@ async def claim_integrity_info() -> JSONResponse:
             },
             status_code=503,
         )
-    return JSONResponse({"ready": True, **claim_rupture_gate_info()})
+    payload = dict(claim_rupture_gate_info())
+    missing = payload.get("not_implemented_here")
+    if isinstance(missing, list):
+        payload["not_implemented_here"] = [item for item in missing if item != "HTTP registration"]
+    payload["http_registration"] = "REGISTERED"
+    return JSONResponse({"ready": True, **payload})
+
+
+@app.post(
+    "/api/a11oy/v1/claim-integrity/atomize",
+    tags=["claim-integrity"],
+    summary="Structurally split bounded prose into unreviewed claim candidates",
+    responses=_CLAIM_INTEGRITY_ERROR_RESPONSES,
+    openapi_extra=_CLAIM_ATOMIZE_OPENAPI,
+)
+async def claim_integrity_atomize(request: Request) -> JSONResponse:
+    if (not _CLAIM_RUPTURE_GATE_READY or _parse_claim_atomize_request is None
+            or _claim_atomize_text is None):
+        return _claim_integrity_unavailable()
+    try:
+        parsed = _parse_claim_atomize_request(await _claim_integrity_body(request))
+        return JSONResponse({"ready": True, "accepted": True, **_claim_atomize_text(parsed["text"])})
+    except _ClaimIntegrityPayloadTooLarge as exc:
+        return _claim_integrity_error(413, "request_body_too_large", str(exc))
+    except (ValueError, TypeError) as exc:
+        return _claim_integrity_error(422, "invalid_claim_request", str(exc))
+    except Exception:
+        return _claim_integrity_error(503, "claim_compiler_failure", "claim compiler operation failed")
+
+
+@app.post(
+    "/api/a11oy/v1/claim-integrity/evaluate",
+    tags=["claim-integrity"],
+    summary="Evaluate explicit claim atoms with externally supplied evidence signals",
+    responses=_CLAIM_INTEGRITY_ERROR_RESPONSES,
+    openapi_extra=_CLAIM_EVALUATE_OPENAPI,
+)
+async def claim_integrity_evaluate(request: Request) -> JSONResponse:
+    if (not _CLAIM_RUPTURE_GATE_READY or _parse_claim_evaluate_request is None
+            or _claim_evaluate_claims is None):
+        return _claim_integrity_unavailable()
+    try:
+        parsed = _parse_claim_evaluate_request(await _claim_integrity_body(request))
+        result = _claim_evaluate_claims(
+            parsed["claims"],
+            external_signals=parsed["external_signals"],
+            contradictions=parsed["contradictions"],
+        )
+        return JSONResponse({"ready": True, "accepted": True, **result})
+    except _ClaimIntegrityPayloadTooLarge as exc:
+        return _claim_integrity_error(413, "request_body_too_large", str(exc))
+    except (ValueError, TypeError) as exc:
+        return _claim_integrity_error(422, "invalid_claim_request", str(exc))
+    except Exception:
+        return _claim_integrity_error(503, "claim_compiler_failure", "claim compiler operation failed")
 
 
 # Primary-project registry (wave 15): primary sources, projects/organizations
@@ -582,6 +762,17 @@ try:
     print("[a11oy] Backend hardening registered: /api/a11oy/v1/compute-pool-hardened (+ probe_fabric_pool/ttl_cache helpers)", file=__import__("sys").stderr)
 except Exception as _szl_bh_e:  # pragma: no cover
     print(f"[a11oy] Backend hardening NOT registered: {_szl_bh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
+# Explicit contract projection; the legacy TCP inventory remains unchanged.
+try:
+    import szl_compute_pool_contract as _szl_compute_pool_contract
+    _szl_pool_contract_paths = _szl_compute_pool_contract.register(app, ns="a11oy")
+    print(f"[a11oy] compute-pool/v1 contract registered: {_szl_pool_contract_paths}", file=__import__("sys").stderr)
+except Exception as _szl_pool_contract_error:  # pragma: no cover
+    print(
+        f"[a11oy] compute-pool/v1 contract NOT registered: {_szl_pool_contract_error!r}; legacy routes unaffected",
+        file=__import__("sys").stderr,
+    )
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
 # ── Observability / distributed tracing (devN) — szl_observability ──
@@ -1807,17 +1998,18 @@ except Exception as _szl_rs_e:  # pragma: no cover
 
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
-# eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
+# eigenvalue clipping; PURE-STDLIB CPU reference today, distinct cuML GPU path ROADMAP), L2 TDA-
 # Fracture (correlation→distance d=√(2(1−ρ)), Betti β0/β1 at a COMMON fixed filtration
 # radius, fracture f_t=|Δβ0|+|Δβ1|, anomaly |z|>2.5; giotto-tda on GPU else stdlib union-
-# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). EVERY
-# result is a DSSE-SIGNED receipt (REAL ECDSA in-Space, honest UNSIGNED marker locally).
+# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). Each
+# result carries a DSSE envelope: REAL ECDSA only when the runtime key is present,
+# otherwise an explicit UNSIGNED marker. Read-only claim routes never sign.
 # HONEST LABELS: SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED — NEVER live-trading,
 # NEVER a backtest not run. Adds /quant tab + /api/a11oy/v1/quant/{pca,tda,kelly,pipeline,
 # tiers,verify-claims}. tiers reuses Dev C szl_energy_sovereign.energy_fields_for_receipt()
 # and sovereign:true ONLY on a live gpu_reachable probe. Additive, try/except-guarded,
 # before the SPA catch-all. Cites Ledoit-Wolf, Laloux/Bouchaud/Potters, Gidea-Katz
-# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, Brodetsky.
+# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, and Ripser++.
 try:
     import szl_gpu_quant as _szl_gpu_quant
     _szl_gpu_quant.register(app, ns="a11oy")
@@ -10379,6 +10571,7 @@ except Exception as _kl_e:
 _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/live/", "v1/code/", "v1/seismic/", "v1/feeds/",
                               "v1/govern/",
+                              "v1/claim-integrity/",  # EvidenceOS Claim Compiler
                               "v1/models/m1",       # M1 local-only experimental gate
                               "v1/verify/intoto",      # in-toto verify guide (DEV2)
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
@@ -13807,17 +14000,17 @@ try:
 
     _a11oy_source_observation = {
         "repository": "szl-holdings/a11oy",
-        "commit": "a077208dfa8b8be54b271a277b8c27092422c7e7",
+        "repository_url": "https://github.com/szl-holdings/a11oy",
         "path": "",
         "relation": "declared-source-with-hf-overlay",
-        "state": "VERIFIED_REFERENCE",
-        "evidence_url": "https://github.com/szl-holdings/a11oy/commit/a077208dfa8b8be54b271a277b8c27092422c7e7",
+        # Source/deploy identities come from immutable build/runtime inputs.
+        # Missing inputs remain null/UNKNOWN; no commit is typed in by hand.
     }
     _szl_source_result = _szl_source_attestation.register(
         app,
         "SZLHOLDINGS/a11oy",
         _a11oy_source_observation,
-        "PENDING_GITHUB_SYNC",
+        "UNKNOWN",
     )
     print(f"[a11oy] deployment-source attestation registered: {_szl_source_result}", file=sys.stderr)
 except Exception as _szl_source_error:  # additive: never take down the SPA

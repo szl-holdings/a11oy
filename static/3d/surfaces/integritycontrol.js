@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Stephen P. Lutar Jr. / SZL Holdings
 //
-// Integrity Control Plane -- a compact, read-only view of two local contracts:
+// Integrity Control Plane -- two read-only contracts plus one bounded computational read:
 //   GET /api/a11oy/v1/waqay/security-loop/manifest
 //   GET /api/a11oy/v1/claim-integrity/info
+//   POST /api/a11oy/v1/claim-integrity/atomize
 //
-// This surface does not invoke an action route. A successful fetch means only that the
-// contract manifest was read. It does NOT mean that a deployer, rollback mechanism, model,
-// signer, repository writer, or any other effector is live. The view reports the API fields
-// verbatim and treats any boundary mismatch as a violation rather than rounding it up.
+// Atomization is a deterministic punctuation/newline split. It is not semantic evaluation,
+// persistence, signing, approval, or execution. Every returned candidate stays atomic=false
+// and human-review-required. A successful request does NOT mean that a deployer, rollback
+// mechanism, model, signer, repository writer, or any other effector is live.
 
 import { createShowcase } from "./_showcase.js";
 
@@ -16,6 +17,7 @@ const ID = "integritycontrol";
 const TITLE = "Integrity Control Plane · proposal boundaries";
 const SECURITY_EP = "/api/a11oy/v1/waqay/security-loop/manifest";
 const CLAIM_EP = "/api/a11oy/v1/claim-integrity/info";
+const ATOMIZE_EP = "/api/a11oy/v1/claim-integrity/atomize";
 
 const C_TEAL = 0x3af4c8;
 const C_BLUE = 0x5b8dee;
@@ -36,6 +38,12 @@ let _ring = null;
 let _nodes = [];
 let _links = [];
 let _boundaryPill = null;
+let _compileController = null;
+let _compileSerial = 0;
+let _proseInput = null;
+let _compileButton = null;
+let _compileStatus = null;
+let _candidateList = null;
 
 const S = {
   security: null,
@@ -107,6 +115,156 @@ function _derive() {
   S.signing = d.signing;
   S.verdict = d.verdict;
   _paint();
+}
+
+function _setCompileStatus(message, tone = "neutral") {
+  if (!_compileStatus) return;
+  _compileStatus.textContent = message;
+  _compileStatus.dataset.claimCompileState = tone;
+  _compileStatus.style.color = tone === "error" ? "#ff8b94" :
+    (tone === "ready" ? "#3af4c8" : (tone === "loading" ? "#e8c074" : "#9fb1bf"));
+}
+
+function _clearCandidates() {
+  if (!_candidateList) return;
+  while (_candidateList.firstChild) _candidateList.removeChild(_candidateList.firstChild);
+}
+
+function _renderCandidates(payload) {
+  _clearCandidates();
+  const atoms = payload && Array.isArray(payload.atoms) ? payload.atoms : [];
+  const contractIntact = payload && payload.semantic_atomization_computed === false &&
+    String(payload.decision_state || "").toUpperCase() === "PROPOSAL_ONLY" &&
+    payload.effectors_enabled === 0 &&
+    payload.method === "VISIBLE-PUNCTUATION-AND-NEWLINE-SPLIT" &&
+    Number.isInteger(payload.candidate_count) && payload.candidate_count >= 0 &&
+    payload.candidate_count <= 32 && payload.candidate_count === atoms.length;
+
+  if (!contractIntact) {
+    _setCompileStatus("CONTRACT MISMATCH: response was not proposal-only with zero effectors.", "error");
+    return;
+  }
+
+  if (!atoms.length) {
+    _setCompileStatus("0 structural candidates. No semantic claim was established.", "ready");
+    return;
+  }
+
+  let rendered = 0;
+  atoms.forEach((atom, index) => {
+    const reviewRequired = atom && atom.human_review_required === true;
+    const structuralOnly = atom && atom.atomic === false &&
+      String(atom.atomization_state || "").toUpperCase() === "STRUCTURAL-SPLIT-ONLY";
+    if (!reviewRequired || !structuralOnly || typeof atom.statement !== "string") return;
+
+    const row = document.createElement("article");
+    row.dataset.claimCandidate = String(index + 1);
+    row.dataset.reviewRequired = "true";
+    Object.assign(row.style, {
+      border: "1px solid #263746", borderRadius: "8px", padding: "8px 9px",
+      background: "#09121a", display: "grid", gap: "5px",
+    });
+
+    const heading = document.createElement("div");
+    heading.textContent = `Candidate ${String(index + 1).padStart(2, "0")} · REVIEW REQUIRED`;
+    Object.assign(heading.style, {
+      color: "#e8c074", font: "600 10px ui-monospace,Menlo,monospace",
+      letterSpacing: ".35px",
+    });
+
+    const statement = document.createElement("div");
+    statement.textContent = atom.statement;
+    Object.assign(statement.style, {
+      color: "#e7eef6", fontSize: "11px", lineHeight: "1.5",
+      overflowWrap: "anywhere", whiteSpace: "pre-wrap",
+    });
+
+    const boundary = document.createElement("div");
+    boundary.textContent = "STRUCTURAL-SPLIT-ONLY · atomic=false · no evidence attached";
+    Object.assign(boundary.style, {
+      color: "#778b9b", font: "9px ui-monospace,Menlo,monospace",
+    });
+
+    row.appendChild(heading);
+    row.appendChild(statement);
+    row.appendChild(boundary);
+    _candidateList.appendChild(row);
+    rendered += 1;
+  });
+
+  if (rendered !== atoms.length) {
+    _clearCandidates();
+    _setCompileStatus("CONTRACT MISMATCH: one or more candidates were not structural and review-required.", "error");
+    return;
+  }
+  _setCompileStatus(`${rendered} structural candidate${rendered === 1 ? "" : "s"}. Human review required.`, "ready");
+}
+
+function _compileProse() {
+  const prose = _proseInput ? _proseInput.value.trim() : "";
+  if (!prose) {
+    _clearCandidates();
+    _setCompileStatus("Enter prose before compiling structural candidates.", "error");
+    if (_proseInput) _proseInput.focus();
+    return;
+  }
+
+  if (_compileController && _compileController.abort) {
+    try { _compileController.abort(); } catch (_) {}
+  }
+  const ctrl = (typeof window !== "undefined" && "AbortController" in window)
+    ? new AbortController() : null;
+  _compileController = ctrl;
+  const serial = ++_compileSerial;
+  _clearCandidates();
+  _setCompileStatus("Compiling visible punctuation and newline splits…", "loading");
+  if (_compileButton) {
+    _compileButton.disabled = true;
+    _compileButton.textContent = "Compiling…";
+  }
+
+  fetch(ATOMIZE_EP, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ text: prose }),
+    signal: ctrl ? ctrl.signal : undefined,
+  })
+    .then(async (response) => {
+      let payload = null;
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const error = new Error(`http ${response.status}`);
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+      }
+      return payload;
+    })
+    .then((payload) => {
+      if (serial !== _compileSerial) return;
+      _compileController = null;
+      _renderCandidates(payload);
+    })
+    .catch((error) => {
+      if (error && error.name === "AbortError") return;
+      if (serial !== _compileSerial) return;
+      _compileController = null;
+      _clearCandidates();
+      if (error && error.status === 413) {
+        _setCompileStatus("413 · INPUT TOO LARGE: reduce the prose and retry.", "error");
+      } else if (error && error.status === 422) {
+        _setCompileStatus("422 · INVALID INPUT: the atomization contract refused this request.", "error");
+      } else if (error && error.status === 503) {
+        _setCompileStatus("503 · UNAVAILABLE: the Claim Compiler is not ready.", "error");
+      } else {
+        _setCompileStatus("UNAVAILABLE: no structural candidates were returned.", "error");
+      }
+    })
+    .finally(() => {
+      if (serial !== _compileSerial || !_compileButton) return;
+      _compileButton.disabled = false;
+      _compileButton.textContent = "Compile candidates";
+    });
 }
 
 export function mount(ctx) {
@@ -210,6 +368,7 @@ function _buildOverlay() {
     id: ID,
     title: TITLE,
     accent: "#3af4c8",
+    startExpanded: true,
     chips: [
       {
         label: "STRUCTURAL-ONLY",
@@ -220,8 +379,8 @@ function _buildOverlay() {
     ],
     description:
       "A compact view of the <b>Waqay Security Loop</b> and <b>Claim Integrity</b> " +
-      "contracts. It reads two same-origin GET endpoints and checks their control boundaries " +
-      "without invoking a deploy, rollback, write, model, signer, or repository action. " +
+      "contracts. It preserves two same-origin GET polls and offers one bounded atomization " +
+      "request without invoking evaluation, deploy, rollback, persistence, model, signer, or repository action. " +
       "<b>LIVE</b> here can only mean a manifest fetch succeeded; it never means effectors are live.",
     citations:
       "SZL-native clean-room control plane · read-only contract manifests · " +
@@ -252,6 +411,91 @@ function _buildOverlay() {
   _show.addField("signature boundary", "signing");
   _show.addField("contract endpoints", "feeds");
   _show.addField("allowed output", "output");
+
+  const compiler = document.createElement("section");
+  compiler.dataset.claimCompiler = "structural-only";
+  Object.assign(compiler.style, {
+    display: "grid", gap: "8px", border: "1px solid #1c3841", borderRadius: "9px",
+    padding: "9px", background: "rgba(5,17,22,.88)", minWidth: "0",
+  });
+
+  const compilerTitle = document.createElement("div");
+  compilerTitle.textContent = "Claim Compiler · structural proposal";
+  Object.assign(compilerTitle.style, {
+    color: "#3af4c8", font: "600 11px ui-monospace,Menlo,monospace",
+  });
+
+  const compilerBoundary = document.createElement("div");
+  compilerBoundary.textContent =
+    "Splits visible punctuation/newlines only. No semantic evaluation, persistence, signing, approval, or effectors.";
+  Object.assign(compilerBoundary.style, {
+    color: "#9fb1bf", fontSize: "10px", lineHeight: "1.45",
+  });
+
+  const label = document.createElement("label");
+  label.htmlFor = `${ID}-prose`;
+  label.textContent = "Prose to atomize";
+  Object.assign(label.style, { color: "#c9d6df", fontSize: "10px" });
+
+  _proseInput = document.createElement("textarea");
+  _proseInput.id = `${ID}-prose`;
+  _proseInput.rows = 5;
+  _proseInput.placeholder = "Paste a bounded technical paragraph. No data is stored by this surface.";
+  _proseInput.setAttribute("aria-describedby", `${ID}-compile-status`);
+  _proseInput.spellcheck = true;
+  Object.assign(_proseInput.style, {
+    boxSizing: "border-box", width: "100%", minHeight: "96px", resize: "vertical",
+    border: "1px solid #2b4050", borderRadius: "8px", padding: "9px",
+    background: "#071019", color: "#e7eef6", outline: "none",
+    font: "11px/1.5 ui-monospace,Menlo,monospace",
+  });
+
+  _compileButton = document.createElement("button");
+  _compileButton.type = "button";
+  _compileButton.textContent = "Compile candidates";
+  _compileButton.dataset.claimCompileAction = "atomize";
+  Object.assign(_compileButton.style, {
+    minHeight: "40px", width: "100%", border: "1px solid #3af4c8",
+    borderRadius: "8px", background: "#0a241f", color: "#3af4c8",
+    cursor: "pointer", font: "600 11px ui-monospace,Menlo,monospace",
+  });
+  _compileButton.addEventListener("click", _compileProse);
+
+  _proseInput.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      _compileProse();
+    }
+  });
+
+  _compileStatus = document.createElement("div");
+  _compileStatus.id = `${ID}-compile-status`;
+  _compileStatus.setAttribute("role", "status");
+  _compileStatus.setAttribute("aria-live", "polite");
+  Object.assign(_compileStatus.style, {
+    color: "#9fb1bf", font: "10px/1.45 ui-monospace,Menlo,monospace",
+    overflowWrap: "anywhere",
+  });
+  _setCompileStatus("Not evaluated. Submit prose to request structural candidates.");
+
+  _candidateList = document.createElement("div");
+  _candidateList.dataset.claimCandidateList = "review-required";
+  Object.assign(_candidateList.style, {
+    display: "grid", gap: "7px", maxHeight: "210px", overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
+  });
+
+  compiler.appendChild(compilerTitle);
+  compiler.appendChild(compilerBoundary);
+  compiler.appendChild(label);
+  compiler.appendChild(_proseInput);
+  compiler.appendChild(_compileButton);
+  compiler.appendChild(_compileStatus);
+  compiler.appendChild(_candidateList);
+  _show.appendBody(compiler);
+
+  // Give the operator workflow enough room on laptops while remaining bounded on phones.
+  _show.el.style.width = "min(94vw, 460px)";
 }
 
 function _field(key, value, color) {
@@ -325,6 +569,11 @@ function _onFrame() {
 }
 
 export function unmount() {
+  _compileSerial += 1;
+  if (_compileController && _compileController.abort) {
+    try { _compileController.abort(); } catch (_) {}
+  }
+  _compileController = null;
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} });
   _polls = [];
   try { if (_show) _show.destroy(); } catch (_) {}
@@ -349,12 +598,13 @@ export function unmount() {
   S.fetch.security = S.fetch.claim = "init";
   S.mode = S.effectors = S.signing = null;
   S.verdict = "AWAITING-CONTRACTS";
+  _proseInput = _compileButton = _compileStatus = _candidateList = null;
 }
 
 export default {
   id: ID,
   title: TITLE,
-  endpoints: [SECURITY_EP, CLAIM_EP],
+  endpoints: [SECURITY_EP, CLAIM_EP, ATOMIZE_EP],
   mount,
   unmount,
 };

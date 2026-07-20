@@ -26,5 +26,19 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {}
+  "accepted_divergences": {
+    "ayllu/model_binding.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "model_release/szl-forge-family.json": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "model_release/szl-khipu-second-brain.json": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "schemas/quant-claims/benchmark-run.v1.schema.json": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "schemas/quant-claims/claim.v1.schema.json": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "serve.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_brain_training_admission.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_compute_pool_contract.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_dsse.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_formula_registry.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_gpu_quant.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_quant_claims.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync",
+    "szl_source_attestation.py": "PR #961 intentional GitHub-ahead release wave; remove after the post-merge HF backend sync"
+  }
 }

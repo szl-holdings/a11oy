@@ -309,19 +309,19 @@
         {
           "path": "model_release/receipt-agent/release-manifest.json",
           "bytes": 4096,
-          "sha256": "53b09d9aaa6ace50b78b32fc8cbd80fd33f3c850e9959fc65151cc6383c2767d",
+          "sha256": "3539bddda075c338c187ace67b2b4c5c82d850cb8ae841e8fe6db5a52ae7b86a",
           "role": "RELEASE_CONTRACT"
         },
         {
           "path": "model_release/receipt-agent/MODEL_CARD_DRAFT.md",
-          "bytes": 14168,
-          "sha256": "ad83bb7c5d6aa50d3385ba84c932b43fbb780987bbf1d7a280304d6bd623c5bb",
+          "bytes": 14303,
+          "sha256": "9e45fbee27f8b25738a7f443a16fb445325dc3ea37bf9e09efbb5b66f5f8845c",
           "role": "MODEL_CARD"
         },
         {
           "path": "model_release/receipt-agent/admission-manifest.json",
-          "bytes": 7685,
-          "sha256": "17158bd5a5885d10af6ae8b8876d7092e39cdbe3f591e2a0a3b7a4598e742e24",
+          "bytes": 7754,
+          "sha256": "24386bce6aee51030898656adda8497d05f050910b56a83a324f4c79649e559a",
           "role": "ADMISSION_CONTRACT"
         },
         {
@@ -332,8 +332,8 @@
         },
         {
           "path": "model_release/szl-forge/training-contract.json",
-          "bytes": 6029,
-          "sha256": "7cea52df2e56166dbf502b07f8e6fc41fcd84cc864c21d80c981aa76a880919c",
+          "bytes": 6068,
+          "sha256": "c40c1b81c5ea3ae9b97483088a31a0b23aeecac0177343df335305c76a315960",
           "role": "TRAINING_CONTRACT"
         },
         {

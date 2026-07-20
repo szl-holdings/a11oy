@@ -114,12 +114,18 @@
     "raw_nodes_admitted_to_gradients": 0,
     "current_state": "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
     "admission_engine": "szl_brain_training_admission.py",
-    "admission_contract": "szl.brain-training-admission-report.v1",
-    "admission_requirement": "Each gradient row requires Ed25519-signed allowlisted evidence for rights, provenance, immutable revision, freshness, deduplication, contamination analysis, and a frozen cross-run split assignment.",
+    "admission_contract": "szl.brain-training-admission-report.v2",
+    "admission_requirement": "Each gradient row requires Ed25519-signed, purpose-scoped evidence for source identity, authorship/rightsholder permission, privacy/PII clearance, immutable revision, freshness, deduplication, held-out contamination analysis, reviewer-owned approval, and a frozen cross-run split assignment rooted in a signed policy bundle; train admission is disabled by default and terminal artifacts require a distinct signing key.",
     "required_signed_inputs": [
       "protected_eval_content_sha256_list",
-      "signed_evidence_trust_store",
-      "signed_prior_split_ledger_descriptor"
+      "purpose_scoped_evidence_trust_store",
+      "policy_root_signer",
+      "root_signed_policy_bundle",
+      "signed_prior_split_ledger_descriptor",
+      "exact_split_ledger_head_sha256",
+      "reviewer_allowlist",
+      "artifact_signing_key",
+      "explicit_train_admission_switch"
     ]
   },
   "formula_policy": {
