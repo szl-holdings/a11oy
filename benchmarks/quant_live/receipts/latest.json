@@ -1,0 +1,398 @@
+{
+  "receipt": {
+    "schema_version": "szl.quant-live-benchmark-receipt.v1",
+    "measurement_class": "MEASURED",
+    "scope": "bounded local execution; not a replication of vendor-scale claims",
+    "started_at": "2026-07-18T17:43:53.100404+00:00",
+    "completed_at": "2026-07-18T17:44:02.420257+00:00",
+    "host": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.12.10",
+      "gpu": {
+        "available": true,
+        "devices": [
+          {
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+            "driver_version": "610.47",
+            "memory_total_mib": 8151.0,
+            "memory_used_mib": 5937.0,
+            "utilization_pct": 0.0,
+            "temperature_c": 56.0,
+            "power_w": 34.38
+          }
+        ]
+      }
+    },
+    "ollama": {
+      "base_url_class": "loopback-local",
+      "candidate_identity": {
+        "requested_model": "szl-nemo:latest",
+        "show_response_sha256": "5dc2366cd686de777b3dd450471fd2f38947bbc538a5780e8e2cd4dcba26b342",
+        "show_wall_ms": 203.729,
+        "reported_digest": "527db2cf6c705d8fabb95693d038d9c06b4a2b0b8b0a4bbdbd01212d37242970",
+        "base_lineage": {
+          "base_ref": "sha256:527db2cf6c705d8fabb95693d038d9c06b4a2b0b8b0a4bbdbd01212d37242970",
+          "parent_model": "nemotron-3-nano:4b",
+          "base_digest": "527db2cf6c705d8fabb95693d038d9c06b4a2b0b8b0a4bbdbd01212d37242970"
+        },
+        "details": {
+          "format": "gguf",
+          "family": "nemotron_h",
+          "families": [
+            "nemotron_h"
+          ],
+          "parameter_size": "4.0B",
+          "quantization_level": "Q4_K_M"
+        },
+        "model_info": {
+          "general.architecture": "nemotron_h",
+          "general.file_type": 15,
+          "general.parameter_count": 3973556832
+        }
+      },
+      "baseline_identity": {
+        "requested_model": "qwen2.5:3b",
+        "show_response_sha256": "24cd1f4b5d7ac8dbd5c559af4ad37e7b420cf00ed1cb5c8ef31f34c40ece59ad",
+        "show_wall_ms": 126.912,
+        "reported_digest": "5ee4f07cdb9beadbbb293e85803c569b01bd37ed059d2715faa7bb405f31caa6",
+        "base_lineage": {
+          "base_ref": "sha256:5ee4f07cdb9beadbbb293e85803c569b01bd37ed059d2715faa7bb405f31caa6",
+          "parent_model": null,
+          "base_digest": "5ee4f07cdb9beadbbb293e85803c569b01bd37ed059d2715faa7bb405f31caa6"
+        },
+        "details": {
+          "format": "gguf",
+          "family": "qwen2",
+          "families": [
+            "qwen2"
+          ],
+          "parameter_size": "3.1B",
+          "quantization_level": "Q4_K_M"
+        },
+        "model_info": {
+          "general.architecture": "qwen2",
+          "general.file_type": 15,
+          "general.parameter_count": 3085938688
+        }
+      },
+      "identity_stability": {
+        "candidate_before_sha256": "5dc2366cd686de777b3dd450471fd2f38947bbc538a5780e8e2cd4dcba26b342",
+        "candidate_after_sha256": "5dc2366cd686de777b3dd450471fd2f38947bbc538a5780e8e2cd4dcba26b342",
+        "baseline_before_sha256": "24cd1f4b5d7ac8dbd5c559af4ad37e7b420cf00ed1cb5c8ef31f34c40ece59ad",
+        "baseline_after_sha256": "24cd1f4b5d7ac8dbd5c559af4ad37e7b420cf00ed1cb5c8ef31f34c40ece59ad",
+        "stable": true
+      },
+      "candidate": {
+        "model": "szl-nemo:latest",
+        "warmup": {
+          "response": "WARM",
+          "done_reason": "stop",
+          "wall_ms": 722.382,
+          "total_duration_ms": 709.843,
+          "load_duration_ms": 276.664,
+          "prompt_eval_count": 134,
+          "eval_count": 3,
+          "tokens_per_second": 96.114
+        },
+        "exact_match": {
+          "tasks_total": 6,
+          "tasks_passed": 6,
+          "accuracy_pct": 100.0,
+          "rows": [
+            {
+              "task_id": "literal",
+              "expected": "A11OY",
+              "actual": "A11OY",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 450.877,
+              "total_duration_ms": 420.954,
+              "load_duration_ms": 259.701,
+              "prompt_eval_count": 137,
+              "eval_count": 6,
+              "tokens_per_second": 89.067
+            },
+            {
+              "task_id": "multiply",
+              "expected": "56",
+              "actual": "56",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 333.825,
+              "total_duration_ms": 329.301,
+              "load_duration_ms": 205.881,
+              "prompt_eval_count": 140,
+              "eval_count": 3,
+              "tokens_per_second": 101.331
+            },
+            {
+              "task_id": "divide",
+              "expected": "12",
+              "actual": "12",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 529.241,
+              "total_duration_ms": 506.122,
+              "load_duration_ms": 379.366,
+              "prompt_eval_count": 146,
+              "eval_count": 3,
+              "tokens_per_second": 93.281
+            },
+            {
+              "task_id": "policy",
+              "expected": "DENY",
+              "actual": "DENY",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 346.732,
+              "total_duration_ms": 331.693,
+              "load_duration_ms": 207.045,
+              "prompt_eval_count": 149,
+              "eval_count": 3,
+              "tokens_per_second": 102.435
+            },
+            {
+              "task_id": "prime",
+              "expected": "YES",
+              "actual": "YES",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 352.869,
+              "total_duration_ms": 338.094,
+              "load_duration_ms": 229.918,
+              "prompt_eval_count": 141,
+              "eval_count": 2,
+              "tokens_per_second": 126.542
+            },
+            {
+              "task_id": "sequence",
+              "expected": "32",
+              "actual": "32",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 374.745,
+              "total_duration_ms": 351.884,
+              "load_duration_ms": 224.815,
+              "prompt_eval_count": 153,
+              "eval_count": 3,
+              "tokens_per_second": 98.18
+            }
+          ]
+        },
+        "bounded_retrieval": {
+          "probes_total": 2,
+          "probes_passed": 1,
+          "max_prompt_eval_tokens": 2050,
+          "rows": [
+            {
+              "declared_context_words": 256,
+              "needle": "KHIPU-7319",
+              "actual": "KHIPU-7319",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 719.438,
+              "total_duration_ms": 687.582,
+              "load_duration_ms": 246.987,
+              "prompt_eval_count": 1707,
+              "eval_count": 10,
+              "tokens_per_second": 79.863
+            },
+            {
+              "declared_context_words": 768,
+              "needle": "OUROBOROS-2048",
+              "actual": "THE BOUND_TOKEN IS \"OUROBOROS-2048\". IT APPEARS TO BE A PLACEHOLDER OR IDENTIFIER, POSSIBLY USED IN A SPECIFIC CONTEXT SUCH AS A GAME, CODE, OR SYSTEM WHERE TOKENS ARE BOUNDED BY CERTAIN VALUES. THE TERM \"OUROBOROS\" MAY REFERENCE THE MYTH",
+              "passed": false,
+              "done_reason": "length",
+              "wall_ms": 1356.424,
+              "total_duration_ms": 1313.648,
+              "load_duration_ms": 244.667,
+              "prompt_eval_count": 2050,
+              "eval_count": 64,
+              "tokens_per_second": 86.593
+            }
+          ]
+        },
+        "runtime": {
+          "requests": 8,
+          "p50_wall_ms": 412.811,
+          "p50_tokens_per_second": 95.731
+        }
+      },
+      "baseline": {
+        "model": "qwen2.5:3b",
+        "warmup": {
+          "response": "WARM",
+          "done_reason": "stop",
+          "wall_ms": 349.908,
+          "total_duration_ms": 320.413,
+          "load_duration_ms": 243.776,
+          "prompt_eval_count": 35,
+          "eval_count": 3,
+          "tokens_per_second": 115.576
+        },
+        "exact_match": {
+          "tasks_total": 6,
+          "tasks_passed": 5,
+          "accuracy_pct": 83.333,
+          "rows": [
+            {
+              "task_id": "literal",
+              "expected": "A11OY",
+              "actual": "A11OY",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 245.158,
+              "total_duration_ms": 221.861,
+              "load_duration_ms": 140.6,
+              "prompt_eval_count": 38,
+              "eval_count": 6,
+              "tokens_per_second": 108.605
+            },
+            {
+              "task_id": "multiply",
+              "expected": "56",
+              "actual": "56",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 218.939,
+              "total_duration_ms": 203.945,
+              "load_duration_ms": 144.901,
+              "prompt_eval_count": 41,
+              "eval_count": 3,
+              "tokens_per_second": 110.229
+            },
+            {
+              "task_id": "divide",
+              "expected": "12",
+              "actual": "12",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 211.796,
+              "total_duration_ms": 195.573,
+              "load_duration_ms": 141.238,
+              "prompt_eval_count": 47,
+              "eval_count": 3,
+              "tokens_per_second": 113.062
+            },
+            {
+              "task_id": "policy",
+              "expected": "DENY",
+              "actual": "DENY",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 196.783,
+              "total_duration_ms": 172.102,
+              "load_duration_ms": 136.666,
+              "prompt_eval_count": 49,
+              "eval_count": 3,
+              "tokens_per_second": 170.416
+            },
+            {
+              "task_id": "prime",
+              "expected": "YES",
+              "actual": "NO",
+              "passed": false,
+              "done_reason": "stop",
+              "wall_ms": 205.308,
+              "total_duration_ms": 191.094,
+              "load_duration_ms": 147.057,
+              "prompt_eval_count": 42,
+              "eval_count": 2,
+              "tokens_per_second": 132.1
+            },
+            {
+              "task_id": "sequence",
+              "expected": "32",
+              "actual": "32",
+              "passed": true,
+              "done_reason": "stop",
+              "wall_ms": 193.346,
+              "total_duration_ms": 190.3,
+              "load_duration_ms": 123.162,
+              "prompt_eval_count": 54,
+              "eval_count": 3,
+              "tokens_per_second": 105.156
+            }
+          ]
+        },
+        "bounded_retrieval": {
+          "probes_total": 2,
+          "probes_passed": 0,
+          "max_prompt_eval_tokens": 2050,
+          "rows": [
+            {
+              "declared_context_words": 256,
+              "needle": "KHIPU-7319",
+              "actual": "BOUND_TOKEN=KHIPU-7319",
+              "passed": false,
+              "done_reason": "stop",
+              "wall_ms": 333.571,
+              "total_duration_ms": 329.228,
+              "load_duration_ms": 183.964,
+              "prompt_eval_count": 1600,
+              "eval_count": 12,
+              "tokens_per_second": 114.273
+            },
+            {
+              "declared_context_words": 768,
+              "needle": "OUROBOROS-2048",
+              "actual": "BOUND_TOKEN REPRESENTS A SPECIFIC IDENTIFIER OR REFERENCE TO A CRYPTOGRAPHIC KEY OR TOKEN, IN THIS CASE, OUROBOROS-2048. WITHOUT ADDITIONAL CONTEXT ABOUT THE FULL SYSTEM OR PROTOCOL USING THIS TERM, WE CAN ONLY INTERPRET IT AS A PREDEFINED NAME FOR A 2048-BIT (OR 25",
+              "passed": false,
+              "done_reason": "length",
+              "wall_ms": 871.002,
+              "total_duration_ms": 852.869,
+              "load_duration_ms": 158.89,
+              "prompt_eval_count": 2050,
+              "eval_count": 64,
+              "tokens_per_second": 102.669
+            }
+          ]
+        },
+        "runtime": {
+          "requests": 8,
+          "p50_wall_ms": 215.368,
+          "p50_tokens_per_second": 111.645
+        }
+      }
+    },
+    "comparisons": {
+      "candidate_vs_baseline_wall_speed_ratio": 0.5217,
+      "candidate_minus_baseline_exact_match_points": 16.667
+    },
+    "quant_reference": {
+      "pca_pipeline": {
+        "repeats": 3,
+        "p50_ms": 11.09,
+        "min_ms": 8.473,
+        "max_ms": 476.677,
+        "compute_path": "CPU_REFERENCE"
+      },
+      "tda_stress_pipeline": {
+        "repeats": 3,
+        "p50_ms": 10.378,
+        "min_ms": 9.673,
+        "max_ms": 10.552,
+        "compute_path": "CPU_REFERENCE"
+      },
+      "gpu_acceleration_comparison": "UNAVAILABLE: no distinct cuML/CuPy/Ripser++ execution receipt"
+    },
+    "limitations": [
+      "Candidate and baseline differ in architecture and size; results are not vendor-claim replications.",
+      "Exact-match and needle suites are bounded operational probes, not general capability benchmarks.",
+      "PCA/TDA timings exercise the existing CPU reference path only.",
+      "No energy claim is made without an independently verified interval energy meter."
+    ],
+    "content_sha256": "8ede48b23df3063247c0871f328f8f8be6f1e5d2ceef285d00d0425cdc573ab8"
+  },
+  "dsse": {
+    "payloadType": "application/vnd.szl.quant-live-benchmark+json",
+    "payload": "eyJjb21wYXJpc29ucyI6eyJjYW5kaWRhdGVfbWludXNfYmFzZWxpbmVfZXhhY3RfbWF0Y2hfcG9pbnRzIjoxNi42NjcsImNhbmRpZGF0ZV92c19iYXNlbGluZV93YWxsX3NwZWVkX3JhdGlvIjowLjUyMTd9LCJjb21wbGV0ZWRfYXQiOiIyMDI2LTA3LTE4VDE3OjQ0OjAyLjQyMDI1NyswMDowMCIsImNvbnRlbnRfc2hhMjU2IjoiOGVkZTQ4YjIzZGYzMDYzMjQ3YzA4NzFmMzI4ZjhmOGJlNmYxZTVkMmNlZWYyODVkMDBkMDQyNWNkYzU3M2FiOCIsImhvc3QiOnsiZ3B1Ijp7ImF2YWlsYWJsZSI6dHJ1ZSwiZGV2aWNlcyI6W3siZHJpdmVyX3ZlcnNpb24iOiI2MTAuNDciLCJpbmRleCI6MCwibWVtb3J5X3RvdGFsX21pYiI6ODE1MS4wLCJtZW1vcnlfdXNlZF9taWIiOjU5MzcuMCwibmFtZSI6Ik5WSURJQSBHZUZvcmNlIFJUWCA1MDUwIExhcHRvcCBHUFUiLCJwb3dlcl93IjozNC4zOCwidGVtcGVyYXR1cmVfYyI6NTYuMCwidXRpbGl6YXRpb25fcGN0IjowLjB9XX0sInBsYXRmb3JtIjoiV2luZG93cy0xMS0xMC4wLjI2MjAwLVNQMCIsInB5dGhvbiI6IjMuMTIuMTAifSwibGltaXRhdGlvbnMiOlsiQ2FuZGlkYXRlIGFuZCBiYXNlbGluZSBkaWZmZXIgaW4gYXJjaGl0ZWN0dXJlIGFuZCBzaXplOyByZXN1bHRzIGFyZSBub3QgdmVuZG9yLWNsYWltIHJlcGxpY2F0aW9ucy4iLCJFeGFjdC1tYXRjaCBhbmQgbmVlZGxlIHN1aXRlcyBhcmUgYm91bmRlZCBvcGVyYXRpb25hbCBwcm9iZXMsIG5vdCBnZW5lcmFsIGNhcGFiaWxpdHkgYmVuY2htYXJrcy4iLCJQQ0EvVERBIHRpbWluZ3MgZXhlcmNpc2UgdGhlIGV4aXN0aW5nIENQVSByZWZlcmVuY2UgcGF0aCBvbmx5LiIsIk5vIGVuZXJneSBjbGFpbSBpcyBtYWRlIHdpdGhvdXQgYW4gaW5kZXBlbmRlbnRseSB2ZXJpZmllZCBpbnRlcnZhbCBlbmVyZ3kgbWV0ZXIuIl0sIm1lYXN1cmVtZW50X2NsYXNzIjoiTUVBU1VSRUQiLCJvbGxhbWEiOnsiYmFzZV91cmxfY2xhc3MiOiJsb29wYmFjay1sb2NhbCIsImJhc2VsaW5lIjp7ImJvdW5kZWRfcmV0cmlldmFsIjp7Im1heF9wcm9tcHRfZXZhbF90b2tlbnMiOjIwNTAsInByb2Jlc19wYXNzZWQiOjAsInByb2Jlc190b3RhbCI6Miwicm93cyI6W3siYWN0dWFsIjoiQk9VTkRfVE9LRU49S0hJUFUtNzMxOSIsImRlY2xhcmVkX2NvbnRleHRfd29yZHMiOjI1NiwiZG9uZV9yZWFzb24iOiJzdG9wIiwiZXZhbF9jb3VudCI6MTIsImxvYWRfZHVyYXRpb25fbXMiOjE4My45NjQsIm5lZWRsZSI6IktISVBVLTczMTkiLCJwYXNzZWQiOmZhbHNlLCJwcm9tcHRfZXZhbF9jb3VudCI6MTYwMCwidG9rZW5zX3Blcl9zZWNvbmQiOjExNC4yNzMsInRvdGFsX2R1cmF0aW9uX21zIjozMjkuMjI4LCJ3YWxsX21zIjozMzMuNTcxfSx7ImFjdHVhbCI6IkJPVU5EX1RPS0VOIFJFUFJFU0VOVFMgQSBTUEVDSUZJQyBJREVOVElGSUVSIE9SIFJFRkVSRU5DRSBUTyBBIENSWVBUT0dSQVBISUMgS0VZIE9SIFRPS0VOLCBJTiBUSElTIENBU0UsIE9VUk9CT1JPUy0yMDQ4LiBXSVRIT1VUIEFERElUSU9OQUwgQ09OVEVYVCBBQk9VVCBUSEUgRlVMTCBTWVNURU0gT1IgUFJPVE9DT0wgVVNJTkcgVEhJUyBURVJNLCBXRSBDQU4gT05MWSBJTlRFUlBSRVQgSVQgQVMgQSBQUkVERUZJTkVEIE5BTUUgRk9SIEEgMjA0OC1CSVQgKE9SIDI1IiwiZGVjbGFyZWRfY29udGV4dF93b3JkcyI6NzY4LCJkb25lX3JlYXNvbiI6Imxlbmd0aCIsImV2YWxfY291bnQiOjY0LCJsb2FkX2R1cmF0aW9uX21zIjoxNTguODksIm5lZWRsZSI6Ik9VUk9CT1JPUy0yMDQ4IiwicGFzc2VkIjpmYWxzZSwicHJvbXB0X2V2YWxfY291bnQiOjIwNTAsInRva2Vuc19wZXJfc2Vjb25kIjoxMDIuNjY5LCJ0b3RhbF9kdXJhdGlvbl9tcyI6ODUyLjg2OSwid2FsbF9tcyI6ODcxLjAwMn1dfSwiZXhhY3RfbWF0Y2giOnsiYWNjdXJhY3lfcGN0Ijo4My4zMzMsInJvd3MiOlt7ImFjdHVhbCI6IkExMU9ZIiwiZG9uZV9yZWFzb24iOiJzdG9wIiwiZXZhbF9jb3VudCI6NiwiZXhwZWN0ZWQiOiJBMTFPWSIsImxvYWRfZHVyYXRpb25fbXMiOjE0MC42LCJwYXNzZWQiOnRydWUsInByb21wdF9ldmFsX2NvdW50IjozOCwidGFza19pZCI6ImxpdGVyYWwiLCJ0b2tlbnNfcGVyX3NlY29uZCI6MTA4LjYwNSwidG90YWxfZHVyYXRpb25fbXMiOjIyMS44NjEsIndhbGxfbXMiOjI0NS4xNTh9LHsiYWN0dWFsIjoiNTYiLCJkb25lX3JlYXNvbiI6InN0b3AiLCJldmFsX2NvdW50IjozLCJleHBlY3RlZCI6IjU2IiwibG9hZF9kdXJhdGlvbl9tcyI6MTQ0LjkwMSwicGFzc2VkIjp0cnVlLCJwcm9tcHRfZXZhbF9jb3VudCI6NDEsInRhc2tfaWQiOiJtdWx0aXBseSIsInRva2Vuc19wZXJfc2Vjb25kIjoxMTAuMjI5LCJ0b3RhbF9kdXJhdGlvbl9tcyI6MjAzLjk0NSwid2FsbF9tcyI6MjE4LjkzOX0seyJhY3R1YWwiOiIxMiIsImRvbmVfcmVhc29uIjoic3RvcCIsImV2YWxfY291bnQiOjMsImV4cGVjdGVkIjoiMTIiLCJsb2FkX2R1cmF0aW9uX21zIjoxNDEuMjM4LCJwYXNzZWQiOnRydWUsInByb21wdF9ldmFsX2NvdW50Ijo0NywidGFza19pZCI6ImRpdmlkZSIsInRva2Vuc19wZXJfc2Vjb25kIjoxMTMuMDYyLCJ0b3RhbF9kdXJhdGlvbl9tcyI6MTk1LjU3Mywid2FsbF9tcyI6MjExLjc5Nn0seyJhY3R1YWwiOiJERU5ZIiwiZG9uZV9yZWFzb24iOiJzdG9wIiwiZXZhbF9jb3VudCI6MywiZXhwZWN0ZWQiOiJERU5ZIiwibG9hZF9kdXJhdGlvbl9tcyI6MTM2LjY2NiwicGFzc2VkIjp0cnVlLCJwcm9tcHRfZXZhbF9jb3VudCI6NDksInRhc2tfaWQiOiJwb2xpY3kiLCJ0b2tlbnNfcGVyX3NlY29uZCI6MTcwLjQxNiwidG90YWxfZHVyYXRpb25fbXMiOjE3Mi4xMDIsIndhbGxfbXMiOjE5Ni43ODN9LHsiYWN0dWFsIjoiTk8iLCJkb25lX3JlYXNvbiI6InN0b3AiLCJldmFsX2NvdW50IjoyLCJleHBlY3RlZCI6IllFUyIsImxvYWRfZHVyYXRpb25fbXMiOjE0Ny4wNTcsInBhc3NlZCI6ZmFsc2UsInByb21wdF9ldmFsX2NvdW50Ijo0MiwidGFza19pZCI6InByaW1lIiwidG9rZW5zX3Blcl9zZWNvbmQiOjEzMi4xLCJ0b3RhbF9kdXJhdGlvbl9tcyI6MTkxLjA5NCwid2FsbF9tcyI6MjA1LjMwOH0seyJhY3R1YWwiOiIzMiIsImRvbmVfcmVhc29uIjoic3RvcCIsImV2YWxfY291bnQiOjMsImV4cGVjdGVkIjoiMzIiLCJsb2FkX2R1cmF0aW9uX21zIjoxMjMuMTYyLCJwYXNzZWQiOnRydWUsInByb21wdF9ldmFsX2NvdW50Ijo1NCwidGFza19pZCI6InNlcXVlbmNlIiwidG9rZW5zX3Blcl9zZWNvbmQiOjEwNS4xNTYsInRvdGFsX2R1cmF0aW9uX21zIjoxOTAuMywid2FsbF9tcyI6MTkzLjM0Nn1dLCJ0YXNrc19wYXNzZWQiOjUsInRhc2tzX3RvdGFsIjo2fSwibW9kZWwiOiJxd2VuMi41OjNiIiwicnVudGltZSI6eyJwNTBfdG9rZW5zX3Blcl9zZWNvbmQiOjExMS42NDUsInA1MF93YWxsX21zIjoyMTUuMzY4LCJyZXF1ZXN0cyI6OH0sIndhcm11cCI6eyJkb25lX3JlYXNvbiI6InN0b3AiLCJldmFsX2NvdW50IjozLCJsb2FkX2R1cmF0aW9uX21zIjoyNDMuNzc2LCJwcm9tcHRfZXZhbF9jb3VudCI6MzUsInJlc3BvbnNlIjoiV0FSTSIsInRva2Vuc19wZXJfc2Vjb25kIjoxMTUuNTc2LCJ0b3RhbF9kdXJhdGlvbl9tcyI6MzIwLjQxMywid2FsbF9tcyI6MzQ5LjkwOH19LCJiYXNlbGluZV9pZGVudGl0eSI6eyJiYXNlX2xpbmVhZ2UiOnsiYmFzZV9kaWdlc3QiOiI1ZWU0ZjA3Y2RiOWJlYWRiYmIyOTNlODU4MDNjNTY5YjAxYmQzN2VkMDU5ZDI3MTVmYWE3YmI0MDVmMzFjYWE2IiwiYmFzZV9yZWYiOiJzaGEyNTY6NWVlNGYwN2NkYjliZWFkYmJiMjkzZTg1ODAzYzU2OWIwMWJkMzdlZDA1OWQyNzE1ZmFhN2JiNDA1ZjMxY2FhNiIsInBhcmVudF9tb2RlbCI6bnVsbH0sImRldGFpbHMiOnsiZmFtaWxpZXMiOlsicXdlbjIiXSwiZmFtaWx5IjoicXdlbjIiLCJmb3JtYXQiOiJnZ3VmIiwicGFyYW1ldGVyX3NpemUiOiIzLjFCIiwicXVhbnRpemF0aW9uX2xldmVsIjoiUTRfS19NIn0sIm1vZGVsX2luZm8iOnsiZ2VuZXJhbC5hcmNoaXRlY3R1cmUiOiJxd2VuMiIsImdlbmVyYWwuZmlsZV90eXBlIjoxNSwiZ2VuZXJhbC5wYXJhbWV0ZXJfY291bnQiOjMwODU5Mzg2ODh9LCJyZXBvcnRlZF9kaWdlc3QiOiI1ZWU0ZjA3Y2RiOWJlYWRiYmIyOTNlODU4MDNjNTY5YjAxYmQzN2VkMDU5ZDI3MTVmYWE3YmI0MDVmMzFjYWE2IiwicmVxdWVzdGVkX21vZGVsIjoicXdlbjIuNTozYiIsInNob3dfcmVzcG9uc2Vfc2hhMjU2IjoiMjRjZDFmNGI1ZDdhYzhkYmQ1YzU1OWFmNGFkMzdlN2I0MjBjZjAwZWQxY2I1YzhlZjMxZjM0YzQwZWNlNTlhZCIsInNob3dfd2FsbF9tcyI6MTI2LjkxMn0sImNhbmRpZGF0ZSI6eyJib3VuZGVkX3JldHJpZXZhbCI6eyJtYXhfcHJvbXB0X2V2YWxfdG9rZW5zIjoyMDUwLCJwcm9iZXNfcGFzc2VkIjoxLCJwcm9iZXNfdG90YWwiOjIsInJvd3MiOlt7ImFjdHVhbCI6IktISVBVLTczMTkiLCJkZWNsYXJlZF9jb250ZXh0X3dvcmRzIjoyNTYsImRvbmVfcmVhc29uIjoic3RvcCIsImV2YWxfY291bnQiOjEwLCJsb2FkX2R1cmF0aW9uX21zIjoyNDYuOTg3LCJuZWVkbGUiOiJLSElQVS03MzE5IiwicGFzc2VkIjp0cnVlLCJwcm9tcHRfZXZhbF9jb3VudCI6MTcwNywidG9rZW5zX3Blcl9zZWNvbmQiOjc5Ljg2MywidG90YWxfZHVyYXRpb25fbXMiOjY4Ny41ODIsIndhbGxfbXMiOjcxOS40Mzh9LHsiYWN0dWFsIjoiVEhFIEJPVU5EX1RPS0VOIElTIFwiT1VST0JPUk9TLTIwNDhcIi4gSVQgQVBQRUFSUyBUTyBCRSBBIFBMQUNFSE9MREVSIE9SIElERU5USUZJRVIsIFBPU1NJQkxZIFVTRUQgSU4gQSBTUEVDSUZJQyBDT05URVhUIFNVQ0ggQVMgQSBHQU1FLCBDT0RFLCBPUiBTWVNURU0gV0hFUkUgVE9LRU5TIEFSRSBCT1VOREVEIEJZIENFUlRBSU4gVkFMVUVTLiBUSEUgVEVSTSBcIk9VUk9CT1JPU1wiIE1BWSBSRUZFUkVOQ0UgVEhFIE1ZVEgiLCJkZWNsYXJlZF9jb250ZXh0X3dvcmRzIjo3NjgsImRvbmVfcmVhc29uIjoibGVuZ3RoIiwiZXZhbF9jb3VudCI6NjQsImxvYWRfZHVyYXRpb25fbXMiOjI0NC42NjcsIm5lZWRsZSI6Ik9VUk9CT1JPUy0yMDQ4IiwicGFzc2VkIjpmYWxzZSwicHJvbXB0X2V2YWxfY291bnQiOjIwNTAsInRva2Vuc19wZXJfc2Vjb25kIjo4Ni41OTMsInRvdGFsX2R1cmF0aW9uX21zIjoxMzEzLjY0OCwid2FsbF9tcyI6MTM1Ni40MjR9XX0sImV4YWN0X21hdGNoIjp7ImFjY3VyYWN5X3BjdCI6MTAwLjAsInJvd3MiOlt7ImFjdHVhbCI6IkExMU9ZIiwiZG9uZV9yZWFzb24iOiJzdG9wIiwiZXZhbF9jb3VudCI6NiwiZXhwZWN0ZWQiOiJBMTFPWSIsImxvYWRfZHVyYXRpb25fbXMiOjI1OS43MDEsInBhc3NlZCI6dHJ1ZSwicHJvbXB0X2V2YWxfY291bnQiOjEzNywidGFza19pZCI6ImxpdGVyYWwiLCJ0b2tlbnNfcGVyX3NlY29uZCI6ODkuMDY3LCJ0b3RhbF9kdXJhdGlvbl9tcyI6NDIwLjk1NCwid2FsbF9tcyI6NDUwLjg3N30seyJhY3R1YWwiOiI1NiIsImRvbmVfcmVhc29uIjoic3RvcCIsImV2YWxfY291bnQiOjMsImV4cGVjdGVkIjoiNTYiLCJsb2FkX2R1cmF0aW9uX21zIjoyMDUuODgxLCJwYXNzZWQiOnRydWUsInByb21wdF9ldmFsX2NvdW50IjoxNDAsInRhc2tfaWQiOiJtdWx0aXBseSIsInRva2Vuc19wZXJfc2Vjb25kIjoxMDEuMzMxLCJ0b3RhbF9kdXJhdGlvbl9tcyI6MzI5LjMwMSwid2FsbF9tcyI6MzMzLjgyNX0seyJhY3R1YWwiOiIxMiIsImRvbmVfcmVhc29uIjoic3RvcCIsImV2YWxfY291bnQiOjMsImV4cGVjdGVkIjoiMTIiLCJsb2FkX2R1cmF0aW9uX21zIjozNzkuMzY2LCJwYXNzZWQiOnRydWUsInByb21wdF9ldmFsX2NvdW50IjoxNDYsInRhc2tfaWQiOiJkaXZpZGUiLCJ0b2tlbnNfcGVyX3NlY29uZCI6OTMuMjgxLCJ0b3RhbF9kdXJhdGlvbl9tcyI6NTA2LjEyMiwid2FsbF9tcyI6NTI5LjI0MX0seyJhY3R1YWwiOiJERU5ZIiwiZG9uZV9yZWFzb24iOiJzdG9wIiwiZXZhbF9jb3VudCI6MywiZXhwZWN0ZWQiOiJERU5ZIiwibG9hZF9kdXJhdGlvbl9tcyI6MjA3LjA0NSwicGFzc2VkIjp0cnVlLCJwcm9tcHRfZXZhbF9jb3VudCI6MTQ5LCJ0YXNrX2lkIjoicG9saWN5IiwidG9rZW5zX3Blcl9zZWNvbmQiOjEwMi40MzUsInRvdGFsX2R1cmF0aW9uX21zIjozMzEuNjkzLCJ3YWxsX21zIjozNDYuNzMyfSx7ImFjdHVhbCI6IllFUyIsImRvbmVfcmVhc29uIjoic3RvcCIsImV2YWxfY291bnQiOjIsImV4cGVjdGVkIjoiWUVTIiwibG9hZF9kdXJhdGlvbl9tcyI6MjI5LjkxOCwicGFzc2VkIjp0cnVlLCJwcm9tcHRfZXZhbF9jb3VudCI6MTQxLCJ0YXNrX2lkIjoicHJpbWUiLCJ0b2tlbnNfcGVyX3NlY29uZCI6MTI2LjU0MiwidG90YWxfZHVyYXRpb25fbXMiOjMzOC4wOTQsIndhbGxfbXMiOjM1Mi44Njl9LHsiYWN0dWFsIjoiMzIiLCJkb25lX3JlYXNvbiI6InN0b3AiLCJldmFsX2NvdW50IjozLCJleHBlY3RlZCI6IjMyIiwibG9hZF9kdXJhdGlvbl9tcyI6MjI0LjgxNSwicGFzc2VkIjp0cnVlLCJwcm9tcHRfZXZhbF9jb3VudCI6MTUzLCJ0YXNrX2lkIjoic2VxdWVuY2UiLCJ0b2tlbnNfcGVyX3NlY29uZCI6OTguMTgsInRvdGFsX2R1cmF0aW9uX21zIjozNTEuODg0LCJ3YWxsX21zIjozNzQuNzQ1fV0sInRhc2tzX3Bhc3NlZCI6NiwidGFza3NfdG90YWwiOjZ9LCJtb2RlbCI6InN6bC1uZW1vOmxhdGVzdCIsInJ1bnRpbWUiOnsicDUwX3Rva2Vuc19wZXJfc2Vjb25kIjo5NS43MzEsInA1MF93YWxsX21zIjo0MTIuODExLCJyZXF1ZXN0cyI6OH0sIndhcm11cCI6eyJkb25lX3JlYXNvbiI6InN0b3AiLCJldmFsX2NvdW50IjozLCJsb2FkX2R1cmF0aW9uX21zIjoyNzYuNjY0LCJwcm9tcHRfZXZhbF9jb3VudCI6MTM0LCJyZXNwb25zZSI6IldBUk0iLCJ0b2tlbnNfcGVyX3NlY29uZCI6OTYuMTE0LCJ0b3RhbF9kdXJhdGlvbl9tcyI6NzA5Ljg0Mywid2FsbF9tcyI6NzIyLjM4Mn19LCJjYW5kaWRhdGVfaWRlbnRpdHkiOnsiYmFzZV9saW5lYWdlIjp7ImJhc2VfZGlnZXN0IjoiNTI3ZGIyY2Y2YzcwNWQ4ZmFiYjk1NjkzZDAzOGQ5YzA2YjRhMmIwYjhiMGE0YmJkYmQwMTIxMmQzNzI0Mjk3MCIsImJhc2VfcmVmIjoic2hhMjU2OjUyN2RiMmNmNmM3MDVkOGZhYmI5NTY5M2QwMzhkOWMwNmI0YTJiMGI4YjBhNGJiZGJkMDEyMTJkMzcyNDI5NzAiLCJwYXJlbnRfbW9kZWwiOiJuZW1vdHJvbi0zLW5hbm86NGIifSwiZGV0YWlscyI6eyJmYW1pbGllcyI6WyJuZW1vdHJvbl9oIl0sImZhbWlseSI6Im5lbW90cm9uX2giLCJmb3JtYXQiOiJnZ3VmIiwicGFyYW1ldGVyX3NpemUiOiI0LjBCIiwicXVhbnRpemF0aW9uX2xldmVsIjoiUTRfS19NIn0sIm1vZGVsX2luZm8iOnsiZ2VuZXJhbC5hcmNoaXRlY3R1cmUiOiJuZW1vdHJvbl9oIiwiZ2VuZXJhbC5maWxlX3R5cGUiOjE1LCJnZW5lcmFsLnBhcmFtZXRlcl9jb3VudCI6Mzk3MzU1NjgzMn0sInJlcG9ydGVkX2RpZ2VzdCI6IjUyN2RiMmNmNmM3MDVkOGZhYmI5NTY5M2QwMzhkOWMwNmI0YTJiMGI4YjBhNGJiZGJkMDEyMTJkMzcyNDI5NzAiLCJyZXF1ZXN0ZWRfbW9kZWwiOiJzemwtbmVtbzpsYXRlc3QiLCJzaG93X3Jlc3BvbnNlX3NoYTI1NiI6IjVkYzIzNjZjZDY4NmRlNzc3YjNkZDQ1MDQ3MWZkMmYzODk0N2JiYzUzOGE1NzgwZThlMmNkNGRjYmEyNmIzNDIiLCJzaG93X3dhbGxfbXMiOjIwMy43Mjl9LCJpZGVudGl0eV9zdGFiaWxpdHkiOnsiYmFzZWxpbmVfYWZ0ZXJfc2hhMjU2IjoiMjRjZDFmNGI1ZDdhYzhkYmQ1YzU1OWFmNGFkMzdlN2I0MjBjZjAwZWQxY2I1YzhlZjMxZjM0YzQwZWNlNTlhZCIsImJhc2VsaW5lX2JlZm9yZV9zaGEyNTYiOiIyNGNkMWY0YjVkN2FjOGRiZDVjNTU5YWY0YWQzN2U3YjQyMGNmMDBlZDFjYjVjOGVmMzFmMzRjNDBlY2U1OWFkIiwiY2FuZGlkYXRlX2FmdGVyX3NoYTI1NiI6IjVkYzIzNjZjZDY4NmRlNzc3YjNkZDQ1MDQ3MWZkMmYzODk0N2JiYzUzOGE1NzgwZThlMmNkNGRjYmEyNmIzNDIiLCJjYW5kaWRhdGVfYmVmb3JlX3NoYTI1NiI6IjVkYzIzNjZjZDY4NmRlNzc3YjNkZDQ1MDQ3MWZkMmYzODk0N2JiYzUzOGE1NzgwZThlMmNkNGRjYmEyNmIzNDIiLCJzdGFibGUiOnRydWV9fSwicXVhbnRfcmVmZXJlbmNlIjp7ImdwdV9hY2NlbGVyYXRpb25fY29tcGFyaXNvbiI6IlVOQVZBSUxBQkxFOiBubyBkaXN0aW5jdCBjdU1ML0N1UHkvUmlwc2VyKysgZXhlY3V0aW9uIHJlY2VpcHQiLCJwY2FfcGlwZWxpbmUiOnsiY29tcHV0ZV9wYXRoIjoiQ1BVX1JFRkVSRU5DRSIsIm1heF9tcyI6NDc2LjY3NywibWluX21zIjo4LjQ3MywicDUwX21zIjoxMS4wOSwicmVwZWF0cyI6M30sInRkYV9zdHJlc3NfcGlwZWxpbmUiOnsiY29tcHV0ZV9wYXRoIjoiQ1BVX1JFRkVSRU5DRSIsIm1heF9tcyI6MTAuNTUyLCJtaW5fbXMiOjkuNjczLCJwNTBfbXMiOjEwLjM3OCwicmVwZWF0cyI6M319LCJzY2hlbWFfdmVyc2lvbiI6InN6bC5xdWFudC1saXZlLWJlbmNobWFyay1yZWNlaXB0LnYxIiwic2NvcGUiOiJib3VuZGVkIGxvY2FsIGV4ZWN1dGlvbjsgbm90IGEgcmVwbGljYXRpb24gb2YgdmVuZG9yLXNjYWxlIGNsYWltcyIsInN0YXJ0ZWRfYXQiOiIyMDI2LTA3LTE4VDE3OjQzOjUzLjEwMDQwNCswMDowMCJ9",
+    "_dsse": "DSSEv1",
+    "_pae_sha256": "c3dc21ce7bdd6dfa1648f2731c58d86dedb568147f9aafa6f010bdc0c477c07e",
+    "_signed_at": "2026-07-18T17:44:02.600600+00:00",
+    "signatures": [],
+    "honesty": "UNSIGNED — neither SZL_COSIGN_PRIVATE_KEY_PEM nor SZL_COSIGN_PRIVATE_PEM secret present in this runtime; no signature fabricated.",
+    "signed": false
+  }
+}

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - runtime evidence hardening
+- Added separate process liveness, fail-closed dependency readiness, build
+  identity, and OpenTelemetry posture endpoints. Unknown file-like and
+  discovery paths now return a real 404 instead of the SPA shell.
+- Replaced the Quant claim panel's placeholder rows with a validated,
+  content-addressed local execution receipt covering real Ollama runs and CPU
+  numerical references. Vendor-scale GPU comparisons remain explicitly
+  unavailable unless a distinct execution receipt exists.
+- Added a bounded, no-effector EvidenceOS involution probe derived clean-room
+  from cited primary research, with deterministic digests and explicit
+  PROVEN/MODELED/REPORTED boundaries.
+
+### Changed - operational honesty
+- Frontier now reports source reachability separately from operational
+  readiness; a stopped operator, empty chain, modeled hardware, or unminted
+  artifact can no longer produce a green compatibility rollup.
+- Hatun and Immune surfaces now start at unknown/probing and expose only signer,
+  chain, verdict, and invocation evidence actually observed by the backend.
+- Added mobile overflow, touch-target, and narrow-viewport handling to Hatun and
+  Immune.
+
 ## [1.1.0] — 2026-07-13
 
 Release record of the capabilities shipped by the post-1.0.0 "waves" of work.

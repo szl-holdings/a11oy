@@ -22,12 +22,11 @@ def source(path: Path) -> str:
 
 def test_workflow_pins_the_offline_test_runner():
     workflow = source(WORKFLOW)
-    requirements_input = source(CI_CORE_INPUT)
-    requirements_lock = source(CI_CORE_LOCK)
-
+    # The workflow installs the hash-locked CI runtime. Keep the pytest pin in
+    # the lock inputs instead of duplicating a second un-hashed install command.
     assert "--require-hashes -r .github/requirements/ci-core.txt" in workflow
-    assert "pytest==9.0.3" in requirements_input
-    assert "pytest==9.0.3" in requirements_lock
+    assert "pytest==9.0.3" in source(CI_CORE_INPUT)
+    assert "pytest==9.0.3" in source(CI_CORE_LOCK)
     assert "pip install pytest\n" not in workflow
 
 

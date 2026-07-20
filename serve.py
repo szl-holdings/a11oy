@@ -77,8 +77,13 @@ def gov_envelope(payload=None, status="REAL", citations=None, reason=None, **ext
     return out
 # === END GOVERNED ENVELOPE ===
 
-# RESET: SPA is served from /app/static (repo root mirrors dist/public). No /console subdir.
-STATIC_DIR = Path("/app/static")
+# RESET: the image serves the SPA from /app/static after Docker copies
+# console/ there.  Local verification must resolve the same source tree rather
+# than trying to return a container-only path (which turns an otherwise honest
+# 404 or history fallback into a 500).
+_IMAGE_STATIC_DIR = Path("/app/static")
+_LOCAL_STATIC_DIR = Path(__file__).resolve().parent / "console"
+STATIC_DIR = _IMAGE_STATIC_DIR if (_IMAGE_STATIC_DIR / "index.html").is_file() else _LOCAL_STATIC_DIR
 ASSETS_DIR = STATIC_DIR / "assets"
 INDEX_HTML = STATIC_DIR / "index.html"
 A11OY_BACKEND_PORT = 8081
@@ -2012,6 +2017,18 @@ try:
 except Exception as _szl_gq_e:  # pragma: no cover
     print(f"[a11oy] GPU-Quant engine NOT registered: {_szl_gq_e!r}", file=__import__("sys").stderr)
 
+# -- EvidenceOS involution probe: bounded clean-room boundary/bulk decomposition.
+# The endpoint requires a caller-declared finite involution, performs no writes or
+# effectors, and returns a content digest plus explicit PROVEN/MODELED/REPORTED scope.
+try:
+    import szl_involution_probe as _szl_involution_probe
+    _szl_involution_probe.register(app, ns="a11oy")
+    print("[a11oy] EvidenceOS involution probe registered: /api/a11oy/v1/evidenceos/involution/*",
+          file=__import__("sys").stderr)
+except Exception as _szl_involution_e:  # pragma: no cover
+    print(f"[a11oy] EvidenceOS involution probe NOT registered: {_szl_involution_e!r}",
+          file=__import__("sys").stderr)
+
 # ── Agentic PINN + Physical-Bounds Certifier MESH (pinn-bounds) — closes the audited
 # gap where the PINN / FE-NO Physics-ML verticals lived ONLY in `platform` and were
 # NOT in a11oy's governed /api/a11oy/v1/<name> route table. Adds /api/a11oy/v1/pinn/*:
@@ -3447,6 +3464,18 @@ except Exception as _vsp_e:
     print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
 # --- end vsp-otel VSP ---
 
+# -- Runtime contracts: process liveness, fail-closed readiness, build identity,
+# explicit OTEL exporter/collector evidence, and soft-404 protection for unknown
+# file-like discovery paths. Read-only GETs; no receipt minting or external calls.
+try:
+    import szl_runtime_contracts as _szl_runtime_contracts
+    _runtime_contracts_status = _szl_runtime_contracts.register(app, ns="a11oy")
+    print(f"[a11oy] Runtime contracts registered: {_runtime_contracts_status}",
+          file=__import__("sys").stderr)
+except Exception as _runtime_contracts_e:  # pragma: no cover
+    print(f"[a11oy] Runtime contracts NOT registered: {_runtime_contracts_e!r}",
+          file=__import__("sys").stderr)
+
 
 # ── Live 3D Wires (PURIQ / Doctrine v12) — ADDITIVE, re-pinned FIRST ─────────
 # Registered immediately after the app is constructed so FastAPI's ordered route
@@ -3654,7 +3683,9 @@ except Exception as _sec_hdr_e:  # pragma: no cover
 # ===========================================================================
 from fastapi.responses import RedirectResponse as _PTG_Redirect
 
-_PTG_WEB = Path("/app/web")
+_PTG_IMAGE_WEB = Path("/app/web")
+_PTG_LOCAL_WEB = Path(__file__).resolve().parent / "web"
+_PTG_WEB = _PTG_IMAGE_WEB if _PTG_IMAGE_WEB.is_dir() else _PTG_LOCAL_WEB
 
 def _ptg_serve(filename: str):
     async def _h() -> Response:

@@ -145,6 +145,11 @@ COPY szl_waqay_security_loop.py ./
 # reviewed source contracts.
 COPY szl_claim_rupture_gate.py ./
 COPY schemas/evidenceos/ ./schemas/evidenceos/
+# Wave 38 evidence surfaces: involution probe + runtime contracts + committed quant
+# benchmark receipt (read-only, validated+signature-checked at serve time).
+COPY szl_involution_probe.py ./
+COPY szl_runtime_contracts.py ./
+COPY benchmarks/quant_live/receipts/latest.json ./benchmarks/quant_live/receipts/latest.json
 # Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
 # SDK, QPU call, credential path, external effector, or finance-engine coupling.
 COPY szl_quantum_utility.py ./
