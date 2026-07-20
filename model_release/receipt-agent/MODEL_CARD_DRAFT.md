@@ -80,12 +80,12 @@ The existing adapter showed a directional loss improvement on a 16-row observati
 |---|---:|---:|---|
 | Existing SFT dataset | 167 rows | 0 approved for reuse | Rights/privacy/contamination review incomplete |
 | A11oy Brain | 9,464 raw nodes | 0 | All raw nodes training-quarantined |
-| Formula crosswalk | 148 rows | 0 | Frozen holdout; namespace/status evaluation only |
+| Formula admission | 146 formula crosswalk records + 2 SZL-Lake evidence records = 148 holdout rows | 0 | Frozen holdout; namespace/status evaluation only |
 | ORPO candidate | 12 qualification checks | 0 | 0/12 passed; quarantined |
 
 The Brain and formula system can make the released model more useful **without being copied into the weights**. They remain external retrieval, holdout, contradiction, freshness, and proof-status infrastructure. A future training curriculum must be newly assembled from owned or explicitly licensed rows with item-level provenance, deduplication, contamination analysis, and immutable split receipts.
 
-No card may claim training on "all 200 formulas," the Brain, Lean, mathlib, GitHub, publications, or Hugging Face until row-level admission evidence proves the exact statement. The current repository evidence supports 148 formula crosswalk rows, not a verified 200-formula training set.
+No card may claim training on "all 200 formulas," the Brain, Lean, mathlib, GitHub, publications, or Hugging Face until row-level admission evidence proves the exact statement. The current repository evidence supports 146 formula crosswalk records plus 2 SZL-Lake evidence records in a 148-row holdout tranche, not a verified 200-formula training set.
 
 ## Two-stage output contract
 
