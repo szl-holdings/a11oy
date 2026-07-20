@@ -124,6 +124,22 @@ def test_tampered_payload_fails_verification(monkeypatch):
         pub.verify(sig, msg, ec.ECDSA(hashes.SHA256()))
 
 
+def test_valid_signature_with_wrong_keyid_fails_verification(monkeypatch):
+    """The key identifier is part of the verifier policy, not decoration."""
+    priv_pem, pub_pem = _gen_ephemeral_keypair()
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, priv_pem)
+    importlib.reload(szl_dsse)
+    monkeypatch.setattr(szl_dsse, "COSIGN_PUBLIC_PEM", pub_pem, raising=True)
+
+    env = szl_dsse.sign_payload({"claim": "keyid-bound"})
+    env["signatures"][0]["keyid"] = "different-key"
+
+    verdict = szl_dsse.verify_envelope(env)
+    assert verdict["verified"] is False
+    assert verdict["signatures"][0]["reason"] == "unexpected keyid"
+
+
 def test_legacy_env_var_still_works(monkeypatch):
     """Backward-compat: the legacy SZL_COSIGN_PRIVATE_PEM name still signs."""
     priv_pem, _pub_pem = _gen_ephemeral_keypair()

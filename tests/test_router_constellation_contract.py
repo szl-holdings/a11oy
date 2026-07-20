@@ -12,6 +12,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 ROUTER = ROOT / "console" / "static" / "viz" / "router"
 WORKFLOW = ROOT / ".github" / "workflows" / "router-constellation-contract.yml"
+CI_REQUIREMENTS = ROOT / ".github" / "requirements" / "ci-core.txt"
 
 
 def source(path: Path) -> str:
@@ -20,7 +21,9 @@ def source(path: Path) -> str:
 
 def test_workflow_pins_the_offline_test_runner():
     workflow = source(WORKFLOW)
-    assert "pytest==9.0.3" in workflow
+    requirements = source(CI_REQUIREMENTS)
+    assert "--require-hashes -r .github/requirements/ci-core.txt" in workflow
+    assert "pytest==9.0.3" in requirements
     assert "pip install pytest\n" not in workflow
 
 

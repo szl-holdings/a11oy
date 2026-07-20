@@ -64,11 +64,18 @@ admission gate. The canonical raw inventory has not passed that gate: zero rows 
 admitted to gradients and no training run was started. Retrieval remains distinct
 from training, and indexed nodes remain distinct from model parameters.
 
-The gate now accepts only Ed25519-signed evidence from an allowlisted
-issuer/tool/key triple. Source, rights, and contamination claims bind the exact row
-content and immutable source revision; a frozen evaluation hash set and signed
-cross-run split ledger prevent contamination and split migration. A missing or
-self-issued prerequisite quarantines the row instead of weakening the boundary.
+The gate now accepts only Ed25519-signed evidence from purpose-scoped
+issuer/tool/key authorities. Source identity, author/rightsholder permission,
+privacy/PII, review, and contamination claims bind the exact row content and
+immutable source revision. The review signer must be bound to the declared reviewer.
+Training admission is disabled by default; an explicit switch, frozen evaluation
+hash set, root-signed policy bundle, exact policy-pinned cross-run split-ledger head,
+and distinct artifact-signing key prevent contamination, replay, split migration,
+and unsigned release output. Mutable key replacement and stale ledger envelopes fail
+closed. Evaluation admission also requires the rooted policy and signed terminal
+manifest; an unrooted run remains inspection-only quarantine. Quarantine records redact
+content, raw node identifiers, source locations, evidence paths, and personal identities
+instead of copying sensitive evidence into a denial artifact.
 
 ## Public surfaces
 
