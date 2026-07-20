@@ -1,4 +1,4 @@
-name: Repair bot-authored HF relock commit
+name: Build bot-authored HF drift cleanup commit
 
 on:
   pull_request:
@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  repair:
-    name: Rebuild independently reviewable relock commit
+  build-cleanup:
+    name: Build independently reviewable allowlist prune
     if: >-
       github.event.pull_request.number == 987 &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -19,18 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      BOT_BRANCH: automation/hf-relock-authority-20260720
-      BASE_SHA: a7c1646a51a43c6d754a73f82d36459f7f9663f9
-      EXPECTED_LOCK_SHA256: f2b77336f2f2a682949d4d8cd0c3fbafc7cf58f09790767c0ca94c04d6c2002c
-      EXPECTED_EVIDENCE_SHA256: 2e159b27853f97db6d6bd2a8d3b5297504aabb704d199a2b4287af89006a049e
+      BOT_BRANCH: automation/hf-drift-prune-20260720
+      BASE_SHA: 82b6df520244550bcdda1c51ed89168bef1d4b7e
+      EXPECTED_OUTPUT_SHA256: b794e653f1352a90b23d8efd93da316000e3026aeb89bb8c42728a31385146c2
     steps:
-      - name: Checkout exact reviewed candidate source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: candidate
-          persist-credentials: false
-
       - name: Checkout exact protected base
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,39 +30,63 @@ jobs:
           path: bot
           fetch-depth: 1
 
-      - name: Validate source bytes and rebuild one signed-off bot commit
+      - name: Validate and prune exactly the 13 reconciled entries
         run: |
           set -euo pipefail
-          lock_sha=$(sha256sum candidate/.github/hf-deployment-lock.json | awk '{print $1}')
-          evidence_sha=$(sha256sum candidate/.github/workflows/hf-relock-evidence.yml | awk '{print $1}')
-          test "$lock_sha" = "$EXPECTED_LOCK_SHA256"
-          test "$evidence_sha" = "$EXPECTED_EVIDENCE_SHA256"
-
           cd bot
-          git fetch --no-tags origin "$BOT_BRANCH:refs/remotes/origin/$BOT_BRANCH"
-          old_remote=$(git rev-parse "refs/remotes/origin/$BOT_BRANCH")
           test "$(git rev-parse HEAD)" = "$BASE_SHA"
-
           git switch -C "$BOT_BRANCH"
-          cp ../candidate/.github/hf-deployment-lock.json .github/hf-deployment-lock.json
-          cp ../candidate/.github/workflows/hf-relock-evidence.yml .github/workflows/hf-relock-evidence.yml
-          git add .github/hf-deployment-lock.json .github/workflows/hf-relock-evidence.yml
 
-          changed=$(git diff --cached --name-only | sort)
-          expected=$(printf '%s\n' \
-            .github/hf-deployment-lock.json \
-            .github/workflows/hf-relock-evidence.yml | sort)
-          test "$changed" = "$expected"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
 
+          path = Path('.github/hf-module-drift-allow.json')
+          data = json.loads(path.read_text())
+          expected = {
+              'ayllu/model_binding.py',
+              'model_release/szl-forge-family.json',
+              'model_release/szl-khipu-second-brain.json',
+              'schemas/quant-claims/benchmark-run.v1.schema.json',
+              'schemas/quant-claims/claim.v1.schema.json',
+              'serve.py',
+              'szl_brain_training_admission.py',
+              'szl_compute_pool_contract.py',
+              'szl_dsse.py',
+              'szl_formula_registry.py',
+              'szl_gpu_quant.py',
+              'szl_quant_claims.py',
+              'szl_source_attestation.py',
+          }
+          actual = set(data.get('accepted_divergences', {}))
+          if actual != expected:
+              raise SystemExit(f'unexpected allowlist entries: missing={sorted(expected-actual)} extra={sorted(actual-expected)}')
+          data['accepted_divergences'] = {}
+          content = json.dumps(data, indent=2, ensure_ascii=False) + '\n'
+          digest = hashlib.sha256(content.encode()).hexdigest()
+          if digest != os.environ['EXPECTED_OUTPUT_SHA256']:
+              raise SystemExit(f'output digest mismatch: {digest}')
+          path.write_text(content)
+          print('pruned exactly 13 reconciled entries; output digest verified')
+          PY
+
+          git add .github/hf-module-drift-allow.json
+          test "$(git diff --cached --name-only)" = ".github/hf-module-drift-allow.json"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit \
-            -m "fix(ci): re-lock verified running HF deployment" \
-            -m "Created from the independently green evidence in #987 so the founder can provide the required non-self review." \
+            -m "chore(hf-drift): prune 13 reconciled allowlist entries" \
+            -m "Remove only the temporary PR #961 divergence entries after the verified GitHub-to-Hugging-Face deployment lock became authoritative." \
             -m "Refs #986" \
             -m "Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
-
           test "$(git rev-parse HEAD^)" = "$BASE_SHA"
-          git push \
-            --force-with-lease="refs/heads/$BOT_BRANCH:$old_remote" \
-            origin "HEAD:refs/heads/$BOT_BRANCH"
+
+          if git ls-remote --exit-code --heads origin "$BOT_BRANCH" >/dev/null 2>&1; then
+            git fetch --no-tags origin "$BOT_BRANCH:refs/remotes/origin/$BOT_BRANCH"
+            old_remote=$(git rev-parse "refs/remotes/origin/$BOT_BRANCH")
+            git push --force-with-lease="refs/heads/$BOT_BRANCH:$old_remote" origin "HEAD:refs/heads/$BOT_BRANCH"
+          else
+            git push origin "HEAD:refs/heads/$BOT_BRANCH"
+          fi
