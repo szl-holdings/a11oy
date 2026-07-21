@@ -272,17 +272,40 @@ def _pinned_dsse_identity(contract: dict[str, Any]) -> dict[str, str]:
 
 def _load_pinned_dsse(contract: dict[str, Any]) -> tuple[Any, dict[str, str]]:
     identity = _pinned_dsse_identity(contract)
-    spec = importlib.util.spec_from_file_location(
+    dependency_spec = importlib.util.spec_from_file_location(
+        "szl_content_address", CONTENT_ADDRESS_PATH
+    )
+    if dependency_spec is None or dependency_spec.loader is None:
+        raise GateRefused("pinned content-address dependency could not be loaded")
+    dependency = importlib.util.module_from_spec(dependency_spec)
+    try:
+        dependency_spec.loader.exec_module(dependency)
+    except Exception as exc:
+        raise GateRefused("pinned content-address dependency execution failed") from exc
+
+    dsse_spec = importlib.util.spec_from_file_location(
         f"_szl_nemo_pinned_dsse_{uuid.uuid4().hex}", DSSE_PATH
     )
-    if spec is None or spec.loader is None:
+    if dsse_spec is None or dsse_spec.loader is None:
         raise GateRefused("pinned DSSE verifier could not be loaded")
-    module = importlib.util.module_from_spec(spec)
+    module = importlib.util.module_from_spec(dsse_spec)
+    dependency_name = "szl_content_address"
+    missing = object()
+    prior_dependency = sys.modules.get(dependency_name, missing)
     try:
-        spec.loader.exec_module(module)
+        # szl_dsse imports this dependency by its canonical name.  Supply only
+        # the file whose path and digest were verified above, then restore any
+        # ambient module so the pinned loader cannot mutate process-wide state.
+        sys.modules[dependency_name] = dependency
+        dsse_spec.loader.exec_module(module)
         observed_fingerprint = module.public_key_fingerprint()
     except Exception as exc:
         raise GateRefused("pinned DSSE verifier execution failed") from exc
+    finally:
+        if prior_dependency is missing:
+            sys.modules.pop(dependency_name, None)
+        else:
+            sys.modules[dependency_name] = prior_dependency
     if (
         getattr(module, "KEYID", None) != identity["key_id"]
         or observed_fingerprint != identity["public_key_fingerprint_sha256"]

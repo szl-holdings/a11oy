@@ -10,6 +10,7 @@ from contextlib import nullcontext
 from pathlib import Path
 import socket
 import subprocess
+import sys
 import types
 
 import pytest
@@ -269,6 +270,33 @@ def test_dsse_verifier_replacement_and_key_substitution_refuse():
     wrong_key["dsse"]["public_key_fingerprint_sha256"] = "0" * 64
     with pytest.raises(nemo_train.GateRefused, match="key identity mismatch"):
         nemo_train._load_pinned_dsse(wrong_key)
+
+
+def test_dsse_loader_uses_only_pinned_dependency_and_restores_ambient_module(
+    monkeypatch,
+):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    ambient = types.ModuleType("szl_content_address")
+    ambient.sha256_content_address = lambda *_args, **_kwargs: "ambient-not-pinned"
+    monkeypatch.setitem(sys.modules, "szl_content_address", ambient)
+    repo = nemo_train.REPO.resolve()
+    monkeypatch.setattr(
+        sys,
+        "path",
+        [
+            entry
+            for entry in sys.path
+            if not entry or Path(entry).resolve() != repo
+        ],
+    )
+
+    module, identity = nemo_train._load_pinned_dsse(contract)
+
+    assert module.public_key_fingerprint() == identity[
+        "public_key_fingerprint_sha256"
+    ]
+    assert module.sha256_content_address is not ambient.sha256_content_address
+    assert sys.modules["szl_content_address"] is ambient
 
 
 def test_capacity_probe_requires_both_acknowledgements_before_receipt_or_model_load(tmp_path):
