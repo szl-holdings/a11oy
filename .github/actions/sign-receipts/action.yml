@@ -3,9 +3,10 @@
 # Doctrine v11 LOCKED 749/14/163 · SLSA L1 (unchanged)
 name: "Sign SZL receipts (Sigstore keyless)"
 description: >-
-  Mint GENUINE Sigstore keyless DSSE signatures over the SZL governance decision
-  log AND a vessels Khipu-ingest gate-decision receipt, then independently verify
-  each envelope (Fulcio cert chain + Rekor inclusion + DSSE signature). The
+  Mint a GENUINE Sigstore keyless DSSE signature over the selected SZL JSON log
+  and, by default, a vessels Khipu-ingest gate-decision receipt, then independently
+  verify only the envelopes minted by this invocation (Fulcio cert chain + Rekor
+  inclusion + DSSE signature). The
   calling job MUST grant `permissions: id-token: write`; without an ambient OIDC
   token the underlying scripts REFUSE rather than fabricate a signature.
 
@@ -22,6 +23,18 @@ inputs:
     description: "DSSE statement subject name for the governance log."
     required: false
     default: "szl-governance-decision-log"
+  governance-out-dir:
+    description: "Directory for the governance DSSE minted by this invocation."
+    required: false
+    default: "attestations/governance"
+  sign-khipu:
+    description: "Whether to mint the independent Khipu ingest receipt (true or false)."
+    required: false
+    default: "true"
+  khipu-out-dir:
+    description: "Directory for the Khipu receipt minted by this invocation."
+    required: false
+    default: "attestations/khipu"
   python-version:
     description: "Python version used to run the signing scripts."
     required: false
@@ -34,6 +47,9 @@ outputs:
   attestations-dir:
     description: "Directory containing all signed DSSE envelopes."
     value: "attestations"
+  khipu-envelope:
+    description: "Exact Khipu envelope minted by this invocation, or empty when disabled."
+    value: ${{ steps.khipu.outputs.khipu_envelope }}
 
 runs:
   using: "composite"
@@ -53,22 +69,61 @@ runs:
       run: |
         python scripts/sign_governance_receipts.py \
           --log "${{ inputs.log }}" \
-          --subject "${{ inputs.subject }}"
+          --subject "${{ inputs.subject }}" \
+          --out-dir "${{ inputs.governance-out-dir }}"
 
     - name: Record vessels Khipu-ingest receipt (real DSSE via szl_wire.ingest_receipt)
+      id: khipu
+      if: inputs.sign-khipu == 'true'
       shell: bash
       run: |
-        python scripts/sign_khipu_ingest_receipt.py
+        mkdir -p "${{ inputs.khipu-out-dir }}"
+        output="$(python scripts/sign_khipu_ingest_receipt.py \
+          --action-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}" \
+          --out-dir "${{ inputs.khipu-out-dir }}")"
+        printf '%s\n' "$output"
+        envelope="$(printf '%s\n' "$output" | sed -n 's/^\[khipu\] wrote \(.*\.dsse\.json\)$/\1/p' | tail -n1)"
+        if [ -z "$envelope" ] || [ ! -f "$envelope" ]; then
+          echo "Khipu signer did not report the exact envelope it minted" >&2
+          exit 1
+        fi
+        echo "khipu_envelope=${envelope}" >> "$GITHUB_OUTPUT"
+
+    - name: Validate optional receipt selection
+      if: inputs.sign-khipu != 'true' && inputs.sign-khipu != 'false'
+      shell: bash
+      run: |
+        echo "sign-khipu must be exactly 'true' or 'false'" >&2
+        exit 1
 
     - name: Locate signed governance envelope
       id: locate
       shell: bash
+      env:
+        LOG_PATH: ${{ inputs.log }}
+        OUT_DIR: ${{ inputs.governance-out-dir }}
       run: |
-        envelope="$(ls attestations/governance/*.dsse.json | head -n1)"
-        echo "governance_envelope=${envelope}" >> "$GITHUB_OUTPUT"
-        echo "Signed governance envelope: ${envelope}"
+        python - <<'PY'
+        import hashlib
+        import json
+        import os
+        from pathlib import Path
 
-    - name: Independently verify every signed envelope (Fulcio + Rekor + DSSE)
+        log_path = Path(os.environ["LOG_PATH"])
+        payload = json.dumps(
+            json.loads(log_path.read_text(encoding="utf-8")),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        envelope = Path(os.environ["OUT_DIR"]) / (hashlib.sha256(payload).hexdigest() + ".dsse.json")
+        if not envelope.is_file():
+            raise SystemExit(f"expected newly minted governance envelope is missing: {envelope}")
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"governance_envelope={envelope}\n")
+        print(f"Signed governance envelope: {envelope}")
+        PY
+
+    - name: Independently verify only envelopes minted by this invocation
       shell: bash
       run: |
         # The Fulcio certificate SAN for a GitHub Actions OIDC identity is exactly
@@ -76,13 +131,15 @@ runs:
         # to whichever deploy/release pipeline invoked this action.
         identity="https://github.com/${GITHUB_WORKFLOW_REF}"
         echo "Expected signer identity: ${identity}"
-        shopt -s nullglob
-        envelopes=(attestations/governance/*.dsse.json attestations/khipu/*.dsse.json)
-        if [ ${#envelopes[@]} -eq 0 ]; then
-          echo "No signed envelopes found to verify" >&2
-          exit 1
+        envelopes=("${{ steps.locate.outputs.governance_envelope }}")
+        if [ "${{ inputs.sign-khipu }}" = "true" ]; then
+          envelopes+=("${{ steps.khipu.outputs.khipu_envelope }}")
         fi
         for env in "${envelopes[@]}"; do
+          if [ -z "$env" ] || [ ! -f "$env" ]; then
+            echo "Expected invocation envelope is missing: ${env:-<empty>}" >&2
+            exit 1
+          fi
           echo "::group::verify ${env}"
           python scripts/verify_dsse_real.py "${env}" \
             --identity "${identity}" \

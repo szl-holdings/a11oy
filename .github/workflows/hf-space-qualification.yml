@@ -79,6 +79,8 @@ jobs:
         with:
           log: evidence/hf-space-qualification.json
           subject: szl-hf-space-operational-qualification
+          governance-out-dir: evidence/hf-space-qualification/dsse/${{ github.run_id }}-${{ github.run_attempt }}
+          sign-khipu: "false"
 
       - name: Upload qualification receipt and DSSE evidence
         if: always()
@@ -87,8 +89,7 @@ jobs:
           name: hf-space-operational-qualification
           path: |
             evidence/hf-space-qualification.json
-            attestations/governance/*.dsse.json
-            attestations/khipu/*.dsse.json
+            evidence/hf-space-qualification/dsse/${{ github.run_id }}-${{ github.run_attempt }}/*.dsse.json
           if-no-files-found: error
 
       - name: Enforce complete-estate result

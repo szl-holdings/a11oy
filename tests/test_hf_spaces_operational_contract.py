@@ -181,6 +181,42 @@ class SpaceQualificationContractTests(unittest.TestCase):
                 only={"not-a-space"},
             )
 
+    def test_shared_signing_action_is_invocation_isolated_and_backward_compatible(self):
+        action = (ROOT / ".github" / "actions" / "sign-receipts" / "action.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("governance-out-dir:", action)
+        self.assertIn('default: "attestations/governance"', action)
+        self.assertIn("sign-khipu:", action)
+        self.assertIn('default: "true"', action)
+        self.assertIn("khipu-out-dir:", action)
+        self.assertIn('default: "attestations/khipu"', action)
+        self.assertIn('--out-dir "${{ inputs.governance-out-dir }}"', action)
+        self.assertIn("if: inputs.sign-khipu == 'true'", action)
+        self.assertIn('--out-dir "${{ inputs.khipu-out-dir }}"', action)
+
+        verification = action.split(
+            "- name: Independently verify only envelopes minted by this invocation", 1
+        )[1]
+        self.assertIn("steps.locate.outputs.governance_envelope", verification)
+        self.assertIn("steps.khipu.outputs.khipu_envelope", verification)
+        self.assertNotIn("attestations/governance/*.dsse.json", verification)
+        self.assertNotIn("attestations/khipu/*.dsse.json", verification)
+
+    def test_hf_workflow_uses_dedicated_dsse_directory_without_khipu_side_effect(self):
+        workflow = (ROOT / ".github" / "workflows" / "hf-space-qualification.yml").read_text(
+            encoding="utf-8"
+        )
+        dedicated = (
+            "evidence/hf-space-qualification/dsse/"
+            "${{ github.run_id }}-${{ github.run_attempt }}"
+        )
+        self.assertIn(f"governance-out-dir: {dedicated}", workflow)
+        self.assertIn('sign-khipu: "false"', workflow)
+        self.assertIn(f"{dedicated}/*.dsse.json", workflow)
+        self.assertNotIn("attestations/governance/*.dsse.json", workflow)
+        self.assertNotIn("attestations/khipu/*.dsse.json", workflow)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
