@@ -85,6 +85,50 @@ class FakeQuantizedMambaModel:
             yield f"base.layers.{index}.mixer", mixer
 
 
+class FakePaddingTokenizer:
+    def __init__(
+        self,
+        *,
+        source_token: str = "<unk>",
+        source_id: int = 0,
+        pad_token: str | None = None,
+        added_vocab: dict[str, int] | None = None,
+    ) -> None:
+        self.unk_token = source_token
+        self.unk_token_id = source_id
+        self._pad_token = pad_token
+        self._tokens = {source_id: source_token}
+        self._ids = {source_token: source_id}
+        self._added_vocab = dict(added_vocab or {})
+        self._length = 131072
+
+    def __len__(self):
+        return self._length
+
+    @property
+    def pad_token(self):
+        return self._pad_token
+
+    @pad_token.setter
+    def pad_token(self, value):
+        self._pad_token = value
+
+    @property
+    def pad_token_id(self):
+        if self._pad_token is None:
+            return None
+        return self._ids.get(self._pad_token)
+
+    def get_added_vocab(self):
+        return dict(self._added_vocab)
+
+    def convert_ids_to_tokens(self, value):
+        return self._tokens.get(value)
+
+    def convert_tokens_to_ids(self, value):
+        return self._ids.get(value)
+
+
 def compatibility_contract() -> dict:
     return {
         "base": {
@@ -96,6 +140,74 @@ def compatibility_contract() -> dict:
             ]
         }
     }
+
+
+def padding_contract() -> dict:
+    return {
+        "training": {
+            "padding_policy": {
+                "source": "PINNED_MODEL_AND_GENERATION_CONFIG",
+                "token": "<unk>",
+                "token_id": 0,
+                "special_token_attribute": "unk_token",
+                "vocabulary_mutation_allowed": False,
+            }
+        }
+    }
+
+
+def test_padding_admission_binds_pinned_special_token_without_vocab_mutation():
+    tokenizer = FakePaddingTokenizer(added_vocab={"<SPECIAL_18>": 18})
+
+    receipt = nemo_train.admit_padding_token(
+        tokenizer, padding_contract(), "fixture"
+    )
+
+    assert tokenizer.pad_token == "<unk>"
+    assert tokenizer.pad_token_id == 0
+    assert receipt == {
+        "state": "BOUND_PINNED_SPECIAL_TOKEN_NO_VOCAB_MUTATION",
+        "phase": "fixture",
+        "source": "PINNED_MODEL_AND_GENERATION_CONFIG",
+        "special_token_attribute": "unk_token",
+        "token": "<unk>",
+        "token_id": 0,
+        "pad_before": {"token": None, "token_id": None},
+        "pad_after": {"token": "<unk>", "token_id": 0},
+        "vocabulary_size_before": 131072,
+        "vocabulary_size_after": 131072,
+        "added_vocabulary_unchanged": True,
+    }
+
+
+def test_padding_admission_refuses_conflicting_or_unpinned_identity():
+    with pytest.raises(nemo_train.GateRefused, match="conflicting padding identity"):
+        nemo_train.admit_padding_token(
+            FakePaddingTokenizer(pad_token="different"),
+            padding_contract(),
+            "fixture",
+        )
+    with pytest.raises(nemo_train.GateRefused, match="pinned padding token identity"):
+        nemo_train.admit_padding_token(
+            FakePaddingTokenizer(source_id=7), padding_contract(), "fixture"
+        )
+
+
+def test_model_and_generation_padding_must_match_admitted_token():
+    padding = {"token": "<unk>", "token_id": 0}
+    model = types.SimpleNamespace(
+        config=types.SimpleNamespace(pad_token_id=0),
+        generation_config=types.SimpleNamespace(pad_token_id=0),
+    )
+
+    receipt = nemo_train.verify_model_padding_binding(model, padding, "fixture")
+
+    assert receipt["state"] == "CONSISTENT_PINNED_PADDING_IDS"
+    assert receipt["model_config_pad_token_id"] == 0
+    assert receipt["generation_config_pad_token_id"] == 0
+    model.generation_config.pad_token_id = 2
+    with pytest.raises(nemo_train.GateRefused, match="padding identity is inconsistent"):
+        nemo_train.verify_model_padding_binding(model, padding, "fixture")
 
 
 def test_curriculum_is_deterministic_rights_scoped_and_disjoint(tmp_path):
@@ -854,6 +966,10 @@ def test_optimizer_and_checkpoint_attestations_are_fail_closed():
 
 def test_capacity_and_training_bind_mamba_forward_only_after_peft_wrapping():
     runner = RUNNER.read_text(encoding="utf-8")
+    tokenizer_load = runner.index("tokenizer = AutoTokenizer.from_pretrained", runner.index("def train("))
+    padding_admission = runner.index(
+        'tokenizer, contract, "training"', tokenizer_load
+    )
     capacity_wrap = runner.index("model = get_peft_model(model, lora)")
     capacity_bind = runner.index(
         'model, contract, "capacity"', capacity_wrap
@@ -866,12 +982,15 @@ def test_capacity_and_training_bind_mamba_forward_only_after_peft_wrapping():
         'receipt["state"] = "TRAINING_STARTED_NOT_PROMOTED"', trainer_wrap
     )
 
+    assert tokenizer_load < padding_admission < trainer_wrap
     assert capacity_wrap < capacity_bind < trainer_wrap
     assert trainer_wrap < training_bind < training_start
     assert runner.count('gradient_checkpointing_kwargs={"use_reentrant": False}') >= 3
     assert '"packing": False' in runner
     assert '"optimizer_state_before_forward"' in runner
     assert '"forward_evidence"' in runner
+    assert "pad_token_id=tokenizer.pad_token_id)" in runner
+    assert "pad_token_id=tokenizer.pad_token_id or" not in runner
 
 
 def test_training_requires_linux_network_namespace(monkeypatch):

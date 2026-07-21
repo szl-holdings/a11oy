@@ -107,7 +107,8 @@ class _FakeModel:
         self._state = state
         self._trainable = _FakeParameter(requires_grad=True)
         self._frozen = _FakeParameter(requires_grad=False)
-        self.config = types.SimpleNamespace(use_cache=True)
+        self.config = types.SimpleNamespace(use_cache=True, pad_token_id=0)
+        self.generation_config = types.SimpleNamespace(pad_token_id=0)
 
     def parameters(self):
         return iter((self._trainable, self._frozen))
@@ -121,8 +122,28 @@ class _FakeModel:
 
 
 class _FakeTokenizer:
-    pad_token_id = 0
+    pad_token = None
+    pad_token_id = None
+    unk_token = "<unk>"
+    unk_token_id = 0
     eos_token_id = 1
+
+    def __len__(self):
+        return 131072
+
+    def get_added_vocab(self):
+        return {}
+
+    def convert_ids_to_tokens(self, value):
+        return {0: "<unk>"}.get(value)
+
+    def convert_tokens_to_ids(self, value):
+        return {"<unk>": 0}.get(value)
+
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        if name == "pad_token":
+            object.__setattr__(self, "pad_token_id", {"<unk>": 0}.get(value))
 
     def apply_chat_template(self, _messages, **_kwargs):
         return "fixture"
