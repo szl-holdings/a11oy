@@ -73,6 +73,9 @@ const EP = {
 const EP_PENDING = {
   artifact:   "/api/a11oy/v1/assurance/artifact",   // artifact_behaviour_monitor.py
   credential: "/api/a11oy/v1/assurance/credential",  // content_credentials.py (C2PA)
+  compliance: "/api/a11oy/v1/assurance/compliance", // compliance_crosswalk.py
+  attest:     "/api/a11oy/v1/assurance/attest",     // runtime_attestation.py
+  ledger:     "/api/a11oy/v1/forge/ledger",         // forge_governance.py
 };
 // A representative governance task the live gate evaluates (demos 13/14: the ladder gate
 // in action). Deterministic input -> deterministic rung/Λ/receipt, so the viz is stable.
@@ -300,7 +303,15 @@ function buildComplianceHeatmap(THREE) {
   const frameworks = ["NIST", "ISO", "EU"];
   const rows = 10, cols = 3, cw = 1.05, ch = 0.5;
   const cells = [];
-  // STRUCTURAL seed mirroring compliance.json (NIST/ISO: 6 impl,3 part,1 road; EU: 0,9,1)
+  // STRUCTURAL seed mirroring the versioned compliance.json crosswalk. These are
+  // declared coverage values, not live measurements; a live compliance response
+  // replaces the cells through _applyCompliance(). Keep the source framework keys
+  // visible so the renderer remains compatible with compliance_crosswalk.py.
+  const coverage = {
+    NIST_AI_RMF: { short: "NIST", NIST: 60 },
+    ISO_IEC_42001: { short: "ISO", ISO: 60 },
+    EU_AI_ACT: { short: "EU", EU: 0 },
+  };
   const seed = {
     NIST: ["IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "PARTIAL", "PARTIAL", "PARTIAL", "ROADMAP"],
     ISO:  ["IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "PARTIAL", "PARTIAL", "PARTIAL", "ROADMAP"],
@@ -335,7 +346,10 @@ function buildComplianceHeatmap(THREE) {
     const bb = _label.billboard(THREE, "STRUCTURAL-ONLY", { text: INV_LABEL[f], scale: 0.32, position: [(c - 1) * cw, 1.4, (rows / 2) * ch + 0.9] });
     g.add(bb);
   });
-  g.userData.cells = cells; g.userData.pillars = pillars; g.userData.frameworks = frameworks;
+  g.userData.cells = cells;
+  g.userData.pillars = pillars;
+  g.userData.frameworks = frameworks;
+  g.userData.coverage = coverage;
   return g;
 }
 
@@ -375,6 +389,8 @@ function buildLedgerChain(THREE) {
 // NOT more safety (lambda_note).
 function buildAttestationAxes(THREE) {
   const g = new THREE.Group(); g.userData.kind = "axes";
+  // runtime_attestation.py response contract: axes_present.{build,model,runtime}
+  const axes_present = { build: false, model: false, runtime: false };
   const defs = [
     { name: "build", dir: [1, 0, 0], color: C.green },
     { name: "model", dir: [0, 1, 0], color: C.gold },
@@ -398,7 +414,7 @@ function buildAttestationAxes(THREE) {
     new THREE.MeshStandardMaterial({ color: C.accent, emissive: C.accent, emissiveIntensity: 0.4 }),
   );
   g.add(hub);
-  g.userData.bars = bars;
+  g.userData.bars = bars; g.userData.axes_present = axes_present;
   return g;
 }
 
@@ -569,6 +585,8 @@ function _buildOverlay(ctx) {
     info: "restraint posture (info)", gate: "governance gate (evaluate)",
     honest: "build provenance (honest)",
     artifact: "artifact monitor (pending mesh)", credential: "C2PA credential (pending mesh)",
+    compliance: "compliance crosswalk (pending mesh)", attest: "runtime attestation (pending mesh)",
+    ledger: "Forge ledger (pending mesh)",
   };
   const ALL_BADGE_ROUTES = { ...EP, ...EP_PENDING };
   Object.keys(ALL_BADGE_ROUTES).forEach((k) => {
@@ -611,7 +629,7 @@ function _buildOverlay(ctx) {
 
   // status / scope line (filled live)
   _hud.status = el("div", "font:10px ui-monospace,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto");
-  _hud.status.textContent = "wiring live governance gate (restraint info + evaluate + honest)…";
+  _hud.status.textContent = "wiring live governance gate; awaiting Forge mesh for assurance routes…";
   _overlay.appendChild(_hud.status);
 
   // "what this means" plain-language toggle (matches the research surfaces).
@@ -692,8 +710,8 @@ function startPolls(ctx) {
     _applyHonest(json);
   }, { badge: _hud.badges.honest }));
 
-  // 4/5) PENDING-backend assurance routes (Forge mesh). Optional: 404 -> honest
-  //    NO-LIVE-DATA badge; light up the SBOM/callout automatically if they ever 200.
+  // 4-8) PENDING-backend assurance routes (Forge mesh). Optional: 404 -> honest
+  //    NO-LIVE-DATA badge; each visual lights up automatically if its route returns 200.
   _handles.push(_live.poll(EP_PENDING.artifact, 9000, (json, meta) => {
     _state.artifact = meta;
     _updateSbomFromArtifact(json);
@@ -717,10 +735,90 @@ function startPolls(ctx) {
     }
   }, { badge: _hud.badges.credential }));
 
+  _handles.push(_live.poll(EP_PENDING.compliance, 13000, (json, meta) => {
+    _state.compliance = meta;
+    _applyCompliance(json);
+  }, { badge: _hud.badges.compliance }));
+
+  _handles.push(_live.poll(EP_PENDING.attest, 13000, (json, meta) => {
+    _state.attest = meta;
+    _applyAttestation(json);
+  }, { badge: _hud.badges.attest }));
+
+  _handles.push(_live.poll(EP_PENDING.ledger, 10000, (json, meta) => {
+    _state.ledger = meta;
+    _applyForgeLedger(json);
+  }, { badge: _hud.badges.ledger }));
+
   // roll a compact status line as states change
   _refreshStatus();
   const si = setInterval(_refreshStatus, 2000);
   _handles.push({ stop: () => clearInterval(si) });
+}
+
+// --- OPTIONAL compliance mesh: compliance_crosswalk.py --------------------
+// Accept both object and array representations used by earlier Forge builds.
+// The only value promoted to the visual is pct_implemented from the live body.
+function _applyCompliance(json) {
+  const heatmap = _root && _root.children.find((c) => c.userData && c.userData.kind === "heatmap");
+  if (!heatmap || !Array.isArray(heatmap.userData.cells)) return;
+  const crosswalk = json.crosswalk || json.coverage || {};
+  const frameworkKeys = ["NIST_AI_RMF", "ISO_IEC_42001", "EU_AI_ACT"];
+  const shortKeys = ["NIST", "ISO", "EU"];
+  frameworkKeys.forEach((frameworkKey, column) => {
+    let entry = Array.isArray(crosswalk)
+      ? crosswalk.find((row) => row && (row.framework === frameworkKey || row.id === frameworkKey))
+      : crosswalk[frameworkKey];
+    entry = entry || {};
+    const pct_implemented = Number(entry.pct_implemented);
+    if (!Number.isFinite(pct_implemented)) return;
+    const implementedRows = Math.max(0, Math.min(10, Math.floor(pct_implemented / 10)));
+    heatmap.userData.cells
+      .filter((cell) => cell.userData.framework === shortKeys[column])
+      .forEach((cell, row) => {
+        const status = row < implementedRows ? "IMPLEMENTED" : "ROADMAP";
+        const color = STATUS_COLOR[status];
+        cell.material.color.setHex(color); cell.material.emissive.setHex(color);
+      });
+  });
+}
+
+// --- OPTIONAL runtime attestation mesh: axes_present -----------------------
+function _applyAttestation(json) {
+  const axes = _root && _root.children.find((c) => c.userData && c.userData.kind === "axes");
+  if (!axes || !axes.userData.bars) return;
+  const axes_present = json.axes_present || {};
+  ["build", "model", "runtime"].forEach((name) => {
+    const present = axes_present[name] === true;
+    const bar = axes.userData.bars[name];
+    if (!bar) return;
+    bar.material.opacity = present ? 0.95 : 0.3;
+    bar.material.emissiveIntensity = present ? 0.55 : 0.2;
+  });
+  axes.userData.axes_present = axes_present;
+}
+
+// --- OPTIONAL Forge ledger mesh: entries[] + kill_switch ------------------
+function _applyForgeLedger(json) {
+  const entries = Array.isArray(json.entries) ? json.entries : [];
+  const ledger = _root && _root.children.find((c) => c.userData && c.userData.kind === "ledger");
+  if (ledger && Array.isArray(ledger.userData.blocks)) {
+    ledger.userData.blocks.forEach((block, index) => {
+      if (index === 0) return; // genesis / prev_hash anchor remains blue
+      const entry = entries[index - 1];
+      const denied = entry && /DENY|BLOCK/i.test(String(entry.decision || entry.status || ""));
+      const color = entry ? (denied ? C.red : C.green) : C.gray;
+      block.material.color.setHex(color); block.material.emissive.setHex(color);
+      block.userData.entry_hash = entry && entry.entry_hash;
+    });
+  }
+  const kill = _root && _root.children.find((c) => c.userData && c.userData.kind === "killswitch");
+  if (kill && typeof json.kill_switch === "boolean") {
+    kill.userData.armed = json.kill_switch;
+    const color = json.kill_switch ? C.red : C.green;
+    kill.userData.core.material.color.setHex(color);
+    kill.userData.core.material.emissive.setHex(color);
+  }
 }
 
 // --- LIVE posture: /restraint/info -> doctrine lock + ladder spec + Λ floor ----------
