@@ -3,7 +3,7 @@
   "contract_id": "szl-nemo-governed-adapter-v2",
   "state": "QUARANTINED_EVALUATION_PENDING",
   "maturity": "MEASURED",
-  "observed_at": "2026-07-21T23:14:45.1788338Z",
+  "observed_at": "2026-07-21T23:25:38.1988173Z",
   "training_source_revision": "3662e3405ab2d65ef184fbd748ac57832555494f",
   "evaluation_resume_source_revision": "9c8213a714cd43db2da2e25cc18137a2adaa6c05",
   "local_evidence": {
@@ -50,6 +50,13 @@
         "state": "BLOCKED",
         "reason": "fixed GPU admission thresholds were not maintained",
         "observed_blocker": "memory_free_mib=6635 was below minimum_free_memory_mib=6656"
+      },
+      {
+        "path": "/home/rosie/szl-qualification/receipts/preflight-v2-evaluation-final-9c8213a.json",
+        "sha256": "f1e9338f8df4a3af8b99212dd0fcce55f2c3b4b3160cc60fccb57d797116d515",
+        "state": "BLOCKED",
+        "reason": "fixed GPU admission thresholds were not maintained",
+        "observed_blocker": "memory_free_mib=6647 was below minimum_free_memory_mib=6656"
       }
     ],
     "evaluation_receipt": {
