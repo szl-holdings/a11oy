@@ -43,7 +43,10 @@ def _app_with_catchall():
 
     @app.get("/{full_path:path}")
     async def spa(full_path: str):
-        return HTMLResponse(f"<html><body>{full_path}</body></html>")
+        return HTMLResponse(
+            f"<html><body>{full_path}</body></html>",
+            headers={"X-SZL-Route-State": "SPA_FALLBACK"},
+        )
 
     contracts.register(app)
     return app
@@ -223,12 +226,19 @@ def test_otel_separates_in_process_exporter_and_collector():
     assert body["status"] == "LIVE"
 
 
-def test_soft_404_guard_blocks_only_unknown_file_like_spa_fallbacks():
+def test_soft_404_guard_refuses_undeclared_fallbacks_and_keeps_real_spa_routes():
     client = TestClient(_app_with_catchall())
 
-    navigation = client.get("/holographic/brainquery")
-    assert navigation.status_code == 200
-    assert navigation.headers["content-type"].startswith("text/html")
+    for path in ("/holographic/brainquery", "/a11oy/verticals"):
+        navigation = client.get(path)
+        assert navigation.status_code == 200
+        assert navigation.headers["content-type"].startswith("text/html")
+
+    for path in ("/grid", "/verticals", "/definitely-not-a-real-route"):
+        unknown_navigation = client.get(path)
+        assert unknown_navigation.status_code == 404
+        assert unknown_navigation.json()["status"] == "NOT_FOUND"
+        assert unknown_navigation.headers["cache-control"] == "no-store"
 
     unknown_file = client.get("/assets/missing.js")
     assert unknown_file.status_code == 404
@@ -241,6 +251,28 @@ def test_soft_404_guard_blocks_only_unknown_file_like_spa_fallbacks():
     known_discovery = client.get("/.well-known/security.txt")
     assert known_discovery.status_code == 200
     assert known_discovery.headers["content-type"].startswith("text/plain")
+
+
+def test_spa_navigation_manifest_is_narrow_and_explicit():
+    assert contracts.is_declared_spa_navigation("/a11oy") is True
+    assert contracts.is_declared_spa_navigation("/a11oy/frontier") is True
+    assert contracts.is_declared_spa_navigation("/holographic/brainquery") is True
+    assert contracts.is_declared_spa_navigation("/grid") is False
+    assert contracts.is_declared_spa_navigation("/verticals") is False
+
+
+def test_container_consumes_canonical_workflow_build_identity():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+    workflow = (root / ".github" / "workflows" / "docker-build.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "ARG REVISION" in dockerfile
+    assert "A11OY_GIT_SHA=${REVISION}" in dockerfile
+    assert "org.opencontainers.image.revision=${REVISION}" in dockerfile
+    assert "REVISION=${{ github.sha }}" in workflow
 
 
 def test_stale_collector_probe_never_becomes_live():

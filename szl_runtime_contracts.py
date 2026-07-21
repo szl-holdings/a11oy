@@ -39,6 +39,9 @@ _ENV_SHA_NAMES = (
 _ENV_VERSION_NAMES = ("A11OY_VERSION", "APP_VERSION", "RELEASE_VERSION")
 _DURABLE_BACKENDS = {"sqlite", "json", "postgres", "postgresql", "lmdb"}
 _FRESH_COLLECTOR_EVIDENCE_S = 120.0
+_SPA_HISTORY_PREFIXES = ("/a11oy", "/holographic")
+_SPA_FALLBACK_HEADER = "X-SZL-Route-State"
+_SPA_FALLBACK_VALUE = "SPA_FALLBACK"
 
 
 def _no_store_json(content: dict[str, Any], status_code: int = 200):
@@ -303,6 +306,22 @@ def _looks_like_file_or_well_known(path: str) -> bool:
     return bool(last and "." in last and last not in {".", ".."})
 
 
+def is_declared_spa_navigation(path: str) -> bool:
+    """Return whether ``path`` belongs to a real client-side route family.
+
+    The built Wouter application declares ``/a11oy/*`` routes, while the
+    Holographic shell supports deep links beneath ``/holographic``. Root-level
+    pages are explicit FastAPI routes and therefore never need the catch-all.
+    """
+    candidate = "/" + str(path or "").strip().lstrip("/")
+    if candidate != "/":
+        candidate = candidate.rstrip("/")
+    return any(
+        candidate == prefix or candidate.startswith(prefix + "/")
+        for prefix in _SPA_HISTORY_PREFIXES
+    )
+
+
 def _matched_by_path_catchall(app: Any, scope: dict[str, Any]) -> bool:
     """Return True only when the first matching route is a ``:path`` wildcard."""
     try:
@@ -330,15 +349,28 @@ def _install_soft_404_guard(app: Any) -> None:
         suspicious = request.method in {"GET", "HEAD"} and _looks_like_file_or_well_known(
             request.url.path
         )
-        catchall_match = suspicious and _matched_by_path_catchall(app, request.scope)
+        catchall_match = _matched_by_path_catchall(app, request.scope)
         response = await call_next(request)
         content_type = str(response.headers.get("content-type", "")).lower()
-        if catchall_match and response.status_code == 200 and "text/html" in content_type:
+        marked_fallback = (
+            str(response.headers.get(_SPA_FALLBACK_HEADER, "")).upper()
+            == _SPA_FALLBACK_VALUE
+        )
+        undeclared_navigation = marked_fallback and not is_declared_spa_navigation(
+            request.url.path
+        )
+        if (
+            request.method in {"GET", "HEAD"}
+            and catchall_match
+            and response.status_code == 200
+            and "text/html" in content_type
+            and (suspicious or undeclared_navigation)
+        ):
             return _no_store_json(
                 {
                     "status": "NOT_FOUND",
                     "path": request.url.path,
-                    "reason": "unknown file-like path refused SPA fallback",
+                    "reason": "undeclared path refused SPA fallback",
                 },
                 status_code=404,
             )
