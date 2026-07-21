@@ -12,6 +12,13 @@ def _grype_gate_block() -> str:
     return workflow[start:end]
 
 
+def _grype_upload_block() -> str:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    start = workflow.index("- name: Upload Grype SARIF")
+    end = workflow.index("    permissions:", start)
+    return workflow[start:end]
+
+
 class GrypeGateContractTests(unittest.TestCase):
     def test_grype_gate_cannot_swallow_scanner_failure(self) -> None:
         block = _grype_gate_block()
@@ -30,6 +37,22 @@ class GrypeGateContractTests(unittest.TestCase):
         revision = action_line.split("@", 1)[1].split()[0]
         self.assertEqual(len(revision), 40)
         self.assertTrue(all(character in "0123456789abcdef" for character in revision))
+
+    def test_grype_action_uses_only_supported_inputs(self) -> None:
+        block = _grype_gate_block()
+        self.assertNotIn("update-db:", block)
+
+    def test_grype_sarif_upload_uses_action_output(self) -> None:
+        gate_block = _grype_gate_block()
+        block = _grype_upload_block()
+        self.assertIn("id: grype", gate_block)
+        self.assertIn("sarif_file: ${{ steps.grype.outputs.sarif }}", block)
+        self.assertNotIn("sarif_file: results.sarif", block)
+
+    def test_grype_sarif_reporting_cannot_mask_the_gate(self) -> None:
+        block = _grype_upload_block()
+        self.assertIn("if: always()", block)
+        self.assertIn("continue-on-error: true", block)
 
 
 if __name__ == "__main__":
