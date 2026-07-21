@@ -15,7 +15,7 @@
 // c7c0ba17, locked-8). No value is fabricated; graceful NO-LIVE-DATA on 404.
 // What is LIVE: /restraint/info, /restraint/evaluate, /honest (all HTTP 200).
 // What is MODELED: the ladder-rung / Λ-advisory / energy tie-in the gate reports.
-// Still STRUCTURAL-ONLY / NO-LIVE-DATA: the pending Forge-mesh assurance routes.
+// Optional assurance routes degrade to NO-LIVE-DATA when their backend contract is absent.
 //
 // Leader/technique modeled (we are MODELED ON, never claim to BE):
 //   GUAC v1.0 (OpenSSF) — Graph for Understanding Artifact Composition
@@ -28,22 +28,17 @@
 // traces to a real a11oy endpoint and carries its honesty label read straight off the
 // JSON.
 //
-// LIVE WIRING (2026-06-15): the original 5 assurance/forge routes (artifact /
-// credential / compliance / attest / forge-ledger) are a PENDING backend (Forge mesh)
-// and 404, so the tab read OFFLINE. This surface is now driven by the a11oy Restraint
-// GOVERNANCE gate, which IS live (HTTP 200):
-//   GET  /api/a11oy/v1/restraint/info       -> trust posture: doctrine lock, 6-rung
-//                                              ladder spec, Λ floor, signed-receipts flag,
-//                                              visible_codenames=0.
-//   POST /api/a11oy/v1/restraint/evaluate    -> a LIVE governance gate decision over a
-//                                              sample task: which ladder rung holds
-//                                              (ALLOW/DESCEND), advisory Λ score, a signed
-//                                              DSSE receipt, and a MODELED energy tie-in.
-//   GET  /api/a11oy/v1/honest                -> git_sha + doctrine_lock for the build badge.
-// The ladder/Λ/receipt verdict drives the Merkle/ledger/kill-switch/attestation/callout
-// demos with REAL values; each value carries the honesty label (HEURISTIC/MODELED) read
-// straight off the JSON. The legacy assurance routes are still polled (optional) and light
-// up automatically if the Forge mesh ever returns 200, but the tab no longer depends on them.
+// LIVE WIRING (2026-07-21): the Restraint governance gate remains the core live
+// contract, and the assurance routes now expose canonical compliance, read-only runtime
+// attestation status, and durable receipt/energy summaries:
+//   GET  /api/a11oy/v1/restraint/info       -> doctrine lock + ladder + Λ floor.
+//   POST /api/a11oy/v1/restraint/evaluate   -> governed decision + receipt.
+//   GET  /api/a11oy/v1/honest               -> source/build provenance.
+//   GET  /api/a11oy/v1/assurance/compliance -> measured crosswalk-cell coverage.
+//   GET  /api/a11oy/v1/assurance/attest/status -> current axes, never mints a signature.
+//   GET  /api/a11oy/v1/forge/ledger         -> receipt-chain + measured energy summary.
+// Every optional route still degrades honestly to NO-LIVE-DATA; no structural seed is
+// promoted as live evidence.
 //
 // SURFACE CONTRACT (same as its 8 siblings): each live endpoint above is polled via
 // ctx.live.poll (bound to _live = ctx.live in mount()); values are never hardcoded and
@@ -68,16 +63,18 @@ const EP = {
   gate:     "/api/a11oy/v1/restraint/evaluate",   // LIVE gate decision (POST sample task) -> rung/Λ/receipt
   honest:   "/api/a11oy/v1/honest",               // git_sha + doctrine_lock for the build badge
 };
-// Optional PENDING-backend routes (Forge mesh). Polled but NOT required: 404 -> honest
-// NO-LIVE-DATA badge; light up automatically if the mesh ever returns 200.
-const EP_PENDING = {
+// Optional assurance routes. Polled but NOT required: 404 -> honest NO-LIVE-DATA.
+const EP_ASSURANCE = {
   artifact:   "/api/a11oy/v1/assurance/artifact",   // artifact_behaviour_monitor.py
   credential: "/api/a11oy/v1/assurance/credential",  // content_credentials.py (C2PA)
+  compliance: "/api/a11oy/v1/assurance/compliance", // compliance_crosswalk.py
+  attest:     "/api/a11oy/v1/assurance/attest/status", // read-only runtime attestation status
+  ledger:     "/api/a11oy/v1/forge/ledger",         // forge_governance.py
 };
 // A representative governance task the live gate evaluates (demos 13/14: the ladder gate
 // in action). Deterministic input -> deterministic rung/Λ/receipt, so the viz is stable.
 const GATE_TASK = { task: "add a cache for these API responses", intensity: "full" };
-const ENDPOINTS = [...Object.values(EP), ...Object.values(EP_PENDING)];
+const ENDPOINTS = [...Object.values(EP), ...Object.values(EP_ASSURANCE)];
 
 // Palette (matches the holographic shell tokens).
 const C = {
@@ -300,7 +297,15 @@ function buildComplianceHeatmap(THREE) {
   const frameworks = ["NIST", "ISO", "EU"];
   const rows = 10, cols = 3, cw = 1.05, ch = 0.5;
   const cells = [];
-  // STRUCTURAL seed mirroring compliance.json (NIST/ISO: 6 impl,3 part,1 road; EU: 0,9,1)
+  // STRUCTURAL seed mirroring the versioned compliance.json crosswalk. These are
+  // declared coverage values, not live measurements; a live compliance response
+  // replaces the cells through _applyCompliance(). Keep the source framework keys
+  // visible so the renderer remains compatible with compliance_crosswalk.py.
+  const coverage = {
+    NIST_AI_RMF: { short: "NIST", NIST: 60 },
+    ISO_IEC_42001: { short: "ISO", ISO: 60 },
+    EU_AI_ACT: { short: "EU", EU: 0 },
+  };
   const seed = {
     NIST: ["IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "PARTIAL", "PARTIAL", "PARTIAL", "ROADMAP"],
     ISO:  ["IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "IMPLEMENTED", "PARTIAL", "PARTIAL", "PARTIAL", "ROADMAP"],
@@ -335,7 +340,10 @@ function buildComplianceHeatmap(THREE) {
     const bb = _label.billboard(THREE, "STRUCTURAL-ONLY", { text: INV_LABEL[f], scale: 0.32, position: [(c - 1) * cw, 1.4, (rows / 2) * ch + 0.9] });
     g.add(bb);
   });
-  g.userData.cells = cells; g.userData.pillars = pillars; g.userData.frameworks = frameworks;
+  g.userData.cells = cells;
+  g.userData.pillars = pillars;
+  g.userData.frameworks = frameworks;
+  g.userData.coverage = coverage;
   return g;
 }
 
@@ -375,6 +383,8 @@ function buildLedgerChain(THREE) {
 // NOT more safety (lambda_note).
 function buildAttestationAxes(THREE) {
   const g = new THREE.Group(); g.userData.kind = "axes";
+  // runtime_attestation.py response contract: axes_present.{build,model,runtime}
+  const axes_present = { build: false, model: false, runtime: false };
   const defs = [
     { name: "build", dir: [1, 0, 0], color: C.green },
     { name: "model", dir: [0, 1, 0], color: C.gold },
@@ -398,7 +408,7 @@ function buildAttestationAxes(THREE) {
     new THREE.MeshStandardMaterial({ color: C.accent, emissive: C.accent, emissiveIntensity: 0.4 }),
   );
   g.add(hub);
-  g.userData.bars = bars;
+  g.userData.bars = bars; g.userData.axes_present = axes_present;
   return g;
 }
 
@@ -562,15 +572,17 @@ function _buildOverlay(ctx) {
     "modeled on GUAC v1.0 · Sigstore/Rekor · SCITT — knowledge graph + Merkle hash-chain + crosswalk");
   _overlay.appendChild(sub);
 
-  // per-route live badges: LIVE routes first (drive the tab), then the PENDING ones.
+  // Per-route live badges: governance core first, then optional assurance contracts.
   const badgeWrap = el("div", "display:flex;flex-direction:column;gap:5px;pointer-events:auto");
   _hud.badges = {};
   const ROUTE_LABEL = {
     info: "restraint posture (info)", gate: "governance gate (evaluate)",
     honest: "build provenance (honest)",
-    artifact: "artifact monitor (pending mesh)", credential: "C2PA credential (pending mesh)",
+    artifact: "artifact monitor (assurance)", credential: "C2PA credential (assurance)",
+    compliance: "compliance crosswalk (live)", attest: "runtime attestation status (read-only)",
+    ledger: "Forge ledger (live summary)",
   };
-  const ALL_BADGE_ROUTES = { ...EP, ...EP_PENDING };
+  const ALL_BADGE_ROUTES = { ...EP, ...EP_ASSURANCE };
   Object.keys(ALL_BADGE_ROUTES).forEach((k) => {
     const row = el("div", "display:flex;align-items:center;gap:8px");
     const tag = el("span", "font:10px ui-monospace,monospace;color:#7d8a96;min-width:182px", ROUTE_LABEL[k]);
@@ -611,7 +623,7 @@ function _buildOverlay(ctx) {
 
   // status / scope line (filled live)
   _hud.status = el("div", "font:10px ui-monospace,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto");
-  _hud.status.textContent = "wiring live governance gate (restraint info + evaluate + honest)…";
+  _hud.status.textContent = "connecting governance core and assurance contracts…";
   _overlay.appendChild(_hud.status);
 
   // "what this means" plain-language toggle (matches the research surfaces).
@@ -692,9 +704,9 @@ function startPolls(ctx) {
     _applyHonest(json);
   }, { badge: _hud.badges.honest }));
 
-  // 4/5) PENDING-backend assurance routes (Forge mesh). Optional: 404 -> honest
-  //    NO-LIVE-DATA badge; light up the SBOM/callout automatically if they ever 200.
-  _handles.push(_live.poll(EP_PENDING.artifact, 9000, (json, meta) => {
+  // 4-8) Assurance routes. Optional: 404 -> honest NO-LIVE-DATA badge.
+  //    Attestation polling is read-only; signature minting stays an explicit action.
+  _handles.push(_live.poll(EP_ASSURANCE.artifact, 9000, (json, meta) => {
     _state.artifact = meta;
     _updateSbomFromArtifact(json);
     const v = json.behavioural_verdict || json.verdict;
@@ -704,7 +716,7 @@ function startPolls(ctx) {
     }
   }, { badge: _hud.badges.artifact }));
 
-  _handles.push(_live.poll(EP_PENDING.credential, 11000, (json, meta) => {
+  _handles.push(_live.poll(EP_ASSURANCE.credential, 11000, (json, meta) => {
     _state.credential = meta;
     const hint = json.trust_hint || (json.active_manifest && json.active_manifest.labels && json.active_manifest.labels.trust);
     const callout = _root && _root.children.find((c) => c.userData && c.userData.kind === "callout");
@@ -717,10 +729,143 @@ function startPolls(ctx) {
     }
   }, { badge: _hud.badges.credential }));
 
+  _handles.push(_live.poll(EP_ASSURANCE.compliance, 13000, (json, meta) => {
+    _state.compliance = meta;
+    _applyCompliance(json);
+  }, { badge: _hud.badges.compliance }));
+
+  _handles.push(_live.poll(EP_ASSURANCE.attest, 13000, (json, meta) => {
+    _state.attest = meta;
+    _applyAttestation(json);
+  }, { badge: _hud.badges.attest }));
+
+  _handles.push(_live.poll(EP_ASSURANCE.ledger, 10000, (json, meta) => {
+    _state.ledger = meta;
+    _applyForgeLedger(json);
+  }, { badge: _hud.badges.ledger }));
+
   // roll a compact status line as states change
   _refreshStatus();
   const si = setInterval(_refreshStatus, 2000);
   _handles.push({ stop: () => clearInterval(si) });
+}
+
+// --- OPTIONAL compliance mesh: compliance_crosswalk.py --------------------
+// Accept both object and array representations used by earlier Forge builds.
+// The only value promoted to the visual is pct_implemented from the live body.
+function _applyCompliance(json) {
+  const heatmap = _root && _root.children.find((c) => c.userData && c.userData.kind === "heatmap");
+  if (!heatmap || !Array.isArray(heatmap.userData.cells)) return;
+
+  // Canonical v1 contract: coverage.frameworks carries measured cell-count percentages.
+  // Older Forge builds may expose a keyed coverage object or only crosswalk rows.
+  const report = json && json.coverage;
+  const keyed = report && report.frameworks ? report.frameworks
+    : (report && !Array.isArray(report) ? report : {});
+  const rows = json && Array.isArray(json.crosswalk) ? json.crosswalk : [];
+  const frameworkKeys = ["NIST_AI_RMF", "ISO_IEC_42001", "EU_AI_ACT"];
+  const shortKeys = ["NIST", "ISO", "EU"];
+
+  heatmap.userData.data_kind = (json && json.data_kind) || "structural";
+  heatmap.userData.gates_manifest = (json && json.gates_manifest) || null;
+
+  frameworkKeys.forEach((frameworkKey, column) => {
+    let entry = keyed[frameworkKey];
+    if (!entry && rows.length) {
+      const frameworkRows = rows.filter((row) => row && row.framework === frameworkKey);
+      const implemented = frameworkRows.filter((row) => row.status === "IMPLEMENTED").length;
+      entry = frameworkRows.length
+        ? { pct_implemented: 100 * implemented / frameworkRows.length }
+        : null;
+    }
+
+    const pct = entry && Number(entry.pct_implemented);
+    const cells = heatmap.userData.cells
+      .filter((cell) => cell.userData.framework === shortKeys[column]);
+    if (!Number.isFinite(pct)) {
+      // A live HTTP response without framework coverage must not leave seeded values lit.
+      cells.forEach((cell) => {
+        cell.userData.status = "NO-LIVE-DATA";
+        cell.material.color.setHex(C.gray); cell.material.emissive.setHex(C.gray);
+      });
+      return;
+    }
+
+    const implementedRows = Math.max(0, Math.min(10, Math.floor(pct / 10)));
+    cells.forEach((cell, row) => {
+      const status = row < implementedRows ? "IMPLEMENTED" : "ROADMAP";
+      const color = STATUS_COLOR[status];
+      cell.userData.status = status;
+      cell.material.color.setHex(color); cell.material.emissive.setHex(color);
+    });
+  });
+}
+
+// --- READ-ONLY runtime attestation status: axes_present + statement ---------
+function _applyAttestation(json) {
+  const axes = _root && _root.children.find((c) => c.userData && c.userData.kind === "axes");
+  if (!axes || !axes.userData.bars) return;
+  const statement = (json && json.statement) || {};
+  const khipu = statement.khipu_chain || {};
+  const axes_present = (json && json.axes_present) || {
+    build: Boolean(statement.git_sha && statement.git_sha !== "unknown" &&
+                   statement.build_time && statement.build_time !== "unknown"),
+    model: Boolean(statement.model_manifest),
+    runtime: typeof khipu.chain_ok === "boolean",
+  };
+  ["build", "model", "runtime"].forEach((name) => {
+    const present = axes_present[name] === true;
+    const bar = axes.userData.bars[name];
+    if (!bar) return;
+    bar.material.opacity = present ? 0.95 : 0.3;
+    bar.material.emissiveIntensity = present ? 0.55 : 0.2;
+  });
+  axes.userData.axes_present = axes_present;
+  axes.userData.signing_available = json && json.signing_available === true;
+}
+
+// --- LIVE Forge ledger mesh: receipt_chain + energy_ledger -----------------
+function _applyForgeLedger(json) {
+  const explicitEntries = json && Array.isArray(json.entries) ? json.entries : null;
+  const chain = (json && json.receipt_chain) || null;
+  const ledger = _root && _root.children.find((c) => c.userData && c.userData.kind === "ledger");
+  if (ledger && Array.isArray(ledger.userData.blocks)) {
+    ledger.userData.receipt_chain = chain;
+    ledger.userData.energy_ledger = (json && json.energy_ledger) || null;
+
+    if (explicitEntries) {
+      ledger.userData.blocks.forEach((block, index) => {
+        if (index === 0) return;
+        const entry = explicitEntries[index - 1];
+        const denied = entry && /DENY|BLOCK/i.test(String(entry.decision || entry.status || ""));
+        const color = entry ? (denied ? C.red : C.green) : C.gray;
+        block.material.color.setHex(color); block.material.emissive.setHex(color);
+        block.userData.entry_hash = entry && entry.entry_hash;
+      });
+    } else {
+      const count = chain ? Number(chain.count ?? chain.depth ?? 0) : 0;
+      const active = Number.isFinite(count)
+        ? Math.max(0, Math.min(ledger.userData.blocks.length - 1, count))
+        : 0;
+      ledger.userData.blocks.forEach((block, index) => {
+        if (index === 0) return;
+        const isActive = index <= active;
+        const color = !isActive ? C.gray : (chain.chain_ok === false ? C.red : C.green);
+        block.material.color.setHex(color); block.material.emissive.setHex(color);
+        block.userData.entry_hash = isActive && index === active ? chain.head : null;
+      });
+    }
+  }
+
+  const kill = _root && _root.children.find((c) => c.userData && c.userData.kind === "killswitch");
+  if (kill) {
+    const available = json && typeof json.kill_switch === "boolean";
+    kill.userData.armed = available ? json.kill_switch : null;
+    kill.userData.source = available ? "live" : "unavailable";
+    const color = !available ? C.gray : (json.kill_switch ? C.red : C.green);
+    kill.userData.core.material.color.setHex(color);
+    kill.userData.core.material.emissive.setHex(color);
+  }
 }
 
 // --- LIVE posture: /restraint/info -> doctrine lock + ladder spec + Λ floor ----------
@@ -879,16 +1024,16 @@ function _applyHonest(json) {
 
 function _refreshStatus() {
   if (!_hud.status) return;
-  // The tab is LIVE when the governance-gate routes (info/gate/honest) are live; the two
-  // PENDING assurance routes are reported separately and honestly when still 404.
+  // The tab is LIVE when the governance-gate routes are live; optional assurance
+  // contract gaps are reported separately and honestly.
   const liveCore = Object.keys(EP).filter((k) => _state[k] && _state[k].state === "live");
-  const pendingMissing = Object.keys(EP_PENDING).filter((k) => _state[k] && (_state[k].state === "missing" || _state[k].state === "error"));
+  const assuranceMissing = Object.keys(EP_ASSURANCE).filter((k) => _state[k] && (_state[k].state === "missing" || _state[k].state === "error"));
   if (liveCore.length === 0) {
     _hud.status.textContent = "connecting to live governance gate (restraint info + evaluate + honest)…";
     _hud.status.style.color = "#7d8a96";
   } else {
-    const pend = pendingMissing.length
-      ? ` · ${pendingMissing.length} assurance route(s) NO-LIVE-DATA (Forge mesh pending)`
+    const pend = assuranceMissing.length
+      ? ` · ${assuranceMissing.length} assurance route(s) NO-LIVE-DATA`
       : "";
     _hud.status.textContent = `LIVE governance gate: ${liveCore.join(", ")}${pend}`;
     _hud.status.style.color = "#39d3c4";
