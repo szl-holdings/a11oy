@@ -221,9 +221,9 @@
     {
       "name": "energy-attested-runs",
       "slug": "energy-attested-runs",
-      "sdk": "gradio",
+      "sdk": "static",
       "repo_id": "SZLHOLDINGS/energy-attested-runs",
-      "app_url": "https://szlholdings-energy-attested-runs.hf.space",
+      "app_url": "https://szlholdings-energy-attested-runs.static.hf.space",
       "exact_revision": {
         "policy": "OBSERVE",
         "expected": "UNKNOWN"
@@ -335,9 +335,9 @@
     {
       "name": "guardrail-receipt",
       "slug": "guardrail-receipt",
-      "sdk": "gradio",
+      "sdk": "static",
       "repo_id": "SZLHOLDINGS/guardrail-receipt",
-      "app_url": "https://szlholdings-guardrail-receipt.hf.space",
+      "app_url": "https://szlholdings-guardrail-receipt.static.hf.space",
       "exact_revision": {
         "policy": "OBSERVE",
         "expected": "UNKNOWN"
@@ -801,9 +801,9 @@
     {
       "name": "szl-forge-lab",
       "slug": "szl-forge-lab",
-      "sdk": "gradio",
+      "sdk": "static",
       "repo_id": "SZLHOLDINGS/szl-forge-lab",
-      "app_url": "https://szlholdings-szl-forge-lab.hf.space",
+      "app_url": "https://szlholdings-szl-forge-lab.static.hf.space",
       "exact_revision": {
         "policy": "OBSERVE",
         "expected": "UNKNOWN"
