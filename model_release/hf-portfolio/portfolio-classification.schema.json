@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/hf-portfolio-classification.v1.json",
+  "title": "SZL Hugging Face portfolio classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "organization", "observed_date", "observation_basis", "policies", "models", "observed_findings", "external_mutations"],
+  "properties": {
+    "schema_version": {"const": "szl.hf-portfolio-classification.v1"},
+    "organization": {"const": "SZLHOLDINGS"},
+    "observed_date": {"type": "string", "format": "date"},
+    "observation_basis": {"type": "string", "minLength": 20},
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification_unit", "downloads_are_adoption_signal_not_quality", "zero_downloads_authorize_deletion", "unknown_repository_policy", "promotion_authority", "delete_authority"],
+      "properties": {
+        "classification_unit": {"const": "REPOSITORY_COMPONENTS_NOT_HUB_REPOSITORY_TYPE"},
+        "downloads_are_adoption_signal_not_quality": {"const": true},
+        "zero_downloads_authorize_deletion": {"const": false},
+        "unknown_repository_policy": {"const": "UNCLASSIFIED_FAIL_CLOSED"},
+        "promotion_authority": {"const": false},
+        "delete_authority": {"const": false}
+      }
+    },
+    "models": {"type": "array", "minItems": 15, "maxItems": 15, "uniqueItems": true, "items": {"$ref": "#/$defs/model"}},
+    "observed_findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docker_spaces_missing_standard_health_boundary", "datasets_broken_or_no_config"],
+      "properties": {
+        "docker_spaces_missing_standard_health_boundary": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/spaceFinding"}},
+        "datasets_broken_or_no_config": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"$ref": "#/$defs/datasetFinding"}}
+      }
+    },
+    "external_mutations": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"const": false}
+    }
+  },
+  "$defs": {
+    "claimSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["full_language_model", "peft_adapter", "quantized_language_model", "custom_character_model", "sklearn_surrogate", "torch_surrogate", "runtime_recipe", "kernel_source", "no_weight_utility"],
+      "properties": {
+        "full_language_model": {"type": "boolean"}, "peft_adapter": {"type": "boolean"}, "quantized_language_model": {"type": "boolean"}, "custom_character_model": {"type": "boolean"}, "sklearn_surrogate": {"type": "boolean"}, "torch_surrogate": {"type": "boolean"}, "runtime_recipe": {"type": "boolean"}, "kernel_source": {"type": "boolean"}, "no_weight_utility": {"type": "boolean"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "observed_revision", "primary_class", "components", "evidence_files", "claims", "release_state", "serving_qualified", "promotion_authorized", "delete_authorized", "recommended_action"],
+      "properties": {
+        "repository_id": {"type": "string", "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"},
+        "observed_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "primary_class": {"enum": ["FULL_LANGUAGE_MODEL", "QUANTIZED_LANGUAGE_MODEL", "CUSTOM_CHARACTER_MODEL", "RUNTIME_RECIPE", "SKLEARN_SURROGATE", "TORCH_SURROGATE", "KERNEL_SOURCE", "NO_WEIGHT_UTILITY"]},
+        "components": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["FULL_LANGUAGE_MODEL", "PEFT_ADAPTER", "QUANTIZED_LANGUAGE_MODEL", "CUSTOM_CHARACTER_MODEL", "CUSTOM_RUNTIME", "RUNTIME_RECIPE", "SKLEARN_SURROGATE", "TORCH_SURROGATE", "KERNEL_SOURCE", "NO_WEIGHT_UTILITY", "TRAIN_RECEIPT", "SIGNED_TRAIN_RECEIPT", "SIGNED_EVAL_RECEIPT"]}},
+        "evidence_files": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "claims": {"$ref": "#/$defs/claimSet"},
+        "release_state": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+        "serving_qualified": {"const": false},
+        "promotion_authorized": {"const": false},
+        "delete_authorized": {"const": false},
+        "recommended_action": {"type": "string", "pattern": "^[A-Z0-9_]+$"}
+      }
+    },
+    "spaceFinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository_id", "hub_stage_observed", "root_http_observed", "health_state", "recommended_repo_fix"],
+      "properties": {"repository_id": {"type": "string"}, "hub_stage_observed": {"const": "RUNNING"}, "root_http_observed": {"const": 200}, "health_state": {"const": "STANDARD_HEALTH_BOUNDARY_NOT_FOUND"}, "recommended_repo_fix": {"type": "string", "minLength": 20}}
+    },
+    "datasetFinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository_id", "dataset_server_state", "repository_shape", "recommended_repo_fix"],
+      "properties": {"repository_id": {"type": "string"}, "dataset_server_state": {"enum": ["HTTP_500", "NO_CONFIG"]}, "repository_shape": {"type": "string", "pattern": "^[A-Z0-9_]+$"}, "recommended_repo_fix": {"type": "string", "minLength": 20}}
+    }
+  }
+}
