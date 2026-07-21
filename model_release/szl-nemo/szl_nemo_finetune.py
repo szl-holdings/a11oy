@@ -45,6 +45,7 @@ GENERATED = HERE / "generated"
 MANIFEST_PATH = GENERATED / "curriculum-manifest.json"
 TRAIN_PATH = GENERATED / "train.jsonl"
 EVAL_PATH = GENERATED / "eval.jsonl"
+SHADOW_EVAL_PATH = GENERATED / "shadow-eval.jsonl"
 DSSE_PATH = REPO / "szl_dsse.py"
 CONTENT_ADDRESS_PATH = REPO / "szl_content_address.py"
 SYSTEM_PROMPT = (
@@ -412,28 +413,57 @@ def _validate_contract_assets(contract: dict[str, Any]) -> None:
 
 
 def validate_source(source: dict[str, Any], contract: dict[str, Any]) -> None:
-    expected = {"schema_version", "owner", "license", "rights_basis", "profile_id", "notice", "train_scenarios", "eval_scenarios"}
+    expected = {
+        "schema_version", "owner", "license", "rights_basis", "profile_id",
+        "notice", "train_scenarios", "contrastive_train_scenarios",
+        "eval_scenarios", "shadow_eval_scenarios",
+    }
     if set(source) != expected:
         raise GateRefused("curriculum source has unknown or missing fields")
-    if source["schema_version"] != "szl.nemo.curriculum-source.v1":
+    if source["schema_version"] != "szl.nemo.curriculum-source.v2":
         raise GateRefused("unsupported curriculum source schema")
     if (source["owner"], source["license"], source["rights_basis"], source["profile_id"]) != (
-        "SZL Holdings", "Apache-2.0", "PROJECT_AUTHORED_SCENARIOS", "SZL-Nemo-Governed-v1"
+        "SZL Holdings", "Apache-2.0", "PROJECT_AUTHORED_SCENARIOS", "SZL-Nemo-Governed-v2"
     ):
         raise GateRefused("curriculum rights declaration is not admitted")
     if not isinstance(source["notice"], str) or not source["notice"].strip():
         raise GateRefused("curriculum notice is absent")
     train = source["train_scenarios"]
+    contrastive = source["contrastive_train_scenarios"]
     evaluation = source["eval_scenarios"]
-    if not isinstance(train, list) or len(train) * 3 < contract["curriculum"]["minimum_train_rows"]:
+    shadow = source["shadow_eval_scenarios"]
+    if (
+        not isinstance(train, list)
+        or not isinstance(contrastive, list)
+        or (len(train) + len(contrastive)) * 3
+        < contract["curriculum"]["minimum_train_rows"]
+    ):
         raise GateRefused("training scenarios are below the contract minimum")
+    if len(contrastive) < contract["curriculum"]["minimum_contrastive_scenarios"]:
+        raise GateRefused("contrastive training scenarios are below the contract minimum")
     if not isinstance(evaluation, list) or len(evaluation) < contract["curriculum"]["minimum_eval_rows"]:
         raise GateRefused("evaluation scenarios are below the contract minimum")
+    if not isinstance(shadow, list) or len(shadow) < contract["curriculum"]["minimum_shadow_eval_rows"]:
+        raise GateRefused("shadow evaluation scenarios are below the contract minimum")
     ids: set[str] = set()
     prompts: set[str] = set()
-    for split, scenarios in (("train", train), ("eval", evaluation)):
+    required_classes = set(contract["curriculum"]["required_contrastive_behavior_classes"])
+    contrastive_counts = {name: 0 for name in required_classes}
+    for split, scenarios in (
+        ("train", train),
+        ("contrastive", contrastive),
+        ("eval", evaluation),
+        ("shadow", shadow),
+    ):
         for item in scenarios:
-            keys = {"id", "prompt", "response"} if split == "train" else {"id", "prompt", "required_terms", "forbidden_terms"}
+            if split == "train":
+                keys = {"id", "prompt", "response"}
+            elif split == "contrastive":
+                keys = {"id", "behavior_class", "prompt", "response", "rights_admission"}
+            elif split == "eval":
+                keys = {"id", "prompt", "required_terms", "forbidden_terms"}
+            else:
+                keys = {"id", "behavior_class", "prompt", "required_terms", "forbidden_terms"}
             if not isinstance(item, dict) or set(item) != keys:
                 raise GateRefused(f"{split} scenario has unknown or missing fields")
             if not all(isinstance(item[key], str) and item[key].strip() for key in ("id", "prompt")):
@@ -442,16 +472,41 @@ def validate_source(source: dict[str, Any], contract: dict[str, Any]) -> None:
                 raise GateRefused("curriculum ids and prompts must be unique across splits")
             ids.add(item["id"])
             prompts.add(item["prompt"].casefold())
-            if split == "train" and (not isinstance(item["response"], str) or not item["response"].strip()):
+            if split in {"train", "contrastive"} and (not isinstance(item["response"], str) or not item["response"].strip()):
                 raise GateRefused("training response is invalid")
-            if split == "eval":
+            if split == "contrastive":
+                behavior_class = item["behavior_class"]
+                if behavior_class not in required_classes:
+                    raise GateRefused("contrastive behavior class is not preregistered")
+                admission = item["rights_admission"]
+                expected_admission = {
+                    "author": "SZL Holdings",
+                    "license": "Apache-2.0",
+                    "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
+                    "provenance": "INDEPENDENTLY_AUTHORED_FOR_NEMO_V2",
+                    "held_out_contamination": "NO_ORIGINAL_OR_SHADOW_EVAL_TEXT_COPIED",
+                }
+                if admission != expected_admission:
+                    raise GateRefused("contrastive training row lacks exact rights admission")
+                contrastive_counts[behavior_class] += 1
+            if split == "shadow" and item["behavior_class"] not in required_classes:
+                raise GateRefused("shadow behavior class is not preregistered")
+            if split in {"eval", "shadow"}:
                 for key in ("required_terms", "forbidden_terms"):
                     terms = item[key]
                     if not isinstance(terms, list) or (key == "required_terms" and not terms) or any(not isinstance(term, str) or not term for term in terms):
                         raise GateRefused(f"evaluation {key} is invalid")
+    minimum = contract["curriculum"]["minimum_contrastive_examples_per_class"]
+    maximum = contract["curriculum"]["maximum_contrastive_examples_per_class"]
+    if set(contrastive_counts) != required_classes or any(
+        not minimum <= count <= maximum for count in contrastive_counts.values()
+    ):
+        raise GateRefused("contrastive behavior coverage is outside the preregistered bounds")
 
 
-def _curriculum_rows(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _curriculum_rows(
+    source: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     variants = (
         "Answer directly and preserve evidence boundaries: ",
         "Respond concisely under the honesty doctrine: ",
@@ -471,6 +526,21 @@ def _curriculum_rows(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list
                     {"role": "assistant", "content": scenario["response"]},
                 ],
             })
+    for scenario in source["contrastive_train_scenarios"]:
+        for index, prefix in enumerate(variants, 1):
+            train.append({
+                "schema_version": "szl.nemo.curriculum-record.v2",
+                "record_id": f"train:contrastive:{scenario['id']}:{index}",
+                "split": "TRAIN",
+                "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
+                "behavior_class": scenario["behavior_class"],
+                "rights_admission": scenario["rights_admission"],
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prefix + scenario["prompt"]},
+                    {"role": "assistant", "content": scenario["response"]},
+                ],
+            })
     evaluation = [{
         "schema_version": "szl.nemo.eval-record.v1",
         "record_id": f"eval:{scenario['id']}",
@@ -482,7 +552,19 @@ def _curriculum_rows(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list
         ],
         "expected": {"required_terms": scenario["required_terms"], "forbidden_terms": scenario["forbidden_terms"]},
     } for scenario in source["eval_scenarios"]]
-    return train, evaluation
+    shadow = [{
+        "schema_version": "szl.nemo.shadow-eval-record.v1",
+        "record_id": f"shadow:{scenario['id']}",
+        "split": "SHADOW_EVAL",
+        "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
+        "behavior_class": scenario["behavior_class"],
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": scenario["prompt"]},
+        ],
+        "expected": {"required_terms": scenario["required_terms"], "forbidden_terms": scenario["forbidden_terms"]},
+    } for scenario in source["shadow_eval_scenarios"]]
+    return train, evaluation, shadow
 
 
 def build_curriculum(output: Path = GENERATED) -> dict[str, Any]:
@@ -490,18 +572,25 @@ def build_curriculum(output: Path = GENERATED) -> dict[str, Any]:
     _validate_contract_assets(contract)
     source = load_object(SOURCE_PATH)
     validate_source(source, contract)
-    train, evaluation = _curriculum_rows(source)
-    train_path, eval_path = output / "train.jsonl", output / "eval.jsonl"
+    train, evaluation, shadow = _curriculum_rows(source)
+    train_path = output / "train.jsonl"
+    eval_path = output / "eval.jsonl"
+    shadow_eval_path = output / "shadow-eval.jsonl"
     atomic_jsonl(train_path, train)
     atomic_jsonl(eval_path, evaluation)
+    atomic_jsonl(shadow_eval_path, shadow)
+    if sha256_file(eval_path) != contract["curriculum"]["frozen_original_eval_sha256"]:
+        raise GateRefused("frozen original evaluation bytes changed")
     manifest = {
-        "schema_version": "szl.nemo.curriculum-manifest.v1",
+        "schema_version": "szl.nemo.curriculum-manifest.v2",
         "contract_id": contract["contract_id"],
         "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
         "source_sha256": sha256_file(SOURCE_PATH),
         "schema_sha256": sha256_file(SCHEMA_PATH),
         "train": {"path": train_path.name, "rows": len(train), "sha256": sha256_file(train_path)},
         "eval": {"path": eval_path.name, "rows": len(evaluation), "sha256": sha256_file(eval_path)},
+        "shadow_eval": {"path": shadow_eval_path.name, "rows": len(shadow), "sha256": sha256_file(shadow_eval_path)},
+        "evaluation_gate": "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS",
         "excluded_from_gradients": contract["excluded_from_gradients"],
         "external_mutations": {"uploaded": False, "published": False, "deployed": False},
     }
@@ -510,17 +599,26 @@ def build_curriculum(output: Path = GENERATED) -> dict[str, Any]:
 
 
 def validate_curriculum() -> dict[str, Any]:
-    if not MANIFEST_PATH.is_file() or not TRAIN_PATH.is_file() or not EVAL_PATH.is_file():
+    if not all(path.is_file() for path in (MANIFEST_PATH, TRAIN_PATH, EVAL_PATH, SHADOW_EVAL_PATH)):
         raise GateRefused("generated curriculum is absent; run build")
     observed = load_object(MANIFEST_PATH)
     with tempfile.TemporaryDirectory(prefix="szl-nemo-curriculum-") as directory:
         expected = build_curriculum(Path(directory))
-        if observed != expected or sha256_file(TRAIN_PATH) != expected["train"]["sha256"] or sha256_file(EVAL_PATH) != expected["eval"]["sha256"]:
+        if (
+            observed != expected
+            or sha256_file(TRAIN_PATH) != expected["train"]["sha256"]
+            or sha256_file(EVAL_PATH) != expected["eval"]["sha256"]
+            or sha256_file(SHADOW_EVAL_PATH) != expected["shadow_eval"]["sha256"]
+        ):
             raise GateRefused("generated curriculum differs from its pinned source")
     train_prompts = {row["messages"][1]["content"].casefold() for row in iter_jsonl(TRAIN_PATH)}
     eval_prompts = {row["messages"][1]["content"].casefold() for row in iter_jsonl(EVAL_PATH)}
-    if train_prompts & eval_prompts:
-        raise GateRefused("train/eval prompt overlap detected")
+    shadow_prompts = {row["messages"][1]["content"].casefold() for row in iter_jsonl(SHADOW_EVAL_PATH)}
+    if train_prompts & (eval_prompts | shadow_prompts) or eval_prompts & shadow_prompts:
+        raise GateRefused("training, original evaluation, and shadow evaluation prompts must be disjoint")
+    contract = load_object(CONTRACT_PATH)
+    if sha256_file(EVAL_PATH) != contract["curriculum"]["frozen_original_eval_sha256"]:
+        raise GateRefused("frozen original evaluation identity changed")
     return observed
 
 
@@ -531,6 +629,7 @@ def curriculum_input_identity() -> dict[str, Any]:
         "manifest": {"bytes": MANIFEST_PATH.stat().st_size, "sha256": sha256_file(MANIFEST_PATH)},
         "train": {"bytes": TRAIN_PATH.stat().st_size, "sha256": sha256_file(TRAIN_PATH)},
         "eval": {"bytes": EVAL_PATH.stat().st_size, "sha256": sha256_file(EVAL_PATH)},
+        "shadow_eval": {"bytes": SHADOW_EVAL_PATH.stat().st_size, "sha256": sha256_file(SHADOW_EVAL_PATH)},
     }
 
 
@@ -1671,6 +1770,82 @@ def _evaluate_output(text: str, expected: dict[str, Any]) -> dict[str, Any]:
     return {"state": "PASS" if not missing and not forbidden else "FAIL", "output_sha256": sha256_bytes(text.encode("utf-8")), "output_chars": len(text), "missing_required_terms": missing, "present_forbidden_terms": forbidden}
 
 
+def _subsequence_offsets(sequence: list[int], subsequence: list[int]) -> list[int]:
+    if not subsequence:
+        return []
+    width = len(subsequence)
+    return [
+        index
+        for index in range(len(sequence) - width + 1)
+        if sequence[index:index + width] == subsequence
+    ]
+
+
+def completion_only_training_setup(
+    tokenizer: Any,
+    texts: list[str],
+    settings: dict[str, Any],
+    collator_type: Any,
+) -> tuple[Any, dict[str, Any]]:
+    """Bind loss to the assistant completion and prove no completion truncation."""
+
+    if settings.get("loss_scope") != "ASSISTANT_COMPLETION_ONLY":
+        raise GateRefused("training loss scope is not assistant-completion-only")
+    marker = settings.get("assistant_response_template")
+    if not isinstance(marker, str) or not marker:
+        raise GateRefused("assistant response template is absent")
+    marker_tokens = tokenizer.encode(marker, add_special_tokens=False)
+    if not marker_tokens:
+        raise GateRefused("assistant response template tokenization is empty")
+    max_length = int(settings["max_sequence_length"])
+    full_counts: list[int] = []
+    supervised_counts: list[int] = []
+    masked_counts: list[int] = []
+    features: list[dict[str, Any]] = []
+    for text in texts:
+        feature = tokenizer(text, add_special_tokens=False, truncation=False)
+        token_ids = list(feature["input_ids"])
+        if len(token_ids) > max_length:
+            raise GateRefused("assistant completion would be truncated at the contract sequence length")
+        offsets = _subsequence_offsets(token_ids, marker_tokens)
+        if len(offsets) != 1:
+            raise GateRefused("rendered training row does not contain exactly one assistant response marker")
+        completion_start = offsets[0] + len(marker_tokens)
+        supervised = len(token_ids) - completion_start
+        if supervised <= 0:
+            raise GateRefused("rendered training row has no assistant completion tokens")
+        full_counts.append(len(token_ids))
+        supervised_counts.append(supervised)
+        masked_counts.append(completion_start)
+        features.append(feature)
+    collator = collator_type(
+        response_template=marker_tokens,
+        tokenizer=tokenizer,
+        mlm=False,
+    )
+    probe = collator(features)
+    observed_supervised = []
+    for labels in probe["labels"]:
+        values = labels.tolist() if hasattr(labels, "tolist") else list(labels)
+        observed_supervised.append(sum(value != -100 for value in values))
+    if observed_supervised != supervised_counts:
+        raise GateRefused("completion-only collator supervision does not match the preregistered boundary")
+    evidence = {
+        "schema_version": "szl.nemo.training-format.v1",
+        "state": "PASS_ASSISTANT_COMPLETION_ONLY",
+        "loss_scope": settings["loss_scope"],
+        "assistant_response_template_sha256": sha256_bytes(marker.encode("utf-8")),
+        "assistant_response_template_token_ids": marker_tokens,
+        "rows": len(texts),
+        "full_tokens": {"minimum": min(full_counts), "maximum": max(full_counts)},
+        "masked_prompt_tokens": {"minimum": min(masked_counts), "maximum": max(masked_counts)},
+        "supervised_completion_tokens": {"minimum": min(supervised_counts), "maximum": max(supervised_counts)},
+        "truncated_rows": 0,
+        "collator_probe_rows": len(observed_supervised),
+    }
+    return collator, evidence
+
+
 def _sign_summary(
     summary: dict[str, Any],
     contract: dict[str, Any],
@@ -2365,11 +2540,12 @@ def train(
     curriculum_before = curriculum_input_identity()
     train_rows = list(iter_jsonl(TRAIN_PATH))
     eval_rows = list(iter_jsonl(EVAL_PATH))
+    shadow_eval_rows = list(iter_jsonl(SHADOW_EVAL_PATH))
     if curriculum_input_identity() != curriculum_before:
         raise GateRefused("curriculum inputs changed while rows were admitted")
     os.environ.update({"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "HF_DATASETS_OFFLINE": "1", "WANDB_DISABLED": "true", "TOKENIZERS_PARALLELISM": "false", "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1", "NO_PROXY": "*"})
     network_namespace = verify_linux_network_namespace()
-    receipt: dict[str, Any] = {"schema_version": "szl.nemo.training-receipt.v1", "contract_id": contract["contract_id"], "state": "RUNNING_NOT_PROMOTED", "started_at_unix_ns": time.time_ns(), "source_control": source_control, "contract_sha256": sha256_file(CONTRACT_PATH), "runner_sha256": sha256_file(Path(__file__)), "curriculum_manifest_sha256": sha256_file(MANIFEST_PATH), "curriculum_inputs_before": curriculum_before, "admitted_train_rows": len(train_rows), "admitted_eval_rows": len(eval_rows), "base_files_before": before, "dynamic_module_cache": module_cache_receipt, "license": contract["base"]["license"], "network_download_allowed": False, "os_network_namespace": network_namespace, "upload_allowed": False, "promotion": "NOT_PROMOTED"}
+    receipt: dict[str, Any] = {"schema_version": "szl.nemo.training-receipt.v2", "contract_id": contract["contract_id"], "state": "RUNNING_NOT_PROMOTED", "started_at_unix_ns": time.time_ns(), "source_control": source_control, "contract_sha256": sha256_file(CONTRACT_PATH), "runner_sha256": sha256_file(Path(__file__)), "curriculum_manifest_sha256": sha256_file(MANIFEST_PATH), "curriculum_inputs_before": curriculum_before, "admitted_train_rows": len(train_rows), "admitted_eval_rows": len(eval_rows), "admitted_shadow_eval_rows": len(shadow_eval_rows), "base_files_before": before, "dynamic_module_cache": module_cache_receipt, "license": contract["base"]["license"], "network_download_allowed": False, "os_network_namespace": network_namespace, "upload_allowed": False, "promotion": "NOT_PROMOTED"}
     atomic_json(receipts / "training-receipt.json", receipt)
     try:
         with deny_python_network() as network_control, RuntimeGuard(contract) as guard:
@@ -2378,7 +2554,7 @@ def train(
             from datasets import Dataset
             from peft import LoraConfig, PeftModel, prepare_model_for_kbit_training
             from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainerCallback
-            from trl import SFTConfig, SFTTrainer
+            from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
             if not torch.cuda.is_available():
                 raise GateRefused("CUDA is unavailable after admission")
             receipt["runtime_identity"] = verify_runtime(torch)
@@ -2408,9 +2584,13 @@ def train(
             texts = [tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=False) for row in train_rows]
             dataset = Dataset.from_dict({"text": texts})
             settings = contract["training"]
+            completion_collator, formatting_evidence = completion_only_training_setup(
+                tokenizer, texts, settings, DataCollatorForCompletionOnlyLM
+            )
+            receipt["training_format"] = formatting_evidence
             lora = LoraConfig(r=settings["lora_rank"], lora_alpha=settings["lora_alpha"], lora_dropout=settings["lora_dropout"], bias="none", task_type="CAUSAL_LM", target_modules=settings["target_modules"])
             arguments = SFTConfig(output_dir=str(output / "trainer"), max_steps=settings["max_steps"], per_device_train_batch_size=settings["per_device_batch_size"], gradient_accumulation_steps=settings["gradient_accumulation_steps"], learning_rate=settings["learning_rate"], warmup_ratio=settings["warmup_ratio"], optim=settings["optimizer"], seed=settings["seed"], bf16=bf16, fp16=not bf16, max_seq_length=settings["max_sequence_length"], dataset_text_field="text", logging_steps=1, save_strategy="no", report_to="none", gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False})
-            trainer = SFTTrainer(model=model, processing_class=tokenizer, train_dataset=dataset, peft_config=lora, args=arguments, callbacks=[ThermalGuard()])
+            trainer = SFTTrainer(model=model, processing_class=tokenizer, train_dataset=dataset, data_collator=completion_collator, peft_config=lora, args=arguments, callbacks=[ThermalGuard()])
             receipt["gradient_checkpointing"] = gradient_checkpointing_evidence(
                 trainer.model, "training"
             )
@@ -2436,17 +2616,55 @@ def train(
                 reload_model, receipt["padding_token_admission"], "reload"
             )
             reload_model = PeftModel.from_pretrained(reload_model, str(adapter), is_trainable=False, local_files_only=True); reload_model.eval()
-            results: list[dict[str, Any]] = []
-            for row in eval_rows:
-                guard.check(row["record_id"])
-                prompt = tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=True, enable_thinking=False)
-                inputs = tokenizer(prompt, return_tensors="pt").to(reload_model.device)
-                with torch.inference_mode():
-                    generated = reload_model.generate(**inputs, max_new_tokens=settings["maximum_eval_new_tokens"], do_sample=False, pad_token_id=tokenizer.pad_token_id)
-                text = tokenizer.decode(generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
-                results.append({"record_id": row["record_id"], **_evaluate_output(text, row["expected"])})
-            reload_state = "PASS" if results and all(item["state"] == "PASS" for item in results) else "FAIL"
-            reload_receipt = {"schema_version": "szl.nemo.reload-evaluation-receipt.v1", "state": reload_state, "rows": len(results), "passes": sum(item["state"] == "PASS" for item in results), "adapter_files_sha256": sha256_file(receipts / "adapter-files.json"), "base_revision": contract["base"]["revision"], "eval_sha256": sha256_file(EVAL_PATH), "results": results, "promotion": "NONE_AUTOMATIC"}
+            def evaluate_set(
+                set_id: str,
+                rows: list[dict[str, Any]],
+                source_path: Path,
+            ) -> dict[str, Any]:
+                results: list[dict[str, Any]] = []
+                for row in rows:
+                    guard.check(row["record_id"])
+                    prompt = tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=True, enable_thinking=False)
+                    inputs = tokenizer(prompt, return_tensors="pt").to(reload_model.device)
+                    with torch.inference_mode():
+                        generated = reload_model.generate(**inputs, max_new_tokens=settings["maximum_eval_new_tokens"], do_sample=False, pad_token_id=tokenizer.pad_token_id)
+                    text = tokenizer.decode(generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+                    results.append({"record_id": row["record_id"], **_evaluate_output(text, row["expected"])})
+                state = "PASS" if results and all(item["state"] == "PASS" for item in results) else "FAIL"
+                return {
+                    "set_id": set_id,
+                    "state": state,
+                    "rows": len(results),
+                    "passes": sum(item["state"] == "PASS" for item in results),
+                    "source_sha256": sha256_file(source_path),
+                    "results": results,
+                }
+
+            original_evaluation = evaluate_set("ORIGINAL_FROZEN", eval_rows, EVAL_PATH)
+            shadow_evaluation = evaluate_set("SHADOW_PREREGISTERED", shadow_eval_rows, SHADOW_EVAL_PATH)
+            required_set_ids = contract["evaluation"]["mandatory_sets"]
+            observed_sets = {
+                original_evaluation["set_id"]: original_evaluation,
+                shadow_evaluation["set_id"]: shadow_evaluation,
+            }
+            reload_state = "PASS" if (
+                contract["evaluation"]["requires_both_sets_pass"]
+                and set(required_set_ids) == set(observed_sets)
+                and all(observed_sets[set_id]["state"] == "PASS" for set_id in required_set_ids)
+            ) else "FAIL"
+            reload_receipt = {
+                "schema_version": "szl.nemo.reload-evaluation-receipt.v2",
+                "state": reload_state,
+                "gate": "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS",
+                "mandatory_sets": required_set_ids,
+                "rows": original_evaluation["rows"] + shadow_evaluation["rows"],
+                "passes": original_evaluation["passes"] + shadow_evaluation["passes"],
+                "adapter_files_sha256": sha256_file(receipts / "adapter-files.json"),
+                "base_revision": contract["base"]["revision"],
+                "original": original_evaluation,
+                "shadow": shadow_evaluation,
+                "promotion": "NONE_AUTOMATIC",
+            }
             atomic_json(receipts / "reload-evaluation-receipt.json", reload_receipt)
             after = verify_base(snapshot)
             if before != after:
@@ -2461,7 +2679,7 @@ def train(
             guard.finalize()
             runtime_guard = guard.receipt()
             training_evidence = {
-                "schema_version": "szl.nemo.training-evidence.v1",
+                "schema_version": "szl.nemo.training-evidence.v2",
                 "contract_id": contract["contract_id"],
                 "candidate_id": contract["candidate_id"],
                 "base_revision": contract["base"]["revision"],
@@ -2488,18 +2706,21 @@ def train(
                     "observed_global_steps": receipt["global_steps"],
                     "training_loss": receipt["training_loss"],
                     "peak_vram_reserved_bytes": receipt["peak_vram_reserved_bytes"],
+                    "training_format": receipt["training_format"],
                 },
                 "artifact_evidence": {
                     "adapter_files_receipt_sha256": sha256_file(receipts / "adapter-files.json"),
                     "reload_evaluation_receipt_sha256": sha256_file(receipts / "reload-evaluation-receipt.json"),
-                    "held_out_eval_sha256": sha256_file(EVAL_PATH),
+                    "frozen_original_eval_sha256": sha256_file(EVAL_PATH),
+                    "preregistered_shadow_eval_sha256": sha256_file(SHADOW_EVAL_PATH),
+                    "mandatory_evaluation_sets": contract["evaluation"]["mandatory_sets"],
                 },
                 "promotion": "NOT_PROMOTED",
             }
             atomic_json(receipts / "training-evidence.json", training_evidence)
             training_evidence_sha256 = sha256_file(receipts / "training-evidence.json")
             summary = {
-                "schema_version": "szl.nemo.candidate-summary.v1",
+                "schema_version": "szl.nemo.candidate-summary.v2",
                 "contract_id": contract["contract_id"],
                 "base_revision": contract["base"]["revision"],
                 "adapter_files_receipt_sha256": sha256_file(receipts / "adapter-files.json"),
@@ -2507,6 +2728,10 @@ def train(
                 "training_evidence_sha256": training_evidence_sha256,
                 "dsse_verifier": dsse_verifier,
                 "evaluation_state": reload_state,
+                "evaluation_sets": {
+                    "original": original_evaluation["state"],
+                    "shadow": shadow_evaluation["state"],
+                },
                 "runtime_guard": runtime_guard,
                 "promotion": "NOT_PROMOTED",
             }
@@ -2530,7 +2755,10 @@ def observed_training_started(output: Path) -> str:
         receipt = load_object(path)
     except (OSError, ValueError, json.JSONDecodeError, GateRefused):
         return TRAINING_START_UNKNOWN
-    if receipt.get("schema_version") != "szl.nemo.training-receipt.v1":
+    if receipt.get("schema_version") not in {
+        "szl.nemo.training-receipt.v1",
+        "szl.nemo.training-receipt.v2",
+    }:
         return TRAINING_START_UNKNOWN
     marker = receipt.get("training_started_at_unix_ns")
     if "training_started_at_unix_ns" not in receipt:

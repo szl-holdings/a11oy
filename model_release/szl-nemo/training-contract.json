@@ -1,8 +1,8 @@
 {
-  "schema_version": "szl.nemo.training-contract.v1",
-  "contract_id": "szl-nemo-governed-adapter-v1",
-  "candidate_id": "SZL-Nemo-Governed-Adapter-v1",
-  "release_state": "WSL_MAMBA_IMPORT_QUALIFIED_CAPACITY_NOT_RUN",
+  "schema_version": "szl.nemo.training-contract.v2",
+  "contract_id": "szl-nemo-governed-adapter-v2",
+  "candidate_id": "SZL-Nemo-Governed-Adapter-v2",
+  "release_state": "V1_EVALUATION_FAILED_V2_CORRECTION_DECLARED",
   "quality_claim": "NOT_ESTABLISHED",
   "evidence_lineage": {
     "static_preflight_path": "attestations/szl-nemo-finetune-preflight-local-2026-07-15.json",
@@ -47,15 +47,22 @@
   },
   "curriculum": {
     "source": "model_release/szl-nemo/curriculum-source.json",
-    "source_sha256": "5f5ad66eb2447c24d2693ff703d534e9c92a0a2498d695f658dbd49fe263f604",
+    "source_sha256": "618713b3fede1e979e8af5cc0006a7862e9bf74473def82ff4393be5b4eff793",
     "schema": "model_release/szl-nemo/curriculum-source.schema.json",
-    "schema_sha256": "6094cbf6835409464fa3b6cea439ab2ac84aa877ba470badf379143d2ea9a2cf",
+    "schema_sha256": "eb8caadd5daa13f5248817cf4a3e307dcc011c8d7ca6bc6afcde3b0cd862e0d3",
     "generated_manifest": "model_release/szl-nemo/generated/curriculum-manifest.json",
     "train": "model_release/szl-nemo/generated/train.jsonl",
     "eval": "model_release/szl-nemo/generated/eval.jsonl",
+    "shadow_eval": "model_release/szl-nemo/generated/shadow-eval.jsonl",
     "required_rights_basis": "PROJECT_AUTHORED_SCENARIOS",
-    "minimum_train_rows": 24,
-    "minimum_eval_rows": 8
+    "minimum_train_rows": 99,
+    "minimum_contrastive_scenarios": 25,
+    "minimum_contrastive_examples_per_class": 4,
+    "maximum_contrastive_examples_per_class": 6,
+    "required_contrastive_behavior_classes": ["IDENTITY_ATTRIBUTION", "BRAIN_PROVENANCE", "EXECUTION_BOUNDARY", "SIGNATURE_BOUNDARY", "CLAIM_SCOPE"],
+    "minimum_eval_rows": 8,
+    "minimum_shadow_eval_rows": 10,
+    "frozen_original_eval_sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
   },
   "excluded_from_gradients": [
     {"path": "model_release/m1/brain-ingest-ledger.jsonl", "reason": "The 9464-node Brain remains retrieval/evaluation-only until row-level rights and provenance are admitted."},
@@ -84,6 +91,9 @@
     "lora_dropout": 0.05,
     "target_modules": "all-linear",
     "optimizer": "paged_adamw_8bit",
+    "loss_scope": "ASSISTANT_COMPLETION_ONLY",
+    "assistant_response_template": "<|im_start|>assistant\n",
+    "require_untruncated_assistant_completion": true,
     "padding_policy": {
       "source": "PINNED_MODEL_AND_GENERATION_CONFIG",
       "token": "<unk>",
@@ -91,7 +101,7 @@
       "special_token_attribute": "unk_token",
       "vocabulary_mutation_allowed": false
     },
-    "confirmation_phrase": "TRAIN_SZL_NEMO_GOVERNED_ADAPTER_V1",
+    "confirmation_phrase": "TRAIN_SZL_NEMO_GOVERNED_ADAPTER_V2",
     "maximum_wall_clock_seconds": 10800,
     "watchdog_interval_seconds": 5,
     "maximum_eval_new_tokens": 160,
@@ -228,6 +238,7 @@
       "model_release/szl-nemo/curriculum-source.schema.json",
       "model_release/szl-nemo/generated/curriculum-manifest.json",
       "model_release/szl-nemo/generated/eval.jsonl",
+      "model_release/szl-nemo/generated/shadow-eval.jsonl",
       "model_release/szl-nemo/generated/train.jsonl",
       "model_release/szl-nemo/run_wsl_governed.sh",
       "model_release/szl-nemo/szl_nemo_wsl_queue.py",
@@ -278,6 +289,8 @@
     "processes_may_be_stopped_automatically": false
   },
   "evaluation": {
+    "mandatory_sets": ["ORIGINAL_FROZEN", "SHADOW_PREREGISTERED"],
+    "requires_both_sets_pass": true,
     "requires_all_rows": true,
     "requires_zero_forbidden_terms": true,
     "requires_adapter_reload": true,

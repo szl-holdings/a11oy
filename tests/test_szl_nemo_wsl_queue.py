@@ -247,21 +247,39 @@ def _passing_training_output(output: Path) -> dict:
         for line in queue.EVAL_PATH.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+    shadow_rows = [
+        json.loads(line)
+        for line in queue.SHADOW_EVAL_PATH.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     reload_receipt = receipts / "reload-evaluation-receipt.json"
     _write(
         reload_receipt,
         {
-            "schema_version": "szl.nemo.reload-evaluation-receipt.v1",
+            "schema_version": "szl.nemo.reload-evaluation-receipt.v2",
             "state": "PASS",
-            "rows": len(eval_rows),
-            "passes": len(eval_rows),
+            "gate": "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS",
+            "mandatory_sets": CONTRACT["evaluation"]["mandatory_sets"],
+            "rows": len(eval_rows) + len(shadow_rows),
+            "passes": len(eval_rows) + len(shadow_rows),
             "adapter_files_sha256": adapter_sha,
             "base_revision": CONTRACT["base"]["revision"],
-            "eval_sha256": queue._sha256_file(queue.EVAL_PATH),
-            "results": [
-                {"record_id": row["record_id"], "state": "PASS"}
-                for row in eval_rows
-            ],
+            "original": {
+                "set_id": "ORIGINAL_FROZEN",
+                "state": "PASS",
+                "rows": len(eval_rows),
+                "passes": len(eval_rows),
+                "source_sha256": queue._sha256_file(queue.EVAL_PATH),
+                "results": [{"record_id": row["record_id"], "state": "PASS"} for row in eval_rows],
+            },
+            "shadow": {
+                "set_id": "SHADOW_PREREGISTERED",
+                "state": "PASS",
+                "rows": len(shadow_rows),
+                "passes": len(shadow_rows),
+                "source_sha256": queue._sha256_file(queue.SHADOW_EVAL_PATH),
+                "results": [{"record_id": row["record_id"], "state": "PASS"} for row in shadow_rows],
+            },
             "promotion": "NONE_AUTOMATIC",
         },
     )
@@ -281,8 +299,14 @@ def _passing_training_output(output: Path) -> dict:
         "class": "fixture.NemotronHForCausalLM",
         "source_sha256": "e" * 64,
     }
+    training_format = {
+        "schema_version": "szl.nemo.training-format.v1",
+        "state": "PASS_ASSISTANT_COMPLETION_ONLY",
+        "loss_scope": "ASSISTANT_COMPLETION_ONLY",
+        "truncated_rows": 0,
+    }
     training = {
-        "schema_version": "szl.nemo.training-receipt.v1",
+        "schema_version": "szl.nemo.training-receipt.v2",
         "state": queue.CANDIDATE_PASS,
         "promotion": "NOT_PROMOTED",
         "training_started_at_unix_ns": 1,
@@ -310,9 +334,10 @@ def _passing_training_output(output: Path) -> dict:
         "reload_evaluation_receipt_sha256": reload_sha,
         "organization_signature_verified": True,
         "runtime_guard": runtime_guard,
+        "training_format": training_format,
     }
     training_evidence = {
-        "schema_version": "szl.nemo.training-evidence.v1",
+        "schema_version": "szl.nemo.training-evidence.v2",
         "contract_id": CONTRACT["contract_id"],
         "candidate_id": CONTRACT["candidate_id"],
         "base_revision": CONTRACT["base"]["revision"],
@@ -339,11 +364,14 @@ def _passing_training_output(output: Path) -> dict:
             "observed_global_steps": CONTRACT["training"]["max_steps"],
             "training_loss": 0.25,
             "peak_vram_reserved_bytes": 1024,
+            "training_format": training_format,
         },
         "artifact_evidence": {
             "adapter_files_receipt_sha256": adapter_sha,
             "reload_evaluation_receipt_sha256": reload_sha,
-            "held_out_eval_sha256": queue._sha256_file(queue.EVAL_PATH),
+            "frozen_original_eval_sha256": queue._sha256_file(queue.EVAL_PATH),
+            "preregistered_shadow_eval_sha256": queue._sha256_file(queue.SHADOW_EVAL_PATH),
+            "mandatory_evaluation_sets": CONTRACT["evaluation"]["mandatory_sets"],
         },
         "promotion": "NOT_PROMOTED",
     }
@@ -351,7 +379,7 @@ def _passing_training_output(output: Path) -> dict:
     _write(training_evidence_path, training_evidence)
     training_evidence_sha = queue._sha256_file(training_evidence_path)
     summary = {
-        "schema_version": "szl.nemo.candidate-summary.v1",
+        "schema_version": "szl.nemo.candidate-summary.v2",
         "contract_id": CONTRACT["contract_id"],
         "base_revision": CONTRACT["base"]["revision"],
         "adapter_files_receipt_sha256": adapter_sha,
@@ -359,6 +387,7 @@ def _passing_training_output(output: Path) -> dict:
         "training_evidence_sha256": training_evidence_sha,
         "dsse_verifier": DSSE_IDENTITY,
         "evaluation_state": "PASS",
+        "evaluation_sets": {"original": "PASS", "shadow": "PASS"},
         "runtime_guard": runtime_guard,
         "promotion": "NOT_PROMOTED",
     }
@@ -863,7 +892,7 @@ def test_training_refuses_fully_rebound_malformed_result_row_without_crashing(tm
     receipts = output / "receipts"
     reload_path = receipts / "reload-evaluation-receipt.json"
     reload_value = json.loads(reload_path.read_text(encoding="utf-8"))
-    reload_value["results"][0] = "not-an-object"
+    reload_value["original"]["results"][0] = "not-an-object"
     _write(reload_path, reload_value)
     reload_sha = queue._sha256_file(reload_path)
     evidence_path = receipts / "training-evidence.json"
@@ -871,6 +900,40 @@ def test_training_refuses_fully_rebound_malformed_result_row_without_crashing(tm
     evidence["artifact_evidence"]["reload_evaluation_receipt_sha256"] = reload_sha
     _write(evidence_path, evidence)
     evidence_sha = queue._sha256_file(evidence_path)
+    candidate_path = receipts / "candidate-summary.dsse.json"
+    summary = _read_candidate_summary(candidate_path)
+    summary["reload_evaluation_receipt_sha256"] = reload_sha
+    summary["training_evidence_sha256"] = evidence_sha
+    _write_signed_candidate(candidate_path, summary)
+    training["reload_evaluation_receipt_sha256"] = reload_sha
+    training["training_evidence_sha256"] = evidence_sha
+    training["candidate_summary_dsse_sha256"] = queue._sha256_file(candidate_path)
+    result = _stage_result(
+        "training", tmp_path, receipts / "training-receipt.json", training
+    )
+    assert queue.training_outcome(result, output) == "TERMINAL_REVIEW_REQUIRED"
+
+
+def test_training_refuses_fully_rebound_shadow_evaluation_failure(tmp_path):
+    output = tmp_path / "run"
+    training = _passing_training_output(output)
+    receipts = output / "receipts"
+    reload_path = receipts / "reload-evaluation-receipt.json"
+    reload_value = json.loads(reload_path.read_text(encoding="utf-8"))
+    reload_value["state"] = "FAIL"
+    reload_value["passes"] -= 1
+    reload_value["shadow"]["state"] = "FAIL"
+    reload_value["shadow"]["passes"] -= 1
+    reload_value["shadow"]["results"][0]["state"] = "FAIL"
+    _write(reload_path, reload_value)
+    reload_sha = queue._sha256_file(reload_path)
+
+    evidence_path = receipts / "training-evidence.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["artifact_evidence"]["reload_evaluation_receipt_sha256"] = reload_sha
+    _write(evidence_path, evidence)
+    evidence_sha = queue._sha256_file(evidence_path)
+
     candidate_path = receipts / "candidate-summary.dsse.json"
     summary = _read_candidate_summary(candidate_path)
     summary["reload_evaluation_receipt_sha256"] = reload_sha

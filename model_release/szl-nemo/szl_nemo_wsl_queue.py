@@ -33,6 +33,7 @@ REPO = HERE.parents[1]
 CONTRACT_PATH = HERE / "training-contract.json"
 LAUNCHER_PATH = HERE / "run_wsl_governed.sh"
 EVAL_PATH = HERE / "generated" / "eval.jsonl"
+SHADOW_EVAL_PATH = HERE / "generated" / "shadow-eval.jsonl"
 DSSE_PATH = REPO / "szl_dsse.py"
 CONTENT_ADDRESS_PATH = REPO / "szl_content_address.py"
 PAYLOAD_TYPE = "application/vnd.szl.nemo-training+json"
@@ -561,7 +562,7 @@ def training_outcome(result: StageResult, output: Path) -> str:
     if not (
         result.exit_code == 0
         and receipt
-        and receipt.get("schema_version") == "szl.nemo.training-receipt.v1"
+        and receipt.get("schema_version") == "szl.nemo.training-receipt.v2"
         and receipt.get("state") == CANDIDATE_PASS
         and receipt.get("promotion") == "NOT_PROMOTED"
         and type(started) is int
@@ -604,7 +605,10 @@ def _require_sha256(value: Any, expected: str, label: str) -> None:
 def _training_start_state(receipt: dict[str, Any] | None) -> str:
     if not isinstance(receipt, dict):
         return TRAINING_START_UNKNOWN
-    if receipt.get("schema_version") != "szl.nemo.training-receipt.v1":
+    if receipt.get("schema_version") not in {
+        "szl.nemo.training-receipt.v1",
+        "szl.nemo.training-receipt.v2",
+    }:
         return TRAINING_START_UNKNOWN
     marker = receipt.get("training_started_at_unix_ns")
     if "training_started_at_unix_ns" not in receipt:
@@ -711,9 +715,9 @@ def _validate_runtime_guard(value: Any, contract: dict[str, Any]) -> None:
         raise QueueRefused("runtime guard samples fall outside the measured timing window")
 
 
-def _expected_eval_ids() -> list[str]:
+def _expected_eval_ids(path: Path = EVAL_PATH) -> list[str]:
     ids: list[str] = []
-    for line in EVAL_PATH.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
@@ -882,7 +886,7 @@ def _validate_training_evidence(
     artifacts = value.get("artifact_evidence")
     expected_dsse = _pinned_dsse_identity(contract)
     if (
-        value.get("schema_version") != "szl.nemo.training-evidence.v1"
+        value.get("schema_version") != "szl.nemo.training-evidence.v2"
         or value.get("contract_id") != contract["contract_id"]
         or value.get("candidate_id") != contract["candidate_id"]
         or value.get("base_revision") != contract["base"]["revision"]
@@ -968,12 +972,19 @@ def _validate_training_evidence(
         or not isinstance(loss, (int, float))
         or not math.isfinite(float(loss))
         or step.get("training_loss") != loss
+        or step.get("training_format") != training.get("training_format")
+        or not isinstance(step.get("training_format"), dict)
+        or step["training_format"].get("state") != "PASS_ASSISTANT_COMPLETION_ONLY"
+        or step["training_format"].get("loss_scope") != "ASSISTANT_COMPLETION_ONLY"
+        or step["training_format"].get("truncated_rows") != 0
     ):
         raise QueueRefused("training step evidence is incomplete or inconsistent")
     if artifacts != {
         "adapter_files_receipt_sha256": adapter_sha,
         "reload_evaluation_receipt_sha256": reload_sha,
-        "held_out_eval_sha256": _sha256_file(EVAL_PATH),
+        "frozen_original_eval_sha256": _sha256_file(EVAL_PATH),
+        "preregistered_shadow_eval_sha256": _sha256_file(SHADOW_EVAL_PATH),
+        "mandatory_evaluation_sets": contract["evaluation"]["mandatory_sets"],
     }:
         raise QueueRefused("training artifact evidence is not bound to the evaluated candidate")
 
@@ -1011,29 +1022,46 @@ def _verify_training_artifacts(
     _validate_training_evidence(
         training_evidence_value, training, contract, adapter_sha, reload_sha
     )
-    expected_ids = _expected_eval_ids()
-    results = reload_value.get("results")
+    expected_ids = _expected_eval_ids(EVAL_PATH)
+    expected_shadow_ids = _expected_eval_ids(SHADOW_EVAL_PATH)
+    original = reload_value.get("original")
+    shadow = reload_value.get("shadow")
     if (
-        reload_value.get("schema_version") != "szl.nemo.reload-evaluation-receipt.v1"
+        reload_value.get("schema_version") != "szl.nemo.reload-evaluation-receipt.v2"
         or reload_value.get("state") != "PASS"
+        or reload_value.get("gate") != "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS"
+        or reload_value.get("mandatory_sets") != contract["evaluation"]["mandatory_sets"]
         or reload_value.get("promotion") != "NONE_AUTOMATIC"
         or reload_value.get("base_revision") != contract["base"]["revision"]
-        or reload_value.get("eval_sha256") != _sha256_file(EVAL_PATH)
         or reload_value.get("adapter_files_sha256") != adapter_sha
-        or reload_value.get("rows") != len(expected_ids)
-        or reload_value.get("passes") != len(expected_ids)
-        or not isinstance(results, list)
-        or len(results) != len(expected_ids)
-        or not all(isinstance(item, dict) for item in results)
+        or reload_value.get("rows") != len(expected_ids) + len(expected_shadow_ids)
+        or reload_value.get("passes") != len(expected_ids) + len(expected_shadow_ids)
+        or not isinstance(original, dict)
+        or not isinstance(shadow, dict)
     ):
         raise QueueRefused("reload evaluation binding is incomplete")
-    observed_ids = [item.get("record_id") for item in results]
-    if observed_ids != expected_ids or any(item.get("state") != "PASS" for item in results):
-        raise QueueRefused("reload evaluation rows do not exactly match the held-out split")
+    for observed, set_id, path, ids in (
+        (original, "ORIGINAL_FROZEN", EVAL_PATH, expected_ids),
+        (shadow, "SHADOW_PREREGISTERED", SHADOW_EVAL_PATH, expected_shadow_ids),
+    ):
+        results = observed.get("results")
+        if (
+            observed.get("set_id") != set_id
+            or observed.get("state") != "PASS"
+            or observed.get("source_sha256") != _sha256_file(path)
+            or observed.get("rows") != len(ids)
+            or observed.get("passes") != len(ids)
+            or not isinstance(results, list)
+            or len(results) != len(ids)
+            or not all(isinstance(item, dict) for item in results)
+            or [item.get("record_id") for item in results] != ids
+            or any(item.get("state") != "PASS" for item in results)
+        ):
+            raise QueueRefused("reload evaluation rows do not exactly match both mandatory splits")
 
     summary = _decode_candidate_summary(candidate_value)
     if (
-        summary.get("schema_version") != "szl.nemo.candidate-summary.v1"
+        summary.get("schema_version") != "szl.nemo.candidate-summary.v2"
         or summary.get("contract_id") != contract["contract_id"]
         or summary.get("base_revision") != contract["base"]["revision"]
         or summary.get("adapter_files_receipt_sha256") != adapter_sha
@@ -1042,6 +1070,7 @@ def _verify_training_artifacts(
         or summary.get("dsse_verifier") != training.get("dsse_verifier")
         or summary.get("dsse_verifier") != training_evidence_value.get("dsse_verifier")
         or summary.get("evaluation_state") != "PASS"
+        or summary.get("evaluation_sets") != {"original": "PASS", "shadow": "PASS"}
         or summary.get("promotion") != "NOT_PROMOTED"
         or summary.get("runtime_guard") != training.get("runtime_guard")
         or summary.get("runtime_guard") != training_evidence_value.get("runtime_guard")

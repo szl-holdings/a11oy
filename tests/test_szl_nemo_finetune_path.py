@@ -215,8 +215,11 @@ def test_curriculum_is_deterministic_rights_scoped_and_disjoint(tmp_path):
     second = nemo_train.build_curriculum(tmp_path / "second")
 
     assert first == second
-    assert first["train"]["rows"] == 24
+    assert first["train"]["rows"] == 99
     assert first["eval"]["rows"] == 8
+    assert first["shadow_eval"]["rows"] == 10
+    assert first["eval"]["sha256"] == "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
+    assert first["evaluation_gate"] == "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS"
     assert first["rights_basis"] == "PROJECT_AUTHORED_SCENARIOS"
     assert first["external_mutations"] == {
         "uploaded": False,
@@ -226,10 +229,122 @@ def test_curriculum_is_deterministic_rights_scoped_and_disjoint(tmp_path):
 
     train = list(nemo_train.iter_jsonl(tmp_path / "first" / "train.jsonl"))
     evaluation = list(nemo_train.iter_jsonl(tmp_path / "first" / "eval.jsonl"))
-    assert all(row["rights_basis"] == "PROJECT_AUTHORED_SCENARIOS" for row in train + evaluation)
+    shadow = list(nemo_train.iter_jsonl(tmp_path / "first" / "shadow-eval.jsonl"))
+    assert all(row["rights_basis"] == "PROJECT_AUTHORED_SCENARIOS" for row in train + evaluation + shadow)
+    contrastive = [row for row in train if row["record_id"].startswith("train:contrastive:")]
+    assert len(contrastive) == 75
+    assert {row["behavior_class"] for row in contrastive} == {
+        "IDENTITY_ATTRIBUTION",
+        "BRAIN_PROVENANCE",
+        "EXECUTION_BOUNDARY",
+        "SIGNATURE_BOUNDARY",
+        "CLAIM_SCOPE",
+    }
+    assert all(
+        row["rights_admission"]["provenance"] == "INDEPENDENTLY_AUTHORED_FOR_NEMO_V2"
+        and row["rights_admission"]["held_out_contamination"]
+        == "NO_ORIGINAL_OR_SHADOW_EVAL_TEXT_COPIED"
+        for row in contrastive
+    )
     train_prompts = {row["messages"][1]["content"].casefold() for row in train}
     eval_prompts = {row["messages"][1]["content"].casefold() for row in evaluation}
+    shadow_prompts = {row["messages"][1]["content"].casefold() for row in shadow}
     assert train_prompts.isdisjoint(eval_prompts)
+    assert train_prompts.isdisjoint(shadow_prompts)
+    assert eval_prompts.isdisjoint(shadow_prompts)
+
+
+def test_original_evaluation_is_byte_frozen_while_shadow_is_distinct(tmp_path):
+    manifest = nemo_train.build_curriculum(tmp_path)
+    original = (tmp_path / "eval.jsonl").read_bytes()
+    shadow = (tmp_path / "shadow-eval.jsonl").read_bytes()
+
+    assert nemo_train.sha256_bytes(original) == "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
+    assert original == nemo_train.EVAL_PATH.read_bytes()
+    assert original != shadow
+    assert manifest["eval"]["sha256"] != manifest["shadow_eval"]["sha256"]
+
+
+def test_contrastive_rights_or_behavior_coverage_cannot_be_relaxed():
+    source = json.loads(nemo_train.SOURCE_PATH.read_text(encoding="utf-8"))
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+
+    missing_rights = json.loads(json.dumps(source))
+    missing_rights["contrastive_train_scenarios"][0]["rights_admission"]["provenance"] = "UNKNOWN"
+    with pytest.raises(nemo_train.GateRefused, match="rights admission"):
+        nemo_train.validate_source(missing_rights, contract)
+
+    missing_class = json.loads(json.dumps(source))
+    missing_class["contrastive_train_scenarios"] = [
+        row for row in missing_class["contrastive_train_scenarios"]
+        if row["behavior_class"] != "CLAIM_SCOPE"
+    ]
+    with pytest.raises(nemo_train.GateRefused, match="contract minimum|behavior coverage"):
+        nemo_train.validate_source(missing_class, contract)
+
+
+def test_v2_curriculum_source_validates_against_declared_schema():
+    jsonschema = pytest.importorskip("jsonschema")
+    source = json.loads(nemo_train.SOURCE_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(nemo_train.SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    jsonschema.Draft202012Validator(schema).validate(source)
+    counts = {}
+    for row in source["contrastive_train_scenarios"]:
+        counts[row["behavior_class"]] = counts.get(row["behavior_class"], 0) + 1
+    assert counts == {
+        "IDENTITY_ATTRIBUTION": 5,
+        "BRAIN_PROVENANCE": 5,
+        "EXECUTION_BOUNDARY": 5,
+        "SIGNATURE_BOUNDARY": 5,
+        "CLAIM_SCOPE": 5,
+    }
+
+
+def test_completion_only_loss_masks_prompt_and_refuses_truncation():
+    class FakeTokenizer:
+        marker = [7, 8]
+
+        def encode(self, value, add_special_tokens=False):
+            assert add_special_tokens is False
+            return list(self.marker)
+
+        def __call__(self, value, add_special_tokens=False, truncation=False):
+            assert add_special_tokens is False
+            assert truncation is False
+            suffix = [2, 3] if value == "normal" else list(range(20))
+            return {"input_ids": [1, *self.marker, *suffix], "attention_mask": [1] * (3 + len(suffix))}
+
+    class FakeCollator:
+        def __init__(self, response_template, tokenizer, mlm):
+            self.marker = response_template
+            assert tokenizer is not None and mlm is False
+
+        def __call__(self, features):
+            labels = []
+            for feature in features:
+                ids = feature["input_ids"]
+                offset = nemo_train._subsequence_offsets(ids, self.marker)[0] + len(self.marker)
+                labels.append([-100] * offset + ids[offset:])
+            return {"labels": labels}
+
+    settings = {
+        "loss_scope": "ASSISTANT_COMPLETION_ONLY",
+        "assistant_response_template": "assistant-marker",
+        "max_sequence_length": 8,
+    }
+    _, evidence = nemo_train.completion_only_training_setup(
+        FakeTokenizer(), ["normal"], settings, FakeCollator
+    )
+    assert evidence["state"] == "PASS_ASSISTANT_COMPLETION_ONLY"
+    assert evidence["masked_prompt_tokens"] == {"minimum": 3, "maximum": 3}
+    assert evidence["supervised_completion_tokens"] == {"minimum": 2, "maximum": 2}
+    assert evidence["truncated_rows"] == 0
+
+    with pytest.raises(nemo_train.GateRefused, match="truncated"):
+        nemo_train.completion_only_training_setup(
+            FakeTokenizer(), ["too-long"], settings, FakeCollator
+        )
 
 
 def test_preflight_refuses_absent_base_without_starting_training():
@@ -757,7 +872,7 @@ def test_held_out_evaluation_enforces_required_and_forbidden_terms():
 
 def test_contract_never_allows_automatic_promotion_or_external_release():
     contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
-    assert contract["release_state"] == "WSL_MAMBA_IMPORT_QUALIFIED_CAPACITY_NOT_RUN"
+    assert contract["release_state"] == "V1_EVALUATION_FAILED_V2_CORRECTION_DECLARED"
     assert contract["quality_claim"] == "NOT_ESTABLISHED"
     assert contract["base"]["trust_remote_code"] is True
     assert contract["base"]["remote_code_policy"] == "PINNED_OFFICIAL_NVIDIA_FILES_ONLY"
@@ -768,6 +883,14 @@ def test_contract_never_allows_automatic_promotion_or_external_release():
     assert set(contract["runtime"]["module_required"]) == {"mamba_ssm", "causal_conv1d"}
     assert contract["training"]["capacity_probe_sequence_length"] == 768
     assert contract["training"]["capacity_probe_sequence_length"] == contract["training"]["max_sequence_length"]
+    assert contract["training"]["loss_scope"] == "ASSISTANT_COMPLETION_ONLY"
+    assert contract["training"]["require_untruncated_assistant_completion"] is True
+    assert contract["curriculum"]["frozen_original_eval_sha256"] == "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
+    assert contract["evaluation"]["mandatory_sets"] == [
+        "ORIGINAL_FROZEN",
+        "SHADOW_PREREGISTERED",
+    ]
+    assert contract["evaluation"]["requires_both_sets_pass"] is True
     assert contract["runtime"]["torch_exact_allowlist"] == ["2.10.0+cu128"]
     assert contract["runtime"]["minimum_cuda_runtime"] == [12, 8]
     assert contract["runtime"]["package_exact"] == {
@@ -817,6 +940,7 @@ def test_loaded_dynamic_code_must_match_pinned_source_hashes(monkeypatch, tmp_pa
 
     auto_config = transformers.AutoConfig
     auto_tokenizer = transformers.AutoTokenizer
+    generation_config = transformers.GenerationConfig
     original_import_module = nemo_train.importlib.import_module
 
     contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
@@ -826,6 +950,10 @@ def test_loaded_dynamic_code_must_match_pinned_source_hashes(monkeypatch, tmp_pa
 
     class FakeConfig:
         model_type = "nemotron_h"
+        pad_token_id = 0
+
+    class FakeGenerationConfig:
+        pad_token_id = 0
 
     class NemotronHForCausalLM:
         pass
@@ -845,7 +973,12 @@ def test_loaded_dynamic_code_must_match_pinned_source_hashes(monkeypatch, tmp_pa
     monkeypatch.setattr(
         auto_tokenizer,
         "from_pretrained",
-        lambda *_args, **_kwargs: types.SimpleNamespace(),
+        lambda *_args, **_kwargs: FakePaddingTokenizer(),
+    )
+    monkeypatch.setattr(
+        generation_config,
+        "from_pretrained",
+        lambda *_args, **_kwargs: FakeGenerationConfig(),
     )
     monkeypatch.setattr(
         transformers.dynamic_module_utils,
@@ -1166,7 +1299,9 @@ def test_trl_lane_uses_the_pinned_048_api_and_capacity_is_network_isolated():
     assert "failure_evidence" in runner
     assert "optimizer = None" in runner
     assert "torch_module.cuda.empty_cache()" in runner
-    assert "for row in eval_rows" in runner
+    assert 'evaluate_set("ORIGINAL_FROZEN", eval_rows, EVAL_PATH)' in runner
+    assert 'evaluate_set("SHADOW_PREREGISTERED", shadow_eval_rows, SHADOW_EVAL_PATH)' in runner
+    assert "DataCollatorForCompletionOnlyLM" in runner
     assert "capacity-probe" in launcher
     assert "calibrate-vram" in launcher
     assert "--mode calibrate" in launcher
@@ -1195,7 +1330,7 @@ def test_gpu_inventory_helper_is_read_only_and_reports_the_fixed_gap():
 
 def test_generated_curriculum_is_byte_deterministic_lf(tmp_path):
     nemo_train.build_curriculum(tmp_path)
-    for name in ("train.jsonl", "eval.jsonl", "curriculum-manifest.json"):
+    for name in ("train.jsonl", "eval.jsonl", "shadow-eval.jsonl", "curriculum-manifest.json"):
         assert b"\r" not in (tmp_path / name).read_bytes()
 
 

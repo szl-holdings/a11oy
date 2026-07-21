@@ -1,19 +1,25 @@
 {
-  "schema_version": "szl.nemo.curriculum-manifest.v1",
-  "contract_id": "szl-nemo-governed-adapter-v1",
+  "schema_version": "szl.nemo.curriculum-manifest.v2",
+  "contract_id": "szl-nemo-governed-adapter-v2",
   "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
-  "source_sha256": "5f5ad66eb2447c24d2693ff703d534e9c92a0a2498d695f658dbd49fe263f604",
-  "schema_sha256": "6094cbf6835409464fa3b6cea439ab2ac84aa877ba470badf379143d2ea9a2cf",
+  "source_sha256": "618713b3fede1e979e8af5cc0006a7862e9bf74473def82ff4393be5b4eff793",
+  "schema_sha256": "eb8caadd5daa13f5248817cf4a3e307dcc011c8d7ca6bc6afcde3b0cd862e0d3",
   "train": {
     "path": "train.jsonl",
-    "rows": 24,
-    "sha256": "513b58282a1a3ccb34145167d4acd8525093ecd2ad9a29c0a8f9af8cd46ac3fd"
+    "rows": 99,
+    "sha256": "62a0b5b88733562c39765901aa466decc951e76b5e9ddea377d8cca9aa2fe86b"
   },
   "eval": {
     "path": "eval.jsonl",
     "rows": 8,
     "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
   },
+  "shadow_eval": {
+    "path": "shadow-eval.jsonl",
+    "rows": 10,
+    "sha256": "1b8578051b7b829595493615bdf11e24d01a1837a23d6191c8e88e21cce990ac"
+  },
+  "evaluation_gate": "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS",
   "excluded_from_gradients": [
     {
       "path": "model_release/m1/brain-ingest-ledger.jsonl",

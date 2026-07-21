@@ -1,16 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://a-11-oy.com/schemas/szl-nemo-curriculum-source-v1.json",
+  "$id": "https://a-11-oy.com/schemas/szl-nemo-curriculum-source-v2.json",
   "title": "SZL-Nemo governed curriculum source",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "owner", "license", "rights_basis", "profile_id", "notice", "train_scenarios", "eval_scenarios"],
+  "required": ["schema_version", "owner", "license", "rights_basis", "profile_id", "notice", "train_scenarios", "contrastive_train_scenarios", "eval_scenarios", "shadow_eval_scenarios"],
   "properties": {
-    "schema_version": {"const": "szl.nemo.curriculum-source.v1"},
+    "schema_version": {"const": "szl.nemo.curriculum-source.v2"},
     "owner": {"const": "SZL Holdings"},
     "license": {"const": "Apache-2.0"},
     "rights_basis": {"const": "PROJECT_AUTHORED_SCENARIOS"},
-    "profile_id": {"const": "SZL-Nemo-Governed-v1"},
+    "profile_id": {"const": "SZL-Nemo-Governed-v2"},
     "notice": {"type": "string", "minLength": 1},
     "train_scenarios": {
       "type": "array",
@@ -26,6 +26,34 @@
         }
       }
     },
+    "contrastive_train_scenarios": {
+      "type": "array",
+      "minItems": 25,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "behavior_class", "prompt", "response", "rights_admission"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "behavior_class": {"enum": ["IDENTITY_ATTRIBUTION", "BRAIN_PROVENANCE", "EXECUTION_BOUNDARY", "SIGNATURE_BOUNDARY", "CLAIM_SCOPE"]},
+          "prompt": {"type": "string", "minLength": 1, "maxLength": 4096},
+          "response": {"type": "string", "minLength": 1, "maxLength": 4096},
+          "rights_admission": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["author", "license", "rights_basis", "provenance", "held_out_contamination"],
+            "properties": {
+              "author": {"const": "SZL Holdings"},
+              "license": {"const": "Apache-2.0"},
+              "rights_basis": {"const": "PROJECT_AUTHORED_SCENARIOS"},
+              "provenance": {"const": "INDEPENDENTLY_AUTHORED_FOR_NEMO_V2"},
+              "held_out_contamination": {"const": "NO_ORIGINAL_OR_SHADOW_EVAL_TEXT_COPIED"}
+            }
+          }
+        }
+      }
+    },
     "eval_scenarios": {
       "type": "array",
       "minItems": 8,
@@ -35,6 +63,22 @@
         "required": ["id", "prompt", "required_terms", "forbidden_terms"],
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "prompt": {"type": "string", "minLength": 1, "maxLength": 4096},
+          "required_terms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "forbidden_terms": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "shadow_eval_scenarios": {
+      "type": "array",
+      "minItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "behavior_class", "prompt", "required_terms", "forbidden_terms"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "behavior_class": {"enum": ["IDENTITY_ATTRIBUTION", "BRAIN_PROVENANCE", "EXECUTION_BOUNDARY", "SIGNATURE_BOUNDARY", "CLAIM_SCOPE"]},
           "prompt": {"type": "string", "minLength": 1, "maxLength": 4096},
           "required_terms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
           "forbidden_terms": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
