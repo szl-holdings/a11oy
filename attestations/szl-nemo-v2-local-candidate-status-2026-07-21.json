@@ -1,0 +1,123 @@
+{
+  "schema_version": "szl.nemo.local-candidate-status.v1",
+  "contract_id": "szl-nemo-governed-adapter-v2",
+  "state": "QUARANTINED_EVALUATION_PENDING",
+  "maturity": "MEASURED",
+  "observed_at": "2026-07-21T23:14:45.1788338Z",
+  "training_source_revision": "3662e3405ab2d65ef184fbd748ac57832555494f",
+  "evaluation_resume_source_revision": "9c8213a714cd43db2da2e25cc18137a2adaa6c05",
+  "local_evidence": {
+    "storage_scope": "LOCAL_ONLY_NOT_COMMITTED",
+    "training_receipt": {
+      "path": "/home/rosie/szl-qualification/training/szl-nemo-governed-v2-3662e34-final/receipts/training-receipt.json",
+      "sha256": "98e75cb2815af03d8bb3e8f937caaf7480742528504bdde4e4c751b0132d1496",
+      "schema_version": "szl.nemo.training-receipt.v2",
+      "state": "FAILED_NOT_PROMOTED",
+      "global_steps_expected": 96,
+      "global_steps_observed": 96,
+      "training_loss": 6.575601820639956,
+      "training_completed": true,
+      "adapter_saved": true,
+      "bundled_reload_started": true,
+      "bundled_reload_completed": false,
+      "terminal_error_type": "GateRefused",
+      "terminal_error": "training thermal ceiling exceeded"
+    },
+    "adapter_inventory_receipt": {
+      "path": "/home/rosie/szl-qualification/training/szl-nemo-governed-v2-3662e34-final/receipts/adapter-files.json",
+      "sha256": "cab46cf13c40952a64a545303acf8136e5df0b8510878b54a6b86997af5ad1e3",
+      "schema_version": "szl.nemo.adapter-files.v1",
+      "state": "SAVED_UNQUALIFIED_QUARANTINED",
+      "adapter_model_safetensors_sha256": "2af4e03bf1bde3bb97a52f34fd00c099a11a0c453352497c53bbd6cf8740c4b4",
+      "adapter_model_safetensors_bytes": 82778456
+    },
+    "capacity_receipt": {
+      "path": "/home/rosie/szl-qualification/receipts/capacity-v2-3662e34-final.json",
+      "sha256": "1fed71c5fc4ab67eb072c7b0667a121b4397c772c2321fcfdd0c942d3100eec0",
+      "state": "PASS_CAPACITY_ONLY_NOT_TRAINED_NOT_PROMOTED"
+    },
+    "evaluation_admission_attempts": [
+      {
+        "path": "/home/rosie/szl-qualification/receipts/preflight-v2-evaluation-9c8213a-final.json",
+        "sha256": "66f012690d51b45d3e59a0fd6c3de09631a90f4b072a23a72fc69d6dbd968cc4",
+        "state": "BLOCKED",
+        "reason": "fixed GPU admission thresholds were not maintained",
+        "observed_blocker": "utilization_pct=11 exceeded maximum_utilization_pct=10"
+      },
+      {
+        "path": "/home/rosie/szl-qualification/receipts/preflight-v2-evaluation-retry-9c8213a-final.json",
+        "sha256": "b0cef09578c7fd8302a255e38c86e320e04ec512b8b43ec1e1c095d9c2631a9e",
+        "state": "BLOCKED",
+        "reason": "fixed GPU admission thresholds were not maintained",
+        "observed_blocker": "memory_free_mib=6635 was below minimum_free_memory_mib=6656"
+      }
+    ],
+    "evaluation_receipt": {
+      "path": "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final.json",
+      "state": "ABSENT_EVALUATOR_NOT_STARTED",
+      "sha256": null
+    }
+  },
+  "evaluation_gate": {
+    "state": "PENDING",
+    "requires_both_sets_pass": true,
+    "original": {
+      "set_id": "ORIGINAL_FROZEN",
+      "rows": 8,
+      "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d",
+      "state": "NOT_EVALUATED"
+    },
+    "shadow": {
+      "set_id": "SHADOW_PREREGISTERED",
+      "rows": 10,
+      "sha256": "1b8578051b7b829595493615bdf11e24d01a1837a23d6191c8e88e21cce990ac",
+      "state": "NOT_EVALUATED"
+    }
+  },
+  "fixed_gpu_admission": {
+    "minimum_free_memory_mib": 6656,
+    "maximum_utilization_pct": 10,
+    "maximum_temperature_c": 60,
+    "probe_samples": 3,
+    "training_soak_samples": 11,
+    "sample_interval_seconds": 30,
+    "maximum_runtime_temperature_c": 80,
+    "thresholds_may_be_weakened": false,
+    "processes_may_be_stopped_automatically": false
+  },
+  "resume": {
+    "state": "WAITING_FOR_FIXED_GPU_ADMISSION",
+    "command": [
+      "bash",
+      "model_release/szl-nemo/run_wsl_governed.sh",
+      "--base-snapshot",
+      "/mnt/c/Users/steph/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3-Nano-4B-BF16/snapshots/dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
+      "--mode",
+      "evaluate",
+      "--output-dir",
+      "/home/rosie/szl-qualification/training/szl-nemo-governed-v2-3662e34-final",
+      "--receipt",
+      "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final.json",
+      "--preflight-receipt",
+      "/home/rosie/szl-qualification/receipts/preflight-v2-evaluation-final-9c8213a.json",
+      "--confirmation",
+      "EVALUATE_SZL_NEMO_GOVERNED_ADAPTER_V2",
+      "--license-acknowledgement",
+      "ACK_NVIDIA_NEMOTRON_LICENSE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
+    ],
+    "working_directory": "/home/rosie/szl-qualification/a11oy-nemo-v2-552caf4",
+    "attempt_limit": "ONE_EVALUATOR_INVOCATION_AFTER_ADMISSION",
+    "training_must_not_restart": true
+  },
+  "claim_boundary": {
+    "model_qualified": false,
+    "original_evaluation_passed": false,
+    "shadow_evaluation_passed": false,
+    "signed": false,
+    "promoted": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false,
+    "weights_in_repository": false
+  }
+}

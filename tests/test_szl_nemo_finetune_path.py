@@ -1044,6 +1044,56 @@ def test_contract_never_allows_automatic_promotion_or_external_release():
     }
 
 
+def test_v2_local_candidate_attestation_is_fail_closed_and_contract_bound():
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    path = ROOT / "attestations" / "szl-nemo-v2-local-candidate-status-2026-07-21.json"
+    attestation = json.loads(path.read_text(encoding="utf-8"))
+    evidence = attestation["local_evidence"]
+    training = evidence["training_receipt"]
+    adapter = evidence["adapter_inventory_receipt"]
+
+    assert attestation["state"] == "QUARANTINED_EVALUATION_PENDING"
+    assert training["state"] == "FAILED_NOT_PROMOTED"
+    assert training["global_steps_observed"] == training["global_steps_expected"] == 96
+    assert training["training_completed"] is True
+    assert training["adapter_saved"] is True
+    assert training["bundled_reload_completed"] is False
+    assert training["terminal_error"] == "training thermal ceiling exceeded"
+    assert adapter["state"] == "SAVED_UNQUALIFIED_QUARANTINED"
+    assert len(adapter["adapter_model_safetensors_sha256"]) == 64
+    assert evidence["evaluation_receipt"] == {
+        "path": "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final.json",
+        "state": "ABSENT_EVALUATOR_NOT_STARTED",
+        "sha256": None,
+    }
+    assert all(item["state"] == "BLOCKED" for item in evidence["evaluation_admission_attempts"])
+    assert attestation["evaluation_gate"]["requires_both_sets_pass"] is True
+    assert attestation["evaluation_gate"]["original"]["sha256"] == contract["curriculum"]["frozen_original_eval_sha256"]
+    assert attestation["evaluation_gate"]["shadow"]["sha256"] == json.loads(
+        nemo_train.MANIFEST_PATH.read_text(encoding="utf-8")
+    )["shadow_eval"]["sha256"]
+    admission = attestation["fixed_gpu_admission"]
+    assert admission["minimum_free_memory_mib"] == contract["gpu_admission"]["minimum_free_memory_mib"]
+    assert admission["maximum_utilization_pct"] == contract["gpu_admission"]["maximum_utilization_pct"]
+    assert admission["maximum_temperature_c"] == contract["gpu_admission"]["maximum_temperature_c"]
+    assert admission["maximum_runtime_temperature_c"] == contract["gpu_admission"]["maximum_training_temperature_c"]
+    assert admission["thresholds_may_be_weakened"] is False
+    assert admission["processes_may_be_stopped_automatically"] is False
+    assert attestation["resume"]["command"][attestation["resume"]["command"].index("--mode") + 1] == "evaluate"
+    assert attestation["resume"]["training_must_not_restart"] is True
+    assert attestation["claim_boundary"] == {
+        "model_qualified": False,
+        "original_evaluation_passed": False,
+        "shadow_evaluation_passed": False,
+        "signed": False,
+        "promoted": False,
+        "uploaded": False,
+        "published": False,
+        "deployed": False,
+        "weights_in_repository": False,
+    }
+
+
 def test_native_windows_execution_lane_fails_closed(monkeypatch, tmp_path):
     monkeypatch.setattr(nemo_train.platform, "system", lambda: "Windows")
 
