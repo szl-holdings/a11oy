@@ -332,6 +332,16 @@ def _prepare_mocked_probe(
         "verify_loaded_model_source",
         lambda _model, _contract, _mode: "NemotronHForCausalLMFixture",
     )
+    monkeypatch.setattr(
+        nemo_train,
+        "bind_quantized_mamba_lora_forward",
+        lambda _model, _contract, phase: {
+            "state": "BOUND_REVIEWED_TORCH_FORWARD",
+            "phase": phase,
+            "expected_mixer_count": 1,
+            "bound_mixer_count": 1,
+        },
+    )
     pending_host_states = list(host_memory_states)
 
     def fake_host_memory_sample():

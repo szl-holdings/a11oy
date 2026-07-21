@@ -23,6 +23,63 @@ nemo_train = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(nemo_train)
 
 
+is_fast_path_available = True
+
+
+class Linear4bit:
+    pass
+
+
+Linear4bit.__module__ = "bitsandbytes.nn.modules"
+
+
+class FakeLoraProjection:
+    def __init__(self, valid: bool = True):
+        self.base_layer = Linear4bit()
+        self.lora_A = {"default": object()} if valid else {}
+        self.lora_B = {"default": object()} if valid else {}
+
+
+class NemotronHMamba2Mixer:
+    def __init__(self, valid_lora: bool = True):
+        self.out_proj = FakeLoraProjection(valid_lora)
+
+    def forward(self, *_args, **_kwargs):
+        return "fused"
+
+    def torch_forward(self, *_args, **_kwargs):
+        return "torch"
+
+
+class FakeQuantizedMambaModel:
+    def __init__(self, mixer_count: int = 2, valid_lora: bool = True):
+        self.config = types.SimpleNamespace(
+            hybrid_override_pattern="M-M", use_mamba_kernels=True
+        )
+        self.mixers = [
+            NemotronHMamba2Mixer(valid_lora=valid_lora)
+            for _index in range(mixer_count)
+        ]
+
+    def named_modules(self):
+        yield "", self
+        for index, mixer in enumerate(self.mixers):
+            yield f"base.layers.{index}.mixer", mixer
+
+
+def compatibility_contract() -> dict:
+    return {
+        "base": {
+            "required_files": [
+                {
+                    "path": "modeling_nemotron_h.py",
+                    "sha256": nemo_train.sha256_file(Path(__file__)),
+                }
+            ]
+        }
+    }
+
+
 def test_curriculum_is_deterministic_rights_scoped_and_disjoint(tmp_path):
     first = nemo_train.build_curriculum(tmp_path / "first")
     second = nemo_train.build_curriculum(tmp_path / "second")
@@ -641,6 +698,76 @@ def test_loaded_dynamic_code_must_match_pinned_source_hashes(monkeypatch, tmp_pa
 
     with pytest.raises(nemo_train.GateRefused, match="loaded pinned NVIDIA code hash mismatch"):
         nemo_train.verify_nemotron_execution_lane(tmp_path)
+
+
+def test_quantized_mamba_lora_forward_binds_reviewed_module_path_without_global_mutation():
+    model = FakeQuantizedMambaModel()
+    global_before = is_fast_path_available
+
+    receipt = nemo_train.bind_quantized_mamba_lora_forward(
+        model, compatibility_contract(), "fixture"
+    )
+
+    assert receipt["state"] == "BOUND_REVIEWED_TORCH_FORWARD"
+    assert receipt["expected_mixer_count"] == receipt["bound_mixer_count"] == 2
+    assert receipt["config_use_mamba_kernels_before"] is True
+    assert receipt["config_use_mamba_kernels_after"] is False
+    assert model.config.use_mamba_kernels is False
+    assert is_fast_path_available is global_before is True
+    assert all(mixer.forward() == "torch" for mixer in model.mixers)
+    assert all(
+        row["projection_base_class"].endswith(".Linear4bit")
+        and row["lora_adapter_names"] == ["default"]
+        and row["module_global_fast_path_before"] is True
+        and row["module_global_fast_path_after"] is True
+        for row in receipt["modules"]
+    )
+
+
+def test_quantized_mamba_lora_forward_refuses_mixer_count_mismatch():
+    model = FakeQuantizedMambaModel(mixer_count=1)
+
+    with pytest.raises(nemo_train.GateRefused, match="Mamba mixer count mismatch"):
+        nemo_train.bind_quantized_mamba_lora_forward(
+            model, compatibility_contract(), "fixture"
+        )
+
+
+def test_quantized_mamba_lora_forward_refuses_incomplete_adapter_wrapper():
+    model = FakeQuantizedMambaModel(valid_lora=False)
+
+    with pytest.raises(nemo_train.GateRefused, match="LoRA adapter sets are incomplete"):
+        nemo_train.bind_quantized_mamba_lora_forward(
+            model, compatibility_contract(), "fixture"
+        )
+
+
+def test_quantized_mamba_lora_forward_refuses_missing_reviewed_forward():
+    model = FakeQuantizedMambaModel()
+    model.mixers[0].torch_forward = None
+
+    with pytest.raises(nemo_train.GateRefused, match="lacks reviewed torch_forward"):
+        nemo_train.bind_quantized_mamba_lora_forward(
+            model, compatibility_contract(), "fixture"
+        )
+
+
+def test_capacity_and_training_bind_mamba_forward_only_after_peft_wrapping():
+    runner = RUNNER.read_text(encoding="utf-8")
+    capacity_wrap = runner.index("model = get_peft_model(model, lora)")
+    capacity_bind = runner.index(
+        'model, contract, "capacity"', capacity_wrap
+    )
+    trainer_wrap = runner.index("trainer = SFTTrainer")
+    training_bind = runner.index(
+        'trainer.model, contract, "training"', trainer_wrap
+    )
+    training_start = runner.index(
+        'receipt["state"] = "TRAINING_STARTED_NOT_PROMOTED"', trainer_wrap
+    )
+
+    assert capacity_wrap < capacity_bind < trainer_wrap
+    assert trainer_wrap < training_bind < training_start
 
 
 def test_training_requires_linux_network_namespace(monkeypatch):

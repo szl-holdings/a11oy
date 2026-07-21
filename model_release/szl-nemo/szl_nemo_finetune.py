@@ -910,6 +910,138 @@ def verify_loaded_model_source(model: Any, contract: dict[str, Any], phase: str)
     }
 
 
+def bind_quantized_mamba_lora_forward(
+    model: Any, contract: dict[str, Any], phase: str
+) -> dict[str, Any]:
+    """Bind reviewed Mamba mixers to the module-aware PyTorch forward path.
+
+    The pinned NVIDIA fused training path passes ``out_proj.weight`` directly
+    into ``mamba_split_conv1d_scan_combined``.  A bitsandbytes ``Linear4bit``
+    stores compressed data in that attribute, and PEFT applies LoRA in the
+    projection module's ``forward`` method.  Therefore the fused call is both
+    shape-incompatible with the compressed storage and unable to apply the
+    adapter.  The same hash-verified NVIDIA class provides ``torch_forward``,
+    which calls ``self.out_proj(...)`` and preserves both behaviors.
+
+    This is deliberately a per-instance binding.  It does not edit the pinned
+    model source or mutate the custom module's process-global fast-path flag.
+    """
+
+    config = getattr(model, "config", None)
+    pattern = getattr(config, "hybrid_override_pattern", None)
+    if not isinstance(pattern, str) or not pattern:
+        raise GateRefused(f"{phase} model has no hybrid override pattern")
+    if any(symbol not in {"M", "-", "*"} for symbol in pattern):
+        raise GateRefused(f"{phase} hybrid override pattern is invalid")
+    expected_mixers = pattern.count("M")
+    if expected_mixers <= 0:
+        raise GateRefused(f"{phase} hybrid override pattern has no Mamba mixers")
+
+    required_files = contract.get("base", {}).get("required_files", [])
+    expected_source_sha256 = next(
+        (
+            item.get("sha256")
+            for item in required_files
+            if item.get("path") == "modeling_nemotron_h.py"
+        ),
+        None,
+    )
+    if not isinstance(expected_source_sha256, str) or len(expected_source_sha256) != 64:
+        raise GateRefused("reviewed Nemotron model source hash is absent from contract")
+
+    named_modules = getattr(model, "named_modules", None)
+    if not callable(named_modules):
+        raise GateRefused(f"{phase} model cannot enumerate modules")
+    mixers = [
+        (name, module)
+        for name, module in named_modules()
+        if type(module).__name__ == "NemotronHMamba2Mixer"
+    ]
+    if len(mixers) != expected_mixers:
+        raise GateRefused(
+            f"{phase} Mamba mixer count mismatch: expected {expected_mixers}, "
+            f"observed {len(mixers)}"
+        )
+
+    config_flag_before = getattr(config, "use_mamba_kernels", "UNDECLARED")
+    module_receipts: list[dict[str, Any]] = []
+    for name, mixer in mixers:
+        source = Path(inspect.getfile(type(mixer))).resolve()
+        source_sha256 = sha256_file(source)
+        if source_sha256 != expected_source_sha256:
+            raise GateRefused(f"{phase} Mamba mixer source hash mismatch")
+
+        reviewed_forward = getattr(mixer, "torch_forward", None)
+        if not callable(reviewed_forward):
+            raise GateRefused(f"{phase} Mamba mixer lacks reviewed torch_forward")
+        forward_function = getattr(reviewed_forward, "__func__", reviewed_forward)
+        module_globals = getattr(forward_function, "__globals__", {})
+        fast_path_before = module_globals.get("is_fast_path_available", "UNDECLARED")
+
+        out_proj = getattr(mixer, "out_proj", None)
+        base_layer = getattr(out_proj, "base_layer", None)
+        lora_a = getattr(out_proj, "lora_A", None)
+        lora_b = getattr(out_proj, "lora_B", None)
+        if base_layer is None or lora_a is None or lora_b is None:
+            raise GateRefused(f"{phase} Mamba out_proj is not a PEFT LoRA wrapper")
+        try:
+            lora_a_names = sorted(str(key) for key in lora_a.keys())
+            lora_b_names = sorted(str(key) for key in lora_b.keys())
+        except (AttributeError, TypeError) as exc:
+            raise GateRefused(f"{phase} Mamba out_proj LoRA adapters cannot be measured") from exc
+        if not lora_a_names or lora_a_names != lora_b_names:
+            raise GateRefused(f"{phase} Mamba out_proj LoRA adapter sets are incomplete")
+
+        base_class = f"{type(base_layer).__module__}.{type(base_layer).__qualname__}"
+        if type(base_layer).__name__ != "Linear4bit" or not type(base_layer).__module__.startswith(
+            "bitsandbytes"
+        ):
+            raise GateRefused(f"{phase} Mamba out_proj base is not bitsandbytes Linear4bit")
+
+        mixer.forward = reviewed_forward
+        rebound = getattr(mixer, "forward", None)
+        if getattr(rebound, "__func__", rebound) is not getattr(
+            type(mixer), "torch_forward", None
+        ):
+            raise GateRefused(f"{phase} Mamba torch_forward binding did not hold")
+        fast_path_after = module_globals.get("is_fast_path_available", "UNDECLARED")
+        if fast_path_after != fast_path_before:
+            raise GateRefused(f"{phase} Mamba global fast-path state changed")
+
+        module_receipts.append(
+            {
+                "name": name,
+                "class": f"{type(mixer).__module__}.{type(mixer).__qualname__}",
+                "source": str(source),
+                "source_sha256": source_sha256,
+                "projection_wrapper_class": (
+                    f"{type(out_proj).__module__}.{type(out_proj).__qualname__}"
+                ),
+                "projection_base_class": base_class,
+                "lora_adapter_names": lora_a_names,
+                "module_global_fast_path_before": fast_path_before,
+                "module_global_fast_path_after": fast_path_after,
+            }
+        )
+
+    config.use_mamba_kernels = False
+    if getattr(config, "use_mamba_kernels", None) is not False:
+        raise GateRefused(f"{phase} Mamba kernel declaration could not be disabled")
+    return {
+        "state": "BOUND_REVIEWED_TORCH_FORWARD",
+        "phase": phase,
+        "reason": (
+            "FUSED_PATH_READS_COMPRESSED_OUT_PROJ_WEIGHT_AND_BYPASSES_LORA_MODULE_FORWARD"
+        ),
+        "scope": "PER_MIXER_INSTANCE_NO_PINNED_SOURCE_OR_MODULE_GLOBAL_MUTATION",
+        "expected_mixer_count": expected_mixers,
+        "bound_mixer_count": len(module_receipts),
+        "config_use_mamba_kernels_before": config_flag_before,
+        "config_use_mamba_kernels_after": False,
+        "modules": module_receipts,
+    }
+
+
 def verify_linux_network_namespace() -> dict[str, Any]:
     """Require the WSL/Linux training process to have no non-loopback network."""
 
@@ -1577,6 +1709,9 @@ def capacity_probe(
                 target_modules=settings["target_modules"],
             )
             model = get_peft_model(model, lora)
+            receipt["mamba_forward_compatibility"] = bind_quantized_mamba_lora_forward(
+                model, contract, "capacity"
+            )
             trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
             if not trainable:
                 raise GateRefused("capacity probe produced no trainable adapter parameters")
@@ -1965,6 +2100,9 @@ def train(
             lora = LoraConfig(r=settings["lora_rank"], lora_alpha=settings["lora_alpha"], lora_dropout=settings["lora_dropout"], bias="none", task_type="CAUSAL_LM", target_modules=settings["target_modules"])
             arguments = SFTConfig(output_dir=str(output / "trainer"), max_steps=settings["max_steps"], per_device_train_batch_size=settings["per_device_batch_size"], gradient_accumulation_steps=settings["gradient_accumulation_steps"], learning_rate=settings["learning_rate"], warmup_ratio=settings["warmup_ratio"], optim=settings["optimizer"], seed=settings["seed"], bf16=bf16, fp16=not bf16, max_seq_length=settings["max_sequence_length"], dataset_text_field="text", logging_steps=1, save_strategy="no", report_to="none", gradient_checkpointing=True)
             trainer = SFTTrainer(model=model, processing_class=tokenizer, train_dataset=dataset, peft_config=lora, args=arguments, callbacks=[ThermalGuard()])
+            receipt["mamba_forward_compatibility"] = bind_quantized_mamba_lora_forward(
+                trainer.model, contract, "training"
+            )
             receipt["state"] = "TRAINING_STARTED_NOT_PROMOTED"; receipt["training_started_at_unix_ns"] = time.time_ns(); atomic_json(receipts / "training-receipt.json", receipt)
             result = trainer.train(); guard.check("after-training")
             if int(result.global_step) != settings["max_steps"]:
