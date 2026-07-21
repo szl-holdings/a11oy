@@ -5,6 +5,7 @@
   "decisions": [
     "2026-07-21-inaugural-charter.json",
     "2026-07-21-groundtruth-check.json",
-    "2026-07-21-key-identification.json"
+    "2026-07-21-key-identification.json",
+    "2026-07-21-post-rebuild-continuity.json"
   ]
 }

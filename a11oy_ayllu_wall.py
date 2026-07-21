@@ -105,11 +105,15 @@ def _runtime_key_state(pinned_pem: bytes) -> dict:
         cur = priv.public_key().public_bytes(
             Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
         if cur.strip() == pinned_pem.strip():
-            return {"state": "RUNTIME_MATCHES_PINNED",
-                    "note": "current runtime signing key equals the pinned council key"}
-        return {"state": "RUNTIME_KEY_ROTATED",
-                "note": "current runtime signing key differs from the pinned council key; "
-                        "new decisions will not verify against this pin until re-pinned"}
+            return {"state": "ENV_SIGNER_MATCHES_PIN",
+                    "note": "the szl_dsse env-secret-derived key equals the pinned council key"}
+        return {"state": "ENV_SIGNER_DIFFERS_FROM_PIN",
+                "note": "this probe compares ONLY the szl_dsse env-secret-derived key with "
+                        "the pin; live council receipts have empirically verified against "
+                        "the pin across a Space rebuild (see the committed post-rebuild "
+                        "continuity decision), so the council's effective signer is a "
+                        "persistent key, not this env secret. Trust the per-decision "
+                        "verification above — it is the empirical check."}
     except Exception as exc:
         return {"state": "UNKNOWN", "note": f"{type(exc).__name__}: could not compare"}
 
