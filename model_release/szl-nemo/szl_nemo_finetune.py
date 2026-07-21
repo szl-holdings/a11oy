@@ -603,7 +603,7 @@ def verify_nemotron_execution_lane(snapshot: Path) -> dict[str, Any]:
         modules[module_name] = str(getattr(module, "__version__", "UNKNOWN"))
 
     try:
-        from transformers import AutoConfig, AutoTokenizer
+        from transformers import AutoConfig, AutoTokenizer, GenerationConfig
         from transformers.dynamic_module_utils import get_class_from_dynamic_module
 
         config = AutoConfig.from_pretrained(
@@ -611,6 +611,15 @@ def verify_nemotron_execution_lane(snapshot: Path) -> dict[str, Any]:
         )
         tokenizer = AutoTokenizer.from_pretrained(
             str(snapshot), local_files_only=True, trust_remote_code=True
+        )
+        generation_config = GenerationConfig.from_pretrained(
+            str(snapshot), local_files_only=True
+        )
+        padding = admit_padding_token(tokenizer, contract, "execution-lane")
+        padding_config = verify_model_padding_binding(
+            types.SimpleNamespace(config=config, generation_config=generation_config),
+            padding,
+            "execution-lane",
         )
         model_class = get_class_from_dynamic_module(
             contract["base"]["auto_map"]["AutoModelForCausalLM"],
@@ -652,6 +661,8 @@ def verify_nemotron_execution_lane(snapshot: Path) -> dict[str, Any]:
         "config_class": type(config).__name__,
         "model_class": model_class.__name__,
         "tokenizer_class": type(tokenizer).__name__,
+        "padding_token_admission": padding,
+        "padding_config_binding": padding_config,
         "modules": modules,
         "loaded_code": loaded_code_receipt,
     }
@@ -931,6 +942,110 @@ def verify_loaded_model_source(model: Any, contract: dict[str, Any], phase: str)
         "class": f"{type(model).__module__}.{type(model).__qualname__}",
         "source": str(source),
         "source_sha256": digest,
+    }
+
+
+def admit_padding_token(
+    tokenizer: Any, contract: dict[str, Any], phase: str
+) -> dict[str, Any]:
+    """Bind padding to an already-pinned special token without changing vocab."""
+
+    policy = contract.get("training", {}).get("padding_policy")
+    expected_keys = {
+        "source",
+        "token",
+        "token_id",
+        "special_token_attribute",
+        "vocabulary_mutation_allowed",
+    }
+    if not isinstance(policy, dict) or set(policy) != expected_keys:
+        raise GateRefused(f"{phase} padding policy is absent or malformed")
+    if policy["source"] != "PINNED_MODEL_AND_GENERATION_CONFIG":
+        raise GateRefused(f"{phase} padding token source is not admitted")
+    if policy["vocabulary_mutation_allowed"] is not False:
+        raise GateRefused(f"{phase} padding policy permits vocabulary mutation")
+    expected_token = policy["token"]
+    expected_id = policy["token_id"]
+    attribute = policy["special_token_attribute"]
+    if not isinstance(expected_token, str) or not expected_token:
+        raise GateRefused(f"{phase} padding token is invalid")
+    if not isinstance(expected_id, int) or isinstance(expected_id, bool) or expected_id < 0:
+        raise GateRefused(f"{phase} padding token id is invalid")
+    if not isinstance(attribute, str) or not attribute.endswith("_token"):
+        raise GateRefused(f"{phase} padding special-token attribute is invalid")
+
+    try:
+        length_before = len(tokenizer)
+        added_before = dict(tokenizer.get_added_vocab())
+        source_token = getattr(tokenizer, attribute)
+        source_id = getattr(tokenizer, f"{attribute}_id")
+        id_token = tokenizer.convert_ids_to_tokens(expected_id)
+        token_id = tokenizer.convert_tokens_to_ids(expected_token)
+    except Exception as exc:
+        raise GateRefused(f"{phase} tokenizer cannot prove padding identity") from exc
+    if (source_token, source_id, id_token, token_id) != (
+        expected_token,
+        expected_id,
+        expected_token,
+        expected_id,
+    ):
+        raise GateRefused(f"{phase} pinned padding token identity is inconsistent")
+
+    pad_before = {
+        "token": getattr(tokenizer, "pad_token", None),
+        "token_id": getattr(tokenizer, "pad_token_id", None),
+    }
+    if pad_before["token"] not in {None, expected_token} or pad_before[
+        "token_id"
+    ] not in {None, expected_id}:
+        raise GateRefused(f"{phase} tokenizer has conflicting padding identity")
+    tokenizer.pad_token = expected_token
+    try:
+        length_after = len(tokenizer)
+        added_after = dict(tokenizer.get_added_vocab())
+    except Exception as exc:
+        raise GateRefused(f"{phase} tokenizer padding mutation cannot be measured") from exc
+    if (
+        tokenizer.pad_token != expected_token
+        or tokenizer.pad_token_id != expected_id
+        or length_after != length_before
+        or added_after != added_before
+    ):
+        raise GateRefused(f"{phase} padding bind changed vocabulary or token identity")
+    return {
+        "state": "BOUND_PINNED_SPECIAL_TOKEN_NO_VOCAB_MUTATION",
+        "phase": phase,
+        "source": policy["source"],
+        "special_token_attribute": attribute,
+        "token": expected_token,
+        "token_id": expected_id,
+        "pad_before": pad_before,
+        "pad_after": {"token": tokenizer.pad_token, "token_id": tokenizer.pad_token_id},
+        "vocabulary_size_before": length_before,
+        "vocabulary_size_after": length_after,
+        "added_vocabulary_unchanged": True,
+    }
+
+
+def verify_model_padding_binding(
+    model: Any, padding: dict[str, Any], phase: str
+) -> dict[str, Any]:
+    """Require model and generation configs to match admitted tokenizer padding."""
+
+    expected_id = padding.get("token_id")
+    model_config = getattr(model, "config", None)
+    generation_config = getattr(model, "generation_config", None)
+    model_id = getattr(model_config, "pad_token_id", None)
+    generation_id = getattr(generation_config, "pad_token_id", None)
+    if model_id != expected_id or generation_id != expected_id:
+        raise GateRefused(f"{phase} model/generation padding identity is inconsistent")
+    return {
+        "state": "CONSISTENT_PINNED_PADDING_IDS",
+        "phase": phase,
+        "token": padding["token"],
+        "token_id": expected_id,
+        "model_config_pad_token_id": model_id,
+        "generation_config_pad_token_id": generation_id,
     }
 
 
@@ -1810,10 +1925,9 @@ def capacity_probe(
             tokenizer = AutoTokenizer.from_pretrained(
                 str(snapshot), local_files_only=True, trust_remote_code=True
             )
-            if tokenizer.pad_token_id is None:
-                if tokenizer.eos_token_id is None:
-                    raise GateRefused("capacity tokenizer has no pad or EOS token")
-                tokenizer.pad_token = tokenizer.eos_token
+            receipt["padding_token_admission"] = admit_padding_token(
+                tokenizer, contract, "capacity"
+            )
             model = AutoModelForCausalLM.from_pretrained(
                 str(snapshot),
                 local_files_only=True,
@@ -1826,6 +1940,9 @@ def capacity_probe(
             receipt["model_load_duration_ms"] = (time.monotonic_ns() - load_started) // 1_000_000
             receipt["loaded_model_class"] = verify_loaded_model_source(
                 model, contract, "capacity"
+            )
+            receipt["model_padding_binding"] = verify_model_padding_binding(
+                model, receipt["padding_token_admission"], "capacity"
             )
             if activation_offload:
                 torch.cuda.synchronize()
@@ -2274,8 +2391,14 @@ def train(
                     guard.check(f"step-{state.global_step}-end"); return control
             guard.check("before-model-load")
             tokenizer = AutoTokenizer.from_pretrained(str(snapshot), local_files_only=True, trust_remote_code=True)
+            receipt["padding_token_admission"] = admit_padding_token(
+                tokenizer, contract, "training"
+            )
             model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map={"": 0}, trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
             receipt["loaded_model_class"] = verify_loaded_model_source(model, contract, "training")
+            receipt["model_padding_binding"] = verify_model_padding_binding(
+                model, receipt["padding_token_admission"], "training"
+            )
             model.config.use_cache = False
             model = prepare_model_for_kbit_training(
                 model,
@@ -2309,6 +2432,9 @@ def train(
             del trainer, model; torch.cuda.empty_cache()
             reload_model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map={"": 0}, trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
             receipt["reloaded_model_class"] = verify_loaded_model_source(reload_model, contract, "reload")
+            receipt["reload_padding_binding"] = verify_model_padding_binding(
+                reload_model, receipt["padding_token_admission"], "reload"
+            )
             reload_model = PeftModel.from_pretrained(reload_model, str(adapter), is_trainable=False, local_files_only=True); reload_model.eval()
             results: list[dict[str, Any]] = []
             for row in eval_rows:
@@ -2316,7 +2442,7 @@ def train(
                 prompt = tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=True, enable_thinking=False)
                 inputs = tokenizer(prompt, return_tensors="pt").to(reload_model.device)
                 with torch.inference_mode():
-                    generated = reload_model.generate(**inputs, max_new_tokens=settings["maximum_eval_new_tokens"], do_sample=False, pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id)
+                    generated = reload_model.generate(**inputs, max_new_tokens=settings["maximum_eval_new_tokens"], do_sample=False, pad_token_id=tokenizer.pad_token_id)
                 text = tokenizer.decode(generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
                 results.append({"record_id": row["record_id"], **_evaluate_output(text, row["expected"])})
             reload_state = "PASS" if results and all(item["state"] == "PASS" for item in results) else "FAIL"

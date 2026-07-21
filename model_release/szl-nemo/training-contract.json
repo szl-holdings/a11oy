@@ -84,6 +84,13 @@
     "lora_dropout": 0.05,
     "target_modules": "all-linear",
     "optimizer": "paged_adamw_8bit",
+    "padding_policy": {
+      "source": "PINNED_MODEL_AND_GENERATION_CONFIG",
+      "token": "<unk>",
+      "token_id": 0,
+      "special_token_attribute": "unk_token",
+      "vocabulary_mutation_allowed": false
+    },
     "confirmation_phrase": "TRAIN_SZL_NEMO_GOVERNED_ADAPTER_V1",
     "maximum_wall_clock_seconds": 10800,
     "watchdog_interval_seconds": 5,
