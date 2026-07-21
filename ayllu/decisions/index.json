@@ -1,0 +1,10 @@
+{
+  "schema": "szl.ayllu.decisions-index/v1",
+  "note": "committed AYLLU council decision receipts; each file is the full live POST /api/a11oy/v1/ayllu/council response, DSSE-signed by the pinned runtime key (see ayllu/keys/). Verify offline with scripts/verify_ayllu_council_receipt.py; the live wall at /ayllu/wall re-verifies per request and fails closed.",
+  "key": "ayllu/keys/council-runtime-2026-07-21.pub",
+  "decisions": [
+    "2026-07-21-inaugural-charter.json",
+    "2026-07-21-groundtruth-check.json",
+    "2026-07-21-key-identification.json"
+  ]
+}

@@ -94,3 +94,28 @@ Canonical release metadata lives in `model_release/szl-ayllu-binding.json` and
 `model_release/szl-khipu-second-brain.json`. These repository and local-runtime
 statements do not establish that a public domain, Space, or production deployment
 is running the same build.
+
+## Committed decisions, public wall, and offline verifier (2026-07-21)
+
+Council decisions are now COMMITTED and independently verifiable:
+
+- `ayllu/decisions/` holds full live council responses whose outer DSSE
+  receipts are signed by the Space runtime key; `ayllu/decisions/index.json`
+  is the wall's source of truth.
+- `GET /api/ayllu/wall` (JSON) and `GET /ayllu/wall` (page) re-verify every
+  committed receipt SERVER-SIDE PER REQUEST (ECDSA-P256 over the DSSE PAE,
+  payload-digest reproduction, chain receipt-id match) and FAIL CLOSED. The
+  page carries the "what this is / what this is not" scope box.
+- `scripts/verify_ayllu_council_receipt.py` proves the same chain OFFLINE with
+  no trust in the server; `tests/test_verify_ayllu_council_receipt.py` locks
+  the tamper paths (payload, signature, wrong key, missing signature).
+
+Key state (honest): the runtime envelopes carry the keyid label
+`szlholdings-cosign`, but the signatures do NOT verify against the published
+org `szl-holdings/.github/cosign.pub` — the live `/api/a11oy/v1/verify/receipt`
+reports the same MISMATCH. The actual verifying public key was recovered from
+two independent live signatures (unique common ECDSA-recovery candidate) and
+is pinned at `ayllu/keys/council-runtime-2026-07-21.pub` with that provenance;
+owner reconciliation of the secret vs the published key is pending. PASS
+against this pin means "signed by the a11oy runtime key and unaltered" — no
+more, no less.
