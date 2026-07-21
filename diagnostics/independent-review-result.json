@@ -1,0 +1,8 @@
+{
+  "result": "NO_SECRET",
+  "login": "UNAVAILABLE",
+  "permission": "UNAVAILABLE",
+  "target": "szl-holdings/lutar-lean#265",
+  "expected_head": "c5edc91de1bc54d8ae92230c49782e7f29247eb2",
+  "token_exposed": false
+}
