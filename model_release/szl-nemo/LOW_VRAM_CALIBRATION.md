@@ -48,6 +48,16 @@ or shard this training process. CUDA on WSL does not provide a supported
 oversubscription mechanism that turns host memory into additional physical GPU
 memory for this lane.
 
+### Source identity prerequisite
+
+Run the governed launcher from a native WSL/Linux Git checkout at the exact
+reviewed commit. A linked worktree created by Windows Git stores a `C:/...`
+Git-directory pointer; Linux Git does not resolve that pointer and the runner
+correctly refuses because it cannot measure the source commit. Do not edit or
+translate the pointer by hand. Create a clean native checkout, confirm that the
+contract-declared source scope is clean, and invoke the launcher from that
+checkout. The immutable base snapshot may remain on a read-only `/mnt/c` path.
+
 ## Operator workflow
 
 1. Record the current Windows-side inventory:

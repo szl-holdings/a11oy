@@ -915,26 +915,50 @@ def verify_linux_network_namespace() -> dict[str, Any]:
 
     if platform.system() != "Linux":
         raise GateRefused("Linux network namespace is required for SZL-Nemo training")
-    interface_root = Path("/sys/class/net")
-    if not interface_root.is_dir():
-        raise GateRefused("network namespace interfaces cannot be measured")
-    interfaces = sorted(path.name for path in interface_root.iterdir())
+    try:
+        interface_rows = socket.if_nameindex()
+    except OSError as exc:
+        raise GateRefused("network namespace interfaces cannot be measured") from exc
+    if not interface_rows or not all(
+        isinstance(index, int) and index > 0 and isinstance(name, str) and name
+        for index, name in interface_rows
+    ):
+        raise GateRefused("network namespace interface evidence is invalid")
+    interfaces = sorted({name for _index, name in interface_rows})
     non_loopback = [name for name in interfaces if name != "lo"]
-    routes = Path("/proc/net/route").read_text(encoding="utf-8")
+    route_path = Path("/proc/net/route")
+    try:
+        routes = route_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise GateRefused("network namespace routes cannot be measured") from exc
+    route_lines = routes.splitlines()
+    if route_lines:
+        if "Iface" not in route_lines[0] or "Destination" not in route_lines[0]:
+            raise GateRefused("network namespace route evidence is invalid")
+        route_rows = [line.split() for line in route_lines[1:] if line.strip()]
+    else:
+        route_rows = []
+    if any(len(row) < 2 for row in route_rows):
+        raise GateRefused("network namespace route evidence is invalid")
     default_routes = [
-        line for line in routes.splitlines()[1:]
-        if len(line.split()) > 1 and line.split()[1] == "00000000"
+        row for row in route_rows if row[1] == "00000000"
     ]
     if non_loopback or default_routes:
         raise GateRefused(
             "OS network namespace is not isolated; invoke training through "
             "unshare --user --map-root-user --net"
         )
+    try:
+        namespace_link = os.readlink("/proc/self/ns/net")
+    except OSError as exc:
+        raise GateRefused("network namespace identity cannot be measured") from exc
     return {
         "state": "OS_NETWORK_NAMESPACE_DENIED",
         "interfaces": interfaces,
         "default_route_count": len(default_routes),
-        "namespace_link": os.readlink("/proc/self/ns/net"),
+        "interface_measurement_source": "socket.if_nameindex",
+        "route_measurement_source": str(route_path),
+        "namespace_link": namespace_link,
     }
 
 

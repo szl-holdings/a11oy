@@ -649,6 +649,96 @@ def test_training_requires_linux_network_namespace(monkeypatch):
         nemo_train.verify_linux_network_namespace()
 
 
+def test_linux_network_namespace_uses_namespace_scoped_interface_measurement(
+    monkeypatch, tmp_path
+):
+    route_path = tmp_path / "route"
+    route_path.write_text("", encoding="utf-8")
+    real_path = nemo_train.Path
+
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(nemo_train.socket, "if_nameindex", lambda: [(1, "lo")])
+    monkeypatch.setattr(
+        nemo_train,
+        "Path",
+        lambda value: route_path if value == "/proc/net/route" else real_path(value),
+    )
+    monkeypatch.setattr(nemo_train.os, "readlink", lambda _path: "net:[fixture]")
+
+    evidence = nemo_train.verify_linux_network_namespace()
+
+    assert evidence == {
+        "state": "OS_NETWORK_NAMESPACE_DENIED",
+        "interfaces": ["lo"],
+        "default_route_count": 0,
+        "interface_measurement_source": "socket.if_nameindex",
+        "route_measurement_source": str(route_path),
+        "namespace_link": "net:[fixture]",
+    }
+
+
+def test_linux_network_namespace_refuses_non_loopback_interface(monkeypatch, tmp_path):
+    route_path = tmp_path / "route"
+    route_path.write_text(
+        "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\n",
+        encoding="utf-8",
+    )
+    real_path = nemo_train.Path
+
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(
+        nemo_train.socket,
+        "if_nameindex",
+        lambda: [(1, "lo"), (2, "eth0")],
+    )
+    monkeypatch.setattr(
+        nemo_train,
+        "Path",
+        lambda value: route_path if value == "/proc/net/route" else real_path(value),
+    )
+
+    with pytest.raises(nemo_train.GateRefused, match="network namespace is not isolated"):
+        nemo_train.verify_linux_network_namespace()
+
+
+def test_linux_network_namespace_refuses_malformed_route_evidence(monkeypatch, tmp_path):
+    route_path = tmp_path / "route"
+    route_path.write_text("not a Linux route table\n", encoding="utf-8")
+    real_path = nemo_train.Path
+
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(nemo_train.socket, "if_nameindex", lambda: [(1, "lo")])
+    monkeypatch.setattr(
+        nemo_train,
+        "Path",
+        lambda value: route_path if value == "/proc/net/route" else real_path(value),
+    )
+
+    with pytest.raises(nemo_train.GateRefused, match="route evidence is invalid"):
+        nemo_train.verify_linux_network_namespace()
+
+
+def test_linux_network_namespace_refuses_unknown_namespace_identity(monkeypatch, tmp_path):
+    route_path = tmp_path / "route"
+    route_path.write_text("", encoding="utf-8")
+    real_path = nemo_train.Path
+
+    monkeypatch.setattr(nemo_train.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(nemo_train.socket, "if_nameindex", lambda: [(1, "lo")])
+    monkeypatch.setattr(
+        nemo_train,
+        "Path",
+        lambda value: route_path if value == "/proc/net/route" else real_path(value),
+    )
+    def unavailable_readlink(_path):
+        raise OSError("unavailable")
+
+    monkeypatch.setattr(nemo_train.os, "readlink", unavailable_readlink)
+
+    with pytest.raises(nemo_train.GateRefused, match="identity cannot be measured"):
+        nemo_train.verify_linux_network_namespace()
+
+
 def test_historical_static_preflight_is_preserved_and_scoped():
     contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
     lineage = contract["evidence_lineage"]
