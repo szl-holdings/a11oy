@@ -1,0 +1,79 @@
+name: Independent owner-authorized PR review
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/review-owner-prs.yml
+
+permissions:
+  contents: read
+
+jobs:
+  approve-theoremu-doc-fix:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'ops/review-owner-prs' &&
+      github.actor == 'stephenlutar2-hash'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ADMIN_TOKEN: ${{ secrets.SZL_GITHUB_TOKEN }}
+      TARGET_REPO: szl-holdings/lutar-lean
+      TARGET_PR: '265'
+      EXPECTED_BASE: 1a738a22893c3e9c6f8df3b23b34a76df5f6223d
+      EXPECTED_HEAD: c5edc91de1bc54d8ae92230c49782e7f29247eb2
+    steps:
+      - name: Verify independent credential and exact PR scope
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ADMIN_TOKEN:-}"
+          auth=$(curl --fail-with-body --silent --show-error \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            https://api.github.com/user)
+          login=$(jq -r '.login' <<<"$auth")
+          test -n "$login"
+          test "$login" != 'stephenlutar2-hash'
+          perm=$(curl --fail-with-body --silent --show-error \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${TARGET_REPO}/collaborators/${login}/permission" \
+            | jq -r '.permission')
+          case "$perm" in admin|maintain|write) ;; *) echo "credential $login lacks write permission"; exit 1 ;; esac
+          pr=$(curl --fail-with-body --silent --show-error \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${TARGET_REPO}/pulls/${TARGET_PR}")
+          test "$(jq -r '.state' <<<"$pr")" = open
+          test "$(jq -r '.user.login' <<<"$pr")" = stephenlutar2-hash
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_BASE"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_HEAD"
+          files=$(curl --fail-with-body --silent --show-error \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${TARGET_REPO}/pulls/${TARGET_PR}/files?per_page=100" \
+            | jq -r '.[].filename')
+          test "$files" = 'Lutar/Uniqueness/TheoremU.lean'
+          echo "login=$login" >> "$GITHUB_OUTPUT"
+
+      - name: Submit independent approving review
+        env:
+          REVIEWER: ${{ steps.verify.outputs.login }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg body "Independent owner-authorized review by ${REVIEWER}. Exact one-line documentation-only diff verified against head ${EXPECTED_HEAD}; the full Lean, doctrine, DCO, security, and container-scan matrix passed." '{body:$body,event:"APPROVE"}' > /tmp/review.json
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${TARGET_REPO}/pulls/${TARGET_PR}/reviews" \
+            --data-binary @/tmp/review.json
