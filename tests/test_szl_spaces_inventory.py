@@ -15,10 +15,10 @@ EXPECTED = [
     ("cosmos", "cosmos", "SZL Cosmos", "docker"),
     ("david-leads", "david-leads", "David Leads — Sovereign Insurance Intelligence", "docker"),
     ("energy-attest-holo", "energy-attest-holo", "Energy Attestation Holo", "static"),
-    ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "gradio"),
+    ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static"),
     ("governed-norm-holo", "governed-norm-holo", "Governed Norms — WILLAY classifiers", "static"),
     ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
-    ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "gradio"),
+    ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static"),
     ("hatun-mcp", "hatun-mcp", "hatun — MCP Server", "docker"),
     ("holographic", "holographic", "Holographic Estate", "docker"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
@@ -30,7 +30,7 @@ EXPECTED = [
     ("sda", "sda", "SZL SDA", "docker"),
     ("szl-blocked-live", "szl-blocked-live", "szl-blocked-live", "static"),
     ("szl-estate-live", "szl-estate-live", "Khipu Loom — Governed AI Estate", "static"),
-    ("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "gradio"),
+    ("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "static"),
     ("szl-govsign-live", "szl-govsign-live", "szl-govsign-live", "static"),
     ("szl-kernels-live", "szl-kernels-live", "SZL Kernel Operations Hub", "static"),
     ("szl-model-inference-lab", "szl-model-inference-lab", "SZL Model Inference Lab", "docker"),
@@ -63,6 +63,14 @@ def test_sdk_selects_the_canonical_hugging_face_host():
 
     # Hub API identity is case-sensitive even though the local route is lowercase.
     assert surface.hf_api_url("readme") == "https://huggingface.co/api/spaces/SZLHOLDINGS/README"
+
+
+def test_static_spaces_with_former_404_aliases_use_static_origins():
+    for slug in ("energy-attested-runs", "guardrail-receipt", "szl-forge-lab"):
+        expected = f"https://szlholdings-{slug}.static.hf.space"
+        assert surface.hf_url(slug) == expected
+        assert proxy.hf_url(slug) == expected
+        assert not surface.hf_url(slug).endswith(f"{slug}.hf.space")
 
 
 def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
@@ -170,6 +178,7 @@ def test_health_aggregate_and_cache_states_are_explicit():
 if __name__ == "__main__":
     test_audited_inventory_is_exact_and_in_lockstep()
     test_sdk_selects_the_canonical_hugging_face_host()
+    test_static_spaces_with_former_404_aliases_use_static_origins()
     test_every_audited_shortcut_hands_off_to_an_isolated_origin()
     test_unknown_identifiers_fail_closed()
     test_tiles_and_fallback_render_every_audited_title_without_runtime_claims()

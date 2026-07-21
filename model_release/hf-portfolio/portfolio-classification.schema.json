@@ -27,9 +27,10 @@
     "observed_findings": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["docker_spaces_missing_standard_health_boundary", "datasets_broken_or_no_config"],
+      "required": ["docker_spaces_missing_standard_health_boundary", "docker_spaces_with_verified_health_boundary", "datasets_broken_or_no_config"],
       "properties": {
-        "docker_spaces_missing_standard_health_boundary": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/spaceFinding"}},
+        "docker_spaces_missing_standard_health_boundary": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"$ref": "#/$defs/spaceFinding"}},
+        "docker_spaces_with_verified_health_boundary": {"type": "array", "minItems": 1, "maxItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/verifiedSpaceHealth"}},
         "datasets_broken_or_no_config": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"$ref": "#/$defs/datasetFinding"}}
       }
     },
@@ -70,6 +71,11 @@
       "type": "object", "additionalProperties": false,
       "required": ["repository_id", "hub_stage_observed", "root_http_observed", "health_state", "recommended_repo_fix"],
       "properties": {"repository_id": {"type": "string"}, "hub_stage_observed": {"const": "RUNNING"}, "root_http_observed": {"const": 200}, "health_state": {"const": "STANDARD_HEALTH_BOUNDARY_NOT_FOUND"}, "recommended_repo_fix": {"type": "string", "minLength": 20}}
+    },
+    "verifiedSpaceHealth": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository_id", "observed_revision", "hub_stage_observed", "root_http_observed", "liveness_path", "liveness_http_observed", "readiness_path", "readiness_http_observed", "health_state", "evidence_boundary"],
+      "properties": {"repository_id": {"const": "SZLHOLDINGS/szl-model-inference-lab"}, "observed_revision": {"const": "3a5d54f7fd00dc8396390c04db74c83a7930076f"}, "hub_stage_observed": {"const": "RUNNING"}, "root_http_observed": {"const": 200}, "liveness_path": {"const": "/live"}, "liveness_http_observed": {"const": 200}, "readiness_path": {"const": "/health"}, "readiness_http_observed": {"const": 200}, "health_state": {"const": "LIVE_AND_READY_AT_OBSERVED_REVISION"}, "evidence_boundary": {"type": "string", "minLength": 40}}
     },
     "datasetFinding": {
       "type": "object", "additionalProperties": false,

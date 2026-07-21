@@ -417,8 +417,23 @@ def _load_hf_portfolio_registry() -> dict[str, Any]:
     findings = value.get("observed_findings")
     if not isinstance(findings, dict):
         raise ValueError("HF portfolio observed findings are missing")
-    if len(findings.get("docker_spaces_missing_standard_health_boundary", [])) != 4:
+    if len(findings.get("docker_spaces_missing_standard_health_boundary", [])) != 3:
         raise ValueError("HF portfolio missing-health Space count changed")
+    verified_health = findings.get("docker_spaces_with_verified_health_boundary", [])
+    if len(verified_health) != 1:
+        raise ValueError("HF portfolio verified-health Space count changed")
+    verified = verified_health[0]
+    if (
+        not isinstance(verified, dict)
+        or verified.get("repository_id")
+        != "SZLHOLDINGS/szl-model-inference-lab"
+        or verified.get("observed_revision")
+        != "3a5d54f7fd00dc8396390c04db74c83a7930076f"
+        or verified.get("liveness_path") != "/live"
+        or verified.get("readiness_path") != "/health"
+        or verified.get("health_state") != "LIVE_AND_READY_AT_OBSERVED_REVISION"
+    ):
+        raise ValueError("HF portfolio verified-health evidence drifted")
     if len(findings.get("datasets_broken_or_no_config", [])) != 7:
         raise ValueError("HF portfolio broken/no-config dataset count changed")
     mutations = value.get("external_mutations")
