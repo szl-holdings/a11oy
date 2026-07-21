@@ -847,7 +847,10 @@ def register(app, ns: str = "a11oy", web_dir: Optional[str] = None) -> Dict[str,
         try:
             result = evaluate(name, opts or {}, config)
         except GateError as ge:
-            return JSONResponse({"ok": False, "error": str(ge), "code": 400, "slug": name}, status_code=400)
+            # Honesty + CodeQL py/stack-trace-exposure: full exception text stays in
+            # server logs; the HTTP-visible field carries the exception class only.
+            print(f"[a11oy_v4] evaluate({name!r}) rejected: {type(ge).__name__}: {ge}", flush=True)
+            return JSONResponse({"ok": False, "error": type(ge).__name__, "code": 400, "slug": name}, status_code=400)
         code = result.get("code")
         if code in (404, 422):
             return JSONResponse(result, status_code=code)

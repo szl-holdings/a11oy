@@ -18,8 +18,8 @@ The following are **not training data**:
 
 - 9,464 raw Brain nodes: all are quarantined; use them through retrieval after
   admission and use their receipts in evaluation.
-- 148 formula crosswalk rows: all are holdout; use them only for frozen
-  namespace/status-preservation evaluation.
+- 146 formula crosswalk records plus 2 SZL-Lake evidence records: all 148
+  tranche rows are holdout; use them only for frozen namespace/status-preservation evaluation.
 - the historical 167-row adapter corpus: rights/privacy/contamination review is
   incomplete.
 - the ORPO corpus/candidate: qualification is 0/12 and remains quarantined.

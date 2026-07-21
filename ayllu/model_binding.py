@@ -325,12 +325,20 @@ def second_brain_binding(
             "raw_brain_nodes_admitted_to_gradients": 0,
             "admission_is_row_level": True,
             "admission_engine": "szl_brain_training_admission.py",
-            "admission_contract": "szl.brain-training-admission-report.v1",
-            "evidence_security": "ED25519_ALLOWLISTED_ISSUER_TOOL_KEY",
+            "admission_contract": "szl.brain-training-admission-report.v2",
+            "evidence_security": (
+                "ED25519_ROOT_SIGNED_PURPOSE_SCOPED_ISSUER_TOOL_KEY"
+            ),
             "required_signed_inputs": [
                 "protected_eval_content_sha256_list",
-                "signed_evidence_trust_store",
+                "purpose_scoped_evidence_trust_store",
+                "policy_root_signer",
+                "root_signed_policy_bundle",
                 "signed_prior_split_ledger_descriptor",
+                "exact_split_ledger_head_sha256",
+                "reviewer_allowlist",
+                "artifact_signing_key",
+                "explicit_train_admission_switch",
             ],
             "current_state": (
                 "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED"
@@ -338,12 +346,16 @@ def second_brain_binding(
             "required": [
                 "stable_node_id",
                 "content_sha256",
+                "stable_source_identity",
                 "immutable_source_revision",
-                "rights_basis_and_license",
+                "author_and_rightsholder",
+                "rights_basis_license_and_permission_scope",
+                "privacy_classification_and_signed_pii_clearance",
                 "source_timestamp_and_freshness",
                 "canonical_state",
                 "dedup_group",
                 "contamination_result",
+                "allowlisted_signed_review",
                 "immutable_split",
                 "cross_run_split_ledger_binding",
             ],

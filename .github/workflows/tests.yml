@@ -16,13 +16,13 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # CI-HYGIENE 2026-06-03: pnpm/action-setup removed — pnpm is not a GitHub-verified
       # marketplace creator (isVerifiedOwner=false) and is blocked by the szl-holdings org
       # allowed_actions policy (github_owned_allowed=true, verified_allowed=true,
       # patterns_allowed=[]). Replaced with corepack (Node.js built-in, no external action)
       # and npm scripts. Node.js setup uses github-owned actions/setup-node only.
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -51,10 +51,10 @@ jobs:
     name: Operator & reason endpoint tests (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
@@ -72,9 +72,9 @@ jobs:
     name: Proof-carrying formula registry — no overclaims (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions policy). setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pytest (guard + _INDEX import are stdlib-only)
@@ -95,10 +95,10 @@ jobs:
     name: Λ parity — flagship inline vs published universal kernel (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pytest (test + szl_formulas are stdlib-only; no torch)
@@ -121,10 +121,10 @@ jobs:
     name: Demo-critical route-table regression guard (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
@@ -145,10 +145,10 @@ jobs:
     name: Energy-operator autostart + /readyz redeploy-stall guard (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
@@ -171,10 +171,10 @@ jobs:
     name: Backend hardening surface tests (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (FastAPI TestClient over a real hardened app)
@@ -195,8 +195,8 @@ jobs:
     name: Energy /metrics private-address egress guard (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pytest (the guard imports szl_energy_sovereign; stdlib-only otherwise)
@@ -217,10 +217,10 @@ jobs:
     name: Evidence tab auto-refresh surface guard (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pytest (the guard only reads files; no network, no deps)
@@ -238,10 +238,10 @@ jobs:
     name: Receipt-monitor verifier tests (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pytest (these tests are stdlib-only otherwise)
@@ -268,9 +268,9 @@ jobs:
     name: hf-sync-backend push-path self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only. actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run hf-sync-backend self-test
@@ -285,10 +285,10 @@ jobs:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run theorem-manifest validator honesty-guard self-test
@@ -305,10 +305,10 @@ jobs:
     name: Theorem-manifest validator runs against the REAL manifest (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Validate committed docs/theorem-runtime-manifest.json with the real validator
@@ -326,10 +326,10 @@ jobs:
     name: Release-receipt tamper-rejection integration test (real Sigstore verify)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install Sigstore SDK + pytest
@@ -352,10 +352,10 @@ jobs:
     name: Action-contract manifest validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run action-contract manifest validator self-test
@@ -372,8 +372,8 @@ jobs:
     name: Anatomy/formula/runtime map validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run anatomy/formula/runtime map validator self-test
@@ -388,8 +388,8 @@ jobs:
     name: Benchmark map validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run benchmark map validator self-test
@@ -404,8 +404,8 @@ jobs:
     name: Controls-evidence map validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run controls-evidence map validator self-test
@@ -420,8 +420,8 @@ jobs:
     name: Cross-repo handoff manifest validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run cross-repo handoff manifest validator self-test
@@ -436,8 +436,8 @@ jobs:
     name: GitHub access checklist validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run GitHub access checklist validator self-test
@@ -452,8 +452,8 @@ jobs:
     name: HF test-results manifest validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run HF test-results manifest validator self-test
@@ -468,8 +468,8 @@ jobs:
     name: Phase-completion manifest validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run phase-completion manifest validator self-test
@@ -484,8 +484,8 @@ jobs:
     name: Public-pattern manifest validator self-test (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run public-pattern manifest validator self-test
@@ -500,10 +500,10 @@ jobs:
     name: DSSE PAE parity — szl_dsse cosign-family, diverges from szl-receipt (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install test deps (cryptography exercises the sign->verify round-trip)
@@ -529,10 +529,10 @@ jobs:
     name: DSSE PAE parity — sign_cert_dsse Ed25519 cosign-family, diverges from szl-receipt (offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install test deps (cryptography exercises the Ed25519 sign->verify round-trip)
@@ -557,10 +557,10 @@ jobs:
     name: Frontier 3D-surface manifest — honest, single-source (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install test deps (a11oy_frontier_page imports FastAPI; TestClient smokes the route)
@@ -582,10 +582,10 @@ jobs:
     name: V4 fleet peer-health federates live standalone Spaces, honestly (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install pytest (the probe is monkeypatched — no real network, no httpx)
@@ -606,10 +606,10 @@ jobs:
     name: Frontier-endpoint governance contract (pytest — Wave J Dev 3)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
@@ -637,10 +637,10 @@ jobs:
     name: Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
@@ -659,10 +659,10 @@ jobs:
     name: Shared guarded-surface wrapper — one bad surface never 500s the SPA (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
@@ -681,10 +681,10 @@ jobs:
     name: Guarded-import liveness — no silent no-op dead first-party imports (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pytest (guard is pure stdlib — AST scan, no framework)
@@ -712,10 +712,10 @@ jobs:
     name: Durable bounded receipt/energy ledger — bounds size + degrades honestly (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install pytest (szl_durable_ledger + szl_energy_ledger + joule_billing are stdlib-only; no fastapi needed)
@@ -742,10 +742,10 @@ jobs:
     name: Sovereign local backend — honest UNAVAILABLE when Tower down (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install test deps (szl_llm_registry boots via Starlette TestClient; no network)
@@ -766,10 +766,10 @@ jobs:
     name: Frontier Index honesty — no catalog label a backend doesn't emit (Wave Q Dev 5)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install deps (serve.py boots in-process via Starlette TestClient; no network)
@@ -802,8 +802,8 @@ jobs:
     name: Frontier model admission + HF estate honesty (pytest, offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install scoped test dependencies

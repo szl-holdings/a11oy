@@ -150,10 +150,13 @@ def test_training_start_receipt_state_is_tri_state(tmp_path):
 def test_dsse_verifier_is_pinned_in_clean_scope_and_dirty_scope_refuses(monkeypatch, tmp_path):
     contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
     assert "szl_dsse.py" in contract["source_control"]["paths"]
+    assert "szl_content_address.py" in contract["source_control"]["paths"]
     _module, identity = nemo_train._load_pinned_dsse(contract)
     assert identity == {
         "path": contract["dsse"]["verifier_path"],
         "sha256": contract["dsse"]["verifier_sha256"],
+        "content_address_path": contract["dsse"]["content_address_path"],
+        "content_address_sha256": contract["dsse"]["content_address_sha256"],
         "key_id": contract["dsse"]["key_id"],
         "public_key_fingerprint_sha256": contract["dsse"][
             "public_key_fingerprint_sha256"
@@ -182,6 +185,11 @@ def test_dsse_verifier_replacement_and_key_substitution_refuse():
     replaced["dsse"]["verifier_sha256"] = "0" * 64
     with pytest.raises(nemo_train.GateRefused, match="source mismatch"):
         nemo_train._load_pinned_dsse(replaced)
+
+    replaced_dependency = json.loads(json.dumps(contract))
+    replaced_dependency["dsse"]["content_address_sha256"] = "0" * 64
+    with pytest.raises(nemo_train.GateRefused, match="content-address dependency source mismatch"):
+        nemo_train._load_pinned_dsse(replaced_dependency)
 
     wrong_key = json.loads(json.dumps(contract))
     wrong_key["dsse"]["public_key_fingerprint_sha256"] = "0" * 64

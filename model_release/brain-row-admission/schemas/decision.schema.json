@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl.brain-training-admission-decision.v2.json",
+  "title": "SZL Brain row admission decision v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "input_index", "candidate_row_sha256", "node_id",
+    "content_sha256", "split", "dedup_group", "canonical_node_id", "source",
+    "rights", "privacy", "freshness", "contamination", "review",
+    "canonical_status", "admission_decision", "training_eligible",
+    "evaluation_eligible", "reason_codes", "content_included",
+    "decision_receipt_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.brain-training-admission-decision.v2"},
+    "input_index": {"type": "integer", "minimum": 0},
+    "candidate_row_sha256": {"$ref": "#/$defs/sha256"},
+    "node_id": {"type": ["string", "null"]},
+    "content": {"type": "string", "minLength": 1, "maxLength": 65536},
+    "content_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "split": {"enum": ["TRAIN", "EVAL", null]},
+    "dedup_group": {"type": ["string", "null"]},
+    "canonical_node_id": {"type": ["string", "null"]},
+    "source": {"$ref": "#/$defs/source"},
+    "rights": {"$ref": "#/$defs/rights"},
+    "privacy": {"$ref": "#/$defs/privacy"},
+    "freshness": {"$ref": "#/$defs/freshness"},
+    "contamination": {"$ref": "#/$defs/contamination"},
+    "review": {"$ref": "#/$defs/review"},
+    "canonical_status": {"enum": ["CANONICAL", "QUARANTINED"]},
+    "admission_decision": {"enum": ["ADMIT_TRAIN", "ADMIT_EVAL", "QUARANTINE"]},
+    "training_eligible": {"type": "boolean"},
+    "evaluation_eligible": {"type": "boolean"},
+    "reason_codes": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "minLength": 3}
+    },
+    "content_included": {"type": "boolean"},
+    "decision_receipt_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"admission_decision": {"const": "ADMIT_TRAIN"}}},
+      "then": {
+        "required": ["content"],
+        "properties": {
+          "canonical_status": {"const": "CANONICAL"}, "split": {"const": "TRAIN"},
+          "training_eligible": {"const": true}, "evaluation_eligible": {"const": false},
+          "content_included": {"const": true}, "reason_codes": {"maxItems": 0},
+          "source": {"properties": {"status": {"const": "VERIFIED_SIGNED_BINDING"}}},
+          "rights": {"properties": {"status": {"const": "VERIFIED_SIGNED_CONTENT_RIGHTS_BINDING"}}},
+          "privacy": {"properties": {"status": {"const": "VERIFIED_SIGNED_PII_CLEARANCE"}}},
+          "freshness": {"properties": {"state": {"const": "FRESH"}}},
+          "contamination": {"properties": {"observed_result": {"const": "CLEAR_WITH_SIGNED_RUN_RECEIPT"}}},
+          "review": {"properties": {"state": {"const": "APPROVED"}, "status": {"const": "VERIFIED_SIGNED_ALLOWLISTED_REVIEW"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"admission_decision": {"const": "ADMIT_EVAL"}}},
+      "then": {
+        "required": ["content"],
+        "properties": {
+          "canonical_status": {"const": "CANONICAL"}, "split": {"const": "EVAL"},
+          "training_eligible": {"const": false}, "evaluation_eligible": {"const": true},
+          "content_included": {"const": true}, "reason_codes": {"maxItems": 0},
+          "source": {"properties": {"status": {"const": "VERIFIED_SIGNED_BINDING"}}},
+          "rights": {"properties": {"status": {"const": "VERIFIED_SIGNED_CONTENT_RIGHTS_BINDING"}}},
+          "privacy": {"properties": {"status": {"const": "VERIFIED_SIGNED_PII_CLEARANCE"}}},
+          "freshness": {"properties": {"state": {"const": "FRESH"}}},
+          "contamination": {"properties": {"observed_result": {"const": "PROTECTED_EVAL_MEMBER"}}},
+          "review": {"properties": {"state": {"const": "APPROVED"}, "status": {"const": "VERIFIED_SIGNED_ALLOWLISTED_REVIEW"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"admission_decision": {"const": "QUARANTINE"}}},
+      "then": {
+        "not": {"required": ["content"]},
+        "properties": {
+          "canonical_status": {"const": "QUARANTINED"}, "node_id": {"const": null},
+          "content_sha256": {"const": null}, "dedup_group": {"const": null},
+          "canonical_node_id": {"const": null}, "training_eligible": {"const": false},
+          "evaluation_eligible": {"const": false}, "content_included": {"const": false},
+          "reason_codes": {"minItems": 1}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence": {
+      "type": "object", "additionalProperties": true,
+      "properties": {"status": {"type": "string"}, "key_id": {"type": "string"}, "signer_purpose": {"type": "string"}, "signer_subject_id": {"type": ["string", "null"]}}
+    },
+    "source": {
+      "type": "object", "additionalProperties": false, "required": ["status"],
+      "properties": {"identity": {"type": "string"}, "uri": {"type": "string"}, "revision": {"type": "string"}, "revision_state": {"type": "string"}, "evidence": {"$ref": "#/$defs/evidence"}, "status": {"type": "string"}}
+    },
+    "rights": {
+      "type": "object", "additionalProperties": false, "required": ["status"],
+      "properties": {"author": {"type": "string"}, "rightsholder": {"type": "string"}, "basis": {"type": "string"}, "license": {"type": "string"}, "permission_scope": {"type": "string"}, "evidence": {"$ref": "#/$defs/evidence"}, "status": {"type": "string"}}
+    },
+    "privacy": {
+      "type": "object", "additionalProperties": false, "required": ["status"],
+      "properties": {"classification": {"type": ["string", "null"]}, "pii_result": {"type": ["string", "null"]}, "method": {"type": ["string", "null"]}, "evidence": {"$ref": "#/$defs/evidence"}, "status": {"type": "string"}}
+    },
+    "freshness": {
+      "type": "object", "additionalProperties": false, "required": ["state"],
+      "properties": {"source_timestamp_utc": {"type": ["string", "null"]}, "as_of_utc": {"type": "string"}, "max_age_days": {"type": "integer"}, "age_seconds": {"type": ["integer", "null"]}, "state": {"type": "string"}}
+    },
+    "contamination": {
+      "type": "object", "additionalProperties": false, "required": ["observed_result"],
+      "properties": {"declared_result": {"type": ["string", "null"]}, "observed_result": {"type": "string"}, "method": {"type": ["string", "null"]}, "checked_against": {"type": "array", "items": {"type": "string"}}, "evidence": {"$ref": "#/$defs/evidence"}}
+    },
+    "review": {
+      "type": "object", "additionalProperties": false, "required": ["state", "status"],
+      "properties": {"state": {"type": ["string", "null"]}, "reviewer": {"type": ["string", "null"]}, "reviewed_at_utc": {"type": ["string", "null"]}, "reasons": {"type": "array", "items": {"type": "string"}}, "evidence": {"$ref": "#/$defs/evidence"}, "status": {"type": "string"}}
+    }
+  }
+}

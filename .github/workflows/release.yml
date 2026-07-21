@@ -1,17 +1,25 @@
 name: Release artifacts — SBOM + DSSE attestation + build provenance
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
+  public-claim-gate:
+    name: EvidenceOS public-claim release gate
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/public-claim-integrity.yml
+
   provider-gate:
     name: Provider release honesty gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install provider-gate test dependencies
@@ -25,10 +33,10 @@ jobs:
           tests/test_sovereign_backend.py
 
   attach:
-    needs: provider-gate
+    needs: [provider-gate, public-claim-gate]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -65,7 +73,7 @@ jobs:
             ${{ github.event.repository.name }}-sbom.cdx.json
 
       - name: Upload SBOM + attestation to release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         if: github.event_name == 'release'
         with:
           files: |
@@ -84,14 +92,14 @@ jobs:
       packages: write
       attestations: write
   sign-receipts:
-    needs: provider-gate
+    needs: [provider-gate, public-claim-gate]
     name: Sign governance + Khipu receipts (Sigstore keyless)
     runs-on: ubuntu-latest
     permissions:
       contents: write     # upload signed envelope as a release asset
       id-token: write     # REQUIRED: mints the ambient OIDC token Fulcio exchanges for a cert
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Sign + verify receipts
         uses: ./.github/actions/sign-receipts
       - name: Upload signed receipts to the release

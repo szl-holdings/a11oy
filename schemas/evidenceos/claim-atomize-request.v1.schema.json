@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/evidenceos/claim-atomize-request.v1.schema.json",
+  "title": "EvidenceOS Claim Atomize Request v1",
+  "description": "Bounded request for structural-only claim atomization. The operation does not assert semantic atomicity or truth.",
+  "$comment": "The runtime refuses input that structurally splits into more than 32 review candidates; this output-bound invariant is not expressible from the input string in JSON Schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "maxLength": 32768,
+      "pattern": "^[\\s\\S]*\\S[\\s\\S]*$"
+    }
+  }
+}

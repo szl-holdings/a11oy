@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/compute-pool.v1.schema.json",
+  "title": "A11oy Compute Pool v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "source_surface", "control_plane_relation", "receipt_freshness_seconds", "counts", "nodes"],
+  "properties": {
+    "schema_version": {"const": "szl.compute-pool/v1"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_surface": {"const": "szl_backend_hardening.probe_fabric_pool"},
+    "control_plane_relation": {"const": "PYTHON_HF_PROJECTION_NOT_REPLIT_CONTROL_PLANE"},
+    "receipt_freshness_seconds": {"type": "integer", "minimum": 30, "maximum": 3600},
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["declared", "configured", "reachable", "discovered", "qualified", "serving", "ready"],
+      "properties": {
+        "declared": {"type": "integer", "minimum": 0}, "configured": {"type": "integer", "minimum": 0},
+        "reachable": {"type": "integer", "minimum": 0}, "discovered": {"type": "integer", "minimum": 0},
+        "qualified": {"type": "integer", "minimum": 0}, "serving": {"type": "integer", "minimum": 0},
+        "ready": {"type": "integer", "minimum": 0}
+      }
+    },
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+  },
+  "$defs": {
+    "evidenceClass": {"enum": ["MEASURED", "REPORTED", "UNKNOWN", "UNAVAILABLE"]},
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "evidence_class", "observed_at"],
+      "properties": {"value": {}, "evidence_class": {"$ref": "#/$defs/evidenceClass"}, "observed_at": {"type": ["string", "null"]}}
+    },
+    "receipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidence_class", "verified", "fresh", "bounded", "observed_at", "model_id", "model_digest_sha256", "receipt_sha256", "reason"],
+      "properties": {
+        "evidence_class": {"$ref": "#/$defs/evidenceClass"}, "verified": {"type": "boolean"},
+        "fresh": {"type": "boolean"}, "bounded": {"type": "boolean"},
+        "observed_at": {"type": ["string", "null"]}, "model_id": {"type": ["string", "null"]},
+        "model_digest_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node_id", "kind", "sovereign", "endpoint_label", "state", "ready", "evidence_class", "configuration", "reachability", "inference_receipt"],
+      "properties": {
+        "node_id": {"type": "string", "minLength": 1}, "kind": {"type": ["string", "null"]},
+        "sovereign": {"type": "boolean"}, "endpoint_label": {"type": ["string", "null"]},
+        "state": {"enum": ["DECLARED", "CONFIGURED", "REACHABLE", "DISCOVERED", "QUALIFIED", "SERVING"]},
+        "ready": {"type": "boolean"}, "evidence_class": {"$ref": "#/$defs/evidenceClass"},
+        "configuration": {"$ref": "#/$defs/evidence"}, "reachability": {"$ref": "#/$defs/evidence"},
+        "inference_receipt": {"$ref": "#/$defs/receipt"}
+      }
+    }
+  }
+}

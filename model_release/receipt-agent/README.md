@@ -27,7 +27,7 @@ turn retrieved text into a mathematical proof.
 | Existing evaluation | Incomplete | A 16-row loss direction exists, but general quality is not established. |
 | ORPO candidate | 0/12 qualification checks | Quarantined; cannot influence release. |
 | Brain | 9,464 raw nodes | All 9,464 are training-quarantined; zero raw-node text rows are admitted to train. |
-| Formula crosswalk | 148 rows | All 148 are holdout; zero are admitted to train. Formula IDs are namespace-scoped. |
+| Formula admission | 146 formula crosswalk records + 2 SZL-Lake evidence records = 148 holdout tranche rows | All 148 are holdout; zero are admitted to train. Formula IDs are namespace-scoped. |
 | Proposed model | No ReceiptAgent weight artifact | `NOT_PROMOTED`, `NOT_ESTABLISHED`, and unavailable for inference. |
 
 The current Brain and formula corpus are valuable as a governed retrieval and
@@ -63,7 +63,7 @@ and permits zero catastrophic errors. Current blockers are:
 
 - incomplete row-level governance for the existing 167-row dataset;
 - 9,464/9,464 raw Brain nodes quarantined from training;
-- 148/148 formula rows reserved for holdout, with F1-F23 namespace collisions;
+- 146 formula records plus 2 SZL-Lake evidence records reserved as 148/148 holdout rows, with F1-F23 namespace collisions;
 - the ORPO candidate failing all 12 qualification checks;
 - no ReceiptAgent-specific training receipt or weights;
 - no frozen three-way evaluation;

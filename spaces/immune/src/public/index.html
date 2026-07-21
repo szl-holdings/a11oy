@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>SZL Immune — governed inspection boundary</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="shell topbar">
+    <div>
+      <p class="eyebrow">SZL / IMMUNE / v0.1</p>
+      <h1>Inspect before intelligence acts.</h1>
+      <p class="lede">A deterministic-first boundary for untrusted context, tool authority, and receipt-carrying decisions.</p>
+    </div>
+    <div id="overall-state" class="state state-warn" role="status" aria-live="polite" aria-atomic="true">LOADING</div>
+  </header>
+
+  <main class="shell">
+    <section class="evidence-strip" aria-label="Measured capability status">
+      <div><span>Policy</span><strong id="policy-state">—</strong><small id="policy-hash">—</small></div>
+      <div><span>Adaptive model</span><strong id="classifier-state">—</strong><small id="classifier-pin">—</small></div>
+      <div><span>Signer</span><strong id="signer-state">—</strong><small id="signer-id">—</small></div>
+      <div><span>Tool authorization</span><strong id="tool-state">—</strong><small>Fail closed unless qualified + signed</small></div>
+    </section>
+
+    <section class="workflow" aria-label="Immune decision workflow">
+      <article class="panel inspector">
+        <div class="step"><span>01</span><div><p>Inspector</p><h2>Declare the trust boundary</h2></div></div>
+        <form id="inspect-form">
+          <label for="content">Content</label>
+          <textarea id="content" name="content" maxlength="65536" rows="10" placeholder="Paste a prompt, retrieved passage, tool response, or memory record…" required></textarea>
+          <div class="two-up">
+            <label>Source
+              <select id="source-kind">
+                <option value="user">User</option>
+                <option value="tool_response">Tool response</option>
+                <option value="retrieval">Retrieval</option>
+                <option value="memory">Memory</option>
+                <option value="system">System</option>
+              </select>
+            </label>
+            <label>Trust
+              <select id="source-trust">
+                <option value="untrusted">Untrusted</option>
+                <option value="unknown">Unknown</option>
+                <option value="trusted">Trusted</option>
+              </select>
+            </label>
+          </div>
+          <div class="two-up">
+            <label>Actor ID<input id="actor-id" autocomplete="off" placeholder="operator-01"></label>
+            <label>Actor role<input id="actor-role" autocomplete="off" placeholder="analyst"></label>
+          </div>
+          <fieldset>
+            <legend>Decision mode</legend>
+            <label class="choice"><input type="radio" name="mode" value="inspect" checked> Inspect only</label>
+            <label class="choice"><input type="radio" name="mode" value="tool"> Authorize tool</label>
+          </fieldset>
+          <div id="tool-fields" class="tool-fields" hidden>
+            <div class="two-up">
+              <label>Tool name<input id="tool-name" placeholder="retrieval.search"></label>
+              <label>Capability<input id="tool-capability" placeholder="retrieval:read"></label>
+            </div>
+            <label>Arguments (JSON)<textarea id="tool-arguments" rows="4">{}</textarea></label>
+          </div>
+          <div class="session-row">
+            <label class="choice"><input id="strict-mode" type="checkbox" checked> Strict session mode</label>
+            <span id="session-count">0 requests</span>
+          </div>
+          <button id="run-button" type="submit" aria-busy="false">Run governed inspection</button>
+        </form>
+      </article>
+
+      <article class="panel innate">
+        <div class="step"><span>02</span><div><p>Innate control</p><h2>Deterministic findings first</h2></div></div>
+        <p class="panel-copy">Canonicalization, identity, source trust, Unicode, secret, shell, role, encoded-payload, egress, and capability checks run before the model adapter.</p>
+        <ul id="findings" class="result-list" aria-live="polite" aria-atomic="false"><li class="empty">No request evaluated.</li></ul>
+        <details>
+          <summary>HUKLLA tripwire evidence</summary>
+          <ul id="tripwires" class="result-list compact" aria-live="polite" aria-atomic="false"></ul>
+        </details>
+      </article>
+
+      <article class="panel adaptive">
+        <div class="step"><span>03</span><div><p>Adaptive control</p><h2>Pinned classifier adapter</h2></div></div>
+        <p class="panel-copy">The adapter cannot silently resolve <code>main</code>. Revision, weight hash, tokenizer hash, runtime, device, and qualification receipt are required.</p>
+        <dl class="facts">
+          <div><dt>State</dt><dd id="adaptive-state">—</dd></div>
+          <div><dt>Model</dt><dd id="adaptive-model">—</dd></div>
+          <div><dt>Revision</dt><dd id="adaptive-revision">—</dd></div>
+          <div><dt>Weights</dt><dd id="adaptive-weights">—</dd></div>
+          <div><dt>Runtime / device</dt><dd id="adaptive-runtime">—</dd></div>
+          <div><dt>Evaluation</dt><dd id="adaptive-result">NOT EVALUATED</dd></div>
+        </dl>
+        <ul id="adaptive-reasons" class="result-list compact" aria-live="polite" aria-atomic="false"></ul>
+      </article>
+
+      <article class="panel receipt">
+        <div class="step"><span>04</span><div><p>Receipt</p><h2>Verify what actually happened</h2></div></div>
+        <div id="verdict" class="verdict verdict-idle" role="status" aria-live="polite" aria-atomic="true"><span>VERDICT</span><strong>NOT EVALUATED</strong><small>Submit an inspection to create evidence.</small></div>
+        <dl class="facts">
+          <div><dt>Receipt state</dt><dd id="receipt-state">—</dd></div>
+          <div><dt>Receipt ID</dt><dd id="receipt-id">—</dd></div>
+          <div><dt>Chain</dt><dd id="receipt-chain">—</dd></div>
+        </dl>
+        <form id="receipt-form" class="verify-form">
+          <label>Receipt SHA-256<input id="receipt-query" pattern="[a-f0-9]{64}" placeholder="64-character receipt ID"></label>
+          <button type="submit" class="secondary">Read receipt</button>
+        </form>
+        <pre id="receipt-output" role="status" aria-live="polite" aria-atomic="true">No receipt selected.</pre>
+      </article>
+    </section>
+
+    <section class="honesty-note">
+      <strong>Operational boundary</strong>
+      <p>The service is ready to inspect. Adaptive classification and signed tool authorization remain unavailable until exact local artifacts and signing evidence pass. No public request can mutate global state.</p>
+    </section>
+  </main>
+</body>
+</html>

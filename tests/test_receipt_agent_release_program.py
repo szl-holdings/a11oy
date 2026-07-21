@@ -12,6 +12,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 PROGRAM = ROOT / "model_release" / "receipt-agent"
+FORMULA_ADMISSION = ROOT / "research" / "formula-training-admission"
 
 
 def load_json(name: str) -> dict[str, Any]:
@@ -149,11 +150,42 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
 
     def test_current_corpus_and_orpo_boundaries_are_fail_closed(self) -> None:
         boundary = self.release["current_data_boundary"]
+        source_manifest = json.loads(
+            (FORMULA_ADMISSION / "admission-manifest.json").read_text(encoding="utf-8")
+        )
+        source_crosswalk = json.loads(
+            (FORMULA_ADMISSION / "formula-id-crosswalk.json").read_text(encoding="utf-8")
+        )
+        source_tranche = [
+            json.loads(line)
+            for line in (FORMULA_ADMISSION / "admission-tranche.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line.strip()
+        ]
+        formula_rows = [
+            row for row in source_tranche if row["record_kind"] == "FORMULA_STATUS_METADATA"
+        ]
+        lake_rows = [
+            row for row in source_tranche if row["record_kind"] == "SZL_LAKE_EVIDENCE"
+        ]
         self.assertEqual(boundary["brain_raw_nodes"], 9464)
         self.assertEqual(boundary["brain_raw_nodes_training_quarantined"], 9464)
         self.assertEqual(boundary["brain_raw_rows_admitted_to_train"], 0)
-        self.assertEqual(boundary["formula_crosswalk_rows"], 148)
-        self.assertEqual(boundary["formula_holdout_rows"], 148)
+        self.assertEqual(
+            boundary["formula_crosswalk_rows"],
+            source_manifest["decision_summary"]["formula_crosswalk_rows"],
+        )
+        self.assertEqual(boundary["formula_crosswalk_rows"], len(source_crosswalk["records"]))
+        self.assertEqual(boundary["formula_crosswalk_rows"], len(formula_rows))
+        self.assertEqual(boundary["formula_crosswalk_rows"], 146)
+        self.assertEqual(
+            boundary["formula_holdout_rows"],
+            source_manifest["decision_summary"]["holdout_rows"],
+        )
+        self.assertEqual(boundary["formula_holdout_rows"], len(source_tranche))
+        self.assertEqual(len(lake_rows), 2)
+        self.assertEqual(len(formula_rows) + len(lake_rows), 148)
         self.assertEqual(boundary["formula_train_rows"], 0)
         self.assertEqual((boundary["orpo_checks_passed"], boundary["orpo_checks_total"]), (0, 12))
         self.assertEqual(boundary["orpo_state"], "QUARANTINED")
@@ -191,7 +223,8 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
         self.assertEqual(by_id["RA-G05"]["state"], "PASS")
         self.assertEqual(by_id["RA-G06"]["state"], "PASS")
         self.assertIn("9,464 of 9,464", by_id["RA-G04"]["observed"])
-        self.assertIn("148 holdout", by_id["RA-G05"]["observed"])
+        self.assertIn("146 formula records", by_id["RA-G05"]["observed"])
+        self.assertIn("148-row holdout", by_id["RA-G05"]["observed"])
         self.assertIn("0-of-12", by_id["RA-G06"]["observed"])
 
     def test_three_way_evaluation_is_preregistered_but_not_run(self) -> None:
@@ -316,7 +349,7 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
             "MODEL PROGRAM - NOT A WEIGHT RELEASE",
             "SZL-Forge-1.5B-ReceiptAgent-v1",
             "9,464 raw nodes",
-            "148 rows",
+            "146 formula crosswalk records + 2 SZL-Lake evidence records = 148 holdout rows",
             "0 approved for reuse",
             "szl.receipt-agent-output.v1",
             "The catastrophic-error budget is **zero**",

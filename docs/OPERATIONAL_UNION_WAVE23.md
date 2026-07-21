@@ -164,7 +164,10 @@ or deployment to `a-11-oy.com`, `a11oy.net`, or Killinchu.
   artifacts; the release identity remains unbound or in conflict.
 - The fail-closed row-level admission engine in
   `szl_brain_training_admission.py` is implemented and covered by focused local
-  regression tests. It does not bulk-admit the Brain inventory. All 9,464 canonical
+  regression tests. Its v2 contract requires stable source identity,
+  author/rightsholder permission, signed privacy/PII clearance, held-out
+  contamination checks, allowlisted signed review, and an explicit default-off
+  training switch. It does not bulk-admit the Brain inventory. All 9,464 canonical
   raw rows remain outside gradients, the admitted training-row count remains zero,
   and no training run was started.
 - The current scoped verification summary is versioned at

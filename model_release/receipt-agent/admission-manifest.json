@@ -59,7 +59,7 @@
       "state": "PASS",
       "required_for_promotion": true,
       "exact_requirement": "Formula IDs must be namespace-scoped, proof transfer must require an explicit semantic binding, and no holdout formula may enter training.",
-      "observed": "The current crosswalk has 148 holdout rows and zero train rows; F1-F23 namespace collisions block implicit proof transfer.",
+      "observed": "The current crosswalk has 146 formula records; two SZL-Lake evidence records produce a 148-row holdout tranche with zero train rows. F1-F23 namespace collisions block implicit proof transfer.",
       "evidence": [
         "research/formula-training-admission/admission-manifest.json",
         "research/formula-training-admission/formula-id-crosswalk.json"

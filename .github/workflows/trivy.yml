@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Trivy vulnerability scan (filesystem)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
@@ -29,7 +29,7 @@ jobs:
           exit-code: '0'  # Don't fail on scan (gate in grype job)
 
       - name: Upload Trivy SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@8096e4f9571939c23cbd19018c44c665f90096af # v3.28.15
+        uses: github/codeql-action/upload-sarif@cf463419fdde78c727231e445622a9ac37966f84 # v3.28.15
         with:
           sarif_file: trivy-results.sarif
 
@@ -41,12 +41,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify Grype gate cannot swallow scanner failure
+        run: python3 tests/test_grype_gate_contract.py
 
       - name: Scan with Grype (fail build on HIGH/CRITICAL)
         id: grype
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
-        continue-on-error: true  # stale-DB non-applicable failures: see .grype.yaml ignore list
         with:
           path: "."
           fail-build: true
@@ -55,7 +57,7 @@ jobs:
           update-db: true
 
       - name: Upload Grype SARIF
-        uses: github/codeql-action/upload-sarif@8096e4f9571939c23cbd19018c44c665f90096af # v3.28.15
+        uses: github/codeql-action/upload-sarif@cf463419fdde78c727231e445622a9ac37966f84 # v3.28.15
         if: always()
         continue-on-error: true  # SARIF may be malformed if grype DB was stale
         with:

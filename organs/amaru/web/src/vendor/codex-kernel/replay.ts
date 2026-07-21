@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — packages/codex-kernel/src/replay.ts
+// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — packages/codex-kernel/src/replay.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /**
  * Replay verifier — reconstructs final_state from initial_state + trace

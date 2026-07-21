@@ -39,7 +39,7 @@
     },
     {
       "path": "research/formula-training-admission/admission-tranche.jsonl",
-      "reason": "All 148 formula admission records are holdout rows."
+      "reason": "The 146 formula records plus 2 SZL-Lake evidence records are all 148 holdout tranche rows."
     },
     {
       "path": "training/szl_seed.jsonl",

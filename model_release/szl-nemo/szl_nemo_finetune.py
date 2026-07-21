@@ -45,6 +45,7 @@ MANIFEST_PATH = GENERATED / "curriculum-manifest.json"
 TRAIN_PATH = GENERATED / "train.jsonl"
 EVAL_PATH = GENERATED / "eval.jsonl"
 DSSE_PATH = REPO / "szl_dsse.py"
+CONTENT_ADDRESS_PATH = REPO / "szl_content_address.py"
 SYSTEM_PROMPT = (
     "You are an SZL-Nemo governed-adapter candidate built on NVIDIA Nemotron 3 "
     "Nano 4B. Preserve upstream attribution and license lineage. Distinguish "
@@ -228,12 +229,17 @@ def _pinned_dsse_identity(contract: dict[str, Any]) -> dict[str, str]:
         raise GateRefused("training contract lacks a fail-closed DSSE verifier policy")
     relative = policy.get("verifier_path")
     expected_sha = policy.get("verifier_sha256")
+    content_address_relative = policy.get("content_address_path")
+    content_address_expected_sha = policy.get("content_address_sha256")
     key_id = policy.get("key_id")
     fingerprint = policy.get("public_key_fingerprint_sha256")
     if (
         relative != "szl_dsse.py"
         or not isinstance(expected_sha, str)
         or len(expected_sha) != 64
+        or content_address_relative != "szl_content_address.py"
+        or not isinstance(content_address_expected_sha, str)
+        or len(content_address_expected_sha) != 64
         or not isinstance(key_id, str)
         or not key_id
         or not isinstance(fingerprint, str)
@@ -245,9 +251,19 @@ def _pinned_dsse_identity(contract: dict[str, Any]) -> dict[str, str]:
         raise GateRefused("pinned DSSE verifier is absent or symlinked")
     if candidate.resolve() != DSSE_PATH.resolve() or sha256_file(candidate) != expected_sha:
         raise GateRefused("pinned DSSE verifier source mismatch")
+    content_address_candidate = REPO / content_address_relative
+    if content_address_candidate.is_symlink() or not content_address_candidate.is_file():
+        raise GateRefused("pinned content-address dependency is absent or symlinked")
+    if (
+        content_address_candidate.resolve() != CONTENT_ADDRESS_PATH.resolve()
+        or sha256_file(content_address_candidate) != content_address_expected_sha
+    ):
+        raise GateRefused("pinned content-address dependency source mismatch")
     return {
         "path": relative,
         "sha256": expected_sha,
+        "content_address_path": content_address_relative,
+        "content_address_sha256": content_address_expected_sha,
         "key_id": key_id,
         "public_key_fingerprint_sha256": fingerprint,
     }

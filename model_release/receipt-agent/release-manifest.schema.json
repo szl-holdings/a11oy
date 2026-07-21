@@ -95,7 +95,7 @@
           "const": 0
         },
         "formula_crosswalk_rows": {
-          "const": 148
+          "const": 146
         },
         "formula_holdout_rows": {
           "const": 148

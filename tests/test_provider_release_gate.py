@@ -248,5 +248,5 @@ def test_release_artifacts_depend_on_provider_gate():
     assert "provider-gate:" in workflow
     assert "tests/test_provider_release_gate.py" in workflow
     assert "test_provider_http.py" in workflow
-    assert "attach:\n    needs: provider-gate" in workflow
-    assert "sign-receipts:\n    needs: provider-gate" in workflow
+    assert "attach:\n    needs: [provider-gate, public-claim-gate]" in workflow
+    assert "sign-receipts:\n    needs: [provider-gate, public-claim-gate]" in workflow

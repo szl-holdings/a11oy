@@ -1,0 +1,98 @@
+{
+  "claims_boundary": {
+    "model_promotion_allowed": false,
+    "privacy_clearance_established": false,
+    "proof_credit": 0,
+    "rights_established": false,
+    "training_authorized": false,
+    "training_triggered": false
+  },
+  "counts": {
+    "distinct_content_sha256": 9464,
+    "duplicate_content_rows": 0,
+    "person_rows": 5235,
+    "rows": 9464,
+    "training_eligible_rows": 0,
+    "unique_node_ids": 9464
+  },
+  "facets": {
+    "freshness_state": {
+      "CAPTURED_SOURCE_DATE": 34,
+      "UNKNOWN_NO_SOURCE_TIMESTAMP": 9267,
+      "VERSION_BOUND_NOT_TIME_FRESH": 163
+    },
+    "kind": {
+      "axis": 25,
+      "benchmark": 17,
+      "dataset": 35,
+      "endpoint": 4,
+      "estate": 1,
+      "formula": 23,
+      "lab": 18,
+      "org": 106,
+      "paper": 1486,
+      "person": 5235,
+      "repo": 2358,
+      "standard": 18,
+      "surface": 130,
+      "topic": 8
+    },
+    "license_state": {
+      "UNKNOWN_ITEM_LEVEL_LICENSE": 9301,
+      "VERSIONED_REPOSITORY_LICENSE": 163
+    },
+    "safety_decision": {
+      "QUARANTINE_LICENSE_UNKNOWN": 4066,
+      "QUARANTINE_PERSON_METADATA": 5235,
+      "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA": 23,
+      "QUARANTINE_RAW_GRAPH_NOT_ADMITTED": 140
+    },
+    "source": {
+      "FORMULA_META.organ": 8,
+      "GitHub (gh, 2026-07-07)": 48,
+      "GitLab (web, 2026-07-07)": 7,
+      "SZL charter": 9,
+      "academic": 3,
+      "arXiv": 70,
+      "arxiv": 1369,
+      "arxiv-anchor": 50,
+      "arxiv-author": 5133,
+      "curated": 50,
+      "curated-web": 104,
+      "github": 2273,
+      "harvest": 10,
+      "pass2-harvest": 6,
+      "szl-estate": 3,
+      "versioned-local-graph": 189,
+      "web": 132
+    },
+    "source_family": {
+      "a11oy-versioned-runtime": 140,
+      "academic-publication-metadata": 1492,
+      "authorship-person-metadata": 5235,
+      "brain-raw-formula-index": 23,
+      "dataset-benchmark-metadata": 44,
+      "other-graph-metadata": 3,
+      "repository-metadata": 2362,
+      "research-landscape-metadata": 165
+    },
+    "training_decision": {
+      "QUARANTINE": 9464
+    }
+  },
+  "integrity": {
+    "leaf_domain": "szl.brain.raw-row.v1",
+    "merkle_root_sha256": "71c764b12e0024cd2ed64371b33ff48ce193bba5caf76e6cc002b3069cb7c994",
+    "node_domain": "szl.brain.merkle-node.v1",
+    "odd_leaf_rule": "DUPLICATE_LAST",
+    "row_canonicalization": "SORTED_COMPACT_JSON_UTF8_V1"
+  },
+  "schema_version": "szl.brain-raw-snapshot.v1",
+  "snapshot_sha256": "a021d8c503c6bf71f9e4dd3b32915ce3aa82a22317382d318c6de0aae7cf0f28",
+  "source": {
+    "bytes": 13368264,
+    "path": "model_release/m1/brain-ingest-ledger.jsonl",
+    "schema": "szl.m1-brain-ingest-decision/v1",
+    "sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"
+  }
+}

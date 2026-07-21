@@ -64,11 +64,18 @@ admission gate. The canonical raw inventory has not passed that gate: zero rows 
 admitted to gradients and no training run was started. Retrieval remains distinct
 from training, and indexed nodes remain distinct from model parameters.
 
-The gate now accepts only Ed25519-signed evidence from an allowlisted
-issuer/tool/key triple. Source, rights, and contamination claims bind the exact row
-content and immutable source revision; a frozen evaluation hash set and signed
-cross-run split ledger prevent contamination and split migration. A missing or
-self-issued prerequisite quarantines the row instead of weakening the boundary.
+The gate now accepts only Ed25519-signed evidence from purpose-scoped
+issuer/tool/key authorities. Source identity, author/rightsholder permission,
+privacy/PII, review, and contamination claims bind the exact row content and
+immutable source revision. The review signer must be bound to the declared reviewer.
+Training admission is disabled by default; an explicit switch, frozen evaluation
+hash set, root-signed policy bundle, exact policy-pinned cross-run split-ledger head,
+and distinct artifact-signing key prevent contamination, replay, split migration,
+and unsigned release output. Mutable key replacement and stale ledger envelopes fail
+closed. Evaluation admission also requires the rooted policy and signed terminal
+manifest; an unrooted run remains inspection-only quarantine. Quarantine records redact
+content, raw node identifiers, source locations, evidence paths, and personal identities
+instead of copying sensitive evidence into a denial artifact.
 
 ## Public surfaces
 
@@ -87,3 +94,28 @@ Canonical release metadata lives in `model_release/szl-ayllu-binding.json` and
 `model_release/szl-khipu-second-brain.json`. These repository and local-runtime
 statements do not establish that a public domain, Space, or production deployment
 is running the same build.
+
+## Committed decisions, public wall, and offline verifier (2026-07-21)
+
+Council decisions are now COMMITTED and independently verifiable:
+
+- `ayllu/decisions/` holds full live council responses whose outer DSSE
+  receipts are signed by the Space runtime key; `ayllu/decisions/index.json`
+  is the wall's source of truth.
+- `GET /api/ayllu/wall` (JSON) and `GET /ayllu/wall` (page) re-verify every
+  committed receipt SERVER-SIDE PER REQUEST (ECDSA-P256 over the DSSE PAE,
+  payload-digest reproduction, chain receipt-id match) and FAIL CLOSED. The
+  page carries the "what this is / what this is not" scope box.
+- `scripts/verify_ayllu_council_receipt.py` proves the same chain OFFLINE with
+  no trust in the server; `tests/test_verify_ayllu_council_receipt.py` locks
+  the tamper paths (payload, signature, wrong key, missing signature).
+
+Key state (honest): the runtime envelopes carry the keyid label
+`szlholdings-cosign`, but the signatures do NOT verify against the published
+org `szl-holdings/.github/cosign.pub` — the live `/api/a11oy/v1/verify/receipt`
+reports the same MISMATCH. The actual verifying public key was recovered from
+two independent live signatures (unique common ECDSA-recovery candidate) and
+is pinned at `ayllu/keys/council-runtime-2026-07-21.pub` with that provenance;
+owner reconciliation of the secret vs the published key is pending. PASS
+against this pin means "signed by the a11oy runtime key and unaltered" — no
+more, no less.

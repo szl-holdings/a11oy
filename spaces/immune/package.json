@@ -1,0 +1,17 @@
+{
+  "name": "@szl/immune-standalone",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fail-closed, receipt-carrying inspection boundary for the standalone Immune demo",
+  "scripts": {
+    "start": "node src/server/immune-server.mjs",
+    "contracts:generate": "node scripts/generate-contracts.mjs",
+    "contracts:check": "node scripts/generate-contracts.mjs --check",
+    "test": "node scripts/generate-contracts.mjs --check && node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0"
+}
