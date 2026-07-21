@@ -14102,6 +14102,29 @@ except Exception as _ecosystem_atlas_error:
     )
 
 
+
+# ============================================================================
+# AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — the public
+# verify-then-display surface for committed council decision receipts.
+# Fetches ayllu/decisions/* from the GitHub repo, re-verifies each DSSE
+# envelope (ECDSA-P256 over the PAE) against the pinned council runtime key
+# (ayllu/keys/) SERVER-SIDE ON EVERY REQUEST, and fails closed. Key honesty is
+# stated in-band: the runtime key does NOT match the published org cosign.pub
+# (owner reconciliation pending) — see ayllu/keys/README.md. Additive,
+# try/except-guarded, front-moved so exact routes beat the SPA fallback.
+# ============================================================================
+try:
+    import a11oy_ayllu_wall as _a11oy_ayllu_wall
+
+    _ayllu_wall_result = _a11oy_ayllu_wall.register(app)
+    print(f"[a11oy] ayllu council wall registered (front-moved): {_ayllu_wall_result}", file=sys.stderr)
+except Exception as _ayllu_wall_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] ayllu council wall NOT registered (non-fatal): {_ayllu_wall_error!r}",
+        file=sys.stderr,
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

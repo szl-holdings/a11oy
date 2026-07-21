@@ -620,6 +620,11 @@ COPY a11oy_quant_signals_nav.py ./a11oy_quant_signals_nav.py
 # wholesale above; this per-file image copies only the new Python registrar.
 COPY a11oy_ecosystem_atlas.py ./a11oy_ecosystem_atlas.py
 
+# AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
+# per-request DSSE re-verification of committed council decision receipts,
+# fetched from the public GitHub repo. Fail-closed; key honesty in-band.
+COPY a11oy_ayllu_wall.py ./a11oy_ayllu_wall.py
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # … (full rationale: docs/DOCKERFILE_NOTES.md §96)
 ARG SZL_GIT_SHA=unknown
