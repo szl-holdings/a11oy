@@ -7755,13 +7755,10 @@ try:
         # task1015: restore governed envelope (regression: dropped wrapper -> status=None).
         return _SCJSON(gov_envelope(_SC_BUNDLE["mesh3d"], status="REAL"))
 
-    # ---- a11oy-vertical aliases (Memory / Sentinel / Operator) — Task #801 ----
-    # Brand consolidation: the three internal organ codenames are folded into
-    # a11oy as verticals — amaru -> a11oy Memory, sentra -> a11oy Sentinel,
-    # rosie -> a11oy Operator. These a11oy-branded addresses respond IDENTICALLY
-    # to the codename routes above because they reuse the SAME handler functions,
-    # so consumers can migrate gradually. The codename routes (/api/{amaru,sentra,
-    # rosie}/v1/*) stay live for backward-compat until every consumer has moved.
+    # ---- a11oy verticals (Memory / Sentinel / Operator) — Task #801 ----
+    # Brand consolidation folds the former internal organ implementations into
+    # public a11oy-only verticals. These routes reuse the same in-process handler
+    # functions while keeping every retired codename out of the served route table.
     # Additive + collision-aware: any path already served (e.g. the neutral
     # /api/a11oy/v1/operator/{ledger,...} surface from Task #516/#751) is left
     # untouched — FastAPI is first-match-wins, so a duplicate registration would
@@ -7770,18 +7767,18 @@ try:
     # /api/a11oy/{path:path} Node proxy, so these explicit paths resolve locally.
     # Marker: a11oy-vertical-aliases-task801.
     _A11OY_VERTICAL_ALIASES = [
-        # (methods, a11oy-vertical path, handler mirrored from the codename route)
-        # --- a11oy Sentinel  (sentra: policy / safety / compliance / forecast / threats) ---
+        # (methods, a11oy-vertical path, shared in-process capability handler)
+        # --- a11oy Sentinel (policy / safety / compliance / forecast / threats) ---
         (["GET"],  "/api/a11oy/v1/sentinel/gates",            _sc_sentra_gates),
         (["GET"],  "/api/a11oy/v1/sentinel/threats/full",     _sc_sentra_threats),
         (["GET"],  "/api/a11oy/v1/sentinel/verdict/feed",     _sc_sentra_feed),
         (["POST"], "/api/a11oy/v1/sentinel/verdict",          _sc_sentra_verdict),
         (["POST"], "/api/a11oy/v1/sentinel/elite/compliance", _sc_sentra_compliance),
         (["GET"],  "/api/a11oy/v1/sentinel/forecast/run",     _sc_sentra_forecast),
-        # --- a11oy Memory   (amaru: reasoning / readiness / llm tiers) ---
+        # --- a11oy Memory (reasoning / readiness / llm tiers) ---
         (["GET"],  "/api/a11oy/v1/memory/llm/tiers",          _sc_amaru_tiers),
         (["POST"], "/api/a11oy/v1/memory/readiness/assess",   _sc_amaru_readiness),
-        # --- a11oy Operator (rosie: operator ask / act / recommend / ledger / command-log / mesh) ---
+        # --- a11oy Operator (ask / act / recommend / ledger / command-log / mesh) ---
         # NOTE: the public operator verbs are served by the honest, codename-free
         # /api/a11oy/v1/operator/{ask,act,recommend} handlers defined above
         # (_sc_cap_ask/_sc_cap_act/_sc_cap_recommend, same underlying logic, with
