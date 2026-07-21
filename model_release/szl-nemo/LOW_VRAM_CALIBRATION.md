@@ -113,25 +113,38 @@ non-negative loss plus internally consistent adapter-gradient evidence. A
 calibration receipt cannot be relabeled as canonical capacity: the queue also
 requires offload to be explicitly disabled at both receipt levels.
 
-## Ranked frontier after native offload
+## Measured first-backward root cause and bounded response
 
-The pinned Nemotron-H source materializes FP32 logits of shape
-`[batch, sequence, 131072]`. At 768 tokens that is approximately 384 MiB before
-cross-entropy temporaries. The most promising next isolated experiment is a
-training-only fused linear cross-entropy wrapper that preserves the native
-forward for evaluation and generation:
+The canonical sequence-768 receipt reached a finite forward loss, then failed
+inside gradient-checkpoint recomputation before the first optimizer step.  The
+CUDA allocator requested exactly 9.00 GiB.  This request is explained exactly
+by the hash-verified NVIDIA `torch_forward` expression that constructs
+`G_intermediate` from pairwise `C * B` terms.  With batch 1, three 256-token
+chunks, 96 Mamba heads, 128 state dimensions, and float32 storage, its shape is
+`[1, 3, 256, 256, 96, 128]`: 2,415,919,104 elements or 9,663,676,416 bytes
+(9.00 GiB).  This modeled allocator request must not be conflated with the
+independently sampled physical peak or PyTorch reserved-memory counter.
 
-1. Liger Kernel's low-level fused linear cross entropy, pinned in a separate
-   environment and never using its high-level Nemotron patch (which targets a
-   different Transformers model class).
-2. Apple Cut Cross Entropy in exact mode as an independent comparator.
-3. Current Unsloth in a separate immutable environment, not as a mutation of
-   the pinned canonical runtime.
-4. Two-node FSDP2/QLoRA only when a second real Linux GPU rank is available and
-   an NCCL collective receipt passes. The A11oy inference router is not a rank.
+Saved-tensor CPU offload moves tensors retained for backward; it cannot prevent
+this new 9.00 GiB temporary from being materialized during recomputation.
+Paged optimizer state is also not the cause because the failure precedes the
+first optimizer step.  FSDP is not a single-GPU fix for a per-rank temporary.
 
-DeepSpeed, Liger, and Unsloth are not installed in the pinned runtime. They are
-therefore research candidates, not hidden dependencies or current capability.
+The reviewed single-GPU response keeps the pinned NVIDIA CUDA convolution and
+chunk-scan implementation but selects its decomposed branch per Mamba mixer.
+That official branch calls the PEFT-wrapped `out_proj` module, preserving LoRA,
+and does not construct the pure-PyTorch pairwise tensor.  Binding is allowed
+only when the pinned NVIDIA source hash, all expected Mamba mixers, CUDA
+residency, fast-path availability, bitsandbytes `Linear4bit` base, and matching
+LoRA adapter sets are measured.  It changes no pinned source file or module
+global and restores the mixer's training flag even on failure.
+
+A fresh canonical capacity receipt is still required.  It must independently
+record the `[1, 768]` input shape, packing disabled, non-reentrant gradient
+checkpointing active, zero optimizer tensor state before backward, a finite
+completed forward, all 21 mixer bindings, a completed backward and optimizer
+step, and physical GPU headroom.  Until that receipt passes, training remains
+unauthorized.
 
 ## Research basis
 
@@ -142,6 +155,7 @@ therefore research candidates, not hidden dependencies or current capability.
 - Windows DXGI GPU preference: https://learn.microsoft.com/windows/win32/api/dxgi1_6/ne-dxgi1_6-dxgi_gpu_preference
 - PyTorch CUDA cache semantics: https://docs.pytorch.org/docs/stable/generated/torch.cuda.memory.empty_cache.html
 - PyTorch saved-tensor CPU offload: https://docs.pytorch.org/docs/stable/autograd.html#torch.autograd.graph.save_on_cpu
+- PyTorch activation checkpointing: https://docs.pytorch.org/docs/stable/checkpoint.html
 - Liger Kernel: https://github.com/linkedin/Liger-Kernel
 - Apple Cut Cross Entropy: https://github.com/apple/ml-cross-entropy
 - bitsandbytes FSDP-QLoRA: https://huggingface.co/docs/bitsandbytes/en/fsdp_qlora

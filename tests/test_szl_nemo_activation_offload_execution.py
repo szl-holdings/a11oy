@@ -240,6 +240,7 @@ def _install_fake_frameworks(monkeypatch, state: dict[str, object]) -> None:
     class PagedAdamW8bit:
         def __init__(self, _parameters, *, lr: float):
             state["optimizer_learning_rate"] = lr
+            self.state = {}
 
         def zero_grad(self, *, set_to_none: bool):
             assert set_to_none is True
@@ -336,10 +337,29 @@ def _prepare_mocked_probe(
         nemo_train,
         "bind_quantized_mamba_lora_forward",
         lambda _model, _contract, phase: {
-            "state": "BOUND_REVIEWED_TORCH_FORWARD",
+            "state": "BOUND_REVIEWED_DECOMPOSED_CUDA_FORWARD",
             "phase": phase,
             "expected_mixer_count": 1,
             "bound_mixer_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        nemo_train,
+        "gradient_checkpointing_evidence",
+        lambda _model, phase: {
+            "state": "ACTIVE_MEASURED_FROM_MODEL_FLAG",
+            "phase": phase,
+            "active": True,
+            "use_reentrant": False,
+        },
+    )
+    monkeypatch.setattr(
+        nemo_train,
+        "mamba_naive_pairwise_memory_model",
+        lambda _config, batch_size, sequence_length: {
+            "state": "MODELED_FIXTURE",
+            "batch_size": batch_size,
+            "sequence_length": sequence_length,
         },
     )
     pending_host_states = list(host_memory_states)
