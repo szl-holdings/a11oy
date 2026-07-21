@@ -379,6 +379,134 @@ def test_train_requires_confirmation_and_license_ack_before_gpu_or_model_load(tm
         )
 
 
+def test_evaluation_resume_requires_exact_acknowledgements_before_artifact_admission(
+    monkeypatch, tmp_path
+):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    monkeypatch.setattr(
+        nemo_train,
+        "admit_evaluation_resume",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("artifact admission ran")),
+    )
+    with pytest.raises(nemo_train.GateRefused, match="evaluation-only confirmation"):
+        nemo_train.evaluate_saved_adapter(
+            tmp_path / "base",
+            tmp_path / "training",
+            tmp_path / "evaluation.json",
+            "WRONG",
+            "WRONG",
+        )
+    with pytest.raises(nemo_train.GateRefused, match="license acknowledgement"):
+        nemo_train.evaluate_saved_adapter(
+            tmp_path / "base",
+            tmp_path / "training",
+            tmp_path / "evaluation.json",
+            nemo_train.EVALUATION_CONFIRMATION,
+            "WRONG",
+        )
+
+
+def test_evaluation_resume_binds_completed_training_adapter_base_and_holdouts(
+    monkeypatch, tmp_path
+):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    output = tmp_path / "training"
+    adapter = output / "adapter"
+    receipts = output / "receipts"
+    adapter.mkdir(parents=True)
+    receipts.mkdir(parents=True)
+    (adapter / "adapter_model.safetensors").write_bytes(b"adapter-v2")
+    (adapter / "adapter_config.json").write_text("{}\n", encoding="utf-8")
+    inventory = nemo_train._inventory(adapter)
+    adapter_receipt = receipts / "adapter-files.json"
+    nemo_train.atomic_json(
+        adapter_receipt,
+        {"schema_version": "szl.nemo.adapter-files.v1", "files": inventory},
+    )
+    base_files = [{"path": "pinned-base", "bytes": 1, "sha256": "0" * 64}]
+    monkeypatch.setattr(nemo_train, "verify_base", lambda _snapshot: base_files)
+    training_receipt = {
+        "schema_version": "szl.nemo.training-receipt.v2",
+        "contract_id": contract["contract_id"],
+        "state": "FAILED_NOT_PROMOTED",
+        "error_type": "GateRefused",
+        "error": "training thermal ceiling exceeded",
+        "global_steps": contract["training"]["max_steps"],
+        "training_loss": 6.5,
+        "training_completed_at_unix_ns": 2,
+        "contract_sha256": nemo_train.sha256_file(nemo_train.CONTRACT_PATH),
+        "curriculum_manifest_sha256": nemo_train.sha256_file(nemo_train.MANIFEST_PATH),
+        "runner_sha256": "1" * 64,
+        "source_control": {"state": "CLEAN_REVIEWED_COMMIT", "commit": "a" * 40},
+        "adapter_files_sha256": nemo_train.sha256_file(adapter_receipt),
+        "base_files_before": base_files,
+        "curriculum_inputs_before": nemo_train.curriculum_input_identity(),
+    }
+    nemo_train.atomic_json(receipts / "training-receipt.json", training_receipt)
+
+    admitted = nemo_train.admit_evaluation_resume(tmp_path / "base", output, contract)
+    assert admitted["adapter_inventory"] == inventory
+    assert admitted["origin_commit"] == "a" * 40
+    assert admitted["training_receipt"]["global_steps"] == 96
+
+    (adapter / "adapter_model.safetensors").write_bytes(b"mutated")
+    with pytest.raises(nemo_train.GateRefused, match="adapter inventory changed"):
+        nemo_train.admit_evaluation_resume(tmp_path / "base", output, contract)
+
+
+def test_evaluation_runtime_guard_uses_same_ceiling_with_honest_scope(monkeypatch):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    monkeypatch.setattr(
+        nemo_train,
+        "query_gpu",
+        lambda: {
+            "measured_at_unix_ns": 1,
+            "gpu_name": "fixture",
+            "memory_total_mib": 8192,
+            "memory_used_mib": 4096,
+            "memory_free_mib": 4096,
+            "utilization_pct": 90,
+            "temperature_c": 81,
+        },
+    )
+    guard = nemo_train.RuntimeGuard(contract, thermal_scope="evaluation")
+    guard._record("fixture")
+    assert guard.maximum_temperature == contract["gpu_admission"]["maximum_training_temperature_c"]
+    assert guard.reason == "evaluation thermal ceiling exceeded"
+    assert guard.receipt()["thermal_scope"] == "evaluation"
+
+
+def test_cli_evaluation_refusal_never_reports_training_started(monkeypatch, tmp_path, capsys):
+    contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
+    monkeypatch.setattr(nemo_train, "training_mutex", lambda: nullcontext())
+    monkeypatch.setattr(
+        nemo_train, "fresh_hf_modules_cache", lambda: nullcontext({"state": "FIXTURE"})
+    )
+    monkeypatch.setattr(
+        nemo_train,
+        "evaluate_saved_adapter",
+        lambda *_args: (_ for _ in ()).throw(nemo_train.GateRefused("fixture refusal")),
+    )
+    code = nemo_train.main(
+        [
+            "evaluate-adapter",
+            "--base-snapshot",
+            str(tmp_path / "base"),
+            "--training-output",
+            str(tmp_path / "training"),
+            "--receipt",
+            str(tmp_path / "evaluation.json"),
+            "--confirmation",
+            nemo_train.EVALUATION_CONFIRMATION,
+            "--license-acknowledgement",
+            contract["base"]["license_acknowledgement"],
+        ]
+    )
+    assert code == 3
+    payload = json.loads(capsys.readouterr().err)
+    assert payload["effects"]["training_started"] == nemo_train.TRAINING_START_PROVEN_FALSE
+
+
 def test_cli_refusal_preserves_receipt_proof_that_training_started(monkeypatch, tmp_path, capsys):
     contract = json.loads(nemo_train.CONTRACT_PATH.read_text(encoding="utf-8"))
     output = tmp_path / "run"
@@ -1122,7 +1250,7 @@ def test_capacity_and_training_bind_mamba_forward_only_after_peft_wrapping():
     assert '"packing": False' in runner
     assert '"optimizer_state_before_forward"' in runner
     assert '"forward_evidence"' in runner
-    assert "pad_token_id=tokenizer.pad_token_id)" in runner
+    assert "pad_token_id=tokenizer.pad_token_id" in runner
     assert "pad_token_id=tokenizer.pad_token_id or" not in runner
 
 
@@ -1299,14 +1427,19 @@ def test_trl_lane_uses_the_pinned_048_api_and_capacity_is_network_isolated():
     assert "failure_evidence" in runner
     assert "optimizer = None" in runner
     assert "torch_module.cuda.empty_cache()" in runner
-    assert 'evaluate_set("ORIGINAL_FROZEN", eval_rows, EVAL_PATH)' in runner
-    assert 'evaluate_set("SHADOW_PREREGISTERED", shadow_eval_rows, SHADOW_EVAL_PATH)' in runner
+    assert 'evaluate_set("ORIGINAL_FROZEN", original_rows, EVAL_PATH)' in runner
+    assert 'evaluate_set("SHADOW_PREREGISTERED", shadow_rows, SHADOW_EVAL_PATH)' in runner
+    assert "evaluate-adapter" in runner
+    assert "EVALUATE_SZL_NEMO_GOVERNED_ADAPTER_V2" in runner
+    assert 'thermal_scope="evaluation"' in runner
     assert "DataCollatorForCompletionOnlyLM" in runner
     assert "capacity-probe" in launcher
     assert "calibrate-vram" in launcher
     assert "--mode calibrate" in launcher
     assert "calibrate-activation-offload" in launcher
     assert "--mode activation-offload" in launcher
+    assert '"$MODE" == "evaluate"' in launcher
+    assert "evaluate-adapter" in launcher
     assert 'save_on_cpu(pin_memory=False, device_type="cuda")' in runner
     assert "unshare --user --map-root-user --net" in launcher
 

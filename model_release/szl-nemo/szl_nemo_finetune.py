@@ -3,8 +3,9 @@
 
 ``fetch-base`` is the only network-capable command and pins the public NVIDIA
 snapshot to the exact revision in ``training-contract.json``.  ``build``,
-``preflight``, and ``train`` are local-only.  Training never uploads, publishes,
-deploys, stops another process, weakens a GPU threshold, or promotes itself.
+``preflight``, ``train``, and ``evaluate-adapter`` are local-only.  Training and
+evaluation never upload, publish, deploy, stop another process, weaken a GPU
+threshold, or promote themselves.
 """
 
 from __future__ import annotations
@@ -56,6 +57,7 @@ SYSTEM_PROMPT = (
     "external evidence planes unless separately admitted."
 )
 FETCH_CONFIRMATION = "FETCH_SZL_NEMO_BASE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
+EVALUATION_CONFIRMATION = "EVALUATE_SZL_NEMO_GOVERNED_ADAPTER_V2"
 PAYLOAD_TYPE = "application/vnd.szl.nemo-training+json"
 SHARED_GPU_TRAINING_LEASE_DIR = REPO / "model_release" / "szl-forge" / "queue-state" / "gpu-training.lease"
 GPU_TRAINING_LEASE_OWNER = "owner.json"
@@ -1451,6 +1453,7 @@ class RuntimeGuard:
         contract: dict[str, Any],
         maximum_temperature: int | None = None,
         maximum_seconds: int | None = None,
+        thermal_scope: str = "training",
     ) -> None:
         self.maximum_seconds = (
             int(maximum_seconds)
@@ -1463,6 +1466,9 @@ class RuntimeGuard:
             else contract["gpu_admission"]["maximum_training_temperature_c"]
         )
         self.interval = contract["training"]["watchdog_interval_seconds"]
+        if thermal_scope not in {"training", "evaluation"}:
+            raise GateRefused("runtime guard thermal scope is invalid")
+        self.thermal_scope = thermal_scope
         self.started_at_unix_ns = time.time_ns()
         self.started_monotonic_ns = time.monotonic_ns()
         self.finalized_at_unix_ns: int | None = None
@@ -1479,7 +1485,7 @@ class RuntimeGuard:
         with self.lock:
             self.samples.append(sample)
             if sample["temperature_c"] > self.maximum_temperature:
-                self.reason = "training thermal ceiling exceeded"
+                self.reason = f"{self.thermal_scope} thermal ceiling exceeded"
 
     def _watch(self) -> None:
         while not self.stop.wait(self.interval):
@@ -1568,6 +1574,7 @@ class RuntimeGuard:
                 "maximum_wall_clock_seconds": self.maximum_seconds,
                 "watchdog_interval_seconds": self.interval,
             },
+            "thermal_scope": self.thermal_scope,
             "timing": {
                 "started_at_unix_ns": self.started_at_unix_ns,
                 "finalized_at_unix_ns": self.finalized_at_unix_ns,
@@ -1768,6 +1775,85 @@ def _evaluate_output(text: str, expected: dict[str, Any]) -> dict[str, Any]:
     missing = [term for term in expected["required_terms"] if term.casefold() not in folded]
     forbidden = [term for term in expected["forbidden_terms"] if term.casefold() in folded]
     return {"state": "PASS" if not missing and not forbidden else "FAIL", "output_sha256": sha256_bytes(text.encode("utf-8")), "output_chars": len(text), "missing_required_terms": missing, "present_forbidden_terms": forbidden}
+
+
+def evaluate_mandatory_sets(
+    tokenizer: Any,
+    model: Any,
+    original_rows: list[dict[str, Any]],
+    shadow_rows: list[dict[str, Any]],
+    contract: dict[str, Any],
+    guard: "RuntimeGuard",
+    adapter_files_sha256: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Run both preregistered sets and return one fail-closed gate receipt."""
+
+    import torch
+
+    settings = contract["training"]
+
+    def evaluate_set(
+        set_id: str,
+        rows: list[dict[str, Any]],
+        source_path: Path,
+    ) -> dict[str, Any]:
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            guard.check(row["record_id"])
+            prompt = tokenizer.apply_chat_template(
+                row["messages"],
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
+            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+            with torch.inference_mode():
+                generated = model.generate(
+                    **inputs,
+                    max_new_tokens=settings["maximum_eval_new_tokens"],
+                    do_sample=False,
+                    pad_token_id=tokenizer.pad_token_id,
+                )
+            text = tokenizer.decode(
+                generated[0][inputs["input_ids"].shape[1]:],
+                skip_special_tokens=True,
+            ).strip()
+            results.append(
+                {"record_id": row["record_id"], **_evaluate_output(text, row["expected"])}
+            )
+        state = "PASS" if results and all(item["state"] == "PASS" for item in results) else "FAIL"
+        return {
+            "set_id": set_id,
+            "state": state,
+            "rows": len(results),
+            "passes": sum(item["state"] == "PASS" for item in results),
+            "source_sha256": sha256_file(source_path),
+            "results": results,
+        }
+
+    original = evaluate_set("ORIGINAL_FROZEN", original_rows, EVAL_PATH)
+    shadow = evaluate_set("SHADOW_PREREGISTERED", shadow_rows, SHADOW_EVAL_PATH)
+    required_set_ids = contract["evaluation"]["mandatory_sets"]
+    observed_sets = {original["set_id"]: original, shadow["set_id"]: shadow}
+    state = "PASS" if (
+        contract["evaluation"]["requires_both_sets_pass"]
+        and set(required_set_ids) == set(observed_sets)
+        and all(observed_sets[set_id]["state"] == "PASS" for set_id in required_set_ids)
+    ) else "FAIL"
+    receipt = {
+        "schema_version": "szl.nemo.reload-evaluation-receipt.v2",
+        "state": state,
+        "gate": "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS",
+        "mandatory_sets": required_set_ids,
+        "rows": original["rows"] + shadow["rows"],
+        "passes": original["passes"] + shadow["passes"],
+        "adapter_files_sha256": adapter_files_sha256,
+        "base_revision": contract["base"]["revision"],
+        "original": original,
+        "shadow": shadow,
+        "promotion": "NONE_AUTOMATIC",
+    }
+    return original, shadow, receipt
 
 
 def _subsequence_offsets(sequence: list[int], subsequence: list[int]) -> list[int]:
@@ -2509,6 +2595,286 @@ def activation_offload_calibration(
     )
 
 
+def admit_evaluation_resume(
+    snapshot: Path,
+    training_output: Path,
+    contract: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind a saved adapter to its completed thermal-failed training attempt."""
+
+    receipts = training_output / "receipts"
+    training_receipt_path = receipts / "training-receipt.json"
+    adapter_receipt_path = receipts / "adapter-files.json"
+    adapter = training_output / "adapter"
+    if not training_receipt_path.is_file() or not adapter_receipt_path.is_file():
+        raise GateRefused("evaluation resume requires training and adapter receipts")
+    if not adapter.is_dir():
+        raise GateRefused("evaluation resume requires the saved adapter directory")
+
+    training_receipt = load_object(training_receipt_path)
+    adapter_receipt = load_object(adapter_receipt_path)
+    if training_receipt.get("schema_version") != "szl.nemo.training-receipt.v2":
+        raise GateRefused("evaluation resume requires a v2 training receipt")
+    if training_receipt.get("contract_id") != contract["contract_id"]:
+        raise GateRefused("training receipt contract identity mismatch")
+    if training_receipt.get("state") != "FAILED_NOT_PROMOTED":
+        raise GateRefused("evaluation resume is limited to a failed unpromoted attempt")
+    if (
+        training_receipt.get("error_type") != "GateRefused"
+        or training_receipt.get("error") != "training thermal ceiling exceeded"
+    ):
+        raise GateRefused("evaluation resume requires the post-training thermal refusal")
+    if training_receipt.get("global_steps") != contract["training"]["max_steps"]:
+        raise GateRefused("evaluation resume requires every preregistered training step")
+    if not isinstance(training_receipt.get("training_completed_at_unix_ns"), int):
+        raise GateRefused("evaluation resume lacks completed-training evidence")
+    if training_receipt.get("contract_sha256") != sha256_file(CONTRACT_PATH):
+        raise GateRefused("training receipt contract hash mismatch")
+    if training_receipt.get("curriculum_manifest_sha256") != sha256_file(MANIFEST_PATH):
+        raise GateRefused("training receipt curriculum manifest hash mismatch")
+    origin_source = training_receipt.get("source_control")
+    if not isinstance(origin_source, dict) or origin_source.get("state") != "CLEAN_REVIEWED_COMMIT":
+        raise GateRefused("training receipt lacks clean source-control evidence")
+    origin_commit = origin_source.get("commit")
+    origin_runner_sha256 = training_receipt.get("runner_sha256")
+    if (
+        not isinstance(origin_commit, str)
+        or len(origin_commit) != 40
+        or any(character not in "0123456789abcdef" for character in origin_commit)
+        or not isinstance(origin_runner_sha256, str)
+        or len(origin_runner_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in origin_runner_sha256)
+    ):
+        raise GateRefused("training receipt origin identity is malformed")
+
+    if adapter_receipt.get("schema_version") != "szl.nemo.adapter-files.v1":
+        raise GateRefused("adapter inventory receipt schema mismatch")
+    adapter_receipt_sha256 = sha256_file(adapter_receipt_path)
+    if training_receipt.get("adapter_files_sha256") != adapter_receipt_sha256:
+        raise GateRefused("training receipt does not bind the adapter inventory")
+    expected_inventory = adapter_receipt.get("files")
+    observed_inventory = _inventory(adapter)
+    if not isinstance(expected_inventory, list) or expected_inventory != observed_inventory:
+        raise GateRefused("saved adapter inventory changed after training")
+    paths = {item.get("path") for item in observed_inventory if isinstance(item, dict)}
+    if "adapter_model.safetensors" not in paths or any(
+        isinstance(path, str) and path.endswith(".bin") for path in paths
+    ):
+        raise GateRefused("saved adapter is not a safetensors-only package")
+
+    base_files = verify_base(snapshot)
+    if training_receipt.get("base_files_before") != base_files:
+        raise GateRefused("base snapshot differs from the completed training attempt")
+    validate_curriculum()
+    curriculum_inputs = curriculum_input_identity()
+    if training_receipt.get("curriculum_inputs_before") != curriculum_inputs:
+        raise GateRefused("holdout or curriculum inputs differ from the training attempt")
+    if sha256_file(EVAL_PATH) != contract["curriculum"]["frozen_original_eval_sha256"]:
+        raise GateRefused("frozen original evaluation hash mismatch")
+    manifest = load_object(MANIFEST_PATH)
+    if manifest.get("shadow_eval", {}).get("sha256") != sha256_file(SHADOW_EVAL_PATH):
+        raise GateRefused("preregistered shadow evaluation hash mismatch")
+
+    return {
+        "training_receipt": training_receipt,
+        "training_receipt_path": training_receipt_path,
+        "training_receipt_sha256": sha256_file(training_receipt_path),
+        "adapter_receipt_path": adapter_receipt_path,
+        "adapter_receipt_sha256": adapter_receipt_sha256,
+        "adapter": adapter,
+        "adapter_inventory": observed_inventory,
+        "base_files": base_files,
+        "curriculum_inputs": curriculum_inputs,
+        "origin_commit": origin_commit,
+        "origin_runner_sha256": origin_runner_sha256,
+    }
+
+
+def evaluate_saved_adapter(
+    snapshot: Path,
+    training_output: Path,
+    receipt_path: Path,
+    confirmation: str,
+    license_acknowledgement: str,
+    module_cache_receipt: dict[str, Any] | None = None,
+) -> int:
+    """Evaluate one immutable saved adapter without reopening training."""
+
+    contract = load_object(CONTRACT_PATH)
+    if confirmation != EVALUATION_CONFIRMATION:
+        raise GateRefused("exact evaluation-only confirmation is required")
+    if license_acknowledgement != contract["base"]["license_acknowledgement"]:
+        raise GateRefused("exact NVIDIA license acknowledgement is required")
+    if receipt_path.exists():
+        raise GateRefused("evaluation receipt path already exists; evidence is append-only")
+
+    origin = admit_evaluation_resume(snapshot, training_output, contract)
+    source_control = git_identity(contract)
+    eval_rows = list(iter_jsonl(EVAL_PATH))
+    shadow_rows = list(iter_jsonl(SHADOW_EVAL_PATH))
+    initial = {
+        "schema_version": "szl.nemo.evaluation-resume-receipt.v1",
+        "contract_id": contract["contract_id"],
+        "state": "RUNNING_EVALUATION_ONLY_NOT_PROMOTED_NOT_SIGNED",
+        "started_at_unix_ns": time.time_ns(),
+        "contract_sha256": sha256_file(CONTRACT_PATH),
+        "evaluator_runner_sha256": sha256_file(Path(__file__)),
+        "source_control": source_control,
+        "originating_training": {
+            "receipt_sha256": origin["training_receipt_sha256"],
+            "state": origin["training_receipt"]["state"],
+            "commit": origin["origin_commit"],
+            "runner_sha256": origin["origin_runner_sha256"],
+            "global_steps": origin["training_receipt"]["global_steps"],
+            "training_loss": origin["training_receipt"]["training_loss"],
+            "training_completed_at_unix_ns": origin["training_receipt"]["training_completed_at_unix_ns"],
+        },
+        "adapter_files_receipt_sha256": origin["adapter_receipt_sha256"],
+        "base_revision": contract["base"]["revision"],
+        "base_files": origin["base_files"],
+        "frozen_original_eval_sha256": sha256_file(EVAL_PATH),
+        "preregistered_shadow_eval_sha256": sha256_file(SHADOW_EVAL_PATH),
+        "mandatory_sets": contract["evaluation"]["mandatory_sets"],
+        "dynamic_module_cache": module_cache_receipt,
+        "training_started": False,
+        "adapter_written": False,
+        "uploaded": False,
+        "published": False,
+        "deployed": False,
+        "signed": False,
+        "promotion": "NOT_PROMOTED",
+    }
+    create_json_once(receipt_path, initial)
+    receipt = dict(initial)
+    guard: RuntimeGuard | None = None
+    try:
+        admission = preflight(snapshot, check_gpu=True)
+        receipt["gpu_admission"] = admission
+        atomic_json(receipt_path, receipt)
+        if admission["state"] != "PASS":
+            receipt.update({"state": "GPU_ADMISSION_REFUSED_NOT_EVALUATED_NOT_PROMOTED", "completed_at_unix_ns": time.time_ns()})
+            atomic_json(receipt_path, receipt)
+            return 3
+        os.environ.update({"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "HF_DATASETS_OFFLINE": "1", "WANDB_DISABLED": "true", "TOKENIZERS_PARALLELISM": "false", "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1", "NO_PROXY": "*"})
+        receipt["os_network_namespace"] = verify_linux_network_namespace()
+        with deny_python_network() as network_control, RuntimeGuard(
+            contract, thermal_scope="evaluation"
+        ) as guard:
+            receipt["network_control"] = network_control
+            import torch
+            from peft import PeftModel
+            from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+            if not torch.cuda.is_available():
+                raise GateRefused("CUDA is unavailable after evaluation admission")
+            receipt["runtime_identity"] = verify_runtime(torch)
+            bf16 = bool(torch.cuda.is_bf16_supported())
+            quant = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_compute_dtype=torch.bfloat16 if bf16 else torch.float16,
+            )
+            guard.check("before-evaluation-model-load")
+            tokenizer = AutoTokenizer.from_pretrained(
+                str(snapshot), local_files_only=True, trust_remote_code=True
+            )
+            receipt["padding_token_admission"] = admit_padding_token(
+                tokenizer, contract, "evaluation-resume"
+            )
+            model = AutoModelForCausalLM.from_pretrained(
+                str(snapshot),
+                local_files_only=True,
+                quantization_config=quant,
+                device_map={"": 0},
+                trust_remote_code=True,
+                use_safetensors=True,
+                low_cpu_mem_usage=True,
+            )
+            receipt["reloaded_model_class"] = verify_loaded_model_source(
+                model, contract, "evaluation-resume"
+            )
+            receipt["reload_padding_binding"] = verify_model_padding_binding(
+                model, receipt["padding_token_admission"], "evaluation-resume"
+            )
+            model = PeftModel.from_pretrained(
+                model,
+                str(origin["adapter"]),
+                is_trainable=False,
+                local_files_only=True,
+            )
+            model.eval()
+            original, shadow, evaluation = evaluate_mandatory_sets(
+                tokenizer,
+                model,
+                eval_rows,
+                shadow_rows,
+                contract,
+                guard,
+                origin["adapter_receipt_sha256"],
+            )
+            guard.finalize()
+            runtime_guard = guard.receipt()
+
+        if verify_base(snapshot) != origin["base_files"]:
+            raise GateRefused("base snapshot changed during evaluation")
+        validate_curriculum()
+        if curriculum_input_identity() != origin["curriculum_inputs"]:
+            raise GateRefused("holdout or curriculum inputs changed during evaluation")
+        if sha256_file(origin["training_receipt_path"]) != origin["training_receipt_sha256"]:
+            raise GateRefused("originating training receipt changed during evaluation")
+        if sha256_file(origin["adapter_receipt_path"]) != origin["adapter_receipt_sha256"]:
+            raise GateRefused("adapter inventory receipt changed during evaluation")
+        if _inventory(origin["adapter"]) != origin["adapter_inventory"]:
+            raise GateRefused("saved adapter changed during evaluation")
+        source_control_after = git_identity(contract)
+        if source_control_after != source_control:
+            raise GateRefused("evaluation source identity changed during evaluation")
+
+        receipt.update(
+            {
+                "state": "QUALIFICATION_PASS_NOT_PROMOTED_NOT_SIGNED" if evaluation["state"] == "PASS" else "EVALUATION_FAILED_NOT_PROMOTED_NOT_SIGNED",
+                "completed_at_unix_ns": time.time_ns(),
+                "evaluation": evaluation,
+                "original": original,
+                "shadow": shadow,
+                "runtime_guard": runtime_guard,
+                "source_control_after": source_control_after,
+                "training_started": False,
+                "adapter_written": False,
+                "uploaded": False,
+                "published": False,
+                "deployed": False,
+                "signed": False,
+                "promotion": "NOT_PROMOTED",
+            }
+        )
+        atomic_json(receipt_path, receipt)
+        return 0 if evaluation["state"] == "PASS" else 4
+    except Exception as exc:
+        if guard is not None:
+            guard.finalize_failure()
+            receipt["runtime_guard"] = guard.receipt()
+        receipt.update(
+            {
+                "state": "FAILED_EVALUATION_ONLY_NOT_PROMOTED_NOT_SIGNED",
+                "completed_at_unix_ns": time.time_ns(),
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "traceback_sha256": sha256_bytes(traceback.format_exc().encode("utf-8")),
+                "training_started": False,
+                "adapter_written": False,
+                "uploaded": False,
+                "published": False,
+                "deployed": False,
+                "signed": False,
+                "promotion": "NOT_PROMOTED",
+            }
+        )
+        atomic_json(receipt_path, receipt)
+        raise
+
+
 def train(
     snapshot: Path,
     output: Path,
@@ -2616,55 +2982,16 @@ def train(
                 reload_model, receipt["padding_token_admission"], "reload"
             )
             reload_model = PeftModel.from_pretrained(reload_model, str(adapter), is_trainable=False, local_files_only=True); reload_model.eval()
-            def evaluate_set(
-                set_id: str,
-                rows: list[dict[str, Any]],
-                source_path: Path,
-            ) -> dict[str, Any]:
-                results: list[dict[str, Any]] = []
-                for row in rows:
-                    guard.check(row["record_id"])
-                    prompt = tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=True, enable_thinking=False)
-                    inputs = tokenizer(prompt, return_tensors="pt").to(reload_model.device)
-                    with torch.inference_mode():
-                        generated = reload_model.generate(**inputs, max_new_tokens=settings["maximum_eval_new_tokens"], do_sample=False, pad_token_id=tokenizer.pad_token_id)
-                    text = tokenizer.decode(generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
-                    results.append({"record_id": row["record_id"], **_evaluate_output(text, row["expected"])})
-                state = "PASS" if results and all(item["state"] == "PASS" for item in results) else "FAIL"
-                return {
-                    "set_id": set_id,
-                    "state": state,
-                    "rows": len(results),
-                    "passes": sum(item["state"] == "PASS" for item in results),
-                    "source_sha256": sha256_file(source_path),
-                    "results": results,
-                }
-
-            original_evaluation = evaluate_set("ORIGINAL_FROZEN", eval_rows, EVAL_PATH)
-            shadow_evaluation = evaluate_set("SHADOW_PREREGISTERED", shadow_eval_rows, SHADOW_EVAL_PATH)
-            required_set_ids = contract["evaluation"]["mandatory_sets"]
-            observed_sets = {
-                original_evaluation["set_id"]: original_evaluation,
-                shadow_evaluation["set_id"]: shadow_evaluation,
-            }
-            reload_state = "PASS" if (
-                contract["evaluation"]["requires_both_sets_pass"]
-                and set(required_set_ids) == set(observed_sets)
-                and all(observed_sets[set_id]["state"] == "PASS" for set_id in required_set_ids)
-            ) else "FAIL"
-            reload_receipt = {
-                "schema_version": "szl.nemo.reload-evaluation-receipt.v2",
-                "state": reload_state,
-                "gate": "ORIGINAL_AND_SHADOW_MUST_BOTH_PASS",
-                "mandatory_sets": required_set_ids,
-                "rows": original_evaluation["rows"] + shadow_evaluation["rows"],
-                "passes": original_evaluation["passes"] + shadow_evaluation["passes"],
-                "adapter_files_sha256": sha256_file(receipts / "adapter-files.json"),
-                "base_revision": contract["base"]["revision"],
-                "original": original_evaluation,
-                "shadow": shadow_evaluation,
-                "promotion": "NONE_AUTOMATIC",
-            }
+            original_evaluation, shadow_evaluation, reload_receipt = evaluate_mandatory_sets(
+                tokenizer,
+                reload_model,
+                eval_rows,
+                shadow_eval_rows,
+                contract,
+                guard,
+                sha256_file(receipts / "adapter-files.json"),
+            )
+            reload_state = reload_receipt["state"]
             atomic_json(receipts / "reload-evaluation-receipt.json", reload_receipt)
             after = verify_base(snapshot)
             if before != after:
@@ -2781,6 +3108,7 @@ def main(argv: list[str] | None = None) -> int:
     capacity = sub.add_parser("capacity-probe"); capacity.add_argument("--base-snapshot", type=Path, required=True); capacity.add_argument("--receipt", type=Path, required=True); capacity.add_argument("--confirmation", required=True); capacity.add_argument("--license-acknowledgement", required=True)
     calibrate = sub.add_parser("calibrate-vram"); calibrate.add_argument("--base-snapshot", type=Path, required=True); calibrate.add_argument("--receipt", type=Path, required=True); calibrate.add_argument("--confirmation", required=True); calibrate.add_argument("--license-acknowledgement", required=True)
     offload = sub.add_parser("calibrate-activation-offload"); offload.add_argument("--base-snapshot", type=Path, required=True); offload.add_argument("--receipt", type=Path, required=True); offload.add_argument("--confirmation", required=True); offload.add_argument("--license-acknowledgement", required=True)
+    evaluate = sub.add_parser("evaluate-adapter"); evaluate.add_argument("--base-snapshot", type=Path, required=True); evaluate.add_argument("--training-output", type=Path, required=True); evaluate.add_argument("--receipt", type=Path, required=True); evaluate.add_argument("--confirmation", required=True); evaluate.add_argument("--license-acknowledgement", required=True)
     run = sub.add_parser("train"); run.add_argument("--base-snapshot", type=Path, required=True); run.add_argument("--output-dir", type=Path, required=True); run.add_argument("--confirmation", required=True); run.add_argument("--license-acknowledgement", required=True)
     args = parser.parse_args(argv)
     try:
@@ -2804,6 +3132,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "calibrate-activation-offload":
             with training_mutex(), fresh_hf_modules_cache() as module_cache:
                 return activation_offload_calibration(args.base_snapshot, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
+        if args.command == "evaluate-adapter":
+            with training_mutex(), fresh_hf_modules_cache() as module_cache:
+                return evaluate_saved_adapter(args.base_snapshot, args.training_output, args.receipt, args.confirmation, args.license_acknowledgement, module_cache)
         with training_mutex(), fresh_hf_modules_cache() as module_cache:
             return train(args.base_snapshot, args.output_dir, args.confirmation, args.license_acknowledgement, module_cache)
     except GateRefused as exc:

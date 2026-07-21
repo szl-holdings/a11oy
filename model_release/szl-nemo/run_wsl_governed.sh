@@ -32,6 +32,9 @@ All modes accept --preflight-receipt PATH so a queue can bind the admission
 receipt to one immutable attempt directory.
   run_wsl_governed.sh --base-snapshot PATH --mode train --output-dir PATH \
     --confirmation EXACT_PHRASE --license-acknowledgement EXACT_PHRASE
+  run_wsl_governed.sh --base-snapshot PATH --mode evaluate --output-dir TRAINING_OUTPUT \
+    --receipt PATH --confirmation EVALUATE_SZL_NEMO_GOVERNED_ADAPTER_V2 \
+    --license-acknowledgement EXACT_PHRASE
 EOF
 }
 
@@ -61,8 +64,8 @@ if [[ ! -f "$RUNNER" || ! -d "$BASE" ]]; then
   echo "UNAVAILABLE: runner or immutable base snapshot is absent" >&2
   exit 4
 fi
-if [[ "$MODE" != "preflight" && "$MODE" != "capacity" && "$MODE" != "calibrate" && "$MODE" != "activation-offload" && "$MODE" != "train" ]]; then
-  echo "Mode must be preflight, capacity, calibrate, activation-offload, or train" >&2
+if [[ "$MODE" != "preflight" && "$MODE" != "capacity" && "$MODE" != "calibrate" && "$MODE" != "activation-offload" && "$MODE" != "evaluate" && "$MODE" != "train" ]]; then
+  echo "Mode must be preflight, capacity, calibrate, activation-offload, evaluate, or train" >&2
   exit 2
 fi
 if [[ "$MODE" != "preflight" && ( -z "$CONFIRMATION" || -z "$LICENSE_ACKNOWLEDGEMENT" ) ]]; then
@@ -75,6 +78,10 @@ if [[ ( "$MODE" == "capacity" || "$MODE" == "calibrate" || "$MODE" == "activatio
 fi
 if [[ "$MODE" == "train" && -z "$OUTPUT" ]]; then
   echo "BLOCKED: train mode requires --output-dir" >&2
+  exit 2
+fi
+if [[ "$MODE" == "evaluate" && ( -z "$OUTPUT" || -z "$RECEIPT" ) ]]; then
+  echo "BLOCKED: evaluate mode requires --output-dir and --receipt" >&2
   exit 2
 fi
 
@@ -178,6 +185,26 @@ if [[ "$MODE" == "activation-offload" ]]; then
       NO_PROXY='*' \
     "$PYTHON" "$RUNNER" calibrate-activation-offload \
       --base-snapshot "$BASE" \
+      --receipt "$RECEIPT" \
+      --confirmation "$CONFIRMATION" \
+      --license-acknowledgement "$LICENSE_ACKNOWLEDGEMENT"
+fi
+
+if [[ "$MODE" == "evaluate" ]]; then
+  mkdir -p "$(dirname "$RECEIPT")"
+  exec unshare --user --map-root-user --net -- \
+    env \
+      HF_HUB_OFFLINE=1 \
+      TRANSFORMERS_OFFLINE=1 \
+      HF_DATASETS_OFFLINE=1 \
+      HF_HUB_DISABLE_TELEMETRY=1 \
+      DO_NOT_TRACK=1 \
+      WANDB_DISABLED=true \
+      TOKENIZERS_PARALLELISM=false \
+      NO_PROXY='*' \
+    "$PYTHON" "$RUNNER" evaluate-adapter \
+      --base-snapshot "$BASE" \
+      --training-output "$OUTPUT" \
       --receipt "$RECEIPT" \
       --confirmation "$CONFIRMATION" \
       --license-acknowledgement "$LICENSE_ACKNOWLEDGEMENT"
