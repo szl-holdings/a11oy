@@ -54,14 +54,15 @@ jobs:
           fail-build: true
           severity-cutoff: high
           output-format: sarif
-          update-db: true
+          output-file: grype-results.sarif
+          cache-db: true
 
       - name: Upload Grype SARIF
         uses: github/codeql-action/upload-sarif@cf463419fdde78c727231e445622a9ac37966f84 # v3.28.15
         if: always()
-        continue-on-error: true  # SARIF may be malformed if grype DB was stale
+        continue-on-error: true  # Reporting must not replace the scanner's exit status.
         with:
-          sarif_file: results.sarif
+          sarif_file: grype-results.sarif
     permissions:
       contents: read
       security-events: write
