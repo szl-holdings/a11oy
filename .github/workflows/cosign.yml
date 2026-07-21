@@ -1,4 +1,13 @@
 name: Cosign keyless OIDC release signing
+# Honest release signing (Task #7 repair, 2026-07-21):
+# - The old workflow signed ghcr.io/<repo>:<tag> WITHOUT ensuring that image
+#   existed (a11oy never pushed one; killinchu raced its ghcr build) -> red
+#   releases and an unbacked "cosign-keyless-signed" badge.
+# - Now: resolve the image; if absent, build it from the root Dockerfile and
+#   push it (build-then-sign, never sign a phantom). Then sign BY DIGEST --
+#   tags are mutable, digests are what a signature honestly covers.
+# - A parallel ghcr build may double-push the same tag; the signature binds to
+#   the exact digest signed here regardless. DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 
 on:
   release:
@@ -7,12 +16,18 @@ on:
     tags:
       - 'v*'
 
+# Least-privilege: read-only default; the signing job escalates only where needed.
 permissions:
   contents: read
+
 jobs:
   sign:
     name: Sign container image (keyless OIDC)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # Required for OIDC keyless signing
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,24 +42,37 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve or build release image
+        id: img
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:${{ github.ref_name }}"
+          if docker manifest inspect "${IMAGE}" >/dev/null 2>&1; then
+            echo "Image exists for this tag — signing the already-pushed artifact."
+          else
+            echo "No image published for ${IMAGE} — building from root Dockerfile so the signature covers a real artifact."
+            docker build -t "${IMAGE}" .
+            docker push "${IMAGE}"
+          fi
+          DIGEST="$(docker buildx imagetools inspect "${IMAGE}" --format '{{json .Manifest}}' | jq -r '.digest')"
+          test -n "${DIGEST}" && [ "${DIGEST}" != "null" ]
+          echo "Resolved ${IMAGE} -> ${DIGEST}"
+          echo "ref=ghcr.io/${{ github.repository }}@${DIGEST}" >> "${GITHUB_OUTPUT}"
+
       - name: Sign container image (keyless)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:${{ github.ref_name }}"
-          echo "Signing ${IMAGE}"
-          cosign sign --yes "${IMAGE}"
+          set -euo pipefail
+          echo "Signing ${{ steps.img.outputs.ref }} (by digest — immutable)"
+          cosign sign --yes "${{ steps.img.outputs.ref }}"
 
       - name: Verify signature
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:${{ github.ref_name }}"
+          set -euo pipefail
           cosign verify \
             --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
-            "${IMAGE}"
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
+            "${{ steps.img.outputs.ref }}"
