@@ -1,0 +1,134 @@
+{
+  "schema": "szl.state-plane-continuity/v1",
+  "observed_at": "2026-07-21T20:01:40Z",
+  "evidence_policy": {
+    "maturity_labels": [
+      "PROVEN",
+      "MEASURED",
+      "MODELED",
+      "CONJECTURE",
+      "OPEN"
+    ],
+    "rule": "A conversation, task-complete marker, merge, or deployment is not a live runtime receipt. Each plane is evaluated independently."
+  },
+  "selected_replit_app": {
+    "name": "Unified Control Hub",
+    "repl_id": "34870515-2d52-4ad8-9636-40cc3ced1771",
+    "task_id": "a1181f86-210d-4e5b-a612-a94c271366a7",
+    "task_url": "https://replit.com/@stephenlutar2/Unified-Control-Hub/task/a1181f86-210d-4e5b-a612-a94c271366a7",
+    "connector_last_updated_at": "2026-07-21T18:08:30.867Z",
+    "connector_inspection_state": "EMPTY_RESPONSE",
+    "source_identity": {
+      "repository": null,
+      "branch": null,
+      "commit": null
+    },
+    "runtime_state": "UNVERIFIED",
+    "maturity": "OPEN",
+    "claim_boundary": "The Replit task UI recorded task 26 as complete, but no source export, repository identity, commit, preview receipt, or live runtime response was available to reconcile. The proposed operational control-plane rebuild therefore remains unverified.",
+    "ownership_rule": "This app may host a future authenticated control plane on a distinct origin. It must not overwrite or impersonate the public a11oy.net GitHub Pages site."
+  },
+  "planes": [
+    {
+      "id": "a11oy-product",
+      "canonical_url": "https://a-11-oy.com",
+      "owner": "a11oy product deployment",
+      "purpose": "Public governed-inference product and API surface",
+      "observed_transport": {
+        "status": 200,
+        "server": "cloudflare",
+        "health_url": "https://a-11-oy.com/api/health",
+        "health_status": 200
+      },
+      "operational_state": "MEASURED_REACHABLE",
+      "maturity": "MEASURED"
+    },
+    {
+      "id": "a11oy-net-public-pages",
+      "canonical_url": "https://a11oy.net",
+      "owner": "szl-holdings/a11oy-net",
+      "source_commit": "d8f26c071650e374d8b818245ad1df5fd7e3956d",
+      "purpose": "Public presentation site; not the Replit API or authenticated control plane",
+      "observed_transport": {
+        "status": 200,
+        "server": "GitHub.com",
+        "content_bytes": 18456
+      },
+      "operational_state": "MEASURED_STATIC_PRESENTATION",
+      "maturity": "MEASURED",
+      "mutation_rule": "Only the a11oy-net repository and its reviewed Pages workflow may mutate this plane. Replit work must use a separate origin until an explicitly reviewed migration changes ownership."
+    },
+    {
+      "id": "unified-control-hub-replit",
+      "canonical_url": null,
+      "owner": "Replit app 34870515-2d52-4ad8-9636-40cc3ced1771",
+      "purpose": "Candidate authenticated operational control plane",
+      "observed_transport": null,
+      "operational_state": "UNVERIFIED_NO_RUNTIME_RECEIPT",
+      "maturity": "OPEN",
+      "promotion_gate": "Record repository, branch, immutable commit, preview/deployment URL, test receipt, and independent live probes before this plane may be labeled operational."
+    }
+  ],
+  "anatomy_v6": {
+    "repository": "szl-holdings/anatomy",
+    "source_commit": "c4bc67a4a0da76ca78eee2598618ab001eed1189",
+    "source_commit_subject": "v6 ratchet: alive-proof layer — DSSE-verified harness runs on the map (#40)",
+    "github_state": "MERGED_MAIN_CI_GREEN",
+    "live_url": "https://szlholdings-anatomy.hf.space/",
+    "live_routes": [
+      {
+        "path": "/",
+        "status": 200
+      },
+      {
+        "path": "/v6_alive.js",
+        "status": 200
+      },
+      {
+        "path": "/api/anatomy/v1/capabilities",
+        "status": 200
+      },
+      {
+        "path": "/api/anatomy/v1/evidence?refresh=1",
+        "status": 200
+      },
+      {
+        "path": "/api/anatomy/v1/receipt",
+        "status": 200
+      },
+      {
+        "path": "/.well-known/szl-source.json",
+        "status": 200
+      }
+    ],
+    "deployment": {
+      "hf_revision": "1f41dc373021469dcb214b2b79b5e4f28eee9c78",
+      "artifact_set_sha256": "d30c82b9a01b5ae8208e9665e97b6a92aff58b9eee29cceabadec9325fce06c6",
+      "declared_source_commit": "9847b3031c1aacdcee9aa8e37ae33d573737a5c4",
+      "alignment_state": "PENDING_GITHUB_SYNC",
+      "v6_module_exact_match": {
+        "path": "v6_alive.js",
+        "github_bytes": 13405,
+        "live_bytes": 13405,
+        "github_sha256": "65ee3306ff732d4d977ecec5014431e832c599900459c7016593d1f84010d380",
+        "live_sha256": "65ee3306ff732d4d977ecec5014431e832c599900459c7016593d1f84010d380",
+        "state": "MATCH"
+      }
+    },
+    "alive_harness": {
+      "sink": "https://huggingface.co/datasets/SZLHOLDINGS/test-results/resolve/main/harness_runs.jsonl",
+      "signature_verified": true,
+      "signature_algorithm": "ECDSA-P256-SHA256",
+      "dsse_keyid": "szlholdings-ec-p256",
+      "verdict": "GREEN",
+      "assertions": "32/32",
+      "formula_gates": "10/10",
+      "finished_at": "2026-07-21T03:40:29.453969Z",
+      "evidence_sha256": "cbda4810ea4a511fdf06523d6f3012adddfea710b92d3e0397a0fc2f179c3958",
+      "claim_boundary": "The independent DSSE verification proves the published harness record was signed by the pinned key and reports GREEN. It does not establish deployment-source alignment, correctness of every organ, or a new theorem."
+    },
+    "operational_state": "MEASURED_LIVE_WITH_SOURCE_ALIGNMENT_OPEN",
+    "maturity": "MEASURED",
+    "claim_boundary": "The v6 source, CI, and live routes are real. The live source attestation still reports PENDING_GITHUB_SYNC, so the deployed bytes must not be described as commit-aligned or provenance-closed."
+  }
+}
