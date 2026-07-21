@@ -65,6 +65,12 @@ _FRONTIER_REGISTRY = (
     / "frontier-qualification"
     / "frontier-adoption.json"
 )
+_HF_PORTFOLIO_REGISTRY = (
+    Path(__file__).resolve().parent
+    / "model_release"
+    / "hf-portfolio"
+    / "portfolio-classification.json"
+)
 
 # Prior-art citations surfaced to the operator (never claimed as ours).
 CITED = {
@@ -336,10 +342,98 @@ def _load_frontier_registry() -> dict[str, Any]:
     return value
 
 
+def _load_hf_portfolio_registry() -> dict[str, Any]:
+    """Load the component-level HF registry and reject any claim inflation.
+
+    Hugging Face's repository type is not an artifact classifier: a model repo
+    can contain a full checkpoint, an adapter, a recipe, a sklearn surrogate,
+    kernel source, or no weights at all.  This checked-in registry keeps those
+    components separate and never grants promotion, serving, or deletion.
+    """
+    value = json.loads(_HF_PORTFOLIO_REGISTRY.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("HF portfolio registry is not a JSON object")
+    if value.get("schema_version") != "szl.hf-portfolio-classification.v1":
+        raise ValueError("HF portfolio registry schema is unsupported")
+    if value.get("organization") != _HF_ORG:
+        raise ValueError("HF portfolio registry organization changed")
+    policy = value.get("policies")
+    if not isinstance(policy, dict):
+        raise ValueError("HF portfolio registry policy is missing")
+    expected_policy = {
+        "classification_unit": "REPOSITORY_COMPONENTS_NOT_HUB_REPOSITORY_TYPE",
+        "downloads_are_adoption_signal_not_quality": True,
+        "zero_downloads_authorize_deletion": False,
+        "unknown_repository_policy": "UNCLASSIFIED_FAIL_CLOSED",
+        "promotion_authority": False,
+        "delete_authority": False,
+    }
+    for field, expected in expected_policy.items():
+        if policy.get(field) != expected:
+            raise ValueError(f"HF portfolio registry policy mismatch: {field}")
+    models = value.get("models")
+    if not isinstance(models, list) or len(models) != 15:
+        raise ValueError("HF portfolio registry must contain the observed 15 model repositories")
+    repository_ids: list[str] = []
+    for item in models:
+        if not isinstance(item, dict):
+            raise ValueError("HF portfolio model record is malformed")
+        required = {
+            "repository_id", "observed_revision", "primary_class", "components",
+            "evidence_files", "claims", "release_state", "serving_qualified",
+            "promotion_authorized", "delete_authorized", "recommended_action",
+        }
+        if not required.issubset(item):
+            raise ValueError("HF portfolio model record is incomplete")
+        if item["serving_qualified"] is not False:
+            raise ValueError("HF portfolio overclaims serving qualification")
+        if item["promotion_authorized"] is not False:
+            raise ValueError("HF portfolio authorizes promotion")
+        if item["delete_authorized"] is not False:
+            raise ValueError("HF portfolio authorizes deletion")
+        claims = item["claims"]
+        components = item["components"]
+        if not isinstance(claims, dict) or not isinstance(components, list):
+            raise ValueError("HF portfolio component classification is malformed")
+        component_claims = {
+            "FULL_LANGUAGE_MODEL": "full_language_model",
+            "PEFT_ADAPTER": "peft_adapter",
+            "QUANTIZED_LANGUAGE_MODEL": "quantized_language_model",
+            "CUSTOM_CHARACTER_MODEL": "custom_character_model",
+            "SKLEARN_SURROGATE": "sklearn_surrogate",
+            "TORCH_SURROGATE": "torch_surrogate",
+            "RUNTIME_RECIPE": "runtime_recipe",
+            "KERNEL_SOURCE": "kernel_source",
+            "NO_WEIGHT_UTILITY": "no_weight_utility",
+        }
+        for component, claim in component_claims.items():
+            if (component in components) != (claims.get(claim) is True):
+                raise ValueError(
+                    f"HF portfolio component/claim mismatch for {item['repository_id']}: {component}"
+                )
+        repository_ids.append(item["repository_id"])
+    if len(repository_ids) != len(set(repository_ids)):
+        raise ValueError("HF portfolio registry contains duplicate repositories")
+    findings = value.get("observed_findings")
+    if not isinstance(findings, dict):
+        raise ValueError("HF portfolio observed findings are missing")
+    if len(findings.get("docker_spaces_missing_standard_health_boundary", [])) != 4:
+        raise ValueError("HF portfolio missing-health Space count changed")
+    if len(findings.get("datasets_broken_or_no_config", [])) != 7:
+        raise ValueError("HF portfolio broken/no-config dataset count changed")
+    mutations = value.get("external_mutations")
+    if not isinstance(mutations, dict) or not mutations or any(
+        item is not False for item in mutations.values()
+    ):
+        raise ValueError("HF portfolio external mutation ledger is invalid")
+    return value
+
+
 def get_frontier_adoption() -> dict[str, Any]:
     """Return the checked-in adoption contract without upgrading its honesty state."""
     try:
         registry = _load_frontier_registry()
+        portfolio = _load_hf_portfolio_registry()
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
         return {
             "state": "UNAVAILABLE",
@@ -355,6 +449,7 @@ def get_frontier_adoption() -> dict[str, Any]:
     return {
         "state": registry["status"],
         "registry": registry,
+        "hfPortfolio": portfolio,
         "qualificationAuthority": bool(policy["local_measurements_present"]),
         "promotionAuthority": bool(policy["promotion_authority"]),
         "deleteAuthority": False,
@@ -382,9 +477,9 @@ def _parse_hf_org_models(items: Any) -> list[dict[str, Any]]:
         ]
         lowered_filenames = [name.lower() for name in filenames]
         basenames = [name.rsplit("/", 1)[-1] for name in lowered_filenames]
-        weight_bearing = any(
-            name.endswith(".safetensors")
-            or name.endswith(".gguf")
+        full_checkpoint_file = any(
+            name == "model.safetensors"
+            or bool(re.fullmatch(r"model-\d+-of-\d+\.safetensors", name))
             or name.endswith(".onnx")
             or name.endswith(".pt")
             or name.endswith(".pth")
@@ -396,6 +491,14 @@ def _parse_hf_org_models(items: Any) -> list[dict[str, Any]]:
             or bool(re.fullmatch(r"pytorch_model-\d+-of-\d+\.bin", name))
             for name in basenames
         )
+        adapter_file = any(name in {"adapter_model.safetensors", "adapter_model.bin"} for name in basenames)
+        gguf_file = any(name.endswith(".gguf") for name in basenames)
+        sklearn_file = any(name.endswith((".joblib", ".pkl", ".pickle")) for name in basenames)
+        kernel_source = any(
+            name.startswith("build/torch-") or name == "build.toml"
+            for name in lowered_filenames
+        )
+        weight_bearing = full_checkpoint_file or adapter_file or gguf_file or sklearn_file
         rows.append({
             "repository_id": repository_id,
             "revision": revision,
@@ -405,6 +508,11 @@ def _parse_hf_org_models(items: Any) -> list[dict[str, Any]]:
             "pipeline_tag": model.get("pipeline_tag"),
             "library_name": model.get("library_name"),
             "weight_bearing_from_filenames": weight_bearing,
+            "full_checkpoint_file_present": full_checkpoint_file,
+            "adapter_file_present": adapter_file,
+            "gguf_file_present": gguf_file,
+            "sklearn_artifact_file_present": sklearn_file,
+            "kernel_source_file_present": kernel_source,
             "file_count": len(filenames),
         })
     return rows
@@ -425,7 +533,8 @@ def get_szl_estate() -> dict[str, Any]:
     Unknown or revision-drifted repositories remain visible and fail closed.
     """
     try:
-        registry = _load_frontier_registry()
+        _load_frontier_registry()
+        portfolio = _load_hf_portfolio_registry()
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
         return {
             "state": "UNAVAILABLE",
@@ -436,7 +545,7 @@ def get_szl_estate() -> dict[str, Any]:
             "doctrine": DOCTRINE,
         }
 
-    static_rows = registry["hf_estate"]["repositories"]
+    static_rows = portfolio["models"]
     by_id = {item["repository_id"]: item for item in static_rows}
     feed = _cached_fetch(
         "hf_szlholdings_estate",
@@ -475,6 +584,7 @@ def get_szl_estate() -> dict[str, Any]:
             "repository_id": repository_id,
             "live_present": live is not None,
             "classification_state": revision_state,
+            "strategy": classification["recommended_action"],
             "delete_authorized": False,
         })
 
@@ -502,10 +612,37 @@ def get_szl_estate() -> dict[str, Any]:
         "summary": {
             "classified_repositories": len(by_id),
             "live_repositories": len(live_rows),
-            "weight_bearing_live": sum(bool(item.get("weight_bearing_from_filenames")) for item in live_rows),
+            "serialized_artifact_repositories_live": sum(
+                bool(item.get("weight_bearing_from_filenames")) for item in live_rows
+            ),
+            "full_checkpoint_file_repositories_live": sum(
+                bool(item.get("full_checkpoint_file_present")) for item in live_rows
+            ),
+            "adapter_file_repositories_live": sum(
+                bool(item.get("adapter_file_present")) for item in live_rows
+            ),
+            "gguf_file_repositories_live": sum(
+                bool(item.get("gguf_file_present")) for item in live_rows
+            ),
+            "sklearn_artifact_repositories_live": sum(
+                bool(item.get("sklearn_artifact_file_present")) for item in live_rows
+            ),
+            "kernel_source_repositories_live": sum(
+                bool(item.get("kernel_source_file_present")) for item in live_rows
+            ),
             "unclassified_live": sum(item.get("classification_state") == "UNCLASSIFIED_FAIL_CLOSED" for item in merged),
             "revision_drift": sum(item.get("classification_state") == "REVISION_DRIFT_REVIEW_REQUIRED" for item in merged),
+            "primary_classes": {
+                primary_class: sum(
+                    item.get("primary_class") == primary_class for item in merged
+                )
+                for primary_class in sorted({
+                    str(item.get("primary_class"))
+                    for item in static_rows
+                })
+            },
         },
+        "observedFindings": portfolio["observed_findings"],
         "freshness": freshness,
         "downloadsAreAdoptionSignalNotQuality": True,
         "zeroDownloadsAuthorizeDeletion": False,
