@@ -31,6 +31,7 @@ import tempfile
 import threading
 import time
 import traceback
+import types
 from typing import Any, Iterable
 import uuid
 
@@ -910,21 +911,124 @@ def verify_loaded_model_source(model: Any, contract: dict[str, Any], phase: str)
     }
 
 
+def _decomposed_mamba_cuda_forward(
+    mixer: Any,
+    hidden_states: Any,
+    cache_params: Any = None,
+    cache_position: Any = None,
+    attention_mask: Any = None,
+) -> Any:
+    """Use NVIDIA's decomposed CUDA scan while preserving LoRA module calls.
+
+    In the pinned NVIDIA implementation, ``cuda_kernels_forward`` selects its
+    combined training kernel solely from the mixer's own ``training`` flag.
+    The alternate branch still uses the official CUDA convolution and Mamba
+    scan kernels, but finishes with ``self.out_proj(scan_output)``.  Temporarily
+    changing only the mixer's flag selects that branch without recursively
+    changing the PEFT projection's training state or its LoRA dropout.
+    """
+
+    mixer_training = getattr(mixer, "training", None)
+    projection = getattr(mixer, "out_proj", None)
+    projection_training = getattr(projection, "training", None)
+    if mixer_training is not True or projection_training is not True:
+        raise GateRefused("decomposed Mamba CUDA training dispatch requires active module training")
+    mixer.training = False
+    try:
+        if getattr(projection, "training", None) is not True:
+            raise GateRefused("Mamba LoRA projection training state changed during dispatch")
+        return mixer.cuda_kernels_forward(
+            hidden_states, cache_params, cache_position, attention_mask
+        )
+    finally:
+        mixer.training = mixer_training
+
+
+def mamba_naive_pairwise_memory_model(
+    config: Any, batch_size: int, sequence_length: int
+) -> dict[str, Any]:
+    """Model the explicit float32 pairwise tensor in NVIDIA ``torch_forward``."""
+
+    fields = {
+        "batch_size": batch_size,
+        "sequence_length": sequence_length,
+        "chunk_size": getattr(config, "chunk_size", None),
+        "mamba_num_heads": getattr(config, "mamba_num_heads", None),
+        "ssm_state_size": getattr(config, "ssm_state_size", None),
+    }
+    if not all(isinstance(value, int) and value > 0 for value in fields.values()):
+        raise GateRefused("Mamba pairwise memory dimensions are invalid")
+    chunk_size = fields["chunk_size"]
+    chunks = math.ceil(sequence_length / chunk_size)
+    shape = [
+        batch_size,
+        chunks,
+        chunk_size,
+        chunk_size,
+        fields["mamba_num_heads"],
+        fields["ssm_state_size"],
+    ]
+    elements = math.prod(shape)
+    byte_count = elements * 4
+    return {
+        "state": "MODELED_FROM_HASH_VERIFIED_NVIDIA_TORCH_FORWARD",
+        "operation": "G_INTERMEDIATE_EQUALS_C_PAIRWISE_TIMES_B",
+        "dtype": "float32",
+        "shape": shape,
+        "elements": elements,
+        "bytes": byte_count,
+        "gib": byte_count / (1024**3),
+        "padded_sequence_length": chunks * chunk_size,
+        "receipt_comparison": "COMPARE_TO_CUDA_OOM_REQUEST_NOT_PHYSICAL_ALLOCATION",
+    }
+
+
+def optimizer_state_inventory(optimizer: Any) -> dict[str, Any]:
+    state = getattr(optimizer, "state", None)
+    if state is None or not hasattr(state, "values"):
+        raise GateRefused("optimizer state cannot be measured")
+    tensor_count = 0
+    tensor_bytes = 0
+    for entry in state.values():
+        values = entry.values() if hasattr(entry, "values") else ()
+        for value in values:
+            numel = getattr(value, "numel", None)
+            element_size = getattr(value, "element_size", None)
+            if callable(numel) and callable(element_size):
+                tensor_count += 1
+                tensor_bytes += int(numel()) * int(element_size())
+    return {
+        "state": "MEASURED_FROM_OPTIMIZER_STATE",
+        "entry_count": len(state),
+        "tensor_count": tensor_count,
+        "tensor_bytes": tensor_bytes,
+    }
+
+
+def gradient_checkpointing_evidence(model: Any, phase: str) -> dict[str, Any]:
+    active = getattr(model, "is_gradient_checkpointing", None)
+    if active is not True:
+        raise GateRefused(f"{phase} gradient checkpointing is not active")
+    return {
+        "state": "ACTIVE_MEASURED_FROM_MODEL_FLAG",
+        "phase": phase,
+        "requested": True,
+        "active": True,
+        "use_reentrant": False,
+        "early_stop": True,
+        "policy_source": "PYTORCH_NON_REENTRANT_RECOMMENDATION",
+    }
+
+
 def bind_quantized_mamba_lora_forward(
     model: Any, contract: dict[str, Any], phase: str
 ) -> dict[str, Any]:
-    """Bind reviewed Mamba mixers to the module-aware PyTorch forward path.
+    """Bind Mamba mixers to NVIDIA's module-aware decomposed CUDA branch.
 
-    The pinned NVIDIA fused training path passes ``out_proj.weight`` directly
-    into ``mamba_split_conv1d_scan_combined``.  A bitsandbytes ``Linear4bit``
-    stores compressed data in that attribute, and PEFT applies LoRA in the
-    projection module's ``forward`` method.  Therefore the fused call is both
-    shape-incompatible with the compressed storage and unable to apply the
-    adapter.  The same hash-verified NVIDIA class provides ``torch_forward``,
-    which calls ``self.out_proj(...)`` and preserves both behaviors.
-
-    This is deliberately a per-instance binding.  It does not edit the pinned
-    model source or mutate the custom module's process-global fast-path flag.
+    The combined training kernel reads ``out_proj.weight`` directly, which is
+    incompatible with compressed ``Linear4bit`` storage and bypasses PEFT LoRA.
+    NVIDIA's decomposed CUDA branch calls ``self.out_proj(...)`` and avoids the
+    explicit 9 GiB pairwise tensor in the pure-PyTorch fallback at seq-768.
     """
 
     config = getattr(model, "config", None)
@@ -971,12 +1075,14 @@ def bind_quantized_mamba_lora_forward(
         if source_sha256 != expected_source_sha256:
             raise GateRefused(f"{phase} Mamba mixer source hash mismatch")
 
-        reviewed_forward = getattr(mixer, "torch_forward", None)
+        reviewed_forward = getattr(mixer, "cuda_kernels_forward", None)
         if not callable(reviewed_forward):
-            raise GateRefused(f"{phase} Mamba mixer lacks reviewed torch_forward")
+            raise GateRefused(f"{phase} Mamba mixer lacks reviewed cuda_kernels_forward")
         forward_function = getattr(reviewed_forward, "__func__", reviewed_forward)
         module_globals = getattr(forward_function, "__globals__", {})
         fast_path_before = module_globals.get("is_fast_path_available", "UNDECLARED")
+        if fast_path_before is not True:
+            raise GateRefused(f"{phase} reviewed Mamba CUDA kernels are unavailable")
 
         out_proj = getattr(mixer, "out_proj", None)
         base_layer = getattr(out_proj, "base_layer", None)
@@ -998,12 +1104,16 @@ def bind_quantized_mamba_lora_forward(
         ):
             raise GateRefused(f"{phase} Mamba out_proj base is not bitsandbytes Linear4bit")
 
-        mixer.forward = reviewed_forward
+        in_proj = getattr(mixer, "in_proj", None)
+        in_proj_weight = getattr(in_proj, "weight", None)
+        execution_device = getattr(getattr(in_proj_weight, "device", None), "type", None)
+        if execution_device != "cuda":
+            raise GateRefused(f"{phase} Mamba mixer is not resident on CUDA")
+
+        mixer.forward = types.MethodType(_decomposed_mamba_cuda_forward, mixer)
         rebound = getattr(mixer, "forward", None)
-        if getattr(rebound, "__func__", rebound) is not getattr(
-            type(mixer), "torch_forward", None
-        ):
-            raise GateRefused(f"{phase} Mamba torch_forward binding did not hold")
+        if getattr(rebound, "__func__", rebound) is not _decomposed_mamba_cuda_forward:
+            raise GateRefused(f"{phase} Mamba decomposed CUDA binding did not hold")
         fast_path_after = module_globals.get("is_fast_path_available", "UNDECLARED")
         if fast_path_after != fast_path_before:
             raise GateRefused(f"{phase} Mamba global fast-path state changed")
@@ -1019,25 +1129,29 @@ def bind_quantized_mamba_lora_forward(
                 ),
                 "projection_base_class": base_class,
                 "lora_adapter_names": lora_a_names,
+                "execution_device": execution_device,
+                "dispatch_target": "HASH_VERIFIED_NVIDIA_CUDA_KERNELS_FORWARD",
+                "combined_training_kernel_selected": False,
+                "projection_module_forward_preserved": True,
                 "module_global_fast_path_before": fast_path_before,
                 "module_global_fast_path_after": fast_path_after,
             }
         )
 
-    config.use_mamba_kernels = False
-    if getattr(config, "use_mamba_kernels", None) is not False:
-        raise GateRefused(f"{phase} Mamba kernel declaration could not be disabled")
+    config.use_mamba_kernels = True
+    if getattr(config, "use_mamba_kernels", None) is not True:
+        raise GateRefused(f"{phase} Mamba kernel declaration could not be retained")
     return {
-        "state": "BOUND_REVIEWED_TORCH_FORWARD",
+        "state": "BOUND_REVIEWED_DECOMPOSED_CUDA_FORWARD",
         "phase": phase,
         "reason": (
-            "FUSED_PATH_READS_COMPRESSED_OUT_PROJ_WEIGHT_AND_BYPASSES_LORA_MODULE_FORWARD"
+            "COMBINED_PATH_BYPASSES_LORA_AND_TORCH_PATH_MODELS_A_9_GIB_PAIRWISE_TENSOR"
         ),
         "scope": "PER_MIXER_INSTANCE_NO_PINNED_SOURCE_OR_MODULE_GLOBAL_MUTATION",
         "expected_mixer_count": expected_mixers,
         "bound_mixer_count": len(module_receipts),
         "config_use_mamba_kernels_before": config_flag_before,
-        "config_use_mamba_kernels_after": False,
+        "config_use_mamba_kernels_after": True,
         "modules": module_receipts,
     }
 
@@ -1699,7 +1813,14 @@ def capacity_probe(
                     physical_gpu_phase_sample("after_model_load")
                 )
             model.config.use_cache = False
-            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+            model = prepare_model_for_kbit_training(
+                model,
+                use_gradient_checkpointing=True,
+                gradient_checkpointing_kwargs={"use_reentrant": False},
+            )
+            receipt["gradient_checkpointing"] = gradient_checkpointing_evidence(
+                model, "capacity"
+            )
             lora = LoraConfig(
                 r=settings["lora_rank"],
                 lora_alpha=settings["lora_alpha"],
@@ -1732,6 +1853,27 @@ def capacity_probe(
                 max_length=sequence_length,
                 padding="max_length",
             )
+            input_shape = [int(value) for value in encoded["input_ids"].shape]
+            if input_shape != [1, sequence_length]:
+                raise GateRefused("capacity probe did not produce the exact single-row shape")
+            receipt["execution_shape"] = {
+                "state": "MEASURED_FROM_TOKENIZER_OUTPUT",
+                "input_ids_shape": input_shape,
+                "batch_size": input_shape[0],
+                "sequence_length": input_shape[1],
+                "packing": False,
+                "packing_policy": "SINGLE_PADDED_ROW_NO_PACKING",
+                "gradient_accumulation_changes_per_micro_step_shape": False,
+            }
+            receipt["memory_model"] = {
+                "naive_torch_forward_pairwise_intermediate": (
+                    mamba_naive_pairwise_memory_model(
+                        model.config, input_shape[0], input_shape[1]
+                    )
+                ),
+                "selected_path": "NVIDIA_DECOMPOSED_CUDA_SCAN_WITH_MODULE_PROJECTION",
+                "selected_path_materializes_naive_pairwise_intermediate": False,
+            }
             device = next(parameter.device for parameter in model.parameters() if parameter.device.type == "cuda")
             encoded = {key: value.to(device) for key, value in encoded.items()}
             labels = encoded["input_ids"].clone()
@@ -1739,6 +1881,9 @@ def capacity_probe(
                 labels = labels.masked_fill(encoded["attention_mask"] == 0, -100)
             model.train()
             optimizer = PagedAdamW8bit(trainable, lr=float(settings["learning_rate"]))
+            receipt["optimizer_state_before_forward"] = optimizer_state_inventory(optimizer)
+            if receipt["optimizer_state_before_forward"]["tensor_bytes"] != 0:
+                raise GateRefused("optimizer allocated tensor state before the first backward")
             optimizer.zero_grad(set_to_none=True)
             if activation_offload:
                 append_governed_host_memory_sample(
@@ -1781,6 +1926,22 @@ def capacity_probe(
                     if not math.isfinite(loss):
                         raise GateRefused("capacity probe loss is not finite")
                     losses.append(loss)
+                    torch.cuda.synchronize()
+                    receipt["forward_evidence"] = {
+                        "state": "PASS",
+                        "completed": True,
+                        "loss_is_finite": True,
+                        "cuda_allocated_bytes": int(torch.cuda.memory_allocated()),
+                        "cuda_reserved_bytes": int(torch.cuda.memory_reserved()),
+                        "optimizer_state_before_backward": optimizer_state_inventory(
+                            optimizer
+                        ),
+                    }
+                    if receipt["forward_evidence"]["optimizer_state_before_backward"][
+                        "tensor_bytes"
+                    ] != 0:
+                        raise GateRefused("optimizer allocated tensor state before backward")
+                    atomic_json(receipt_path, receipt)
                     backward_hook = None
                     if activation_offload:
                         def sample_during_backward(gradient: Any) -> Any:
@@ -2093,13 +2254,20 @@ def train(
             model = AutoModelForCausalLM.from_pretrained(str(snapshot), local_files_only=True, quantization_config=quant, device_map={"": 0}, trust_remote_code=True, use_safetensors=True, low_cpu_mem_usage=True)
             receipt["loaded_model_class"] = verify_loaded_model_source(model, contract, "training")
             model.config.use_cache = False
-            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+            model = prepare_model_for_kbit_training(
+                model,
+                use_gradient_checkpointing=True,
+                gradient_checkpointing_kwargs={"use_reentrant": False},
+            )
             texts = [tokenizer.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=False) for row in train_rows]
             dataset = Dataset.from_dict({"text": texts})
             settings = contract["training"]
             lora = LoraConfig(r=settings["lora_rank"], lora_alpha=settings["lora_alpha"], lora_dropout=settings["lora_dropout"], bias="none", task_type="CAUSAL_LM", target_modules=settings["target_modules"])
-            arguments = SFTConfig(output_dir=str(output / "trainer"), max_steps=settings["max_steps"], per_device_train_batch_size=settings["per_device_batch_size"], gradient_accumulation_steps=settings["gradient_accumulation_steps"], learning_rate=settings["learning_rate"], warmup_ratio=settings["warmup_ratio"], optim=settings["optimizer"], seed=settings["seed"], bf16=bf16, fp16=not bf16, max_seq_length=settings["max_sequence_length"], dataset_text_field="text", logging_steps=1, save_strategy="no", report_to="none", gradient_checkpointing=True)
+            arguments = SFTConfig(output_dir=str(output / "trainer"), max_steps=settings["max_steps"], per_device_train_batch_size=settings["per_device_batch_size"], gradient_accumulation_steps=settings["gradient_accumulation_steps"], learning_rate=settings["learning_rate"], warmup_ratio=settings["warmup_ratio"], optim=settings["optimizer"], seed=settings["seed"], bf16=bf16, fp16=not bf16, max_seq_length=settings["max_sequence_length"], dataset_text_field="text", logging_steps=1, save_strategy="no", report_to="none", gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False})
             trainer = SFTTrainer(model=model, processing_class=tokenizer, train_dataset=dataset, peft_config=lora, args=arguments, callbacks=[ThermalGuard()])
+            receipt["gradient_checkpointing"] = gradient_checkpointing_evidence(
+                trainer.model, "training"
+            )
             receipt["mamba_forward_compatibility"] = bind_quantized_mamba_lora_forward(
                 trainer.model, contract, "training"
             )

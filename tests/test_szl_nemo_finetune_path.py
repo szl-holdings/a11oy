@@ -38,23 +38,40 @@ class FakeLoraProjection:
         self.base_layer = Linear4bit()
         self.lora_A = {"default": object()} if valid else {}
         self.lora_B = {"default": object()} if valid else {}
+        self.training = True
 
 
 class NemotronHMamba2Mixer:
     def __init__(self, valid_lora: bool = True):
         self.out_proj = FakeLoraProjection(valid_lora)
+        self.in_proj = types.SimpleNamespace(
+            weight=types.SimpleNamespace(device=types.SimpleNamespace(type="cuda"))
+        )
+        self.training = True
+        self.raise_during_cuda = False
+        self.dispatch_observation = None
 
     def forward(self, *_args, **_kwargs):
         return "fused"
 
-    def torch_forward(self, *_args, **_kwargs):
-        return "torch"
+    def cuda_kernels_forward(self, *_args, **_kwargs):
+        self.dispatch_observation = {
+            "mixer_training": self.training,
+            "projection_training": self.out_proj.training,
+        }
+        if self.raise_during_cuda:
+            raise RuntimeError("fixture CUDA failure")
+        return "decomposed-cuda"
 
 
 class FakeQuantizedMambaModel:
     def __init__(self, mixer_count: int = 2, valid_lora: bool = True):
         self.config = types.SimpleNamespace(
-            hybrid_override_pattern="M-M", use_mamba_kernels=True
+            hybrid_override_pattern="M-M",
+            use_mamba_kernels=True,
+            chunk_size=256,
+            mamba_num_heads=96,
+            ssm_state_size=128,
         )
         self.mixers = [
             NemotronHMamba2Mixer(valid_lora=valid_lora)
@@ -708,16 +725,25 @@ def test_quantized_mamba_lora_forward_binds_reviewed_module_path_without_global_
         model, compatibility_contract(), "fixture"
     )
 
-    assert receipt["state"] == "BOUND_REVIEWED_TORCH_FORWARD"
+    assert receipt["state"] == "BOUND_REVIEWED_DECOMPOSED_CUDA_FORWARD"
     assert receipt["expected_mixer_count"] == receipt["bound_mixer_count"] == 2
     assert receipt["config_use_mamba_kernels_before"] is True
-    assert receipt["config_use_mamba_kernels_after"] is False
-    assert model.config.use_mamba_kernels is False
+    assert receipt["config_use_mamba_kernels_after"] is True
+    assert model.config.use_mamba_kernels is True
     assert is_fast_path_available is global_before is True
-    assert all(mixer.forward() == "torch" for mixer in model.mixers)
+    assert all(mixer.forward("fixture") == "decomposed-cuda" for mixer in model.mixers)
+    assert all(mixer.training is True for mixer in model.mixers)
+    assert all(
+        mixer.dispatch_observation
+        == {"mixer_training": False, "projection_training": True}
+        for mixer in model.mixers
+    )
     assert all(
         row["projection_base_class"].endswith(".Linear4bit")
         and row["lora_adapter_names"] == ["default"]
+        and row["execution_device"] == "cuda"
+        and row["combined_training_kernel_selected"] is False
+        and row["projection_module_forward_preserved"] is True
         and row["module_global_fast_path_before"] is True
         and row["module_global_fast_path_after"] is True
         for row in receipt["modules"]
@@ -744,11 +770,57 @@ def test_quantized_mamba_lora_forward_refuses_incomplete_adapter_wrapper():
 
 def test_quantized_mamba_lora_forward_refuses_missing_reviewed_forward():
     model = FakeQuantizedMambaModel()
-    model.mixers[0].torch_forward = None
+    model.mixers[0].cuda_kernels_forward = None
 
-    with pytest.raises(nemo_train.GateRefused, match="lacks reviewed torch_forward"):
+    with pytest.raises(nemo_train.GateRefused, match="lacks reviewed cuda_kernels_forward"):
         nemo_train.bind_quantized_mamba_lora_forward(
             model, compatibility_contract(), "fixture"
+        )
+
+
+def test_decomposed_cuda_dispatch_restores_mixer_training_after_failure():
+    model = FakeQuantizedMambaModel()
+    nemo_train.bind_quantized_mamba_lora_forward(
+        model, compatibility_contract(), "fixture"
+    )
+    model.mixers[0].raise_during_cuda = True
+
+    with pytest.raises(RuntimeError, match="fixture CUDA failure"):
+        model.mixers[0].forward("fixture")
+
+    assert model.mixers[0].training is True
+    assert model.mixers[0].out_proj.training is True
+
+
+def test_naive_mamba_pairwise_memory_model_matches_measured_nine_gib_request():
+    model = FakeQuantizedMambaModel()
+
+    evidence = nemo_train.mamba_naive_pairwise_memory_model(
+        model.config, batch_size=1, sequence_length=768
+    )
+
+    assert evidence["shape"] == [1, 3, 256, 256, 96, 128]
+    assert evidence["bytes"] == 9 * 1024**3
+    assert evidence["gib"] == 9.0
+    assert evidence["padded_sequence_length"] == 768
+
+
+def test_optimizer_and_checkpoint_attestations_are_fail_closed():
+    tensor = types.SimpleNamespace(numel=lambda: 4, element_size=lambda: 2)
+    optimizer = types.SimpleNamespace(state={"parameter": {"moment": tensor}})
+
+    assert nemo_train.optimizer_state_inventory(optimizer) == {
+        "state": "MEASURED_FROM_OPTIMIZER_STATE",
+        "entry_count": 1,
+        "tensor_count": 1,
+        "tensor_bytes": 8,
+    }
+    assert nemo_train.gradient_checkpointing_evidence(
+        types.SimpleNamespace(is_gradient_checkpointing=True), "fixture"
+    )["use_reentrant"] is False
+    with pytest.raises(nemo_train.GateRefused, match="gradient checkpointing is not active"):
+        nemo_train.gradient_checkpointing_evidence(
+            types.SimpleNamespace(is_gradient_checkpointing=False), "fixture"
         )
 
 
@@ -768,6 +840,10 @@ def test_capacity_and_training_bind_mamba_forward_only_after_peft_wrapping():
 
     assert capacity_wrap < capacity_bind < trainer_wrap
     assert trainer_wrap < training_bind < training_start
+    assert runner.count('gradient_checkpointing_kwargs={"use_reentrant": False}') >= 3
+    assert '"packing": False' in runner
+    assert '"optimizer_state_before_forward"' in runner
+    assert '"forward_evidence"' in runner
 
 
 def test_training_requires_linux_network_namespace(monkeypatch):
