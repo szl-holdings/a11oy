@@ -1,0 +1,1030 @@
+{
+  "schema": "szl.hf-space-operational-manifest/v1",
+  "organization": "SZLHOLDINGS",
+  "inventory_source": "szl_spaces_surface.SPACES",
+  "doctrine": {
+    "evidence_policy": "Fresh live evidence only; UNKNOWN is preserved and required failures fail closed.",
+    "complete_estate_policy": "All 26 declared Spaces must pass their required checks; no majority threshold.",
+    "inference_policy": "No inference claim is made until a Space has a pinned model, revision, request, and response contract."
+  },
+  "spaces": [
+    {
+      "name": "a11oy",
+      "slug": "a11oy",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/a11oy",
+      "app_url": "https://szlholdings-a11oy.hf.space",
+      "exact_revision": {
+        "policy": "PINNED",
+        "expected": "fdc7e0c46fe7adee30ef5d8a39481586ae5c6e05"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        },
+        {
+          "method": "GET",
+          "path": "/api/a11oy/readyz",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        },
+        {
+          "method": "GET",
+          "path": "/console",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "anatomy",
+      "slug": "anatomy",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/anatomy",
+      "app_url": "https://szlholdings-anatomy.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "cosmos",
+      "slug": "cosmos",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/cosmos",
+      "app_url": "https://szlholdings-cosmos.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "david-leads",
+      "slug": "david-leads",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/david-leads",
+      "app_url": "https://szlholdings-david-leads.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "energy-attest-holo",
+      "slug": "energy-attest-holo",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/energy-attest-holo",
+      "app_url": "https://szlholdings-energy-attest-holo.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "energy-attested-runs",
+      "slug": "energy-attested-runs",
+      "sdk": "gradio",
+      "repo_id": "SZLHOLDINGS/energy-attested-runs",
+      "app_url": "https://szlholdings-energy-attested-runs.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "governed-norm-holo",
+      "slug": "governed-norm-holo",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/governed-norm-holo",
+      "app_url": "https://szlholdings-governed-norm-holo.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "governed-receipt-verifier",
+      "slug": "governed-receipt-verifier",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/governed-receipt-verifier",
+      "app_url": "https://szlholdings-governed-receipt-verifier.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "guardrail-receipt",
+      "slug": "guardrail-receipt",
+      "sdk": "gradio",
+      "repo_id": "SZLHOLDINGS/guardrail-receipt",
+      "app_url": "https://szlholdings-guardrail-receipt.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "hatun-mcp",
+      "slug": "hatun-mcp",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/hatun-mcp",
+      "app_url": "https://szlholdings-hatun-mcp.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "holographic",
+      "slug": "holographic",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/holographic",
+      "app_url": "https://szlholdings-holographic.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "immune",
+      "slug": "immune",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/immune",
+      "app_url": "https://szlholdings-immune.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "killinchu",
+      "slug": "killinchu",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/killinchu",
+      "app_url": "https://szlholdings-killinchu.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        },
+        {
+          "method": "GET",
+          "path": "/elite",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "lambda-gate-holo",
+      "slug": "lambda-gate-holo",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/lambda-gate-holo",
+      "app_url": "https://szlholdings-lambda-gate-holo.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "llm-router-live",
+      "slug": "llm-router-live",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/llm-router-live",
+      "app_url": "https://szlholdings-llm-router-live.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "README",
+      "slug": "readme",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/README",
+      "app_url": "https://szlholdings-readme.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "receipt-chain-live",
+      "slug": "receipt-chain-live",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/receipt-chain-live",
+      "app_url": "https://szlholdings-receipt-chain-live.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "sda",
+      "slug": "sda",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/sda",
+      "app_url": "https://szlholdings-sda.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-blocked-live",
+      "slug": "szl-blocked-live",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/szl-blocked-live",
+      "app_url": "https://szlholdings-szl-blocked-live.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-estate-live",
+      "slug": "szl-estate-live",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/szl-estate-live",
+      "app_url": "https://szlholdings-szl-estate-live.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-forge-lab",
+      "slug": "szl-forge-lab",
+      "sdk": "gradio",
+      "repo_id": "SZLHOLDINGS/szl-forge-lab",
+      "app_url": "https://szlholdings-szl-forge-lab.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-govsign-live",
+      "slug": "szl-govsign-live",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/szl-govsign-live",
+      "app_url": "https://szlholdings-szl-govsign-live.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-kernels-live",
+      "slug": "szl-kernels-live",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/szl-kernels-live",
+      "app_url": "https://szlholdings-szl-kernels-live.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-model-inference-lab",
+      "slug": "szl-model-inference-lab",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/szl-model-inference-lab",
+      "app_url": "https://szlholdings-szl-model-inference-lab.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "szl-provctl-live",
+      "slug": "szl-provctl-live",
+      "sdk": "static",
+      "repo_id": "SZLHOLDINGS/szl-provctl-live",
+      "app_url": "https://szlholdings-szl-provctl-live.static.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "OBSERVE",
+        "expected_stage": "UNKNOWN"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    },
+    {
+      "name": "yarqa",
+      "slug": "yarqa",
+      "sdk": "docker",
+      "repo_id": "SZLHOLDINGS/yarqa",
+      "app_url": "https://szlholdings-yarqa.hf.space",
+      "exact_revision": {
+        "policy": "OBSERVE",
+        "expected": "UNKNOWN"
+      },
+      "runtime": {
+        "policy": "REQUIRED_RUNNING",
+        "expected_stage": "RUNNING"
+      },
+      "paths": [
+        {
+          "method": "GET",
+          "path": "/",
+          "required": true,
+          "expected_status": [
+            200
+          ],
+          "expected_content_type": "UNKNOWN",
+          "required_json_keys": []
+        }
+      ],
+      "inference": {
+        "policy": "UNKNOWN",
+        "path": "UNKNOWN",
+        "method": "UNKNOWN",
+        "request_body": "UNKNOWN",
+        "expected_model": "UNKNOWN",
+        "expected_revision": "UNKNOWN",
+        "response_model_field": "UNKNOWN",
+        "response_revision_field": "UNKNOWN",
+        "required_json_keys": []
+      }
+    }
+  ]
+}

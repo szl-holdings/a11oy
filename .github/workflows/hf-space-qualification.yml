@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: Apache-2.0
+# Fail-closed qualification for every Space in szl_spaces_surface.SPACES.
+name: HF Space Operational Qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "szl_spaces_surface.py"
+      - "huggingface/space-operational-manifest.json"
+      - "scripts/check_hf_spaces_operational.py"
+      - "tests/test_hf_spaces_operational_contract.py"
+      - ".github/workflows/hf-space-qualification.yml"
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for live qualification"
+        required: false
+        default: "manual qualification"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  offline-contract:
+    name: Offline inventory and refusal contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run offline contract tests
+        run: python tests/test_hf_spaces_operational_contract.py
+
+  live-qualification:
+    name: Live 26-Space qualification and signed receipt
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: offline-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # Capture a receipt on both PASS and FAIL. The final step enforces the
+      # qualification exit code after the receipt has been signed and uploaded.
+      - name: Qualify every declared Space independently
+        id: qualify
+        shell: bash
+        run: |
+          set +e
+          python scripts/check_hf_spaces_operational.py \
+            --manifest huggingface/space-operational-manifest.json \
+            --summary-file evidence/hf-space-qualification.json \
+            --attempts 3 \
+            --timeout 10 \
+            --sleep 3 \
+            --max-workers 4
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Sign qualification receipt with existing keyless DSSE path
+        if: always() && hashFiles('evidence/hf-space-qualification.json') != ''
+        uses: ./.github/actions/sign-receipts
+        with:
+          log: evidence/hf-space-qualification.json
+          subject: szl-hf-space-operational-qualification
+
+      - name: Upload qualification receipt and DSSE evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-space-operational-qualification
+          path: |
+            evidence/hf-space-qualification.json
+            attestations/governance/*.dsse.json
+            attestations/khipu/*.dsse.json
+          if-no-files-found: error
+
+      - name: Enforce complete-estate result
+        if: always()
+        env:
+          QUALIFICATION_EXIT: ${{ steps.qualify.outputs.exit_code }}
+        run: |
+          if [ "${QUALIFICATION_EXIT}" != "0" ]; then
+            echo "::error::At least one required Space qualification failed. No majority threshold is allowed."
+            exit 1
+          fi
+          echo "All declared required checks passed. UNKNOWN optional evidence remains UNKNOWN in the receipt."
