@@ -38,7 +38,8 @@ def test_checked_in_portfolio_passes_offline_and_has_exact_observed_counts() -> 
     assert report["credentials_accessed"] is False
     assert report["external_mutation_performed"] is False
     assert report["model_count"] == 15
-    assert report["missing_health_space_count"] == 4
+    assert report["missing_health_space_count"] == 3
+    assert report["verified_health_space_count"] == 1
     assert report["broken_dataset_count"] == 7
 
 
@@ -84,6 +85,24 @@ def test_observed_broken_states_cannot_be_painted_green(tmp_path: Path) -> None:
 
     value = _manifest()
     value["observed_findings"]["datasets_broken_or_no_config"][0]["dataset_server_state"] = "READY"
+    with pytest.raises(Exception):
+        validator.validate_portfolio(_write(tmp_path, value))
+
+
+def test_verified_health_evidence_is_revision_and_route_pinned(tmp_path: Path) -> None:
+    value = _manifest()
+    verified = value["observed_findings"][
+        "docker_spaces_with_verified_health_boundary"
+    ][0]
+    verified["observed_revision"] = "0" * 40
+    with pytest.raises(Exception):
+        validator.validate_portfolio(_write(tmp_path, value))
+
+    value = _manifest()
+    verified = value["observed_findings"][
+        "docker_spaces_with_verified_health_boundary"
+    ][0]
+    verified["readiness_path"] = "/readyz"
     with pytest.raises(Exception):
         validator.validate_portfolio(_write(tmp_path, value))
 

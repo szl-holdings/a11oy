@@ -40,7 +40,13 @@ EXPECTED_MISSING_HEALTH = {
     "SZLHOLDINGS/cosmos",
     "SZLHOLDINGS/llm-router-live",
     "SZLHOLDINGS/sda",
-    "SZLHOLDINGS/szl-model-inference-lab",
+}
+EXPECTED_VERIFIED_HEALTH = {
+    "SZLHOLDINGS/szl-model-inference-lab": {
+        "observed_revision": "3a5d54f7fd00dc8396390c04db74c83a7930076f",
+        "liveness_path": "/live",
+        "readiness_path": "/health",
+    }
 }
 EXPECTED_BROKEN_DATASETS = {
     "SZLHOLDINGS/canonical-formulas-v1": "HTTP_500",
@@ -191,12 +197,37 @@ def validate_portfolio(
         item.get("repository_id") for item in health if isinstance(item, dict)
     }
     if health_ids != EXPECTED_MISSING_HEALTH:
-        errors.append("missing-health Space inventory differs from observed four")
+        errors.append("missing-health Space inventory differs from observed three")
     for item in health:
         if not isinstance(item, dict):
             continue
         if item.get("health_state") != "STANDARD_HEALTH_BOUNDARY_NOT_FOUND":
             errors.append(f"{item.get('repository_id')}: health finding was incorrectly upgraded")
+
+    verified_health = findings.get("docker_spaces_with_verified_health_boundary")
+    if not isinstance(verified_health, list):
+        errors.append("verified Docker Space health findings must be an array")
+        verified_health = []
+    verified_health_by_id = {
+        item.get("repository_id"): item
+        for item in verified_health
+        if isinstance(item, dict)
+    }
+    if set(verified_health_by_id) != set(EXPECTED_VERIFIED_HEALTH):
+        errors.append("verified-health Space inventory differs from observed one")
+    for repository_id, expected in EXPECTED_VERIFIED_HEALTH.items():
+        item = verified_health_by_id.get(repository_id, {})
+        for field, expected_value in expected.items():
+            if item.get(field) != expected_value:
+                errors.append(f"{repository_id}: verified health {field} drifted")
+        if item.get("root_http_observed") != 200:
+            errors.append(f"{repository_id}: root was not observed reachable")
+        if item.get("liveness_http_observed") != 200:
+            errors.append(f"{repository_id}: liveness was not observed ready")
+        if item.get("readiness_http_observed") != 200:
+            errors.append(f"{repository_id}: readiness was not observed ready")
+        if item.get("health_state") != "LIVE_AND_READY_AT_OBSERVED_REVISION":
+            errors.append(f"{repository_id}: verified health state drifted")
 
     datasets = findings.get("datasets_broken_or_no_config")
     if not isinstance(datasets, list):
@@ -226,6 +257,7 @@ def validate_portfolio(
         "model_count": len(models),
         "class_counts": dict(sorted(class_counts.items())),
         "missing_health_space_count": len(health),
+        "verified_health_space_count": len(verified_health),
         "broken_dataset_count": len(datasets),
         "errors": errors,
     }
