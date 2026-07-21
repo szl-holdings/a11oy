@@ -5,3 +5,12 @@ packages:
   - "artifacts/a11oy-uds"
   - "web/packages/a11oy-core"
   - "web/packages/a11oy-connection"
+
+# pnpm 11 reads workspace-wide overrides here; package.json retains the same
+# constraints for the pnpm 10 CI lane. Keep both declarations in lockstep.
+overrides:
+  vite: ^6.4.2
+  esbuild: 0.28.1
+  js-yaml@<4.3.0: 4.3.0
+  brace-expansion@<1.1.16: 1.1.16
+  brace-expansion@>=2.0.0 <2.1.2: 2.1.2

@@ -22,6 +22,14 @@ class GrypeGateContractTests(unittest.TestCase):
         self.assertIn("fail-build: true", block)
         self.assertIn("severity-cutoff: high", block)
 
+    def test_grype_gate_uses_supported_db_and_sarif_inputs(self) -> None:
+        block = _grype_gate_block()
+        self.assertNotIn("update-db:", block)
+        self.assertIn("cache-db: true", block)
+        self.assertIn("output-file: grype-results.sarif", block)
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("sarif_file: grype-results.sarif", workflow)
+
     def test_grype_action_is_pinned_to_an_immutable_revision(self) -> None:
         block = _grype_gate_block()
         action_line = next(
