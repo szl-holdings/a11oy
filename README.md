@@ -200,7 +200,7 @@ python3 .github/shared-module-hash-check.py --update
 
 One sovereign substrate, many organs — every decision carries a signed, checkable receipt.
 
-**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.static.hf.space)** ·
+**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.hf.space)** ·
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
 [🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
