@@ -25,8 +25,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate exact GitHub and Hugging Face revisions
         env:
-          EXPECTED_GITHUB_SHA: a7c1646a51a43c6d754a73f82d36459f7f9663f9
-          EXPECTED_HF_SHA: 918d41d1728c47c0c467dfc20e0086a88df9f43a
+          EXPECTED_GITHUB_SHA: 187fe0a0504a751d2cf2c17d4863f43149714122
+          EXPECTED_HF_SHA: cfc251db369dd14a798c8dee23f01215ffdd1afc
         run: |
           python3 - <<'PY'
           import json
