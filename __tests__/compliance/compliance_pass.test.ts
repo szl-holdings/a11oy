@@ -12,11 +12,12 @@ import addFormats from "ajv-formats";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
+import {
+  KNOWLEDGE_SCHEMA_PATH as SCHEMA_PATH,
+  VERTICAL_POLICIES_DIR as POLICIES_DIR,
+} from "../support/knowledge_paths";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-const SCHEMA_PATH = path.resolve(__dirname, "../../a11oy-knowledge.schema.json");
-const POLICIES_DIR = path.resolve(__dirname, "../../policies/vertical");
 
 function loadSchema() {
   const raw = fs.readFileSync(SCHEMA_PATH, "utf8");

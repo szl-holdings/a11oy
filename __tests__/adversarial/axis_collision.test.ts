@@ -21,9 +21,7 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import * as fs from "fs";
-import * as path from "path";
-
-const SCHEMA_PATH = path.resolve(__dirname, "../../a11oy-knowledge.schema.json");
+import { KNOWLEDGE_SCHEMA_PATH as SCHEMA_PATH } from "../support/knowledge_paths";
 
 function buildValidator() {
   const ajv = new Ajv({ allErrors: true, strict: false });

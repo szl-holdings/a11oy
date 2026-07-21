@@ -130,19 +130,20 @@ test suites**.
 | `web/packages/a11oy-core` (custom) | `npx tsx web/packages/a11oy-core/src/<subdir>/__tests__/<file>.test.ts` | 7 test files use `node:assert/strict` custom runners: quaternion-state (16), madhava-bound (8), pac-bayes-bound (8), composition-ring (7), false-position (7), akhmim-table (9), quadratic-solver (7). Run each with `npx tsx`. |
 | `web/packages/a11oy-core` (KS-18) | `npx tsx web/packages/a11oy-core/src/quantum/__tests__/kochen-specker-18.test.ts` | 3 tests. |
 
-### Symlinks required for `__tests__/`
+### Canonical knowledge paths for `__tests__/`
 
-The compliance/adversarial Jest tests reference files via relative paths from
-`__tests__/compliance/`:
-- `../../a11oy-knowledge.schema.json` → must exist at repo root
-- `../../policies/vertical` → must exist at repo root
+The compliance/adversarial Jest tests read their contract directly from the
+canonical `packages/knowledge/` tree through
+`__tests__/support/knowledge_paths.ts`:
+- `packages/knowledge/a11oy-knowledge.schema.json`
+- `packages/knowledge/vertical/`
 
-These are set up by the update script as symlinks to `packages/knowledge/`:
-```
-ln -sf packages/knowledge/a11oy-knowledge.schema.json a11oy-knowledge.schema.json
-mkdir -p policies
-ln -sf ../packages/knowledge/vertical policies/vertical
-```
+Do not recreate root-level symlink aliases for these paths. Git materializes a
+symlink as an ordinary pointer-text file on Windows checkouts configured with
+`core.symlinks=false`; JSON consumers then parse the link target instead of the
+schema, while directory consumers see a file. The focused
+`test:knowledge-layout` guard keeps the canonical files parseable and prevents
+test consumers from drifting back to those platform-dependent aliases.
 
 ### Benchmarks
 

@@ -18,12 +18,13 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
+import {
+  KNOWLEDGE_SCHEMA_PATH as SCHEMA_PATH,
+  VERTICAL_POLICIES_DIR as POLICIES_DIR,
+} from "../support/knowledge_paths";
 
 // ── Shared helpers (duplicated from production tests — these files are
 //    test-only; no production import needed) ───────────────────────────────
-
-const SCHEMA_PATH = path.resolve(__dirname, "../../a11oy-knowledge.schema.json");
-const POLICIES_DIR = path.resolve(__dirname, "../../policies/vertical");
 
 function buildValidator() {
   const ajv = new Ajv({ allErrors: true, strict: false });

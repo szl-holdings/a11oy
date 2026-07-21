@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "jest __tests__/",
+    "test:knowledge-layout": "jest __tests__/knowledge_source_of_truth.test.ts --runInBand",
     "test:knowledge": "cd packages/a11oy-knowledge && npm test",
     "test:knowledge:lookup": "tsx packages/a11oy-knowledge/src/theorems_lookup.test.ts",
     "test:qec": "tsx packages/qec-integrity/src/qec_lineage.test.ts",

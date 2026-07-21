@@ -34,6 +34,8 @@ jobs:
           corepack install -g pnpm@10.33.3
       - name: Install dependencies
         run: npm ci
+      - name: Verify cross-platform knowledge source of truth
+        run: npm run test:knowledge-layout
       - name: Install policy package deps (published @szl-holdings/a11oy-receipt-substrate from GHCR)
         working-directory: packages/policy
         env:
