@@ -25,8 +25,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate exact GitHub and Hugging Face revisions
         env:
-          EXPECTED_GITHUB_SHA: d212e4b852d4e37c9225e38c9e5c363d1b9b0891
-          EXPECTED_HF_SHA: fdc7e0c46fe7adee30ef5d8a39481586ae5c6e05
+          EXPECTED_GITHUB_SHA: d3bfc456009d0b118b6569a85aa09e92890c3ebe
+          EXPECTED_HF_SHA: 7d93e436bcc6d13a2746d7c120a0f35937494acd
         run: |
           python3 - <<'PY'
           import json
@@ -53,8 +53,8 @@ jobs:
     with:
       hf-repo: SZLHOLDINGS/a11oy
       mode: direct
-      github-ref: d212e4b852d4e37c9225e38c9e5c363d1b9b0891
-      hf-ref: fdc7e0c46fe7adee30ef5d8a39481586ae5c6e05
+      github-ref: d3bfc456009d0b118b6569a85aa09e92890c3ebe
+      hf-ref: 7d93e436bcc6d13a2746d7c120a0f35937494acd
       dockerfile-path: Dockerfile
 
   live-api:
@@ -66,7 +66,7 @@ jobs:
       - name: Checkout exact GitHub source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: d212e4b852d4e37c9225e38c9e5c363d1b9b0891
+          ref: d3bfc456009d0b118b6569a85aa09e92890c3ebe
           persist-credentials: false
       - name: Prove the health validator fails closed
         run: python3 scripts/test_check_a11oy_api_health.py
