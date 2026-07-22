@@ -5,6 +5,11 @@ on:
     branches: [fix/holographic-static-route-precedence-20260722]
     paths:
       - .github/workflows/materialize-holographic-route-fix-v2.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/materialize-holographic-route-fix-v2.yml
+      - tools/materialize_holographic_route_fix.py
 
 permissions:
   contents: write
@@ -15,6 +20,7 @@ concurrency:
 
 jobs:
   repair:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -60,4 +66,3 @@ jobs:
             -m 'Make the owning szl3d transport independent of SPA registration order, preserve fail-closed path handling, and add the exact production-order regression.' \
             -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
           git push origin HEAD:fix/holographic-static-route-precedence-20260722
-# retrigger: 2026-07-22T18:00Z
