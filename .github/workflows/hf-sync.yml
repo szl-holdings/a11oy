@@ -26,12 +26,14 @@ on:
       - "README.md"
       - ".github/scripts/verify_canonical_a11oy.py"
       - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-module-drift.yml"
       - "tests/test_canonical_a11oy_relock.py"
   workflow_dispatch: {}
 
 permissions:
   contents: read
   issues: write
+  actions: write
 
 concurrency:
   group: sync-relock-canonical-a11oy
@@ -151,3 +153,6 @@ jobs:
             exit "$code"
           fi
           echo 'Canonical A11oy is source-bound, singleton, and route-operational.'
+
+      - name: Trigger strict post-deployment GitHub/HF parity
+        run: gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main
