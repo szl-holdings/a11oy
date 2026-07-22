@@ -31,6 +31,8 @@ _SHA_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
 _VERSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}\Z")
 _ENV_SHA_NAMES = (
     "A11OY_GIT_SHA",
+    "SZL_GIT_SHA",
+    "SPACE_COMMIT_SHA",
     "GITHUB_SHA",
     "VERCEL_GIT_COMMIT_SHA",
     "SOURCE_VERSION",
