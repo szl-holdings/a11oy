@@ -173,6 +173,28 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   #intro .cards{gap:9px}
   #intro .card{padding:11px 12px;min-width:0;flex:1 1 100%;max-width:420px}
  }
+
+ /* ---- Universal evidence rail ----------------------------------------- */
+ .evidence-rail{position:fixed;right:12px;bottom:48px;z-index:65;width:min(390px,calc(100vw - 24px));
+  border:1px solid var(--line);border-radius:11px;background:rgba(7,13,21,.97);
+  box-shadow:0 14px 40px rgba(0,0,0,.55);font:11px/1.45 ui-monospace,monospace}
+ .evidence-rail__toggle{width:100%;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:8px 11px;border:0;border-radius:10px;background:#0b1620;color:var(--cream);
+  font:11px ui-monospace,monospace;cursor:pointer;text-align:left}
+ .evidence-rail__toggle:focus-visible{outline:2px solid var(--proof);outline-offset:2px}
+ .evidence-rail__state{color:var(--gold);white-space:nowrap}
+ .evidence-rail[data-state="OBSERVED"] .evidence-rail__state{color:var(--proof)}
+ .evidence-rail__panel{border-top:1px solid var(--line);padding:10px 11px;color:var(--para)}
+ .evidence-rail__panel[hidden]{display:none}
+ .evidence-rail__title{display:block;color:var(--cream);margin-bottom:5px}
+ .evidence-rail__row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;padding:2px 0}
+ .evidence-rail__row span:first-child{color:#738796;text-transform:uppercase;font-size:9px}
+ .evidence-rail__row code{overflow-wrap:anywhere;color:var(--teal)}
+ .evidence-rail__links{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+ .evidence-rail__links a{border:1px solid var(--line);border-radius:6px;padding:4px 7px}
+ @media (max-width:640px){.evidence-rail{right:8px;left:8px;bottom:42px;width:auto}.evidence-rail__panel{max-height:38vh;overflow:auto}}
+ @media (prefers-reduced-motion:reduce){.evidence-rail *{scroll-behavior:auto!important;transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -245,6 +267,21 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
    Khipu BFT = Conjecture 2 · 0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</div>
  </div>
 </div>
+<aside id="evidence-rail" class="evidence-rail" data-state="UNVERIFIED"
+ aria-label="Active surface evidence" aria-live="polite">
+ <button id="evidence-rail-toggle" class="evidence-rail__toggle" type="button"
+  aria-expanded="false" aria-controls="evidence-rail-panel">
+  <span>Evidence · active surface</span><span id="evidence-rail-state" class="evidence-rail__state">UNVERIFIED</span>
+ </button>
+ <div id="evidence-rail-panel" class="evidence-rail__panel" hidden>
+  <strong id="evidence-rail-title" class="evidence-rail__title">Loading surface</strong>
+  <div class="evidence-rail__row"><span>Surface</span><code id="evidence-rail-id">—</code></div>
+  <div class="evidence-rail__row"><span>Contract</span><code id="evidence-rail-contract">—</code></div>
+  <div class="evidence-rail__row"><span>Runtime</span><span id="evidence-rail-runtime">NOT_EVALUATED</span></div>
+  <div class="evidence-rail__row"><span>Readiness</span><span id="evidence-rail-readiness">NOT_EVALUATED</span></div>
+  <div class="evidence-rail__links"><a href="/api/a11oy/v1/readiness/tab-matrix?view=summary">Readiness JSON</a><a href="/api/build-info">Build identity</a><a href="/verify">Verify receipt</a></div>
+ </div>
+</aside>
 <div id="surface-caption" title=""></div>
 <footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
  shared szl3d toolkit (Dev0) · every value carries its honesty label · trust &lt; 100%</footer>
@@ -529,6 +566,69 @@ const searchPanel = document.getElementById("search-panel");
 const searchCount = document.getElementById("surface-results-count");
 const navMode = document.getElementById("nav-mode");
 const activeSurface = document.querySelector("#active-surface strong");
+
+const evidenceRail = document.getElementById("evidence-rail");
+const evidenceToggle = document.getElementById("evidence-rail-toggle");
+const evidencePanel = document.getElementById("evidence-rail-panel");
+const evidenceState = document.getElementById("evidence-rail-state");
+const evidenceTitle = document.getElementById("evidence-rail-title");
+const evidenceId = document.getElementById("evidence-rail-id");
+const evidenceContract = document.getElementById("evidence-rail-contract");
+const evidenceRuntime = document.getElementById("evidence-rail-runtime");
+const evidenceReadiness = document.getElementById("evidence-rail-readiness");
+let evidenceSnapshotPromise = null;
+if (evidenceToggle && evidencePanel) {
+  evidenceToggle.addEventListener("click", () => {
+    const open = evidenceToggle.getAttribute("aria-expanded") !== "true";
+    evidenceToggle.setAttribute("aria-expanded", String(open));
+    evidencePanel.hidden = !open;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !evidencePanel.hidden) {
+      evidenceToggle.setAttribute("aria-expanded", "false");
+      evidencePanel.hidden = true;
+      evidenceToggle.focus();
+    }
+  });
+}
+async function _fetchEvidenceSnapshot() {
+  if (evidenceSnapshotPromise) return evidenceSnapshotPromise;
+  evidenceSnapshotPromise = (async () => {
+    const getJson = async (url) => {
+      try {
+        const response = await fetch(url, {method:"GET",headers:{accept:"application/json"},cache:"no-store"});
+        return response.ok ? await response.json() : null;
+      } catch (_) { return null; }
+    };
+    const [readiness, build] = await Promise.all([
+      getJson("/api/a11oy/v1/readiness/tab-matrix?view=summary"),
+      getJson("/api/build-info"),
+    ]);
+    return { readiness, build };
+  })();
+  return evidenceSnapshotPromise;
+}
+function _updateEvidenceRail(def) {
+  if (!evidenceRail || !def) return;
+  evidenceRail.dataset.state = "UNVERIFIED";
+  if (evidenceState) evidenceState.textContent = "UNVERIFIED";
+  if (evidenceTitle) evidenceTitle.textContent = def.title;
+  if (evidenceId) evidenceId.textContent = def.id;
+  if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
+  if (evidenceRuntime) evidenceRuntime.textContent = "CHECKING";
+  if (evidenceReadiness) evidenceReadiness.textContent = "CHECKING";
+  _fetchEvidenceSnapshot().then(({ readiness, build }) => {
+    const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
+    const revision = build?.build?.revision || build?.revision || null;
+    if (evidenceRuntime) evidenceRuntime.textContent = revision ? `${buildState} · ${String(revision).slice(0,12)}…` : buildState;
+    const matrix = readiness?.matrix_summary || {};
+    const verdict = readiness?.verdict_summary || null;
+    if (evidenceReadiness) evidenceReadiness.textContent = verdict ? `${verdict.ok ?? 0}/${verdict.endpoints ?? matrix.endpoints ?? 0} observed clean` : `${matrix.tabs ?? SURFACES.length} surfaces · probe UNAVAILABLE`;
+    const observed = Boolean(revision && readiness?.matrix_available);
+    evidenceRail.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
+    if (evidenceState) evidenceState.textContent = observed ? "OBSERVED" : "UNVERIFIED";
+  });
+}
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
 let searchLimit = 36;
@@ -706,6 +806,7 @@ function _highlight(id) {
     activeSurface.textContent = def ? _shortLabel(def) : id;
     activeSurface.title = def ? def.title : id;
   }
+  _updateEvidenceRail(def);
   const matches = Array.from(tabsEl.querySelectorAll("[data-id]"))
     .filter((t) => t.dataset.id === id);
   tabsEl.querySelectorAll("[data-id]").forEach((t) => {

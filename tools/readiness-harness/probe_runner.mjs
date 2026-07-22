@@ -36,6 +36,10 @@ const TIMEOUT_MS = parseInt(arg("timeout", "15000"), 10);
 const SOFT = !!arg("soft", false);
 const OUT = String(arg("out", join(HERE, "readiness-verdict.json")));
 const RETRIES = parseInt(arg("retries", "2"), 10); // cold-burst 404s on deep tabs
+const SAFE_METHODS = new Set(["GET", "HEAD"]);
+const STATE_CHANGE_AUTHORIZED =
+  arg("allow-state-changing", false) === true &&
+  process.env.A11OY_READINESS_MUTATION_AUTHORIZED === "1";
 
 const matrix = JSON.parse(readFileSync(join(HERE, "tabs.json"), "utf8"));
 const ENDPOINTS = matrix.endpoints || {};
@@ -178,8 +182,19 @@ async function probeOnce(path, method) {
 }
 
 async function probeEndpoint(path, spec) {
-  const method = spec.method || "GET";
+  const method = String(spec.method || "GET").toUpperCase();
   const allow = (spec.degradedRules?.allowStatuses) || [200];
+  if (!SAFE_METHODS.has(method) && !STATE_CHANGE_AUTHORIZED) {
+    return {
+      path, method, status: null, error: null, skipped: true,
+      skipReason: "state-changing contract skipped; require --allow-state-changing and A11OY_READINESS_MUTATION_AUTHORIZED=1",
+      throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
+      schemaOk: null, citationOk: null, freshOk: null, ageSec: null,
+      citationsRequired: !!spec.citationsRequired,
+      freshnessSLA: spec.freshnessSLA ?? null,
+      lie: false, lies: [],
+    };
+  }
   const lat = [];
   let last = null;
   // retry to absorb cold-burst 404/timeout on heavy deep tabs AND 429 rate-limits.
@@ -283,7 +298,8 @@ async function pool(items, n, fn) {
     checkedAt: new Date().toISOString(),
     summary: {
       endpoints: results.length,
-      ok: results.filter((r) => !r.lie && !r.unreachable && !r.throttled).length,
+      ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable && !r.throttled).length,
+      skippedStateChanging: results.filter((r) => r.skipped).length,
       lies: lies.length,
       unreachable: unreachable.length,
       throttled: throttled.length,
@@ -293,13 +309,14 @@ async function pool(items, n, fn) {
   };
   writeFileSync(OUT, JSON.stringify(verdict, null, 2) + "\n");
   for (const r of results) {
-    const tag = r.lie ? "LIE " : r.unreachable ? "DOWN" : r.throttled ? "thr " : "ok  ";
+    const tag = r.skipped ? "skip" : r.lie ? "LIE " : r.unreachable ? "DOWN" : r.throttled ? "thr " : "ok  ";
     let why = "";
-    if (r.lie) why = "  -> " + r.lies.join("; ");
+    if (r.skipped) why = "  -> " + r.skipReason;
+    else if (r.lie) why = "  -> " + r.lies.join("; ");
     else if (r.unreachable) why = `  -> unreachable (${r.error || "status " + r.status})`;
-    console.error(`  ${tag} ${r.status} p50=${r.p50}ms p95=${r.p95}ms ${r.path}${why}`);
+    console.error(`  ${tag} ${r.status ?? "-"} p50=${r.p50 ?? "-"}ms p95=${r.p95 ?? "-"}ms ${r.path}${why}`);
   }
-  console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled. wrote ${OUT}`);
+  console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${verdict.summary.skippedStateChanging} state-changing skipped, ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled. wrote ${OUT}`);
   // The build fails on LIES (doctrine v11). Unreachable/throttled are reachability
   // signals, surfaced but not doctrine failures (often transient self-throttling).
   if (lies.length && !SOFT) process.exit(1);
