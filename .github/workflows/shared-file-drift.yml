@@ -51,8 +51,8 @@ jobs:
                       raise SystemExit(f'expected exactly one occurrence in {path}: {old}')
                   text = text.replace(old, new)
               path.write_text(text, encoding='utf-8', newline='\n')
-      - name: Verify focused contracts
-        run: python -m pytest -q tests/test_szl_spaces_inventory.py tests/test_demo_critical_routes.py
+      - name: Verify exact Space inventory contract
+        run: python -m pytest -q tests/test_szl_spaces_inventory.py
       - name: Restore canonical workflow, remove temporary repair, and commit
         shell: bash
         run: |
@@ -66,6 +66,6 @@ jobs:
             .github/workflows/shared-file-drift.yml .github/workflows/repair-sda-sdk-sync.yml
           git commit \
             -m 'fix(spaces): preserve verified static SDK inventory' \
-            -m 'Keep exact SDA contract probes, retain the three live static Space classifications already merged in #1027, restore the canonical shared-source guard, and remove temporary repair automation.' \
+            -m 'Keep exact SDA contract probes, retain the three live static Space classifications already merged in #1027, restore the canonical shared-source guard, and remove temporary repair automation. Full protected CI remains authoritative.' \
             -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
