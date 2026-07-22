@@ -86,6 +86,25 @@ def require(condition: bool, message: str) -> None:
         raise QualificationRefusal(message)
 
 
+def verify_byte_bound_files(snapshot: Path, specs: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Verify committed snapshot files against their exact byte and digest pins."""
+    observed = []
+    for spec in specs:
+        relative_path = Path(spec["path"])
+        require(
+            not relative_path.is_absolute() and ".." not in relative_path.parts,
+            "candidate path escapes snapshot",
+        )
+        path = snapshot / relative_path
+        require(path.is_file(), f"required candidate metadata missing: {spec['path']}")
+        size = path.stat().st_size
+        require(size == spec["bytes"], f"candidate metadata size mismatch: {spec['path']}")
+        digest = sha256_file(path)
+        require(digest == spec["sha256"], f"candidate metadata SHA-256 mismatch: {spec['path']}")
+        observed.append({"path": spec["path"], "bytes": size, "sha256": digest})
+    return observed
+
+
 def git(source: Path, *args: str, binary: bool = False) -> str | bytes:
     git_executable = os.environ.get("SZL_GIT_EXE", "git")
     completed = subprocess.run(
@@ -127,10 +146,10 @@ def verify_candidate(snapshot: Path, contract: dict[str, Any]) -> dict[str, Any]
     candidate = contract["candidate"]
     require(snapshot.is_dir(), f"candidate snapshot does not exist: {snapshot}")
     require(snapshot.name == candidate["revision"], "snapshot directory is not the frozen revision")
-    for name in candidate["required_metadata"]:
-        require((snapshot / name).is_file(), f"required candidate metadata missing: {name}")
 
-    observed: dict[str, Any] = {}
+    observed: dict[str, Any] = {
+        "metadata_files": verify_byte_bound_files(snapshot, candidate["required_metadata_files"]),
+    }
     for key in ("model_file", "adapter_file"):
         spec = candidate[key]
         path = snapshot / spec["path"]
@@ -310,6 +329,23 @@ def evaluate_output(kind: str, output: str, schema: dict[str, Any]) -> dict[str,
 def receipt_digest(receipt: dict[str, Any]) -> str:
     unsigned = {key: value for key, value in receipt.items() if key != "receipt_sha256"}
     return sha256_bytes(canonical_json(unsigned).encode("utf-8"))
+
+
+def build_refusal_receipt(exc: Exception) -> dict[str, Any]:
+    """Describe a fail-closed preflight refusal without claiming a measurement."""
+    refusal = {
+        "schema_version": "szl.receipt-agent-public-candidate-qualification-refusal.v1",
+        "qualification_kind": QUALIFICATION_KIND,
+        "result": "REFUSED",
+        "maturity": "OPEN",
+        "measurement_state": "NOT_RUN",
+        "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "reason": f"{type(exc).__name__}: {exc}",
+        "authorization": {"trained": False, "uploaded": False, "promoted": False, "deployed": False},
+        "signature_state": SIGNATURE_STATE,
+    }
+    refusal["receipt_sha256"] = receipt_digest(refusal)
+    return refusal
 
 
 def generate_case(model: Any, tokenizer: Any, system_prompt: str, case: dict[str, Any], max_new_tokens: int) -> dict[str, Any]:
@@ -505,17 +541,7 @@ def main() -> int:
     try:
         receipt = run(args)
     except Exception as exc:
-        refusal = {
-            "schema_version": "szl.receipt-agent-public-candidate-qualification-refusal.v1",
-            "qualification_kind": QUALIFICATION_KIND,
-            "result": "REFUSED",
-            "maturity": "MEASURED",
-            "evaluated_at": datetime.now(timezone.utc).isoformat(),
-            "reason": f"{type(exc).__name__}: {exc}",
-            "authorization": {"trained": False, "uploaded": False, "promoted": False, "deployed": False},
-            "signature_state": SIGNATURE_STATE,
-        }
-        refusal["receipt_sha256"] = receipt_digest(refusal)
+        refusal = build_refusal_receipt(exc)
         atomic_write_json(output, refusal)
         print(f"[REFUSED] {refusal['reason']}", file=sys.stderr)
         print(f"receipt_sha256={refusal['receipt_sha256']}", file=sys.stderr)

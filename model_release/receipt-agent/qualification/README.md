@@ -16,8 +16,9 @@ promotion claim.
 - Cases: three raw-JSON conformance cases and three boundary-refusal cases
 
 The runner fails before inference unless the candidate weights, adapter,
-license, schema, signed receipt chain, source Git objects, and public curriculum
-hashes all bind to the frozen contract. The owner signature is verified against
+inference configs, tokenizer, chat template, license, schema, signed receipt
+chain, source Git objects, and public curriculum hashes all bind to the frozen
+contract. The owner signature is verified against
 the key shipped in the same public repository; the key is not independently
 pinned, so this establishes repository self-consistency rather than third-party
 identity assurance.
@@ -36,7 +37,7 @@ CPU and ran all six cases once:
 
 Receipt: `fa73dc1-cpu-qualification-receipt.json`  
 Canonical receipt SHA-256:
-`c7b956739f9987f0f7e810ab94ca154cb6236f2563f2d9e22768f040f83d8f60`
+`5abc85af639477f32951784c372beef33a608375586c111e517692207074ba7b`
 
 The receipt retains every exact system prompt, user prompt, raw output, input
 and output token count, output digest, generation duration, artifact/source

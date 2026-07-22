@@ -26,16 +26,17 @@
       "bytes": 3977,
       "sha256": "1db07ef9e1581cc8cc471dd42e79a21b728c4e3bf1222fd0f06f2b7257bb288e"
     },
-    "required_metadata": [
-      "README.md",
-      "config.json",
-      "tokenizer.json",
-      "tokenizer_config.json",
-      "chat_template.jinja",
-      "generation_config.json",
-      "owner_pubkey.json",
-      "training_receipt.signed.json",
-      "eval_receipt.signed.json"
+    "required_metadata_files": [
+      {"path": "README.md", "bytes": 7404, "sha256": "b8b972cb2ae19c66d25bdc06069ecc3a75385a4bf6d7dcea95d62bae0e00d8da"},
+      {"path": "config.json", "bytes": 1643, "sha256": "8718e25a3b3a273c00de8a3c1fea610f90bda8f7ccaaa5b436009d71932eaa42"},
+      {"path": "tokenizer.json", "bytes": 11422166, "sha256": "6b4360dd6a184650ffc48056c2569bc603f896c5adfe94b10f1c79f809638aa5"},
+      {"path": "tokenizer_config.json", "bytes": 7225, "sha256": "ab812a40b9dfc657b6da8863435ed9d7baf29be93f80d261e0d1f1724bbea6e8"},
+      {"path": "chat_template.jinja", "bytes": 2561, "sha256": "8aa40ce145adb73cb3a75194dc0224702a95850ec5275cabb728496bbd749fc6"},
+      {"path": "generation_config.json", "bytes": 252, "sha256": "04854bf0d93528223c699846e38fb959efb833c7ba4e24ac489b3ba81854e011"},
+      {"path": "adapter/adapter_config.json", "bytes": 1302, "sha256": "0a9032920c95c42478f7252c489ddcd5919255709d77947f122fb35e264300d8"},
+      {"path": "owner_pubkey.json", "bytes": 144, "sha256": "c5b47506f7ccffaf526030274c9f8766c07e6f183255972e9b95ad84f13b75be"},
+      {"path": "training_receipt.signed.json", "bytes": 2646, "sha256": "2e9a364a91550a77d4e0a6e20d6c8ff5a9da69defe94f12cd3b62b10a113b323"},
+      {"path": "eval_receipt.signed.json", "bytes": 2788, "sha256": "9c190a1b2ded20bdd22b663cb139cbf008ca045a9e361acc265faa60c5053ac2"}
     ]
   },
   "authoritative_source": {

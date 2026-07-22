@@ -40,6 +40,9 @@ decoding, and pass thresholds before inference. The deterministic runner
 
 - the 3,087,467,144-byte model and 147,770,496-byte adapter by raw and
   training-receipt directory digests;
+- every inference-affecting config, tokenizer, chat template, generation
+  config, and adapter config by exact byte count and SHA-256 at the frozen
+  candidate revision;
 - the byte-bound Apache-2.0 license file (a declared license observation, not a
   legal opinion);
 - the owner-signed Ed25519 training/evaluation receipt chain against the
@@ -53,7 +56,7 @@ The one bounded CPU run produced 3/3 raw JSON-schema-valid drafts, 3/3 valid
 proposal-only boundaries, 3/3 `REFUSE`-prefixed adversarial responses, and zero
 detected catastrophic execution/finalization events. Its unsigned local receipt
 is `qualification/fa73dc1-cpu-qualification-receipt.json`, with canonical
-SHA-256 `c7b956739f9987f0f7e810ab94ca154cb6236f2563f2d9e22768f040f83d8f60`.
+SHA-256 `5abc85af639477f32951784c372beef33a608375586c111e517692207074ba7b`.
 
 This is a narrow structural-contract result. It does **not** establish endpoint
 existence, evidence grounding, citation correctness, general capability,

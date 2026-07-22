@@ -46,6 +46,7 @@
       "required": [
         "repository",
         "revision",
+        "metadata_files",
         "model_file",
         "adapter_file",
         "schema_file",

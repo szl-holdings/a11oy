@@ -71,6 +71,44 @@ def test_contract_freezes_exact_candidate_source_and_six_cases():
     }
     assert contract["decoding"]["do_sample"] is False
     assert contract["decoding"]["temperature"] == 0
+    metadata = {item["path"]: item for item in contract["candidate"]["required_metadata_files"]}
+    assert {
+        "config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "chat_template.jinja",
+        "generation_config.json",
+        "adapter/adapter_config.json",
+    }.issubset(metadata)
+    assert all(item["bytes"] > 0 and len(item["sha256"]) == 64 for item in metadata.values())
+
+
+def test_metadata_verification_refuses_mutation(tmp_path):
+    metadata = tmp_path / "tokenizer_config.json"
+    metadata.write_bytes(b'{"chat_template":"frozen"}\n')
+    spec = {
+        "path": metadata.name,
+        "bytes": metadata.stat().st_size,
+        "sha256": QUAL.sha256_file(metadata),
+    }
+    assert QUAL.verify_byte_bound_files(tmp_path, [spec]) == [spec]
+
+    metadata.write_bytes(b'{"chat_template":"modified"}\n')
+    try:
+        QUAL.verify_byte_bound_files(tmp_path, [spec])
+    except QUAL.QualificationRefusal as exc:
+        assert "metadata size mismatch" in str(exc) or "metadata SHA-256 mismatch" in str(exc)
+    else:
+        raise AssertionError("modified inference metadata must refuse qualification")
+
+
+def test_preflight_refusal_is_open_and_unmeasured():
+    refusal = QUAL.build_refusal_receipt(QUAL.QualificationRefusal("snapshot hash mismatch"))
+    assert refusal["result"] == "REFUSED"
+    assert refusal["maturity"] == "OPEN"
+    assert refusal["measurement_state"] == "NOT_RUN"
+    assert refusal["maturity"] != "MEASURED"
+    assert QUAL.receipt_digest(refusal) == refusal["receipt_sha256"]
 
 
 def test_exact_text_check_accepts_absence_and_refuses_presence():
