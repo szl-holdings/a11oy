@@ -1,0 +1,66 @@
+{
+  "authorization": {
+    "model_promotion_allowed": false,
+    "signature_state": "UNSIGNED_NO_APPROVED_KEY",
+    "training_authorized": false,
+    "training_triggered": false
+  },
+  "blocker_counts": {
+    "IMMUTABLE_ITEM_ORIGIN_EVIDENCE_MISSING": 9464,
+    "SEMANTIC_DUPLICATE_FLAGGED": 23,
+    "SEMANTIC_DUPLICATION_EVIDENCE_MISSING": 9441,
+    "SIGNED_CONSENT_OR_PERMISSION_EVIDENCE_MISSING": 9464,
+    "SIGNED_INDEPENDENT_REVIEW_MISSING": 9464,
+    "SIGNED_PRIVACY_CLEARANCE_MISSING": 9464,
+    "VERSION_BOUND_ITEM_LICENSE_EVIDENCE_MISSING": 9301
+  },
+  "coverage": {
+    "admitted_rows": 0,
+    "immutable_item_origin_pass": 0,
+    "immutable_ledger_binding_pass": 9464,
+    "quarantined_rows": 9464,
+    "semantic_duplication_evidence_pass": 0,
+    "signed_consent_or_permission_pass": 0,
+    "signed_independent_review_pass": 0,
+    "signed_privacy_clearance_pass": 0,
+    "version_bound_license_pass": 163
+  },
+  "inputs": {
+    "ledger": {
+      "git_blob_verified": true,
+      "path": "model_release/m1/brain-ingest-ledger.jsonl",
+      "rows": 9464,
+      "sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"
+    },
+    "license": {
+      "git_blob_verified": true,
+      "path": "LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "snapshot": {
+      "git_blob_verified": true,
+      "path": "model_release/brain-row-admission/raw-snapshot.json",
+      "sha256": "5ae4425e0d458e4c968ffd64ad21a5fb8d3effab532b58e29d2bb9e44f5c717f"
+    }
+  },
+  "non_claims": [
+    "NO_LICENSE_INFERENCE_FROM_DOMAIN_OR_REPOSITORY_NAME",
+    "NO_HUGGING_FACE_CARD_LICENSE_INFERENCE",
+    "NO_PRIVACY_OR_CONSENT_INFERENCE",
+    "NO_SEMANTIC_DEDUPLICATION_INFERENCE",
+    "NO_TRAINING_ADMISSION"
+  ],
+  "operation": "EVIDENCE_CROSSWALK_NOT_ADMISSION",
+  "output": {
+    "content_policy": "OPAQUE_ROW_KEY_AND_EVIDENCE_STATES_ONLY",
+    "path": "brain-row-provenance-license-crosswalk.v1.jsonl",
+    "rows": 9464,
+    "sha256": "261dea30e00d4c29731f189e28d6ec5711a5f8ae13a25bdd47b7099e85cf39bc"
+  },
+  "receipt_sha256": "370052a95ab59444e6bfc8216e71baaa04c9e370e23225f1d554d07b5f643474",
+  "repository": {
+    "revision": "git:71c6cec95fba6992d910095832ec8765eff69527",
+    "uri": "https://github.com/szl-holdings/a11oy"
+  },
+  "schema_version": "szl.brain-row-provenance-license-crosswalk-receipt.v1"
+}
