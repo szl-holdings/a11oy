@@ -39,26 +39,62 @@ jobs:
           python -m pip install --disable-pip-version-check
           'fastapi==0.137.1' 'httpx==0.28.1' 'starlette==1.3.1' 'pytest>=8,<9'
       - name: Verify exact production-order regression
+        id: focused
+        shell: bash
+        run: |
+          set +e
+          {
+            python -m py_compile szl3d_holographic.py \
+              tests/test_holographic_static_route_runtime.py \
+              tests/test_operational_route_contracts.py
+            compile_code=$?
+            if [ "$compile_code" -eq 0 ]; then
+              pytest -q \
+                tests/test_holographic_static_route_runtime.py \
+                tests/test_operational_route_contracts.py \
+                test_szl3d_holographic.py
+              test_code=$?
+            else
+              test_code=$compile_code
+            fi
+            git diff --check
+            diff_code=$?
+            code=$test_code
+            if [ "$code" -eq 0 ] && [ "$diff_code" -ne 0 ]; then code=$diff_code; fi
+            echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+            exit 0
+          } 2>&1 | tee /tmp/holographic-focused.log
+      - name: Persist bounded failure evidence
+        if: steps.focused.outputs.exit_code != '0'
         run: |
           set -euo pipefail
-          python -m py_compile szl3d_holographic.py \
-            tests/test_holographic_static_route_runtime.py \
-            tests/test_operational_route_contracts.py
-          pytest -q \
-            tests/test_holographic_static_route_runtime.py \
-            tests/test_operational_route_contracts.py \
-            test_szl3d_holographic.py
-          git diff --check
+          {
+            echo "run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "head=${GITHUB_SHA}"
+            echo "exit=${{ steps.focused.outputs.exit_code }}"
+            echo '--- focused failure tail ---'
+            tail -n 220 /tmp/holographic-focused.log
+          } > materializer-focused-error.txt
+          git add materializer-focused-error.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit \
+            -m 'chore(ci): record focused holographic route failure' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:fix/holographic-static-route-precedence-20260722
       - name: Commit product repair and remove materializers
+        if: steps.focused.outputs.exit_code == '0'
         run: |
           set -euo pipefail
           git rm \
             .github/workflows/materialize-holographic-route-fix.yml \
             .github/workflows/materialize-holographic-route-fix-v2.yml \
             tools/materialize_holographic_route_fix.py
-          git add szl3d_holographic.py \
+          rm -f materializer-focused-error.txt
+          git add -A szl3d_holographic.py \
             tests/test_holographic_static_route_runtime.py \
-            tests/test_operational_route_contracts.py
+            tests/test_operational_route_contracts.py \
+            materializer-focused-error.txt
           git config user.name 'Stephen Lutar'
           git config user.email 'stephenlutar2@gmail.com'
           git commit \
@@ -66,3 +102,6 @@ jobs:
             -m 'Make the owning szl3d transport independent of SPA registration order, preserve fail-closed path handling, and add the exact production-order regression.' \
             -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
           git push origin HEAD:fix/holographic-static-route-precedence-20260722
+      - name: Enforce focused result
+        if: steps.focused.outputs.exit_code != '0'
+        run: exit '${{ steps.focused.outputs.exit_code }}'
