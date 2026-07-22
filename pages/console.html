@@ -12721,7 +12721,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* anatomy-map-tab-patch :: SZL Anatomy — single honest map (formulas + agentic capabilities) ::
    Additive, self-contained, NS-aware. Snapshot mirror of the standalone deck
    (a-11-oy.com/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
-   5 LOCKED formulas {F1,F11,F12,F18,F19}; Λ = Conjecture 1. No fabricated live pills. */
+   5 LOCKED formulas {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Λ = Conjecture 1. No fabricated live pills. */
 (function(){
   var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
   var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', WARN='#e0a82e', RED='#b06a5a';
@@ -12739,8 +12739,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
      p:'The governed loop: propose \u2192 13-axis gate \u2192 act \u2192 chained receipt. One chained receipt per hop, no drop/reorder (P1); replay is byte-identical (P4); any single mutation makes re-verify reject (P5, axiom-gated); untrusted retrieval cannot flip DENY\u2192ALLOW (P3).',
      e:'ouroboros runtime/* (category, glr, bekenstein, closure, lambda-gate) \u00b7 HATUN orchestrator', f:'P1, P3, P4, P5'},
     {k:'khipu', n:'Khipu DAG + BFT consensus', s:'LIVE',
-     p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4 locked), FIFO-ordered (F7 locked), emit-monotone (F22 locked), CONDITIONAL Byzantine safety under 3-of-4 quorum. Unconditional safety stays Conjecture 2.',
-     e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (locked) \u00b7 B2 quorum'},
+     p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4), FIFO-ordered (F7), emit-monotone (F22). These source-present theorems are EXPERIMENTAL / NOT LOCKED. Byzantine safety is CONDITIONAL under 3-of-4 quorum; unconditional safety stays Conjecture 2.',
+     e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (EXPERIMENTAL / NOT LOCKED) \u00b7 B2 quorum'},
     {k:'receipts', n:'Receipt store (YAWAR / szl-receipts)', s:'LIVE',
      p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a-11-oy.com/receipts.',
      e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a-11-oy.com/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
@@ -12748,8 +12748,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
      p:'UDS Core ambient mesh (Istio, restricted PSA) carrying W3C TraceContext span lineage across brain\u2192effectors (efferent / afferent / proprioceptive). Replay verifier checks child.parent_span_id == parent.span_id over a cycle (P4); Menger cut/path + reachability monotonicity back the resilience claims.',
      e:'szl-uds-deployment (k3d uds-szl-demo) \u00b7 vsp-otel \u00b7 HUKLLA deadman reflex', f:'P4, F1 \u00b7 W9_MENGER, W10_REACH'},
     {k:'math', n:'Math \u00b7 AP-12 generator + Putnam benchmark', s:'LIVE-GATED',
-     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 10 DEMO / 2 OPEN (doctrine v11). The locked-five ladder and \u039b=Conjecture 1 are unchanged by this surface.',
-     e:'/api/math + /api/v1/math (box pm2 alloy-api; auth-gated \u2192 401, surface exists) \u00b7 lutar-lean kernel', f:'F1, F11, F12, F18, F19 (locked-five)'}
+     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 10 DEMO / 2 OPEN (doctrine v11). The locked-five ladder, the EXPERIMENTAL / NOT LOCKED set, and \u039b=Conjecture 1 remain explicit.',
+     e:'/api/math + /api/v1/math (box pm2 alloy-api; auth-gated \u2192 401, surface exists) \u00b7 lutar-lean kernel', f:'F1, F11, F12, F18, F19 (locked-five) \u00b7 F4, F7, F22 (EXPERIMENTAL / NOT LOCKED)'}
   ];
   function render(host){
     var h='';
@@ -12758,7 +12758,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +'<div style="font-size:13px;color:#cfd4da;margin-top:6px;line-height:1.5">Every agentic capability mapped to the <b>real</b> app(s)/repo(s) that implement it, alongside the formula/theorem ladder. Snapshot mirror of the full interactive deck \u2014 '
       +'<a href="https://a-11-oy.com/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a-11-oy.com/anatomy-map</a> \u00b7 '
       +'<a href="https://huggingface.co/spaces/szlholdings/anatomy" target="_blank" rel="noopener" style="color:'+TEAL+'">HF Space</a>. '
-      +'Honesty: <b>5 LOCKED</b> kernel-verified formulas {F1, F11, F12, F18, F19}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
+      +'Honesty: <b>5 LOCKED</b> kernel-verified formulas {F1, F11, F12, F18, F19}; <b>EXPERIMENTAL / NOT LOCKED</b> source-present formulas {F4, F7, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
     CAPS.forEach(function(c){
       h+='<div style="border:1px solid #232830;border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#0e1217">'
         +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
@@ -12775,7 +12775,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
     V.anatomymap={ title:'Anatomy Map', badge:(CAPS.length+' capabilities \u00b7 5 LOCKED'),
-      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a-11-oy.com/anatomy-map deck. 5 LOCKED formulas; \u039b = Conjecture 1.',
+      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a-11-oy.com/anatomy-map deck. 5 LOCKED formulas; F4/F7/F22 are EXPERIMENTAL / NOT LOCKED; \u039b = Conjecture 1.',
       render:render };
   }
   reg();
