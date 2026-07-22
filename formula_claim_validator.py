@@ -29,6 +29,7 @@ ACTIVE_CLAIM_PATHS = (
     "pages/wires.html",
     "pages/pricing.html",
     "pages/landing.html",
+    "pages/console.html",
     "web/living-anatomy.html",
     "web/proof.html",
     "docs/developers/API_REFERENCE.md",

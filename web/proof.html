@@ -31,6 +31,7 @@
   .legend span{display:inline-flex;align-items:center;gap:7px;color:var(--muted)}
   .dot{width:11px;height:11px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
   .dot.green{background:var(--proof)} .dot.gray{background:var(--open)}
+  .dot.experimental{background:var(--gold)}
   .dot.blue{background:var(--lattice)}
   main{display:grid;grid-template-columns:1.35fr 1fr;gap:0;height:calc(100vh - 168px);min-height:520px}
   @media(max-width:980px){main{grid-template-columns:1fr;height:auto}}
@@ -46,6 +47,7 @@
   .badge.green{color:var(--void);background:var(--proof);border-color:var(--proof)}
   .badge.gray{color:var(--ink);background:transparent;border-color:var(--open)}
   .badge.blue{color:var(--void);background:var(--lattice);border-color:var(--lattice)}
+  .badge.experimental{color:var(--void);background:var(--gold);border-color:var(--gold)}
   .meta{font:500 12.5px/1.6 var(--sans);color:var(--muted);margin:6px 0 14px}
   .meta b{color:var(--ink);font-weight:600}
   .kicker{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:18px 0 8px}
@@ -84,6 +86,7 @@
     Conjecture&nbsp;1 — OPEN</b>, and machine-checked <b>false as stated</b> under A1–A5. We never paint a conjecture green.</div>
   <div class="legend">
     <span><i class="dot green"></i> Proven · machine-checked · axiom-free</span>
+    <span><i class="dot experimental"></i> Source-present experimental · not locked</span>
     <span><i class="dot blue"></i> Proven conditional / in-progress</span>
     <span><i class="dot gray"></i> Open conjecture · honestly NOT proven</span>
   </div>
@@ -93,8 +96,8 @@
   <section id="graph">
     <div id="cy"></div>
     <div class="graphhint">Tao-Blueprint-style dependency graph. Arrows point from a result to what it depends on.
-      The canonical locked-five formula pack (bottom) is the registry-admitted foundation; Theorem&nbsp;U sits above it;
-      Conjecture&nbsp;1 is the open apex.</div>
+      The canonical locked-five formula pack is the registry-admitted foundation. Gold F4/F7/F22 nodes are
+      source-present experimental evidence outside that pack; Theorem&nbsp;U sits above it and Conjecture&nbsp;1 is open.</div>
   </section>
   <aside id="panel"><!-- filled by JS --></aside>
 </main>
@@ -205,7 +208,7 @@ theorem conjecture1_lambda_unique
     note:"Verbatim statement; proof body in the source file. Proven — it is the formal reason Conjecture 1 cannot be green."
   },
 
-  // ---- registry-admitted locked formula foundation (Mathlib-free, sorry-free) ----
+  // ---- registry-admitted locked foundation plus explicitly separate experiments ----
   f1: {
     label:"F1\nReplay determinism", status:"green", layer:2, kind:"PROVEN · self-contained",
     title:"F1 — Replay-Hash Determinism",
@@ -222,7 +225,7 @@ theorem f1_replay_trace_stable {α β : Type} (f : α → β) (xs : List α) :
     xs.map f = xs.map f := rfl`
   },
   f4: {
-    label:"F4\nKhipu DAG acyclic", status:"green", layer:2, kind:"PROVEN · self-contained",
+    label:"F4\nEXPERIMENTAL", status:"experimental", layer:3, kind:"EXPERIMENTAL · source-present theorem · NOT LOCKED",
     title:"F4 — Khipu DAG acyclicity preservation",
     latex:"\\mathrm{Reach}(a,b) \\Rightarrow b < a\\ \\ \\therefore\\ \\neg\\,\\mathrm{Reach}(a,a)",
     meta:"The Khipu DAG enforces the backward-edge invariant (dst&nbsp;<&nbsp;src). Proven: every path strictly decreases the node index, so <b>no node reaches itself</b> (acyclic), and appending a fresh max node preserves it. (Upgraded 2026-06-10 from the earlier vacuous statement.)",
@@ -251,7 +254,7 @@ theorem f4_khipu_no_cycle
   exact Nat.lt_irrefl a (f4_khipu_reach_decreases es inv r)`
   },
   f7: {
-    label:"F7\nChaski FIFO", status:"green", layer:2, kind:"PROVEN · self-contained",
+    label:"F7\nEXPERIMENTAL", status:"experimental", layer:3, kind:"EXPERIMENTAL · source-present theorem · NOT LOCKED",
     title:"F7 — Chaski FIFO reception ordering",
     latex:"\\mathrm{drain}(\\mathrm{enqueueAll}\\ []\\ \\mathit{msgs}) = \\mathit{msgs}",
     meta:"The Chaski channel is a FIFO queue (enqueue&nbsp;=&nbsp;append to back, drain&nbsp;=&nbsp;serve from front). Proven: the <b>received order equals the sent order</b>, with a positional witness. (Upgraded 2026-06-10 from the earlier tautology.)",
@@ -330,7 +333,7 @@ theorem f19_bekenstein_additive (s1 s2 : Nat) : s1 ≤ s1 + s2 :=
 theorem f19_budget_monotone (s d : Nat) : s ≤ s + d := Nat.le_add_right s d`
   },
   f22: {
-    label:"F22\nKhipu emit monotone", status:"green", layer:2, kind:"PROVEN · self-contained",
+    label:"F22\nEXPERIMENTAL", status:"experimental", layer:3, kind:"EXPERIMENTAL · source-present theorem · NOT LOCKED",
     title:"F22 — Khipu emit append-only monotonicity",
     latex:"i < j < n \\Rightarrow (\\mathrm{seqLog}\\,n)_i < (\\mathrm{seqLog}\\,n)_j",
     meta:"Emit appends a sequence number equal to the current length; sequence numbers <b>strictly increase</b> with position. Append-only audit ordering.",
@@ -375,7 +378,7 @@ const EDGES = [
 ];
 
 /* ---------- build cytoscape graph ---------- */
-const COL = { green:"#3af4c8", blue:"#5b8dee", gray:"#8b95a7" };
+const COL = { green:"#3af4c8", experimental:"#d7b96b", blue:"#5b8dee", gray:"#8b95a7" };
 const els = [];
 for (const id in N){
   const n = N[id];
@@ -398,6 +401,7 @@ const cy = cytoscape({
         "text-justification":"center" } },
     { selector:'node[status="green"]', style:{ "border-color":COL.green,
         "shadow-blur":18, "shadow-color":COL.green, "shadow-opacity":0.45 } },
+    { selector:'node[status="experimental"]', style:{ "border-color":COL.experimental } },
     { selector:'node[status="blue"]',  style:{ "border-color":COL.blue } },
     { selector:'node[status="gray"]',  style:{ "border-color":COL.gray, "border-style":"dashed", "color":"#aab4c6" } },
     { selector:"node.sel", style:{ "background-color":"#15203a", "border-width":3 } },
@@ -429,7 +433,7 @@ function render(id){
     primary = `<button class="btn" disabled>No Lean proof yet (open)</button>`;
   }
   panel.innerHTML = `
-    <div class="nodetitle">${n.title} <span class="badge ${n.status}">${n.status==="green"?"PROVEN":n.status==="blue"?"CONDITIONAL":"OPEN"}</span></div>
+    <div class="nodetitle">${n.title} <span class="badge ${n.status}">${n.status==="green"?"PROVEN":n.status==="experimental"?"EXPERIMENTAL · NOT LOCKED":n.status==="blue"?"CONDITIONAL":"OPEN"}</span></div>
     <div class="meta"><b>${n.kind}</b><br>${n.meta}</div>
     <div class="kicker">Statement</div>
     <div class="statement" id="stmt"></div>

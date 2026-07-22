@@ -11,9 +11,16 @@ Stdlib + pytest only: importing a11oy_formula_endpoints does not require FastAPI
 """
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import a11oy_formula_registry_guard as guard
 import formula_claim_validator as claim_validator
+import szl_formula_registry as formula_registry
 from a11oy_formula_endpoints import _INDEX
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _corpus(theorem_names=(), lean_files=(), thesis=False):
@@ -86,8 +93,42 @@ def test_guard_catches_an_injected_overclaim_into_the_live_index():
 
 
 def test_active_formula_claims_and_runtime_projections_match_canonical_registry():
+    assert "pages/console.html" in claim_validator.ACTIVE_CLAIM_PATHS
     assert claim_validator.claim_errors() == []
     assert claim_validator.projection_errors() == []
+
+
+def test_runtime_image_copies_registry_and_every_pinned_evidence_asset():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert (
+        "COPY formula_registry/formula-registry.v1.json "
+        "./formula_registry/formula-registry.v1.json"
+    ) in dockerfile
+    for source_path in formula_registry.EXPECTED_SOURCE_PATHS:
+        assert source_path in dockerfile, f"runtime image omits pinned evidence: {source_path}"
+
+
+def test_console_and_proof_surfaces_keep_experimental_formulas_outside_locked_pack():
+    console = (ROOT / "pages" / "console.html").read_text(encoding="utf-8")
+    proof = (ROOT / "web" / "proof.html").read_text(encoding="utf-8")
+
+    assert "locked-proven = 5" in console
+    assert "F4/F7/F22 experimental" in console
+    assert "F1,F4,F7,F11,F12,F18,F19,F22" not in console
+    assert "locked-8" not in console.lower()
+    for formula_id in ("F4", "F7", "F22"):
+        assert re.search(
+            rf"{formula_id}:\{{.*?mat:'experimental'",
+            console,
+        )
+
+    for formula_id in ("f4", "f7", "f22"):
+        assert re.search(
+            rf'{formula_id}:\s*\{{.*?status:"experimental"',
+            proof,
+            re.S,
+        )
+    assert "EXPERIMENTAL · NOT LOCKED" in proof
 
 
 def test_claim_guard_rejects_old_locked_and_bulk_proof_overclaims(tmp_path):
