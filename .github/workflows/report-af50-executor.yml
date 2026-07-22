@@ -1,0 +1,57 @@
+name: Report Exact af50 Deployment Executor
+
+on:
+  push:
+    branches: [ops/report-actions-runs-20260722]
+    paths:
+      - .github/workflows/report-af50-executor.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: ops/verify-a11oy-af50a2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/report-actions-runs-20260722
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Wait for target executor and record bounded state
+        run: |
+          set -euo pipefail
+          found=false
+          for attempt in $(seq 1 80); do
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?branch=${TARGET_BRANCH}&per_page=100" > /tmp/runs.json
+            count="$(jq '[.workflow_runs[] | select(.name == "Verify Exact Merged A11oy af50a2")] | length' /tmp/runs.json)"
+            if [ "$count" -gt 0 ]; then
+              found=true
+              conclusion="$(jq -r '[.workflow_runs[] | select(.name == "Verify Exact Merged A11oy af50a2")][0].conclusion // ""' /tmp/runs.json)"
+              status="$(jq -r '[.workflow_runs[] | select(.name == "Verify Exact Merged A11oy af50a2")][0].status' /tmp/runs.json)"
+              if [ "$status" = completed ]; then break; fi
+            fi
+            sleep 10
+          done
+          jq --arg branch "$TARGET_BRANCH" --argjson found "$found" '{
+            captured_at: now | todate,
+            target_branch: $branch,
+            found: $found,
+            runs: [.workflow_runs[] | select(.name == "Verify Exact Merged A11oy af50a2") | {
+              id, name, event, status, conclusion, head_branch, head_sha,
+              run_number, created_at, updated_at, html_url
+            }]
+          }' /tmp/runs.json > actions-af50-executor.json
+          git rm .github/workflows/report-af50-executor.yml
+          git add actions-af50-executor.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit \
+            -m 'chore(ci): record exact af50 executor state' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:ops/report-actions-runs-20260722
