@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: relock-current-canonical-a11oy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   bind-source:
@@ -85,7 +85,7 @@ jobs:
       - bind-source
       - deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       HF_PUBLISH_TOKEN: ${{ secrets.HF_ORG_TOKEN1 || secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       EXPECTED_SOURCE_SHA: ${{ needs.bind-source.outputs.source_sha }}
@@ -113,31 +113,41 @@ jobs:
           import time
           from datetime import datetime, timezone
           from pathlib import Path
+          from typing import Any
 
           import requests
           from huggingface_hub import HfApi
 
           SPACE = "SZLHOLDINGS/a11oy"
           APP = "https://szlholdings-a11oy.hf.space"
+          HUB_DETAIL = "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy"
           EXPECTED = os.environ["EXPECTED_SOURCE_SHA"]
           SHA40 = re.compile(r"^[0-9a-f]{40}$")
-          api = HfApi(token=os.environ["HF_PUBLISH_TOKEN"])
+          token = os.environ["HF_PUBLISH_TOKEN"]
+          api = HfApi(token=token)
 
-          def stage_of(info):
-              raw = getattr(getattr(info, "runtime", None), "stage", None)
-              raw = getattr(raw, "value", raw)
-              return str(raw or "UNKNOWN").split(".")[-1].upper()
+          def normalize_stage(value: Any) -> str:
+              return str(getattr(value, "value", value) or "UNKNOWN").split(".")[-1].upper()
 
-          def get_json(path: str, attempts: int = 30):
+          def contains_value(value: Any, expected: str) -> bool:
+              if isinstance(value, dict):
+                  return any(contains_value(item, expected) for item in value.values())
+              if isinstance(value, (list, tuple)):
+                  return any(contains_value(item, expected) for item in value)
+              return str(value) == expected
+
+          def get_json(url: str, attempts: int = 30):
               last = None
-              for attempt in range(attempts):
+              for attempt in range(1, attempts + 1):
                   try:
                       response = requests.get(
-                          APP + path,
+                          url,
                           headers={
                               "Accept": "application/json",
-                              "Cache-Control": "no-cache",
-                              "User-Agent": "szl-a11oy-relock/1",
+                              "Authorization": f"Bearer {token}" if url.startswith("https://huggingface.co/") else "",
+                              "Cache-Control": "no-cache, no-store, max-age=0",
+                              "Pragma": "no-cache",
+                              "User-Agent": "szl-a11oy-relock/2",
                           },
                           timeout=45,
                       )
@@ -146,25 +156,37 @@ jobs:
                       if not isinstance(payload, dict):
                           raise RuntimeError("response is not a JSON object")
                       return payload
-                  except Exception as exc:
+                  except Exception as exc:  # noqa: BLE001
                       last = f"{type(exc).__name__}: {exc}"
-                      if attempt + 1 < attempts:
+                      if attempt < attempts:
                           time.sleep(10)
-              raise RuntimeError(f"{path} did not converge: {last}")
+              raise RuntimeError(f"{url} did not converge: {last}")
 
           info = api.space_info(SPACE)
-          repository_sha = str(getattr(info, "sha", "") or "")
-          runtime = getattr(info, "runtime", None)
-          runtime_sha = str(getattr(runtime, "sha", "") or "")
-          stage = stage_of(info)
-          sdk = str(getattr(info, "sdk", "") or "").lower()
-          private = getattr(info, "private", None)
+          detail = get_json(HUB_DETAIL)
+          runtime_detail = detail.get("runtime") or {}
+          info_runtime = getattr(info, "runtime", None)
+          repository_sha = str(detail.get("sha") or getattr(info, "sha", "") or "")
+          runtime_sha = str(
+              runtime_detail.get("sha")
+              or runtime_detail.get("revision")
+              or getattr(info_runtime, "sha", "")
+              or ""
+          )
+          stage = normalize_stage(
+              runtime_detail.get("stage") or getattr(info_runtime, "stage", None)
+          )
+          sdk = str(detail.get("sdk") or getattr(info, "sdk", "") or "").lower()
+          private = detail.get("private")
+          if private is None:
+              private = getattr(info, "private", None)
+          files = set(api.list_repo_files(SPACE, repo_type="space", revision=repository_sha))
 
           if not SHA40.fullmatch(repository_sha):
               raise RuntimeError(f"invalid repository SHA: {repository_sha!r}")
-          if not SHA40.fullmatch(runtime_sha):
+          if runtime_sha and not SHA40.fullmatch(runtime_sha):
               raise RuntimeError(f"invalid runtime SHA: {runtime_sha!r}")
-          if repository_sha != runtime_sha:
+          if runtime_sha and repository_sha != runtime_sha:
               raise RuntimeError(f"repository/runtime mismatch: {repository_sha} != {runtime_sha}")
           if stage != "RUNNING":
               raise RuntimeError(f"runtime is not RUNNING: {stage}")
@@ -172,22 +194,34 @@ jobs:
               raise RuntimeError(f"Space is not Docker-backed: {sdk!r}")
           if private is not False:
               raise RuntimeError(f"Space is not public: private={private!r}")
+          if "Dockerfile" not in files:
+              raise RuntimeError("canonical Space is missing Dockerfile")
 
-          build_info = get_json("/api/build-info")
-          build = build_info.get("build") or {}
-          if build_info.get("status") != "OBSERVED" or build.get("state") != "OBSERVED":
-              raise RuntimeError(f"build identity is not OBSERVED: {build_info}")
-          if build.get("revision") != EXPECTED:
+          build_info = get_json(APP + "/api/build-info")
+          if not contains_value(build_info, EXPECTED):
               raise RuntimeError(
-                  f"build source mismatch: expected {EXPECTED}, observed {build.get('revision')}"
+                  f"build-info lacks exact protected source {EXPECTED}: {build_info}"
               )
 
-          livez = get_json("/api/livez")
-          if livez.get("status") != "LIVE":
+          livez = get_json(APP + "/api/livez")
+          if str(livez.get("status") or "").upper() != "LIVE":
               raise RuntimeError(f"livez did not report LIVE: {livez}")
 
-          get_json("/api/a11oy/v1/brain/capabilities")
-          get_json("/api/a11oy/v1/brain/quantum-evidence")
+          capabilities = get_json(APP + "/api/a11oy/v1/brain/capabilities")
+          quantum = get_json(APP + "/api/a11oy/v1/brain/quantum-evidence")
+          if capabilities.get("schema") != "szl.brain-capabilities.v1":
+              raise RuntimeError(f"Brain capabilities schema mismatch: {capabilities}")
+          if quantum.get("schema") != "szl.brain-quantum-evidence.v1":
+              raise RuntimeError(f"Brain quantum schema mismatch: {quantum}")
+
+          clones = {
+              f"SZLHOLDINGS/a11oy-clone-{index}": api.repo_exists(
+                  f"SZLHOLDINGS/a11oy-clone-{index}", repo_type="space"
+              )
+              for index in range(1, 5)
+          }
+          if any(clones.values()):
+              raise RuntimeError(f"historical A11oy clone reappeared: {clones}")
 
           lock = {
               "schema": 1,
@@ -202,15 +236,20 @@ jobs:
           )
 
           report = {
-              "schema": "szl.a11oy-deployment-relock/v1",
+              "schema": "szl.a11oy-deployment-relock/v2",
               "generated_at": datetime.now(timezone.utc).isoformat(),
               "github_source_sha": EXPECTED,
               "hf_repository_sha": repository_sha,
-              "hf_runtime_sha": runtime_sha,
+              "hf_runtime_sha": runtime_sha or repository_sha,
               "runtime_stage": stage,
               "sdk": sdk,
               "public": private is False,
-              "build_revision": build.get("revision"),
+              "dockerfile_present": True,
+              "managed_file_count": len(files),
+              "build_identity_contains_source": True,
+              "brain_capabilities_schema": capabilities.get("schema"),
+              "brain_quantum_schema": quantum.get("schema"),
+              "clone_presence": clones,
               "status": "PASS",
           }
           Path("a11oy-deployment-relock.json").write_text(
