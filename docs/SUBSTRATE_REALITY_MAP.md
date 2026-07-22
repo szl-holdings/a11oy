@@ -4,6 +4,12 @@ This page turns the screenshot substrate maps into reviewable evidence. It keeps
 the useful framing, but it does not promote a claim unless the claim has a public
 repo, release, workflow, DOI, or checked-in file behind it.
 
+Deployment ownership is tracked separately in
+[`REPLIT_STATE_PLANE_CONTINUITY.md`](REPLIT_STATE_PLANE_CONTINUITY.md). In
+particular, the public `a11oy.net` GitHub Pages site, the `a-11-oy.com` product,
+and the Replit `Unified Control Hub` are three independent state planes. A task
+marker or deployment on one plane is not evidence for either of the others.
+
 ## Evidence legend
 
 | Status | Meaning |
