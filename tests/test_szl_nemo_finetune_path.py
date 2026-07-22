@@ -1052,7 +1052,7 @@ def test_v2_local_candidate_attestation_is_fail_closed_and_contract_bound():
     training = evidence["training_receipt"]
     adapter = evidence["adapter_inventory_receipt"]
 
-    assert attestation["state"] == "QUARANTINED_EVALUATION_PENDING"
+    assert attestation["state"] == "QUARANTINED_EVALUATION_FAILED"
     assert training["state"] == "FAILED_NOT_PROMOTED"
     assert training["global_steps_observed"] == training["global_steps_expected"] == 96
     assert training["training_completed"] is True
@@ -1061,13 +1061,19 @@ def test_v2_local_candidate_attestation_is_fail_closed_and_contract_bound():
     assert training["terminal_error"] == "training thermal ceiling exceeded"
     assert adapter["state"] == "SAVED_UNQUALIFIED_QUARANTINED"
     assert len(adapter["adapter_model_safetensors_sha256"]) == 64
-    assert evidence["evaluation_receipt"] == {
-        "path": "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final.json",
-        "state": "ABSENT_EVALUATOR_NOT_STARTED",
-        "sha256": None,
-    }
-    assert all(item["state"] == "BLOCKED" for item in evidence["evaluation_admission_attempts"])
+    evaluation_receipt = evidence["evaluation_receipt"]
+    assert evaluation_receipt["path"].endswith("evaluation-resume-v2-9c8213a-final-20260721.json")
+    assert evaluation_receipt["state"] == "EVALUATION_FAILED_NOT_PROMOTED_NOT_SIGNED"
+    assert len(evaluation_receipt["sha256"]) == 64
+    assert evaluation_receipt["runtime_guard"]["state"] == "PASS"
+    assert evaluation_receipt["runtime_guard"]["maximum_observed_temperature_c"] <= 80
+    attempts = evidence["evaluation_admission_attempts"]
+    assert all(item["state"] == "BLOCKED" for item in attempts[:-1])
+    assert attempts[-1]["state"] == "PASS"
     assert attestation["evaluation_gate"]["requires_both_sets_pass"] is True
+    assert attestation["evaluation_gate"]["state"] == "FAIL"
+    assert attestation["evaluation_gate"]["original"]["passes"] == 4
+    assert attestation["evaluation_gate"]["shadow"]["passes"] == 6
     assert attestation["evaluation_gate"]["original"]["sha256"] == contract["curriculum"]["frozen_original_eval_sha256"]
     assert attestation["evaluation_gate"]["shadow"]["sha256"] == json.loads(
         nemo_train.MANIFEST_PATH.read_text(encoding="utf-8")
@@ -1079,8 +1085,9 @@ def test_v2_local_candidate_attestation_is_fail_closed_and_contract_bound():
     assert admission["maximum_runtime_temperature_c"] == contract["gpu_admission"]["maximum_training_temperature_c"]
     assert admission["thresholds_may_be_weakened"] is False
     assert admission["processes_may_be_stopped_automatically"] is False
-    assert attestation["resume"]["command"][attestation["resume"]["command"].index("--mode") + 1] == "evaluate"
+    assert attestation["resume"]["state"] == "TERMINAL_QUALITY_FAILURE_NO_AUTOMATIC_RETRY"
     assert attestation["resume"]["training_must_not_restart"] is True
+    assert attestation["resume"]["evaluation_retry_requires_new_reviewed_candidate"] is True
     assert attestation["claim_boundary"] == {
         "model_qualified": False,
         "original_evaluation_passed": False,

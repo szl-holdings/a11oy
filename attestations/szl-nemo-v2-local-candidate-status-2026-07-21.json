@@ -1,9 +1,9 @@
 {
   "schema_version": "szl.nemo.local-candidate-status.v1",
   "contract_id": "szl-nemo-governed-adapter-v2",
-  "state": "QUARANTINED_EVALUATION_PENDING",
+  "state": "QUARANTINED_EVALUATION_FAILED",
   "maturity": "MEASURED",
-  "observed_at": "2026-07-21T23:29:21.6523230Z",
+  "observed_at": "2026-07-22T01:17:34.410306Z",
   "training_source_revision": "3662e3405ab2d65ef184fbd748ac57832555494f",
   "evaluation_resume_source_revision": "9c8213a714cd43db2da2e25cc18137a2adaa6c05",
   "local_evidence": {
@@ -66,28 +66,59 @@
         "state": "BLOCKED",
         "reason": "fixed GPU admission thresholds were not maintained",
         "observed_blocker": "memory_free_mib=6651 was below minimum_free_memory_mib=6656"
+      },
+      {
+        "path": "/home/rosie/szl-qualification/receipts/preflight-v2-evaluation-final-9c8213a-20260721.json",
+        "sha256": "7d5e9fc32d4eebf7ee14276c217023b432ae9e6f590cdf66bfd8f7a63b671083",
+        "state": "PASS",
+        "observed_admission": "three launcher samples and eleven evaluator samples maintained the fixed 6656 MiB / 10% / 60 C admission thresholds"
       }
     ],
     "evaluation_receipt": {
-      "path": "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final.json",
-      "state": "ABSENT_EVALUATOR_NOT_STARTED",
-      "sha256": null
+      "path": "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final-20260721.json",
+      "bytes": 71586,
+      "sha256": "cec1e909ead2a701cb66a21d212cd03f67206812737293d215076acbf9598dd0",
+      "schema_version": "szl.nemo.evaluation-resume-receipt.v1",
+      "state": "EVALUATION_FAILED_NOT_PROMOTED_NOT_SIGNED",
+      "runtime_guard": {
+        "state": "PASS",
+        "elapsed_ms": 632493,
+        "maximum_observed_temperature_c": 80,
+        "maximum_observed_memory_used_mib": 5347,
+        "maximum_observed_utilization_pct": 98
+      }
     }
   },
   "evaluation_gate": {
-    "state": "PENDING",
+    "state": "FAIL",
     "requires_both_sets_pass": true,
     "original": {
       "set_id": "ORIGINAL_FROZEN",
       "rows": 8,
       "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d",
-      "state": "NOT_EVALUATED"
+      "state": "FAIL",
+      "passes": 4,
+      "failures": 4,
+      "failed_record_ids": [
+        "eval:eval-proof",
+        "eval:eval-brain",
+        "eval:eval-execution",
+        "eval:eval-license"
+      ]
     },
     "shadow": {
       "set_id": "SHADOW_PREREGISTERED",
       "rows": 10,
       "sha256": "1b8578051b7b829595493615bdf11e24d01a1837a23d6191c8e88e21cce990ac",
-      "state": "NOT_EVALUATED"
+      "state": "FAIL",
+      "passes": 6,
+      "failures": 4,
+      "failed_record_ids": [
+        "shadow:shadow-identity-credit",
+        "shadow:shadow-brain-source",
+        "shadow:shadow-signature-fingerprint",
+        "shadow:shadow-scope-generalization"
+      ]
     }
   },
   "fixed_gpu_admission": {
@@ -102,28 +133,10 @@
     "processes_may_be_stopped_automatically": false
   },
   "resume": {
-    "state": "WAITING_FOR_FIXED_GPU_ADMISSION",
-    "command": [
-      "bash",
-      "model_release/szl-nemo/run_wsl_governed.sh",
-      "--base-snapshot",
-      "/mnt/c/Users/steph/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3-Nano-4B-BF16/snapshots/dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
-      "--mode",
-      "evaluate",
-      "--output-dir",
-      "/home/rosie/szl-qualification/training/szl-nemo-governed-v2-3662e34-final",
-      "--receipt",
-      "/home/rosie/szl-qualification/receipts/evaluation-resume-v2-9c8213a-final.json",
-      "--preflight-receipt",
-      "/home/rosie/szl-qualification/receipts/preflight-v2-evaluation-final-9c8213a.json",
-      "--confirmation",
-      "EVALUATE_SZL_NEMO_GOVERNED_ADAPTER_V2",
-      "--license-acknowledgement",
-      "ACK_NVIDIA_NEMOTRON_LICENSE_dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
-    ],
-    "working_directory": "/home/rosie/szl-qualification/a11oy-nemo-v2-552caf4",
+    "state": "TERMINAL_QUALITY_FAILURE_NO_AUTOMATIC_RETRY",
     "attempt_limit": "ONE_EVALUATOR_INVOCATION_AFTER_ADMISSION",
-    "training_must_not_restart": true
+    "training_must_not_restart": true,
+    "evaluation_retry_requires_new_reviewed_candidate": true
   },
   "claim_boundary": {
     "model_qualified": false,
