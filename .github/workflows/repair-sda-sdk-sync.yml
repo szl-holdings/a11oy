@@ -1,0 +1,55 @@
+name: Repair SDA branch SDK sync
+
+on:
+  push:
+    branches: [agent/hf-space-api-route-repair-20260722]
+    paths:
+      - .github/workflows/repair-sda-sdk-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: agent/hf-space-api-route-repair-20260722
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Restore verified static SDK classifications
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('szl_spaces_surface.py')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              '"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "gradio"':
+              '"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"',
+              '"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "gradio"':
+              '"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"',
+              '"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "gradio"':
+              '"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one occurrence: {old}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8', newline='\n')
+      - name: Run focused contracts
+        run: python -m pytest -q tests/test_szl_spaces_inventory.py tests/test_demo_critical_routes.py
+      - name: Commit repair and remove temporary workflow
+        run: |
+          set -euo pipefail
+          rm .github/workflows/repair-sda-sdk-sync.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add szl_spaces_surface.py .github/workflows/repair-sda-sdk-sync.yml
+          git commit -m 'fix(spaces): preserve verified static SDK inventory' \
+            -m 'Keep the exact SDA contract probes while retaining the three live static Space classifications already merged in #1027.' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:agent/hf-space-api-route-repair-20260722
