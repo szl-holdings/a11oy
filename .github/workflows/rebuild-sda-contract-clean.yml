@@ -1,0 +1,114 @@
+name: Rebuild clean SDA contract branch
+
+on:
+  push:
+    branches: [agent/hf-space-api-route-repair-clean-20260722]
+    paths:
+      - .github/workflows/rebuild-sda-contract-clean.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-sda-contract-clean-20260722
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact clean branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/hf-space-api-route-repair-clean-20260722
+          fetch-depth: 0
+      - name: Fetch and verify exact reviewed source branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/hf-space-api-route-repair-20260722
+          actual="$(git rev-parse FETCH_HEAD)"
+          expected="bf46252582e4028865341592a683036f00751d8e"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Reviewed source branch moved: expected $expected, got $actual"
+            exit 1
+          fi
+          echo "SOURCE_SHA=$actual" >> "$GITHUB_ENV"
+      - name: Copy only the five reviewed product and test files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in \
+            spaces/sda/assets/szl_verify_widget.js \
+            szl_spaces_surface.py \
+            tests/test_demo_critical_routes.py \
+            tests/test_szl_spaces_inventory.py \
+            vendor.manifest.json
+          do
+            git show "${SOURCE_SHA}:${path}" > "$path"
+          done
+      - name: Preserve verified live static Space classifications
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements_by_path = {
+              Path('szl_spaces_surface.py'): {
+                  '"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "gradio"':
+                  '"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"',
+                  '"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "gradio"':
+                  '"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"',
+                  '"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "gradio"':
+                  '"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"',
+              },
+              Path('tests/test_szl_spaces_inventory.py'): {
+                  '("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "gradio")':
+                  '("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static")',
+                  '("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "gradio")':
+                  '("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static")',
+                  '("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "gradio")':
+                  '("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "static")',
+              },
+          }
+          for path, replacements in replacements_by_path.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new in replacements.items():
+                  if text.count(old) != 1:
+                      raise SystemExit(f'expected exactly one occurrence in {path}: {old}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8', newline='\n')
+      - name: Verify focused contracts and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile szl_spaces_surface.py tests/test_demo_critical_routes.py tests/test_szl_spaces_inventory.py
+          python -m pytest -q tests/test_szl_spaces_inventory.py tests/test_demo_critical_routes.py
+          node --check spaces/sda/assets/szl_verify_widget.js
+          python -m json.tool vendor.manifest.json >/dev/null
+          git diff --check
+      - name: Prove workflow/security scope is clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet HEAD -- .github/workflows/shared-file-drift.yml
+          test ! -e .github/workflows/repair-sda-sdk-sync.yml
+          rm .github/workflows/rebuild-sda-contract-clean.yml
+      - name: Commit exact clean repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            spaces/sda/assets/szl_verify_widget.js \
+            szl_spaces_surface.py \
+            tests/test_demo_critical_routes.py \
+            tests/test_szl_spaces_inventory.py \
+            vendor.manifest.json \
+            .github/workflows/rebuild-sda-contract-clean.yml
+          git commit \
+            -m 'fix(spaces): enforce exact SDA API contracts' \
+            -m 'Rebuild the reviewed five-file SDA and Anatomy contract repair on current protected main, retain the verified static Space classifications, and exclude temporary self-modifying workflows.' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:agent/hf-space-api-route-repair-clean-20260722
