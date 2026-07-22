@@ -1,0 +1,175 @@
+{
+  "captured_at": "2026-07-22T18:32:04Z",
+  "target_branch": "ops/verify-a11oy-af50a2",
+  "runs": [
+    {
+      "id": 29946791524,
+      "name": "Verify Exact Merged A11oy af50a2",
+      "event": "push",
+      "status": "in_progress",
+      "conclusion": null,
+      "head_branch": "ops/verify-a11oy-af50a2",
+      "head_sha": "794bf2a5a4395eac1f6ed3adcca49312ebf21f49",
+      "run_number": 1,
+      "created_at": "2026-07-22T18:28:18Z",
+      "updated_at": "2026-07-22T18:30:55Z",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/29946791524"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 89014744680,
+      "name": "Execute permanent source-bound deployer at exact merged SHA / Deploy derived COPY set, bind source, and attest live state",
+      "status": "in_progress",
+      "conclusion": null,
+      "started_at": "2026-07-22T18:30:55Z",
+      "completed_at": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-07-22T18:30:56Z",
+          "completed_at": "2026-07-22T18:30:57Z"
+        },
+        {
+          "name": "Pre Harden runner",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-07-22T18:30:57Z",
+          "completed_at": "2026-07-22T18:31:05Z"
+        },
+        {
+          "name": "Harden runner",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-07-22T18:31:05Z",
+          "completed_at": "2026-07-22T18:31:05Z"
+        },
+        {
+          "name": "Checkout caller source of truth",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-07-22T18:31:05Z",
+          "completed_at": "2026-07-22T18:31:08Z"
+        },
+        {
+          "name": "Checkout exact reusable-workflow revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-07-22T18:31:08Z",
+          "completed_at": "2026-07-22T18:31:10Z"
+        },
+        {
+          "name": "Set up Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-07-22T18:31:10Z",
+          "completed_at": "2026-07-22T18:31:10Z"
+        },
+        {
+          "name": "Install exact supported deployment clients",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-07-22T18:31:10Z",
+          "completed_at": "2026-07-22T18:31:18Z"
+        },
+        {
+          "name": "Resolve target and exact checked-out source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-07-22T18:31:18Z",
+          "completed_at": "2026-07-22T18:31:18Z"
+        },
+        {
+          "name": "Require governed publisher",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-07-22T18:31:18Z",
+          "completed_at": "2026-07-22T18:31:18Z"
+        },
+        {
+          "name": "Deploy Dockerfile-derived files to the Space",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-07-22T18:31:18Z",
+          "completed_at": "2026-07-22T18:31:22Z"
+        },
+        {
+          "name": "Bind exact source revision after publication",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-07-22T18:31:22Z",
+          "completed_at": "2026-07-22T18:31:23Z"
+        },
+        {
+          "name": "Attest exact running commit, bytes, and smoke routes",
+          "status": "in_progress",
+          "conclusion": null,
+          "number": 12,
+          "started_at": "2026-07-22T18:31:23Z",
+          "completed_at": null
+        },
+        {
+          "name": "Verify running application source identity",
+          "status": "pending",
+          "conclusion": null,
+          "number": 13,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Upload immutable deployment evidence",
+          "status": "pending",
+          "conclusion": null,
+          "number": 14,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Set up Python",
+          "status": "pending",
+          "conclusion": null,
+          "number": 25,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Checkout exact reusable-workflow revision",
+          "status": "pending",
+          "conclusion": null,
+          "number": 26,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Checkout caller source of truth",
+          "status": "pending",
+          "conclusion": null,
+          "number": 27,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Harden runner",
+          "status": "pending",
+          "conclusion": null,
+          "number": 28,
+          "started_at": null,
+          "completed_at": null
+        }
+      ]
+    }
+  ]
+}
