@@ -34,3 +34,10 @@ verified deployment -> outcome memory -> signed receipt -> independent replay.
 The new `/api/a11oy/v1/brain/capabilities` route is the control surface for that
 slice. It gives the frontend and future automation one place to read what is
 real, partial, modeled, simulated, experimental, or unavailable.
+
+## Replay integrity
+
+The reviewed capability tree was replayed onto the then-current protected `main`
+without retaining the unsigned update-branch merge commit. This note is additive:
+it records branch-history repair only and does not promote any capability,
+measurement, signature, model, or deployment state.
