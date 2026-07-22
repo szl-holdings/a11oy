@@ -1,0 +1,185 @@
+name: Replay Brain capabilities on current main
+
+on:
+  push:
+    branches: [agent/brain-capabilities-current-main-20260722]
+    paths:
+      - .github/workflows/replay-brain-capabilities-current.yml
+
+permissions:
+  contents: write
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout current-main successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/brain-capabilities-current-main-20260722
+          fetch-depth: 0
+
+      - name: Fetch exact historical capability slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin pull/1003/head:refs/remotes/origin/brain-capabilities-1003
+          observed="$(git rev-parse refs/remotes/origin/brain-capabilities-1003)"
+          expected="12e48dfa683ee3ed279a90a2738c2519a0ce5df5"
+          test "$observed" = "$expected" || {
+            echo "::error::Historical #1003 head moved: expected ${expected}, observed ${observed}"
+            exit 1
+          }
+          while IFS= read -r path; do
+            case "$path" in
+              Dockerfile|serve.py) continue ;;
+            esac
+            mkdir -p "$(dirname "$path")"
+            git show "${expected}:${path}" > "$path"
+          done < <(git diff-tree --no-commit-id --name-only -r "$expected")
+
+      - name: Reconcile the capability contract with current merged Brain evidence
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("szl_brain_capabilities.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              '"lexical BM25 only; no learned reranker or independent external corpus",':
+              '"the canonical lexical pilot remains small and local; separate semantic-encoder and Qwen3-reranker receipts are local evidence, not external validity",',
+              '"hash embeddings and graph similarity are modeled",':
+              '"the public runtime may fall back to modeled hash vectors when no approved local semantic encoder is configured",',
+              '"no external vector database is evidenced",':
+              '"local semantic index and bounded reranker receipts exist, but no managed external vector service is required or claimed",',
+              '"Run the locked lexical/vector/graph/hybrid benchmark on an independent admitted corpus; do not generalize the local pilot.",':
+              '"Deploy only exact approved encoder/reranker artifacts and pass the preregistered admitted retrieval benchmark before promotion.",',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"missing capability reconciliation anchor: {old}")
+              text = text.replace(old, new, 1)
+          evidence_anchor = (
+              '            "research/brain-evidence-admission/evidence-manifest.json binds pilot artifacts and honesty boundaries",\n'
+          )
+          semantic_line = (
+              '            "docs/BRAIN_EVIDENCE_KERNEL.md and local attestations bind the 9,464-node semantic-index and bounded Qwen3 reranker evidence without promoting the public runtime",\n'
+          )
+          if semantic_line not in text:
+              if evidence_anchor not in text:
+                  raise SystemExit("missing semantic evidence insertion anchor")
+              text = text.replace(evidence_anchor, evidence_anchor + semantic_line, 1)
+          path.write_text(text, encoding="utf-8", newline="\n")
+
+          reconciliation = Path("execution/brain/CURRENT_MAIN_RECONCILIATION.md")
+          reconciliation.write_text(
+              """# Brain capability slice — current-main reconciliation\n\n"
+              "This directory was replayed from A11oy pull request #1003 onto current protected main after the Brain semantic-evidence kernel, row-rights crosswalk, Qwen/Kimi admission contracts, runtime identity, and exact SDA Space contracts had already merged.\n\n"
+              "## Current boundaries\n\n"
+              "- The 9,464-node graph and local semantic-index/reranker receipts are real local evidence.\n"
+              "- A public runtime may still use the modeled hash fallback unless exact approved encoder and reranker artifacts are configured.\n"
+              "- Row-level training rights remain fail-closed; the committed crosswalk admits zero Brain rows to gradients.\n"
+              "- Qwen 3.5 and Kimi remain immutable admission/method candidates, not promoted SZL weights.\n"
+              "- The capability and quantum-evidence GET routes are pure reads and mint no receipts.\n"
+              "- No AGI, sentience, autonomous-training, quantum-hardware, or general-performance claim is made.\n\n"
+              "This file is the precedence note when an older document in this evidence packet describes a pre-semantic-index state.\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+
+      - name: Wire current Docker and assembled app contracts
+        shell: python
+        run: |
+          from pathlib import Path
+
+          docker = Path("Dockerfile")
+          text = docker.read_text(encoding="utf-8")
+          copy_line = "COPY szl_brain_capabilities.py szl_brain_memory_schema.py szl_brain_quantum_evidence.py ./\n"
+          if copy_line not in text:
+              anchor = "COPY szl_braincorpus.py szl_brain_reranker.py ./\n"
+              if text.count(anchor) != 1:
+                  raise SystemExit("Dockerfile Brain evidence anchor is not unique")
+              text = text.replace(anchor, anchor + copy_line, 1)
+              docker.write_text(text, encoding="utf-8", newline="\n")
+
+          serve = Path("serve.py")
+          text = serve.read_text(encoding="utf-8")
+          if "_brain_graph_registered = False" not in text:
+              old = (
+                  "try:\n"
+                  "    import a11oy_brain_graph as _a11oy_brain_graph\n"
+                  "    _brain_graph_status = _a11oy_brain_graph.register(app, ns=\"a11oy\")\n"
+              )
+              new = (
+                  "_brain_graph_registered = False\n"
+                  "try:\n"
+                  "    import a11oy_brain_graph as _a11oy_brain_graph\n"
+                  "    _brain_graph_status = _a11oy_brain_graph.register(app, ns=\"a11oy\")\n"
+                  "    _brain_graph_registered = True\n"
+              )
+              if text.count(old) != 1:
+                  raise SystemExit("Brain graph registration anchor is not unique")
+              text = text.replace(old, new, 1)
+          if "_brain_api_registered = False" not in text:
+              old = (
+                  "try:\n"
+                  "    import szl_brain_api as _szl_brain_api\n"
+                  "    _brain_api_status = _szl_brain_api.register(app, ns=\"a11oy\")\n"
+              )
+              new = (
+                  "_brain_api_registered = False\n"
+                  "try:\n"
+                  "    import szl_brain_api as _szl_brain_api\n"
+                  "    _brain_api_status = _szl_brain_api.register(app, ns=\"a11oy\")\n"
+                  "    _brain_api_registered = True\n"
+              )
+              if text.count(old) != 1:
+                  raise SystemExit("Brain API registration anchor is not unique")
+              text = text.replace(old, new, 1)
+
+          if "Brain capabilities NOT registered" not in text:
+              marker = "# BRAIN UNCERTAINTY (feat/frontier-brainuncertainty)"
+              if text.count(marker) != 1:
+                  raise SystemExit("Brain uncertainty insertion marker is not unique")
+              block = '''# -- BRAIN CAPABILITIES LEDGER -- pure-read maturity and evidence contract.\ntry:\n    import szl_brain_capabilities as _szl_brain_capabilities\n    _brain_runtime_status = {\n        "estate_brain_graph": _brain_graph_registered,\n        "brain_retrieval": _brain_api_registered,\n    }\n    print(\n        "[a11oy] " + _szl_brain_capabilities.register(\n            app, ns="a11oy", runtime_status=_brain_runtime_status\n        ),\n        file=__import__("sys").stderr,\n    )\nexcept Exception as _szl_brain_capabilities_e:  # pragma: no cover\n    print(f"[a11oy] Brain capabilities NOT registered: {_szl_brain_capabilities_e!r}; SPA + API unaffected", file=__import__("sys").stderr)\n\n# -- BRAIN QUANTUM EVIDENCE -- typed fail-closed view; no QPU or advantage claim.\ntry:\n    import szl_brain_quantum_evidence as _szl_brain_quantum_evidence\n    print("[a11oy] " + _szl_brain_quantum_evidence.register(app, ns="a11oy"), file=__import__("sys").stderr)\nexcept Exception as _szl_brain_quantum_evidence_e:  # pragma: no cover\n    print(f"[a11oy] Brain quantum evidence NOT registered: {_szl_brain_quantum_evidence_e!r}; SPA + API unaffected", file=__import__("sys").stderr)\n\n'''
+              text = text.replace(marker, block + marker, 1)
+          serve.write_text(text, encoding="utf-8", newline="\n")
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check \
+            "pytest>=8,<9" "fastapi>=0.115,<1" "httpx>=0.27,<0.29" "jsonschema>=4,<5"
+
+      - name: Verify unique Brain capability slice
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            szl_brain_capabilities.py \
+            szl_brain_memory_schema.py \
+            szl_brain_quantum_evidence.py \
+            serve.py
+          python -m pytest -q \
+            tests/test_brain_capabilities.py \
+            tests/test_brain_memory_schema.py \
+            tests/test_brain_quantum_evidence.py
+          python .github/dockerfile-copy-check.py
+          git diff --check
+
+      - name: Commit current-main successor and self-remove
+        run: |
+          set -euo pipefail
+          rm .github/workflows/replay-brain-capabilities-current.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit \
+            -m 'feat(brain): add current capability and evidence manifest' \
+            -m 'Replay the unique #1003 capability ledger, governed memory schema, quantum evidence plane, and evidence packet onto current protected main. Reconcile the retrieval language with the merged semantic evidence kernel while preserving fail-closed rights, training, and deployment boundaries.' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:agent/brain-capabilities-current-main-20260722
