@@ -207,11 +207,7 @@ _WIRE_D_TOKEN_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _WIRE_D_HOP_TIMEOUT_SECONDS = 3.0
 
 
-class _WireDAuthorizationError(PermissionError):
-    """A state-changing Wire-D probe has no valid operator authority."""
-
-
-def _wire_d_authorize_request(request: Request) -> str:
+def _wire_d_authorize_request(request: Request) -> tuple[str | None, str | None]:
     """Authorize a probe with the existing governed-compute bearer authority.
 
     Only the SHA-256 digest is configured.  An absent or malformed authority
@@ -219,15 +215,15 @@ def _wire_d_authorize_request(request: Request) -> str:
     """
     expected = os.environ.get("A11OY_COMPUTE_TOKEN_SHA256", "").strip().lower()
     if not _WIRE_D_TOKEN_DIGEST_RE.fullmatch(expected):
-        raise _WireDAuthorizationError("operator authority is not configured")
+        return None, "NOT_CONFIGURED"
     authorization = (request.headers.get("authorization") or "").strip()
     if not authorization.lower().startswith("bearer "):
-        raise _WireDAuthorizationError("missing operator bearer authority")
+        return None, "MISSING"
     token = authorization.split(" ", 1)[1].strip()
     observed = hashlib.sha256(token.encode("utf-8")).hexdigest()
     if not hmac.compare_digest(observed, expected):
-        raise _WireDAuthorizationError("invalid operator bearer authority")
-    return f"sha256:{expected[:16]}"
+        return None, "INVALID"
+    return f"sha256:{expected[:16]}", None
 
 
 def _safe_header_value(value: Any, *, maximum: int) -> str | None:
@@ -662,13 +658,20 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     @app.post(f"{base}/v1/wire-d/probe")
     async def wire_d_probe(request: Request) -> JSONResponse:
         """Execute one allowlisted HTTP hop and receipt the observed continuity."""
-        try:
-            operator_authority = _wire_d_authorize_request(request)
-        except _WireDAuthorizationError as exc:
-            reason = str(exc)
+        operator_authority, authorization_error = _wire_d_authorize_request(request)
+        if authorization_error is not None:
+            if authorization_error == "NOT_CONFIGURED":
+                reason = "operator authority is not configured"
+                status_code = 503
+            elif authorization_error == "MISSING":
+                reason = "missing operator bearer authority"
+                status_code = 401
+            else:
+                reason = "invalid operator bearer authority"
+                status_code = 401
             return JSONResponse(
                 {"state": "DENIED", "reason": reason},
-                status_code=503 if "not configured" in reason else 401,
+                status_code=status_code,
                 headers={"WWW-Authenticate": "Bearer"},
             )
         try:
