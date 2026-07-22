@@ -1,0 +1,43 @@
+name: Capture Exact A11oy Deployment Failures
+
+on:
+  push:
+    branches: [ops/report-actions-runs-20260722]
+    paths:
+      - .github/workflows/capture-deployment-failures-20260722.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/report-actions-runs-20260722
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Capture failed logs and job metadata
+        run: |
+          set -euo pipefail
+          mkdir -p actions-failures-20260722
+          for run in 29942913436 29943501010 29942913409; do
+            gh run view "$run" --repo "$GITHUB_REPOSITORY" \
+              --json name,status,conclusion,event,headBranch,headSha,url,jobs \
+              > "actions-failures-20260722/${run}.json"
+            gh run view "$run" --repo "$GITHUB_REPOSITORY" --log-failed \
+              > "actions-failures-20260722/${run}.log" 2>&1 || true
+          done
+          git rm .github/workflows/capture-deployment-failures-20260722.yml
+          git add actions-failures-20260722
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit \
+            -m 'chore(ci): record exact deployment failure evidence' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:ops/report-actions-runs-20260722
