@@ -46,17 +46,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import http.client
 import ipaddress
 import json
 import os
 import re
 import socket
+import ssl
 import threading
 import time
-import urllib.error
-import urllib.request
 from collections import deque
+from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlsplit
@@ -117,7 +118,8 @@ def parse_traceparent(tp: str | None) -> dict[str, Any]:
         return {"valid": False, "raw": tp}
     ver, trace_id, span_id, flags = tp.split("-")
     hexset = set("0123456789abcdef")
-    valid = (ver == "00" and len(trace_id) == 32 and len(span_id) == 16 and flags in {"00", "01"}
+    valid = (ver == "00" and len(trace_id) == 32 and len(span_id) == 16
+             and bool(re.fullmatch(r"[0-9a-f]{2}", flags))
              and set(trace_id) <= hexset and set(span_id) <= hexset
              and trace_id != "0" * 32 and span_id != "0" * 16)
     return {"valid": valid, "version": ver, "trace_id": trace_id,
@@ -201,13 +203,87 @@ class _TraceState:
 
 
 _WIRE_D_TARGET_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
+_WIRE_D_TOKEN_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_WIRE_D_HOP_TIMEOUT_SECONDS = 3.0
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    """A Wire-D probe never follows a target-controlled redirect."""
+class _WireDAuthorizationError(PermissionError):
+    """A state-changing Wire-D probe has no valid operator authority."""
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
-        raise urllib.error.HTTPError(req.full_url, code, "redirect refused", headers, fp)
+
+def _wire_d_authorize_request(request: Request) -> str:
+    """Authorize a probe with the existing governed-compute bearer authority.
+
+    Only the SHA-256 digest is configured.  An absent or malformed authority
+    fails closed, and the returned actor identifier cannot reveal the bearer.
+    """
+    expected = os.environ.get("A11OY_COMPUTE_TOKEN_SHA256", "").strip().lower()
+    if not _WIRE_D_TOKEN_DIGEST_RE.fullmatch(expected):
+        raise _WireDAuthorizationError("operator authority is not configured")
+    authorization = (request.headers.get("authorization") or "").strip()
+    if not authorization.lower().startswith("bearer "):
+        raise _WireDAuthorizationError("missing operator bearer authority")
+    token = authorization.split(" ", 1)[1].strip()
+    observed = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    if not hmac.compare_digest(observed, expected):
+        raise _WireDAuthorizationError("invalid operator bearer authority")
+    return f"sha256:{expected[:16]}"
+
+
+def _safe_header_value(value: Any, *, maximum: int) -> str | None:
+    """Return a bounded printable header value, or None on unsafe input."""
+    if not isinstance(value, str) or not value or len(value) > maximum:
+        return None
+    if any(ord(char) < 0x20 or ord(char) > 0x7E for char in value):
+        return None
+    return value
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    """HTTP connection whose socket uses the address admitted by policy."""
+
+    def __init__(self, host: str, port: int, pinned_ip: str, timeout: float) -> None:
+        self._pinned_ip = pinned_ip
+        super().__init__(host, port=port, timeout=timeout)
+
+    def connect(self) -> None:
+        self.sock = _connect_pinned(self._pinned_ip, self.port, self.timeout)
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS connection pinned to an admitted IP while retaining Host/SNI."""
+
+    def __init__(self, host: str, port: int, pinned_ip: str, timeout: float) -> None:
+        self._pinned_ip = pinned_ip
+        super().__init__(host, port=port, timeout=timeout, context=ssl.create_default_context())
+
+    def connect(self) -> None:
+        sock = _connect_pinned(self._pinned_ip, self.port, self.timeout)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+def _connect_pinned(pinned_ip: str, port: int, timeout: float) -> socket.socket:
+    """Connect to a numeric IP without a second DNS lookup."""
+    address = ipaddress.ip_address(pinned_ip)
+    family = socket.AF_INET6 if address.version == 6 else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        destination = (str(address), port, 0, 0) if address.version == 6 else (str(address), port)
+        sock.connect(destination)
+        return sock
+    except OSError:
+        sock.close()
+        raise
+
+
+def _abort_connection(connection: http.client.HTTPConnection) -> None:
+    """Interrupt a blocking header read when the total hop deadline expires."""
+    sock = connection.sock
+    if sock is not None:
+        with suppress(OSError):
+            sock.shutdown(socket.SHUT_RDWR)
+    connection.close()
 
 
 def _wire_d_target_policy(raw_url: str, allowed_hosts: set[str]) -> dict[str, Any]:
@@ -239,12 +315,22 @@ def _wire_d_target_policy(raw_url: str, allowed_hosts: set[str]) -> dict[str, An
             if address.is_unspecified or address.is_multicast or address.is_reserved or address.is_link_local:
                 raise ValueError("target resolves to a forbidden address class")
         canonical = parsed.geturl()
+        admitted_addresses = tuple(
+            str(address)
+            for address in sorted(
+                (ipaddress.ip_address(item) for item in addresses),
+                key=lambda item: (item.version, int(item)),
+            )
+        )
         return {
             "allowed": True,
             "url": canonical,
             "fingerprint": hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16],
             "scheme": parsed.scheme,
             "path": parsed.path,
+            "host": host,
+            "port": int(port),
+            "admitted_addresses": admitted_addresses,
         }
     except (OSError, TypeError, ValueError) as exc:
         return {
@@ -287,28 +373,49 @@ def _wire_d_targets_from_env() -> tuple[dict[str, dict[str, Any]], list[dict[str
 
 
 def _wire_d_http_hop(target: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
-    """Execute one bounded HTTP hop and require W3C trace-id continuity."""
-    request = urllib.request.Request(
-        target["url"],
-        method="GET",
-        headers={
-            "Accept": "application/json",
-            "traceparent": headers["traceparent"],
-            **({"tracestate": headers["tracestate"]} if headers.get("tracestate") else {}),
-            "X-SZL-Wire-D-Probe": "1",
-        },
+    """Execute one IP-pinned, deadline-bounded hop; redirects are not followed."""
+    traceparent = _safe_header_value(headers.get("traceparent"), maximum=55)
+    if traceparent is None or not parse_traceparent(traceparent).get("valid"):
+        raise ValueError("outbound traceparent is invalid")
+    tracestate = _safe_header_value(headers.get("tracestate"), maximum=512)
+    pinned_ip = str(target["admitted_addresses"][0])
+    connection_type = _PinnedHTTPSConnection if target["scheme"] == "https" else _PinnedHTTPConnection
+    connection = connection_type(
+        str(target["host"]), int(target["port"]), pinned_ip, _WIRE_D_HOP_TIMEOUT_SECONDS
     )
+    request_headers = {
+        "Accept": "application/json",
+        "traceparent": traceparent,
+        "X-SZL-Wire-D-Probe": "1",
+    }
+    if tracestate:
+        request_headers["tracestate"] = tracestate
     started = time.perf_counter_ns()
-    opener = urllib.request.build_opener(_NoRedirect())
+    deadline_expired = threading.Event()
+
+    def expire() -> None:
+        deadline_expired.set()
+        _abort_connection(connection)
+
+    timer = threading.Timer(_WIRE_D_HOP_TIMEOUT_SECONDS, expire)
+    timer.daemon = True
+    timer.start()
     try:
-        response = opener.open(request, timeout=3.0)
-    except urllib.error.HTTPError as exc:
-        response = exc
-    with response:
-        response.read(4096)
+        connection.request("GET", str(target["path"]), headers=request_headers)
+        response = connection.getresponse()
         status_code = int(response.status)
-        echoed = response.headers.get("traceparent")
-        target_space = response.headers.get("x-szl-space")
+        echoed = _safe_header_value(response.getheader("traceparent"), maximum=55)
+        target_space = _safe_header_value(response.getheader("x-szl-space"), maximum=64)
+        response.close()
+    except (OSError, http.client.HTTPException) as exc:
+        if deadline_expired.is_set():
+            raise TimeoutError("Wire-D peer hop exceeded its wall-clock deadline") from exc
+        raise
+    finally:
+        timer.cancel()
+        connection.close()
+    if deadline_expired.is_set():
+        raise TimeoutError("Wire-D peer hop exceeded its wall-clock deadline")
     latency_ms = round((time.perf_counter_ns() - started) / 1_000_000, 3)
     sent_parsed = parse_traceparent(headers["traceparent"])
     echo_parsed = parse_traceparent(echoed)
@@ -377,6 +484,11 @@ class _KhipuDAG:
         with self.lock:
             return self.nodes[-n:]
 
+    def by_schema(self, schema: str) -> list[dict[str, Any]]:
+        """Return all retained nodes for a schema before any presentation bound."""
+        with self.lock:
+            return [node for node in self.nodes if node.get("receipt", {}).get("schema") == schema]
+
 
 # ---------------------------------------------------------------------------
 # Public registration
@@ -401,12 +513,14 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         if parsed.get("valid"):
             trace_id = parsed["trace_id"]
             inbound_parent = parsed["parent_id"]
+            trace_flags = parsed["flags"]
         else:
             trace_id = new_trace_id()
             inbound_parent = None
+            trace_flags = "01"
             ts_in = []  # invalid traceparent => discard tracestate (per spec)
         server_span = new_span_id()  # this Space's span for THIS request (mutate parent-id)
-        tp = f"00-{trace_id}-{server_span}-01"
+        tp = f"00-{trace_id}-{server_span}-{trace_flags}"
         ts_out = mutate_tracestate(ts_in, server_span)
         # stash for outgoing propagation + receipt stamping
         request.state.traceparent = tp
@@ -414,6 +528,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         request.state.span_id = server_span
         request.state.inbound_parent = inbound_parent
         request.state.tracestate = ts_out
+        request.state.trace_flags = trace_flags
         path = request.url.path
         if not path.startswith("/assets"):
             tstate.record_inbound(trace_id, server_span, inbound_parent, path)
@@ -437,7 +552,8 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         ts = getattr(st, "tracestate", "") or ""
         ts_members = parse_tracestate(ts)
         ts_out = mutate_tracestate(ts_members, child)
-        tp = f"00-{trace_id}-{child}-01"
+        trace_flags = getattr(st, "trace_flags", "01")
+        tp = f"00-{trace_id}-{child}-{trace_flags}"
         tstate.record_outbound(trace_id, child, getattr(st, "span_id", None) or "", target_space or "peer")
         hdrs = {"traceparent": tp}
         if ts_out:
@@ -468,11 +584,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         return dag.append_signed(r)
 
     def wire_d_receipts() -> list[dict[str, Any]]:
-        return [
-            node
-            for node in dag.recent(50)
-            if node.get("receipt", {}).get("schema") == "szl.wire_d.hop_receipt/v1"
-        ]
+        return dag.by_schema("szl.wire_d.hop_receipt/v1")
 
     def wire_d_status_payload() -> dict[str, Any]:
         receipts = wire_d_receipts()
@@ -524,6 +636,13 @@ def register_provenance(app, space: str) -> dict[str, Any]:
                 "yuyay_contract": "yuyay_v3 canonical 13-axis contract preserved; transport probe does not score it",
             },
             "receipt_minted_on_get": False,
+            "authorization": {
+                "required": True,
+                "configured": bool(_WIRE_D_TOKEN_DIGEST_RE.fullmatch(
+                    os.environ.get("A11OY_COMPUTE_TOKEN_SHA256", "").strip().lower()
+                )),
+                "authority": "A11OY_COMPUTE_TOKEN_SHA256",
+            },
             "honesty": (
                 "MEASURED requires a real configured HTTP peer to echo a valid traceparent "
                 "with the same trace-id. READY_UNMEASURED is configuration, not evidence."
@@ -544,6 +663,15 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     async def wire_d_probe(request: Request) -> JSONResponse:
         """Execute one allowlisted HTTP hop and receipt the observed continuity."""
         try:
+            operator_authority = _wire_d_authorize_request(request)
+        except _WireDAuthorizationError as exc:
+            reason = str(exc)
+            return JSONResponse(
+                {"state": "DENIED", "reason": reason},
+                status_code=503 if "not configured" in reason else 401,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        try:
             body = await request.json()
         except (TypeError, ValueError):
             return JSONResponse({"state": "DENIED", "reason": "invalid JSON body"}, status_code=400)
@@ -561,7 +689,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         headers = outgoing_headers(request, target_name)
         try:
             result = await asyncio.to_thread(_wire_d_http_hop, target, headers)
-        except (OSError, TimeoutError, http.client.HTTPException, urllib.error.URLError) as exc:
+        except (OSError, TimeoutError, ValueError, http.client.HTTPException) as exc:
             result = {
                 "state": "UNAVAILABLE",
                 "http_status": None,
@@ -578,6 +706,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "source_space": space,
             "target": target_name,
             "target_endpoint_fingerprint": target["fingerprint"],
+            "operator_authority": operator_authority,
             **result,
         }
         node = emit_signed_receipt(receipt, request)
@@ -601,7 +730,8 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "wire": "D",
             "name": "W3C traceparent \u2014 trace continuity",
             "space": space,
-            "status": cross_mesh["state"],
+            "status": "LIVE",
+            "cross_mesh_status": cross_mesh["state"],
             "spec": "https://www.w3.org/TR/trace-context/",
             "format": "00-<32hex trace-id>-<16hex span-id>-<2hex flags>",
             "current_request_traceparent": getattr(request.state, "traceparent", None),
