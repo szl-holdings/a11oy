@@ -78,6 +78,13 @@ flowchart TB
 
 **Honest gaps (not yet wired):**
 
+- Cross-mesh evidence is not inferred from the `x-szl-wire-d: LIVE` in-process marker. The
+  a11oy service exposes an operator-triggered, closed-registry probe at
+  `POST /api/a11oy/v1/wire-d/probe`; only a successful same-trace-ID echo is labelled
+  **MEASURED** and receipted. `GET /api/a11oy/v1/wire-d/status` is read-only and reports
+  **UNCONFIGURED**, **READY_UNMEASURED**, **MEASURED**, or **DEGRADED**. This bounded probe is
+  not an arbitrary-URL fetcher or a general distributed-trace broker.
+
 - **No OTLP export.** No `opentelemetry` package, no exporter, no collector — spans are a
   documented schema, not a live telemetry signal.
 - **DSSE receipts are UNSIGNED** today (`signatures: []`) — the cosign private key

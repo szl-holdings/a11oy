@@ -24,6 +24,7 @@ REQUIRED_ENDPOINTS = {
     "/api/a11oy/v1/spaces/health",
     "/api/a11oy/v1/genome",
     "/api/a11oy/v1/formulas/index",
+    "/api/a11oy/v1/wire-d/status",
 }
 
 
@@ -42,13 +43,13 @@ def test_anatomy_v5_is_a_real_versioned_page_linked_from_the_atlas() -> None:
     assert "Anatomy v5" in ecosystem
 
 
-def test_anatomy_v5_references_all_seven_same_origin_evidence_sources() -> None:
+def test_anatomy_v5_references_all_eight_same_origin_evidence_sources() -> None:
     html = _read(ANATOMY_PAGE)
     referenced = set(re.findall(r"['\"](/(?:api/|v1/)[^'\"]+)['\"]", html))
 
     assert REQUIRED_ENDPOINTS <= referenced
     # Router may use its established same-origin alias as a fallback, but none
-    # of the seven primary probes may be replaced with a cross-origin browser URL.
+    # of the eight primary probes may be replaced with a cross-origin browser URL.
     assert "/v1/router/stats" in referenced
     endpoints_block = html.split("const endpoints={", 1)[1].split("};", 1)[0]
     assert "http://" not in endpoints_block
@@ -95,7 +96,8 @@ def test_failed_or_degraded_sources_keep_honest_state_labels() -> None:
     # a stronger claim from a count or a successful HTTP response.
     for label in (
         "LIVE", "CACHED", "STALE_CACHE", "SNAPSHOT", "MODELED",
-        "OBSERVED", "AVAILABLE", "DEGRADED", "UNAVAILABLE",
+        "OBSERVED", "AVAILABLE", "DEGRADED", "UNCONFIGURED",
+        "READY_UNMEASURED", "MEASURED", "CONFLICT", "UNAVAILABLE",
     ):
         assert label in html
     assert "source-derived" in html
@@ -130,7 +132,7 @@ def test_brain_lit_fields_are_numeric_leaf_paths_not_the_lit_object() -> None:
 def test_tabs_follow_the_aria_keyboard_pattern() -> None:
     html = _read(ANATOMY_PAGE)
 
-    for name in ("organism", "nervous", "genome", "evidence"):
+    for name in ("organism", "nervous", "wire-d", "genome", "evidence"):
         assert f'id="tab-{name}"' in html
         assert f'aria-controls="view-{name}"' in html
         assert f'role="tabpanel" aria-labelledby="tab-{name}"' in html
@@ -139,6 +141,29 @@ def test_tabs_follow_the_aria_keyboard_pattern() -> None:
     assert "setAttribute('aria-selected',String(selected))" in html
     for key in ("ArrowRight", "ArrowLeft", "Home", "End"):
         assert key in html
+
+
+def test_wire_d_panel_keeps_v5_current_and_requires_an_explicit_closed_registry_post() -> None:
+    html = _read(ANATOMY_PAGE)
+    provenance = _read(ROOT / "szl_provenance.py")
+
+    assert "Anatomy v5 remains current" in html
+    assert "A future v6 is not claimed here" in html
+    assert "future v6" not in html.split("<title>", 1)[1].split("</title>", 1)[0]
+    assert 'wireD:[\'/api/a11oy/v1/wire-d/status\']' in html
+    assert "fetch('/api/a11oy/v1/wire-d/probe',{method:'POST'" in html
+    assert "body:JSON.stringify({target})" in html
+    assert 'id="wire-d-target"' in html
+    assert 'id="wire-d-url"' not in html
+    assert "Targets come from the closed server registry" in html
+    assert "GET is read-only" in html
+
+    assert '@app.get(f"{base}/v1/wire-d/status")' in provenance
+    assert '@app.post(f"{base}/v1/wire-d/probe")' in provenance
+    assert '"receipt_minted_on_get": False' in provenance
+    assert '"v6": "NOT_CLAIMED"' in provenance
+    assert "A11OY_WIRE_D_TARGETS" in provenance
+    assert "A11OY_WIRE_D_ALLOWED_HOSTS" in provenance
 
 
 def test_cached_snapshot_and_observed_states_render_amber() -> None:
