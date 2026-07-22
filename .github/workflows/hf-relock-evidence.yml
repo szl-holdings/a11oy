@@ -27,8 +27,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate exact GitHub and Hugging Face revisions
         env:
-          EXPECTED_GITHUB_SHA: d5af1a5ed3b3d46541be920b914e6d40dcb6b252
-          EXPECTED_HF_SHA: ce45517588dcbb19076917653dd87f3c20ed0db8
+          EXPECTED_GITHUB_SHA: 407a2dcae66484d3862e45ae0ca3b0d8317a90a9
+          EXPECTED_HF_SHA: 077900388475f429f545f939abeba56e689a7db6
         run: |
           python3 - <<'PY'
           import json
@@ -55,8 +55,8 @@ jobs:
     with:
       hf-repo: SZLHOLDINGS/a11oy
       mode: direct
-      github-ref: d5af1a5ed3b3d46541be920b914e6d40dcb6b252
-      hf-ref: ce45517588dcbb19076917653dd87f3c20ed0db8
+      github-ref: 407a2dcae66484d3862e45ae0ca3b0d8317a90a9
+      hf-ref: 077900388475f429f545f939abeba56e689a7db6
       dockerfile-path: Dockerfile
 
   live-api:
@@ -72,11 +72,11 @@ jobs:
       - name: Prove locked runtime revision is serving
         run: |
           python3 scripts/check_hf_runtime_revision.py \
-            --expected-runtime-sha ce45517588dcbb19076917653dd87f3c20ed0db8
+            --expected-runtime-sha 077900388475f429f545f939abeba56e689a7db6
       - name: Checkout exact GitHub source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: d5af1a5ed3b3d46541be920b914e6d40dcb6b252
+          ref: 407a2dcae66484d3862e45ae0ca3b0d8317a90a9
           persist-credentials: false
       - name: Prove the health validator fails closed
         run: python3 scripts/test_check_a11oy_api_health.py
