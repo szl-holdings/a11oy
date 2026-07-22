@@ -1,0 +1,360 @@
+run=29942913409
+--- error matches ---
+10-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5765099Z ##[group]Operating System
+11-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5765782Z Ubuntu
+12-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5766359Z 24.04.4
+13-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5766887Z LTS
+14-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5767432Z ##[endgroup]
+15-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5768027Z ##[group]Runner Image
+16-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5768626Z Image: ubuntu-24.04
+17-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5769255Z Version: 20260714.240.1
+18:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5770491Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260714.240/images/ubuntu/Ubuntu2404-Readme.md
+19-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5772134Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260714.240
+20-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5773585Z ##[endgroup]
+21-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5774792Z ##[group]GITHUB_TOKEN Permissions
+22-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5776697Z Contents: read
+23-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5777323Z Metadata: read
+24-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5777984Z ##[endgroup]
+25-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5780013Z Secret source: Actions
+26-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:32.5780856Z Prepare workflow directory
+--
+89-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3034594Z ##[endgroup]
+90-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3759885Z [harden-runner] main-step
+91-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3766192Z ^[[32mView security insights and recommended policy at:^[[0m
+92-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3767255Z https://app.stepsecurity.io/github/szl-holdings/a11oy/actions/runs/29942913409
+93-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3936653Z ##[group]Run set -euo pipefail
+94-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3937205Z ^[[36;1mset -euo pipefail^[[0m
+95-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3937619Z ^[[36;1mcase "${MODE}" in^[[0m
+96-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3938150Z ^[[36;1m  direct|trusted-baseline|source-bound-baseline) ;;^[[0m
+97:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3939123Z ^[[36;1m  *) echo "::error::mode must be direct, trusted-baseline, or source-bound-baseline"; exit 1 ;;^[[0m
+98-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.3939939Z ^[[36;1mesac^[[0m
+99-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4037750Z shell: /usr/bin/bash -e {0}
+100-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4038102Z env:
+101-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4038375Z   MODE: source-bound-baseline
+102-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4038682Z ##[endgroup]
+103-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4240644Z ##[group]Run set -euo pipefail
+104-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4241013Z ^[[36;1mset -euo pipefail^[[0m
+105-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4241271Z ^[[36;1msha_re='^[0-9a-f]{40}$'^[[0m
+106-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4241562Z ^[[36;1m[[ "${TRUSTED_BASE_REF}" =~ ${sha_re} ]] || {^[[0m
+107:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4242004Z ^[[36;1m  echo "::error::trusted-base-ref must be an exact lowercase 40-character SHA"^[[0m
+108-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4242413Z ^[[36;1m  exit 1^[[0m
+109-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4242610Z ^[[36;1m}^[[0m
+110-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4243014Z ^[[36;1mif [ -n "${CANDIDATE_REF}" ]; then^[[0m
+111-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4243335Z ^[[36;1m  [[ "${CANDIDATE_REF}" =~ ${sha_re} ]] || {^[[0m
+112:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4243984Z ^[[36;1m    echo "::error::candidate-ref must be an exact lowercase 40-character SHA"^[[0m
+113-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4244401Z ^[[36;1m    exit 1^[[0m
+114-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4244606Z ^[[36;1m  }^[[0m
+115-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4244788Z ^[[36;1mfi^[[0m
+116-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4245016Z ^[[36;1mif [ "${MODE}" = 'trusted-baseline' ]; then^[[0m
+117-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4245352Z ^[[36;1m  case "${LOCK_PATH}" in^[[0m
+118-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4245612Z ^[[36;1m    /*|*..*|*\*)^[[0m
+119:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4245981Z ^[[36;1m      echo "::error::deployment-lock-path must be a safe repo-relative path"^[[0m
+120-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4246394Z ^[[36;1m      exit 1^[[0m
+121-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4246605Z ^[[36;1m      ;;^[[0m
+122-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4246803Z ^[[36;1m  esac^[[0m
+123-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4247084Z ^[[36;1melse^[[0m
+124-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4247338Z ^[[36;1m  case "${SOURCE_PROBE_PATH}" in^[[0m
+125-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4247608Z ^[[36;1m    /*) ;;^[[0m
+126:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4247993Z ^[[36;1m    *) echo "::error::source-probe-path must be a same-host absolute path"; exit 1 ;;^[[0m
+127-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4248426Z ^[[36;1m  esac^[[0m
+128-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4248621Z ^[[36;1mfi^[[0m
+129-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4305073Z shell: /usr/bin/bash -e {0}
+130-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4305340Z env:
+131-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4305562Z   MODE: source-bound-baseline
+132-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4305882Z   TRUSTED_BASE_REF: 06890cb1428323e208da2e243d184db927e50c62
+133-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4306273Z   CANDIDATE_REF: 06890cb1428323e208da2e243d184db927e50c62
+134-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4306618Z   LOCK_PATH: .github/hf-deployment-lock.json
+--
+148-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4493538Z   fetch-depth: 1
+149-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4493738Z   fetch-tags: false
+150-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4493945Z   show-progress: true
+151-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4494158Z   lfs: false
+152-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4494346Z   submodules: false
+153-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4494560Z   set-safe-directory: true
+154-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4494808Z   allow-unsafe-pr-checkout: false
+155-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.4495063Z ##[endgroup]
+156:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5404281Z Syncing repository: szl-holdings/.github
+157:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5405734Z ##[group]Getting Git version info
+158-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5406150Z Working directory is '/home/runner/work/a11oy/a11oy/tools'
+159-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5406726Z [command]/usr/bin/git version
+160-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5498837Z git version 2.54.0
+161-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5554489Z ##[endgroup]
+162-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5575966Z Temporarily overriding HOME='/home/runner/work/_temp/93195c7d-ae4d-4ccf-af11-2e4544f2af92' before making global git config changes
+163-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5577628Z Adding repository directory to the temporary git global config as a safe directory
+164-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5581225Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/a11oy/a11oy/tools
+165-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:40.5639139Z ##[group]Determining repository object format
+--
+284-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3621121Z ^[[36;1mfi^[[0m
+285-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3621418Z ^[[36;1mpython3 tools/.github/scripts/hf_source_bound_baseline.py \^[[0m
+286-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3621807Z ^[[36;1m  --github-repo "${GH_REPO}" \^[[0m
+287-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3622083Z ^[[36;1m  --hf-repo "${HF_REPO}" \^[[0m
+288-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3622411Z ^[[36;1m  --trusted-base-ref "${TRUSTED_BASE_REF}" \^[[0m
+289-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3622945Z ^[[36;1m  --candidate-ref "${CANDIDATE_REF}" \^[[0m
+290-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3623285Z ^[[36;1m  --dockerfile-path "${DOCKERFILE_PATH}" \^[[0m
+291-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3623635Z ^[[36;1m  --source-probe-path "${SOURCE_PROBE_PATH}" \^[[0m
+292:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3624041Z ^[[36;1m  --report-out hf-module-drift-report.out.json \^[[0m
+293-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3624472Z ^[[36;1m  --candidate-report-out hf-managed-candidate-plan.out.json^[[0m
+294-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3698844Z shell: /usr/bin/bash -e {0}
+295-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3699253Z env:
+296-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3699728Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+297-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3700432Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+298-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3700873Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+299-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3701444Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+300-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3701978Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+--
+307-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3711540Z   DOCKERFILE_PATH: Dockerfile
+308-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3711985Z   SOURCE_PROBE_PATH: /api/build-info
+309-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3712435Z ##[endgroup]
+310-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7081706Z == HF module-drift guard: szl-holdings/a11oy (None)  <->  SZLHOLDINGS/a11oy (None) ==
+311-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7082843Z    COPY sources: 0   files compared: 0
+312-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7083620Z    errors (drift): 1   warnings (allowlisted/absent): 0
+313-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7084102Z 
+314-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7084544Z -- DRIFT requiring a human to pick the direction (GitHub vs live HF Space) --
+315:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7085693Z   LIVE-HF-RUNTIME-NOT-RUNNING (hf-runtime) -- Space is not RUNNING at the observed immutable revision
+316-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7107179Z ##[error]szl-holdings/a11oy: (hf-runtime) (live-hf-runtime-not-running) ahead=? -- reconcile then commit; do NOT blind-overwrite (allowlist intentional divergence in hf-module-drift-allow.json)
+317-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7116844Z 
+318-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7117204Z == Candidate managed-file delta (report only; never deployed) ==
+319-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7117758Z    f63e5eea9ac5f0a42c31b16ce9e1b94fcb7c32a2 -> 06890cb1428323e208da2e243d184db927e50c62
+320-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7118418Z    managed deltas: 0   new unresolved COPY sources: 0
+321-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7118648Z 
+322-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7119038Z FAIL: the immutable source-bound live baseline or candidate deploy plan violated its contract. The candidate was not deployed.
+323-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7248118Z ##[error]Process completed with exit code 1.
+--
+364-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9683757Z Removing SSH command configuration
+365-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9690769Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+366-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9730640Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+367-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0010546Z Removing HTTP extra header
+368-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0017888Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+369-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0067802Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+370-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0349492Z Removing includeIf entries pointing to credentials config files
+371-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0359613Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+372:hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0404437Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+373-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0879366Z Post job cleanup.
+374-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.1614380Z [harden-runner] post-step
+375-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1632414Z log:
+376-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1634180Z Wed, 22 Jul 2026 17:34:37 GMT:[buildInfo] tag=v0.16.2 commit=45e1b8427d286d8a0386981ae7e8a9f54632db0c branch=HEAD 
+377-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1635134Z 
+378-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1635365Z Wed, 22 Jul 2026 17:34:37 GMT:read config 
+379-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1639369Z  &{Repo:szl-holdings/a11oy CorrelationId:de0b3fd7-6f94-4dc1-8e34-6af1998df0e4 RunId:29942913409 WorkingDirectory:/home/runner/work/a11oy/a11oy APIURL:https://agent.api.stepsecurity.io/v1 TelemetryURL:https://prod.app-api.stepsecurity.io/v1 OneTimeKey: Endpoints:map[] EgressPolicy:audit DisableTelemetry:false DisableSudo:false DisableSudoAndContainers:false DisableFileMonitoring:false Private:false}
+380-hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1642947Z 
+--- final 220 lines ---
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.2247488Z   freethreaded: false
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.2247704Z ##[endgroup]
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3387003Z ##[group]Installed versions
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3470459Z Successfully set up CPython (3.12.13)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3471310Z ##[endgroup]
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3619444Z ##[group]Run set -euo pipefail
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3619779Z ^[[36;1mset -euo pipefail^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3620035Z ^[[36;1mif [ -n "${HF_REPO_IN}" ]; then^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3620365Z ^[[36;1m  HF_REPO="${HF_REPO_IN}"^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3620613Z ^[[36;1melse^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3620840Z ^[[36;1m  HF_REPO="SZLHOLDINGS/${GH_REPO##*/}"^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3621121Z ^[[36;1mfi^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3621418Z ^[[36;1mpython3 tools/.github/scripts/hf_source_bound_baseline.py \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3621807Z ^[[36;1m  --github-repo "${GH_REPO}" \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3622083Z ^[[36;1m  --hf-repo "${HF_REPO}" \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3622411Z ^[[36;1m  --trusted-base-ref "${TRUSTED_BASE_REF}" \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3622945Z ^[[36;1m  --candidate-ref "${CANDIDATE_REF}" \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3623285Z ^[[36;1m  --dockerfile-path "${DOCKERFILE_PATH}" \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3623635Z ^[[36;1m  --source-probe-path "${SOURCE_PROBE_PATH}" \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3624041Z ^[[36;1m  --report-out hf-module-drift-report.out.json \^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3624472Z ^[[36;1m  --candidate-report-out hf-managed-candidate-plan.out.json^[[0m
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3698844Z shell: /usr/bin/bash -e {0}
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3699253Z env:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3699728Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3700432Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3700873Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3701444Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3701978Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3702868Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3708694Z   GITHUB_TOKEN: ***
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3709091Z   GH_REPO: szl-holdings/a11oy
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3709532Z   HF_REPO_IN: SZLHOLDINGS/a11oy
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3710070Z   TRUSTED_BASE_REF: 06890cb1428323e208da2e243d184db927e50c62
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3710705Z   CANDIDATE_REF: 06890cb1428323e208da2e243d184db927e50c62
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3711540Z   DOCKERFILE_PATH: Dockerfile
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3711985Z   SOURCE_PROBE_PATH: /api/build-info
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:42.3712435Z ##[endgroup]
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7081706Z == HF module-drift guard: szl-holdings/a11oy (None)  <->  SZLHOLDINGS/a11oy (None) ==
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7082843Z    COPY sources: 0   files compared: 0
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7083620Z    errors (drift): 1   warnings (allowlisted/absent): 0
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7084102Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7084544Z -- DRIFT requiring a human to pick the direction (GitHub vs live HF Space) --
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7085693Z   LIVE-HF-RUNTIME-NOT-RUNNING (hf-runtime) -- Space is not RUNNING at the observed immutable revision
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7107179Z ##[error]szl-holdings/a11oy: (hf-runtime) (live-hf-runtime-not-running) ahead=? -- reconcile then commit; do NOT blind-overwrite (allowlist intentional divergence in hf-module-drift-allow.json)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7116844Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7117204Z == Candidate managed-file delta (report only; never deployed) ==
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7117758Z    f63e5eea9ac5f0a42c31b16ce9e1b94fcb7c32a2 -> 06890cb1428323e208da2e243d184db927e50c62
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7118418Z    managed deltas: 0   new unresolved COPY sources: 0
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7118648Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7119038Z FAIL: the immutable source-bound live baseline or candidate deploy plan violated its contract. The candidate was not deployed.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7248118Z ##[error]Process completed with exit code 1.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7304854Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7305283Z with:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7305492Z   name: hf-module-drift-report
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7305889Z   path: hf-module-drift-report.out.json
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	hf-managed-candidate-plan.out.json
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7306317Z   if-no-files-found: ignore
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7306552Z   retention-days: 90
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7306765Z   compression-level: 6
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7306986Z   overwrite: false
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7307200Z   include-hidden-files: false
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7307437Z   archive: true
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7307624Z env:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7307873Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7308302Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7308723Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7309099Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7309510Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7309892Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.7310211Z ##[endgroup]
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.8697783Z Multiple search paths detected. Calculating the least common ancestor of all paths
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.8743869Z The least common ancestor is /home/runner/work/a11oy/a11oy. This will be the root directory of the artifact
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.8773533Z With the provided path, there will be 2 files uploaded
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.8783600Z Artifact name is valid!
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:48.8784106Z Root directory input is valid!
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.1492422Z Uploading artifact: hf-module-drift-report.zip
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.1537750Z Beginning upload of artifact content to blob storage
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.4359256Z Uploaded bytes 5766
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.5018110Z Finished uploading artifact content to blob storage!
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.5019219Z SHA256 digest of uploaded artifact is 0bda841ea32b1d966c9eea66a70a344cfc70a8d1412f9c53572d9e24ac06be50
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.5020296Z Finalizing artifact upload
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.8551407Z Artifact hf-module-drift-report successfully finalized. Artifact ID 8538934375
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.8552850Z Artifact hf-module-drift-report has been successfully uploaded! Final size is 5766 bytes. Artifact ID is 8538934375
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.8555979Z Artifact download URL: https://github.com/szl-holdings/a11oy/actions/runs/29942913409/artifacts/8538934375
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.8729710Z Post job cleanup.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9543533Z [command]/usr/bin/git version
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9588247Z git version 2.54.0
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9631531Z Temporarily overriding HOME='/home/runner/work/_temp/b35d3cae-46b3-41a9-9dc7-4575b13bd804' before making global git config changes
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9632603Z Adding repository directory to the temporary git global config as a safe directory
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9639888Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/a11oy/a11oy/tools
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9683757Z Removing SSH command configuration
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9690769Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:49.9730640Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0010546Z Removing HTTP extra header
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0017888Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0067802Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0349492Z Removing includeIf entries pointing to credentials config files
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0359613Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0404437Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.0879366Z Post job cleanup.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:50.1614380Z [harden-runner] post-step
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1632414Z log:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1634180Z Wed, 22 Jul 2026 17:34:37 GMT:[buildInfo] tag=v0.16.2 commit=45e1b8427d286d8a0386981ae7e8a9f54632db0c branch=HEAD 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1635134Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1635365Z Wed, 22 Jul 2026 17:34:37 GMT:read config 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1639369Z  &{Repo:szl-holdings/a11oy CorrelationId:de0b3fd7-6f94-4dc1-8e34-6af1998df0e4 RunId:29942913409 WorkingDirectory:/home/runner/work/a11oy/a11oy APIURL:https://agent.api.stepsecurity.io/v1 TelemetryURL:https://prod.app-api.stepsecurity.io/v1 OneTimeKey: Endpoints:map[] EgressPolicy:audit DisableTelemetry:false DisableSudo:false DisableSudoAndContainers:false DisableFileMonitoring:false Private:false}
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1642947Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1643470Z Wed, 22 Jul 2026 17:34:37 GMT:Step Security Job Correlation ID: de0b3fd7-6f94-4dc1-8e34-6af1998df0e4
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1644156Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1645112Z Wed, 22 Jul 2026 17:34:38 GMT:Global feature flags: {AgentType:agent-oss EnableArmour:true EnableCustomDetectionRules:true DisableKillEnforcement:false}
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1646435Z Wed, 22 Jul 2026 17:34:38 GMT:initialized global feature flags
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1646712Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1653787Z Wed, 22 Jul 2026 17:34:38 GMT:initialized global blocklist: &{ipAddresses:map[142.11.206.73:COMPROMISED_AXIOS_C2_IP 216.126.225.129:MEGALODON_EXFIL_IP 23.254.164.123:COMPROMISED_MASTRA_C2_DOMAIN 23.254.164.92:COMPROMISED_MASTRA_C2_DOMAIN 37.27.122.124:COMPROMISED_JSCRAMBLER_C2_IP 57.128.246.79:COMPROMISED_JSCRAMBLER_C2_IP 83.142.209.194:COMPROMISED_MISTRAL_PYPI_C2_IP 85.137.53.71:COMPROMISED_ASYNCAPI_GENERATOR_MIASMA_RAT_C2] domains:map[api.masscan.cloud.:COMPROMISED_TANSTACK_EXFIL archive.torproject.org.:COMPROMISED_JSCRAMBLER_C2_DOMAIN audit.checkmarx.cx.:COMPROMISED_BITWARDEN_CLI_C2_DOMAIN check.git-service.com.:COMPROMISED_DURABLETASK_C2_DOMAIN check.torproject.org.:COMPROMISED_JSCRAMBLER_C2_DOMAIN cjn37-uyaaa-aaaac-qgnva-cai.raw.icp0.io.:COMPROMISED_PGSERVE_EXFIL_CANISTER dht.transmissionbt.com.:COMPROMISED_ASYNCAPI_GENERATOR_MIASMA_RAT_C2 evil.invalid.:GLOBAL_BLOCK_TEST_DOMAIN filev2.getsession.org.:COMPROMISED_TANSTACK_EXFIL flipboxstudio.info.:COMPROMISED_PACKAGIST_C2_DOMAIN git-tanstack.com.:COMPROMISED_TANSTACK_EXFIL igotnofriendsonlineorirl-imgonnakmslmao.skyhanni.cloud.:COMPROMISED_ELEMENTARY_DATA_EXFIL relay.damus.io.:COMPROMISED_ASYNCAPI_GENERATOR_MIASMA_RAT_C2 relay.nostr.com.:COMPROMISED_ASYNCAPI_GENERATOR_MIASMA_RAT_C2 router.bittorrent.com.:COMPROMISED_ASYNCAPI_GENERATOR_MIASMA_RAT_C2 scan.aquasecurtiy.org.:COMPROMISED_TRIVY_C2_DOMAIN seed1.getsession.org.:COMPROMISED_TANSTACK_EXFIL sfrclak.com.:COMPROMISED_AXIOS_C2_DOMAIN sh.azurestaticprovider.net.:COMPROMISED_NODE_IPC_NPM_C2 t.m-kosche.com.:COMPROMISED_ACTIONSCOOL_EXFIL telemetry.api-monitor.com.:COMPROMISED_PGSERVE_EXFIL_DOMAIN whereisitat.lucyatemysuperbox.space.:COMPROMISED_XINFERENCE_C2_DOMAIN zero.masscan.cloud.:COMPROMISED_MINI_SHAI_HULUD_2] wildcardDomains:map[]}
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1660610Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1660757Z Wed, 22 Jul 2026 17:34:38 GMT:started process monitor
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1660991Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1661127Z Wed, 22 Jul 2026 17:34:38 GMT:Monitor Processes called
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1661494Z Wed, 22 Jul 2026 17:34:38 GMT:NewAuditClient created
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1661820Z Wed, 22 Jul 2026 17:34:38 GMT:Status is enabled
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1662116Z Wed, 22 Jul 2026 17:34:38 GMT:Rules deleted
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1662505Z Wed, 22 Jul 2026 17:34:38 GMT:File monitor added for /home/runner/work/a11oy/a11oy
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1663235Z Wed, 22 Jul 2026 17:34:38 GMT:Agent file monitor added
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1663613Z Wed, 22 Jul 2026 17:34:38 GMT:Docker's daemon.json file monitor added
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1664039Z Wed, 22 Jul 2026 17:34:38 GMT:Systemd's resolved.conf file monitor added
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1664462Z Wed, 22 Jul 2026 17:34:38 GMT:Net monitor added for TCP (connect)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1665151Z Wed, 22 Jul 2026 17:34:38 GMT:Net monitor added for UDP (sendto & sendmsg)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1665555Z Wed, 22 Jul 2026 17:34:38 GMT:Process monitor added
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1665870Z Wed, 22 Jul 2026 17:34:38 GMT:receive called
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666067Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666072Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666188Z Wed, 22 Jul 2026 17:34:38 GMT:updated resolved
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666390Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666505Z Wed, 22 Jul 2026 17:34:39 GMT:set docker config
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666699Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1666833Z Wed, 22 Jul 2026 17:34:39 GMT:before audit rules
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1667361Z Wed, 22 Jul 2026 17:34:39 GMT:added audit rules
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1667888Z Wed, 22 Jul 2026 17:34:39 GMT:Armour is enabled
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1668479Z Wed, 22 Jul 2026 17:34:40 GMT:[armour] Runner.Worker PID: 2013
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1669118Z Wed, 22 Jul 2026 17:34:40 GMT:Armour attached
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1669778Z Wed, 22 Jul 2026 17:34:40 GMT:[armour] Custom detection rules enabled
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1670384Z Wed, 22 Jul 2026 17:34:40 GMT:done
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1671709Z Wed, 22 Jul 2026 17:34:40 GMT:[Source code overwritten] file: /home/runner/work/a11oy/a11oy/tools/.git/config.lock syscall: openat by exe: /usr/bin/git [f54a87f6253aab09ed7b522bd78ddeab509105b1043076209d89127e55877a48] Timestamp: 2026-07-22T17:34:40.582Z
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1673870Z Wed, 22 Jul 2026 17:34:40 GMT:[Source code overwritten] file: /home/runner/work/a11oy/a11oy/tools/.git/config syscall: rename by exe: /usr/bin/git [f54a87f6253aab09ed7b522bd78ddeab509105b1043076209d89127e55877a48] Timestamp: 2026-07-22T17:34:40.582Z
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1675816Z Wed, 22 Jul 2026 17:34:40 GMT:[Source code overwritten] file: /home/runner/work/a11oy/a11oy/tools/.git/config.lock syscall: openat by exe: /usr/bin/git [f54a87f6253aab09ed7b522bd78ddeab509105b1043076209d89127e55877a48] Timestamp: 2026-07-22T17:34:40.583Z
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1677834Z Wed, 22 Jul 2026 17:34:40 GMT:domain resolved: github.com., ip address: 140.82.113.3, TTL: 30
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1678650Z Wed, 22 Jul 2026 17:34:40 GMT:domain resolved: prod.app-api.stepsecurity.io., ip address: 35.80.164.245, TTL: 30
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1679605Z Wed, 22 Jul 2026 17:34:40 GMT:endpoint called ip address:port 140.82.113.3:443, domain: github.com., pid: 2652, process: git-remote-http
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1681161Z Wed, 22 Jul 2026 17:34:43 GMT:domain resolved: huggingface.co., ip address: 18.238.109.102, TTL: 60
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1681991Z Wed, 22 Jul 2026 17:34:43 GMT:endpoint called ip address:port 18.238.109.102:443, domain: huggingface.co., pid: 2766, process: python3.12
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1682980Z Wed, 22 Jul 2026 17:34:43 GMT:domain resolved: szlholdings-a11oy.hf.space., ip address: 98.89.51.95, TTL: 60
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1683926Z Wed, 22 Jul 2026 17:34:43 GMT:endpoint called ip address:port 98.89.51.95:443, domain: szlholdings-a11oy.hf.space., pid: 2766, process: python3.12
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1684668Z Wed, 22 Jul 2026 17:34:45 GMT:domain resolved: api.github.com., ip address: 140.82.114.6, TTL: 30
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1685382Z Wed, 22 Jul 2026 17:34:45 GMT:endpoint called ip address:port 140.82.114.6:443, domain: api.github.com., pid: 2766, process: python3.12
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1686146Z Wed, 22 Jul 2026 17:34:46 GMT:domain resolved: raw.githubusercontent.com., ip address: 185.199.110.133, TTL: 787
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1686969Z Wed, 22 Jul 2026 17:34:46 GMT:endpoint called ip address:port 185.199.110.133:443, domain: raw.githubusercontent.com., pid: 2766, process: python3.12
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1687863Z Wed, 22 Jul 2026 17:34:48 GMT:domain resolved: results-receiver.actions.githubusercontent.com., ip address: 140.82.114.22, TTL: 30
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1688854Z Wed, 22 Jul 2026 17:34:49 GMT:endpoint called ip address:port 140.82.114.22:443, domain: results-receiver.actions.githubusercontent.com., pid: 2771, process: node
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1689824Z Wed, 22 Jul 2026 17:34:49 GMT:domain resolved: productionresultssa18.blob.core.windows.net., ip address: 52.239.172.36, TTL: 30
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1690943Z Wed, 22 Jul 2026 17:34:49 GMT:endpoint called ip address:port 52.239.172.36:443, domain: productionresultssa18.blob.core.windows.net., pid: 2771, process: node
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1691518Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1691645Z Wed, 22 Jul 2026 17:34:50 GMT:post_event called
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1691856Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1691944Z status:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1692133Z Initialized
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1806532Z agent.service log:
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1808164Z Jul 22 17:34:37 runnervm3jd5f systemd[1]: /etc/systemd/system/agent.service:9: Standard output type syslog is obsolete, automatically updating to journal. Please update your unit file, and consider removing the setting altogether.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1811093Z Jul 22 17:34:37 runnervm3jd5f systemd[1]: /etc/systemd/system/agent.service:10: Standard output type syslog is obsolete, automatically updating to journal. Please update your unit file, and consider removing the setting altogether.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1813106Z Jul 22 17:34:37 runnervm3jd5f systemd[1]: Started agent.service - Agent.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1814155Z Jul 22 17:34:38 runnervm3jd5f sudo[2153]:     root : *** ; USER=root ; COMMAND=/usr/bin/systemctl stop systemd-resolved
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1814949Z Jul 22 17:34:38 runnervm3jd5f sudo[2153]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1815620Z Jul 22 17:34:38 runnervm3jd5f sudo[2153]: pam_unix(sudo:session): session closed for user root
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1816373Z Jul 22 17:34:38 runnervm3jd5f sudo[2159]:     root : *** ; USER=root ; COMMAND=/usr/bin/systemctl restart systemd-resolved
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1817080Z Jul 22 17:34:38 runnervm3jd5f sudo[2159]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1817713Z Jul 22 17:34:38 runnervm3jd5f sudo[2159]: pam_unix(sudo:session): session closed for user root
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1818412Z Jul 22 17:34:38 runnervm3jd5f sudo[2165]:     root : *** ; USER=root ; COMMAND=/usr/bin/resolvectl flush-caches
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1819103Z Jul 22 17:34:38 runnervm3jd5f sudo[2165]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1819761Z Jul 22 17:34:38 runnervm3jd5f sudo[2165]: pam_unix(sudo:session): session closed for user root
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1820442Z Jul 22 17:34:38 runnervm3jd5f sudo[2169]:     root : *** ; USER=root ; COMMAND=/usr/bin/systemctl reload docker
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1821342Z Jul 22 17:34:38 runnervm3jd5f sudo[2169]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1821967Z Jul 22 17:34:38 runnervm3jd5f sudo[2169]: pam_unix(sudo:session): session closed for user root
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1822924Z Jul 22 17:34:38 runnervm3jd5f sudo[2177]:     root : *** ; USER=root ; COMMAND=/usr/bin/systemctl daemon-reload
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1823633Z Jul 22 17:34:38 runnervm3jd5f sudo[2177]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1824751Z Jul 22 17:34:38 runnervm3jd5f systemd[1]: /etc/systemd/system/agent.service:9: Standard output type syslog is obsolete, automatically updating to journal. Please update your unit file, and consider removing the setting altogether.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1826280Z Jul 22 17:34:38 runnervm3jd5f systemd[1]: /etc/systemd/system/agent.service:10: Standard output type syslog is obsolete, automatically updating to journal. Please update your unit file, and consider removing the setting altogether.
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1827322Z Jul 22 17:34:38 runnervm3jd5f sudo[2177]: pam_unix(sudo:session): session closed for user root
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1828020Z Jul 22 17:34:38 runnervm3jd5f sudo[2247]:     root : *** ; USER=root ; COMMAND=/usr/bin/systemctl restart docker
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1828683Z Jul 22 17:34:38 runnervm3jd5f sudo[2247]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1829305Z Jul 22 17:34:39 runnervm3jd5f sudo[2247]: pam_unix(sudo:session): session closed for user root
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1830518Z Jul 22 17:34:39 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:39 INFO Fetching custom detection rules module=armour api_url=https://agent.api.stepsecurity.io/v1 repo=szl-holdings/a11oy
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1832395Z Jul 22 17:34:39 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:39 INFO Custom detection rules evaluator initialized module=armour
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1833898Z Jul 22 17:34:39 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:39 INFO Detection manager started module=detection-manager workers=4 buffer_size=1000
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1834787Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Selected Armour variant module=armour variant=fmod_ret
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1835532Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Config module=armour AGENT_PID=2139
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1836256Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Config module=armour ENFORCE_READ_BLOCK=false
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1836989Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Config module=armour ENFORCE_WRITE_BLOCK=false
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1837705Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Config module=armour ENFORCE_KILL_BLOCK=true
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1838833Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Map size module=armour protected_proc_fs_inodes=2
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1840257Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Map size module=armour events=16384
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1841841Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Map size module=armour protected_pids=1
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1844571Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Map size module=armour protected_pid_inodes=1
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1846005Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Map size module=armour protected_bpf_ids=9
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1847463Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Map size module=armour protected_fs_inodes=6
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1848643Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO ProtectedPids module=armour pids=map[2140:2139]
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1849406Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO ProtectedBPFIDs module=armour ids="[20 18 14 21 19]"
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1851007Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO File Info module=armour inoKey="{Device:24 Inode:9992}" path=/proc/2013/mem
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1851914Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO File Info module=armour inoKey="{Device:24 Inode:14668}" path=/proc/1994/mem
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1853126Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO File Info module=armour inoKey="{Device:2049 Inode:89645}" path=/etc/sudoers.d/runner
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1854122Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO File Info module=armour inoKey="{Device:28 Inode:912}" path=/etc/resolv.conf
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1855064Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO File Info module=armour inoKey="{Device:2049 Inode:508}" path=/etc/systemd/resolved.conf
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1856041Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO File Info module=armour inoKey="{Device:2049 Inode:815801}" path=/etc/docker/daemon.json
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1856874Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Protection maps populated module=armour
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1857564Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Protection maps are freezed module=armour
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1858230Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Linking completed module=armour
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1859038Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Armour engaged module=armour
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1859712Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO RingBuffer created module=armour size=16384
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1860409Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO Listening for events module=armour
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1861140Z Jul 22 17:34:40 runnervm3jd5f agentservice[2139]: 2026/07/22 17:34:40 INFO [LOCKDOWN] Runner.Worker PID set module=armour pid=2013
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.1861613Z 
+hf-module-drift / Source in sync with the live HF Space	UNKNOWN STEP	2026-07-22T17:34:51.4018323Z Cleaning up orphan processes
