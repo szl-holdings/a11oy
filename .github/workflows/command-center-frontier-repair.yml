@@ -6,16 +6,22 @@ on:
       - frontier/command-center-readonly-20260722
     paths:
       - .github/workflows/command-center-frontier-repair.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/scripts/apply_command_center_frontier.py
+      - .github/workflows/command-center-frontier-repair.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: command-center-frontier-repair
+  group: command-center-frontier-repair-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
   repair:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -78,5 +84,3 @@ jobs:
             -m "Keep Brain and ecosystem GET contracts read-only, require an external verified two-person gate for evolution, make unattended readiness probes GET/HEAD-only, add the compact readiness view, and add a mobile keyboard-accessible evidence rail across every holographic surface." \
             -m "Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           git push origin HEAD:frontier/command-center-readonly-20260722
-
-# retrigger: 2026-07-22T08:00Z
