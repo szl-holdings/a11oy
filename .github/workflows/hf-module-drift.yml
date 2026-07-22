@@ -1,17 +1,11 @@
 name: HF Space module-drift guard
 
-# szl-holdings/a11oy's live Hugging Face Space (SZLHOLDINGS/a11oy) is built by
-# Dockerfile COPY from this repo, but the Space's files can also be edited
-# directly on HF, so a COPY'd module can silently diverge between this source of
-# truth and the live Space -- in EITHER direction.
-#
-# The checker now lives ONCE in szl-holdings/.github (alongside the org-wide
-# license/lockfile/dead-link guards) and this repo delegates to the reusable
-# workflow instead of vendoring its own copy -- so a fix to the guard reaches
-# every HF-backed repo at once. This repo keeps only its own ratchet allowlist
-# (.github/hf-module-drift-allow.json): known drift warns, any NEW drift fails.
-# The org-wide scheduled sweep (szl-holdings/.github hf-module-drift-check.yml)
-# is the catch-all safety net.
+# The canonical Space is source-bound at runtime: Hugging Face exposes exact
+# repository/runtime SHAs and /api/build-info exposes the exact protected Git
+# source revision. Pull requests and pre-deploy pushes verify that stable live
+# pair byte-for-byte, then report candidate-only changes without deploying them.
+# Manual and scheduled runs retain strict current GitHub-main <-> HF-main parity.
+# No committed deployment lock or drift allowlist is used in source-bound mode.
 
 on:
   push:
@@ -31,22 +25,17 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@3625b7e22d38b795f1b628420607c65066082b31  # .github PR #205: immutable trusted deployed-baseline verification
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable source-bound live baseline
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      # Pull requests verify the immutable GitHub/HF deployment pair recorded
-      # on the exact protected base SHA, then report candidate-only deltas. The
-      # candidate is never compared to or deployed over the live Space.
-      mode: ${{ github.event_name == 'pull_request' && 'trusted-baseline' || 'direct' }}
-      deployment-lock-path: .github/hf-deployment-lock.json
-      trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
-      candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
-      # GitHub and Hugging Face revisions are independent namespaces. Pull
-      # requests use the trusted baseline above; main/scheduled runs retain the
-      # direct live comparison.
-      github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      # Space main after the holographic dedupe push (fix applied Space-first
-      # so PR trees compare equal; see docs/DOCKERFILE_NOTES.md for the earlier
-      # wave-24 lane history). Pin the immutable HF commit, never the movable
-      # branch name.
+      # PR and push runs must not race the deployment workflow. They verify the
+      # exact current live source/HF pair and report the candidate/new-main delta.
+      # workflow_dispatch and schedule are strict post-deploy/current-state checks.
+      mode: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'source-bound-baseline' || 'direct' }}
+      trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+      candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      source-probe-path: /api/build-info
+      dockerfile-path: Dockerfile
+      # Direct mode compares exact current source to the immutable HF main head.
+      github-ref: ${{ github.sha }}
       hf-ref: main
