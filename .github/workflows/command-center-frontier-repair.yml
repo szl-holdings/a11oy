@@ -78,3 +78,5 @@ jobs:
             -m "Keep Brain and ecosystem GET contracts read-only, require an external verified two-person gate for evolution, make unattended readiness probes GET/HEAD-only, add the compact readiness view, and add a mobile keyboard-accessible evidence rail across every holographic surface." \
             -m "Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           git push origin HEAD:frontier/command-center-readonly-20260722
+
+# retrigger: 2026-07-22T08:00Z
