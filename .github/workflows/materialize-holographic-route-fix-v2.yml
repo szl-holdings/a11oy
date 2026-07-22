@@ -60,3 +60,4 @@ jobs:
             -m 'Make the owning szl3d transport independent of SPA registration order, preserve fail-closed path handling, and add the exact production-order regression.' \
             -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
           git push origin HEAD:fix/holographic-static-route-precedence-20260722
+# retrigger: 2026-07-22T18:00Z
