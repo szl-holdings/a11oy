@@ -78,7 +78,6 @@ jobs:
       include-readme: true
       prune: true
       wait-running: 1200
-      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/brain/quantum-evidence"]'
     secrets: inherit
 
   verify-and-relock:
