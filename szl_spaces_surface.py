@@ -70,10 +70,10 @@ SPACES: list[dict[str, str]] = [
     {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker"},
     {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker"},
     {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static"},
-    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"},
+    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "gradio"},
     {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static"},
     {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static"},
-    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"},
+    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "gradio"},
     {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker"},
     {"name": "holographic", "slug": "holographic", "title": "Holographic Estate", "sdk": "docker"},
     {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker"},
@@ -85,7 +85,7 @@ SPACES: list[dict[str, str]] = [
     {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker"},
     {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static"},
     {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static"},
-    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"},
+    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "gradio"},
     {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static"},
     {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static"},
     {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker"},
@@ -150,6 +150,32 @@ def proxy_url(name: str) -> str:
     return canonical_url(name)
 
 
+# Exact public contracts for the two API-bearing Spaces audited in this repair.
+# These are deliberately route-level probes: a 200 root page is not evidence that
+# the API consumed by the Space is registered or compatible.
+SPACE_API_CONTRACTS: dict[str, tuple[dict[str, Any], ...]] = {
+    "anatomy": (
+        {"id": "manifest", "url": hf_url("anatomy") + "/api/anatomy/v1/manifest",
+         "expected": {"schema": "szl.anatomy-manifest/v1"}},
+        {"id": "capabilities", "url": hf_url("anatomy") + "/api/anatomy/v1/capabilities",
+         "expected": {"schema": "szl.anatomy-capabilities/v1"}},
+        {"id": "evidence", "url": hf_url("anatomy") + "/api/anatomy/v1/evidence",
+         "expected": {"schema": "szl.anatomy-evidence/v1"}},
+        {"id": "receipt", "url": hf_url("anatomy") + "/api/anatomy/v1/receipt",
+         "expected": {"verification_state": "STRUCTURAL_ONLY"}},
+    ),
+    "sda": (
+        {"id": "compute_pool", "url": "https://a-11-oy.com/api/a11oy/v1/compute-pool",
+         "expected": {"status": "live"}},
+        {"id": "receipt_verifier", "url": "https://a-11-oy.com/api/a11oy/v1/verify/receipt",
+         "expected": {"schema": "szl.public-receipt-verifier/manifest/v1"}},
+        {"id": "killinchu_mosaic_cop",
+         "url": "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mosaic/cop",
+         "expected": {"ok": True}},
+    ),
+}
+
+
 def _resolve_client() -> Any:
     """Lazily resolve the app's shared httpx.AsyncClient from serve.py (same idiom as
     szl_engine_status), so registration order doesn't matter."""
@@ -184,6 +210,48 @@ def _urllib_probe(url: str, timeout: float, want_json: bool = False) -> Any:
 async def _to_thread(fn, *a, **kw):
     import asyncio as _asyncio
     return await _asyncio.get_event_loop().run_in_executor(None, lambda: fn(*a, **kw))
+
+
+async def _probe_contract(client: Any, contract: dict[str, Any]) -> dict[str, Any]:
+    """Probe one exact public API contract and validate its stable top-level marker."""
+    status = None
+    data = None
+    via = None
+    if client is not None:
+        try:
+            response = await client.get(contract["url"], timeout=_PROBE_TIMEOUT,
+                                        follow_redirects=True)
+            status = response.status_code
+            data = response.json() if 200 <= status < 300 else None
+            via = "httpx"
+        except Exception:
+            status = None
+    if status is None:
+        try:
+            status, data = await _to_thread(
+                _urllib_probe, contract["url"], _PROBE_TIMEOUT, True
+            )
+            via = "urllib"
+        except Exception as exc:
+            return {"id": contract["id"], "url": contract["url"],
+                    "state": "UNAVAILABLE", "error": type(exc).__name__}
+
+    expected = contract["expected"]
+    matches = isinstance(data, dict) and all(data.get(k) == v for k, v in expected.items())
+    return {
+        "id": contract["id"],
+        "url": contract["url"],
+        "state": "LIVE" if 200 <= int(status) < 300 and matches else "UNAVAILABLE",
+        "http_status": status,
+        "expected": expected,
+        "probe_via": via,
+    }
+
+
+async def _probe_contracts(client: Any, slug: str) -> list[dict[str, Any]]:
+    import asyncio as _asyncio
+    contracts = SPACE_API_CONTRACTS.get(slug, ())
+    return list(await _asyncio.gather(*[_probe_contract(client, item) for item in contracts]))
 
 
 async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
@@ -265,6 +333,16 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
         except Exception as e:
             result["stage_error"] = type(e).__name__
 
+    contracts = await _probe_contracts(client, slug)
+    if contracts:
+        result["contracts"] = contracts
+        live_count = sum(item["state"] == "LIVE" for item in contracts)
+        result["contract_state"] = (
+            "LIVE" if live_count == len(contracts)
+            else "UNAVAILABLE" if live_count == 0
+            else "DEGRADED"
+        )
+
     result["state"] = _space_health_state(result)
     return result
 
@@ -273,9 +351,10 @@ def _space_health_state(space: dict[str, Any]) -> str:
     """Derive one conservative, user-facing state from observed row evidence."""
     reachable = bool(space.get("app_reachable"))
     stage = str(space.get("stage") or "unknown").upper()
-    if reachable and stage in _RUNNING_STAGES:
+    contract_state = str(space.get("contract_state") or "LIVE").upper()
+    if reachable and stage in _RUNNING_STAGES and contract_state == "LIVE":
         return "LIVE"
-    if not reachable and stage == "UNKNOWN":
+    if not reachable and stage == "UNKNOWN" and contract_state in {"LIVE", "UNAVAILABLE"}:
         return "UNAVAILABLE"
     return "DEGRADED"
 
@@ -318,7 +397,8 @@ async def spaces_health() -> dict[str, Any]:
         "spaces": spaces,
         "labels": {
             "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
-            "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING; partial evidence is DEGRADED",
+            "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
+            "contract_state": "Anatomy and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
             "degrade": "stage:'unknown' + app_reachable:false; never fabricated",

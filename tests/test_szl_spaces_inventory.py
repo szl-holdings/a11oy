@@ -5,6 +5,8 @@ honest probe endpoint, while this suite locks identity, SDK host selection, and 
 canonical-origin isolation boundary.
 """
 
+from pathlib import Path
+
 import szl_spaces_proxy as proxy
 import szl_spaces_surface as surface
 
@@ -15,10 +17,10 @@ EXPECTED = [
     ("cosmos", "cosmos", "SZL Cosmos", "docker"),
     ("david-leads", "david-leads", "David Leads — Sovereign Insurance Intelligence", "docker"),
     ("energy-attest-holo", "energy-attest-holo", "Energy Attestation Holo", "static"),
-    ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static"),
+    ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "gradio"),
     ("governed-norm-holo", "governed-norm-holo", "Governed Norms — WILLAY classifiers", "static"),
     ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
-    ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static"),
+    ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "gradio"),
     ("hatun-mcp", "hatun-mcp", "hatun — MCP Server", "docker"),
     ("holographic", "holographic", "Holographic Estate", "docker"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
@@ -30,7 +32,7 @@ EXPECTED = [
     ("sda", "sda", "SZL SDA", "docker"),
     ("szl-blocked-live", "szl-blocked-live", "szl-blocked-live", "static"),
     ("szl-estate-live", "szl-estate-live", "Khipu Loom — Governed AI Estate", "static"),
-    ("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "static"),
+    ("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "gradio"),
     ("szl-govsign-live", "szl-govsign-live", "szl-govsign-live", "static"),
     ("szl-kernels-live", "szl-kernels-live", "SZL Kernel Operations Hub", "static"),
     ("szl-model-inference-lab", "szl-model-inference-lab", "SZL Model Inference Lab", "docker"),
@@ -165,6 +167,63 @@ def test_health_aggregate_and_cache_states_are_explicit():
     assert cached["state"] == "CACHED"
     assert cached["cached_state"] == "LIVE"
     assert source["state"] == "LIVE", "cache labeling must not mutate the stored payload"
+
+
+def test_anatomy_and_sda_health_use_exact_api_contract_routes():
+    anatomy = surface.SPACE_API_CONTRACTS["anatomy"]
+    sda = surface.SPACE_API_CONTRACTS["sda"]
+
+    assert [item["url"].rsplit("/", 1)[-1] for item in anatomy] == [
+        "manifest", "capabilities", "evidence", "receipt"
+    ]
+    assert [item["url"] for item in sda] == [
+        "https://a-11-oy.com/api/a11oy/v1/compute-pool",
+        "https://a-11-oy.com/api/a11oy/v1/verify/receipt",
+        "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mosaic/cop",
+    ]
+    assert all(item["url"] != "https://a-11-oy.com/api/a11oy/v1/verify" for item in sda)
+
+    root_green = {"app_reachable": True, "stage": "RUNNING", "contract_state": "UNAVAILABLE"}
+    assert surface._space_health_state(root_green) == "DEGRADED"
+
+
+def test_sda_vendored_widget_is_locked_to_the_canonical_verifier_contract():
+    widget = (Path(__file__).parents[1] / "spaces" / "sda" / "assets" /
+              "szl_verify_widget.js").read_text(encoding="utf-8")
+    assert widget.startswith(
+        "// VENDORED FROM szl-holdings/platform@9798feff9af3d6b0d8737abd70f71a1db1755a65"
+    )
+    assert "VERIFY_PATH  = '/api/a11oy/v1/verify/receipt'" in widget
+    assert "/api/a11oy/v1/verify?url=" not in widget
+    assert "p = pull(u, {method:'GET'})" in widget
+
+
+def test_exact_contract_probe_requires_expected_json_marker():
+    import asyncio
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, data):
+            self._data = data
+
+        def json(self):
+            return self._data
+
+    class Client:
+        def __init__(self, data):
+            self.data = data
+
+        async def get(self, *_args, **_kwargs):
+            return Response(self.data)
+
+    contract = surface.SPACE_API_CONTRACTS["sda"][1]
+    live = asyncio.run(surface._probe_contract(
+        Client({"schema": "szl.public-receipt-verifier/manifest/v1"}), contract
+    ))
+    stale = asyncio.run(surface._probe_contract(Client({"error": "not found"}), contract))
+    assert live["state"] == "LIVE"
+    assert stale["state"] == "UNAVAILABLE"
 
 
 if __name__ == "__main__":
