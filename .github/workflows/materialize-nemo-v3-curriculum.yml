@@ -1,6 +1,6 @@
 name: Materialize governed SZL-Nemo v3 curriculum
 
-# The generator was registered by #1040; this second protected-main touch executes it.
+# Registered by #1040; this explicit second protected-main touch executes it once.
 on:
   push:
     branches: [main]
