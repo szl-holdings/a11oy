@@ -1,0 +1,14 @@
+{
+  "a11oy_ref": "fix/nemo-v3-materialize-recovery-20260722",
+  "blocking_paths": [
+    "szl_rosie_companion.py"
+  ],
+  "exit_status": 1,
+  "killinchu_revision": "36128c0bc87c1b6b73cef34b4fe520098ed60241",
+  "schema": "szl.shared-source-drift-diagnostic/v1",
+  "summary": [
+    "Dockerfile-shipped files: a11oy=1152 killinchu=879",
+    "shared candidates (in both, shipped, not excluded): 154",
+    "identical: 149   diverged: 5 (accepted=4, blocking=1)"
+  ]
+}
