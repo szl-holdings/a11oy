@@ -39,15 +39,36 @@ _ENV_SHA_NAMES = (
 _ENV_VERSION_NAMES = ("A11OY_VERSION", "APP_VERSION", "RELEASE_VERSION")
 _DURABLE_BACKENDS = {"sqlite", "json", "postgres", "postgresql", "lmdb"}
 _FRESH_COLLECTOR_EVIDENCE_S = 120.0
-_SPA_HISTORY_PREFIXES = ("/a11oy", "/holographic")
+_SPA_HISTORY_PREFIXES = ("/a11oy",)
+_SPA_HISTORY_EXACT_PATHS = frozenset({"/holographic"})
 _SPA_FALLBACK_HEADER = "X-SZL-Route-State"
 _SPA_FALLBACK_VALUE = "SPA_FALLBACK"
+_PRESERVED_RESPONSE_HEADERS = (
+    "Content-Security-Policy",
+    "Referrer-Policy",
+    "Server",
+    "Strict-Transport-Security",
+    "X-Content-Type-Options",
+    "X-RateLimit-Limit",
+    "X-RateLimit-Policy",
+    "X-RateLimit-Remaining",
+    "X-RateLimit-Reset",
+    "X-Span-Id",
+    "X-Trace-Id",
+)
 
 
-def _no_store_json(content: dict[str, Any], status_code: int = 200):
+def _no_store_json(
+    content: dict[str, Any], status_code: int = 200, source_headers: Any = None
+):
     from fastapi.responses import JSONResponse
 
     response = JSONResponse(content=content, status_code=status_code)
+    if source_headers is not None:
+        for name in _PRESERVED_RESPONSE_HEADERS:
+            value = source_headers.get(name)
+            if value is not None:
+                response.headers[name] = value
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
@@ -309,14 +330,15 @@ def _looks_like_file_or_well_known(path: str) -> bool:
 def is_declared_spa_navigation(path: str) -> bool:
     """Return whether ``path`` belongs to a real client-side route family.
 
-    The built Wouter application declares ``/a11oy/*`` routes, while the
-    Holographic shell supports deep links beneath ``/holographic``. Root-level
-    pages are explicit FastAPI routes and therefore never need the catch-all.
+    The built Wouter application declares ``/a11oy/*`` routes. The Holographic
+    shell declares only the exact ``/holographic`` path; its surface selection
+    uses URL hashes rather than pathname deep links. Root-level pages are
+    explicit FastAPI routes and therefore never need the catch-all.
     """
     candidate = "/" + str(path or "").strip().lstrip("/")
     if candidate != "/":
         candidate = candidate.rstrip("/")
-    return any(
+    return candidate in _SPA_HISTORY_EXACT_PATHS or any(
         candidate == prefix or candidate.startswith(prefix + "/")
         for prefix in _SPA_HISTORY_PREFIXES
     )
@@ -373,6 +395,7 @@ def _install_soft_404_guard(app: Any) -> None:
                     "reason": "undeclared path refused SPA fallback",
                 },
                 status_code=404,
+                source_headers=response.headers,
             )
         return response
 

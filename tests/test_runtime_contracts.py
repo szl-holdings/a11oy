@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.testclient import TestClient
 
 import szl_runtime_contracts as contracts
+import szl_be_hardening as hardening
 
 
 class _GoodStore:
@@ -229,12 +230,18 @@ def test_otel_separates_in_process_exporter_and_collector():
 def test_soft_404_guard_refuses_undeclared_fallbacks_and_keeps_real_spa_routes():
     client = TestClient(_app_with_catchall())
 
-    for path in ("/holographic/brainquery", "/a11oy/verticals"):
+    for path in ("/a11oy/verticals",):
         navigation = client.get(path)
         assert navigation.status_code == 200
         assert navigation.headers["content-type"].startswith("text/html")
 
-    for path in ("/grid", "/verticals", "/definitely-not-a-real-route"):
+    for path in (
+        "/grid",
+        "/verticals",
+        "/holographic/brainquery",
+        "/holographic/not-a-surface",
+        "/definitely-not-a-real-route",
+    ):
         unknown_navigation = client.get(path)
         assert unknown_navigation.status_code == 404
         assert unknown_navigation.json()["status"] == "NOT_FOUND"
@@ -256,23 +263,58 @@ def test_soft_404_guard_refuses_undeclared_fallbacks_and_keeps_real_spa_routes()
 def test_spa_navigation_manifest_is_narrow_and_explicit():
     assert contracts.is_declared_spa_navigation("/a11oy") is True
     assert contracts.is_declared_spa_navigation("/a11oy/frontier") is True
-    assert contracts.is_declared_spa_navigation("/holographic/brainquery") is True
+    assert contracts.is_declared_spa_navigation("/holographic") is True
+    assert contracts.is_declared_spa_navigation("/holographic/brainquery") is False
+    assert contracts.is_declared_spa_navigation("/holographic/not-a-surface") is False
     assert contracts.is_declared_spa_navigation("/grid") is False
     assert contracts.is_declared_spa_navigation("/verticals") is False
 
 
-def test_container_consumes_canonical_workflow_build_identity():
+def test_published_container_workflows_pass_build_identity():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
     dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
-    workflow = (root / ".github" / "workflows" / "docker-build.yml").read_text(
-        encoding="utf-8"
-    )
     assert "ARG REVISION" in dockerfile
     assert "A11OY_GIT_SHA=${REVISION}" in dockerfile
     assert "org.opencontainers.image.revision=${REVISION}" in dockerfile
-    assert "REVISION=${{ github.sha }}" in workflow
+    for workflow_name in ("docker-build.yml", "ghcr-build-push.yml"):
+        workflow = (root / ".github" / "workflows" / workflow_name).read_text(
+            encoding="utf-8"
+        )
+        assert "VERSION=${{ " in workflow
+        assert "REVISION=${{ github.sha }}" in workflow
+        assert "BUILD_DATE=${{ " in workflow
+
+
+def test_synthesized_404_preserves_inner_hardening_headers(tmp_path):
+    app = FastAPI()
+
+    @app.get("/{full_path:path}")
+    async def spa(full_path: str):
+        return HTMLResponse(
+            f"<html><body>{full_path}</body></html>",
+            headers={"X-SZL-Route-State": "SPA_FALLBACK"},
+        )
+
+    hardening.harden(
+        app,
+        organ="runtime-contracts",
+        khipu_path=str(tmp_path / "runtime-contracts.sqlite3"),
+    )
+    contracts.register(app)
+
+    response = TestClient(app).get("/definitely-not-a-real-route")
+    assert response.status_code == 404
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Content-Security-Policy"]
+    assert response.headers["Strict-Transport-Security"]
+    assert response.headers["Referrer-Policy"]
+    assert response.headers["Server"] == "szl"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-RateLimit-Policy"] == "exempt"
+    assert response.headers["X-Trace-Id"]
+    assert response.headers["X-Span-Id"]
 
 
 def test_stale_collector_probe_never_becomes_live():
