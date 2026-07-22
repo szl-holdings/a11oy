@@ -1,0 +1,281 @@
+name: Deploy and verify sole canonical A11oy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-verify-canonical-a11oy-now.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: deploy-verify-sole-canonical-a11oy
+  cancel-in-progress: false
+
+jobs:
+  bind-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Bind canonical Space to this protected-main revision
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo '::error::HF_TOKEN is not configured'; exit 2; }
+          python -m pip install --disable-pip-version-check --quiet "huggingface_hub>=1.3,<2"
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          api.add_space_variable(
+              repo_id="SZLHOLDINGS/a11oy",
+              key="SZL_GIT_SHA",
+              value=os.environ["SOURCE_SHA"],
+              description=(
+                  "Exact protected-main source revision serving the sole canonical "
+                  "A11oy Space. Clone timestamps and marker commits are not authority."
+              ),
+          )
+          print("bound SZL_GIT_SHA to", os.environ["SOURCE_SHA"])
+          PY
+
+  deploy:
+    needs: bind-source
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: main
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/verify/receipt","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/brain/capabilities/info","/api/a11oy/v1/brain/quantum-evidence","/api/a11oy/v1/brain/quantum-evidence/info"]'
+    secrets: inherit
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      EXPECTED_SOURCE_SHA: ${{ github.sha }}
+      GH_TOKEN: ${{ github.token }}
+      REPORT_TITLE: '[hf-live-verification] sole canonical A11oy'
+    steps:
+      - name: Install verification client
+        run: python -m pip install --disable-pip-version-check --quiet "huggingface_hub>=1.3,<2" "requests>=2.32,<3"
+
+      - name: Prove live runtime, routes, clone absence, and collection cleanup
+        shell: python
+        run: |
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import requests
+          from huggingface_hub import HfApi
+
+          ORG = "SZLHOLDINGS"
+          CANONICAL = f"{ORG}/a11oy"
+          CLONES = tuple(f"{ORG}/a11oy-clone-{i}" for i in range(1, 5))
+          APP = "https://szlholdings-a11oy.hf.space"
+          EXPECTED = os.environ["EXPECTED_SOURCE_SHA"]
+          SHA40 = re.compile(r"^[0-9a-f]{40}$")
+          api = HfApi(token=os.environ["HF_TOKEN"])
+
+          def stage_of(info):
+              raw = getattr(getattr(info, "runtime", None), "stage", None)
+              raw = getattr(raw, "value", raw)
+              return str(raw or "UNKNOWN").split(".")[-1].upper()
+
+          def get_json(path, expected, attempts=30):
+              last = None
+              for attempt in range(attempts):
+                  try:
+                      response = requests.get(
+                          APP + path,
+                          headers={
+                              "Accept": "application/json",
+                              "Cache-Control": "no-cache",
+                              "User-Agent": "szl-sole-a11oy-verifier/1",
+                          },
+                          timeout=45,
+                          allow_redirects=False,
+                      )
+                      if response.status_code != 200:
+                          raise RuntimeError(f"HTTP {response.status_code}")
+                      payload = response.json()
+                      if not isinstance(payload, dict):
+                          raise RuntimeError("payload is not a JSON object")
+                      mismatch = {
+                          key: {"expected": value, "observed": payload.get(key)}
+                          for key, value in expected.items()
+                          if payload.get(key) != value
+                      }
+                      if mismatch:
+                          raise RuntimeError(f"marker mismatch: {mismatch}")
+                      return {
+                          "url": APP + path,
+                          "http_status": response.status_code,
+                          "marker": expected,
+                          "payload": payload,
+                      }
+                  except Exception as exc:  # noqa: BLE001
+                      last = f"{type(exc).__name__}: {exc}"
+                      if attempt + 1 < attempts:
+                          time.sleep(10)
+              raise RuntimeError(f"{path} did not validate: {last}")
+
+          info = api.space_info(CANONICAL)
+          repository_sha = str(getattr(info, "sha", "") or "")
+          runtime = getattr(info, "runtime", None)
+          runtime_sha = str(getattr(runtime, "sha", "") or "")
+          stage = stage_of(info)
+          sdk = str(getattr(info, "sdk", "") or "").lower()
+          private = getattr(info, "private", None)
+          files = set(api.list_repo_files(CANONICAL, repo_type="space"))
+
+          assert SHA40.fullmatch(repository_sha), repository_sha
+          assert SHA40.fullmatch(runtime_sha), runtime_sha
+          assert stage == "RUNNING", stage
+          assert sdk == "docker", sdk
+          assert private is False, private
+          assert "Dockerfile" in files
+
+          routes = {
+              "livez": get_json("/api/livez", {"status": "LIVE"}),
+              "build_info": get_json("/api/build-info", {"status": "OBSERVED"}),
+              "receipt_verifier": get_json(
+                  "/api/a11oy/v1/verify/receipt",
+                  {"schema": "szl.public-receipt-verifier/manifest/v1"},
+              ),
+              "brain_capabilities": get_json(
+                  "/api/a11oy/v1/brain/capabilities",
+                  {"schema": "szl.brain-capabilities.v1"},
+              ),
+              "brain_capabilities_info": get_json(
+                  "/api/a11oy/v1/brain/capabilities/info",
+                  {"schema": "szl.brain-capabilities-info.v1", "pure_read": True},
+              ),
+              "quantum_evidence": get_json(
+                  "/api/a11oy/v1/brain/quantum-evidence",
+                  {"schema": "szl.brain-quantum-evidence.v1"},
+              ),
+              "quantum_evidence_info": get_json(
+                  "/api/a11oy/v1/brain/quantum-evidence/info",
+                  {
+                      "schema": "szl.brain-quantum-evidence-info.v1",
+                      "pure_read": True,
+                      "executes_qpu": False,
+                  },
+              ),
+          }
+          build = routes["build_info"]["payload"].get("build") or {}
+          assert build.get("state") == "OBSERVED", build
+          assert build.get("revision") == EXPECTED, {
+              "expected_source": EXPECTED,
+              "observed_build": build,
+          }
+
+          clone_presence = {
+              clone_id: api.repo_exists(clone_id, repo_type="space")
+              for clone_id in CLONES
+          }
+          assert not any(clone_presence.values()), clone_presence
+
+          collection_results = {}
+          clone_refs = []
+          for summary in api.list_collections(owner=ORG, limit=100):
+              collection = api.get_collection(summary.slug)
+              refs = [
+                  item.item_id
+                  for item in collection.items
+                  if item.item_type == "space" and item.item_id in CLONES
+              ]
+              collection_results[summary.slug] = {
+                  "item_count": len(collection.items),
+                  "clone_references": refs,
+              }
+              clone_refs.extend(f"{summary.slug}:{item}" for item in refs)
+          assert clone_refs == [], clone_refs
+
+          report = {
+              "schema": "szl.sole-canonical-a11oy-live-verification/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "expected_github_source_sha": EXPECTED,
+              "canonical_space": {
+                  "repo_id": CANONICAL,
+                  "repository_sha": repository_sha,
+                  "runtime_sha": runtime_sha,
+                  "stage": stage,
+                  "sdk": sdk,
+                  "private": private,
+                  "dockerfile_present": True,
+                  "file_count": len(files),
+              },
+              "runtime_build": build,
+              "routes": {
+                  key: {
+                      "url": value["url"],
+                      "http_status": value["http_status"],
+                      "marker": value["marker"],
+                  }
+                  for key, value in routes.items()
+              },
+              "clone_presence": clone_presence,
+              "clone_collection_references": clone_refs,
+              "collections": collection_results,
+              "full_file_attestation": (
+                  "The prerequisite reusable deployer derived every deployed path "
+                  "from protected-main Dockerfile COPY sources, pushed that exact set, "
+                  "waited for the exact HF commit to reach RUNNING, and re-fetched every "
+                  "deployed path for SHA-256 equality."
+              ),
+              "ok": True,
+          }
+          Path("sole-canonical-a11oy-live-verification.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+
+      - name: Upload immutable live-verification evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sole-canonical-a11oy-live-verification-${{ github.run_id }}
+          path: sole-canonical-a11oy-live-verification.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Persist deterministic verification issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '<!-- szl-sole-canonical-a11oy-live-verification -->'
+            echo '# Sole canonical A11oy — live verification'
+            echo
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- Protected source: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat sole-canonical-a11oy-live-verification.json
+            echo '```'
+          } > /tmp/body.md
+          number="$(gh issue list --state all --search "${REPORT_TITLE} in:title" --json number,title --jq ".[] | select(.title == env.REPORT_TITLE) | .number" | head -n1)"
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file /tmp/body.md
+            gh issue close "$number" --reason completed --comment 'Protected GitHub source, canonical runtime, important routes, clone absence, and collection cleanup all passed.' || true
+          else
+            gh issue create --title "$REPORT_TITLE" --body-file /tmp/body.md >/dev/null
+          fi
