@@ -46,6 +46,10 @@ an admission receipt.
 
 ## Deterministic evidence crosswalk
 
+**Logical taxonomy:** `provenance/`. The flat-root
+`szl_brain_provenance_license_crosswalk.py` module emits evidence-gap receipts;
+it does not belong to the agent, governance, or training layers.
+
 `szl_brain_provenance_license_crosswalk.py` binds the M1 ledger, raw snapshot,
 and repository `LICENSE` bytes to one exact local Git commit before producing a
 content-free row evidence-gap crosswalk. It can record the narrow fact that a

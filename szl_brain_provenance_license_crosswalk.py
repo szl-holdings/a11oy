@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Deterministic, fail-closed Brain provenance/license crosswalk.
 
+Logical taxonomy: ``provenance/``.  The flat-root module belongs to the
+provenance layer because it produces evidence-gap receipts and never performs
+agent reasoning, governance authorization, or training.
+
 The crosswalk binds the frozen M1 ledger, its snapshot, and the repository
 license to one exact Git commit.  It records row-level evidence gaps without
 copying row content or identifiers into the output.  Repository membership or
@@ -43,6 +47,9 @@ MAX_LEDGER_LINE_BYTES = 256 * 1024
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_LICENSE_BYTES = 256 * 1024
 MAX_CONTENT_BYTES = 64 * 1024
+APPROVED_APACHE_2_LICENSE_SHA256 = (
+    "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+)
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _GIT_REVISION_RE = re.compile(r"^git:([0-9a-f]{40})$")
@@ -316,10 +323,11 @@ def _verify_snapshot(
     return snapshot
 
 
-def _license_binding(row: Mapping[str, Any]) -> bool:
+def _license_binding(row: Mapping[str, Any], *, license_sha256: str) -> bool:
     license_record = row["license"]
     return (
-        row.get("source_family")
+        license_sha256 == APPROVED_APACHE_2_LICENSE_SHA256
+        and row.get("source_family")
         in {"a11oy-versioned-runtime", "brain-raw-formula-index"}
         and isinstance(row.get("canonical_artifact_id"), str)
         and bool(row.get("canonical_artifact_id"))
@@ -335,8 +343,9 @@ def _crosswalk_row(
     repository_revision: str,
     ledger_sha256: str,
     license_sha256: str,
+    git_blob_verified: bool,
 ) -> dict[str, Any]:
-    license_bound = _license_binding(row)
+    license_bound = _license_binding(row, license_sha256=license_sha256)
     semantic_duplicate = row.get("safety_decision") == "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA"
     blockers = {
         "IMMUTABLE_ITEM_ORIGIN_EVIDENCE_MISSING",
@@ -344,6 +353,8 @@ def _crosswalk_row(
         "SIGNED_CONSENT_OR_PERMISSION_EVIDENCE_MISSING",
         "SIGNED_INDEPENDENT_REVIEW_MISSING",
     }
+    if not git_blob_verified:
+        blockers.add("IMMUTABLE_LEDGER_BINDING_UNVERIFIED")
     if not license_bound:
         blockers.add("VERSION_BOUND_ITEM_LICENSE_EVIDENCE_MISSING")
     blockers.add(
@@ -357,7 +368,7 @@ def _crosswalk_row(
             str(row["node_id"]), str(row["canonical_text_sha256"])
         ),
         "ledger_binding": {
-            "state": "PASS",
+            "state": "PASS" if git_blob_verified else "UNVERIFIED",
             "repository": AUTHORIZED_REPOSITORY,
             "revision": repository_revision,
             "ledger_sha256": ledger_sha256,
@@ -431,7 +442,7 @@ def _atomic_write(path: pathlib.Path, data: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def build_crosswalk(
+def _build_crosswalk(
     repository_root: pathlib.Path | str,
     repository_revision: str,
     output_dir: pathlib.Path | str,
@@ -440,7 +451,7 @@ def build_crosswalk(
     git_executable: str | None = None,
     blob_reader: Callable[[str], bytes] | None = None,
 ) -> dict[str, Any]:
-    """Build an unsigned, content-free crosswalk receipt for one Git commit."""
+    """Internal implementation with explicit verification provenance."""
 
     if not isinstance(expected_rows, int) or not 1 <= expected_rows <= EXPECTED_ROWS:
         raise CrosswalkRefused("expected row count is outside policy")
@@ -452,6 +463,7 @@ def build_crosswalk(
         raise CrosswalkRefused("repository root is unavailable")
     if output.exists() and (output.is_symlink() or not output.is_dir()):
         raise CrosswalkRefused("output directory must be a regular directory")
+    git_blob_verified = blob_reader is None
     read_blob = blob_reader or _git_blob_reader(
         root, repository_revision, git_executable=git_executable
     )
@@ -485,6 +497,7 @@ def build_crosswalk(
                 repository_revision=repository_revision,
                 ledger_sha256=ledger_sha,
                 license_sha256=license_sha,
+                git_blob_verified=git_blob_verified,
             )
             for row in rows
         ),
@@ -507,17 +520,17 @@ def build_crosswalk(
                 "path": LEDGER_REPOSITORY_PATH,
                 "sha256": ledger_sha,
                 "rows": len(rows),
-                "git_blob_verified": True,
+                "git_blob_verified": git_blob_verified,
             },
             "snapshot": {
                 "path": SNAPSHOT_REPOSITORY_PATH,
                 "sha256": _sha256_bytes(local_bytes[SNAPSHOT_REPOSITORY_PATH]),
-                "git_blob_verified": True,
+                "git_blob_verified": git_blob_verified,
             },
             "license": {
                 "path": LICENSE_REPOSITORY_PATH,
                 "sha256": license_sha,
-                "git_blob_verified": True,
+                "git_blob_verified": git_blob_verified,
             },
         },
         "output": {
@@ -527,7 +540,7 @@ def build_crosswalk(
             "content_policy": "OPAQUE_ROW_KEY_AND_EVIDENCE_STATES_ONLY",
         },
         "coverage": {
-            "immutable_ledger_binding_pass": len(crosswalk),
+            "immutable_ledger_binding_pass": len(crosswalk) if git_blob_verified else 0,
             "immutable_item_origin_pass": 0,
             "version_bound_license_pass": license_pass,
             "signed_privacy_clearance_pass": 0,
@@ -559,6 +572,52 @@ def build_crosswalk(
         _canonical_bytes(receipt) + b"\n",
     )
     return receipt
+
+
+def build_crosswalk(
+    repository_root: pathlib.Path | str,
+    repository_revision: str,
+    output_dir: pathlib.Path | str,
+    *,
+    expected_rows: int = EXPECTED_ROWS,
+    git_executable: str | None = None,
+) -> dict[str, Any]:
+    """Build a Git-verified unsigned crosswalk receipt for one exact commit."""
+
+    return _build_crosswalk(
+        repository_root,
+        repository_revision,
+        output_dir,
+        expected_rows=expected_rows,
+        git_executable=git_executable,
+        blob_reader=None,
+    )
+
+
+def _build_crosswalk_for_test(
+    repository_root: pathlib.Path | str,
+    repository_revision: str,
+    output_dir: pathlib.Path | str,
+    *,
+    expected_rows: int,
+    blob_reader: Callable[[str], bytes],
+) -> dict[str, Any]:
+    """Run parser fixtures while explicitly refusing Git-verification claims.
+
+    This helper is private and excluded from ``__all__``.  Production callers
+    use :func:`build_crosswalk`, which always invokes the authorized-origin Git
+    reader.  Injected fixture bytes produce UNVERIFIED ledger bindings and zero
+    immutable-ledger coverage.
+    """
+
+    return _build_crosswalk(
+        repository_root,
+        repository_revision,
+        output_dir,
+        expected_rows=expected_rows,
+        git_executable=None,
+        blob_reader=blob_reader,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:

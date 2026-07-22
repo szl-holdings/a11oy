@@ -115,7 +115,7 @@
       "properties": {
         "path": {"type": "string", "minLength": 1, "maxLength": 256},
         "sha256": {"$ref": "#/$defs/sha256"},
-        "git_blob_verified": {"const": true}
+        "git_blob_verified": {"type": "boolean"}
       }
     },
     "inputRows": {
@@ -126,7 +126,7 @@
         "path": {"type": "string", "minLength": 1, "maxLength": 256},
         "sha256": {"$ref": "#/$defs/sha256"},
         "rows": {"type": "integer", "minimum": 1, "maximum": 9464},
-        "git_blob_verified": {"const": true}
+        "git_blob_verified": {"type": "boolean"}
       }
     }
   }

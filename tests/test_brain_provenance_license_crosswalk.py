@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from pathlib import Path
 
@@ -59,7 +60,8 @@ def write_inputs(tmp_path: Path, rows: list[dict]):
     snapshot_path.parent.mkdir(parents=True)
     ledger_bytes = b"".join(canonical_bytes(row) + b"\n" for row in rows)
     ledger_path.write_bytes(ledger_bytes)
-    license_path.write_text("Apache License\nVersion 2.0\n", encoding="utf-8")
+    repository_license = Path(__file__).resolve().parents[1] / "LICENSE"
+    license_path.write_bytes(repository_license.read_bytes())
     snapshot = {
         "schema_version": crosswalk.SNAPSHOT_SCHEMA,
         "source": {
@@ -110,7 +112,7 @@ def test_crosswalk_binds_known_license_but_keeps_every_row_quarantined(tmp_path:
     blobs = write_inputs(tmp_path, rows)
     output = tmp_path / "out"
 
-    receipt = crosswalk.build_crosswalk(
+    receipt = crosswalk._build_crosswalk_for_test(
         tmp_path,
         REVISION,
         output,
@@ -121,7 +123,7 @@ def test_crosswalk_binds_known_license_but_keeps_every_row_quarantined(tmp_path:
     values = read_jsonl(output / "brain-row-provenance-license-crosswalk.v1.jsonl")
     assert len(values) == 2
     assert receipt["coverage"] == {
-        "immutable_ledger_binding_pass": 2,
+        "immutable_ledger_binding_pass": 0,
         "immutable_item_origin_pass": 0,
         "version_bound_license_pass": 1,
         "signed_privacy_clearance_pass": 0,
@@ -135,6 +137,11 @@ def test_crosswalk_binds_known_license_but_keeps_every_row_quarantined(tmp_path:
     assert all(item["immutable_item_origin"]["state"] == "MISSING" for item in values)
     assert all(item["admission"]["state"] == "QUARANTINE" for item in values)
     assert all(item["admission"]["training_eligible"] is False for item in values)
+    assert all(item["ledger_binding"]["state"] == "UNVERIFIED" for item in values)
+    assert all(
+        "IMMUTABLE_LEDGER_BINDING_UNVERIFIED" in item["admission"]["blockers"]
+        for item in values
+    )
     serialized = json.dumps(values)
     assert "endpoint:/api/example" not in serialized
     assert "repo:external" not in serialized
@@ -154,7 +161,7 @@ def test_repository_or_pinned_looking_url_never_establishes_item_origin(tmp_path
     blobs = write_inputs(tmp_path, rows)
     output = tmp_path / "out"
 
-    crosswalk.build_crosswalk(
+    crosswalk._build_crosswalk_for_test(
         tmp_path,
         REVISION,
         output,
@@ -185,7 +192,7 @@ def test_formula_duplicate_remains_explicitly_blocked(tmp_path: Path):
     blobs = write_inputs(tmp_path, rows)
     output = tmp_path / "out"
 
-    crosswalk.build_crosswalk(
+    crosswalk._build_crosswalk_for_test(
         tmp_path,
         REVISION,
         output,
@@ -205,7 +212,7 @@ def test_refuses_working_file_that_differs_from_pinned_git_blob(tmp_path: Path):
     blobs[crosswalk.LICENSE_REPOSITORY_PATH] = b"different license bytes\n"
 
     with pytest.raises(crosswalk.CrosswalkRefused, match="differs from the pinned Git blob"):
-        crosswalk.build_crosswalk(
+        crosswalk._build_crosswalk_for_test(
             tmp_path,
             REVISION,
             tmp_path / "out",
@@ -214,12 +221,53 @@ def test_refuses_working_file_that_differs_from_pinned_git_blob(tmp_path: Path):
         )
 
 
+def test_public_builder_has_no_injected_blob_reader():
+    assert "blob_reader" not in inspect.signature(crosswalk.build_crosswalk).parameters
+    assert "_build_crosswalk_for_test" not in crosswalk.__all__
+
+
+def test_unapproved_license_bytes_cannot_emit_license_pass(tmp_path: Path):
+    rows = [
+        ledger_row(
+            "endpoint:/api/example",
+            "licensed metadata claim",
+            source_family="a11oy-versioned-runtime",
+            kind="endpoint",
+            licensed=True,
+        )
+    ]
+    blobs = write_inputs(tmp_path, rows)
+    unapproved = b"Apache License\nVersion 2.0\nnot the approved repository license\n"
+    (tmp_path / crosswalk.LICENSE_REPOSITORY_PATH).write_bytes(unapproved)
+    blobs[crosswalk.LICENSE_REPOSITORY_PATH] = unapproved
+
+    receipt = crosswalk._build_crosswalk_for_test(
+        tmp_path,
+        REVISION,
+        tmp_path / "out",
+        expected_rows=1,
+        blob_reader=blobs.__getitem__,
+    )
+
+    [value] = read_jsonl(
+        tmp_path / "out" / "brain-row-provenance-license-crosswalk.v1.jsonl"
+    )
+    assert value["license"] == {
+        "state": "MISSING",
+        "spdx": None,
+        "license_file_sha256": None,
+        "reason": "NO_ITEM_LEVEL_VERSION_BOUND_LICENSE",
+    }
+    assert receipt["coverage"]["version_bound_license_pass"] == 0
+    assert "VERSION_BOUND_ITEM_LICENSE_EVIDENCE_MISSING" in value["admission"]["blockers"]
+
+
 def test_refuses_duplicate_content_even_with_different_node_ids(tmp_path: Path):
     rows = [ledger_row("repo:a", "same"), ledger_row("repo:b", "same")]
     blobs = write_inputs(tmp_path, rows)
 
     with pytest.raises(crosswalk.CrosswalkRefused, match="unique node/content identities"):
-        crosswalk.build_crosswalk(
+        crosswalk._build_crosswalk_for_test(
             tmp_path,
             REVISION,
             tmp_path / "out",
@@ -232,7 +280,7 @@ def test_receipt_validates_against_committed_schema(tmp_path: Path):
     rows = [ledger_row("repo:a", "alpha")]
     blobs = write_inputs(tmp_path, rows)
     output = tmp_path / "out"
-    receipt = crosswalk.build_crosswalk(
+    receipt = crosswalk._build_crosswalk_for_test(
         tmp_path,
         REVISION,
         output,
@@ -253,7 +301,7 @@ def test_receipt_validates_against_committed_schema(tmp_path: Path):
 def test_receipt_hash_binds_exact_core(tmp_path: Path):
     rows = [ledger_row("repo:a", "alpha")]
     blobs = write_inputs(tmp_path, rows)
-    receipt = crosswalk.build_crosswalk(
+    receipt = crosswalk._build_crosswalk_for_test(
         tmp_path,
         REVISION,
         tmp_path / "out",
