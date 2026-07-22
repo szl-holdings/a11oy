@@ -1,5 +1,5 @@
-run=https://github.com/szl-holdings/a11oy/actions/runs/29945815691
-head=47139a6173b972163f57835cd413215b070a7400
+run=https://github.com/szl-holdings/a11oy/actions/runs/29945819133
+head=08dac27693e103c9e797abe93d01c57db7ab207d
 exit=1
 --- focused failure tail ---
   File "tests/test_operational_route_contracts.py", line 85
