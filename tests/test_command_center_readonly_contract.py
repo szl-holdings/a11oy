@@ -4,6 +4,7 @@ import importlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# Owner-authored CI refresh after the self-removing repair workflow completed.
 
 
 def _boom(*_args, **_kwargs):
