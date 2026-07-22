@@ -3110,6 +3110,7 @@ except Exception as _szl_putnam_e:  # pragma: no cover
 try:
     import os as _rd_os, json as _rd_json
     from datetime import datetime as _rd_dt, timezone as _rd_tz
+    from fastapi import Request as _RDRequest
     from fastapi.responses import JSONResponse as _RDJSON
 
     _RD_HARNESS_DIR = _rd_os.path.join(
@@ -3128,7 +3129,8 @@ try:
         return None
 
     @app.get("/api/a11oy/v1/readiness/tab-matrix")
-    async def _a11oy_readiness_tab_matrix():  # noqa: ANN202
+    async def _a11oy_readiness_tab_matrix(request: _RDRequest):  # noqa: ANN202
+        view = (request.query_params.get("view") or "full").strip().lower()
         matrix = _rd_load((
             _rd_os.environ.get("SZL_TAB_MATRIX_PATH", ""),
             _rd_os.path.join(_RD_HARNESS_DIR, "tabs.json"),
@@ -3153,6 +3155,20 @@ try:
         if _verdict_available:
             verdict = dict(verdict)
             verdict["available"] = True
+        if view == "summary":
+            matrix_summary = dict(matrix.get("summary") or {}) if isinstance(matrix, dict) else {}
+            verdict_summary = dict(verdict.get("summary") or {}) if isinstance(verdict, dict) else None
+            return _RDJSON({
+                "layer": "a11oy readiness tab-matrix",
+                "view": "summary",
+                "honest": True,
+                "available": _verdict_available,
+                "matrix_available": True,
+                "probe_verdict_available": _verdict_available,
+                "matrix_summary": matrix_summary,
+                "verdict_summary": verdict_summary,
+                "checked_at": _now,
+            }, status_code=200)
         return _RDJSON({
             "layer": "a11oy readiness tab-matrix",
             "honest": True,

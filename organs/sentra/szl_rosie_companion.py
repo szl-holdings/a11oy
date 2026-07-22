@@ -396,31 +396,43 @@ class RosieShadow:
         resp.extra["input_root"] = input_root
         return resp
 
-    def evolve(self, strategy: dict[str, Any],
-               approvers: Optional[list[str]] = None,
-               traceparent: Optional[str] = None) -> EvolveProposal:
-        """Rosie PROPOSES evolution of the flagship's strategy (ecosystem-evolve loop).
+    def evolve(
+        self,
+        strategy: dict[str, Any],
+        approvers: Optional[list[str]] = None,
+        traceparent: Optional[str] = None,
+    ) -> EvolveProposal:
+        """Return a proposal only; typed approver names never authorize it.
 
-        2-PERSON YUYAY GATE REQUIRED (this can change flagship strategy). Rosie does
-        NOT execute: it returns a PROPOSAL with gate_status. Execution requires two
-        distinct approvers passed in `approvers` (>=2) AND the flagship's own gate.
-        Always emits a Khipu receipt.
+        This companion has no trusted identity-verification boundary. A separate
+        flagship gate must verify two independent signed approvals before execution.
         """
-        approvers = list(approvers or [])
+        claimed_approvers = sorted(
+            {str(value).strip() for value in (approvers or []) if str(value).strip()}
+        )
         axis_scores = strategy.get("axis_scores")
-        query = ("EVOLVE strategy proposal: " +
-                 json.dumps(strategy, sort_keys=True, default=str)[:800])
+        query = "EVOLVE strategy proposal: " + json.dumps(
+            strategy, sort_keys=True, default=str
+        )[:800]
         rosie_json, stub, err = self._call_rosie_jack(
-            "evolve", query, axis_scores, traceparent, payload_extra=strategy)
+            "evolve", query, axis_scores, traceparent, payload_extra=strategy
+        )
         L = rosie_json.get("lambda_signal", lambda_signal(axis_scores))
-        # Two-person Yuyay gate: require >=2 DISTINCT approvers to authorize.
-        distinct = sorted(set(a for a in approvers if a))
-        gate_ok = len(distinct) >= 2
-        gate_status = "AUTHORIZED_2P_YUYAY" if gate_ok else "AWAITING_2ND_SIGNER"
+        gate_status = "AWAITING_VERIFIED_2P_YUYAY"
         companion_receipt = make_khipu_receipt(
-            self.flagship, "evolve", query, axis_scores, traceparent,
-            extra={"strategy": strategy, "approvers": distinct,
-                   "two_person_gate": gate_status})
+            self.flagship,
+            "evolve",
+            query,
+            axis_scores,
+            traceparent,
+            extra={
+                "strategy": strategy,
+                "approver_claims": claimed_approvers,
+                "verified_approvers": [],
+                "typed_names_authorize": False,
+                "two_person_gate": gate_status,
+            },
+        )
         rosie_receipt = None if stub else rosie_json.get("lambda_receipt")
         xlink = cross_link_receipt(self.flagship, rosie_receipt, companion_receipt)
         return EvolveProposal(
@@ -430,7 +442,7 @@ class RosieShadow:
             lambda_signal=L,
             requires_two_person_gate=True,
             gate_status=gate_status,
-            approvers=distinct,
+            approvers=[],
             rosie_receipt=rosie_receipt,
             companion_receipt=companion_receipt,
             cross_link=xlink,

@@ -50,6 +50,8 @@ Stdlib + already-shipped repo modules only. 0 CDN, 0 Node, 0 new dependency.
 from __future__ import annotations
 
 import datetime
+import hashlib
+import json
 from typing import Any, Optional
 
 try:
@@ -91,6 +93,19 @@ def _sign(payload: dict) -> dict:
             "honesty": f"UNSIGNED-LOCAL — signer unavailable ({type(e).__name__}); no signature fabricated.",
             "_signed_at": _now(),
         }
+
+
+def _read_only_receipt(payload: dict) -> dict:
+    """Deterministic evidence for GET responses; never invokes a signer."""
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return {
+        "payloadType": _RECEIPT_TYPE,
+        "mode": "READ_ONLY",
+        "signed": False,
+        "signatures": [],
+        "content_digest_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "honesty": "READ_ONLY — this GET response did not sign, mint, or persist a receipt.",
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -194,7 +209,10 @@ def _hub_pulse(ns: str = "a11oy") -> Optional[dict]:
         fn = getattr(_hub, fn_name, None)
         if callable(fn):
             try:
-                p = fn(ns) if _fn_takes_arg(fn) else fn()
+                if fn_name == "build_pulse":
+                    p = fn(ns, sign_receipt=False)
+                else:
+                    p = fn(ns) if _fn_takes_arg(fn) else fn()
                 if isinstance(p, dict):
                     return p
             except Exception:
@@ -210,7 +228,7 @@ def _fn_takes_arg(fn) -> bool:
         return False
 
 
-def build_command(ns: str = "a11oy") -> dict:
+def build_command(ns: str = "a11oy", *, sign_receipt: bool = False) -> dict:
     """The founder dashboard rollup. Prefers Dev-1's live hub pulse; falls back to
     an HONEST locally-composed pulse (pulse_ok:false) when the hub isn't merged."""
     hub = _hub_pulse(ns)
@@ -250,7 +268,11 @@ def build_command(ns: str = "a11oy") -> dict:
                  "the locked-8."),
         "generated_at": _now(),
     }
-    payload["receipt"] = _sign(payload_snapshot(payload))
+    snapshot = payload_snapshot(payload)
+    payload["receipt"] = (
+        _sign(snapshot) if sign_receipt else _read_only_receipt(snapshot)
+    )
+    payload["read_only"] = not sign_receipt
     return payload
 
 
@@ -275,7 +297,12 @@ def payload_snapshot(payload: dict) -> dict:
 # Subscribe / budget — "what is the Brain feeding this surface right now?"
 # Delegates to the hub's subscribe when present; honest local allocation else.
 # --------------------------------------------------------------------------- #
-def build_subscribe(surface_id: str, ns: str = "a11oy") -> dict:
+def build_subscribe(
+    surface_id: str,
+    ns: str = "a11oy",
+    *,
+    sign_receipt: bool = False,
+) -> dict:
     surface_id = (surface_id or "").strip()
     # Prefer Dev-1's hub allocation if merged (in-process, guarded).
     try:
@@ -293,8 +320,17 @@ def build_subscribe(surface_id: str, ns: str = "a11oy") -> dict:
                                "lambda": {"label": "CONJECTURE", "value": "Conjecture 1",
                                           "advisory": LAMBDA_ADVISORY},
                                "generated_at": _now()}
-                        out["receipt"] = _sign({"view": "brain-subscribe", "surface_id": surface_id,
-                                                "source": "brain-hub"})
+                        receipt_core = {
+                            "view": "brain-subscribe",
+                            "surface_id": surface_id,
+                            "source": "brain-hub",
+                        }
+                        out["receipt"] = (
+                            _sign(receipt_core)
+                            if sign_receipt
+                            else _read_only_receipt(receipt_core)
+                        )
+                        out["read_only"] = not sign_receipt
                         return out
                 except Exception:
                     pass
@@ -304,7 +340,7 @@ def build_subscribe(surface_id: str, ns: str = "a11oy") -> dict:
     # HONEST local allocation: a simple, transparent share of the current pulse.
     # This is a MODELED allocation function (equal per-surface floor) — NOT a live
     # per-organ energy meter. Labeled MODELED so no one reads it as measured.
-    cmd = build_command(ns)
+    cmd = build_command(ns, sign_receipt=False)
     n = (cmd["surfaces_lit"] or {}).get("count") or 0
     energy = cmd["energy"] or {}
     joules_total = energy.get("joules_measured_billable")
@@ -343,8 +379,18 @@ def build_subscribe(surface_id: str, ns: str = "a11oy") -> dict:
            "note": ("Local honest allocation because the central hub (Dev-1) is not "
                     "merged yet; delegates to szl_brain_hub.subscribe when present."),
            "generated_at": _now()}
-    out["receipt"] = _sign({"view": "brain-subscribe", "surface_id": surface_id,
-                            "source": "local-fallback", "joules_share_modeled": joule_share})
+    receipt_core = {
+        "view": "brain-subscribe",
+        "surface_id": surface_id,
+        "source": "local-fallback",
+        "joules_share_modeled": joule_share,
+    }
+    out["receipt"] = (
+        _sign(receipt_core)
+        if sign_receipt
+        else _read_only_receipt(receipt_core)
+    )
+    out["read_only"] = not sign_receipt
     return out
 
 
@@ -404,11 +450,11 @@ def register(app: "FastAPI", ns: str = "a11oy") -> str:
 
     @app.get(base)
     async def brain_command():  # noqa: ANN202
-        return JSONResponse(build_command(ns))
+        return JSONResponse(build_command(ns, sign_receipt=False))
 
     @app.get(f"{base}/subscribe/{{surface_id}}")
     async def brain_command_subscribe(surface_id: str):  # noqa: ANN202
-        return JSONResponse(build_subscribe(surface_id, ns))
+        return JSONResponse(build_subscribe(surface_id, ns, sign_receipt=False))
 
     return f"GET {base} + {base}/subscribe/{{surface_id}}"
 

@@ -287,16 +287,31 @@ def _sign(core: dict) -> dict:
         }
 
 
-def build_pulse(ns: str = "a11oy") -> dict:
-    """Build the current ecosystem pulse — the single beat every subscriber reads.
+def _read_only_receipt(core: dict) -> dict:
+    """Return evidence for a read without signing, minting, or writing state."""
+    return {
+        "mode": "READ_ONLY",
+        "signed": False,
+        "signatures": [],
+        "content_digest_sha256": _content_digest(core),
+        "honesty": (
+            "READ_ONLY — GET responses expose a deterministic digest only; "
+            "no signature or receipt is minted by the read."
+        ),
+    }
 
-    Deterministic core (signed) + honest labels + a DSSE receipt. Volatile fields
-    (generated timestamp) live OUTSIDE the signed body so the receipt is stable."""
+
+def build_pulse(ns: str = "a11oy", *, sign_receipt: bool = True) -> dict:
+    """Build the current ecosystem pulse.
+
+    Explicit internal callers may request signing. HTTP GET handlers pass
+    ``sign_receipt=False`` and expose only a deterministic digest.
+    """
     knowledge = knowledge_summary(ns)
     energy = energy_summary()
     lit = lit_summary(knowledge)
     core = _deterministic_core(ns, knowledge, energy, lit)
-    receipt = _sign(core)
+    receipt = _sign(core) if sign_receipt else _read_only_receipt(core)
     return {
         "ok": True,
         "kind": "SZL.Brain.Pulse.v1",
@@ -313,6 +328,7 @@ def build_pulse(ns: str = "a11oy") -> dict:
             "pulse": LBL_MODELED,
         },
         "receipt": receipt,
+        "read_only": not sign_receipt,
         "doctrine": _DOCTRINE,
     }
 
@@ -419,11 +435,11 @@ def allocate_budget(pulse: dict, surface_id: str) -> dict:
 # proxy, mirroring szl_energy_ledger.register()).
 # --------------------------------------------------------------------------- #
 def handle_pulse(ns: str = "a11oy") -> dict:
-    return build_pulse(ns)
+    return build_pulse(ns, sign_receipt=False)
 
 
 def handle_subscribe(surface_id: str, ns: str = "a11oy") -> dict:
-    return allocate_budget(build_pulse(ns), surface_id)
+    return allocate_budget(build_pulse(ns, sign_receipt=False), surface_id)
 
 
 def register(app, ns: str = "a11oy"):

@@ -79,19 +79,6 @@ def _get_json(url: str, timeout: float = 12.0) -> Optional[Any]:
         return None
 
 
-def _post_json(url: str, body: dict, timeout: float = 12.0) -> Optional[Any]:
-    try:
-        req = urllib.request.Request(
-            url, data=json.dumps(body).encode(),
-            headers={"User-Agent": "szl-ecosystem/1.0", "Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode("utf-8", "replace"))
-    except Exception:
-        return None
-
-
 # ---------------------------------------------------------------------------
 # Estate data builders (all honest: label LIVE only when the fetch succeeded)
 # ---------------------------------------------------------------------------
@@ -102,25 +89,25 @@ def _app_health(base: str, honest_path: str) -> Dict[str, Any]:
 
 
 def _chapaq_verdict() -> Optional[Dict[str, Any]]:
-    """Fetch the CHAPAQ immune verdict from its LIVE source, honestly.
+    """Read-only CHAPAQ status boundary.
 
-    sentra (codename CHAPAQ) was consolidated INTO a11oy as the Sentinel organ,
-    so the canonical live source is a11oy's in-process sentinel verdict
-    (POST /api/a11oy/v1/sentinel/verdict — REAL threat-signature + Λ-gate). We
-    POST a neutral demo probe and normalise to the {"data": {...}} envelope the
-    board already consumes. The legacy killinchu gov path is tried only as a
-    fallback. Returns None (honest 'unreachable') if no live source answers —
-    NEVER a fabricated verdict."""
-    probe = {"agent": "estate-kpi-board", "action": {"value": "estate health probe"},
-             "request_id": "kpi-chapaq"}
-    live = _post_json(A11OY_BASE + "/api/a11oy/v1/sentinel/verdict", probe)
-    if isinstance(live, dict) and live.get("decision"):
-        return {"data": live, "source": "a11oy/sentinel (CHAPAQ organ, live)"}
-    # legacy fallback: killinchu gov proxy (kept for backward-compat)
+    A verdict is a policy decision and requires an explicit authorized POST.
+    The ecosystem KPI GET never submits a probe or decides for the operator.
+    """
     legacy = _get_json(KILLINCHU_BASE + "/api/killinchu/v1/gov/chapaq-verdict")
     if isinstance(legacy, dict) and legacy.get("data"):
+        legacy = dict(legacy)
+        legacy["source"] = legacy.get("source") or "killinchu cached/read-only CHAPAQ verdict"
+        legacy["read_only"] = True
         return legacy
-    return None
+    return {
+        "data": None,
+        "source": (
+            "NOT_EVALUATED — CHAPAQ policy evaluation requires an explicit "
+            "authorized state-changing request; GET performs no decision."
+        ),
+        "read_only": True,
+    }
 
 
 def build_kpi_board(ns: str) -> Dict[str, Any]:
@@ -149,9 +136,12 @@ def build_kpi_board(ns: str) -> Dict[str, Any]:
     raw_lambda = None
     if a_lambda and isinstance(a_lambda.get("lambda"), (int, float)):
         raw_lambda = float(a_lambda["lambda"])
+    chapaq_data = chapaq.get("data") if isinstance(chapaq, dict) else None
     chapaq_lambda = None
-    if chapaq and isinstance(chapaq.get("data", {}).get("lambda_value"), (int, float)):
-        chapaq_lambda = float(chapaq["data"]["lambda_value"])
+    if isinstance(chapaq_data, dict) and isinstance(
+        chapaq_data.get("lambda_value"), (int, float)
+    ):
+        chapaq_lambda = float(chapaq_data["lambda_value"])
     lambda_flags = []
     if chapaq_lambda is not None and chapaq_lambda >= 1.0:
         lambda_flags.append("CHAPAQ verdict source returned lambda=%.3f (>= 1.0) - clamped to < 1.0 (G2/G7)" % chapaq_lambda)
@@ -299,49 +289,57 @@ def build_mesh(ns: str) -> Dict[str, Any]:
 
 
 def build_ledger(ns: str) -> Dict[str, Any]:
-    """Cross-app unified DSSE ledger + the CROSS-APP COSIGN-CHAIN verify verdict.
-    The headline check: does the SAME cosign chain (keyid szlholdings-cosign) verify
-    across a11oy AND killinchu? Honest about ephemeral-key state until both apps hold
-    the canonical SZL_COSIGN_PRIVATE_PEM secret. NEVER fakes a MATCH."""
-    # Sign one probe receipt on each app, then verify each on the OTHER app.
-    a_env = _post_json(A11OY_BASE + "/khipu/sign", {"action": "ecosystem-xapp-probe", "data": {"src": "a11oy"}})
-    k_env = _post_json(KILLINCHU_BASE + "/khipu/sign",
-                       {"action": "ecosystem-xapp-probe", "seq": 1, "prev_hash": "0"})
+    """Read-only cross-app ledger inventory.
 
-    def keyid_of(env):
-        e = (env or {}).get("envelope", env) or {}
-        sigs = e.get("signatures") or []
-        return (sigs[0].get("keyid") if sigs else None)
+    GET fetches existing ledger state only. Cross-app signature verification is
+    explicit and operator-authorized; this route never signs or POSTs an envelope.
+    """
+    a_ledger = _get_json(A11OY_BASE + "/api/a11oy/v1/provenance/ledger")
+    k_ledger = _get_json(KILLINCHU_BASE + "/api/killinchu/v1/receipt/ledger")
 
-    a_keyid = keyid_of(a_env)
-    k_keyid = keyid_of(k_env)
+    def keyid_of(value):
+        if not isinstance(value, dict):
+            return None
+        envelope = value.get("envelope") or value.get("latest_envelope") or value
+        signatures = envelope.get("signatures") if isinstance(envelope, dict) else None
+        if isinstance(signatures, list) and signatures and isinstance(signatures[0], dict):
+            return signatures[0].get("keyid")
+        return None
 
-    # cross-app verify: verify killinchu's envelope on a11oy and vice-versa
-    a_env_inner = (a_env or {}).get("envelope", a_env)
-    k_env_inner = (k_env or {}).get("envelope", k_env)
-    k_on_a = _post_json(A11OY_BASE + "/khipu/verify", k_env_inner) if k_env_inner else None
-    a_on_k = _post_json(KILLINCHU_BASE + "/khipu/verify", a_env_inner) if a_env_inner else None
-
-    a_canonical = (a_keyid == COSIGN_KEYID)
-    k_canonical = (k_keyid == COSIGN_KEYID)
-    same_chain = bool(a_canonical and k_canonical and (k_on_a or {}).get("verified") is True)
-
+    a_keyid = keyid_of(a_ledger)
+    k_keyid = keyid_of(k_ledger)
+    reachable = a_ledger is not None or k_ledger is not None
     return {
         "surface": "cross-app unified DSSE ledger",
         "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "label": "LIVE" if (a_env and k_env) else "SAMPLE",
-        "scheme": "ECDSA-P256-SHA256 / cosign (the single estate signing scheme)",
+        "label": "CACHED" if reachable else "UNAVAILABLE",
+        "read_only": True,
+        "scheme": "ECDSA-P256-SHA256 / cosign",
         "cosign_keyid": COSIGN_KEYID,
         "cosign_pub_url": COSIGN_PUB_URL,
-        "a11oy_signer": {"keyid": a_keyid, "canonical": a_canonical},
-        "killinchu_signer": {"keyid": k_keyid, "canonical": k_canonical},
-        "cross_app_verify": {
-            "killinchu_env_on_a11oy": (k_on_a or {}).get("verified"),
-            "a11oy_env_on_killinchu": (a_on_k or {}).get("verified"),
-            "same_cosign_chain": same_chain,
+        "a11oy_ledger": {
+            "reachable": a_ledger is not None,
+            "reported_count": a_ledger.get("count") if isinstance(a_ledger, dict) else None,
         },
-        "verdict": "SAME cosign chain verifies across both apps" if same_chain
-        else "cross-app chain PENDING: killinchu signs with key '%s' (not canonical '%s'). Set the SZL_COSIGN_PRIVATE_PEM Space secret on killinchu to unify the chain. NEVER faked." % (k_keyid, COSIGN_KEYID),
+        "killinchu_ledger": {
+            "reachable": k_ledger is not None,
+            "reported_count": k_ledger.get("count") if isinstance(k_ledger, dict) else None,
+        },
+        "a11oy_signer": {"keyid": a_keyid, "canonical": a_keyid == COSIGN_KEYID if a_keyid else None},
+        "killinchu_signer": {"keyid": k_keyid, "canonical": k_keyid == COSIGN_KEYID if k_keyid else None},
+        "cross_app_verify": {
+            "killinchu_env_on_a11oy": "NOT_EVALUATED",
+            "a11oy_env_on_killinchu": "NOT_EVALUATED",
+            "same_cosign_chain": None,
+            "note": (
+                "Verification requires an explicit authorized action. "
+                "This GET does not mint, sign, POST, or persist anything."
+            ),
+        },
+        "verdict": (
+            "NOT_EVALUATED — existing ledger metadata is visible, but no "
+            "cross-app signature verification was executed by this read."
+        ),
         "tamper": "tamper-evident, not tamper-proof (G3)",
         "pqc": "roadmap-only (G4) - never shown as deployed",
         "doctrine": "v11",
