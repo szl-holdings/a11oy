@@ -6,6 +6,11 @@ on:
       - ops/relock-current-a11oy-20260722
     paths:
       - .github/workflows/relock-current-a11oy.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/relock-current-a11oy.yml
   workflow_dispatch: {}
 
 permissions:
@@ -23,7 +28,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
     env:
-      HF_PUBLISH_TOKEN: ${{ secrets.HF_TOKEN || secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 }}
+      HF_PUBLISH_TOKEN: ${{ secrets.HF_ORG_TOKEN1 || secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
     steps:
       - name: Checkout protected A11oy main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      HF_PUBLISH_TOKEN: ${{ secrets.HF_TOKEN || secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 }}
+      HF_PUBLISH_TOKEN: ${{ secrets.HF_ORG_TOKEN1 || secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       EXPECTED_SOURCE_SHA: ${{ needs.bind-source.outputs.source_sha }}
       GH_TOKEN: ${{ github.token }}
       REPORT_TITLE: '[hf-deployment-relock] current canonical A11oy'
