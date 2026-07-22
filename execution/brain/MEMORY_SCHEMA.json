@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-memory-1.0.schema.json",
+  "title": "SZL governed memory record",
+  "description": "Versioned memory contract for the holographic brain. It is intentionally stricter than a vector chunk and carries scope, provenance, epistemic state, governance, usage, and integrity fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "memory_id",
+    "schema_version",
+    "tenant_id",
+    "scope",
+    "type",
+    "content",
+    "provenance",
+    "epistemic_state",
+    "governance",
+    "usage",
+    "integrity"
+  ],
+  "properties": {
+    "memory_id": { "type": "string", "minLength": 12 },
+    "schema_version": { "const": "szl-memory/1.0" },
+    "tenant_id": { "type": "string", "minLength": 1 },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "organization",
+        "product",
+        "repository",
+        "component",
+        "environment",
+        "project",
+        "agent",
+        "session"
+      ],
+      "properties": {
+        "organization": { "type": "string" },
+        "product": { "type": "string" },
+        "repository": { "type": "string" },
+        "component": { "type": "string" },
+        "environment": { "type": "string" },
+        "project": { "type": "string" },
+        "agent": { "type": "string" },
+        "session": { "type": "string" }
+      }
+    },
+    "type": {
+      "enum": [
+        "WORKING",
+        "EPISODIC",
+        "SEMANTIC",
+        "PROCEDURAL",
+        "POLICY",
+        "PREFERENCE",
+        "RESEARCH",
+        "OUTCOME",
+        "NEGATIVE"
+      ]
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "claims",
+        "entities",
+        "relations",
+        "procedure",
+        "open_questions"
+      ],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "claims": { "type": "array", "items": { "type": "string" } },
+        "entities": { "type": "array", "items": { "type": "string" } },
+        "relations": { "type": "array", "items": { "type": "object" } },
+        "procedure": { "type": "array", "items": { "type": "string" } },
+        "open_questions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sources",
+        "source_digests",
+        "source_revisions",
+        "extraction_method",
+        "created_by",
+        "observed_at",
+        "ingested_at",
+        "trust_tier"
+      ],
+      "properties": {
+        "sources": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "source_digests": { "type": "array", "items": { "type": "string" } },
+        "source_revisions": { "type": "array", "items": { "type": "string" } },
+        "extraction_method": { "type": "string", "minLength": 1 },
+        "created_by": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string" },
+        "ingested_at": { "type": "string" },
+        "trust_tier": { "enum": ["T0", "T1", "T2", "T3", "T4", "T5"] }
+      }
+    },
+    "epistemic_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "confidence",
+        "confidence_method",
+        "contradiction_ids",
+        "supersedes",
+        "superseded_by"
+      ],
+      "properties": {
+        "status": { "enum": ["VERIFIED", "SUPPORTED", "INFERRED", "HYPOTHESIS", "DISPUTED", "SUPERSEDED", "RETRACTED"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confidence_method": { "type": "string" },
+        "contradiction_ids": { "type": "array", "items": { "type": "string" } },
+        "supersedes": { "type": "array", "items": { "type": "string" } },
+        "superseded_by": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "admission_policy",
+        "retention_policy",
+        "expires_at",
+        "human_review_required",
+        "propagation_allowed",
+        "training_allowed",
+        "export_allowed",
+        "allowed_consumers"
+      ],
+      "properties": {
+        "classification": { "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED", "SECRET"] },
+        "admission_policy": { "enum": ["AUTOMATIC", "RULE_VALIDATED", "HUMAN_REVIEWED", "EXPERIMENTAL", "REJECTED"] },
+        "retention_policy": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": ["string", "null"] },
+        "human_review_required": { "type": "boolean" },
+        "propagation_allowed": { "type": "boolean" },
+        "training_allowed": { "type": "boolean" },
+        "export_allowed": { "type": "boolean" },
+        "allowed_consumers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retrieval_count",
+        "last_retrieved_at",
+        "successful_outcomes",
+        "failed_outcomes",
+        "measured_utility"
+      ],
+      "properties": {
+        "retrieval_count": { "type": "integer", "minimum": 0 },
+        "last_retrieved_at": { "type": ["string", "null"] },
+        "successful_outcomes": { "type": "integer", "minimum": 0 },
+        "failed_outcomes": { "type": "integer", "minimum": 0 },
+        "measured_utility": { "type": "number", "minimum": -1, "maximum": 1 }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_digest",
+        "previous_version_digest",
+        "signature",
+        "receipt_id"
+      ],
+      "properties": {
+        "content_digest": { "type": "string" },
+        "previous_version_digest": { "type": ["string", "null"] },
+        "signature": { "type": "object" },
+        "receipt_id": { "type": "string" }
+      }
+    }
+  }
+}

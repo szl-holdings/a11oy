@@ -1,0 +1,6 @@
+connector_id,source,mode,identity,scope,classification,status,receipt_required
+github-events,GitHub,webhook_or_poll,GitHub_App,repository,INTERNAL,PARTIALLY_OPERATIONAL,true
+huggingface-estate,Hugging_Face,poll,org_write_token,repository,INTERNAL,BLOCKED_INVALID_TOKEN,true
+replit-handoff,Replit,explicit_handoff,connected_user,application,CONFIDENTIAL,PARTIALLY_OPERATIONAL,true
+deployment-probes,HTTP,scheduled_probe,service_identity,deployment,PUBLIC,PARTIALLY_OPERATIONAL,true
+artifact-import,Local_artifact,manual_import,human_operator,project,INTERNAL,MODELED,true

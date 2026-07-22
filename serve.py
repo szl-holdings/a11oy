@@ -1644,9 +1644,11 @@ except Exception as _frontier_page_e:  # pragma: no cover
 # output). Honest node/link counts (the ACTUAL harvested totals, not the leaked 8,893).
 # Pure read — signs nothing on GET. Registered BEFORE the SPA /{full_path:path} catch-all
 # so the JSON route resolves here, not the SPA HTML shell.
+_brain_graph_registered = False
 try:
     import a11oy_brain_graph as _a11oy_brain_graph
     _brain_graph_status = _a11oy_brain_graph.register(app, ns="a11oy")
+    _brain_graph_registered = True
     print(f"[a11oy] Brain graph registered: {_brain_graph_status}", file=__import__("sys").stderr)
 except Exception as _brain_graph_e:  # pragma: no cover
     print(f"[a11oy] Brain graph NOT registered: {_brain_graph_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
@@ -1661,12 +1663,50 @@ except Exception as _brain_graph_e:  # pragma: no cover
 # returns a REAL grounding subgraph always; generated prose is UNAVAILABLE unless a sovereign
 # model is reachable — never fabricated. Pure read (0 sign-on-GET). Registered BEFORE the SPA
 # /{full_path:path} catch-all. Additive, try/except-guarded.
+_brain_api_registered = False
 try:
     import szl_brain_api as _szl_brain_api
     _brain_api_status = _szl_brain_api.register(app, ns="a11oy")
+    _brain_api_registered = True
     print(f"[a11oy] Brain API registered: {_brain_api_status}", file=__import__("sys").stderr)
 except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- BRAIN CAPABILITIES LEDGER -- exposes the honest capability contract that the
+# holographic brain must obey: OPERATIONAL / PARTIALLY OPERATIONAL / MODELED /
+# SIMULATED / EXPERIMENTAL / UNAVAILABLE. Pure read; never upgrades stubs into
+# live, trained, or autonomous claims.
+try:
+    import szl_brain_capabilities as _szl_brain_capabilities
+    _brain_runtime_status = {
+        "estate_brain_graph": _brain_graph_registered,
+        "brain_retrieval": _brain_api_registered,
+        "brain_memory": _brain_api_registered,
+        "provenance_lineage": _brain_api_registered,
+        "query_audit_receipts": _brain_api_registered,
+    }
+    print(
+        "[a11oy] "
+        + _szl_brain_capabilities.register(
+            app,
+            ns="a11oy",
+            runtime_status=_brain_runtime_status,
+        ),
+        file=__import__("sys").stderr,
+    )
+except Exception as _szl_brain_capabilities_e:  # pragma: no cover
+    print(f"[a11oy] Brain capabilities NOT registered: {_szl_brain_capabilities_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- BRAIN QUANTUM EVIDENCE -- one typed, fail-closed view over the existing
+# classical quantum-utility gate, VQC simulation, quantum-bio models, formal
+# witnesses, instrument-fed limits, and claim promotion policy. The Watts-Mead
+# transactional paper is cited as research inspiration only. No QPU execution,
+# physical validation, or quantum advantage is claimed by this read surface.
+try:
+    import szl_brain_quantum_evidence as _szl_brain_quantum_evidence
+    print("[a11oy] " + _szl_brain_quantum_evidence.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _szl_brain_quantum_evidence_e:  # pragma: no cover
+    print(f"[a11oy] Brain quantum evidence NOT registered: {_szl_brain_quantum_evidence_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 # BRAIN UNCERTAINTY (feat/frontier-brainuncertainty) — calibrated, HONEST uncertainty on a
 # brain retrieval, complementing (never duplicating) point grounding confidence. Reads the

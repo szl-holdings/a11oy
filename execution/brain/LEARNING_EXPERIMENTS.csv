@@ -1,0 +1,6 @@
+experiment_id,hypothesis,change,target_metric,gate,status,evidence
+LE-001,Hybrid retrieval improves grounded recall,lexical_plus_vector_plus_graph,Recall_at_10,beat_best_single_index_by_5_percent,PLANNED,none
+LE-002,Trust-aware ranking reduces unsupported context,provenance_reranker,unsupported_context_rate,below_2_percent,PLANNED,none
+LE-003,Contradiction surfacing improves reviewer detection,contradiction_edges,contradiction_detection_recall,above_90_percent,PLANNED,none
+LE-004,Scope enforcement prevents tenant leakage,deny_by_default_filters,cross_tenant_leakage,zero,PLANNED,none
+LE-005,Outcome memory improves proposal quality,verified_outcome_feedback,locked_task_success,statistically_significant_gain,PLANNED,none

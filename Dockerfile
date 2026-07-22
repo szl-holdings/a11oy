@@ -590,6 +590,7 @@ COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
 # Wave 22: content-addressed corpus admission + fail-closed Brain reranker/feed.
 # No model weights, trainer, or network harvester are included.
 COPY szl_braincorpus.py szl_brain_reranker.py ./
+COPY szl_brain_capabilities.py szl_brain_memory_schema.py szl_brain_quantum_evidence.py ./
 # BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME
 # … (full rationale: docs/DOCKERFILE_NOTES.md §88)
 COPY szl_brainlineage.py ./szl_brainlineage.py
