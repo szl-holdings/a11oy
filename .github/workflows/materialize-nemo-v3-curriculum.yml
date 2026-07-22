@@ -1,5 +1,6 @@
 name: Materialize governed SZL-Nemo v3 curriculum
 
+# Registered by #1040; this explicit second protected-main touch executes it once.
 on:
   push:
     branches: [main]
@@ -7,6 +8,7 @@ on:
       - model_release/szl-nemo-v3/build_curriculum.py
       - tests/test_nemo_v3_curriculum.py
       - .github/workflows/materialize-nemo-v3-curriculum.yml
+  workflow_dispatch: {}
 
 permissions:
   contents: write
