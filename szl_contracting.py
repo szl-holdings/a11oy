@@ -697,6 +697,22 @@ def register(app, ns: str = "a11oy") -> None:
             "checked_at": _now_iso(),
         })
 
+    @app.get(base + "/sources/live")
+    async def _contracting_sources_live():  # noqa: ANN202
+        sl = _sources_live(fresh=True)
+        reach = sum(1 for s in sl.values() if (s.get("liveness") or {}).get("reachable"))
+        return JSONResponse({
+            "layer": "%s contracting source reachability" % ns,
+            "honest": _HONEST,
+            "sources": sl,
+            "sources_total": len(sl),
+            "sources_reachable": reach,
+            "checked_at": _now_iso(),
+        })
+
+    # Register the literal source-health route before the parameterized area route.
+    # Starlette resolves routes in declaration order; the reverse order makes
+    # ``sources`` look like an area ID and returns the area handler's honest 404.
     @app.get(base + "/{area_id}/live")
     async def _contracting_area_live(area_id: str):  # noqa: ANN202
         area = next((a for a in _AREAS if a["id"] == area_id), None)
@@ -708,19 +724,6 @@ def register(app, ns: str = "a11oy") -> None:
             "layer": "%s contracting area" % ns,
             "honest": _HONEST,
             "area": _build_area(area, sl),
-            "checked_at": _now_iso(),
-        })
-
-    @app.get(base + "/sources/live")
-    async def _contracting_sources_live():  # noqa: ANN202
-        sl = _sources_live(fresh=True)
-        reach = sum(1 for s in sl.values() if (s.get("liveness") or {}).get("reachable"))
-        return JSONResponse({
-            "layer": "%s contracting source reachability" % ns,
-            "honest": _HONEST,
-            "sources": sl,
-            "sources_total": len(sl),
-            "sources_reachable": reach,
             "checked_at": _now_iso(),
         })
 
