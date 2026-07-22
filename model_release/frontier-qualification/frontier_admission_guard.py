@@ -103,7 +103,7 @@ def load_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
     if not isinstance(layers, list) or len(layers) < 8:
         raise FrontierAdmissionError("registry GitHub estate layer map is incomplete")
     candidates = registry.get("candidates")
-    if not isinstance(candidates, list) or len(candidates) < 9:
+    if not isinstance(candidates, list) or len(candidates) < 11:
         raise FrontierAdmissionError("registry candidate inventory is incomplete")
     for candidate in candidates:
         if not isinstance(candidate, dict):

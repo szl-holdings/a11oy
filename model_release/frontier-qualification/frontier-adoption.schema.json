@@ -28,7 +28,7 @@
     "github_estate_strategy": {"$ref": "#/$defs/githubEstateStrategy"},
     "candidates": {
       "type": "array",
-      "minItems": 9,
+      "minItems": 11,
       "items": {"$ref": "#/$defs/candidate"}
     },
     "hf_estate": {"$ref": "#/$defs/hfEstate"},

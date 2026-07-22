@@ -23,7 +23,7 @@ def test_frontier_adoption_exposes_truth_without_authority() -> None:
     registry = payload["registry"]
     assert registry["brain_model_truth"]["raw_nodes_observed"] == 9464
     assert registry["brain_model_truth"]["raw_nodes_admitted_to_gradients"] == 0
-    assert len(registry["candidates"]) == 9
+    assert len(registry["candidates"]) == 11
 
 
 def test_estate_merges_live_metadata_without_turning_downloads_into_quality(monkeypatch) -> None:
