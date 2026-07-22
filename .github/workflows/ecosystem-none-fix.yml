@@ -18,13 +18,23 @@ jobs:
   repair:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout exact feature branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: frontier/command-center-readonly-20260722
           fetch-depth: 0
+
+      - name: Set up pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/requirements/ci-core.txt
+
+      - name: Install hash-locked CI core
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
 
       - name: Apply fail-closed null-safe repair
         run: python .github/scripts/apply_ecosystem_none_fix.py
