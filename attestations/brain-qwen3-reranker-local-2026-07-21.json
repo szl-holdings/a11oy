@@ -1,0 +1,46 @@
+{
+  "schema": "szl.brain.reranker.receipt.v1",
+  "label": "MEASURED",
+  "scope": "local evaluation-only bounded second-stage rerank",
+  "observed_date": "2026-07-21",
+  "corpus": {
+    "content_hash": "4dc8ac48ec65edd4",
+    "raw_node_count": 9464,
+    "community_count": 180
+  },
+  "retrieval": {
+    "model_id": "BAAI/bge-small-en-v1.5",
+    "upstream_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "local_artifact_sha256": "4b71e5b5863055c2bb1a49b0aa28acdcd79cd566cf5d070ae513006841fd0af0",
+    "candidate_limit": 20
+  },
+  "reranker": {
+    "model_id": "Qwen/Qwen3-Reranker-0.6B",
+    "upstream_revision": "e61197ed45024b0ed8a2d74b80b4d909f1255473",
+    "weight_sha256": "27cd75a405b9c1b46b59abfd88aaa209e6fed2a1972cde9b70e7659537c5e65b",
+    "local_runtime_artifact_sha256": "1ff2c1763377f591e76b18e344a9aa989a5cf72d6ebfef4e7dbbb9478aa4c928",
+    "device": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "dtype": "float16",
+    "batch_size": 8,
+    "max_length": 1024,
+    "state": "READY"
+  },
+  "measurement": {
+    "full_index_and_model_load_seconds": 49.559,
+    "rerank_seconds": 1.484,
+    "query": "governed decision receipts",
+    "top_node_id": "surface:governedrag",
+    "top_retrieval_score": 0.601001,
+    "top_reranker_probability": 0.928711
+  },
+  "decision": {
+    "state": "OPERATIONAL_CHALLENGER_NOT_PROMOTED",
+    "reason": "The real local path works, but one probe cannot establish a quality improvement over the frozen baseline."
+  },
+  "limitations": [
+    "Reranker probabilities are MODELED relevance estimates, not factual truth or confidence in a claim.",
+    "The endpoint is additive and explicit; the existing search ranking remains unchanged.",
+    "Freshness, contradiction, provenance, and uncertainty gates remain independent and fail closed.",
+    "Promotion requires the preregistered held-out multi-query retrieval evaluation."
+  ]
+}

@@ -49,6 +49,7 @@ import hashlib
 import json
 import math
 import os
+import pathlib
 import re
 import time
 import urllib.error
@@ -101,6 +102,14 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _PERSON_KINDS = _brain._PERSON_KINDS
 
 
+class SemanticEmbeddingUnavailableError(RuntimeError):
+    """Selected semantic vector space became unavailable; never mix spaces."""
+
+
+class RerankerUnavailableError(RuntimeError):
+    """Optional second-stage reranker is not qualified or reachable."""
+
+
 def _tokens(*parts: str) -> list:
     """Lowercase alnum tokens (len>=2) from the given strings, in order."""
     out = []
@@ -121,21 +130,61 @@ def _local_llm_url() -> str:
 
 
 def _ollama_embed(texts: list, url: str, model: str = "nomic-embed-text",
-                  timeout: float = 2.0):
-    """Embed via a local Ollama server. Returns list[list[float]] or raises."""
-    vecs = []
-    for text in texts:
-        body = json.dumps({"model": model, "prompt": text}).encode("utf-8")
+                  timeout: float = 30.0):
+    """Embed one bounded batch through Ollama's current local API.
+
+    ``/api/embed`` accepts a list and is the operational path for a corpus-sized
+    index.  Older Ollama releases exposed only ``/api/embeddings``; that endpoint
+    remains an explicit compatibility fallback.  Both paths validate the number
+    and shape of returned rows.  A malformed or partial response fails closed so
+    the caller can label and use the deterministic hash fallback instead.
+    """
+    if not texts:
+        return []
+
+    def _validated(rows):
+        if not isinstance(rows, list) or len(rows) != len(texts):
+            raise ValueError("ollama embedding row count mismatch")
+        converted = []
+        dimension = None
+        for row in rows:
+            if not isinstance(row, list) or not row:
+                raise ValueError("ollama returned an empty embedding row")
+            values = [float(x) for x in row]
+            if dimension is None:
+                dimension = len(values)
+            if len(values) != dimension:
+                raise ValueError("ollama embedding dimensions are inconsistent")
+            converted.append(values)
+        return converted
+
+    try:
+        body = json.dumps({"model": model, "input": texts,
+                           "truncate": True}).encode("utf-8")
         req = urllib.request.Request(
-            f"{url}/api/embeddings", data=body,
+            f"{url}/api/embed", data=body,
             headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
-        emb = payload.get("embedding")
-        if not emb:
-            raise ValueError("ollama returned no embedding")
-        vecs.append([float(x) for x in emb])
-    return vecs
+        return _validated(payload.get("embeddings"))
+    except Exception:
+        pass
+
+    rows = []
+    try:
+        for text in texts:
+            body = json.dumps({"model": model, "prompt": text}).encode("utf-8")
+            req = urllib.request.Request(
+                f"{url}/api/embeddings", data=body,
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            rows.append(payload.get("embedding"))
+        return _validated(rows)
+    except Exception as legacy_error:
+        raise RuntimeError(
+            "ollama embedding unavailable on both batch and legacy APIs"
+        ) from legacy_error
 
 
 def _hash_embed_one(text: str, dim: int = EMBED_DIM) -> list:
@@ -163,12 +212,15 @@ class _Embedder:
     """Chooses the best embedding source at build time and stays there."""
 
     def __init__(self):
-        self.model = "nomic-embed-text"
+        self.model = (os.environ.get("SZL_BRAIN_EMBED_MODEL")
+                      or "nomic-embed-text").strip()
         url = _local_llm_url()
         self.source = "hash-fallback"
         self.tier = LBL_MODELED
         self.dim = EMBED_DIM
         self._use_ollama = False
+        self._use_transformers = False
+        self.last_error = None
         if url:
             try:  # probe once with a trivial text
                 probe = _ollama_embed(["a11oy"], url, self.model, timeout=2.0)
@@ -176,19 +228,254 @@ class _Embedder:
                 self.dim = len(probe[0])
                 self.source = f"ollama:{self.model}"
                 self._use_ollama = True
-            except Exception:
+            except Exception as exc:
                 self._use_ollama = False
+                self.last_error = f"ollama probe failed: {type(exc).__name__}"
+        if not self._use_ollama:
+            local_path = os.environ.get("SZL_BRAIN_EMBED_PATH", "").strip()
+            if local_path:
+                try:
+                    self._init_transformers(local_path)
+                except Exception as exc:
+                    self._use_transformers = False
+                    self.last_error = (
+                        f"configured local transformer failed: {type(exc).__name__}")
+                    raise SemanticEmbeddingUnavailableError(
+                        "configured local semantic embedding runtime is unavailable"
+                    ) from exc
+
+    @staticmethod
+    def _local_model_digest(path: pathlib.Path) -> str:
+        """Hash every regular file in the resolved local model snapshot."""
+        digest = hashlib.sha256()
+        found = False
+        for file_path in sorted(path.rglob("*"), key=lambda p: p.as_posix()):
+            if not file_path.is_file():
+                continue
+            found = True
+            relative = file_path.relative_to(path).as_posix()
+            digest.update(relative.encode("utf-8"))
+            digest.update(b"\x00")
+            with file_path.open("rb") as handle:
+                for block in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(block)
+            digest.update(b"\x00")
+        if not found:
+            raise ValueError("local embedding snapshot contains no files")
+        return digest.hexdigest()
+
+    def _validate_rows(self, rows: list, expected: int) -> list:
+        if len(rows) != expected:
+            raise SemanticEmbeddingUnavailableError(
+                f"embedding runtime returned {len(rows)} rows for {expected} inputs")
+        for index, row in enumerate(rows):
+            if len(row) != self.dim:
+                raise SemanticEmbeddingUnavailableError(
+                    f"embedding row {index} has dimension {len(row)}; expected {self.dim}")
+            if not all(math.isfinite(float(value)) for value in row):
+                raise SemanticEmbeddingUnavailableError(
+                    f"embedding row {index} contains a non-finite value")
+        return rows
+
+    def _init_transformers(self, local_path: str) -> None:
+        """Load a local-only Transformers encoder; never downloads at runtime."""
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
+        path = pathlib.Path(local_path).expanduser().resolve()
+        if not path.is_dir():
+            raise ValueError("SZL_BRAIN_EMBED_PATH is not a directory")
+        requested = os.environ.get("SZL_BRAIN_EMBED_DEVICE", "cpu").strip().lower()
+        if requested == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError("CUDA requested for Brain embedder but unavailable")
+        self._tf_device = "cuda" if requested == "cuda" else "cpu"
+        self._tf_pooling = os.environ.get(
+            "SZL_BRAIN_EMBED_POOLING", "cls").strip().lower()
+        if self._tf_pooling not in {"cls", "last-token", "mean"}:
+            raise ValueError("unsupported SZL_BRAIN_EMBED_POOLING")
+        self._tf_torch = torch
+        self._tf_tokenizer = AutoTokenizer.from_pretrained(
+            str(path), local_files_only=True, trust_remote_code=False)
+        self._tf_model = AutoModel.from_pretrained(
+            str(path), local_files_only=True, trust_remote_code=False).to(self._tf_device)
+        self._tf_model.eval()
+        probe = self._transformers_embed(["a11oy"])
+        self.dim = len(probe[0])
+        artifact_hash = self._local_model_digest(path)
+        model_id = os.environ.get("SZL_BRAIN_EMBED_MODEL_ID", path.name).strip()
+        revision = os.environ.get("SZL_BRAIN_EMBED_REVISION", "").strip()
+        identity = f"{model_id}@{revision}" if revision else model_id
+        self.source = (f"transformers:{identity}@sha256:{artifact_hash}"
+                       f"#pooling:{self._tf_pooling}")
+        self.last_error = None
+        self._use_transformers = True
+
+    def _transformers_embed(self, texts: list) -> list:
+        """Encode with a local encoder using its CLS representation."""
+        if not texts:
+            return []
+        configured = int(os.environ.get("SZL_BRAIN_EMBED_BATCH", "64"))
+        batch_size = max(1, min(configured, 256))
+        rows = []
+        with self._tf_torch.inference_mode():
+            for start in range(0, len(texts), batch_size):
+                batch = texts[start:start + batch_size]
+                tokens = self._tf_tokenizer(
+                    batch, padding=True, truncation=True, max_length=512,
+                    return_tensors="pt")
+                tokens = {key: value.to(self._tf_device)
+                          for key, value in tokens.items()}
+                last_hidden = self._tf_model(**tokens).last_hidden_state
+                attention = tokens["attention_mask"]
+                if self._tf_pooling == "cls":
+                    pooled = last_hidden[:, 0]
+                elif self._tf_pooling == "mean":
+                    mask = attention.unsqueeze(-1).to(last_hidden.dtype)
+                    pooled = ((last_hidden * mask).sum(dim=1)
+                              / mask.sum(dim=1).clamp(min=1.0))
+                else:
+                    left_padded = bool(attention[:, -1].sum() == attention.shape[0])
+                    if left_padded:
+                        pooled = last_hidden[:, -1]
+                    else:
+                        end = attention.sum(dim=1) - 1
+                        batch_ids = self._tf_torch.arange(
+                            last_hidden.shape[0], device=last_hidden.device)
+                        pooled = last_hidden[batch_ids, end]
+                rows.extend(pooled.detach().float().cpu().tolist())
+        return rows
 
     def embed(self, texts: list) -> list:
         if self._use_ollama:
             try:
-                raw = _ollama_embed(texts, self._url, self.model, timeout=4.0)
-                return [_l2_normalize(v) for v in raw]
-            except Exception:
-                # A mid-flight failure downgrades honestly rather than erroring.
-                self._use_ollama = False
-                self.source = "hash-fallback"
+                configured = int(os.environ.get("SZL_BRAIN_EMBED_BATCH", "64"))
+                batch_size = max(1, min(configured, 256))
+                raw = []
+                for start in range(0, len(texts), batch_size):
+                    raw.extend(_ollama_embed(
+                        texts[start:start + batch_size], self._url,
+                        self.model, timeout=30.0))
+                rows = [_l2_normalize(v) for v in raw]
+                return self._validate_rows(rows, len(texts))
+            except Exception as exc:
+                self.last_error = f"ollama runtime failed: {type(exc).__name__}"
+                raise SemanticEmbeddingUnavailableError(
+                    "selected Ollama embedding runtime failed; semantic scoring refused"
+                ) from exc
+        if self._use_transformers:
+            try:
+                raw = self._transformers_embed(texts)
+                rows = [_l2_normalize(v) for v in raw]
+                return self._validate_rows(rows, len(texts))
+            except Exception as exc:
+                self.last_error = f"transformer runtime failed: {type(exc).__name__}"
+                raise SemanticEmbeddingUnavailableError(
+                    "selected local Transformer embedding runtime failed; "
+                    "semantic scoring refused"
+                ) from exc
         return [_l2_normalize(_hash_embed_one(t, self.dim)) for t in texts]
+
+
+class _Reranker:
+    """Optional local-files-only Qwen-style yes/no relevance reranker."""
+
+    _DEFAULT_INSTRUCTION = (
+        "Given an A11oy operational evidence query, retrieve graph nodes that "
+        "provide the most directly relevant governed evidence")
+    _PREFIX = (
+        '<|im_start|>system\nJudge whether the Document meets the requirements '
+        'based on the Query and the Instruct provided. Note that the answer can '
+        'only be "yes" or "no".<|im_end|>\n<|im_start|>user\n')
+    _SUFFIX = '<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n'
+
+    def __init__(self):
+        self.available = False
+        self.source = "unconfigured"
+        self.last_error = "SZL_BRAIN_RERANK_PATH is not configured"
+        local_path = os.environ.get("SZL_BRAIN_RERANK_PATH", "").strip()
+        if not local_path:
+            return
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+
+            path = pathlib.Path(local_path).expanduser().resolve()
+            if not path.is_dir():
+                raise ValueError("SZL_BRAIN_RERANK_PATH is not a directory")
+            requested = os.environ.get(
+                "SZL_BRAIN_RERANK_DEVICE", "cpu").strip().lower()
+            if requested == "cuda" and not torch.cuda.is_available():
+                raise RuntimeError("CUDA requested for Brain reranker but unavailable")
+            self._device = "cuda" if requested == "cuda" else "cpu"
+            dtype = torch.float16 if self._device == "cuda" else torch.float32
+            self._torch = torch
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                str(path), local_files_only=True, trust_remote_code=False,
+                padding_side="left")
+            self._model = AutoModelForCausalLM.from_pretrained(
+                str(path), local_files_only=True, trust_remote_code=False,
+                dtype=dtype).to(self._device).eval()
+            self._false_id = self._tokenizer.convert_tokens_to_ids("no")
+            self._true_id = self._tokenizer.convert_tokens_to_ids("yes")
+            if self._false_id == self._true_id:
+                raise ValueError("reranker yes/no token identifiers are not distinct")
+            self._prefix_ids = self._tokenizer.encode(
+                self._PREFIX, add_special_tokens=False)
+            self._suffix_ids = self._tokenizer.encode(
+                self._SUFFIX, add_special_tokens=False)
+            model_id = os.environ.get(
+                "SZL_BRAIN_RERANK_MODEL_ID", path.name).strip()
+            revision = os.environ.get("SZL_BRAIN_RERANK_REVISION", "").strip()
+            identity = f"{model_id}@{revision}" if revision else model_id
+            artifact_hash = _Embedder._local_model_digest(path)
+            self.source = f"transformers:{identity}@sha256:{artifact_hash}"
+            self.last_error = None
+            self.available = True
+        except Exception as exc:
+            self.last_error = f"configured reranker failed: {type(exc).__name__}"
+
+    def score(self, query: str, documents: list) -> list:
+        if not self.available:
+            raise RerankerUnavailableError(
+                self.last_error or "local reranker is unavailable")
+        if not documents:
+            return []
+        instruction = os.environ.get(
+            "SZL_BRAIN_RERANK_INSTRUCTION", self._DEFAULT_INSTRUCTION).strip()
+        configured_batch = int(os.environ.get("SZL_BRAIN_RERANK_BATCH", "8"))
+        batch_size = max(1, min(configured_batch, 16))
+        configured_length = int(os.environ.get("SZL_BRAIN_RERANK_MAX_LENGTH", "1024"))
+        max_length = max(128, min(configured_length, 8192))
+        scores = []
+        for start in range(0, len(documents), batch_size):
+            batch = documents[start:start + batch_size]
+            pairs = [
+                f"<Instruct>: {instruction}\n<Query>: {query}\n<Document>: {doc}"
+                for doc in batch
+            ]
+            inputs = self._tokenizer(
+                pairs, padding=False, truncation="longest_first",
+                max_length=max_length - len(self._prefix_ids) - len(self._suffix_ids),
+                return_attention_mask=False)
+            for index, row in enumerate(inputs["input_ids"]):
+                inputs["input_ids"][index] = (
+                    self._prefix_ids + row + self._suffix_ids)
+            inputs = self._tokenizer.pad(
+                inputs, padding=True, return_tensors="pt")
+            inputs = {key: value.to(self._device)
+                      for key, value in inputs.items()}
+            with self._torch.inference_mode():
+                logits = self._model(**inputs).logits[:, -1, :]
+                selected = self._torch.stack([
+                    logits[:, self._false_id], logits[:, self._true_id]], dim=1)
+                batch_scores = self._torch.nn.functional.log_softmax(
+                    selected, dim=1)[:, 1].exp().float().cpu().tolist()
+            if len(batch_scores) != len(batch) or not all(
+                    math.isfinite(float(value)) for value in batch_scores):
+                raise RerankerUnavailableError(
+                    "reranker returned malformed or non-finite scores")
+            scores.extend(float(value) for value in batch_scores)
+        return scores
 
 
 def _cosine(a: list, b: list) -> float:
@@ -246,9 +533,7 @@ class BrainIndex:
 
     # ---- embeddings + vector backend -------------------------------------- #
     def _node_text(self, n: dict) -> str:
-        return " ".join(str(x) for x in (
-            n.get("kind", ""), n.get("title", ""), n.get("id", ""),
-            n.get("axis") or "", n.get("source") or "") if x)
+        return _node_embedding_text(n)
 
     def _build_embeddings(self):
         self.embedder = _Embedder()
@@ -258,6 +543,7 @@ class BrainIndex:
         self.embed_tier = self.embedder.tier  # always MODELED
         self.embed_dim = self.embedder.dim
         self._init_vector_backend()
+        self.reranker = _Reranker()
 
     def _init_vector_backend(self):
         self.vector_backend = "python-cosine"
@@ -477,6 +763,29 @@ class BrainIndex:
             })
         return out
 
+    def search_reranked(self, q: str, k: int = 10) -> list:
+        """Rerank a bounded hybrid-retrieval candidate set; never silent/default."""
+        reranker = getattr(self, "reranker", None)
+        if reranker is None or not reranker.available:
+            raise RerankerUnavailableError(
+                getattr(reranker, "last_error", None) or
+                "local reranker is not configured")
+        configured = int(os.environ.get("SZL_BRAIN_RERANK_TOP", "50"))
+        candidate_count = max(max(1, k), min(configured, 50))
+        candidates = self.search(q, k=candidate_count)
+        documents = [self._node_text(self.by_id[row["id"]]) for row in candidates]
+        probabilities = reranker.score(q, documents)
+        output = []
+        for row, probability in zip(candidates, probabilities):
+            item = dict(row)
+            item["retrieval_score"] = item.pop("score")
+            item["reranker_probability"] = round(probability, 6)
+            item["score"] = round(probability, 6)
+            item["ranking_basis"] = "QWEN3_RERANKER_PROBABILITY"
+            output.append(item)
+        output.sort(key=lambda row: (-row["score"], row["id"]))
+        return output[:max(1, k)]
+
     def neighbors(self, nid: str, hops: int = 1) -> dict:
         hops = max(1, min(hops, 4))
         if nid not in self.by_id:
@@ -672,6 +981,15 @@ class BrainIndex:
         # conflate people, distinct artifacts, dedupe lineage, or admission.
         raw_node_count = self.graph.get("node_count", len(self.nodes))
         raw_link_count = self.graph.get("link_count", len(self.links))
+        if self.embed_source == "hash-fallback":
+            embed_note = ("hash-embedding similarity is MODELED (a deterministic "
+                          "token-overlap proxy), NEVER MEASURED")
+        else:
+            embed_note = ("semantic similarity is MODELED inference from the exact "
+                          "reported embedding runtime/artifacts, never ground truth")
+        embedder = getattr(self, "embedder", None)
+        embed_error = getattr(embedder, "last_error", None)
+        reranker = getattr(self, "reranker", None)
         return {
             "label": LBL_MODELED,
             "content_hash": self.content_hash,
@@ -684,6 +1002,18 @@ class BrainIndex:
             "embed_source": self.embed_source,
             "embed_tier": self.embed_tier,
             "embed_dim": self.embed_dim,
+            "embed_runtime_state": (
+                LBL_UNAVAILABLE if embed_error and
+                self.embed_source != "hash-fallback" else
+                ("FALLBACK" if self.embed_source == "hash-fallback" else "READY")
+            ),
+            "embed_last_error": embed_error,
+            "reranker_source": getattr(reranker, "source", "unconfigured"),
+            "reranker_state": (
+                "READY" if getattr(reranker, "available", False)
+                else LBL_UNAVAILABLE
+            ),
+            "reranker_last_error": getattr(reranker, "last_error", None),
             "vector_backend": self.vector_backend,
             "community_algo": self.community_algo,
             "community_count": len(self.communities),
@@ -695,17 +1025,28 @@ class BrainIndex:
                 "sqlite_vec": _HAVE_SQLITE_VEC,
                 "igraph": _HAVE_IGRAPH,
                 "ollama_embeddings": self.embed_source.startswith("ollama"),
+                "local_transformers_embeddings": self.embed_source.startswith(
+                    "transformers:"),
             },
-            "note": ("hash-embedding similarity is MODELED (a deterministic "
-                     "token-overlap proxy), NEVER MEASURED. Graph counts come "
-                     "from the current graph and do not imply training admission."),
+            "note": (f"{embed_note}. Graph counts come from the current graph "
+                     "and do not imply training admission."),
         }
 
 
+def _node_embedding_text(node: dict) -> str:
+    """Canonical text sent to every embedding runtime."""
+    return " ".join(str(value) for value in (
+        node.get("kind", ""), node.get("title", ""), node.get("id", ""),
+        node.get("axis") or "", node.get("source") or "") if value)
+
+
 def _content_hash(graph: dict) -> str:
+    """Bind topology and the exact ordered text embedded for every node."""
     h = hashlib.sha256()
     for n in graph.get("nodes", []):
         h.update(n["id"].encode("utf-8"))
+        h.update(b"\x00")
+        h.update(_node_embedding_text(n).encode("utf-8"))
         h.update(b"\x00")
     h.update(b"||links||")
     for l in graph.get("links", []):
@@ -738,9 +1079,18 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     @app.get(f"{base}/search")
     async def brain_search(q: str = "", k: int = 10):  # noqa: ANN202
         idx = get_index(ns)
+        try:
+            results = idx.search(q, k)
+        except SemanticEmbeddingUnavailableError as exc:
+            return JSONResponse({
+                "label": LBL_UNAVAILABLE,
+                "query": q,
+                "k": k,
+                "error": str(exc),
+                "index": idx.index_status(),
+            }, status_code=503)
         return JSONResponse({"label": LBL_MODELED, "query": q, "k": k,
-                             "results": idx.search(q, k),
-                             "index": idx.index_status()})
+                             "results": results, "index": idx.index_status()})
 
     @app.get(f"{base}/neighbors")
     async def brain_neighbors(id: str = "", hops: int = 1):  # noqa: ANN202,A002
@@ -751,6 +1101,28 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
                 {"label": LBL_UNAVAILABLE, "error": f"unknown node id: {id!r}",
                  "id": id}, status_code=404)
         return JSONResponse(sub)
+
+    @app.get(f"{base}/search-reranked")
+    async def brain_search_reranked(q: str = "", k: int = 10):  # noqa: ANN202
+        idx = get_index(ns)
+        try:
+            results = idx.search_reranked(q, k)
+        except (SemanticEmbeddingUnavailableError,
+                RerankerUnavailableError) as exc:
+            return JSONResponse({
+                "label": LBL_UNAVAILABLE,
+                "query": q,
+                "k": k,
+                "error": str(exc),
+                "index": idx.index_status(),
+            }, status_code=503)
+        return JSONResponse({
+            "label": LBL_MODELED,
+            "query": q,
+            "k": k,
+            "results": results,
+            "index": idx.index_status(),
+        })
 
     @app.get(f"{base}/community")
     async def brain_community(id: str = ""):  # noqa: ANN202,A002
@@ -778,7 +1150,15 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     @app.get(f"{base}/ask")
     async def brain_ask(q: str = "", k: int = 12):  # noqa: ANN202
         idx = get_index(ns)
-        return JSONResponse(idx.ask(q, k))
+        try:
+            return JSONResponse(idx.ask(q, k))
+        except SemanticEmbeddingUnavailableError as exc:
+            return JSONResponse({
+                "label": LBL_UNAVAILABLE,
+                "query": q,
+                "error": str(exc),
+                "index": idx.index_status(),
+            }, status_code=503)
 
     @app.get(f"{base}/stats")
     async def brain_stats():  # noqa: ANN202
@@ -791,7 +1171,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     idx = get_index(ns)
     st = idx.index_status()
     return (f"brain-api mounted: GET {base}/"
-            f"{{search,neighbors,community,subgraph,salience,ask,stats,index}} "
+            f"{{search,search-reranked,neighbors,community,subgraph,salience,ask,stats,index}} "
             f"({st['node_count']} nodes, {st['community_count']} communities via "
             f"{st['community_algo']}; vectors={st['vector_backend']}, "
             f"embeddings={st['embed_source']} [{st['embed_tier']}]; "
