@@ -1,0 +1,41 @@
+{
+  "schema": "szl.brain.semantic-index.receipt.v1",
+  "label": "MEASURED",
+  "scope": "local evaluation-only Brain index build and query",
+  "observed_date": "2026-07-21",
+  "corpus": {
+    "content_hash": "4dc8ac48ec65edd4",
+    "raw_node_count": 9464,
+    "link_count": 14234,
+    "distinct_artifacts": 4229,
+    "person_node_count": 5235
+  },
+  "embedding": {
+    "model_id": "BAAI/bge-small-en-v1.5",
+    "upstream_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "local_artifact_sha256": "4b71e5b5863055c2bb1a49b0aa28acdcd79cd566cf5d070ae513006841fd0af0",
+    "dimension": 384,
+    "device": "cuda",
+    "backend": "transformers-local-files-only",
+    "semantic_scores_label": "MODELED"
+  },
+  "index": {
+    "vector_backend": "numpy-cosine",
+    "community_algorithm": "networkx-greedy-modularity",
+    "community_count": 180,
+    "elapsed_seconds": 51.671
+  },
+  "probe": {
+    "query": "governed decision receipts",
+    "top_node_id": "surface:governedrag",
+    "top_score": 0.601001,
+    "top_vector_cosine": 0.764766
+  },
+  "limitations": [
+    "This receipt measures a local index build and one query; it is not a retrieval-quality benchmark.",
+    "Elapsed time includes hashing every file in the exact local model snapshot before indexing.",
+    "Semantic scores are model outputs and remain MODELED, not factual proof.",
+    "The run does not repair missing source timestamps, unresolved contradictions, or uncertainty calibration.",
+    "The 9464 raw nodes are not thereby admitted to gradients, training datasets, or public release."
+  ]
+}
