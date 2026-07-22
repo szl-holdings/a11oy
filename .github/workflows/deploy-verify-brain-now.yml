@@ -1,0 +1,188 @@
+name: Deploy and verify current A11oy Brain
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-verify-brain-now.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: deploy-verify-current-a11oy-brain
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: main
+      dockerfile-path: Dockerfile
+      include-readme: true
+      smoke-paths: '["/","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/brain/capabilities/info","/api/a11oy/v1/brain/quantum-evidence","/api/a11oy/v1/brain/quantum-evidence/info"]'
+      prune: true
+      wait-running: 1200
+    secrets: inherit
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Probe deployed Brain contracts and immutable runtime
+        shell: python
+        run: |
+          import json
+          import re
+          import time
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          SPACE = "SZLHOLDINGS/a11oy"
+          BASE = "https://szlholdings-a11oy.hf.space"
+          SHA = re.compile(r"^[0-9a-f]{40}$")
+
+          def get_json(url: str, timeout: float = 45.0):
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "User-Agent": "szl-a11oy-brain-deployment-evidence/1.0",
+                      "Cache-Control": "no-cache",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=timeout) as response:
+                  if response.status != 200:
+                      raise RuntimeError(f"{url} returned HTTP {response.status}")
+                  payload = json.load(response)
+                  if not isinstance(payload, dict):
+                      raise RuntimeError(f"{url} did not return a JSON object")
+                  return response.status, payload
+
+          metadata = None
+          last_error = None
+          for _ in range(30):
+              try:
+                  _, candidate = get_json(f"https://huggingface.co/api/spaces/{SPACE}")
+                  runtime = candidate.get("runtime") or {}
+                  if runtime.get("stage") == "RUNNING" and SHA.fullmatch(str(runtime.get("sha") or "")):
+                      metadata = candidate
+                      break
+                  last_error = f"stage={runtime.get('stage')} runtime_sha={runtime.get('sha')}"
+              except Exception as exc:
+                  last_error = f"{type(exc).__name__}: {exc}"
+              time.sleep(10)
+          if metadata is None:
+              raise SystemExit(f"Space did not expose a RUNNING immutable runtime: {last_error}")
+
+          runtime = metadata.get("runtime") or {}
+          repository_sha = str(metadata.get("sha") or "")
+          runtime_sha = str(runtime.get("sha") or "")
+          if not SHA.fullmatch(repository_sha):
+              raise SystemExit(f"invalid repository SHA: {repository_sha!r}")
+          if not SHA.fullmatch(runtime_sha):
+              raise SystemExit(f"invalid runtime SHA: {runtime_sha!r}")
+          if metadata.get("private") is True:
+              raise SystemExit("canonical A11oy Space is private")
+          if str(metadata.get("sdk") or "").lower() != "docker":
+              raise SystemExit(f"canonical A11oy Space is not Docker-backed: {metadata.get('sdk')!r}")
+
+          contracts = {
+              "/api/a11oy/v1/brain/capabilities": {
+                  "schema": "szl.brain-capabilities.v1",
+                  "overall_status": "PARTIALLY OPERATIONAL",
+              },
+              "/api/a11oy/v1/brain/capabilities/info": {
+                  "schema": "szl.brain-capabilities-info.v1",
+                  "pure_read": True,
+              },
+              "/api/a11oy/v1/brain/quantum-evidence": {
+                  "schema": "szl.brain-quantum-evidence.v1",
+                  "overall_status": "PARTIALLY OPERATIONAL",
+              },
+              "/api/a11oy/v1/brain/quantum-evidence/info": {
+                  "schema": "szl.brain-quantum-evidence-info.v1",
+                  "pure_read": True,
+                  "executes_qpu": False,
+              },
+          }
+          observations = {}
+          for path, expected in contracts.items():
+              status, payload = get_json(BASE + path)
+              mismatches = {
+                  key: {"expected": value, "observed": payload.get(key)}
+                  for key, value in expected.items()
+                  if payload.get(key) != value
+              }
+              if mismatches:
+                  raise SystemExit(f"contract mismatch for {path}: {mismatches}")
+              observations[path] = {
+                  "http_status": status,
+                  "schema": payload.get("schema"),
+                  "overall_status": payload.get("overall_status"),
+                  "content_sha256": payload.get("content_sha256"),
+              }
+
+          report = {
+              "schema": "szl.a11oy-brain-deployment-evidence/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "github_source_sha": "${{ github.sha }}",
+              "space": SPACE,
+              "public": metadata.get("private") is False,
+              "sdk": metadata.get("sdk"),
+              "repository_sha": repository_sha,
+              "runtime_sha": runtime_sha,
+              "runtime_stage": runtime.get("stage"),
+              "repository_runtime_relation": (
+                  "SAME_REVISION" if repository_sha == runtime_sha else "DISTINCT_REVISIONS"
+              ),
+              "contracts": observations,
+              "status": "PASS",
+          }
+          Path("brain-deployment-evidence.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+
+      - name: Upload immutable Brain deployment evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-brain-deployment-evidence
+          path: brain-deployment-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Persist deterministic deployment report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "[brain-deployment-report] A11oy Brain routes and runtime revision"
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          {
+            echo '<!-- szl-a11oy-brain-deployment-report -->'
+            echo '# A11oy Brain deployment verification'
+            echo
+            echo "- Run: ${run_url}"
+            echo "- GitHub source: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat brain-deployment-evidence.json
+            echo '```'
+          } > /tmp/body.md
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all \
+            --search "${TITLE} in:title" --json number,title \
+            --jq ".[] | select(.title == env.TITLE) | .number" | head -n1)"
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed \
+              --comment 'Current canonical Brain routes and immutable Hugging Face runtime passed.' || true
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file /tmp/body.md
+          fi
