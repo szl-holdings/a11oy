@@ -169,6 +169,19 @@ def test_build_info_uses_allowlisted_sha_and_never_emits_environment(monkeypatch
     assert "SECRET_TOKEN" not in rendered
 
 
+def test_build_info_uses_hf_deployment_sha(monkeypatch):
+    for name in contracts._ENV_SHA_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    sha = "c" * 40
+    monkeypatch.setenv("SZL_GIT_SHA", sha)
+
+    body = TestClient(_app_with_catchall()).get("/api/build-info").json()
+
+    assert body["build"]["state"] == "OBSERVED"
+    assert body["build"]["revision"] == sha
+    assert body["build"]["revision_source"] == "env:SZL_GIT_SHA"
+
+
 def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
     calls = []
 

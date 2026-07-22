@@ -102,7 +102,14 @@ def build_attestation_v2(
         repository = f"https://github.com/{old}" if old else "https://github.com/szl-holdings/a11oy"
 
     source_commit = _first_env(
-        ("A11OY_SOURCE_COMMIT", "GITHUB_SHA", "VERCEL_GIT_COMMIT_SHA"), _commit
+        (
+            "A11OY_SOURCE_COMMIT",
+            "SZL_GIT_SHA",
+            "SPACE_COMMIT_SHA",
+            "GITHUB_SHA",
+            "VERCEL_GIT_COMMIT_SHA",
+        ),
+        _commit,
     ) or _commit(source.get("commit"))
     deployed_commit = _first_env(
         ("SPACE_REPOSITORY_COMMIT", "A11OY_DEPLOYED_COMMIT"), _commit

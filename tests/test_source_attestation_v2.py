@@ -9,7 +9,8 @@ import szl_source_attestation as source
 
 
 _ENV = (
-    "A11OY_SOURCE_COMMIT", "GITHUB_SHA", "VERCEL_GIT_COMMIT_SHA",
+    "A11OY_SOURCE_COMMIT", "SZL_GIT_SHA", "SPACE_COMMIT_SHA", "GITHUB_SHA",
+    "VERCEL_GIT_COMMIT_SHA",
     "SPACE_REPOSITORY_COMMIT", "A11OY_DEPLOYED_COMMIT", "A11OY_BUILD_DIGEST",
     "SZL_BUILD_DIGEST", "A11OY_IMAGE_DIGEST", "CONTAINER_IMAGE_DIGEST",
     "A11OY_DEPLOYED_AT", "DEPLOYED_AT", "SZL_BUILD_TIME",
@@ -46,6 +47,17 @@ def test_observable_build_facts_are_normalized_and_matched(monkeypatch):
     assert result["alignment_state"] == "MATCH"
     assert result["build_digest"]["value"] == "sha256:" + "2" * 64
     assert result["deploy_timestamp"]["value"] == "2026-07-17T00:30:00Z"
+
+
+def test_hf_deployment_sha_is_admitted_as_source_commit(monkeypatch):
+    _clear(monkeypatch)
+    sha = "4" * 40
+    monkeypatch.setenv("SZL_GIT_SHA", sha)
+
+    result = source.build_attestation_v2("SZLHOLDINGS/a11oy", {})
+
+    assert result["source_commit"] == {"value": sha, "evidence_class": "MEASURED"}
+    assert result["alignment_state"] == "UNKNOWN"
 
 
 def test_source_schema_accepts_payload(monkeypatch):
