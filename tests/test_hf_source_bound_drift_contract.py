@@ -7,6 +7,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DRIFT_WORKFLOW = ROOT / ".github" / "workflows" / "hf-module-drift.yml"
 SYNC_WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 LEGACY_LOCK = ROOT / ".github" / "hf-deployment-lock.json"
+LEGACY_RELOCK_WORKFLOW = ROOT / ".github" / "workflows" / "hf-relock-evidence.yml"
+LEGACY_RUNTIME_VERIFIER = ROOT / "scripts" / "check_hf_runtime_revision.py"
+LEGACY_RUNTIME_VERIFIER_TEST = ROOT / "scripts" / "test_check_hf_runtime_revision.py"
 
 
 class SourceBoundDriftWorkflowTests(unittest.TestCase):
@@ -37,11 +40,20 @@ class SourceBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", self.drift)
         self.assertIn("schedule:", self.drift)
 
-    def test_committed_deployment_lock_is_removed_from_code_and_workflow(self) -> None:
-        self.assertFalse(LEGACY_LOCK.exists())
+    def test_fixed_revision_lock_and_relock_lane_are_permanently_removed(self) -> None:
+        for path in (
+            LEGACY_LOCK,
+            LEGACY_RELOCK_WORKFLOW,
+            LEGACY_RUNTIME_VERIFIER,
+            LEGACY_RUNTIME_VERIFIER_TEST,
+        ):
+            with self.subTest(path=path):
+                self.assertFalse(path.exists())
         self.assertNotIn("deployment-lock", self.drift)
         self.assertNotIn("trusted-baseline", self.drift)
         self.assertNotIn("hf-module-drift-allow", self.drift)
+        self.assertNotIn("hf-relock-evidence", self.sync)
+        self.assertNotIn("check_hf_runtime_revision", self.sync)
 
     def test_successful_source_bound_deploy_dispatches_strict_parity(self) -> None:
         self.assertIn("actions: write", self.sync)
