@@ -1,7 +1,7 @@
 {
   "$schema": "./frontier-adoption.schema.json",
   "schema_version": "szl.frontier-adoption.v1",
-  "as_of": "2026-07-16",
+  "as_of": "2026-07-21",
   "status": "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION",
   "evidence_policy": {
     "upstream_facts": "PRIMARY_REPORTED_NOT_LOCAL_MEASUREMENT",
@@ -15,7 +15,7 @@
     "raw_nodes_observed": 9464,
     "raw_nodes_available_to_retrieval_and_evaluation": 9464,
     "raw_nodes_admitted_to_gradients": 0,
-    "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+    "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "current_weight_model_relation": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT",
     "current_release_limit": "OWNER_EVALUATED_2_OF_6_ABSTENTION_CORRECT_AND_SIGNED_RECEIPT_ARTIFACT_BINDING_CONFLICT_BLOCK_AUTONOMOUS_HIGH_STAKES_OR_PROMOTION",
     "next_release_predicate": [
@@ -26,7 +26,7 @@
     ]
   },
   "flagship_strategy": {
-    "primary_model": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+    "primary_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "distribution_model": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
     "specialist_candidate": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
     "unification_mode": "ONE_PRODUCT_FAMILY_ROUTER_COLLECTION_AND_SHARED_EVALS",
@@ -523,21 +523,21 @@
     "metadata_state": "PINNED_CLASSIFICATION_LIVE_COUNTS_FETCHED_AT_RUNTIME",
     "live_counts_embedded": false,
     "repositories": [
-      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator", "observed_revision": "6a9b18a2d2768cfa6a13eb2f932d503cd00e5866", "artifact_class": "WEIGHT_MODEL", "weight_bearing": true, "strategy": "KEEP_FLAGSHIP_BLOCKED_ARTIFACT_BINDING_CONFLICT", "canonical_family": "SZL-Khipu", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF", "observed_revision": "4838c1468bd2ac90ee8db7120420d196ea085305", "artifact_class": "QUANTIZED_WEIGHT_MODEL", "weight_bearing": true, "strategy": "KEEP_DISTRIBUTION_FORMAT", "canonical_family": "SZL-Khipu", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent", "observed_revision": "4cc1fc12f630feab487eed34b2bda9c7a14778d6", "artifact_class": "WEIGHT_MODEL", "weight_bearing": true, "strategy": "KEEP_LABELED_ARTIFACT_TARGET_ROLE_UNESTABLISHED_BINDING_CONFLICT", "canonical_family": "SZL-Khipu", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-nemo", "observed_revision": "c68649bcb7e8e20e87446033d7f6900d92263fe3", "artifact_class": "MODEL_PROGRAM_LEDGER", "weight_bearing": false, "strategy": "KEEP_PROGRAM_LEDGER_UNTIL_QUALIFIED_WEIGHT_RELEASE", "canonical_family": "SZL-Nemo", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-kernels", "observed_revision": "d36d88bfb42ca5ac010360f41be8efc7de0662e0", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-governed-norm", "observed_revision": "9ac6e3001c7aac5bd80dcee57dd71939b3d6257a", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-lambda-gate", "observed_revision": "f4a787fbe552a242b5d117a1cb39e35fd9ff3215", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-invariants", "observed_revision": "e5da97adb690f37d9d5d314a7e7404aff8ee0964", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-formulas", "observed_revision": "090ae9a700f3aa77876f341bc84c1f8e3c507eea", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-ouroboros", "observed_revision": "e0a6a6596224a6ee98e56dffcb5490df2998d19c", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-provctl", "observed_revision": "f207e81765528a042c430ed991e3c02a7092d2df", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-govsign", "observed_revision": "d9cb07b045cc99a85058654a899e55e86092c777", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/governed-inference-meter", "observed_revision": "ccf5dd886633130d0735ae16ed726df1a8eda20b", "artifact_class": "KERNEL_LIBRARY", "weight_bearing": false, "strategy": "KEEP_AND_GROUP_KERNEL_COLLECTION", "canonical_family": "SZL-Kernels", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/a11oy-v19-substrate", "observed_revision": "9da51773c98298078854c8015c5deef90627aefa", "artifact_class": "GOVERNANCE_SUBSTRATE", "weight_bearing": false, "strategy": "KEEP_GOVERNANCE_ARTIFACT_NOT_MARKETED_AS_MODEL", "canonical_family": "A11oy-Substrate", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-blocked", "observed_revision": "5559070398f5799635bd48b98310fde1e779c2fc", "artifact_class": "BLOCKED_EVIDENCE_EXHIBIT", "weight_bearing": false, "strategy": "KEEP_QUARANTINED_WITH_EXPLICIT_BLOCKED_LABEL", "canonical_family": "SZL-Governance-Evidence", "delete_authorized": false}
+      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B", "observed_revision": "cb414ab3b7dd05b5c6622c1a9c4e50089c7c0b76", "artifact_class": "ADAPTER_PLUS_MERGED", "weight_bearing": true, "strategy": "KEEP_FLAGSHIP_REPRO_TRUST_REVIEW_REQUIRED", "canonical_family": "SZL-Khipu", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF", "observed_revision": "8c54ca23ccf34ace87b29b474629e01b65d9602b", "artifact_class": "GGUF_DERIVATIVE", "weight_bearing": true, "strategy": "KEEP_DISTRIBUTION_FORMAT", "canonical_family": "SZL-Khipu", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent", "observed_revision": "fa73dc1bd8eeece727d0b5c1db52448ec0703e8b", "artifact_class": "ADAPTER_PLUS_MERGED", "weight_bearing": true, "strategy": "KEEP_SPECIALIST_REPRO_BUNDLE_REQUIRED", "canonical_family": "SZL-Khipu", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-nemo", "observed_revision": "c69af93e3cae6938346679704444bfc08eff0bff", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_RECIPE_ONLY", "canonical_family": "SZL-Nemo", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-kernels", "observed_revision": "7842caa5c040116447227d5e64859b1efcc7ed0d", "artifact_class": "CODE_ONLY", "weight_bearing": false, "strategy": "KEEP_CODE_PACKAGE", "canonical_family": "SZL-Kernels", "identity_state": "CODE_ONLY", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-governed-norm", "observed_revision": "ae108bc2da0dfff955b2c1bab8a5f26627a74c0a", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_DEPRECATED_WITH_SUCCESSOR", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-lambda-gate", "observed_revision": "e5522a60789d2a7329fa0b2054224cdb88ed475e", "artifact_class": "CUSTOM_WEIGHT", "weight_bearing": true, "strategy": "KEEP_CUSTOM_RUNTIME_MODEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-invariants", "observed_revision": "8fae710fc95b5cb674311e88e78456b96fa65b07", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "HOLD_DUPLICATE_IDENTITY_RECONCILIATION", "canonical_family": "SZL-Kernels", "identity_state": "DUPLICATE_BYTES_CONFLICT", "content_equivalent_to": "SZLHOLDINGS/szl-govsign", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-formulas", "observed_revision": "e3bfdd72367cab65df4a368dc24e121d45c53fb4", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-ouroboros", "observed_revision": "5fa147685d6b7cc4f5ba73e4414436251944997c", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-provctl", "observed_revision": "94ec3a385f47529990eb15cedb1e12a21516a918", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-govsign", "observed_revision": "e47487793add3d0d8c1b6b35821d0c15dbcee614", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "HOLD_DUPLICATE_IDENTITY_RECONCILIATION", "canonical_family": "SZL-Kernels", "identity_state": "DUPLICATE_BYTES_CONFLICT", "content_equivalent_to": "SZLHOLDINGS/szl-invariants", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/governed-inference-meter", "observed_revision": "65bd0fb190c01ffb3cb131ecd5252894c69d19f6", "artifact_class": "CODE_ONLY", "weight_bearing": false, "strategy": "KEEP_CODE_PACKAGE", "canonical_family": "SZL-Kernels", "identity_state": "CODE_ONLY", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/a11oy-v19-substrate", "observed_revision": "0dac59f07e27d93afdefad4b249831682b4d7293", "artifact_class": "CUSTOM_WEIGHT", "weight_bearing": true, "strategy": "KEEP_CUSTOM_RUNTIME_MODEL", "canonical_family": "A11oy-Substrate", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
+      {"repository_id": "SZLHOLDINGS/szl-blocked", "observed_revision": "a9112d41961866762d219622e87baf084c4b854d", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Governance-Evidence", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false}
     ],
     "archive_predicate": [
       "Archive only after proving the repository contains no unique weights, adapters, kernels, receipts, citations, DOI references, discussions, or inbound links.",

@@ -79,7 +79,7 @@
         "raw_nodes_observed": {"const": 9464},
         "raw_nodes_available_to_retrieval_and_evaluation": {"const": 9464},
         "raw_nodes_admitted_to_gradients": {"const": 0},
-        "current_weight_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"},
+        "current_weight_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B"},
         "current_weight_model_relation": {
           "const": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT"
         },
@@ -101,7 +101,7 @@
         "strategy"
       ],
       "properties": {
-        "primary_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"},
+        "primary_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B"},
         "distribution_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"},
         "specialist_candidate": {"const": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"},
         "unification_mode": {"const": "ONE_PRODUCT_FAMILY_ROUTER_COLLECTION_AND_SHARED_EVALS"},
@@ -347,6 +347,7 @@
         "weight_bearing",
         "strategy",
         "canonical_family",
+        "identity_state",
         "delete_authorized"
       ],
       "properties": {
@@ -354,27 +355,35 @@
         "observed_revision": {"$ref": "#/$defs/sha40"},
         "artifact_class": {
           "enum": [
-            "WEIGHT_MODEL",
-            "QUANTIZED_WEIGHT_MODEL",
-            "KERNEL_LIBRARY",
-            "MODEL_PROGRAM_LEDGER",
-            "GOVERNANCE_SUBSTRATE",
-            "BLOCKED_EVIDENCE_EXHIBIT"
+            "ADAPTER_PLUS_MERGED",
+            "GGUF_DERIVATIVE",
+            "CUSTOM_WEIGHT",
+            "SKLEARN_SURROGATE",
+            "CODE_ONLY"
           ]
         },
         "weight_bearing": {"type": "boolean"},
         "strategy": {
           "enum": [
-            "KEEP_FLAGSHIP_BLOCKED_ARTIFACT_BINDING_CONFLICT",
-            "KEEP_LABELED_ARTIFACT_TARGET_ROLE_UNESTABLISHED_BINDING_CONFLICT",
+            "KEEP_FLAGSHIP_REPRO_TRUST_REVIEW_REQUIRED",
+            "KEEP_SPECIALIST_REPRO_BUNDLE_REQUIRED",
             "KEEP_DISTRIBUTION_FORMAT",
-            "KEEP_AND_GROUP_KERNEL_COLLECTION",
-            "KEEP_PROGRAM_LEDGER_UNTIL_QUALIFIED_WEIGHT_RELEASE",
-            "KEEP_GOVERNANCE_ARTIFACT_NOT_MARKETED_AS_MODEL",
-            "KEEP_QUARANTINED_WITH_EXPLICIT_BLOCKED_LABEL"
+            "KEEP_RECIPE_ONLY",
+            "KEEP_CODE_PACKAGE",
+            "KEEP_DEPRECATED_WITH_SUCCESSOR",
+            "KEEP_CUSTOM_RUNTIME_MODEL",
+            "KEEP_SURROGATE_KERNEL",
+            "HOLD_DUPLICATE_IDENTITY_RECONCILIATION"
           ]
         },
         "canonical_family": {"type": "string", "minLength": 1},
+        "identity_state": {
+          "enum": ["UNIQUE_BY_AUDIT", "DUPLICATE_BYTES_CONFLICT", "CODE_ONLY"]
+        },
+        "content_equivalent_to": {
+          "type": "string",
+          "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"
+        },
         "delete_authorized": {"const": false}
       }
     },

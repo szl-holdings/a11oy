@@ -324,12 +324,17 @@ def _load_frontier_registry() -> dict[str, Any]:
             raise ValueError("frontier adoption registry estate record is malformed")
         required = {
             "repository_id", "observed_revision", "artifact_class", "weight_bearing",
-            "strategy", "canonical_family", "delete_authorized",
+            "strategy", "canonical_family", "identity_state", "delete_authorized",
         }
         if not required.issubset(item):
             raise ValueError("frontier adoption registry estate record is incomplete")
         if item["delete_authorized"] is not False:
             raise ValueError("frontier adoption registry estate record authorizes deletion")
+        equivalent = item.get("content_equivalent_to")
+        if item["identity_state"] == "DUPLICATE_BYTES_CONFLICT" and not equivalent:
+            raise ValueError("duplicate-content estate record lacks its conflicting peer")
+        if equivalent == item["repository_id"]:
+            raise ValueError("estate record cannot be content-equivalent to itself")
         repository_ids.append(item["repository_id"])
     if len(repository_ids) != len(set(repository_ids)):
         raise ValueError("frontier adoption registry estate contains duplicate repositories")

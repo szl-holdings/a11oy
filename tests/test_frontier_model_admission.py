@@ -103,7 +103,7 @@ def test_brain_and_flagship_truth_are_explicit() -> None:
     brain = registry["brain_model_truth"]
     assert brain["raw_nodes_observed"] == 9464
     assert brain["raw_nodes_admitted_to_gradients"] == 0
-    assert brain["current_weight_model"] == "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"
+    assert brain["current_weight_model"] == "SZLHOLDINGS/SZL-Khipu-1.5B"
     assert brain["current_weight_model_relation"] == (
         "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT"
     )
@@ -170,9 +170,7 @@ def test_receipt_agent_status_matches_canonical_release_manifests() -> None:
         item for item in registry["hf_estate"]["repositories"]
         if item["repository_id"] == "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"
     )
-    assert estate_record["strategy"] == (
-        "KEEP_LABELED_ARTIFACT_TARGET_ROLE_UNESTABLISHED_BINDING_CONFLICT"
-    )
+    assert estate_record["strategy"] == "KEEP_SPECIALIST_REPRO_BUNDLE_REQUIRED"
 
 
 def test_exact_frontier_decisions_and_pins_are_present() -> None:
@@ -376,7 +374,20 @@ def test_hf_estate_is_classified_without_deletion_authority() -> None:
     registry = _load(REGISTRY_PATH)
     estate = registry["hf_estate"]["repositories"]
     assert len(estate) == 15
-    assert sum(bool(item["weight_bearing"]) for item in estate) == 3
+    assert sum(bool(item["weight_bearing"]) for item in estate) == 13
+    classes = {item["artifact_class"] for item in estate}
+    assert classes == {
+        "ADAPTER_PLUS_MERGED", "GGUF_DERIVATIVE", "CUSTOM_WEIGHT",
+        "SKLEARN_SURROGATE", "CODE_ONLY",
+    }
+    collisions = {
+        item["repository_id"]: item["content_equivalent_to"]
+        for item in estate if item["identity_state"] == "DUPLICATE_BYTES_CONFLICT"
+    }
+    assert collisions == {
+        "SZLHOLDINGS/szl-govsign": "SZLHOLDINGS/szl-invariants",
+        "SZLHOLDINGS/szl-invariants": "SZLHOLDINGS/szl-govsign",
+    }
     assert all(item["delete_authorized"] is False for item in estate)
     unknown = guard.classify_hf_repository("SZLHOLDINGS/not-in-registry")
     assert unknown["classification"] == "UNCLASSIFIED_FAIL_CLOSED"
