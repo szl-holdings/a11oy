@@ -30,8 +30,7 @@ permissions:
 
 jobs:
   anatomy-map-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f18a7f90267fc6dd4cc508bf6c18f637c2ed5884  # locked-five migration candidate
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@2d5fceee4a421abf3269289a931c9d1414422d5f  # locked-five semantics + protected-context compatibility
     with:
-      checker-ref: f18a7f90267fc6dd4cc508bf6c18f637c2ed5884
+      checker-ref: 2d5fceee4a421abf3269289a931c9d1414422d5f
     secrets: inherit
-
