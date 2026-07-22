@@ -280,17 +280,34 @@ def register(
     ns: str = "a11oy",
     runtime_status: dict[str, bool] | None = None,
 ) -> str:
+    from fastapi import Response
     from fastapi.responses import JSONResponse
 
     base = f"/api/{ns}/v1/brain/capabilities"
     runtime_snapshot = dict(runtime_status or {})
 
-    @app.get(f"{base}/info")
+    @app.api_route(f"{base}/info", methods=["GET", "HEAD"])
     def _brain_capabilities_info():
         return JSONResponse(build_info(ns))
 
-    @app.get(base)
+    @app.api_route(base, methods=["GET", "HEAD"])
     def _brain_capabilities():
         return JSONResponse(build_manifest(ns, runtime_snapshot))
 
-    return "brain-capabilities-wired:3"
+    # FastAPI does not synthesize HEAD for GET routes. These explicit, bodyless
+    # operational contracts let load balancers and independent verifiers probe
+    # the existing read-only surfaces without invoking mutation or duplicating
+    # their GET implementations.
+    @app.head("/api/livez", include_in_schema=False)
+    def _livez_head():
+        return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+    @app.head("/api/build-info", include_in_schema=False)
+    def _build_info_head():
+        return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+    @app.head(f"/api/{ns}/v1/readiness/tab-matrix", include_in_schema=False)
+    def _readiness_head():
+        return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+    return "brain-capabilities-wired:4"
