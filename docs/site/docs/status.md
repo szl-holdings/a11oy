@@ -52,8 +52,11 @@ real-time source of truth.
   each shipping flagship's `/khipu/sign` · `/khipu/verify` · `/khipu/pubkey` routes (a11oy verified).
 - **cosign signing:** PENDING — DSSE signatures are `PLACEHOLDER` (see [Compliance](/compliance)).
 - **Cardano mainnet anchoring (Provenance Anchor):** in development.
-- **Wire D (W3C traceparent):** in-process tracing is **LIVE** on every request; cross-Space
-  distributed-trace broker is **NOT wired** (roadmap). See [WIRES D–H](/architecture).
+- **Wire D (W3C traceparent):** in-process tracing is **LIVE** on every request. A bounded,
+  closed-registry cross-mesh hop can now be run explicitly with
+  `POST /api/a11oy/v1/wire-d/probe`; it is **MEASURED** only after the configured peer echoes
+  the same trace ID and a Khipu receipt is appended. Read current evidence without mutation at
+  `GET /api/a11oy/v1/wire-d/status`. This is not a general distributed-trace broker.
 - **Wire E–H (cortex SSE, Khipu receipts, brain mesh, lean-verify):** **LIVE in-process**
   within each Space; cross-Space orchestration layer is roadmap.
 - **UDS public demo:** launches Warhacker Jun 16, 2026 — not yet live.
