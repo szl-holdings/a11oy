@@ -136,9 +136,12 @@ def build_kpi_board(ns: str) -> Dict[str, Any]:
     raw_lambda = None
     if a_lambda and isinstance(a_lambda.get("lambda"), (int, float)):
         raw_lambda = float(a_lambda["lambda"])
+    chapaq_data = chapaq.get("data") if isinstance(chapaq, dict) else None
     chapaq_lambda = None
-    if chapaq and isinstance(chapaq.get("data", {}).get("lambda_value"), (int, float)):
-        chapaq_lambda = float(chapaq["data"]["lambda_value"])
+    if isinstance(chapaq_data, dict) and isinstance(
+        chapaq_data.get("lambda_value"), (int, float)
+    ):
+        chapaq_lambda = float(chapaq_data["lambda_value"])
     lambda_flags = []
     if chapaq_lambda is not None and chapaq_lambda >= 1.0:
         lambda_flags.append("CHAPAQ verdict source returned lambda=%.3f (>= 1.0) - clamped to < 1.0 (G2/G7)" % chapaq_lambda)
