@@ -2,7 +2,7 @@ name: Shared-source drift guard
 
 # a11oy and killinchu vendor many byte-identical source modules (szl_dsse.py,
 # szl_be_hardening.py, szl_formula_wiring.py, a11oy_hf_assets.py, ...). When one
-# repo updates a shared file and the sibling is forgotten, the two demos silently
+# repo updates such a file and the sibling is forgotten, the two demos silently
 # diverge. dockerfile-copy-check.py catches *missing* COPY sources; this guard
 # catches *stale / divergent* shared sources.
 #
@@ -11,8 +11,8 @@ name: Shared-source drift guard
 # ratchet: files that are currently identical must stay identical, while the
 # pre-existing accepted divergences live in .github/shared-file-drift-allow.txt.
 # A coordinated cross-repository PR may pin the sibling's exact open-PR head in
-# its body as `Shared-source-peer: owner/repo#PR@40-hex-sha`.  Branch names are
-# never accepted.  Push/schedule/manual runs always compare main to main.
+# its body as `Shared-source-peer: owner/repo#PR@40-hex-sha`. Branch names are
+# never accepted. Push/schedule/manual runs always compare main to main.
 
 on:
   push:
@@ -21,7 +21,7 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
   schedule:
-    - cron: '23 6 * * 1'  # Mondays 06:23 UTC
+    - cron: '23 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -81,6 +81,21 @@ jobs:
           path: sibling
           persist-credentials: false
       - name: Compare shared source files
-        run: >-
-          python3 self/.github/shared-file-drift-check.py self sibling
-          --self-name=a11oy --sibling-name=killinchu
+        id: drift
+        shell: bash
+        run: |
+          set +e
+          python3 self/.github/shared-file-drift-check.py self sibling \
+            --self-name=a11oy --sibling-name=killinchu \
+            2>&1 | tee shared-source-drift.txt
+          code=${PIPESTATUS[0]}
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit "$code"
+      - name: Upload exact drift diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: shared-source-drift-${{ github.event.pull_request.number || github.run_id }}
+          path: shared-source-drift.txt
+          if-no-files-found: error
+          retention-days: 7
