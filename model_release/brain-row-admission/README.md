@@ -43,3 +43,44 @@ row payloads to the source-ledger SHA-256 and a domain-separated Merkle root.
 The snapshot deliberately asserts zero rights, zero privacy clearance, zero
 training authorization, and zero proof credit; it is an integrity anchor, not
 an admission receipt.
+
+## Deterministic evidence crosswalk
+
+**Logical taxonomy:** `provenance/`. The flat-root
+`szl_brain_provenance_license_crosswalk.py` module emits evidence-gap receipts;
+it does not belong to the agent, governance, or training layers.
+
+`szl_brain_provenance_license_crosswalk.py` binds the M1 ledger, raw snapshot,
+and repository `LICENSE` bytes to one exact local Git commit before producing a
+content-free row evidence-gap crosswalk. It can record the narrow fact that a
+project-authored row carries version-bound repository-license metadata, but
+that fact never establishes immutable item origin, privacy clearance, consent,
+semantic deduplication, independent review, or admission.
+
+The crosswalk never treats a GitHub/Hugging Face domain, repository name, model
+card, or mutable branch URL as license or rights evidence. Its row output uses
+only an opaque row-key digest and evidence states; it omits content, node IDs,
+source URLs, and content hashes. Its terminal receipt is content-addressed but
+explicitly unsigned until an approved key exists.
+
+Run it against an exact checked-out commit:
+
+```text
+python szl_brain_provenance_license_crosswalk.py \
+  --repository-root . \
+  --repository-revision git:<40-character-commit> \
+  --output-dir brain-row-crosswalk-out
+```
+
+The generated files are:
+
+- `brain-row-provenance-license-crosswalk.v1.jsonl`
+- `brain-row-provenance-license-crosswalk-receipt.v1.json`
+
+The committed `provenance-license-crosswalk-receipt.json` records the verified
+current-snapshot aggregate and reproducible JSONL digest without adding the
+9,464-row generated crosswalk to source control.
+
+Neither file is an admission candidate or permission to train. A row can enter
+the existing signed assembler/admission pipeline only after separate,
+allowlisted evidence independently establishes every missing obligation.
