@@ -433,6 +433,109 @@
       "sources": ["https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B"]
     },
     {
+      "id": "qwen35-2b-governed-bakeoff",
+      "priority": "P0",
+      "decision": "LOCAL_QUALIFY",
+      "artifact_class": "FULL_CHECKPOINT",
+      "upstream": {
+        "repository_id": "Qwen/Qwen3.5-2B",
+        "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+        "model_card_url": "https://huggingface.co/Qwen/Qwen3.5-2B/blob/15852e8c16360a2fea060d615a32b45270f8a8fc/README.md",
+        "license_expression": "Apache-2.0",
+        "license_kind": "OPEN_SOURCE_REPORTED",
+        "license_evidence_url": "https://huggingface.co/Qwen/Qwen3.5-2B/blob/15852e8c16360a2fea060d615a32b45270f8a8fc/LICENSE",
+        "artifact_inventory": [
+          {
+            "filename": "model.safetensors-00001-of-00001.safetensors",
+            "bytes": 4548221488,
+            "sha256": "aa33250c4fc64891ddfaba3a314fd9542ea371843c387178b425fbcc5ed680b1"
+          },
+          {
+            "filename": "tokenizer.json",
+            "bytes": 12807982,
+            "sha256": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42"
+          }
+        ]
+      },
+      "runtime": {
+        "repository_url": "https://github.com/huggingface/transformers",
+        "revision": "9ed46fb37cf4c7f885677ad194d2797265e89186",
+        "custom_code_policy": "PIN_HASH_REVIEW_AND_RUN_OFFLINE"
+      },
+      "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
+      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
+        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "dependency_lock_sha256", "artifact_manifest_sha256", "network_isolation_receipt_sha256", "resource_preflight_receipt_sha256", "heldout_split_sha256", "loop_termination_protocol_sha256"]
+      },
+      "adoption_plan": [
+        "Run a bounded text-only and multimodal bakeoff against the existing Qwen2.5-derived ReceiptAgent base and the current Khipu family, with per-case receipts for correctness, abstention, citation, tool use, loop termination, latency, memory, thermals, and energy.",
+        "Start at 8192 and 16384 tokens; the upstream 262144-token capability is not a local operating claim and must not become a default resource envelope.",
+        "If the candidate qualifies, create a new explicitly Qwen3.5-derived adapter program. Treat existing Qwen2.5 adapters as incompatible unless a separate tensor-shape and tokenizer-identity receipt proves otherwise."
+      ],
+      "hard_blockers": [
+        "No weight or tokenizer has been downloaded or locally measured under this contract.",
+        "The pinned Transformers revision has not completed the offline code, dependency, and binary review required by this registry.",
+        "Training remains hard-denied until a separate signed contract binds rights-cleared rows, frozen evaluations, resource limits, base and tokenizer identity, trainer code, and release authority."
+      ],
+      "non_claims": [
+        "Upstream download counts and benchmark tables are not SZL quality evidence.",
+        "Registration does not download, load, fine-tune, serve, merge, or promote Qwen3.5 weights.",
+        "A successful preflight would not establish production safety, comparative quality, or training authorization."
+      ],
+      "sources": [
+        "https://huggingface.co/Qwen/Qwen3.5-2B",
+        "https://github.com/huggingface/transformers/tree/9ed46fb37cf4c7f885677ad194d2797265e89186/src/transformers/models/qwen3_5",
+        "https://qwen.ai/blog?id=qwen3.5"
+      ]
+    },
+    {
+      "id": "kimi-k27-code-methods",
+      "priority": "P1",
+      "decision": "METHODS_ONLY",
+      "artifact_class": "METHOD_REFERENCE",
+      "upstream": {
+        "repository_id": "moonshotai/Kimi-K2.7-Code",
+        "revision": "74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+        "model_card_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/README.md",
+        "license_expression": "Kimi-K2.7-Code-Modified-MIT",
+        "license_kind": "CUSTOM_RESTRICTED",
+        "license_evidence_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/LICENSE",
+        "artifact_inventory": []
+      },
+      "runtime": {
+        "repository_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code",
+        "revision": "MODEL_CARD_ONLY",
+        "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
+      },
+      "local_state": "METHOD_REFERENCE_NOT_WEIGHT_CANDIDATE",
+      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
+      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "required_evidence_by_operation": {
+        "ADOPT_METHOD": ["method_source_revision", "modified_license_review_sha256", "forced_thinking_ablation_sha256", "multimodal_tool_eval_protocol_sha256", "privacy_and_data_egress_review_sha256"]
+      },
+      "adoption_plan": [
+        "Study forced-thinking state handling, preserve-thinking continuity, multimodal coding workflows, and long-horizon tool recovery as independently implemented SZL router and evaluation methods.",
+        "Compare each method against the current router under fixed token, latency, energy, privacy, and correctness budgets using only first-party or rights-cleared traces.",
+        "Keep Kimi weights, remote execution, training traces, branding, and claimed upstream scores outside the SZL model estate."
+      ],
+      "hard_blockers": [
+        "The upstream card reports an approximately 1.1T-parameter artifact, which is not a credible local weight candidate for the declared laptop profile.",
+        "The Modified MIT terms require a dedicated legal and attribution review before any commercial derivative path.",
+        "No local measurement, provider privacy review, price receipt, or data-egress authorization exists."
+      ],
+      "non_claims": [
+        "Method study does not make Kimi weights, outputs, or training traces part of SZL.",
+        "Upstream popularity and evaluation claims are not local evidence.",
+        "No download, remote routing, fine-tuning, serving, merge, or promotion is authorized."
+      ],
+      "sources": [
+        "https://huggingface.co/moonshotai/Kimi-K2.7-Code",
+        "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/LICENSE"
+      ]
+    },
+    {
       "id": "qwythos-claude-traces-quarantine",
       "priority": "P3",
       "decision": "QUARANTINE_PROVENANCE_UNRESOLVED",

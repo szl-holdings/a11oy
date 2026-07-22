@@ -201,6 +201,12 @@ def test_exact_frontier_decisions_and_pins_are_present() -> None:
         "bottlecapai/ThinkingCap-Qwen3.6-27B": (
             "METHODS_ONLY", "2cbd89d3fff9274633aa7b979643c75a9a81cabd"
         ),
+        "Qwen/Qwen3.5-2B": (
+            "LOCAL_QUALIFY", "15852e8c16360a2fea060d615a32b45270f8a8fc"
+        ),
+        "moonshotai/Kimi-K2.7-Code": (
+            "METHODS_ONLY", "74797c9c62378b951a1f6fcf5c4631024e9b8bef"
+        ),
         "empero-ai/Qwythos-9B-Claude-Mythos-5-1M": (
             "QUARANTINE_PROVENANCE_UNRESOLVED", "14a29bae5143091aeaf87ad37120de4cd57d592c"
         ),
@@ -221,6 +227,20 @@ def test_local_artifacts_are_exactly_hash_pinned() -> None:
     assert bonsai["upstream"]["artifact_inventory"][0]["sha256"] == (
         "17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0"
     )
+    qwen = _candidate("Qwen/Qwen3.5-2B")
+    assert qwen["upstream"]["artifact_inventory"] == [
+        {
+            "filename": "model.safetensors-00001-of-00001.safetensors",
+            "bytes": 4548221488,
+            "sha256": "aa33250c4fc64891ddfaba3a314fd9542ea371843c387178b425fbcc5ed680b1",
+        },
+        {
+            "filename": "tokenizer.json",
+            "bytes": 12807982,
+            "sha256": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+        },
+    ]
+    assert qwen["runtime"]["revision"] == "9ed46fb37cf4c7f885677ad194d2797265e89186"
 
 
 def test_unknown_or_unpinned_repository_fails_closed() -> None:
@@ -326,6 +346,28 @@ def test_method_adoption_requires_an_independent_ablation_contract() -> None:
         )
 
 
+def test_qwen35_and_kimi_boundaries_fail_closed() -> None:
+    qwen = _candidate("Qwen/Qwen3.5-2B")
+    qwen_repo = qwen["upstream"]["repository_id"]
+    qwen_revision = qwen["upstream"]["revision"]
+    with pytest.raises(guard.FrontierAdmissionError, match="hard-denied"):
+        guard.assert_operation_allowed(qwen_repo, qwen_revision, "TRAIN")
+    with pytest.raises(guard.FrontierAdmissionError, match="signed DSSE"):
+        guard.assert_operation_allowed(qwen_repo, qwen_revision, "DOWNLOAD_PINNED")
+    with pytest.raises(guard.FrontierAdmissionError, match="signed DSSE"):
+        guard.assert_operation_allowed(qwen_repo, qwen_revision, "EVALUATE_SANDBOXED")
+
+    kimi = _candidate("moonshotai/Kimi-K2.7-Code")
+    kimi_repo = kimi["upstream"]["repository_id"]
+    kimi_revision = kimi["upstream"]["revision"]
+    with pytest.raises(guard.FrontierAdmissionError, match="not allowlisted"):
+        guard.assert_operation_allowed(kimi_repo, kimi_revision, "DOWNLOAD_PINNED")
+    with pytest.raises(guard.FrontierAdmissionError, match="hard-denied"):
+        guard.assert_operation_allowed(kimi_repo, kimi_revision, "TRAIN")
+    with pytest.raises(guard.FrontierAdmissionError, match="signed DSSE"):
+        guard.assert_operation_allowed(kimi_repo, kimi_revision, "ADOPT_METHOD")
+
+
 def test_registry_with_mutation_or_missing_structure_fails_closed(tmp_path: Path) -> None:
     mutated = _load(REGISTRY_PATH)
     mutated["external_mutations"]["model_trained"] = True
@@ -397,7 +439,7 @@ def test_hf_estate_is_classified_without_deletion_authority() -> None:
 def test_registry_internal_audit_passes_without_external_mutation() -> None:
     report = guard.audit_registry()
     assert report["state"] == "PASS"
-    assert report["candidate_count"] == 9
+    assert report["candidate_count"] == 11
     assert report["estate_repository_count"] == 15
     assert report["github_source_report_count"] == 54
     assert report["github_public_readback_count"] == 50
