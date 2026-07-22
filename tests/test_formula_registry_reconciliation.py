@@ -1,10 +1,12 @@
 import copy
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 import szl_formula_registry as registry
+import formula_claim_validator as claim_validator
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +19,48 @@ def test_registry_digest_and_pinned_sources_verify():
     assert len(document["registry_digest"]["value"]) == 64
     assert document["payload"]["exhaustive"] is False
     assert "not an inventory" in document["payload"]["coverage_scope"]
+
+
+def test_production_image_copies_registry_and_every_pinned_source_asset():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert (
+        "COPY formula_registry/formula-registry.v1.json "
+        "./formula_registry/formula-registry.v1.json"
+    ) in dockerfile
+    for source_path in registry.EXPECTED_SOURCE_PATHS:
+        assert f"COPY {source_path} ./{source_path}" in dockerfile
+
+
+def test_live_console_is_guarded_and_proof_graph_separates_experimentals():
+    assert "pages/console.html" in claim_validator.ACTIVE_CLAIM_PATHS
+    assert claim_validator.claim_errors() == []
+
+    console = (ROOT / "pages" / "console.html").read_text(encoding="utf-8")
+    assert "$15" not in console
+    assert "'LOCKED-PROVEN (5)'" in console
+    for formula_id in ("F4", "F7", "F22"):
+        assert re.search(
+            rf"{formula_id}:\{{[^\r\n]*mat:'experimental'",
+            console,
+        )
+
+    proof = (ROOT / "web" / "proof.html").read_text(encoding="utf-8")
+    for formula_id in ("f4", "f7", "f22"):
+        block = re.search(
+            rf"\n  {formula_id}: \{{(?P<body>.*?)\n  \}},",
+            proof,
+            flags=re.DOTALL,
+        )
+        assert block is not None
+        body = block.group("body")
+        assert 'status:"experimental"' in body
+        kind = re.search(r'kind:"(?P<value>[^"]+)"', body)
+        assert kind is not None
+        normalized_kind = kind.group("value").upper().replace("-", " ")
+        assert "EXPERIMENTAL" in normalized_kind
+        assert "SOURCE PRESENT" in normalized_kind
+        assert "NOT LOCKED" in normalized_kind
+        assert 'status:"green"' not in body
 
 
 def test_schema_is_recursively_fail_closed_for_registry_objects():

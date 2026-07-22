@@ -26,6 +26,7 @@ ACTIVE_CLAIM_PATHS = (
     "a11oy_constitution.py",
     "a11oy_brain_graph.py",
     "a11oy_landing.html",
+    "pages/console.html",
     "pages/wires.html",
     "pages/pricing.html",
     "pages/landing.html",

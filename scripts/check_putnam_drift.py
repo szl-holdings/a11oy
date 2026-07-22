@@ -4,8 +4,9 @@
 a11oy ships an *embedded, transcribed* verdict for the canonical Putnam 2025 set
 (``szl_putnam.py`` ``_PUTNAM``/``_SZL`` + the console ``putnam-2025-tab-patch``
 fallback ``FB_PROBS``/``FB_SZL``) plus headline ``N REAL / M DEMO / K OPEN``
-counts in prose. The single source of truth is ``szl-holdings/lutar-lean`` branch
-``putnam-2025-canonical-set``: each ``Lutar/Putnam/P_*.lean`` carries an
+counts in prose. The single source of truth is the immutable
+``szl-holdings/lutar-lean`` commit recorded below: each
+``Lutar/Putnam/P_*.lean`` carries an
 ``**Honest status: REAL|DEMO|OPEN**`` label (A6 uses a multi-line block whose
 *general theorem* line carries the status), and the three
 ``Lutar/Putnam/SZL/*.lean`` originals declare ``All proofs are REAL`` in their
@@ -36,7 +37,10 @@ from typing import Dict, List, Optional, Set, Tuple
 
 REPO = "szl-holdings/lutar-lean"
 PUTNAM_DIR = "Lutar/Putnam"
-DEFAULT_BRANCH = "putnam-2025-canonical-set"
+# The original branch was deleted after the snapshot shipped.  Pin the exact
+# reachable commit instead of following a mutable branch or silently falling
+# back when the old ref returns 404.
+DEFAULT_BRANCH = "baf483be3c832b64da47161b558e283d68da6650"
 
 # A canonical Putnam problem file: P_A1.lean .. P_B6.lean (NOT the SZL/ or other
 # non-Putnam .lean files that may share the directory).
