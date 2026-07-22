@@ -530,27 +530,77 @@ def info(ns: str = "a11oy") -> Dict[str, Any]:
 
 def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     """Attach the szl3d static tree + the /holographic shell. ADDITIVE; routes are
-    registered BEFORE the SPA/proxy catch-all (call this early in serve.py, like the
-    other in-image vendor routes). Never crashes the app — caller wraps in try/except."""
+    front-inserted ahead of any pre-existing SPA/proxy catch-all, so registration
+    order cannot shadow static or shell routes. Never crashes the app — caller wraps in try/except."""
     from starlette.responses import HTMLResponse, JSONResponse, Response
 
     base = _base_dir()
     registered: List[str] = []
 
-    async def _serve_3d(path: str):
+    def _resolve_3d(path: str):
         f = _safe_resolve(base, path)
         if f is None:
-            return JSONResponse({"error": "3d asset not found", "path": path}, status_code=404)
+            return None, JSONResponse(
+                {"error": "3d asset not found", "path": path}, status_code=404
+            )
         ct = _CT.get(f.suffix.lower())
         if ct is None:
-            return JSONResponse({"error": "3d asset type not allowlisted", "path": path}, status_code=404)
+            return None, JSONResponse(
+                {"error": "3d asset type not allowlisted", "path": path},
+                status_code=404,
+            )
         # Vendored libs are immutable; toolkit/surfaces change during dev -> shorter cache.
         immutable = "/vendor/" in ("/" + path)
-        cache = "public, max-age=31536000, immutable" if immutable else "public, max-age=300"
-        return Response(content=f.read_bytes(), media_type=ct, headers={"Cache-Control": cache})
+        cache = (
+            "public, max-age=31536000, immutable"
+            if immutable
+            else "public, max-age=300"
+        )
+        return (f, ct, cache), None
 
-    app.add_api_route("/static/3d/{path:path}", _serve_3d, methods=["GET"], include_in_schema=False)
-    registered.append("GET /static/3d/{path}")
+    async def _serve_3d(path: str):
+        asset, error = _resolve_3d(path)
+        if error is not None:
+            return error
+        f, ct, cache = asset
+        return Response(
+            content=f.read_bytes(),
+            media_type=ct,
+            headers={"Cache-Control": cache},
+        )
+
+    async def _head_3d(path: str):
+        asset, error = _resolve_3d(path)
+        if error is not None:
+            return error
+        _f, ct, cache = asset
+        return Response(
+            status_code=200,
+            media_type=ct,
+            headers={"Cache-Control": cache},
+        )
+
+    def _front_move(path: str) -> None:
+        """Put exact module routes ahead of any pre-existing SPA catch-all."""
+        router = getattr(app, "router", None)
+        routes = getattr(router, "routes", None)
+        if not isinstance(routes, list):
+            return
+        matches = [route for route in routes if getattr(route, "path", None) == path]
+        if not matches:
+            return
+        match_ids = {id(route) for route in matches}
+        routes[:] = matches + [route for route in routes if id(route) not in match_ids]
+
+    static_path = "/static/3d/{path:path}"
+    app.add_api_route(
+        static_path, _serve_3d, methods=["GET"], include_in_schema=False
+    )
+    app.add_api_route(
+        static_path, _head_3d, methods=["HEAD"], include_in_schema=False
+    )
+    _front_move(static_path)
+    registered.append("GET,HEAD /static/3d/{path}")
 
     _html = shell_html(ns)
 
@@ -559,6 +609,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
 
     for route in ("/holographic", f"/{ns}/holographic"):
         app.add_api_route(route, _shell, methods=["GET"], include_in_schema=False)
+        _front_move(route)
         registered.append(f"GET {route}")
 
     async def _info():
@@ -569,8 +620,17 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
     for prefix in (f"/api/{ns}/v1/holographic", "/v1/holographic"):
-        app.add_api_route(f"{prefix}/info", _info, methods=["GET"], include_in_schema=False)
-        app.add_api_route(f"{prefix}/brain/evidence", _brain_evidence, methods=["GET"], include_in_schema=False)
+        info_path = f"{prefix}/info"
+        evidence_path = f"{prefix}/brain/evidence"
+        app.add_api_route(info_path, _info, methods=["GET"], include_in_schema=False)
+        app.add_api_route(
+            evidence_path,
+            _brain_evidence,
+            methods=["GET"],
+            include_in_schema=False,
+        )
+        _front_move(info_path)
+        _front_move(evidence_path)
     registered.append(f"GET /api/{ns}/v1/holographic/info")
     registered.append(f"GET /api/{ns}/v1/holographic/brain/evidence")
 
