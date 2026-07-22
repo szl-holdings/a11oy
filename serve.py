@@ -12148,8 +12148,11 @@ async def spa_fallback(full_path: str) -> Response:
     try:
         candidate.relative_to(STATIC_DIR.resolve())
     except ValueError:
-        # Path traversal attempt — fall back to SPA shell.
-        return FileResponse(INDEX_HTML, media_type="text/html")
+        return JSONResponse(
+            {"status": "NOT_FOUND", "path": "/" + full_path},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
     if candidate.is_file():
         return FileResponse(candidate)
     # ADDITIVE: serve a vendored static sub-app's index.html for directory paths
@@ -12160,8 +12163,14 @@ async def spa_fallback(full_path: str) -> Response:
             from fastapi.responses import RedirectResponse as _RedirSlash
             return _RedirSlash(url="/" + full_path + "/", status_code=307)
         return FileResponse(candidate / "index.html", media_type="text/html")
-    # SPA history fallback — wouter renders the route client-side.
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    # Mark the history fallback so the runtime contract can distinguish a
+    # declared client route from an arbitrary extensionless path. Physical
+    # files and explicit page routes never carry this marker.
+    return FileResponse(
+        INDEX_HTML,
+        media_type="text/html",
+        headers={"X-SZL-Route-State": "SPA_FALLBACK"},
+    )
 
 
 # ---------------------------------------------------------------------------

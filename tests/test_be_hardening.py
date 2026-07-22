@@ -18,6 +18,7 @@ import tempfile
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 import szl_be_hardening as H
@@ -89,6 +90,32 @@ def test_trace_headers_present(client):
     r = client.get("/healthz")
     assert r.headers.get("X-Trace-Id")
     assert r.headers.get("X-Span-Id")
+
+
+def test_dynamic_page_is_no_store_and_truthfully_rate_limit_exempt(tmp_path):
+    app = FastAPI()
+
+    @app.get("/frontier")
+    async def frontier():
+        return HTMLResponse("<html><body>frontier</body></html>")
+
+    H.harden(app, organ="headers", khipu_path=str(tmp_path / "headers.sqlite3"))
+    response = TestClient(app).get("/frontier")
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-RateLimit-Limit"] == str(H.RATE_LIMIT_PER_MIN)
+    assert response.headers["X-RateLimit-Policy"] == "exempt"
+    assert "X-RateLimit-Remaining" not in response.headers
+
+
+def test_metered_api_emits_window_and_remaining_headers(client):
+    response = client.get(f"/api/{ORGAN}/v1/readyz")
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-RateLimit-Limit"] == str(H.RATE_LIMIT_PER_MIN)
+    assert response.headers["X-RateLimit-Policy"] == "sliding-window;w=60"
+    assert int(response.headers["X-RateLimit-Remaining"]) < H.RATE_LIMIT_PER_MIN
+    assert int(response.headers["X-RateLimit-Reset"]) >= 1
 
 
 # ---- 3: real OpenAPI -------------------------------------------------------
@@ -170,6 +197,10 @@ def test_rate_limit_enforced():
         assert last.status_code == 429
         assert last.json()["error"]["code"] == "rate_limited"
         assert last.json()["error"]["doctrine"] == "v11"
+        assert last.headers["Cache-Control"] == "no-store"
+        assert last.headers["X-RateLimit-Limit"] == str(H.RATE_LIMIT_PER_MIN)
+        assert last.headers["X-RateLimit-Remaining"] == "0"
+        assert last.headers["X-RateLimit-Policy"] == "sliding-window;w=60"
 
 
 def test_health_probe_is_rate_limit_exempt():

@@ -194,6 +194,42 @@ _FRAME_ANCESTORS_CSP = (
     "https://*.hf.space https://*.huggingface.co;"
 )
 
+_STATIC_CACHE_PREFIXES = (
+    "/assets/",
+    "/static/",
+    "/static-vendor/",
+    "/vendor/",
+    "/cesium/",
+)
+
+
+def _apply_dynamic_cache_header(resp: Any, method: str, path: str) -> Any:
+    """Prevent stale dynamic pages/API results without clobbering asset policy."""
+    if (
+        (method.upper() in {"GET", "HEAD"} or int(resp.status_code) >= 400)
+        and "Cache-Control" not in resp.headers
+        and not any((path or "/").startswith(prefix) for prefix in _STATIC_CACHE_PREFIXES)
+    ):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+def _apply_rate_limit_headers(
+    resp: Any,
+    *,
+    policy: str,
+    remaining: Optional[int] = None,
+    reset_s: Optional[int] = None,
+) -> Any:
+    """Expose the real data-surface policy, including honest page exemption."""
+    resp.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_PER_MIN)
+    resp.headers["X-RateLimit-Policy"] = policy
+    if remaining is not None:
+        resp.headers["X-RateLimit-Remaining"] = str(max(0, remaining))
+    if reset_s is not None:
+        resp.headers["X-RateLimit-Reset"] = str(max(0, reset_s))
+    return resp
+
 
 def _apply_security_headers(resp: Any) -> Any:
     """Set the conservative security-header baseline on `resp` without clobbering
@@ -509,6 +545,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         resp.headers["X-Trace-Id"] = trace_id
         resp.headers["X-Span-Id"] = span_id
         _apply_security_headers(resp)
+        _apply_dynamic_cache_header(resp, request.method, request.url.path)
         logger.info("request", extra={"trace_id": trace_id, "span_id": span_id,
             "method": request.method, "path": request.url.path,
             "status": resp.status_code, "latency_ms": dt})
@@ -555,7 +592,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         # (/api/*, /feeds/*) is metered, at the demo-safe RATE_LIMIT_PER_MIN
         # sliding-window cap. Real abuse on the data surface is still capped.
         if not _is_rate_limited_path(request.url.path):
-            return await call_next(request)
+            response = await call_next(request)
+            return _apply_rate_limit_headers(response, policy="exempt")
         ip = request.client.host if request.client else "unknown"
         now = time.time()
         with _rl_lock:
@@ -568,9 +606,20 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                               f"rate limit exceeded: {RATE_LIMIT_PER_MIN}/min per IP",
                               tid, 429)
                 r.headers["Retry-After"] = "60"
-                return r
+                _apply_dynamic_cache_header(r, request.method, request.url.path)
+                return _apply_rate_limit_headers(
+                    r, policy="sliding-window;w=60", remaining=0, reset_s=60
+                )
             dq.append(now)
-        return await call_next(request)
+            remaining = RATE_LIMIT_PER_MIN - len(dq)
+            reset_s = max(1, int(60.0 - (now - dq[0]))) if dq else 60
+        response = await call_next(request)
+        return _apply_rate_limit_headers(
+            response,
+            policy="sliding-window;w=60",
+            remaining=remaining,
+            reset_s=reset_s,
+        )
 
     report["rate_limiting"] = (f"sliding-window/{RATE_LIMIT_PER_MIN}-per-min on data "
                                f"surface; pages exempt (lib={rate_lib})")

@@ -70,6 +70,19 @@ FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
 # RUNTIME IMAGE (the published a11oy Space / GHCR image).
 FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS runtime
 
+# Build identity is supplied by the canonical container workflow. The runtime
+# contract validates REVISION as a full SHA before exposing it; an absent or
+# malformed value remains honestly UNKNOWN.
+ARG VERSION=""
+ARG REVISION=""
+ARG BUILD_DATE=""
+ENV A11OY_VERSION=${VERSION} \
+    A11OY_GIT_SHA=${REVISION} \
+    A11OY_BUILD_DATE=${BUILD_DATE}
+LABEL org.opencontainers.image.version=${VERSION} \
+      org.opencontainers.image.revision=${REVISION} \
+      org.opencontainers.image.created=${BUILD_DATE}
+
 WORKDIR /app
 
 # Install Node 22 (for a11oy serve TypeScript runner)
