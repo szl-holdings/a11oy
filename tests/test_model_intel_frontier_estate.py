@@ -29,8 +29,8 @@ def test_frontier_adoption_exposes_truth_without_authority() -> None:
 def test_estate_merges_live_metadata_without_turning_downloads_into_quality(monkeypatch) -> None:
     live = [
         {
-            "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
-            "revision": "6a9b18a2d2768cfa6a13eb2f932d503cd00e5866",
+            "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+            "revision": "cb414ab3b7dd05b5c6622c1a9c4e50089c7c0b76",
             "downloads": 1033,
             "likes": 1,
             "last_modified": "2026-07-16T13:40:51.000Z",
@@ -73,10 +73,10 @@ def test_estate_merges_live_metadata_without_turning_downloads_into_quality(monk
     assert unknown["delete_authorized"] is False
     khipu = next(
         item for item in payload["models"]
-        if item["repository_id"] == "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"
+        if item["repository_id"] == "SZLHOLDINGS/SZL-Khipu-1.5B"
     )
     assert khipu["classification_state"] == "PIN_MATCH"
-    assert khipu["strategy"] == "KEEP_FLAGSHIP_BLOCKED_ARTIFACT_BINDING_CONFLICT"
+    assert khipu["strategy"] == "KEEP_FLAGSHIP_REPRO_TRUST_REVIEW_REQUIRED"
 
 
 def test_estate_keeps_static_classification_when_hub_feed_is_unavailable(monkeypatch) -> None:
@@ -97,8 +97,8 @@ def test_estate_keeps_static_classification_when_hub_feed_is_unavailable(monkeyp
 
 def test_estate_does_not_label_stale_last_good_metadata_live(monkeypatch) -> None:
     live = [{
-        "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
-        "revision": "6a9b18a2d2768cfa6a13eb2f932d503cd00e5866",
+        "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+        "revision": "cb414ab3b7dd05b5c6622c1a9c4e50089c7c0b76",
         "downloads": 1033,
         "weight_bearing_from_filenames": True,
     }]
@@ -158,8 +158,8 @@ def test_hf_parser_ignores_malformed_rows() -> None:
 def test_estate_sort_treats_malformed_download_count_as_zero(monkeypatch) -> None:
     live = [
         {
-            "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
-            "revision": "6a9b18a2d2768cfa6a13eb2f932d503cd00e5866",
+            "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+            "revision": "cb414ab3b7dd05b5c6622c1a9c4e50089c7c0b76",
             "downloads": "not-a-number",
         },
         {
