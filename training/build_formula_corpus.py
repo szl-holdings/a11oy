@@ -22,8 +22,9 @@ its meaning honestly by the recorded status - never upgrading it:
 Λ (``lambda_aggregate``) is a load-bearing case: its recorded status is
 "PROVEN(A1-A4); uniqueness CONJECTURE", so the corpus states Λ-aggregation as
 proven on A1-A4 while Λ-uniqueness stays **Conjecture 1** - never a theorem. A
-separate doctrine fact records that the kernel-LOCKED-proven set is EXACTLY the 8
-formulas {F1, F4, F7, F11, F12, F18, F19, F22} at replay kernel c7c0ba17; the
+separate doctrine fact records that the proof-carrying canonical registry admits
+exactly five locked formulas {F1, F11, F12, F18, F19}; F4/F7/F22 remain
+source-present experimental entries. The
 registry indexing here is not folded into that count and no entry is re-badged.
 
 DETERMINISM: no randomness, no clock, no network. Same registry -> byte-identical
@@ -130,9 +131,9 @@ def meta_examples(count):
          "its own verbatim proof_status. That registry count is distinct from the "
          "kernel-locked-proven set." % count),
         ("How many formulas are locked-proven, and which ones?",
-         "Exactly 8: {F1, F4, F7, F11, F12, F18, F19, F22}, kernel-verified at "
-         "replay hash c7c0ba17. Never inflate this count; the registry's other "
-         "formulas are not folded into the locked-8."),
+         "Exactly 5: {F1, F11, F12, F18, F19}, admitted by the proof-carrying "
+         "canonical registry. F4, F7, and F22 remain source-present experimental "
+         "entries and are not folded into the locked set."),
         ("Is Lambda (Λ) a proven theorem in the formula registry?",
          "No. Λ (lambda_aggregate) is recorded as \"PROVEN(A1-A4); uniqueness "
          "CONJECTURE\": Λ-aggregation is proven on axioms A1-A4, but Λ-uniqueness "

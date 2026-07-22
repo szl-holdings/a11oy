@@ -2,22 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """
-a11oy_formula_tiers.py — canonical, honest 4-tier proof registry for the locked-8
+a11oy_formula_tiers.py — served projection of the canonical formula registry
 formulas and the real trust-math theorems that sit *outside* the locked baseline.
 
-This is the single source of truth for what each Lean obligation ACTUALLY proves.
-It exists because the historical console copy described the locked-8 with semantic
+The proof-carrying formula registry is the source of truth for locked maturity;
+this endpoint adds served explanations of what each Lean obligation ACTUALLY proves.
+It exists because historical console copy described a locked set with semantic
 governance meanings (F18 "DSSE seal", F19 "13-axis Λ geomean", F1 "gate-pass ⇒
 Λ≥0.90", …) and cited anchor files (Lutar/Soundness.lean, STL.lean, Gates.lean,
-Receipt.lean, Lambda.lean) that DO NOT EXIST in lutar-lean. The locked-8 in
+Receipt.lean, Lambda.lean) that DO NOT EXIST in lutar-lean. The locked formulas in
 Lutar/Puriq/Formulas/ProvedFormulas.lean prove conservative Nat/Int surrogates;
 labelling them with the governance semantics they merely *motivate* is overclaiming.
 
-The four tiers (verify-it-yourself, never overclaim):
-  1. LOCKED-PROVEN     — in the no-axiom `locked_count_eight` baseline (Wave11),
+The tiers (verify-it-yourself, never overclaim):
+  1. LOCKED-PROVEN     — the five formulas admitted by formula-registry.v1,
                          labelled with WHAT IT ACTUALLY PROVES.
   2. SEMANTIC-VERIFIED — sorry-free real theorem proving a governance property, but
-                         NOT in the locked-8 set. This is where the real trust math
+                         NOT in the locked set. This is where the real trust math
                          lives; present it proudly, but distinctly from the baseline.
   3. evidence-backed   — real runtime/algorithmic code, no Lean proof claim.
   4. CONJECTURE        — Λ unconditional uniqueness (machine-checked FALSE as stated),
@@ -28,26 +29,26 @@ is pushed to the FRONT of app.router.routes so it wins over the Node proxy and S
 catch-all. Λ = Conjecture 1 (NEVER a theorem). 0 runtime CDN. No key, no signing.
 """
 
+from szl_formula_registry import (
+    FORMULA_REGISTRY_DIGEST,
+    FORMULA_REGISTRY_SIGNATURE_STATUS,
+    LOCKED_PROVEN_COUNT,
+    LOCKED_PROVEN_IDS,
+    PAYLOAD as FORMULA_REGISTRY_PAYLOAD,
+)
+
 # lutar-lean files verified MISSING at depth-1 clone (2026-06-30). Never cite as anchors.
 PHANTOM_ANCHORS = [
     "Lutar/Soundness.lean", "Lutar/STL.lean", "Lutar/Gates.lean",
     "Lutar/Receipt.lean", "Lutar/Lambda.lean",
 ]
 
-# Tier 1 — LOCKED-PROVEN. The no-axiom `locked_count_eight` baseline
-# (Lutar/Wave11/AxiomDisclosure.lean:96-100). Conservative surrogates in
-# Lutar/Puriq/Formulas/ProvedFormulas.lean (which also has 4 sorries OUTSIDE the
-# locked-8 — those 4 are NOT these theorems). Labels = what each ACTUALLY proves.
+# Tier 1 — LOCKED-PROVEN. Derived from the proof-carrying canonical registry.
+# Conservative surrogates in Lutar/Puriq/Formulas/ProvedFormulas.lean.
 LOCKED_PROVEN = [
     {"id": "F1", "proves": "Replay-hash determinism — identical canonical input ⇒ identical receipt hash.",
      "not": "NOT 'gate-pass ⇒ Λ ≥ 0.90'.",
      "lean_file": "Lutar/Puriq/Formulas/ProvedFormulas.lean", "lean_name": "f1_replay_hash_determinism"},
-    {"id": "F4", "proves": "Khipu DAG acyclicity preserved under append.",
-     "not": None,
-     "lean_file": "Lutar/Puriq/Formulas/ProvedFormulas.lean", "lean_name": "f4_khipu_dag_acyclic_preserved"},
-    {"id": "F7", "proves": "Chaski FIFO ordering preserved.",
-     "not": None,
-     "lean_file": "Lutar/Puriq/Formulas/ProvedFormulas.lean", "lean_name": "f7_chaski_fifo_order"},
     {"id": "F11", "proves": "Ayni reciprocity conservation — b + c balance over Int.",
      "not": "NOT 'STL robustness ρ envelope'.",
      "lean_file": "Lutar/Puriq/Formulas/ProvedFormulas.lean", "lean_name": "f11_ayni_reciprocity_conservation"},
@@ -60,13 +61,21 @@ LOCKED_PROVEN = [
     {"id": "F19", "proves": "Bekenstein additive — s1 ≤ s1 + s2, entropy-budget monotonicity over Nat.",
      "not": "NOT '13-axis Λ geometric-mean aggregate'.",
      "lean_file": "Lutar/Puriq/Formulas/ProvedFormulas.lean", "lean_name": "f19_bekenstein_additive"},
-    {"id": "F22", "proves": "Khipu emit append-only monotonicity.",
-     "not": None,
-     "lean_file": "Lutar/Puriq/Formulas/ProvedFormulas.lean", "lean_name": "f22_khipu_emit_monotone"},
+]
+
+# Source-present theorems that the canonical registry keeps experimental.  They
+# remain visible and useful; source presence alone never promotes them to locked.
+EXPERIMENTAL = [
+    {"id": entry["id"], "maturity": entry["maturity"],
+     "locked_proven": entry["locked_proven"],
+     "theorem_refs": entry["theorem_refs"], "source_path": entry["source_path"],
+     "evidence_status": entry["evidence_status"]}
+    for entry in FORMULA_REGISTRY_PAYLOAD["formulas"]
+    if entry["maturity"] == "EXPERIMENTAL"
 ]
 
 # Tier 2 — SEMANTIC-VERIFIED. Sorry-free real theorems (except where a residual sorry
-# is disclosed) that prove the governance property, OUTSIDE the locked-8. This is the
+# is disclosed) that prove the governance property, OUTSIDE the locked set. This is the
 # real trust math: present proudly as "machine-checked, outside the frozen baseline."
 SEMANTIC_VERIFIED = [
     {"id": "Λ-bound-max", "proves": "Λ ≤ max(axes) — aggregate upper bound. 0 sorries.",
@@ -105,22 +114,25 @@ LAMBDA = {
 }
 
 TIERS = {
-    "model": "4-tier honesty model (RECONCILE.md, binding)",
-    "locked_count": 8,
-    "locked_ids": [f["id"] for f in LOCKED_PROVEN],
-    "locked_theorem": "locked_count_eight (no-axiom, Lutar/Wave11/AxiomDisclosure.lean:96-100)",
+    "model": "canonical registry-backed maturity model",
+    "locked_count": LOCKED_PROVEN_COUNT,
+    "locked_ids": list(LOCKED_PROVEN_IDS),
+    "registry_digest": FORMULA_REGISTRY_DIGEST,
+    "signature_status": FORMULA_REGISTRY_SIGNATURE_STATUS,
+    "coverage_scope": FORMULA_REGISTRY_PAYLOAD["coverage_scope"],
     "phantom_anchors_never_cited": PHANTOM_ANCHORS,
     "lambda": LAMBDA,
     "tiers": {
         "LOCKED-PROVEN": LOCKED_PROVEN,
+        "EXPERIMENTAL": EXPERIMENTAL,
         "SEMANTIC-VERIFIED": SEMANTIC_VERIFIED,
         "evidence-backed": [{"note": "runtime/algorithmic rules with real code, no Lean proof claim."}],
         "CONJECTURE": CONJECTURE,
     },
-    "honest": ("Every locked-8 entry is labelled with what its Lean obligation ACTUALLY proves "
+    "honest": ("Every locked entry is labelled with what its Lean obligation ACTUALLY proves "
                "(conservative Nat/Int surrogates), NOT the governance semantics it motivates. "
                "The real trust math (Λ bounds, Theorem U conditional, DSSE verifiability) is "
-               "SEMANTIC-VERIFIED, machine-checked OUTSIDE the frozen locked-8. Conjectures are "
+               "SEMANTIC-VERIFIED, machine-checked OUTSIDE the locked baseline. Conjectures are "
                "gray and NEVER rendered green. Verify it yourself: clone lutar-lean, open the "
                "cited file, count the sorries."),
 }

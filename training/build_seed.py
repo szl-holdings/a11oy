@@ -88,21 +88,20 @@ DOCTRINE_FACTS = [
      "No. Λ is advisory and capped at the 0.97 trust ceiling; it is never rendered "
      "green, never a theorem, and never presented as truth. Λ stays Conjecture 1."),
     ("How many formulas are locked-proven?",
-     "Exactly 8. The locked-proven set is {F1, F4, F7, F11, F12, F18, F19, F22}, "
-     "kernel-verified at replay hash c7c0ba17 (749 / 14 / 163). This is the only "
-     "'locked' claim; nothing else is ever folded in. It is machine-enforced by "
-     "Lutar.Wave8.AxiomDisclosure.locked_count_eight, with no axioms."),
-    ("List the locked-8 formulas.",
-     "The 8 locked-proven formulas are F1, F4, F7, F11, F12, F18, F19, and F22, "
-     "at kernel c7c0ba17. Never inflate this count and never add a ninth."),
+     "Exactly 5. The proof-carrying canonical registry admits "
+     "{F1, F11, F12, F18, F19}. F4, F7, and F22 are source-present "
+     "EXPERIMENTAL entries and are not folded into the locked set."),
+    ("List the locked formulas.",
+     "The 5 registry-admitted locked-proven formulas are F1, F11, F12, F18, and F19. "
+     "F4, F7, and F22 remain experimental. Never inflate the locked count."),
     ("At what kernel hash are the locked formulas verified?",
-     "Kernel c7c0ba17 (Doctrine v11, 749 / 14 / 163). The locked-8 "
-     "{F1,F4,F7,F11,F12,F18,F19,F22} are kernel-verified at that replay hash."),
-    ("Why did the locked count grow from 5 to 8?",
-     "On 2026-06-10, F4 and F7 were upgraded from vacuous placeholders to genuine "
-     "non-vacuous proofs, joining the already-genuine F22 - taking the count from "
-     "5 to 8. It is machine-enforced by locked_count_eight with no axioms. "
-     "Source: STATUS.md."),
+     "The canonical registry pins source hashes and a deterministic registry digest. "
+     "Its locked set is {F1,F11,F12,F18,F19}; it remains UNSIGNED because no approved "
+     "signing key was available."),
+    ("Why are F4, F7, and F22 not in the locked set?",
+     "Their theorem sources are present, but the canonical maturity crosswalk keeps "
+     "them EXPERIMENTAL. Source presence or CI green status does not itself promote "
+     "a formula into the locked set."),
     ("Is Khipu Byzantine fault tolerance proven?",
      "No. Khipu BFT safety is Conjecture 2 and remains open - a faulty organ can "
      "equivocate. It is never called a theorem. Source: STATUS.md, AGENTS.md."),
@@ -184,10 +183,10 @@ DOCTRINE_FACTS = [
      "Allodial score 𝒜 = [Σ_k w_k · (SEAL_k / 4)] × (1 − DCI) × 100, on [0,100]. "
      "It combines the EU Cloud Sovereignty Framework weighted-SEAL sum with the "
      "Herfindahl-Hirschman Index lock-in penalty (1 − DCI). It is EXPERIMENTAL / "
-     "PROPOSED tier, adds NOTHING to the locked-8, and its dimension weights need "
+     "PROPOSED tier, adds NOTHING to the canonical locked set, and its dimension weights need "
      "empirical calibration. Source: szl_allodial.py."),
     ("What tier is the allodial formula?",
-     "EXPERIMENTAL / PROPOSED engineering gate. It adds nothing to the locked-8, "
+     "EXPERIMENTAL / PROPOSED engineering gate. It adds nothing to the canonical locked set, "
      "Λ stays Conjecture 1, and its weights require empirical calibration before "
      "any value is load-bearing. Source: szl_allodial.py DOCTRINE dict."),
     ("Is Allodial AI literally absolute ownership?",
@@ -243,14 +242,12 @@ DOCTRINE_FACTS = [
      "non-interference result. Write actions additionally require quorum approval "
      "before execution. Source: README.md."),
     ("May I inflate the locked count to 9 if I have a new proof?",
-     "No. The locked count is exactly 8 and is machine-enforced by "
-     "locked_count_eight. New work adds nothing to the locked-8; a new result "
-     "lives in the experimental / CI-green tier, never folded in. Source: "
-     "STATUS.md, AGENTS.md."),
+     "No. The canonical locked count is exactly 5. New work remains experimental "
+     "until the proof-carrying registry admits it through an evidence-reviewed update."),
     ("What lives in the experimental CI-green tier?",
      "Work that is CI-green but NOT kernel-locked - e.g. Wave19/20/21 theorems "
      "(1323 declarations, 23 axioms / 22 unique, sorries_raw 307). It is kept "
-     "strictly separate from the locked-8 and never folded in. Source: STATUS.md."),
+     "strictly separate from the canonical locked set and never folded in by implication. Source: STATUS.md."),
     ("What is the honest signing status without secrets?",
      "Without A11OY_HMAC_KEY, HMAC receipt signatures are PLACEHOLDER "
      "(non-repudiation disabled); without A11OY_RECEIPT_KEY_PATH/DIR the ECDSA "

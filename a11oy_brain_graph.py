@@ -14,9 +14,9 @@ WHAT IT HARVESTS (all real sources — no invented nodes):
                             (the one source of truth parsed from holographic.html;
                             each surface carries its verbatim honesty label).
   * 23 PURIQ formulas F1..F23 — reuses szl_puriq_formulas.FORMULA_META (the
-                            wave formula substrate). The locked-8
-                            {F1,F4,F7,F11,F12,F18,F19,F22} are flagged
-                            (EXPERIMENTAL_WAVES.locked_ids); F23 (Λ) carries
+                            wave formula substrate). The canonical locked five
+                            {F1,F11,F12,F18,F19} are flagged from the formula
+                            registry; F4/F7/F22 remain experimental; F23 (Λ) carries
                             "Conjecture 1" — NEVER a theorem.
   * 34 active org repos    — a static snapshot of the live szl-holdings GitHub
                             inventory (non-archived, non-fork) captured at build
@@ -34,13 +34,13 @@ provenance field:
   * formula -> topic    (formula's own organ)
   * repo -> topic       (repo name token matches a topic)
   * topic -> estate     (structural backbone)
-  * formula -> estate   (locked-8 + Λ proven/conjectured backbone -> thesis)
+  * formula -> estate   (canonical locked set + Λ conjectural backbone -> thesis)
   * endpoint -> estate  (each live endpoint feeds the estate root)
 
 LAYERS (for the neural-net render; `layer` on every node):
   0 = INPUT   : repos + surfaces
   1 = HIDDEN  : topic clusters
-  2 = HIDDEN  : formulas (locked-8 highlighted)
+  2 = HIDDEN  : formulas (canonical locked set highlighted)
   3 = OUTPUT  : estate root + live endpoints
 
 Doctrine v11 honesty:
@@ -59,6 +59,7 @@ import re
 
 import a11oy_frontier_page as _frontier
 import szl_puriq_formulas as _puriq
+import szl_formula_registry as _formula_registry
 
 CANONICAL_DOMAIN = "a-11-oy.com"
 
@@ -256,11 +257,16 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
         add_link(sid, endpoint_ids[surfaces_ep], "surface-endpoint",
                  derived_from="frontier/surfaces manifest")
 
-    # ---- HIDDEN layer 2: formulas (locked-8 flagged) ---------------------- #
-    locked = set(_puriq.EXPERIMENTAL_WAVES.get("locked_ids", []))
+    # ---- HIDDEN layer 2: formulas (canonical locked set flagged) ---------- #
+    locked = set(_formula_registry.LOCKED_PROVEN_IDS)
     for fid, meta in _puriq.FORMULA_META.items():
         nid = f"formula:{fid}"
         is_lambda = fid == "F23"
+        registry_attrs = {}
+        try:
+            registry_attrs["registry_maturity"] = _formula_registry.formula(fid)["maturity"]
+        except KeyError:
+            pass
         node = add_node(
             nid, kind="formula", layer=2, title=meta.get("name", fid),
             formula_id=fid, organ=meta.get("organ", ""),
@@ -268,7 +274,7 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
             locked=fid in locked,
             label="MODELED" if not is_lambda else "MODELED",
             conjecture="Conjecture 1" if is_lambda else None,
-            primitive=meta.get("primitive", ""))
+            primitive=meta.get("primitive", ""), **registry_attrs)
         ftokens = _tokens(meta.get("name", ""), meta.get("primitive", ""),
                           meta.get("organ", ""))
         # formula -> topic (its own organ)
@@ -280,10 +286,10 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
             shared = ftokens & snode["_tokens"]
             if shared:
                 add_link(nid, sid, "formula-surface", via=sorted(shared)[0])
-        # locked-8 + Λ proven/conjectured backbone -> thesis output
+        # canonical locked set + Λ conjectural backbone -> thesis output
         if fid in locked or is_lambda:
             add_link(nid, estate_id, "formula-estate",
-                     derived_from="locked-8" if fid in locked else "Λ=Conjecture 1")
+                     derived_from="canonical formula registry" if fid in locked else "Λ=Conjecture 1")
 
     # ---- INPUT layer: repos (static snapshot) ----------------------------- #
     # Each estate repo node inherits the snapshot's REAL committed capture date
@@ -420,7 +426,7 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
             "-1": "field (harvested field leaders — outer ring, beyond input)",
             "0": "input (repos + surfaces)",
             "1": "hidden (topic clusters)",
-            "2": "hidden (formulas; locked-8 highlighted)",
+            "2": "hidden (formulas; canonical locked set highlighted)",
             "3": "output (estate root + live endpoints)",
         },
         "sources": {
@@ -584,8 +590,8 @@ def _selftest() -> None:
     g = build_brain_graph("a11oy")
     assert g["label"] == "MODELED", "top label must be MODELED (derived view)"
     assert g["doctrine"]["lambda"] == "Conjecture 1", "Λ must be Conjecture 1"
-    assert g["doctrine"]["locked_count"] == 8, "locked count must be EXACTLY 8"
-    assert len(g["doctrine"]["locked_ids"]) == 8, "locked ids must be 8"
+    assert g["doctrine"]["locked_count"] == _formula_registry.LOCKED_PROVEN_COUNT
+    assert tuple(g["doctrine"]["locked_ids"]) == _formula_registry.LOCKED_PROVEN_IDS
     assert g["doctrine"]["canonical_domain"] == "a-11-oy.com", "canonical domain"
     # counts are the ACTUAL harvested totals, never fabricated
     assert g["node_count"] == len(g["nodes"]), "node_count must equal len(nodes)"
@@ -599,7 +605,7 @@ def _selftest() -> None:
     assert surf_count >= 64, f"expected >=64 frontier surfaces, got {surf_count}"
     assert g["sources"]["formulas"]["count"] == 23, "expected 23 PURIQ formulas"
     assert g["sources"]["repos"]["count"] == 34, "expected 34 active org repos"
-    assert g["summary"]["locked_flagged"] == 8, "exactly 8 locked formulas flagged"
+    assert g["summary"]["locked_flagged"] == _formula_registry.LOCKED_PROVEN_COUNT
     # neural-net layering present on every node
     assert all("layer" in n for n in g["nodes"]), "every node needs a layer"
     # every link references existing nodes
@@ -648,8 +654,8 @@ def _selftest() -> None:
         assert all(n.get("url") and n.get("source") for n in field), \
             "every harvested node needs a real url + source"
         assert all(n.get("label") == "HARVESTED" for n in field), "honest label"
-        # locked-8 UNTOUCHED by the harvest
-        assert g["summary"]["locked_flagged"] == 8, "harvest adds nothing to locked-8"
+        # Canonical locked set is untouched by the harvest.
+        assert g["summary"]["locked_flagged"] == _formula_registry.LOCKED_PROVEN_COUNT
         # by_source / by_axis breakdowns present and non-trivial
         assert len(g["summary"]["by_source"]) >= 5, "by_source breakdown missing"
         assert len(g["summary"]["by_axis"]) >= 5, "by_axis breakdown missing"
@@ -684,7 +690,8 @@ def _selftest() -> None:
               f"by_layer={g['summary']['by_layer']}; "
               f"by_kind={g['summary']['by_kind']}; "
               f"by_source={len(g['summary']['by_source'])} sources; "
-              f"by_axis={len(g['summary']['by_axis'])} axes; locked_flagged=8")
+              f"by_axis={len(g['summary']['by_axis'])} axes; "
+              f"locked_flagged={g['summary']['locked_flagged']}")
     else:
         assert set(g["summary"]["by_layer"]) == {"0", "1", "2", "3"}, "4 layers"
         print(f"a11oy_brain_graph: ALL OK (estate-only; harvest files absent) — "

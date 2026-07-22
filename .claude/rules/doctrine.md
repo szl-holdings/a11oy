@@ -15,8 +15,9 @@ the honest-status review. A breach is a **doctrine failure**, not a style nit.
 2. **No banned tokens.** No marketing-hype words; no retired codenames. The doctrine-grep gate
    regex is authoritative; `.doctrine-allowlist` lists files that may legitimately enumerate
    banned tokens.
-3. **Locked count is 8.** `{F1, F4, F7, F11, F12, F18, F19, F22}` (no-axiom theorem
-   `locked_count_eight`). Never inflate it. Λ-uniqueness = **Conjecture 1**; Khipu BFT safety =
+3. **Locked count is 5.** The canonical formula registry admits five locked formulas
+   `{F1,F11,F12,F18,F19}`; F4/F7/F22 remain experimental. Never inflate it.
+   Λ-uniqueness = **Conjecture 1**; Khipu BFT safety =
    **Conjecture 2**. Never call a conjecture a theorem.
 4. **Cite prior art.** External ideas (e.g. Ponytail restraint) are cited, never claimed as ours.
 5. **Honest BLOCKED beats fake green.** A truthful denial/blocked is better than a fabricated pass.
@@ -30,7 +31,7 @@ the honest-status review. A breach is a **doctrine failure**, not a style nit.
 + otherwise honest SAMPLE/DEGRADED. Carbon is ROADMAP.
 
 - We have proven 12 locked formulas and Λ-uniqueness.           # FAIL: inflates count; Λ is a conjecture
-+ 8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.   # PASS
++ 5 locked-proven {F1,F11,F12,F18,F19}; F4/F7/F22 experimental; Λ = Conjecture 1.   # PASS
 ```
 
 When unsure: **prefer the honest label and ask before claiming.**

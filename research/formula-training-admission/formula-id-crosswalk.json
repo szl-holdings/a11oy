@@ -1,5 +1,5 @@
 {
-  "crosswalk_receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52",
+  "crosswalk_receipt_sha256": "88933020d043e152013189f027dac95b71e3c2398f51cda9ddd17401d4ce8b33",
   "namespace_policy": {
     "default_proof_transfer_allowed": false,
     "formula_ids_are_namespace_scoped": true,
@@ -705,7 +705,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F1",
-      "brain_node_sha256": "bb9b8bc3822256a7239b26a9ab9d6643990312b3af059db4b316d771f8e7801b",
+      "brain_node_sha256": "093f0633d3f395eb354876295269c896bec8d165e0a8fb6d6071badc27420db3",
       "canonical_name": "Euler-Khipu DAG Identity",
       "claim_sha256": "d8e7376895168d4d25fbe9dcb5a66ae5961f32a3e06c351b8e75ad31ff4c009f",
       "declared_lean_name": "wellFormed_iff",
@@ -773,7 +773,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F11",
-      "brain_node_sha256": "1342a38677353f097f8a579ffb0da32923bc263aa80aad57b1e0076cde83d8df",
+      "brain_node_sha256": "f94c649080efa51bda6913b1478b86b56d226029655c0af2905c8f9fcbc96c3d",
       "canonical_name": "Frustum A-Shrink Law",
       "claim_sha256": "713a46711597f60e4f58b0f2bc6bc4abdb5fd9315ed902f1181a88cdbb5f34bb",
       "declared_lean_name": "frustum_degenerates_to_pyramid",
@@ -807,7 +807,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F12",
-      "brain_node_sha256": "c15d47fb2186bce65e88628e484fcc58109288a2c7ec746f873f7186fe16ed8b",
+      "brain_node_sha256": "1751975c95052c079d1afc0964b9cdaffaa14ace09f829c36b4b4ceb5d6bc4bc",
       "canonical_name": "CRT-Hukulla Schedule",
       "claim_sha256": "b711a4a6c30dc94ab1ab47e80a927442d06340c7b826a45f6435b26ef2caa785",
       "declared_lean_name": "crt_collision_period",
@@ -1011,7 +1011,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F18",
-      "brain_node_sha256": "8c2bc8bfd9074662a1579128f042e223ba87892ffe6c665bef0eb379912cd1e4",
+      "brain_node_sha256": "734dadc1e0461046740129536743d45b08061b28f4b81313e42afff8495a490e",
       "canonical_name": "Kolmogorov A-Description Cap",
       "claim_sha256": "af310dcf9ab7efa285dedfd3a8ea4898e9c7c8be67ddb1a0dadd9c174f9499ac",
       "declared_lean_name": "actions_bounded_by_K",
@@ -1045,7 +1045,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F19",
-      "brain_node_sha256": "74fa831bdd64acc89c6a89118b137c6c8f7a5d5067cc2e65a4a3f2794448db6e",
+      "brain_node_sha256": "01ce8c481356609df32bf5155c7ab989b05ae53d92b559a5c77f653d6b6567ae",
       "canonical_name": "Turing-Fuel Halting Safety",
       "claim_sha256": "f36e17cd575947cc4058ca07a3cdd98bf21663e2a9b8c67456ca9fbc47115df4",
       "declared_lean_name": "fuel_total",
@@ -1181,7 +1181,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F22",
-      "brain_node_sha256": "50c0df91d3c5749bc41827bab6463e732d4ebdb26f4455f1897231b355b1246a",
+      "brain_node_sha256": "617c82003874cf64eabf0b1607d80b59a3c3df926b683120701e812f889be566",
       "canonical_name": "Feynman-Puriq Path Integral",
       "claim_sha256": "495ce6dbfc1d61f415c033fae18323d95ee19b48282cc8c877cd9cd3ece1edec",
       "declared_lean_name": "f22_khipu_emit_monotone",
@@ -1215,7 +1215,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F23",
-      "brain_node_sha256": "60e9ca1aab9a6ef0f503c8a270259c9eb589356f501d14d34c62a4391da518a4",
+      "brain_node_sha256": "dc01fa60ca4f4620308ef8c0fef5680249fa0ec47df8f92088ba7330ed968766",
       "canonical_name": "Bekenstein A-Cap",
       "claim_sha256": "501b9a119e7a44877006b8a4d3557a096ac289eba0a899ef306bae04d51b3fee",
       "declared_lean_name": "actionSpaceBounded",
@@ -1283,7 +1283,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F4",
-      "brain_node_sha256": "3fd8fb77ddd0f1f7a7124094cfb0131569d16b2fe805afbb6ca8af7b7ff2f603",
+      "brain_node_sha256": "5f1e086b32911688aeafa5d134c8b83e2e578b02f4f6b6301b91360f440fe498",
       "canonical_name": "Gauss-Yuyay Aggregation",
       "claim_sha256": "f20a4ac398a8f5ed3ab8c8cd3c6753d96f8a7314ae6d3522fd9d0d9a1ce7a970",
       "declared_lean_name": "f4_khipu_dag_acyclic_preserved",
@@ -1385,7 +1385,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F7",
-      "brain_node_sha256": "4974772446fe6023451ca111e9b413a342ef935e4bdac3825bc2363d9be5e6c7",
+      "brain_node_sha256": "5ba61dea3296acbb58ec8c1f9492accb4959eb8a91ac9c7483e9a67f4bd08b69",
       "canonical_name": "Inverse-Square/Zeta Provenance",
       "claim_sha256": "5cd3d0fa971a0280e8f2c8ae59aa012e0617eb2b87e83f35de71f0482184ba58",
       "declared_lean_name": "f7_chaski_fifo_order",

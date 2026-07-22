@@ -102,7 +102,7 @@ LAYER_ROLE = {
     -1: "layer -1 (field - harvested field leaders, the outer ring beyond input)",
     0: "layer 0 (input - repos + surfaces)",
     1: "layer 1 (hidden - topic clusters)",
-    2: "layer 2 (hidden - formulas; the locked-8 highlighted)",
+    2: "layer 2 (hidden - formulas; the canonical locked set highlighted)",
     3: "layer 3 (output - estate root + live endpoints)",
 }
 
@@ -235,11 +235,11 @@ def graph_meta_examples(graph):
         ("What does the brain graph say about Lambda and the locked formula count?",
          "The graph's own doctrine block records Λ = Conjecture 1 (never a "
          "theorem), a locked count of %s, and the canonical domain a-11-oy.com. "
-         "That matches Doctrine v11." % doc.get("locked_count", 8)),
+         "That matches the proof-carrying registry." % doc.get("locked_count", 5)),
         ("What do the layers of the brain graph mean?",
          "Layer -1 is the field ring (harvested field leaders), layer 0 is input "
          "(repos + surfaces), layer 1 is hidden topic clusters, layer 2 is hidden "
-         "formulas (locked-8 highlighted), and layer 3 is the output (estate root "
+         "formulas (the canonical locked set highlighted), and layer 3 is the output (estate root "
          "+ live endpoints). This legend is recorded in the graph itself."),
     ]
     return out

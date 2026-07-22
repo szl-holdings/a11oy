@@ -12,6 +12,7 @@ Stdlib + pytest only: importing a11oy_formula_endpoints does not require FastAPI
 from __future__ import annotations
 
 import a11oy_formula_registry_guard as guard
+import formula_claim_validator as claim_validator
 from a11oy_formula_endpoints import _INDEX
 
 
@@ -82,3 +83,26 @@ def test_guard_catches_an_injected_overclaim_into_the_live_index():
     report = guard.registry_report(poisoned)
     assert "phantom" in report["unbacked"]
     assert report["honest"] is False
+
+
+def test_active_formula_claims_and_runtime_projections_match_canonical_registry():
+    assert claim_validator.claim_errors() == []
+    assert claim_validator.projection_errors() == []
+
+
+def test_claim_guard_rejects_old_locked_and_bulk_proof_overclaims(tmp_path):
+    bad = tmp_path / "claim.md"
+    bad.write_text("Exactly 8 locked-proven formulas.\nWe have 200 proven formulas.\n",
+                   encoding="utf-8")
+    errors = claim_validator.claim_errors(("claim.md",), root=tmp_path)
+    assert len(errors) == 2
+
+
+def test_claim_guard_allows_honest_denials_and_experimental_language(tmp_path):
+    honest = tmp_path / "claim.md"
+    honest.write_text(
+        "This evidence does not establish 200 proven formulas.\n"
+        "F4, F7, and F22 are experimental and are not locked.\n",
+        encoding="utf-8",
+    )
+    assert claim_validator.claim_errors(("claim.md",), root=tmp_path) == []

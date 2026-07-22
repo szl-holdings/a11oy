@@ -3,8 +3,8 @@
     "crosswalk": {
       "bytes": 161227,
       "path": "research/formula-training-admission/formula-id-crosswalk.json",
-      "receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52",
-      "sha256": "cde0b70299a673f7e64aae7598f38cde038ec47bf7c48612abf9ea2f91bdc832"
+      "receipt_sha256": "88933020d043e152013189f027dac95b71e3c2398f51cda9ddd17401d4ce8b33",
+      "sha256": "152d38e3f6fd7301b27fc22370c5de4618e4944d09519b1a3c8534a932fffce0"
     },
     "receipt_path": "research/formula-training-admission/artifact-receipt.json",
     "tranche": {
@@ -48,14 +48,14 @@
     "training_admission": "BLOCKED_PENDING_NAMESPACE_AND_SOURCE_RECONCILIATION",
     "tranche_rows": 148
   },
-  "manifest_receipt_sha256": "6a2f6ff3a29184f6b9e3acd359cb4a447656ce648dbf3244b6168c74225df406",
+  "manifest_receipt_sha256": "bd3ada59682466c15d4545d351413a8eace3a9db649002a846d10dbe81eeaf81",
   "schema_version": "szl.formula-training-admission-manifest.v1",
   "source_snapshot": {
     "brain": {
       "distinct_artifact_count": 4229,
       "formula_node_count": 23,
-      "graph_content_sha256": "536f73f051baf0a99b75c1bb204388e8b7398f00250b47f332dd95488371924a",
-      "inventory_sha256": "d3980630b0f60d2ab0b7d64d41ea1f2d9c7664ea8c030426a7f4c8008bd04dc7",
+      "graph_content_sha256": "42b7ac1fb5b335bc0aa6703975b50490b7aca85eb75a0c6155f0a17861aa53ff",
+      "inventory_sha256": "b867a43533234fa3579a9461159cc644988a0656eb0c79f26131bf81017ac027",
       "person_metadata_count": 5235,
       "quarantined_node_count": 9464,
       "raw_node_count": 9464,

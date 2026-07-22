@@ -44,9 +44,10 @@ review.
 - **RECEIPT-ON-WRITE, NOT ON-READ.** Signing belongs on state changes, never on GETs. Do **not**
   add sign-per-request side effects to read paths (see the `/frontier/manifest` no-sign-on-GET
   fix — keep it that way).
-- **LOCKED vs EXPERIMENTAL.** There are **8** locked-proven formulas
-  `{F1, F4, F7, F11, F12, F18, F19, F22}` (no-axiom theorem `locked_count_eight`). **Never inflate
-  the locked count.** Λ-uniqueness is **Conjecture 1**; Khipu BFT safety is **Conjecture 2** —
+- **LOCKED vs EXPERIMENTAL.** The proof-carrying canonical registry admits **5**
+  locked-proven formulas `{F1, F11, F12, F18, F19}`. F4, F7, and F22 are
+  source-present **EXPERIMENTAL** entries, not locked. **Never inflate the locked
+  count.** Λ-uniqueness is **Conjecture 1**; Khipu BFT safety is **Conjecture 2** —
   never call either a theorem.
 - **MEASURED-ONLY JOULES.** Energy is MEASURED only with a real NVML/GPU-lung delta; otherwise
   honest SAMPLE/DEGRADED. Carbon is ROADMAP (no live grid feed).

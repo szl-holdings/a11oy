@@ -6,7 +6,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SZL · Proof Replay — See the Math (Lean 4)</title>
-<meta name="description" content="Interactive, public, honest in-browser Lean 4 proof replay for SZL's formal core: Theorem U (proven, conditional, axiom-free), the 8 locked-proven formulas, and the open conjectures (Λ-uniqueness = Conjecture 1). Type-check the real source live, zero install." />
+<meta name="description" content="Interactive, public, honest in-browser Lean 4 proof replay for SZL's formal core: Theorem U (proven, conditional, axiom-free), the five registry-admitted locked formulas, and the open conjectures (Λ-uniqueness = Conjecture 1). Type-check the real source live, zero install." />
 <!-- 0 runtime CDN: KaTeX + Cytoscape + Dagre are vendored in-image and served from /vendor/* -->
 <link rel="stylesheet" href="/vendor/katex.min.css" />
 <style>
@@ -93,14 +93,14 @@
   <section id="graph">
     <div id="cy"></div>
     <div class="graphhint">Tao-Blueprint-style dependency graph. Arrows point from a result to what it depends on.
-      The locked-8 formula pack (bottom) is the kernel-checked foundation; Theorem&nbsp;U sits above it;
+      The canonical locked-five formula pack (bottom) is the registry-admitted foundation; Theorem&nbsp;U sits above it;
       Conjecture&nbsp;1 is the open apex.</div>
   </section>
   <aside id="panel"><!-- filled by JS --></aside>
 </main>
 
 <footer>
-  <span>Source of truth: <a href="https://github.com/szl-holdings/lutar-lean/blob/main/PROVEN_FORMULAS.md" target="_blank" rel="noopener">lutar-lean/PROVEN_FORMULAS.md</a> · locked-proven = <b>8</b> · Λ = Conjecture&nbsp;1</span>
+  <span>Source of truth: <a href="https://github.com/szl-holdings/lutar-lean/blob/main/PROVEN_FORMULAS.md" target="_blank" rel="noopener">lutar-lean/PROVEN_FORMULAS.md</a> · locked-proven = <b>5</b> {F1,F11,F12,F18,F19} · F4/F7/F22 experimental · Λ = Conjecture&nbsp;1</span>
   <span>0 runtime CDN · KaTeX/Cytoscape/Dagre vendored · live check uses live.lean-lang.org (Mathlib)</span>
 </footer>
 
@@ -205,7 +205,7 @@ theorem conjecture1_lambda_unique
     note:"Verbatim statement; proof body in the source file. Proven — it is the formal reason Conjecture 1 cannot be green."
   },
 
-  // ---- locked-8 formula foundation (all Mathlib-free, sorry-free, self-contained) ----
+  // ---- registry-admitted locked formula foundation (Mathlib-free, sorry-free) ----
   f1: {
     label:"F1\nReplay determinism", status:"green", layer:2, kind:"PROVEN · self-contained",
     title:"F1 — Replay-Hash Determinism",

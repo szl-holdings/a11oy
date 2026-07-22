@@ -61,7 +61,7 @@ Base: `https://szlholdings-a11oy.hf.space`
 | GET | `/healthz` | Health + doctrine numbers. |
 | POST | `/khipu/sign` · POST `/khipu/verify` · GET `/khipu/pubkey` | Receipt signing/verification (see common). |
 | GET/POST | `/wires/D` | Wire D traceparent surface. |
-| GET | `/api/a11oy/v1/puriq/formulas` | PURIQ formula catalog (master formula + axes). 8 PROVED ({F1,F4,F7,F11,F12,F18,F19,F22}) recompute live with a fresh Khipu receipt chain. |
+| GET | `/api/a11oy/v1/puriq/formulas` | PURIQ formula catalog (master formula + axes). Per-entry maturity is reported; the canonical registry admits 5 locked IDs and keeps F4/F7/F22 experimental. |
 | GET | `/api/a11oy/v1/puriq/formulas/{id}` | One formula, recomputed live (e.g. `/F1`, `/F11`, `/F12`, `/F18`, `/F19`). |
 | POST | `/api/a11oy/v2/unay/recall` | Unay memory recall (semantic lookup over governed memory). |
 | GET | `/api/a11oy/v1/mcp/tools` · POST `/api/a11oy/v1/mcp/call` | **Canonical live MCP surface** — JSON tool catalog + tool invocation (currently 4 governed tools: `a11oy_gate`, `lambda_score`, …). |
@@ -105,7 +105,7 @@ Base: `https://szlholdings-killinchu.hf.space` · Repo is **private** (defense I
 ## a11oy frontier endpoints (PINN · E8 · specdec · materials · evidence-pack · conformal)
 
 Base: `https://a-11-oy.com` · live a11oy Space. These shipped 2026-06-28+ and are governed by
-the same doctrine: **8 locked-proven** {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel `c7c0ba17`;
+the same doctrine: **5 registry-admitted locked-proven** {F1,F11,F12,F18,F19}; F4/F7/F22 remain experimental;
 **Λ = Conjecture 1** (advisory, capped ≤ 0.99, never a theorem); values **MODELED** unless
 MEASURED; every action emits a SHA3-256 Khipu receipt (honestly `signed` or `DSSE_PLACEHOLDER`).
 
@@ -140,7 +140,7 @@ POST `{ "digest": "<64-hex sha3_256>" }` (GET verifies a live ledger head). Retu
 32-bit `coords`, `nearest_lattice_point`, `min_squared_distance` (0 ⇒ on-lattice), and an
 `error_detection` block. **Honest:** E8 optimality is **Viazovska (2017, *Annals* 185:991–1015)**,
 formalized in Lean (EPFL) — **cited, not produced here**. Error-DETECTION geometry only; **NOT**
-adversarial-substitution resistance, collision resistance, or BFT safety; adds **0** to locked-8.
+adversarial-substitution resistance, collision resistance, or BFT safety; adds **0** to the canonical locked set.
 
 ### `GET /specdec/health` · `POST /specdec/run`
 Leviathan et al. 2023 (arXiv:2211.17192), **reimplemented from the public paper**. Lossless
@@ -156,7 +156,7 @@ injectivity is **Conjecture 2 — ROADMAP, NOT proven** (`Lutar/Materials/PDDInj
 **certify**: POST `{empirical_risk,kl,n,delta}` or `{family}` (`intermetallics`/`oxides`/
 `refractory_hea`); returns the McAllester bound `R(Q) ≤ R̂(Q) + sqrt((KL+ln(2√n/δ))/(2n))`.
 Formula **proven on paper**, computation **exact**; **Lean proof is an open SORRY/ROADMAP**
-(`Lutar/Materials/PACBayesMaterials.lean`) — not in locked-8. Presets are `SAMPLE/MODELED`.
+(`Lutar/Materials/PACBayesMaterials.lean`) — not in the canonical locked set. Presets are `SAMPLE/MODELED`.
 
 ### `GET /assurance/evidence-pack`
 Returns an envelope `{pack, pack_sha3_256, digest_alg:"sha3_256", digest_canonicalization,
@@ -182,7 +182,7 @@ Live endpoints newly surfaced (all verified `200` at `https://a-11-oy.com`, 2026
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/a11oy/v1/honest` | Full doctrine status: `doctrine_lock` (v11, 749/14/163, `c7c0ba17`), 8 locked-proven IDs, Λ advisory, persistence note. The canonical machine-readable "what we claim" endpoint. |
+| GET | `/api/a11oy/v1/honest` | Full doctrine status: proof-carrying registry digest, 5 locked-proven IDs, F4/F7/F22 experimental, Λ advisory, persistence note. The canonical machine-readable "what we claim" endpoint. |
 | GET | `/api/a11oy/v1/signing-status` | Receipt signing posture: `key_source` (`ephemeral` or `persistent`), `dsse_keyid`, `hmac_layer` status, `non_repudiation` flag, honest note. Set `A11OY_RECEIPT_KEY_PATH` + `A11OY_HMAC_KEY` as Space secrets for persistent non-repudiation. |
 | GET | `/api/a11oy/v1/frontier/manifest` | Live roll-up of all 8 frontier capabilities as tiles, each with `MEASURED`/`MODELED`/`ROADMAP`/`SAMPLE`/`UNAVAILABLE` label. Includes `universal_verifier` address, `labels_legend`, `summary` (`tiles:8`, `label_counts`), and a per-capability `capabilities[]` array. |
 | GET | `/api/a11oy/v1/energy/ledger` | Hash-chained NVML joule receipt chain. Returns `chain_length`, `links_intact`, `persistence` note. `chain_length:0` is correct when no sovereign GPU job ran this process — honest, not an error. |
@@ -198,8 +198,9 @@ Live endpoints newly surfaced (all verified `200` at `https://a-11-oy.com`, 2026
     "doctrine": "v11", "state": "LOCKED",
     "declarations": 749, "axioms": 14, "sorries": 163,
     "commit": "c7c0ba17", "lambda": "Conjecture 1",
-    "locked_formula_count": 8,
-    "locked_formula_ids": ["F1","F4","F7","F11","F12","F18","F19","F22"]
+    "locked_formula_count": 5,
+    "locked_formula_ids": ["F1","F11","F12","F18","F19"],
+    "experimental_formula_ids": ["F4","F7","F22"]
   },
   "honest_labels": { "persistence": "Khipu receipts persist via backend=sqlite (durable=True)" }
 }

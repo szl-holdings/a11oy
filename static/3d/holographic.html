@@ -241,12 +241,12 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
    </div>
   </div>
   <button class="enter" id="intro-enter">Enter the estate →</button>
-  <div class="intro-foot">Doctrine v11 · locked = 8 {F1,F4,F7,F11,F12,F18,F19,F22} · Λ = Conjecture 1 ·
+  <div class="intro-foot">Doctrine v11 · canonical locked = 5 {F1,F11,F12,F18,F19} · F4/F7/F22 experimental · Λ = Conjecture 1 ·
    Khipu BFT = Conjecture 2 · 0 runtime CDN (three.js vendored in-image) · trust &lt; 100%</div>
  </div>
 </div>
 <div id="surface-caption" title=""></div>
-<footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
+ <footer>Doctrine v11 · canonical locked = 5 {F1,F11,F12,F18,F19} · F4/F7/F22 experimental · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
  shared szl3d toolkit (Dev0) · every value carries its honesty label · trust &lt; 100%</footer>
 
 <script type="module">
@@ -364,7 +364,7 @@ const SURFACES = [
   { id: "retrievalattn", cat: "attention", title: "Retrieval-Modulated Long-Context Attention · needle recall (MODELED)", mod: "/static/3d/surfaces/retrievalattn.js" },
   { id: "whatsnew", cat: "brain", title: "What's New · honest auto-derived estate changelog · recently-added surfaces w/ verbatim labels + citations from real git history (drift-proof)", mod: "/static/3d/surfaces/whatsnew.js" },
   { id: "honestywall", cat: "governance", title: "Honesty Wall · live integrity aggregation · reads each surface's OWN honest label VERBATIM + estate honesty invariants → INTACT/DEGRADED/VIOLATED verdict, unsigned SHA-256 receipt-on-write (drift-proof)", mod: "/static/3d/surfaces/honestywall.js" },
-  { id: "agentos", cat: "governance", flag: true, title: "Agent OS Map · live self-honest operator's-eye map of the agent OS · nodes (daily loop←agentops, trust ledger←anatomy+receipts+honestywall, standing goals←doctrine+locked-8, optional loops←governedagent/governedrag/loopforge/mesh) with LIVE per-node verdict from the honestywall aggregate → OPERATING/DEGRADED/HALTED-HONEST, never OPERATING if anything VIOLATED, unsigned SHA-256 receipt-on-write (drift-proof)", mod: "/static/3d/surfaces/agentos.js" },
+  { id: "agentos", cat: "governance", flag: true, title: "Agent OS Map · live self-honest operator's-eye map of the agent OS · nodes (daily loop←agentops, trust ledger←anatomy+receipts+honestywall, standing goals←doctrine+canonical formula registry, optional loops←governedagent/governedrag/loopforge/mesh) with LIVE per-node verdict from the honestywall aggregate → OPERATING/DEGRADED/HALTED-HONEST, never OPERATING if anything VIOLATED, unsigned SHA-256 receipt-on-write (drift-proof)", mod: "/static/3d/surfaces/agentos.js" },
   { id: "brainground", cat: "brain", title: "Brainground · grounding-confidence + honest abstention over brain retrieval · scores the brain's REAL grounding_subgraph (seed coverage · subgraph cohesion · salience mass · community consistency) → GROUNDED/WEAK-GROUNDING/INSUFFICIENT-GROUNDING, brain abstains when grounding is weak, MODELED (never MEASURED), unsigned SHA-256 receipt-on-write", mod: "/static/3d/surfaces/brainground.js" },
   { id: "brainmemory", cat: "brain", title: "Brain Memory Freshness · honest episodic decay proxy over the knowledge graph · deterministic per-node freshness (recency + structure when a real timestamp exists, else STRUCTURAL-ONLY connectivity+salience proxy, never a fabricated timestamp) -> FRESH/AGING/STALE, STALE flagged for re-harvest, unsigned SHA-256 receipt-on-write (drift-proof)", mod: "/static/3d/surfaces/brainmemory.js" },
   { id: "brainprovenance", cat: "brain", title: "Brain Provenance · per-answer source-lineage chain · which knowledge-graph nodes supported the answer, each node's OWN label VERBATIM + contribution_weight + coverage (HARVESTED/MODELED/UNAVAILABLE) → TRACEABLE/PARTIAL-PROVENANCE/UNTRACEABLE, never TRACEABLE while any node UNAVAILABLE, unsigned SHA-256 receipt-on-write (source-lineage of an answer, NOT build/model attestation)", mod: "/static/3d/surfaces/brainprovenance.js" },

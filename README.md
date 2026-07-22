@@ -100,7 +100,7 @@ Runs on your own hardware. Air-gappable. Signed UDS bundle, one-command deploy. 
 
 The trust math behind a11oy is pinned in **Lean 4** and checked by a proof machine:
 
-- **8 formulas locked-proven** at kernel `c7c0ba17` — receipt replay, DAG acyclicity, FIFO ordering, ledger conservation, Reed–Solomon recovery, and append-only monotonicity, among others.
+- **5 formulas locked-proven** in the proof-carrying canonical registry — F1, F11, F12, F18, F19. F4, F7, and F22 remain source-present experimental entries.
 - **Λ unconditional uniqueness = Conjecture 1** — machine-checked false (we found a counterexample). Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
 - **SLSA L1 honest · L2 build-attested · L3 roadmap**. No FedRAMP or ATO claimed.
 
@@ -154,7 +154,7 @@ Check current signing status: `GET /api/a11oy/v1/signing-status`
 | Claim | Status |
 |---|---|
 | Signed receipts on every governed action | **LIVE** |
-| 8 formulas locked-proven (Lean 4) | **LOCKED · kernel c7c0ba17** |
+| 5 formulas locked-proven (Lean 4) | **LOCKED · formula-registry.v1** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
 | SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
 | FedRAMP / ATO | **ROADMAP** |

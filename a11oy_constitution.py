@@ -44,7 +44,7 @@ Endpoints (namespace /api/a11oy/v1/constitution):
 
 DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-Doctrine: v11 LOCKED | locked=8 @ c7c0ba17 | Λ Conjecture 1 (<1.0) | tamper-evident
+Doctrine: v11 | canonical locked formula registry | Λ Conjecture 1 (<1.0) | tamper-evident
           (Conjecture 2, NOT tamper-proof) | SLSA L1/L2 (L3 roadmap) | trust<100%
           | 0 CDN | honest statuses, never overclaim a skeleton as done | no key committed
 """
@@ -58,6 +58,8 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
+from szl_formula_registry import LOCKED_PROVEN_COUNT, LOCKED_PROVEN_IDS
+
 # ---------------------------------------------------------------------------
 # DEVELOPER ORIENTATION
 # Purpose:   Constitutional engines over a11oy primitives. ACTIVE engines are
@@ -66,7 +68,8 @@ from datetime import datetime, timezone
 # Key entry: register(app, ns, sign_fn, verify_fn) ; engine classes below.
 # Pillars:   1 Ontology, 2 Phenomenology, 3 Temporality, 4 Legitimacy,
 #            5 Immunology, 6 Energy, 7 Topology, 8 Governance.
-# Doctrine:  Λ Conjecture 1 (<1.0). tamper-EVIDENT (Conjecture 2). locked=8 @ c7c0ba17.
+# Doctrine:  Λ Conjecture 1 (<1.0). tamper-EVIDENT (Conjecture 2).
+# Canonical formula-registry.v1 admits five locked formulas and keeps F4/F7/F22 experimental.
 # ---------------------------------------------------------------------------
 
 _DB_PATH = os.environ.get("A11OY_CONSTITUTION_DB", "/tmp/a11oy_constitution.db")
@@ -74,7 +77,7 @@ _LOCK = threading.RLock()
 LAMBDA_HALT = 0.30
 LAMBDA_CAP = 0.999
 
-LOCKED_8 = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]  # doctrine v11 @ c7c0ba17
+LOCKED_PROVEN = list(LOCKED_PROVEN_IDS)
 
 
 def _now_iso() -> str:
@@ -575,7 +578,8 @@ def engine_status(counts: dict) -> dict:
         "summary": {"ACTIVE": sum(1 for e in engines if e["status"] == "ACTIVE"),
                     "IN-DEV": sum(1 for e in engines if e["status"] == "IN-DEV"),
                     "ROADMAP": sum(1 for e in engines if e["status"] == "ROADMAP")},
-        "doctrine": {"locked": LOCKED_8, "locked_count": len(LOCKED_8), "anchor": "c7c0ba17",
+        "doctrine": {"locked": LOCKED_PROVEN, "locked_count": LOCKED_PROVEN_COUNT,
+                     "anchor": "formula-registry.v1",
                      "lambda": "Conjecture 1 (advisory, <1.0)",
                      "tamper": "tamper-EVIDENT (Conjecture 2), NOT tamper-proof",
                      "trust": "<100%", "slsa": "L1/L2 (L3 roadmap)", "cdn": 0},
