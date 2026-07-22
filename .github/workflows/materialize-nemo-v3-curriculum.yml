@@ -1,0 +1,86 @@
+name: Materialize governed SZL-Nemo v3 curriculum
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - model_release/szl-nemo-v3/build_curriculum.py
+      - tests/test_nemo_v3_curriculum.py
+      - .github/workflows/materialize-nemo-v3-curriculum.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: materialize-nemo-v3-curriculum
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: feat/nemo-v3-curriculum-materialized-20260722
+    steps:
+      - name: Checkout protected main with complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Materialize and independently recheck exact files
+        run: |
+          set -euo pipefail
+          git checkout -B "$TARGET_BRANCH"
+          python model_release/szl-nemo-v3/build_curriculum.py
+          python model_release/szl-nemo-v3/build_curriculum.py --check
+          python -m pytest -q tests/test_nemo_v3_curriculum.py
+          test "$(git show 383d9ffa79e257e3acc02d0eaaac2e1fba8eb49e:model_release/szl-nemo/generated/eval.jsonl | sha256sum | cut -d' ' -f1)" = \
+            "$(sha256sum model_release/szl-nemo-v3/holdout-original-v2.jsonl | cut -d' ' -f1)"
+          test "$(git show 383d9ffa79e257e3acc02d0eaaac2e1fba8eb49e:model_release/szl-nemo/generated/shadow-eval.jsonl | sha256sum | cut -d' ' -f1)" = \
+            "$(sha256sum model_release/szl-nemo-v3/holdout-shadow-v2.jsonl | cut -d' ' -f1)"
+      - name: Remove one-shot generator and commit materialized dataset
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-nemo-v3-curriculum.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add model_release/szl-nemo-v3 tests/test_nemo_v3_curriculum.py \
+            .github/workflows/materialize-nemo-v3-curriculum.yml
+          git commit \
+            -m 'feat(nemo-v3): materialize governed curriculum and frozen holdouts' \
+            -m 'Generate 36 project-authored training rows, preserve the original 8-row and shadow 10-row v2 holdouts byte-for-byte, add a distinct 12-row preregistered challenge suite, record immutable hashes, and remove the one-shot generator workflow.' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push --force-with-lease origin "HEAD:${TARGET_BRANCH}"
+      - name: Open or refresh materialized curriculum PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/body.md <<'EOF'
+          ## Outcome
+
+          Materializes the reviewed SZL-Nemo v3 curriculum as immutable source artifacts:
+
+          - 36 independently project-authored training rows across the six evidenced v2 failure classes;
+          - original 8-row v2 evaluation preserved byte-for-byte;
+          - original 10-row shadow evaluation preserved byte-for-byte;
+          - distinct 12-row preregistered v3 challenge suite;
+          - zero prompt overlap between training and any holdout;
+          - global record-ID uniqueness;
+          - exact file hashes, byte counts, holdout record order, and decision thresholds;
+          - no v2 adapter or weight reuse;
+          - no automatic retry, candidate upload, publication, deployment, signing, or promotion.
+
+          The next governed step is a separately signed GPU-bridge job. This PR makes no training or qualification claim.
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+          EOF
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$TARGET_BRANCH" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$TARGET_BRANCH" \
+              --title 'feat(nemo-v3): materialize governed curriculum and frozen holdouts' \
+              --body-file /tmp/body.md
+          fi
