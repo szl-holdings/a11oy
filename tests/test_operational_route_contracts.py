@@ -66,28 +66,29 @@ def test_holographic_operations_surface_is_deployed_and_accessible() -> None:
     assert "COPY console/ ./static/" in dockerfile
 
 
-def test_permanent_sync_binds_source_and_relocks_live_routes() -> None:
+def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
     workflow = (ROOT / ".github" / "workflows" / "hf-sync.yml").read_text(
         encoding="utf-8"
     )
     for required in (
-        "key='SZL_GIT_SHA'",
-        "needs: bind-source",
-        "needs: deploy",
+        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+        "ref: ${{ github.sha }}",
+        "source-revision-variable: SZL_GIT_SHA",
+        "source-revision-probe-path: /api/build-info",
+        ".github/scripts/verify_canonical_a11oy.py",
         "/api/livez",
         "/api/build-info",
         "/api/a11oy/v1/brain/capabilities",
         "/api/a11oy/v1/readiness/tab-matrix?view=summary",
         "/static/3d/holographic.html",
-        "requests.head(",
-        "requests.get(",
-        "szl.a11oy-deployment-relock/v3",
-        "RELOCK_ISSUE: \"1043\"",
-        "a11oy-clone-{index}",
+        "needs: deploy",
+        'RELOCK_ISSUE: "1043"',
+        "Trigger strict post-deployment GitHub/HF parity",
     ):
         assert required in workflow
 
     for forbidden in (
+        "add_space_variable(",
         "duplicate_repo(",
         "create_repo(",
         "delete_repo(",
