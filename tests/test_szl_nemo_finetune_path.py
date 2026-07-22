@@ -1067,6 +1067,8 @@ def test_v2_local_candidate_attestation_is_fail_closed_and_contract_bound():
     assert len(evaluation_receipt["sha256"]) == 64
     assert evaluation_receipt["runtime_guard"]["state"] == "PASS"
     assert evaluation_receipt["runtime_guard"]["maximum_observed_temperature_c"] <= 80
+    assert evaluation_receipt["network_control"]["state"] == "PYTHON_SOCKET_DENIED"
+    assert evaluation_receipt["network_control"]["os_network_namespace"] == "NOT_ESTABLISHED"
     attempts = evidence["evaluation_admission_attempts"]
     assert all(item["state"] == "BLOCKED" for item in attempts[:-1])
     assert attempts[-1]["state"] == "PASS"

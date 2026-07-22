@@ -86,6 +86,12 @@
         "maximum_observed_temperature_c": 80,
         "maximum_observed_memory_used_mib": 5347,
         "maximum_observed_utilization_pct": 98
+      },
+      "network_control": {
+        "state": "PYTHON_SOCKET_DENIED",
+        "framework_offline_flags": true,
+        "os_network_namespace": "NOT_ESTABLISHED",
+        "limitation": "Native extensions are not proven network-isolated."
       }
     }
   },
