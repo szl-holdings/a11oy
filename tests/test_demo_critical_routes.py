@@ -42,6 +42,7 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/energy/projection",        # 2026-06-16 restore
     "/api/a11oy/v1/restraint/info",           # 2026-06-16 restore
     "/api/a11oy/v1/compute-pool",             # ships as compute-pool-hardened
+    "/api/a11oy/v1/verify/receipt",            # canonical public receipt verifier used by SDA
     "/api/a11oy/v1/pnt/limits",               # earlier PNT restore
     "/api/a11oy/v1/orbital/topology",         # MODELED orbital roadmap (no on-orbit hardware)
     "/api/a11oy/v1/orbital/projection",       # MODELED orbital energy from MEASURED ground coeff
