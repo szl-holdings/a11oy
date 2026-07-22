@@ -1,8 +1,9 @@
 name: Sync and Relock Canonical Hugging Face Space
 
-# Permanent, source-derived deployment path. The reusable deployer computes the
-# exact Space file set from Dockerfile COPY sources, prunes removed paths, waits
-# for the immutable Space revision to reach RUNNING, and verifies byte parity.
+# Permanent source-derived deployment path. The pinned reusable controller derives
+# the exact Space file set from Dockerfile COPY sources, publishes and byte-attests
+# the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
+# build-info contract. This caller retains only A11oy-specific terminal evidence.
 on:
   push:
     branches: [main]
@@ -23,7 +24,9 @@ on:
       - "*.html"
       - "knowledge.json"
       - "README.md"
+      - ".github/scripts/verify_canonical_a11oy.py"
       - ".github/workflows/hf-sync.yml"
+      - "tests/test_canonical_a11oy_relock.py"
   workflow_dispatch: {}
 
 permissions:
@@ -31,249 +34,73 @@ permissions:
   issues: write
 
 concurrency:
-  group: sync-relock-canonical-a11oy-${{ github.ref }}
+  group: sync-relock-canonical-a11oy
   cancel-in-progress: false
 
 env:
-  HF_PUBLISH_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
-  HF_HUB_DISABLE_PROGRESS_BARS: "1"
   GH_TOKEN: ${{ github.token }}
   CANONICAL_SPACE: SZLHOLDINGS/a11oy
   CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
   RELOCK_ISSUE: "1043"
+  REPORT_PATH: reports/canonical-a11oy-relock-v4.json
 
 jobs:
-  bind-source:
-    name: Bind immutable protected source
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Require governed publisher
-        run: |
-          set -euo pipefail
-          test -n "${HF_PUBLISH_TOKEN:-}" || {
-            echo '::error::No supported Hugging Face organization credential is configured.'
-            exit 2
-          }
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Bind the Space runtime variable to this exact Git revision
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-        run: |
-          python -m pip install --disable-pip-version-check 'huggingface_hub==1.19.0'
-          python - <<'PY'
-          import os
-          from huggingface_hub import HfApi
-
-          source = os.environ['SOURCE_SHA']
-          if len(source) != 40:
-              raise SystemExit(f'invalid source revision: {source!r}')
-          api = HfApi(token=os.environ['HF_PUBLISH_TOKEN'])
-          api.add_space_variable(
-              repo_id=os.environ['CANONICAL_SPACE'],
-              key='SZL_GIT_SHA',
-              value=source,
-              description=(
-                  'Exact protected GitHub source revision serving the sole canonical '
-                  'A11oy Space. Runtime and reconciliation contracts fail closed on drift.'
-              ),
-          )
-          print('bound canonical Space source:', source)
-          PY
-
   deploy:
-    name: Deploy exact Dockerfile-derived surface
-    needs: bind-source
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f
+    name: Deploy, source-bind, and attest exact surface
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || 'main' }}
+      ref: ${{ github.sha }}
       dockerfile-path: Dockerfile
       include-readme: true
       prune: true
       wait-running: 1200
+      source-revision-variable: SZL_GIT_SHA
+      source-revision-probe-path: /api/build-info
       smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/static/3d/holographic.html"]'
-    secrets: inherit
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
   relock:
-    name: Prove live GET, HEAD, source binding, and singleton state
+    name: Prove exact live source, runtime, routes, and singleton state
     needs: deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       SOURCE_SHA: ${{ github.sha }}
-      REPORT_PATH: reports/canonical-a11oy-relock.json
     steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
-      - name: Install bounded verification clients
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.19.0' 'requests==2.32.5'
+      - name: Install exact read-only verification clients
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.19.0"
+          "requests==2.32.5"
 
-      - name: Evaluate the live canonical contract
+      - name: Evaluate the canonical application contract
         id: verify
         shell: bash
         run: |
           set +e
-          mkdir -p reports
-          python - <<'PY'
-          from __future__ import annotations
-
-          import json
-          import os
-          import time
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          import requests
-          from huggingface_hub import HfApi
-
-          source = os.environ['SOURCE_SHA']
-          origin = os.environ['CANONICAL_ORIGIN'].rstrip('/')
-          repo_id = os.environ['CANONICAL_SPACE']
-          clones = [f'SZLHOLDINGS/a11oy-clone-{index}' for index in range(1, 5)]
-          report_path = Path(os.environ['REPORT_PATH'])
-          report_path.parent.mkdir(parents=True, exist_ok=True)
-          api = HfApi(token=os.environ['HF_PUBLISH_TOKEN'])
-
-          def stage_of(info):
-              raw = getattr(getattr(info, 'runtime', None), 'stage', None)
-              raw = getattr(raw, 'value', raw)
-              return str(raw or 'UNKNOWN').split('.')[-1].upper()
-
-          def probe(path, validator, attempts=36):
-              last = None
-              for attempt in range(1, attempts + 1):
-                  try:
-                      head = requests.head(
-                          origin + path,
-                          headers={'Cache-Control': 'no-cache', 'User-Agent': 'szl-a11oy-relock/3'},
-                          allow_redirects=True,
-                          timeout=45,
-                      )
-                      get = requests.get(
-                          origin + path,
-                          headers={'Accept': 'application/json,text/html;q=0.9', 'Cache-Control': 'no-cache', 'User-Agent': 'szl-a11oy-relock/3'},
-                          allow_redirects=True,
-                          timeout=60,
-                      )
-                      if not (200 <= head.status_code < 400 and 200 <= get.status_code < 400):
-                          raise RuntimeError(f'HEAD={head.status_code}; GET={get.status_code}')
-                      payload = None
-                      if 'application/json' in str(get.headers.get('content-type') or ''):
-                          payload = get.json()
-                      validator(payload, get.text)
-                      return {
-                          'url': get.url,
-                          'head_http_status': head.status_code,
-                          'get_http_status': get.status_code,
-                          'content_type': get.headers.get('content-type'),
-                          'bytes': len(get.content),
-                          'attempts': attempt,
-                      }
-                  except Exception as exc:  # noqa: BLE001
-                      last = f'{type(exc).__name__}: {exc}'
-                      if attempt < attempts:
-                          time.sleep(min(30, 5 + attempt))
-              raise RuntimeError(f'{path} did not converge: {last}')
-
-          def require_json(expected):
-              def check(payload, _text):
-                  if not isinstance(payload, dict):
-                      raise RuntimeError('response is not a JSON object')
-                  for key, value in expected.items():
-                      if payload.get(key) != value:
-                          raise RuntimeError(f'{key}: expected {value!r}, observed {payload.get(key)!r}')
-              return check
-
-          try:
-              info = api.space_info(repo_id)
-              repository_sha = str(getattr(info, 'sha', '') or '')
-              runtime_sha = str(getattr(getattr(info, 'runtime', None), 'sha', '') or '')
-              stage = stage_of(info)
-              sdk = str(getattr(info, 'sdk', '') or '').lower()
-              if len(repository_sha) != 40 or len(runtime_sha) != 40:
-                  raise RuntimeError('canonical Space lacks immutable repository/runtime revisions')
-              if stage != 'RUNNING' or sdk != 'docker' or getattr(info, 'private', None) is not False:
-                  raise RuntimeError(f'canonical Space state invalid: stage={stage}; sdk={sdk}; private={getattr(info, "private", None)}')
-
-              routes = {
-                  'livez': probe('/api/livez', require_json({'status': 'LIVE'})),
-                  'build_info': probe(
-                      '/api/build-info',
-                      lambda payload, _text: (
-                          None
-                          if isinstance(payload, dict)
-                          and payload.get('status') == 'OBSERVED'
-                          and (payload.get('build') or {}).get('revision') == source
-                          else (_ for _ in ()).throw(RuntimeError('build identity is not bound to protected source'))
-                      ),
-                  ),
-                  'brain_capabilities': probe(
-                      '/api/a11oy/v1/brain/capabilities',
-                      require_json({'schema': 'szl.brain-capabilities.v1'}),
-                  ),
-                  'readiness': probe(
-                      '/api/a11oy/v1/readiness/tab-matrix?view=summary',
-                      lambda payload, _text: (
-                          None
-                          if isinstance(payload, dict)
-                          and (payload.get('view') == 'summary' or payload.get('matrix_summary') is not None)
-                          else (_ for _ in ()).throw(RuntimeError('readiness summary contract is absent'))
-                      ),
-                  ),
-                  'holographic': probe(
-                      '/static/3d/holographic.html',
-                      lambda _payload, text: (
-                          None
-                          if 'A11oy Holographic Operations' in text
-                          and 'The estate, observed—not assumed.' in text
-                          else (_ for _ in ()).throw(RuntimeError('deployed holographic source marker is absent'))
-                      ),
-                  ),
-              }
-              clone_presence = {
-                  clone: api.repo_exists(clone, repo_type='space') for clone in clones
-              }
-              if any(clone_presence.values()):
-                  raise RuntimeError(f'historical clones exist: {clone_presence}')
-
-              report = {
-                  'schema': 'szl.a11oy-deployment-relock/v3',
-                  'generated_at': datetime.now(timezone.utc).isoformat(),
-                  'status': 'PASS',
-                  'public': True,
-                  'sdk': sdk,
-                  'runtime_stage': stage,
-                  'github_source_sha': source,
-                  'hf_repository_sha': repository_sha,
-                  'hf_runtime_sha': runtime_sha,
-                  'clone_presence': clone_presence,
-                  'routes': routes,
-                  'ok': True,
-              }
-              exit_code = 0
-          except Exception as exc:  # noqa: BLE001
-              report = {
-                  'schema': 'szl.a11oy-deployment-relock/v3',
-                  'generated_at': datetime.now(timezone.utc).isoformat(),
-                  'status': 'FAIL',
-                  'github_source_sha': source,
-                  'fatal': f'{type(exc).__name__}: {exc}',
-                  'ok': False,
-              }
-              exit_code = 1
-          report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-          print(json.dumps(report, indent=2, sort_keys=True))
-          raise SystemExit(exit_code)
-          PY
+          python .github/scripts/verify_canonical_a11oy.py \
+            --repo-id "$CANONICAL_SPACE" \
+            --origin "$CANONICAL_ORIGIN" \
+            --source-sha "$SOURCE_SHA" \
+            --source-variable SZL_GIT_SHA \
+            --output "$REPORT_PATH" \
+            --attempts 12 \
+            --retry-seconds 10
           code=$?
           echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
           exit 0
@@ -305,12 +132,12 @@ jobs:
             cat "$REPORT_PATH"
             echo '```'
           } > /tmp/relock.md
-          gh issue edit "$RELOCK_ISSUE" --body-file /tmp/relock.md
+          gh issue edit "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/relock.md
           if [ "${EXIT_CODE:-2}" = '0' ]; then
-            gh issue close "$RELOCK_ISSUE" --reason completed \
-              --comment 'Protected source, live GET/HEAD contracts, immutable runtime, singleton topology, and holographic surface all passed.' || true
+            gh issue close "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed \
+              --comment 'Protected source, reusable source binding, immutable current runtime, exact HEAD/GET contracts, holographic surface, and singleton topology all passed.' || true
           else
-            gh issue reopen "$RELOCK_ISSUE" || true
+            gh issue reopen "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" || true
           fi
 
       - name: Enforce exact live state
