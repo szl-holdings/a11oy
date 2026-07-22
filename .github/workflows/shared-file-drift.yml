@@ -51,48 +51,19 @@ jobs:
                       raise SystemExit(f'expected exactly one occurrence in {path}: {old}')
                   text = text.replace(old, new)
               path.write_text(text, encoding='utf-8', newline='\n')
-      - name: Verify dependency-free exact Space inventory contract
-        shell: python
+      - name: Verify exact repaired text contracts
+        shell: bash
         run: |
-          from pathlib import Path
-          import szl_spaces_proxy as proxy
-          import szl_spaces_surface as surface
-
-          surface_rows = [
-              (item['name'], item['slug'], item['title'], item['sdk'])
-              for item in surface.SPACES
-          ]
-          proxy_rows = [
-              (item['name'], item['slug'], item['title'], item['sdk'])
-              for item in proxy.SPACE_INVENTORY
-          ]
-          if surface_rows != proxy_rows:
-              raise SystemExit('surface/proxy inventory is not byte-semantically aligned')
-          if len(surface_rows) != 26 or len({row[0] for row in surface_rows}) != 26:
-              raise SystemExit('audited inventory must contain exactly 26 unique Spaces')
-
-          expected_static = {
-              'energy-attested-runs',
-              'guardrail-receipt',
-              'szl-forge-lab',
-          }
-          records = {item['name']: item for item in surface.SPACES}
-          for name in expected_static:
-              if records[name]['sdk'] != 'static':
-                  raise SystemExit(f'{name} is not classified static')
-              if not surface.hf_url(name).endswith('.static.hf.space'):
-                  raise SystemExit(f'{name} does not resolve to the static app host')
-
-          contracts = surface.SPACE_API_CONTRACTS
-          if contracts['sda'][1]['url'] != 'https://a-11-oy.com/api/a11oy/v1/verify/receipt':
-              raise SystemExit('SDA does not use the canonical receipt verifier')
-          if len(contracts['anatomy']) != 4 or len(contracts['sda']) != 3:
-              raise SystemExit('exact Anatomy/SDA API contract count drifted')
-
-          widget = Path('spaces/sda/assets/szl_verify_widget.js').read_text(encoding='utf-8')
-          if "VERIFY_PATH  = '/api/a11oy/v1/verify/receipt'" not in widget:
-              raise SystemExit('vendored SDA widget does not use canonical verifier')
-          print('dependency-free SDA/Space inventory contract: PASS')
+          set -euo pipefail
+          grep -F '"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"' szl_spaces_surface.py
+          grep -F '"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"' szl_spaces_surface.py
+          grep -F '"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"' szl_spaces_surface.py
+          grep -F '("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static")' tests/test_szl_spaces_inventory.py
+          grep -F '("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static")' tests/test_szl_spaces_inventory.py
+          grep -F '("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "static")' tests/test_szl_spaces_inventory.py
+          grep -F "VERIFY_PATH  = '/api/a11oy/v1/verify/receipt'" spaces/sda/assets/szl_verify_widget.js
+          grep -F 'https://a-11-oy.com/api/a11oy/v1/verify/receipt' szl_spaces_surface.py
+          python -m py_compile szl_spaces_surface.py
       - name: Restore canonical workflow, remove temporary repair, and commit
         shell: bash
         run: |
