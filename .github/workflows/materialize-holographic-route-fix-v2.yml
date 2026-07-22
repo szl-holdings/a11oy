@@ -33,7 +33,19 @@ jobs:
         with:
           python-version: '3.12'
       - name: Apply deterministic patch
-        run: python tools/materialize_holographic_route_fix.py
+        run: |
+          set -euo pipefail
+          python tools/materialize_holographic_route_fix.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_operational_route_contracts.py')
+          source = path.read_text(encoding='utf-8')
+          broken = '        "RELOCK_ISSUE: "1043"",'
+          fixed = '        \'RELOCK_ISSUE: "1043"\','
+          if source.count(broken) != 1:
+              raise SystemExit(f'expected one generated quoting defect, observed {source.count(broken)}')
+          path.write_text(source.replace(broken, fixed, 1), encoding='utf-8')
+          PY
       - name: Install focused test runtime
         run: >-
           python -m pip install --disable-pip-version-check
