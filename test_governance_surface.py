@@ -18,7 +18,8 @@ live in static/3d/selftest/index.html). Specifically they prove:
   * all 5 assurance/forge gap routes are wired, so each renders the honest NO-LIVE-DATA
     badge on 404 and lights up automatically when Forge meshes it to 200
   * the surface is built to the REAL engine data shapes (behavioural_verdict,
-    signature_alone_is_safety, crosswalk/coverage, axes_present, ledger entries/kill_switch)
+    signature_alone_is_safety, coverage.frameworks, read-only axes_present,
+    receipt_chain/energy_ledger)
   * the honest compliance values (NIST 60 / ISO 60 / EU 0) are present, not fabricated
   * the doctrine teaching point (signature != safety / CVE-2026-45321) is rendered
   * >= 15 distinct visual demos are declared
@@ -61,7 +62,7 @@ GAP_ROUTES = [
     "/api/a11oy/v1/assurance/artifact",
     "/api/a11oy/v1/assurance/credential",
     "/api/a11oy/v1/assurance/compliance",
-    "/api/a11oy/v1/assurance/attest",
+    "/api/a11oy/v1/assurance/attest/status",
     "/api/a11oy/v1/forge/ledger",
 ]
 
@@ -83,7 +84,7 @@ def test_honest_no_live_data_posture():
     # the surface must rely on the shared poller's honest states, never fabricate a value.
     src = _src()
     assert "createBadge" in src                       # per-route honest LIVE/NO-LIVE-DATA badge
-    assert "awaiting Forge mesh" in src               # honest scope line while routes 404
+    assert "assurance route(s) NO-LIVE-DATA" in src     # honest optional-route gap line
     assert "NO-LIVE-DATA" in src
     # it must not invent telemetry with Math.random() (doctrine v11: never fabricate)
     assert "Math.random" not in src, "surface fabricates values with Math.random (doctrine v11 forbids)"
@@ -100,8 +101,10 @@ def test_wired_to_artifact_behaviour_shape():
 
 def test_wired_to_compliance_crosswalk_shape():
     src = _src()
-    # compliance_crosswalk.py + compliance.json shape
-    assert "crosswalk" in src
+    # Deployed contract: canonical coverage.frameworks plus gates_manifest evidence.
+    assert "coverage" in src
+    assert "frameworks" in src
+    assert "gates_manifest" in src
     assert "pct_implemented" in src
     for fw in ("NIST_AI_RMF", "ISO_IEC_42001", "EU_AI_ACT"):
         assert fw in src, f"compliance framework key missing: {fw}"
@@ -109,18 +112,22 @@ def test_wired_to_compliance_crosswalk_shape():
 
 def test_wired_to_runtime_attestation_shape():
     src = _src()
-    # runtime_attestation.py 3-axis shape
+    # Poll the read-only deployed contract; signature minting is never periodic.
+    assert 'attest:     "/api/a11oy/v1/assurance/attest/status"' in src
     assert "axes_present" in src
+    assert "signing_available" in src
     for axis in ("build", "model", "runtime"):
         assert axis in src, f"attestation axis missing: {axis}"
 
 
 def test_wired_to_forge_ledger_shape():
     src = _src()
-    # forge_governance.py linear khipu hash-chain + kill switch
+    # Deployed hardening contract: durable receipt summary + measured energy ledger.
+    assert "receipt_chain" in src
+    assert "energy_ledger" in src
     assert "kill_switch" in src
-    assert "entries" in src
-    assert "prev_hash" in src or "entry_hash" in src or "genesis" in src.lower()
+    assert "unavailable" in src
+    assert "entry_hash" in src or "genesis" in src.lower()
 
 
 def test_wired_to_c2pa_credential_shape():

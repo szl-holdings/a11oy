@@ -214,3 +214,38 @@ def test_health_probe_is_rate_limit_exempt():
             c.get("/healthz").status_code for _ in range(H.RATE_LIMIT_PER_MIN + 25)
         ]
         assert statuses == [200] * len(statuses), "health probe must be exempt from rate limiting"
+
+
+# ---- assurance surface contracts -------------------------------------------
+def test_assurance_attest_status_is_read_only(client, monkeypatch):
+    import szl_dsse
+
+    calls = {"count": 0}
+
+    def _must_not_sign(*_args, **_kwargs):
+        calls["count"] += 1
+        raise AssertionError("read-only status endpoint attempted to mint a signature")
+
+    monkeypatch.setattr(szl_dsse, "sign_payload", _must_not_sign)
+    body = client.get(f"/api/{ORGAN}/v1/assurance/attest/status").json()
+    assert calls["count"] == 0
+    assert body["data_kind"] == "live"
+    assert set(body["axes_present"]) == {"build", "model", "runtime"}
+    assert body["axes_present"]["model"] is False
+    assert "dsse" not in body
+
+
+def test_assurance_compliance_exposes_canonical_measured_coverage(client):
+    body = client.get(f"/api/{ORGAN}/v1/assurance/compliance").json()
+    assert body["compliance_schema"] == "szl.compliance.crosswalk/v1"
+    assert isinstance(body["crosswalk"], list)
+    assert set(body["coverage"]["frameworks"]) >= {
+        "NIST_AI_RMF", "ISO_IEC_42001", "EU_AI_ACT"
+    }
+    assert "NOT a certification" in body["crosswalk_disclaimer"]
+
+
+def test_forge_ledger_exposes_deployed_summary_contract(client):
+    body = client.get(f"/api/{ORGAN}/v1/forge/ledger").json()
+    assert set(body) >= {"receipt_chain", "energy_ledger", "data_kind"}
+    assert set(body["receipt_chain"]) >= {"depth", "chain_ok", "head", "count"}

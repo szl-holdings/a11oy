@@ -799,7 +799,17 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get(f"{abase}/compliance", tags=["assurance"])
     async def _assurance_compliance():
         gm = _gates_manifest_summary()
-        return {
+        crosswalk: Optional[Dict[str, Any]] = None
+        crosswalk_error: Optional[str] = None
+        try:
+            import compliance_crosswalk as _crosswalk
+            served = _crosswalk.to_servable()
+            if isinstance(served, dict):
+                crosswalk = served
+        except Exception as exc:
+            crosswalk_error = type(exc).__name__
+
+        body: Dict[str, Any] = {
             "organ": organ,
             "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
             "doctrine": DOCTRINE,
@@ -811,13 +821,28 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified); "
                     "L3 roadmap, not claimed.",
             "gates_manifest": gm,
-            "data_kind": "live" if gm.get("present") else "structural",
+            "data_kind": "live" if (gm.get("present") or crosswalk is not None)
+                         else "structural",
             "honesty": ("doctrine lock is the canonical locked-8 {F1,F4,F7,F11,F12,"
                         "F18,F19,F22} @ c7c0ba17 (no-axiom theorem locked_count_eight). "
-                        "gates_manifest is summarised from the on-disk manifest when "
-                        "present; STRUCTURAL-ONLY (present:false) when absent — never "
-                        "fabricated. Λ remains Conjecture 1."),
+                        "coverage is a MEASURED count of canonical crosswalk cells, "
+                        "not certification; gates_manifest is summarised from disk when "
+                        "present. Λ remains Conjecture 1."),
         }
+        if crosswalk is not None:
+            body.update({
+                "compliance_schema": crosswalk.get("schema"),
+                "crosswalk": crosswalk.get("crosswalk"),
+                "coverage": crosswalk.get("coverage"),
+                "crosswalk_disclaimer": crosswalk.get("disclaimer"),
+            })
+        else:
+            body.update({
+                "crosswalk": None,
+                "coverage": None,
+                "crosswalk_error": crosswalk_error or "unavailable",
+            })
+        return body
 
     @app.get(f"{abase}/credential", tags=["assurance"])
     async def _assurance_credential():
@@ -848,34 +873,66 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             })
         return info
 
-    @app.get(f"{abase}/attest", tags=["assurance"])
-    async def _assurance_attest():
-        # A DSSE in-toto-style statement over the CURRENT verifiable state, signed
-        # via szl_dsse. The envelope's own "honesty" field declares REAL vs
-        # UNSIGNED — we never assert a signature that does not exist.
+    def _attestation_status_payload() -> Dict[str, Any]:
+        """Read-only current-state attestation material.
+
+        This helper never mints a signature. Polling clients use /attest/status;
+        /attest remains the explicit signature-minting endpoint.
+        """
         ok, depth, brk = store.verify()
+        git_sha = os.getenv("SZL_GIT_SHA", "unknown")
+        build_time = os.getenv("SZL_BUILD_TIME", "unknown")
         statement = {
-            "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
-            "build_time": os.getenv("SZL_BUILD_TIME", "unknown"),
+            "git_sha": git_sha,
+            "build_time": build_time,
             "khipu_chain": {"backend": store.backend, "depth": depth,
                             "chain_ok": ok, "first_break_seq": brk,
                             "head": store.head()},
             "doctrine_lock": DOCTRINE_LOCK,
         }
+        signing_available = False
+        try:
+            import szl_dsse as _dsse
+            signing_available = bool(_dsse.signing_available())
+        except Exception:
+            pass
+        return {
+            "organ": organ,
+            "statement": statement,
+            "axes_present": {
+                "build": (git_sha != "unknown" and build_time != "unknown"),
+                "model": False,
+                "runtime": isinstance(ok, bool) and bool(store.backend),
+            },
+            "signing_available": signing_available,
+            "data_kind": "live",
+            "honesty": ("read-only current runtime state; model=false because this "
+                        "endpoint carries no model manifest. No signature is minted "
+                        "by /attest/status."),
+        }
+
+    @app.get(f"{abase}/attest/status", tags=["assurance"])
+    async def _assurance_attest_status():
+        return _attestation_status_payload()
+
+    @app.get(f"{abase}/attest", tags=["assurance"])
+    async def _assurance_attest():
+        # Explicitly mint a DSSE in-toto-style statement over CURRENT verifiable
+        # state. Polling clients must use /attest/status to avoid signing on reads.
+        status = _attestation_status_payload()
+        statement = status["statement"]
         try:
             import szl_dsse as _dsse
             env = _dsse.sign_payload(
                 statement,
                 payload_type="https://szl-holdings.dev/attestations/governance-receipt/v1",
             )
-            return {"organ": organ, "statement": statement, "dsse": env,
-                    "data_kind": "live",
+            return {**status, "dsse": env,
                     "verify_hint": ("verify with the /assurance/credential "
                                     "public_key_pem; dsse.honesty declares REAL vs "
                                     "UNSIGNED.")}
         except Exception as exc:
-            return {"organ": organ, "statement": statement, "dsse": None,
-                    "data_kind": "structural",
+            return {**status, "dsse": None, "data_kind": "structural",
                     "honesty": (f"szl_dsse unavailable ({type(exc).__name__}); the "
                                 "statement is REAL state but UNSIGNED/STRUCTURAL — "
                                 "never fabricated.")}
