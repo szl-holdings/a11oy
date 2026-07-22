@@ -8,8 +8,9 @@ name: Anatomy-map drift guard
 #
 # This delegates to the org-shared reusable guard in szl-holdings/.github, so an
 # edit to this repo's anatomy block is validated IMMEDIATELY against the
-# canonical locked-8 ladder {F1,F4,F7,F11,F12,F18,F19,F22}, the Λ=Conjecture-1
-# honesty label and the shared capability ladder -- instead of waiting up to a
+# canonical locked-five ladder {F1,F11,F12,F18,F19}, the exact EXPERIMENTAL /
+# NOT LOCKED set {F4,F7,F22}, the Λ=Conjecture-1 honesty label and the shared
+# capability ladder -- instead of waiting up to a
 # week for the central sweep. Path-scoped to the surfaces that actually carry
 # the map so unrelated pushes stay quiet. The central weekly sweep
 # (szl-holdings/.github anatomy-map-drift.yml) remains the cross-surface backstop.
@@ -29,5 +30,8 @@ permissions:
 
 jobs:
   anatomy-map-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f7231270c8a4f227301bfee544f848938b71f14d  # main
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f18a7f90267fc6dd4cc508bf6c18f637c2ed5884  # locked-five migration candidate
+    with:
+      checker-ref: f18a7f90267fc6dd4cc508bf6c18f637c2ed5884
     secrets: inherit
+
