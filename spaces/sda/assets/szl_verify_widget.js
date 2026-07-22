@@ -1,16 +1,18 @@
-// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js
+// VENDORED FROM szl-holdings/platform@9798feff9af3d6b0d8737abd70f71a1db1755a65 — replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /* ============================================================================
  * SZL "ask the fabric" — verify-a-claim widget  (vendored, self-contained)
  * ----------------------------------------------------------------------------
  * 0 runtime CDN · system fonts only · AbortController · honest fallback.
  * Calls the REAL a11oy verify endpoint and renders its REAL honest verdict.
- *   POST {base}/api/a11oy/v1/verify   body = a receipt / DSSE envelope / in-toto stmt
- *   GET  {base}/api/a11oy/v1/verify?url=<public receipt url>
+ *   GET  {base}/api/a11oy/v1/verify/receipt   verifier manifest
+ *   POST {base}/api/a11oy/v1/verify/receipt   body = {envelope} or {receipt_id}
+ * Public receipt URLs are fetched by the browser, then posted to the same verifier.
+ * The server is never asked to fetch an arbitrary URL.
  *
  * Doctrine v11: this widget NEVER fabricates a verdict. It shows exactly what
- * the server returns (verdict: VERIFIED | STRUCTURAL-ONLY | FAILED | UNRECOGNISED).
- * "STRUCTURAL-ONLY" is shown as advisory, NOT green. Network/timeout/429 degrade
+ * the server returns (PASS | PARTIAL | FAIL | INCONCLUSIVE, with compatibility
+ * labels retained for older receipts). Partial/inconclusive is advisory, NOT green. Network/timeout/429 degrade
  * to an honest "unreachable / rate-limited" state — never to a false green.
  *
  * Attribution (clean-room rebuild of permissive ideas — see dev7 report):
@@ -23,6 +25,7 @@
 
   var DEFAULT_BASE = 'https://a-11-oy.com'; // same fabric the estate already talks to
   var TIMEOUT_MS   = 12000;
+  var VERIFY_PATH  = '/api/a11oy/v1/verify/receipt';
   var SAMPLE = {
     _type: 'https://in-toto.io/Statement/v1',
     subject: [{ name: 'szl-lake/homflyreceipt_gate',
@@ -54,13 +57,58 @@
     });
   }
 
+  function isObject(v){ return !!v && typeof v==='object' && !Array.isArray(v); }
+
+  function isDsseEnvelope(v){
+    return isObject(v) && typeof v.payloadType==='string' &&
+      typeof v.payload==='string' && Array.isArray(v.signatures);
+  }
+
+  function jsonBase64(value){
+    var json = JSON.stringify(value);
+    var bytes = (typeof TextEncoder!=='undefined')
+      ? new TextEncoder().encode(json)
+      : unescape(encodeURIComponent(json)).split('').map(function(c){ return c.charCodeAt(0); });
+    var binary = '';
+    for(var i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  /* Normalize public receipt shapes to the canonical verifier contract. Plain
+   * JSON becomes an EXPLICITLY UNSIGNED DSSE envelope, so it cannot turn green. */
+  function verifyBody(value){
+    if(!isObject(value)) return null;
+    if(isDsseEnvelope(value)) return {envelope:value};
+    if(isDsseEnvelope(value.envelope)) {
+      var wrapped = {envelope:value.envelope};
+      if(typeof value.receipt_id==='string' && value.receipt_id.trim()) {
+        wrapped.receipt_id = value.receipt_id.trim();
+      }
+      return wrapped;
+    }
+    if(isDsseEnvelope(value.receipt)) return {envelope:value.receipt};
+    if(typeof value.receipt_id==='string' && value.receipt_id.trim()) {
+      return {receipt_id:value.receipt_id.trim()};
+    }
+    if(typeof value.receipt==='string' && value.receipt.trim()) {
+      return {receipt_id:value.receipt.trim()};
+    }
+    return {envelope:{
+      payloadType:'application/vnd.in-toto+json',
+      payload:jsonBase64(value),
+      signatures:[]
+    }};
+  }
+
   /* map an HONEST verdict string -> {label, cls, advisory} ---------------- */
   function verdictView(v){
     var s = String(v||'').toUpperCase();
-    if(s==='VERIFIED')        return {label:'VERIFIED',        cls:'ok',   advisory:false};
+    if(s==='PASS' || s==='VERIFIED') return {label:s, cls:'ok', advisory:false};
+    if(s==='PARTIAL')         return {label:'PARTIAL',         cls:'warn', advisory:true};
+    if(s==='INCONCLUSIVE')    return {label:'INCONCLUSIVE',    cls:'warn', advisory:true};
     if(s==='STRUCTURAL-ONLY') return {label:'STRUCTURAL-ONLY', cls:'warn', advisory:true};
-    if(s==='FAILED')          return {label:'FAILED',          cls:'fail', advisory:false};
-    if(s==='UNRECOGNISED')    return {label:'UNRECOGNISED',    cls:'muted',advisory:false};
+    if(s==='FAIL' || s==='FAILED') return {label:s, cls:'fail', advisory:false};
+    if(s==='NO_INPUT' || s==='UNRECOGNISED') return {label:s, cls:'muted', advisory:false};
     return {label: s||'—', cls:'muted', advisory:false};
   }
 
@@ -68,9 +116,11 @@
     if(!Array.isArray(checks) || !checks.length) return '';
     var rows = checks.map(function(c){
       var st = String(c.status||'').toLowerCase();
-      var cls = st==='pass' ? 'ok' : (st==='fail' ? 'fail' : 'muted');
+      var cls = (st==='pass' || st==='verified') ? 'ok' :
+        ((st==='fail' || st==='failed' || st==='mismatch') ? 'fail' :
+          ((st==='unsigned-local' || st==='unavailable') ? 'warn' : 'muted'));
       return '<li class="szlv-chk"><span class="szlv-pill '+cls+'">'+esc(c.status||'?')+'</span>'+
-             '<code>'+esc(c.name||'check')+'</code>'+
+             '<code>'+esc(c.check||c.name||'check')+'</code>'+
              (c.detail ? '<span class="szlv-det">'+esc(c.detail)+'</span>' : '')+'</li>';
     }).join('');
     return '<ul class="szlv-checks">'+rows+'</ul>';
@@ -84,7 +134,7 @@
     }
     if(!res.ok || !res.data){
       var why = res.aborted ? 'timed out' : (res.status ? ('HTTP '+res.status) : 'unreachable');
-      return '<div class="szlv-state muted">offline · fabric '+esc(why)+
+      return '<div class="szlv-state muted">offline · '+esc(res.target||'fabric')+' '+esc(why)+
              '. No verdict shown — the widget never invents a green. '+
              'Re-run the checks yourself per docs/developers/VERIFY.md.</div>';
     }
@@ -92,13 +142,13 @@
     var vv = verdictView(d.verdict);
     var head = '<div class="szlv-verdict '+vv.cls+'">'+
       '<span class="szlv-dot"></span><b>'+esc(vv.label)+'</b>'+
-      (vv.advisory ? '<span class="szlv-adv">advisory · not a cryptographic green</span>' : '')+
+      (vv.advisory ? '<span class="szlv-adv">not a complete cryptographic green</span>' : '')+
       '</div>';
     var detail = d.detail ? '<p class="szlv-detail">'+esc(d.detail)+'</p>' : '';
     var kinds  = (Array.isArray(d.kinds)&&d.kinds.length)
       ? '<p class="szlv-kinds">recognised as: '+d.kinds.map(esc).join(', ')+'</p>' : '';
     var checks = renderChecks(d.checks);
-    var foot = '<p class="szlv-foot">engine '+esc(d.engine_version||'?')+
+    var foot = '<p class="szlv-foot">service '+esc(d.service||'public.verify.receipt')+
       ' · doctrine '+esc((d.doctrine&&d.doctrine.version)||'v11')+
       ' · Λ='+esc((d.doctrine&&d.doctrine.lambda)||'Conjecture 1')+
       (d.verified_at ? ' · '+esc(d.verified_at) : '')+
@@ -133,6 +183,7 @@
     '.szlv-chk{display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap}',
     '.szlv-pill{font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:2px 6px;border-radius:4px;font-weight:700}',
     '.szlv-pill.ok{background:rgba(109,170,69,.18);color:#6daa45}',
+    '.szlv-pill.warn{background:rgba(232,175,52,.18);color:#e8af34}',
     '.szlv-pill.fail{background:rgba(209,99,167,.18);color:#d163a7}',
     '.szlv-pill.muted{background:#2a2927;color:#797876}',
     '.szlv-chk code{color:#cdccca}.szlv-det{color:#797876;font-size:11px}',
@@ -187,19 +238,32 @@
 
     smp.addEventListener('click', function(){ ta.value = JSON.stringify(SAMPLE, null, 2); url.value=''; });
 
+    function postForVerification(value){
+      var normalized = verifyBody(value);
+      if(!normalized) return Promise.resolve({ok:false,status:0,data:null,target:'receipt input'});
+      return pull(base+VERIFY_PATH, {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(normalized)});
+    }
+
     go.addEventListener('click', function(){
       go.disabled = true;
-      out.innerHTML = '<span class="szlv-load">calling <code>'+esc(base)+'/api/a11oy/v1/verify</code>\u2026</span>';
+      out.innerHTML = '<span class="szlv-load">calling <code>'+esc(base)+VERIFY_PATH+'</code>\u2026</span>';
       var p, u = url.value.trim(), body = ta.value.trim();
       if(u){
-        p = pull(base+'/api/a11oy/v1/verify?url='+encodeURIComponent(u), {method:'GET'});
+        p = pull(u, {method:'GET'}).then(function(remote){
+          if(!remote.ok || !remote.data) {
+            remote.target = 'public receipt URL';
+            return remote;
+          }
+          return postForVerification(remote.data);
+        });
       } else if(body){
         var parsed = null;
         try{ parsed = JSON.parse(body); }catch(e){
           out.innerHTML = '<div class="szlv-state muted">input is not valid JSON — paste a receipt object or use a URL.</div>';
           go.disabled = false; return;
         }
-        p = pull(base+'/api/a11oy/v1/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(parsed)});
+        p = postForVerification(parsed);
       } else {
         out.innerHTML = '<div class="szlv-state muted">paste a receipt JSON, or enter a public receipt URL.</div>';
         go.disabled = false; return;
@@ -210,7 +274,8 @@
     return { reload:function(){}, base:base };
   }
 
-  var api = { mount: mount, pull: pull, _sample: SAMPLE, version: '1.0.0' };
+  var api = { mount: mount, pull: pull, _sample: SAMPLE, _verifyBody: verifyBody,
+    verifyPath: VERIFY_PATH, version: '1.1.0' };
   if (typeof module!=='undefined' && module.exports) module.exports = api;
   global.SZLVerify = api;
 })(typeof window!=='undefined' ? window : this);
