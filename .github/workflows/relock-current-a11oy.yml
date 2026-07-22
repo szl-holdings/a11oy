@@ -1,0 +1,250 @@
+name: Relock current canonical A11oy deployment
+
+on:
+  push:
+    branches:
+      - ops/relock-current-a11oy-20260722
+    paths:
+      - .github/workflows/relock-current-a11oy.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: relock-current-canonical-a11oy
+  cancel-in-progress: false
+
+jobs:
+  bind-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    env:
+      HF_PUBLISH_TOKEN: ${{ secrets.HF_TOKEN || secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 }}
+    steps:
+      - name: Checkout protected A11oy main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Bind exact protected source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git -C source rev-parse HEAD)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Protected source: $sha"
+
+      - name: Bind runtime build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_PUBLISH_TOKEN:-}" || { echo '::error::No Hugging Face write token is configured'; exit 2; }
+          python -m pip install --disable-pip-version-check --quiet "huggingface_hub>=1.3,<2"
+          SOURCE_SHA="${{ steps.source.outputs.sha }}" python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_PUBLISH_TOKEN"])
+          api.add_space_variable(
+              repo_id="SZLHOLDINGS/a11oy",
+              key="SZL_GIT_SHA",
+              value=os.environ["SOURCE_SHA"],
+              description="Exact protected szl-holdings/a11oy main revision serving the sole canonical Space.",
+          )
+          print("Bound SZL_GIT_SHA to", os.environ["SOURCE_SHA"])
+          PY
+
+  deploy:
+    needs: bind-source
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: main
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/brain/quantum-evidence"]'
+    secrets: inherit
+
+  verify-and-relock:
+    needs:
+      - bind-source
+      - deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_PUBLISH_TOKEN: ${{ secrets.HF_TOKEN || secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 }}
+      EXPECTED_SOURCE_SHA: ${{ needs.bind-source.outputs.source_sha }}
+      GH_TOKEN: ${{ github.token }}
+      REPORT_TITLE: '[hf-deployment-relock] current canonical A11oy'
+    steps:
+      - name: Checkout relock branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/relock-current-a11oy-20260722
+          fetch-depth: 0
+
+      - name: Verify live runtime and write exact lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_PUBLISH_TOKEN:-}" || { echo '::error::No Hugging Face write token is configured'; exit 2; }
+          python -m pip install --disable-pip-version-check --quiet "huggingface_hub>=1.3,<2" "requests>=2.32,<3"
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import requests
+          from huggingface_hub import HfApi
+
+          SPACE = "SZLHOLDINGS/a11oy"
+          APP = "https://szlholdings-a11oy.hf.space"
+          EXPECTED = os.environ["EXPECTED_SOURCE_SHA"]
+          SHA40 = re.compile(r"^[0-9a-f]{40}$")
+          api = HfApi(token=os.environ["HF_PUBLISH_TOKEN"])
+
+          def stage_of(info):
+              raw = getattr(getattr(info, "runtime", None), "stage", None)
+              raw = getattr(raw, "value", raw)
+              return str(raw or "UNKNOWN").split(".")[-1].upper()
+
+          def get_json(path: str, attempts: int = 30):
+              last = None
+              for attempt in range(attempts):
+                  try:
+                      response = requests.get(
+                          APP + path,
+                          headers={
+                              "Accept": "application/json",
+                              "Cache-Control": "no-cache",
+                              "User-Agent": "szl-a11oy-relock/1",
+                          },
+                          timeout=45,
+                      )
+                      response.raise_for_status()
+                      payload = response.json()
+                      if not isinstance(payload, dict):
+                          raise RuntimeError("response is not a JSON object")
+                      return payload
+                  except Exception as exc:
+                      last = f"{type(exc).__name__}: {exc}"
+                      if attempt + 1 < attempts:
+                          time.sleep(10)
+              raise RuntimeError(f"{path} did not converge: {last}")
+
+          info = api.space_info(SPACE)
+          repository_sha = str(getattr(info, "sha", "") or "")
+          runtime = getattr(info, "runtime", None)
+          runtime_sha = str(getattr(runtime, "sha", "") or "")
+          stage = stage_of(info)
+          sdk = str(getattr(info, "sdk", "") or "").lower()
+          private = getattr(info, "private", None)
+
+          if not SHA40.fullmatch(repository_sha):
+              raise RuntimeError(f"invalid repository SHA: {repository_sha!r}")
+          if not SHA40.fullmatch(runtime_sha):
+              raise RuntimeError(f"invalid runtime SHA: {runtime_sha!r}")
+          if repository_sha != runtime_sha:
+              raise RuntimeError(f"repository/runtime mismatch: {repository_sha} != {runtime_sha}")
+          if stage != "RUNNING":
+              raise RuntimeError(f"runtime is not RUNNING: {stage}")
+          if sdk != "docker":
+              raise RuntimeError(f"Space is not Docker-backed: {sdk!r}")
+          if private is not False:
+              raise RuntimeError(f"Space is not public: private={private!r}")
+
+          build_info = get_json("/api/build-info")
+          build = build_info.get("build") or {}
+          if build_info.get("status") != "OBSERVED" or build.get("state") != "OBSERVED":
+              raise RuntimeError(f"build identity is not OBSERVED: {build_info}")
+          if build.get("revision") != EXPECTED:
+              raise RuntimeError(
+                  f"build source mismatch: expected {EXPECTED}, observed {build.get('revision')}"
+              )
+
+          livez = get_json("/api/livez")
+          if livez.get("status") != "LIVE":
+              raise RuntimeError(f"livez did not report LIVE: {livez}")
+
+          get_json("/api/a11oy/v1/brain/capabilities")
+          get_json("/api/a11oy/v1/brain/quantum-evidence")
+
+          lock = {
+              "schema": 1,
+              "github_repo": "szl-holdings/a11oy",
+              "github_source_sha": EXPECTED,
+              "hf_repo": SPACE,
+              "hf_commit_sha": repository_sha,
+          }
+          Path(".github/hf-deployment-lock.json").write_text(
+              json.dumps(lock, indent=2, sort_keys=False) + "\n",
+              encoding="utf-8",
+          )
+
+          report = {
+              "schema": "szl.a11oy-deployment-relock/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "github_source_sha": EXPECTED,
+              "hf_repository_sha": repository_sha,
+              "hf_runtime_sha": runtime_sha,
+              "runtime_stage": stage,
+              "sdk": sdk,
+              "public": private is False,
+              "build_revision": build.get("revision"),
+              "status": "PASS",
+          }
+          Path("a11oy-deployment-relock.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Commit verified lock and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/relock-current-a11oy.yml
+          git add .github/hf-deployment-lock.json
+          git commit -s -m "fix(ci): relock current verified Hugging Face deployment"
+          git push origin HEAD:ops/relock-current-a11oy-20260722
+
+      - name: Persist deployment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '<!-- szl-current-a11oy-relock -->'
+            echo '# Current canonical A11oy deployment relock'
+            echo
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '```json'
+            cat a11oy-deployment-relock.json
+            echo '```'
+          } > /tmp/relock.md
+          number="$(gh issue list --state all --search "${REPORT_TITLE} in:title" --json number,title --jq '.[] | select(.title == env.REPORT_TITLE) | .number' | head -n1)"
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file /tmp/relock.md
+            gh issue close "$number" --reason completed --comment 'Exact protected source and live canonical Hugging Face revision are relocked.' || true
+          else
+            gh issue create --title "$REPORT_TITLE" --body-file /tmp/relock.md >/dev/null
+          fi
