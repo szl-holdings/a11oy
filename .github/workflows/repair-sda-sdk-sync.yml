@@ -56,8 +56,8 @@ jobs:
           set -euo pipefail
           git fetch origin main --depth=1
           git show origin/main:.github/workflows/shared-file-drift.yml > .github/workflows/shared-file-drift.yml
-      - name: Run focused contracts
-        run: python -m pytest -q tests/test_szl_spaces_inventory.py tests/test_demo_critical_routes.py
+      - name: Verify exact Space inventory contract
+        run: python -m pytest -q tests/test_szl_spaces_inventory.py
       - name: Commit repair and remove temporary workflow
         run: |
           set -euo pipefail
@@ -67,6 +67,6 @@ jobs:
           git add szl_spaces_surface.py tests/test_szl_spaces_inventory.py \
             .github/workflows/shared-file-drift.yml .github/workflows/repair-sda-sdk-sync.yml
           git commit -m 'fix(spaces): preserve verified static SDK inventory' \
-            -m 'Keep the exact SDA contract probes while retaining the three live static Space classifications already merged in #1027, and restore the canonical shared-source guard.' \
+            -m 'Keep the exact SDA contract probes while retaining the three live static Space classifications already merged in #1027, and restore the canonical shared-source guard. Full protected CI remains authoritative.' \
             -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
           git push origin HEAD:agent/hf-space-api-route-repair-20260722
