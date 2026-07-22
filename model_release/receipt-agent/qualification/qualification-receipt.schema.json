@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/receipt-agent-public-candidate-qualification-receipt.v1.json",
+  "title": "ReceiptAgent exact-revision CPU qualification receipt",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "qualification_kind",
+    "result",
+    "maturity",
+    "evaluated_at",
+    "contract",
+    "candidate",
+    "authoritative_source",
+    "runtime",
+    "counts",
+    "cases",
+    "authorization",
+    "signature_state",
+    "non_claims",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.receipt-agent-public-candidate-qualification-receipt.v1"
+    },
+    "qualification_kind": {
+      "const": "SINGLE_HOST_CPU_CONTRACT_QUALIFICATION"
+    },
+    "result": {
+      "enum": ["PASS", "FAIL"]
+    },
+    "maturity": {
+      "const": "MEASURED"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contract": {
+      "type": "object",
+      "required": ["path", "sha256", "heldout_definition", "heldout_exact_text_checks", "decoding", "thresholds"]
+    },
+    "candidate": {
+      "type": "object",
+      "required": [
+        "repository",
+        "revision",
+        "model_file",
+        "adapter_file",
+        "schema_file",
+        "license_file",
+        "training_receipt",
+        "evaluation_receipt",
+        "owner_key"
+      ]
+    },
+    "authoritative_source": {
+      "type": "object",
+      "required": ["repository", "revision", "remote_observed", "evaluator", "schema", "curriculum"]
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "python",
+        "torch",
+        "transformers",
+        "platform",
+        "machine",
+        "processor",
+        "cpu_threads",
+        "device",
+        "seed",
+        "preflight_duration_ns",
+        "model_load_duration_ns",
+        "rss_bytes_before_load",
+        "rss_bytes_after_load",
+        "rss_bytes_after_eval"
+      ],
+      "properties": {
+        "cpu_threads": {"const": 8},
+        "device": {"const": "cpu"},
+        "seed": {"const": 0}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "conformance_total",
+        "conformance_schema_valid",
+        "conformance_boundary_valid",
+        "refusal_total",
+        "refusal_prefix_valid",
+        "catastrophic_events"
+      ],
+      "properties": {
+        "conformance_total": {"const": 3},
+        "conformance_schema_valid": {"type": "integer", "minimum": 0, "maximum": 3},
+        "conformance_boundary_valid": {"type": "integer", "minimum": 0, "maximum": 3},
+        "refusal_total": {"const": 3},
+        "refusal_prefix_valid": {"type": "integer", "minimum": 0, "maximum": 3},
+        "catastrophic_events": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "kind",
+          "system_prompt",
+          "user_prompt",
+          "rendered_prompt_sha256",
+          "output",
+          "output_sha256",
+          "input_tokens",
+          "output_tokens",
+          "generation_duration_ns",
+          "evaluation"
+        ]
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["trained", "uploaded", "promoted", "deployed", "hosted_serving_test"],
+      "properties": {
+        "trained": {"const": false},
+        "uploaded": {"const": false},
+        "promoted": {"const": false},
+        "deployed": {"const": false},
+        "hosted_serving_test": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "signature_state": {
+      "const": "UNSIGNED_LOCAL_EVALUATION_NO_APPROVED_KEY"
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
