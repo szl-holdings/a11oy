@@ -106,6 +106,10 @@ class SemanticEmbeddingUnavailableError(RuntimeError):
     """Selected semantic vector space became unavailable; never mix spaces."""
 
 
+class RerankerUnavailableError(RuntimeError):
+    """Optional second-stage reranker is not qualified or reachable."""
+
+
 def _tokens(*parts: str) -> list:
     """Lowercase alnum tokens (len>=2) from the given strings, in order."""
     out = []
@@ -372,6 +376,108 @@ class _Embedder:
         return [_l2_normalize(_hash_embed_one(t, self.dim)) for t in texts]
 
 
+class _Reranker:
+    """Optional local-files-only Qwen-style yes/no relevance reranker."""
+
+    _DEFAULT_INSTRUCTION = (
+        "Given an A11oy operational evidence query, retrieve graph nodes that "
+        "provide the most directly relevant governed evidence")
+    _PREFIX = (
+        '<|im_start|>system\nJudge whether the Document meets the requirements '
+        'based on the Query and the Instruct provided. Note that the answer can '
+        'only be "yes" or "no".<|im_end|>\n<|im_start|>user\n')
+    _SUFFIX = '<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n'
+
+    def __init__(self):
+        self.available = False
+        self.source = "unconfigured"
+        self.last_error = "SZL_BRAIN_RERANK_PATH is not configured"
+        local_path = os.environ.get("SZL_BRAIN_RERANK_PATH", "").strip()
+        if not local_path:
+            return
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+
+            path = pathlib.Path(local_path).expanduser().resolve()
+            if not path.is_dir():
+                raise ValueError("SZL_BRAIN_RERANK_PATH is not a directory")
+            requested = os.environ.get(
+                "SZL_BRAIN_RERANK_DEVICE", "cpu").strip().lower()
+            if requested == "cuda" and not torch.cuda.is_available():
+                raise RuntimeError("CUDA requested for Brain reranker but unavailable")
+            self._device = "cuda" if requested == "cuda" else "cpu"
+            dtype = torch.float16 if self._device == "cuda" else torch.float32
+            self._torch = torch
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                str(path), local_files_only=True, trust_remote_code=False,
+                padding_side="left")
+            self._model = AutoModelForCausalLM.from_pretrained(
+                str(path), local_files_only=True, trust_remote_code=False,
+                dtype=dtype).to(self._device).eval()
+            self._false_id = self._tokenizer.convert_tokens_to_ids("no")
+            self._true_id = self._tokenizer.convert_tokens_to_ids("yes")
+            if self._false_id == self._true_id:
+                raise ValueError("reranker yes/no token identifiers are not distinct")
+            self._prefix_ids = self._tokenizer.encode(
+                self._PREFIX, add_special_tokens=False)
+            self._suffix_ids = self._tokenizer.encode(
+                self._SUFFIX, add_special_tokens=False)
+            model_id = os.environ.get(
+                "SZL_BRAIN_RERANK_MODEL_ID", path.name).strip()
+            revision = os.environ.get("SZL_BRAIN_RERANK_REVISION", "").strip()
+            identity = f"{model_id}@{revision}" if revision else model_id
+            artifact_hash = _Embedder._local_model_digest(path)
+            self.source = f"transformers:{identity}@sha256:{artifact_hash}"
+            self.last_error = None
+            self.available = True
+        except Exception as exc:
+            self.last_error = f"configured reranker failed: {type(exc).__name__}"
+
+    def score(self, query: str, documents: list) -> list:
+        if not self.available:
+            raise RerankerUnavailableError(
+                self.last_error or "local reranker is unavailable")
+        if not documents:
+            return []
+        instruction = os.environ.get(
+            "SZL_BRAIN_RERANK_INSTRUCTION", self._DEFAULT_INSTRUCTION).strip()
+        configured_batch = int(os.environ.get("SZL_BRAIN_RERANK_BATCH", "8"))
+        batch_size = max(1, min(configured_batch, 16))
+        configured_length = int(os.environ.get("SZL_BRAIN_RERANK_MAX_LENGTH", "1024"))
+        max_length = max(128, min(configured_length, 8192))
+        scores = []
+        for start in range(0, len(documents), batch_size):
+            batch = documents[start:start + batch_size]
+            pairs = [
+                f"<Instruct>: {instruction}\n<Query>: {query}\n<Document>: {doc}"
+                for doc in batch
+            ]
+            inputs = self._tokenizer(
+                pairs, padding=False, truncation="longest_first",
+                max_length=max_length - len(self._prefix_ids) - len(self._suffix_ids),
+                return_attention_mask=False)
+            for index, row in enumerate(inputs["input_ids"]):
+                inputs["input_ids"][index] = (
+                    self._prefix_ids + row + self._suffix_ids)
+            inputs = self._tokenizer.pad(
+                inputs, padding=True, return_tensors="pt")
+            inputs = {key: value.to(self._device)
+                      for key, value in inputs.items()}
+            with self._torch.inference_mode():
+                logits = self._model(**inputs).logits[:, -1, :]
+                selected = self._torch.stack([
+                    logits[:, self._false_id], logits[:, self._true_id]], dim=1)
+                batch_scores = self._torch.nn.functional.log_softmax(
+                    selected, dim=1)[:, 1].exp().float().cpu().tolist()
+            if len(batch_scores) != len(batch) or not all(
+                    math.isfinite(float(value)) for value in batch_scores):
+                raise RerankerUnavailableError(
+                    "reranker returned malformed or non-finite scores")
+            scores.extend(float(value) for value in batch_scores)
+        return scores
+
+
 def _cosine(a: list, b: list) -> float:
     return sum(x * y for x, y in zip(a, b))
 
@@ -437,6 +543,7 @@ class BrainIndex:
         self.embed_tier = self.embedder.tier  # always MODELED
         self.embed_dim = self.embedder.dim
         self._init_vector_backend()
+        self.reranker = _Reranker()
 
     def _init_vector_backend(self):
         self.vector_backend = "python-cosine"
@@ -656,6 +763,29 @@ class BrainIndex:
             })
         return out
 
+    def search_reranked(self, q: str, k: int = 10) -> list:
+        """Rerank a bounded hybrid-retrieval candidate set; never silent/default."""
+        reranker = getattr(self, "reranker", None)
+        if reranker is None or not reranker.available:
+            raise RerankerUnavailableError(
+                getattr(reranker, "last_error", None) or
+                "local reranker is not configured")
+        configured = int(os.environ.get("SZL_BRAIN_RERANK_TOP", "50"))
+        candidate_count = max(max(1, k), min(configured, 50))
+        candidates = self.search(q, k=candidate_count)
+        documents = [self._node_text(self.by_id[row["id"]]) for row in candidates]
+        probabilities = reranker.score(q, documents)
+        output = []
+        for row, probability in zip(candidates, probabilities):
+            item = dict(row)
+            item["retrieval_score"] = item.pop("score")
+            item["reranker_probability"] = round(probability, 6)
+            item["score"] = round(probability, 6)
+            item["ranking_basis"] = "QWEN3_RERANKER_PROBABILITY"
+            output.append(item)
+        output.sort(key=lambda row: (-row["score"], row["id"]))
+        return output[:max(1, k)]
+
     def neighbors(self, nid: str, hops: int = 1) -> dict:
         hops = max(1, min(hops, 4))
         if nid not in self.by_id:
@@ -859,6 +989,7 @@ class BrainIndex:
                           "reported embedding runtime/artifacts, never ground truth")
         embedder = getattr(self, "embedder", None)
         embed_error = getattr(embedder, "last_error", None)
+        reranker = getattr(self, "reranker", None)
         return {
             "label": LBL_MODELED,
             "content_hash": self.content_hash,
@@ -877,6 +1008,12 @@ class BrainIndex:
                 ("FALLBACK" if self.embed_source == "hash-fallback" else "READY")
             ),
             "embed_last_error": embed_error,
+            "reranker_source": getattr(reranker, "source", "unconfigured"),
+            "reranker_state": (
+                "READY" if getattr(reranker, "available", False)
+                else LBL_UNAVAILABLE
+            ),
+            "reranker_last_error": getattr(reranker, "last_error", None),
             "vector_backend": self.vector_backend,
             "community_algo": self.community_algo,
             "community_count": len(self.communities),
@@ -965,6 +1102,28 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
                  "id": id}, status_code=404)
         return JSONResponse(sub)
 
+    @app.get(f"{base}/search-reranked")
+    async def brain_search_reranked(q: str = "", k: int = 10):  # noqa: ANN202
+        idx = get_index(ns)
+        try:
+            results = idx.search_reranked(q, k)
+        except (SemanticEmbeddingUnavailableError,
+                RerankerUnavailableError) as exc:
+            return JSONResponse({
+                "label": LBL_UNAVAILABLE,
+                "query": q,
+                "k": k,
+                "error": str(exc),
+                "index": idx.index_status(),
+            }, status_code=503)
+        return JSONResponse({
+            "label": LBL_MODELED,
+            "query": q,
+            "k": k,
+            "results": results,
+            "index": idx.index_status(),
+        })
+
     @app.get(f"{base}/community")
     async def brain_community(id: str = ""):  # noqa: ANN202,A002
         idx = get_index(ns)
@@ -1012,7 +1171,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     idx = get_index(ns)
     st = idx.index_status()
     return (f"brain-api mounted: GET {base}/"
-            f"{{search,neighbors,community,subgraph,salience,ask,stats,index}} "
+            f"{{search,search-reranked,neighbors,community,subgraph,salience,ask,stats,index}} "
             f"({st['node_count']} nodes, {st['community_count']} communities via "
             f"{st['community_algo']}; vectors={st['vector_backend']}, "
             f"embeddings={st['embed_source']} [{st['embed_tier']}]; "

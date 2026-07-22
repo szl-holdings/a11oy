@@ -63,6 +63,25 @@ build faster. These end-to-end times include hashing every file in each exact lo
 model snapshot. Qwen may be promoted only after the frozen evaluation set shows a
 material retrieval-quality gain at an acceptable latency and memory cost.
 
+## Bounded Qwen3 reranker
+
+An explicit `/api/<ns>/v1/brain/search-reranked` route can load a pinned local
+`Qwen/Qwen3-Reranker-0.6B` snapshot and rescore at most 50 hybrid-retrieval
+candidates. It never changes the existing `/search` ranking silently. When the model
+is absent or fails, the reranked route returns `UNAVAILABLE` instead of returning the
+base order under a reranker label.
+
+The first integrated local run used BGE retrieval over all 9,464 nodes, sent the top
+20 candidates to the Qwen3 reranker, and completed the second stage in 1.484 seconds.
+`surface:governedrag` remained first with a modeled relevance probability of 0.928711.
+The exact receipt is in `attestations/brain-qwen3-reranker-local-2026-07-21.json`.
+This establishes runtime operability, not quality superiority.
+
+The matching WSL training environment is isolated from the serving environment and
+contains Unsloth 2026.7.4, PyTorch 2.10.0 with CUDA 12.8, Transformers 5.5.0, and
+bitsandbytes 0.49.2. It detected the RTX 5050 successfully. It is ready for a bounded
+QLoRA experiment only after admitted training pairs and an untouched test split exist.
+
 This closes the hash-embedding runtime gap only. It does **not** make the current query
 `TRUSTWORTHY`: freshness still requires real source timestamps, contradiction requires
 claim-level conflict evidence, and uncertainty requires held-out calibration. Those

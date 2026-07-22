@@ -3,6 +3,7 @@
 
 import io
 import json
+import types
 
 import pytest
 
@@ -107,3 +108,45 @@ def test_content_hash_binds_exact_embedding_inputs():
     }
 
     assert brain_api._content_hash(before) != brain_api._content_hash(after)
+
+
+def test_reranked_search_is_explicit_and_preserves_retrieval_score():
+    idx = brain_api.BrainIndex.__new__(brain_api.BrainIndex)
+    idx.by_id = {
+        "node:a": {"id": "node:a", "title": "alpha receipt"},
+        "node:b": {"id": "node:b", "title": "beta evidence"},
+    }
+
+    def base_search(self, query, k):
+        return [
+            {"id": "node:a", "score": 0.8, "match": {}},
+            {"id": "node:b", "score": 0.6, "match": {}},
+        ]
+
+    class FakeReranker:
+        available = True
+        source = "test"
+        last_error = None
+
+        def score(self, query, documents):
+            assert query == "evidence"
+            assert documents == ["alpha receipt node:a", "beta evidence node:b"]
+            return [0.2, 0.9]
+
+    idx.search = types.MethodType(base_search, idx)
+    idx.reranker = FakeReranker()
+
+    results = idx.search_reranked("evidence", k=2)
+
+    assert [row["id"] for row in results] == ["node:b", "node:a"]
+    assert results[0]["score"] == 0.9
+    assert results[0]["retrieval_score"] == 0.6
+    assert results[0]["ranking_basis"] == "QWEN3_RERANKER_PROBABILITY"
+
+
+def test_reranked_search_refuses_when_unconfigured():
+    idx = brain_api.BrainIndex.__new__(brain_api.BrainIndex)
+    idx.reranker = None
+
+    with pytest.raises(brain_api.RerankerUnavailableError):
+        idx.search_reranked("evidence", k=2)
