@@ -1,5 +1,0 @@
-run=https://github.com/szl-holdings/a11oy/actions/runs/29946121509
-head=78f77016a4e14f43f8ed40e3b704024c393acd5a
-exit=2
---- materialization failure tail ---
-python: can't open file '/home/runner/work/a11oy/a11oy/tools/materialize_holographic_route_fix.py': [Errno 2] No such file or directory
