@@ -29,15 +29,35 @@ jobs:
       - name: Apply fail-closed null-safe repair
         run: python .github/scripts/apply_ecosystem_none_fix.py
 
-      - name: Verify focused command-center contracts
-        shell: bash
+      - name: Compile repaired contracts
         run: |
-          set -euo pipefail
           python -m py_compile szl_ecosystem_routes.py tests/test_command_center_readonly_contract.py
-          python -m pytest -q tests/test_command_center_readonly_contract.py
           git diff --check
 
+      - name: Run focused regression suite
+        id: pytest
+        shell: bash
+        run: |
+          set +e
+          mkdir -p reports
+          python -m pytest -q tests/test_command_center_readonly_contract.py \
+            > reports/ecosystem-none-pytest.log 2>&1
+          code=$?
+          cat reports/ecosystem-none-pytest.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload exact regression log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ecosystem-none-pytest-${{ github.run_id }}
+          path: reports/ecosystem-none-pytest.log
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Commit product correction and remove bootstrap
+        if: steps.pytest.outputs.exit_code == '0'
         shell: bash
         run: |
           set -euo pipefail
@@ -56,3 +76,12 @@ jobs:
             -m "Keep the read-only ecosystem KPI contract non-crashing when no authorized CHAPAQ decision exists, and pin the behavior with a focused regression." \
             -m "Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           git push origin HEAD:frontier/command-center-readonly-20260722
+
+      - name: Enforce fail-closed regression result
+        if: always()
+        run: |
+          code="${{ steps.pytest.outputs.exit_code }}"
+          if [ -z "$code" ] || [ "$code" -ne 0 ]; then
+            echo "::error::Null-safe ecosystem regression failed; inspect the retained artifact."
+            exit 1
+          fi
