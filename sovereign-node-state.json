@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-07-24T17:13:50.937434+00:00",
+  "target": "https://a-11-oy.com",
+  "nodes": {
+    "hetzner-box-cpu": {
+      "reachable": true,
+      "detail": "host running this service; reachable by definition",
+      "kind": "cpu",
+      "sovereign": true,
+      "endpoint": "host running this service"
+    },
+    "rtx-betterwithage": {
+      "reachable": false,
+      "detail": "timeout",
+      "kind": "sovereign-gpu",
+      "sovereign": true,
+      "endpoint": "sovereign node \u00b7 private tailnet"
+    },
+    "omen-betterwithage": {
+      "reachable": false,
+      "detail": "timeout",
+      "kind": "sovereign-gpu",
+      "sovereign": true,
+      "endpoint": "sovereign node \u00b7 private tailnet"
+    },
+    "chaski": {
+      "reachable": false,
+      "detail": "timeout",
+      "kind": "tailnet-gpu",
+      "sovereign": false,
+      "endpoint": "tailnet (private)"
+    },
+    "groq": {
+      "reachable": true,
+      "detail": "tcp reachable",
+      "kind": "hosted-inference",
+      "sovereign": false,
+      "endpoint": "api.groq.com:443"
+    },
+    "nvidia-nim": {
+      "reachable": true,
+      "detail": "tcp reachable",
+      "kind": "hosted-inference",
+      "sovereign": false,
+      "endpoint": "integrate.api.nvidia.com:443"
+    },
+    "hf-router": {
+      "reachable": true,
+      "detail": "tcp reachable",
+      "kind": "hosted-inference",
+      "sovereign": false,
+      "endpoint": "router.huggingface.co:443"
+    }
+  }
+}
