@@ -61,15 +61,25 @@ def main() -> int:
         receipts = entry.get("receipts", {})
         if receipts.get("required") is not True:
             errors.append(f"{entry_id}: receipts.required must be true")
-        if receipts.get("chain") != "hash_chain":
-            errors.append(f"{entry_id}: receipts.chain must be hash_chain")
-
         for route in entry.get("formulaRoutes", []):
             manifest_id = route.get("theoremRuntimeManifestId")
             if manifest_id not in theorem_ids:
                 errors.append(f"{entry_id}: unknown formula route manifest ID {manifest_id}")
 
         gates = set(entry.get("ciGates", []))
+        receipt_chain = receipts.get("chain")
+        if receipt_chain not in {"hash_chain", "not_verified"}:
+            errors.append(
+                f"{entry_id}: receipts.chain must be hash_chain or not_verified"
+            )
+        if receipt_chain == "hash_chain" and "verify-receipt-chain" not in gates:
+            errors.append(
+                f"{entry_id}: hash_chain receipts require verify-receipt-chain"
+            )
+        if receipt_chain == "not_verified" and "verify-receipt-chain" in gates:
+            errors.append(
+                f"{entry_id}: unverified receipts cannot claim verify-receipt-chain"
+            )
         for gate in [
             "validate-benchmark-map",
             "verify-formula-routes",

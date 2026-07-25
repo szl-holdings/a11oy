@@ -1,0 +1,67 @@
+name: Governed agent benchmark
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "benchmarks/governed-agent-bench/**"
+      - "benchmarks/benchmark-map.json"
+      - "scripts/validate_benchmark_map.py"
+      - "scripts/test_validate_benchmark_map.py"
+      - ".github/workflows/governed-agent-bench.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/governed-agent-bench/**"
+      - "benchmarks/benchmark-map.json"
+      - "scripts/validate_benchmark_map.py"
+      - "scripts/test_validate_benchmark_map.py"
+      - ".github/workflows/governed-agent-bench.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governed-agent-bench-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Governed agent benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Score the known-good fixture
+        run: >-
+          python benchmarks/governed-agent-bench/score.py
+          benchmarks/governed-agent-bench/fixtures/passing.jsonl
+          --strict
+
+      - name: Run benchmark contract tests
+        run: python -m unittest benchmarks/governed-agent-bench/test_score.py -v
+
+      - name: Validate benchmark registry
+        run: |
+          python scripts/validate_benchmark_map.py
+          python scripts/test_validate_benchmark_map.py
+
+      - name: Prove the false-green fixture is rejected
+        shell: bash
+        run: |
+          if python benchmarks/governed-agent-bench/score.py \
+            benchmarks/governed-agent-bench/fixtures/false_green.jsonl \
+            --strict; then
+            echo "false-green negative control unexpectedly passed" >&2
+            exit 1
+          fi
