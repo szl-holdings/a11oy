@@ -51,6 +51,13 @@ def mathcomp_index() -> int:
     raise unittest.SkipTest("no mathcomp benchmark entry in committed map")
 
 
+def governed_agent_index() -> int:
+    for i, entry in enumerate(_REAL.get("entries", [])):
+        if entry.get("id") == "governed-agent-bench-v0":
+            return i
+    raise unittest.SkipTest("no governed-agent benchmark entry in committed map")
+
+
 def run_validator(manifest: dict) -> int:
     """Redirect BENCHMARK_MAP at a temp copy; THEOREM_MANIFEST stays real so the
     formula-route theoremRuntimeManifestId cross-check resolves."""
@@ -112,6 +119,18 @@ class BenchmarkMapGuardSelfTest(unittest.TestCase):
     def test_receipts_chain_not_hash_chain_fails(self):
         m = honest()
         m["entries"][0]["receipts"]["chain"] = "none"
+        self.assertEqual(run_validator(m), 1)
+
+    def test_hash_chain_requires_verification_gate(self):
+        i = mathcomp_index()
+        m = honest()
+        m["entries"][i]["ciGates"].remove("verify-receipt-chain")
+        self.assertEqual(run_validator(m), 1)
+
+    def test_structure_only_receipts_cannot_claim_chain_verification(self):
+        i = governed_agent_index()
+        m = honest()
+        m["entries"][i]["ciGates"].append("verify-receipt-chain")
         self.assertEqual(run_validator(m), 1)
 
 
