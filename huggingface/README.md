@@ -1,7 +1,5 @@
 ---
-license: other
-license_name: proprietary
-license_link: https://github.com/szl-holdings/a11oy/blob/main/LICENSE
+license: apache-2.0
 language:
   - en
 tags:
@@ -25,6 +23,19 @@ integrity, and an operational payload that can be verified from GitHub.
 This Hugging Face mirror is the public showcase layer for the A11oy operational
 packet. GitHub remains the canonical source of truth for code, CI, SBOM, SLSA,
 DCO, deploy manifests, checksums, and release provenance.
+
+## Artifact identity and license
+
+| Field | Value |
+| --- | --- |
+| Artifact class | Software and diligence payload |
+| Weight-bearing model | No |
+| Transformers-loadable checkpoint | No |
+| License | Apache-2.0, copied from the canonical repository root |
+| Immutable source binding | `a11oy-metadata.json` → `sourceCommit` |
+
+The license tag applies to the files generated into this mirror. It does not
+relicense separately distributed models, datasets, or third-party components.
 
 ## One-line thesis
 
