@@ -590,9 +590,9 @@ def test_readiness_503_state_lung_up_loop_stopped(monkeypatch):
         node.stop()
 
 
-def test_readiness_200_when_no_lung_reachable():
-    """No lung reachable → honestly idle is READY (nothing to compute against; a
-    stopped loop with zero lungs is not a fault and must not 503)."""
+def test_readiness_optional_no_lung_is_service_degraded(monkeypatch):
+    """Optional missing capability stays explicit while service may remain ready."""
+    monkeypatch.delenv("A11OY_ENERGY_OPERATOR_REQUIRED", raising=False)
     with tempfile.TemporaryDirectory() as d:
         op = OP.OperatorDaemon(
             nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
@@ -603,8 +603,33 @@ def test_readiness_200_when_no_lung_reachable():
             r = OP.readiness()
             assert r["lung_reachable"] is False, r
             assert r["operator_running"] is False, r
-            assert r["ready"] is True, r
-            assert r["reason"] == "ok", r
+            assert r["ready"] is False, r
+            assert r["service_ready"] is True, r
+            assert r["required"] is False, r
+            assert r["state"] == "unavailable", r
+            assert r["reason"] == "optional_lung_unreachable", r
+        finally:
+            _swap_singleton(prev)
+
+
+def test_readiness_required_no_lung_fails_closed(monkeypatch):
+    """Required missing capability makes deployment readiness fail closed."""
+    monkeypatch.setenv("A11OY_ENERGY_OPERATOR_REQUIRED", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(
+            nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
+                              "llama3.1:8b", "bge-large", "betterwithage")],
+            state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+        prev = _swap_singleton(op)
+        try:
+            r = OP.readiness()
+            assert r["lung_reachable"] is False, r
+            assert r["operator_running"] is False, r
+            assert r["ready"] is False, r
+            assert r["service_ready"] is False, r
+            assert r["required"] is True, r
+            assert r["state"] == "unavailable", r
+            assert r["reason"] == "required_lung_unreachable", r
         finally:
             _swap_singleton(prev)
 
