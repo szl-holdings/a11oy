@@ -11,8 +11,9 @@ reachable — so joules froze until someone manually POSTed
      gated by A11OY_ENERGY_AUTOSTART (default ON), which presses play automatically —
      but ONLY when at least one lung answers a REAL probe (zero lungs → stay cleanly
      idle, running=false, never a fabricated running/joule).
-  2. /api/a11oy/readyz now returns 503 in the EXACT unhealthy state we hit (a lung is
-     reachable but the loop is stopped) and 200 otherwise.
+  2. /api/a11oy/readyz returns 503 in the EXACT unhealthy state we hit (a lung is
+     reachable but the loop is stopped), reports optional missing capability as
+     ready_degraded, and fails closed when the operator is deployment-required.
 
 This module boots the REAL app in-process via Starlette TestClient (no mocks, no
 network beyond a local fake lung) and asserts both behaviors end-to-end through the
@@ -133,9 +134,9 @@ def test_readyz_200_when_loop_running(client):
         lung.stop()
 
 
-def test_readyz_200_when_no_lung_reachable(client):
-    """No lung reachable → honestly idle is READY (200): nothing to compute against,
-    not a fault. A stopped loop with zero lungs must NOT 503."""
+def test_readyz_200_degraded_when_optional_lung_unreachable(client, monkeypatch):
+    """An optional missing lung keeps the service up without faking the capability."""
+    monkeypatch.delenv("A11OY_ENERGY_OPERATOR_REQUIRED", raising=False)
     op = OP.OperatorDaemon(
         nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
                           "llama3.1:8b", "bge-large", "betterwithage")],
@@ -145,11 +146,63 @@ def test_readyz_200_when_no_lung_reachable(client):
         resp = client.get("/api/a11oy/readyz")
         assert resp.status_code == 200, (resp.status_code, resp.text)
         body = resp.json()
-        assert body["status"] == "ready", body
+        assert body["status"] == "ready_degraded", body
+        assert body["operator"]["ready"] is False, body
+        assert body["operator"]["service_ready"] is True, body
+        assert body["operator"]["required"] is False, body
+        assert body["operator"]["state"] == "unavailable", body
+        assert body["operator"]["reason"] == "optional_lung_unreachable", body
         assert body["operator"]["lung_reachable"] is False, body
         assert body["operator"]["operator_running"] is False, body
     finally:
         _install_singleton(prev)
+
+
+def test_readyz_503_when_required_lung_unreachable(client, monkeypatch):
+    """A deployment that requires the operator must fail closed without a lung."""
+    monkeypatch.setenv("A11OY_ENERGY_OPERATOR_REQUIRED", "1")
+    op = OP.OperatorDaemon(
+        nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
+                          "llama3.1:8b", "bge-large", "betterwithage")],
+        allow_stub=False)
+    prev = _install_singleton(op)
+    try:
+        resp = client.get("/api/a11oy/readyz")
+        assert resp.status_code == 503, (resp.status_code, resp.text)
+        body = resp.json()
+        assert body["status"] == "not_ready", body
+        assert body["operator"]["ready"] is False, body
+        assert body["operator"]["service_ready"] is False, body
+        assert body["operator"]["required"] is True, body
+        assert body["operator"]["state"] == "unavailable", body
+        assert body["operator"]["reason"] == "required_lung_unreachable", body
+    finally:
+        _install_singleton(prev)
+
+
+@pytest.mark.parametrize(
+    ("required", "expected_status", "expected_service_ready"),
+    [(False, 200, True), (True, 503, False)],
+)
+def test_readyz_check_error_never_fakes_operator_ready(
+    client, monkeypatch, required, expected_status, expected_service_ready
+):
+    """Readiness-check errors remain UNKNOWN and respect the deployment contract."""
+    monkeypatch.setenv("A11OY_ENERGY_OPERATOR_REQUIRED", "1" if required else "0")
+
+    def _raise():
+        raise RuntimeError("test readiness failure")
+
+    monkeypatch.setattr(OP, "readiness", _raise)
+    resp = client.get("/api/a11oy/readyz")
+    assert resp.status_code == expected_status, (resp.status_code, resp.text)
+    body = resp.json()
+    assert body["status"] == ("not_ready" if required else "ready_degraded"), body
+    assert body["operator"]["ready"] is False, body
+    assert body["operator"]["service_ready"] is expected_service_ready, body
+    assert body["operator"]["required"] is required, body
+    assert body["operator"]["state"] == "unknown", body
+    assert body["operator"]["reason"] == "operator_check_error:RuntimeError", body
 
 
 def test_autostart_boots_loop_running_when_lung_reachable():

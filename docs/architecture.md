@@ -137,7 +137,10 @@ The operator probes lungs and runs jobs; the ledger is an append-only JobRecord 
 billing turns joules into cost with an honest MEASURED-vs-SAMPLE split. **Honest gaps:** joules
 are MEASURED only when a GPU lung is reachable (otherwise SAMPLE/DEGRADED); the ledger is
 ephemeral unless `SZL_ENERGY_LEDGER_PATH` is on a persistent volume; **carbon = ROADMAP** (no
-live grid-intensity feed).
+live grid-intensity feed). Public CPU-only surfaces leave
+`A11OY_ENERGY_OPERATOR_REQUIRED=0` and report `ready_degraded` when the capability is absent.
+GPU/operator deployments set `A11OY_ENERGY_OPERATOR_REQUIRED=1`; an unreachable lung,
+stopped loop, or readiness-check error then returns HTTP 503.
 
 ### supply-chain/ — Sigstore / SBOM / UDS (the deploy moat) `[EXISTS, ceiling]`
 `szl_uds_fleet.py` · `szl_uds_portability.py` · `runtime_attestation.py` · `szl_dsse.py` ·

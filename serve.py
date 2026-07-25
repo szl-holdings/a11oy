@@ -4930,26 +4930,39 @@ async def preflight_status() -> JSONResponse:
 
 @app.get("/api/a11oy/readyz")
 async def readyz() -> JSONResponse:
-    # Doctrine v11: /readyz now reflects the energy operator loop. The exact
-    # redeploy-stall we hit was: the service restarts, the GPU lungs stay reachable,
-    # but the operator loop comes up STOPPED so joules freeze. Surface that as NOT
-    # ready (503) so an orchestrator/healthcheck catches it. If a lung is reachable
-    # AND the loop runs → ready (200). If NO lung is reachable → ready (200, honestly
-    # idle: there is nothing to compute against, not a fault — we never fake running).
-    operator = {"ready": True, "reason": "operator_check_unavailable"}
+    # Keep service readiness separate from optional capability readiness. A public
+    # CPU-only surface may serve in a truthful degraded state, while a deployment
+    # that declares the operator required must fail closed. A reachable lung with
+    # a stopped loop remains a hard 503 redeploy-stall signal.
+    required = (os.environ.get("A11OY_ENERGY_OPERATOR_REQUIRED", "0").strip().lower()
+                not in ("0", "false", "no", "off", ""))
+    operator = {
+        "service": "energy-operator",
+        "ready": False,
+        "service_ready": not required,
+        "required": required,
+        "state": "unknown",
+        "reason": "operator_check_unavailable",
+    }
     try:
         import szl_energy_operator as _szl_eo_ready
         operator = _szl_eo_ready.readiness()
-    except Exception as _eo_ready_e:  # pragma: no cover — never block readyz on import
-        operator = {"ready": True, "reason": f"operator_check_error:{type(_eo_ready_e).__name__}"}
-    ready = bool(operator.get("ready", True))
+    except Exception as _eo_ready_e:  # pragma: no cover — fail closed when required
+        operator["reason"] = f"operator_check_error:{type(_eo_ready_e).__name__}"
+    service_ready = bool(operator.get("service_ready", False))
+    capability_ready = bool(operator.get("ready", False))
+    status = (
+        "ready" if service_ready and capability_ready
+        else "ready_degraded" if service_ready
+        else "not_ready"
+    )
     return JSONResponse(
         {
-            "status": "ready" if ready else "not_ready",
+            "status": status,
             "backend": "local+proxy",
             "operator": operator,
         },
-        status_code=200 if ready else 503,
+        status_code=200 if service_ready else 503,
     )
 
 

@@ -101,6 +101,10 @@ const ORGANS = [
     summarize: (j) => {
       const op = j.operator || {};
       if (op.operator_running === true) return `operator running · ${j.status || "ready"}`;
+      if (op.state) {
+        const requirement = op.required === true ? "required" : "optional";
+        return `operator ${op.state} · ${requirement} · ${j.status || "unknown"}`;
+      }
       if (j.status) return `status: ${j.status}`;
       return "operator responding";
     },

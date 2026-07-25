@@ -1524,11 +1524,18 @@ def handle_status() -> dict:
 # Env flag gating the boot auto-start. Defaults ON ("1"). Set to "0"/"false" to
 # disable (e.g. a box that should stay idle until a manual press-play).
 A11OY_ENERGY_AUTOSTART_ENV = "A11OY_ENERGY_AUTOSTART"
+A11OY_ENERGY_OPERATOR_REQUIRED_ENV = "A11OY_ENERGY_OPERATOR_REQUIRED"
 
 
 def autostart_enabled() -> bool:
     """True unless A11OY_ENERGY_AUTOSTART is explicitly falsey. Default ON."""
     return (os.environ.get(A11OY_ENERGY_AUTOSTART_ENV, "1").strip().lower()
+            not in ("0", "false", "no", "off", ""))
+
+
+def operator_required() -> bool:
+    """Return whether deployment readiness requires this capability."""
+    return (os.environ.get(A11OY_ENERGY_OPERATOR_REQUIRED_ENV, "0").strip().lower()
             not in ("0", "false", "no", "off", ""))
 
 
@@ -1559,23 +1566,41 @@ def autostart_if_lung_reachable() -> dict:
 
 
 def readiness() -> dict:
-    """Operator readiness for /readyz (Doctrine v11 — the exact redeploy-stall guard).
+    """Return separate capability and deployment-readiness truth.
 
-    UNHEALTHY (ready=False) iff a lung IS reachable but the loop is STOPPED — the
-    precise state hit on every box redeploy (lungs up, loop never auto-started, so
-    joules freeze). Otherwise ready=True: either the loop is running, or no lung is
-    reachable (honestly idle — nothing to compute against, not a fault)."""
+    ``ready`` describes the operator capability and is true only when the loop
+    runs. ``service_ready`` controls the host readiness contract: an explicitly
+    optional, unreachable operator degrades the host without removing it from
+    service. A reachable-but-stopped loop always fails readiness because that is
+    the redeploy-stall failure this guard exists to catch.
+    """
     op = get_operator()
     running = op.is_running()
     lung = op.any_lung_reachable()
-    ready = running or not lung
+    required = operator_required()
+    if running:
+        state = "ready"
+        reason = "ok"
+        service_ready = True
+    elif lung:
+        state = "stopped"
+        reason = "operator_stopped_while_lung_reachable"
+        service_ready = False
+    else:
+        state = "unavailable"
+        reason = ("required_lung_unreachable" if required
+                  else "optional_lung_unreachable")
+        service_ready = not required
     return {
         "service": "energy-operator",
-        "ready": ready,
+        "ready": running,
+        "service_ready": service_ready,
+        "required": required,
+        "state": state,
         "operator_running": running,
         "lung_reachable": lung,
         "autostart_enabled": autostart_enabled(),
-        "reason": ("ok" if ready else "operator_stopped_while_lung_reachable"),
+        "reason": reason,
     }
 
 
