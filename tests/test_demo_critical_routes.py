@@ -79,6 +79,15 @@ def _assembled_paths():
     }
 
 
+def _methods(path):
+    return {
+        method
+        for route in serve.app.router.routes
+        if getattr(route, "path", None) == path
+        for method in getattr(route, "methods", set())
+    }
+
+
 def test_assembled_route_table_is_nonempty():
     """Sanity: the app booted and assembled a non-trivial route table."""
     paths = _assembled_paths()
@@ -110,3 +119,18 @@ def test_no_demo_critical_route_dropped_as_a_set():
         if not any(expected in p for p in paths)
     ]
     assert not missing, f"demo-critical routes missing from the assembled table: {missing}"
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/verify",
+        "/a11oy/verify",
+        "/verify-receipt",
+        "/holographic",
+        "/a11oy/holographic",
+    ),
+)
+def test_investor_facing_pages_support_get_and_head(path):
+    """Public demo links must work in browsers and HEAD-based link monitors."""
+    assert {"GET", "HEAD"}.issubset(_methods(path))

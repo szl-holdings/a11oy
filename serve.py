@@ -3894,9 +3894,9 @@ try:
     # web/verify-receipt.html is per-file COPY'd in the Dockerfile (same baked-only
     # pattern as web/determinacy.html). Registered BEFORE the SPA catch-all so the
     # explicit route wins instead of falling through to the SPA shell.
-    app.add_api_route("/verify", _ptg_serve("verify-receipt.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/verify", _ptg_serve("verify-receipt.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/verify-receipt", _ptg_serve("verify-receipt.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/verify", _ptg_serve("verify-receipt.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/a11oy/verify", _ptg_serve("verify-receipt.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/verify-receipt", _ptg_serve("verify-receipt.html"), methods=["GET", "HEAD"], include_in_schema=False)
 
     # /code GOVERNED RUN-LOOP surface (2026-07-06, founder: "code orchestration needs
     # to be fully operational"). The prior band-aid 307-redirected /code -> /console
@@ -11392,7 +11392,7 @@ async def marketing_landing_page() -> Response:
 # Served from pages/verify.html (COPYed wholesale by the Dockerfile COPY pages/ ./pages/).
 # Registered BEFORE the SPA catch-all so /verify returns the real page, not the SPA soft-404.
 # ADDITIVE — no existing route touched.
-@app.get("/verify")
+@app.api_route("/verify", methods=["GET", "HEAD"])
 async def verify_demo_page() -> Response:
     f = PAGES_DIR / "verify.html"
     if f.is_file():
