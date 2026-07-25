@@ -283,6 +283,31 @@ def test_spa_navigation_manifest_is_narrow_and_explicit():
     assert contracts.is_declared_spa_navigation("/verticals") is False
 
 
+def test_scoped_static_path_route_is_not_misclassified_as_spa_fallback():
+    app = FastAPI()
+
+    @app.get("/static/3d/{asset_path:path}")
+    async def static_3d(asset_path: str):
+        return HTMLResponse(f"<html><body>{asset_path}</body></html>")
+
+    @app.get("/{full_path:path}")
+    async def spa(full_path: str):
+        return HTMLResponse(
+            f"<html><body>{full_path}</body></html>",
+            headers={"X-SZL-Route-State": "SPA_FALLBACK"},
+        )
+
+    contracts.register(app)
+    client = TestClient(app)
+
+    declared_asset = client.get("/static/3d/holographic.html")
+    unknown_asset = client.get("/static/missing.html")
+    assert declared_asset.status_code == 200
+    assert declared_asset.text == "<html><body>holographic.html</body></html>"
+    assert unknown_asset.status_code == 404
+    assert unknown_asset.json()["reason"] == "undeclared path refused SPA fallback"
+
+
 def test_published_container_workflows_pass_build_identity():
     from pathlib import Path
 

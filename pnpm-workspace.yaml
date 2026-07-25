@@ -6,6 +6,10 @@ packages:
   - "web/packages/a11oy-core"
   - "web/packages/a11oy-connection"
 
+allowBuilds:
+  esbuild@0.28.1: true
+  unrs-resolver@1.12.2: true
+
 # pnpm 11 reads workspace-wide overrides here; package.json retains the same
 # constraints for the pnpm 10 CI lane. Keep both declarations in lockstep.
 overrides:

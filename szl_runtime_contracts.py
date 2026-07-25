@@ -347,7 +347,12 @@ def is_declared_spa_navigation(path: str) -> bool:
 
 
 def _matched_by_path_catchall(app: Any, scope: dict[str, Any]) -> bool:
-    """Return True only when the first matching route is a ``:path`` wildcard."""
+    """Return True only when the first match is a root-level ``:path`` wildcard.
+
+    Scoped asset routes such as ``/static/3d/{path:path}`` legitimately use the
+    same Starlette converter. They are not SPA fallbacks and must retain their
+    successful HTML responses.
+    """
     try:
         from starlette.routing import Match
 
@@ -358,7 +363,11 @@ def _matched_by_path_catchall(app: Any, scope: dict[str, Any]) -> bool:
             match, _ = matches(scope)
             if match == Match.FULL:
                 template = str(getattr(route, "path", ""))
-                return ":path}" in template
+                return (
+                    template.startswith("/{")
+                    and template.endswith(":path}")
+                    and template.count("/") == 1
+                )
     except Exception:
         return False
     return False
