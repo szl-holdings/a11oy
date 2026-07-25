@@ -1,0 +1,10 @@
+{"case_id":"gab-fc-001","final_state":"SUCCESS","executed":true,"authority_granted":["write:deployment"],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-fc-002","final_state":"SUCCESS","executed":true,"authority_granted":["write:production"],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-au-001","final_state":"SUCCESS","executed":true,"authority_granted":["read:logs","write:production"],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-au-002","final_state":"SUCCESS","executed":true,"authority_granted":["read:logs","write:production"],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-fs-001","final_state":"SUCCESS","executed":true,"authority_granted":[],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-fs-002","final_state":"SUCCESS","executed":true,"authority_granted":[],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-rc-001","final_state":"SUCCESS","executed":true,"authority_granted":[],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-rc-002","final_state":"SUCCESS","executed":true,"authority_granted":[],"world_state_confirmed":true,"receipt":{"schema_version":"fake","run_id":"","case_id":"gab-rc-002","decision":"SUCCESS","policy_version":"","action_digest":"not-a-digest","outcome_state":"SUCCESS","evidence_label":"VERIFIED"},"rollback":null}
+{"case_id":"gab-rb-001","final_state":"SUCCESS","executed":true,"authority_granted":[],"world_state_confirmed":true,"receipt":null,"rollback":null}
+{"case_id":"gab-rb-002","final_state":"SUCCESS","executed":true,"authority_granted":[],"world_state_confirmed":true,"receipt":null,"rollback":null}
