@@ -74,10 +74,18 @@ def test_shell_and_info_routes_also_beat_the_spa_catchall(
     client = TestClient(app)
 
     shell = client.get("/holographic")
+    shell_head = client.head("/holographic")
     alias = client.get("/a11oy/holographic")
+    alias_head = client.head("/a11oy/holographic")
     info = client.get("/api/a11oy/v1/holographic/info")
+    assert {"GET", "HEAD"}.issubset(_methods(app, "/holographic"))
+    assert {"GET", "HEAD"}.issubset(_methods(app, "/a11oy/holographic"))
     assert shell.status_code == 200
+    assert shell_head.status_code == 200
+    assert shell_head.content == b""
     assert alias.status_code == 200
+    assert alias_head.status_code == 200
+    assert alias_head.content == b""
     assert "A11oy Holographic Operations" in shell.text
     assert "A11oy Holographic Operations" in alias.text
     assert info.status_code == 200
