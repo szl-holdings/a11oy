@@ -1,7 +1,5 @@
 ---
-license: other
-license_name: proprietary
-license_link: https://github.com/szl-holdings/a11oy/blob/main/LICENSE
+license: apache-2.0
 tags:
   - benchmark
   - receipts
@@ -17,6 +15,11 @@ This directory defines the future `SZLHOLDINGS/a11oy-test-results` dataset
 layout. It is a **schema and manifest only** in this revision.
 
 GitHub remains canonical. Hugging Face is a generated mirror for review.
+
+The schema, manifest, and receipt examples in this directory are Apache-2.0.
+That license does not grant redistribution rights for any future third-party
+benchmark corpus. External problem text remains excluded unless its own
+row-level license and redistribution rights are admitted.
 
 ## Current claim status
 
