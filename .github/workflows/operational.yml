@@ -21,6 +21,8 @@ on:
       - 'docs/ecosystem-stage-matrix.json'
       - 'docs/huggingface-ecosystem-manifest.json'
       - 'docs/huggingface-ecosystem-manifest.schema.json'
+      - 'docs/theorem-runtime-manifest.json'
+      - 'scripts/*.mjs'
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
@@ -42,6 +44,8 @@ on:
       - 'docs/ecosystem-stage-matrix.json'
       - 'docs/huggingface-ecosystem-manifest.json'
       - 'docs/huggingface-ecosystem-manifest.schema.json'
+      - 'docs/theorem-runtime-manifest.json'
+      - 'scripts/*.mjs'
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
@@ -85,6 +89,8 @@ jobs:
           python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
           pnpm hf:ecosystem:audit
           python3 scripts/build_ecosystem_stage_matrix.py --check
+          node scripts/test_validate_huggingface_ecosystem_schema.mjs
+          node scripts/validate_huggingface_ecosystem_schema.mjs
           npm run payload:verify
           npm run payload:huggingface
           # Build the operational payload bundle in CI before verifying it. The

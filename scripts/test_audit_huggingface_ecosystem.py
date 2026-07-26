@@ -288,6 +288,8 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "docs/ecosystem-stage-matrix.json",
             "docs/huggingface-ecosystem-manifest.json",
             "docs/huggingface-ecosystem-manifest.schema.json",
+            "docs/theorem-runtime-manifest.json",
+            "scripts/*.mjs",
         ):
             self.assertEqual(
                 workflow.count(f"- '{path}'"),
@@ -297,6 +299,10 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertIn("pnpm hf:ecosystem:audit", workflow)
         self.assertIn(
             "python3 scripts/build_ecosystem_stage_matrix.py --check",
+            workflow,
+        )
+        self.assertIn(
+            "node scripts/validate_huggingface_ecosystem_schema.mjs",
             workflow,
         )
         self.assertLess(
