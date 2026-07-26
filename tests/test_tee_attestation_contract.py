@@ -1120,8 +1120,27 @@ def test_read_only_get_never_appends_to_lambda_ledger(monkeypatch):
 
     assert body["lambda"]["pass"] is True
     assert body["attestation_policy"]["verdict"] == "BLOCK"
+    assert body["release_gate"] == {
+        "pass": False,
+        "verdict": "BLOCK",
+        "lambda_pass": True,
+        "attestation_allowed": False,
+    }
+    assert body["receipt"]["release_gate"] == body["release_gate"]
     assert body["inference"]["released"] is False
     assert emitted == []
+
+
+def test_surface_uses_effective_release_gate_instead_of_advisory_lambda():
+    root = __import__("pathlib").Path(__file__).resolve().parents[1]
+    source = (
+        root / "static" / "3d" / "surfaces" / "attestinfer.js"
+    ).read_text(encoding="utf-8")
+
+    assert "const releaseGate = j.release_gate || {};" in source
+    assert "const gatePass = S.gatePass === true;" in source
+    assert "effective release gate (\\u039b + attestation)" in source
+    assert 'S.lamPass === true ? "PASS (release)"' not in source
 
 
 def test_library_defaults_to_high_consequence_and_blocks_without_evidence(monkeypatch):

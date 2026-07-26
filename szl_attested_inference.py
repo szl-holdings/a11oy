@@ -541,10 +541,19 @@ def run_attested_inference(
     lam = _lambda_axes(seed, model, quote["quote_digest"], mc["golden_match"])
 
     # 4) gated inference (withheld if Λ-gate blocks — CoCo KBS style)
+    effective_release = bool(
+        lam["pass"] and attestation_policy["allowed"]
+    )
+    release_gate = {
+        "pass": effective_release,
+        "verdict": "RELEASE" if effective_release else "BLOCK",
+        "lambda_pass": bool(lam["pass"]),
+        "attestation_allowed": bool(attestation_policy["allowed"]),
+    }
     inference = _gated_inference(
         seed,
         model,
-        lam["pass"] and attestation_policy["allowed"],
+        effective_release,
         quote["quote_digest"],
     )
     if lam["pass"] and not attestation_policy["allowed"]:
@@ -579,6 +588,7 @@ def run_attested_inference(
             "label": tee.get("label"),
         },
         "attestation_policy": attestation_policy,
+        "release_gate": release_gate,
         "lambda": {"value": lam["value"], "floor": lam["floor"], "pass": lam["pass"],
                    "axes": lam["axes"], "uniqueness": lam["uniqueness"]},
         "inference": {"released": inference["released"],
@@ -613,6 +623,7 @@ def run_attested_inference(
         # attested-inference deepening:
         "tee_attestation": tee,
         "attestation_policy": attestation_policy,
+        "release_gate": release_gate,
         "attestation_quote": quote,
         "lambda": lam,
         "inference": inference,
