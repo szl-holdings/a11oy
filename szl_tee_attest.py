@@ -719,6 +719,9 @@ def _verified_attestation(
         and payload.get("certificate_chain_verified") is True
     ):
         return None, "authenticated verifier result does not match the request evidence"
+    reference_measurements = configured_reference_measurements()
+    if verified_measurement.lower() not in reference_measurements:
+        return None, "authenticated measurement is not in the operator allowlist"
     return {
         "schema": _SCHEMA,
         "present": True,

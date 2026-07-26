@@ -29,12 +29,13 @@ verified remote attestation is reserved for an explicit state-changing caller.
 HONESTY (Doctrine v11 — NEVER violate)
 --------------------------------------
 Label = **MODELED**. This SIMULATES the advisory path deterministically from (seed, model);
-high-consequence requests add a fresh 256-bit nonce before probing hardware:
+high-consequence requests add a fresh 256-bit nonce before probing hardware, but that transient
+security challenge is excluded from the deterministic MODELED digest, trust axes, and token stream:
 there is **no real TEE, no real GPU, no NRAS/KDS network call, no real inference engine**.
 Every synthetic value is derived by SHA-256/384 from the inputs so the flow is replayable and
 verifiable, NOT fabricated as a live measurement. Where a REAL measurement is available the
 module defers to `szl_tee_attest.get_tee_attestation()` and surfaces its honest label verbatim.
-A locally read report is OBSERVED until a trusted verifier validates its signature, certificate
+A locally read report is SAMPLE_UNVERIFIED until a trusted verifier validates its signature, certificate
 chain, freshness, nonce, and reference measurements. The GET route never reads a signing secret
 or signs a receipt; it returns an unsigned frozen envelope. Signing is reserved for committed
 state-changing writes.
@@ -296,10 +297,12 @@ def _attestation_quote(
 ) -> Dict[str, Any]:
     """Build a MODELED attestation quote in the shape of the leaders' reports.
 
-    We mirror the SEV-SNP `REPORT_DATA` binding: the quote commits to an app-supplied value
-    (here the prompt/inference digest) so the quote is cryptographically bound to THIS inference.
-    We also mirror the TDX MRTD (boot measurement) and NVIDIA CC-mode fields. `quote_digest` is
-    the SHA-384 the receipt embeds. NO real hardware quote is produced.
+    We mirror the SEV-SNP `REPORT_DATA` binding in the deterministic MODELED
+    body while keeping the fresh security challenge in a separate
+    `request_binding` field. The receipt's `quote_digest`, trust axes, and token
+    stream therefore remain recomputable from (seed, model); only the live TEE
+    challenge varies between consequential requests. NO real hardware quote is
+    produced.
     """
     report_data = _sha384(f"REPORT_DATA|{prompt_digest}|{mc['final_digest']}".encode("utf-8"))
     quote_body = {
@@ -309,12 +312,16 @@ def _attestation_quote(
         "report_data": report_data,          # SEV-SNP REPORT_DATA = binds this inference
         "measurement_stages": [c["stage"] for c in mc["stage_measurements"]],
         "vcek_kds": "MODELED (no AMD KDS / NVIDIA NRAS network call performed)",
-        "nonce": request_nonce,
     }
     quote_digest = _sha384(_canon(quote_body))
     return {
         "quote_body": quote_body,
         "quote_digest": quote_digest,
+        "request_binding": {
+            "nonce": request_nonce,
+            "workload_digest": prompt_digest,
+        },
+        "digest_scope": "deterministic modeled quote_body; excludes transient request_binding",
         "verified_against": "MODELED golden reference (no NRAS/KDS/DCAP verifier contacted)",
         "leaders_pattern": "NVIDIA NRAS · AMD SEV-SNP REPORT_DATA/VCEK · Intel TDX MRTD",
         "label": LABEL,
@@ -533,7 +540,7 @@ def run_attested_inference(
     attestation_policy = _attestation_policy(
         tee,
         high_consequence,
-        expected_nonce=quote["quote_body"]["nonce"],
+        expected_nonce=quote["request_binding"]["nonce"],
         expected_workload_digest=prompt_digest,
     )
 

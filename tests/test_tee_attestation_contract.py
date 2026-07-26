@@ -190,6 +190,7 @@ def _signed_verifier_record(
     measurement = (
         measurement_override if measurement_override is not None else "c" * 96
     )
+    monkeypatch.setenv("SZL_TEE_REFERENCE_MEASUREMENTS", measurement)
     nonce = "request-nonce-0001"
     workload_digest = "d" * 96
     verifier = "test-trust-root"
@@ -519,6 +520,52 @@ def test_tdx_quote_uses_authenticated_verifier_measurement(monkeypatch):
     assert attestation["verified"] is True
     assert attestation["measurement"] == measurement
     assert attestation["label"] == "MEASURED"
+
+
+def test_unallowlisted_authenticated_measurement_stays_sample(monkeypatch):
+    (
+        signed_record,
+        nonce,
+        workload,
+        measurement,
+        _now,
+        public_pem,
+    ) = _signed_verifier_record(monkeypatch)
+    monkeypatch.setenv(
+        "SZL_TEE_VERIFIER_PUBLIC_KEYS_JSON",
+        json.dumps({"test-trust-root": public_pem}),
+    )
+    monkeypatch.setenv("SZL_TEE_TRUSTED_VERIFIERS", "test-trust-root")
+    monkeypatch.setenv("SZL_TEE_REFERENCE_MEASUREMENTS", "e" * 96)
+    probe_result = {
+        "type": "nitro",
+        "measurement": measurement,
+        "measurement_field": "PCR0",
+        "quote_digest": signed_record["quote_digest"],
+        "quote_bytes": b"unallowlisted-request-bound-hardware-quote",
+        "source": "nsm:AttestationDoc",
+        "request_binding_observed": True,
+    }
+    monkeypatch.setattr(
+        szl_tee_attest,
+        "_submit_to_verifier",
+        lambda _result, **_kwargs: (
+            signed_record["verifier_envelope"],
+            "test verifier",
+        ),
+    )
+
+    attestation = szl_tee_attest._attestation_from_probe(
+        probe_result,
+        nonce=nonce,
+        workload_digest=workload,
+        verify_external=True,
+    )
+
+    assert attestation["verified"] is False
+    assert attestation["label"] == "SAMPLE"
+    assert attestation["evidence_tier"] == "SAMPLE_UNVERIFIED"
+    assert "not in the operator allowlist" in attestation["verifier_note"]
 
 
 def test_live_probe_keeps_stale_authenticated_evidence_as_sample(monkeypatch):
@@ -1011,8 +1058,8 @@ def test_high_consequence_requests_use_unique_unpredictable_challenges(monkeypat
     second = szl_attested_inference.run_attested_inference(
         42, "szl-modeled-lm", high_consequence=True
     )
-    first_nonce = first["attestation_quote"]["quote_body"]["nonce"]
-    second_nonce = second["attestation_quote"]["quote_body"]["nonce"]
+    first_nonce = first["attestation_quote"]["request_binding"]["nonce"]
+    second_nonce = second["attestation_quote"]["request_binding"]["nonce"]
 
     assert len(first_nonce) == 64
     assert len(second_nonce) == 64
@@ -1027,8 +1074,56 @@ def test_high_consequence_requests_use_unique_unpredictable_challenges(monkeypat
             second["inference"]["prompt_digest"],
         ),
     ]
+    assert (
+        first["attestation_quote"]["quote_digest"]
+        == second["attestation_quote"]["quote_digest"]
+    )
+    assert first["lambda"] == second["lambda"]
     assert first["attestation_policy"]["verdict"] == "BLOCK"
     assert second["attestation_policy"]["verdict"] == "BLOCK"
+
+
+def test_fresh_challenge_does_not_change_modeled_released_output(monkeypatch):
+    monkeypatch.setattr(
+        szl_attested_inference,
+        "_tee_attestation",
+        lambda *_args, **_kwargs: {
+            "schema": "szl.tee-attestation/v2",
+            "present": False,
+            "verified": False,
+            "label": "UNAVAILABLE",
+        },
+    )
+    monkeypatch.setattr(
+        szl_attested_inference,
+        "_attestation_policy",
+        lambda *_args, **_kwargs: {
+            "schema": "szl.attestation-policy/v1",
+            "verified_evidence": True,
+            "allowed": True,
+            "verdict": "ALLOW",
+            "reason": "test-only authenticated policy",
+        },
+    )
+
+    first = szl_attested_inference.run_attested_inference(
+        42, "szl-modeled-lm", high_consequence=True
+    )
+    second = szl_attested_inference.run_attested_inference(
+        42, "szl-modeled-lm", high_consequence=True
+    )
+
+    assert (
+        first["attestation_quote"]["request_binding"]["nonce"]
+        != second["attestation_quote"]["request_binding"]["nonce"]
+    )
+    assert (
+        first["attestation_quote"]["quote_digest"]
+        == second["attestation_quote"]["quote_digest"]
+    )
+    assert first["lambda"] == second["lambda"]
+    assert first["inference"]["tokens"] == second["inference"]["tokens"]
+    assert first["inference"]["output_digest"] == second["inference"]["output_digest"]
 
 
 def test_public_route_cannot_downgrade_attestation_with_query_input(monkeypatch):
