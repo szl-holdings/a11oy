@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://a-11-oy.com/schemas/authorization-receipt.schema.json",
   "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
-  "title": "Bound authorization receipt",
+  "title": "A11oy signed authorization receipt",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,22 +16,67 @@
     "issued_at",
     "expires_at",
     "trace_id",
+    "algorithm",
+    "key_id",
     "signature"
   ],
   "properties": {
-    "decision": {"const": "ALLOW"},
-    "request_digest": {"$ref": "#/$defs/digest"},
-    "policy_version": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "formal_artifact_digest": {"$ref": "#/$defs/digest"},
-    "principal": {"type": "string", "pattern": "^(agent|human|workload):[A-Za-z0-9][A-Za-z0-9._:/-]{2,127}$"},
-    "target_digest": {"$ref": "#/$defs/digest"},
-    "environment": {"enum": ["development", "staging", "production"]},
-    "issued_at": {"type": "string", "format": "date-time"},
-    "expires_at": {"type": "string", "format": "date-time"},
-    "trace_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
-    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{80,128}$"}
+    "decision": {
+      "const": "ALLOW"
+    },
+    "request_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "policy_version": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "formal_artifact_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "principal": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{2,255}$"
+    },
+    "target_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "environment": {
+      "enum": [
+        "development",
+        "staging",
+        "production"
+      ]
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trace_id": {
+      "type": "string",
+      "pattern": "^(?!0{32}$)[0-9a-f]{32}$"
+    },
+    "algorithm": {
+      "const": "Ed25519"
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{64,256}$"
+    }
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
   }
 }

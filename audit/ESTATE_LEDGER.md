@@ -1,26 +1,23 @@
-<!--
-SPDX-License-Identifier: Apache-2.0
-(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
--->
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
-# Estate ledger
+# Operation Verified Throughput estate ledger
 
-Generated at `2026-07-26T08:09:00.789958Z` by `scripts/generate_operation_inventory.py`.
+Generated at `2026-07-26T08:52:31+00:00` by `scripts/operation_verified_throughput_inventory.py`.
 
-| Estate surface | Status | Evidence |
-| --- | --- | --- |
-| Current A11oy production source | MEASURED | GitHub main and runtime build-info `af43e4b71529c2bab3227763fdb4b5969c2cd6ce` |
-| GitHub protections | MEASURED | Read-only inventory in `repository-rulesets.json`; **no mutations performed** |
-| Existing A11oy GHCR attestation | MEASURED | `sha256:5f3f48219d0c74f29ebfd6df6d7b8b68903daf6772cf6483124f458a3beca416`, run 30187276319, Rekor 2255395975 |
-| A11oy Hugging Face identity | MEASURED | Runtime build-info matches protected main `af43e4b71529c2bab3227763fdb4b5969c2cd6ce` |
-| Killinchu current source bundle | MEASURED | Dockerfile COPY sources exist and exact-source deploy is live |
-| Killinchu running image identity | MEASURED | Runtime build-info matches protected main `3bafc337446548902ee28086c3c6c17b486e70e9` |
-| Killinchu `/code` and `/chat` | MEASURED | Both routes returned HTTP 200 at observation |
-| Canonical web application | MEASURED | Pinned `vendor/platform` source builds and typechecks without stubs |
-| Lean T1/T2 | MODELED | Local kernel build passes; public claim remains **0/12 PROVED** |
-| Runtime policy refinement | MEASURED | Finite domain plus adversarial receipt tests |
-| Reusable build | PREPARED IN A PR | Not protected or deployed until independently reviewed and merged |
-| Sigstore warning policy | PREPARED IN A PR | Manifests only; no cluster mutation |
-| vLLM/SGLang matrix | BLOCKED | No GPU node, model revision, tokenizer revision, or endpoints |
-| OTel GenAI contract | IMPLEMENTED NOT DEPLOYED | Content capture off, redaction and mandatory sampling tests |
-| Backup and restoration | MEASURED | Secret-backed immutable Space snapshots and offline byte-for-byte restore |
+| Surface | Label | Evidence |
+|---|---|---|
+| GitHub organization and canonical repository | MEASURED | `audit/github-estate.json` |
+| Rulesets and `main` protection | MEASURED | `audit/repository-rulesets.json`; read-only capture |
+| Workflow action references | MEASURED | `audit/workflow-action-pins.json` |
+| Workflow identity declarations | MEASURED | `audit/identity-and-oidc-estate.json` |
+| Secret metadata | MEASURED | `audit/secrets-inventory-redacted.json`; values absent |
+| Tracked Lean mirror | MEASURED | `audit/lean-baseline.json`; clean build recorded separately |
+| Serving hardware parity | BLOCKED | No authorized identical-GPU staging node is connected |
+| Production collectors | BLOCKED | No production collector access is connected |
+| Cloud, registry, and cluster estate | BLOCKED | No production cloud credentials are connected |
+| Deployment identity endpoints | MEASURED | `audit/deployment-identities.json`; failures remain failures |
+| Production mutation | RETIRED | This inventory performs no production mutation |
+
+Gate 1 is **BLOCKED** until the cloud/cluster estate is inventoried, a production backup is
+restored, and every P0 discrepancy is closed or accepted through the approval manifest.

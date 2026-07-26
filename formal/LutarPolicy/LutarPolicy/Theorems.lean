@@ -1,54 +1,98 @@
 /-
 SPDX-License-Identifier: Apache-2.0
 (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-
-These theorems are kernel-checked but remain 0/12 PROVED publicly until the
-four-theorem threshold and independent English-statement review are satisfied.
 -/
-import LutarPolicy.Policy
+
+import LutarPolicy.Audit
 
 namespace LutarPolicy
 
-/-- T1: no matching authorization rule implies the request is not executable. -/
-theorem t1_default_denial (request : Request) (h : request.matchingRule = false) :
-    ¬ executable (evaluate request) := by
-  simp [evaluate, h, executable]
-
-/-- T2: an evaluated rejection cannot be executable. -/
-theorem t2_rejected_non_executable (request : Request) (h : evaluate request = .reject) :
-    ¬ executable (evaluate request) := by
-  simp [h, executable]
-
-private def positiveArtifact : Artifact :=
-  { digest := "sha256:positive", provenanceAccepted := true, rollbackAvailable := true }
-
-private def positiveRequest : Request :=
-  { principal := { name := "workload:release-agent" }
-    action := .deployStaging
-    artifact := positiveArtifact
-    environment := .staging
-    matchingRule := true
-    validApproval := false }
-
-private def negativeRequest : Request :=
-  { positiveRequest with matchingRule := false }
-
-/-- Positive non-vacuity witness: the supported domain contains an executable request. -/
-example : executable (evaluate positiveRequest) := by native_decide
-
-/-- Negative witness: the same request without a matching rule is rejected. -/
-example : evaluate negativeRequest = .reject := by native_decide
-
-/-- Assumption mutation: approval cannot compensate for a missing rule. -/
-example : evaluate { negativeRequest with validApproval := true } = .reject := by native_decide
-
--- Critical-premise-removal control: this deliberately does not compile without the rule.
 /--
-error: tactic 'native_decide' evaluated that the proposition
-  executable (evaluate LutarPolicy.negativeRequest)
-is false
+T1, default denial: when no rule matches the exact principal, action, artifact digest,
+and environment, the policy evaluator rejects the request.
 -/
-#guard_msgs in
-example : executable (evaluate negativeRequest) := by native_decide
+theorem T1_default_denial
+    (state : PolicyState)
+    (request : Request)
+    (noMatch : ¬ HasMatchingRule state request) :
+    evaluate state request = .reject := by
+  unfold evaluate
+  split <;> simp_all
+
+/--
+T1 execution consequence: a request with no matching authorization rule is not executable.
+-/
+theorem T1_default_denial_not_executable
+    (state : PolicyState)
+    (request : Request)
+    (noMatch : ¬ HasMatchingRule state request) :
+    ¬ Executable state request := by
+  simp [Executable, T1_default_denial state request noMatch]
+
+/--
+T2, rejected means no authorized receipt: the receipt function cannot return a receipt
+for a request rejected by the policy evaluator.
+-/
+theorem T2_rejected_cannot_mint_receipt
+    (state : PolicyState)
+    (request : Request)
+    (rejected : evaluate state request = .reject) :
+    mintReceipt state request = none := by
+  simp [mintReceipt, rejected]
+
+def witnessProvenance : ProvenanceResult :=
+  {
+    subjectDigest := "sha256:witness"
+    accepted := true
+    sourceRepository := "github.com/szl-holdings/a11oy"
+  }
+
+def positiveRequest : Request :=
+  {
+    principal := "agent:build-1"
+    action := .artifactBuild
+    artifactDigest := "sha256:witness"
+    environment := .staging
+    expiresAt := 10
+    approval := none
+    provenance := witnessProvenance
+    rollbackTarget := none
+  }
+
+def positiveRule : Rule :=
+  {
+    principal := positiveRequest.principal
+    action := positiveRequest.action
+    artifactDigest := positiveRequest.artifactDigest
+    environment := positiveRequest.environment
+  }
+
+def positiveState : PolicyState :=
+  {
+    now := 1
+    version := "policy:witness"
+    rules := [positiveRule]
+    revokedPrincipals := []
+    revokedVersions := []
+  }
+
+def negativeRequest : Request :=
+  { positiveRequest with principal := "agent:not-authorized" }
+
+theorem positive_authorization_witness :
+    evaluate positiveState positiveRequest = .allow := by
+  decide
+
+theorem non_vacuity_authorized_action_exists :
+    ∃ state request, Executable state request :=
+  ⟨positiveState, positiveRequest, positive_authorization_witness⟩
+
+theorem negative_default_denial_witness :
+    evaluate positiveState negativeRequest = .reject := by
+  decide
+
+theorem negative_receipt_witness :
+    mintReceipt positiveState negativeRequest = none := by
+  decide
 
 end LutarPolicy

@@ -1,31 +1,28 @@
-<!--
-SPDX-License-Identifier: Apache-2.0
-(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
--->
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
-# Executive summary
+# Operation Verified Throughput executive summary
 
-Primary status: **PREPARED IN A PR**
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
-Generated: `2026-07-26T08:09:12.347408Z`
+## Outcome
 
-Status vocabulary: **DEPLOYED**, **IMPLEMENTED NOT DEPLOYED**, **PREPARED IN A PR**, **PROVED**, **MEASURED**, **MODELED**, **FAILED**, **BLOCKED**, **AWAITING AUTHORIZATION**, **DOWNGRADED**, and **RETIRED** are distinct and are not interchangeable.
+| Workstream | Status | Evidence |
+|---|---|---|
+| Live Phase 0 inventory | MEASURED | 57 visible repositories; canonical detail captured in `audit/` |
+| Critical-path source restore | MEASURED | 363 files; 0 mismatches; archive `4a4d0fc563a516c1104f06b8617a8e3d6300057bf2d14201703b63f9e3dda6f2` |
+| Policy schemas and Ed25519 receipt boundary | IMPLEMENTED NOT DEPLOYED | `schemas/` and `packages/policy/src/verified/` |
+| Runtime conformance | PASS | 105 assertions; receipt `audit/policy-runtime-verification.json` |
+| Lean T1/T2 | PASS | Kernel check PASS; artifact `sha256:d5988892503c025a1158038744ab518d048bdd022c32e718d4ab8e67eced6380` |
+| Declared doctrine/HF delivery path | IMPLEMENTED NOT DEPLOYED | PASS; deterministic payload `sha256:81e41890d43d84b7a473cbf5c32d61d90848ec407fcc254d8667d049503acfb8` |
+| Broader SPA build | FAILED | 12 requested workspace packages have no tracked manifest |
+| Public proof-count change | RETIRED | No change; independent statement review and four-theorem gate are unmet |
+| Production enforcement or traffic cutover | AWAITING AUTHORIZATION | Not attempted |
 
-The branch establishes a deny-by-default agent-action boundary, strict schemas, signed expiring authorization receipts, a public-key-only execution verifier, a pinned Lean 4.18.0 model for T1/T2, a proposed reusable build boundary, warning-mode Sigstore manifests, secret-safe GenAI telemetry, a fail-closed serving benchmark harness, and a generated Phase 0 inventory.
+## Gate decision
 
-Verified results:
+**FAILED:** the operation is not operational. Cloud/cluster inventory, production backup
+restore, independently verified staging provenance, admission rejection, identical-hardware
+serving results, end-to-end telemetry, rollback, and independent review remain open.
 
-- **MEASURED:** 27 focused Python tests pass, including five strict schemas, 168 exhaustive runtime-refinement cases, adversarial receipt checks, cross-platform manifest determinism, and report-package integrity.
-- **MODELED:** Lean T1 default denial and T2 rejected-implies-non-executable compile with positive, negative, mutation, and premise-removal controls.
-- **DOWNGRADED:** Putnam is corrected from stale `4/12 GREEN` text to **0/12 PROVED**.
-- **MEASURED:** existing GHCR artifact `sha256:5f3f48219d0c74f29ebfd6df6d7b8b68903daf6772cf6483124f458a3beca416` independently verifies to source `7ccf04fb65f060115fb01392c739bb4e6c2fe5b8`, run 30187276319, Rekor 2255395975.
-- **DEPLOYED / MEASURED:** A11oy runtime build-info matches protected main `af43e4b71529c2bab3227763fdb4b5969c2cd6ce`.
-- **DEPLOYED / MEASURED:** Killinchu runtime build-info matches protected main `3bafc337446548902ee28086c3c6c17b486e70e9`; `/code`, `/chat`, and the honest endpoint return HTTP 200.
-- **MEASURED:** the canonical web application builds and typechecks from the immutable `vendor/platform` gitlink without no-op package stubs.
-- **MEASURED:** Both immutable Space snapshots were archived, restored into fresh directories, and matched their original path/size/SHA-256 manifests byte-for-byte.
-- **BLOCKED:** cloud identity, an owned staging cluster, admission negative controls, controlled GPU benchmarks, exact new-builder evidence, and an end-to-end staging release.
-
-Owner authorization was received. Production enforcement and traffic cutover are still blocked by unavailable infrastructure and independent evidence gates, not by missing consent.
-
-No GitHub ruleset, branch-protection, review, check-context, bypass, or approval mutation was performed.
-The separately owned canonical governance implementation is PR #317 with zero human approvals and App-owned required attestation; this branch does not modify or reinterpret it.
+Source baseline: `d1e63459b3e5fa36456f3a84cb243e1d430c6e67`. This report describes branch work, not a deployment.

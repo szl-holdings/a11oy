@@ -1,16 +1,19 @@
-<!--
-SPDX-License-Identifier: Apache-2.0
-(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
--->
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
 # Runtime conformance
 
-Primary status: **MEASURED**
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
-Generated: `2026-07-26T08:09:12.347408Z`
+| Suite | Status | Assertions |
+|---|---|---|
+| test:policy-contract | PASS | 11 |
+| test:policy-negative | PASS | 38 |
+| test:policy-mutation | PASS | 10 |
+| test:policy-differential | PASS | 46 |
+| policy-typecheck | PASS |  |
 
-Status vocabulary: **DEPLOYED**, **IMPLEMENTED NOT DEPLOYED**, **PREPARED IN A PR**, **PROVED**, **MEASURED**, **MODELED**, **FAILED**, **BLOCKED**, **AWAITING AUTHORIZATION**, **DOWNGRADED**, and **RETIRED** are distinct and are not interchangeable.
+Total assertions emitted by the harness: 105.
 
-Focused run: `27 passed`. The suite checks strict Draft 2020-12 schemas, default denial, DENY-to-no-receipt, exact signed receipt acceptance, environment/principal/artifact/policy binding, signature tamper, request replay, expiry, revocation, mutable target, unknown field, unsupported action, absent human approval, all 168 finite refinement cases, append-only lifecycle behavior, telemetry redaction, mandatory sampling, telemetry non-authorization, cross-platform manifest determinism, and evidence-package completeness.
-
-The issuer accepts an injected P-256 private key. `WorkerVerifier` rejects private keys by type and holds only the public key. No key material is committed.
+**MODELED:** the independent TypeScript reference model covers a finite test domain. It does
+not establish complete refinement to Lean or prove a production worker calls the boundary.

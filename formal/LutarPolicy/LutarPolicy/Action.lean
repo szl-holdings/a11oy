@@ -2,26 +2,31 @@
 SPDX-License-Identifier: Apache-2.0
 (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 -/
+
+import LutarPolicy.Identity
+import LutarPolicy.Environment
+import LutarPolicy.Artifact
+import LutarPolicy.Approval
+
 namespace LutarPolicy
 
-inductive Action where
+inductive ActionType where
+  | artifactBuild
   | deployStaging
   | deployProduction
-  | rotateSecret
-  | changeIdentity
-  | changePolicy
-  | migrateDatabase
-  | changeTraffic
-  | changeRuleset
-  | changeAdmission
-  | promoteModel
-  | publishBenchmark
-  | upgradeClaim
-  | destroyInfrastructure
+  | secretRotate
+  | identityChange
   deriving DecidableEq, Repr
 
-def Action.highRisk : Action → Bool
-  | .deployStaging => false
-  | _ => true
+structure Request where
+  principal : Principal
+  action : ActionType
+  artifactDigest : ArtifactDigest
+  environment : Environment
+  expiresAt : Nat
+  approval : Option Approval
+  provenance : ProvenanceResult
+  rollbackTarget : Option ArtifactDigest
+  deriving DecidableEq, Repr
 
 end LutarPolicy

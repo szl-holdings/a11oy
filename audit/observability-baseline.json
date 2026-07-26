@@ -1,22 +1,17 @@
 {
-  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
-  "data": {
-    "collectors": [],
-    "content_capture": false,
-    "exporters": [],
-    "genai_schema_url": "https://opentelemetry.io/schemas/1.42.0",
-    "mandatory_event_sampling": "100 percent contract tested",
-    "redaction": "recursive pre-export contract tested",
-    "retention": {
-      "reason": "collector environment unavailable",
-      "status": "BLOCKED"
-    },
-    "status": "IMPLEMENTED NOT DEPLOYED",
-    "trace_access_acls": {
-      "reason": "telemetry backend unavailable",
-      "status": "BLOCKED"
-    }
+  "content_capture": {
+    "reason": "production collector configuration is unavailable",
+    "status": "UNKNOWN"
   },
-  "generated_at": "2026-07-26T08:09:00.789958Z",
-  "generator": "scripts/generate_operation_inventory.py"
+  "generated_at": "2026-07-26T08:52:41+00:00",
+  "label": "MEASURED",
+  "live_collector": {
+    "reason": "no production collector credentials or endpoint were supplied",
+    "status": "BLOCKED"
+  },
+  "tracked_surfaces": [
+    "vsp_otel",
+    "docs/OBSERVABILITY_SECURITY.md",
+    "szl_observability.py"
+  ]
 }

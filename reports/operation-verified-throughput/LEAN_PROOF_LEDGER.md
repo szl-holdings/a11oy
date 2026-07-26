@@ -1,22 +1,23 @@
-<!--
-SPDX-License-Identifier: Apache-2.0
-(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
--->
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
 # Lean proof ledger
 
-Primary status: **MODELED**
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
-Generated: `2026-07-26T08:09:12.347408Z`
+Toolchain: `leanprover/lean4:v4.13.0`. Mathlib input:
+`git#v4.13.0`. Manifest:
+`sha256:c17630081c4d53839e1d97d096106067b364ab70f424005c85dcf02ee32222e5`.
 
-Status vocabulary: **DEPLOYED**, **IMPLEMENTED NOT DEPLOYED**, **PREPARED IN A PR**, **PROVED**, **MEASURED**, **MODELED**, **FAILED**, **BLOCKED**, **AWAITING AUTHORIZATION**, **DOWNGRADED**, and **RETIRED** are distinct and are not interchangeable.
+| Declaration | Kernel check | Claim status |
+|---|---|---|
+| T1_default_denial | PASS | IMPLEMENTED NOT DEPLOYED |
+| T1_default_denial_not_executable | PASS | IMPLEMENTED NOT DEPLOYED |
+| T2_rejected_cannot_mint_receipt | PASS | IMPLEMENTED NOT DEPLOYED |
 
-| Theorem | Kernel build | Non-vacuity | Runtime mapping | Public status |
-| --- | --- | --- | --- | --- |
-| T1 default denial | PASS | positive + negative + mutation + compile-failing premise removal | exhaustive finite evaluator | MODELED; not publicly PROVED |
-| T2 rejected implies non-executable | PASS | same executable witness domain; DENY cannot mint | issuer and lifecycle negative tests | MODELED; not publicly PROVED |
-| T3-T12 | not implemented | absent | absent | PLANNED |
+Positive witness: `non_vacuity_authorized_action_exists`. Negative witness:
+`negative_default_denial_witness`. The critical-premise-removal fixture
+failed to compile as required.
 
-Toolchain: `leanprover/lean4:v4.18.0`. Mathlib: `git#v4.18.0`, resolved in committed `lake-manifest.json`. Command `lake build` passed locally.
-
-Public count: **0/12 PROVED**. The minimum four-theorem depth gate and independent English-statement review are unsatisfied. No reviewer approval is invented or self-issued.
+**AWAITING AUTHORIZATION:** independent English-statement review is absent.
+**RETIRED:** no public `PROVED` count change is made by this branch.

@@ -1,34 +1,28 @@
-<!--
-SPDX-License-Identifier: Apache-2.0
-(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
--->
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
 # Final acceptance
 
-Primary status: **BLOCKED**
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
-Generated: `2026-07-26T08:09:12.347408Z`
+| Gate | Status |
+|---|---|
+| Pinned Lean build and T1/T2 checks | PASS |
+| Runtime policy conformance receipt | PASS |
+| Critical-path source restore | MEASURED |
+| Clean-checkout doctrine and payload commands | PASS |
+| Broader web workspace build | FAILED |
+| Production cloud and cluster inventory | BLOCKED |
+| Independent theorem statement review | AWAITING AUTHORIZATION |
+| SLSA artifact generation and independent verification | BLOCKED |
+| Unsigned-image admission rejection | BLOCKED |
+| Identical-hardware vLLM/SGLang results | BLOCKED |
+| End-to-end OpenTelemetry trace and redaction | BLOCKED |
+| Staging rollback | BLOCKED |
+| Production enforcement and traffic cutover | AWAITING AUTHORIZATION |
 
-Status vocabulary: **DEPLOYED**, **IMPLEMENTED NOT DEPLOYED**, **PREPARED IN A PR**, **PROVED**, **MEASURED**, **MODELED**, **FAILED**, **BLOCKED**, **AWAITING AUTHORIZATION**, **DOWNGRADED**, and **RETIRED** are distinct and are not interchangeable.
+## Decision
 
-This execution is accepted as **PREPARED IN A PR** implementation progress, not as a production rollout.
-
-| Definition-of-done group | Result |
-| --- | --- |
-| Strict schemas, deny-by-default policy, signed bounded receipts, rejected non-execution | MEASURED locally |
-| Pinned Lean build and T1/T2 witnesses | MODELED; 0/12 PROVED publicly |
-| Doctrine and Hugging Face payload commands | MEASURED PASS; payload tree stable across two consecutive runs |
-| Action pin inventory | MEASURED |
-| Protected reusable build | PREPARED IN A PR |
-| Exact SBOM, scan, signature, dual provenance from new builder | BLOCKED |
-| Staging admission and unsigned rejection | BLOCKED |
-| Immutable deploy, blue-green, live rollback | BLOCKED on owned staging infrastructure |
-| Hugging Face source backup and offline restoration | MEASURED |
-| vLLM/SGLang identical-environment matrix | BLOCKED |
-| OTel GenAI redaction and mandatory sampling | MEASURED locally; backend BLOCKED |
-| Live A11oy identity | MEASURED MATCH |
-| Live Killinchu identity/source completeness | DEPLOYED / MEASURED MATCH |
-| Canonical web application build and typecheck | MEASURED PASS |
-| Independent reproducibility/review | BLOCKED |
-
-Production enforcement and traffic cutover are stopped. Unresolved high-severity findings block production.
+**FAILED:** Operation Verified Throughput is not accepted as operational. This branch is a
+reviewable implementation slice and evidence package. It stops before production enforcement,
+traffic cutover, paid hardware, destructive infrastructure, or public claim upgrades.

@@ -1,0 +1,111 @@
+{
+  "claim_label": "IMPLEMENTED NOT DEPLOYED",
+  "commands": [
+    {
+      "command": [
+        "lake.EXE",
+        "update"
+      ],
+      "expected": "zero exit",
+      "name": "lake-update",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/formal-logs/lake-update.stderr.txt",
+      "stderr_sha256": "sha256:64cafc2206adf3359adbdf04138a4cb5d3624ea5294309ca7325284ceaa77c9d",
+      "stdout": "audit/formal-logs/lake-update.stdout.txt",
+      "stdout_sha256": "sha256:ecdf0db9c7a1f4ed42898dc8cf8922b7b9b66d5dbd8f4fd86aea7f9b45b42765"
+    },
+    {
+      "command": [
+        "lake.EXE",
+        "build"
+      ],
+      "expected": "zero exit",
+      "name": "lake-build",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/formal-logs/lake-build.stderr.txt",
+      "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "audit/formal-logs/lake-build.stdout.txt",
+      "stdout_sha256": "sha256:8cfb9033d39a87fb69c12eae73c7237e2f0c76f7fe05a5c65df40cf071c49c90"
+    },
+    {
+      "command": [
+        "lake.EXE",
+        "env",
+        "lean",
+        "LutarPolicy/Theorems.lean"
+      ],
+      "expected": "zero exit",
+      "name": "theorems",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/formal-logs/theorems.stderr.txt",
+      "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "audit/formal-logs/theorems.stdout.txt",
+      "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "lake.EXE",
+        "env",
+        "lean",
+        "LutarPolicy/Tests/Mutation.lean"
+      ],
+      "expected": "zero exit",
+      "name": "mutation",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/formal-logs/mutation.stderr.txt",
+      "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "audit/formal-logs/mutation.stdout.txt",
+      "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "lake.EXE",
+        "env",
+        "lean",
+        "negative-fixtures/RemovedDefaultDenialPremise.lean"
+      ],
+      "expected": "nonzero exit",
+      "name": "critical-premise-removal",
+      "returncode": 1,
+      "status": "PASS",
+      "stderr": "audit/formal-logs/critical-premise-removal.stderr.txt",
+      "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "audit/formal-logs/critical-premise-removal.stdout.txt",
+      "stdout_sha256": "sha256:6d8c61e1b0df9b7e9b71042cfeb21763236d4a95f5e434e4a123f47f910c7504"
+    }
+  ],
+  "formal_artifact_digest": "sha256:d5988892503c025a1158038744ab518d048bdd022c32e718d4ab8e67eced6380",
+  "generated_at": "2026-07-26T08:54:59+00:00",
+  "independent_statement_review": {
+    "reason": "A second human reviewer has not signed the English theorem statements.",
+    "status": "AWAITING AUTHORIZATION"
+  },
+  "kernel_check": "PASS",
+  "non_vacuity": {
+    "assumption_mutation": "LutarPolicy/Tests/Mutation.lean",
+    "critical_premise_removal": "negative-fixtures/RemovedDefaultDenialPremise.lean",
+    "negative_witness": "negative_default_denial_witness",
+    "positive_witness": "non_vacuity_authorized_action_exists",
+    "receipt_negative_witness": "negative_receipt_witness"
+  },
+  "paths_match_source_commit": true,
+  "public_proved_count_change": 0,
+  "public_proved_count_reason": "Only T1/T2 are in scope and independent English-statement review is absent.",
+  "source_commit": "d1e63459b3e5fa36456f3a84cb243e1d430c6e67",
+  "theorem_declarations": [
+    "T1_default_denial",
+    "T1_default_denial_not_executable",
+    "T2_rejected_cannot_mint_receipt"
+  ],
+  "toolchain": {
+    "lake": "Lake version 5.0.0-6d22e0e (Lean version 4.13.0)",
+    "lake_manifest_sha256": "sha256:c17630081c4d53839e1d97d096106067b364ab70f424005c85dcf02ee32222e5",
+    "lean": "Lean (version 4.13.0, x86_64-w64-windows-gnu, commit 6d22e0e5cc5a, Release)",
+    "lean_toolchain": "leanprover/lean4:v4.13.0",
+    "mathlib_input": "git#v4.13.0"
+  }
+}

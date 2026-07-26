@@ -1,29 +1,19 @@
-<!--
-SPDX-License-Identifier: Apache-2.0
-(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
--->
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
-# Architecture
+# Operation Verified Throughput architecture
 
-Primary status: **IMPLEMENTED NOT DEPLOYED**
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
-Generated: `2026-07-26T08:09:12.347408Z`
+## Five-plane status
 
-Status vocabulary: **DEPLOYED**, **IMPLEMENTED NOT DEPLOYED**, **PREPARED IN A PR**, **PROVED**, **MEASURED**, **MODELED**, **FAILED**, **BLOCKED**, **AWAITING AUTHORIZATION**, **DOWNGRADED**, and **RETIRED** are distinct and are not interchangeable.
+| Plane | Implemented slice | Status |
+|---|---|---|
+| Control | Strict action schema and deterministic policy evaluator | IMPLEMENTED NOT DEPLOYED |
+| Verification | Pinned Lean T1/T2 plus non-vacuity and mutation evidence | IMPLEMENTED NOT DEPLOYED |
+| Execution | Independent receipt verification API only | IMPLEMENTED NOT DEPLOYED |
+| Supply chain | Read-only pin/provenance inventory | BLOCKED: no new staging artifact |
+| Evidence | Script-emitted audit and report bundle | IMPLEMENTED NOT DEPLOYED |
 
-```text
-untrusted proposal
-  -> strict schema
-  -> finite policy evaluation
-  -> human approval when high risk
-  -> ECDSA receipt issuer (private key)
-  -> append-only lifecycle
-  -> execution worker (public key only)
-  -> reusable build -> SBOM/scan/sign/attest
-  -> independent verification
-  -> admission -> staging -> observation
-```
-
-The authorization plane, execution plane, build plane, admission plane, and observability plane are separate. Telemetry can record a decision but cannot authorize it. Production identity is an exact tuple of source commit, artifact digest, model/tokenizer revisions when applicable, runtime, environment, and observation time.
-
-The repository's operational Hugging Face surface is `pnpm payload:huggingface`; the diligence demo is `pnpm test:doctrine` in `web/packages/a11oy-core`. The canonical web application is the immutable `vendor/platform` gitlink at `6e0dc7b423fbcfb2c165348e60b41cd55a9b9ace`, using its declared `pnpm@10.26.1` toolchain and `@workspace/a11oy` artifact. A clean production build and typecheck are **MEASURED**. The partial root `web/` mirror is **RETIRED** as an application build target and remains only for doctrine, historical, and static sources.
+The execution worker, build worker, verifier, and admission controller remain separate trust
+roles by contract. No production worker was changed or deployed.

@@ -1,0 +1,26 @@
+Scope: all 9 workspace projects
+✓ Lockfile passes supply-chain policies (verified 41m ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +331
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 331, reused 331, downloaded 0, added 35
+Progress: resolved 331, reused 331, downloaded 0, added 60
+Progress: resolved 331, reused 331, downloaded 0, added 110
+Progress: resolved 331, reused 331, downloaded 0, added 237
+Progress: resolved 331, reused 331, downloaded 0, added 315
+Progress: resolved 331, reused 331, downloaded 0, added 331, done
+
+devDependencies:
++ @types/jest 30.0.0
++ @types/js-yaml 4.0.9
++ @types/node 26.1.1
++ ajv 8.20.0
++ ajv-formats 3.0.1
++ jest 30.4.2
++ js-yaml 5.2.2
++ ts-jest 29.4.11
++ tsx 4.23.1
++ typescript 6.0.3
+
+Done in 6.4s using pnpm v11.9.0

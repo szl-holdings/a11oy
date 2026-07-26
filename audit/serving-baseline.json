@@ -1,21 +1,13 @@
 {
-  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
-  "data": {
-    "benchmark_client": {
-      "name": "vllm-project/vllm-bench",
-      "version": "0.1.0",
-      "x86_64_linux_musl_digest": "sha256:e2e246dfe34cd603b85e4d763f9aa6d60940be8b9cef48221f8a70d78420716c"
-    },
-    "candidate_versions_not_compatibility_tested": {
-      "sglang": "0.5.16",
-      "vllm": "0.26.0"
-    },
-    "endpoints": [],
-    "hardware": "UNAVAILABLE",
-    "model_revision": "UNAVAILABLE",
-    "status": "BLOCKED",
-    "tokenizer_revision": "UNAVAILABLE"
+  "benchmark_baseline": {
+    "reason": "no identical-hardware vLLM/SGLang run has been executed",
+    "status": "BLOCKED"
   },
-  "generated_at": "2026-07-26T08:09:00.789958Z",
-  "generator": "scripts/generate_operation_inventory.py"
+  "generated_at": "2026-07-26T08:52:41+00:00",
+  "hardware": {
+    "reason": "no authorized identical-GPU staging node is connected to this run",
+    "status": "BLOCKED"
+  },
+  "label": "MEASURED",
+  "source_signals": []
 }

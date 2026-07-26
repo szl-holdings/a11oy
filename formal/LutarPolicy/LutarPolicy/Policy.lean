@@ -2,10 +2,8 @@
 SPDX-License-Identifier: Apache-2.0
 (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 -/
+
 import LutarPolicy.Action
-import LutarPolicy.Identity
-import LutarPolicy.Artifact
-import LutarPolicy.Environment
 
 namespace LutarPolicy
 
@@ -14,30 +12,49 @@ inductive Decision where
   | reject
   deriving DecidableEq, Repr
 
-structure Request where
+structure Rule where
   principal : Principal
-  action : Action
-  artifact : Artifact
+  action : ActionType
+  artifactDigest : ArtifactDigest
   environment : Environment
-  matchingRule : Bool
-  validApproval : Bool
   deriving DecidableEq, Repr
 
-def evaluate (request : Request) : Decision :=
-  if request.matchingRule &&
-      (!request.action.highRisk || request.validApproval) &&
-      (request.environment != .production ||
-        (request.artifact.provenanceAccepted && request.artifact.rollbackAvailable))
-  then .allow
-  else .reject
+structure PolicyState where
+  now : Nat
+  version : PolicyVersion
+  rules : List Rule
+  revokedPrincipals : List Principal
+  revokedVersions : List PolicyVersion
+  deriving DecidableEq, Repr
 
-def executable : Decision → Prop
-  | .allow => True
-  | .reject => False
+def RuleMatches (rule : Rule) (request : Request) : Prop :=
+  rule.principal = request.principal ∧
+    rule.action = request.action ∧
+    rule.artifactDigest = request.artifactDigest ∧
+    rule.environment = request.environment
 
-instance (decision : Decision) : Decidable (executable decision) :=
-  match decision with
-  | .allow => isTrue trivial
-  | .reject => isFalse id
+instance (rule : Rule) (request : Request) : Decidable (RuleMatches rule request) :=
+  by
+    unfold RuleMatches
+    infer_instance
+
+def HasMatchingRule (state : PolicyState) (request : Request) : Prop :=
+  ∃ rule ∈ state.rules, RuleMatches rule request
+
+instance (state : PolicyState) (request : Request) :
+    Decidable (HasMatchingRule state request) :=
+  by
+    unfold HasMatchingRule
+    infer_instance
+
+def evaluate (state : PolicyState) (request : Request) : Decision :=
+  if state.revokedPrincipals.contains request.principal then
+    .reject
+  else if state.revokedVersions.contains state.version then
+    .reject
+  else if HasMatchingRule state request then
+    .allow
+  else
+    .reject
 
 end LutarPolicy

@@ -28,6 +28,18 @@ being filled with no-op pages or fabricated packages.
 
 ---
 
+## Operational identity
+
+**MEASURED:** a11oy is a full deployable application — UI, runtime, server, and shipped libraries —
+and also a TypeScript workspace. Its operational Hugging Face surface is produced by
+`pnpm payload:huggingface`. Its diligence demo is `pnpm test:doctrine` running vitest
+in web/packages/a11oy-core.
+
+The broader `web/` workspace still carries parent-monorepo dependencies; that clean-checkout
+build gap is tracked separately and is not erased by the deployable Hugging Face payload path.
+
+---
+
 ## 1. The synthesis thesis — governed code-as-action
 
 **EXISTS (source-level)** — the runtime source includes a path that

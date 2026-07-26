@@ -2,18 +2,24 @@
 SPDX-License-Identifier: Apache-2.0
 (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 -/
+
 import LutarPolicy.Transition
 
 namespace LutarPolicy
 
 structure AuditEvent where
-  requestId : String
-  fromState : Lifecycle
-  toState : Lifecycle
-  traceId : String
+  principal : Principal
+  artifactDigest : ArtifactDigest
+  policyVersion : PolicyVersion
+  decision : Decision
   deriving DecidableEq, Repr
 
-def emitsRequiredAuditEvent (event : AuditEvent) : Prop :=
-  validTransition event.fromState event.toState = true ∧ event.requestId ≠ "" ∧ event.traceId ≠ ""
+def auditEvent (state : PolicyState) (request : Request) : AuditEvent :=
+  {
+    principal := request.principal
+    artifactDigest := request.artifactDigest
+    policyVersion := state.version
+    decision := evaluate state request
+  }
 
 end LutarPolicy

@@ -39,12 +39,38 @@ def test_action_request_accepts_immutable_complete_request_and_rejects_unknown_f
         "requested_transition": {"from": "staging", "to": "production"},
         "preconditions": [],
         "test_receipts": [],
-        "provenance_receipt": {"accepted": True},
+        "provenance_receipt": {
+            "receipt_digest": "sha256:" + "4" * 64,
+            "subject_digest": "sha256:" + "1" * 64,
+            "source_commit": "2" * 40,
+            "accepted": True,
+            "verifier": "github-attestations",
+            "verified_at": "2026-07-26T11:59:00Z",
+            "source_repository": "github.com/szl-holdings/a11oy",
+        },
         "security_receipts": [],
-        "blast_radius": {},
-        "rollback": {"target_digest": "sha256:" + "3" * 64, "procedure": "restore digest"},
+        "blast_radius": {
+            "services": ["a11oy"],
+            "users": "authorized internal users",
+            "data": "no migration",
+        },
+        "rollback": {
+            "receipt_digest": "sha256:" + "5" * 64,
+            "target_digest": "sha256:" + "3" * 64,
+            "verified": True,
+            "tested_at": "2026-07-26T11:58:00Z",
+        },
         "human_approvals": [
-            {"approver": "human:release-owner", "scope": "production", "approved_at": "2026-07-26T12:00:00Z"}
+            {
+                "approver": "human:release-owner",
+                "action_type": "deploy.production",
+                "target_digest": "sha256:" + "1" * 64,
+                "environment": "production",
+                "approved_at": "2026-07-26T12:00:00Z",
+                "expires_at": "2026-07-26T12:04:00Z",
+                "key_id": "human:release-owner:key-1",
+                "signature": "A" * 64,
+            }
         ],
         "expires_at": "2026-07-26T12:05:00Z",
     }

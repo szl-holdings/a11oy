@@ -1,70 +1,79 @@
 {
-  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
-  "data": {
-    "coordination_lock": "Preserve external protection state; do not reapply approvals or checks.",
-    "mutation": "NONE",
-    "rulesets": [
-      {
-        "_links": {
-          "html": {
-            "href": "https://github.com/szl-holdings/a11oy/rules/17630223"
-          },
-          "self": {
-            "href": "https://api.github.com/repos/szl-holdings/a11oy/rulesets/17630223"
-          }
-        },
-        "created_at": "2026-06-12T22:11:05.916-04:00",
-        "enforcement": "active",
-        "id": 17630223,
-        "name": "org-default-branch-protection",
-        "node_id": "RRS_lACkVXNlcs4QSyewzgENBA8",
-        "source": "szl-holdings",
-        "source_type": "Organization",
-        "target": "branch",
-        "updated_at": "2026-07-26T01:21:22.336-04:00"
-      },
-      {
-        "_links": {
-          "html": {
-            "href": "https://github.com/szl-holdings/a11oy/rules/15812921"
-          },
-          "self": {
-            "href": "https://api.github.com/repos/szl-holdings/a11oy/rulesets/15812921"
-          }
-        },
-        "created_at": "2026-04-30T23:26:54.372-04:00",
-        "enforcement": "active",
-        "id": 15812921,
-        "name": "Protect release tags",
-        "node_id": "RRS_lACqUmVwb3NpdG9yec5JEL6OzgDxSTk",
-        "source": "szl-holdings/a11oy",
-        "source_type": "Repository",
-        "target": "tag",
-        "updated_at": "2026-07-25T22:24:19.238-04:00"
-      },
-      {
-        "_links": {
-          "html": {
-            "href": "https://github.com/szl-holdings/a11oy/rules/16195484"
-          },
-          "self": {
-            "href": "https://api.github.com/repos/szl-holdings/a11oy/rulesets/16195484"
-          }
-        },
-        "created_at": "2026-05-10T12:40:53.593-04:00",
-        "enforcement": "active",
-        "id": 16195484,
-        "name": "series-a-default-branch",
-        "node_id": "RRS_lACqUmVwb3NpdG9yec5JEL6OzgD3H5w",
-        "source": "szl-holdings/a11oy",
-        "source_type": "Repository",
-        "target": "branch",
-        "updated_at": "2026-07-26T01:27:14.671-04:00"
-      }
-    ],
-    "source": "GitHub rulesets API including parent rulesets",
-    "status": "MEASURED"
+  "canonical_main_protection": {
+    "allow_deletions": false,
+    "allow_force_pushes": false,
+    "enforce_admins": true,
+    "required_conversation_resolution": false,
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": false,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": false,
+      "required_approving_review_count": 0
+    },
+    "required_signatures": false,
+    "required_status_checks": {
+      "checks": [
+        {
+          "app_id": 15368,
+          "context": "anatomy-map-drift / Anatomy map honest & in sync (locked-8 + \u039b=Conjecture-1)"
+        }
+      ],
+      "contexts": [
+        "anatomy-map-drift / Anatomy map honest & in sync (locked-8 + \u039b=Conjecture-1)"
+      ],
+      "strict": false
+    },
+    "restriction_counts": {
+      "apps": 0,
+      "teams": 0,
+      "users": 0
+    }
   },
-  "generated_at": "2026-07-26T08:09:00.789958Z",
-  "generator": "scripts/generate_operation_inventory.py"
+  "canonical_repository_rulesets": [
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "org-default-branch-protection",
+      "rules": [],
+      "source_type": "Organization",
+      "target": "branch"
+    },
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "Protect release tags",
+      "rules": [],
+      "source_type": "Repository",
+      "target": "tag"
+    },
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "series-a-default-branch",
+      "rules": [],
+      "source_type": "Repository",
+      "target": "branch"
+    }
+  ],
+  "generated_at": "2026-07-26T08:52:31+00:00",
+  "label": "MEASURED",
+  "mutation": "none",
+  "organization_rulesets": [
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "org-default-branch-protection",
+      "rules": [],
+      "source_type": "Organization",
+      "target": "branch"
+    }
+  ]
 }
