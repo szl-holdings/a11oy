@@ -3,7 +3,7 @@ name: copy-sync lockstep guard
 # PERMANENT CI guard (Doctrine v11). Stops the recurring failure that broke the
 # SZL estate three times on 2026-06-13: a module/asset is added to GitHub and
 # referenced (an `import` in serve.py, or a Dockerfile `COPY`) but is NOT in BOTH
-# the Dockerfile COPY set AND the hf-sync mirror set — so the HF Space either
+# the Dockerfile COPY set AND the hf-sync deployment contract — so the HF Space either
 # BUILD_ERRORs (COPY of a file the Space never received) or silently serves a stub
 # (a try/except-guarded import falls back because the module was never in the image).
 #
@@ -12,9 +12,9 @@ name: copy-sync lockstep guard
 # only, ast for imports) and cross-checks three sets in one pass:
 #   CHECK 1  every Dockerfile COPY/ADD source exists in the repo.
 #   CHECK 2  every LOCAL .py module serve.py imports (transitively) is in the COPY set.
-#   CHECK 3  every non-.py asset COPY'd PER-FILE is in the hf-sync mirror set
-#            (on.push.paths / front-door globs) or declared image-only in
-#            .github/copy-sync-lockstep.json.
+#   CHECK 3  every non-.py asset COPY'd PER-FILE is covered by the pinned
+#            Dockerfile-derived reusable deployer, a legacy mirror set, or an
+#            explicit image-only declaration in .github/copy-sync-lockstep.json.
 # Any violation FAILS the job with a clear, file-named message.
 
 on:

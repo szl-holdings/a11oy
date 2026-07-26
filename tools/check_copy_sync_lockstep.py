@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 #
-# Dockerfile COPY  <->  serve.py imports  <->  hf-sync mirror  LOCKSTEP guard.
+# Dockerfile COPY  <->  serve.py imports  <->  hf-sync deploy  LOCKSTEP guard.
 #
 # PERMANENT CI guard (no bandaid). Stops the recurring failure that broke the SZL
 # estate three times on 2026-06-13: a module/asset is added to the GitHub repo and
 # referenced (an `import` in serve.py, or a Dockerfile `COPY`), but it is NOT in
-# BOTH the Dockerfile COPY set AND the hf-sync mirror set — so the HF Space either
+# BOTH the Dockerfile COPY set AND the hf-sync deployment contract — so the Space either
 # BUILD_ERRORs (COPY of a file the Space never received) or silently serves a stub
 # (a try/except-guarded import falls back because the module was never in the image).
 #
@@ -27,14 +27,14 @@
 #       stub at runtime. (Reproduces joules #349: szl_joules_truth.py imported,
 #        never COPY'd -> silent stub -> merged-but-not-live.)
 #
-#   CHECK 3 — explicitly-COPY'd non-.py served assets are mirrored to HF.
+#   CHECK 3 — explicitly-COPY'd non-.py served assets are deployed to HF.
 #       Every NON-.py asset brought in by an EXPLICIT PER-FILE Dockerfile COPY
 #       (e.g. `COPY static/cathedral_app.js ...`, `COPY cathedral_genius.html ...`)
-#       must be in the hf-sync mirror set (APP_FILES / on.push.paths / front-door
-#       globs). A per-file COPY is the signal a dev hand-added ONE served file; if it
-#       is not also mirrored, the GitHub-built image has it but the HF Space never
-#       receives it => GitHub<->HF drift / BUILD_ERROR. This is EXACTLY the a11oy
-#       cathedral_app.js / cathedral_genius.html incident.
+#       must be covered by the active deployment contract. The current contract
+#       calls a commit-pinned reusable deployer with `dockerfile-path: Dockerfile`;
+#       that controller derives the Space file set from COPY sources. Legacy callers
+#       may instead enumerate APP_FILES / on.push.paths / front-door globs. A
+#       per-file COPY that neither contract covers recreates GitHub<->HF drift.
 #       Assets brought in by a DIRECTORY or GLOB COPY (e.g. `COPY static/ ./static/`,
 #       `COPY console/ ./static/`) are the bulk vendored/built SPA tree that already
 #       lives baked on the Space and is intentionally NOT re-mirrored by hf-sync (its
@@ -255,8 +255,30 @@ def transitive_local_imports(root, entry_files, local_mods):
 
 
 # --------------------------------------------------------------------------- #
-# hf-sync mirror-set parsing.
+# hf-sync deployment-contract parsing.
 # --------------------------------------------------------------------------- #
+def has_source_derived_deploy_contract(hf_sync_text):
+    """Return True only for the pinned reusable Dockerfile-derived deploy lane.
+
+    The shared controller expands Dockerfile COPY sources and publishes that
+    exact set. Requiring both a commit-pinned controller and the explicit
+    Dockerfile input prevents a comment or unrelated reusable workflow from
+    satisfying CHECK 3.
+    """
+    pinned_controller = re.search(
+        r"uses:\s*szl-holdings/\.github/\.github/workflows/"
+        r"reusable-hf-deploy\.yml@[0-9a-fA-F]{40}\s*$",
+        hf_sync_text,
+        re.MULTILINE,
+    )
+    dockerfile_input = re.search(
+        r"^\s*dockerfile-path:\s*[\"']?Dockerfile[\"']?\s*$",
+        hf_sync_text,
+        re.MULTILINE,
+    )
+    return bool(pinned_controller and dockerfile_input)
+
+
 def parse_hf_sync_mirror(hf_sync_text):
     """
     Extract the hf-sync mirror set from a hf-sync.yml: the union of
@@ -424,13 +446,15 @@ def main():
             f"Add '{relfile}' to a Dockerfile COPY line."
         )
 
-    # ---------------- CHECK 3: non-.py COPY assets are mirrored ----------- #
+    # ---------------- CHECK 3: non-.py COPY assets are deployed ----------- #
     mirror_explicit = set()
     mirror_globs = []
+    source_derived_deploy = False
     hf_sync_present = os.path.isfile(hf_sync)
     if hf_sync_present:
         with open(hf_sync, "r", encoding="utf-8") as fh:
             hf_text = fh.read()
+        source_derived_deploy = has_source_derived_deploy_contract(hf_text)
         mirror_explicit, mirror_globs = parse_hf_sync_mirror(hf_text)
         # a11oy mirrors front-door pages/console globs inside the heredoc step.
         if "pages/*.html" in hf_text or "console/*.html" in hf_text:
@@ -442,6 +466,8 @@ def main():
         base = posixpath.basename(f)
         if not base.endswith(mirror_exts):
             continue  # only the served text asset types hf-sync owns
+        if source_derived_deploy:
+            continue  # reusable deployer publishes the exact Dockerfile source set
         if f in image_only:
             continue  # explicitly declared image-only (baked, not mirrored)
         if hf_sync_present and gha_path_matches(f, mirror_explicit, mirror_globs):
@@ -449,11 +475,13 @@ def main():
         check3_missing.append(f)
     for f in check3_missing:
         failures.append(
-            f"[CHECK 3: asset not mirrored to HF] '{f}' is a non-.py asset COPY'd "
-            f"into the image but is NOT in the hf-sync mirror set (APP_FILES / "
-            f"on.push.paths / front-door globs) — GitHub-built image has it, the HF "
-            f"Space never receives it => GitHub<->HF drift. Add '{f}' to hf-sync.yml's "
-            f"mirror set, or list it under \"image_only_assets\" in "
+            f"[CHECK 3: asset not deployed to HF] '{f}' is a non-.py asset COPY'd "
+            f"into the image but is NOT covered by hf-sync's source-derived deploy "
+            f"contract or legacy mirror set (APP_FILES / on.push.paths / front-door "
+            f"globs) — GitHub-built image has it, the HF Space never receives it "
+            f"=> GitHub<->HF drift. Add '{f}' to the legacy mirror set, use the "
+            f"pinned Dockerfile-derived deploy controller, or list it under "
+            f"\"image_only_assets\" in "
             f".github/copy-sync-lockstep.json if it is intentionally baked-only."
         )
 
@@ -466,8 +494,11 @@ def main():
     print(f"non-.py assets COPY'd PER-FILE (CHECK 3 scope): {len(perfile_assets)}")
     print(f"local modules reachable from serve.py imports: {len(reached_with_serve)}")
     if hf_sync_present:
-        print(f"hf-sync mirror set: {len(mirror_explicit)} explicit + "
-              f"{len(mirror_globs)} glob(s)")
+        if source_derived_deploy:
+            print("hf-sync deployment contract: pinned Dockerfile-derived reusable deploy")
+        else:
+            print(f"hf-sync legacy mirror set: {len(mirror_explicit)} explicit + "
+                  f"{len(mirror_globs)} glob(s)")
     else:
         print("hf-sync.yml not present — CHECK 3 mirror set is empty "
               "(only image_only/extra config honoured)")
