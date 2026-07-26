@@ -32,14 +32,25 @@
     }
   },
   "scripts": {
-    "test": "tsx src/gates/__tests__/policy_gates.test.ts && tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts && tsx src/contracts/__tests__/cross_repo_handoff_contracts.test.ts",
+    "test": "tsx src/gates/__tests__/policy_gates.test.ts && tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts && tsx src/contracts/__tests__/cross_repo_handoff_contracts.test.ts && tsx src/verified/__tests__/authorization_boundary.test.ts all",
     "test:gates": "tsx src/gates/__tests__/policy_gates.test.ts",
     "test:contracts": "tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts && tsx src/contracts/__tests__/cross_repo_handoff_contracts.test.ts",
+    "test:policy-contract": "tsx src/verified/__tests__/authorization_boundary.test.ts contract",
+    "test:policy-negative": "tsx src/verified/__tests__/authorization_boundary.test.ts negative",
+    "test:policy-mutation": "tsx src/verified/__tests__/authorization_boundary.test.ts mutation",
+    "test:policy-differential": "tsx src/verified/__tests__/authorization_boundary.test.ts differential",
     "typecheck": "tsc --noEmit --ignoreConfig --module NodeNext --moduleResolution NodeNext --target ES2022 --allowImportingTsExtensions --resolveJsonModule --esModuleInterop --allowSyntheticDefaultImports --types node src/index.ts src/gates/__tests__/policy_gates.test.ts src/contracts/__tests__/controls_contracts.test.ts src/contracts/__tests__/autonomous_learning_contracts.test.ts src/contracts/__tests__/cross_repo_handoff_contracts.test.ts"
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "@szl-holdings/a11oy-receipt-substrate": "^0.1.0"
+    "@szl-holdings/a11oy-receipt-substrate": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3"
   },
   "files": [
     "dist"

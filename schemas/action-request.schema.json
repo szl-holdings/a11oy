@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/action-request.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "A11oy governed action request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "trace_id",
+    "principal",
+    "action_type",
+    "target",
+    "source_commit",
+    "artifact_digest",
+    "requested_transition",
+    "preconditions",
+    "test_receipts",
+    "provenance_receipt",
+    "security_receipts",
+    "blast_radius",
+    "rollback",
+    "human_approvals",
+    "expires_at"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "trace_id": {
+      "type": "string",
+      "pattern": "^(?!0{32}$)[0-9a-f]{32}$"
+    },
+    "principal": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{2,255}$"
+    },
+    "action_type": {
+      "enum": [
+        "deploy.staging",
+        "deploy.production",
+        "secret.rotate",
+        "identity.change",
+        "repository.ruleset.change",
+        "model.promote",
+        "benchmark.publish",
+        "claim.upgrade",
+        "artifact.build"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 1024,
+      "pattern": "^(?:oci://\\S+@sha256:[0-9a-f]{64}|(?:hf|github)://[^@\\s]+@[0-9a-f]{40}|urn:sha256:[0-9a-f]{64})$"
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "artifact_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "requested_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/environment"
+        },
+        "to": {
+          "$ref": "#/$defs/environment"
+        }
+      }
+    },
+    "preconditions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "uniqueItems": true
+    },
+    "test_receipts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/digest"
+      },
+      "uniqueItems": true
+    },
+    "provenance_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_digest",
+        "subject_digest",
+        "source_commit",
+        "accepted",
+        "verifier",
+        "verified_at",
+        "source_repository"
+      ],
+      "properties": {
+        "receipt_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "subject_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "verifier": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 256
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_repository": {
+          "const": "github.com/szl-holdings/a11oy"
+        }
+      }
+    },
+    "security_receipts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "control",
+          "passed",
+          "digest",
+          "subject_digest"
+        ],
+        "properties": {
+          "control": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "subject_digest": {
+            "$ref": "#/$defs/digest"
+          }
+        }
+      }
+    },
+    "blast_radius": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "services",
+        "users",
+        "data"
+      ],
+      "properties": {
+        "services": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "uniqueItems": true
+        },
+        "users": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "data": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "receipt_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "target_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "tested_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "human_approvals": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "approver",
+          "action_type",
+          "target_digest",
+          "environment",
+          "approved_at",
+          "expires_at",
+          "key_id",
+          "signature"
+        ],
+        "properties": {
+          "approver": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{2,255}$"
+          },
+          "action_type": {
+            "type": "string"
+          },
+          "target_digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "environment": {
+            "$ref": "#/$defs/environment"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "key_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{2,255}$"
+          },
+          "signature": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{64,256}$"
+          }
+        }
+      }
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action_type": {
+            "enum": [
+              "deploy.staging",
+              "artifact.build"
+            ]
+          }
+        },
+        "required": [
+          "action_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "requested_transition": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "const": "development"
+              },
+              "to": {
+                "const": "staging"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action_type": {
+            "enum": [
+              "deploy.production",
+              "model.promote",
+              "benchmark.publish",
+              "claim.upgrade"
+            ]
+          }
+        },
+        "required": [
+          "action_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "requested_transition": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "const": "staging"
+              },
+              "to": {
+                "const": "production"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action_type": {
+            "const": "repository.ruleset.change"
+          }
+        },
+        "required": [
+          "action_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "requested_transition": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "const": "production"
+              },
+              "to": {
+                "const": "production"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action_type": {
+            "enum": [
+              "secret.rotate",
+              "identity.change"
+            ]
+          }
+        },
+        "required": [
+          "action_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "requested_transition": {
+            "type": "object",
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "const": "development"
+                  },
+                  "to": {
+                    "const": "development"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "const": "staging"
+                  },
+                  "to": {
+                    "const": "staging"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "const": "production"
+                  },
+                  "to": {
+                    "const": "production"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "environment": {
+      "enum": [
+        "development",
+        "staging",
+        "production"
+      ]
+    }
+  }
+}
