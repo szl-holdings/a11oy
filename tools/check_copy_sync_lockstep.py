@@ -57,11 +57,25 @@ import fnmatch
 import glob as globmod
 import json
 import os
+import posixpath
 import re
 import shlex
 import sys
 
 REPO_PY_EXT = ".py"
+
+
+def normalize_repo_path(path):
+    """Return one stable POSIX-form repository-relative path.
+
+    Docker and GitHub Actions paths are slash-delimited even when this guard
+    runs on Windows. Normalize at comparison boundaries so host path separators
+    cannot create false drift failures.
+    """
+    value = str(path).replace("\\", "/")
+    while value.startswith("./"):
+        value = value[2:]
+    return posixpath.normpath(value)
 
 
 # --------------------------------------------------------------------------- #
@@ -156,20 +170,24 @@ def expand_source_to_files(root, src):
         hits = globmod.glob(path, recursive=True)
         for h in hits:
             if os.path.isfile(h):
-                matched.append(os.path.relpath(h, root))
+                matched.append(normalize_repo_path(os.path.relpath(h, root)))
             elif os.path.isdir(h):
                 for dp, _dn, fns in os.walk(h):
                     for fn in fns:
-                        matched.append(os.path.relpath(os.path.join(dp, fn), root))
+                        matched.append(normalize_repo_path(
+                            os.path.relpath(os.path.join(dp, fn), root)
+                        ))
         return matched, bool(hits)
     if not os.path.exists(path):
         return [], False
     if os.path.isdir(path):
         for dp, _dn, fns in os.walk(path):
             for fn in fns:
-                matched.append(os.path.relpath(os.path.join(dp, fn), root))
+                matched.append(normalize_repo_path(
+                    os.path.relpath(os.path.join(dp, fn), root)
+                ))
         return matched, True
-    matched.append(os.path.relpath(path, root))
+    matched.append(normalize_repo_path(os.path.relpath(path, root)))
     return matched, True
 
 
@@ -187,7 +205,7 @@ def local_module_files(root):
         if os.path.isfile(full) and entry.endswith(REPO_PY_EXT):
             mods[entry[:-3]] = entry
         elif os.path.isdir(full) and os.path.isfile(os.path.join(full, "__init__.py")):
-            mods[entry] = os.path.join(entry, "__init__.py")
+            mods[entry] = normalize_repo_path(os.path.join(entry, "__init__.py"))
     return mods
 
 
@@ -254,7 +272,7 @@ def parse_hf_sync_mirror(hf_sync_text):
     m = re.search(r"APP_FILES:\s*\"([^\"]*)\"", hf_sync_text)
     if m:
         for tok in m.group(1).split():
-            explicit.add(tok)
+            explicit.add(normalize_repo_path(tok))
 
     # on.push.paths: a YAML list of quoted strings under a `paths:` key. Parse
     # the literal "- "..."" entries (stdlib-only, no yaml dependency).
@@ -271,6 +289,7 @@ def parse_hf_sync_mirror(hf_sync_text):
             if stripped.startswith("- "):
                 val = stripped[2:].strip().strip('"').strip("'")
                 if val:
+                    val = normalize_repo_path(val)
                     if any(ch in val for ch in "*?[]") or val.endswith("/**"):
                         globs.append(val)
                     else:
@@ -291,9 +310,12 @@ A11OY_FRONTDOOR_GLOBS = [
 
 def gha_path_matches(asset, explicit, globs):
     """True if a repo-relative asset path is covered by the mirror set."""
+    asset = normalize_repo_path(asset)
+    explicit = {normalize_repo_path(path) for path in explicit}
     if asset in explicit:
         return True
-    for pat in globs:
+    for raw_pattern in globs:
+        pat = normalize_repo_path(raw_pattern)
         # Translate a GitHub-Actions path filter to an fnmatch-style test.
         if pat.endswith("/**"):
             prefix = pat[:-3].rstrip("/")
@@ -331,8 +353,12 @@ def main():
         return 2
 
     cfg, cfg_path = load_config(root)
-    image_only = set(cfg.get("image_only_assets", []))
-    extra_mirror = set(cfg.get("extra_mirror_paths", []))
+    image_only = {
+        normalize_repo_path(path) for path in cfg.get("image_only_assets", [])
+    }
+    extra_mirror = {
+        normalize_repo_path(path) for path in cfg.get("extra_mirror_paths", [])
+    }
     # Non-.py asset extensions that hf-sync is responsible for mirroring.
     mirror_exts = tuple(cfg.get("mirror_asset_exts",
                                 [".html", ".js", ".css"]))
@@ -364,8 +390,8 @@ def main():
         per_file = (not is_wildcard) and (not is_dir)
         for f in files:
             copied_files.add(f)
-            base = os.path.basename(f)
-            if base.endswith(REPO_PY_EXT) and os.path.dirname(f) == "":
+            base = posixpath.basename(f)
+            if base.endswith(REPO_PY_EXT) and posixpath.dirname(f) == "":
                 copied_py_modules.add(base[:-3])
             if per_file and not base.endswith(REPO_PY_EXT):
                 perfile_assets.add(f)
@@ -413,7 +439,7 @@ def main():
 
     check3_missing = []
     for f in sorted(perfile_assets):
-        base = os.path.basename(f)
+        base = posixpath.basename(f)
         if not base.endswith(mirror_exts):
             continue  # only the served text asset types hf-sync owns
         if f in image_only:
