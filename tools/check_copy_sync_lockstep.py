@@ -260,17 +260,26 @@ def transitive_local_imports(root, entry_files, local_mods):
 def workflow_job_blocks(workflow_text):
     """Yield ``(job_id, block_lines, job_indent)`` from a workflow's jobs map."""
     lines = workflow_text.splitlines()
-    jobs_index = None
-    jobs_indent = None
+    parsed = []
     for index, raw in enumerate(lines):
-        if re.match(r"^[ \t]*jobs:\s*(?:#.*)?$", raw):
-            jobs_index = index
-            jobs_indent = len(raw) - len(raw.lstrip())
-            break
-    if jobs_index is None:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if entry:
+            parsed.append((index, len(raw) - len(raw.lstrip()), entry))
+    if not parsed:
         return []
+    top_indent = min(indent for _index, indent, _entry in parsed)
+    jobs_entries = [
+        item
+        for item in parsed
+        if item[1] == top_indent and item[2][0] == "jobs"
+    ]
+    if len(jobs_entries) != 1 or jobs_entries[0][2][1]:
+        return []
+    jobs_index, jobs_indent, _entry = jobs_entries[0]
 
-    job_header = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(?:#.*)?$")
     blocks = []
     current_id = None
     current_lines = []
@@ -281,14 +290,19 @@ def workflow_job_blocks(workflow_text):
         indent = len(raw) - len(raw.lstrip())
         if stripped and not stripped.startswith("#") and indent <= jobs_indent:
             break
-        header = job_header.match(stripped) if stripped else None
-        if header and indent > jobs_indent:
+        entry = yaml_mapping_entry(stripped) if stripped else None
+        if entry and indent > jobs_indent:
             if job_indent is None:
                 job_indent = indent
             if indent == job_indent:
+                job_id, value = entry
+                if job_id == "<<" or value:
+                    # Inline jobs and merges are deliberately unsupported:
+                    # accepting a partial parse could prove an inert snippet.
+                    return []
                 if current_id is not None:
                     blocks.append((current_id, current_lines, job_indent))
-                current_id = header.group(1)
+                current_id = job_id
                 current_lines = [raw]
                 continue
         if current_id is not None:

@@ -94,6 +94,27 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         )
         self.assertFalse(CHECKER.has_source_derived_deploy_contract(workflow))
 
+    def test_inert_block_scalar_cannot_supply_the_jobs_map(self) -> None:
+        workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
+            """
+            env:
+              INERT_DEPLOY_EXAMPLE: |
+                jobs:
+                  deploy:
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                    with:
+                      hf-repo: SZLHOLDINGS/a11oy
+                      ref: ${{ github.sha }}
+                      dockerfile-path: Dockerfile
+            jobs:
+              real_job:
+                runs-on: ubuntu-latest
+                steps:
+                  - run: echo no-deploy
+            """
+        )
+        self.assertFalse(CHECKER.has_source_derived_deploy_contract(workflow))
+
     def test_deployer_and_dockerfile_evidence_in_same_job_passes(self) -> None:
         workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
             """

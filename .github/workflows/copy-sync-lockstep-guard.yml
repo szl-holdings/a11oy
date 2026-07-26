@@ -44,7 +44,11 @@ jobs:
           python-version: '3.12'
       - name: Byte-validate the checker (ast.parse) before running it
         run: python3 -c "import ast,sys; ast.parse(open('tools/check_copy_sync_lockstep.py').read()); print('checker ast OK')"
-      - name: Prove path comparisons are host-independent
-        run: python3 -m unittest tools/test_check_copy_sync_lockstep.py -v
+      - name: Prove path and source-derived contracts fail closed
+        run: >-
+          python3 -m unittest
+          tools/test_check_copy_sync_lockstep.py
+          tests/test_copy_sync_lockstep_source_derived.py
+          -v
       - name: Run copy-sync lockstep guard
         run: python3 tools/check_copy_sync_lockstep.py .
