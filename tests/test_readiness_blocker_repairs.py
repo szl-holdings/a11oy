@@ -23,11 +23,10 @@ def test_feed_pulse_is_concurrent_bounded_and_honest_about_timeout(monkeypatch):
         with active_lock:
             active += 1
         try:
-            delay = 1.00 if feed == "celestrak" else 0.02
-            if delay > timeout_s:
-                time.sleep(timeout_s)
+            if feed == "celestrak":
+                time.sleep(0.05)
                 raise TimeoutError("cooperative test deadline")
-            time.sleep(delay)
+            time.sleep(0.02)
             source, source_url = serve._kl_live._SOURCE[feed]
             return {
                 "source": source,
