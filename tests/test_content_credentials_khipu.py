@@ -390,9 +390,42 @@ class ContentCredentialKhipuTests(unittest.TestCase):
 
             verification = verify(tampered, asset_path=str(asset))
             self.assertFalse(verification.ok)
-            self.assertTrue(verification.claim_hash_ok)
-            self.assertEqual(verification.khipu_authentication, "UNAVAILABLE")
-            self.assertEqual(verification.trust_level, TRUST_AUTH_UNAVAILABLE)
+            self.assertFalse(verification.claim_hash_ok)
+            self.assertEqual(verification.khipu_authentication, "INVALID")
+            self.assertEqual(verification.trust_level, TRUST_TAMPERED)
+
+    def test_malformed_assertion_entries_are_tampered_not_exceptions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "malformed-assertions.txt"
+            asset_bytes = b"malformed assertions\n"
+            result = write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=asset_bytes,
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_decision=_authorized_write(asset, asset_bytes),
+            )
+
+            for malformed in (None, "not-an-object", 7):
+                with self.subTest(assertion=malformed):
+                    tampered = copy.deepcopy(result["credential"])
+                    claim = tampered["active_manifest"]["claim"]
+                    claim["assertions"][-1] = malformed
+                    tampered["claim_sha256"] = sha256_bytes(_canon(claim))
+
+                    verification = verify(tampered, asset_path=str(asset))
+
+                    self.assertFalse(verification.ok)
+                    self.assertFalse(verification.claim_hash_ok)
+                    self.assertEqual(
+                        verification.trust_level,
+                        TRUST_TAMPERED,
+                    )
+                    self.assertIn(
+                        "CLAIM ASSERTIONS INVALID",
+                        " ".join(verification.reasons),
+                    )
 
     def test_sidecar_failure_rolls_back_asset_and_existing_sidecar(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -543,7 +576,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertEqual(verification.khipu_authentication, "INVALID")
             self.assertEqual(verification.trust_level, TRUST_TAMPERED)
 
-    def test_missing_registry_is_unavailable_not_tampered(self):
+    def test_unreachable_registry_is_unavailable_not_tampered(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "portable-media.txt"
             asset_bytes = b"portable\n"
@@ -559,10 +592,9 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                 orchestrator._khipu_receipts.clear()
             with patch.object(
                 orchestrator,
-                "DB_PATH",
-                str(Path(directory) / "unavailable-host.db"),
+                "_db_read_receipt_chain",
+                return_value=("UNAVAILABLE", None),
             ):
-                orchestrator.init_db()
                 verification = verify(result["credential"], asset_path=str(asset))
 
             self.assertFalse(verification.ok)

@@ -887,11 +887,7 @@ def khipu_authenticate_receipt(
             durable_only=False,
         )
     if known is None:
-        return (
-            "UNAVAILABLE"
-            if state in {"UNAVAILABLE", "NOT_FOUND"}
-            else "INVALID"
-        )
+        return "UNAVAILABLE" if state == "UNAVAILABLE" else "INVALID"
     if (
         known.get("hash") != receipt_hash
         or known.get("chain_verified") is not True
@@ -925,8 +921,8 @@ def khipu_authenticate_receipt(
                 index + 1 >= len(durable_chain)
                 or durable_chain[index + 1].get("hash") != previous
             ):
-                return "UNAVAILABLE"
-        return "UNAVAILABLE"
+                return "INVALID"
+        return "INVALID"
 
     cursor = known
     visited: set[str] = set()
@@ -950,7 +946,7 @@ def khipu_authenticate_receipt(
         if predecessor is None:
             return (
                 "UNAVAILABLE"
-                if predecessor_state in {"UNAVAILABLE", "NOT_FOUND"}
+                if predecessor_state == "UNAVAILABLE"
                 else "INVALID"
             )
         cursor = predecessor

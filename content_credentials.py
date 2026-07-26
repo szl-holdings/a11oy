@@ -860,17 +860,32 @@ def verify(
     """
     reasons: list = []
     manifest = credential.get("active_manifest", {})
-    claim = manifest.get("claim") or {}
+    claim_value = manifest.get("claim")
+    claim = claim_value if isinstance(claim_value, dict) else {}
     expected_hash = manifest.get("asset_hash") or claim.get("asset", {}).get("hash")
     expected_claim_hash = credential.get("claim_sha256")
-    actual_claim_hash = sha256_bytes(_canon(claim))
-    claim_hash_ok = actual_claim_hash == expected_claim_hash
+    actual_claim_hash = sha256_bytes(_canon(claim_value))
+    claim_hash_ok = (
+        isinstance(claim_value, dict)
+        and actual_claim_hash == expected_claim_hash
+    )
 
-    receipt_assertions = [
-        assertion.get("data")
-        for assertion in claim.get("assertions", [])
-        if assertion.get("label") == KHIPU_ASSERTION_LABEL
-    ]
+    assertion_values = claim.get("assertions", [])
+    assertions_valid = isinstance(assertion_values, list) and all(
+        isinstance(assertion, dict) for assertion in assertion_values
+    )
+    if assertions_valid:
+        receipt_assertions = [
+            assertion.get("data")
+            for assertion in assertion_values
+            if assertion.get("label") == KHIPU_ASSERTION_LABEL
+        ]
+    else:
+        receipt_assertions = []
+        claim_hash_ok = False
+        reasons.append(
+            "CLAIM ASSERTIONS INVALID: assertions must be a list of objects."
+        )
     top_level_receipt = manifest.get("khipu_receipt")
     khipu_authentication = "NOT_PRESENT"
     if top_level_receipt is not None:
