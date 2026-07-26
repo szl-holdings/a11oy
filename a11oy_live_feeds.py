@@ -34,16 +34,16 @@ import json
 import os
 import time
 import threading
-import urllib.request
-import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
 from starlette.routing import Route
 from starlette.responses import JSONResponse
 
 _SNAP_DIR = Path(os.environ.get("A11OY_LIVE_SNAPSHOTS", "/app/live_snapshots"))
 _UA = "a11oy-live-proxy/1.0 (+https://szlholdings-a11oy.hf.space)"
+_MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 
 # in-memory cache: feed -> {"data":..., "ts":..., "mode":...}
 _CACHE = {}
@@ -76,13 +76,59 @@ def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def _http_get(url, timeout=20, headers=None, data=None, method=None):
+def _http_get(url, timeout=20, headers=None, data=None, method=None, deadline=None):
+    """Fetch one bounded JSON response.
+
+    Socket timeouts alone are insufficient because a peer can trickle bytes and
+    reset the per-read timer forever.  ``iter_bytes`` exposes each received
+    network chunk so the absolute monotonic deadline is checked throughout the
+    body read.  The response context is closed before a deadline error escapes,
+    which lets the calling worker finish instead of being abandoned.
+    """
     h = {"User-Agent": _UA, "Accept": "application/json"}
     if headers:
         h.update(headers)
-    req = urllib.request.Request(url, data=data, headers=h, method=method)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+    request_timeout = _remaining_timeout(deadline, timeout)
+    request_deadline = (
+        deadline
+        if deadline is not None
+        else time.monotonic() + request_timeout
+    )
+    request_method = method or ("POST" if data is not None else "GET")
+    chunks = []
+    received = 0
+    try:
+        with httpx.stream(
+            request_method,
+            url,
+            content=data,
+            headers=h,
+            timeout=httpx.Timeout(request_timeout),
+            follow_redirects=True,
+        ) as response:
+            response.raise_for_status()
+            content_length = response.headers.get("content-length")
+            if content_length is not None:
+                try:
+                    declared_bytes = int(content_length)
+                except (TypeError, ValueError):
+                    declared_bytes = None
+                if declared_bytes is not None and declared_bytes > _MAX_RESPONSE_BYTES:
+                    raise ValueError("live-feed response exceeds size limit")
+            for chunk in response.iter_bytes():
+                if time.monotonic() >= request_deadline:
+                    raise TimeoutError("live-feed response deadline exhausted")
+                if not chunk:
+                    continue
+                received += len(chunk)
+                if received > _MAX_RESPONSE_BYTES:
+                    raise ValueError("live-feed response exceeds size limit")
+                chunks.append(chunk)
+            if time.monotonic() >= request_deadline:
+                raise TimeoutError("live-feed response deadline exhausted")
+    except httpx.TimeoutException as exc:
+        raise TimeoutError("live-feed response deadline exhausted") from exc
+    return json.loads(b"".join(chunks))
 
 
 def _load_snapshot(feed):
@@ -91,6 +137,32 @@ def _load_snapshot(feed):
         return json.loads(p.read_text())
     except Exception:
         return None
+
+
+def get_cached_feed(feed, error):
+    """Return only real cached evidence, without attempting an upstream read."""
+    ttl = _TTL.get(feed, 60)
+    src, url = _SOURCE.get(feed, ("unknown", ""))
+    with _LOCK:
+        ent = _CACHE.get(feed)
+    if ent:
+        return {"source": src, "source_url": url, "mode": "cached",
+                "fetched_at": ent["iso"], "ttl_s": ttl,
+                "cache_note": "upstream unreachable (%s) — serving last good value"
+                              % type(error).__name__,
+                "data": ent["data"]}
+    snap = _load_snapshot(feed)
+    if snap is not None:
+        return {"source": src, "source_url": url, "mode": "cached",
+                "fetched_at": "bundled-snapshot", "ttl_s": ttl,
+                "cache_note": "upstream unreachable (%s) — serving bundled in-image snapshot"
+                              % type(error).__name__,
+                "data": snap}
+    return {"source": src, "source_url": url, "mode": "unavailable",
+            "fetched_at": None, "ttl_s": ttl,
+            "error": "upstream unreachable and no snapshot (%s): %s"
+                     % (type(error).__name__, error),
+            "data": None}
 
 
 def _remaining_timeout(deadline, default):
@@ -116,11 +188,13 @@ def _fetch(feed, deadline=None):
             out[k] = _http_get(
                 base + urllib.parse.quote(q),
                 timeout=_remaining_timeout(deadline, 12),
+                deadline=deadline,
             )
         return out
     if feed == "kev":
         return _http_get(
-            _SOURCE["kev"][1], timeout=_remaining_timeout(deadline, 40))
+            _SOURCE["kev"][1], timeout=_remaining_timeout(deadline, 40),
+            deadline=deadline)
     if feed == "osv":
         out = {}
         for pkg, eco in (("tensorflow", "PyPI"), ("torch", "PyPI"),
@@ -128,7 +202,8 @@ def _fetch(feed, deadline=None):
             body = json.dumps({"package": {"name": pkg, "ecosystem": eco}}).encode()
             r = _http_get("https://api.osv.dev/v1/query",
                           timeout=_remaining_timeout(deadline, 20), data=body,
-                          headers={"Content-Type": "application/json"}, method="POST")
+                          headers={"Content-Type": "application/json"}, method="POST",
+                          deadline=deadline)
             vulns = r.get("vulns", [])
             out[pkg] = {"ecosystem": eco, "count": len(vulns),
                         "vulns": [{"id": v.get("id"), "summary": v.get("summary"),
@@ -137,19 +212,23 @@ def _fetch(feed, deadline=None):
         return out
     if feed == "rekor":
         return {"log": _http_get(
-            _SOURCE["rekor"][1], timeout=_remaining_timeout(deadline, 15))}
+            _SOURCE["rekor"][1], timeout=_remaining_timeout(deadline, 15),
+            deadline=deadline)}
     if feed == "celestrak":
         return _http_get(
-            _SOURCE["celestrak"][1], timeout=_remaining_timeout(deadline, 20))
+            _SOURCE["celestrak"][1], timeout=_remaining_timeout(deadline, 20),
+            deadline=deadline)
     if feed == "iss":
         return _http_get(
-            _SOURCE["iss"][1], timeout=_remaining_timeout(deadline, 12))
+            _SOURCE["iss"][1], timeout=_remaining_timeout(deadline, 12),
+            deadline=deadline)
     if feed == "fhir":
         out = {}
         for rt in ("Immunization", "Observation"):
             b = _http_get("https://hapi.fhir.org/baseR4/%s?_count=10" % rt,
                           timeout=_remaining_timeout(deadline, 25),
-                          headers={"Accept": "application/fhir+json"})
+                          headers={"Accept": "application/fhir+json"},
+                          deadline=deadline)
             entries = b.get("entry", [])
             out[rt] = {"total": b.get("total"), "count": len(entries),
                        "entries": [e.get("resource", {}) for e in entries[:10]]}
@@ -180,25 +259,7 @@ def get_feed(feed, timeout_s=None):
         return {"source": src, "source_url": url, "mode": "live",
                 "fetched_at": iso, "ttl_s": ttl, "data": data}
     except Exception as e:
-        # serve last good in-memory value if present
-        if ent:
-            return {"source": src, "source_url": url, "mode": "cached",
-                    "fetched_at": ent["iso"], "ttl_s": ttl,
-                    "cache_note": "upstream unreachable (%s) — serving last good value" % type(e).__name__,
-                    "data": ent["data"]}
-        # else bundled on-disk snapshot
-        snap = _load_snapshot(feed)
-        if snap is not None:
-            return {"source": src, "source_url": url, "mode": "cached",
-                    "fetched_at": "bundled-snapshot",
-                    "ttl_s": ttl,
-                    "cache_note": "upstream unreachable (%s) — serving bundled in-image snapshot" % type(e).__name__,
-                    "data": snap}
-        return {"source": src, "source_url": url, "mode": "unavailable",
-                "fetched_at": None, "ttl_s": ttl,
-                "error": "upstream unreachable and no snapshot (%s): %s"
-                         % (type(e).__name__, e),
-                "data": None}
+        return get_cached_feed(feed, e)
 
 
 def register(app, ns="a11oy"):

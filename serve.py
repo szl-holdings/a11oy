@@ -10588,45 +10588,37 @@ try:
         feeds = ["kev","osv","rekor","iss","celestrak","prometheus","fhir"]
         async def _one(f):
             t0 = _t.time()
-            source, source_url = _kl_live._SOURCE.get(f, ("unknown", ""))
             try:
-                # Socket timeouts are per operation; a trickling peer can keep
-                # r.read() alive indefinitely. Bound the complete worker wait
-                # and abandon the thread on cancellation so the pulse itself
-                # cannot hang beyond the declared per-feed deadline.
-                with anyio.fail_after(_KL_FEED_PULSE_TIMEOUT_S):
-                    p = await anyio.to_thread.run_sync(
-                        _kl_live.get_feed,
-                        f,
-                        _KL_FEED_PULSE_TIMEOUT_S,
-                        abandon_on_cancel=True,
-                    )
-                dt = round((_t.time()-t0)*1000)
-                d = p.get("data")
-                # honest payload-size signal
-                try:
-                    import json as _j; size = len(_j.dumps(d)) if d is not None else 0
-                except Exception:
-                    size = 0
-                return {"feed": f, "source": p.get("source"),
-                        "source_url": p.get("source_url"),
-                        "mode": p.get("mode"), "fetched_at": p.get("fetched_at"),
-                        "ttl_s": p.get("ttl_s"), "latency_ms": dt,
-                        "payload_bytes": size,
-                        "error": p.get("error"),
-                        "cache_note": p.get("cache_note")}
-            except TimeoutError:
-                return {"feed": f, "source": source, "source_url": source_url,
-                        "mode": "unavailable", "fetched_at": None,
-                        "latency_ms": round((_t.time()-t0)*1000),
-                        "payload_bytes": 0,
-                        "error": "probe timeout after %.2fs" % _KL_FEED_PULSE_TIMEOUT_S}
+                # get_feed enforces the absolute deadline inside every streamed
+                # network read. Keep the worker joined: it must exit and return
+                # its honest cache fallback instead of being orphaned.
+                p = await anyio.to_thread.run_sync(
+                    _kl_live.get_feed,
+                    f,
+                    _KL_FEED_PULSE_TIMEOUT_S,
+                )
+            except TimeoutError as e:
+                p = _kl_live.get_cached_feed(f, e)
+                if p.get("mode") == "unavailable":
+                    p["error"] = "probe timeout after %.2fs" % _KL_FEED_PULSE_TIMEOUT_S
             except Exception as e:
-                return {"feed": f, "source": source, "source_url": source_url,
-                        "mode": "unavailable", "fetched_at": None,
-                        "latency_ms": round((_t.time()-t0)*1000),
-                        "payload_bytes": 0,
-                        "error": "%s: %s" % (type(e).__name__, e)}
+                p = _kl_live.get_cached_feed(f, e)
+                if p.get("mode") == "unavailable":
+                    p["error"] = "%s: %s" % (type(e).__name__, e)
+            dt = round((_t.time()-t0)*1000)
+            d = p.get("data")
+            # honest payload-size signal
+            try:
+                import json as _j; size = len(_j.dumps(d)) if d is not None else 0
+            except Exception:
+                size = 0
+            return {"feed": f, "source": p.get("source"),
+                    "source_url": p.get("source_url"),
+                    "mode": p.get("mode"), "fetched_at": p.get("fetched_at"),
+                    "ttl_s": p.get("ttl_s"), "latency_ms": dt,
+                    "payload_bytes": size,
+                    "error": p.get("error"),
+                    "cache_note": p.get("cache_note")}
         items = [None] * len(feeds)
         async def _collect(index, feed):
             items[index] = await _one(feed)

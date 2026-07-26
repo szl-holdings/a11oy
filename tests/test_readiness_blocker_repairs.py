@@ -177,13 +177,18 @@ def test_feed_pulse_propagates_internal_timeout_cache_evidence(monkeypatch):
     assert "TimeoutError" in timed_out["cache_note"]
 
 
-def test_feed_pulse_bounds_complete_worker_when_upstream_trickles(monkeypatch):
+def test_feed_pulse_preserves_cache_when_worker_propagates_timeout(monkeypatch):
+    stale = {
+        "data": {"snapshot": "real-stale-celestrak"},
+        "ts": time.time() - a11oy_live_feeds._TTL["celestrak"] - 1,
+        "mode": "live",
+        "iso": "2026-07-25T00:00:00+00:00",
+    }
+
     def fake_get_feed(feed, timeout_s=None):
         assert timeout_s == 0.05
         if feed == "celestrak":
-            # Simulate a socket that keeps producing bytes without ever
-            # tripping a per-operation timeout.
-            time.sleep(0.50)
+            raise TimeoutError("transport deadline exhausted")
         source, source_url = serve._kl_live._SOURCE[feed]
         return {
             "source": source,
@@ -194,19 +199,99 @@ def test_feed_pulse_bounds_complete_worker_when_upstream_trickles(monkeypatch):
             "data": {"feed": feed},
         }
 
+    monkeypatch.setattr(a11oy_live_feeds, "_CACHE", {"celestrak": stale})
     monkeypatch.setattr(serve._kl_live, "get_feed", fake_get_feed)
     monkeypatch.setattr(serve, "_KL_FEED_PULSE_TIMEOUT_S", 0.05)
 
-    started = time.monotonic()
-    response = asyncio.run(serve._feeds_pulse())
-    elapsed = time.monotonic() - started
-    payload = json.loads(response.body)
+    payload = json.loads(asyncio.run(serve._feeds_pulse()).body)
 
-    assert elapsed < 0.30
     assert payload["live_count"] == 6
-    assert payload["cached_count"] == 0
-    assert payload["down_count"] == 1
+    assert payload["cached_count"] == 1
+    assert payload["down_count"] == 0
     timed_out = payload["items"][4]
-    assert timed_out["mode"] == "unavailable"
-    assert timed_out["payload_bytes"] == 0
-    assert timed_out["error"] == "probe timeout after 0.05s"
+    assert timed_out["mode"] == "cached"
+    assert timed_out["fetched_at"] == stale["iso"]
+    assert timed_out["payload_bytes"] > 0
+    assert timed_out["error"] is None
+    assert "TimeoutError" in timed_out["cache_note"]
+
+
+def test_feed_pulse_joins_trickling_worker_and_preserves_cached_evidence(monkeypatch):
+    active_streams = 0
+    max_active_streams = 0
+    stream_calls = 0
+
+    class TricklingResponse:
+        headers = {}
+
+        def __enter__(self):
+            nonlocal active_streams, max_active_streams
+            active_streams += 1
+            max_active_streams = max(max_active_streams, active_streams)
+            return self
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            nonlocal active_streams
+            active_streams -= 1
+
+        def raise_for_status(self):
+            return None
+
+        def iter_bytes(self):
+            while True:
+                # Each byte arrives before a per-read timeout would fire. The
+                # absolute body deadline must still terminate the stream.
+                time.sleep(0.01)
+                yield b" "
+
+    def fake_stream(method, url, **kwargs):
+        nonlocal stream_calls
+        assert method == "GET"
+        assert url == "https://example.test/trickle"
+        assert kwargs["follow_redirects"] is True
+        stream_calls += 1
+        return TricklingResponse()
+
+    original_http_get = a11oy_live_feeds._http_get
+
+    def fake_fetch(feed, deadline=None):
+        if feed == "celestrak":
+            return original_http_get(
+                "https://example.test/trickle",
+                timeout=a11oy_live_feeds._remaining_timeout(deadline, 1),
+                deadline=deadline,
+            )
+        return {"feed": feed}
+
+    stale = {
+        "data": {"snapshot": "real-stale-celestrak"},
+        "ts": time.time() - a11oy_live_feeds._TTL["celestrak"] - 1,
+        "mode": "live",
+        "iso": "2026-07-25T00:00:00+00:00",
+    }
+    monkeypatch.setattr(a11oy_live_feeds.httpx, "stream", fake_stream)
+    monkeypatch.setattr(a11oy_live_feeds, "_fetch", fake_fetch)
+    monkeypatch.setattr(a11oy_live_feeds, "_CACHE", {"celestrak": stale})
+    monkeypatch.setattr(serve, "_KL_FEED_PULSE_TIMEOUT_S", 0.05)
+
+    started = time.monotonic()
+    payloads = [
+        json.loads(asyncio.run(serve._feeds_pulse()).body)
+        for _ in range(4)
+    ]
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 1.0
+    assert stream_calls == 4
+    assert max_active_streams == 1
+    assert active_streams == 0
+    for payload in payloads:
+        assert payload["live_count"] == 6
+        assert payload["cached_count"] == 1
+        assert payload["down_count"] == 0
+        timed_out = payload["items"][4]
+        assert timed_out["mode"] == "cached"
+        assert timed_out["fetched_at"] == stale["iso"]
+        assert timed_out["payload_bytes"] > 0
+        assert timed_out["error"] is None
+        assert "TimeoutError" in timed_out["cache_note"]
