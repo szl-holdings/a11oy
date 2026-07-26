@@ -1,8 +1,8 @@
 {
   "schemaVersion": "a11oy.action-contract.v0.1",
   "contractId": "a11oy.operator.intent.udsp.v0",
-  "claimStatus": "verified-runtime",
-  "canonicalRule": "This is an original A11oy operator intent contract. It models UDS-style handoff concepts without copying upstream CRDs, schemas, templates, or prose. Runtime helper coverage exists for receipt emission; deployment/use remains operator proof-point scoped.",
+  "claimStatus": "roadmap",
+  "canonicalRule": "This is an original A11oy operator intent design contract. It models UDS-style handoff concepts without copying upstream CRDs, schemas, templates, or prose. The manifest and receipt-envelope helper are testable, but an authenticated, idempotent, durable action lifecycle is not implemented and remains ROADMAP.",
   "cleanRoom": {
     "sourcePatternIds": [
       "operator-intent-contract",
@@ -16,7 +16,7 @@
     "requestedAction": "verify_and_stage_operator_payload",
     "actionClass": "operator-proof-point",
     "vertical": "a11oy",
-    "regime": "doctrine-v6",
+    "regime": "doctrine-v11",
     "riskTier": "review-required",
     "lambdaAxes": [
       "moralGrounding",
@@ -77,12 +77,10 @@
     "sourceCommit": "computed-at-runtime",
     "payloadDigest": "computed-at-runtime",
     "testCommands": [
-      "npm run controls:audit",
-      "npm run action-contract:audit",
-      "npm run test:policy-contracts",
-      "npm run payload:verify",
-      "npm run payload:bundle:verify"
+      "python3 scripts/validate_action_contract_manifest.py",
+      "python3 scripts/test_validate_action_contract_manifest.py"
     ],
+    "evidenceBoundary": "These commands validate the design manifest and its fail-closed claim guard. They do not prove authenticated execution, server-side idempotency enforcement, durable receipt persistence, operator approval, deployment, or release.",
     "localEvidenceRefs": [
       "docs/UDS_FRONTIER_GAP_MAP.md",
       "docs/WARHACKER_UDS_PROOF_POINT.md",
@@ -137,6 +135,12 @@
     ]
   },
   "execution": {
+    "runtimeStatus": "roadmap",
+    "runtimeImplemented": false,
+    "authenticatedExecution": false,
+    "idempotencyEnforced": false,
+    "durableReceiptLifecycle": false,
+    "evidenceBoundary": "Manifest validation and receipt-envelope helper tests do not constitute an operator action runtime.",
     "preflightRequired": true,
     "dryRunAllowed": true,
     "operatorConfirmRequired": true,

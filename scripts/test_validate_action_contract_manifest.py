@@ -119,6 +119,35 @@ class ActionContractGuardSelfTest(unittest.TestCase):
         m["claimStatus"] = "production-ready"
         self.assertEqual(run_validator(m), 1)
 
+    def test_roadmap_contract_cannot_be_promoted_by_label_only(self):
+        m = honest()
+        m["claimStatus"] = "verified-runtime"
+        self.assertEqual(run_validator(m), 1)
+
+    def test_nonexistent_evidence_command_fails(self):
+        m = honest()
+        m["evidence"]["testCommands"] = [
+            "python3 scripts/does_not_exist.py",
+        ]
+        self.assertEqual(run_validator(m), 1)
+
+    def test_shell_indirection_cannot_masquerade_as_evidence(self):
+        m = honest()
+        m["evidence"]["testCommands"] = [
+            "npm run action-contract:audit",
+        ]
+        self.assertEqual(run_validator(m), 1)
+
+    def test_runtime_boundary_cannot_be_dropped(self):
+        m = honest()
+        m["execution"]["evidenceBoundary"] = "manifest is runtime"
+        self.assertEqual(run_validator(m), 1)
+
+    def test_stale_doctrine_regime_fails(self):
+        m = honest()
+        m["intent"]["regime"] = "doctrine-v6"
+        self.assertEqual(run_validator(m), 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
