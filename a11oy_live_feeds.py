@@ -92,7 +92,17 @@ def _load_snapshot(feed):
         return None
 
 
-def _fetch(feed):
+def _remaining_timeout(deadline, default):
+    """Return a cooperative per-request socket timeout within ``deadline``."""
+    if deadline is None:
+        return float(default)
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("live-feed network budget exhausted")
+    return min(float(default), remaining)
+
+
+def _fetch(feed, deadline=None):
     """Return raw upstream JSON for a feed (raises on failure)."""
     if feed == "prometheus":
         import urllib.parse
@@ -102,16 +112,21 @@ def _fetch(feed):
                      ("cpu", 'rate(node_cpu_seconds_total{mode="user"}[5m])'),
                      ("mem", "node_memory_MemAvailable_bytes"),
                      ("http_req", "rate(prometheus_http_requests_total[5m])")):
-            out[k] = _http_get(base + urllib.parse.quote(q), timeout=12)
+            out[k] = _http_get(
+                base + urllib.parse.quote(q),
+                timeout=_remaining_timeout(deadline, 12),
+            )
         return out
     if feed == "kev":
-        return _http_get(_SOURCE["kev"][1], timeout=40)
+        return _http_get(
+            _SOURCE["kev"][1], timeout=_remaining_timeout(deadline, 40))
     if feed == "osv":
         out = {}
         for pkg, eco in (("tensorflow", "PyPI"), ("torch", "PyPI"),
                          ("transformers", "PyPI"), ("numpy", "PyPI"), ("requests", "PyPI")):
             body = json.dumps({"package": {"name": pkg, "ecosystem": eco}}).encode()
-            r = _http_get("https://api.osv.dev/v1/query", timeout=20, data=body,
+            r = _http_get("https://api.osv.dev/v1/query",
+                          timeout=_remaining_timeout(deadline, 20), data=body,
                           headers={"Content-Type": "application/json"}, method="POST")
             vulns = r.get("vulns", [])
             out[pkg] = {"ecosystem": eco, "count": len(vulns),
@@ -120,15 +135,19 @@ def _fetch(feed):
                                    "aliases": (v.get("aliases") or [])[:4]} for v in vulns[:25]]}
         return out
     if feed == "rekor":
-        return {"log": _http_get(_SOURCE["rekor"][1], timeout=15)}
+        return {"log": _http_get(
+            _SOURCE["rekor"][1], timeout=_remaining_timeout(deadline, 15))}
     if feed == "celestrak":
-        return _http_get(_SOURCE["celestrak"][1], timeout=20)
+        return _http_get(
+            _SOURCE["celestrak"][1], timeout=_remaining_timeout(deadline, 20))
     if feed == "iss":
-        return _http_get(_SOURCE["iss"][1], timeout=12)
+        return _http_get(
+            _SOURCE["iss"][1], timeout=_remaining_timeout(deadline, 12))
     if feed == "fhir":
         out = {}
         for rt in ("Immunization", "Observation"):
-            b = _http_get("https://hapi.fhir.org/baseR4/%s?_count=10" % rt, timeout=25,
+            b = _http_get("https://hapi.fhir.org/baseR4/%s?_count=10" % rt,
+                          timeout=_remaining_timeout(deadline, 25),
                           headers={"Accept": "application/fhir+json"})
             entries = b.get("entry", [])
             out[rt] = {"total": b.get("total"), "count": len(entries),
@@ -137,8 +156,8 @@ def _fetch(feed):
     raise ValueError("unknown feed: %s" % feed)
 
 
-def get_feed(feed):
-    """Cached, snapshot-fallback, honestly-labelled feed accessor."""
+def get_feed(feed, timeout_s=None):
+    """Cached, honestly-labelled accessor with an optional cooperative network budget."""
     ttl = _TTL.get(feed, 60)
     src, url = _SOURCE.get(feed, ("unknown", ""))
     with _LOCK:
@@ -149,7 +168,11 @@ def get_feed(feed):
                 "fetched_at": ent["iso"], "ttl_s": ttl, "data": ent["data"]}
     # need refresh
     try:
-        data = _fetch(feed)
+        deadline = (
+            time.monotonic() + max(0.001, float(timeout_s))
+            if timeout_s is not None else None
+        )
+        data = _fetch(feed, deadline=deadline)
         iso = _now_iso()
         with _LOCK:
             _CACHE[feed] = {"data": data, "ts": now, "mode": "live", "iso": iso}
