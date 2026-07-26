@@ -225,6 +225,22 @@ def mask_lean_attributes(rel: str, text: str, errors: List[str]) -> str:
     return "".join(out)
 
 
+def instance_name_tail(tail: str) -> str:
+    """Skip a balanced optional ``(priority := ...)`` instance prefix."""
+    stripped = tail.lstrip()
+    if not re.match(r"^\(\s*priority\s*:=", stripped):
+        return stripped
+    depth = 0
+    for index, char in enumerate(stripped):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return stripped[index + 1:].lstrip()
+    return stripped
+
+
 def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
     """Return every externally auditable proof declaration in a REAL source."""
     clean = strip_lean_comments_and_strings(text)
@@ -234,7 +250,8 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
         forbidden.append("sorry/sorryAx/admit")
     if re.search(
         r"(?m)^[ \t]*"
-        r"(?:(?:private|protected|noncomputable|unsafe|local|scoped)\s+)*"
+        r"(?:(?:private|public|protected|noncomputable|unsafe|partial|nonrec|"
+        r"local|scoped)\s+)*"
         r"(?:axiom|constant)\b",
         command_text,
     ):
@@ -249,7 +266,8 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
     command_re = re.compile(
         r"(?m)^[ \t]*"
         r"(?P<modifiers>"
-        r"(?:(?:private|protected|noncomputable|local|scoped)\s+)*)"
+        r"(?:(?:private|public|protected|noncomputable|unsafe|partial|nonrec|"
+        r"local|scoped)\s+)*)"
         r"(?P<kind>namespace|section|end|theorem|lemma|instance)\b"
     )
     commands = list(command_re.finditer(command_text))
@@ -280,9 +298,10 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
             continue
 
         modifiers = set(command.group("modifiers").split())
-        name_match = re.match(r"\s+(" + lean_name + r")", tail)
+        name_tail = instance_name_tail(tail) if kind == "instance" else tail.lstrip()
+        name_match = re.match(r"(" + lean_name + r")", name_tail)
         if not name_match:
-            if kind == "instance" and tail.lstrip().startswith((":", "(", "[", "{")):
+            if kind == "instance" and name_tail.startswith((":", "(", "[", "{")):
                 # Anonymous instances receive generated names that cannot be
                 # referenced from the separate imported audit module. Their
                 # public dependents remain part of the external axiom audit.
