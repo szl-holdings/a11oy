@@ -25,7 +25,8 @@ export default defineConfig({
     },
   },
   build: {
-    // Matches the Dockerfile runner stage: COPY --from=builder /app/web/dist
+    // Standalone output only. The current root Dockerfile does not copy this
+    // directory, and the root pnpm workspace does not yet build this project.
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: false,

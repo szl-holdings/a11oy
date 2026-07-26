@@ -18,7 +18,7 @@ tests, and a Hugging Face mirror that points back to canonical provenance.
 | Thesis/proof alignment | `docs/PROVENANCE.md` pins v18 thesis DOI and Lean software DOI, and gates public claims by status. |
 | Market evidence map | `docs/SERIES_A_MARKET_EVIDENCE.md` maps NIST AI RMF, EU AI Act, CISA SBOM, SLSA, and model-card expectations to A11oy artifacts and gaps. |
 | Substrate reality map | `docs/SUBSTRATE_REALITY_MAP.md` keeps the 13-repo spine, quadrants, anatomy, GHAS, SLSA, and proof posture useful without treating PR-only or privileged-API claims as shipped. |
-| GitHub validation | Doctrine Build, CodeQL, SBOM, Trivy, DCO, docs, links, and secret scan pass on the branch. |
+| GitHub validation | **PROVED per exact head only** — hosted checks report their own result; no branch-wide all-green claim is inferred from an older run. |
 | Hugging Face path | Manual workflow publishes the verified payload to `SZLHOLDINGS/a11oy-v19-substrate` when `HF_TOKEN` is available. |
 | UDS / Warhacker proof point | `docs/WARHACKER_UDS_PROOF_POINT.md` ties the package, manifest, attestation, receipt-chain, and tamper-test demo together. |
 | Live correction evidence | `huggingface/DEMO_RECEIPT_SAMPLE.jsonl` records the current blocked claims: inflated benchmark discharge, unmerged gate totals, and unsigned/empty v0.3.x release language. |
@@ -86,6 +86,7 @@ as `KORA`, `LUMINA`, `PARAGON`, or active `Lyte` copy.
 <!-- END GENERATED PUTNAM STATUS -->
 | Runtime gates | A11oy main can cite seven policy gate files and ten theorem-runtime manifest entries. G36-G40 and broader totals are not live until merged and validated. |
 | UDS v0.3.0 | A11oy v0.3.0 has SBOM assets only; Vessels v0.3.0 has zero release assets. Use earlier signed assets or future owner-pushed assets for signed payload proof. |
+| Console bundle | **PROVED** only for internal asset-reference closure by `.github/scripts/check_bundle_integrity.py`; source provenance, HTML reachability, and live-deployment reachability require separate evidence. |
 | GHCR | Treat GHCR package availability as founder/owner release work until package push and visibility are confirmed. |
 
 ## Verification command block
