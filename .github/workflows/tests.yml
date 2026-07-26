@@ -131,7 +131,7 @@ jobs:
         run: |
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
-      - name: Run demo-critical route-table guard
+      - name: Run demo-critical route and nested-static delivery guards
         # RECURRING REGRESSION GUARD: szl_* route REGISTRATIONS keep getting dropped
         # from serve.py during mesh/rebrand refactors while the handler modules stay
         # in-image but unwired — so the live endpoints 404 (energy/operator/status #460,
@@ -139,7 +139,10 @@ jobs:
         # 2026-06-16). This guard boots the REAL app in-process (no mocks, no network)
         # and FAILS if ANY demo-critical route is missing from the assembled route
         # table — turning a silent live 404 into a red CI gate before the demo.
-        run: pytest tests/test_demo_critical_routes.py -q
+        # The nested-static suite exercises the assembled app as well: the owning
+        # path-converter route must return GET/HEAD 200 while missing scoped
+        # assets and undeclared root files remain fail-closed JSON 404s.
+        run: pytest tests/test_demo_critical_routes.py tests/test_holographic_static_route_runtime.py -q
 
   python-energy-autostart-readyz:
     name: Energy-operator autostart + /readyz redeploy-stall guard (pytest)
