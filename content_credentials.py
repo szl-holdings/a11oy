@@ -590,6 +590,8 @@ def _atomic_write_bytes(asset_path: str, asset_bytes: bytes) -> None:
     """Atomically replace one asset path with the supplied bytes."""
     if not isinstance(asset_bytes, bytes):
         raise TypeError("asset_bytes must be bytes")
+    if os.path.islink(asset_path):
+        raise ValueError("credentialed writes reject symlink destinations")
     parent = os.path.dirname(os.path.abspath(asset_path))
     if not os.path.isdir(parent):
         raise FileNotFoundError(f"asset parent directory does not exist: {parent}")
@@ -666,9 +668,13 @@ def write_asset_with_credential(
     gate = dict(governance_decision or {})
     governed_resource = os.path.abspath(asset_path)
     governed_asset_hash = sha256_bytes(asset_bytes)
+    sidecar_path = asset_path + ".c2pa.json"
+    if os.path.islink(asset_path) or os.path.islink(sidecar_path):
+        raise ValueError("credentialed writes reject symlink destinations")
     receipt_link = gate.get("khipu_receipt")
+    governed_action = gate.get("action")
     expected_payload = {
-        "action": "fs_write",
+        "action": governed_action,
         "allow": gate.get("allow"),
         "score": gate.get("score"),
         "lambda": gate.get("lambda"),
@@ -685,6 +691,7 @@ def write_asset_with_credential(
     )
     evidence_is_bound = (
         gate.get("allow") is True
+        and governed_action in {"fs_write", "media_write"}
         and gate.get("resource") == governed_resource
         and gate.get("asset_sha256") == governed_asset_hash
         and isinstance(receipt_id, str)
@@ -695,7 +702,7 @@ def write_asset_with_credential(
     if not evidence_is_bound or not consume_governance_decision(
         receipt_id=receipt_id,
         receipt_hash=receipt_hash,
-        governed_action="fs_write",
+        governed_action=governed_action,
         resource=governed_resource,
         expected_payload=expected_payload,
     ):
@@ -704,7 +711,6 @@ def write_asset_with_credential(
             "unused decision bound to the exact resource and bytes is required"
         )
 
-    sidecar_path = asset_path + ".c2pa.json"
     original_asset = _snapshot_file(asset_path)
     original_sidecar = _snapshot_file(sidecar_path)
     asset_mutated = False

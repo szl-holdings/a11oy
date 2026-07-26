@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
+import asyncio
+import base64
 import copy
+import json
 import os
 import sqlite3
 import stat
@@ -110,6 +113,64 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertTrue(verification.ok)
             self.assertTrue(verification.claim_hash_ok)
             self.assertEqual(verification.trust_level, TRUST_STRUCTURAL_ONLY)
+
+    def test_deployed_media_tool_writes_a_receipted_asset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sandbox = Path(directory) / "sandbox"
+            (sandbox / "media").mkdir(parents=True)
+            asset_bytes = b"deployed governed media\n"
+            args = {
+                "path": "deployed-media.txt",
+                "content_base64": base64.b64encode(asset_bytes).decode("ascii"),
+                "asset_format": "text/plain",
+                "ai_generated": True,
+                "model_id": "szl/test-fixture",
+            }
+            with patch.object(orchestrator, "SANDBOX_DIR", sandbox):
+                execution = asyncio.run(
+                    orchestrator.execute_tool(
+                        "media_write",
+                        args,
+                        None,
+                        two_person_attested=True,
+                    )
+                )
+
+            self.assertTrue(execution["ok"], execution)
+            result = execution["result"]
+            self.assertEqual(result["path"], "media/deployed-media.txt")
+            self.assertTrue(result["khipu_receipt"]["chain_verified"])
+            self.assertEqual(
+                (sandbox / result["path"]).read_bytes(),
+                asset_bytes,
+            )
+            self.assertTrue(
+                (sandbox / result["sidecar_path"]).is_file(),
+            )
+            connection = orchestrator._db()
+            try:
+                receipt_row = connection.execute(
+                    "SELECT body FROM receipts WHERE hash=?",
+                    (execution["khipu"]["hash"],),
+                ).fetchone()
+            finally:
+                connection.close()
+            receipt_body = json.loads(receipt_row["body"])
+            receipt_args = receipt_body["payload"]["args"]
+            self.assertNotIn("content_base64", receipt_args)
+            self.assertEqual(receipt_args["bytes"], len(asset_bytes))
+            self.assertEqual(
+                receipt_args["content_sha256"],
+                sha256_bytes(asset_bytes),
+            )
+            self.assertIn(
+                '"name": "media_write"',
+                (ROOT / "a11oy_code_orchestrator.py").read_text("utf-8"),
+            )
+            self.assertIn(
+                "COPY content_credentials.py ./",
+                (ROOT / "Dockerfile").read_text("utf-8"),
+            )
 
     def test_receipt_link_tampering_is_detected_even_when_unsigned(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -362,6 +423,30 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             khipu_verify_receipt(successor["receipt_id"], successor["hash"])
         )
 
+    def test_durable_head_overrides_a_stale_process_local_tip(self):
+        first = khipu_emit("test.persisted.head", {"index": 1})
+        with orchestrator._khipu_lock:
+            orchestrator._khipu_tip = orchestrator._KHIPU_GENESIS
+
+        second = khipu_emit("test.persisted.head", {"index": 2})
+
+        self.assertEqual(second["prev"], first["hash"])
+        self.assertTrue(
+            khipu_verify_receipt(
+                second["receipt_id"],
+                second["hash"],
+                require_durable=True,
+            )
+        )
+        connection = orchestrator._db()
+        try:
+            persisted_head = connection.execute(
+                "SELECT hash FROM khipu_heads WHERE id=1"
+            ).fetchone()["hash"]
+        finally:
+            connection.close()
+        self.assertEqual(persisted_head, second["hash"])
+
     def test_verify_rejects_a_rehashed_attacker_controlled_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "governed-media.txt"
@@ -602,6 +687,31 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertTrue(verification.claim_hash_ok)
             self.assertEqual(verification.khipu_authentication, "UNAVAILABLE")
             self.assertEqual(verification.trust_level, TRUST_AUTH_UNAVAILABLE)
+
+    def test_symlink_destination_is_rejected_before_asset_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "target.txt"
+            link = Path(directory) / "linked-media.txt"
+            target.write_bytes(b"target remains unchanged\n")
+            try:
+                os.symlink(target, link)
+            except OSError as exc:
+                self.skipTest(f"symlink creation unavailable: {exc}")
+            replacement = b"replacement must be rejected\n"
+
+            with self.assertRaisesRegex(ValueError, "symlink destinations"):
+                write_asset_with_credential(
+                    asset_path=str(link),
+                    asset_bytes=replacement,
+                    asset_title=link.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                    governance_decision=_authorized_write(link, replacement),
+                )
+
+            self.assertTrue(link.is_symlink())
+            self.assertEqual(target.read_bytes(), b"target remains unchanged\n")
+            self.assertFalse(Path(f"{link}.c2pa.json").exists())
 
     @unittest.skipIf(os.name == "nt", "POSIX permission bits are not enforced")
     def test_atomic_replacement_preserves_existing_and_safe_new_modes(self):
