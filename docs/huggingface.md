@@ -40,9 +40,10 @@ records the anonymous, author-filtered public `SZLHOLDINGS` Hugging Face
 inventory, current public counts, source links, guardrails, and unsafe flags.
 It does not count private repositories and must not be presented as the
 authenticated organization total. The write command records the real UTC
-observation time; the audit command compares live content while retaining that
-timestamp. Source `sha` and `lastModified` values are also snapshot evidence.
-The audit ignores later revision-only changes while still failing on membership
+observation time after collecting complete `sha` and `lastModified` evidence
+for every public item. The audit compares live content while retaining that
+timestamp and rejects incomplete, malformed, or non-monotonic revision changes.
+It ignores only valid later revision changes while still failing on membership
 or card-semantic drift; rerun the write command to refresh the snapshot. Keep
 this file GitHub-backed; do not hand-edit Hugging Face cards with counts that
 cannot be regenerated.

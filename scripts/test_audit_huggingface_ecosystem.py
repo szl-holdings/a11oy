@@ -65,6 +65,8 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
 
         def fake_fetch_page(url: str):
             key = "page-1" if "huggingface.co" in url else url
+            if key == "page-1":
+                self.assertIn("full=true", url)
             return pages[key]
 
         audit.fetch_page = fake_fetch_page
@@ -84,6 +86,13 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertEqual(manifest["counts"], {"models": 1, "datasets": 1, "spaces": 1})
         self.assertEqual(manifest["inventoryScope"]["visibility"], "public-only")
         self.assertFalse(manifest["inventoryScope"]["authenticated"])
+        self.assertTrue(
+            all(
+                entry["sha"] and entry["lastModified"]
+                for kind in ("models", "datasets", "spaces")
+                for entry in manifest["inventory"][kind]
+            )
+        )
         self.assertNotIn("canonicalNumbers", manifest)
         self.assertEqual(
             manifest["inventory"]["datasets"][0]["evidenceUrls"],
@@ -165,6 +174,83 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
                 message,
             )
 
+    def test_check_rejects_incomplete_or_malformed_live_revision_evidence(
+        self,
+    ) -> None:
+        observed_at = datetime(2026, 7, 26, 1, 0, tzinfo=timezone.utc)
+        stored = item("SZLHOLDINGS/model")
+        existing = {
+            "inventory": {
+                "models": [stored],
+                "datasets": [],
+                "spaces": [],
+            }
+        }
+        historical = dict(stored)
+        audit.fetch_revision = lambda item_id, repo_type, revision: historical
+        invalid_live = (
+            {
+                **stored,
+                "sha": "b" * 40,
+                "lastModified": None,
+            },
+            {
+                **stored,
+                "sha": "not-a-sha",
+                "lastModified": "2026-07-26T00:30:00Z",
+            },
+            {
+                **stored,
+                "sha": "b" * 40,
+                "lastModified": "2026-07-26T01:00:01Z",
+            },
+        )
+        for live_item in invalid_live:
+            with self.subTest(live_item=live_item), self.assertRaises(ValueError):
+                audit.validate_snapshot_revisions(
+                    existing,
+                    {
+                        "inventory": {
+                            "models": [live_item],
+                            "datasets": [],
+                            "spaces": [],
+                        }
+                    },
+                    observed_at=observed_at,
+                    now=observed_at,
+                )
+
+    def test_generated_manifest_requires_revision_evidence_at_observed_at(
+        self,
+    ) -> None:
+        observed_at = datetime(2026, 7, 26, 1, 0, tzinfo=timezone.utc)
+        manifest = {
+            "inventory": {
+                "models": [item("SZLHOLDINGS/model")],
+                "datasets": [item("SZLHOLDINGS/dataset")],
+                "spaces": [item("SZLHOLDINGS/space")],
+            }
+        }
+        audit.validate_generated_revision_evidence(
+            manifest,
+            observed_at=observed_at,
+        )
+        for field, value in (
+            ("sha", None),
+            ("lastModified", None),
+            ("sha", "not-a-sha"),
+            ("lastModified", "2026-07-26T01:00:01Z"),
+        ):
+            invalid = json.loads(json.dumps(manifest))
+            invalid["inventory"]["models"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(
+                ValueError
+            ):
+                audit.validate_generated_revision_evidence(
+                    invalid,
+                    observed_at=observed_at,
+                )
+
     def test_observed_at_requires_non_future_rfc3339_utc(self) -> None:
         now = datetime(2026, 7, 26, 1, 0, tzinfo=timezone.utc)
         self.assertEqual(
@@ -187,6 +273,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "2026-07-26T01:00:00",
             "2026-07-26T01:00:00-04:00",
             "2026-07-26T01:00:01Z",
+            "2026-07-25T24:00:00Z",
         ):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValueError):

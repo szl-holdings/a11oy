@@ -78,11 +78,11 @@
           "sdk": { "type": ["string", "null"] },
           "license": { "type": ["string", "null"] },
           "sha": {
-            "type": ["string", "null"],
+            "type": "string",
             "pattern": "^[0-9a-f]{40}$"
           },
           "lastModified": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "date-time",
             "pattern": "(?:Z|\\+00:00)$"
           },

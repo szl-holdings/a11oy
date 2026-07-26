@@ -19,7 +19,8 @@ ORG = "SZLHOLDINGS"
 PAGE_LIMIT = 100
 GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 RFC3339_UTC_RE = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|\+00:00)$"
+    r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])"
+    r"T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|\+00:00)$"
 )
 
 
@@ -38,7 +39,8 @@ def fetch_page(url: str) -> tuple[Any, str | None]:
 
 def api_items(kind: str) -> list[dict[str, Any]]:
     url: str | None = (
-        f"https://huggingface.co/api/{kind}?author={ORG}&limit={PAGE_LIMIT}"
+        f"https://huggingface.co/api/{kind}?author={ORG}"
+        f"&limit={PAGE_LIMIT}&full=true"
     )
     items: dict[str, dict[str, Any]] = {}
     seen_urls: set[str] = set()
@@ -114,9 +116,11 @@ def validate_snapshot_revisions(
     live: dict[str, Any],
     *,
     observed_at: dt.datetime,
+    now: dt.datetime | None = None,
 ) -> None:
     """Validate retained revision fields without requiring the live head to match."""
 
+    current = now or dt.datetime.now(dt.timezone.utc)
     for plural, repo_type in (
         ("models", "model"),
         ("datasets", "dataset"),
@@ -136,10 +140,12 @@ def validate_snapshot_revisions(
             stored_sha = item.get("sha")
             stored_last_modified = item.get("lastModified")
             if stored_sha is None and stored_last_modified is None:
-                continue
+                raise ValueError(
+                    f"{item_id} sha and lastModified must both be present"
+                )
             if stored_sha is None or stored_last_modified is None:
                 raise ValueError(
-                    f"{item_id} sha and lastModified must both be null or both be set"
+                    f"{item_id} sha and lastModified must both be present"
                 )
             if not isinstance(stored_sha, str) or not GIT_SHA_RE.fullmatch(
                 stored_sha
@@ -154,16 +160,33 @@ def validate_snapshot_revisions(
                     f"{item_id} lastModified must not be later than observedAt"
                 )
 
-            live_item = live_items.get(item_id, {})
+            live_item = live_items.get(item_id)
+            if live_item is None:
+                raise ValueError(f"{item_id} is missing from the live inventory")
             live_sha = live_item.get("sha")
             live_last_modified = live_item.get("lastModified")
-            if live_sha == stored_sha and live_last_modified is not None:
-                live_modified_at = parse_rfc3339_utc(
-                    live_last_modified,
-                    field=f"live {item_id} lastModified",
+            if live_sha is None or live_last_modified is None:
+                raise ValueError(
+                    f"live {item_id} sha and lastModified must both be present"
                 )
-                if live_modified_at == stored_modified_at:
-                    continue
+            if not isinstance(live_sha, str) or not GIT_SHA_RE.fullmatch(live_sha):
+                raise ValueError(
+                    f"live {item_id} sha must be a 40-character Git SHA"
+                )
+            live_modified_at = parse_rfc3339_utc(
+                live_last_modified,
+                field=f"live {item_id} lastModified",
+            )
+            if live_modified_at > current:
+                raise ValueError(
+                    f"live {item_id} lastModified must not be in the future"
+                )
+            if live_sha == stored_sha:
+                if live_modified_at != stored_modified_at:
+                    raise ValueError(
+                        f"{item_id} unchanged revision has conflicting lastModified"
+                    )
+                continue
 
             try:
                 historical = fetch_revision(item_id, repo_type, stored_sha)
@@ -175,6 +198,10 @@ def validate_snapshot_revisions(
                 raise ValueError(
                     f"{item_id} historical revision did not resolve to {stored_sha}"
                 )
+            if historical.get("id") != item_id:
+                raise ValueError(
+                    f"{item_id} historical revision resolved to another repository"
+                )
             historical_modified_at = parse_rfc3339_utc(
                 historical.get("lastModified"),
                 field=f"{item_id} historical lastModified",
@@ -184,16 +211,41 @@ def validate_snapshot_revisions(
                     f"{item_id} lastModified does not match its historical revision"
                 )
 
-            if live_sha and live_sha != stored_sha and live_last_modified:
-                live_modified_at = parse_rfc3339_utc(
-                    live_last_modified,
-                    field=f"live {item_id} lastModified",
+            if live_modified_at <= stored_modified_at:
+                raise ValueError(
+                    f"{item_id} live revision differs but is not newer than "
+                    "the checked-in snapshot"
                 )
-                if live_modified_at <= stored_modified_at:
-                    raise ValueError(
-                        f"{item_id} live revision differs but is not newer than "
-                        "the checked-in snapshot"
-                    )
+
+
+def validate_generated_revision_evidence(
+    manifest: dict[str, Any],
+    *,
+    observed_at: dt.datetime,
+) -> None:
+    """Require complete revision evidence that existed by the observation time."""
+
+    for plural in ("models", "datasets", "spaces"):
+        for item in manifest.get("inventory", {}).get(plural, []):
+            item_id = item.get("id") if isinstance(item, dict) else None
+            if not isinstance(item_id, str) or not item_id:
+                raise ValueError(f"inventory.{plural} entry has no repository id")
+            sha = item.get("sha")
+            last_modified = item.get("lastModified")
+            if sha is None or last_modified is None:
+                raise ValueError(
+                    f"{item_id} sha and lastModified must both be present"
+                )
+            if not isinstance(sha, str) or not GIT_SHA_RE.fullmatch(sha):
+                raise ValueError(f"{item_id} sha must be a 40-character Git SHA")
+            modified_at = parse_rfc3339_utc(
+                last_modified,
+                field=f"{item_id} lastModified",
+            )
+            if modified_at > observed_at:
+                raise ValueError(
+                    f"{item_id} lastModified must not be later than observedAt"
+                )
 
 
 def evidence_url(item_id: str, repo_type: str) -> str:
@@ -266,10 +318,11 @@ def unsafe_flags(item_id: str, repo_type: str, tags: list[Any], card: dict[str, 
     return flags
 
 
-def build_manifest(*, observed_at: str) -> dict[str, Any]:
+def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
     models = [item_summary(item, "model") for item in api_items("models")]
     datasets = [item_summary(item, "dataset") for item in api_items("datasets")]
     spaces = [item_summary(item, "space") for item in api_items("spaces")]
+    observed_at = observed_at or observed_at_now()
     counts = {
         "models": len(models),
         "datasets": len(datasets),
@@ -285,14 +338,14 @@ def build_manifest(*, observed_at: str) -> dict[str, Any]:
             "authenticated": False,
             "privateAssetsIncluded": False,
             "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-            "revisionFields": "sha and lastModified are snapshot evidence at observedAt; --check ignores later revision-only changes but still detects membership and card-semantic drift.",
+            "revisionFields": "Every item has sha and lastModified snapshot evidence at observedAt; --check verifies retained revisions and ignores only complete, valid later revision changes.",
         },
         "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",
         "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
         "publicApiEndpoints": [
-            f"https://huggingface.co/api/models?author={ORG}&limit={PAGE_LIMIT}",
-            f"https://huggingface.co/api/datasets?author={ORG}&limit={PAGE_LIMIT}",
-            f"https://huggingface.co/api/spaces?author={ORG}&limit={PAGE_LIMIT}",
+            f"https://huggingface.co/api/models?author={ORG}&limit={PAGE_LIMIT}&full=true",
+            f"https://huggingface.co/api/datasets?author={ORG}&limit={PAGE_LIMIT}&full=true",
+            f"https://huggingface.co/api/spaces?author={ORG}&limit={PAGE_LIMIT}&full=true",
         ],
         "counts": counts,
         "guardrails": [
@@ -367,20 +420,24 @@ def main() -> int:
             return 1
         print(f"Hugging Face ecosystem manifest is current: {display_path(output)}")
         return 0
-    observed_at = args.observed_at or observed_at_now()
+    observed_at = args.observed_at
+    if observed_at is not None:
+        try:
+            validate_observed_at(observed_at)
+        except ValueError as exc:
+            print(f"Invalid Hugging Face ecosystem observation time: {exc}")
+            return 1
+    manifest = build_manifest(observed_at=observed_at)
     try:
-        validate_observed_at(observed_at)
-    except ValueError as exc:
-        print(f"Invalid Hugging Face ecosystem observation time: {exc}")
-        return 1
-    rendered = (
-        json.dumps(
-            build_manifest(observed_at=observed_at),
-            indent=2,
-            sort_keys=False,
+        parsed_observed_at = validate_observed_at(manifest["observedAt"])
+        validate_generated_revision_evidence(
+            manifest,
+            observed_at=parsed_observed_at,
         )
-        + "\n"
-    )
+    except (KeyError, TypeError, ValueError) as exc:
+        print(f"Invalid Hugging Face ecosystem snapshot evidence: {exc}")
+        return 1
+    rendered = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8")
     print(f"Wrote Hugging Face ecosystem manifest: {display_path(output)}")

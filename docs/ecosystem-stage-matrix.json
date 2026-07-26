@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-07-26T04:36:35Z",
+  "observedAt": "2026-07-26T06:11:27Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -35,7 +35,7 @@
       "authenticated": false,
       "privateAssetsIncluded": false,
       "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-      "revisionFields": "sha and lastModified are snapshot evidence at observedAt; --check ignores later revision-only changes but still detects membership and card-semantic drift."
+      "revisionFields": "Every item has sha and lastModified snapshot evidence at observedAt; --check verifies retained revisions and ignores only complete, valid later revision changes."
     },
     "theoremRuntimeEntries": 46
   },
