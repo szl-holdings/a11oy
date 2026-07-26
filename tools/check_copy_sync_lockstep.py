@@ -299,7 +299,7 @@ def workflow_job_blocks(workflow_text):
 
 
 def job_has_source_derived_deploy_contract(block_lines, job_indent):
-    """Require the pinned deployer and Dockerfile input in one reusable job."""
+    """Require an unconditional pinned Dockerfile deploy in one reusable job."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -318,6 +318,11 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
         indent = len(raw) - len(raw.lstrip())
         if indent != property_indent:
             continue
+        if re.match(r"if:\s*", stripped):
+            # A skipped reusable job can leave the workflow green without
+            # publishing protected-main source changes. Fail closed rather
+            # than trying to prove arbitrary GitHub expression semantics.
+            return False
         if re.fullmatch(
             r"uses:\s*szl-holdings/\.github/\.github/workflows/"
             r"reusable-hf-deploy\.yml@[0-9a-fA-F]{40}\s*(?:#.*)?",
@@ -349,8 +354,8 @@ def has_source_derived_deploy_contract(hf_sync_text):
 
     The shared controller expands Dockerfile COPY sources and publishes that
     exact set. Requiring both a commit-pinned controller and the explicit
-    Dockerfile input in the same job prevents a comment, step, or unrelated
-    reusable workflow from satisfying CHECK 3.
+    Dockerfile input in the same unconditional job prevents a comment, step,
+    unrelated workflow, or skipped deploy job from satisfying CHECK 3.
     """
     return any(
         job_has_source_derived_deploy_contract(block_lines, job_indent)

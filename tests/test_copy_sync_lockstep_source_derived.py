@@ -90,6 +90,27 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         )
         self.assertTrue(CHECKER.has_source_derived_deploy_contract(workflow))
 
+    def test_conditioned_deploy_job_is_rejected(self) -> None:
+        conditions = (
+            "false",
+            "github.event_name == 'workflow_dispatch'",
+        )
+        for condition in conditions:
+            workflow = textwrap.dedent(
+                f"""
+                jobs:
+                  deploy:
+                    if: {condition}
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                    with:
+                      dockerfile-path: Dockerfile
+                """
+            )
+            with self.subTest(condition=condition):
+                self.assertFalse(
+                    CHECKER.has_source_derived_deploy_contract(workflow)
+                )
+
     def test_shipped_repository_passes_the_real_lockstep_guard(self) -> None:
         with mock.patch.object(sys, "argv", ["check_copy_sync_lockstep.py", str(ROOT)]):
             self.assertEqual(0, CHECKER.main())
