@@ -18,6 +18,7 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 SCRIPT = HERE / "audit_huggingface_ecosystem.py"
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "operational.yml"
+PUBLISH_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "huggingface.yml"
 SCHEMA = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.schema.json"
 REVISION_FIXTURE = (
     HERE / "fixtures" / "huggingface_snapshot_revisions.json"
@@ -309,6 +310,35 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             workflow.index("pnpm hf:ecosystem:audit"),
             workflow.index("npm run payload:huggingface"),
         )
+
+    def test_publication_fails_closed_without_every_evidence_guard(self) -> None:
+        workflow = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        guards = (
+            "pnpm hf:ecosystem:audit",
+            "python3 scripts/build_ecosystem_stage_matrix.py --check",
+            "node scripts/validate_huggingface_ecosystem_schema.mjs",
+        )
+        prepare = "run: pnpm payload:huggingface"
+        upload = "python3 scripts/publish_huggingface_payload.py"
+
+        def guarded(candidate: str) -> bool:
+            return (
+                prepare in candidate
+                and upload in candidate
+                and all(
+                    guard in candidate
+                    and candidate.index(guard) < candidate.index(prepare)
+                    and candidate.index(guard) < candidate.index(upload)
+                    for guard in guards
+                )
+            )
+
+        self.assertTrue(guarded(workflow))
+        for guard in guards:
+            stripped = workflow.replace(guard, "", 1)
+            self.assertFalse(guarded(stripped), guard)
+            moved_after_upload = stripped + f"\n{guard}\n"
+            self.assertFalse(guarded(moved_after_upload), guard)
 
     def test_published_item_schema_requires_revision_evidence(self) -> None:
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
