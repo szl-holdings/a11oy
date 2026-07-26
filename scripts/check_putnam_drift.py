@@ -223,7 +223,8 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
                 namespaces.pop()
             continue
         decl = re.match(
-            r"\s*(?:(?:private|protected|noncomputable)\s+)*"
+            r"\s*(?:@\[[^\]\n]*\]\s*)*"
+            r"(?:(?:private|protected|noncomputable)\s+)*"
             r"(?:theorem|lemma)\s+([A-Za-z0-9_'.]+)\b",
             line,
         )

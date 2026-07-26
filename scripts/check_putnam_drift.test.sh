@@ -197,6 +197,16 @@ TXT
 expect_fail_report "REAL theorem kernel report has an extra axiom" "$L" \
   "$L/axioms.txt"
 
+# --- Fixture M: attributed REAL theorem missing from report -> FAIL -------
+M="$TMP/M"; make_honest "$M"
+sed -i '/theorem proof/a @[simp] theorem attributed : True := by trivial' \
+  "$M/canon/SZL/One.lean"
+cat > "$M/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "attributed REAL theorem is required in kernel report" "$M" \
+  "$M/axioms.txt"
+
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
