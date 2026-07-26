@@ -129,10 +129,24 @@ jobs:
           set -euo pipefail
           lake exe cache get
           lake build PutnamSet
+      - name: Generate every REAL theorem axiom audit
+        env:
+          PUTNAM_DRIFT_FIXTURE: ${{ github.workspace }}/lutar-lean/Lutar/Putnam
+        run: |
+          python3 a11oy/scripts/check_putnam_drift.py --root a11oy \
+            --write-axiom-audit "$RUNNER_TEMP/putnam-real-axioms.lean"
+      - name: Run every REAL theorem axiom audit in the Lean kernel
+        working-directory: lutar-lean
+        run: |
+          set -euo pipefail
+          lake env lean "$RUNNER_TEMP/putnam-real-axioms.lean" \
+            2>&1 | tee "$RUNNER_TEMP/putnam-real-axioms.txt"
       - name: Verify generated diligence row against the built source
         env:
           PUTNAM_DRIFT_FIXTURE: ${{ github.workspace }}/lutar-lean/Lutar/Putnam
-        run: python3 a11oy/scripts/check_putnam_drift.py --root a11oy
+        run: |
+          python3 a11oy/scripts/check_putnam_drift.py --root a11oy \
+            --axiom-report "$RUNNER_TEMP/putnam-real-axioms.txt"
       - name: Save canonical Lake cache
         if: success()
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
