@@ -59,4 +59,5 @@ jobs:
           test ! -L "${candidate_manifest}"
           cp -- "${candidate_manifest}" "protected-base/docs/action-contract-manifest.json"
           cd protected-base
-          python3 scripts/validate_action_contract_manifest.py
+          python3 scripts/validate_action_contract_manifest.py \
+            --runtime-root "${GITHUB_WORKSPACE}/candidate"

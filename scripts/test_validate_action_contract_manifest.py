@@ -68,7 +68,9 @@ def mark_as_release_payload(manifest: dict) -> None:
     manifest["claimStatus"] = "release-payload"
 
 
-def run_validator(manifest: dict) -> int:
+def run_validator(
+    manifest: dict, *, runtime_root: Path | None = None
+) -> int:
     """Run the real validator against a tampered copy of the contract.
 
     The fixture is written to a temp file INSIDE the repo so the validator's
@@ -83,7 +85,9 @@ def run_validator(manifest: dict) -> int:
         validator.CONTRACT_PATH = Path(path)
         try:
             with redirect_stdout(io.StringIO()):
-                return validator.main()
+                return validator.main(
+                    runtime_root=runtime_root or validator.REPO_ROOT
+                )
         finally:
             validator.CONTRACT_PATH = orig
     finally:
@@ -191,7 +195,7 @@ class ActionContractGuardSelfTest(unittest.TestCase):
             )
             self.assertEqual(run_validator(m), 1)
 
-    def test_verified_runtime_runs_exact_pinned_protected_suite(self):
+    def test_verified_runtime_runs_protected_suite_against_candidate_root(self):
         m = honest()
         promote_to_verified_runtime(m)
         suite_bytes = validator.PINNED_RUNTIME_SUITE_PATH.read_bytes()
@@ -200,28 +204,54 @@ class ActionContractGuardSelfTest(unittest.TestCase):
             returncode=0,
             stdout="qualification passed\n",
         )
-        with (
-            mock.patch.object(
-                validator,
-                "protected_runtime_suite_bytes",
-                return_value=suite_bytes,
-            ),
-            mock.patch.object(
-                validator.subprocess,
-                "run",
-                return_value=completed,
-            ) as run,
-        ):
-            self.assertEqual(run_validator(m), 0)
-        run.assert_called_once_with(
-            [sys.executable, str(validator.PINNED_RUNTIME_SUITE_PATH)],
-            cwd=validator.REPO_ROOT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-            timeout=validator.RUNTIME_SUITE_TIMEOUT_SECONDS,
-            text=True,
+        with tempfile.TemporaryDirectory() as directory:
+            candidate_root = Path(directory).resolve()
+            with (
+                mock.patch.object(
+                    validator,
+                    "protected_runtime_suite_bytes",
+                    return_value=suite_bytes,
+                ),
+                mock.patch.object(
+                    validator.subprocess,
+                    "run",
+                    return_value=completed,
+                ) as run,
+                mock.patch.dict(
+                    validator.os.environ,
+                    {"GITHUB_TOKEN": "must-not-propagate"},
+                ),
+            ):
+                self.assertEqual(
+                    run_validator(m, runtime_root=candidate_root),
+                    0,
+                )
+        run.assert_called_once()
+        args, kwargs = run.call_args
+        self.assertEqual(
+            args[0],
+            [
+                sys.executable,
+                "-I",
+                str(validator.PINNED_RUNTIME_SUITE_PATH),
+                "--runtime-root",
+                str(candidate_root),
+            ],
         )
+        self.assertEqual(kwargs["cwd"], candidate_root)
+        self.assertEqual(
+            kwargs["env"]["ACTION_CONTRACT_RUNTIME_ROOT"],
+            str(candidate_root),
+        )
+        self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
+        self.assertEqual(kwargs["stdout"], subprocess.PIPE)
+        self.assertEqual(kwargs["stderr"], subprocess.STDOUT)
+        self.assertFalse(kwargs["check"])
+        self.assertEqual(
+            kwargs["timeout"],
+            validator.RUNTIME_SUITE_TIMEOUT_SECONDS,
+        )
+        self.assertTrue(kwargs["text"])
 
     def test_verified_runtime_rejects_suite_not_on_protected_base(self):
         m = honest()

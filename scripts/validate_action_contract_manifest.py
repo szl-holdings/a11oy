@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -20,7 +21,7 @@ PINNED_RUNTIME_SUITE_PATH = (
     REPO_ROOT / "scripts" / "qualify_action_contract_runtime.py"
 )
 PINNED_RUNTIME_SUITE_SHA256 = (
-    "b5a72ace9d1cea00339f50b1605080e9326b86c92df1168df53e58aaffd11e17"
+    "fd8749d15c5bd6e8e3e75f378c1c035d7f09fff392965d698c35fd98c4c7f01d"
 )
 PROTECTED_BASE_REF = "origin/main"
 RUNTIME_SUITE_TIMEOUT_SECONDS = 300
@@ -91,8 +92,43 @@ def protected_runtime_suite_bytes() -> bytes | None:
         return None
 
 
-def validate_pinned_runtime_suite() -> list[str]:
-    """Execute only a digest-pinned suite already present on protected main."""
+def _qualification_environment(runtime_root: Path) -> dict[str, str]:
+    """Build a minimal environment with no inherited CI credentials."""
+
+    allowed = (
+        "PATH",
+        "SystemRoot",
+        "WINDIR",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "LD_LIBRARY_PATH",
+    )
+    environment = {
+        name: os.environ[name] for name in allowed if name in os.environ
+    }
+    environment["ACTION_CONTRACT_RUNTIME_ROOT"] = str(runtime_root)
+    return environment
+
+
+def validate_pinned_runtime_suite(
+    runtime_root: Path = REPO_ROOT,
+) -> list[str]:
+    """Run protected suite bytes against an explicit candidate checkout."""
+
+    unresolved_root = Path(runtime_root)
+    if unresolved_root.is_symlink():
+        return ["verified-runtime candidate root must not be a symlink"]
+    try:
+        candidate_root = unresolved_root.resolve(strict=True)
+    except OSError as exc:
+        return [f"verified-runtime candidate root is unavailable: {exc}"]
+    if not candidate_root.is_dir():
+        return ["verified-runtime candidate root must be a directory"]
+
     try:
         current_suite = PINNED_RUNTIME_SUITE_PATH.read_bytes()
     except OSError:
@@ -119,8 +155,15 @@ def validate_pinned_runtime_suite() -> list[str]:
 
     try:
         completed = subprocess.run(
-            [sys.executable, str(PINNED_RUNTIME_SUITE_PATH)],
-            cwd=REPO_ROOT,
+            [
+                sys.executable,
+                "-I",
+                str(PINNED_RUNTIME_SUITE_PATH),
+                "--runtime-root",
+                str(candidate_root),
+            ],
+            cwd=candidate_root,
+            env=_qualification_environment(candidate_root),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
@@ -139,7 +182,7 @@ def validate_pinned_runtime_suite() -> list[str]:
     return []
 
 
-def main() -> int:
+def main(*, runtime_root: Path = REPO_ROOT) -> int:
     errors: list[str] = []
     contract = load_json(CONTRACT_PATH)
     patterns = load_json(PATTERNS_PATH)
@@ -263,7 +306,7 @@ def main() -> int:
         for field in RUNTIME_CLAIM_FIELDS:
             if execution.get(field) is not True:
                 errors.append(f"verified-runtime requires execution.{field}=true")
-        errors.extend(validate_pinned_runtime_suite())
+        errors.extend(validate_pinned_runtime_suite(runtime_root))
     if "do not constitute" not in str(execution.get("evidenceBoundary", "")).lower():
         errors.append("execution.evidenceBoundary must reject manifest-only runtime proof")
 
@@ -279,5 +322,14 @@ def main() -> int:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args()
-    sys.exit(main())
+    parser.add_argument(
+        "--runtime-root",
+        type=Path,
+        default=REPO_ROOT,
+        help=(
+            "Candidate checkout evaluated by the protected, digest-pinned "
+            "runtime qualification suite."
+        ),
+    )
+    args = parser.parse_args()
+    sys.exit(main(runtime_root=args.runtime_root))

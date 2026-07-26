@@ -31,15 +31,18 @@ def test_ruleset_source_uses_protected_validator_and_untrusted_candidate_data() 
         '"protected-base/docs/action-contract-manifest.json"' in text
     )
     assert "python3 scripts/validate_action_contract_manifest.py" in text
+    assert '--runtime-root "${GITHUB_WORKSPACE}/candidate"' in text
 
 
-def test_ruleset_source_never_executes_candidate_code() -> None:
+def test_ruleset_runs_only_protected_suite_code_against_candidate_root() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
     run_block = text.split("run: |", maxsplit=1)[1]
     assert "candidate/scripts/" not in run_block
     assert "cd candidate" not in run_block
     assert "python3 candidate/" not in run_block
+    assert "python3 scripts/validate_action_contract_manifest.py" in run_block
+    assert '--runtime-root "${GITHUB_WORKSPACE}/candidate"' in run_block
 
 
 def test_required_workflow_handoff_is_explicit_and_base_fresh() -> None:
