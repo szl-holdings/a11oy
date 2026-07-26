@@ -610,12 +610,28 @@ async function _fetchEvidenceSnapshot() {
   })();
   return evidenceSnapshotPromise;
 }
-function _hasObservedEvidence(readiness, revision) {
+function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
   if (
-    !revision ||
+    typeof revision !== "string" ||
+    !/^[0-9a-f]{40}$/.test(revision) ||
+    readiness?.honest !== true ||
+    readiness?.view !== "summary" ||
     readiness?.available !== true ||
     readiness?.matrix_available !== true ||
-    readiness?.probe_verdict_available !== true
+    readiness?.probe_verdict_available !== true ||
+    readiness?.verdict_source_revision !== revision
+  ) return false;
+  const checkedAt = readiness?.verdict_checked_at;
+  if (
+    typeof checkedAt !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(checkedAt)
+  ) return false;
+  const checkedMs = Date.parse(checkedAt);
+  const maxVerdictAgeMs = 24 * 60 * 60 * 1000;
+  if (
+    !Number.isFinite(checkedMs) ||
+    checkedMs > nowMs ||
+    nowMs - checkedMs > maxVerdictAgeMs
   ) return false;
   const verdict = readiness?.verdict_summary;
   if (!verdict || typeof verdict !== "object") return false;
@@ -626,7 +642,20 @@ function _hasObservedEvidence(readiness, revision) {
   if (!counts.every((value) => Number.isInteger(value) && value >= 0)) return false;
   if (!Number.isFinite(verdict.p95_worst) || verdict.p95_worst < 0) return false;
   const [endpoints, ...outcomes] = counts;
-  return endpoints > 0 && outcomes.reduce((total, value) => total + value, 0) === endpoints;
+  const executed = endpoints - verdict.skippedStateChanging;
+  return (
+    endpoints > 0 &&
+    executed > 0 &&
+    outcomes.reduce((total, value) => total + value, 0) === endpoints
+  );
+}
+function _readinessEvidenceText(readiness, observed) {
+  const matrix = readiness?.matrix_summary || {};
+  const verdict = readiness?.verdict_summary || null;
+  if (!observed || !verdict) {
+    return `${matrix.tabs ?? SURFACES.length} surfaces · probe UNVERIFIED`;
+  }
+  return `${verdict.ok}/${verdict.endpoints} clean · complete verdict`;
 }
 function _updateEvidenceRail(def) {
   if (!evidenceRail || !def) return;
@@ -645,10 +674,10 @@ function _updateEvidenceRail(def) {
     const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
     const revision = build?.build?.revision || build?.revision || null;
     if (evidenceRuntime) evidenceRuntime.textContent = revision ? `${buildState} · ${String(revision).slice(0,12)}…` : buildState;
-    const matrix = readiness?.matrix_summary || {};
-    const verdict = readiness?.verdict_summary || null;
-    if (evidenceReadiness) evidenceReadiness.textContent = verdict ? `${verdict.ok ?? 0}/${verdict.endpoints ?? matrix.endpoints ?? 0} observed clean` : `${matrix.tabs ?? SURFACES.length} surfaces · probe UNAVAILABLE`;
     const observed = _hasObservedEvidence(readiness, revision);
+    if (evidenceReadiness) {
+      evidenceReadiness.textContent = _readinessEvidenceText(readiness, observed);
+    }
     evidenceRail.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
     if (evidenceState) evidenceState.textContent = observed ? "OBSERVED" : "UNVERIFIED";
     if (estateObservationBadge) {

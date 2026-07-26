@@ -3108,7 +3108,7 @@ except Exception as _szl_putnam_e:  # pragma: no cover
 # the contract matrix tools/readiness-harness/tabs.json plus the optional probe
 # verdict; fails soft + honest when an artifact isn't bundled with the deploy.
 try:
-    import os as _rd_os, json as _rd_json
+    import os as _rd_os, json as _rd_json, re as _rd_re, math as _rd_math
     from datetime import datetime as _rd_dt, timezone as _rd_tz
     from fastapi import Request as _RDRequest
     from fastapi.responses import JSONResponse as _RDJSON
@@ -3139,7 +3139,8 @@ try:
             _rd_os.environ.get("SZL_PROBE_VERDICT_PATH", ""),
             _rd_os.path.join(_RD_HARNESS_DIR, "readiness-verdict.json"),
         ))
-        _now = _rd_dt.now(_rd_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        _now_dt = _rd_dt.now(_rd_tz.utc)
+        _now = _now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         if matrix is None:
             return _RDJSON({
                 "layer": "a11oy readiness tab-matrix",
@@ -3151,13 +3152,93 @@ try:
                          "tools/readiness-harness/gen_tabs_matrix.py"),
                 "checked_at": _now,
             }, status_code=200)
-        _verdict_available = verdict is not None
+        _verdict_available = False
+        _verdict_summary = None
+        _verdict_source_revision = None
+        _verdict_checked_at = None
+        _verdict_base = None
+        if isinstance(verdict, dict):
+            _candidate_summary = verdict.get("summary")
+            _candidate_revision = verdict.get("sourceRevision")
+            _candidate_checked_at = verdict.get("checkedAt")
+            _candidate_base = verdict.get("base")
+            _current_revision = str(
+                _rd_os.environ.get("SZL_GIT_SHA", "")
+            ).strip().lower()
+            _counts = [
+                _candidate_summary.get(field)
+                if isinstance(_candidate_summary, dict)
+                else None
+                for field in (
+                    "endpoints",
+                    "ok",
+                    "skippedStateChanging",
+                    "lies",
+                    "unreachable",
+                    "throttled",
+                )
+            ]
+            try:
+                _checked_dt = _rd_dt.fromisoformat(
+                    str(_candidate_checked_at).replace("Z", "+00:00")
+                )
+            except (TypeError, ValueError):
+                _checked_dt = None
+            _complete_counts = (
+                all(
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                    for value in _counts
+                )
+                and _counts[0] > 0
+                and _counts[0] - _counts[2] > 0
+                and sum(_counts[1:]) == _counts[0]
+            )
+            _p95 = (
+                _candidate_summary.get("p95_worst")
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
+            _fresh = (
+                isinstance(_candidate_checked_at, str)
+                and _rd_re.fullmatch(
+                    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z",
+                    _candidate_checked_at,
+                )
+                is not None
+                and _checked_dt is not None
+                and _checked_dt.utcoffset() == _rd_tz.utc.utcoffset(None)
+                and _checked_dt <= _now_dt
+                and (_now_dt - _checked_dt).total_seconds() <= 86400
+            )
+            _source_bound = (
+                isinstance(_candidate_revision, str)
+                and _rd_re.fullmatch(r"[0-9a-f]{40}", _candidate_revision)
+                is not None
+                and _candidate_revision == _current_revision
+            )
+            _verdict_available = bool(
+                _complete_counts
+                and isinstance(_p95, (int, float))
+                and not isinstance(_p95, bool)
+                and _rd_math.isfinite(_p95)
+                and _p95 >= 0
+                and _fresh
+                and _source_bound
+                and isinstance(_candidate_base, str)
+                and _candidate_base.startswith("https://")
+            )
+            if _verdict_available:
+                _verdict_summary = dict(_candidate_summary)
+                _verdict_source_revision = _candidate_revision
+                _verdict_checked_at = _candidate_checked_at
+                _verdict_base = _candidate_base
         if _verdict_available:
             verdict = dict(verdict)
             verdict["available"] = True
         if view == "summary":
             matrix_summary = dict(matrix.get("summary") or {}) if isinstance(matrix, dict) else {}
-            verdict_summary = dict(verdict.get("summary") or {}) if isinstance(verdict, dict) else None
             return _RDJSON({
                 "layer": "a11oy readiness tab-matrix",
                 "view": "summary",
@@ -3166,7 +3247,10 @@ try:
                 "matrix_available": True,
                 "probe_verdict_available": _verdict_available,
                 "matrix_summary": matrix_summary,
-                "verdict_summary": verdict_summary,
+                "verdict_summary": _verdict_summary,
+                "verdict_source_revision": _verdict_source_revision,
+                "verdict_checked_at": _verdict_checked_at,
+                "verdict_base": _verdict_base,
                 "checked_at": _now,
             }, status_code=200)
         return _RDJSON({
@@ -3179,9 +3263,12 @@ try:
             "matrix_available": True,
             "probe_verdict_available": _verdict_available,
             "matrix": matrix,
-            "verdict": verdict or {
+            "verdict": verdict if _verdict_available else {
                 "available": False,
-                "note": "probe not yet run on this deploy (no readiness-verdict.json)",
+                "note": (
+                    "probe absent, incomplete, stale, or source-unbound "
+                    "for this deploy"
+                ),
             },
             "checked_at": _now,
         }, status_code=200)

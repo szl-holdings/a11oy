@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import time
@@ -118,6 +119,85 @@ def require_json(response: requests.Response) -> Mapping[str, Any]:
     return payload
 
 
+def validate_readiness_summary(
+    payload: Mapping[str, Any],
+    source_sha: str,
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    if (
+        payload.get("honest") is not True
+        or payload.get("view") != "summary"
+        or payload.get("available") is not True
+        or payload.get("matrix_available") is not True
+        or payload.get("probe_verdict_available") is not True
+        or payload.get("verdict_source_revision") != source_sha
+    ):
+        raise RelockError("readiness summary is unavailable or source-unbound")
+
+    checked_at = payload.get("verdict_checked_at")
+    if (
+        not isinstance(checked_at, str)
+        or re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z",
+            checked_at,
+        )
+        is None
+    ):
+        raise RelockError("readiness verdict lacks a strict UTC observation time")
+    try:
+        checked = datetime.fromisoformat(checked_at[:-1] + "+00:00")
+    except ValueError as exc:
+        raise RelockError(
+            "readiness verdict observation time is invalid"
+        ) from exc
+    current = now or datetime.now(timezone.utc)
+    age_seconds = (current - checked).total_seconds()
+    if age_seconds < 0 or age_seconds > 86400:
+        raise RelockError("readiness verdict is future-dated or stale")
+
+    summary = payload.get("verdict_summary")
+    if not isinstance(summary, Mapping):
+        raise RelockError("readiness verdict summary is unavailable")
+    fields = (
+        "endpoints",
+        "ok",
+        "skippedStateChanging",
+        "lies",
+        "unreachable",
+        "throttled",
+    )
+    counts = [summary.get(field) for field in fields]
+    if not all(
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value >= 0
+        for value in counts
+    ):
+        raise RelockError("readiness verdict counts are incomplete or invalid")
+    endpoints, _, skipped, *_ = counts
+    if (
+        endpoints <= 0
+        or endpoints - skipped <= 0
+        or sum(counts[1:]) != endpoints
+    ):
+        raise RelockError("readiness verdict outcomes are incomplete")
+    p95_worst = summary.get("p95_worst")
+    if (
+        not isinstance(p95_worst, (int, float))
+        or isinstance(p95_worst, bool)
+        or not math.isfinite(p95_worst)
+        or p95_worst < 0
+    ):
+        raise RelockError("readiness verdict latency is incomplete or invalid")
+    return {
+        "source_revision": source_sha,
+        "checked_at": checked_at,
+        "age_seconds": age_seconds,
+        "summary": dict(summary),
+    }
+
+
 def validate_route(
     name: str,
     response: requests.Response,
@@ -221,13 +301,7 @@ def validate_route(
         ):
             raise RelockError("Brain capabilities contract is incomplete")
     elif name == "readiness":
-        if (
-            payload.get("honest") is not True
-            or payload.get("view") != "summary"
-            or not isinstance(payload.get("matrix_available"), bool)
-            or not isinstance(payload.get("probe_verdict_available"), bool)
-        ):
-            raise RelockError("readiness summary contract is incomplete or dishonest")
+        evidence["verdict"] = validate_readiness_summary(payload, source_sha)
     return evidence
 
 

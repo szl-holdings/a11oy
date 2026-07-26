@@ -8,6 +8,7 @@ import subprocess
 import sys
 import types
 import unittest
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -117,6 +118,10 @@ class FakeApi:
 
 
 def success_session(origin: str, source_sha: str) -> FakeSession:
+    verdict_checked_at = datetime.now(timezone.utc).isoformat().replace(
+        "+00:00",
+        "Z",
+    )
     payloads = {
         "livez": {
             "status": "LIVE",
@@ -152,8 +157,21 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
         "readiness": {
             "view": "summary",
             "honest": True,
+            "available": True,
             "matrix_available": True,
             "probe_verdict_available": True,
+            "verdict_source_revision": source_sha,
+            "verdict_checked_at": verdict_checked_at,
+            "verdict_base": origin,
+            "verdict_summary": {
+                "endpoints": 5,
+                "ok": 3,
+                "skippedStateChanging": 0,
+                "lies": 1,
+                "unreachable": 0,
+                "throttled": 1,
+                "p95_worst": 1806,
+            },
         },
     }
     responses: dict[tuple[str, str], FakeResponse] = {}
@@ -265,15 +283,20 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
     def test_observed_evidence_predicate_fails_closed(self) -> None:
         source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
         match = re.search(
-            r"function _hasObservedEvidence\(readiness, revision\) \{.*?^\}",
+            r"function _hasObservedEvidence\(readiness, revision,"
+            r" nowMs = Date\.now\(\)\) \{.*?^\}",
             source,
             re.MULTILINE | re.DOTALL,
         )
         self.assertIsNotNone(match)
         valid = {
+            "view": "summary",
+            "honest": True,
             "available": True,
             "matrix_available": True,
             "probe_verdict_available": True,
+            "verdict_source_revision": "a" * 40,
+            "verdict_checked_at": "2026-07-26T05:00:00Z",
             "verdict_summary": {
                 "endpoints": 5,
                 "ok": 3,
@@ -284,8 +307,13 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "p95_worst": 1806,
             },
         }
+        now_ms = 1785045600000
         cases = [
-            {"name": "complete verdict", "readiness": valid, "revision": "a" * 40},
+            {
+                "name": "complete verdict",
+                "readiness": valid,
+                "revision": "a" * 40,
+            },
             {
                 "name": "probe verdict unavailable",
                 "readiness": {**valid, "probe_verdict_available": False},
@@ -305,13 +333,60 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "revision": "a" * 40,
             },
             {"name": "revision missing", "readiness": valid, "revision": None},
+            {
+                "name": "revision malformed",
+                "readiness": valid,
+                "revision": "OBSERVED",
+            },
+            {
+                "name": "verdict revision mismatch",
+                "readiness": {
+                    **valid,
+                    "verdict_source_revision": "b" * 40,
+                },
+                "revision": "a" * 40,
+            },
+            {
+                "name": "verdict stale",
+                "readiness": {
+                    **valid,
+                    "verdict_checked_at": "2026-07-24T05:00:00Z",
+                },
+                "revision": "a" * 40,
+            },
+            {
+                "name": "verdict future",
+                "readiness": {
+                    **valid,
+                    "verdict_checked_at": "2026-07-26T07:00:01Z",
+                },
+                "revision": "a" * 40,
+            },
+            {
+                "name": "every endpoint skipped",
+                "readiness": {
+                    **valid,
+                    "verdict_summary": {
+                        "endpoints": 5,
+                        "ok": 0,
+                        "skippedStateChanging": 5,
+                        "lies": 0,
+                        "unreachable": 0,
+                        "throttled": 0,
+                        "p95_worst": 0,
+                    },
+                },
+                "revision": "a" * 40,
+            },
         ]
         script = (
             match.group(0)
             + "\nconst cases = "
             + json.dumps(cases)
+            + ";\nconst nowMs = "
+            + str(now_ms)
             + ";\nconsole.log(JSON.stringify(cases.map(({readiness, revision}) => "
-            "_hasObservedEvidence(readiness, revision))));"
+            "_hasObservedEvidence(readiness, revision, nowMs))));"
         )
         result = subprocess.run(
             ["node", "-e", script],
@@ -319,7 +394,63 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        self.assertEqual(json.loads(result.stdout), [True, False, False, False, False])
+        self.assertEqual(
+            json.loads(result.stdout),
+            [True, False, False, False, False, False, False, False, False, False],
+        )
+
+    def test_rejected_verdict_is_visibly_unverified(self) -> None:
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        match = re.search(
+            r"function _readinessEvidenceText\(readiness, observed\) \{.*?^\}",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        script = (
+            "const SURFACES = Array(139);\n"
+            + match.group(0)
+            + "\nconst readiness = {matrix_summary:{tabs:139},"
+            + "verdict_summary:{endpoints:5,ok:3}};"
+            + "\nconsole.log(JSON.stringify(["
+            + "_readinessEvidenceText(readiness, false),"
+            + "_readinessEvidenceText(readiness, true)]));"
+        )
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        labels = json.loads(result.stdout)
+        self.assertIn("probe UNVERIFIED", labels[0])
+        self.assertNotIn("observed clean", labels[0])
+        self.assertIn("complete verdict", labels[1])
+
+    def test_relock_rejects_unavailable_stale_or_unbound_verdicts(self) -> None:
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        invalid_updates = (
+            {"available": False, "probe_verdict_available": False},
+            {"verdict_source_revision": "b" * 40},
+            {"verdict_checked_at": "2000-01-01T00:00:00Z"},
+            {"verdict_summary": None},
+            {
+                "verdict_summary": {
+                    "endpoints": 5,
+                    "ok": 0,
+                    "skippedStateChanging": 5,
+                    "lies": 0,
+                    "unreachable": 0,
+                    "throttled": 0,
+                    "p95_worst": 0,
+                }
+            },
+        )
+        for update in invalid_updates:
+            session = success_session(self.origin, self.source)
+            session.responses[("GET", readiness_url)]._payload.update(update)
+            with self.subTest(update=update), self.assertRaises(relock.RelockError):
+                relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_runtime_revision_is_read_from_current_hub_raw_metadata(self) -> None:
         api = FakeApi(self.source)

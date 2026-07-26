@@ -16,11 +16,13 @@ def test_static_matrix_cannot_be_reported_as_a_deployment_verdict() -> None:
 
     assert '"matrix_available": False' in block
     assert '"probe_verdict_available": False' in block
-    assert "_verdict_available = verdict is not None" in block
+    assert "_verdict_available = False" in block
+    assert '_candidate_revision = verdict.get("sourceRevision")' in block
+    assert "_candidate_revision == _current_revision" in block
     assert '"available": _verdict_available' in block
     assert '"matrix_available": True' in block
     assert '"probe_verdict_available": _verdict_available' in block
-    assert "probe not yet run on this deploy" in block
+    assert "probe absent, incomplete, stale, or source-unbound" in block
 
 
 def test_landing_reads_matrix_and_probe_availability_separately() -> None:
