@@ -1046,8 +1046,27 @@ def test_ledger_uses_effective_combined_block_verdict(monkeypatch):
 
     assert result["lambda"]["pass"] is True
     assert result["attestation_policy"]["verdict"] == "BLOCK"
+    assert result["release_gate"] == {
+        "pass": False,
+        "verdict": "BLOCK",
+        "lambda_pass": True,
+        "attestation_allowed": False,
+    }
+    assert result["receipt"]["release_gate"] == result["release_gate"]
     assert result["inference"]["released"] is False
     assert emitted[-1][1]["decision"] == "BLOCK"
+
+
+def test_surface_uses_effective_release_gate_instead_of_advisory_lambda():
+    root = __import__("pathlib").Path(__file__).resolve().parents[1]
+    source = (
+        root / "static" / "3d" / "surfaces" / "attestinfer.js"
+    ).read_text(encoding="utf-8")
+
+    assert "const releaseGate = j.release_gate || {};" in source
+    assert "const gatePass = S.gatePass === true;" in source
+    assert "effective release gate (\\u039b + attestation)" in source
+    assert 'S.lamPass === true ? "PASS (release)"' not in source
 
 
 def test_library_defaults_to_high_consequence_and_blocks_without_evidence(monkeypatch):
