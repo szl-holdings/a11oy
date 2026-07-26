@@ -17,6 +17,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = REPO_ROOT / "docs" / "action-contract-manifest.json"
 PATTERNS_PATH = REPO_ROOT / "docs" / "public-pattern-source-manifest.json"
 RUNTIME_EVIDENCE_SCHEMA = "a11oy.action-contract.runtime-evidence.v1"
+RUNTIME_PROMOTION_BLOCK = (
+    "verified-runtime promotion is blocked: no protected-CI provenance verifier "
+    "or pinned runtime suite is configured"
+)
 REQUIRED_RUNTIME_TESTS = {
     "test_authenticated_operator_execution",
     "test_server_side_idempotency_enforcement",
@@ -104,7 +108,7 @@ def validate_runtime_evidence(
     report_path: Path | None,
     contract: dict,
 ) -> list[str]:
-    """Validate independent, commit-bound JUnit evidence for runtime promotion."""
+    """Validate diagnostic JUnit shape without treating it as promotion authority."""
     if report_path is None:
         return [
             "verified-runtime requires independent runtime evidence via "
@@ -179,6 +183,7 @@ def validate_runtime_evidence(
 
     if any(root.findall(f".//{tag}") for tag in ("failure", "error")):
         errors.append("verified-runtime evidence report contains failing tests")
+    errors.append(RUNTIME_PROMOTION_BLOCK)
     return errors
 
 
@@ -319,8 +324,8 @@ if __name__ == "__main__":
         "--runtime-evidence-junit",
         type=Path,
         help=(
-            "external JUnit XML from the protected runtime suite; required only "
-            "for verified-runtime promotion"
+            "diagnostic external JUnit XML; never authorizes verified-runtime "
+            "promotion without a protected-CI provenance verifier or pinned suite"
         ),
     )
     args = parser.parse_args()

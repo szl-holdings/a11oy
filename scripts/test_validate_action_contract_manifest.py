@@ -84,6 +84,7 @@ def run_validator(
     *,
     runtime_evidence: bool = False,
     mutate_evidence=None,
+    expected_output: str | None = None,
 ) -> int:
     """Run the real validator against a tampered copy of the contract.
 
@@ -106,8 +107,14 @@ def run_validator(
                 write_runtime_evidence(validator.CONTRACT_PATH, evidence_path)
                 if mutate_evidence is not None:
                     mutate_evidence(evidence_path)
-            with redirect_stdout(io.StringIO()):
-                return validator.main(evidence_path)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = validator.main(evidence_path)
+            if expected_output is not None and expected_output not in output.getvalue():
+                raise AssertionError(
+                    f"validator output did not include required text: {expected_output}"
+                )
+            return result
         finally:
             validator.CONTRACT_PATH = orig
             if evidence_path is not None:
@@ -171,10 +178,17 @@ class ActionContractGuardSelfTest(unittest.TestCase):
         promote_to_verified_runtime(m)
         self.assertEqual(run_validator(m), 1)
 
-    def test_verified_runtime_accepts_external_commit_bound_all_green_evidence(self):
+    def test_verified_runtime_rejects_fabricated_named_testcases(self):
         m = honest()
         promote_to_verified_runtime(m)
-        self.assertEqual(run_validator(m, runtime_evidence=True), 0)
+        self.assertEqual(
+            run_validator(
+                m,
+                runtime_evidence=True,
+                expected_output=validator.RUNTIME_PROMOTION_BLOCK,
+            ),
+            1,
+        )
 
     def test_verified_runtime_rejects_incomplete_external_evidence(self):
         def remove_authentication_case(path: Path) -> None:

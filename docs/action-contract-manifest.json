@@ -80,7 +80,7 @@
       "python3 scripts/validate_action_contract_manifest.py",
       "python3 scripts/test_validate_action_contract_manifest.py"
     ],
-    "evidenceBoundary": "These commands validate the design manifest and its fail-closed claim guard. They do not prove authenticated execution, server-side idempotency enforcement, durable receipt persistence, operator approval, deployment, or release. Promotion to verified-runtime additionally requires an external JUnit report bound to the exact contract bytes and source commit; same-manifest execution flags are not evidence.",
+    "evidenceBoundary": "These commands validate the design manifest and its fail-closed claim guard. They do not prove authenticated execution, server-side idempotency enforcement, durable receipt persistence, operator approval, deployment, or release. An external JUnit report is diagnostic only and cannot promote this contract; verified-runtime remains blocked until a protected-CI provenance verifier or a pinned runtime suite is configured.",
     "localEvidenceRefs": [
       "docs/UDS_FRONTIER_GAP_MAP.md",
       "docs/WARHACKER_UDS_PROOF_POINT.md",
