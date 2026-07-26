@@ -23,12 +23,14 @@ importable package):
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import io
 import json
 import os
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -47,7 +49,42 @@ def honest() -> dict:
     return copy.deepcopy(_REAL)
 
 
-def run_validator(manifest: dict) -> int:
+def promote_to_verified_runtime(manifest: dict) -> None:
+    manifest["claimStatus"] = "verified-runtime"
+    manifest["execution"].update(
+        {
+            "runtimeStatus": "live",
+            "runtimeImplemented": True,
+            "authenticatedExecution": True,
+            "idempotencyEnforced": True,
+            "durableReceiptLifecycle": True,
+        }
+    )
+
+
+def write_runtime_evidence(contract_path: Path, destination: Path) -> None:
+    suite = ET.Element("testsuite", name="action-contract-runtime")
+    properties = ET.SubElement(suite, "properties")
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    values = {
+        "evidence_schema": validator.RUNTIME_EVIDENCE_SCHEMA,
+        "contract_id": contract["contractId"],
+        "contract_sha256": hashlib.sha256(contract_path.read_bytes()).hexdigest(),
+        "source_commit": validator.current_source_commit(),
+    }
+    for name, value in values.items():
+        ET.SubElement(properties, "property", name=name, value=value)
+    for name in sorted(validator.REQUIRED_RUNTIME_TESTS):
+        ET.SubElement(suite, "testcase", name=name)
+    ET.ElementTree(suite).write(destination, encoding="utf-8", xml_declaration=True)
+
+
+def run_validator(
+    manifest: dict,
+    *,
+    runtime_evidence: bool = False,
+    mutate_evidence=None,
+) -> int:
     """Run the real validator against a tampered copy of the contract.
 
     The fixture is written to a temp file INSIDE the repo so the validator's
@@ -60,11 +97,21 @@ def run_validator(manifest: dict) -> int:
             json.dump(manifest, fh)
         orig = validator.CONTRACT_PATH
         validator.CONTRACT_PATH = Path(path)
+        evidence_path = None
         try:
+            if runtime_evidence:
+                evidence_fd, evidence_name = tempfile.mkstemp(suffix=".xml")
+                os.close(evidence_fd)
+                evidence_path = Path(evidence_name)
+                write_runtime_evidence(validator.CONTRACT_PATH, evidence_path)
+                if mutate_evidence is not None:
+                    mutate_evidence(evidence_path)
             with redirect_stdout(io.StringIO()):
-                return validator.main()
+                return validator.main(evidence_path)
         finally:
             validator.CONTRACT_PATH = orig
+            if evidence_path is not None:
+                evidence_path.unlink(missing_ok=True)
     finally:
         os.unlink(path)
 
@@ -119,10 +166,68 @@ class ActionContractGuardSelfTest(unittest.TestCase):
         m["claimStatus"] = "production-ready"
         self.assertEqual(run_validator(m), 1)
 
-    def test_roadmap_contract_cannot_be_promoted_by_label_only(self):
+    def test_same_manifest_runtime_flags_cannot_promote_without_independent_evidence(self):
         m = honest()
-        m["claimStatus"] = "verified-runtime"
+        promote_to_verified_runtime(m)
         self.assertEqual(run_validator(m), 1)
+
+    def test_verified_runtime_accepts_external_commit_bound_all_green_evidence(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        self.assertEqual(run_validator(m, runtime_evidence=True), 0)
+
+    def test_verified_runtime_rejects_incomplete_external_evidence(self):
+        def remove_authentication_case(path: Path) -> None:
+            tree = ET.parse(path)
+            root = tree.getroot()
+            for node in root.findall(".//testcase"):
+                if node.get("name") == "test_authenticated_operator_execution":
+                    root.remove(node)
+            tree.write(path, encoding="utf-8", xml_declaration=True)
+
+        m = honest()
+        promote_to_verified_runtime(m)
+        self.assertEqual(
+            run_validator(
+                m,
+                runtime_evidence=True,
+                mutate_evidence=remove_authentication_case,
+            ),
+            1,
+        )
+
+    def test_verified_runtime_rejects_evidence_bound_to_another_commit(self):
+        def replace_source_commit(path: Path) -> None:
+            tree = ET.parse(path)
+            root = tree.getroot()
+            for node in root.findall(".//property"):
+                if node.get("name") == "source_commit":
+                    node.set("value", "0" * 40)
+            tree.write(path, encoding="utf-8", xml_declaration=True)
+
+        m = honest()
+        promote_to_verified_runtime(m)
+        self.assertEqual(
+            run_validator(
+                m,
+                runtime_evidence=True,
+                mutate_evidence=replace_source_commit,
+            ),
+            1,
+        )
+
+    def test_verified_runtime_rejects_report_committed_inside_repository(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        report = validator.REPO_ROOT / ".action-runtime-evidence-test.xml"
+        try:
+            write_runtime_evidence(validator.CONTRACT_PATH, report)
+            self.assertEqual(validator.validate_runtime_evidence(report, m), [
+                "verified-runtime evidence must be generated outside the repository; "
+                "a committed same-change report is not independent"
+            ])
+        finally:
+            report.unlink(missing_ok=True)
 
     def test_nonexistent_evidence_command_fails(self):
         m = honest()
