@@ -123,6 +123,7 @@ def validate_readiness_summary(
     payload: Mapping[str, Any],
     source_sha: str,
     *,
+    expected_origin: str,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     if (
@@ -134,6 +135,10 @@ def validate_readiness_summary(
         or payload.get("verdict_source_revision") != source_sha
     ):
         raise RelockError("readiness summary is unavailable or source-unbound")
+    if normalize_origin(payload.get("verdict_base")) != normalize_origin(
+        expected_origin
+    ):
+        raise RelockError("readiness verdict was not probed at the canonical origin")
 
     checked_at = payload.get("verdict_checked_at")
     if (
@@ -193,6 +198,7 @@ def validate_readiness_summary(
     return {
         "source_revision": source_sha,
         "checked_at": checked_at,
+        "base": normalize_origin(expected_origin),
         "age_seconds": age_seconds,
         "summary": dict(summary),
     }
@@ -203,6 +209,7 @@ def validate_route(
     response: requests.Response,
     source_sha: str,
     source_variable: str,
+    origin: str,
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
@@ -301,7 +308,11 @@ def validate_route(
         ):
             raise RelockError("Brain capabilities contract is incomplete")
     elif name == "readiness":
-        evidence["verdict"] = validate_readiness_summary(payload, source_sha)
+        evidence["verdict"] = validate_readiness_summary(
+            payload,
+            source_sha,
+            expected_origin=origin,
+        )
     return evidence
 
 
@@ -320,7 +331,13 @@ def probe_routes(
             raise RelockError(
                 f"{path} is not operational: HEAD={head.status_code}; GET={get.status_code}"
             )
-        evidence = validate_route(name, get, source_sha, source_variable)
+        evidence = validate_route(
+            name,
+            get,
+            source_sha,
+            source_variable,
+            origin,
+        )
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
     return output

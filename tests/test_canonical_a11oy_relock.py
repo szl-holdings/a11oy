@@ -163,6 +163,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
             "verdict_source_revision": source_sha,
             "verdict_checked_at": verdict_checked_at,
             "verdict_base": origin,
+            "verdict_expected_base": origin,
             "verdict_summary": {
                 "endpoints": 5,
                 "ok": 3,
@@ -297,6 +298,8 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             "probe_verdict_available": True,
             "verdict_source_revision": "a" * 40,
             "verdict_checked_at": "2026-07-26T05:00:00Z",
+            "verdict_base": "https://szlholdings-a11oy.hf.space",
+            "verdict_expected_base": "https://szlholdings-a11oy.hf.space",
             "verdict_summary": {
                 "endpoints": 5,
                 "ok": 3,
@@ -347,6 +350,14 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "revision": "a" * 40,
             },
             {
+                "name": "verdict origin mismatch",
+                "readiness": {
+                    **valid,
+                    "verdict_base": "https://unrelated.example",
+                },
+                "revision": "a" * 40,
+            },
+            {
                 "name": "verdict stale",
                 "readiness": {
                     **valid,
@@ -380,7 +391,8 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             },
         ]
         script = (
-            match.group(0)
+            "const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;\n"
+            + match.group(0)
             + "\nconst cases = "
             + json.dumps(cases)
             + ";\nconst nowMs = "
@@ -396,7 +408,55 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         )
         self.assertEqual(
             json.loads(result.stdout),
-            [True, False, False, False, False, False, False, False, False, False],
+            [
+                True,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+            ],
+        )
+
+    def test_observed_evidence_rechecks_at_the_freshness_deadline(self) -> None:
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        match = re.search(
+            r"function _nextEvidenceRefreshDelay\(readiness,"
+            r" nowMs = Date\.now\(\)\) \{.*?^\}",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        script = (
+            "const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;\n"
+            "const EVIDENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;\n"
+            + match.group(0)
+            + "\nconst checked = Date.parse('2026-07-26T05:00:00Z');"
+            + "\nconsole.log(JSON.stringify(["
+            + "_nextEvidenceRefreshDelay({verdict_checked_at:"
+            + "'2026-07-26T05:00:00Z'}, checked + EVIDENCE_MAX_AGE_MS - 1000),"
+            + "_nextEvidenceRefreshDelay({verdict_checked_at:"
+            + "'2026-07-26T05:00:00Z'}, checked + EVIDENCE_MAX_AGE_MS + 1)"
+            + "]));"
+        )
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(
+            json.loads(result.stdout),
+            [1050, 5 * 60 * 1000],
+        )
+        self.assertIn(
+            "() => _updateEvidenceRail(def, true)",
+            source,
         )
 
     def test_rejected_verdict_is_visibly_unverified(self) -> None:
@@ -432,6 +492,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         invalid_updates = (
             {"available": False, "probe_verdict_available": False},
             {"verdict_source_revision": "b" * 40},
+            {"verdict_base": "https://unrelated.example"},
             {"verdict_checked_at": "2000-01-01T00:00:00Z"},
             {"verdict_summary": None},
             {
@@ -538,6 +599,20 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("python - <<'PY'", self.workflow)
         self.assertNotIn("def probe(", self.workflow)
         self.assertIn("python .github/scripts/verify_canonical_a11oy.py", self.workflow)
+
+    def test_post_deploy_probe_is_ingested_before_relock(self) -> None:
+        self.assertIn("readiness-verdict:", self.workflow)
+        self.assertIn(
+            "node tools/readiness-harness/probe_runner.mjs",
+            self.workflow,
+        )
+        self.assertIn(
+            "python .github/scripts/publish_readiness_verdict.py",
+            self.workflow,
+        )
+        self.assertIn("needs: [deploy, readiness-verdict]", self.workflow)
+        self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
+        self.assertIn("--expected-source-sha \"$SOURCE_SHA\"", self.workflow)
 
     def test_issue_write_is_limited_to_relock_job(self) -> None:
         self.assertIn("contents: read", self.workflow)

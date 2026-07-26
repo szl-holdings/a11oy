@@ -324,6 +324,7 @@ async function pool(items, n, fn) {
   const unreachable = results.filter((r) => r.unreachable && !r.lie);
   const throttled = results.filter((r) => r.throttled && !r.lie && !r.unreachable);
   const verdict = {
+    schema: "szl.readiness-verdict/v1",
     harness: "a11oy-readiness probe",
     doctrine: "v11",
     base: BASE,

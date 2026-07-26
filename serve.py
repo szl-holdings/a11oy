@@ -3110,6 +3110,7 @@ except Exception as _szl_putnam_e:  # pragma: no cover
 try:
     import os as _rd_os, json as _rd_json, re as _rd_re, math as _rd_math
     from datetime import datetime as _rd_dt, timezone as _rd_tz
+    from urllib.parse import urlsplit as _rd_urlsplit
     from fastapi import Request as _RDRequest
     from fastapi.responses import JSONResponse as _RDJSON
 
@@ -3128,6 +3129,42 @@ try:
                 continue
         return None
 
+    def _rd_normalize_origin(_value):
+        try:
+            _parsed = _rd_urlsplit(str(_value or "").strip())
+            if (
+                _parsed.scheme.lower() != "https"
+                or not _parsed.hostname
+                or _parsed.username
+                or _parsed.password
+                or _parsed.query
+                or _parsed.fragment
+                or _parsed.path not in ("", "/")
+            ):
+                return None
+            _port = f":{_parsed.port}" if _parsed.port else ""
+            return f"https://{_parsed.hostname.lower()}{_port}"
+        except (TypeError, ValueError):
+            return None
+
+    def _rd_load_verdict():
+        # hf-sync publishes the compact post-deploy verdict only after probing
+        # the exact live source. A bounded variable avoids the impossible
+        # self-referential checked-in-SHA pattern while keeping the full probe
+        # artifact immutable in GitHub Actions.
+        _raw = _rd_os.environ.get("SZL_PROBE_VERDICT_JSON", "")
+        if _raw and len(_raw.encode("utf-8")) <= 4096:
+            try:
+                _decoded = _rd_json.loads(_raw)
+                if isinstance(_decoded, dict):
+                    return _decoded
+            except (TypeError, ValueError):
+                pass
+        return _rd_load((
+            _rd_os.environ.get("SZL_PROBE_VERDICT_PATH", ""),
+            _rd_os.path.join(_RD_HARNESS_DIR, "readiness-verdict.json"),
+        ))
+
     @app.get("/api/a11oy/v1/readiness/tab-matrix")
     async def _a11oy_readiness_tab_matrix(request: _RDRequest):  # noqa: ANN202
         view = (request.query_params.get("view") or "full").strip().lower()
@@ -3135,10 +3172,7 @@ try:
             _rd_os.environ.get("SZL_TAB_MATRIX_PATH", ""),
             _rd_os.path.join(_RD_HARNESS_DIR, "tabs.json"),
         ))
-        verdict = _rd_load((
-            _rd_os.environ.get("SZL_PROBE_VERDICT_PATH", ""),
-            _rd_os.path.join(_RD_HARNESS_DIR, "readiness-verdict.json"),
-        ))
+        verdict = _rd_load_verdict()
         _now_dt = _rd_dt.now(_rd_tz.utc)
         _now = _now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         if matrix is None:
@@ -3157,14 +3191,22 @@ try:
         _verdict_source_revision = None
         _verdict_checked_at = None
         _verdict_base = None
+        _canonical_origin = _rd_normalize_origin(
+            _rd_os.environ.get(
+                "SZL_READINESS_CANONICAL_ORIGIN",
+                "https://szlholdings-a11oy.hf.space",
+            )
+        )
         if isinstance(verdict, dict):
             _candidate_summary = verdict.get("summary")
             _candidate_revision = verdict.get("sourceRevision")
             _candidate_checked_at = verdict.get("checkedAt")
             _candidate_base = verdict.get("base")
+            _candidate_schema = verdict.get("schema")
             _current_revision = str(
                 _rd_os.environ.get("SZL_GIT_SHA", "")
             ).strip().lower()
+            _candidate_origin = _rd_normalize_origin(_candidate_base)
             _counts = [
                 _candidate_summary.get(field)
                 if isinstance(_candidate_summary, dict)
@@ -3219,15 +3261,18 @@ try:
                 and _candidate_revision == _current_revision
             )
             _verdict_available = bool(
-                _complete_counts
+                _candidate_schema == "szl.readiness-verdict/v1"
+                and verdict.get("harness") == "a11oy-readiness probe"
+                and verdict.get("doctrine") == "v11"
+                and _complete_counts
                 and isinstance(_p95, (int, float))
                 and not isinstance(_p95, bool)
                 and _rd_math.isfinite(_p95)
                 and _p95 >= 0
                 and _fresh
                 and _source_bound
-                and isinstance(_candidate_base, str)
-                and _candidate_base.startswith("https://")
+                and _canonical_origin is not None
+                and _candidate_origin == _canonical_origin
             )
             if _verdict_available:
                 _verdict_summary = dict(_candidate_summary)
@@ -3251,6 +3296,7 @@ try:
                 "verdict_source_revision": _verdict_source_revision,
                 "verdict_checked_at": _verdict_checked_at,
                 "verdict_base": _verdict_base,
+                "verdict_expected_base": _canonical_origin,
                 "checked_at": _now,
             }, status_code=200)
         return _RDJSON({
@@ -3266,8 +3312,8 @@ try:
             "verdict": verdict if _verdict_available else {
                 "available": False,
                 "note": (
-                    "probe absent, incomplete, stale, or source-unbound "
-                    "for this deploy"
+                    "probe absent, incomplete, stale, source-unbound, or "
+                    "canonical-origin-unbound for this deploy"
                 ),
             },
             "checked_at": _now,

@@ -578,7 +578,10 @@ const evidenceId = document.getElementById("evidence-rail-id");
 const evidenceContract = document.getElementById("evidence-rail-contract");
 const evidenceRuntime = document.getElementById("evidence-rail-runtime");
 const evidenceReadiness = document.getElementById("evidence-rail-readiness");
+const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const EVIDENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let evidenceSnapshotPromise = null;
+let evidenceRefreshTimer = null;
 if (evidenceToggle && evidencePanel) {
   evidenceToggle.addEventListener("click", () => {
     const open = evidenceToggle.getAttribute("aria-expanded") !== "true";
@@ -593,7 +596,8 @@ if (evidenceToggle && evidencePanel) {
     }
   });
 }
-async function _fetchEvidenceSnapshot() {
+async function _fetchEvidenceSnapshot(forceRefresh = false) {
+  if (forceRefresh) evidenceSnapshotPromise = null;
   if (evidenceSnapshotPromise) return evidenceSnapshotPromise;
   evidenceSnapshotPromise = (async () => {
     const getJson = async (url) => {
@@ -619,7 +623,10 @@ function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
     readiness?.available !== true ||
     readiness?.matrix_available !== true ||
     readiness?.probe_verdict_available !== true ||
-    readiness?.verdict_source_revision !== revision
+    readiness?.verdict_source_revision !== revision ||
+    typeof readiness?.verdict_base !== "string" ||
+    !/^https:\/\/[^/]+$/.test(readiness.verdict_base) ||
+    readiness?.verdict_base !== readiness?.verdict_expected_base
   ) return false;
   const checkedAt = readiness?.verdict_checked_at;
   if (
@@ -627,11 +634,10 @@ function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(checkedAt)
   ) return false;
   const checkedMs = Date.parse(checkedAt);
-  const maxVerdictAgeMs = 24 * 60 * 60 * 1000;
   if (
     !Number.isFinite(checkedMs) ||
     checkedMs > nowMs ||
-    nowMs - checkedMs > maxVerdictAgeMs
+    nowMs - checkedMs > EVIDENCE_MAX_AGE_MS
   ) return false;
   const verdict = readiness?.verdict_summary;
   if (!verdict || typeof verdict !== "object") return false;
@@ -657,7 +663,24 @@ function _readinessEvidenceText(readiness, observed) {
   }
   return `${verdict.ok}/${verdict.endpoints} clean · complete verdict`;
 }
-function _updateEvidenceRail(def) {
+function _nextEvidenceRefreshDelay(readiness, nowMs = Date.now()) {
+  const checkedMs = Date.parse(readiness?.verdict_checked_at || "");
+  if (!Number.isFinite(checkedMs)) return EVIDENCE_REFRESH_INTERVAL_MS;
+  const untilExpiry = checkedMs + EVIDENCE_MAX_AGE_MS - nowMs;
+  if (untilExpiry < 0) return EVIDENCE_REFRESH_INTERVAL_MS;
+  return Math.max(
+    50,
+    Math.min(EVIDENCE_REFRESH_INTERVAL_MS, untilExpiry + 50),
+  );
+}
+function _scheduleEvidenceRefresh(def, readiness) {
+  if (evidenceRefreshTimer) clearTimeout(evidenceRefreshTimer);
+  evidenceRefreshTimer = setTimeout(
+    () => _updateEvidenceRail(def, true),
+    _nextEvidenceRefreshDelay(readiness),
+  );
+}
+function _updateEvidenceRail(def, forceRefresh = false) {
   if (!evidenceRail || !def) return;
   evidenceRail.dataset.state = "UNVERIFIED";
   if (evidenceState) evidenceState.textContent = "UNVERIFIED";
@@ -670,7 +693,7 @@ function _updateEvidenceRail(def) {
   if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
   if (evidenceRuntime) evidenceRuntime.textContent = "CHECKING";
   if (evidenceReadiness) evidenceReadiness.textContent = "CHECKING";
-  _fetchEvidenceSnapshot().then(({ readiness, build }) => {
+  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build }) => {
     const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
     const revision = build?.build?.revision || build?.revision || null;
     if (evidenceRuntime) evidenceRuntime.textContent = revision ? `${buildState} · ${String(revision).slice(0,12)}…` : buildState;
@@ -686,6 +709,7 @@ function _updateEvidenceRail(def) {
         ? "The estate, observed—not assumed."
         : "Evidence status: UNVERIFIED";
     }
+    _scheduleEvidenceRefresh(def, readiness);
   });
 }
 const _panels = {};   // cat -> drop-panel element
