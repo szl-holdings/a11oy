@@ -10577,9 +10577,8 @@ try:
             t0 = _t.time()
             source, source_url = _kl_live._SOURCE.get(f, ("unknown", ""))
             try:
-                with anyio.fail_after(_KL_FEED_PULSE_TIMEOUT_S):
-                    p = await anyio.to_thread.run_sync(
-                        _kl_live.get_feed, f, abandon_on_cancel=True)
+                p = await anyio.to_thread.run_sync(
+                    _kl_live.get_feed, f, _KL_FEED_PULSE_TIMEOUT_S)
                 dt = round((_t.time()-t0)*1000)
                 d = p.get("data")
                 # honest payload-size signal

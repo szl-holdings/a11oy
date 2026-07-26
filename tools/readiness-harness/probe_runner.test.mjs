@@ -26,7 +26,7 @@ test("freshness prefers nested source fetch time over a market event timestamp",
   assert.equal(findTimestamp(body)?.getTime(), 1785027907833);
 });
 
-test("tab-matrix schema validates the governed wrapper and its nested contract", () => {
+test("tab-matrix schema validates available and truthful unavailable wrappers", () => {
   assert.equal(validateSchema("tab_matrix", {
     matrix_available: true,
     probe_verdict_available: false,
@@ -34,8 +34,19 @@ test("tab-matrix schema validates the governed wrapper and its nested contract",
   }).ok, true);
 
   assert.equal(validateSchema("tab_matrix", {
+    matrix_available: false,
+    probe_verdict_available: false,
+    note: "tabs.json not bundled with this deploy",
+  }).ok, true);
+
+  assert.equal(validateSchema("tab_matrix", {
     matrix_available: true,
     probe_verdict_available: false,
     matrix: { tabs: [] },
+  }).ok, false);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: false,
+    probe_verdict_available: false,
   }).ok, false);
 });

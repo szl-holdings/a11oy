@@ -157,6 +157,9 @@ function validateSchema(schemaName, body) {
     if (sc.type === "object") {
       if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
       if (sc.required && !sc.required.every((k) => k in body)) return false;
+      if (sc.properties && !Object.entries(sc.properties).every(([key, rule]) =>
+        !Object.prototype.hasOwnProperty.call(rule, "const") || body[key] === rule.const
+      )) return false;
       if (sc.requiredPaths && !sc.requiredPaths.every((path) => {
         let cursor = body;
         for (const key of path.split(".")) {
