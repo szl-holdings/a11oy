@@ -4,6 +4,7 @@ import copy
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +22,15 @@ from content_credentials import (  # noqa: E402
 )
 
 
+def _authorized_write():
+    return {
+        "authorized": True,
+        "has_provenance": True,
+        "license_class": "GREEN",
+        "two_person_attested": True,
+    }
+
+
 class ContentCredentialKhipuTests(unittest.TestCase):
     def test_media_write_binds_the_actual_khipu_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -32,6 +42,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                 asset_format="text/plain",
                 ai_generated=True,
                 model_id="szl/test-fixture",
+                governance_context=_authorized_write(),
             )
 
             self.assertEqual(asset.read_bytes(), b"governed media bytes\n")
@@ -39,6 +50,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertTrue(receipt["chain_verified"])
             self.assertEqual(len(receipt["hash"]), 64)
             self.assertTrue(receipt["receipt_id"])
+            self.assertTrue(result["governance_decision"]["allow"])
             self.assertEqual(
                 receipt["payload"]["asset_hash"], result["asset_hash"]
             )
@@ -69,6 +81,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
+                governance_context=_authorized_write(),
             )
             tampered = copy.deepcopy(result["credential"])
             tampered["active_manifest"]["claim"]["assertions"][-1]["data"][
@@ -95,6 +108,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                 asset_format="text/plain",
                 ai_generated=False,
                 signer=signer,
+                governance_context=_authorized_write(),
             )
             verification = verify(result["credential"], asset_path=str(asset))
             self.assertTrue(verification.ok)
@@ -109,17 +123,37 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                 asset_format="text/plain",
                 ai_generated=False,
                 khipu_receipt={
-                    "receipt_id": "fake",
+                    "receipt_id": str(uuid.uuid4()),
                     "receipt_hash": "0" * 64,
                     "receipt_hash_alg": "sha256",
                     "chain_verified": True,
                     "dsse_signed": False,
                     "attested_execution": {
-                        "state": "VERIFIED",
-                        "receipt_id": "unverified-attestation",
+                        "state": "UNAVAILABLE",
+                        "receipt_id": None,
+                        "reason": (
+                            "no independently verified attestation receipt supplied"
+                        ),
                     },
                 },
             )
+
+    def test_denied_governance_cannot_mutate_an_existing_asset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "protected-media.txt"
+            asset.write_bytes(b"original bytes\n")
+
+            with self.assertRaises(PermissionError):
+                write_asset_with_credential(
+                    asset_path=str(asset),
+                    asset_bytes=b"unauthorized replacement\n",
+                    asset_title=asset.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                )
+
+            self.assertEqual(asset.read_bytes(), b"original bytes\n")
+            self.assertFalse(Path(f"{asset}.c2pa.json").exists())
 
 
 if __name__ == "__main__":

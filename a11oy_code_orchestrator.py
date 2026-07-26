@@ -53,6 +53,7 @@ import secrets
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from contextlib import closing
@@ -743,6 +744,8 @@ DEFAULT_SYSTEM_PROMPT = (
 
 _KHIPU_GENESIS = "0" * 64
 _khipu_tip = _KHIPU_GENESIS
+_khipu_lock = threading.RLock()
+_khipu_receipts: dict[str, dict[str, Any]] = {}
 
 # Reference to the host FastAPI app, captured in attach(app), so khipu_emit can
 # co-sign receipts through the REAL DSSE signer (app.state.szl_emit_signed_receipt,
@@ -775,6 +778,51 @@ def _dsse_cosign(body: dict[str, Any]) -> dict[str, Any]:
         return {}  # never break the turn over a signing hiccup
 
 
+def _khipu_core_digest(receipt: dict[str, Any]) -> str:
+    core = {
+        "receipt_id": receipt["receipt_id"],
+        "action": receipt["action"],
+        "ts": receipt["ts"],
+        "prev": receipt["prev"],
+        "payload": receipt["payload"],
+    }
+    return hashlib.sha256(
+        json.dumps(core, sort_keys=True, default=str).encode()
+    ).hexdigest()
+
+
+def khipu_verify_receipt(
+    receipt_id: str,
+    receipt_hash: str,
+    *,
+    expected_action: str | None = None,
+    expected_payload: dict[str, Any] | None = None,
+) -> bool:
+    """Authenticate a receipt against this process's append-only Khipu registry.
+
+    This is intentionally fail-closed across process restarts: a receipt that is
+    not present in the authoritative in-memory registry is not reported as
+    verified merely because a caller supplies a plausible UUID and digest.
+    """
+    with _khipu_lock:
+        known = _khipu_receipts.get(receipt_id)
+        if known is None:
+            return False
+        known = dict(known)
+        predecessor_exists = known["prev"] == _KHIPU_GENESIS or any(
+            receipt["hash"] == known["prev"]
+            for receipt in _khipu_receipts.values()
+        )
+    return (
+        known.get("hash") == receipt_hash
+        and known.get("chain_verified") is True
+        and _khipu_core_digest(known) == receipt_hash
+        and predecessor_exists
+        and (expected_action is None or known.get("action") == expected_action)
+        and (expected_payload is None or known.get("payload") == expected_payload)
+    )
+
+
 def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Emit a chain-verified Khipu receipt. prod_i Khipu_i(a) requires chain_verified.
 
@@ -785,18 +833,18 @@ def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     turns genuinely true rather than aspirational.
     """
     global _khipu_tip
-    ts = time.time()
-    body = {
-        "receipt_id": str(uuid.uuid4()),
-        "action": action,
-        "ts": ts,
-        "prev": _khipu_tip,
-        "payload": payload,
-    }
-    h = hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode()).hexdigest()
-    body["hash"] = h
-    body["chain_verified"] = True
-    _khipu_tip = h
+    with _khipu_lock:
+        body = {
+            "receipt_id": str(uuid.uuid4()),
+            "action": action,
+            "ts": time.time(),
+            "prev": _khipu_tip,
+            "payload": payload,
+        }
+        body["hash"] = _khipu_core_digest(body)
+        body["chain_verified"] = True
+        _khipu_tip = body["hash"]
+        _khipu_receipts[body["receipt_id"]] = dict(body)
     body.update(_dsse_cosign(body))  # additive: dsse_digest/dsse_signed if a signer is wired
     try:
         _db_write_receipt(body)

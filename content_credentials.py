@@ -342,7 +342,14 @@ def build_manifest(
         f"{asset_hash}:{now}:{asset_title}".encode()
     ).hexdigest()[:32]
 
-    validated_khipu_receipt = _validate_khipu_receipt_link(khipu_receipt)
+    validated_khipu_receipt = _validate_khipu_receipt_link(
+        khipu_receipt,
+        asset_hash=asset_hash,
+        asset_title=asset_title,
+        asset_format=asset_format,
+        ai_generated=ai_generated,
+        model_id=model_id,
+    )
 
     return ContentCredentialManifest(
         manifest_type=MANIFEST_TYPE,
@@ -361,7 +368,15 @@ def build_manifest(
     )
 
 
-def _validate_khipu_receipt_link(link: Optional[dict]) -> Optional[dict]:
+def _validate_khipu_receipt_link(
+    link: Optional[dict],
+    *,
+    asset_hash: str,
+    asset_title: str,
+    asset_format: str,
+    ai_generated: bool,
+    model_id: Optional[str],
+) -> Optional[dict]:
     """Validate the receipt reference that will be signed into the claim.
 
     This validates the Khipu emitter's receipt shape. The media-write helper
@@ -403,6 +418,25 @@ def _validate_khipu_receipt_link(link: Optional[dict]) -> Optional[dict]:
     }:
         raise ValueError(
             "attested_execution must remain UNAVAILABLE until a real verifier integration exists"
+        )
+
+    from a11oy_code_orchestrator import khipu_verify_receipt
+
+    authenticated = khipu_verify_receipt(
+        receipt_id,
+        receipt_hash,
+        expected_action="content-credential.media.write",
+        expected_payload={
+            "asset_title": asset_title,
+            "asset_format": asset_format,
+            "asset_hash": asset_hash,
+            "ai_generated": ai_generated,
+            "model_id": model_id,
+        },
+    )
+    if not authenticated:
+        raise ValueError(
+            "khipu_receipt is not authenticated by the process-local Khipu registry"
         )
     return dict(link)
 
@@ -579,16 +613,37 @@ def write_asset_with_credential(
     edited: bool = False,
     digital_source_type: Optional[str] = None,
     signer: Optional[CredentialSigner] = None,
+    governance_context: Optional[dict] = None,
 ) -> dict:
     """Write one media asset, emit its real Khipu receipt, then bind that receipt
     into the C2PA-aligned sidecar.
 
-    Ordering is deliberate: receipt-on-write means the asset is durably replaced
-    before `khipu_emit` records the write. Reads and verification do not emit a
-    receipt. The final attested-execution edge stays UNAVAILABLE because this
+    Ordering is deliberate: the deny-by-default PURIQ decision must allow the
+    state change before the asset is replaced. Receipt-on-write then means
+    `khipu_emit` records the completed write. Reads and verification do not emit
+    a receipt. The final attested-execution edge stays UNAVAILABLE because this
     module does not contain a hardware attestation verifier.
     """
-    from a11oy_code_orchestrator import khipu_emit
+    from a11oy_code_orchestrator import khipu_emit, puriq_decide
+
+    supplied_governance = dict(governance_context or {})
+    gate = puriq_decide(
+        "fs_write",
+        {
+            "risk": "high",
+            "authorized": supplied_governance.get("authorized") is True,
+            "has_provenance": supplied_governance.get("has_provenance") is True,
+            "license_class": supplied_governance.get("license_class", "UNKNOWN"),
+            "two_person_attested": (
+                supplied_governance.get("two_person_attested") is True
+            ),
+            "chain_verified": True,
+            "tool": "fs_write",
+            "asset_path": os.path.abspath(asset_path),
+        },
+    )
+    if gate.get("allow") is not True:
+        raise PermissionError(f"PURIQ gate denied media write: {gate.get('reason')}")
 
     _atomic_write_bytes(asset_path, asset_bytes)
     asset_hash = sha256_file(asset_path)
@@ -603,20 +658,18 @@ def write_asset_with_credential(
             "model_id": model_id,
         },
     )
-    receipt_link = _validate_khipu_receipt_link(
-        {
-            "receipt_id": receipt.get("receipt_id"),
-            "receipt_hash": receipt.get("hash"),
-            "receipt_hash_alg": "sha256",
-            "chain_verified": receipt.get("chain_verified"),
-            "dsse_signed": bool(receipt.get("dsse_signed", False)),
-            "attested_execution": {
-                "state": "UNAVAILABLE",
-                "receipt_id": None,
-                "reason": "no independently verified attestation receipt supplied",
-            },
-        }
-    )
+    receipt_link = {
+        "receipt_id": receipt.get("receipt_id"),
+        "receipt_hash": receipt.get("hash"),
+        "receipt_hash_alg": "sha256",
+        "chain_verified": receipt.get("chain_verified"),
+        "dsse_signed": bool(receipt.get("dsse_signed", False)),
+        "attested_execution": {
+            "state": "UNAVAILABLE",
+            "receipt_id": None,
+            "reason": "no independently verified attestation receipt supplied",
+        },
+    }
     manifest = build_manifest(
         asset_path=asset_path,
         asset_title=asset_title,
@@ -638,6 +691,7 @@ def write_asset_with_credential(
         "asset_hash": asset_hash,
         "sidecar_path": sidecar_path,
         "khipu_receipt": receipt,
+        "governance_decision": gate,
         "credential": credential,
         "verification": verification.to_dict(),
     }
