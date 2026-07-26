@@ -1,0 +1,51 @@
+name: Action-contract promotion guard
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-validator:
+    name: Immutable protected-base validator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout protected base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: protected-base
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Checkout candidate as untrusted data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: candidate
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Validate candidate manifest with protected code
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_manifest="candidate/docs/action-contract-manifest.json"
+          test -f "${candidate_manifest}"
+          test ! -L "${candidate_manifest}"
+          cp -- "${candidate_manifest}" "protected-base/docs/action-contract-manifest.json"
+          cd protected-base
+          python3 scripts/validate_action_contract_manifest.py
