@@ -36,9 +36,17 @@ pnpm hf:ecosystem:audit
 ```
 
 The generated [`huggingface-ecosystem-manifest.json`](huggingface-ecosystem-manifest.json)
-records the public `SZLHOLDINGS` Hugging Face inventory, current counts, source
-links, guardrails, and unsafe flags. Keep this file GitHub-backed; do not
-hand-edit Hugging Face cards with counts that cannot be regenerated.
+records the anonymous, author-filtered public `SZLHOLDINGS` Hugging Face
+inventory, current public counts, source links, guardrails, and unsafe flags.
+It does not count private repositories and must not be presented as the
+authenticated organization total. The write command records the real UTC
+observation time after collecting complete `sha` and `lastModified` evidence
+for every public item. The audit compares live content while retaining that
+timestamp and rejects incomplete, malformed, or non-monotonic revision changes.
+It ignores only valid later revision changes while still failing on membership
+or card-semantic drift; rerun the write command to refresh the snapshot. Keep
+this file GitHub-backed; do not hand-edit Hugging Face cards with counts that
+cannot be regenerated.
 
 ## Operational bundle
 

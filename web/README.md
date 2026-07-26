@@ -14,20 +14,32 @@
 
 ## What it does
 
-A11oy is the Alloy Fabric agent orchestration surface for the SZL Holdings platform. It provides a unified view of all AI agents running across every domain pack — their status, decisions, Covenant Policy gates, and Proof Chain attributions — along with the brand intelligence systems that ensure consistent voice and signal quality across the platform.
+**ROADMAP product contract** — this legacy SPA is intended to provide an Alloy
+Fabric view of agent status, decisions, policy gates, and proof-chain
+attributions. The current repository does not prove that every estate action
+routes through this surface.
 
-Every agentic action taken anywhere in the platform routes through the Alloy Fabric. A11oy is where operators monitor, tune, and govern that activity.
+**EXISTS (source-level)** — source for those views is present under `web/`;
+this is a code-presence claim, and clean-clone workspace wiring remains
+incomplete as disclosed below.
 
-## Run locally
+## Build status
+
+**ROADMAP** — this legacy SPA is present under `web/`, but the repository root
+workspace does not currently include it and several `workspace:*` dependencies
+are unresolved. The commands below describe the intended monorepo workflow;
+they are not a clean-clone quickstart until `pnpm -r build` proves the wiring.
+
+## Intended local workflow
 
 ```bash
-# From the monorepo root
+# Intended workflow after the workspace is fully wired
 pnpm install
 pnpm --filter @workspace/api-server dev   # Start the API server first
 pnpm --filter @workspace/a11oy dev
 ```
 
-**Primary route:** `/a11oy/`
+**ROADMAP route:** `/a11oy/`
 
 ## Key modules
 

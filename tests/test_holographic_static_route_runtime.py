@@ -103,3 +103,27 @@ def test_missing_and_traversal_assets_remain_fail_closed(
     ):
         response = client.get(route)
         assert response.status_code == 404
+
+
+def test_assembled_app_serves_nested_static_asset_and_preserves_static_404() -> None:
+    import serve
+
+    client = TestClient(serve.app)
+    static_path = "/static/3d/{path:path}"
+    catchall_path = "/{full_path:path}"
+
+    assert max(_route_indexes(serve.app, static_path)) < min(
+        _route_indexes(serve.app, catchall_path)
+    )
+
+    nested_get = client.get("/static/3d/holographic.html")
+    nested_head = client.head("/static/3d/holographic.html")
+    missing_nested = client.get("/static/3d/missing.js")
+
+    assert nested_get.status_code == 200
+    assert nested_get.headers["content-type"].startswith("text/html")
+    assert "A11oy Holographic Operations" in nested_get.text
+    assert nested_head.status_code == 200
+    assert nested_head.content == b""
+    assert missing_nested.status_code == 404
+    assert missing_nested.json()["error"] == "3d asset not found"

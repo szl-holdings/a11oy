@@ -18,9 +18,18 @@ on:
       - 'docs/INVESTOR_DEMO.md'
       - 'docs/WARHACKER_UDS_PROOF_POINT.md'
       - 'docs/ecosystem-readiness-report.json'
+      - '.gitmodules'
+      - 'vendor/platform'
+      - 'docs/ecosystem-stage-matrix.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'docs/huggingface-ecosystem-manifest.schema.json'
+      - 'docs/theorem-runtime-manifest.json'
+      - 'scripts/*.mjs'
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
+      - 'package.json'
+      - '.github/workflows/huggingface.yml'
       - '.github/workflows/operational.yml'
   pull_request:
     branches: [main]
@@ -36,9 +45,18 @@ on:
       - 'docs/INVESTOR_DEMO.md'
       - 'docs/WARHACKER_UDS_PROOF_POINT.md'
       - 'docs/ecosystem-readiness-report.json'
+      - '.gitmodules'
+      - 'vendor/platform'
+      - 'docs/ecosystem-stage-matrix.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'docs/huggingface-ecosystem-manifest.schema.json'
+      - 'docs/theorem-runtime-manifest.json'
+      - 'scripts/*.mjs'
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
+      - 'package.json'
+      - '.github/workflows/huggingface.yml'
       - '.github/workflows/operational.yml'
 
 permissions:
@@ -75,7 +93,12 @@ jobs:
       - name: Validate operational surfaces
         run: |
           bash scripts/validate-operational.sh
-          python3 -m py_compile scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
+          pnpm hf:ecosystem:audit
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          node scripts/test_validate_huggingface_ecosystem_schema.mjs
+          node scripts/validate_huggingface_ecosystem_schema.mjs
           npm run payload:verify
           npm run payload:huggingface
           # Build the operational payload bundle in CI before verifying it. The
@@ -85,3 +108,30 @@ jobs:
           # unless we generate it here first.
           npm run payload:bundle
           npm run payload:bundle:verify
+
+  canonical-web:
+    name: Canonical web clean build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout repository and pinned platform source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
+        with:
+          version: 10.26.1
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Build and typecheck the canonical application
+        run: |
+          pnpm build:web
+          pnpm typecheck:web

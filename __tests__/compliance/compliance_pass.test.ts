@@ -15,8 +15,11 @@ import * as yaml from "js-yaml";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const SCHEMA_PATH = path.resolve(__dirname, "../../a11oy-knowledge.schema.json");
-const POLICIES_DIR = path.resolve(__dirname, "../../policies/vertical");
+const SCHEMA_PATH = path.resolve(
+  __dirname,
+  "../../packages/knowledge/a11oy-knowledge.schema.json",
+);
+const POLICIES_DIR = path.resolve(__dirname, "../../packages/knowledge/vertical");
 
 function loadSchema() {
   const raw = fs.readFileSync(SCHEMA_PATH, "utf8");

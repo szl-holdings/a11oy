@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Build or verify deterministic SHA-256 manifests for payload directories."""
 
 from __future__ import annotations
@@ -8,31 +10,63 @@ import hashlib
 import json
 from pathlib import Path
 
+_TEXT_SUFFIXES = frozenset(
+    {
+        ".css",
+        ".csv",
+        ".html",
+        ".js",
+        ".json",
+        ".jsonl",
+        ".md",
+        ".mjs",
+        ".py",
+        ".sh",
+        ".toml",
+        ".ts",
+        ".tsx",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
+)
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+
+def manifest_bytes(path: Path) -> bytes:
+    """Return platform-stable bytes for text and byte-exact data for binaries."""
+    raw = path.read_bytes()
+    if path.suffix.lower() in _TEXT_SUFFIXES:
+        return raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return raw
+
+
+def file_fingerprint(path: Path) -> tuple[int, str]:
+    canonical = manifest_bytes(path)
+    return len(canonical), hashlib.sha256(canonical).hexdigest()
 
 
 def collect_files(root: Path, output: Path) -> list[dict[str, object]]:
     files: list[dict[str, object]] = []
     output = output.resolve()
+    paths = sorted(
+        root.rglob("*"),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
 
-    for path in sorted(root.rglob("*")):
+    for path in paths:
         if not path.is_file():
             continue
         if path.resolve() == output:
             continue
 
         rel = path.relative_to(root).as_posix()
+        size, digest = file_fingerprint(path)
         files.append(
             {
                 "path": rel,
-                "size": path.stat().st_size,
-                "sha256": sha256_file(path),
+                "size": size,
+                "sha256": digest,
             }
         )
 

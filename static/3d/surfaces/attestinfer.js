@@ -21,7 +21,7 @@
 //
 // HONESTY LABEL: MODELED (deterministic sha256/384 simulation of the attested path keyed on
 //   (seed, model); NO real TEE, NO real GPU, NO NRAS/KDS network, NO real inference engine).
-//   The DSSE envelope is REAL ECDSA-P256 in-Space and honestly UNSIGNED-LOCAL locally.
+//   This GET returns a structurally complete but unsigned DSSE envelope on every runtime.
 //   Label read VERBATIM from JSON; never upgraded. Λ = Conjecture 1 (advisory, gray, never green).
 //   Nothing here is in the locked-8. Trust never 100% — the attestation is MODELED, not real trust.
 //
@@ -39,7 +39,7 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown verbatim.
 
 const ID    = "attestinfer";
-const TITLE = "Attested Inference · TEE quote → Λ-gate → signed receipt (live)";
+const TITLE = "Attested Inference · modeled quote → Λ-gate → unsigned read receipt";
 
 // Same-origin endpoint (this surface plugs into the a11oy registry, unlike Wave-A cc-attest
 // which lived on the isolated killinchu Space).
@@ -72,7 +72,7 @@ const S = {
   label: null, seed: null, stages: null,
   deviceId: null, chain: null, finalDigest: null, goldenMatch: null,
   quoteDigest: null,
-  lamValue: null, lamFloor: null, lamPass: null,
+  lamValue: null, lamFloor: null, lamPass: null, gatePass: null,
   released: null, outputDigest: null,
   dsseSigned: null, dsseLabel: null,
   honestNote: null, state: "init",
@@ -200,13 +200,16 @@ function _onSnap(j) {
   S.lamFloor = typeof lam.floor === "number" ? lam.floor : null;
   S.lamPass  = typeof lam.pass === "boolean" ? lam.pass : null;
 
+  const releaseGate = j.release_gate || {};
+  S.gatePass = typeof releaseGate.pass === "boolean" ? releaseGate.pass : null;
+
   const inf = j.inference || {};
   S.released    = typeof inf.released === "boolean" ? inf.released : null;
   S.outputDigest= typeof inf.output_digest === "string" ? inf.output_digest : null;
 
   const dsse = j.dsse || {};
   S.dsseSigned = typeof dsse.signed === "boolean" ? dsse.signed : null;
-  S.dsseLabel  = dsse.local_label || (dsse.signed ? "REAL-SIGNED" : "UNSIGNED-LOCAL");
+  S.dsseLabel  = dsse.local_label || (dsse.signed ? "SIGNED-WRITE" : "UNSIGNED-READ");
 
   S.honestNote = typeof j.honest_note === "string" ? j.honest_note : null;
 
@@ -220,7 +223,7 @@ function _onSnap(j) {
 function _updateScene() {
   const live = S.state === "live";
   const bootOk = S.goldenMatch === true;
-  const gatePass = S.lamPass === true;
+  const gatePass = S.gatePass === true;
   const released = S.released === true;
 
   // tower blocks
@@ -279,7 +282,7 @@ function _onFrame() {
   const t = performance.now();
   if (_group) _group.rotation.y = Math.sin(t * 0.00009) * 0.12;
   if (_identMarker) { _identMarker.rotation.y += 0.015; _identMarker.rotation.x += 0.008; }
-  if (_lambdaRing && S.lamPass === true) { _lambdaRing.rotation.z += 0.01; const p = 1.0 + 0.06 * Math.sin(t * 0.003); _lambdaRing.scale.setScalar(p); }
+  if (_lambdaRing && S.gatePass === true) { _lambdaRing.rotation.z += 0.01; const p = 1.0 + 0.06 * Math.sin(t * 0.003); _lambdaRing.scale.setScalar(p); }
   if (_inferNode && S.released === true) { _inferNode.rotation.y += 0.02; _inferNode.rotation.x += 0.012; }
   for (const b of _blocks) {
     if (b.ring.visible && S.goldenMatch === true) { const p = 1.0 + 0.12 * Math.sin(t * 0.0035); b.ring.scale.setScalar(p); }
@@ -310,9 +313,8 @@ function _buildOverlay() {
     "A deepening of Wave-A cc-attest into a full <b>attested-inference</b> flow: a device " +
     "<b>measured-boot chain</b> \u2192 an attestation <b>quote</b> that binds this inference " +
     "(SEV-SNP <b>REPORT_DATA</b> style) \u2192 a <b>\u039b-gate</b> \u2192 gated inference \u2192 a " +
-    "signed <b>receipt</b> embedding the quote digest + \u039b axes + SLSA provenance. " +
-    "Honesty <b>MODELED</b> \u2014 no real TEE/GPU/NRAS/network; DSSE is REAL ECDSA-P256 in-Space, " +
-    "UNSIGNED-LOCAL locally. 0 runtime CDN.";
+    "structurally complete, <b>unsigned read receipt</b> embedding the quote digest + \u039b axes + SLSA provenance. " +
+    "Honesty <b>MODELED</b> \u2014 no real TEE/GPU/NRAS/network; this GET never signs. 0 runtime CDN.";
   _overlay.appendChild(sub);
 
   const brow = document.createElement("div");
@@ -349,7 +351,7 @@ function _buildOverlay() {
   grid.appendChild(kpiRow("ai-golden", "measured-boot golden_match \u2014 MODELED"));
   grid.appendChild(kpiRow("ai-quote",  "attestation quote digest (trunc)"));
   grid.appendChild(kpiRow("ai-lambda", "\u039b value / floor \u2014 Conjecture 1"));
-  grid.appendChild(kpiRow("ai-gate",   "\u039b-gate"));
+  grid.appendChild(kpiRow("ai-gate",   "effective release gate (\u039b + attestation)"));
   grid.appendChild(kpiRow("ai-infer",  "inference released"));
   grid.appendChild(kpiRow("ai-dsse",   "DSSE receipt"));
   grid.appendChild(kpiRow("ai-label",  "honesty label"));
@@ -397,8 +399,8 @@ function _applyPlain() {
     "run into the quote, then runs a <b>\u039b trust gate</b> that only releases a (fake) inference " +
     "when the attestation is good. Right now the measured boot <b>" + boot + "</b> and the " +
     "inference is <b>" + rel + "</b>. There is <b>no real GPU, no real key, and no network call</b> " +
-    "\u2014 it shows how attested inference WORKS, not a working verifier. The receipt is signed for " +
-    "real (ECDSA-P256) only inside the deployed Space; locally it is honestly UNSIGNED.";
+    "\u2014 it shows how attested inference works, not a working verifier. The response carries a " +
+    "complete DSSE payload binding but remains <b>UNSIGNED-READ</b>; signing is reserved for an authorized write.";
 }
 
 function _tok(s) {
@@ -418,9 +420,9 @@ function _paintOverlay() {
   _set("ai-golden", t || (S.goldenMatch === true ? "MATCH" : (S.goldenMatch === false ? "MISMATCH" : "\u2014")));
   _set("ai-quote",  t || _trunc(S.quoteDigest, 18));
   _set("ai-lambda", t || (S.lamValue != null ? (S.lamValue.toFixed(4) + " / " + (S.lamFloor != null ? S.lamFloor.toFixed(2) : "0.90")) : "\u2014"));
-  _set("ai-gate",   t || (S.lamPass === true ? "PASS (release)" : (S.lamPass === false ? "BLOCK (withhold)" : "\u2014")));
+  _set("ai-gate",   t || (S.gatePass === true ? "RELEASE" : (S.gatePass === false ? "BLOCK (withhold)" : "\u2014")));
   _set("ai-infer",  t || (S.released === true ? "RELEASED" : (S.released === false ? "WITHHELD" : "\u2014")));
-  _set("ai-dsse",   t || (S.dsseSigned == null ? "\u2014" : (S.dsseSigned ? "REAL-SIGNED (ECDSA-P256)" : "UNSIGNED-LOCAL")));
+  _set("ai-dsse",   t || (S.dsseSigned == null ? "\u2014" : (S.dsseSigned ? "SIGNED-WRITE" : "UNSIGNED-READ")));
   _set("ai-label",  t || (S.label || "MODELED"));
   if (_plain) _applyPlain();
 }
@@ -445,7 +447,7 @@ export function unmount() {
   _el = {}; _badge = null; _plain = false; _frameReg = false;
   _stage = _THREE = _ctx = null;
   S.label = S.seed = S.stages = S.deviceId = S.chain = S.finalDigest = S.goldenMatch = null;
-  S.quoteDigest = S.lamValue = S.lamFloor = S.lamPass = null;
+  S.quoteDigest = S.lamValue = S.lamFloor = S.lamPass = S.gatePass = null;
   S.released = S.outputDigest = S.dsseSigned = S.dsseLabel = S.honestNote = null;
   S.state = "init";
 }

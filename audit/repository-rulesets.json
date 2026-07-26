@@ -1,0 +1,79 @@
+{
+  "canonical_main_protection": {
+    "allow_deletions": false,
+    "allow_force_pushes": false,
+    "enforce_admins": true,
+    "required_conversation_resolution": false,
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": false,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": false,
+      "required_approving_review_count": 0
+    },
+    "required_signatures": false,
+    "required_status_checks": {
+      "checks": [
+        {
+          "app_id": 15368,
+          "context": "anatomy-map-drift / Anatomy map honest & in sync (locked-8 + \u039b=Conjecture-1)"
+        }
+      ],
+      "contexts": [
+        "anatomy-map-drift / Anatomy map honest & in sync (locked-8 + \u039b=Conjecture-1)"
+      ],
+      "strict": false
+    },
+    "restriction_counts": {
+      "apps": 0,
+      "teams": 0,
+      "users": 0
+    }
+  },
+  "canonical_repository_rulesets": [
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "org-default-branch-protection",
+      "rules": [],
+      "source_type": "Organization",
+      "target": "branch"
+    },
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "Protect release tags",
+      "rules": [],
+      "source_type": "Repository",
+      "target": "tag"
+    },
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "series-a-default-branch",
+      "rules": [],
+      "source_type": "Repository",
+      "target": "branch"
+    }
+  ],
+  "generated_at": "2026-07-26T08:52:31+00:00",
+  "label": "MEASURED",
+  "mutation": "none",
+  "organization_rulesets": [
+    {
+      "bypass_actor_count": 0,
+      "bypass_actor_types": [],
+      "conditions": null,
+      "enforcement": "active",
+      "name": "org-default-branch-protection",
+      "rules": [],
+      "source_type": "Organization",
+      "target": "branch"
+    }
+  ]
+}

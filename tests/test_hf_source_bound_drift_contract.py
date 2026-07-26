@@ -6,6 +6,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DRIFT_WORKFLOW = ROOT / ".github" / "workflows" / "hf-module-drift.yml"
 SYNC_WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
+DOCKERFILE = ROOT / "Dockerfile"
 LEGACY_LOCK = ROOT / ".github" / "hf-deployment-lock.json"
 LEGACY_RELOCK_WORKFLOW = ROOT / ".github" / "workflows" / "hf-relock-evidence.yml"
 LEGACY_RUNTIME_VERIFIER = ROOT / "scripts" / "check_hf_runtime_revision.py"
@@ -17,6 +18,7 @@ class SourceBoundDriftWorkflowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.drift = DRIFT_WORKFLOW.read_text(encoding="utf-8")
         cls.sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
+        cls.dockerfile = DOCKERFILE.read_text(encoding="utf-8")
 
     def test_pull_requests_use_the_exact_source_bound_reusable_controller(self) -> None:
         self.assertIn(
@@ -65,6 +67,14 @@ class SourceBoundDriftWorkflowTests(unittest.TestCase):
             'gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main',
             self.sync,
         )
+
+    def test_every_main_push_enters_deployment_before_strict_parity(self) -> None:
+        trigger, _ = self.sync.split("\npermissions:", 1)
+        self.assertIn("push:\n    branches: [main]", trigger)
+        self.assertNotIn("\n    paths:", trigger)
+        self.assertNotIn("\n    paths-ignore:", trigger)
+        self.assertIn("COPY .well-known/security.txt", self.dockerfile)
+        self.assertIn("hf-sync without a path filter", self.drift)
 
     def test_no_custom_credential_enters_the_drift_guard(self) -> None:
         self.assertIn("permissions:\n  contents: read", self.drift)

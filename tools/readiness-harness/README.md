@@ -63,9 +63,13 @@ The matrix is also served by the running console at:
 GET /api/a11oy/v1/readiness/tab-matrix
 ```
 
-(see `szl_readiness.py::register`). It returns `tabs.json` plus the latest probe
-verdict when `readiness-verdict.json` is present on disk, and says so honestly
-when it is not (`available: false`) rather than faking a pass.
+(see `serve.py`). It returns `tabs.json` plus a compact post-deploy verdict only
+after `hf-sync.yml` probes the canonical deployment and publishes the verdict
+through `SZL_PROBE_VERDICT_JSON`. The server independently requires the exact
+source revision, canonical origin, complete outcomes, and a non-future
+observation no older than 24 hours. Missing or rejected evidence remains
+`available: false`; the full probe stays an immutable GitHub Actions artifact.
 
-> **Note:** serving the matrix live requires a rebuild/redeploy of the Space
-> image. The harness files and the GitHub workflow ship independently of that.
+> **Note:** a Space variable update restarts the canonical runtime. The relock
+> waits for that restarted runtime to expose the ingested verdict before it can
+> pass.

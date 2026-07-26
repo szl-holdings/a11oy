@@ -23,7 +23,10 @@ import addFormats from "ajv-formats";
 import * as fs from "fs";
 import * as path from "path";
 
-const SCHEMA_PATH = path.resolve(__dirname, "../../a11oy-knowledge.schema.json");
+const SCHEMA_PATH = path.resolve(
+  __dirname,
+  "../../packages/knowledge/a11oy-knowledge.schema.json",
+);
 
 function buildValidator() {
   const ajv = new Ajv({ allErrors: true, strict: false });

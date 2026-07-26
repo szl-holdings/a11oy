@@ -1,0 +1,554 @@
+{
+  "candidate_lines": [
+    {
+      "labels": [],
+      "line": 4,
+      "numbers": [
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "dd85c600945712cdd8b5aa1d0de74504d1c66ee56b76823c10710d52f8e5fda8"
+    },
+    {
+      "labels": [],
+      "line": 8,
+      "numbers": [
+        "7860"
+      ],
+      "path": "README.md",
+      "text_sha256": "b3999a47465cf0ee59e961b98042dc9b3a65e3bd6827e66258b97f98266443f6"
+    },
+    {
+      "labels": [],
+      "line": 11,
+      "numbers": [
+        "2.0"
+      ],
+      "path": "README.md",
+      "text_sha256": "f3cae36c4cdc3eb2e8a8d88ad4f1462364f750a68b490ba70821491d55f8de9e"
+    },
+    {
+      "labels": [],
+      "line": 19,
+      "numbers": [
+        "2.0"
+      ],
+      "path": "README.md",
+      "text_sha256": "907adf5107dddbf8e24e9249a73652146835d74ac40bba1c56f97d226c94a197"
+    },
+    {
+      "labels": [],
+      "line": 24,
+      "numbers": [
+        "11",
+        "100"
+      ],
+      "path": "README.md",
+      "text_sha256": "b17a4b4929fa04a9a58509380c5f05f82630ad69abafdc3560cf897667a3f57b"
+    },
+    {
+      "labels": [],
+      "line": 27,
+      "numbers": [
+        "11",
+        "20%"
+      ],
+      "path": "README.md",
+      "text_sha256": "c37d62872ace425198690ee7250e5245f41f9483a7500710ec70af429e0f7826"
+    },
+    {
+      "labels": [],
+      "line": 35,
+      "numbers": [
+        "2026",
+        "06",
+        "30"
+      ],
+      "path": "README.md",
+      "text_sha256": "fb6e91ee304189823f3cc8b76c32469c3d2b2efeece4c89bb34fee4690914712"
+    },
+    {
+      "labels": [],
+      "line": 46,
+      "numbers": [
+        "20%",
+        "20%"
+      ],
+      "path": "README.md",
+      "text_sha256": "bcb6ffb3b392443afe991721b7ee2cbef8895bbd261d42ed89c3594cd5ba9f08"
+    },
+    {
+      "labels": [],
+      "line": 47,
+      "numbers": [
+        "1710578865"
+      ],
+      "path": "README.md",
+      "text_sha256": "18ce2fbc32c3991d04e1b478e00a4381ed932a78a528e7191bdf307124ca7e26"
+    },
+    {
+      "labels": [],
+      "line": 50,
+      "numbers": [
+        "2.0"
+      ],
+      "path": "README.md",
+      "text_sha256": "4cd81d5aa13b3231c0644a51f8a2672bfdb07753da7e04985f2ea48bc841e07d"
+    },
+    {
+      "labels": [],
+      "line": 51,
+      "numbers": [
+        "1",
+        "201%",
+        "20%"
+      ],
+      "path": "README.md",
+      "text_sha256": "25196ee07f8db8676e46003e74b09eff9ebe9d97ad3e665781409a65223da060"
+    },
+    {
+      "labels": [],
+      "line": 52,
+      "numbers": [
+        "10.5281",
+        "19944926",
+        "10.5281",
+        "19944926"
+      ],
+      "path": "README.md",
+      "text_sha256": "f704ade9ec4fc640ac1ad2acfb9f244e2fd55fa4e6e3ff859c7239a5749703e4"
+    },
+    {
+      "labels": [],
+      "line": 53,
+      "numbers": [
+        "10.5281",
+        "20434276",
+        "10.5281",
+        "20434276"
+      ],
+      "path": "README.md",
+      "text_sha256": "d7d28154b981b527e78674dcbb2520c8dc1504b150b840c319b7ec9c5ebfc042"
+    },
+    {
+      "labels": [],
+      "line": 54,
+      "numbers": [
+        "10.5281",
+        "21332317",
+        "10.5281",
+        "21332317"
+      ],
+      "path": "README.md",
+      "text_sha256": "09ef11d1cdb3ab68217d48d877aaabcbc1c6ac2a79c722a4fd75c06a0c15e5de"
+    },
+    {
+      "labels": [],
+      "line": 55,
+      "numbers": [
+        "10.5281",
+        "21332338",
+        "10.5281",
+        "21332338"
+      ],
+      "path": "README.md",
+      "text_sha256": "3d795977c1404a44b87567911a3782202d973350a54a6e361575959d6deb3527"
+    },
+    {
+      "labels": [],
+      "line": 57,
+      "numbers": [
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "e3f713a1f7527f3716eed3f1a2bccc01c5a3a2aa460a648bda00d0b175ffc939"
+    },
+    {
+      "labels": [],
+      "line": 71,
+      "numbers": [
+        "256"
+      ],
+      "path": "README.md",
+      "text_sha256": "81d366398e4405af0ad2d6037dc2f54842d9868f3f4ca1d361cc164a0c23c70c"
+    },
+    {
+      "labels": [],
+      "line": 81,
+      "numbers": [
+        "0.97"
+      ],
+      "path": "README.md",
+      "text_sha256": "498ae3ef1000cc47b413adb15b23effd8ca51cc30d7da5aa82986befce43b55d"
+    },
+    {
+      "labels": [],
+      "line": 89,
+      "numbers": [
+        "200",
+        "0.97"
+      ],
+      "path": "README.md",
+      "text_sha256": "50ef9d96f28543323481252ba04b3bc95af3c0b834b12a3c68cca71c46913d3c"
+    },
+    {
+      "labels": [],
+      "line": 101,
+      "numbers": [
+        "4"
+      ],
+      "path": "README.md",
+      "text_sha256": "11250176ceeeac89e9937180ae95ef3fca21f7491693928442f946eda976cd57"
+    },
+    {
+      "labels": [],
+      "line": 103,
+      "numbers": [
+        "8"
+      ],
+      "path": "README.md",
+      "text_sha256": "d1894830ef0f218fed1fb43662e9e4b6d6c179e18fc7d1eb7cc29557a700804f"
+    },
+    {
+      "labels": [],
+      "line": 104,
+      "numbers": [
+        "1"
+      ],
+      "path": "README.md",
+      "text_sha256": "18c654fc798c9095e5e80db42c3ae1067c724da15e415562456741d1cf410849"
+    },
+    {
+      "labels": [],
+      "line": 118,
+      "numbers": [
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "c265dd9955bb8bc2e1a8df042b282a4aeb187d1eed41ae312382045cf7bd649d"
+    },
+    {
+      "labels": [],
+      "line": 119,
+      "numbers": [
+        "1"
+      ],
+      "path": "README.md",
+      "text_sha256": "7d454d365eeb1601db93a4562b832eb3ae6d6b6160936f37fa8b9089f0a3ca12"
+    },
+    {
+      "labels": [],
+      "line": 128,
+      "numbers": [
+        "11",
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "abda059c85db0fe30af3f7b0d09787e84527c2bf0cd908b8eedeb62f43c9d708"
+    },
+    {
+      "labels": [],
+      "line": 129,
+      "numbers": [
+        "11",
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "0530148d615d2e6860da2ccfb16baf4c00bfd5b6ea7d734c5cf522eb281edc60"
+    },
+    {
+      "labels": [],
+      "line": 130,
+      "numbers": [
+        "11",
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "1c154c744290c26086415b3305f73e7620504b9a4c831ca69a0df0c33ab8e8a8"
+    },
+    {
+      "labels": [],
+      "line": 131,
+      "numbers": [
+        "11",
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "677c0c086e45dd1a19784f81a38c9990e8ef1da337378d1fcee8af3703aa85b0"
+    },
+    {
+      "labels": [],
+      "line": 132,
+      "numbers": [
+        "11",
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "1f884e0fdcfc18c1b1de1b6fe4fe964cb64bf353a1463f02ffa9eb3c475c9874"
+    },
+    {
+      "labels": [],
+      "line": 136,
+      "numbers": [
+        "50"
+      ],
+      "path": "README.md",
+      "text_sha256": "75d1e272517874dde6e7fdd2f29da2022f0a995a678b4ecafdece1527aca2324"
+    },
+    {
+      "labels": [],
+      "line": 146,
+      "numbers": [
+        "256"
+      ],
+      "path": "README.md",
+      "text_sha256": "2f49a470caa4fb4b3ab099f62e1f715754d27c931dbd23b34b46c1370bf2959f"
+    },
+    {
+      "labels": [],
+      "line": 157,
+      "numbers": [
+        "8",
+        "4"
+      ],
+      "path": "README.md",
+      "text_sha256": "554b36de285396b96009dacd5088084b77f3c393ea5859621cdc84d5395177c3"
+    },
+    {
+      "labels": [],
+      "line": 158,
+      "numbers": [
+        "1"
+      ],
+      "path": "README.md",
+      "text_sha256": "471bae89195b06db7ac26dbb484563aa0691c035ba7aa2b995751135590d6a54"
+    },
+    {
+      "labels": [
+        "ROADMAP"
+      ],
+      "line": 160,
+      "numbers": [],
+      "path": "README.md",
+      "text_sha256": "4842f0c71e6772784a4bfb03c4ff514cbc6ed8a9c2e05320290cdfe4d58c2e84"
+    },
+    {
+      "labels": [
+        "ROADMAP"
+      ],
+      "line": 161,
+      "numbers": [],
+      "path": "README.md",
+      "text_sha256": "60b14fd9701c40fcd0f79442cd73e0d9a6c28f75f855998b61ddcd2792598bf7"
+    },
+    {
+      "labels": [],
+      "line": 169,
+      "numbers": [
+        "256"
+      ],
+      "path": "README.md",
+      "text_sha256": "304dd92528790dc6a4db4abae0041f94db5425733faa80215688f1cb7163e812"
+    },
+    {
+      "labels": [],
+      "line": 184,
+      "numbers": [
+        "02"
+      ],
+      "path": "README.md",
+      "text_sha256": "a4dc8da4f65b66f062bbfeef27282e454cca18eebab5b4ab11b7f3282702a76c"
+    },
+    {
+      "labels": [],
+      "line": 186,
+      "numbers": [
+        "10.5281",
+        "19944926",
+        "10.5281",
+        "19944926"
+      ],
+      "path": "README.md",
+      "text_sha256": "9de9c2474ea0ebad2b377935ab5255bbea7759ec0bced572db82c0695e2a401a"
+    },
+    {
+      "labels": [],
+      "line": 187,
+      "numbers": [
+        "10.5281",
+        "20434276",
+        "10.5281",
+        "20434276"
+      ],
+      "path": "README.md",
+      "text_sha256": "10b859384dbbd637a0d33db3124f541b5b8769c2076cbf82666929ef062e2006"
+    },
+    {
+      "labels": [],
+      "line": 188,
+      "numbers": [
+        "1.0"
+      ],
+      "path": "README.md",
+      "text_sha256": "34982fe7074e44f08cc29a77c77a8b47b1384d7c1b90c6b9e67f35a3f478130e"
+    },
+    {
+      "labels": [],
+      "line": 189,
+      "numbers": [
+        "11"
+      ],
+      "path": "README.md",
+      "text_sha256": "af9c702d5ee4eda6c3c5d7b60fc2fdfea47b7fadafdcc1b65dcc21d1d5e7334e"
+    },
+    {
+      "labels": [],
+      "line": 194,
+      "numbers": [
+        "1",
+        "100"
+      ],
+      "path": "README.md",
+      "text_sha256": "3f924b2a5d76ff7ec068b27c2fd82f8be0cd970e359ca37c7aebeecdf7dc883b"
+    },
+    {
+      "labels": [],
+      "line": 213,
+      "numbers": [
+        "1"
+      ],
+      "path": "README.md",
+      "text_sha256": "4397243422076d9fc5b9d8e2e860c49f4caf41515a9cb567de1ff3dafbac6782"
+    },
+    {
+      "labels": [],
+      "line": 12,
+      "numbers": [
+        "18"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "18606c051772509904c9bbaf62621f47cb0a2a96cc7b31e6878705d8501465d6"
+    },
+    {
+      "labels": [],
+      "line": 14,
+      "numbers": [
+        "256"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "ff9a2a72641cc74db78e372326e44675f6ed8d3aa08690f4d65739311955b29f"
+    },
+    {
+      "labels": [],
+      "line": 16,
+      "numbers": [
+        "19"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "e8e5c6feda3edefb2d0be6c9cf16449b79e8ece00e8782686b3f04477c1fcca5"
+    },
+    {
+      "labels": [],
+      "line": 20,
+      "numbers": [
+        "13"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "eb6a5492f5033f67b1637f33f68dcfc7a21fd7c996aacc9a8c22b1598bca885f"
+    },
+    {
+      "labels": [
+        "PROVED"
+      ],
+      "line": 21,
+      "numbers": [],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "24a03962b09df91d2f3c79bb4ffa3ce92b0db13c6db310dabea836f41818db1c"
+    },
+    {
+      "labels": [],
+      "line": 24,
+      "numbers": [
+        "3"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "8a45327fcdea241b4452a30adc0787de2bafa654997ba6f205e8cf3f5ba75ff4"
+    },
+    {
+      "labels": [],
+      "line": 32,
+      "numbers": [
+        "1"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "75b39d0fa070a20f78f6fcdd9d08e74eb9c6d03e5d2b2f57800fa7d4f50c1a56"
+    },
+    {
+      "labels": [],
+      "line": 33,
+      "numbers": [
+        "2"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "71678a3bd1f487ed3c51eddad12f0fa99000491b43b849716918dd9b21e50c2a"
+    },
+    {
+      "labels": [],
+      "line": 34,
+      "numbers": [
+        "3"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "5aba5c00af57d8c03f12ccb3250583871a37187049d9202e2ef9932e2b3f6527"
+    },
+    {
+      "labels": [],
+      "line": 35,
+      "numbers": [
+        "4"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "d1df8240f1d58c1670d1c4eda81b47a797d09892ba9bb409fcbb0f4300dd3c8d"
+    },
+    {
+      "labels": [
+        "PROVED"
+      ],
+      "line": 85,
+      "numbers": [
+        "2025",
+        "0",
+        "12",
+        "0",
+        "10",
+        "2"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "174c3852a424a8a62204ce3108b8074edea67865d58b55f67b807468b7e8204a"
+    },
+    {
+      "labels": [],
+      "line": 88,
+      "numbers": [
+        "3.0",
+        "3.0",
+        "3.0"
+      ],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "7f40857bc8407ce77b69b7988ae2a704a37080afaaeee39966f676bfef36ebf2"
+    },
+    {
+      "labels": [
+        "PROVED"
+      ],
+      "line": 89,
+      "numbers": [],
+      "path": "docs/SERIES_A_DILIGENCE.md",
+      "text_sha256": "820acff53bab7314ce62ff754950c379d1b92f294e885b1b75a1f945c9812c1f"
+    }
+  ],
+  "generated_at": "2026-07-26T08:52:49+00:00",
+  "label": "MEASURED",
+  "limitations": "human semantic review is still required; line text is hashed to avoid duplicating public copy",
+  "scope": "automated material-claim candidate scan of README and diligence packet"
+}

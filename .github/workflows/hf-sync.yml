@@ -4,30 +4,11 @@ name: Sync and Relock Canonical Hugging Face Space
 # the exact Space file set from Dockerfile COPY sources, publishes and byte-attests
 # the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
 # build-info contract. This caller retains only A11oy-specific terminal evidence.
+# The main-push trigger intentionally has no path filter: every Dockerfile source
+# change must enter deployment before the strict parity dispatch.
 on:
   push:
     branches: [main]
-    paths:
-      - "Dockerfile"
-      - "serve.py"
-      - "**/*.py"
-      - "console/**"
-      - "pages/**"
-      - "web/**"
-      - "static/**"
-      - "static-vendor/**"
-      - "numerics/**"
-      - "src/**"
-      - "schemas/**"
-      - "corpus/**"
-      - "model_release/**"
-      - "*.html"
-      - "knowledge.json"
-      - "README.md"
-      - ".github/scripts/verify_canonical_a11oy.py"
-      - ".github/workflows/hf-sync.yml"
-      - ".github/workflows/hf-module-drift.yml"
-      - "tests/test_canonical_a11oy_relock.py"
   workflow_dispatch: {}
 
 permissions:
@@ -63,9 +44,67 @@ jobs:
     secrets:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
+  readiness-verdict:
+    name: Probe and ingest exact post-deploy readiness verdict
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      SOURCE_SHA: ${{ github.sha }}
+      VERDICT_PATH: /tmp/readiness-verdict.json
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact verdict publisher
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.19.0"
+
+      - name: Probe the exact canonical deployment
+        run: >-
+          node tools/readiness-harness/probe_runner.mjs
+          --base "$CANONICAL_ORIGIN"
+          --samples 1
+          --concurrency 2
+          --retries 2
+          --soft
+          --out "$VERDICT_PATH"
+
+      - name: Upload immutable full probe evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.VERDICT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish compact source-bound verdict to the runtime
+        run: >-
+          python .github/scripts/publish_readiness_verdict.py
+          --input "$VERDICT_PATH"
+          --repo-id "$CANONICAL_SPACE"
+          --expected-origin "$CANONICAL_ORIGIN"
+          --expected-source-sha "$SOURCE_SHA"
+
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: deploy
+    needs: [deploy, readiness-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -101,7 +140,7 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --source-variable SZL_GIT_SHA \
             --output "$REPORT_PATH" \
-            --attempts 12 \
+            --attempts 60 \
             --retry-seconds 10
           code=$?
           echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
@@ -111,7 +150,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: canonical-a11oy-relock-${{ github.run_id }}
+          name: canonical-a11oy-relock-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.REPORT_PATH }}
           if-no-files-found: error
           retention-days: 90
