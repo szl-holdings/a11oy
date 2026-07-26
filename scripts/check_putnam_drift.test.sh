@@ -21,7 +21,8 @@ FAIL=0
 
 run() {
   # $1 = a11oy root (its ./canon is the offline canonical fixture)
-  PUTNAM_DRIFT_FIXTURE="$1/canon" python3 "$GUARD" --root "$1" >/dev/null 2>&1
+  PYTHONDONTWRITEBYTECODE=1 PUTNAM_DRIFT_FIXTURE="$1/canon" \
+    python3 "$GUARD" --root "$1" >/dev/null 2>&1
 }
 
 expect_pass() {
@@ -109,7 +110,8 @@ HTML
 placeholder
 <!-- END GENERATED PUTNAM STATUS -->
 MD
-  PUTNAM_DRIFT_FIXTURE="$r/canon" python3 "$GUARD" --root "$r" \
+  PYTHONDONTWRITEBYTECODE=1 PUTNAM_DRIFT_FIXTURE="$r/canon" \
+    python3 "$GUARD" --root "$r" \
     --write-diligence >/dev/null
 }
 
