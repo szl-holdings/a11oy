@@ -26,26 +26,52 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.pull_request.base.sha }}
 
-      - name: Checkout candidate as untrusted data
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: candidate
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
+      - name: Fetch exact candidate manifest as untrusted data
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CANDIDATE_OWNER: ${{ github.event.pull_request.head.repo.owner.login }}
+          CANDIDATE_REPO: ${{ github.event.pull_request.head.repo.name }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const fs = require("fs");
+            const response = await github.rest.repos.getContent({
+              owner: process.env.CANDIDATE_OWNER,
+              repo: process.env.CANDIDATE_REPO,
+              path: "docs/action-contract-manifest.json",
+              ref: process.env.CANDIDATE_SHA,
+            });
+            const candidate = response.data;
+            if (
+              Array.isArray(candidate) ||
+              candidate.type !== "file" ||
+              candidate.encoding !== "base64"
+            ) {
+              core.setFailed("candidate manifest must be a regular base64-encoded file");
+              return;
+            }
+            const content = Buffer.from(
+              candidate.content.replace(/\n/g, ""),
+              "base64",
+            );
+            if (content.length > 1024 * 1024) {
+              core.setFailed("candidate manifest exceeds the 1 MiB validation limit");
+              return;
+            }
+            fs.writeFileSync(
+              "protected-base/docs/action-contract-manifest.json",
+              content,
+              { flag: "w", mode: 0o600 },
+            );
+
       - name: Validate candidate manifest with protected code
         shell: bash
         run: |
           set -euo pipefail
-          candidate_manifest="candidate/docs/action-contract-manifest.json"
-          test -f "${candidate_manifest}"
-          test ! -L "${candidate_manifest}"
-          cp -- "${candidate_manifest}" "protected-base/docs/action-contract-manifest.json"
           cd protected-base
           python3 scripts/validate_action_contract_manifest.py
