@@ -271,7 +271,8 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
         r"(?P<kind>namespace|section|end|theorem|lemma|instance)\b"
     )
     commands = list(command_re.finditer(command_text))
-    lean_name = r"(?:«[^»\r\n]+»|[^\s:({\[\],]+)"
+    lean_name_part = r"(?:«[^»\r\n]+»|[^\s:({\[\],.]+)"
+    lean_name = lean_name_part + r"(?:\." + lean_name_part + r")*"
 
     for index, command in enumerate(commands):
         kind = command.group("kind")

@@ -279,7 +279,7 @@ expect_pass_report "private helper does not require an unusable external name" \
 R="$TMP/R"; make_honest "$R"
 sed -i '/theorem proof/a class AuditWitness : Prop where\n\
   witness : True\n\
-public instance (priority := 100) auditedInstance : AuditWitness := ⟨True.intro⟩' \
+public instance (priority := 100) auditedInstance.{u} : AuditWitness := ⟨True.intro⟩' \
   "$R/canon/SZL/One.lean"
 cat > "$R/missing-instance.txt" <<'TXT'
 'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
