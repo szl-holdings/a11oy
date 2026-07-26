@@ -10590,8 +10590,17 @@ try:
             t0 = _t.time()
             source, source_url = _kl_live._SOURCE.get(f, ("unknown", ""))
             try:
-                p = await anyio.to_thread.run_sync(
-                    _kl_live.get_feed, f, _KL_FEED_PULSE_TIMEOUT_S)
+                # Socket timeouts are per operation; a trickling peer can keep
+                # r.read() alive indefinitely. Bound the complete worker wait
+                # and abandon the thread on cancellation so the pulse itself
+                # cannot hang beyond the declared per-feed deadline.
+                with anyio.fail_after(_KL_FEED_PULSE_TIMEOUT_S):
+                    p = await anyio.to_thread.run_sync(
+                        _kl_live.get_feed,
+                        f,
+                        _KL_FEED_PULSE_TIMEOUT_S,
+                        abandon_on_cancel=True,
+                    )
                 dt = round((_t.time()-t0)*1000)
                 d = p.get("data")
                 # honest payload-size signal

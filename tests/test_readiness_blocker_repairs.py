@@ -169,3 +169,38 @@ def test_feed_pulse_propagates_internal_timeout_cache_evidence(monkeypatch):
     assert timed_out["mode"] == "cached"
     assert timed_out["payload_bytes"] > 0
     assert "TimeoutError" in timed_out["cache_note"]
+
+
+def test_feed_pulse_bounds_complete_worker_when_upstream_trickles(monkeypatch):
+    def fake_get_feed(feed, timeout_s=None):
+        assert timeout_s == 0.05
+        if feed == "celestrak":
+            # Simulate a socket that keeps producing bytes without ever
+            # tripping a per-operation timeout.
+            time.sleep(0.50)
+        source, source_url = serve._kl_live._SOURCE[feed]
+        return {
+            "source": source,
+            "source_url": source_url,
+            "mode": "live",
+            "fetched_at": serve._kl_live._now_iso(),
+            "ttl_s": 60,
+            "data": {"feed": feed},
+        }
+
+    monkeypatch.setattr(serve._kl_live, "get_feed", fake_get_feed)
+    monkeypatch.setattr(serve, "_KL_FEED_PULSE_TIMEOUT_S", 0.05)
+
+    started = time.monotonic()
+    response = asyncio.run(serve._feeds_pulse())
+    elapsed = time.monotonic() - started
+    payload = json.loads(response.body)
+
+    assert elapsed < 0.30
+    assert payload["live_count"] == 6
+    assert payload["cached_count"] == 0
+    assert payload["down_count"] == 1
+    timed_out = payload["items"][4]
+    assert timed_out["mode"] == "unavailable"
+    assert timed_out["payload_bytes"] == 0
+    assert timed_out["error"] == "probe timeout after 0.05s"
