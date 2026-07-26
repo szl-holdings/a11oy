@@ -72,8 +72,9 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
 - **Governed VQC / QML frontier tab** — parameter-shift hybrid VQC, labeled
   **SIMULATION-ONLY** (PRs #764, #782). Not a physical quantum device.
 - **Attested inference** — TEE attestation bound to a Λ-gated inference receipt;
-  `tee_attestation` field auto-populates **MEASURED** only on a live TDX/Nitro
-  node, otherwise honest **UNAVAILABLE** on CPU Spaces (PR #767).
+  `tee_attestation` is **SAMPLE** when a live TDX/Nitro report is merely observed,
+  becomes **MEASURED** only after the fresh request-bound verifier contract passes,
+  and remains honest **UNAVAILABLE** on CPU Spaces (PR #767).
 - **Durable bounded receipt/energy ledger** — durable, size-bounded store with an
   honest **storage-pressure** signal (OK / PRESSURE / UNAVAILABLE), surfaced on
   `/healthz` (PR #774).

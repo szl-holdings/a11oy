@@ -9,17 +9,30 @@ import ctypes
 import hashlib
 import json
 import struct
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 import szl_attested_inference
 import szl_dsse
 import szl_tee_attest
 
 
-def _synthetic_tdx_quote(report_data, *, version=4, body_type=2):
+def _synthetic_tdx_quote(
+    report_data,
+    *,
+    version=4,
+    body_type=2,
+    body_size=None,
+):
     """Minimal structurally valid quote fixture; never presented as real evidence."""
     header = struct.pack("<HHI", version, 2, 0x81) + bytes(40)
-    body = bytearray(584 if body_type == 2 else 648)
+    expected_sizes = {2: 584, 3: 648, 4: 885}
+    body = bytearray(
+        body_size if body_size is not None else expected_sizes.get(body_type, 584)
+    )
     body[520:584] = report_data
     signature = bytes([0xA5]) * 64
     if version == 4:
@@ -31,6 +44,27 @@ def _synthetic_tdx_quote(report_data, *, version=4, body_type=2):
         + struct.pack("<I", len(signature))
         + signature
     )
+
+
+def _synthetic_tdx_tdreport(
+    *,
+    report_data=None,
+    mrtd=None,
+    report_type=0x81,
+    subtype=0,
+    version=0,
+    reserved=0,
+):
+    """Build a local TDREPORT fixture with distinct REPORTDATA and MRTD fields."""
+    report_data = report_data if report_data is not None else bytes([0xA1]) * 64
+    mrtd = mrtd if mrtd is not None else bytes([0xB2]) * 48
+    assert len(report_data) == 64
+    assert len(mrtd) == 48
+    report = bytearray(1024)
+    report[:4] = bytes((report_type, subtype, version, reserved))
+    report[128:192] = report_data
+    report[528:576] = mrtd
+    return bytes(report)
 
 
 def test_absent_runtime_emits_complete_v2_unavailable_contract(monkeypatch):
@@ -50,7 +84,9 @@ def test_absent_runtime_emits_complete_v2_unavailable_contract(monkeypatch):
 
 
 def test_operator_report_is_observed_not_measured(tmp_path):
-    report = bytes(range(256)) * 4
+    report_data = bytes(range(64))
+    mrtd = bytes(range(96, 144))
+    report = _synthetic_tdx_tdreport(report_data=report_data, mrtd=mrtd)
     report_path = tmp_path / "tdreport.bin"
     report_path.write_bytes(report)
 
@@ -62,8 +98,53 @@ def test_operator_report_is_observed_not_measured(tmp_path):
     assert record["label"] == "SAMPLE"
     assert record["evidence_tier"] == "SAMPLE_UNVERIFIED"
     assert record["quote_digest"] == hashlib.sha256(report).hexdigest()
-    assert record["measurement"] == report[128:176].hex()
+    assert record["measurement"] == mrtd.hex()
+    assert record["measurement"] != report_data[:48].hex()
     assert record["verifier"] is None
+
+
+def test_operator_report_requires_full_tdx_report_and_valid_type_version(tmp_path):
+    valid = _synthetic_tdx_tdreport()
+    cases = {
+        "truncated.bin": valid[:-1],
+        "oversized.bin": valid + b"\0",
+        "wrong-type.bin": _synthetic_tdx_tdreport(report_type=0x00),
+        "wrong-version.bin": _synthetic_tdx_tdreport(version=1),
+    }
+
+    for name, report in cases.items():
+        report_path = tmp_path / name
+        report_path.write_bytes(report)
+        with pytest.raises(ValueError):
+            szl_tee_attest._tdx_read_mrtd_file(str(report_path))
+
+
+def test_tdx_ioctl_extracts_tdinfo_mrtd_not_reportdata(monkeypatch, tmp_path):
+    report_data = bytes([0x3C]) * 64
+    mrtd = bytes([0xD7]) * 48
+    report = _synthetic_tdx_tdreport(report_data=report_data, mrtd=mrtd)
+    device = tmp_path / "tdx_guest"
+    device.write_bytes(b"")
+
+    def fake_ioctl(_fd, _command, request, _mutate):
+        request[64:] = report
+        return 0
+
+    monkeypatch.setitem(
+        sys.modules,
+        "fcntl",
+        SimpleNamespace(ioctl=fake_ioctl),
+    )
+
+    parsed = szl_tee_attest._tdx_read_mrtd_ioctl(
+        str(device),
+        report_data=report_data,
+    )
+
+    assert parsed["measurement"] == mrtd.hex()
+    assert parsed["measurement"] != report_data[:48].hex()
+    assert parsed["request_binding_digest"] == report_data.hex()
+    assert parsed["evidence_format"] == "TDREPORT_LOCAL_ONLY"
 
 
 def test_high_consequence_policy_blocks_unverified_evidence():
@@ -88,7 +169,13 @@ def test_high_consequence_policy_blocks_unverified_evidence():
     assert policy["verified_evidence"] is False
 
 
-def _signed_verifier_record(monkeypatch, *, verified_at=None, tee_type="nitro"):
+def _signed_verifier_record(
+    monkeypatch,
+    *,
+    verified_at=None,
+    tee_type="nitro",
+    measurement=None,
+):
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
 
@@ -100,7 +187,7 @@ def _signed_verifier_record(monkeypatch, *, verified_at=None, tee_type="nitro"):
 
     now = verified_at or datetime.now(timezone.utc)
     quote_digest = "b" * 64
-    measurement = "c" * 96
+    measurement = measurement if measurement is not None else "c" * 96
     nonce = "request-nonce-0001"
     workload_digest = "d" * 96
     verifier = "test-trust-root"
@@ -194,6 +281,55 @@ def test_high_consequence_policy_accepts_real_signature_and_all_bindings(monkeyp
     assert policy["allowed"] is True
     assert policy["verdict"] == "ALLOW"
     assert all(policy["checks"].values())
+
+
+def test_nitro_debug_pcr0_never_promotes_even_when_allowlisted(monkeypatch):
+    debug_pcr0 = "0" * 96
+    record, nonce, workload, _measurement, now, public_pem = (
+        _signed_verifier_record(
+            monkeypatch,
+            tee_type="nitro",
+            measurement=debug_pcr0,
+        )
+    )
+    monkeypatch.setenv(
+        "SZL_TEE_VERIFIER_PUBLIC_KEYS_JSON",
+        json.dumps({"test-trust-root": public_pem}),
+    )
+    monkeypatch.setenv("SZL_TEE_TRUSTED_VERIFIERS", "test-trust-root")
+    probe_result = {
+        "type": "nitro",
+        "measurement": debug_pcr0,
+        "measurement_field": "PCR0",
+        "quote_digest": record["quote_digest"],
+        "quote_bytes": b"debug-request-bound-hardware-quote",
+        "source": "nsm:AttestationDoc",
+        "request_binding_observed": True,
+    }
+
+    promoted, reason = szl_tee_attest._verified_attestation(
+        probe_result,
+        record["verifier_envelope"],
+        nonce=nonce,
+        workload_digest=workload,
+    )
+    policy = szl_tee_attest.evaluate_attestation_policy(
+        record,
+        high_consequence=True,
+        expected_nonce=nonce,
+        expected_workload_digest=workload,
+        reference_measurements={debug_pcr0},
+        trusted_verifiers={"test-trust-root"},
+        verifier_public_keys={"test-trust-root": public_pem},
+        now=now,
+    )
+
+    assert promoted is None
+    assert "debug-mode" in reason
+    assert policy["checks"]["reference_measurement"] is True
+    assert policy["checks"]["production_measurement"] is False
+    assert policy["verified_evidence"] is False
+    assert policy["verdict"] == "BLOCK"
 
 
 def test_high_consequence_policy_rejects_replay_staleness_and_reference_drift(monkeypatch):
@@ -563,6 +699,25 @@ def test_qgl_quote_is_signed_structure_and_request_bound(monkeypatch):
     assert result["measurement"] is None
 
 
+def test_tdx_quote_v5_rejects_body_type_size_cross_pairs():
+    report_data = bytes(range(64))
+    mismatches = (
+        (2, 648),
+        (3, 584),
+        (4, 885),
+    )
+
+    for body_type, body_size in mismatches:
+        quote = _synthetic_tdx_quote(
+            report_data,
+            version=5,
+            body_type=body_type,
+            body_size=body_size,
+        )
+        with pytest.raises(RuntimeError):
+            szl_tee_attest._tdx_quote_layout(quote)
+
+
 def test_qgl_rejects_a_local_tdreport_relabel(monkeypatch):
     monkeypatch.setattr(
         szl_tee_attest,
@@ -895,7 +1050,7 @@ def test_unsigned_read_envelope_preserves_canonical_payload(monkeypatch):
     assert verdict["reason"] == "no signatures (unsigned envelope)"
 
 
-def test_ledger_uses_effective_combined_block_verdict(monkeypatch):
+def test_read_only_get_never_appends_to_lambda_ledger(monkeypatch):
     import szl_org_lambda
 
     emitted = []
@@ -915,14 +1070,17 @@ def test_ledger_uses_effective_combined_block_verdict(monkeypatch):
         },
     )
 
-    result = szl_attested_inference.run_attested_inference(
-        42, "szl-modeled-lm", high_consequence=True
+    response = szl_attested_inference._h_attest_infer(
+        SimpleNamespace(
+            query_params={"seed": "42", "model": "szl-modeled-lm"}
+        )
     )
+    body = json.loads(response.body)
 
-    assert result["lambda"]["pass"] is True
-    assert result["attestation_policy"]["verdict"] == "BLOCK"
-    assert result["inference"]["released"] is False
-    assert emitted[-1][1]["decision"] == "BLOCK"
+    assert body["lambda"]["pass"] is True
+    assert body["attestation_policy"]["verdict"] == "BLOCK"
+    assert body["inference"]["released"] is False
+    assert emitted == []
 
 
 def test_library_defaults_to_high_consequence_and_blocks_without_evidence(monkeypatch):
@@ -1038,3 +1196,17 @@ def test_live_surface_never_claims_get_receipt_is_signed():
     assert "DSSE is REAL ECDSA-P256 in-Space" not in surface
     assert "signed for real" not in surface
     assert "UNSIGNED-READ" in surface
+
+
+def test_live_capability_claims_require_verified_contract_for_measured():
+    root = Path(__file__).resolve().parents[1]
+    frontier = (root / "a11oy_frontier_patch.py").read_text(encoding="utf-8")
+    server = (root / "serve.py").read_text(encoding="utf-8")
+    changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    combined = "\n".join((frontier, server, changelog))
+
+    assert "MEASURED on live TDX/Nitro" not in combined
+    assert "auto-populates **MEASURED** only on a live TDX/Nitro" not in combined
+    assert "SAMPLE on live TDX/Nitro" in frontier
+    assert "SAMPLE on live TDX/Nitro" in server
+    assert "fresh request-bound verifier contract passes" in changelog

@@ -102,9 +102,21 @@ _TDX_REPORT_ENV = "SZL_TDX_REPORT_PATH"
 _MAX_TEE_EVIDENCE_BYTES = 1024 * 1024
 _TDX_QUOTE_HEADER_SIZE = 48
 _TDX_1_0_QUOTE_BODY_SIZE = 584
-_TDX_REPORT_DATA_OFFSET = 520
+_TDX_V5_QUOTE_BODY_SIZES = {
+    2: 584,  # TDX 1.0 report body
+    3: 648,  # TDX 1.5 report body
+}
+_TDX_QUOTE_REPORT_DATA_OFFSET = 520
 _TDX_TEE_TYPE = 0x00000081
 _TDX_ECDSA_P256_ATTESTATION_KEY_TYPE = 2
+_TDX_TDREPORT_SIZE = 1024
+_TDX_TDREPORT_TYPE = 0x81
+_TDX_TDREPORT_REPORTDATA_OFFSET = 128
+_TDX_TDREPORT_REPORTDATA_SIZE = 64
+_TDX_TDREPORT_TDINFO_OFFSET = 512
+_TDX_TDINFO_MRTD_OFFSET = 16
+_TDX_TDREPORT_MRTD_OFFSET = _TDX_TDREPORT_TDINFO_OFFSET + _TDX_TDINFO_MRTD_OFFSET
+_TDX_TDREPORT_MRTD_SIZE = 48
 
 # AWS Nitro NSM device path
 _NITRO_NSM_DEVICE = "/dev/nsm"
@@ -230,7 +242,9 @@ def _tdx_quote_layout(quote: bytes) -> tuple[int, int, int]:
         raise RuntimeError("TDX Quote reserved header bytes are nonzero")
 
     if version == 4:
-        report_data_offset = _TDX_QUOTE_HEADER_SIZE + _TDX_REPORT_DATA_OFFSET
+        report_data_offset = (
+            _TDX_QUOTE_HEADER_SIZE + _TDX_QUOTE_REPORT_DATA_OFFSET
+        )
         signature_length_offset = (
             _TDX_QUOTE_HEADER_SIZE + _TDX_1_0_QUOTE_BODY_SIZE
         )
@@ -238,12 +252,15 @@ def _tdx_quote_layout(quote: bytes) -> tuple[int, int, int]:
         body_type, body_size = struct.unpack_from(
             "<HI", quote, _TDX_QUOTE_HEADER_SIZE
         )
-        if body_type not in {2, 3}:
+        expected_body_size = _TDX_V5_QUOTE_BODY_SIZES.get(body_type)
+        if expected_body_size is None:
             raise RuntimeError("TDX Quote v5 has an unsupported body type")
-        if not _TDX_1_0_QUOTE_BODY_SIZE <= body_size <= 4096:
-            raise RuntimeError("TDX Quote v5 body size is invalid")
+        if body_size != expected_body_size:
+            raise RuntimeError(
+                "TDX Quote v5 body size does not match its body type"
+            )
         report_data_offset = (
-            _TDX_QUOTE_HEADER_SIZE + 6 + _TDX_REPORT_DATA_OFFSET
+            _TDX_QUOTE_HEADER_SIZE + 6 + _TDX_QUOTE_REPORT_DATA_OFFSET
         )
         signature_length_offset = _TDX_QUOTE_HEADER_SIZE + 6 + body_size
 
@@ -344,6 +361,39 @@ def _tdx_read_quote_qgl(report_data: bytes) -> dict:
     }
 
 
+def _parse_tdx_tdreport(report: bytes) -> tuple[bytes, bytes]:
+    """Validate one TDX 1.0 TDREPORT and return (REPORTDATA, MRTD).
+
+    Intel TDX ABI 1.0 defines a 1024-byte TDREPORT_STRUCT:
+    REPORTMACSTRUCT.REPORTDATA is at 128..192, while TDINFO.MRTD is at
+    TDINFO offset 16, or absolute report bytes 528..576. The four-byte
+    REPORTTYPE header must be TDX type 0x81, subtype 0, version 0, reserved 0.
+    """
+    if not isinstance(report, bytes) or len(report) != _TDX_TDREPORT_SIZE:
+        length = len(report) if isinstance(report, bytes) else "non-bytes"
+        raise ValueError(
+            f"TDX report must be exactly {_TDX_TDREPORT_SIZE} bytes ({length})"
+        )
+    report_type, subtype, version, reserved = report[:4]
+    if report_type != _TDX_TDREPORT_TYPE:
+        raise ValueError("TDX report has a non-TDX REPORTTYPE")
+    if subtype != 0:
+        raise ValueError("TDX report has an unsupported REPORTTYPE subtype")
+    if version != 0:
+        raise ValueError("TDX report has an unsupported REPORTTYPE version")
+    if reserved != 0:
+        raise ValueError("TDX report has nonzero REPORTTYPE reserved data")
+    reportdata = report[
+        _TDX_TDREPORT_REPORTDATA_OFFSET:
+        _TDX_TDREPORT_REPORTDATA_OFFSET + _TDX_TDREPORT_REPORTDATA_SIZE
+    ]
+    mrtd = report[
+        _TDX_TDREPORT_MRTD_OFFSET:
+        _TDX_TDREPORT_MRTD_OFFSET + _TDX_TDREPORT_MRTD_SIZE
+    ]
+    return reportdata, mrtd
+
+
 def _tdx_read_mrtd_ioctl(
     dev_path: str,
     report_data: bytes | None = None,
@@ -351,8 +401,9 @@ def _tdx_read_mrtd_ioctl(
     """Read TDX MRTD via the Linux /dev/tdx_guest ioctl (TDREPORT).
 
     The TDX_CMD_GET_REPORT0 ioctl (0xc0400101 on Linux 6.x) returns a 1024-byte
-    TDREPORT_STRUCT.  MRTD occupies bytes 128..176 (48 bytes, SHA-384 measurement
-    of the initial TD memory).  We extract it and hex-encode it.
+    TDREPORT_STRUCT. REPORTMACSTRUCT.REPORTDATA occupies bytes 128..192 and
+    TDINFO.MRTD occupies bytes 528..576. We validate the REPORTTYPE header,
+    verify REPORTDATA when supplied, and extract the distinct MRTD field.
 
     Raises on any error so the caller can fall through to the file path or None.
     """
@@ -363,7 +414,7 @@ def _tdx_read_mrtd_ioctl(
     # struct tdx_report_req: { u8 reportdata[64]; u8 tdreport[1024]; }
     TDX_CMD_GET_REPORT0 = 0xC0400101  # ioctl number for 64+1024 = 1088-byte struct
     REPORT_DATA_SIZE = 64
-    TD_REPORT_SIZE = 1024
+    TD_REPORT_SIZE = _TDX_TDREPORT_SIZE
     REQ_SIZE = REPORT_DATA_SIZE + TD_REPORT_SIZE
 
     req = bytearray(REQ_SIZE)
@@ -375,11 +426,10 @@ def _tdx_read_mrtd_ioctl(
     with open(dev_path, "rb") as f:
         fcntl.ioctl(f.fileno(), TDX_CMD_GET_REPORT0, req, True)
 
-    # MRTD is at offset 128 within the TDREPORT struct (after the 64-byte report_data prefix)
-    mrtd_start = REPORT_DATA_SIZE + 128
-    mrtd_end = mrtd_start + 48
     raw_report = bytes(req[REPORT_DATA_SIZE:])
-    mrtd_bytes = bytes(req[mrtd_start:mrtd_end])
+    returned_report_data, mrtd_bytes = _parse_tdx_tdreport(raw_report)
+    if report_data is not None and returned_report_data != report_data:
+        raise ValueError("TDX TDREPORT REPORTDATA does not match the ioctl request")
     mrtd_hex = mrtd_bytes.hex()
     return {
         "type": "tdx",
@@ -395,18 +445,23 @@ def _tdx_read_mrtd_ioctl(
 def _tdx_read_mrtd_file(path: str) -> dict:
     """Read MRTD from a pre-baked TDX TDREPORT binary file.
 
-    The file is expected to be the 1024-byte TDREPORT_STRUCT (no report_data prefix
-    when supplied directly from a dstack operator).  MRTD is at offset 128..176.
-    Raises on any error.
+    The file must be exactly one 1024-byte TDREPORT_STRUCT. REPORTDATA is at
+    128..192 and MRTD is the distinct TDINFO field at 528..576. The report type,
+    subtype, version, and reserved header byte are validated before extraction.
     """
     with open(path, "rb") as f:
-        data = f.read(1024)
-    if len(data) < 176:
-        raise ValueError(f"TDX report file too short ({len(data)} bytes)")
-    mrtd_bytes = data[128:176]
+        data = f.read(_TDX_TDREPORT_SIZE + 1)
+    _report_data, mrtd_bytes = _parse_tdx_tdreport(data)
     mrtd_hex = mrtd_bytes.hex()
-    return {"type": "tdx", "measurement": mrtd_hex, "measurement_field": "MRTD",
-            "quote_digest": _sha256_hex(data), "source": "file:operator-provided"}
+    return {
+        "type": "tdx",
+        "measurement": mrtd_hex,
+        "measurement_field": "MRTD",
+        "quote_digest": _sha256_hex(data),
+        "source": "file:operator-provided",
+        "request_binding_digest": None,
+        "evidence_format": "TDREPORT_LOCAL_ONLY",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -658,6 +713,8 @@ def _verified_attestation(
         and payload.get("certificate_chain_verified") is True
     ):
         return None, "authenticated verifier result does not match the request evidence"
+    if _is_nitro_debug_measurement(result.get("type"), verified_measurement):
+        return None, "AWS Nitro debug-mode all-zero PCR0 is never trusted"
     return {
         "schema": _SCHEMA,
         "present": True,
@@ -916,6 +973,19 @@ def _valid_hex(value: object, *, minimum: int, maximum: int) -> bool:
     )
 
 
+def _is_nitro_debug_measurement(
+    tee_type: object,
+    measurement: object,
+) -> bool:
+    """Return true for AWS Nitro's documented debug-mode all-zero PCR value."""
+    return bool(
+        tee_type == "nitro"
+        and _valid_hex(measurement, minimum=64, maximum=128)
+        and isinstance(measurement, str)
+        and not measurement.strip("0")
+    )
+
+
 def _parse_utc(value: object) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
@@ -1103,6 +1173,10 @@ def evaluate_attestation_policy(
         and payload.get("nonce") == expected_nonce
         and payload.get("workload_digest") == expected_workload_digest
     )
+    production_measurement = not _is_nitro_debug_measurement(
+        attestation.get("type"),
+        measurement,
+    )
     reference_match = bool(
         isinstance(measurement, str)
         and references
@@ -1116,6 +1190,7 @@ def evaluate_attestation_policy(
         and evidence_matches
         and fresh
         and request_bound
+        and production_measurement
         and reference_match
     )
     allowed = (not required) or verified
@@ -1126,6 +1201,7 @@ def evaluate_attestation_policy(
         "quote_and_certificate_verified": vendor_verification,
         "fresh": fresh,
         "request_bound": request_bound,
+        "production_measurement": production_measurement,
         "reference_measurement": reference_match,
         "evidence_matches_envelope": evidence_matches,
     }
