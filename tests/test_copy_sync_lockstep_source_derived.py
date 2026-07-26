@@ -206,6 +206,44 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     CHECKER.has_source_derived_deploy_contract(extended + deploy)
                 )
 
+    def test_inline_branch_sequences_preserve_quoted_commas(self) -> None:
+        deploy = textwrap.dedent(
+            """
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                with:
+                  dockerfile-path: Dockerfile
+            """
+        )
+        for branches in (
+            '["main,disabled"]',
+            "['main,disabled']",
+            '["main,disabled]',
+        ):
+            trigger = textwrap.dedent(
+                f"""
+                on:
+                  push:
+                    branches: {branches}
+                """
+            )
+            with self.subTest(branches=branches):
+                self.assertFalse(
+                    CHECKER.has_source_derived_deploy_contract(trigger + deploy)
+                )
+
+        quoted_main = textwrap.dedent(
+            """
+            on:
+              push:
+                branches: ["feature,only", "main"]
+            """
+        )
+        self.assertTrue(
+            CHECKER.has_source_derived_deploy_contract(quoted_main + deploy)
+        )
+
     def test_filtered_or_non_main_push_trigger_is_rejected(self) -> None:
         triggers = (
             """

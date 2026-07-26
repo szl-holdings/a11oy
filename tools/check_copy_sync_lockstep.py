@@ -316,14 +316,58 @@ def yaml_sequence_items(lines, entry_index, property_indent, value):
     """Return an ordered inline or indented YAML sequence."""
     if value:
         if value.startswith("[") and value.endswith("]"):
-            items = value[1:-1].split(",")
+            content = value[1:-1]
+            items = []
+            item_start = 0
+            quote = None
+            escaped = False
+            index = 0
+            while index < len(content):
+                char = content[index]
+                if quote == '"':
+                    if escaped:
+                        escaped = False
+                    elif char == "\\":
+                        escaped = True
+                    elif char == '"':
+                        quote = None
+                elif quote == "'":
+                    if char == "'":
+                        if index + 1 < len(content) and content[index + 1] == "'":
+                            index += 1
+                        else:
+                            quote = None
+                elif char in {"'", '"'}:
+                    quote = char
+                elif char == ",":
+                    items.append(content[item_start:index])
+                    item_start = index + 1
+                index += 1
+            if quote is not None or escaped:
+                return None
+            items.append(content[item_start:])
         else:
             items = [value]
-        return [
-            item.strip().strip("\"'")
-            for item in items
-            if item.strip()
-        ]
+        normalized = []
+        for item in items:
+            item = item.strip()
+            if not item:
+                continue
+            if item.startswith('"'):
+                try:
+                    item = json.loads(item)
+                except (json.JSONDecodeError, TypeError):
+                    return None
+                if not isinstance(item, str):
+                    return None
+            elif item.startswith("'"):
+                if not item.endswith("'") or len(item) < 2:
+                    return None
+                item = item[1:-1].replace("''", "'")
+            elif "'" in item or '"' in item:
+                return None
+            normalized.append(item)
+        return normalized
 
     items = []
     for raw in lines[entry_index + 1:]:
@@ -476,13 +520,14 @@ def workflow_has_unfiltered_main_push(workflow_text):
     if len(branch_entries) != 1:
         return False
     branch_index, _indent, (_key, value) = branch_entries[0]
-    return ordered_branch_patterns_include_main(
-        yaml_sequence_items(
-            lines,
-            branch_index,
-            property_indent,
-            value,
-        )
+    branch_patterns = yaml_sequence_items(
+        lines,
+        branch_index,
+        property_indent,
+        value,
+    )
+    return branch_patterns is not None and ordered_branch_patterns_include_main(
+        branch_patterns
     )
 
 
