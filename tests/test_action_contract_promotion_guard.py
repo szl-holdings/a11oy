@@ -8,7 +8,8 @@ WORKFLOW = ROOT / ".github" / "workflows" / "action-contract-promotion-guard.yml
 def test_promotion_guard_uses_protected_validator_and_untrusted_candidate_data() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "pull_request_target:" in text
+    assert "pull_request:" in text
+    assert "pull_request_target:" not in text
     assert "permissions:\n  contents: read" in text
     assert "ref: ${{ github.event.pull_request.base.sha }}" in text
     assert "ref: ${{ github.event.pull_request.head.sha }}" in text
