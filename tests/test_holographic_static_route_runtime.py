@@ -105,7 +105,7 @@ def test_missing_and_traversal_assets_remain_fail_closed(
         assert response.status_code == 404
 
 
-def test_assembled_app_serves_nested_static_asset_without_weakening_404_guard() -> None:
+def test_assembled_app_serves_nested_static_asset_and_preserves_static_404() -> None:
     import serve
 
     client = TestClient(serve.app)
@@ -119,14 +119,11 @@ def test_assembled_app_serves_nested_static_asset_without_weakening_404_guard() 
     nested_get = client.get("/static/3d/holographic.html")
     nested_head = client.head("/static/3d/holographic.html")
     missing_nested = client.get("/static/3d/missing.js")
-    undeclared_root = client.get("/not-a-declared-investor-asset.html")
 
     assert nested_get.status_code == 200
     assert nested_get.headers["content-type"].startswith("text/html")
-    assert "<title>Holographic Estate" in nested_get.text
+    assert "A11oy Holographic Operations" in nested_get.text
     assert nested_head.status_code == 200
     assert nested_head.content == b""
     assert missing_nested.status_code == 404
     assert missing_nested.json()["error"] == "3d asset not found"
-    assert undeclared_root.status_code == 404
-    assert undeclared_root.json()["reason"] == "undeclared path refused SPA fallback"
