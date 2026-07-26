@@ -193,17 +193,20 @@ The original operator intent contract is
 [`docs/action-contract-manifest.json`](action-contract-manifest.json). It turns
 UDS-style public handoff patterns into an A11oy-native `ActionContract` with
 ingress, identity, policy, evidence, receipt sinks, replay bounds, egress
-limits, and forbidden UDS claims.
+limits, and forbidden UDS claims. Its current status is **ROADMAP**: the
+manifest is validated, but an authenticated, idempotent, durable operator
+action runtime is not implemented.
 
-Runtime receipt helpers for controls and action contracts live in
+Receipt-envelope helpers for controls and action contracts live in
 `packages/policy/src/contracts/controls.ts` and are covered by
-`npm run test:policy-contracts`.
+source tests. Those helpers do not authenticate an operator, enforce
+idempotency server-side, persist a durable lifecycle, or execute a deployment.
 
 Validate it with:
 
 ```bash
-pnpm action-contract:audit
-npm run test:policy-contracts
+python3 scripts/validate_action_contract_manifest.py
+python3 scripts/test_validate_action_contract_manifest.py
 ```
 
 ## Test-results dataset lane

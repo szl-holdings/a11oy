@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generatedBy": "manual-phase-completion-v1",
   "observedAt": "2026-05-30",
-  "canonicalRule": "A11oy-local phases are complete on this branch when their docs/manifests, validators, runtime helpers, payload generation, and bundle verification pass. Sibling repo phases remain access-pending until target repo write access, target-native validation, and target CI are green.",
+  "canonicalRule": "This is a historical phase snapshot. Current action-contract status is ROADMAP: manifest validation and receipt-envelope helpers do not prove an authenticated, idempotent, durable operator runtime. Sibling repo phases remain access-pending until target repo write access, target-native validation, and target CI are green.",
   "branch": "cursor/ecosystem-os-doctrine-2f18",
   "pullRequest": "https://github.com/szl-holdings/a11oy/pull/134",
   "a11oyLocalStatus": "complete-for-current-branch",
@@ -73,16 +73,15 @@
     {
       "id": "PHASE-005",
       "name": "Controls, action contracts, and receipts",
-      "status": "runtime-helper-complete",
+      "status": "roadmap-design-validated-runtime-not-implemented",
       "artifacts": [
         "docs/controls-evidence-map.json",
         "docs/action-contract-manifest.json",
         "packages/policy/src/contracts/controls.ts"
       ],
       "validationCommands": [
-        "npm run controls:audit",
-        "npm run action-contract:audit",
-        "npm run test:policy-contracts"
+        "python3 scripts/validate_action_contract_manifest.py",
+        "python3 scripts/test_validate_action_contract_manifest.py"
       ]
     },
     {

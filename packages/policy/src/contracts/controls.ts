@@ -82,6 +82,7 @@ export interface ActionContractManifest {
     readonly sourceCommit: string;
     readonly payloadDigest: string;
     readonly testCommands: readonly string[];
+    readonly evidenceBoundary: string;
     readonly localEvidenceRefs: readonly string[];
     readonly claimRefs: readonly string[];
   };
@@ -108,6 +109,19 @@ export interface ActionContractManifest {
     readonly maxBytesPerAction: number;
     readonly secretHandling: string;
     readonly exportClasses: readonly string[];
+  };
+  readonly execution: {
+    readonly runtimeStatus: "roadmap" | "live";
+    readonly runtimeImplemented: boolean;
+    readonly authenticatedExecution: boolean;
+    readonly idempotencyEnforced: boolean;
+    readonly durableReceiptLifecycle: boolean;
+    readonly evidenceBoundary: string;
+    readonly preflightRequired: boolean;
+    readonly dryRunAllowed: boolean;
+    readonly operatorConfirmRequired: boolean;
+    readonly rollbackPlanRef: string;
+    readonly timeoutSeconds: number;
   };
   readonly udsProofPoint: {
     readonly wording: string;
