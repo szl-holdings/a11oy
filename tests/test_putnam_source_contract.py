@@ -46,6 +46,6 @@ def test_console_labels_branch_and_pinned_ref_separately() -> None:
     assert "var BRANCH=SHA;" not in html
     assert "branch:j.branch||BRANCH, ref:j.ref||j.sha||REF" in html
     assert "branch:BRANCH, ref:REF" in html
-    assert "'/tree/'+REF+'/Lutar/Putnam'" in html
-    assert "'/blob/'+REF+'/Lutar/Putnam/'" in html
+    assert "lutar-lean/tree/'+REF+'/Lutar/Putnam'" in html
+    assert "lutar-lean/blob/'+REF+'/Lutar/Putnam/'" in html
     assert "lutar-lean branch '+esc(m.branch)+' · pinned @'+esc(m.short)" in html
