@@ -38,7 +38,7 @@ Pattern mirrors szl_readiness.py / szl_contracting.py / szl_bounties.py::
 Endpoints (per namespace ns)::
 
     GET /api/{ns}/v1/putnam
-        -> { layer, honest, doctrine, source, sha, short, base, computed,
+        -> { layer, honest, doctrine, source, branch, ref, sha, short, base, computed,
              putnam:{count,real,demo,open,problems:[...]},
              szl_originals:{count,real,items:[...]}, checked_at }
     GET /api/{ns}/v1/putnam/{problem_id}
@@ -53,26 +53,31 @@ from typing import Any, Dict, List, Optional
 # --------------------------------------------------------------------------
 _SHA = "baf483be3c832b64da47161b558e283d68da6650"
 _SHORT = "baf483b"
-_BRANCH = _SHA
+_BRANCH = "putnam-2025-canonical-set"
+_REF = _SHA
 _COMPUTED = "2026-06-15"  # date this snapshot was transcribed from the immutable commit
 _REPO = "szl-holdings/lutar-lean"
-_TREE = "https://github.com/%s/tree/%s/Lutar/Putnam" % (_REPO, _SHA)
-_BASE = "https://github.com/%s/blob/%s/Lutar/Putnam/" % (_REPO, _SHA)
+_TREE = "https://github.com/%s/tree/%s/Lutar/Putnam" % (_REPO, _REF)
+_BASE = "https://github.com/%s/blob/%s/Lutar/Putnam/" % (_REPO, _REF)
 _DOCTRINE = "v11"
 
 _HONEST = (
     "Honest, doctrine-v11 per-problem verdict for the canonical Putnam 2025 set "
     "(A1-A6, B1-B6), transcribed faithfully from the `Honest status:` label in "
-    "each Lean source at canonical lutar-lean ref %s (%s). REAL = kernel-checked, zero "
+    "each Lean source from lutar-lean branch %s at immutable ref %s (%s). "
+    "REAL = kernel-checked, zero "
     "`sorry`, in-policy axioms; DEMO = faithful statement, proof deferred with "
     "`sorry`; OPEN = corrected answer formalized, main proof deferred. The 12 "
     "Putnam problems are 0 REAL / 10 DEMO / 2 OPEN. The 3 SZL-native originals "
     "are kernel-clean (3 REAL) but are EXPERIMENTAL companions, NOT part of the "
     "Putnam 12, and never inflate the Putnam REAL count. This is a transcribed "
     "snapshot of the pinned commit, not a live `lake build` in this process."
-) % (_BRANCH, _SHORT)
+) % (_BRANCH, _REF, _SHORT)
 
-_SOURCE = "%s — Lutar/Putnam/*.lean @ %s (canonical ref %s)" % (_REPO, _SHORT, _BRANCH)
+_SOURCE = (
+    "%s — Lutar/Putnam/*.lean from source branch %s at immutable ref %s (%s)"
+    % (_REPO, _BRANCH, _REF, _SHORT)
+)
 
 # --------------------------------------------------------------------------
 # Canonical 12 Putnam problems. (id, file, title, status, note)
@@ -201,6 +206,19 @@ def _file_url(rel: str) -> str:
     return _BASE + rel
 
 
+def _source_identity() -> Dict[str, str]:
+    """Return stable source labels plus the immutable content reference."""
+    return {
+        "repo": _REPO,
+        "branch": _BRANCH,
+        "ref": _REF,
+        "sha": _SHA,
+        "short": _SHORT,
+        "tree": _TREE,
+        "base": _BASE,
+    }
+
+
 def _putnam_block() -> Dict[str, Any]:
     real = sum(1 for p in _PUTNAM if p["status"] == "REAL")
     demo = sum(1 for p in _PUTNAM if p["status"] == "DEMO")
@@ -236,12 +254,7 @@ def _payload(ns: str) -> Dict[str, Any]:
         "honest": _HONEST,
         "doctrine": _DOCTRINE,
         "source": _SOURCE,
-        "repo": _REPO,
-        "branch": _BRANCH,
-        "sha": _SHA,
-        "short": _SHORT,
-        "tree": _TREE,
-        "base": _BASE,
+        **_source_identity(),
         "computed": _COMPUTED,
         "putnam": _putnam_block(),
         "szl_originals": _szl_block(),
@@ -264,6 +277,18 @@ def _find(problem_id: str) -> Optional[Dict[str, Any]]:
                     "status": s["status"], "theorems": s.get("theorems", []),
                     "note": s["note"]}
     return None
+
+
+def _problem_payload(ns: str, hit: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "layer": "%s putnam 2025 honest verdict" % ns,
+        "honest": _HONEST,
+        "doctrine": _DOCTRINE,
+        "source": _SOURCE,
+        **_source_identity(),
+        "problem": hit,
+        "checked_at": _now_iso(),
+    }
 
 
 # --------------------------------------------------------------------------
@@ -292,12 +317,7 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
                            + [s["id"] for s in _SZL])},
                 status_code=404,
             )
-        return JSONResponse({
-            "layer": "%s putnam 2025 honest verdict" % ns,
-            "honest": _HONEST, "doctrine": _DOCTRINE, "source": _SOURCE,
-            "sha": _SHA, "short": _SHORT, "branch": _BRANCH,
-            "problem": hit, "checked_at": _now_iso(),
-        })
+        return JSONResponse(_problem_payload(ns, hit))
 
     pb = _putnam_block()
     sb = _szl_block()

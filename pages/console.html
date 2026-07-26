@@ -11774,10 +11774,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
   var SHA='baf483be3c832b64da47161b558e283d68da6650';
   var SHORT='baf483b';
-  var BRANCH=SHA;
+  var BRANCH='putnam-2025-canonical-set';
+  var REF=SHA;
   var COMPUTED='2026-06-15';
-  var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+SHA+'/Lutar/Putnam';
-  var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Putnam/';
+  var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+REF+'/Lutar/Putnam';
+  var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+REF+'/Lutar/Putnam/';
   var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98';
   // Embedded fallback snapshot (matches the live loader exactly), used if the API is unreachable.
   var FB_PROBS=[
@@ -11809,7 +11810,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var pb=j.putnam||{}, sb=j.szl_originals||{};
     var probs=(pb.problems||[]).map(function(p){ return {id:p.id,file:p.file,url:p.url||(BASE+p.file),status:p.status,note:p.note}; });
     var szl=(sb.items||[]).map(function(s){ return {id:s.id,file:s.file,url:s.url||(BASE+s.file),status:s.status,note:s.note,theorems:s.theorems||[]}; });
-    return { live:true, sha:j.sha||SHA, short:j.short||SHORT, branch:j.branch||BRANCH, computed:j.computed||COMPUTED, tree:j.tree||TREE,
+    return { live:true, sha:j.sha||SHA, short:j.short||SHORT, branch:j.branch||BRANCH, ref:j.ref||j.sha||REF, computed:j.computed||COMPUTED, tree:j.tree||TREE,
              probs:probs, szl:szl,
              real:(pb.real!=null?pb.real:probs.filter(function(p){return p.status==='REAL';}).length),
              demo:(pb.demo!=null?pb.demo:probs.filter(function(p){return p.status==='DEMO';}).length),
@@ -11819,7 +11820,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function fromFallback(){
     var probs=FB_PROBS.map(function(p){ return {id:p[0],file:p[1],url:BASE+p[1],status:p[2],note:p[3]}; });
     var szl=FB_SZL.map(function(s){ return {id:s[0],file:s[1],url:BASE+s[1],status:s[2],note:s[3],theorems:[]}; });
-    return { live:false, sha:SHA, short:SHORT, branch:BRANCH, computed:COMPUTED, tree:TREE,
+    return { live:false, sha:SHA, short:SHORT, branch:BRANCH, ref:REF, computed:COMPUTED, tree:TREE,
              probs:probs, szl:szl,
              real:probs.filter(function(p){return p.status==='REAL';}).length,
              demo:probs.filter(function(p){return p.status==='DEMO';}).length,
@@ -11834,12 +11835,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(m.live){
       H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+TEAL+';margin:0 0 14px;">'
         +'\u25c9 LIVE \u00b7 doctrine-v11 kernel verdict served from this organ\u2019s /api/'+esc(NS)+'/v1/putnam, '
-        +'transcribed from <a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+TEAL+';">lutar-lean '+esc(m.branch)+' @'+esc(m.short)+'</a>'
+        +'transcribed from <a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+TEAL+';">lutar-lean branch '+esc(m.branch)+' · pinned @'+esc(m.short)+'</a>'
         +' \u00b7 '+esc(m.computed)+'.</div>';
     } else {
       H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+GOLD+';margin:0 0 14px;">'
         +'\u25c8 CACHED SNAPSHOT \u00b7 doctrine-v11 kernel verdict from '
-        +'<a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean '+esc(m.branch)+' @'+esc(m.short)+'</a>'
+        +'<a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean branch '+esc(m.branch)+' · pinned @'+esc(m.short)+'</a>'
         +' \u00b7 '+esc(m.computed)+' \u2014 live loader unreachable; embedded numbers match the pinned commit; re-deploy to refresh.</div>';
     }
     // bridge paragraph VERBATIM
