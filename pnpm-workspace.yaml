@@ -2,6 +2,8 @@ packages:
   - "packages/a11oy-knowledge"
   - "packages/qec-integrity"
   - "packages/mesh-router"
+  - "packages/policy"
+  - "packages/receipt-substrate"
   - "artifacts/a11oy-uds"
   - "web/packages/a11oy-core"
   - "web/packages/a11oy-connection"
