@@ -2,12 +2,23 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SZLHOLDINGS Hugging Face ecosystem manifest",
   "type": "object",
-  "required": ["schemaVersion", "generatedBy", "observedAt", "org", "counts", "inventory", "guardrails"],
+  "required": ["schemaVersion", "generatedBy", "observedAt", "org", "inventoryScope", "counts", "inventory", "guardrails"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "generatedBy": { "type": "string" },
     "observedAt": { "type": "string" },
     "org": { "const": "SZLHOLDINGS" },
+    "inventoryScope": {
+      "type": "object",
+      "required": ["visibility", "authenticated", "privateAssetsIncluded", "countMeaning", "revisionFields"],
+      "properties": {
+        "visibility": { "const": "public-only" },
+        "authenticated": { "const": false },
+        "privateAssetsIncluded": { "const": false },
+        "countMeaning": { "type": "string" },
+        "revisionFields": { "type": "string" }
+      }
+    },
     "canonicalGitHubRepo": { "type": "string" },
     "canonicalRule": { "type": "string" },
     "publicApiEndpoints": {
@@ -23,7 +34,6 @@
         "spaces": { "type": "integer", "minimum": 0 }
       }
     },
-    "canonicalNumbers": { "type": "object" },
     "guardrails": {
       "type": "array",
       "items": { "type": "string" }

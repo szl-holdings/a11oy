@@ -13,12 +13,11 @@ import json
 from pathlib import Path
 
 
-REPO_ROOT = Path.cwd()
+REPO_ROOT = Path(__file__).resolve().parents[1]
 READINESS = REPO_ROOT / "docs" / "ecosystem-readiness-report.json"
 THEOREMS = REPO_ROOT / "docs" / "theorem-runtime-manifest.json"
 HF = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "ecosystem-stage-matrix.json"
-OBSERVED_AT = "2026-05-30"
 
 
 def load_json(path: Path) -> dict:
@@ -84,7 +83,7 @@ def build_matrix() -> dict:
     return {
         "schemaVersion": 1,
         "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-        "observedAt": OBSERVED_AT,
+        "observedAt": hf["observedAt"],
         "doctrine": {
             "noFakeGreen": True,
             "noFakeSignedAssets": True,
@@ -102,11 +101,10 @@ def build_matrix() -> dict:
             "staged": "Prepared but not public/verified/live enough for active claims.",
             "excluded-until-funded": "Visible scaffold, intentionally outside active-demo scope.",
         },
-        "canonicalNumbers": {
-            "githubPublicRepos": len(readiness["repos"]),
-            "hfModels": hf["counts"]["models"],
-            "hfDatasets": hf["counts"]["datasets"],
-            "hfSpaces": hf["counts"]["spaces"],
+        "machineGeneratedCounts": {
+            "githubReadinessEntries": len(readiness["repos"]),
+            "huggingFacePublic": hf["counts"],
+            "huggingFaceScope": hf["inventoryScope"],
             "theoremRuntimeEntries": len(theorem_manifest["entries"]),
         },
         "repositories": repos,
