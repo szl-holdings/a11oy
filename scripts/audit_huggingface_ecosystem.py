@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import json
 import re
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
 ORG = "SZLHOLDINGS"
 PAGE_LIMIT = 100
+GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+RFC3339_UTC_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|\+00:00)$"
+)
 
 
 def fetch_page(url: str) -> tuple[Any, str | None]:
@@ -61,6 +66,134 @@ def observed_at_now() -> str:
         .isoformat()
         .replace("+00:00", "Z")
     )
+
+
+def parse_rfc3339_utc(value: Any, *, field: str) -> dt.datetime:
+    if not isinstance(value, str) or not RFC3339_UTC_RE.fullmatch(value):
+        raise ValueError(f"{field} must be an RFC 3339 UTC timestamp")
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = dt.datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(f"{field} must be an RFC 3339 UTC timestamp") from exc
+    if parsed.utcoffset() != dt.timedelta(0):
+        raise ValueError(f"{field} must be an RFC 3339 UTC timestamp")
+    return parsed
+
+
+def validate_observed_at(
+    value: Any, *, now: dt.datetime | None = None
+) -> dt.datetime:
+    observed_at = parse_rfc3339_utc(value, field="observedAt")
+    current = now or dt.datetime.now(dt.timezone.utc)
+    if observed_at > current:
+        raise ValueError("observedAt must not be in the future")
+    return observed_at
+
+
+def fetch_revision(
+    item_id: str, repo_type: str, revision: str
+) -> dict[str, Any]:
+    plural = {"model": "models", "dataset": "datasets", "space": "spaces"}[
+        repo_type
+    ]
+    encoded_id = urllib.parse.quote(item_id, safe="/")
+    encoded_revision = urllib.parse.quote(revision, safe="")
+    data, _ = fetch_page(
+        f"https://huggingface.co/api/{plural}/{encoded_id}/revision/{encoded_revision}"
+    )
+    if not isinstance(data, dict):
+        raise TypeError(
+            f"Expected object from Hugging Face {repo_type} revision API"
+        )
+    return data
+
+
+def validate_snapshot_revisions(
+    existing: dict[str, Any],
+    live: dict[str, Any],
+    *,
+    observed_at: dt.datetime,
+) -> None:
+    """Validate retained revision fields without requiring the live head to match."""
+
+    for plural, repo_type in (
+        ("models", "model"),
+        ("datasets", "dataset"),
+        ("spaces", "space"),
+    ):
+        live_items = {
+            item.get("id"): item
+            for item in live.get("inventory", {}).get(plural, [])
+            if isinstance(item, dict)
+        }
+        for item in existing.get("inventory", {}).get(plural, []):
+            if not isinstance(item, dict):
+                raise ValueError(f"inventory.{plural} entries must be objects")
+            item_id = item.get("id")
+            if not isinstance(item_id, str) or not item_id:
+                raise ValueError(f"inventory.{plural} entry has no repository id")
+            stored_sha = item.get("sha")
+            stored_last_modified = item.get("lastModified")
+            if stored_sha is None and stored_last_modified is None:
+                continue
+            if stored_sha is None or stored_last_modified is None:
+                raise ValueError(
+                    f"{item_id} sha and lastModified must both be null or both be set"
+                )
+            if not isinstance(stored_sha, str) or not GIT_SHA_RE.fullmatch(
+                stored_sha
+            ):
+                raise ValueError(f"{item_id} sha must be a 40-character Git SHA")
+            stored_modified_at = parse_rfc3339_utc(
+                stored_last_modified,
+                field=f"{item_id} lastModified",
+            )
+            if stored_modified_at > observed_at:
+                raise ValueError(
+                    f"{item_id} lastModified must not be later than observedAt"
+                )
+
+            live_item = live_items.get(item_id, {})
+            live_sha = live_item.get("sha")
+            live_last_modified = live_item.get("lastModified")
+            if live_sha == stored_sha and live_last_modified is not None:
+                live_modified_at = parse_rfc3339_utc(
+                    live_last_modified,
+                    field=f"live {item_id} lastModified",
+                )
+                if live_modified_at == stored_modified_at:
+                    continue
+
+            try:
+                historical = fetch_revision(item_id, repo_type, stored_sha)
+            except Exception as exc:
+                raise ValueError(
+                    f"{item_id} historical revision {stored_sha} is not verifiable: {exc}"
+                ) from exc
+            if historical.get("sha") != stored_sha:
+                raise ValueError(
+                    f"{item_id} historical revision did not resolve to {stored_sha}"
+                )
+            historical_modified_at = parse_rfc3339_utc(
+                historical.get("lastModified"),
+                field=f"{item_id} historical lastModified",
+            )
+            if historical_modified_at != stored_modified_at:
+                raise ValueError(
+                    f"{item_id} lastModified does not match its historical revision"
+                )
+
+            if live_sha and live_sha != stored_sha and live_last_modified:
+                live_modified_at = parse_rfc3339_utc(
+                    live_last_modified,
+                    field=f"live {item_id} lastModified",
+                )
+                if live_modified_at <= stored_modified_at:
+                    raise ValueError(
+                        f"{item_id} live revision differs but is not newer than "
+                        "the checked-in snapshot"
+                    )
 
 
 def evidence_url(item_id: str, repo_type: str) -> str:
@@ -211,12 +344,20 @@ def main() -> int:
         try:
             existing = json.loads(output.read_text(encoding="utf-8"))
             observed_at = existing["observedAt"]
-            if not isinstance(observed_at, str) or not observed_at:
-                raise ValueError("observedAt must be a non-empty string")
+            parsed_observed_at = validate_observed_at(observed_at)
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             print(f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
             return 1
         live = build_manifest(observed_at=observed_at)
+        try:
+            validate_snapshot_revisions(
+                existing,
+                live,
+                observed_at=parsed_observed_at,
+            )
+        except (TypeError, ValueError) as exc:
+            print(f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
+            return 1
         canonical_existing = json.dumps(existing, indent=2, sort_keys=False) + "\n"
         if output.read_text(encoding="utf-8") != canonical_existing:
             print(f"Hugging Face ecosystem manifest is not canonically rendered: {output}")
@@ -227,6 +368,11 @@ def main() -> int:
         print(f"Hugging Face ecosystem manifest is current: {display_path(output)}")
         return 0
     observed_at = args.observed_at or observed_at_now()
+    try:
+        validate_observed_at(observed_at)
+    except ValueError as exc:
+        print(f"Invalid Hugging Face ecosystem observation time: {exc}")
+        return 1
     rendered = (
         json.dumps(
             build_manifest(observed_at=observed_at),

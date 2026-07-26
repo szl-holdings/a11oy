@@ -6,7 +6,11 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "generatedBy": { "type": "string" },
-    "observedAt": { "type": "string" },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(?:Z|\\+00:00)$"
+    },
     "org": { "const": "SZLHOLDINGS" },
     "inventoryScope": {
       "type": "object",
@@ -73,8 +77,15 @@
           "disabled": { "type": "boolean" },
           "sdk": { "type": ["string", "null"] },
           "license": { "type": ["string", "null"] },
-          "sha": { "type": ["string", "null"] },
-          "lastModified": { "type": ["string", "null"] },
+          "sha": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "lastModified": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "(?:Z|\\+00:00)$"
+          },
           "createdAt": { "type": ["string", "null"] },
           "tags": { "type": "array" },
           "claimStatus": { "type": "string" },
