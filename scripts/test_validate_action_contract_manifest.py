@@ -64,6 +64,10 @@ def promote_to_verified_runtime(manifest: dict) -> None:
     )
 
 
+def mark_as_release_payload(manifest: dict) -> None:
+    manifest["claimStatus"] = "release-payload"
+
+
 def run_validator(manifest: dict) -> int:
     """Run the real validator against a tampered copy of the contract.
 
@@ -140,6 +144,36 @@ class ActionContractGuardSelfTest(unittest.TestCase):
         m = honest()
         promote_to_verified_runtime(m)
         self.assertEqual(run_validator(m), 1)
+
+    def test_release_payload_without_runtime_claims_remains_valid(self):
+        m = honest()
+        mark_as_release_payload(m)
+        self.assertEqual(run_validator(m), 0)
+
+    def test_release_payload_cannot_claim_live_runtime(self):
+        m = honest()
+        mark_as_release_payload(m)
+        m["execution"]["runtimeStatus"] = "live"
+        self.assertEqual(run_validator(m), 1)
+
+    def test_release_payload_cannot_set_implementation_flags(self):
+        for field in validator.RUNTIME_CLAIM_FIELDS:
+            with self.subTest(field=field):
+                m = honest()
+                mark_as_release_payload(m)
+                m["execution"][field] = True
+                self.assertEqual(run_validator(m), 1)
+
+    def test_release_payload_cannot_bypass_with_all_live_claims(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        mark_as_release_payload(m)
+        with mock.patch.object(
+            validator,
+            "validate_pinned_runtime_suite",
+        ) as qualification:
+            self.assertEqual(run_validator(m), 1)
+        qualification.assert_not_called()
 
     def test_forged_external_junit_cannot_promote(self):
         m = honest()

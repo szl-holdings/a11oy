@@ -3,13 +3,13 @@ SPDX-License-Identifier: Apache-2.0
 © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11 LOCKED
 Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 -->
-# `main` branch protection — required-status-check contexts (recommendation)
+# `main` branch protection — live and recommended required-status contexts
 
-> **This is a RECOMMENDATION for the founder.** This PR does **not** change any
-> protection rule (that requires admin scope and a human decision). It documents
-> the correct, string-exact required-status-check **contexts** so the trunk
-> stays honestly green and unattended admin-merges stop tripping on a
-> never-reported check.
+> GitHub matches required-status-check **contexts** by exact string. This
+> document records the live additive protection split and the broader recommended
+> context set. The `series-a-default-branch` ruleset requires the immutable
+> action-contract promotion validator; existing checks and non-check protections
+> remain in force.
 
 ## Why this doc exists — the `anatomy-map-drift` context mismatch
 
@@ -18,13 +18,22 @@ context that never string-matches an actual reported check-run is treated as
 *"expected, but never arrives"* — it blocks merges (or, with admin-merge, trips
 the unattended path) even when every real check is green.
 
-The current `main` protection requires exactly one context:
+Classic `main` branch protection requires this exact context:
 
 ```
-anatomy-map-drift
+anatomy-map-drift / Anatomy map honest & in sync (locked-8 + Λ=Conjecture-1)
 ```
 
-But `anatomy-map-drift` is a **reusable-workflow caller job** (it `uses:`
+The repository `series-a-default-branch` ruleset separately requires:
+
+```
+Gitleaks secret scan
+lockfiles / No lockfile references a Replit-internal registry host
+Immutable protected-base validator
+```
+
+The old bare `anatomy-map-drift` value was wrong because this is a
+**reusable-workflow caller job** (it `uses:`
 `szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml`). For a
 caller job, GitHub composes the reported check-run name as
 `<caller-job-id> / <reusable-job-name>`. The reusable workflow's job carries
@@ -55,6 +64,7 @@ Set the required contexts to the **exact reported check-run names** (the job
 | Dockerfile COPY-completeness (import↔COPY)      | `copy-completeness-guard.yml`         | `COPY completeness / import-vs-copy check` |
 | Dockerfile COPY/ADD sources exist               | `dockerfile-copy-guard.yml`           | `COPY/ADD sources exist` |
 | COPY↔serve.py↔hf-sync lockstep                  | `copy-sync-lockstep-guard.yml`        | `COPY <-> serve.py imports <-> hf-sync mirror are in lockstep` |
+| Action-contract runtime promotion               | `action-contract-promotion-guard.yml` | `Immutable protected-base validator` |
 | DCO sign-off                                     | `dco.yml`                             | `DCO sign-off check` |
 | Conventional-Commits PR-title lint               | `commit-lint.yml`                     | `Lint PR title (Conventional Commits)` |
 
@@ -92,6 +102,7 @@ gh api -X PATCH repos/szl-holdings/a11oy/branches/main/protection/required_statu
   -f 'contexts[]=COPY completeness / import-vs-copy check' \
   -f 'contexts[]=COPY/ADD sources exist' \
   -f 'contexts[]=COPY <-> serve.py imports <-> hf-sync mirror are in lockstep' \
+  -f 'contexts[]=Immutable protected-base validator' \
   -f 'contexts[]=DCO sign-off check' \
   -f 'contexts[]=Lint PR title (Conventional Commits)'
 ```

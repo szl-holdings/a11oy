@@ -3,6 +3,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "action-contract-promotion-guard.yml"
+PROTECTION_DOC = ROOT / ".github" / "BRANCH_PROTECTION.md"
+REQUIRED_CONTEXT = "Immutable protected-base validator"
 
 
 def test_promotion_guard_uses_protected_validator_and_untrusted_candidate_data() -> None:
@@ -11,6 +13,7 @@ def test_promotion_guard_uses_protected_validator_and_untrusted_candidate_data()
     assert "pull_request:" in text
     assert "pull_request_target:" not in text
     assert "permissions:\n  contents: read" in text
+    assert f"name: {REQUIRED_CONTEXT}" in text
     assert "ref: ${{ github.event.pull_request.base.sha }}" in text
     assert "ref: ${{ github.event.pull_request.head.sha }}" in text
     assert "repository: ${{ github.event.pull_request.head.repo.full_name }}" in text
@@ -30,3 +33,10 @@ def test_promotion_guard_never_executes_candidate_code() -> None:
     assert "candidate/scripts/" not in run_block
     assert "cd candidate" not in run_block
     assert "python3 candidate/" not in run_block
+
+
+def test_promotion_guard_context_is_documented_as_required() -> None:
+    text = PROTECTION_DOC.read_text(encoding="utf-8")
+
+    assert REQUIRED_CONTEXT in text
+    assert "series-a-default-branch" in text

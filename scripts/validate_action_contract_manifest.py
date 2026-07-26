@@ -28,6 +28,12 @@ REQUIRED_EVIDENCE_COMMANDS = [
     "python3 scripts/validate_action_contract_manifest.py",
     "python3 scripts/test_validate_action_contract_manifest.py",
 ]
+RUNTIME_CLAIM_FIELDS = [
+    "runtimeImplemented",
+    "authenticatedExecution",
+    "idempotencyEnforced",
+    "durableReceiptLifecycle",
+]
 
 
 def load_json(path: Path) -> dict:
@@ -239,20 +245,22 @@ def main() -> int:
 
     execution = contract.get("execution", {})
     runtime_status = execution.get("runtimeStatus")
-    if contract.get("claimStatus") == "roadmap":
+    claim_status = contract.get("claimStatus")
+    if claim_status != "verified-runtime":
         if runtime_status != "roadmap":
-            errors.append("roadmap action contracts require execution.runtimeStatus=roadmap")
-        if execution.get("runtimeImplemented") is not False:
-            errors.append("roadmap action contracts require execution.runtimeImplemented=false")
-    if contract.get("claimStatus") == "verified-runtime":
+            errors.append(
+                "non-verified action contracts require "
+                "execution.runtimeStatus=roadmap"
+            )
+        for field in RUNTIME_CLAIM_FIELDS:
+            if execution.get(field) is not False:
+                errors.append(
+                    f"non-verified action contracts require execution.{field}=false"
+                )
+    if claim_status == "verified-runtime":
         if runtime_status != "live":
             errors.append("verified-runtime requires execution.runtimeStatus=live")
-        for field in [
-            "runtimeImplemented",
-            "authenticatedExecution",
-            "idempotencyEnforced",
-            "durableReceiptLifecycle",
-        ]:
+        for field in RUNTIME_CLAIM_FIELDS:
             if execution.get(field) is not True:
                 errors.append(f"verified-runtime requires execution.{field}=true")
         errors.extend(validate_pinned_runtime_suite())
