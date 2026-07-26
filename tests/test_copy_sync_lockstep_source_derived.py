@@ -127,6 +127,71 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     CHECKER.has_source_derived_deploy_contract(workflow)
                 )
 
+    def test_dependency_gated_deploy_job_is_rejected(self) -> None:
+        needs_entries = (
+            "needs: gate",
+            "needs : [build, gate]",
+            '"needs": gate',
+        )
+        for needs_entry in needs_entries:
+            workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
+                f"""
+                jobs:
+                  gate:
+                    if: false
+                    runs-on: ubuntu-latest
+                    steps:
+                      - run: echo skipped
+                  deploy:
+                    {needs_entry}
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                    with:
+                      dockerfile-path: Dockerfile
+                """
+            )
+            with self.subTest(needs_entry=needs_entry):
+                self.assertFalse(
+                    CHECKER.has_source_derived_deploy_contract(workflow)
+                )
+
+    def test_ordered_negative_branch_patterns_can_exclude_main(self) -> None:
+        branch_lists = (
+            "[main, '!main']",
+            "[m*, '!m*']",
+        )
+        deploy = textwrap.dedent(
+            """
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                with:
+                  dockerfile-path: Dockerfile
+            """
+        )
+        for branches in branch_lists:
+            trigger = textwrap.dedent(
+                f"""
+                on:
+                  push:
+                    branches: {branches}
+                """
+            )
+            with self.subTest(branches=branches):
+                self.assertFalse(
+                    CHECKER.has_source_derived_deploy_contract(trigger + deploy)
+                )
+
+        reinclude = textwrap.dedent(
+            """
+            on:
+              push:
+                branches: [m*, '!m*', main]
+            """
+        )
+        self.assertTrue(
+            CHECKER.has_source_derived_deploy_contract(reinclude + deploy)
+        )
+
     def test_filtered_or_non_main_push_trigger_is_rejected(self) -> None:
         triggers = (
             """

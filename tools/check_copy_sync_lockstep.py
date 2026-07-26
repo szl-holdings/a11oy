@@ -312,20 +312,20 @@ def yaml_mapping_entry(stripped):
     return key, value
 
 
-def yaml_sequence_contains(lines, entry_index, property_indent, value, target):
-    """Recognize a literal target in an inline or indented YAML sequence."""
+def yaml_sequence_items(lines, entry_index, property_indent, value):
+    """Return an ordered inline or indented YAML sequence."""
     if value:
         if value.startswith("[") and value.endswith("]"):
             items = value[1:-1].split(",")
         else:
             items = [value]
-        return target in {
+        return [
             item.strip().strip("\"'")
             for item in items
             if item.strip()
-        }
+        ]
 
-    items = set()
+    items = []
     for raw in lines[entry_index + 1:]:
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
@@ -335,8 +335,19 @@ def yaml_sequence_contains(lines, entry_index, property_indent, value, target):
             break
         item = re.match(r"^-\s*(.*?)\s*(?:#.*)?$", stripped)
         if item:
-            items.add(item.group(1).strip().strip("\"'"))
-    return target in items
+            items.append(item.group(1).strip().strip("\"'"))
+    return items
+
+
+def ordered_branch_patterns_include_main(patterns):
+    """Evaluate GitHub's ordered positive/negative branch patterns for main."""
+    included = False
+    for pattern in patterns:
+        negative = pattern.startswith("!")
+        candidate = pattern[1:] if negative else pattern
+        if candidate and fnmatch.fnmatchcase("main", candidate):
+            included = not negative
+    return included
 
 
 def workflow_has_unfiltered_main_push(workflow_text):
@@ -414,17 +425,18 @@ def workflow_has_unfiltered_main_push(workflow_text):
     if len(branch_entries) != 1:
         return False
     branch_index, _indent, (_key, value) = branch_entries[0]
-    return yaml_sequence_contains(
-        lines,
-        branch_index,
-        property_indent,
-        value,
-        "main",
+    return ordered_branch_patterns_include_main(
+        yaml_sequence_items(
+            lines,
+            branch_index,
+            property_indent,
+            value,
+        )
     )
 
 
 def job_has_source_derived_deploy_contract(block_lines, job_indent):
-    """Require an unconditional pinned Dockerfile deploy in one reusable job."""
+    """Require an unconditional dependency-free pinned Dockerfile deploy job."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -444,11 +456,11 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
         if indent != property_indent:
             continue
         entry = yaml_mapping_entry(stripped)
-        if entry and entry[0] in {"if", "<<"}:
+        if entry and entry[0] in {"if", "<<", "needs"}:
             # A skipped reusable job can leave the workflow green without
-            # publishing protected-main source changes. YAML merges can also
-            # inherit such a condition. Fail closed rather than trying to
-            # prove arbitrary expression or anchor semantics.
+            # publishing protected-main source changes. Dependencies can be
+            # skipped, and YAML merges can inherit either gate. Fail closed
+            # rather than proving arbitrary dependency/expression semantics.
             return False
         if re.fullmatch(
             r"uses:\s*szl-holdings/\.github/\.github/workflows/"
