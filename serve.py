@@ -993,10 +993,10 @@ except Exception as _szl_eue_e:  # pragma: no cover
 
 # ── TEE attestation hook (Dev 2 Build 1, 2026-06-30).
 # Endpoint: GET /api/a11oy/v1/tee/status — honest UNAVAILABLE on CPU Space (no TDX/Nitro);
-# MEASURED with MRTD/PCR0 when deployed on dstack Intel TDX pod or AWS Nitro enclave.
+# SAMPLE when MRTD/PCR0 is observed on a TDX pod or Nitro enclave.
 # Pattern: dstack-capsule / Phala (Apache-2.0, arXiv 2606.03323) reimplemented in our stack.
 # The hook is wired now so receipts already carry tee_attestation field with the correct
-# schema — auto-populates MEASURED when the sovereign TDX box is live.
+# schema; MEASURED requires authenticated, fresh, request-bound verifier evidence.
 try:
     import szl_tee_attest as _szl_tee_attest
     _szl_tee_attest.register(app, ns="a11oy")
@@ -3093,8 +3093,8 @@ except Exception as _szl_cf_e:  # pragma: no cover
 # ── Putnam 2025 canonical-set honest verdict (putnam-2025-tab-patch). Serves the
 # per-problem REAL/DEMO/OPEN verdict for the canonical Putnam 2025 set (A1-A6,
 # B1-B6) plus 3 kernel-clean SZL-native originals, transcribed faithfully from
-# the `Honest status:` label in each Lean source on lutar-lean branch
-# putnam-2025-canonical-set @baf483b. Additive, try/except-guarded. Pure stdlib.
+# the `Honest status:` label in each Lean source at immutable lutar-lean commit
+# baf483be3c832b64da47161b558e283d68da6650. Additive, try/except-guarded.
 try:
     import szl_putnam as _szl_putnam
     _szl_putnam.register(app, ns="a11oy")
@@ -3108,8 +3108,9 @@ except Exception as _szl_putnam_e:  # pragma: no cover
 # the contract matrix tools/readiness-harness/tabs.json plus the optional probe
 # verdict; fails soft + honest when an artifact isn't bundled with the deploy.
 try:
-    import os as _rd_os, json as _rd_json
+    import os as _rd_os, json as _rd_json, re as _rd_re, math as _rd_math
     from datetime import datetime as _rd_dt, timezone as _rd_tz
+    from urllib.parse import urlsplit as _rd_urlsplit
     from fastapi import Request as _RDRequest
     from fastapi.responses import JSONResponse as _RDJSON
 
@@ -3128,6 +3129,42 @@ try:
                 continue
         return None
 
+    def _rd_normalize_origin(_value):
+        try:
+            _parsed = _rd_urlsplit(str(_value or "").strip())
+            if (
+                _parsed.scheme.lower() != "https"
+                or not _parsed.hostname
+                or _parsed.username
+                or _parsed.password
+                or _parsed.query
+                or _parsed.fragment
+                or _parsed.path not in ("", "/")
+            ):
+                return None
+            _port = f":{_parsed.port}" if _parsed.port else ""
+            return f"https://{_parsed.hostname.lower()}{_port}"
+        except (TypeError, ValueError):
+            return None
+
+    def _rd_load_verdict():
+        # hf-sync publishes the compact post-deploy verdict only after probing
+        # the exact live source. A bounded variable avoids the impossible
+        # self-referential checked-in-SHA pattern while keeping the full probe
+        # artifact immutable in GitHub Actions.
+        _raw = _rd_os.environ.get("SZL_PROBE_VERDICT_JSON", "")
+        if _raw and len(_raw.encode("utf-8")) <= 4096:
+            try:
+                _decoded = _rd_json.loads(_raw)
+                if isinstance(_decoded, dict):
+                    return _decoded
+            except (TypeError, ValueError):
+                pass
+        return _rd_load((
+            _rd_os.environ.get("SZL_PROBE_VERDICT_PATH", ""),
+            _rd_os.path.join(_RD_HARNESS_DIR, "readiness-verdict.json"),
+        ))
+
     @app.get("/api/a11oy/v1/readiness/tab-matrix")
     async def _a11oy_readiness_tab_matrix(request: _RDRequest):  # noqa: ANN202
         view = (request.query_params.get("view") or "full").strip().lower()
@@ -3135,11 +3172,9 @@ try:
             _rd_os.environ.get("SZL_TAB_MATRIX_PATH", ""),
             _rd_os.path.join(_RD_HARNESS_DIR, "tabs.json"),
         ))
-        verdict = _rd_load((
-            _rd_os.environ.get("SZL_PROBE_VERDICT_PATH", ""),
-            _rd_os.path.join(_RD_HARNESS_DIR, "readiness-verdict.json"),
-        ))
-        _now = _rd_dt.now(_rd_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        verdict = _rd_load_verdict()
+        _now_dt = _rd_dt.now(_rd_tz.utc)
+        _now = _now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         if matrix is None:
             return _RDJSON({
                 "layer": "a11oy readiness tab-matrix",
@@ -3151,13 +3186,104 @@ try:
                          "tools/readiness-harness/gen_tabs_matrix.py"),
                 "checked_at": _now,
             }, status_code=200)
-        _verdict_available = verdict is not None
+        _verdict_available = False
+        _verdict_summary = None
+        _verdict_source_revision = None
+        _verdict_checked_at = None
+        _verdict_base = None
+        _canonical_origin = _rd_normalize_origin(
+            _rd_os.environ.get(
+                "SZL_READINESS_CANONICAL_ORIGIN",
+                "https://szlholdings-a11oy.hf.space",
+            )
+        )
+        if isinstance(verdict, dict):
+            _candidate_summary = verdict.get("summary")
+            _candidate_revision = verdict.get("sourceRevision")
+            _candidate_checked_at = verdict.get("checkedAt")
+            _candidate_base = verdict.get("base")
+            _candidate_schema = verdict.get("schema")
+            _current_revision = str(
+                _rd_os.environ.get("SZL_GIT_SHA", "")
+            ).strip().lower()
+            _candidate_origin = _rd_normalize_origin(_candidate_base)
+            _counts = [
+                _candidate_summary.get(field)
+                if isinstance(_candidate_summary, dict)
+                else None
+                for field in (
+                    "endpoints",
+                    "ok",
+                    "skippedStateChanging",
+                    "lies",
+                    "unreachable",
+                    "throttled",
+                )
+            ]
+            try:
+                _checked_dt = _rd_dt.fromisoformat(
+                    str(_candidate_checked_at).replace("Z", "+00:00")
+                )
+            except (TypeError, ValueError):
+                _checked_dt = None
+            _complete_counts = (
+                all(
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                    for value in _counts
+                )
+                and _counts[0] > 0
+                and _counts[0] - _counts[2] > 0
+                and sum(_counts[1:]) == _counts[0]
+            )
+            _p95 = (
+                _candidate_summary.get("p95_worst")
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
+            _fresh = (
+                isinstance(_candidate_checked_at, str)
+                and _rd_re.fullmatch(
+                    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z",
+                    _candidate_checked_at,
+                )
+                is not None
+                and _checked_dt is not None
+                and _checked_dt.utcoffset() == _rd_tz.utc.utcoffset(None)
+                and _checked_dt <= _now_dt
+                and (_now_dt - _checked_dt).total_seconds() <= 86400
+            )
+            _source_bound = (
+                isinstance(_candidate_revision, str)
+                and _rd_re.fullmatch(r"[0-9a-f]{40}", _candidate_revision)
+                is not None
+                and _candidate_revision == _current_revision
+            )
+            _verdict_available = bool(
+                _candidate_schema == "szl.readiness-verdict/v1"
+                and verdict.get("harness") == "a11oy-readiness probe"
+                and verdict.get("doctrine") == "v11"
+                and _complete_counts
+                and isinstance(_p95, (int, float))
+                and not isinstance(_p95, bool)
+                and _rd_math.isfinite(_p95)
+                and _p95 >= 0
+                and _fresh
+                and _source_bound
+                and _canonical_origin is not None
+                and _candidate_origin == _canonical_origin
+            )
+            if _verdict_available:
+                _verdict_summary = dict(_candidate_summary)
+                _verdict_source_revision = _candidate_revision
+                _verdict_checked_at = _candidate_checked_at
+                _verdict_base = _candidate_base
         if _verdict_available:
             verdict = dict(verdict)
             verdict["available"] = True
         if view == "summary":
             matrix_summary = dict(matrix.get("summary") or {}) if isinstance(matrix, dict) else {}
-            verdict_summary = dict(verdict.get("summary") or {}) if isinstance(verdict, dict) else None
             return _RDJSON({
                 "layer": "a11oy readiness tab-matrix",
                 "view": "summary",
@@ -3166,7 +3292,11 @@ try:
                 "matrix_available": True,
                 "probe_verdict_available": _verdict_available,
                 "matrix_summary": matrix_summary,
-                "verdict_summary": verdict_summary,
+                "verdict_summary": _verdict_summary,
+                "verdict_source_revision": _verdict_source_revision,
+                "verdict_checked_at": _verdict_checked_at,
+                "verdict_base": _verdict_base,
+                "verdict_expected_base": _canonical_origin,
                 "checked_at": _now,
             }, status_code=200)
         return _RDJSON({
@@ -3179,9 +3309,12 @@ try:
             "matrix_available": True,
             "probe_verdict_available": _verdict_available,
             "matrix": matrix,
-            "verdict": verdict or {
+            "verdict": verdict if _verdict_available else {
                 "available": False,
-                "note": "probe not yet run on this deploy (no readiness-verdict.json)",
+                "note": (
+                    "probe absent, incomplete, stale, source-unbound, or "
+                    "canonical-origin-unbound for this deploy"
+                ),
             },
             "checked_at": _now,
         }, status_code=200)
@@ -7305,7 +7438,7 @@ async def a11oy_version():
             {"name": "governed RAG (retrieval-with-receipts)", "label": "MEASURED", "prs": [776]},
             {"name": "governed agent loop (signed composite run)", "label": "MEASURED", "prs": [773, 757]},
             {"name": "governed VQC / QML frontier", "label": "SIMULATION-ONLY", "prs": [764, 782]},
-            {"name": "attested inference (TEE-bound receipt)", "label": "UNAVAILABLE-on-CPU (MEASURED on live TDX/Nitro)", "prs": [767]},
+            {"name": "attested inference (TEE-bound receipt)", "label": "UNAVAILABLE-on-CPU (SAMPLE on live TDX/Nitro; MEASURED only after verified attestation)", "prs": [767]},
             {"name": "durable bounded receipt/energy ledger + storage-pressure signal", "label": "MEASURED", "prs": [774]},
             {"name": "measured energy channel (NVML counter-delta)", "label": "MEASURED-behind-live-meter (else UNAVAILABLE)", "prs": [785, 789, 790]},
             {"name": "substrate consolidation (68/68 movable modules, guarded fallback)", "label": "MEASURED", "prs": [792]},

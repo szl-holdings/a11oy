@@ -8,8 +8,9 @@ hashed name (static `import`, re-export `export ... from`, dynamic `import(...)`
 the `__vite__mapDeps` preload table). If the entry/layout chunk is re-hashed but the
 importers are not, those references dangle -> the browser 404s the missing chunk and
 every lazy /code SPA tab hangs on "loading...". This scanner fails (exit 1) when any
-referenced chunk is absent from the folder, so an internally-inconsistent build can
-never ship again.
+referenced chunk is absent from the folder. It proves internal reference closure
+only. It does not prove that an HTML entrypoint reaches the asset tree, that the
+tree came from the current source revision, or that a live deployment serves it.
 
 stdlib only. Usage:
     check_bundle_integrity.py [ASSETS_DIR ...]
@@ -65,7 +66,7 @@ def main(argv):
             continue
         ok, present_count, missing = scan_dir(target)
         if ok:
-            print(f"[bundle-integrity] PASS: {target} — "
+            print(f"[bundle-integrity] PASS (internal closure only): {target} — "
                   f"{present_count} assets, 0 dangling references.")
             continue
         overall_ok = False

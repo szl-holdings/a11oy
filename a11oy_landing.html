@@ -187,6 +187,8 @@
   .stat .k{font-size:1.55rem;font-weight:600;font-family:var(--mono);line-height:1.1;color:var(--ink)}
   .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
   .stat .l .stat-note{display:block;text-transform:none;letter-spacing:0;font-size:10px;color:var(--ghost);opacity:.8;margin-top:2px;font-weight:400}
+  .stat .stat-note a{color:var(--proof);text-decoration:none}
+  .stat .stat-note a:hover{text-decoration:underline}
   .stat .k.proof{color:var(--proof)}
   .stat .k.gray{color:var(--gray)}
 
@@ -419,6 +421,10 @@
         <div class="stat">
           <div class="k" id="hs-proven">8</div>
           <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
+        </div>
+        <div class="stat" id="overclaim-counter">
+          <div class="k gray" id="hs-overclaims">—</div>
+          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
         </div>
       </div>
     </div>
@@ -787,14 +793,74 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const liveChip  = (t) => '<span class="chip live" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
   const downChip  = (t) => '<span class="chip down" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+  const grayChip  = (t) => '<span class="chip gray" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
 
   async function getJSON(url){
     const r = await fetch(url, {cache:"no-store"});
     if(!r.ok) throw new Error(url+" "+r.status);
     return r.json();
   }
+  async function getText(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(url+" "+r.status);
+    return r.text();
+  }
+  async function sha256Hex(text){
+    if(!globalThis.crypto || !globalThis.crypto.subtle) throw new Error("Web Crypto unavailable");
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2,"0")).join("");
+  }
   const num = (v) => (typeof v === "number" && isFinite(v)) ? v : null;
   const fmtLam = (v) => (num(v) === null) ? null : Number(v).toFixed(3);
+
+  function showUnavailableOverclaimMetrics(){
+    const count = $("hs-overclaims");
+    count.textContent = "—";
+    count.classList.remove("proof");
+    count.classList.add("gray");
+    $("hs-overclaim-time").textContent = "—";
+    $("hs-overclaim-sample").textContent = "source unavailable";
+    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
+  }
+
+  async function loadOverclaimMetrics(){
+    const ledgerSource = "https://raw.githubusercontent.com/szl-holdings/platform/main/docs/overclaim-ledger.json";
+    const manifestSource = "https://raw.githubusercontent.com/szl-holdings/platform/main/docs/overclaim-ledger.evidence.json";
+    try {
+      const [ledgerText, manifest] = await Promise.all([getText(ledgerSource), getJSON(manifestSource)]);
+      const digest = await sha256Hex(ledgerText);
+      const d = JSON.parse(ledgerText);
+      const count = num(d && d.metrics && d.metrics.ci_detected_incidents);
+      const correctionTime = d && d.metrics && d.metrics.observed_correction_time_display;
+      const sampleSize = num(d && d.metrics && d.metrics.correction_time_sample_size);
+      const observed = d && d.snapshot && typeof d.snapshot.observed_at === "string"
+        ? d.snapshot.observed_at.slice(0, 10) : "";
+      const pinnedDigest = manifest && manifest.ledger && manifest.ledger.sha256;
+      const mislabeledMean = d && d.metrics && Object.keys(d.metrics)
+        .some(key => key.toLowerCase().includes("mean"));
+      if(
+        manifest.maturity !== "MEASURED" ||
+        !manifest.snapshot || manifest.snapshot.state !== "SNAPSHOT" ||
+        manifest.snapshot.remote_refresh_required_for_current_state !== true ||
+        typeof pinnedDigest !== "string" || !/^[0-9a-f]{64}$/.test(pinnedDigest) ||
+        digest !== pinnedDigest ||
+        d.maturity !== "MEASURED" ||
+        !d.snapshot || d.snapshot.state !== "SNAPSHOT" || d.snapshot.exhaustive !== false ||
+        count === null || sampleSize !== 1 ||
+        d.metrics.aggregation !== "single_observation" ||
+        typeof correctionTime !== "string" || !correctionTime || !observed || mislabeledMean
+      ) throw new Error("invalid or unpinned overclaim ledger");
+      const countElement = $("hs-overclaims");
+      countElement.textContent = count.toLocaleString();
+      countElement.classList.remove("gray");
+      countElement.classList.add("proof");
+      $("hs-overclaim-time").textContent = correctionTime;
+      $("hs-overclaim-sample").textContent = "n="+sampleSize;
+      $("hs-overclaims-chip").innerHTML = grayChip("MEASURED · SNAPSHOT "+observed+" · DIGEST OK");
+    } catch (_) {
+      showUnavailableOverclaimMetrics();
+    }
+  }
 
   // pass/fail chip for an advisory Λ vs the 0.90 floor (advisory ONLY — never an oracle)
   function lamChip(elId, v){
@@ -965,6 +1031,7 @@
   // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
   (async function(){
     loadEstatePulse();
+    loadOverclaimMetrics();
     const ov = await loadOverview();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",
