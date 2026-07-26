@@ -993,10 +993,10 @@ except Exception as _szl_eue_e:  # pragma: no cover
 
 # ── TEE attestation hook (Dev 2 Build 1, 2026-06-30).
 # Endpoint: GET /api/a11oy/v1/tee/status — honest UNAVAILABLE on CPU Space (no TDX/Nitro);
-# MEASURED with MRTD/PCR0 when deployed on dstack Intel TDX pod or AWS Nitro enclave.
+# SAMPLE when MRTD/PCR0 is observed on a TDX pod or Nitro enclave.
 # Pattern: dstack-capsule / Phala (Apache-2.0, arXiv 2606.03323) reimplemented in our stack.
 # The hook is wired now so receipts already carry tee_attestation field with the correct
-# schema — auto-populates MEASURED when the sovereign TDX box is live.
+# schema; MEASURED requires authenticated, fresh, request-bound verifier evidence.
 try:
     import szl_tee_attest as _szl_tee_attest
     _szl_tee_attest.register(app, ns="a11oy")
@@ -7438,7 +7438,7 @@ async def a11oy_version():
             {"name": "governed RAG (retrieval-with-receipts)", "label": "MEASURED", "prs": [776]},
             {"name": "governed agent loop (signed composite run)", "label": "MEASURED", "prs": [773, 757]},
             {"name": "governed VQC / QML frontier", "label": "SIMULATION-ONLY", "prs": [764, 782]},
-            {"name": "attested inference (TEE-bound receipt)", "label": "UNAVAILABLE-on-CPU (MEASURED on live TDX/Nitro)", "prs": [767]},
+            {"name": "attested inference (TEE-bound receipt)", "label": "UNAVAILABLE-on-CPU (SAMPLE on live TDX/Nitro; MEASURED only after verified attestation)", "prs": [767]},
             {"name": "durable bounded receipt/energy ledger + storage-pressure signal", "label": "MEASURED", "prs": [774]},
             {"name": "measured energy channel (NVML counter-delta)", "label": "MEASURED-behind-live-meter (else UNAVAILABLE)", "prs": [785, 789, 790]},
             {"name": "substrate consolidation (68/68 movable modules, guarded fallback)", "label": "MEASURED", "prs": [792]},
