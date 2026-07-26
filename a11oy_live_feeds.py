@@ -7,12 +7,13 @@ same-origin proxy, keeping the Space sovereign — 0 runtime CDN from the client
 
 Every response carries an HONEST label:
     {"source": <human source>, "source_url": <upstream URL>,
-     "mode": "live" | "cached" | "self",   # never fabricated
+     "mode": "live" | "cached" | "unavailable" | "self",   # never fabricated
      "fetched_at": <iso8601>, "ttl_s": <int>, ...payload}
 
   - "live"   = freshly fetched from upstream this request (or within TTL).
   - "cached" = upstream was unreachable; serving the last good in-memory value
                or the bundled on-disk snapshot (stage resilience).
+  - "unavailable" = upstream was unreachable and no cached or bundled data exists.
   - "self"   = our own internal real data (not third-party) — used by callers
                that pass through this layer's helpers; the feed endpoints here
                are all third-party live/cached.
@@ -27,7 +28,7 @@ Feeds + TTLs:
   fhir        (hapi.fhir.org/baseR4 Observation/Immunization)     TTL 10m
 
 No auth required for any of these feeds. NEVER fabricates: a down feed returns
-the cached snapshot labelled "cached".
+real cached data labelled "cached", or "unavailable" when no cached data exists.
 """
 import json
 import os
@@ -193,9 +194,11 @@ def get_feed(feed, timeout_s=None):
                     "ttl_s": ttl,
                     "cache_note": "upstream unreachable (%s) — serving bundled in-image snapshot" % type(e).__name__,
                     "data": snap}
-        return {"source": src, "source_url": url, "mode": "cached",
+        return {"source": src, "source_url": url, "mode": "unavailable",
                 "fetched_at": None, "ttl_s": ttl,
-                "error": "upstream unreachable and no snapshot: %s" % e, "data": None}
+                "error": "upstream unreachable and no snapshot (%s): %s"
+                         % (type(e).__name__, e),
+                "data": None}
 
 
 def register(app, ns="a11oy"):
@@ -224,8 +227,9 @@ def register(app, ns="a11oy"):
         return JSONResponse({
             "layer": "a11oy live-data proxy",
             "honest": "Every feed is server-side fetched + cached, CORS-safe via OUR same-origin "
-                      "proxy (0 client CDN). Mode is honestly labelled live/cached; a down feed "
-                      "serves the bundled in-image snapshot labelled 'cached', never fabricated.",
+                      "proxy (0 client CDN). Mode is honestly labelled live/cached/unavailable; "
+                      "a down feed serves real cached data when present and reports unavailable "
+                      "when absent, never fabricated.",
             "count": len(feeds), "feeds": feeds,
         })
 

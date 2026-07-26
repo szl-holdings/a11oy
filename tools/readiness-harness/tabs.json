@@ -2042,7 +2042,11 @@
           "requiredPaths": [
             "matrix.tabs",
             "matrix.endpoints"
-          ]
+          ],
+          "requiredPathTypes": {
+            "matrix.tabs": "array",
+            "matrix.endpoints": "object"
+          }
         },
         {
           "type": "object",

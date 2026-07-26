@@ -46,6 +46,18 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
   }).ok, false);
 
   assert.equal(validateSchema("tab_matrix", {
+    matrix_available: true,
+    probe_verdict_available: false,
+    matrix: { tabs: null, endpoints: {} },
+  }).ok, false);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: true,
+    probe_verdict_available: false,
+    matrix: { tabs: [], endpoints: "broken" },
+  }).ok, false);
+
+  assert.equal(validateSchema("tab_matrix", {
     matrix_available: false,
     probe_verdict_available: false,
   }).ok, false);

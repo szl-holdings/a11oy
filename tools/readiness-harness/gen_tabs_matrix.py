@@ -402,6 +402,10 @@ SCHEMAS = {
                 "required": ["matrix_available", "probe_verdict_available"],
                 "properties": {"matrix_available": {"const": True}},
                 "requiredPaths": ["matrix.tabs", "matrix.endpoints"],
+                "requiredPathTypes": {
+                    "matrix.tabs": "array",
+                    "matrix.endpoints": "object",
+                },
             },
             {
                 "type": "object",

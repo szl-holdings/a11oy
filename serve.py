@@ -10604,7 +10604,8 @@ try:
                         "mode": p.get("mode"), "fetched_at": p.get("fetched_at"),
                         "ttl_s": p.get("ttl_s"), "latency_ms": dt,
                         "payload_bytes": size,
-                        "error": p.get("error")}
+                        "error": p.get("error"),
+                        "cache_note": p.get("cache_note")}
             except TimeoutError:
                 return {"feed": f, "source": source, "source_url": source_url,
                         "mode": "unavailable", "fetched_at": None,
@@ -10632,8 +10633,9 @@ try:
             "down_count": sum(1 for i in items if i.get("mode")=="unavailable"),
             "note": ("Real-time provenance heartbeat: each row is a live server-side "
                      "bounded probe of an upstream evidence feed. mode/latency are measured, "
-                     "timeouts remain unavailable, never fabricated. A governed-AI system "
-                     "must know its feeds are live."),
+                     "internally handled timeouts remain visible through cache_note when real "
+                     "cached data exists and otherwise count as unavailable. A governed-AI "
+                     "system must know its feeds are live."),
             "items": items,
         })
 

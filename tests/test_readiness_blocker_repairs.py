@@ -81,3 +81,91 @@ def test_live_feed_budget_is_propagated_and_decreases_between_requests(monkeypat
     assert payload["mode"] == "live"
     assert len(observed_timeouts) == 5
     assert 0 < observed_timeouts[-1] < observed_timeouts[0] <= 0.20 + 1e-6
+
+
+def test_feed_pulse_counts_internally_caught_timeout_without_cache_as_down(monkeypatch):
+    def timeout_fetch(_feed, deadline=None):
+        raise TimeoutError("cooperative test deadline")
+
+    monkeypatch.setattr(a11oy_live_feeds, "_CACHE", {})
+    monkeypatch.setattr(a11oy_live_feeds, "_fetch", timeout_fetch)
+    monkeypatch.setattr(a11oy_live_feeds, "_load_snapshot", lambda _feed: None)
+    unavailable = a11oy_live_feeds.get_feed("celestrak", timeout_s=0.15)
+
+    assert unavailable["mode"] == "unavailable"
+    assert unavailable["data"] is None
+    assert "TimeoutError" in unavailable["error"]
+    assert "cooperative test deadline" in unavailable["error"]
+
+    def fake_get_feed(feed, timeout_s=None):
+        assert timeout_s == 0.15
+        if feed == "celestrak":
+            return unavailable
+        source, source_url = serve._kl_live._SOURCE[feed]
+        return {
+            "source": source,
+            "source_url": source_url,
+            "mode": "live",
+            "fetched_at": serve._kl_live._now_iso(),
+            "ttl_s": 60,
+            "data": {"feed": feed},
+        }
+
+    monkeypatch.setattr(serve._kl_live, "get_feed", fake_get_feed)
+    monkeypatch.setattr(serve, "_KL_FEED_PULSE_TIMEOUT_S", 0.15)
+
+    response = asyncio.run(serve._feeds_pulse())
+    payload = json.loads(response.body)
+
+    assert payload["live_count"] == 6
+    assert payload["cached_count"] == 0
+    assert payload["down_count"] == 1
+    timed_out = payload["items"][4]
+    assert timed_out["mode"] == "unavailable"
+    assert timed_out["payload_bytes"] == 0
+    assert "cooperative test deadline" in timed_out["error"]
+
+
+def test_feed_pulse_propagates_internal_timeout_cache_evidence(monkeypatch):
+    def timeout_fetch(_feed, deadline=None):
+        raise TimeoutError("cooperative test deadline")
+
+    monkeypatch.setattr(a11oy_live_feeds, "_CACHE", {})
+    monkeypatch.setattr(a11oy_live_feeds, "_fetch", timeout_fetch)
+    monkeypatch.setattr(
+        a11oy_live_feeds,
+        "_load_snapshot",
+        lambda feed: {"snapshot": feed},
+    )
+    cached = a11oy_live_feeds.get_feed("celestrak", timeout_s=0.15)
+
+    assert cached["mode"] == "cached"
+    assert "TimeoutError" in cached["cache_note"]
+
+    def fake_get_feed(feed, timeout_s=None):
+        assert timeout_s == 0.15
+        if feed == "celestrak":
+            return cached
+        source, source_url = serve._kl_live._SOURCE[feed]
+        return {
+            "source": source,
+            "source_url": source_url,
+            "mode": "live",
+            "fetched_at": serve._kl_live._now_iso(),
+            "ttl_s": 60,
+            "data": {"feed": feed},
+        }
+
+    monkeypatch.setattr(serve._kl_live, "get_feed", fake_get_feed)
+    monkeypatch.setattr(serve, "_KL_FEED_PULSE_TIMEOUT_S", 0.15)
+
+    response = asyncio.run(serve._feeds_pulse())
+    payload = json.loads(response.body)
+
+    assert payload["live_count"] == 6
+    assert payload["cached_count"] == 1
+    assert payload["down_count"] == 0
+    timed_out = payload["items"][4]
+    assert timed_out["mode"] == "cached"
+    assert timed_out["payload_bytes"] > 0
+    assert "TimeoutError" in timed_out["cache_note"]

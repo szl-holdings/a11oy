@@ -168,6 +168,19 @@ function validateSchema(schemaName, body) {
         }
         return true;
       })) return false;
+      if (sc.requiredPathTypes && !Object.entries(sc.requiredPathTypes).every(([path, type]) => {
+        let cursor = body;
+        for (const key of path.split(".")) {
+          if (!cursor || typeof cursor !== "object" || !(key in cursor)) return false;
+          cursor = cursor[key];
+        }
+        if (type === "array") return Array.isArray(cursor);
+        if (type === "object") {
+          return typeof cursor === "object" && cursor !== null && !Array.isArray(cursor);
+        }
+        if (type === "string") return typeof cursor === "string";
+        return false;
+      })) return false;
       if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
       return true;
     }
