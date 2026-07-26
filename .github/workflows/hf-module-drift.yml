@@ -2,14 +2,13 @@ name: HF Space module-drift guard
 
 # The canonical Space is source-bound at runtime: Hugging Face exposes exact
 # repository/runtime SHAs and /api/build-info exposes the exact protected Git
-# source revision. Pull requests and pre-deploy pushes verify that stable live
-# pair byte-for-byte, then report candidate-only changes without deploying them.
-# Manual and scheduled runs retain strict current GitHub-main <-> HF-main parity.
+# source revision. Pull requests verify that stable live pair byte-for-byte,
+# then report candidate-only changes without deploying them. Pushes do not run
+# this workflow because they race publication; hf-sync dispatches the strict
+# post-deployment parity check. Manual and scheduled runs remain strict.
 # No committed deployment lock or drift allowlist is used in source-bound mode.
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   schedule:
@@ -28,10 +27,11 @@ jobs:
     uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable source-bound live baseline
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      # PR and push runs must not race the deployment workflow. They verify the
-      # exact current live source/HF pair and report the candidate/new-main delta.
-      # workflow_dispatch and schedule are strict post-deploy/current-state checks.
-      mode: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'source-bound-baseline' || 'direct' }}
+      # PR runs verify the exact current live source/HF pair and report the
+      # candidate delta without racing publication. workflow_dispatch and
+      # schedule are strict post-deploy/current-state checks; hf-sync dispatches
+      # after relock succeeds.
+      mode: ${{ github.event_name == 'pull_request' && 'source-bound-baseline' || 'direct' }}
       trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
       candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       source-probe-path: /api/build-info

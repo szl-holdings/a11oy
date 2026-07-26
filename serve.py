@@ -3093,8 +3093,8 @@ except Exception as _szl_cf_e:  # pragma: no cover
 # ── Putnam 2025 canonical-set honest verdict (putnam-2025-tab-patch). Serves the
 # per-problem REAL/DEMO/OPEN verdict for the canonical Putnam 2025 set (A1-A6,
 # B1-B6) plus 3 kernel-clean SZL-native originals, transcribed faithfully from
-# the `Honest status:` label in each Lean source on lutar-lean branch
-# putnam-2025-canonical-set @baf483b. Additive, try/except-guarded. Pure stdlib.
+# the `Honest status:` label in each Lean source at immutable lutar-lean commit
+# baf483be3c832b64da47161b558e283d68da6650. Additive, try/except-guarded.
 try:
     import szl_putnam as _szl_putnam
     _szl_putnam.register(app, ns="a11oy")
