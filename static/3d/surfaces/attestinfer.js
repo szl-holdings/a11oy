@@ -21,7 +21,7 @@
 //
 // HONESTY LABEL: MODELED (deterministic sha256/384 simulation of the attested path keyed on
 //   (seed, model); NO real TEE, NO real GPU, NO NRAS/KDS network, NO real inference engine).
-//   The DSSE envelope is REAL ECDSA-P256 in-Space and honestly UNSIGNED-LOCAL locally.
+//   This GET returns a structurally complete but unsigned DSSE envelope on every runtime.
 //   Label read VERBATIM from JSON; never upgraded. Λ = Conjecture 1 (advisory, gray, never green).
 //   Nothing here is in the locked-8. Trust never 100% — the attestation is MODELED, not real trust.
 //
@@ -39,7 +39,7 @@
 // DOCTRINE v11: degrades gracefully (grey) on 404/error; honesty label still shown verbatim.
 
 const ID    = "attestinfer";
-const TITLE = "Attested Inference · TEE quote → Λ-gate → signed receipt (live)";
+const TITLE = "Attested Inference · modeled quote → Λ-gate → unsigned read receipt";
 
 // Same-origin endpoint (this surface plugs into the a11oy registry, unlike Wave-A cc-attest
 // which lived on the isolated killinchu Space).
@@ -206,7 +206,7 @@ function _onSnap(j) {
 
   const dsse = j.dsse || {};
   S.dsseSigned = typeof dsse.signed === "boolean" ? dsse.signed : null;
-  S.dsseLabel  = dsse.local_label || (dsse.signed ? "REAL-SIGNED" : "UNSIGNED-LOCAL");
+  S.dsseLabel  = dsse.local_label || (dsse.signed ? "SIGNED-WRITE" : "UNSIGNED-READ");
 
   S.honestNote = typeof j.honest_note === "string" ? j.honest_note : null;
 
@@ -310,9 +310,8 @@ function _buildOverlay() {
     "A deepening of Wave-A cc-attest into a full <b>attested-inference</b> flow: a device " +
     "<b>measured-boot chain</b> \u2192 an attestation <b>quote</b> that binds this inference " +
     "(SEV-SNP <b>REPORT_DATA</b> style) \u2192 a <b>\u039b-gate</b> \u2192 gated inference \u2192 a " +
-    "signed <b>receipt</b> embedding the quote digest + \u039b axes + SLSA provenance. " +
-    "Honesty <b>MODELED</b> \u2014 no real TEE/GPU/NRAS/network; DSSE is REAL ECDSA-P256 in-Space, " +
-    "UNSIGNED-LOCAL locally. 0 runtime CDN.";
+    "structurally complete, <b>unsigned read receipt</b> embedding the quote digest + \u039b axes + SLSA provenance. " +
+    "Honesty <b>MODELED</b> \u2014 no real TEE/GPU/NRAS/network; this GET never signs. 0 runtime CDN.";
   _overlay.appendChild(sub);
 
   const brow = document.createElement("div");
@@ -397,8 +396,8 @@ function _applyPlain() {
     "run into the quote, then runs a <b>\u039b trust gate</b> that only releases a (fake) inference " +
     "when the attestation is good. Right now the measured boot <b>" + boot + "</b> and the " +
     "inference is <b>" + rel + "</b>. There is <b>no real GPU, no real key, and no network call</b> " +
-    "\u2014 it shows how attested inference WORKS, not a working verifier. The receipt is signed for " +
-    "real (ECDSA-P256) only inside the deployed Space; locally it is honestly UNSIGNED.";
+    "\u2014 it shows how attested inference works, not a working verifier. The response carries a " +
+    "complete DSSE payload binding but remains <b>UNSIGNED-READ</b>; signing is reserved for an authorized write.";
 }
 
 function _tok(s) {
@@ -420,7 +419,7 @@ function _paintOverlay() {
   _set("ai-lambda", t || (S.lamValue != null ? (S.lamValue.toFixed(4) + " / " + (S.lamFloor != null ? S.lamFloor.toFixed(2) : "0.90")) : "\u2014"));
   _set("ai-gate",   t || (S.lamPass === true ? "PASS (release)" : (S.lamPass === false ? "BLOCK (withhold)" : "\u2014")));
   _set("ai-infer",  t || (S.released === true ? "RELEASED" : (S.released === false ? "WITHHELD" : "\u2014")));
-  _set("ai-dsse",   t || (S.dsseSigned == null ? "\u2014" : (S.dsseSigned ? "REAL-SIGNED (ECDSA-P256)" : "UNSIGNED-LOCAL")));
+  _set("ai-dsse",   t || (S.dsseSigned == null ? "\u2014" : (S.dsseSigned ? "SIGNED-WRITE" : "UNSIGNED-READ")));
   _set("ai-label",  t || (S.label || "MODELED"));
   if (_plain) _applyPlain();
 }
