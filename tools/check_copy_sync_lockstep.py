@@ -298,6 +298,34 @@ def workflow_job_blocks(workflow_text):
     return blocks
 
 
+def strip_yaml_comment(value):
+    """Strip a YAML comment marker only outside quotes and after whitespace."""
+    quote = None
+    escaped = False
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if quote == '"':
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quote = None
+        elif quote == "'":
+            if char == "'":
+                if index + 1 < len(value) and value[index + 1] == "'":
+                    index += 1
+                else:
+                    quote = None
+        elif char in {"'", '"'}:
+            quote = char
+        elif char == "#" and (index == 0 or value[index - 1].isspace()):
+            return value[:index].rstrip()
+        index += 1
+    return value.strip()
+
+
 def yaml_mapping_entry(stripped):
     """Return a simple YAML mapping key/value pair, including quoted keys."""
     match = re.match(
@@ -308,8 +336,31 @@ def yaml_mapping_entry(stripped):
     if not match:
         return None
     key = match.group("double") or match.group("single") or match.group("bare")
-    value = match.group("value").split("#", 1)[0].strip()
+    value = strip_yaml_comment(match.group("value"))
     return key, value
+
+
+def yaml_scalar_value(value):
+    """Parse the YAML string-scalar spellings supported by this guard."""
+    if value.startswith('"'):
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return False, None
+        return isinstance(parsed, str), parsed
+    if value.startswith("'"):
+        if not value.endswith("'") or len(value) < 2:
+            return False, None
+        return True, value[1:-1].replace("''", "'")
+    if "'" in value or '"' in value:
+        return False, None
+    return True, value
+
+
+def yaml_scalar_matches(value, expected):
+    """Compare a plain or quoted scalar, failing closed on invalid quoting."""
+    valid, parsed = yaml_scalar_value(value)
+    return valid and parsed == expected
 
 
 def yaml_sequence_items(lines, entry_index, property_indent, value):
@@ -353,18 +404,8 @@ def yaml_sequence_items(lines, entry_index, property_indent, value):
             item = item.strip()
             if not item:
                 continue
-            if item.startswith('"'):
-                try:
-                    item = json.loads(item)
-                except (json.JSONDecodeError, TypeError):
-                    return None
-                if not isinstance(item, str):
-                    return None
-            elif item.startswith("'"):
-                if not item.endswith("'") or len(item) < 2:
-                    return None
-                item = item[1:-1].replace("''", "'")
-            elif "'" in item or '"' in item:
+            valid, item = yaml_scalar_value(item)
+            if not valid:
                 return None
             normalized.append(item)
         return normalized
@@ -377,9 +418,13 @@ def yaml_sequence_items(lines, entry_index, property_indent, value):
         indent = len(raw) - len(raw.lstrip())
         if indent <= property_indent:
             break
-        item = re.match(r"^-\s*(.*?)\s*(?:#.*)?$", stripped)
+        item = re.match(r"^-\s*(.*?)\s*$", stripped)
         if item:
-            items.append(item.group(1).strip().strip("\"'"))
+            value = strip_yaml_comment(item.group(1)).strip()
+            valid, value = yaml_scalar_value(value)
+            if not valid:
+                return None
+            items.append(value)
     return items
 
 
@@ -553,6 +598,7 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
     property_indent = min(property_indents)
 
     pinned_controller = False
+    controller_seen = False
     with_index = None
     for index, raw in enumerate(block_lines[1:], start=1):
         stripped = raw.strip()
@@ -566,23 +612,34 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
             # skipped, and YAML merges can inherit either gate. Fail closed
             # rather than proving arbitrary dependency/expression semantics.
             return False
-        controller = re.fullmatch(
-            r"uses:\s*szl-holdings/\.github/\.github/workflows/"
-            r"reusable-hf-deploy\.yml@(?P<revision>[0-9a-fA-F]{40})"
-            r"\s*(?:#.*)?",
-            stripped,
-        )
-        if (
-            controller
-            and controller.group("revision").lower()
-            in SOURCE_DERIVED_CONTROLLER_REVISIONS
-        ):
-            pinned_controller = True
-        if re.fullmatch(r"with:\s*(?:#.*)?", stripped):
+        if entry and entry[0] == "uses":
+            if controller_seen:
+                return False
+            controller_seen = True
+            controller = re.fullmatch(
+                r"szl-holdings/\.github/\.github/workflows/"
+                r"reusable-hf-deploy\.yml@(?P<revision>[0-9a-fA-F]{40})",
+                entry[1],
+            )
+            pinned_controller = bool(
+                controller
+                and controller.group("revision").lower()
+                in SOURCE_DERIVED_CONTROLLER_REVISIONS
+            )
+        if entry and entry[0] == "with":
+            if entry[1] or with_index is not None:
+                return False
             with_index = index
-    if not pinned_controller or with_index is None:
+    if not controller_seen or not pinned_controller or with_index is None:
         return False
 
+    expected_inputs = {
+        "hf-repo": "SZLHOLDINGS/a11oy",
+        "ref": "${{ github.sha }}",
+        "dockerfile-path": "Dockerfile",
+    }
+    matched_inputs = {}
+    with_indent = None
     for raw in block_lines[with_index + 1:]:
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
@@ -590,22 +647,33 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
         indent = len(raw) - len(raw.lstrip())
         if indent <= property_indent:
             break
-        if re.fullmatch(
-            r"dockerfile-path:\s*[\"']?Dockerfile[\"']?\s*(?:#.*)?",
-            stripped,
-        ):
-            return True
-    return False
+        if with_indent is None:
+            with_indent = indent
+        if indent != with_indent:
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if not entry or entry[0] == "<<":
+            return False
+        key, value = entry
+        if key in expected_inputs:
+            if key in matched_inputs:
+                return False
+            matched_inputs[key] = yaml_scalar_matches(value, expected_inputs[key])
+    return (
+        set(matched_inputs) == set(expected_inputs)
+        and all(matched_inputs.values())
+    )
 
 
 def has_source_derived_deploy_contract(hf_sync_text):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
-    exact set. Requiring both a reviewed capability-bearing controller revision
-    and the explicit Dockerfile input in the same unconditional job prevents a
-    generic pin, comment, step, unrelated workflow, or skipped deploy job from
-    satisfying CHECK 3.
+    exact set. Requiring a reviewed capability-bearing controller revision,
+    canonical destination, exact source SHA, and Dockerfile input in the same
+    unconditional job prevents a generic pin, stale ref, wrong destination,
+    comment, step, unrelated workflow, or skipped deploy job from satisfying
+    CHECK 3.
     """
     return workflow_has_unfiltered_main_push(hf_sync_text) and any(
         job_has_source_derived_deploy_contract(block_lines, job_indent)

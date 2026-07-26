@@ -36,6 +36,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                 with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: Dockerfile
             """
         )
@@ -48,6 +50,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@main
                 with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: Dockerfile
             """,
             """
@@ -60,6 +64,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@1111111111111111111111111111111111111111
                 with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: Dockerfile
             """,
         )
@@ -79,6 +85,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
               unrelated:
                 uses: example.invalid/workflows/other.yml@1111111111111111111111111111111111111111
                 with:
@@ -101,6 +108,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: "Dockerfile"
                   prune: true
                 secrets:
@@ -108,6 +116,68 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
         )
         self.assertTrue(CHECKER.has_source_derived_deploy_contract(workflow))
+
+    def test_source_and_destination_binding_is_exact(self) -> None:
+        invalid_inputs = (
+            """
+            hf-repo: OTHER/a11oy
+            ref: ${{ github.sha }}
+            dockerfile-path: Dockerfile
+            """,
+            """
+            hf-repo: SZLHOLDINGS/a11oy
+            ref: main
+            dockerfile-path: Dockerfile
+            """,
+            """
+            hf-repo: SZLHOLDINGS/a11oy#other
+            ref: ${{ github.sha }}
+            dockerfile-path: Dockerfile
+            """,
+            """
+            hf-repo: SZLHOLDINGS/a11oy
+            ref: ${{ github.sha }}#stale
+            dockerfile-path: Dockerfile
+            """,
+            """
+            hf-repo: SZLHOLDINGS/a11oy
+            ref: ${{ github.sha }}
+            dockerfile-path: Dockerfile#other
+            """,
+            """
+            hf-repo: SZLHOLDINGS/a11oy
+            dockerfile-path: Dockerfile
+            """,
+            """
+            hf-repo: SZLHOLDINGS/a11oy
+            hf-repo: OTHER/a11oy
+            ref: ${{ github.sha }}
+            dockerfile-path: Dockerfile
+            """,
+            """
+            nested:
+              hf-repo: SZLHOLDINGS/a11oy
+              ref: ${{ github.sha }}
+              dockerfile-path: Dockerfile
+            """,
+        )
+        for inputs in invalid_inputs:
+            workflow = (
+                UNFILTERED_MAIN_PUSH
+                + textwrap.dedent(
+                    """
+                    jobs:
+                      deploy:
+                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                        with:
+                    """
+                )
+                + textwrap.indent(textwrap.dedent(inputs), "      ")
+            )
+            with self.subTest(inputs=inputs):
+                self.assertFalse(
+                    CHECKER.has_source_derived_deploy_contract(workflow)
+                )
 
     def test_conditioned_deploy_job_is_rejected(self) -> None:
         condition_entries = (
@@ -126,6 +196,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     {condition_entry}
                     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                     with:
+                      hf-repo: SZLHOLDINGS/a11oy
+                      ref: ${{{{ github.sha }}}}
                       dockerfile-path: Dockerfile
                 """
             )
@@ -153,6 +225,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     {needs_entry}
                     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                     with:
+                      hf-repo: SZLHOLDINGS/a11oy
+                      ref: ${{{{ github.sha }}}}
                       dockerfile-path: Dockerfile
                 """
             )
@@ -174,6 +248,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                 with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: Dockerfile
             """
         )
@@ -200,6 +276,17 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertTrue(
             CHECKER.has_source_derived_deploy_contract(reinclude + deploy)
         )
+        block_comment = textwrap.dedent(
+            """
+            on:
+              push:
+                branches:
+                  - main # protected branch
+            """
+        )
+        self.assertTrue(
+            CHECKER.has_source_derived_deploy_contract(block_comment + deploy)
+        )
         for branches in ("[mai+n]", "[mai?n]"):
             extended = textwrap.dedent(
                 f"""
@@ -220,6 +307,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                 with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: Dockerfile
             """
         )
@@ -288,6 +377,12 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """,
             """
             on:
+              push:
+                branches:
+                  - main#disabled
+            """,
+            """
+            on:
               workflow_dispatch: {}
             """,
         )
@@ -297,6 +392,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                 with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
                   dockerfile-path: Dockerfile
             """
         )
