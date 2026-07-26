@@ -15,7 +15,10 @@ from pathlib import Path
 
 
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parent
 SCRIPT = HERE / "audit_huggingface_ecosystem.py"
+WORKFLOW = REPO_ROOT / ".github" / "workflows" / "operational.yml"
+SCHEMA = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.schema.json"
 REVISION_FIXTURE = (
     HERE / "fixtures" / "huggingface_snapshot_revisions.json"
 )
@@ -278,6 +281,34 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValueError):
                     audit.validate_observed_at(invalid, now=now)
+
+    def test_operational_ci_runs_live_and_tracked_artifact_checks(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        for path in (
+            "docs/ecosystem-stage-matrix.json",
+            "docs/huggingface-ecosystem-manifest.json",
+            "docs/huggingface-ecosystem-manifest.schema.json",
+        ):
+            self.assertEqual(
+                workflow.count(f"- '{path}'"),
+                2,
+                f"{path} must trigger both push and pull-request validation",
+            )
+        self.assertIn("pnpm hf:ecosystem:audit", workflow)
+        self.assertIn(
+            "python3 scripts/build_ecosystem_stage_matrix.py --check",
+            workflow,
+        )
+        self.assertLess(
+            workflow.index("pnpm hf:ecosystem:audit"),
+            workflow.index("npm run payload:huggingface"),
+        )
+
+    def test_published_item_schema_requires_revision_evidence(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        required = schema["$defs"]["items"]["items"]["required"]
+        self.assertIn("sha", required)
+        self.assertIn("lastModified", required)
 
 
 if __name__ == "__main__":

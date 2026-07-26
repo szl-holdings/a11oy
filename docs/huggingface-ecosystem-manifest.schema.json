@@ -68,7 +68,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "repoType", "private", "unsafeFlags", "evidenceUrls"],
+        "required": ["id", "repoType", "private", "sha", "lastModified", "unsafeFlags", "evidenceUrls"],
         "properties": {
           "id": { "type": "string" },
           "repoType": { "enum": ["model", "dataset", "space"] },

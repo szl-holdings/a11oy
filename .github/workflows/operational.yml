@@ -18,6 +18,9 @@ on:
       - 'docs/INVESTOR_DEMO.md'
       - 'docs/WARHACKER_UDS_PROOF_POINT.md'
       - 'docs/ecosystem-readiness-report.json'
+      - 'docs/ecosystem-stage-matrix.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'docs/huggingface-ecosystem-manifest.schema.json'
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
@@ -36,6 +39,9 @@ on:
       - 'docs/INVESTOR_DEMO.md'
       - 'docs/WARHACKER_UDS_PROOF_POINT.md'
       - 'docs/ecosystem-readiness-report.json'
+      - 'docs/ecosystem-stage-matrix.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'docs/huggingface-ecosystem-manifest.schema.json'
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
@@ -77,6 +83,8 @@ jobs:
           bash scripts/validate-operational.sh
           python3 scripts/test_audit_huggingface_ecosystem.py
           python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
+          pnpm hf:ecosystem:audit
+          python3 scripts/build_ecosystem_stage_matrix.py --check
           npm run payload:verify
           npm run payload:huggingface
           # Build the operational payload bundle in CI before verifying it. The
