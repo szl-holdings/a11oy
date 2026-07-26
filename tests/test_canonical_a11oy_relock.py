@@ -234,6 +234,32 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             ):
                 relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
+    def test_observed_badge_stays_unverified_until_both_probes_verify(self) -> None:
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        self.assertIn(
+            'id="estate-observation-badge" data-state="UNVERIFIED">'
+            "Evidence status: UNVERIFIED",
+            source,
+        )
+        self.assertIn(
+            'estateObservationBadge.textContent = "Evidence status: UNVERIFIED"',
+            source,
+        )
+        self.assertIn(
+            "const observed = Boolean(revision && readiness?.matrix_available)",
+            source,
+        )
+        self.assertIn(
+            'estateObservationBadge.dataset.state = observed ? "OBSERVED" : '
+            '"UNVERIFIED"',
+            source,
+        )
+        self.assertIn(
+            '? "The estate, observed—not assumed."\n'
+            '        : "Evidence status: UNVERIFIED"',
+            source,
+        )
+
     def test_runtime_revision_is_read_from_current_hub_raw_metadata(self) -> None:
         api = FakeApi(self.source)
         api.runtime_revision_shape = "raw"

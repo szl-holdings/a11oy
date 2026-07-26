@@ -200,7 +200,7 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
 <body>
 <header>
  <h1>A11oy Holographic Operations</h1>
- <span class="badge">The estate, observed—not assumed.</span>
+ <span class="badge" id="estate-observation-badge" data-state="UNVERIFIED">Evidence status: UNVERIFIED</span>
  <span class="badge" id="backend">renderer: …</span>
  <button class="badge" id="gpu-toggle" title="Toggle WebGPU compute path (falls back to WebGL2 if the browser/driver can't provide a WebGPU device). WebGPU is not production-safe on all platforms — doctrine." style="cursor:pointer;background:#10171f">⚡ WebGPU: off</button>
  <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
@@ -567,6 +567,7 @@ const searchPanel = document.getElementById("search-panel");
 const searchCount = document.getElementById("surface-results-count");
 const navMode = document.getElementById("nav-mode");
 const activeSurface = document.querySelector("#active-surface strong");
+const estateObservationBadge = document.getElementById("estate-observation-badge");
 
 const evidenceRail = document.getElementById("evidence-rail");
 const evidenceToggle = document.getElementById("evidence-rail-toggle");
@@ -613,6 +614,10 @@ function _updateEvidenceRail(def) {
   if (!evidenceRail || !def) return;
   evidenceRail.dataset.state = "UNVERIFIED";
   if (evidenceState) evidenceState.textContent = "UNVERIFIED";
+  if (estateObservationBadge) {
+    estateObservationBadge.dataset.state = "UNVERIFIED";
+    estateObservationBadge.textContent = "Evidence status: UNVERIFIED";
+  }
   if (evidenceTitle) evidenceTitle.textContent = def.title;
   if (evidenceId) evidenceId.textContent = def.id;
   if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
@@ -628,6 +633,12 @@ function _updateEvidenceRail(def) {
     const observed = Boolean(revision && readiness?.matrix_available);
     evidenceRail.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
     if (evidenceState) evidenceState.textContent = observed ? "OBSERVED" : "UNVERIFIED";
+    if (estateObservationBadge) {
+      estateObservationBadge.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
+      estateObservationBadge.textContent = observed
+        ? "The estate, observed—not assumed."
+        : "Evidence status: UNVERIFIED";
+    }
   });
 }
 const _panels = {};   // cat -> drop-panel element
