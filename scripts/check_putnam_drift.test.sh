@@ -52,7 +52,7 @@ trap 'rm -rf "$TMP"' EXIT
 # ---------------------------------------------------------------------------
 make_honest() {
   local r="$1"
-  mkdir -p "$r/pages" "$r/canon/SZL"
+  mkdir -p "$r/pages" "$r/canon/SZL" "$r/docs"
 
   cat > "$r/szl_putnam.py" <<'PY'
 """szl_putnam test loader. Honest tally: 0 REAL / 1 DEMO / 2 OPEN.
@@ -100,6 +100,17 @@ HTML
   printf '%s\n' '/-- Putnam A3. -/' '-- **Honest status: OPEN**' > "$r/canon/P_A3.lean"
   printf '%s\n' '/-- SZL original. All proofs are REAL (kernel-checked); no `sorry`. -/' \
     > "$r/canon/SZL/One.lean"
+  cat > "$r/docs/SERIES_A_DILIGENCE.md" <<'MD'
+# Fixture diligence packet
+
+| Area | Investor-safe wording |
+| --- | --- |
+<!-- BEGIN GENERATED PUTNAM STATUS -->
+placeholder
+<!-- END GENERATED PUTNAM STATUS -->
+MD
+  PUTNAM_DRIFT_FIXTURE="$r/canon" python3 "$GUARD" --root "$r" \
+    --write-diligence >/dev/null
 }
 
 # --- Fixture A: honest tree -> PASS ----------------------------------------
@@ -135,6 +146,11 @@ expect_fail "named-OPEN prose drift (says A1 and A2; canonical OPEN = A2,A3)" "$
 G="$TMP/G"; make_honest "$G"
 sed -i 's/All proofs are REAL/All proofs are DEMO/' "$G/canon/SZL/One.lean"
 expect_fail "SZL label/count drift (loader REAL vs canonical DEMO)" "$G"
+
+# --- Fixture H: diligence packet count drift -> FAIL ----------------------
+H="$TMP/H"; make_honest "$H"
+sed -i 's/0 of 3 Putnam/1 of 3 Putnam/' "$H/docs/SERIES_A_DILIGENCE.md"
+expect_fail "generated diligence packet drift (claims 1/3 vs canonical 0/3)" "$H"
 
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"
