@@ -16144,11 +16144,22 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var host=document.getElementById('pinned-host'); if(!host) return;
     var p=getPins().filter(function(k){ return window.VIEWS&&window.VIEWS[k]; });
     if(!p.length){ host.innerHTML=''; return; }
+    var cur=window._requestedView||(location.hash||'#command').slice(1);
+    var canonicalCurrent=false;
+    document.querySelectorAll('.nav-item').forEach(function(n){
+      if(!n.closest('#pinned-host')&&n.dataset.view===cur){ canonicalCurrent=true; }
+    });
     var h='<div class="nav-group mod-pinned">★ Pinned</div>';
     p.forEach(function(k){
       h+='<button type="button" class="nav-item" data-view="'+esc(k)+'" onclick="go(\''+esc(k)+'\')"><span class="ico">★</span>'+esc(titleOf(k))+'</button>';
     });
     host.innerHTML=h;
+    host.querySelectorAll('.nav-item').forEach(function(n){
+      var isCurrent=n.dataset.view===cur;
+      n.classList.toggle('active',isCurrent);
+      if(isCurrent&&!canonicalCurrent){ n.setAttribute('aria-current','page'); }
+      else { n.removeAttribute('aria-current'); }
+    });
   }
   window.__a11oyRenderPins=renderPins;
 

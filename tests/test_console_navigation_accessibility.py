@@ -88,3 +88,8 @@ def test_persisted_pinned_navigation_uses_native_buttons() -> None:
         "h+='<div class=\"nav-item\" data-view=\"'+esc(k)"
         not in html
     )
+    assert "var cur=window._requestedView||(location.hash||'#command').slice(1)" in html
+    assert "if(!n.closest('#pinned-host')&&n.dataset.view===cur)" in html
+    assert "var isCurrent=n.dataset.view===cur" in html
+    assert "n.classList.toggle('active',isCurrent)" in html
+    assert "if(isCurrent&&!canonicalCurrent){ n.setAttribute('aria-current','page'); }" in html
