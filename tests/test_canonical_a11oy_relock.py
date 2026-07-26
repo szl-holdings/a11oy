@@ -133,7 +133,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
                 "working_tree": "UNKNOWN",
                 "working_tree_source": "UNKNOWN",
                 "field_evidence": {
-                    "revision": "MEASURED",
+                    "revision": "OBSERVED",
                     "version": "UNKNOWN",
                     "working_tree": "UNKNOWN",
                 },

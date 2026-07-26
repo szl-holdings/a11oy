@@ -72,3 +72,4 @@ def test_runtime_navigation_preserves_semantics_and_visible_focus() -> None:
     assert "act.setAttribute('aria-current','page')" in html
     assert "h+='<button type=\"button\" class=\"nav-item\"" in html
     assert "h+='<div class=\"nav-item\"" not in html
+    assert "var c = side.querySelector('.nav-item[data-view=\"command\"]')" not in html

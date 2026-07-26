@@ -32,6 +32,7 @@ authenticated, server-side idempotent, durable, operator-approved action
 lifecycle. The validator rejects:
 
 - promotion to `verified-runtime` without all four runtime controls;
+- promotion from fabricated or unauthenticated named-test JUnit evidence;
 - missing or shell-indirected evidence commands;
 - removal of the explicit evidence boundary;
 - weakened egress, receipt-chain, clean-room, or UDS claim guards.
@@ -41,7 +42,7 @@ lifecycle. The validator rejects:
 | Validation | Result |
 | --- | --- |
 | Action-contract manifest validator | PASS |
-| Action-contract negative-fixture self-test | PASS, 14 tests |
+| Action-contract negative-fixture self-test | PASS, 18 tests |
 | Runtime-contract and nested-static focused suite | PASS, 20 tests |
 | Demo-critical routes and 3D substrate suite | PASS, 57 tests |
 | Policy action-envelope test | PASS |
