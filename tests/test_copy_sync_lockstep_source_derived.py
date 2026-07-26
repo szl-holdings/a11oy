@@ -19,10 +19,18 @@ assert SPEC and SPEC.loader
 CHECKER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CHECKER)
 
+UNFILTERED_MAIN_PUSH = textwrap.dedent(
+    """
+    on:
+      push:
+        branches: [main]
+    """
+)
+
 
 class SourceDerivedCopySyncTests(unittest.TestCase):
     def test_pinned_dockerfile_deployer_is_recognized(self) -> None:
-        workflow = textwrap.dedent(
+        workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
             """
             jobs:
               deploy:
@@ -36,24 +44,28 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
     def test_unpinned_or_implicit_dockerfile_deployer_is_rejected(self) -> None:
         cases = (
             """
-            uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@main
-            with:
-              dockerfile-path: Dockerfile
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@main
+                with:
+                  dockerfile-path: Dockerfile
             """,
             """
-            uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
             """,
         )
         for workflow in cases:
             with self.subTest(workflow=workflow):
                 self.assertFalse(
                     CHECKER.has_source_derived_deploy_contract(
-                        textwrap.dedent(workflow)
+                        UNFILTERED_MAIN_PUSH + textwrap.dedent(workflow)
                     )
                 )
 
     def test_deployer_and_dockerfile_evidence_split_across_jobs_is_rejected(self) -> None:
-        workflow = textwrap.dedent(
+        workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
             """
             jobs:
               deploy:
@@ -69,7 +81,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertFalse(CHECKER.has_source_derived_deploy_contract(workflow))
 
     def test_deployer_and_dockerfile_evidence_in_same_job_passes(self) -> None:
-        workflow = textwrap.dedent(
+        workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
             """
             name: source-derived deploy
             jobs:
@@ -91,24 +103,75 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertTrue(CHECKER.has_source_derived_deploy_contract(workflow))
 
     def test_conditioned_deploy_job_is_rejected(self) -> None:
-        conditions = (
-            "false",
-            "github.event_name == 'workflow_dispatch'",
+        condition_entries = (
+            "if: false",
+            "if : false",
+            '"if": false',
+            "'if' : false",
+            "if: github.event_name == 'workflow_dispatch'",
+            "<<: *possibly_conditioned",
         )
-        for condition in conditions:
-            workflow = textwrap.dedent(
+        for condition_entry in condition_entries:
+            workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
                 f"""
                 jobs:
                   deploy:
-                    if: {condition}
+                    {condition_entry}
                     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
                     with:
                       dockerfile-path: Dockerfile
                 """
             )
-            with self.subTest(condition=condition):
+            with self.subTest(condition_entry=condition_entry):
                 self.assertFalse(
                     CHECKER.has_source_derived_deploy_contract(workflow)
+                )
+
+    def test_filtered_or_non_main_push_trigger_is_rejected(self) -> None:
+        triggers = (
+            """
+            on:
+              push:
+                branches: [main]
+                paths: [serve.py]
+            """,
+            """
+            "on" :
+              push:
+                branches:
+                  - feature-only
+            """,
+            """
+            on:
+              push:
+                branches-ignore: [main]
+            """,
+            """
+            on:
+              push:
+                <<: *possibly_filtered
+                branches: [main]
+            """,
+            """
+            on:
+              workflow_dispatch: {}
+            """,
+        )
+        deploy = textwrap.dedent(
+            """
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                with:
+                  dockerfile-path: Dockerfile
+            """
+        )
+        for trigger in triggers:
+            with self.subTest(trigger=trigger):
+                self.assertFalse(
+                    CHECKER.has_source_derived_deploy_contract(
+                        textwrap.dedent(trigger) + deploy
+                    )
                 )
 
     def test_shipped_repository_passes_the_real_lockstep_guard(self) -> None:

@@ -298,6 +298,131 @@ def workflow_job_blocks(workflow_text):
     return blocks
 
 
+def yaml_mapping_entry(stripped):
+    """Return a simple YAML mapping key/value pair, including quoted keys."""
+    match = re.match(
+        r"^(?:\"(?P<double>[^\"]+)\"|'(?P<single>[^']+)'|"
+        r"(?P<bare><<|[A-Za-z_][A-Za-z0-9_-]*))\s*:\s*(?P<value>.*)$",
+        stripped,
+    )
+    if not match:
+        return None
+    key = match.group("double") or match.group("single") or match.group("bare")
+    value = match.group("value").split("#", 1)[0].strip()
+    return key, value
+
+
+def yaml_sequence_contains(lines, entry_index, property_indent, value, target):
+    """Recognize a literal target in an inline or indented YAML sequence."""
+    if value:
+        if value.startswith("[") and value.endswith("]"):
+            items = value[1:-1].split(",")
+        else:
+            items = [value]
+        return target in {
+            item.strip().strip("\"'")
+            for item in items
+            if item.strip()
+        }
+
+    items = set()
+    for raw in lines[entry_index + 1:]:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= property_indent:
+            break
+        item = re.match(r"^-\s*(.*?)\s*(?:#.*)?$", stripped)
+        if item:
+            items.add(item.group(1).strip().strip("\"'"))
+    return target in items
+
+
+def workflow_has_unfiltered_main_push(workflow_text):
+    """Require a top-level push trigger that includes main without path filters."""
+    lines = workflow_text.splitlines()
+    parsed = []
+    for index, raw in enumerate(lines):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if entry:
+            parsed.append((index, len(raw) - len(raw.lstrip()), entry))
+    if not parsed:
+        return False
+    top_indent = min(indent for _index, indent, _entry in parsed)
+    on_entries = [
+        (index, indent, entry)
+        for index, indent, entry in parsed
+        if indent == top_indent and entry[0] == "on"
+    ]
+    if len(on_entries) != 1 or on_entries[0][2][1]:
+        return False
+
+    on_index, on_indent, _entry = on_entries[0]
+    on_block = []
+    for index, raw in enumerate(lines[on_index + 1:], start=on_index + 1):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= on_indent:
+            break
+        entry = yaml_mapping_entry(stripped)
+        if entry:
+            on_block.append((index, indent, entry))
+    if not on_block:
+        return False
+    event_indent = min(indent for _index, indent, _entry in on_block)
+    push_entries = [
+        item
+        for item in on_block
+        if item[1] == event_indent and item[2][0] == "push"
+    ]
+    if len(push_entries) != 1 or push_entries[0][2][1]:
+        return False
+
+    push_index, push_indent, _entry = push_entries[0]
+    push_block = []
+    for index, raw in enumerate(lines[push_index + 1:], start=push_index + 1):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= push_indent:
+            break
+        entry = yaml_mapping_entry(stripped)
+        if entry:
+            push_block.append((index, indent, entry))
+    if not push_block:
+        return True
+
+    property_indent = min(indent for _index, indent, _entry in push_block)
+    properties = [
+        item for item in push_block if item[1] == property_indent
+    ]
+    property_keys = {entry[0] for _index, _indent, entry in properties}
+    if property_keys & {"<<", "paths", "paths-ignore", "branches-ignore"}:
+        return False
+    branch_entries = [
+        item for item in properties if item[2][0] == "branches"
+    ]
+    if not branch_entries:
+        return True
+    if len(branch_entries) != 1:
+        return False
+    branch_index, _indent, (_key, value) = branch_entries[0]
+    return yaml_sequence_contains(
+        lines,
+        branch_index,
+        property_indent,
+        value,
+        "main",
+    )
+
+
 def job_has_source_derived_deploy_contract(block_lines, job_indent):
     """Require an unconditional pinned Dockerfile deploy in one reusable job."""
     property_indents = []
@@ -318,10 +443,12 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
         indent = len(raw) - len(raw.lstrip())
         if indent != property_indent:
             continue
-        if re.match(r"if:\s*", stripped):
+        entry = yaml_mapping_entry(stripped)
+        if entry and entry[0] in {"if", "<<"}:
             # A skipped reusable job can leave the workflow green without
-            # publishing protected-main source changes. Fail closed rather
-            # than trying to prove arbitrary GitHub expression semantics.
+            # publishing protected-main source changes. YAML merges can also
+            # inherit such a condition. Fail closed rather than trying to
+            # prove arbitrary expression or anchor semantics.
             return False
         if re.fullmatch(
             r"uses:\s*szl-holdings/\.github/\.github/workflows/"
@@ -357,7 +484,7 @@ def has_source_derived_deploy_contract(hf_sync_text):
     Dockerfile input in the same unconditional job prevents a comment, step,
     unrelated workflow, or skipped deploy job from satisfying CHECK 3.
     """
-    return any(
+    return workflow_has_unfiltered_main_push(hf_sync_text) and any(
         job_has_source_derived_deploy_contract(block_lines, job_indent)
         for _job_id, block_lines, job_indent in workflow_job_blocks(hf_sync_text)
     )
