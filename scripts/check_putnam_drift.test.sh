@@ -119,7 +119,18 @@ expect_pass "honest tree (loader == console == canonical 0/1/2, 1 SZL REAL)" "$A
 
 # --- Fixture B: loader per-problem label drift -> FAIL ---------------------
 B="$TMP/B"; make_honest "$B"
-sed -i 's/"id": "A3", "file": "P_A3.lean", "title": "A3", "status": "OPEN"/"id": "A3", "file": "P_A3.lean", "title": "A3", "status": "DEMO"/' "$B/szl_putnam.py"
+python3 - "$B/szl_putnam.py" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+before = '"id": "A3", "file": "P_A3.lean", "title": "A3", "status": "OPEN"'
+after = '"id": "A3", "file": "P_A3.lean", "title": "A3", "status": "DEMO"'
+if text.count(before) != 1:
+    raise SystemExit("fixture setup failed: expected one A3 OPEN loader row")
+path.write_text(text.replace(before, after), encoding="utf-8")
+PY
 expect_fail "loader per-problem label drift (A3 OPEN->DEMO vs canonical)" "$B"
 
 # --- Fixture C: console fallback diverges from loader -> FAIL ---------------
