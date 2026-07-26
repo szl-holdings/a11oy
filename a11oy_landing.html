@@ -423,8 +423,8 @@
           <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
         </div>
         <div class="stat" id="overclaim-counter">
-          <div class="k proof" id="hs-overclaims">1</div>
-          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (n=1): <span id="hs-overclaim-time">10h 51m 38s</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
+          <div class="k gray" id="hs-overclaims">—</div>
+          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
         </div>
       </div>
     </div>
@@ -813,6 +813,16 @@
   const num = (v) => (typeof v === "number" && isFinite(v)) ? v : null;
   const fmtLam = (v) => (num(v) === null) ? null : Number(v).toFixed(3);
 
+  function showUnavailableOverclaimMetrics(){
+    const count = $("hs-overclaims");
+    count.textContent = "—";
+    count.classList.remove("proof");
+    count.classList.add("gray");
+    $("hs-overclaim-time").textContent = "—";
+    $("hs-overclaim-sample").textContent = "source unavailable";
+    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
+  }
+
   async function loadOverclaimMetrics(){
     const ledgerSource = "https://raw.githubusercontent.com/szl-holdings/platform/main/docs/overclaim-ledger.json";
     const manifestSource = "https://raw.githubusercontent.com/szl-holdings/platform/main/docs/overclaim-ledger.evidence.json";
@@ -840,11 +850,15 @@
         d.metrics.aggregation !== "single_observation" ||
         typeof correctionTime !== "string" || !correctionTime || !observed || mislabeledMean
       ) throw new Error("invalid or unpinned overclaim ledger");
-      $("hs-overclaims").textContent = count.toLocaleString();
+      const countElement = $("hs-overclaims");
+      countElement.textContent = count.toLocaleString();
+      countElement.classList.remove("gray");
+      countElement.classList.add("proof");
       $("hs-overclaim-time").textContent = correctionTime;
+      $("hs-overclaim-sample").textContent = "n="+sampleSize;
       $("hs-overclaims-chip").innerHTML = grayChip("MEASURED · SNAPSHOT "+observed+" · DIGEST OK");
     } catch (_) {
-      $("hs-overclaims-chip").innerHTML = grayChip("SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
+      showUnavailableOverclaimMetrics();
     }
   }
 
