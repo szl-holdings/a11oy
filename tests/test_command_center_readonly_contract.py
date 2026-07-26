@@ -103,6 +103,10 @@ def test_readiness_runner_is_safe_by_default():
     assert "A11OY_READINESS_MUTATION_AUTHORIZED" in source
     assert "state-changing contract skipped" in source
     assert "skippedStateChanging" in source
+    assert "fetchBuildRevision" in source
+    assert "sourceRevisionBefore" in source
+    assert "sourceRevisionAfter" in source
+    assert "deployment revision changed during probe" in source
 
 
 def test_compact_readiness_and_evidence_rail_are_wired():

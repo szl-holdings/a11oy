@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Holographic Estate — a11oy</title>
+<title>A11oy Holographic Operations — a11oy</title>
 <!-- 0 runtime CDN. All 3D libs vendored in-image and served same-origin via the
      /static/3d/vendor/... importmap below (see VENDOR_MANIFEST.md). System fonts only. -->
 <script type="importmap">
@@ -199,7 +199,8 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
 </head>
 <body>
 <header>
- <h1>◇ Holographic Estate</h1>
+ <h1>A11oy Holographic Operations</h1>
+ <span class="badge" id="estate-observation-badge" data-state="UNVERIFIED">Evidence status: UNVERIFIED</span>
  <span class="badge" id="backend">renderer: …</span>
  <button class="badge" id="gpu-toggle" title="Toggle WebGPU compute path (falls back to WebGL2 if the browser/driver can't provide a WebGPU device). WebGPU is not production-safe on all platforms — doctrine." style="cursor:pointer;background:#10171f">⚡ WebGPU: off</button>
  <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
@@ -566,6 +567,7 @@ const searchPanel = document.getElementById("search-panel");
 const searchCount = document.getElementById("surface-results-count");
 const navMode = document.getElementById("nav-mode");
 const activeSurface = document.querySelector("#active-surface strong");
+const estateObservationBadge = document.getElementById("estate-observation-badge");
 
 const evidenceRail = document.getElementById("evidence-rail");
 const evidenceToggle = document.getElementById("evidence-rail-toggle");
@@ -576,7 +578,11 @@ const evidenceId = document.getElementById("evidence-rail-id");
 const evidenceContract = document.getElementById("evidence-rail-contract");
 const evidenceRuntime = document.getElementById("evidence-rail-runtime");
 const evidenceReadiness = document.getElementById("evidence-rail-readiness");
+const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const EVIDENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let evidenceSnapshotPromise = null;
+let evidenceRefreshTimer = null;
+let evidenceRefreshGeneration = 0;
 if (evidenceToggle && evidencePanel) {
   evidenceToggle.addEventListener("click", () => {
     const open = evidenceToggle.getAttribute("aria-expanded") !== "true";
@@ -591,8 +597,13 @@ if (evidenceToggle && evidencePanel) {
     }
   });
 }
-async function _fetchEvidenceSnapshot() {
+async function _fetchEvidenceSnapshot(forceRefresh = false) {
+  if (forceRefresh) {
+    evidenceRefreshGeneration += 1;
+    evidenceSnapshotPromise = null;
+  }
   if (evidenceSnapshotPromise) return evidenceSnapshotPromise;
+  const generation = evidenceRefreshGeneration;
   evidenceSnapshotPromise = (async () => {
     const getJson = async (url) => {
       try {
@@ -604,31 +615,116 @@ async function _fetchEvidenceSnapshot() {
       getJson("/api/a11oy/v1/readiness/tab-matrix?view=summary"),
       getJson("/api/build-info"),
     ]);
-    return { readiness, build };
+    return { readiness, build, generation };
   })();
   return evidenceSnapshotPromise;
 }
-function _updateEvidenceRail(def) {
+function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
+  if (
+    typeof revision !== "string" ||
+    !/^[0-9a-f]{40}$/.test(revision) ||
+    readiness?.honest !== true ||
+    readiness?.view !== "summary" ||
+    readiness?.available !== true ||
+    readiness?.matrix_available !== true ||
+    readiness?.probe_verdict_available !== true ||
+    readiness?.verdict_source_revision !== revision ||
+    typeof readiness?.verdict_base !== "string" ||
+    !/^https:\/\/[^/]+$/.test(readiness.verdict_base) ||
+    readiness?.verdict_base !== readiness?.verdict_expected_base
+  ) return false;
+  const checkedAt = readiness?.verdict_checked_at;
+  if (
+    typeof checkedAt !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(checkedAt)
+  ) return false;
+  const checkedMs = Date.parse(checkedAt);
+  if (
+    !Number.isFinite(checkedMs) ||
+    checkedMs > nowMs ||
+    nowMs - checkedMs > EVIDENCE_MAX_AGE_MS
+  ) return false;
+  const verdict = readiness?.verdict_summary;
+  if (!verdict || typeof verdict !== "object") return false;
+  const counts = [
+    "endpoints", "ok", "skippedStateChanging", "lies", "unreachable", "throttled",
+  ]
+    .map((field) => verdict[field]);
+  if (!counts.every((value) => Number.isInteger(value) && value >= 0)) return false;
+  if (!Number.isFinite(verdict.p95_worst) || verdict.p95_worst < 0) return false;
+  const [endpoints, ...outcomes] = counts;
+  const executed = endpoints - verdict.skippedStateChanging;
+  return (
+    endpoints > 0 &&
+    executed > 0 &&
+    verdict.lies === 0 &&
+    outcomes.reduce((total, value) => total + value, 0) === endpoints
+  );
+}
+function _readinessEvidenceText(readiness, observed) {
+  const matrix = readiness?.matrix_summary || {};
+  const verdict = readiness?.verdict_summary || null;
+  if (!observed || !verdict) {
+    return `${matrix.tabs ?? SURFACES.length} surfaces · probe UNVERIFIED`;
+  }
+  return `${verdict.ok}/${verdict.endpoints} clean · complete verdict`;
+}
+function _nextEvidenceRefreshDelay(readiness, nowMs = Date.now()) {
+  const checkedMs = Date.parse(readiness?.verdict_checked_at || "");
+  if (!Number.isFinite(checkedMs)) return EVIDENCE_REFRESH_INTERVAL_MS;
+  const untilExpiry = checkedMs + EVIDENCE_MAX_AGE_MS - nowMs;
+  if (untilExpiry < 0) return EVIDENCE_REFRESH_INTERVAL_MS;
+  return Math.max(
+    50,
+    Math.min(EVIDENCE_REFRESH_INTERVAL_MS, untilExpiry + 50),
+  );
+}
+function _scheduleEvidenceRefresh(def, readiness) {
+  if (evidenceRefreshTimer) clearTimeout(evidenceRefreshTimer);
+  evidenceRefreshTimer = setTimeout(
+    () => _updateEvidenceRail(def, true),
+    _nextEvidenceRefreshDelay(readiness),
+  );
+}
+function _updateEvidenceRail(def, forceRefresh = false) {
   if (!evidenceRail || !def) return;
   evidenceRail.dataset.state = "UNVERIFIED";
   if (evidenceState) evidenceState.textContent = "UNVERIFIED";
+  if (estateObservationBadge) {
+    estateObservationBadge.dataset.state = "UNVERIFIED";
+    estateObservationBadge.textContent = "Evidence status: UNVERIFIED";
+  }
   if (evidenceTitle) evidenceTitle.textContent = def.title;
   if (evidenceId) evidenceId.textContent = def.id;
   if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
   if (evidenceRuntime) evidenceRuntime.textContent = "CHECKING";
   if (evidenceReadiness) evidenceReadiness.textContent = "CHECKING";
-  _fetchEvidenceSnapshot().then(({ readiness, build }) => {
+  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build, generation }) => {
+    if (generation !== evidenceRefreshGeneration) return;
     const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
     const revision = build?.build?.revision || build?.revision || null;
     if (evidenceRuntime) evidenceRuntime.textContent = revision ? `${buildState} · ${String(revision).slice(0,12)}…` : buildState;
-    const matrix = readiness?.matrix_summary || {};
-    const verdict = readiness?.verdict_summary || null;
-    if (evidenceReadiness) evidenceReadiness.textContent = verdict ? `${verdict.ok ?? 0}/${verdict.endpoints ?? matrix.endpoints ?? 0} observed clean` : `${matrix.tabs ?? SURFACES.length} surfaces · probe UNAVAILABLE`;
-    const observed = Boolean(revision && readiness?.matrix_available);
+    const observed = _hasObservedEvidence(readiness, revision);
+    if (evidenceReadiness) {
+      evidenceReadiness.textContent = _readinessEvidenceText(readiness, observed);
+    }
     evidenceRail.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
     if (evidenceState) evidenceState.textContent = observed ? "OBSERVED" : "UNVERIFIED";
+    if (estateObservationBadge) {
+      estateObservationBadge.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
+      estateObservationBadge.textContent = observed
+        ? "The estate, observed—not assumed."
+        : "Evidence status: UNVERIFIED";
+    }
+    _scheduleEvidenceRefresh(def, readiness);
   });
 }
+function _resumeEvidenceRefresh() {
+  if (document.hidden || !current?.def) return;
+  _updateEvidenceRail(current.def, true);
+}
+document.addEventListener("visibilitychange", _resumeEvidenceRefresh);
+window.addEventListener("pageshow", _resumeEvidenceRefresh);
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
 let searchLimit = 36;

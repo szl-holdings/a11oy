@@ -249,7 +249,9 @@ COPY pages/ ./pages/
 
 # Readiness contract: serve.py exposes this matrix at
 # /api/a11oy/v1/readiness/tab-matrix. The endpoint previously degraded to
-# available:false because this explicit-copy image never shipped the artifact.
+# available:false because this explicit-copy image never shipped the matrix.
+# Post-deploy verdicts are injected separately through a bounded Space variable;
+# they are never baked into a self-referential source commit.
 COPY tools/readiness-harness/tabs.json ./tools/readiness-harness/tabs.json
 
 # ADDITIVE (Live 3D Wires / PURIQ Doctrine v12, Yachay): explicit per-file COPY.
