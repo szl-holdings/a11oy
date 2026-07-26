@@ -2027,10 +2027,43 @@
       ]
     },
     "tab_matrix": {
-      "type": "object",
-      "required": [
-        "tabs",
-        "endpoints"
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "matrix_available",
+            "probe_verdict_available"
+          ],
+          "properties": {
+            "matrix_available": {
+              "const": true
+            }
+          },
+          "requiredPaths": [
+            "matrix.tabs",
+            "matrix.endpoints"
+          ],
+          "requiredPathTypes": {
+            "matrix.tabs": "array",
+            "matrix.endpoints": "object"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "matrix_available",
+            "probe_verdict_available",
+            "note"
+          ],
+          "properties": {
+            "matrix_available": {
+              "const": false
+            },
+            "probe_verdict_available": {
+              "const": false
+            }
+          }
+        }
       ]
     }
   },
