@@ -44,8 +44,8 @@ lifecycle. The validator rejects:
 | Validation | Result |
 | --- | --- |
 | Action-contract manifest validator | PASS |
-| Action-contract negative-fixture self-test | PASS, 20 tests including forged-report, substituted-command, protected-base, pinned-digest, and failing-suite cases |
-| Runtime-contract and nested-static focused suite | PASS, 20 tests |
+| Action-contract negative-fixture self-test | PASS, 24 tests including forged-report, substituted-command, protected-base, pinned-digest, release-payload bypass, and failing-suite cases |
+| Runtime-contract and nested-static focused suite | PASS, 21 tests |
 | Demo-critical routes and 3D substrate suite | PASS, 57 tests |
 | Policy action-envelope test | PASS |
 | Focused policy TypeScript check | PASS |
