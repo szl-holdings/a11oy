@@ -21,6 +21,13 @@ assert.throws(
   /must have required property 'sha'/,
 );
 
+const missingCardDigest = structuredClone(manifest);
+delete missingCardDigest.inventory.models[0].cardSemanticSha256;
+assert.throws(
+  () => validateManifest(missingCardDigest, schema),
+  /must have required property 'cardSemanticSha256'/,
+);
+
 const incompatibleSchema = structuredClone(schema);
 incompatibleSchema.properties.schemaVersion.const = 999;
 assert.throws(

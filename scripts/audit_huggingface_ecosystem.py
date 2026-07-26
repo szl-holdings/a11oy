@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -18,6 +20,7 @@ DEFAULT_OUTPUT = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
 ORG = "SZLHOLDINGS"
 PAGE_LIMIT = 100
 GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 RFC3339_UTC_RE = re.compile(
     r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])"
     r"T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|\+00:00)$"
@@ -111,6 +114,46 @@ def fetch_revision(
     return data
 
 
+def fetch_card_markdown(
+    item_id: str, repo_type: str, revision: str
+) -> str:
+    """Fetch the card at an exact repository revision.
+
+    Repositories without a README are represented by the digest of an empty
+    card so creating a card later is still detected as a semantic change.
+    """
+
+    prefix = {"model": "", "dataset": "datasets/", "space": "spaces/"}[
+        repo_type
+    ]
+    encoded_id = urllib.parse.quote(item_id, safe="/")
+    encoded_revision = urllib.parse.quote(revision, safe="")
+    url = (
+        f"https://huggingface.co/{prefix}{encoded_id}/raw/"
+        f"{encoded_revision}/README.md"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            return response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return ""
+        raise
+
+
+def normalize_card_markdown(markdown: str) -> str:
+    """Normalize transport-only differences without changing card claims."""
+
+    normalized = markdown.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.rstrip() for line in normalized.split("\n")]
+    return "\n".join(lines).strip()
+
+
+def card_semantic_sha256(markdown: str) -> str:
+    normalized = normalize_card_markdown(markdown)
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 def validate_snapshot_revisions(
     existing: dict[str, Any],
     live: dict[str, Any],
@@ -139,6 +182,7 @@ def validate_snapshot_revisions(
                 raise ValueError(f"inventory.{plural} entry has no repository id")
             stored_sha = item.get("sha")
             stored_last_modified = item.get("lastModified")
+            stored_card_digest = item.get("cardSemanticSha256")
             if stored_sha is None and stored_last_modified is None:
                 raise ValueError(
                     f"{item_id} sha and lastModified must both be present"
@@ -151,6 +195,13 @@ def validate_snapshot_revisions(
                 stored_sha
             ):
                 raise ValueError(f"{item_id} sha must be a 40-character Git SHA")
+            if (
+                not isinstance(stored_card_digest, str)
+                or not SHA256_RE.fullmatch(stored_card_digest)
+            ):
+                raise ValueError(
+                    f"{item_id} cardSemanticSha256 must be a SHA-256 digest"
+                )
             stored_modified_at = parse_rfc3339_utc(
                 stored_last_modified,
                 field=f"{item_id} lastModified",
@@ -165,6 +216,7 @@ def validate_snapshot_revisions(
                 raise ValueError(f"{item_id} is missing from the live inventory")
             live_sha = live_item.get("sha")
             live_last_modified = live_item.get("lastModified")
+            live_card_digest = live_item.get("cardSemanticSha256")
             if live_sha is None or live_last_modified is None:
                 raise ValueError(
                     f"live {item_id} sha and lastModified must both be present"
@@ -172,6 +224,13 @@ def validate_snapshot_revisions(
             if not isinstance(live_sha, str) or not GIT_SHA_RE.fullmatch(live_sha):
                 raise ValueError(
                     f"live {item_id} sha must be a 40-character Git SHA"
+                )
+            if (
+                not isinstance(live_card_digest, str)
+                or not SHA256_RE.fullmatch(live_card_digest)
+            ):
+                raise ValueError(
+                    f"live {item_id} cardSemanticSha256 must be a SHA-256 digest"
                 )
             live_modified_at = parse_rfc3339_utc(
                 live_last_modified,
@@ -210,6 +269,14 @@ def validate_snapshot_revisions(
                 raise ValueError(
                     f"{item_id} lastModified does not match its historical revision"
                 )
+            historical_card_digest = card_semantic_sha256(
+                fetch_card_markdown(item_id, repo_type, stored_sha)
+            )
+            if historical_card_digest != stored_card_digest:
+                raise ValueError(
+                    f"{item_id} cardSemanticSha256 does not match its "
+                    "historical revision"
+                )
 
             if live_modified_at <= stored_modified_at:
                 raise ValueError(
@@ -232,12 +299,20 @@ def validate_generated_revision_evidence(
                 raise ValueError(f"inventory.{plural} entry has no repository id")
             sha = item.get("sha")
             last_modified = item.get("lastModified")
+            card_digest = item.get("cardSemanticSha256")
             if sha is None or last_modified is None:
                 raise ValueError(
                     f"{item_id} sha and lastModified must both be present"
                 )
             if not isinstance(sha, str) or not GIT_SHA_RE.fullmatch(sha):
                 raise ValueError(f"{item_id} sha must be a 40-character Git SHA")
+            if (
+                not isinstance(card_digest, str)
+                or not SHA256_RE.fullmatch(card_digest)
+            ):
+                raise ValueError(
+                    f"{item_id} cardSemanticSha256 must be a SHA-256 digest"
+                )
             modified_at = parse_rfc3339_utc(
                 last_modified,
                 field=f"{item_id} lastModified",
@@ -264,9 +339,10 @@ def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     """Return the stable public-estate contract used by ``--check``.
 
     ``observedAt``, ``sha``, and ``lastModified`` remain truthful snapshot
-    evidence in the checked-in file. Later source-only revisions do not change
-    estate membership or card semantics, so they must not make unrelated pull
-    requests flaky. A write refreshes those snapshot fields.
+    evidence in the checked-in file. ``cardSemanticSha256`` remains in this
+    comparison, so a card-only claim change fails closed even when the estate
+    membership is unchanged. Later source-only revisions do not make unrelated
+    pull requests flaky. A write refreshes the snapshot fields.
     """
     stable = json.loads(json.dumps(manifest))
     for repo_type in ("models", "datasets", "spaces"):
@@ -280,6 +356,14 @@ def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
     item_id = item.get("id") or item.get("modelId")
     tags = item.get("tags") or []
     card = item.get("cardData") or {}
+    revision = item.get("sha")
+    if not isinstance(revision, str) or not GIT_SHA_RE.fullmatch(revision):
+        raise ValueError(
+            f"{item_id} sha must be a 40-character Git SHA before card fetch"
+        )
+    card_digest = card_semantic_sha256(
+        fetch_card_markdown(str(item_id), repo_type, revision)
+    )
     return {
         "id": item_id,
         "repoType": repo_type,
@@ -290,6 +374,7 @@ def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
         "license": card.get("license") or next((tag.removeprefix("license:") for tag in tags if isinstance(tag, str) and tag.startswith("license:")), None),
         "sha": item.get("sha"),
         "lastModified": item.get("lastModified"),
+        "cardSemanticSha256": card_digest,
         "createdAt": item.get("createdAt"),
         "tags": tags,
         "claimStatus": "generated-mirror" if item_id == "SZLHOLDINGS/a11oy-v19-substrate" else "inventory",
@@ -338,7 +423,7 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "authenticated": False,
             "privateAssetsIncluded": False,
             "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-            "revisionFields": "Every item has sha and lastModified snapshot evidence at observedAt; --check verifies retained revisions and ignores only complete, valid later revision changes.",
+            "revisionFields": "Every item has sha and lastModified snapshot evidence plus a cardSemanticSha256 claim digest at observedAt; --check verifies retained revisions, rejects card drift, and ignores only complete, valid later source-only revision changes.",
         },
         "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",
         "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",

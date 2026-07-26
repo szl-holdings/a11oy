@@ -26,6 +26,8 @@ on:
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
+      - 'package.json'
+      - '.github/workflows/huggingface.yml'
       - '.github/workflows/operational.yml'
   pull_request:
     branches: [main]
@@ -49,6 +51,8 @@ on:
       - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
+      - 'package.json'
+      - '.github/workflows/huggingface.yml'
       - '.github/workflows/operational.yml'
 
 permissions:

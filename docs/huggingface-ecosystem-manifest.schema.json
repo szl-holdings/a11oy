@@ -68,7 +68,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "repoType", "private", "sha", "lastModified", "unsafeFlags", "evidenceUrls"],
+        "required": ["id", "repoType", "private", "sha", "lastModified", "cardSemanticSha256", "unsafeFlags", "evidenceUrls"],
         "properties": {
           "id": { "type": "string" },
           "repoType": { "enum": ["model", "dataset", "space"] },
@@ -85,6 +85,10 @@
             "type": "string",
             "format": "date-time",
             "pattern": "(?:Z|\\+00:00)$"
+          },
+          "cardSemanticSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
           },
           "createdAt": { "type": ["string", "null"] },
           "tags": { "type": "array" },

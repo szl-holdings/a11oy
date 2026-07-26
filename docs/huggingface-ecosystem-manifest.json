@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-07-26T06:55:33Z",
+  "observedAt": "2026-07-26T08:54:01Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
     "authenticated": false,
     "privateAssetsIncluded": false,
     "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-    "revisionFields": "Every item has sha and lastModified snapshot evidence at observedAt; --check verifies retained revisions and ignores only complete, valid later revision changes."
+    "revisionFields": "Every item has sha and lastModified snapshot evidence plus a cardSemanticSha256 claim digest at observedAt; --check verifies retained revisions, rejects card drift, and ignores only complete, valid later source-only revision changes."
   },
   "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",
   "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
@@ -40,6 +40,7 @@
         "license": "apache-2.0",
         "sha": "2e62cb5f8e6a17052da532305a467861094a2109",
         "lastModified": "2026-07-22T08:48:33.000Z",
+        "cardSemanticSha256": "00652058b5ceb4b4a6dc61dcc45bc2a42b8f7ee3b678da8653c7f716f780d30d",
         "createdAt": "2026-07-13T21:54:40.000Z",
         "tags": [
           "transformers",
@@ -76,6 +77,7 @@
         "license": "apache-2.0",
         "sha": "99b4c927abd442a8fc0f53c379f0433caebb8bc5",
         "lastModified": "2026-07-22T08:48:13.000Z",
+        "cardSemanticSha256": "eb5095ff7b717fea368bf19bf0b9b48ca6855936ecee5724cd74bf0a650253be",
         "createdAt": "2026-07-14T19:28:28.000Z",
         "tags": [
           "transformers",
@@ -114,6 +116,7 @@
         "license": "apache-2.0",
         "sha": "6f0ca686833256ae1e36f7721de44a3abb847fea",
         "lastModified": "2026-07-22T08:48:36.000Z",
+        "cardSemanticSha256": "6772270b760b43fab7f70a964a442d6d0d0f6cce44ba85c77054c4e7a0d6f224",
         "createdAt": "2026-07-15T01:19:11.000Z",
         "tags": [
           "llama.cpp",
@@ -149,6 +152,7 @@
         "license": "apache-2.0",
         "sha": "d3ef7819a1a18879e208b071c7135f933f7d9ff3",
         "lastModified": "2026-07-26T03:14:43.000Z",
+        "cardSemanticSha256": "619a82a4f9b0a5289a6243036bc028fdeeda3689f7e22ac08b822e8d8be59dfd",
         "createdAt": "2026-05-29T02:30:41.000Z",
         "tags": [
           "governance",
@@ -179,6 +183,7 @@
         "license": "apache-2.0",
         "sha": "2d3c949a8b782f57f042cf03f581387864710c1a",
         "lastModified": "2026-07-22T08:48:20.000Z",
+        "cardSemanticSha256": "2adf8f586fd022dad399287cf639f498074099cfe79da1dc3eff1abba5476a3f",
         "createdAt": "2026-06-23T13:47:18.000Z",
         "tags": [
           "kernels",
@@ -211,6 +216,7 @@
         "license": "apache-2.0",
         "sha": "4b60bb4d9fb10c2ad3da3107768589fb08ddb75b",
         "lastModified": "2026-07-22T08:48:23.000Z",
+        "cardSemanticSha256": "b10da525d7192ddfb531536be1ec2f8a47bfe66415be8fe23efa2d0cda778942",
         "createdAt": "2026-06-24T16:45:09.000Z",
         "tags": [
           "kernels",
@@ -243,6 +249,7 @@
         "license": "apache-2.0",
         "sha": "245504ec1739b37631b402b5240b7d39776b31a7",
         "lastModified": "2026-07-22T08:48:32.000Z",
+        "cardSemanticSha256": "89d6479d8b6131350deef01466eaa5aa7fd215e5a6a793e818aa08f515afc4cc",
         "createdAt": "2026-07-12T11:55:07.000Z",
         "tags": [
           "kernels",
@@ -276,6 +283,7 @@
         "license": "apache-2.0",
         "sha": "b12b557d4c2803988a02255e4737841da81e90ed",
         "lastModified": "2026-07-22T08:48:17.000Z",
+        "cardSemanticSha256": "f62078575b5d68a02a14012754d38fbc470500eadf0b8d29ba7cc94dd7f83d08",
         "createdAt": "2026-06-23T08:05:08.000Z",
         "tags": [
           "kernels",
@@ -311,6 +319,7 @@
         "license": "apache-2.0",
         "sha": "604ab1aa3ca9a41a4ff0313ef2324c34b4ac875a",
         "lastModified": "2026-07-22T08:48:25.000Z",
+        "cardSemanticSha256": "380857e923e7922bb9bb8d9d78543a3a2882f5f4e69500665f34031656508e5e",
         "createdAt": "2026-06-24T16:45:09.000Z",
         "tags": [
           "kernels",
@@ -345,6 +354,7 @@
         "license": "apache-2.0",
         "sha": "60e72b7995fd179cede6cdb795fc471f2bb72e4d",
         "lastModified": "2026-07-22T08:48:28.000Z",
+        "cardSemanticSha256": "01a830c95d067a9724d60adb6c1ddd2159e26cf8cfbb807dbd0fdc459250cd90",
         "createdAt": "2026-07-12T11:50:20.000Z",
         "tags": [
           "kernels",
@@ -378,6 +388,7 @@
         "license": "apache-2.0",
         "sha": "46730d363d1b2cf69c1ef770c60bb84a3356b574",
         "lastModified": "2026-07-22T08:48:21.000Z",
+        "cardSemanticSha256": "042a6aa57b7358fb5e87ac4c5727dff6bdbcf0e333a2d91469b3bb8114543b05",
         "createdAt": "2026-06-24T16:11:54.000Z",
         "tags": [
           "kernels",
@@ -409,6 +420,7 @@
         "license": "apache-2.0",
         "sha": "a555cb690335697ea859b1095e224fb33e17a1ef",
         "lastModified": "2026-07-22T08:48:18.000Z",
+        "cardSemanticSha256": "981f2d40743fdd41ce7f445c731e573dcec702d3c583b8d8ffbbd90fb1d5de73",
         "createdAt": "2026-06-23T08:48:11.000Z",
         "tags": [
           "kernels",
@@ -441,6 +453,7 @@
         "license": "apache-2.0",
         "sha": "e6973162aea1e33551ea4956c0dd82d88d884d52",
         "lastModified": "2026-07-22T08:48:26.000Z",
+        "cardSemanticSha256": "d586ef428ed41f9e36b4c2c9aa0a0058d02ab88bbc9ac724155613191ace924e",
         "createdAt": "2026-07-11T08:24:18.000Z",
         "tags": [
           "sklearn",
@@ -474,6 +487,7 @@
         "license": "apache-2.0",
         "sha": "1628e62d6625ff2fcb25a9d0b500356ac7a46ec4",
         "lastModified": "2026-07-22T08:48:30.000Z",
+        "cardSemanticSha256": "59c96cf468c74b7693f5ab03be585f70076c826ba91054f27f3c966ba62e94d1",
         "createdAt": "2026-07-12T11:50:23.000Z",
         "tags": [
           "kernels",
@@ -507,6 +521,7 @@
         "license": "apache-2.0",
         "sha": "308a4dc7ef54068a397ce24e93931d07730b286a",
         "lastModified": "2026-07-22T08:48:26.000Z",
+        "cardSemanticSha256": "d4aaa58572707478890dc6b82156b6640dc7305de612085e0928f5d903b17c1b",
         "createdAt": "2026-06-24T18:08:48.000Z",
         "tags": [
           "kernels",
@@ -542,6 +557,7 @@
         "license": "apache-2.0",
         "sha": "fdca3ff2d26bc25080a87a75c02994055f2e01bb",
         "lastModified": "2026-07-22T10:49:21.000Z",
+        "cardSemanticSha256": "e3a1e82f27b378e95e6bc4c18fdae058abe15bb5033211af86550091c97cd83a",
         "createdAt": "2026-05-29T02:59:31.000Z",
         "tags": [
           "task_categories:other",
@@ -576,6 +592,7 @@
         "license": "apache-2.0",
         "sha": "5359c65fc6f7f8eeedca06a51b41aa027eac2030",
         "lastModified": "2026-07-22T10:50:03.000Z",
+        "cardSemanticSha256": "30b2efc60bc26858e6e8c4d35dcce5361edafa8642092282296841862849607b",
         "createdAt": "2026-06-12T02:00:22.000Z",
         "tags": [
           "task_categories:other",
@@ -610,6 +627,7 @@
         "license": "apache-2.0",
         "sha": "6926b2d49aee3ef15c0552f604b18e08faab1ee9",
         "lastModified": "2026-07-22T10:50:14.000Z",
+        "cardSemanticSha256": "eda8d7578e7db8f987c36f97b9c0f25eb9bd566c52291c3bf4a5d12fb023b02e",
         "createdAt": "2026-07-12T11:49:41.000Z",
         "tags": [
           "task_categories:question-answering",
@@ -649,6 +667,7 @@
         "license": "apache-2.0",
         "sha": "1395ee1aa26a052ed851df552df30447b695c9e3",
         "lastModified": "2026-07-22T10:49:39.000Z",
+        "cardSemanticSha256": "8fcdbc5e9146c38bd6fbb53b6057c2646424204224aa6e9bb74ebc60768f3dc2",
         "createdAt": "2026-06-01T05:49:40.000Z",
         "tags": [
           "task_categories:other",
@@ -680,6 +699,7 @@
         "license": "apache-2.0",
         "sha": "4bafa5dededac57d1831c617ba249d6666534a40",
         "lastModified": "2026-07-22T10:49:43.000Z",
+        "cardSemanticSha256": "b6921ca5b42b56b640caacb3bd021b25dd980504ff249d4a682c455424cd02e5",
         "createdAt": "2026-06-01T05:49:43.000Z",
         "tags": [
           "task_categories:other",
@@ -710,6 +730,7 @@
         "license": "apache-2.0",
         "sha": "674fdba8eea3e4f44e4d8d43716ddc2eb4f50215",
         "lastModified": "2026-07-22T10:50:11.000Z",
+        "cardSemanticSha256": "3be0835d285c1bc50184f3407bbe12fef0b8e61a115fb1efb7bff2c101bfd35f",
         "createdAt": "2026-07-09T15:33:28.000Z",
         "tags": [
           "task_categories:other",
@@ -748,6 +769,7 @@
         "license": "apache-2.0",
         "sha": "235ef348dce7b9eaca915c8668158039d6831a8c",
         "lastModified": "2026-07-22T10:50:08.000Z",
+        "cardSemanticSha256": "848970d3c2828492a128ba88bdd3bb14356d013f3076e862d458b2aa2ede43f8",
         "createdAt": "2026-07-09T15:31:54.000Z",
         "tags": [
           "task_categories:other",
@@ -788,6 +810,7 @@
         "license": "cc-by-4.0",
         "sha": "82bf28814d0b85ddc931fec7fee9c3e5dcbf05ec",
         "lastModified": "2026-07-22T10:49:45.000Z",
+        "cardSemanticSha256": "2d243f8bd82ae9cb7637f7af3a5d07a1835643726e124a41f84564b9ddfd22ed",
         "createdAt": "2026-06-01T06:40:48.000Z",
         "tags": [
           "task_categories:question-answering",
@@ -824,6 +847,7 @@
         "license": "other",
         "sha": "0906a30622137f0082ffa3b9120bdc0eb5f23789",
         "lastModified": "2026-07-26T05:43:35.000Z",
+        "cardSemanticSha256": "cedccee9372d2c82ec04c2a752dd9907db19e45b9bc4f4a2974277e491c027c5",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
           "license:other",
@@ -853,6 +877,7 @@
         "license": "apache-2.0",
         "sha": "563beb5786a4260cbcfe61d9ea1ccb92c7cd0842",
         "lastModified": "2026-07-22T10:49:38.000Z",
+        "cardSemanticSha256": "e46e8807dd88e4abe44b12aaf4b2372d167883f2e44a9983106214f65caefddf",
         "createdAt": "2026-06-01T05:31:13.000Z",
         "tags": [
           "task_categories:other",
@@ -891,6 +916,7 @@
         "license": "apache-2.0",
         "sha": "b93a14cd411e7e9168819cf86915f1a02c6bfa2b",
         "lastModified": "2026-07-22T10:49:34.000Z",
+        "cardSemanticSha256": "7dee163b320483676d6bb1df661919f9741c0f845bf0d1dce82332188b094f2d",
         "createdAt": "2026-05-30T04:05:39.000Z",
         "tags": [
           "task_categories:other",
@@ -930,6 +956,7 @@
         "license": "apache-2.0",
         "sha": "13ee49f4bbb890ad77895677521fc10c7f2212ae",
         "lastModified": "2026-07-22T10:49:26.000Z",
+        "cardSemanticSha256": "41dc1afdbc8defe319e377a000de02dcbf3b5afcdf13c2ee2470f4340c215847",
         "createdAt": "2026-05-29T03:20:41.000Z",
         "tags": [
           "task_categories:other",
@@ -970,6 +997,7 @@
         "license": "apache-2.0",
         "sha": "5287573c5f47f3e41cb0fd5a8e20933647a102dd",
         "lastModified": "2026-07-22T10:49:36.000Z",
+        "cardSemanticSha256": "b453c7b3db60251d5b65de62e7a28e5af3fa5d20fcf3c68b8756805a62dd8bc5",
         "createdAt": "2026-06-01T05:12:42.000Z",
         "tags": [
           "task_categories:feature-extraction",
@@ -1007,6 +1035,7 @@
         "license": "apache-2.0",
         "sha": "3798719acbfc3ad015e9b2a73d1bfeb0f85ca512",
         "lastModified": "2026-07-22T10:49:54.000Z",
+        "cardSemanticSha256": "5628f63e24b4dec28a86314761dba59e13c97b855e94bec6d7aad357c328a576",
         "createdAt": "2026-06-01T13:06:04.000Z",
         "tags": [
           "license:apache-2.0",
@@ -1035,6 +1064,7 @@
         "license": "apache-2.0",
         "sha": "b11a9d6abe332fa4add8c58feed35b66f75304b8",
         "lastModified": "2026-07-22T10:50:15.000Z",
+        "cardSemanticSha256": "10f1434327ede2a0717410f9aa22959de95eb4b98067d609f3425938a8f109cd",
         "createdAt": "2026-07-12T15:34:22.000Z",
         "tags": [
           "task_categories:text-generation",
@@ -1063,6 +1093,7 @@
         "license": "apache-2.0",
         "sha": "feff62cecb94ca3e5e5aedc391228ecf9602135f",
         "lastModified": "2026-07-22T10:49:28.000Z",
+        "cardSemanticSha256": "18cea0cb47598f58b5cb9f09498eb075131fc6f3b007f895c4c7c37863d7a69c",
         "createdAt": "2026-05-29T04:28:16.000Z",
         "tags": [
           "task_categories:other",
@@ -1110,6 +1141,7 @@
         "license": "cc-by-4.0",
         "sha": "8f8648b09afc6b5fb356aa61167a0be23c6467f8",
         "lastModified": "2026-07-26T03:53:32.000Z",
+        "cardSemanticSha256": "534e1346300c2a4f48eb14250953d21610830b3d70a8548c70056b9626dd84d5",
         "createdAt": "2026-06-02T02:15:41.000Z",
         "tags": [
           "task_categories:other",
@@ -1151,6 +1183,7 @@
         "license": "apache-2.0",
         "sha": "dfe997e573bdc6784bfbb464dabeccab7ee5314b",
         "lastModified": "2026-07-22T08:49:49.000Z",
+        "cardSemanticSha256": "ff0631affd76e6f0b76ba051641d09474d5b54d70c341db8d55f5555ce73b28b",
         "createdAt": "2026-07-21T03:23:21.000Z",
         "tags": [
           "task_categories:text-generation",
@@ -1181,6 +1214,7 @@
         "license": "other",
         "sha": "d44a595b6c2b94aadd1320680b5aa05f6fe28cab",
         "lastModified": "2026-07-22T08:49:46.000Z",
+        "cardSemanticSha256": "92c78370b574a1173d81f3f8815f2fe233546ffff36e75e8d57ebb91ad11d30f",
         "createdAt": "2026-07-13T23:54:21.000Z",
         "tags": [
           "language:en",
@@ -1215,6 +1249,7 @@
         "license": "apache-2.0",
         "sha": "b488e7f4b1815cdd8dcba220c775cdbd617955ef",
         "lastModified": "2026-07-22T08:49:50.000Z",
+        "cardSemanticSha256": "98b6261570c7d367818c37262ed215c2c99a85962ad545b9c728e3966adff55f",
         "createdAt": "2026-07-21T03:32:00.000Z",
         "tags": [
           "license:apache-2.0",
@@ -1241,6 +1276,7 @@
         "license": "apache-2.0",
         "sha": "8254324026bf280d6eac5023789ff09b2a6b1af0",
         "lastModified": "2026-07-22T10:49:41.000Z",
+        "cardSemanticSha256": "0e09a3db86b294cd5ddc039e0bf9db0bd67e5cca25c08aa576a5bd9b9a3f8d44",
         "createdAt": "2026-06-01T05:49:41.000Z",
         "tags": [
           "task_categories:text-generation",
@@ -1279,6 +1315,7 @@
         "license": "apache-2.0",
         "sha": "50d804156d126457387941f3edb27fd5c98b283c",
         "lastModified": "2026-07-22T10:49:06.000Z",
+        "cardSemanticSha256": "6478d0bc62ffe772ff462d040b31795ebedb3da56b92ce72a937d2f4356faf68",
         "createdAt": "2026-05-29T02:30:34.000Z",
         "tags": [
           "task_categories:other",
@@ -1326,6 +1363,7 @@
         "license": "apache-2.0",
         "sha": "797eb62a3d5582e488f7ee73ac0febfaf4194ab7",
         "lastModified": "2026-07-22T10:49:50.000Z",
+        "cardSemanticSha256": "564fd35900a2c86fe46e35f23d5b0f289efe8b1503434476b1c042b4efdf2a24",
         "createdAt": "2026-06-01T09:13:22.000Z",
         "tags": [
           "task_categories:other",
@@ -1359,6 +1397,7 @@
         "license": "apache-2.0",
         "sha": "aa6b8ab824e421018da1a5076365dc0ec3f31353",
         "lastModified": "2026-07-22T10:49:13.000Z",
+        "cardSemanticSha256": "e05d5d9520236b1d31c57ae4bf8a04df664ad921c5ca274b85c2d2a50e0352c3",
         "createdAt": "2026-05-29T02:48:13.000Z",
         "tags": [
           "task_categories:other",
@@ -1406,6 +1445,7 @@
         "license": "apache-2.0",
         "sha": "41f07ff6541a418403efb733738e77e37f0bc8fe",
         "lastModified": "2026-07-22T10:49:10.000Z",
+        "cardSemanticSha256": "cdd9cbfac95889b88f729711849aaeae4f803ccec5567133d1654dd3c90bbae5",
         "createdAt": "2026-05-29T02:30:43.000Z",
         "tags": [
           "task_categories:other",
@@ -1456,6 +1496,7 @@
         "license": "apache-2.0",
         "sha": "248cdaf07c57b33e7b8b7bd56f3ca7efcc4a3dd6",
         "lastModified": "2026-07-22T10:49:25.000Z",
+        "cardSemanticSha256": "b5076b0e9dfdfdc8ef26860e703c16bb36fd3ab5fff2f90a63908127d5b91b78",
         "createdAt": "2026-05-29T03:14:28.000Z",
         "tags": [
           "task_categories:other",
@@ -1501,8 +1542,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "393d6e82a112e9842e6373b85aa3c24d92001949",
-        "lastModified": "2026-07-26T05:39:46.000Z",
+        "sha": "b953323367ef682b09d1870ed6fe54530fe10397",
+        "lastModified": "2026-07-26T08:43:02.000Z",
+        "cardSemanticSha256": "27b7e542f943adefe62de25b101dcef55199ef57f530c693a1129032d2bc5443",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
           "docker",
@@ -1530,6 +1572,7 @@
         "license": "apache-2.0",
         "sha": "1f41dc373021469dcb214b2b79b5e4f28eee9c78",
         "lastModified": "2026-07-21T03:36:46.000Z",
+        "cardSemanticSha256": "189293e8ca82cf676230aa27e41e49e517571e30a66a61a25c905408d55700f8",
         "createdAt": "2026-06-08T05:33:14.000Z",
         "tags": [
           "docker",
@@ -1557,6 +1600,7 @@
         "license": "mit",
         "sha": "a3862909c43e03c1259ac85ccb89fa2989a346ac",
         "lastModified": "2026-07-16T23:30:33.000Z",
+        "cardSemanticSha256": "cd40b1d5380ad3124877bf5e440401fb2b0f8384288cb41a8a6943f3810c589d",
         "createdAt": "2026-07-02T11:30:37.000Z",
         "tags": [
           "docker",
@@ -1584,6 +1628,7 @@
         "license": "apache-2.0",
         "sha": "76350cd13e74420e4cd2d44ceb074a74a6dd7ae6",
         "lastModified": "2026-07-22T06:47:19.000Z",
+        "cardSemanticSha256": "5d076e9c13e8e2b0677cb88b7befb16d896f7af258a0ffe5fa5bab4241523f01",
         "createdAt": "2026-06-28T05:33:51.000Z",
         "tags": [
           "docker",
@@ -1611,6 +1656,7 @@
         "license": "apache-2.0",
         "sha": "6a738416eaeff8911bb39e9fa164c8472406feaf",
         "lastModified": "2026-07-22T08:50:07.000Z",
+        "cardSemanticSha256": "4f2915c96fb39b8457ec69f8e5868b7d9c7765f66b7d846aa9710c3b55303b08",
         "createdAt": "2026-07-10T01:27:48.000Z",
         "tags": [
           "static",
@@ -1632,6 +1678,7 @@
         "license": "apache-2.0",
         "sha": "110f2fffcf173e18d319f5e04c6aff2c5f0a183c",
         "lastModified": "2026-07-22T08:49:57.000Z",
+        "cardSemanticSha256": "3b07db26bdc7f63c3c07a74bb5357cfe2fcef8472143e46c1591c1dafdba335f",
         "createdAt": "2026-07-09T15:33:29.000Z",
         "tags": [
           "static",
@@ -1659,6 +1706,7 @@
         "license": "apache-2.0",
         "sha": "b21c6a1fa8d62d87d5bae30dd62090f77b4fc773",
         "lastModified": "2026-07-22T08:49:59.000Z",
+        "cardSemanticSha256": "c7f08662ccba96972c45f63b92d4ecb309d966b796eb657ce6d8019911c408ed",
         "createdAt": "2026-07-10T01:26:41.000Z",
         "tags": [
           "static",
@@ -1686,6 +1734,7 @@
         "license": "apache-2.0",
         "sha": "be8c33be5d44a177d99136f8e3d08ef86b1d8cf8",
         "lastModified": "2026-07-22T08:49:57.000Z",
+        "cardSemanticSha256": "dbc4e8fb87d6854ebd42dbb6619374b5cd664b5283f31deeaf0d1bb2041f1402",
         "createdAt": "2026-07-09T15:33:43.000Z",
         "tags": [
           "static",
@@ -1713,6 +1762,7 @@
         "license": "apache-2.0",
         "sha": "25584d5fba590069a1f41a1b28e77894fa89faea",
         "lastModified": "2026-07-22T08:49:58.000Z",
+        "cardSemanticSha256": "4a6b8ea8498ef32c41991b9182fc2ea8ff28d470a6a31de66dc35a714d7a2fd3",
         "createdAt": "2026-07-09T15:37:17.000Z",
         "tags": [
           "static",
@@ -1740,6 +1790,7 @@
         "license": "apache-2.0",
         "sha": "cefd8ab466caae44f2b9d3f826dd345c0f291f08",
         "lastModified": "2026-07-16T23:30:20.000Z",
+        "cardSemanticSha256": "76da8005bd5365df172f0eee146ae91ec025448f841c4f70fb0f984eaac841e4",
         "createdAt": "2026-06-11T20:34:08.000Z",
         "tags": [
           "docker",
@@ -1767,6 +1818,7 @@
         "license": "apache-2.0",
         "sha": "8167bade8d9e6c2d0430241555be2b3a7b6307a0",
         "lastModified": "2026-07-20T16:44:04.000Z",
+        "cardSemanticSha256": "ded76d76841460cbc5cb1614c0296892dc8792bf6fe1681f04259f97f2acb9c2",
         "createdAt": "2026-07-06T18:57:58.000Z",
         "tags": [
           "docker",
@@ -1793,6 +1845,7 @@
         "license": "other",
         "sha": "e5e2da22b7e1fc55261f9a5db85a64536643052b",
         "lastModified": "2026-07-20T15:24:08.000Z",
+        "cardSemanticSha256": "c2a0dae323c62ecea14b173e76084481d6c9c6843cff154914ae7e375bf292ff",
         "createdAt": "2026-06-16T03:57:22.000Z",
         "tags": [
           "docker",
@@ -1814,6 +1867,7 @@
         "license": "apache-2.0",
         "sha": "515d01191039709553bcc47b275aaaaafd6e7238",
         "lastModified": "2026-07-26T06:22:17.000Z",
+        "cardSemanticSha256": "ab4ea22532a28782e3f0e2049eacab26a1d6972fcb404db302eacee639fe74b9",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
           "docker",
@@ -1844,6 +1898,7 @@
         "license": "apache-2.0",
         "sha": "c028bd8b4740913740ec4b09887b5a8e7885e1c3",
         "lastModified": "2026-07-22T08:50:02.000Z",
+        "cardSemanticSha256": "6f8a8ad98d684e8a3a1fa247d9f58ec12a801a0a0fc7c29f0ff4a656ac703270",
         "createdAt": "2026-07-10T01:26:42.000Z",
         "tags": [
           "static",
@@ -1871,6 +1926,7 @@
         "license": "mit",
         "sha": "afd438ee6ae266839c2ee13b1fa423b8be7dbc46",
         "lastModified": "2026-07-20T15:36:11.000Z",
+        "cardSemanticSha256": "8fb2c74cb247f3f2baff00cb63f65b370763a91b37ee9310acaf10c59ad426e8",
         "createdAt": "2026-06-11T19:54:28.000Z",
         "tags": [
           "docker",
@@ -1892,6 +1948,7 @@
         "license": "apache-2.0",
         "sha": "2a771d5d914c2f0b7900f052c909bc34c516ec12",
         "lastModified": "2026-07-22T08:50:15.000Z",
+        "cardSemanticSha256": "b34cb52df7b702d4ad8d7132b149d2014c81abbbc15de15951eeb09889976aa3",
         "createdAt": "2026-07-10T01:43:08.000Z",
         "tags": [
           "static",
@@ -1913,6 +1970,7 @@
         "license": "apache-2.0",
         "sha": "f3254f5470bb5f8d46f19308a4dbab08600d94ad",
         "lastModified": "2026-07-17T01:08:46.000Z",
+        "cardSemanticSha256": "7c2ca0c3be5b93c3a672dacfc6f3d24546bf485471a8ff9e183e873551cc8466",
         "createdAt": "2026-06-13T23:55:09.000Z",
         "tags": [
           "docker",
@@ -1940,6 +1998,7 @@
         "license": "apache-2.0",
         "sha": "4a927e81a126b0253c3e242d10c64d9e323879fb",
         "lastModified": "2026-07-22T08:50:25.000Z",
+        "cardSemanticSha256": "7a469e5caf11671e8f1067054af92031e09dc118f3c51283f3bbb3086ca43010",
         "createdAt": "2026-07-10T02:17:57.000Z",
         "tags": [
           "static",
@@ -1961,6 +2020,7 @@
         "license": "apache-2.0",
         "sha": "eeabeb6b03f1006361a9991cb99d3ce7b7197154",
         "lastModified": "2026-07-22T08:50:26.000Z",
+        "cardSemanticSha256": "08c12c39458605d6e36af3246e49ebe118797ac0cdfa457980f8b84bf8989edf",
         "createdAt": "2026-07-10T02:31:14.000Z",
         "tags": [
           "static",
@@ -1982,6 +2042,7 @@
         "license": "apache-2.0",
         "sha": "137b0cc8debeee89478800b1be2f012b22034234",
         "lastModified": "2026-07-22T08:50:31.000Z",
+        "cardSemanticSha256": "3f4976dbe5e95c891c66aa0fb969dc966c56bd6fde127ec6a06f069361f115a0",
         "createdAt": "2026-07-11T10:13:00.000Z",
         "tags": [
           "static",
@@ -2003,6 +2064,7 @@
         "license": "apache-2.0",
         "sha": "f11d6dbede9ba277409c5da3728efc0e15e975b4",
         "lastModified": "2026-07-22T08:50:21.000Z",
+        "cardSemanticSha256": "ec91cbcf04ecb3f7c79f0a52079b92d1c834a51d1c0d3ed8d9e867e37dcf458b",
         "createdAt": "2026-07-10T02:17:55.000Z",
         "tags": [
           "static",
@@ -2024,6 +2086,7 @@
         "license": "apache-2.0",
         "sha": "be00a3aa0c2b5ddc7a1ae8692a41d5b592263af5",
         "lastModified": "2026-07-22T08:50:19.000Z",
+        "cardSemanticSha256": "8dec851ff7acf87ea776df0b7d97ce9548212dd4b917950f59061fff4209efe7",
         "createdAt": "2026-07-10T01:43:25.000Z",
         "tags": [
           "static",
@@ -2050,6 +2113,7 @@
         "license": "apache-2.0",
         "sha": "3a5d54f7fd00dc8396390c04db74c83a7930076f",
         "lastModified": "2026-07-18T15:09:14.000Z",
+        "cardSemanticSha256": "6a4e2d5d1b037a964e3b071f03701fbfff48f8e86d300a263ee7d48a0e57b36e",
         "createdAt": "2026-07-15T17:05:58.000Z",
         "tags": [
           "docker",
@@ -2076,6 +2140,7 @@
         "license": "apache-2.0",
         "sha": "dbfc7a8e0e67c6fc77c5436fe37d970748361d32",
         "lastModified": "2026-07-22T08:50:17.000Z",
+        "cardSemanticSha256": "f0e8b901ecea8c17811b652083ca7e686470d1be35934bec8e193eca0feea35a",
         "createdAt": "2026-07-10T01:43:24.000Z",
         "tags": [
           "static",
@@ -2097,6 +2162,7 @@
         "license": "apache-2.0",
         "sha": "a3ef80042452bb38b643b01e0fa0ea3851d954a0",
         "lastModified": "2026-07-20T15:36:27.000Z",
+        "cardSemanticSha256": "5f5a42efe079350984a4ee7e158f34f36a25087a72d5eaf1b6d6e081dc8612be",
         "createdAt": "2026-06-11T04:11:46.000Z",
         "tags": [
           "docker",

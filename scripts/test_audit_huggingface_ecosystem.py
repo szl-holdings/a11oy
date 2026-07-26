@@ -35,6 +35,7 @@ def item(item_id: str) -> dict:
         "private": False,
         "sha": "a" * 40,
         "lastModified": "2026-07-26T00:00:00Z",
+        "cardSemanticSha256": "c" * 64,
         "tags": ["license:apache-2.0"],
     }
 
@@ -44,11 +45,16 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.original_fetch_page = audit.fetch_page
         self.original_api_items = audit.api_items
         self.original_fetch_revision = audit.fetch_revision
+        self.original_fetch_card_markdown = audit.fetch_card_markdown
+        audit.fetch_card_markdown = (
+            lambda item_id, repo_type, revision: f"# {item_id}\n"
+        )
 
     def tearDown(self) -> None:
         audit.fetch_page = self.original_fetch_page
         audit.api_items = self.original_api_items
         audit.fetch_revision = self.original_fetch_revision
+        audit.fetch_card_markdown = self.original_fetch_card_markdown
 
     def run_check(self, output: Path) -> tuple[int, str]:
         original_argv = os.sys.argv
@@ -92,7 +98,9 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertFalse(manifest["inventoryScope"]["authenticated"])
         self.assertTrue(
             all(
-                entry["sha"] and entry["lastModified"]
+                entry["sha"]
+                and entry["lastModified"]
+                and len(entry["cardSemanticSha256"]) == 64
                 for kind in ("models", "datasets", "spaces")
                 for entry in manifest["inventory"][kind]
             )
@@ -130,6 +138,39 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             self.assertEqual(self.run_check(output)[0], 0)
             fixtures["models"].append(item("SZLHOLDINGS/new-model"))
             self.assertEqual(self.run_check(output)[0], 1)
+
+    def test_check_rejects_card_only_semantic_drift(self) -> None:
+        fixtures = {
+            "models": [item("SZLHOLDINGS/model")],
+            "datasets": [],
+            "spaces": [],
+        }
+        audit.api_items = lambda kind: fixtures[kind]
+        card = {"markdown": "# Model\n\nVerified inventory claim.\n"}
+        audit.fetch_card_markdown = (
+            lambda item_id, repo_type, revision: card["markdown"]
+        )
+        manifest = audit.build_manifest(observed_at="2026-07-26T00:00:00Z")
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "manifest.json"
+            output.write_text(
+                json.dumps(manifest, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self.run_check(output)[0], 0)
+            card["markdown"] = "# Model\n\nUnverified production claim.\n"
+            result, message = self.run_check(output)
+            self.assertEqual(result, 1)
+            self.assertIn("manifest is stale", message)
+
+    def test_card_digest_normalizes_transport_only_whitespace(self) -> None:
+        unix = "# Model\n\nA claim.\n"
+        windows = "# Model  \r\n\r\nA claim.\r\n\r\n"
+        self.assertEqual(
+            audit.card_semantic_sha256(unix),
+            audit.card_semantic_sha256(windows),
+        )
 
     def test_check_verifies_retained_historical_revision_fields(self) -> None:
         fixture = json.loads(REVISION_FIXTURE.read_text(encoding="utf-8"))
@@ -244,6 +285,8 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             ("lastModified", None),
             ("sha", "not-a-sha"),
             ("lastModified", "2026-07-26T01:00:01Z"),
+            ("cardSemanticSha256", None),
+            ("cardSemanticSha256", "not-a-digest"),
         ):
             invalid = json.loads(json.dumps(manifest))
             invalid["inventory"]["models"][0][field] = value
@@ -286,6 +329,8 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
     def test_operational_ci_runs_live_and_tracked_artifact_checks(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         for path in (
+            ".github/workflows/huggingface.yml",
+            "package.json",
             "docs/ecosystem-stage-matrix.json",
             "docs/huggingface-ecosystem-manifest.json",
             "docs/huggingface-ecosystem-manifest.schema.json",
@@ -340,11 +385,12 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             moved_after_upload = stripped + f"\n{guard}\n"
             self.assertFalse(guarded(moved_after_upload), guard)
 
-    def test_published_item_schema_requires_revision_evidence(self) -> None:
+    def test_published_item_schema_requires_revision_and_card_evidence(self) -> None:
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
         required = schema["$defs"]["items"]["items"]["required"]
         self.assertIn("sha", required)
         self.assertIn("lastModified", required)
+        self.assertIn("cardSemanticSha256", required)
 
 
 if __name__ == "__main__":
