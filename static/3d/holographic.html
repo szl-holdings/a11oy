@@ -610,6 +610,24 @@ async function _fetchEvidenceSnapshot() {
   })();
   return evidenceSnapshotPromise;
 }
+function _hasObservedEvidence(readiness, revision) {
+  if (
+    !revision ||
+    readiness?.available !== true ||
+    readiness?.matrix_available !== true ||
+    readiness?.probe_verdict_available !== true
+  ) return false;
+  const verdict = readiness?.verdict_summary;
+  if (!verdict || typeof verdict !== "object") return false;
+  const counts = [
+    "endpoints", "ok", "skippedStateChanging", "lies", "unreachable", "throttled",
+  ]
+    .map((field) => verdict[field]);
+  if (!counts.every((value) => Number.isInteger(value) && value >= 0)) return false;
+  if (!Number.isFinite(verdict.p95_worst) || verdict.p95_worst < 0) return false;
+  const [endpoints, ...outcomes] = counts;
+  return endpoints > 0 && outcomes.reduce((total, value) => total + value, 0) === endpoints;
+}
 function _updateEvidenceRail(def) {
   if (!evidenceRail || !def) return;
   evidenceRail.dataset.state = "UNVERIFIED";
@@ -630,7 +648,7 @@ function _updateEvidenceRail(def) {
     const matrix = readiness?.matrix_summary || {};
     const verdict = readiness?.verdict_summary || null;
     if (evidenceReadiness) evidenceReadiness.textContent = verdict ? `${verdict.ok ?? 0}/${verdict.endpoints ?? matrix.endpoints ?? 0} observed clean` : `${matrix.tabs ?? SURFACES.length} surfaces · probe UNAVAILABLE`;
-    const observed = Boolean(revision && readiness?.matrix_available);
+    const observed = _hasObservedEvidence(readiness, revision);
     evidenceRail.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
     if (evidenceState) evidenceState.textContent = observed ? "OBSERVED" : "UNVERIFIED";
     if (estateObservationBadge) {

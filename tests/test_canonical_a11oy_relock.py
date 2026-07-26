@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import re
+import subprocess
 import sys
 import types
 import unittest
@@ -246,7 +248,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             source,
         )
         self.assertIn(
-            "const observed = Boolean(revision && readiness?.matrix_available)",
+            "const observed = _hasObservedEvidence(readiness, revision)",
             source,
         )
         self.assertIn(
@@ -259,6 +261,65 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             '        : "Evidence status: UNVERIFIED"',
             source,
         )
+
+    def test_observed_evidence_predicate_fails_closed(self) -> None:
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        match = re.search(
+            r"function _hasObservedEvidence\(readiness, revision\) \{.*?^\}",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        valid = {
+            "available": True,
+            "matrix_available": True,
+            "probe_verdict_available": True,
+            "verdict_summary": {
+                "endpoints": 5,
+                "ok": 3,
+                "skippedStateChanging": 0,
+                "lies": 1,
+                "unreachable": 0,
+                "throttled": 1,
+                "p95_worst": 1806,
+            },
+        }
+        cases = [
+            {"name": "complete verdict", "readiness": valid, "revision": "a" * 40},
+            {
+                "name": "probe verdict unavailable",
+                "readiness": {**valid, "probe_verdict_available": False},
+                "revision": "a" * 40,
+            },
+            {
+                "name": "verdict summary missing",
+                "readiness": {**valid, "verdict_summary": None},
+                "revision": "a" * 40,
+            },
+            {
+                "name": "verdict counts inconsistent",
+                "readiness": {
+                    **valid,
+                    "verdict_summary": {**valid["verdict_summary"], "endpoints": 6},
+                },
+                "revision": "a" * 40,
+            },
+            {"name": "revision missing", "readiness": valid, "revision": None},
+        ]
+        script = (
+            match.group(0)
+            + "\nconst cases = "
+            + json.dumps(cases)
+            + ";\nconsole.log(JSON.stringify(cases.map(({readiness, revision}) => "
+            "_hasObservedEvidence(readiness, revision))));"
+        )
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(json.loads(result.stdout), [True, False, False, False, False])
 
     def test_runtime_revision_is_read_from_current_hub_raw_metadata(self) -> None:
         api = FakeApi(self.source)
