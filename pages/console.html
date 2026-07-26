@@ -2427,10 +2427,16 @@ function go(view){
   if(!VIEWS[view]){ console.warn('unknown tab: '+view); return; }
   // tear down ALL live visuals (Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape) before switching
   tearDownAll();
+  var canonicalCurrent=null;
+  document.querySelectorAll('.nav-item').forEach(function(n){
+    if(!canonicalCurrent && n.dataset.view===view && !n.closest('#pinned-host')){
+      canonicalCurrent=n;
+    }
+  });
   document.querySelectorAll('.nav-item').forEach(function(n){
     var active=n.dataset.view===view;
     n.classList.toggle('active',active);
-    if(active){ n.setAttribute('aria-current','page'); }
+    if(n===canonicalCurrent){ n.setAttribute('aria-current','page'); }
     else { n.removeAttribute('aria-current'); }
   });
   const v=VIEWS[view];const c=el('content');
