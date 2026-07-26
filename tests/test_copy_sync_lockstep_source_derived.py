@@ -55,6 +55,13 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               deploy:
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
             """,
+            """
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@1111111111111111111111111111111111111111
+                with:
+                  dockerfile-path: Dockerfile
+            """,
         )
         for workflow in cases:
             with self.subTest(workflow=workflow):

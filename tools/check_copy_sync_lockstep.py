@@ -531,8 +531,16 @@ def workflow_has_unfiltered_main_push(workflow_text):
     )
 
 
+SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
+    # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
+    # sources into the HF payload. A generic 40-hex pin proves immutability,
+    # not this capability; additions require an explicit guard review.
+    "9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+})
+
+
 def job_has_source_derived_deploy_contract(block_lines, job_indent):
-    """Require an unconditional dependency-free pinned Dockerfile deploy job."""
+    """Require an unconditional reviewed Dockerfile-derived deploy job."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -558,10 +566,16 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
             # skipped, and YAML merges can inherit either gate. Fail closed
             # rather than proving arbitrary dependency/expression semantics.
             return False
-        if re.fullmatch(
+        controller = re.fullmatch(
             r"uses:\s*szl-holdings/\.github/\.github/workflows/"
-            r"reusable-hf-deploy\.yml@[0-9a-fA-F]{40}\s*(?:#.*)?",
+            r"reusable-hf-deploy\.yml@(?P<revision>[0-9a-fA-F]{40})"
+            r"\s*(?:#.*)?",
             stripped,
+        )
+        if (
+            controller
+            and controller.group("revision").lower()
+            in SOURCE_DERIVED_CONTROLLER_REVISIONS
         ):
             pinned_controller = True
         if re.fullmatch(r"with:\s*(?:#.*)?", stripped):
@@ -588,9 +602,10 @@ def has_source_derived_deploy_contract(hf_sync_text):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
-    exact set. Requiring both a commit-pinned controller and the explicit
-    Dockerfile input in the same unconditional job prevents a comment, step,
-    unrelated workflow, or skipped deploy job from satisfying CHECK 3.
+    exact set. Requiring both a reviewed capability-bearing controller revision
+    and the explicit Dockerfile input in the same unconditional job prevents a
+    generic pin, comment, step, unrelated workflow, or skipped deploy job from
+    satisfying CHECK 3.
     """
     return workflow_has_unfiltered_main_push(hf_sync_text) and any(
         job_has_source_derived_deploy_contract(block_lines, job_indent)
