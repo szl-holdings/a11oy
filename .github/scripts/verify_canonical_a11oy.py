@@ -73,6 +73,26 @@ def stage_of(info: Any) -> str:
     return str(raw or "UNKNOWN").split(".")[-1].upper()
 
 
+def immutable_runtime_revision(info: Any) -> tuple[str, str]:
+    """Return the immutable runtime revision and the exact SDK evidence path.
+
+    ``huggingface_hub`` has exposed this value both as ``runtime.sha`` and as
+    ``runtime.raw["sha"]`` across released versions. Accept only those explicit
+    metadata fields and only an exact SHA-1; never infer a runtime revision.
+    """
+    runtime = getattr(info, "runtime", None)
+    direct = str(getattr(runtime, "sha", "") or "").strip().lower()
+    if SHA40.fullmatch(direct):
+        return direct, "space_info.runtime.sha"
+
+    raw = getattr(runtime, "raw", None)
+    raw_sha = raw.get("sha") if isinstance(raw, Mapping) else None
+    candidate = str(raw_sha or "").strip().lower()
+    if SHA40.fullmatch(candidate):
+        return candidate, "space_info.runtime.raw.sha"
+    return "", "UNKNOWN"
+
+
 def variable_value(value: Any) -> str | None:
     if isinstance(value, Mapping):
         observed = value.get("value")
@@ -93,7 +113,12 @@ def require_json(response: requests.Response) -> Mapping[str, Any]:
     return payload
 
 
-def validate_route(name: str, response: requests.Response, source_sha: str) -> dict[str, Any]:
+def validate_route(
+    name: str,
+    response: requests.Response,
+    source_sha: str,
+    source_variable: str,
+) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
         "get_http_status": response.status_code,
@@ -119,15 +144,73 @@ def validate_route(name: str, response: requests.Response, source_sha: str) -> d
             raise RelockError("liveness route is not LIVE/read-only")
     elif name == "build_info":
         build = payload.get("build")
+        runtime = payload.get("runtime")
         if (
             payload.get("status") != "OBSERVED"
             or payload.get("receipt_minted") is not False
             or not isinstance(build, Mapping)
             or str(build.get("state") or "").upper() != "OBSERVED"
             or str(build.get("revision") or "").lower() != source_sha
+            or build.get("revision_source") != f"env:{source_variable}"
+            or not isinstance(runtime, Mapping)
+            or not str(runtime.get("python") or "").strip()
+            or not str(runtime.get("platform") or "").strip()
         ):
             raise RelockError("build identity is not bound to the exact protected source")
+
+        field_evidence = build.get("field_evidence")
+        if not isinstance(field_evidence, Mapping):
+            raise RelockError("build identity lacks per-field evidence classifications")
+        if field_evidence.get("revision") != "MEASURED":
+            raise RelockError("build revision is not classified from measured evidence")
+
+        version = build.get("version")
+        version_source = build.get("version_source")
+        if version is None:
+            version_valid = (
+                version_source == "UNKNOWN"
+                and field_evidence.get("version") == "UNKNOWN"
+            )
+        else:
+            version_valid = (
+                isinstance(version, str)
+                and bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}", version))
+                and isinstance(version_source, str)
+                and version_source.startswith("env:")
+                and field_evidence.get("version") == "MEASURED"
+            )
+        if not version_valid:
+            raise RelockError("build version value, source, and evidence classification conflict")
+
+        working_tree = build.get("working_tree")
+        working_tree_source = build.get("working_tree_source")
+        if working_tree == "UNKNOWN":
+            working_tree_valid = (
+                working_tree_source == "UNKNOWN"
+                and field_evidence.get("working_tree") == "UNKNOWN"
+            )
+        else:
+            working_tree_valid = (
+                working_tree in {"CLEAN", "DIRTY"}
+                and working_tree_source == "git:status"
+                and field_evidence.get("working_tree") == "MEASURED"
+            )
+        if not working_tree_valid:
+            raise RelockError(
+                "working-tree value, source, and evidence classification conflict"
+            )
+
         evidence["source_bound"] = True
+        evidence["build_identity"] = {
+            "revision": build["revision"],
+            "revision_source": build["revision_source"],
+            "version": version,
+            "version_source": version_source,
+            "working_tree": working_tree,
+            "working_tree_source": working_tree_source,
+            "field_evidence": dict(field_evidence),
+            "receipt_minted": False,
+        }
     elif name == "brain_capabilities":
         if (
             payload.get("schema") != "szl.brain-capabilities.v1"
@@ -147,7 +230,10 @@ def validate_route(name: str, response: requests.Response, source_sha: str) -> d
 
 
 def probe_routes(
-    session: requests.Session, origin: str, source_sha: str
+    session: requests.Session,
+    origin: str,
+    source_sha: str,
+    source_variable: str,
 ) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
     for name, path in ROUTES.items():
@@ -158,7 +244,7 @@ def probe_routes(
             raise RelockError(
                 f"{path} is not operational: HEAD={head.status_code}; GET={get.status_code}"
             )
-        evidence = validate_route(name, get, source_sha)
+        evidence = validate_route(name, get, source_sha, source_variable)
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
     return output
@@ -171,7 +257,7 @@ def evaluate_once(
 ) -> dict[str, Any]:
     info = api.space_info(contract["repo_id"])
     repository_sha = str(getattr(info, "sha", "") or "").lower()
-    runtime_sha = str(getattr(getattr(info, "runtime", None), "sha", "") or "").lower()
+    runtime_sha, runtime_sha_source = immutable_runtime_revision(info)
     stage = stage_of(info)
     sdk = str(getattr(info, "sdk", "") or "").lower()
     private = getattr(info, "private", None)
@@ -200,7 +286,12 @@ def evaluate_once(
             f"source-binding variable mismatch: expected={contract['source_sha']}; observed={observed_source}"
         )
 
-    routes = probe_routes(session, contract["origin"], contract["source_sha"])
+    routes = probe_routes(
+        session,
+        contract["origin"],
+        contract["source_sha"],
+        contract["variable"],
+    )
     clones = {f"SZLHOLDINGS/a11oy-clone-{index}": False for index in range(1, 5)}
     for clone_id in tuple(clones):
         clones[clone_id] = bool(api.repo_exists(clone_id, repo_type="space"))
@@ -223,6 +314,7 @@ def evaluate_once(
         },
         "hf_repository_sha": repository_sha,
         "hf_runtime_sha": runtime_sha,
+        "hf_runtime_sha_source": runtime_sha_source,
         "managed_file_count": len(remote_files),
         "dockerfile_present": True,
         "holographic_source_present": True,
