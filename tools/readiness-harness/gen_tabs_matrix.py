@@ -395,7 +395,11 @@ SCHEMAS = {
                 "anyKey": ["sources", "examples", "universal_exponents", "exponents",
                            "B_kcal_day", "bpm", "phi", "predicted_loss", "status_legend"]},
     "readiness": {"type": "object", "required": ["sections"]},
-    "tab_matrix": {"type": "object", "required": ["tabs", "endpoints"]},
+    "tab_matrix": {
+        "type": "object",
+        "required": ["matrix_available", "probe_verdict_available"],
+        "requiredPaths": ["matrix.tabs", "matrix.endpoints"],
+    },
 }
 
 # Explicit per-tab endpoint attachment (authoritative where present). Keys missing

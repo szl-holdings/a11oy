@@ -10562,14 +10562,24 @@ try:
     # real mode (live/cached), age, and round-trip latency. This is the data-
     # provenance heartbeat for the governed-AI mission: a governed system must
     # know whether its evidence feeds are actually live. 0 fabricated status.
+    try:
+        _KL_FEED_PULSE_TIMEOUT_S = max(
+            0.25, min(10.0, float(os.environ.get("A11OY_FEED_PULSE_TIMEOUT_SEC", "4.0")))
+        )
+    except (TypeError, ValueError):
+        _KL_FEED_PULSE_TIMEOUT_S = 4.0
+
     @app.get("/api/a11oy/v1/feeds/pulse")
     async def _feeds_pulse():
         import anyio, time as _t
         feeds = ["kev","osv","rekor","iss","celestrak","prometheus","fhir"]
         async def _one(f):
             t0 = _t.time()
+            source, source_url = _kl_live._SOURCE.get(f, ("unknown", ""))
             try:
-                p = await anyio.to_thread.run_sync(_kl_live.get_feed, f)
+                with anyio.fail_after(_KL_FEED_PULSE_TIMEOUT_S):
+                    p = await anyio.to_thread.run_sync(
+                        _kl_live.get_feed, f, abandon_on_cancel=True)
                 dt = round((_t.time()-t0)*1000)
                 d = p.get("data")
                 # honest payload-size signal
@@ -10583,13 +10593,24 @@ try:
                         "ttl_s": p.get("ttl_s"), "latency_ms": dt,
                         "payload_bytes": size,
                         "error": p.get("error")}
-            except Exception as e:
-                return {"feed": f, "mode": "unavailable",
+            except TimeoutError:
+                return {"feed": f, "source": source, "source_url": source_url,
+                        "mode": "unavailable", "fetched_at": None,
                         "latency_ms": round((_t.time()-t0)*1000),
+                        "payload_bytes": 0,
+                        "error": "probe timeout after %.2fs" % _KL_FEED_PULSE_TIMEOUT_S}
+            except Exception as e:
+                return {"feed": f, "source": source, "source_url": source_url,
+                        "mode": "unavailable", "fetched_at": None,
+                        "latency_ms": round((_t.time()-t0)*1000),
+                        "payload_bytes": 0,
                         "error": "%s: %s" % (type(e).__name__, e)}
-        items = []
-        for f in feeds:
-            items.append(await _one(f))
+        items = [None] * len(feeds)
+        async def _collect(index, feed):
+            items[index] = await _one(feed)
+        async with anyio.create_task_group() as task_group:
+            for index, feed in enumerate(feeds):
+                task_group.start_soon(_collect, index, feed)
         live = sum(1 for i in items if i.get("mode")=="live")
         return JSONResponse({
             "probed_at": _kl_live._now_iso(),
@@ -10598,8 +10619,9 @@ try:
             "cached_count": sum(1 for i in items if i.get("mode")=="cached"),
             "down_count": sum(1 for i in items if i.get("mode")=="unavailable"),
             "note": ("Real-time provenance heartbeat: each row is a live server-side "
-                     "probe of an upstream evidence feed. mode/latency are measured, "
-                     "never fabricated. A governed-AI system must know its feeds are live."),
+                     "bounded probe of an upstream evidence feed. mode/latency are measured, "
+                     "timeouts remain unavailable, never fabricated. A governed-AI system "
+                     "must know its feeds are live."),
             "items": items,
         })
 

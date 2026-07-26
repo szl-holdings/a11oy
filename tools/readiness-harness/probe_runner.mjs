@@ -17,7 +17,7 @@
 //                         [--soft] [--out readiness-verdict.json]
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -71,28 +71,42 @@ function toDate(v) {
   return null;
 }
 
-function findTimestamp(obj, depth = 0) {
+const OBSERVATION_TIMESTAMP_KEY =
+  /(checked_at|checkedAt|probed_at|probedAt|fetched_at|fetchedAt|generated_at|generatedAt|updated_at|updatedAt|last_updated)$/i;
+const EVENT_TIMESTAMP_KEY = /(timestamp|asOf|as_of|ts)$/i;
+
+function findTimestampByKey(obj, keyPattern, depth = 0) {
   if (!obj || depth > 3) return null;
   if (Array.isArray(obj)) {
     for (const v of obj.slice(0, 20)) {
-      const t = findTimestamp(v, depth + 1);
+      const t = findTimestampByKey(v, keyPattern, depth + 1);
       if (t) return t;
     }
     return null;
   }
   if (typeof obj === "object") {
     for (const [k, v] of Object.entries(obj)) {
-      if (/(checked_at|generated_at|generatedAt|updated_at|updatedAt|last_updated|timestamp|asOf|as_of|fetched_at|ts)$/i.test(k)) {
+      if (keyPattern.test(k)) {
         const d = toDate(v);
         if (d) return d;
       }
     }
     for (const v of Object.values(obj)) {
-      const t = findTimestamp(v, depth + 1);
+      const t = findTimestampByKey(v, keyPattern, depth + 1);
       if (t) return t;
     }
   }
   return null;
+}
+
+function findTimestamp(obj) {
+  // Freshness SLAs grade when the response/source was actually observed. Event
+  // timestamps (for example an old but valid policy decision or a closed-market
+  // candle) are only a fallback when no observation timestamp exists anywhere.
+  return (
+    findTimestampByKey(obj, OBSERVATION_TIMESTAMP_KEY) ||
+    findTimestampByKey(obj, EVENT_TIMESTAMP_KEY)
+  );
 }
 
 // A response is "cited" if it carries any recognised provenance signal — an
@@ -143,6 +157,14 @@ function validateSchema(schemaName, body) {
     if (sc.type === "object") {
       if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
       if (sc.required && !sc.required.every((k) => k in body)) return false;
+      if (sc.requiredPaths && !sc.requiredPaths.every((path) => {
+        let cursor = body;
+        for (const key of path.split(".")) {
+          if (!cursor || typeof cursor !== "object" || !(key in cursor)) return false;
+          cursor = cursor[key];
+        }
+        return true;
+      })) return false;
       if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
       return true;
     }
@@ -283,7 +305,7 @@ async function pool(items, n, fn) {
   return out;
 }
 
-(async () => {
+async function main() {
   const paths = Object.keys(ENDPOINTS);
   console.error(`[probe] base=${BASE} endpoints=${paths.length} samples=${SAMPLES} conc=${CONCURRENCY}`);
   const results = await pool(paths, CONCURRENCY, (p) => probeEndpoint(p, ENDPOINTS[p]));
@@ -320,4 +342,10 @@ async function pool(items, n, fn) {
   // The build fails on LIES (doctrine v11). Unreachable/throttled are reachability
   // signals, surfaced but not doctrine failures (often transient self-throttling).
   if (lies.length && !SOFT) process.exit(1);
-})();
+}
+
+if (fileURLToPath(import.meta.url) === resolve(process.argv[1] || "")) {
+  main();
+}
+
+export { findTimestamp, validateSchema };

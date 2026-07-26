@@ -2029,8 +2029,12 @@
     "tab_matrix": {
       "type": "object",
       "required": [
-        "tabs",
-        "endpoints"
+        "matrix_available",
+        "probe_verdict_available"
+      ],
+      "requiredPaths": [
+        "matrix.tabs",
+        "matrix.endpoints"
       ]
     }
   },
