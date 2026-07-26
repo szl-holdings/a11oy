@@ -1,0 +1,20 @@
+{
+  "clean_build": {
+    "receipt": "audit/formal-verification-receipt.json",
+    "status": "PASS"
+  },
+  "generated_at": "2026-07-26T08:52:41+00:00",
+  "kernel_of_record": "c7c0ba17c2eaec60ad38ea9172b4a0d9ca0b582f",
+  "label": "MEASURED",
+  "lake_manifest_sha256": "184b598b654c86432a69ed7a956910650aa3ca5714354164a256fd77fc6c1555",
+  "lean_files": 175,
+  "lean_toolchain": "leanprover/lean4:v4.13.0",
+  "lutar_policy": {
+    "claim_label": "IMPLEMENTED NOT DEPLOYED",
+    "formal_artifact_digest": "sha256:d5988892503c025a1158038744ab518d048bdd022c32e718d4ab8e67eced6380",
+    "kernel_check": "PASS",
+    "receipt": "audit/formal-verification-receipt.json"
+  },
+  "scope": "tracked lutar-lean mirror in a11oy",
+  "theorem_or_lemma_declarations": 741
+}

@@ -1,0 +1,4 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+$ vite build --config vite.config.ts
+'vite' is not recognized as an internal or external command,
+operable program or batch file.

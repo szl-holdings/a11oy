@@ -1,0 +1,13 @@
+{
+  "benchmark_baseline": {
+    "reason": "no identical-hardware vLLM/SGLang run has been executed",
+    "status": "BLOCKED"
+  },
+  "generated_at": "2026-07-26T08:52:41+00:00",
+  "hardware": {
+    "reason": "no authorized identical-GPU staging node is connected to this run",
+    "status": "BLOCKED"
+  },
+  "label": "MEASURED",
+  "source_signals": []
+}

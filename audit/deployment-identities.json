@@ -1,0 +1,353 @@
+{
+  "generated_at": "2026-07-26T08:52:31+00:00",
+  "label": "MEASURED",
+  "surfaces": {
+    "a11oy_build_info": {
+      "http_status": 200,
+      "label": "MEASURED",
+      "payload": {
+        "build": {
+          "field_evidence": {
+            "revision": "OBSERVED",
+            "version": "UNKNOWN",
+            "working_tree": "UNKNOWN"
+          },
+          "revision": "ee09cb20e6027008f1f40b8093188f71df96e175",
+          "revision_source": "env:SZL_GIT_SHA",
+          "state": "OBSERVED",
+          "version": null,
+          "version_source": "UNKNOWN",
+          "working_tree": "UNKNOWN",
+          "working_tree_source": "UNKNOWN"
+        },
+        "receipt_minted": false,
+        "runtime": {
+          "platform": "linux",
+          "python": "3.12.13"
+        },
+        "service": "a11oy",
+        "status": "OBSERVED"
+      },
+      "url": "https://a-11-oy.com/api/build-info"
+    },
+    "a11oy_health": {
+      "http_status": 200,
+      "label": "MEASURED",
+      "payload": {
+        "anchor_formula_gates": 44,
+        "axioms": 14,
+        "base_path": "/",
+        "brain": {
+          "energy_label": "UNAVAILABLE",
+          "knowledge_nodes": 4229,
+          "lambda": "Conjecture 1",
+          "note": "Compact Brain rollup. pulse_ok=false means Dev-1's central hub (/brain/pulse) is not yet merged; counts are composed honestly from the shipped organs. \u039b = Conjecture 1.",
+          "pulse_ok": true,
+          "source": "brain-hub",
+          "surfaces_lit": 127
+        },
+        "declarations": 749,
+        "degraded_reasons": [],
+        "dependency": {
+          "node_backend": {
+            "backend_alive": true,
+            "last_checked_age_s": 7.2,
+            "status": "ok"
+          }
+        },
+        "doctrine": "v11",
+        "experimental_scope": {
+          "axioms_unique": 22,
+          "declarations": 1304,
+          "kernel_commit": "7885fd9",
+          "lean": "v4.18.0",
+          "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight \u039b + coder); NOT folded into the locked count of 8; \u039b stays Conjecture 1",
+          "theorems_ci_green": 36
+        },
+        "gates": 49,
+        "hatun_willay": true,
+        "mcp_tools": 12,
+        "policy_gates": 46,
+        "preflight": {
+          "doctrine": "v11",
+          "overall": "DEGRADED",
+          "subsystems": [
+            {
+              "label": "DEGRADED",
+              "missing_required": [],
+              "missing_secrets": [
+                "STRIPE_API_KEY"
+              ],
+              "subsystem": "billing"
+            },
+            {
+              "label": "DEGRADED",
+              "missing_required": [],
+              "missing_secrets": [
+                "ANTHROPIC_API_KEY",
+                "DEEPSEEK_API_KEY",
+                "GEMINI_API_KEY",
+                "GROQ_API_KEY",
+                "MISTRAL_API_KEY",
+                "OPENAI_API_KEY",
+                "OPENROUTER_API_KEY",
+                "TOGETHER_API_KEY",
+                "VLLM_API_KEY"
+              ],
+              "subsystem": "brain"
+            },
+            {
+              "label": "DEGRADED",
+              "missing_required": [],
+              "missing_secrets": [
+                "A11OY_COMPUTE_TOKEN_SHA256"
+              ],
+              "subsystem": "compute"
+            },
+            {
+              "label": "LIVE",
+              "missing_required": [],
+              "missing_secrets": [],
+              "subsystem": "core"
+            },
+            {
+              "label": "DEGRADED",
+              "missing_required": [],
+              "missing_secrets": [
+                "A11OY_GPU_TOKEN"
+              ],
+              "subsystem": "energy"
+            },
+            {
+              "label": "DEGRADED",
+              "missing_required": [],
+              "missing_secrets": [
+                "ELECTRICITY_MAPS_API_KEY",
+                "NVD_API_KEY",
+                "SZL_FRED_API_KEY"
+              ],
+              "subsystem": "feeds"
+            },
+            {
+              "label": "DEGRADED",
+              "missing_required": [],
+              "missing_secrets": [
+                "HF_ROUTER_TOKEN"
+              ],
+              "subsystem": "hf-hub"
+            },
+            {
+              "label": "LIVE",
+              "missing_required": [],
+              "missing_secrets": [],
+              "subsystem": "signing"
+            }
+          ]
+        },
+        "rollup": {
+          "brain": {
+            "energy_label": "UNAVAILABLE",
+            "knowledge_nodes": 4229,
+            "lambda": "Conjecture 1",
+            "note": "Compact Brain rollup. pulse_ok=false means Dev-1's central hub (/brain/pulse) is not yet merged; counts are composed honestly from the shipped organs. \u039b = Conjecture 1.",
+            "pulse_ok": true,
+            "source": "brain-hub",
+            "surfaces_lit": 127
+          },
+          "frontier": {
+            "all_sources_live": false,
+            "degraded_tiles": [],
+            "endpoints_degraded": 0,
+            "endpoints_live": 8,
+            "endpoints_total": 8,
+            "status": "ok"
+          },
+          "preflight": {
+            "doctrine": "v11",
+            "overall": "DEGRADED",
+            "subsystems": [
+              {
+                "label": "DEGRADED",
+                "missing_required": [],
+                "missing_secrets": [
+                  "STRIPE_API_KEY"
+                ],
+                "subsystem": "billing"
+              },
+              {
+                "label": "DEGRADED",
+                "missing_required": [],
+                "missing_secrets": [
+                  "ANTHROPIC_API_KEY",
+                  "DEEPSEEK_API_KEY",
+                  "GEMINI_API_KEY",
+                  "GROQ_API_KEY",
+                  "MISTRAL_API_KEY",
+                  "OPENAI_API_KEY",
+                  "OPENROUTER_API_KEY",
+                  "TOGETHER_API_KEY",
+                  "VLLM_API_KEY"
+                ],
+                "subsystem": "brain"
+              },
+              {
+                "label": "DEGRADED",
+                "missing_required": [],
+                "missing_secrets": [
+                  "A11OY_COMPUTE_TOKEN_SHA256"
+                ],
+                "subsystem": "compute"
+              },
+              {
+                "label": "LIVE",
+                "missing_required": [],
+                "missing_secrets": [],
+                "subsystem": "core"
+              },
+              {
+                "label": "DEGRADED",
+                "missing_required": [],
+                "missing_secrets": [
+                  "A11OY_GPU_TOKEN"
+                ],
+                "subsystem": "energy"
+              },
+              {
+                "label": "DEGRADED",
+                "missing_required": [],
+                "missing_secrets": [
+                  "ELECTRICITY_MAPS_API_KEY",
+                  "NVD_API_KEY",
+                  "SZL_FRED_API_KEY"
+                ],
+                "subsystem": "feeds"
+              },
+              {
+                "label": "DEGRADED",
+                "missing_required": [],
+                "missing_secrets": [
+                  "HF_ROUTER_TOKEN"
+                ],
+                "subsystem": "hf-hub"
+              },
+              {
+                "label": "LIVE",
+                "missing_required": [],
+                "missing_secrets": [],
+                "subsystem": "signing"
+              }
+            ]
+          },
+          "signer": {
+            "public_key_fingerprint": "d3028f8aecd0841f684e1c7fd7b06de7a211dc6fc09c34163003798b391bcf71",
+            "scheme": "DSSEv1 / ECDSA-P256 (cosign keyless OIDC at release)",
+            "signing_available": true,
+            "status": "DSSE-LIVE"
+          },
+          "sovereign": {
+            "label": "UNAVAILABLE",
+            "model": "llama3-szl-finetuned-q4",
+            "reachable": false
+          },
+          "storage": {
+            "active_bytes": 0,
+            "appended": 0,
+            "backend": "durable-rotating-jsonl",
+            "backup_count": 4,
+            "bounded": true,
+            "doctrine": "v11",
+            "dropped_segments": 0,
+            "free_bytes": 364213219328,
+            "last_error": null,
+            "max_bytes_per_segment": 8388608,
+            "max_total_bytes": 41943040,
+            "min_free_bytes": 16777216,
+            "note": "size-capped rotating append-only store; footprint bounded to max_total_bytes; oldest segment evicted on rotation (retention, not archival \u2014 truncation is reported via dropped_segments, never silent); UNAVAILABLE reported honestly when storage is degraded (never fabricated).",
+            "path": "/data/szl_energy_ledger.jsonl",
+            "rotations": 0,
+            "status": "ok",
+            "total_bytes": 0,
+            "writable": true,
+            "write_failures": 0
+          }
+        },
+        "service": "a11oy",
+        "sorries": 163,
+        "sovereign": {
+          "label": "UNAVAILABLE",
+          "model": "llama3-szl-finetuned-q4",
+          "reachable": false
+        },
+        "status": "ok",
+        "storage": {
+          "active_bytes": 0,
+          "appended": 0,
+          "backend": "durable-rotating-jsonl",
+          "backup_count": 4,
+          "bounded": true,
+          "doctrine": "v11",
+          "dropped_segments": 0,
+          "free_bytes": 364213219328,
+          "last_error": null,
+          "max_bytes_per_segment": 8388608,
+          "max_total_bytes": 41943040,
+          "min_free_bytes": 16777216,
+          "note": "size-capped rotating append-only store; footprint bounded to max_total_bytes; oldest segment evicted on rotation (retention, not archival \u2014 truncation is reported via dropped_segments, never silent); UNAVAILABLE reported honestly when storage is degraded (never fabricated).",
+          "path": "/data/szl_energy_ledger.jsonl",
+          "rotations": 0,
+          "status": "ok",
+          "total_bytes": 0,
+          "writable": true,
+          "write_failures": 0
+        },
+        "surface": "Brand Orchestration Layer",
+        "uptime_s": 110.5,
+        "version": "2.0.0"
+      },
+      "url": "https://a-11-oy.com/api/a11oy/healthz"
+    },
+    "hf_a11oy_build_info": {
+      "http_status": 200,
+      "label": "MEASURED",
+      "payload": {
+        "build": {
+          "field_evidence": {
+            "revision": "OBSERVED",
+            "version": "UNKNOWN",
+            "working_tree": "UNKNOWN"
+          },
+          "revision": "ee09cb20e6027008f1f40b8093188f71df96e175",
+          "revision_source": "env:SZL_GIT_SHA",
+          "state": "OBSERVED",
+          "version": null,
+          "version_source": "UNKNOWN",
+          "working_tree": "UNKNOWN",
+          "working_tree_source": "UNKNOWN"
+        },
+        "receipt_minted": false,
+        "runtime": {
+          "platform": "linux",
+          "python": "3.12.13"
+        },
+        "service": "a11oy",
+        "status": "OBSERVED"
+      },
+      "url": "https://szlholdings-a11oy.hf.space/api/build-info"
+    },
+    "hf_killinchu_build_info": {
+      "http_status": 200,
+      "label": "MEASURED",
+      "payload": {
+        "build": {
+          "revision": "3bafc337446548902ee28086c3c6c17b486e70e9",
+          "revision_source": "env:SZL_GIT_SHA",
+          "state": "OBSERVED"
+        },
+        "receipt_minted": false,
+        "service": "killinchu",
+        "status": "OBSERVED"
+      },
+      "url": "https://szlholdings-killinchu.hf.space/api/build-info"
+    }
+  }
+}
