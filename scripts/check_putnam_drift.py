@@ -226,7 +226,7 @@ def mask_lean_attributes(rel: str, text: str, errors: List[str]) -> str:
 
 
 def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
-    """Validate a REAL source and return every theorem/lemma it declares."""
+    """Return every externally auditable proof declaration in a REAL source."""
     clean = strip_lean_comments_and_strings(text)
     command_text = mask_lean_attributes(rel, clean, errors)
     forbidden = []
@@ -234,7 +234,7 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
         forbidden.append("sorry/sorryAx/admit")
     if re.search(
         r"(?m)^[ \t]*"
-        r"(?:(?:private|protected|noncomputable|unsafe)\s+)*"
+        r"(?:(?:private|protected|noncomputable|unsafe|local|scoped)\s+)*"
         r"(?:axiom|constant)\b",
         command_text,
     ):
@@ -248,8 +248,9 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
     scopes: List[Tuple[str, Optional[str]]] = []
     command_re = re.compile(
         r"(?m)^[ \t]*"
-        r"(?P<modifiers>(?:(?:private|protected|noncomputable)\s+)*)"
-        r"(?P<kind>namespace|section|end|theorem|lemma)\b"
+        r"(?P<modifiers>"
+        r"(?:(?:private|protected|noncomputable|local|scoped)\s+)*)"
+        r"(?P<kind>namespace|section|end|theorem|lemma|instance)\b"
     )
     commands = list(command_re.finditer(command_text))
     lean_name = r"(?:«[^»\r\n]+»|[^\s:({\[\],]+)"
@@ -278,16 +279,22 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
                 scopes.pop()
             continue
 
+        modifiers = set(command.group("modifiers").split())
         name_match = re.match(r"\s+(" + lean_name + r")", tail)
         if not name_match:
+            if kind == "instance" and tail.lstrip().startswith((":", "(", "[", "{")):
+                # Anonymous instances receive generated names that cannot be
+                # referenced from the separate imported audit module. Their
+                # public dependents remain part of the external axiom audit.
+                continue
             errors.append(
                 "canonical REAL %s: %s declaration has no parseable name"
                 % (rel, kind)
             )
             continue
-        if "private" in command.group("modifiers").split():
-            # Private declarations get compiler-generated inaccessible names.
-            # Their public dependents remain covered by the external audit.
+        if modifiers & {"private", "local"}:
+            # Private/local declarations are inaccessible to the imported
+            # audit. Their public dependents remain covered by that audit.
             continue
         name = name_match.group(1)
         namespaces = [
@@ -303,7 +310,7 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
     if not declarations:
         errors.append(
             "canonical REAL %s: no externally auditable public "
-            "theorem/lemma declarations found" % rel
+            "theorem/lemma/named-instance declarations found" % rel
         )
     return declarations
 
@@ -350,7 +357,7 @@ def validate_axiom_report(
         dep_hits = deps_pattern.findall(report)
         if len(none_hits) + len(dep_hits) != 1:
             errors.append(
-                "axiom report: expected exactly one result for REAL theorem %s"
+                "axiom report: expected exactly one result for REAL declaration %s"
                 % decl
             )
             continue
@@ -359,7 +366,7 @@ def validate_axiom_report(
             extra = sorted(axioms - TRUSTED_AXIOMS)
             if extra:
                 errors.append(
-                    "axiom report: REAL theorem %s depends on extra axioms %s"
+                    "axiom report: REAL declaration %s depends on extra axioms %s"
                     % (decl, extra)
                 )
 
