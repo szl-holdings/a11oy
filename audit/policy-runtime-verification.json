@@ -20,9 +20,9 @@
       "returncode": 0,
       "status": "PASS",
       "stderr": "audit/policy-runtime-logs/test-policy-contract.stderr.txt",
-      "stderr_sha256": "sha256:2d44d38aef23e46f00f25f102640c706bfe1bebd8e2dd008818a5e8a9e747507",
+      "stderr_sha256": "sha256:5a352d81074fb125987c135ad31cc9eca18ff8132259c1bf0409c4bf76b9e135",
       "stdout": "audit/policy-runtime-logs/test-policy-contract.stdout.txt",
-      "stdout_sha256": "sha256:7a060ffe9087c299f165f8f178560c342c18fcd61e65833281132833924fe47b"
+      "stdout_sha256": "sha256:7c32619b279c0769d44e68a7ed32eac209c31dc43c8a7ef4ed177bc55e0abd2f"
     },
     {
       "command": [
@@ -108,18 +108,18 @@
       "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "generated_at": "2026-07-26T08:03:59+00:00",
-  "implementation_bundle_digest": "sha256:47bb6d1a30f925f18a5b6c69b7791eedfe255482f8fcdb7b32155b626faef823",
+  "generated_at": "2026-07-26T08:27:41+00:00",
+  "implementation_bundle_digest": "sha256:95954c916182287f998ee7cd0a4100dcd7da4d477e3067c9f0a4e7e70bd66a95",
   "implementation_paths_match_source_commit": true,
-  "implementation_source_commit": "382ad2021c18ccb07e9be624edcf76eb163d777c",
+  "implementation_source_commit": "9b7ca6b6c1c2088f3f02abd6552ae5e71471e568",
   "implementation_sources": {
     "package.json": "sha256:2dfb3149b98829ee77386d1c7b5d7e3568b026657439245d5cdc0bbce3b188e6",
-    "packages/policy/package.json": "sha256:ec34d18cf55f2ed0570b587c17125d04cad80f4975f911b95354b7b70fa51f82",
+    "packages/policy/package.json": "sha256:63b610282be700db5e93eca575a59a4fe1253f72194f8b34d99b4daf9e5fa331",
     "packages/policy/src/index.ts": "sha256:5b5c97216310c59d088c0416031692acff968d4feb498b9e7da08c6d2fc04a64",
     "packages/policy/src/verified/__tests__/authorization_boundary.test.ts": "sha256:d40b0829b78508ae2dafabe0cab73a3b24f15f1c914b42790e4628ae660a5a89",
     "packages/policy/src/verified/authorization_boundary.ts": "sha256:9ce0dd8253fe83f7f9980847a1db1f25b634a712f7d39b226052d09905f8e829",
-    "pnpm-lock.yaml": "sha256:e1d7aba151a613c71e7f7a1f0f4abd6d4ac6b1486bfa9655c7bea5f5642545e9",
-    "pnpm-workspace.yaml": "sha256:999fda8823d160e6a93314ab2e0156fb78d381c04469c4cdebb12dfb626eb898",
+    "pnpm-lock.yaml": "sha256:ecb75d42fdb4a4261d261b01e76a4dfc786530edddb258fc25a07f1369225c3c",
+    "pnpm-workspace.yaml": "sha256:60e3c3943e300007db6806a4684dd8f572e5ec9b04cb03b0cc38f90c82b16c15",
     "schemas/action-request.schema.json": "sha256:6626ff07292627489ff748ae8858f1d562bd7dcb0bf44da6208857498e2334f7",
     "schemas/authorization-receipt.schema.json": "sha256:8c61c045a73a7e4ae93b1cb1fa3b3f6afb967068fdf72c9eb30b9adb7fc43c1d",
     "schemas/deployment-identity.schema.json": "sha256:7e0b713c72e4a1cd41166df366592bcc57104ce1e1a87b5f47b9fa7be5dcc5d5",

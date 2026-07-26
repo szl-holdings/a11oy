@@ -3,7 +3,7 @@
 
 # Claim downgrades
 
-Generated at `2026-07-26T08:05:28+00:00` from tracked audit receipts.
+Generated at `2026-07-26T08:32:16+00:00` from tracked audit receipts.
 
 **RETIRED:** no new public performance, SLSA, admission, telemetry, deployment, or
 formal-integration claim was introduced. Unavailable evidence remains `BLOCKED`, finite

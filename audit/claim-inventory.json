@@ -547,7 +547,7 @@
       "text_sha256": "820acff53bab7314ce62ff754950c379d1b92f294e885b1b75a1f945c9812c1f"
     }
   ],
-  "generated_at": "2026-07-26T08:02:51+00:00",
+  "generated_at": "2026-07-26T08:31:00+00:00",
   "label": "MEASURED",
   "limitations": "human semantic review is still required; line text is hashed to avoid duplicating public copy",
   "scope": "automated material-claim candidate scan of README and diligence packet"

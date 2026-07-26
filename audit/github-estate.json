@@ -45,7 +45,7 @@
         "protected": false
       },
       {
-        "commit_sha": "9f398f486d7b14b766fbcd061bfb3fa2321d926d",
+        "commit_sha": "6f2d2365b1a694e152232ae17638ab27dff04057",
         "name": "agent/f4-media-loopforge-final",
         "protected": false
       },
@@ -57,11 +57,6 @@
       {
         "commit_sha": "2e16b2627aede3c69f1e11881617a03ecf097c41",
         "name": "agent/formula-registry-honesty-20260721",
-        "protected": false
-      },
-      {
-        "commit_sha": "13037fedd36d910405bf80d0495c1fc762e00961",
-        "name": "agent/frontier-attestation-contract",
         "protected": false
       },
       {
@@ -225,7 +220,7 @@
         "protected": false
       },
       {
-        "commit_sha": "784d0b22e4c5ae38ed1e510fb77796951da6c84d",
+        "commit_sha": "f2631bba9133837ecbbc31aebad62b084ad92366",
         "name": "codex/windows-schema-tests",
         "protected": false
       },
@@ -340,7 +335,7 @@
         "protected": false
       },
       {
-        "commit_sha": "af43e4b71529c2bab3227763fdb4b5969c2cd6ce",
+        "commit_sha": "908cc11509b51fc85f8f1ed8542c32c1e6e77e2e",
         "name": "main",
         "protected": true
       },
@@ -365,8 +360,13 @@
         "protected": false
       },
       {
-        "commit_sha": "6aecc69ff3fee58d327bee7e9d5db2b589c6e044",
+        "commit_sha": "4ad2223817ee01a3ecb24a1c090378bcf5749813",
         "name": "ops/operation-verified-throughput",
+        "protected": false
+      },
+      {
+        "commit_sha": "9db774ddc109d2226498f3155cd3bbb36f76cb49",
+        "name": "ops/operation-verified-throughput-policy",
         "protected": false
       },
       {
@@ -4500,31 +4500,41 @@
         "author": "stephenlutar2-hash",
         "base": "main",
         "draft": true,
+        "head": "ops/operation-verified-throughput-policy",
+        "number": 1088,
+        "state": "open",
+        "title": "feat(policy): bind verified throughput authorization",
+        "updated_at": "2026-07-26T08:11:54Z"
+      },
+      {
+        "author": "stephenlutar2-hash",
+        "base": "main",
+        "draft": false,
         "head": "agent/f4-media-loopforge-final",
         "number": 1087,
         "state": "open",
         "title": "feat(frontier): bind media credentials and promote Loop Forge",
-        "updated_at": "2026-07-26T07:58:31Z"
+        "updated_at": "2026-07-26T08:23:17Z"
       },
       {
         "author": "stephenlutar2-hash",
         "base": "main",
-        "draft": true,
+        "draft": false,
         "head": "ops/operation-verified-throughput",
         "number": 1083,
         "state": "open",
         "title": "feat(operations): add verified throughput evidence boundary",
-        "updated_at": "2026-07-26T06:17:09Z"
+        "updated_at": "2026-07-26T08:22:55Z"
       },
       {
         "author": "stephenlutar2-hash",
         "base": "main",
-        "draft": true,
+        "draft": false,
         "head": "agent/hf-estate-audit-drift-guard-verified",
         "number": 1079,
         "state": "open",
         "title": "fix(hf): make estate counts reproducible",
-        "updated_at": "2026-07-26T07:26:22Z"
+        "updated_at": "2026-07-26T08:22:57Z"
       },
       {
         "author": "stephenlutar2-hash",
@@ -4535,16 +4545,6 @@
         "state": "open",
         "title": "fix(runtime): prove routing with unprivileged promotion guard",
         "updated_at": "2026-07-26T05:42:48Z"
-      },
-      {
-        "author": "stephenlutar2-hash",
-        "base": "main",
-        "draft": false,
-        "head": "agent/frontier-attestation-contract",
-        "number": 1069,
-        "state": "open",
-        "title": "fix(attestation): fail closed on unverified hardware",
-        "updated_at": "2026-07-26T07:59:05Z"
       },
       {
         "author": "stephenlutar2-hash",
@@ -4569,12 +4569,12 @@
       {
         "author": "stephenlutar2-hash",
         "base": "main",
-        "draft": true,
+        "draft": false,
         "head": "codex/windows-schema-tests",
         "number": 1064,
         "state": "open",
         "title": "test: use canonical knowledge fixtures on Windows",
-        "updated_at": "2026-07-26T04:09:20Z"
+        "updated_at": "2026-07-26T08:25:14Z"
       }
     ],
     "packages": {
@@ -4924,7 +4924,7 @@
       }
     ],
     "workflows": {
-      "total_count": 138,
+      "total_count": 139,
       "workflows": [
         {
           "badge_url": "https://github.com/szl-holdings/a11oy/workflows/a11oy%20API%20Health/badge.svg",
@@ -5477,6 +5477,18 @@
           "state": "active",
           "updated_at": "2026-06-11T17:17:34.000-04:00",
           "url": "https://api.github.com/repos/szl-holdings/a11oy/actions/workflows/294215518"
+        },
+        {
+          "badge_url": "https://github.com/szl-holdings/a11oy/workflows/Hugging%20Face%20snapshot%20backup%20and%20restoration/badge.svg",
+          "created_at": "2026-07-26T04:04:19.000-04:00",
+          "html_url": "https://github.com/szl-holdings/a11oy/blob/main/.github/workflows/hf-backup-restore.yml",
+          "id": 320644812,
+          "name": "Hugging Face snapshot backup and restoration",
+          "node_id": "W_kwDOSRC-js4THKbM",
+          "path": ".github/workflows/hf-backup-restore.yml",
+          "state": "active",
+          "updated_at": "2026-07-26T04:04:19.000-04:00",
+          "url": "https://api.github.com/repos/szl-holdings/a11oy/actions/workflows/320644812"
         },
         {
           "badge_url": "https://github.com/szl-holdings/a11oy/workflows/HF%20bucket%20self-test/badge.svg",
@@ -6113,23 +6125,11 @@
           "state": "active",
           "updated_at": "2026-07-22T05:04:19.000-04:00",
           "url": "https://api.github.com/repos/szl-holdings/a11oy/actions/workflows/318034928"
-        },
-        {
-          "badge_url": "https://github.com/szl-holdings/a11oy/workflows/Repair%20PR%201003%20history/badge.svg",
-          "created_at": "2026-07-22T03:53:05.000-04:00",
-          "html_url": "https://github.com/szl-holdings/a11oy/blob/main/.github/workflows/repair-pr-1003.yml",
-          "id": 317996573,
-          "name": "Repair PR 1003 history",
-          "node_id": "W_kwDOSRC-js4S9D4d",
-          "path": ".github/workflows/repair-pr-1003.yml",
-          "state": "active",
-          "updated_at": "2026-07-22T03:53:05.000-04:00",
-          "url": "https://api.github.com/repos/szl-holdings/a11oy/actions/workflows/317996573"
         }
       ]
     }
   },
-  "generated_at": "2026-07-26T08:02:33+00:00",
+  "generated_at": "2026-07-26T08:30:41+00:00",
   "label": "MEASURED",
   "organization": {
     "default_repository_permission": "read",
@@ -6153,8 +6153,8 @@
       "id": 1192658924,
       "name": "platform",
       "private": false,
-      "pushed_at": "2026-07-26T08:01:18Z",
-      "updated_at": "2026-07-26T06:32:43Z",
+      "pushed_at": "2026-07-26T08:24:33Z",
+      "updated_at": "2026-07-26T08:25:03Z",
       "visibility": "public"
     },
     {
@@ -6177,8 +6177,8 @@
       "id": 1225834126,
       "name": "a11oy",
       "private": false,
-      "pushed_at": "2026-07-26T07:54:10Z",
-      "updated_at": "2026-07-26T07:30:55Z",
+      "pushed_at": "2026-07-26T08:25:13Z",
+      "updated_at": "2026-07-26T08:16:43Z",
       "visibility": "public"
     },
     {

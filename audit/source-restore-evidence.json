@@ -1,6 +1,6 @@
 {
-  "archive_sha256": "5260a460dec5e807b6d133fc819dfa326fe24a8daa15a22e7c90b6c932a5ee5d",
-  "generated_at": "2026-07-26T08:03:59+00:00",
+  "archive_sha256": "3aafa29d1f57be3fa11936f2ecead946d2e24fae246f2a4267c665fb6184d999",
+  "generated_at": "2026-07-26T08:27:46+00:00",
   "included_paths": [
     "docs/FORMAL_SCOPE_AND_LIMITATIONS.md",
     "docs/SERIES_A_DILIGENCE.md",
@@ -28,6 +28,6 @@
   "regular_files": 363,
   "restored_regular_files": 363,
   "scope": "governed release critical-path source restore only; not a production data or infrastructure backup",
-  "source_commit": "382ad2021c18ccb07e9be624edcf76eb163d777c",
+  "source_commit": "9b7ca6b6c1c2088f3f02abd6552ae5e71471e568",
   "temporary_archive_retained": false
 }

@@ -1,6 +1,6 @@
 {
   "conclusion": "The broader web package cannot be installed from this repository alone.",
-  "generated_at": "2026-07-26T08:02:53+00:00",
+  "generated_at": "2026-07-26T08:31:13+00:00",
   "label": "FAILED",
   "missing": 12,
   "missing_packages": {

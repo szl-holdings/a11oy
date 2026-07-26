@@ -3,7 +3,7 @@
 
 # Rollback evidence
 
-Generated at `2026-07-26T08:05:28+00:00` from tracked audit receipts.
+Generated at `2026-07-26T08:32:16+00:00` from tracked audit receipts.
 
 **MEASURED:** the governed release critical-path source archive restored
 363 files with 0 mismatches.

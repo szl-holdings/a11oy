@@ -3,7 +3,7 @@
 
 # vLLM and SGLang summary
 
-Generated at `2026-07-26T08:05:28+00:00` from tracked audit receipts.
+Generated at `2026-07-26T08:32:16+00:00` from tracked audit receipts.
 
 **BLOCKED:** no identical-hardware results exist. No performance default, latency
 target, throughput target, winner, or routing promotion is published.
