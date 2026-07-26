@@ -16,10 +16,20 @@ import szl_dsse
 import szl_tee_attest
 
 
-def _synthetic_tdx_quote(report_data, *, version=4, body_type=2):
+def _synthetic_tdx_quote(
+    report_data,
+    *,
+    version=4,
+    body_type=2,
+    body_size=None,
+):
     """Minimal structurally valid quote fixture; never presented as real evidence."""
     header = struct.pack("<HHI", version, 2, 0x81) + bytes(40)
-    body = bytearray(584 if body_type == 2 else 648)
+    canonical_sizes = {2: 584, 3: 648, 4: 885}
+    resolved_body_size = (
+        body_size if body_size is not None else canonical_sizes[body_type]
+    )
+    body = bytearray(resolved_body_size)
     body[520:584] = report_data
     signature = bytes([0xA5]) * 64
     if version == 4:
@@ -616,6 +626,36 @@ def test_qgl_quote_is_signed_structure_and_request_bound(monkeypatch):
     assert result["measurement"] is None
 
 
+def test_tdx_v5_body_types_require_canonical_sizes():
+    report_data = bytes(range(64))
+    for body_type, wrong_size in ((2, 648), (3, 584), (4, 648)):
+        quote = _synthetic_tdx_quote(
+            report_data,
+            version=5,
+            body_type=body_type,
+            body_size=wrong_size,
+        )
+        try:
+            szl_tee_attest._tdx_quote_layout(quote)
+        except RuntimeError as exc:
+            assert "body size does not match" in str(exc)
+        else:
+            raise AssertionError("mismatched TDX v5 body type/size must fail")
+
+
+def test_tdx_v5_accepts_canonical_tdx_1_5ex_body():
+    report_data = bytes(range(64))
+    quote = _synthetic_tdx_quote(report_data, version=5, body_type=4)
+
+    version, report_data_offset, signature_offset = (
+        szl_tee_attest._tdx_quote_layout(quote)
+    )
+
+    assert version == 5
+    assert quote[report_data_offset : report_data_offset + 64] == report_data
+    assert signature_offset == 48 + 6 + 885
+
+
 def test_qgl_rejects_a_local_tdreport_relabel(monkeypatch):
     monkeypatch.setattr(
         szl_tee_attest,
@@ -678,6 +718,38 @@ def test_qgl_wrapper_calls_intel_quote_api_and_frees_buffer(monkeypatch):
 
     assert szl_tee_attest._tdx_qgl_quote_bytes(report_data) == quote
     assert calls == ["get", "free"]
+
+
+def test_nitro_fallback_closes_descriptor_when_request_fails(monkeypatch):
+    import sys
+    from types import ModuleType, SimpleNamespace
+
+    closed = []
+
+    class _FailingLib:
+        @staticmethod
+        def nsm_lib_init():
+            return 17
+
+        @staticmethod
+        def nsm_process_request(_fd, _request):
+            raise RuntimeError("simulated NSM request failure")
+
+        @staticmethod
+        def nsm_lib_exit(fd):
+            closed.append(fd)
+
+    package = ModuleType("aws_nitro_enclaves_nsm_api")
+    package.nsm = SimpleNamespace(
+        lib=_FailingLib(),
+        AttestationRequest=lambda **kwargs: kwargs,
+    )
+    monkeypatch.setitem(sys.modules, "nsm", None)
+    monkeypatch.setitem(sys.modules, "aws_nitro_enclaves_nsm_api", package)
+    monkeypatch.setattr(szl_tee_attest.os.path, "exists", lambda _path: True)
+
+    assert szl_tee_attest._probe_nitro() is None
+    assert closed == [17]
 
 
 def test_read_only_get_never_invokes_external_verifier(monkeypatch):

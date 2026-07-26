@@ -102,6 +102,12 @@ _TDX_REPORT_ENV = "SZL_TDX_REPORT_PATH"
 _MAX_TEE_EVIDENCE_BYTES = 1024 * 1024
 _TDX_QUOTE_HEADER_SIZE = 48
 _TDX_1_0_QUOTE_BODY_SIZE = 584
+# Canonical packed layouts from Intel's public sgx_quote_5.h.
+_TDX_V5_BODY_SIZES = {
+    2: 584,  # TDX 1.0
+    3: 648,  # TDX 1.5
+    4: 885,  # TDX 1.5ex
+}
 _TDX_REPORT_DATA_OFFSET = 520
 _TDX_TEE_TYPE = 0x00000081
 _TDX_ECDSA_P256_ATTESTATION_KEY_TYPE = 2
@@ -238,10 +244,13 @@ def _tdx_quote_layout(quote: bytes) -> tuple[int, int, int]:
         body_type, body_size = struct.unpack_from(
             "<HI", quote, _TDX_QUOTE_HEADER_SIZE
         )
-        if body_type not in {2, 3}:
+        expected_body_size = _TDX_V5_BODY_SIZES.get(body_type)
+        if expected_body_size is None:
             raise RuntimeError("TDX Quote v5 has an unsupported body type")
-        if not _TDX_1_0_QUOTE_BODY_SIZE <= body_size <= 4096:
-            raise RuntimeError("TDX Quote v5 body size is invalid")
+        if body_size != expected_body_size:
+            raise RuntimeError(
+                "TDX Quote v5 body size does not match its body type"
+            )
         report_data_offset = (
             _TDX_QUOTE_HEADER_SIZE + 6 + _TDX_REPORT_DATA_OFFSET
         )
@@ -451,15 +460,17 @@ def _probe_nitro(
     try:
         from aws_nitro_enclaves_nsm_api import nsm  # type: ignore[import]
         fd = nsm.lib.nsm_lib_init()
-        response = nsm.lib.nsm_process_request(
-            fd,
-            nsm.AttestationRequest(
-                user_data=workload_bytes,
-                nonce=nonce_bytes,
+        try:
+            response = nsm.lib.nsm_process_request(
+                fd,
+                nsm.AttestationRequest(
+                    user_data=workload_bytes,
+                    nonce=nonce_bytes,
+                )
             )
-        )
-        nsm.lib.nsm_lib_exit(fd)
-        doc_bytes = response.attestation_doc
+            doc_bytes = response.attestation_doc
+        finally:
+            nsm.lib.nsm_lib_exit(fd)
         return _extract_nitro_pcr0(
             doc_bytes,
             expected_nonce=nonce_bytes,
