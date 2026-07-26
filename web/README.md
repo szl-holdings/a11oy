@@ -14,17 +14,18 @@
 
 ## What it does
 
-**PLANNED product contract** — this legacy SPA is intended to provide an Alloy
+**ROADMAP product contract** — this legacy SPA is intended to provide an Alloy
 Fabric view of agent status, decisions, policy gates, and proof-chain
 attributions. The current repository does not prove that every estate action
 routes through this surface.
 
-**MEASURED repository state** — source for those views is present under `web/`;
-clean-clone workspace wiring remains incomplete as disclosed below.
+**EXISTS (source-level)** — source for those views is present under `web/`;
+this is a code-presence claim, and clean-clone workspace wiring remains
+incomplete as disclosed below.
 
 ## Build status
 
-**PLANNED** — this legacy SPA is present under `web/`, but the repository root
+**ROADMAP** — this legacy SPA is present under `web/`, but the repository root
 workspace does not currently include it and several `workspace:*` dependencies
 are unresolved. The commands below describe the intended monorepo workflow;
 they are not a clean-clone quickstart until `pnpm -r build` proves the wiring.
@@ -38,7 +39,7 @@ pnpm --filter @workspace/api-server dev   # Start the API server first
 pnpm --filter @workspace/a11oy dev
 ```
 
-**PLANNED route:** `/a11oy/`
+**ROADMAP route:** `/a11oy/`
 
 ## Key modules
 

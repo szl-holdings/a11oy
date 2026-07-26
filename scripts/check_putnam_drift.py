@@ -30,9 +30,9 @@ import json
 import os
 import re
 import sys
-import types
 import urllib.error
 import urllib.request
+from types import ModuleType
 from typing import Dict, List, Optional, Set, Tuple
 
 REPO = "szl-holdings/lutar-lean"
@@ -144,18 +144,18 @@ def canonical_szl_status(text: str) -> Optional[str]:
 # a11oy embedded data — loader module + console fallback.
 # ---------------------------------------------------------------------------
 def load_loader(path: str):
-    """Execute the loader from source without consulting a bytecode cache.
+    """Execute the current loader source without trusting timestamped bytecode.
 
-    The drift guard's negative-fixture test deliberately makes same-size edits
-    in rapid succession. Timestamp-and-size based ``.pyc`` validation can then
-    accept stale bytecode and hide a real label mutation. Compiling the source
-    bytes directly makes both CI and local checks deterministic.
+    The negative fixtures deliberately replace same-length status labels within
+    one filesystem timestamp tick. A normal import can therefore reuse a stale
+    ``__pycache__`` entry and report a false green. Compiling the source bytes
+    directly makes every validation run observe the file it was given.
     """
-    mod = types.ModuleType("szl_putnam_under_test")
-    mod.__file__ = path
-    with open(path, "rb") as fh:
+    with open(path, "r", encoding="utf-8") as fh:
         source = fh.read()
-    exec(compile(source, path, "exec"), mod.__dict__)
+    mod = ModuleType("szl_putnam_under_test")
+    mod.__file__ = path
+    exec(compile(source, path, "exec", dont_inherit=True), mod.__dict__)
     return mod
 
 

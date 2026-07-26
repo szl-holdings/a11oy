@@ -15,10 +15,11 @@ SPDX-License-Identifier: Apache-2.0
 
 ## 1. The synthesis thesis — governed code-as-action
 
-**MEASURED** — the runtime includes a path that **composes → inspects → revises** code, where code
-actions are **doctrine-gated before execution** and emit a Khipu provenance
-receipt. Energy is **MEASURED** only when externally observed telemetry is
-present; otherwise the ledger is explicitly **SAMPLE/DEGRADED**.
+**EXISTS (source-level)** — the runtime source includes a path that
+**composes → inspects → revises** code, governance gates, and Khipu provenance
+receipt emission. This is a code-presence claim, not a measured runtime outcome.
+Energy is **MEASURED** only when externally observed telemetry is present;
+otherwise the ledger is explicitly **SAMPLE/DEGRADED**.
 
 The interesting space lives between two things we studied (and copied from neither):
 
@@ -86,7 +87,7 @@ Honesty is structural here: a defense buyer's first question is *what actually w
 | Energy / joule per job | **MODELED / MEASURED** | `szl_energy_operator` → `szl_energy_ledger`; externally observed telemetry is environment-dependent, otherwise values are **SAMPLE/DEGRADED** |
 | Doctrine gate before act | **HAVE** | `a11oy_constitution`, `szl_governance_gateway`, `szl_lambda_tripwire` |
 | Honest labels (MEASURED/SAMPLE/ROADMAP) | **HAVE** | `.doctrine-allowlist` + doctrine-grep CI gate; `szl_joules_truth` |
-| Signed supply chain | **MEASURED / PLANNED** | release-scoped signatures, SBOMs, and provenance assets exist; complete current-image and per-build coverage is not built |
+| Release-scoped signatures and provenance | **HAVE** | selected release assets are independently downloadable and verifiable; this does not promote SBOM coverage beyond **ROADMAP** |
 | Governed static-screen + sandboxed code exec | **HAVE** | `a11oy_code_engine.governed_turn` / `_static_screen` / `_sandbox_exec` |
 
 ### COGNITION — references have these; a11oy is partial or missing
@@ -147,10 +148,10 @@ stopped loop, or readiness-check error then returns HTTP 503.
 ### supply-chain/ — Sigstore / SBOM / UDS (the deploy moat) `[EXISTS, ceiling]`
 `szl_uds_fleet.py` · `szl_uds_portability.py` · `runtime_attestation.py` · `szl_dsse.py` ·
 `sign_cert_dsse.py`; configs `.gitleaks.toml`, `.doctrine-allowlist`,
-`physical_bounds_certificate.dsse.json`. **MEASURED:** release-scoped signatures,
-SBOMs, and provenance assets exist for selected releases. **PLANNED:** complete
-current-image and per-build coverage, SLSA L3, FedRAMP, CMMC, Iron
-Bank, and ATO remain roadmap work and are not claimed achieved.
+`physical_bounds_certificate.dsse.json`. **HAVE:** selected release-scoped
+signatures and provenance assets exist. **ROADMAP:** SBOM coverage, complete
+current-image and per-build coverage, SLSA L3, FedRAMP, CMMC, Iron Bank, and ATO
+are not claimed achieved.
 
 ### agents/ — the governed agentic loop `[EXISTS, single-shot]`
 `a11oy_agent_loop.py` · `a11oy_react_core.py` · `szl_agentic_loop.py` ·
@@ -211,7 +212,7 @@ carries an explicit ROADMAP label.
 | Persistent code-as-action kernel | **ROADMAP** | `_sandbox_exec` is single-shot today |
 | Named `execution_guard` wrapper | **ROADMAP** | underlying guards exist; named wrapper does not |
 | Container / microVM isolation | **ROADMAP** | subprocess + rlimit tier today |
-| SBOM (CycloneDX/SPDX) coverage | **MEASURED / PLANNED** | selected release assets exist; complete current-image and every-build coverage is not built |
+| SBOM (CycloneDX/SPDX) coverage | **ROADMAP** | selected release assets do not change the locked status; complete current-image and every-build coverage is not built |
 | SLSA L3 / FedRAMP / CMMC / Iron Bank / ATO | **ROADMAP** | never claimed achieved |
 | Λ-uniqueness | **CONJECTURE 1** | F23 open bounty — never a theorem |
 | Khipu BFT safety | **CONJECTURE 2** | open |
