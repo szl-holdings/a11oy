@@ -26,13 +26,13 @@ canonical ``Lutar/Putnam`` tree from a local directory instead of the network.
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import re
 import sys
 import urllib.error
 import urllib.request
+from types import ModuleType
 from typing import Dict, List, Optional, Set, Tuple
 
 REPO = "szl-holdings/lutar-lean"
@@ -47,6 +47,10 @@ DEFAULT_BRANCH = DEFAULT_REF
 PUTNAM_FILE_RE = re.compile(r"^P_[AB][1-6]\.lean$")
 STATUS_RE = r"(REAL|DEMO|OPEN)"
 VALID_STATUS = {"REAL", "DEMO", "OPEN"}
+DILIGENCE_REL = os.path.join("docs", "SERIES_A_DILIGENCE.md")
+DILIGENCE_BEGIN = "<!-- BEGIN GENERATED PUTNAM STATUS -->"
+DILIGENCE_END = "<!-- END GENERATED PUTNAM STATUS -->"
+TRUSTED_AXIOMS = {"propext", "Quot.sound", "Classical.choice"}
 
 
 # ---------------------------------------------------------------------------
@@ -137,15 +141,245 @@ def canonical_szl_status(text: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def strip_lean_comments_and_strings(text: str) -> str:
+    """Remove Lean comments and string contents while preserving newlines."""
+    out: List[str] = []
+    i = 0
+    block_depth = 0
+    in_string = False
+    while i < len(text):
+        pair = text[i:i + 2]
+        char = text[i]
+        if block_depth:
+            if pair == "/-":
+                block_depth += 1
+                out.extend("  ")
+                i += 2
+            elif pair == "-/":
+                block_depth -= 1
+                out.extend("  ")
+                i += 2
+            else:
+                out.append("\n" if char == "\n" else " ")
+                i += 1
+            continue
+        if in_string:
+            if char == "\\" and i + 1 < len(text):
+                out.extend("  ")
+                i += 2
+            elif char == '"':
+                in_string = False
+                out.append(" ")
+                i += 1
+            else:
+                out.append("\n" if char == "\n" else " ")
+                i += 1
+            continue
+        if pair == "/-":
+            block_depth = 1
+            out.extend("  ")
+            i += 2
+        elif pair == "--":
+            while i < len(text) and text[i] != "\n":
+                out.append(" ")
+                i += 1
+        elif char == '"':
+            in_string = True
+            out.append(" ")
+            i += 1
+        else:
+            out.append(char)
+            i += 1
+    return "".join(out)
+
+
+def mask_lean_attributes(rel: str, text: str, errors: List[str]) -> str:
+    """Blank balanced ``@[...]`` attributes while preserving source offsets."""
+    out = list(text)
+    cursor = 0
+    while True:
+        start = text.find("@[", cursor)
+        if start < 0:
+            break
+        depth = 0
+        end = start + 1
+        while end < len(text):
+            char = text[end]
+            if char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+                if depth == 0:
+                    end += 1
+                    break
+            end += 1
+        if depth != 0:
+            errors.append(
+                "canonical REAL %s: unterminated attribute syntax" % rel
+            )
+            end = len(text)
+        for index in range(start, end):
+            if out[index] != "\n":
+                out[index] = " "
+        cursor = end
+    return "".join(out)
+
+
+def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
+    """Validate a REAL source and return every theorem/lemma it declares."""
+    clean = strip_lean_comments_and_strings(text)
+    command_text = mask_lean_attributes(rel, clean, errors)
+    forbidden = []
+    if re.search(r"\b(?:sorry|sorryAx|admit)\b", clean):
+        forbidden.append("sorry/sorryAx/admit")
+    if re.search(
+        r"(?m)^[ \t]*"
+        r"(?:(?:private|protected|noncomputable|unsafe)\s+)*"
+        r"(?:axiom|constant)\b",
+        command_text,
+    ):
+        forbidden.append("new axiom/constant declaration")
+    if re.search(r"\bnative_decide\b", clean):
+        forbidden.append("native_decide")
+    for item in forbidden:
+        errors.append("canonical REAL %s: forbidden %s" % (rel, item))
+
+    declarations: List[str] = []
+    scopes: List[Tuple[str, Optional[str]]] = []
+    command_re = re.compile(
+        r"(?m)^[ \t]*"
+        r"(?P<modifiers>(?:(?:private|protected|noncomputable)\s+)*)"
+        r"(?P<kind>namespace|section|end|theorem|lemma)\b"
+    )
+    commands = list(command_re.finditer(command_text))
+    lean_name = r"(?:«[^»\r\n]+»|[^\s:({\[\],]+)"
+
+    for index, command in enumerate(commands):
+        kind = command.group("kind")
+        stop = (
+            commands[index + 1].start()
+            if index + 1 < len(commands)
+            else len(command_text)
+        )
+        tail = command_text[command.end():stop]
+        same_line = tail.splitlines()[0] if tail else ""
+
+        if kind == "namespace":
+            name_match = re.match(r"[ \t]+(" + lean_name + r")", same_line)
+            if name_match:
+                scopes.append(("namespace", name_match.group(1)))
+            continue
+        if kind == "section":
+            name_match = re.match(r"[ \t]+(" + lean_name + r")", same_line)
+            scopes.append(("section", name_match.group(1) if name_match else None))
+            continue
+        if kind == "end":
+            if scopes:
+                scopes.pop()
+            continue
+
+        name_match = re.match(r"\s+(" + lean_name + r")", tail)
+        if not name_match:
+            errors.append(
+                "canonical REAL %s: %s declaration has no parseable name"
+                % (rel, kind)
+            )
+            continue
+        if "private" in command.group("modifiers").split():
+            # Private declarations get compiler-generated inaccessible names.
+            # Their public dependents remain covered by the external audit.
+            continue
+        name = name_match.group(1)
+        namespaces = [
+            scope_name
+            for scope_kind, scope_name in scopes
+            if scope_kind == "namespace" and scope_name
+        ]
+        if name.startswith("_root_."):
+            name = name[len("_root_."):]
+        elif namespaces:
+            name = ".".join(namespaces + [name])
+        declarations.append(name)
+    if not declarations:
+        errors.append(
+            "canonical REAL %s: no externally auditable public "
+            "theorem/lemma declarations found" % rel
+        )
+    return declarations
+
+
+def module_name(rel: str) -> str:
+    stem = rel[:-5] if rel.endswith(".lean") else rel
+    return "Lutar.Putnam." + stem.replace("/", ".").replace("\\", ".")
+
+
+def render_axiom_audit(real_sources: Dict[str, List[str]]) -> str:
+    """Render a Lean audit that reports the axiom footprint of every REAL proof."""
+    imports = [f"import {module_name(rel)}" for rel in sorted(real_sources)]
+    prints = [
+        f"#print axioms {decl}"
+        for rel in sorted(real_sources)
+        for decl in real_sources[rel]
+    ]
+    return "\n".join(
+        ["-- Generated by a11oy scripts/check_putnam_drift.py."]
+        + imports
+        + [""]
+        + prints
+        + [""]
+    )
+
+
+def validate_axiom_report(
+    report: str,
+    declarations: List[str],
+    errors: List[str],
+) -> None:
+    """Require one kernel axiom result per REAL declaration and no extra axioms."""
+    for decl in declarations:
+        quoted = re.escape("'" + decl + "'")
+        none_pattern = re.compile(
+            quoted + r"\s+does not depend on any axioms",
+            re.IGNORECASE,
+        )
+        deps_pattern = re.compile(
+            quoted + r"\s+depends on axioms:\s*\[([^\]]*)\]",
+            re.IGNORECASE,
+        )
+        none_hits = none_pattern.findall(report)
+        dep_hits = deps_pattern.findall(report)
+        if len(none_hits) + len(dep_hits) != 1:
+            errors.append(
+                "axiom report: expected exactly one result for REAL theorem %s"
+                % decl
+            )
+            continue
+        if dep_hits:
+            axioms = {item.strip() for item in dep_hits[0].split(",") if item.strip()}
+            extra = sorted(axioms - TRUSTED_AXIOMS)
+            if extra:
+                errors.append(
+                    "axiom report: REAL theorem %s depends on extra axioms %s"
+                    % (decl, extra)
+                )
+
+
 # ---------------------------------------------------------------------------
 # a11oy embedded data — loader module + console fallback.
 # ---------------------------------------------------------------------------
 def load_loader(path: str):
-    spec = importlib.util.spec_from_file_location("szl_putnam_under_test", path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot import loader at %s" % path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    """Execute the current loader source without trusting timestamped bytecode.
+
+    The negative fixtures deliberately replace same-length status labels within
+    one filesystem timestamp tick. A normal import can therefore reuse a stale
+    ``__pycache__`` entry and report a false green. Compiling the source bytes
+    directly makes every validation run observe the file it was given.
+    """
+    with open(path, "r", encoding="utf-8") as fh:
+        source = fh.read()
+    mod = ModuleType("szl_putnam_under_test")
+    mod.__file__ = path
+    exec(compile(source, path, "exec", dont_inherit=True), mod.__dict__)
     return mod
 
 
@@ -201,7 +435,74 @@ def named_open_sets(text: str) -> List[Set[str]]:
 # ---------------------------------------------------------------------------
 # Main check.
 # ---------------------------------------------------------------------------
-def run(root: str, branch: str, fixture: Optional[str]) -> int:
+def diligence_block(
+    branch: str,
+    total: int,
+    real: int,
+    demo: int,
+    open_count: int,
+) -> str:
+    """Render the only allowed public Putnam count for the diligence packet."""
+    return (
+        f"{DILIGENCE_BEGIN}\n"
+        "| Putnam 2025 Lean | **PROVED** — "
+        f"{real} of {total} Putnam problems currently carry a Lean `REAL` "
+        f"status; the complete canonical tally is {real} REAL / {demo} DEMO / "
+        f"{open_count} OPEN at `lutar-lean@{branch}`. This row is generated and "
+        "checked by `scripts/check_putnam_drift.py`. |\n"
+        f"{DILIGENCE_END}"
+    )
+
+
+def sync_diligence(
+    root: str,
+    expected: str,
+    write_diligence: bool,
+    errors: List[str],
+) -> None:
+    """Write or verify the generated diligence block without touching prose."""
+    path = os.path.join(root, DILIGENCE_REL)
+    if not os.path.isfile(path):
+        errors.append("%s not found" % path)
+        return
+    with open(path, "r", encoding="utf-8") as fh:
+        text = fh.read()
+    pattern = re.compile(
+        re.escape(DILIGENCE_BEGIN) + r".*?" + re.escape(DILIGENCE_END),
+        re.S,
+    )
+    begin_count = text.count(DILIGENCE_BEGIN)
+    end_count = text.count(DILIGENCE_END)
+    matches = list(pattern.finditer(text))
+    if begin_count != 1 or end_count != 1 or len(matches) != 1:
+        errors.append(
+            "%s: expected exactly one generated Putnam status marker block "
+            "(found %d begin marker(s), %d end marker(s), %d block(s))"
+            % (DILIGENCE_REL, begin_count, end_count, len(matches))
+        )
+        return
+    if write_diligence:
+        rendered = pattern.sub(expected, text)
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(rendered)
+        return
+    actual = matches[0]
+    if actual.group(0) != expected:
+        errors.append(
+            "%s: generated Putnam status is stale; run "
+            "`python scripts/check_putnam_drift.py --write-diligence`"
+            % DILIGENCE_REL
+        )
+
+
+def run(
+    root: str,
+    branch: str,
+    fixture: Optional[str],
+    write_diligence: bool = False,
+    write_axiom_audit: Optional[str] = None,
+    axiom_report: Optional[str] = None,
+) -> int:
     errors: List[str] = []
 
     loader_path = os.path.join(root, "szl_putnam.py")
@@ -239,19 +540,50 @@ def run(root: str, branch: str, fixture: Optional[str]) -> int:
         return 2
 
     canon_putnam: Dict[str, str] = {}      # file -> status
+    canon_sources: Dict[str, str] = {}
     for f in canon_putnam_files:
-        st = canonical_putnam_status(canon.read(f))
+        source = canon.read(f)
+        canon_sources[f] = source
+        st = canonical_putnam_status(source)
         if st is None:
             errors.append("canonical %s: no parseable Honest status label" % f)
         else:
             canon_putnam[f] = st
     canon_szl: Dict[str, str] = {}         # 'SZL/X.lean' -> status
     for f in canon_szl_files:
-        st = canonical_szl_status(canon.read(f))
+        source = canon.read(f)
+        canon_sources[f] = source
+        st = canonical_szl_status(source)
         if st is None:
             errors.append("canonical %s: no parseable REAL/DEMO/OPEN claim" % f)
         else:
             canon_szl[f] = st
+
+    # ---- every REAL source is sorry-free and axiom-audited --------------
+    real_sources: Dict[str, List[str]] = {}
+    for rel, status in {**canon_putnam, **canon_szl}.items():
+        if status == "REAL":
+            real_sources[rel] = real_lean_declarations(
+                rel,
+                canon_sources[rel],
+                errors,
+            )
+    real_declarations = [
+        decl
+        for rel in sorted(real_sources)
+        for decl in real_sources[rel]
+    ]
+    if write_axiom_audit:
+        with open(write_axiom_audit, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(render_axiom_audit(real_sources))
+    if axiom_report:
+        try:
+            with open(axiom_report, "r", encoding="utf-8") as fh:
+                report = fh.read()
+        except OSError as exc:
+            errors.append("cannot read axiom report %s: %s" % (axiom_report, exc))
+        else:
+            validate_axiom_report(report, real_declarations, errors)
 
     # ---- file-set completeness ------------------------------------------
     loader_putnam_files = {p["file"] for p in mod._PUTNAM}
@@ -343,6 +675,15 @@ def run(root: str, branch: str, fixture: Optional[str]) -> int:
                               "set is %s"
                               % (label, sorted(named), sorted(canon_open_ids)))
 
+    expected_diligence = diligence_block(
+        branch,
+        len(canon_putnam),
+        c_real,
+        c_demo,
+        c_open,
+    )
+    sync_diligence(root, expected_diligence, write_diligence, errors)
+
     # ---- verdict --------------------------------------------------------
     if errors:
         print("PUTNAM DRIFT — a11oy Putnam 2025 page is OUT OF SYNC with "
@@ -372,9 +713,31 @@ def main() -> int:
         default=DEFAULT_REF,
         help="immutable canonical lutar-lean commit",
     )
+    ap.add_argument(
+        "--write-diligence",
+        action="store_true",
+        help="refresh only the generated Putnam row in the diligence packet",
+    )
+    ap.add_argument(
+        "--write-axiom-audit",
+        metavar="PATH",
+        help="write Lean #print axioms commands for every REAL theorem",
+    )
+    ap.add_argument(
+        "--axiom-report",
+        metavar="PATH",
+        help="require a complete in-policy #print axioms report",
+    )
     args = ap.parse_args()
     fixture = os.environ.get("PUTNAM_DRIFT_FIXTURE") or None
-    return run(args.root, args.branch, fixture)
+    return run(
+        args.root,
+        args.branch,
+        fixture,
+        args.write_diligence,
+        args.write_axiom_audit,
+        args.axiom_report,
+    )
 
 
 if __name__ == "__main__":

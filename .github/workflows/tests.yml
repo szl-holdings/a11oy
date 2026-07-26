@@ -377,6 +377,7 @@ jobs:
         run: |
           python3 scripts/validate_action_contract_manifest.py
           python3 scripts/test_validate_action_contract_manifest.py
+          python3 tests/test_action_contract_promotion_guard.py
 
   anatomy-map-selftest:
     name: Anatomy/formula/runtime map validator self-test (stdlib, network-free)

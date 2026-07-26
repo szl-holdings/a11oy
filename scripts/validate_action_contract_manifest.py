@@ -24,6 +24,12 @@ PINNED_RUNTIME_SUITE_SHA256 = (
 )
 PROTECTED_BASE_REF = "origin/main"
 RUNTIME_SUITE_TIMEOUT_SECONDS = 300
+RUNTIME_CONTROL_FIELDS = (
+    "runtimeImplemented",
+    "authenticatedExecution",
+    "idempotencyEnforced",
+    "durableReceiptLifecycle",
+)
 REQUIRED_EVIDENCE_COMMANDS = [
     "python3 scripts/validate_action_contract_manifest.py",
     "python3 scripts/test_validate_action_contract_manifest.py",
@@ -239,22 +245,22 @@ def main() -> int:
 
     execution = contract.get("execution", {})
     runtime_status = execution.get("runtimeStatus")
-    if contract.get("claimStatus") == "roadmap":
+    claim_status = contract.get("claimStatus")
+    if claim_status == "roadmap":
         if runtime_status != "roadmap":
             errors.append("roadmap action contracts require execution.runtimeStatus=roadmap")
         if execution.get("runtimeImplemented") is not False:
             errors.append("roadmap action contracts require execution.runtimeImplemented=false")
-    if contract.get("claimStatus") == "verified-runtime":
-        if runtime_status != "live":
-            errors.append("verified-runtime requires execution.runtimeStatus=live")
-        for field in [
-            "runtimeImplemented",
-            "authenticatedExecution",
-            "idempotencyEnforced",
-            "durableReceiptLifecycle",
-        ]:
+    if claim_status == "verified-runtime" and runtime_status != "live":
+        errors.append("verified-runtime requires execution.runtimeStatus=live")
+    if runtime_status == "live":
+        if claim_status != "verified-runtime":
+            errors.append(
+                "execution.runtimeStatus=live requires claimStatus=verified-runtime"
+            )
+        for field in RUNTIME_CONTROL_FIELDS:
             if execution.get(field) is not True:
-                errors.append(f"verified-runtime requires execution.{field}=true")
+                errors.append(f"live runtime requires execution.{field}=true")
         errors.extend(validate_pinned_runtime_suite())
     if "do not constitute" not in str(execution.get("evidenceBoundary", "")).lower():
         errors.append("execution.evidenceBoundary must reject manifest-only runtime proof")

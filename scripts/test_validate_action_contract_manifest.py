@@ -141,6 +141,18 @@ class ActionContractGuardSelfTest(unittest.TestCase):
         promote_to_verified_runtime(m)
         self.assertEqual(run_validator(m), 1)
 
+    def test_release_payload_cannot_claim_live_runtime(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        m["claimStatus"] = "release-payload"
+        with mock.patch.object(
+            validator,
+            "validate_pinned_runtime_suite",
+            return_value=[],
+        ) as qualification:
+            self.assertEqual(run_validator(m), 1)
+        qualification.assert_called_once_with()
+
     def test_forged_external_junit_cannot_promote(self):
         m = honest()
         promote_to_verified_runtime(m)

@@ -63,6 +63,41 @@ jobs:
               core.setFailed("candidate manifest exceeds the 1 MiB validation limit");
               return;
             }
+            let manifest;
+            try {
+              manifest = JSON.parse(content.toString("utf8"));
+            } catch (error) {
+              core.setFailed(`candidate manifest is not valid JSON: ${error.message}`);
+              return;
+            }
+            const execution = manifest && typeof manifest.execution === "object"
+              ? manifest.execution
+              : {};
+            const requestsLivePromotion =
+              manifest.claimStatus === "verified-runtime"
+              || execution.runtimeStatus === "live";
+            if (requestsLivePromotion) {
+              const changedFiles = await github.paginate(
+                github.rest.pulls.listFiles,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  per_page: 100,
+                },
+              );
+              const runtimeChanges = changedFiles
+                .map((entry) => entry.filename)
+                .filter((name) => name !== "docs/action-contract-manifest.json");
+              if (runtimeChanges.length > 0) {
+                core.setFailed(
+                  "live runtime promotion must be manifest-only; land runtime "
+                  + "implementation and qualification changes on protected main "
+                  + `first: ${runtimeChanges.join(", ")}`,
+                );
+                return;
+              }
+            }
             fs.writeFileSync(
               "protected-base/docs/action-contract-manifest.json",
               content,
