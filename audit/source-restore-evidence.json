@@ -1,0 +1,33 @@
+{
+  "archive_sha256": "5260a460dec5e807b6d133fc819dfa326fe24a8daa15a22e7c90b6c932a5ee5d",
+  "generated_at": "2026-07-26T08:03:59+00:00",
+  "included_paths": [
+    "docs/FORMAL_SCOPE_AND_LIMITATIONS.md",
+    "docs/SERIES_A_DILIGENCE.md",
+    "docs/THREAT_MODEL.md",
+    "docs/architecture.md",
+    "formal/LutarPolicy",
+    "package.json",
+    "packages/policy",
+    "packages/receipt-substrate",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "proofs/lutar-lean",
+    "schemas",
+    "scripts/audit_web_workspace_dependencies.py",
+    "scripts/build_operation_verified_throughput_reports.py",
+    "scripts/operation_verified_throughput_inventory.py",
+    "scripts/verify_lutar_policy.py",
+    "scripts/verify_policy_runtime.py",
+    "scripts/verify_release_commands.py",
+    "scripts/verify_source_restore.py"
+  ],
+  "label": "MEASURED",
+  "mismatch_count": 0,
+  "mismatches": [],
+  "regular_files": 363,
+  "restored_regular_files": 363,
+  "scope": "governed release critical-path source restore only; not a production data or infrastructure backup",
+  "source_commit": "382ad2021c18ccb07e9be624edcf76eb163d777c",
+  "temporary_archive_retained": false
+}

@@ -1,0 +1,140 @@
+{
+  "assertions": 105,
+  "claim_label": "IMPLEMENTED NOT DEPLOYED",
+  "commands": [
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "test:policy-contract"
+      ],
+      "name": "test:policy-contract",
+      "result": {
+        "assertions": 11,
+        "claim_label": "IMPLEMENTED NOT DEPLOYED",
+        "status": "PASS",
+        "suites": [
+          "contract"
+        ]
+      },
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/policy-runtime-logs/test-policy-contract.stderr.txt",
+      "stderr_sha256": "sha256:2d44d38aef23e46f00f25f102640c706bfe1bebd8e2dd008818a5e8a9e747507",
+      "stdout": "audit/policy-runtime-logs/test-policy-contract.stdout.txt",
+      "stdout_sha256": "sha256:7a060ffe9087c299f165f8f178560c342c18fcd61e65833281132833924fe47b"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "test:policy-negative"
+      ],
+      "name": "test:policy-negative",
+      "result": {
+        "assertions": 38,
+        "claim_label": "IMPLEMENTED NOT DEPLOYED",
+        "status": "PASS",
+        "suites": [
+          "negative"
+        ]
+      },
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/policy-runtime-logs/test-policy-negative.stderr.txt",
+      "stderr_sha256": "sha256:1d949bccc1aa7d4fce2a106c0efd96dd8dd694e7f663f2b6c3bfb65f75b6ca06",
+      "stdout": "audit/policy-runtime-logs/test-policy-negative.stdout.txt",
+      "stdout_sha256": "sha256:eaab85741e47fbc6a8bea30acd994a364a48cf47a8d21daaabf4116e8af03b1f"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "test:policy-mutation"
+      ],
+      "name": "test:policy-mutation",
+      "result": {
+        "assertions": 10,
+        "claim_label": "IMPLEMENTED NOT DEPLOYED",
+        "status": "PASS",
+        "suites": [
+          "mutation"
+        ]
+      },
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/policy-runtime-logs/test-policy-mutation.stderr.txt",
+      "stderr_sha256": "sha256:6bdfec9f06278c1b881c8c2315669cec0ef0cee708753a1c6da3d9b092e30ffe",
+      "stdout": "audit/policy-runtime-logs/test-policy-mutation.stdout.txt",
+      "stdout_sha256": "sha256:682ad1097d038946c731cbada15634473ffff5dac7122a2602ec47ac4bd3dbfb"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "test:policy-differential"
+      ],
+      "name": "test:policy-differential",
+      "result": {
+        "assertions": 46,
+        "claim_label": "IMPLEMENTED NOT DEPLOYED",
+        "status": "PASS",
+        "suites": [
+          "differential"
+        ]
+      },
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/policy-runtime-logs/test-policy-differential.stderr.txt",
+      "stderr_sha256": "sha256:b971719dd8115ce87346519e017c511a91c89ff4d686d1a2801c4a0ccf009fc1",
+      "stdout": "audit/policy-runtime-logs/test-policy-differential.stdout.txt",
+      "stdout_sha256": "sha256:7721988dca08c7966ca0f299f3b7c51351120f4de37679a9e98bf517337f52ac"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "--dir",
+        "packages/policy",
+        "run",
+        "typecheck"
+      ],
+      "name": "policy-typecheck",
+      "result": null,
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/policy-runtime-logs/policy-typecheck.stderr.txt",
+      "stderr_sha256": "sha256:3411db37ab2622cb3f7304353185677257b1c8be9d1556b0da0bc62e1e48985c",
+      "stdout": "audit/policy-runtime-logs/policy-typecheck.stdout.txt",
+      "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "generated_at": "2026-07-26T08:03:59+00:00",
+  "implementation_bundle_digest": "sha256:47bb6d1a30f925f18a5b6c69b7791eedfe255482f8fcdb7b32155b626faef823",
+  "implementation_paths_match_source_commit": true,
+  "implementation_source_commit": "382ad2021c18ccb07e9be624edcf76eb163d777c",
+  "implementation_sources": {
+    "package.json": "sha256:2dfb3149b98829ee77386d1c7b5d7e3568b026657439245d5cdc0bbce3b188e6",
+    "packages/policy/package.json": "sha256:ec34d18cf55f2ed0570b587c17125d04cad80f4975f911b95354b7b70fa51f82",
+    "packages/policy/src/index.ts": "sha256:5b5c97216310c59d088c0416031692acff968d4feb498b9e7da08c6d2fc04a64",
+    "packages/policy/src/verified/__tests__/authorization_boundary.test.ts": "sha256:d40b0829b78508ae2dafabe0cab73a3b24f15f1c914b42790e4628ae660a5a89",
+    "packages/policy/src/verified/authorization_boundary.ts": "sha256:9ce0dd8253fe83f7f9980847a1db1f25b634a712f7d39b226052d09905f8e829",
+    "pnpm-lock.yaml": "sha256:e1d7aba151a613c71e7f7a1f0f4abd6d4ac6b1486bfa9655c7bea5f5642545e9",
+    "pnpm-workspace.yaml": "sha256:999fda8823d160e6a93314ab2e0156fb78d381c04469c4cdebb12dfb626eb898",
+    "schemas/action-request.schema.json": "sha256:6626ff07292627489ff748ae8858f1d562bd7dcb0bf44da6208857498e2334f7",
+    "schemas/authorization-receipt.schema.json": "sha256:8c61c045a73a7e4ae93b1cb1fa3b3f6afb967068fdf72c9eb30b9adb7fc43c1d",
+    "schemas/deployment-identity.schema.json": "sha256:7e0b713c72e4a1cd41166df366592bcc57104ce1e1a87b5f47b9fa7be5dcc5d5",
+    "scripts/verify_policy_runtime.py": "sha256:e1ba2305c94443636ac2734b77526b5d2bea661223a6a7b3f1a656a689b829b3"
+  },
+  "runtime_binding": {
+    "formal_artifact_digest": "sha256:d5988892503c025a1158038744ab518d048bdd022c32e718d4ab8e67eced6380",
+    "label": "MODELED",
+    "mechanism": "TypeScript implementation with finite-domain differential checks",
+    "reason": "The TypeScript-to-Lean refinement has not been independently reviewed or exhaustively established over an encoded finite domain."
+  },
+  "schemas": {
+    "action-request.schema.json": "sha256:6626ff07292627489ff748ae8858f1d562bd7dcb0bf44da6208857498e2334f7",
+    "authorization-receipt.schema.json": "sha256:8c61c045a73a7e4ae93b1cb1fa3b3f6afb967068fdf72c9eb30b9adb7fc43c1d",
+    "deployment-identity.schema.json": "sha256:7e0b713c72e4a1cd41166df366592bcc57104ce1e1a87b5f47b9fa7be5dcc5d5"
+  },
+  "status": "PASS"
+}
