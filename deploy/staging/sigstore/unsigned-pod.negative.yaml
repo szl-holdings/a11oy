@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+# Negative fixture only. Do not apply outside an authorized staging drill.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unsigned-a11oy-negative-control
+  namespace: szl-staging
+  labels:
+    operation-verified-throughput/expected: admission-warning-or-rejection
+spec:
+  restartPolicy: Never
+  containers:
+    - name: unsigned
+      image: ghcr.io/szl-holdings/a11oy:unsigned-negative-control
+      command: ["/bin/false"]

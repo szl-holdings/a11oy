@@ -472,11 +472,12 @@ def diligence_block(
     """Render the only allowed public Putnam count for the diligence packet."""
     return (
         f"{DILIGENCE_BEGIN}\n"
-        "| Putnam 2025 Lean | **PROVED** — "
+        f"| Putnam 2025 Lean | **{real}/{total} PROVED** — "
         f"{real} of {total} Putnam problems currently carry a Lean `REAL` "
         f"status; the complete canonical tally is {real} REAL / {demo} DEMO / "
         f"{open_count} OPEN at `lutar-lean@{branch}`. This row is generated and "
-        "checked by `scripts/check_putnam_drift.py`. |\n"
+        "checked only after the pinned `lake build PutnamSet` job succeeds, by "
+        "`scripts/check_putnam_drift.py`. |\n"
         f"{DILIGENCE_END}"
     )
 

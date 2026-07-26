@@ -1,0 +1,4 @@
+[submodule "vendor/platform"]
+	path = vendor/platform
+	url = https://github.com/szl-holdings/platform.git
+	shallow = true
