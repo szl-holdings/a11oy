@@ -40,6 +40,7 @@ import base64
 import hashlib
 import json
 import os
+import stat
 import tempfile
 import time
 import uuid
@@ -592,6 +593,11 @@ def _atomic_write_bytes(asset_path: str, asset_bytes: bytes) -> None:
     parent = os.path.dirname(os.path.abspath(asset_path))
     if not os.path.isdir(parent):
         raise FileNotFoundError(f"asset parent directory does not exist: {parent}")
+    destination_mode = (
+        stat.S_IMODE(os.stat(asset_path, follow_symlinks=False).st_mode)
+        if os.path.exists(asset_path)
+        else 0o644
+    )
     temp_path = ""
     try:
         with tempfile.NamedTemporaryFile(
@@ -605,6 +611,7 @@ def _atomic_write_bytes(asset_path: str, asset_bytes: bytes) -> None:
             handle.write(asset_bytes)
             handle.flush()
             os.fsync(handle.fileno())
+        os.chmod(temp_path, destination_mode)
         os.replace(temp_path, asset_path)
     except Exception:
         if temp_path and os.path.exists(temp_path):
@@ -643,7 +650,7 @@ def write_asset_with_credential(
     edited: bool = False,
     digital_source_type: Optional[str] = None,
     signer: Optional[CredentialSigner] = None,
-    governance_context: Optional[dict] = None,
+    governance_decision: Optional[dict] = None,
 ) -> dict:
     """Write one media asset, emit its real Khipu receipt, then bind that receipt
     into the C2PA-aligned sidecar.
@@ -654,26 +661,48 @@ def write_asset_with_credential(
     a receipt. The final attested-execution edge stays UNAVAILABLE because this
     module does not contain a hardware attestation verifier.
     """
-    from a11oy_code_orchestrator import khipu_emit, puriq_decide
+    from a11oy_code_orchestrator import consume_governance_decision, khipu_emit
 
-    supplied_governance = dict(governance_context or {})
-    gate = puriq_decide(
-        "fs_write",
-        {
-            "risk": "high",
-            "authorized": supplied_governance.get("authorized") is True,
-            "has_provenance": supplied_governance.get("has_provenance") is True,
-            "license_class": supplied_governance.get("license_class", "UNKNOWN"),
-            "two_person_attested": (
-                supplied_governance.get("two_person_attested") is True
-            ),
-            "chain_verified": True,
-            "tool": "fs_write",
-            "asset_path": os.path.abspath(asset_path),
-        },
+    gate = dict(governance_decision or {})
+    governed_resource = os.path.abspath(asset_path)
+    governed_asset_hash = sha256_bytes(asset_bytes)
+    receipt_link = gate.get("khipu_receipt")
+    expected_payload = {
+        "action": "fs_write",
+        "allow": gate.get("allow"),
+        "score": gate.get("score"),
+        "lambda": gate.get("lambda"),
+        "hukla_fired": gate.get("hukla_fired"),
+        "yuyay_violations": gate.get("yuyay_violations"),
+        "resource": gate.get("resource"),
+        "asset_sha256": gate.get("asset_sha256"),
+    }
+    receipt_id = (
+        receipt_link.get("receipt_id") if isinstance(receipt_link, dict) else None
     )
-    if gate.get("allow") is not True:
-        raise PermissionError(f"PURIQ gate denied media write: {gate.get('reason')}")
+    receipt_hash = (
+        receipt_link.get("hash") if isinstance(receipt_link, dict) else None
+    )
+    evidence_is_bound = (
+        gate.get("allow") is True
+        and gate.get("resource") == governed_resource
+        and gate.get("asset_sha256") == governed_asset_hash
+        and isinstance(receipt_id, str)
+        and isinstance(receipt_hash, str)
+        and receipt_link.get("chain_verified") is True
+        and receipt_link.get("persistence_state") == "SQLITE"
+    )
+    if not evidence_is_bound or not consume_governance_decision(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+        governed_action="fs_write",
+        resource=governed_resource,
+        expected_payload=expected_payload,
+    ):
+        raise PermissionError(
+            "PURIQ gate denied media write: an authenticated, durable, "
+            "unused decision bound to the exact resource and bytes is required"
+        )
 
     sidecar_path = asset_path + ".c2pa.json"
     original_asset = _snapshot_file(asset_path)

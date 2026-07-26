@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
+import os
 import sqlite3
+import stat
 import sys
 import tempfile
 import unittest
@@ -33,13 +35,21 @@ from a11oy_code_orchestrator import (  # noqa: E402
 )
 
 
-def _authorized_write():
-    return {
-        "authorized": True,
-        "has_provenance": True,
-        "license_class": "GREEN",
-        "two_person_attested": True,
-    }
+def _authorized_write(asset: Path, asset_bytes: bytes):
+    return orchestrator.puriq_decide(
+        "fs_write",
+        {
+            "risk": "high",
+            "authorized": True,
+            "has_provenance": True,
+            "license_class": "GREEN",
+            "two_person_attested": True,
+            "chain_verified": True,
+            "tool": "fs_write",
+            "asset_path": str(asset.resolve()),
+            "asset_sha256": sha256_bytes(asset_bytes),
+        },
+    )
 
 
 class ContentCredentialKhipuTests(unittest.TestCase):
@@ -63,14 +73,15 @@ class ContentCredentialKhipuTests(unittest.TestCase):
     def test_media_write_binds_the_actual_khipu_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "governed-media.txt"
+            asset_bytes = b"governed media bytes\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"governed media bytes\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=True,
                 model_id="szl/test-fixture",
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
 
             self.assertEqual(asset.read_bytes(), b"governed media bytes\n")
@@ -103,13 +114,14 @@ class ContentCredentialKhipuTests(unittest.TestCase):
     def test_receipt_link_tampering_is_detected_even_when_unsigned(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "governed-media.txt"
+            asset_bytes = b"original\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"original\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
             tampered = copy.deepcopy(result["credential"])
             tampered["active_manifest"]["claim"]["assertions"][-1]["data"][
@@ -129,14 +141,15 @@ class ContentCredentialKhipuTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "signed-media.txt"
+            asset_bytes = b"signed media\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"signed media\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
                 signer=signer,
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
             verification = verify(result["credential"], asset_path=str(asset))
             self.assertTrue(verification.ok)
@@ -183,6 +196,86 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertEqual(asset.read_bytes(), b"original bytes\n")
             self.assertFalse(Path(f"{asset}.c2pa.json").exists())
 
+    def test_raw_governance_assertions_cannot_authorize_a_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "protected-media.txt"
+            asset.write_bytes(b"original bytes\n")
+
+            with self.assertRaises(PermissionError):
+                write_asset_with_credential(
+                    asset_path=str(asset),
+                    asset_bytes=b"unauthorized replacement\n",
+                    asset_title=asset.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                    governance_decision={
+                        "allow": True,
+                        "authorized": True,
+                        "has_provenance": True,
+                        "license_class": "GREEN",
+                        "two_person_attested": True,
+                    },
+                )
+
+            self.assertEqual(asset.read_bytes(), b"original bytes\n")
+            self.assertFalse(Path(f"{asset}.c2pa.json").exists())
+
+    def test_governance_decision_is_bound_to_exact_resource_and_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "protected-media.txt"
+            other_asset = Path(directory) / "other-media.txt"
+            original = b"original bytes\n"
+            replacement = b"replacement bytes\n"
+            asset.write_bytes(original)
+
+            mismatched_resource = _authorized_write(other_asset, replacement)
+            with self.assertRaises(PermissionError):
+                write_asset_with_credential(
+                    asset_path=str(asset),
+                    asset_bytes=replacement,
+                    asset_title=asset.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                    governance_decision=mismatched_resource,
+                )
+            mismatched_bytes = _authorized_write(asset, b"different bytes\n")
+            with self.assertRaises(PermissionError):
+                write_asset_with_credential(
+                    asset_path=str(asset),
+                    asset_bytes=replacement,
+                    asset_title=asset.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                    governance_decision=mismatched_bytes,
+                )
+
+            self.assertEqual(asset.read_bytes(), original)
+            self.assertFalse(Path(f"{asset}.c2pa.json").exists())
+
+    def test_governance_decision_cannot_be_replayed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "governed-media.txt"
+            asset_bytes = b"governed media bytes\n"
+            decision = _authorized_write(asset, asset_bytes)
+
+            write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=asset_bytes,
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_decision=decision,
+            )
+            with self.assertRaises(PermissionError):
+                write_asset_with_credential(
+                    asset_path=str(asset),
+                    asset_bytes=asset_bytes,
+                    asset_title=asset.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                    governance_decision=decision,
+                )
+
     def test_khipu_registry_freezes_payloads_and_validates_predecessors(self):
         payload = {"nested": {"state": "original"}}
         receipt = khipu_emit("test.freeze", payload)
@@ -207,13 +300,14 @@ class ContentCredentialKhipuTests(unittest.TestCase):
     def test_verify_rejects_a_rehashed_attacker_controlled_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "governed-media.txt"
+            asset_bytes = b"original\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"original\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
             tampered = copy.deepcopy(result["credential"])
             fabricated = copy.deepcopy(
@@ -241,6 +335,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             sidecar = Path(f"{asset}.c2pa.json")
             asset.write_bytes(b"original asset\n")
             sidecar.write_bytes(b"original sidecar\n")
+            asset_bytes = b"replacement\n"
 
             with patch(
                 "a11oy_code_orchestrator.khipu_emit",
@@ -253,11 +348,13 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                     with self.assertRaises(OSError):
                         write_asset_with_credential(
                             asset_path=str(asset),
-                            asset_bytes=b"replacement\n",
+                            asset_bytes=asset_bytes,
                             asset_title=asset.name,
                             asset_format="text/plain",
                             ai_generated=False,
-                            governance_context=_authorized_write(),
+                            governance_decision=_authorized_write(
+                                asset, asset_bytes
+                            ),
                         )
 
             self.assertEqual(asset.read_bytes(), b"original asset\n")
@@ -269,13 +366,14 @@ class ContentCredentialKhipuTests(unittest.TestCase):
     def test_durable_receipt_verifies_after_cache_is_cleared(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "durable-media.txt"
+            asset_bytes = b"durable\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"durable\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
             with orchestrator._khipu_lock:
                 orchestrator._khipu_receipts.clear()
@@ -309,6 +407,26 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             )
             self.assertLessEqual(len(orchestrator._khipu_receipts), 3)
 
+    def test_durable_chain_verification_uses_one_database_connection(self):
+        receipts = [
+            khipu_emit("test.single-query", {"index": index})
+            for index in range(6)
+        ]
+        target = receipts[-1]
+
+        with patch.object(orchestrator, "_db", wraps=orchestrator._db) as connect:
+            self.assertTrue(
+                khipu_verify_receipt(
+                    target["receipt_id"],
+                    target["hash"],
+                    expected_action="test.single-query",
+                    expected_payload={"index": 5},
+                    require_durable=True,
+                )
+            )
+
+        self.assertEqual(connect.call_count, 1)
+
     def test_persistence_failure_does_not_advance_or_poison_chain_tip(self):
         original_tip = orchestrator._khipu_tip
         with patch.object(
@@ -337,13 +455,14 @@ class ContentCredentialKhipuTests(unittest.TestCase):
     def test_dsse_signed_status_is_authenticated(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "unsigned-media.txt"
+            asset_bytes = b"unsigned\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"unsigned\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
             tampered = copy.deepcopy(result["credential"])
             tampered["active_manifest"]["khipu_receipt"]["dsse_signed"] = True
@@ -362,13 +481,14 @@ class ContentCredentialKhipuTests(unittest.TestCase):
     def test_missing_registry_is_unavailable_not_tampered(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "portable-media.txt"
+            asset_bytes = b"portable\n"
             result = write_asset_with_credential(
                 asset_path=str(asset),
-                asset_bytes=b"portable\n",
+                asset_bytes=asset_bytes,
                 asset_title=asset.name,
                 asset_format="text/plain",
                 ai_generated=False,
-                governance_context=_authorized_write(),
+                governance_decision=_authorized_write(asset, asset_bytes),
             )
             with orchestrator._khipu_lock:
                 orchestrator._khipu_receipts.clear()
@@ -385,6 +505,29 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertTrue(verification.claim_hash_ok)
             self.assertEqual(verification.khipu_authentication, "UNAVAILABLE")
             self.assertEqual(verification.trust_level, TRUST_AUTH_UNAVAILABLE)
+
+    @unittest.skipIf(os.name == "nt", "POSIX permission bits are not enforced")
+    def test_atomic_replacement_preserves_existing_and_safe_new_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "mode-media.txt"
+            asset.write_bytes(b"original\n")
+            os.chmod(asset, 0o640)
+            asset_bytes = b"replacement\n"
+
+            result = write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=asset_bytes,
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_decision=_authorized_write(asset, asset_bytes),
+            )
+
+            self.assertEqual(stat.S_IMODE(asset.stat().st_mode), 0o640)
+            self.assertEqual(
+                stat.S_IMODE(Path(result["sidecar_path"]).stat().st_mode),
+                0o644,
+            )
 
 
 if __name__ == "__main__":
