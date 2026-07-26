@@ -4,8 +4,10 @@ name: HF Space module-drift guard
 # repository/runtime SHAs and /api/build-info exposes the exact protected Git
 # source revision. Pull requests verify that stable live pair byte-for-byte,
 # then report candidate-only changes without deploying them. Pushes do not run
-# this workflow because they race publication; hf-sync dispatches the strict
-# post-deployment parity check. Manual and scheduled runs remain strict.
+# this workflow because they race publication. Every protected-main push enters
+# hf-sync without a path filter, so Dockerfile sources such as
+# .well-known/security.txt cannot bypass deployment; hf-sync then dispatches the
+# strict post-deployment parity check. Manual and scheduled runs remain strict.
 # No committed deployment lock or drift allowlist is used in source-bound mode.
 
 on:

@@ -4,30 +4,11 @@ name: Sync and Relock Canonical Hugging Face Space
 # the exact Space file set from Dockerfile COPY sources, publishes and byte-attests
 # the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
 # build-info contract. This caller retains only A11oy-specific terminal evidence.
+# The main-push trigger intentionally has no path filter: every Dockerfile source
+# change must enter deployment before the strict parity dispatch.
 on:
   push:
     branches: [main]
-    paths:
-      - "Dockerfile"
-      - "serve.py"
-      - "**/*.py"
-      - "console/**"
-      - "pages/**"
-      - "web/**"
-      - "static/**"
-      - "static-vendor/**"
-      - "numerics/**"
-      - "src/**"
-      - "schemas/**"
-      - "corpus/**"
-      - "model_release/**"
-      - "*.html"
-      - "knowledge.json"
-      - "README.md"
-      - ".github/scripts/verify_canonical_a11oy.py"
-      - ".github/workflows/hf-sync.yml"
-      - ".github/workflows/hf-module-drift.yml"
-      - "tests/test_canonical_a11oy_relock.py"
   workflow_dispatch: {}
 
 permissions:
