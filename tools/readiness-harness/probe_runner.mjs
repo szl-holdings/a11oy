@@ -46,6 +46,31 @@ const ENDPOINTS = matrix.endpoints || {};
 const SCHEMAS = matrix.schemas || {};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SHA40 = /^[0-9a-f]{40}$/;
+
+async function fetchBuildRevision() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch(`${BASE}/api/build-info`, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`/api/build-info returned HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    const revision = payload?.build?.revision || payload?.revision;
+    if (typeof revision !== "string" || !SHA40.test(revision)) {
+      throw new Error("/api/build-info lacks an exact source revision");
+    }
+    return revision;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function percentile(arr, p) {
   if (!arr.length) return null;
@@ -286,16 +311,25 @@ async function pool(items, n, fn) {
 (async () => {
   const paths = Object.keys(ENDPOINTS);
   console.error(`[probe] base=${BASE} endpoints=${paths.length} samples=${SAMPLES} conc=${CONCURRENCY}`);
+  const sourceRevisionBefore = await fetchBuildRevision();
   const results = await pool(paths, CONCURRENCY, (p) => probeEndpoint(p, ENDPOINTS[p]));
+  const sourceRevisionAfter = await fetchBuildRevision();
+  if (sourceRevisionAfter !== sourceRevisionBefore) {
+    throw new Error(
+      `deployment revision changed during probe: ${sourceRevisionBefore} -> ${sourceRevisionAfter}`,
+    );
+  }
 
   const lies = results.filter((r) => r.lie);
   const unreachable = results.filter((r) => r.unreachable && !r.lie);
   const throttled = results.filter((r) => r.throttled && !r.lie && !r.unreachable);
   const verdict = {
+    schema: "szl.readiness-verdict/v1",
     harness: "a11oy-readiness probe",
     doctrine: "v11",
     base: BASE,
     checkedAt: new Date().toISOString(),
+    sourceRevision: sourceRevisionAfter,
     summary: {
       endpoints: results.length,
       ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable && !r.throttled).length,
