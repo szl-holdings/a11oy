@@ -71,7 +71,9 @@ request-bound TD Quote obtained through Intel `libtdx-attest`, which sends the
 hardware TDREPORT to the same-host Quote Generation Service and returns the
 Quoting Enclave-signed Quote. A local TDREPORT or configfs-TSM report is never
 relabeled or submitted as remotely verifiable evidence. Verifier timestamps
-strictly after the relying party's current time remain unverified.
+strictly after the relying party's current time remain unverified. AWS Nitro's
+all-zero debug PCR0 is rejected before allowlist matching, so operator
+configuration cannot promote debug-mode evidence.
 
 ### Settlement-critical inference
 

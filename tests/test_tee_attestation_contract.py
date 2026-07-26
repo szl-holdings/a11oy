@@ -9,8 +9,11 @@ import ctypes
 import hashlib
 import json
 import struct
+import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
+import pytest
 import szl_attested_inference
 import szl_dsse
 import szl_tee_attest
@@ -43,6 +46,27 @@ def _synthetic_tdx_quote(
     )
 
 
+def _synthetic_tdx_tdreport(
+    *,
+    report_data=None,
+    mrtd=None,
+    report_type=0x81,
+    subtype=0,
+    version=0,
+    reserved=0,
+):
+    """Build a local TDREPORT fixture with distinct REPORTDATA and MRTD fields."""
+    report_data = report_data if report_data is not None else bytes([0xA1]) * 64
+    mrtd = mrtd if mrtd is not None else bytes([0xB2]) * 48
+    assert len(report_data) == 64
+    assert len(mrtd) == 48
+    report = bytearray(1024)
+    report[:4] = bytes((report_type, subtype, version, reserved))
+    report[128:192] = report_data
+    report[528:576] = mrtd
+    return bytes(report)
+
+
 def test_absent_runtime_emits_complete_v2_unavailable_contract(monkeypatch):
     monkeypatch.setattr(szl_tee_attest, "_probe_tdx", lambda **_kwargs: None)
     monkeypatch.setattr(szl_tee_attest, "_probe_nitro", lambda **_kwargs: None)
@@ -60,7 +84,9 @@ def test_absent_runtime_emits_complete_v2_unavailable_contract(monkeypatch):
 
 
 def test_operator_report_is_observed_not_measured(tmp_path):
-    report = bytes(range(256)) * 4
+    report_data = bytes(range(64))
+    mrtd = bytes(range(96, 144))
+    report = _synthetic_tdx_tdreport(report_data=report_data, mrtd=mrtd)
     report_path = tmp_path / "tdreport.bin"
     report_path.write_bytes(report)
 
@@ -72,8 +98,53 @@ def test_operator_report_is_observed_not_measured(tmp_path):
     assert record["label"] == "SAMPLE"
     assert record["evidence_tier"] == "SAMPLE_UNVERIFIED"
     assert record["quote_digest"] == hashlib.sha256(report).hexdigest()
-    assert record["measurement"] == report[128:176].hex()
+    assert record["measurement"] == mrtd.hex()
+    assert record["measurement"] != report_data[:48].hex()
     assert record["verifier"] is None
+
+
+def test_operator_report_requires_full_tdx_report_and_valid_type_version(tmp_path):
+    valid = _synthetic_tdx_tdreport()
+    cases = {
+        "truncated.bin": valid[:-1],
+        "oversized.bin": valid + b"\0",
+        "wrong-type.bin": _synthetic_tdx_tdreport(report_type=0x00),
+        "wrong-version.bin": _synthetic_tdx_tdreport(version=1),
+    }
+
+    for name, report in cases.items():
+        report_path = tmp_path / name
+        report_path.write_bytes(report)
+        with pytest.raises(ValueError):
+            szl_tee_attest._tdx_read_mrtd_file(str(report_path))
+
+
+def test_tdx_ioctl_extracts_tdinfo_mrtd_not_reportdata(monkeypatch, tmp_path):
+    report_data = bytes([0x3C]) * 64
+    mrtd = bytes([0xD7]) * 48
+    report = _synthetic_tdx_tdreport(report_data=report_data, mrtd=mrtd)
+    device = tmp_path / "tdx_guest"
+    device.write_bytes(b"")
+
+    def fake_ioctl(_fd, _command, request, _mutate):
+        request[64:] = report
+        return 0
+
+    monkeypatch.setitem(
+        sys.modules,
+        "fcntl",
+        SimpleNamespace(ioctl=fake_ioctl),
+    )
+
+    parsed = szl_tee_attest._tdx_read_mrtd_ioctl(
+        str(device),
+        report_data=report_data,
+    )
+
+    assert parsed["measurement"] == mrtd.hex()
+    assert parsed["measurement"] != report_data[:48].hex()
+    assert parsed["request_binding_digest"] == report_data.hex()
+    assert parsed["evidence_format"] == "TDREPORT_LOCAL_ONLY"
 
 
 def test_high_consequence_policy_blocks_unverified_evidence():
@@ -1020,7 +1091,7 @@ def test_unsigned_read_envelope_preserves_canonical_payload(monkeypatch):
     assert verdict["reason"] == "no signatures (unsigned envelope)"
 
 
-def test_ledger_uses_effective_combined_block_verdict(monkeypatch):
+def test_read_only_get_never_appends_to_lambda_ledger(monkeypatch):
     import szl_org_lambda
 
     emitted = []
@@ -1040,21 +1111,24 @@ def test_ledger_uses_effective_combined_block_verdict(monkeypatch):
         },
     )
 
-    result = szl_attested_inference.run_attested_inference(
-        42, "szl-modeled-lm", high_consequence=True
+    response = szl_attested_inference._h_attest_infer(
+        SimpleNamespace(
+            query_params={"seed": "42", "model": "szl-modeled-lm"}
+        )
     )
+    body = json.loads(response.body)
 
-    assert result["lambda"]["pass"] is True
-    assert result["attestation_policy"]["verdict"] == "BLOCK"
-    assert result["release_gate"] == {
+    assert body["lambda"]["pass"] is True
+    assert body["attestation_policy"]["verdict"] == "BLOCK"
+    assert body["release_gate"] == {
         "pass": False,
         "verdict": "BLOCK",
         "lambda_pass": True,
         "attestation_allowed": False,
     }
-    assert result["receipt"]["release_gate"] == result["release_gate"]
-    assert result["inference"]["released"] is False
-    assert emitted[-1][1]["decision"] == "BLOCK"
+    assert body["receipt"]["release_gate"] == body["release_gate"]
+    assert body["inference"]["released"] is False
+    assert emitted == []
 
 
 def test_surface_uses_effective_release_gate_instead_of_advisory_lambda():

@@ -605,16 +605,10 @@ def run_attested_inference(
     # 7) Freeze an unsigned read artifact. Signing is reserved for committed writes.
     dsse = _freeze_receipt(receipt_core)
 
-    # 8) forum ingest (additive, off the hot path, never raises) — attested-inference provenance
-    try:
-        import szl_org_lambda as _ol  # noqa: F401 — presence check only; emit is best-effort
-        _ol.emit("a11oy", "attest/infer",
-                  {"seed": seed, "model": model, "lambda": lam["value"],
-                   "quote_digest": quote["quote_digest"], "label": LABEL,
-                   "attestation_policy": attestation_policy["verdict"]},
-                  decision="ALLOW" if inference["released"] else "BLOCK")
-    except Exception:
-        pass
+    # 8) Deliberately do not append to the forum/ledger here. This helper serves
+    # the public GET path, so it must remain observation-only. A separately
+    # authorized state-changing operation may persist the returned receipt after
+    # its governance gate; reads never perform that write implicitly.
 
     return {
         "label": LABEL,
