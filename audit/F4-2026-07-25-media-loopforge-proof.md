@@ -1,0 +1,42 @@
+# Proof Packet — F4-2026-07-25-MEDIA-LOOPFORGE
+
+- `workcell_id`: `F4-2026-07-25-MEDIA-LOOPFORGE`
+- `agent`: CodexSmith
+- `objective`: bind a real Khipu write receipt into one C2PA-aligned media sidecar and promote Loop Forge into the first three holographic surface entries with honest safety framing.
+- `plan_summary`: extend the existing credential module, add focused receipt and priority tests, update the Loop Forge title/comments, document its safety boundary, and capture a live screenshot.
+- `patch_summary`:
+  - added atomic media write followed by the actual `khipu_emit` call
+  - requires a durable PURIQ decision bound to the exact destination and asset bytes, then consumes it atomically so it cannot be replayed
+  - denies the governed action when its PURIQ decision receipt cannot persist and canonicalizes relative asset paths when the decision is issued
+  - verifies each durable receipt chain with one recursive SQLite query rather than opening a connection for every predecessor
+  - distinguishes a reachable registry miss from a registry outage and treats missing durable receipts as invalid
+  - rejects malformed claim assertion entries as tampered input instead of raising from the verifier
+  - selects and compare-and-swaps one persisted Khipu head inside `BEGIN IMMEDIATE`, so stale process-local tips cannot fork the durable chain
+  - exposes the credentialed writer as the deployed `media_write` agent tool and ships `content_credentials.py` in the runtime image
+  - stores only bounded media metadata and the SHA-256 digest in tool receipts, never the inline base64 asset content
+  - rejects asset or sidecar symlink destinations before consuming their governance decision
+  - preserves an existing asset's permission mode across atomic replacement and gives new files mode `0644`
+  - binds the exact returned UUIDv4 receipt ID and sha256 receipt hash into `szl.khipu.receipt`
+  - leaves the attested-execution edge `UNAVAILABLE` until a real verifier integration exists
+  - adds canonical claim/receipt-link drift detection and preserves STRUCTURAL-ONLY / SELF_SIGNED / TAMPERED trust distinctions
+  - places Loop Forge at array index 2 and first within its Brain & Memory category
+  - replaces an overbroad reward-hacking claim with a bounded statement and documents runtime limitations
+- `test_results`:
+  - focused credential and surface suite: exit 0; 24 tests passed, 2 platform-specific tests skipped on Windows
+  - `verify_loop_forge.py`: exit 0; 23 source-level invariants passed
+  - `python -m py_compile ...`: exit 0
+  - `pnpm typecheck:doctrine`: exit 0
+  - `pnpm test:doctrine`: exit 0; 80 standalone doctrine tests passed
+  - banned-token scan: exit 0; 2,764 files scanned, 0 hits
+  - `git diff --check`: exit 0
+  - live local route: HTTP 200 at `/holographic#loopforge`; WebGL2 renderer; active surface title and MODELED label visible
+- `screenshot_refs`:
+  - `docs/assets/screenshots/current/2026-07-25-loop-forge-top-three.png`
+  - catalogued in `audit/screenshot-catalog.md`
+- `verification_notes`: the UI displayed Loop Forge as the active surface with the bounded-recursion and separate-referee wording; the DOM listed it first in Brain & Memory; the ordering test confirms its global array index is less than 3. Negative tests reject raw governance booleans, resource/content mismatches, decision replay, execution without a durable PURIQ receipt, fabricated durable receipt identifiers, malformed assertion entries, and symlink destinations. A relative-path round trip locks consistent resource canonicalization, a stale-tip test proves the persisted head is authoritative across processes, a connection-count assertion locks durable chain verification to one database connection, and the deployed media-tool integration test verifies the runtime COPY, asset, sidecar, and receipt path.
+- `public_claim_check`: PASS; no production, C2PA Trust List, embedded JUMBF, or hardware-attestation claim was introduced.
+- `security_check`: PASS; no key, token, secret, or environment value added. The signed test generates an ephemeral key in memory.
+- `known_gaps_update`: `docs/LOOP_FORGE_SAFETY.md` and the credential assertion explicitly record the missing hosted Lean execution, C2PA Trust List, embedded credential, and attested-execution link.
+- `proof_level`: 4
+- `recorded_at`: `2026-07-26T05:42:00Z`
+- `recorded_by`: CodexSmith

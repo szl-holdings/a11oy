@@ -22,8 +22,11 @@ import * as yaml from "js-yaml";
 // ── Shared helpers (duplicated from production tests — these files are
 //    test-only; no production import needed) ───────────────────────────────
 
-const SCHEMA_PATH = path.resolve(__dirname, "../../a11oy-knowledge.schema.json");
-const POLICIES_DIR = path.resolve(__dirname, "../../policies/vertical");
+const SCHEMA_PATH = path.resolve(
+  __dirname,
+  "../../packages/knowledge/a11oy-knowledge.schema.json",
+);
+const POLICIES_DIR = path.resolve(__dirname, "../../packages/knowledge/vertical");
 
 function buildValidator() {
   const ajv = new Ajv({ allErrors: true, strict: false });
