@@ -643,6 +643,8 @@ def _verified_attestation(
     ):
         return None, "authenticated verifier result is stale or future-dated"
     verified_measurement = payload.get("measurement")
+    if _is_debug_measurement(payload.get("tee_type"), verified_measurement):
+        return None, "authenticated verifier reported a debug-mode measurement"
     local_measurement = result.get("measurement")
     if not (
         payload.get("tee_type") == result.get("type")
@@ -916,6 +918,15 @@ def _valid_hex(value: object, *, minimum: int, maximum: int) -> bool:
     )
 
 
+def _is_debug_measurement(tee_type: object, measurement: object) -> bool:
+    """Identify evidence values that explicitly denote an unsafe debug enclave."""
+    return bool(
+        tee_type == "nitro"
+        and _valid_hex(measurement, minimum=96, maximum=96)
+        and set(str(measurement).lower()) == {"0"}
+    )
+
+
 def _parse_utc(value: object) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
@@ -1065,6 +1076,7 @@ def evaluate_attestation_policy(
     )
     quote_digest = attestation.get("quote_digest")
     measurement = attestation.get("measurement")
+    debug_mode = _is_debug_measurement(attestation.get("type"), measurement)
     outer_contract = (
         attestation.get("schema") == _SCHEMA
         and attestation.get("present") is True
@@ -1105,6 +1117,7 @@ def evaluate_attestation_policy(
     )
     reference_match = bool(
         isinstance(measurement, str)
+        and not debug_mode
         and references
         and measurement.lower() in references
     )
@@ -1116,6 +1129,7 @@ def evaluate_attestation_policy(
         and evidence_matches
         and fresh
         and request_bound
+        and not debug_mode
         and reference_match
     )
     allowed = (not required) or verified
@@ -1126,6 +1140,7 @@ def evaluate_attestation_policy(
         "quote_and_certificate_verified": vendor_verification,
         "fresh": fresh,
         "request_bound": request_bound,
+        "not_debug_mode": not debug_mode,
         "reference_measurement": reference_match,
         "evidence_matches_envelope": evidence_matches,
     }

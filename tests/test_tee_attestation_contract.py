@@ -88,7 +88,13 @@ def test_high_consequence_policy_blocks_unverified_evidence():
     assert policy["verified_evidence"] is False
 
 
-def _signed_verifier_record(monkeypatch, *, verified_at=None, tee_type="nitro"):
+def _signed_verifier_record(
+    monkeypatch,
+    *,
+    verified_at=None,
+    tee_type="nitro",
+    measurement_override=None,
+):
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
 
@@ -100,7 +106,9 @@ def _signed_verifier_record(monkeypatch, *, verified_at=None, tee_type="nitro"):
 
     now = verified_at or datetime.now(timezone.utc)
     quote_digest = "b" * 64
-    measurement = "c" * 96
+    measurement = (
+        measurement_override if measurement_override is not None else "c" * 96
+    )
     nonce = "request-nonce-0001"
     workload_digest = "d" * 96
     verifier = "test-trust-root"
@@ -194,6 +202,51 @@ def test_high_consequence_policy_accepts_real_signature_and_all_bindings(monkeyp
     assert policy["allowed"] is True
     assert policy["verdict"] == "ALLOW"
     assert all(policy["checks"].values())
+
+
+def test_nitro_debug_pcr_never_promotes_or_releases(monkeypatch):
+    debug_measurement = "0" * 96
+    record, nonce, workload, measurement, now, public_pem = _signed_verifier_record(
+        monkeypatch,
+        measurement_override=debug_measurement,
+    )
+    monkeypatch.setenv(
+        "SZL_TEE_VERIFIER_PUBLIC_KEYS_JSON",
+        json.dumps({"test-trust-root": public_pem}),
+    )
+    monkeypatch.setenv("SZL_TEE_TRUSTED_VERIFIERS", "test-trust-root")
+    probe_result = {
+        "type": "nitro",
+        "measurement": measurement,
+        "measurement_field": "PCR0",
+        "quote_digest": record["quote_digest"],
+        "quote_bytes": b"debug-mode-request-bound-hardware-quote",
+        "source": "nsm:AttestationDoc",
+        "request_binding_observed": True,
+    }
+
+    attestation, reason = szl_tee_attest._verified_attestation(
+        probe_result,
+        record["verifier_envelope"],
+        nonce=nonce,
+        workload_digest=workload,
+    )
+    policy = szl_tee_attest.evaluate_attestation_policy(
+        record,
+        high_consequence=True,
+        expected_nonce=nonce,
+        expected_workload_digest=workload,
+        reference_measurements={measurement},
+        trusted_verifiers={"test-trust-root"},
+        verifier_public_keys={"test-trust-root": public_pem},
+        now=now,
+    )
+
+    assert attestation is None
+    assert "debug-mode" in reason
+    assert policy["allowed"] is False
+    assert policy["checks"]["not_debug_mode"] is False
+    assert policy["checks"]["reference_measurement"] is False
 
 
 def test_high_consequence_policy_rejects_replay_staleness_and_reference_drift(monkeypatch):
@@ -1038,3 +1091,20 @@ def test_live_surface_never_claims_get_receipt_is_signed():
     assert "DSSE is REAL ECDSA-P256 in-Space" not in surface
     assert "signed for real" not in surface
     assert "UNSIGNED-READ" in surface
+
+
+def test_public_capability_labels_require_verified_attestation():
+    root = __import__("pathlib").Path(__file__).resolve().parents[1]
+    expected = (
+        "UNAVAILABLE-on-CPU (SAMPLE on live TDX/Nitro; "
+        "MEASURED only after verified attestation)"
+    )
+
+    for source_name in ("a11oy_frontier_patch.py", "serve.py"):
+        source = (root / source_name).read_text(encoding="utf-8")
+        assert "MEASURED on live TDX/Nitro" not in source
+        assert expected in source
+
+    changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "`tee_attestation` is **SAMPLE**" in changelog
+    assert "becomes **MEASURED** only after" in changelog
