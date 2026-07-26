@@ -44,6 +44,7 @@ memory write is Khipu-receipted.
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import math
@@ -805,22 +806,49 @@ def khipu_verify_receipt(
     verified merely because a caller supplies a plausible UUID and digest.
     """
     with _khipu_lock:
-        known = _khipu_receipts.get(receipt_id)
-        if known is None:
+        registry = {
+            known_id: copy.deepcopy(known_receipt)
+            for known_id, known_receipt in _khipu_receipts.items()
+        }
+
+    known = registry.get(receipt_id)
+    if known is None:
+        return False
+    if (
+        known.get("hash") != receipt_hash
+        or known.get("chain_verified") is not True
+        or expected_action is not None
+        and known.get("action") != expected_action
+        or expected_payload is not None
+        and known.get("payload") != expected_payload
+    ):
+        return False
+
+    by_hash: dict[str, dict[str, Any]] = {}
+    for known_id, candidate in registry.items():
+        candidate_hash = candidate.get("hash")
+        if (
+            candidate.get("receipt_id") != known_id
+            or not isinstance(candidate_hash, str)
+            or candidate_hash in by_hash
+            or candidate.get("chain_verified") is not True
+            or _khipu_core_digest(candidate) != candidate_hash
+        ):
             return False
-        known = dict(known)
-        predecessor_exists = known["prev"] == _KHIPU_GENESIS or any(
-            receipt["hash"] == known["prev"]
-            for receipt in _khipu_receipts.values()
-        )
-    return (
-        known.get("hash") == receipt_hash
-        and known.get("chain_verified") is True
-        and _khipu_core_digest(known) == receipt_hash
-        and predecessor_exists
-        and (expected_action is None or known.get("action") == expected_action)
-        and (expected_payload is None or known.get("payload") == expected_payload)
-    )
+        by_hash[candidate_hash] = candidate
+
+    cursor = known
+    visited: set[str] = set()
+    while cursor.get("prev") != _KHIPU_GENESIS:
+        cursor_hash = cursor.get("hash")
+        if not isinstance(cursor_hash, str) or cursor_hash in visited:
+            return False
+        visited.add(cursor_hash)
+        predecessor = by_hash.get(cursor.get("prev"))
+        if predecessor is None:
+            return False
+        cursor = predecessor
+    return True
 
 
 def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -839,18 +867,18 @@ def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
             "action": action,
             "ts": time.time(),
             "prev": _khipu_tip,
-            "payload": payload,
+            "payload": copy.deepcopy(payload),
         }
         body["hash"] = _khipu_core_digest(body)
         body["chain_verified"] = True
         _khipu_tip = body["hash"]
-        _khipu_receipts[body["receipt_id"]] = dict(body)
+        _khipu_receipts[body["receipt_id"]] = copy.deepcopy(body)
     body.update(_dsse_cosign(body))  # additive: dsse_digest/dsse_signed if a signer is wired
     try:
         _db_write_receipt(body)
     except Exception:
         pass  # receipt persistence is best-effort; in-memory chain still verifies
-    return body
+    return copy.deepcopy(body)
 
 
 # ---------------------------------------------------------------------------

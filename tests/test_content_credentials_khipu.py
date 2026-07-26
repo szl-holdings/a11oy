@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -16,9 +17,15 @@ from content_credentials import (  # noqa: E402
     TRUST_SELF_SIGNED,
     TRUST_STRUCTURAL_ONLY,
     TRUST_TAMPERED,
+    _canon,
     build_manifest,
+    sha256_bytes,
     verify,
     write_asset_with_credential,
+)
+from a11oy_code_orchestrator import (  # noqa: E402
+    khipu_emit,
+    khipu_verify_receipt,
 )
 
 
@@ -154,6 +161,81 @@ class ContentCredentialKhipuTests(unittest.TestCase):
 
             self.assertEqual(asset.read_bytes(), b"original bytes\n")
             self.assertFalse(Path(f"{asset}.c2pa.json").exists())
+
+    def test_khipu_registry_freezes_payloads_and_validates_predecessors(self):
+        payload = {"nested": {"state": "original"}}
+        receipt = khipu_emit("test.freeze", payload)
+        expected_payload = {"nested": {"state": "original"}}
+
+        payload["nested"]["state"] = "caller-mutated"
+        receipt["payload"]["nested"]["state"] = "return-mutated"
+
+        self.assertTrue(
+            khipu_verify_receipt(
+                receipt["receipt_id"],
+                receipt["hash"],
+                expected_action="test.freeze",
+                expected_payload=expected_payload,
+            )
+        )
+        successor = khipu_emit("test.successor", {"ok": True})
+        self.assertTrue(
+            khipu_verify_receipt(successor["receipt_id"], successor["hash"])
+        )
+
+    def test_verify_rejects_a_rehashed_attacker_controlled_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "governed-media.txt"
+            result = write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=b"original\n",
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_context=_authorized_write(),
+            )
+            tampered = copy.deepcopy(result["credential"])
+            fabricated = copy.deepcopy(
+                tampered["active_manifest"]["khipu_receipt"]
+            )
+            fabricated["receipt_id"] = str(uuid.uuid4())
+            fabricated["receipt_hash"] = "f" * 64
+            tampered["active_manifest"]["khipu_receipt"] = fabricated
+            tampered["active_manifest"]["claim"]["assertions"][-1]["data"] = (
+                copy.deepcopy(fabricated)
+            )
+            tampered["claim_sha256"] = sha256_bytes(
+                _canon(tampered["active_manifest"]["claim"])
+            )
+
+            verification = verify(tampered, asset_path=str(asset))
+            self.assertFalse(verification.ok)
+            self.assertFalse(verification.claim_hash_ok)
+            self.assertEqual(verification.trust_level, TRUST_TAMPERED)
+
+    def test_sidecar_failure_rolls_back_asset_and_existing_sidecar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "governed-media.txt"
+            sidecar = Path(f"{asset}.c2pa.json")
+            asset.write_bytes(b"original asset\n")
+            sidecar.write_bytes(b"original sidecar\n")
+
+            with patch(
+                "content_credentials.write_sidecar",
+                side_effect=OSError("simulated sidecar failure"),
+            ):
+                with self.assertRaises(OSError):
+                    write_asset_with_credential(
+                        asset_path=str(asset),
+                        asset_bytes=b"replacement\n",
+                        asset_title=asset.name,
+                        asset_format="text/plain",
+                        ai_generated=False,
+                        governance_context=_authorized_write(),
+                    )
+
+            self.assertEqual(asset.read_bytes(), b"original asset\n")
+            self.assertEqual(sidecar.read_bytes(), b"original sidecar\n")
 
 
 if __name__ == "__main__":

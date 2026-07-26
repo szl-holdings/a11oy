@@ -567,8 +567,8 @@ def write_sidecar(asset_path: str, credential: dict) -> str:
     """Write the C2PA sidecar next to the asset as <asset>.c2pa.json. Returns the path.
     (c2patool can later EMBED the same claim as a JUMBF box in the asset itself.)"""
     out = asset_path + ".c2pa.json"
-    with open(out, "w", encoding="utf-8") as f:
-        json.dump(credential, f, indent=2, default=str)
+    encoded = (json.dumps(credential, indent=2, default=str) + "\n").encode("utf-8")
+    _atomic_write_bytes(out, encoded)
     return out
 
 
@@ -597,6 +597,23 @@ def _atomic_write_bytes(asset_path: str, asset_bytes: bytes) -> None:
         if temp_path and os.path.exists(temp_path):
             os.unlink(temp_path)
         raise
+
+
+def _snapshot_file(path: str) -> Optional[bytes]:
+    """Read an existing regular file before a two-file credential commit."""
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+def _restore_snapshot(path: str, snapshot: Optional[bytes]) -> None:
+    """Restore a captured file or remove a file created by a failed commit."""
+    if snapshot is None:
+        if os.path.exists(path):
+            os.unlink(path)
+        return
+    _atomic_write_bytes(path, snapshot)
 
 
 def write_asset_with_credential(
@@ -645,47 +662,77 @@ def write_asset_with_credential(
     if gate.get("allow") is not True:
         raise PermissionError(f"PURIQ gate denied media write: {gate.get('reason')}")
 
-    _atomic_write_bytes(asset_path, asset_bytes)
-    asset_hash = sha256_file(asset_path)
+    sidecar_path = asset_path + ".c2pa.json"
+    original_asset = _snapshot_file(asset_path)
+    original_sidecar = _snapshot_file(sidecar_path)
+    asset_mutated = False
+    try:
+        _atomic_write_bytes(asset_path, asset_bytes)
+        asset_mutated = True
+        asset_hash = sha256_file(asset_path)
 
-    receipt = khipu_emit(
-        "content-credential.media.write",
-        {
-            "asset_title": asset_title,
-            "asset_format": asset_format,
-            "asset_hash": asset_hash,
-            "ai_generated": ai_generated,
-            "model_id": model_id,
-        },
-    )
-    receipt_link = {
-        "receipt_id": receipt.get("receipt_id"),
-        "receipt_hash": receipt.get("hash"),
-        "receipt_hash_alg": "sha256",
-        "chain_verified": receipt.get("chain_verified"),
-        "dsse_signed": bool(receipt.get("dsse_signed", False)),
-        "attested_execution": {
-            "state": "UNAVAILABLE",
-            "receipt_id": None,
-            "reason": "no independently verified attestation receipt supplied",
-        },
-    }
-    manifest = build_manifest(
-        asset_path=asset_path,
-        asset_title=asset_title,
-        asset_format=asset_format,
-        ai_generated=ai_generated,
-        model_id=model_id,
-        claim_generator=claim_generator,
-        actions=actions,
-        ingredients=ingredients,
-        edited=edited,
-        digital_source_type=digital_source_type,
-        khipu_receipt=receipt_link,
-    )
-    credential = build_credential(manifest, signer)
-    sidecar_path = write_sidecar(asset_path, credential)
-    verification = verify(credential, asset_path=asset_path)
+        receipt = khipu_emit(
+            "content-credential.media.write",
+            {
+                "asset_title": asset_title,
+                "asset_format": asset_format,
+                "asset_hash": asset_hash,
+                "ai_generated": ai_generated,
+                "model_id": model_id,
+            },
+        )
+        receipt_link = {
+            "receipt_id": receipt.get("receipt_id"),
+            "receipt_hash": receipt.get("hash"),
+            "receipt_hash_alg": "sha256",
+            "chain_verified": receipt.get("chain_verified"),
+            "dsse_signed": bool(receipt.get("dsse_signed", False)),
+            "attested_execution": {
+                "state": "UNAVAILABLE",
+                "receipt_id": None,
+                "reason": "no independently verified attestation receipt supplied",
+            },
+        }
+        manifest = build_manifest(
+            asset_bytes=asset_bytes,
+            asset_title=asset_title,
+            asset_format=asset_format,
+            ai_generated=ai_generated,
+            model_id=model_id,
+            claim_generator=claim_generator,
+            actions=actions,
+            ingredients=ingredients,
+            edited=edited,
+            digital_source_type=digital_source_type,
+            khipu_receipt=receipt_link,
+        )
+        credential = build_credential(manifest, signer)
+        staged_verification = verify(credential, asset_bytes=asset_bytes)
+        if not staged_verification.ok:
+            raise RuntimeError(
+                "credential failed verification before the sidecar commit"
+            )
+        sidecar_path = write_sidecar(asset_path, credential)
+        verification = verify(credential, asset_path=asset_path)
+        if not verification.ok:
+            raise RuntimeError("credential failed verification after the sidecar commit")
+    except Exception as exc:
+        if asset_mutated:
+            rollback_errors = []
+            for path, snapshot in (
+                (sidecar_path, original_sidecar),
+                (asset_path, original_asset),
+            ):
+                try:
+                    _restore_snapshot(path, snapshot)
+                except Exception as rollback_exc:
+                    rollback_errors.append(f"{path}: {rollback_exc!r}")
+            if rollback_errors:
+                raise RuntimeError(
+                    "credential commit failed and rollback was incomplete: "
+                    + "; ".join(rollback_errors)
+                ) from exc
+        raise
     return {
         "asset_path": asset_path,
         "asset_hash": asset_hash,
@@ -751,6 +798,21 @@ def verify(
     top_level_receipt = manifest.get("khipu_receipt")
     if top_level_receipt is not None:
         claim_hash_ok = claim_hash_ok and receipt_assertions == [top_level_receipt]
+        try:
+            _validate_khipu_receipt_link(
+                top_level_receipt,
+                asset_hash=expected_hash,
+                asset_title=manifest.get("asset_title"),
+                asset_format=manifest.get("asset_format"),
+                ai_generated=manifest.get("ai_generated"),
+                model_id=manifest.get("model_id"),
+            )
+        except Exception as exc:
+            claim_hash_ok = False
+            reasons.append(
+                "KHIPU AUTHENTICATION UNAVAILABLE: the receipt assertion is not "
+                f"authenticated by the authoritative registry ({exc})."
+            )
     elif receipt_assertions:
         claim_hash_ok = False
 
