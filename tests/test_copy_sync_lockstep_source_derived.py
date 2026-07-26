@@ -158,6 +158,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         branch_lists = (
             "[main, '!main']",
             "[m*, '!m*']",
+            "[main, '!mai+n']",
+            "[main, '!mai?n']",
         )
         deploy = textwrap.dedent(
             """
@@ -191,6 +193,18 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertTrue(
             CHECKER.has_source_derived_deploy_contract(reinclude + deploy)
         )
+        for branches in ("[mai+n]", "[mai?n]"):
+            extended = textwrap.dedent(
+                f"""
+                on:
+                  push:
+                    branches: {branches}
+                """
+            )
+            with self.subTest(branches=branches):
+                self.assertTrue(
+                    CHECKER.has_source_derived_deploy_contract(extended + deploy)
+                )
 
     def test_filtered_or_non_main_push_trigger_is_rejected(self) -> None:
         triggers = (
@@ -216,6 +230,16 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               push:
                 <<: *possibly_filtered
                 branches: [main]
+            """,
+            """
+            on:
+              push:
+                tags: ['v*']
+            """,
+            """
+            on:
+              push:
+                tags-ignore: [preview]
             """,
             """
             on:

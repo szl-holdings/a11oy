@@ -339,13 +339,64 @@ def yaml_sequence_items(lines, entry_index, property_indent, value):
     return items
 
 
+def github_branch_pattern_matches_main(pattern):
+    """Match ``main`` with GitHub Actions filter-pattern semantics."""
+    tokens = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "\\":
+            if index + 1 >= len(pattern):
+                return None
+            tokens.append(re.escape(pattern[index + 1]))
+            index += 2
+            continue
+        if char == "*":
+            if index + 1 < len(pattern) and pattern[index + 1] == "*":
+                tokens.append(".*")
+                index += 2
+            else:
+                tokens.append("[^/]*")
+                index += 1
+            continue
+        if char in {"?", "+"}:
+            if not tokens:
+                return None
+            tokens[-1] = "(?:%s)%s" % (tokens[-1], char)
+            index += 1
+            continue
+        if char == "[":
+            close = pattern.find("]", index + 1)
+            if close < 0:
+                return None
+            members = pattern[index + 1:close]
+            if not members or not re.fullmatch(r"[A-Za-z0-9-]+", members):
+                return None
+            try:
+                re.compile("[" + members + "]")
+            except re.error:
+                return None
+            tokens.append("[" + members + "]")
+            index = close + 1
+            continue
+        tokens.append(re.escape(char))
+        index += 1
+    try:
+        return re.fullmatch("".join(tokens), "main") is not None
+    except re.error:
+        return None
+
+
 def ordered_branch_patterns_include_main(patterns):
-    """Evaluate GitHub's ordered positive/negative branch patterns for main."""
+    """Evaluate ordered GitHub positive/negative branch patterns for main."""
     included = False
     for pattern in patterns:
         negative = pattern.startswith("!")
         candidate = pattern[1:] if negative else pattern
-        if candidate and fnmatch.fnmatchcase("main", candidate):
+        matches = github_branch_pattern_matches_main(candidate)
+        if matches is None:
+            return False
+        if matches:
             included = not negative
     return included
 
@@ -421,7 +472,7 @@ def workflow_has_unfiltered_main_push(workflow_text):
         item for item in properties if item[2][0] == "branches"
     ]
     if not branch_entries:
-        return True
+        return not (property_keys & {"tags", "tags-ignore"})
     if len(branch_entries) != 1:
         return False
     branch_index, _indent, (_key, value) = branch_entries[0]
