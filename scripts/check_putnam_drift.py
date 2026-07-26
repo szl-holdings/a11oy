@@ -47,6 +47,9 @@ DEFAULT_BRANCH = DEFAULT_REF
 PUTNAM_FILE_RE = re.compile(r"^P_[AB][1-6]\.lean$")
 STATUS_RE = r"(REAL|DEMO|OPEN)"
 VALID_STATUS = {"REAL", "DEMO", "OPEN"}
+DILIGENCE_REL = os.path.join("docs", "SERIES_A_DILIGENCE.md")
+DILIGENCE_BEGIN = "<!-- BEGIN GENERATED PUTNAM STATUS -->"
+DILIGENCE_END = "<!-- END GENERATED PUTNAM STATUS -->"
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +204,67 @@ def named_open_sets(text: str) -> List[Set[str]]:
 # ---------------------------------------------------------------------------
 # Main check.
 # ---------------------------------------------------------------------------
-def run(root: str, branch: str, fixture: Optional[str]) -> int:
+def diligence_block(
+    branch: str,
+    total: int,
+    real: int,
+    demo: int,
+    open_count: int,
+) -> str:
+    """Render the only allowed public Putnam count for the diligence packet."""
+    return (
+        f"{DILIGENCE_BEGIN}\n"
+        "| Putnam 2025 Lean | **PROVED** — "
+        f"{real} of {total} Putnam problems currently carry a Lean `REAL` "
+        f"status; the complete canonical tally is {real} REAL / {demo} DEMO / "
+        f"{open_count} OPEN at `lutar-lean@{branch}`. This row is generated and "
+        "checked by `scripts/check_putnam_drift.py`. |\n"
+        f"{DILIGENCE_END}"
+    )
+
+
+def sync_diligence(
+    root: str,
+    expected: str,
+    write_diligence: bool,
+    errors: List[str],
+) -> None:
+    """Write or verify the generated diligence block without touching prose."""
+    path = os.path.join(root, DILIGENCE_REL)
+    if not os.path.isfile(path):
+        errors.append("%s not found" % path)
+        return
+    with open(path, "r", encoding="utf-8") as fh:
+        text = fh.read()
+    pattern = re.compile(
+        re.escape(DILIGENCE_BEGIN) + r".*?" + re.escape(DILIGENCE_END),
+        re.S,
+    )
+    if not pattern.search(text):
+        errors.append(
+            "%s: generated Putnam status markers are missing" % DILIGENCE_REL
+        )
+        return
+    if write_diligence:
+        rendered = pattern.sub(expected, text, count=1)
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(rendered)
+        return
+    actual = pattern.search(text)
+    if actual is None or actual.group(0) != expected:
+        errors.append(
+            "%s: generated Putnam status is stale; run "
+            "`python scripts/check_putnam_drift.py --write-diligence`"
+            % DILIGENCE_REL
+        )
+
+
+def run(
+    root: str,
+    branch: str,
+    fixture: Optional[str],
+    write_diligence: bool = False,
+) -> int:
     errors: List[str] = []
 
     loader_path = os.path.join(root, "szl_putnam.py")
@@ -343,6 +406,15 @@ def run(root: str, branch: str, fixture: Optional[str]) -> int:
                               "set is %s"
                               % (label, sorted(named), sorted(canon_open_ids)))
 
+    expected_diligence = diligence_block(
+        branch,
+        len(canon_putnam),
+        c_real,
+        c_demo,
+        c_open,
+    )
+    sync_diligence(root, expected_diligence, write_diligence, errors)
+
     # ---- verdict --------------------------------------------------------
     if errors:
         print("PUTNAM DRIFT — a11oy Putnam 2025 page is OUT OF SYNC with "
@@ -372,9 +444,14 @@ def main() -> int:
         default=DEFAULT_REF,
         help="immutable canonical lutar-lean commit",
     )
+    ap.add_argument(
+        "--write-diligence",
+        action="store_true",
+        help="refresh only the generated Putnam row in the diligence packet",
+    )
     args = ap.parse_args()
     fixture = os.environ.get("PUTNAM_DRIFT_FIXTURE") or None
-    return run(args.root, args.branch, fixture)
+    return run(args.root, args.branch, fixture, args.write_diligence)
 
 
 if __name__ == "__main__":
