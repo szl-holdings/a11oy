@@ -7,8 +7,12 @@
 # fallback) alongside an offline canonical Lutar/Putnam fixture, and asserts the
 # guard PASSES on an honest tree and FAILS on every drift it is meant to catch:
 # per-problem label drift, console-vs-loader divergence, count-phrase drift, a
-# missing canonical problem file, named "X and Y are OPEN" prose drift, and SZL
-# REAL-count drift. Runs fully offline via PUTNAM_DRIFT_FIXTURE (no network).
+# missing canonical problem file, named "X and Y are OPEN" prose drift, SZL
+# REAL-count drift, REAL-source sorry/axiom violations, duplicate generated
+# markers, an out-of-policy kernel axiom report, multiline theorem headers,
+# section-vs-namespace scope handling, balanced nested attributes, and private
+# helper handling, plus named instance proof auditing. Runs fully offline via
+# PUTNAM_DRIFT_FIXTURE (no network).
 # This is what keeps the guard from silently being neutered.
 # =============================================================================
 set -euo pipefail
@@ -21,7 +25,8 @@ FAIL=0
 
 run() {
   # $1 = a11oy root (its ./canon is the offline canonical fixture)
-  PUTNAM_DRIFT_FIXTURE="$1/canon" python3 "$GUARD" --root "$1" >/dev/null 2>&1
+  PYTHONDONTWRITEBYTECODE=1 PUTNAM_DRIFT_FIXTURE="$1/canon" \
+    python3 "$GUARD" --root "$1" >/dev/null 2>&1
 }
 
 expect_pass() {
@@ -39,6 +44,26 @@ expect_fail() {
     echo "[FAIL] $name (expected non-zero, got exit 0)"; FAIL=$((FAIL + 1))
   else
     echo "[PASS] $name (failed as expected)"; PASS=$((PASS + 1))
+  fi
+}
+
+expect_fail_report() {
+  local name="$1" root="$2" report="$3"
+  if PUTNAM_DRIFT_FIXTURE="$root/canon" python3 "$GUARD" --root "$root" \
+      --axiom-report "$report" >/dev/null 2>&1; then
+    echo "[FAIL] $name (expected non-zero, got exit 0)"; FAIL=$((FAIL + 1))
+  else
+    echo "[PASS] $name (failed as expected)"; PASS=$((PASS + 1))
+  fi
+}
+
+expect_pass_report() {
+  local name="$1" root="$2" report="$3"
+  if PUTNAM_DRIFT_FIXTURE="$root/canon" python3 "$GUARD" --root "$root" \
+      --axiom-report "$report" >/dev/null 2>&1; then
+    echo "[PASS] $name (exit 0 as expected)"; PASS=$((PASS + 1))
+  else
+    echo "[FAIL] $name (expected exit 0, got non-zero)"; FAIL=$((FAIL + 1))
   fi
 }
 
@@ -98,8 +123,12 @@ HTML
   printf '%s\n' '/-- Putnam A1. -/' '-- **Honest status: DEMO**' > "$r/canon/P_A1.lean"
   printf '%s\n' '/-- Putnam A2. -/' '-- **Honest status: OPEN**' > "$r/canon/P_A2.lean"
   printf '%s\n' '/-- Putnam A3. -/' '-- **Honest status: OPEN**' > "$r/canon/P_A3.lean"
-  printf '%s\n' '/-- SZL original. All proofs are REAL (kernel-checked); no `sorry`. -/' \
-    > "$r/canon/SZL/One.lean"
+  cat > "$r/canon/SZL/One.lean" <<'LEAN'
+namespace Lutar.Putnam.SZL.One
+/-! SZL original. All proofs are REAL (kernel-checked); no `sorry`. -/
+theorem proof : True := by trivial
+end Lutar.Putnam.SZL.One
+LEAN
   cat > "$r/docs/SERIES_A_DILIGENCE.md" <<'MD'
 # Fixture diligence packet
 
@@ -109,7 +138,8 @@ HTML
 placeholder
 <!-- END GENERATED PUTNAM STATUS -->
 MD
-  PUTNAM_DRIFT_FIXTURE="$r/canon" python3 "$GUARD" --root "$r" \
+  PYTHONDONTWRITEBYTECODE=1 PUTNAM_DRIFT_FIXTURE="$r/canon" \
+    python3 "$GUARD" --root "$r" \
     --write-diligence >/dev/null
 }
 
@@ -119,8 +149,8 @@ expect_pass "honest tree (loader == console == canonical 0/1/2, 1 SZL REAL)" "$A
 
 # --- Fixture B: loader per-problem label drift -> FAIL ---------------------
 B="$TMP/B"; make_honest "$B"
-sed -i 's/"id": "A3", "file": "P_A3.lean", "title": "A3", "status": "OPEN"/"id": "A3", "file": "P_A3.lean", "title": "A3", "status": "DEMO"/' "$B/szl_putnam.py"
-expect_fail "loader per-problem label drift (A3 OPEN->DEMO vs canonical)" "$B"
+sed -i 's/"status": "OPEN"/"status": "DEMO"/g' "$B/szl_putnam.py"
+expect_fail "loader per-problem label drift (OPEN->DEMO vs canonical)" "$B"
 
 # --- Fixture C: console fallback diverges from loader -> FAIL ---------------
 C="$TMP/C"; make_honest "$C"
@@ -151,6 +181,123 @@ expect_fail "SZL label/count drift (loader REAL vs canonical DEMO)" "$G"
 H="$TMP/H"; make_honest "$H"
 sed -i 's/0 of 3 Putnam/1 of 3 Putnam/' "$H/docs/SERIES_A_DILIGENCE.md"
 expect_fail "generated diligence packet drift (claims 1/3 vs canonical 0/3)" "$H"
+
+# --- Fixture I: duplicate generated marker block -> FAIL ------------------
+I="$TMP/I"; make_honest "$I"
+cat >> "$I/docs/SERIES_A_DILIGENCE.md" <<'MD'
+<!-- BEGIN GENERATED PUTNAM STATUS -->
+duplicate
+<!-- END GENERATED PUTNAM STATUS -->
+MD
+expect_fail "duplicate generated diligence marker block" "$I"
+
+# --- Fixture J: REAL source contains sorry -> FAIL ------------------------
+J="$TMP/J"; make_honest "$J"
+sed -i 's/by trivial/by sorry/' "$J/canon/SZL/One.lean"
+expect_fail "REAL theorem contains sorry" "$J"
+
+# --- Fixture K: REAL source declares a new axiom -> FAIL ------------------
+K="$TMP/K"; make_honest "$K"
+sed -i '/theorem proof/i axiom rogue : Prop' "$K/canon/SZL/One.lean"
+expect_fail "REAL source declares an extra axiom" "$K"
+
+# --- Fixture L: kernel report contains an out-of-policy axiom -> FAIL -----
+L="$TMP/L"; make_honest "$L"
+cat > "$L/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' depends on axioms: [Classical.choice, Rogue.audit]
+TXT
+expect_fail_report "REAL theorem kernel report has an extra axiom" "$L" \
+  "$L/axioms.txt"
+
+# --- Fixture M: attributed REAL theorem missing from report -> FAIL -------
+M="$TMP/M"; make_honest "$M"
+sed -i '/theorem proof/a @[simp] theorem attributed : True := by trivial' \
+  "$M/canon/SZL/One.lean"
+cat > "$M/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "attributed REAL theorem is required in kernel report" "$M" \
+  "$M/axioms.txt"
+
+# --- Fixture N: split theorem header missing from report -> FAIL ----------
+N="$TMP/N"; make_honest "$N"
+sed -i '/end Lutar.Putnam.SZL.One/i theorem\n  splitHeader : True := by trivial' \
+  "$N/canon/SZL/One.lean"
+cat > "$N/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "multiline REAL theorem is required in kernel report" "$N" \
+  "$N/axioms.txt"
+
+# --- Fixture O: section end preserves namespace for later theorem -> PASS -
+O="$TMP/O"; make_honest "$O"
+sed -i '/end Lutar.Putnam.SZL.One/i section Local\n\
+theorem insideSection : True := by trivial\n\
+end Local\n\
+theorem afterSection : True := by trivial' "$O/canon/SZL/One.lean"
+cat > "$O/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.insideSection' does not depend on any axioms
+'Lutar.Putnam.SZL.One.afterSection' does not depend on any axioms
+TXT
+expect_pass_report "section end preserves namespace qualification" "$O" \
+  "$O/axioms.txt"
+
+# --- Fixture P: nested attribute theorem is audited -> FAIL then PASS -----
+P="$TMP/P"; make_honest "$P"
+sed -i '/theorem proof/a @[aesop safe apply (rule_sets := [foo])] theorem nestedAttribute : True := by trivial' \
+  "$P/canon/SZL/One.lean"
+cat > "$P/missing-axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "nested-attribute REAL theorem is required in kernel report" \
+  "$P" "$P/missing-axioms.txt"
+cat > "$P/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.nestedAttribute' does not depend on any axioms
+TXT
+expect_pass_report "nested-attribute REAL theorem has a complete kernel report" \
+  "$P" "$P/axioms.txt"
+
+# --- Fixture Q: private helper omitted, public dependent audited ----------
+Q="$TMP/Q"; make_honest "$Q"
+sed -i '/theorem proof/a private theorem secret : True := by trivial\n\
+theorem publicUsesPrivate : True := secret' "$Q/canon/SZL/One.lean"
+cat > "$Q/missing-public.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "public theorem depending on private helper is still audited" \
+  "$Q" "$Q/missing-public.txt"
+cat > "$Q/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.publicUsesPrivate' does not depend on any axioms
+TXT
+expect_pass_report "private helper does not require an unusable external name" \
+  "$Q" "$Q/axioms.txt"
+
+# --- Fixture R: named instance proof is required and axiom-audited --------
+R="$TMP/R"; make_honest "$R"
+sed -i '/theorem proof/a class AuditWitness : Prop where\n\
+  witness : True\n\
+public instance (priority := 100) auditedInstance.{u} : AuditWitness := ⟨True.intro⟩' \
+  "$R/canon/SZL/One.lean"
+cat > "$R/missing-instance.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "named REAL instance is required in kernel report" \
+  "$R" "$R/missing-instance.txt"
+cat > "$R/out-of-policy.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.auditedInstance' depends on axioms: [Classical.choice, Rogue.audit]
+TXT
+expect_fail_report "named REAL instance cannot hide an out-of-policy axiom" \
+  "$R" "$R/out-of-policy.txt"
+cat > "$R/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.auditedInstance' depends on axioms: [Classical.choice]
+TXT
+expect_pass_report "named REAL instance has a complete in-policy kernel report" \
+  "$R" "$R/axioms.txt"
 
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"

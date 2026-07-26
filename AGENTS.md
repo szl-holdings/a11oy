@@ -125,24 +125,16 @@ doctrine-package build.
 | Component | Command | Notes |
 |-----------|---------|-------|
 | `packages/a11oy-knowledge` | `cd packages/a11oy-knowledge && npm test` | Vitest. 26/27 pass (1 pre-existing failure in TH2 proof sketch). |
-| `__tests__/` (compliance + adversarial) | `npx jest __tests__/` | Jest/ts-jest. 106/110 pass (4 pre-existing failures). Requires root-level symlinks — see below. |
+| `__tests__/` (compliance + adversarial) | `npx jest __tests__/` | Jest/ts-jest. Tests read canonical fixtures under `packages/knowledge/`, including on hosts that do not materialize Git symlinks. |
 | `packages/qec-integrity` | `npx tsx packages/qec-integrity/src/qec_lineage.test.ts` | Custom runner, `node:assert/strict`. 24/24 pass. (receipt-chain lineage suite) |
 | Doctrine workspace | `pnpm install --frozen-lockfile && pnpm test:doctrine && pnpm typecheck:doctrine && pnpm build:doctrine` | Clean-clone gate for `@a11oy/core` and `@a11oy/connection`. |
 | `web/packages/a11oy-core` (custom) | `pnpm --dir web/packages/a11oy-core run test:standalone` | Runs the nine standalone doctrine test files, including KS-18. |
 
-### Symlinks required for `__tests__/`
+### Canonical fixtures for `__tests__/`
 
-The compliance/adversarial Jest tests reference files via relative paths from
-`__tests__/compliance/`:
-- `../../a11oy-knowledge.schema.json` → must exist at repo root
-- `../../policies/vertical` → must exist at repo root
-
-These are set up by the update script as symlinks to `packages/knowledge/`:
-```
-ln -sf packages/knowledge/a11oy-knowledge.schema.json a11oy-knowledge.schema.json
-mkdir -p policies
-ln -sf ../packages/knowledge/vertical policies/vertical
-```
+The compliance/adversarial Jest tests read the schema and vertical policies directly
+from `packages/knowledge/`. Root-level symlinks remain compatibility entry points for
+external consumers, but the test suite does not depend on the host materializing them.
 
 ### Benchmarks
 

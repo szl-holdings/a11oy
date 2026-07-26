@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 //
-// surfaces/loopforge.js — LOOP FORGE (SZL, Wave 25, the 66th surface).
+// surfaces/loopforge.js — LOOP FORGE (SZL, Wave 25, promoted top-three surface).
 // A MODELED 3D rendering of the KERNEL-GATED AGENTIC LOOP fused with an honest,
 // J-lens-analogue WORKSPACE READOUT of the loop's own pre-commit state.
 // See DEV3_REPORT.md for the full write-up. ZERO PURPLE. Vendored three via ctx.THREE.

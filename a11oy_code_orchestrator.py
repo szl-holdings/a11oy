@@ -44,6 +44,8 @@ memory write is Khipu-receipted.
 from __future__ import annotations
 
 import asyncio
+import base64
+import copy
 import hashlib
 import json
 import math
@@ -53,8 +55,10 @@ import secrets
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import uuid
+from collections import OrderedDict
 from contextlib import closing
 from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
@@ -640,6 +644,7 @@ PURIQ_THRESHOLD = float(os.environ.get("A11OY_PURIQ_THRESHOLD", "0.62"))
 PURIQ_BETA = float(os.environ.get("A11OY_PURIQ_BETA", "4.0"))
 DB_PATH = os.environ.get("A11OY_CODE_DB", "/app/data/a11oy_code.db")
 SANDBOX_DIR = Path(os.environ.get("A11OY_CODE_SANDBOX", "/app/data/sandbox"))
+MAX_MEDIA_WRITE_BYTES = 10 * 1024 * 1024
 ADMIN_KEY = os.environ.get("A11OY_CODE_ADMIN_KEY", "")  # gate for /v1/keys + system overrides
 
 # Direct provider keys (optional). If present, preferred over HF router for that provider.
@@ -743,6 +748,12 @@ DEFAULT_SYSTEM_PROMPT = (
 
 _KHIPU_GENESIS = "0" * 64
 _khipu_tip = _KHIPU_GENESIS
+_khipu_lock = threading.RLock()
+try:
+    _KHIPU_CACHE_MAX = max(16, int(os.environ.get("A11OY_KHIPU_CACHE_MAX", "512")))
+except ValueError:
+    _KHIPU_CACHE_MAX = 512
+_khipu_receipts: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
 # Reference to the host FastAPI app, captured in attach(app), so khipu_emit can
 # co-sign receipts through the REAL DSSE signer (app.state.szl_emit_signed_receipt,
@@ -775,6 +786,242 @@ def _dsse_cosign(body: dict[str, Any]) -> dict[str, Any]:
         return {}  # never break the turn over a signing hiccup
 
 
+def _khipu_core_digest(receipt: dict[str, Any]) -> str:
+    core = {
+        "receipt_id": receipt["receipt_id"],
+        "action": receipt["action"],
+        "ts": receipt["ts"],
+        "prev": receipt["prev"],
+        "payload": receipt["payload"],
+    }
+    return hashlib.sha256(
+        json.dumps(core, sort_keys=True, default=str).encode()
+    ).hexdigest()
+
+
+def _khipu_cache_put(receipt: dict[str, Any]) -> None:
+    receipt_id = receipt.get("receipt_id")
+    if not isinstance(receipt_id, str):
+        return
+    with _khipu_lock:
+        _khipu_receipts[receipt_id] = copy.deepcopy(receipt)
+        _khipu_receipts.move_to_end(receipt_id)
+        while len(_khipu_receipts) > _KHIPU_CACHE_MAX:
+            _khipu_receipts.popitem(last=False)
+
+
+def _khipu_load_receipt(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+    durable_only: bool = False,
+) -> dict[str, Any] | None:
+    state, receipt = _khipu_load_receipt_state(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+        durable_only=durable_only,
+    )
+    return receipt if state == "FOUND" else None
+
+
+def _khipu_load_receipt_state(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+    durable_only: bool = False,
+) -> tuple[str, dict[str, Any] | None]:
+    if not durable_only:
+        with _khipu_lock:
+            if receipt_id is not None:
+                cached = _khipu_receipts.get(receipt_id)
+            else:
+                cached = next(
+                    (
+                        candidate
+                        for candidate in _khipu_receipts.values()
+                        if candidate.get("hash") == receipt_hash
+                    ),
+                    None,
+                )
+            if cached is not None and (
+                receipt_hash is None or cached.get("hash") == receipt_hash
+            ):
+                return "FOUND", copy.deepcopy(cached)
+
+    state, durable = _db_read_receipt_state(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+    )
+    if durable is not None:
+        _khipu_cache_put(durable)
+        return "FOUND", copy.deepcopy(durable)
+    return state, None
+
+
+def khipu_authenticate_receipt(
+    receipt_id: str,
+    receipt_hash: str,
+    *,
+    expected_action: str | None = None,
+    expected_payload: dict[str, Any] | None = None,
+    expected_dsse_signed: bool | None = None,
+    require_durable: bool = False,
+) -> str:
+    """Authenticate a receipt against durable Khipu data with a bounded cache.
+
+    A supplied identifier and digest are never sufficient by themselves. When
+    ``require_durable`` is true, every chain link must be present in SQLite so a
+    saved credential remains verifiable across workers and process restarts.
+    """
+    durable_chain: list[dict[str, Any]] | None = None
+    if require_durable:
+        state, durable_chain = _db_read_receipt_chain(
+            receipt_id=receipt_id,
+            receipt_hash=receipt_hash,
+        )
+        known = durable_chain[0] if durable_chain else None
+        for durable_receipt in durable_chain or []:
+            _khipu_cache_put(durable_receipt)
+    else:
+        state, known = _khipu_load_receipt_state(
+            receipt_id=receipt_id,
+            receipt_hash=receipt_hash,
+            durable_only=False,
+        )
+    if known is None:
+        return "UNAVAILABLE" if state == "UNAVAILABLE" else "INVALID"
+    if (
+        known.get("hash") != receipt_hash
+        or known.get("chain_verified") is not True
+        or expected_action is not None
+        and known.get("action") != expected_action
+        or expected_payload is not None
+        and known.get("payload") != expected_payload
+        or expected_dsse_signed is not None
+        and bool(known.get("dsse_signed", False)) is not expected_dsse_signed
+    ):
+        return "INVALID"
+
+    if durable_chain is not None:
+        for index, cursor in enumerate(durable_chain):
+            cursor_hash = cursor.get("hash")
+            if (
+                cursor.get("receipt_id") is None
+                or not isinstance(cursor_hash, str)
+                or cursor.get("chain_verified") is not True
+                or _khipu_core_digest(cursor) != cursor_hash
+            ):
+                return "INVALID"
+            previous = cursor.get("prev")
+            if previous == _KHIPU_GENESIS:
+                return (
+                    "VERIFIED"
+                    if index == len(durable_chain) - 1
+                    else "INVALID"
+                )
+            if (
+                index + 1 >= len(durable_chain)
+                or durable_chain[index + 1].get("hash") != previous
+            ):
+                return "INVALID"
+        return "INVALID"
+
+    cursor = known
+    visited: set[str] = set()
+    while True:
+        cursor_hash = cursor.get("hash")
+        if (
+            cursor.get("receipt_id") is None
+            or not isinstance(cursor_hash, str)
+            or cursor_hash in visited
+            or cursor.get("chain_verified") is not True
+            or _khipu_core_digest(cursor) != cursor_hash
+        ):
+            return "INVALID"
+        if cursor.get("prev") == _KHIPU_GENESIS:
+            return "VERIFIED"
+        visited.add(cursor_hash)
+        predecessor_state, predecessor = _khipu_load_receipt_state(
+            receipt_hash=cursor.get("prev"),
+            durable_only=require_durable,
+        )
+        if predecessor is None:
+            return (
+                "UNAVAILABLE"
+                if predecessor_state == "UNAVAILABLE"
+                else "INVALID"
+            )
+        cursor = predecessor
+
+
+def khipu_verify_receipt(
+    receipt_id: str,
+    receipt_hash: str,
+    *,
+    expected_action: str | None = None,
+    expected_payload: dict[str, Any] | None = None,
+    expected_dsse_signed: bool | None = None,
+    require_durable: bool = False,
+) -> bool:
+    return (
+        khipu_authenticate_receipt(
+            receipt_id,
+            receipt_hash,
+            expected_action=expected_action,
+            expected_payload=expected_payload,
+            expected_dsse_signed=expected_dsse_signed,
+            require_durable=require_durable,
+        )
+        == "VERIFIED"
+    )
+
+
+def consume_governance_decision(
+    *,
+    receipt_id: str,
+    receipt_hash: str,
+    governed_action: str,
+    resource: str,
+    expected_payload: dict[str, Any],
+) -> bool:
+    """Authenticate and atomically consume one durable governance decision."""
+    if (
+        khipu_authenticate_receipt(
+            receipt_id,
+            receipt_hash,
+            expected_action="puriq.decide",
+            expected_payload=expected_payload,
+            require_durable=True,
+        )
+        != "VERIFIED"
+    ):
+        return False
+    try:
+        with closing(_db()) as c:
+            c.execute("BEGIN IMMEDIATE")
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS governance_consumptions(
+                  receipt_id TEXT PRIMARY KEY,
+                  receipt_hash TEXT NOT NULL,
+                  governed_action TEXT NOT NULL,
+                  resource TEXT NOT NULL,
+                  consumed REAL NOT NULL
+                )
+                """
+            )
+            c.execute(
+                "INSERT INTO governance_consumptions("
+                "receipt_id,receipt_hash,governed_action,resource,consumed"
+                ") VALUES(?,?,?,?,?)",
+                (receipt_id, receipt_hash, governed_action, resource, time.time()),
+            )
+            c.commit()
+    except sqlite3.Error:
+        return False
+    return True
+
+
 def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Emit a chain-verified Khipu receipt. prod_i Khipu_i(a) requires chain_verified.
 
@@ -785,24 +1032,25 @@ def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     turns genuinely true rather than aspirational.
     """
     global _khipu_tip
-    ts = time.time()
-    body = {
-        "receipt_id": str(uuid.uuid4()),
-        "action": action,
-        "ts": ts,
-        "prev": _khipu_tip,
-        "payload": payload,
-    }
-    h = hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode()).hexdigest()
-    body["hash"] = h
-    body["chain_verified"] = True
-    _khipu_tip = h
-    body.update(_dsse_cosign(body))  # additive: dsse_digest/dsse_signed if a signer is wired
-    try:
-        _db_write_receipt(body)
-    except Exception:
-        pass  # receipt persistence is best-effort; in-memory chain still verifies
-    return body
+    with _khipu_lock:
+        body = {
+            "receipt_id": str(uuid.uuid4()),
+            "action": action,
+            "ts": time.time(),
+            "payload": copy.deepcopy(payload),
+        }
+        try:
+            _db_write_receipt(body)
+        except Exception:
+            body.setdefault("prev", _khipu_tip)
+            body.setdefault("hash", _khipu_core_digest(body))
+            body["chain_verified"] = False
+            body["persistence_state"] = "UNAVAILABLE"
+            return copy.deepcopy(body)
+        body["persistence_state"] = "SQLITE"
+        _khipu_tip = body["hash"]
+        _khipu_cache_put(body)
+    return copy.deepcopy(body)
 
 
 # ---------------------------------------------------------------------------
@@ -823,6 +1071,7 @@ YUYAY_AXES = [
 # Tools that change state need a higher bar + 2-person Yuyay gate.
 STATE_CHANGING_TOOLS = {
     "github_open_issue", "github_open_pr", "hf_push_file", "fs_write",
+    "media_write",
     "shell_exec", "flagship_call", "drone_command",
     # NEW agentic state-changing tools (higher bar + 2-person Yuyay gate):
     "apply_patch", "app_command",
@@ -933,11 +1182,33 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
         reason = f"PURIQ score {score:.3f} < threshold {PURIQ_THRESHOLD}"
     else:
         reason = "PURIQ gate passed."
-    receipt = khipu_emit("puriq.decide", {
+    resource = (
+        os.path.abspath(ctx["asset_path"])
+        if isinstance(ctx.get("asset_path"), str)
+        else None
+    )
+    asset_sha256 = (
+        ctx.get("asset_sha256")
+        if isinstance(ctx.get("asset_sha256"), str)
+        else None
+    )
+    receipt_payload = {
         "action": action, "allow": allow, "score": round(score, 4),
         "lambda": lam, "hukla_fired": huk_fired, "yuyay_violations": yviol,
-    })
+        "resource": resource, "asset_sha256": asset_sha256,
+    }
+    receipt = khipu_emit("puriq.decide", receipt_payload)
+    receipt_is_durable = (
+        receipt.get("chain_verified") is True
+        and receipt.get("persistence_state") == "SQLITE"
+    )
+    if allow and not receipt_is_durable:
+        allow = False
+        reason = (
+            "PURIQ gate denied: the decision receipt was not durably persisted."
+        )
     return {
+        "action": action,
         "allow": allow,
         "score": round(score, 4),
         "lambda": lam,
@@ -949,8 +1220,11 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
         "two_person_required": two_person_required,
         "threshold": PURIQ_THRESHOLD,
         "reason": reason,
+        "resource": resource,
+        "asset_sha256": asset_sha256,
         "khipu_receipt": {"receipt_id": receipt["receipt_id"], "hash": receipt["hash"],
-                          "chain_verified": receipt["chain_verified"]},
+                          "chain_verified": receipt["chain_verified"],
+                          "persistence_state": receipt.get("persistence_state")},
     }
 
 
@@ -1580,6 +1854,19 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "properties": {
             "path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}}},
     {"type": "function", "function": {
+        "name": "media_write",
+        "description": (
+            "Write one base64-encoded media asset through the deployed PURIQ, "
+            "Khipu, and C2PA-aligned sidecar path (state-changing)."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "path": {"type": "string", "description": "A filename within the media sandbox."},
+            "content_base64": {"type": "string"},
+            "asset_format": {"type": "string", "description": "Media type such as image/png."},
+            "ai_generated": {"type": "boolean"},
+            "model_id": {"type": "string"}},
+            "required": ["path", "content_base64", "asset_format", "ai_generated"]}}},
+    {"type": "function", "function": {
         "name": "drone_command", "description": "Send a command to the Killinchu drone fleet (when shipped).",
         "parameters": {"type": "object", "properties": {
             "drone_id": {"type": "string"}, "command": {"type": "string"}},
@@ -1693,7 +1980,7 @@ def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool) -> d
     risk = "high" if name in STATE_CHANGING_TOOLS else "low"
     if name in ("drone_command",):
         risk = "critical"
-    return {
+    context = {
         "risk": risk,
         "authorized": True,
         "has_provenance": True,
@@ -1703,25 +1990,58 @@ def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool) -> d
         "tool": name,
         "args_summary": json.dumps(args)[:300],
     }
+    if name == "media_write":
+        asset_path, asset_bytes, asset_format, ai_generated, model_id = (
+            _media_write_inputs(args)
+        )
+        context["asset_path"] = str(asset_path)
+        context["asset_sha256"] = (
+            "sha256:" + hashlib.sha256(asset_bytes).hexdigest()
+        )
+        context["args_summary"] = json.dumps(
+            {
+                "path": asset_path.name,
+                "bytes": len(asset_bytes),
+                "asset_format": asset_format,
+                "ai_generated": ai_generated,
+                "model_id": model_id,
+            },
+            sort_keys=True,
+        )
+    return context
 
 
 async def execute_tool(name: str, args: dict[str, Any], client: httpx.AsyncClient,
                        two_person_attested: bool = False) -> dict[str, Any]:
     """Run a tool after a PURIQ gate. Returns {ok, result|error, gate, khipu}."""
-    gate = puriq_decide(name, _gate_context_for_tool(name, args, two_person_attested))
+    try:
+        gate_context = _gate_context_for_tool(name, args, two_person_attested)
+    except (TypeError, ValueError) as exc:
+        return {"ok": False, "error": f"invalid tool arguments: {exc}"}
+    gate = puriq_decide(name, gate_context)
     if not gate["allow"]:
         return {"ok": False, "error": f"PURIQ gate denied: {gate['reason']}", "gate": gate}
+    receipt_args = _receipt_safe_tool_args(name, args)
     try:
-        result = await _dispatch_tool(name, args, client)
-        rec = khipu_emit(f"tool.{name}", {"args": args, "ok": True})
+        result = await _dispatch_tool(name, args, client, gate=gate)
+        rec = khipu_emit(f"tool.{name}", {"args": receipt_args, "ok": True})
         return {"ok": True, "result": result, "gate": gate,
                 "khipu": {"hash": rec["hash"], "receipt_id": rec["receipt_id"]}}
     except Exception as exc:
-        khipu_emit(f"tool.{name}.error", {"args": args, "error": str(exc)})
+        khipu_emit(
+            f"tool.{name}.error",
+            {"args": receipt_args, "error": str(exc)},
+        )
         return {"ok": False, "error": str(exc), "gate": gate}
 
 
-async def _dispatch_tool(name: str, args: dict[str, Any], client: httpx.AsyncClient) -> Any:
+async def _dispatch_tool(
+    name: str,
+    args: dict[str, Any],
+    client: httpx.AsyncClient,
+    *,
+    gate: dict[str, Any] | None = None,
+) -> Any:
     if name == "web_search":
         return await _tool_proxy(client, "GET", "/api/a11oy/search", params={"q": args["query"], "k": args.get("k", 5)})
     if name == "web_fetch":
@@ -1740,6 +2060,8 @@ async def _dispatch_tool(name: str, args: dict[str, Any], client: httpx.AsyncCli
         return _tool_fs_read(args["path"])
     if name == "fs_write":
         return _tool_fs_write(args["path"], args["content"])
+    if name == "media_write":
+        return _tool_media_write(args, gate or {})
     if name == "drone_command":
         return await _tool_flagship(client, "field-node", f"/drones/{args['drone_id']}/command",
                                     "POST", {"command": args["command"]})
@@ -1988,6 +2310,95 @@ def _tool_fs_write(path: str, content: str) -> Any:
         return {"error": str(exc)[:300]}
 
 
+def _media_write_inputs(
+    args: dict[str, Any],
+) -> tuple[Path, bytes, str, bool, str | None]:
+    filename = args.get("path")
+    if (
+        not isinstance(filename, str)
+        or not filename
+        or filename in {".", ".."}
+        or "/" in filename
+        or "\\" in filename
+    ):
+        raise ValueError("media path must be one plain filename")
+    encoded = args.get("content_base64")
+    if not isinstance(encoded, str) or not encoded:
+        raise ValueError("content_base64 must be a non-empty string")
+    try:
+        asset_bytes = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("content_base64 must be canonical base64") from exc
+    if not asset_bytes or len(asset_bytes) > MAX_MEDIA_WRITE_BYTES:
+        raise ValueError(
+            f"media bytes must be between 1 and {MAX_MEDIA_WRITE_BYTES}"
+        )
+    asset_format = args.get("asset_format")
+    if not isinstance(asset_format, str) or not asset_format.strip():
+        raise ValueError("asset_format must be a non-empty media type")
+    ai_generated = args.get("ai_generated")
+    if not isinstance(ai_generated, bool):
+        raise ValueError("ai_generated must be a boolean")
+    model_id = args.get("model_id")
+    if model_id is not None and not isinstance(model_id, str):
+        raise ValueError("model_id must be a string when supplied")
+    return (
+        SANDBOX_DIR / "media" / filename,
+        asset_bytes,
+        asset_format,
+        ai_generated,
+        model_id,
+    )
+
+
+def _receipt_safe_tool_args(name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Replace large or sensitive inline content with bounded receipt metadata."""
+    if name != "media_write":
+        return args
+    asset_path, asset_bytes, asset_format, ai_generated, model_id = (
+        _media_write_inputs(args)
+    )
+    return {
+        "path": asset_path.name,
+        "bytes": len(asset_bytes),
+        "content_sha256": "sha256:" + hashlib.sha256(asset_bytes).hexdigest(),
+        "asset_format": asset_format,
+        "ai_generated": ai_generated,
+        "model_id": model_id,
+    }
+
+
+def _tool_media_write(args: dict[str, Any], gate: dict[str, Any]) -> Any:
+    from content_credentials import write_asset_with_credential
+
+    asset_path, asset_bytes, asset_format, ai_generated, model_id = (
+        _media_write_inputs(args)
+    )
+    if not asset_path.parent.is_dir():
+        raise RuntimeError("deployed media sandbox is not initialized")
+    result = write_asset_with_credential(
+        asset_path=str(asset_path),
+        asset_bytes=asset_bytes,
+        asset_title=asset_path.name,
+        asset_format=asset_format,
+        ai_generated=ai_generated,
+        model_id=model_id,
+        governance_decision=gate,
+    )
+    return {
+        "path": f"media/{asset_path.name}",
+        "bytes": len(asset_bytes),
+        "asset_hash": result["asset_hash"],
+        "sidecar_path": f"media/{asset_path.name}.c2pa.json",
+        "khipu_receipt": {
+            "receipt_id": result["khipu_receipt"]["receipt_id"],
+            "hash": result["khipu_receipt"]["hash"],
+            "chain_verified": result["khipu_receipt"]["chain_verified"],
+        },
+        "verification": result["verification"],
+    }
+
+
 # ---------------------------------------------------------------------------
 # SQLite memory store (Unay organ). Conversations + messages + profiles + keys
 # + receipts. Every write Khipu-receipted.
@@ -2017,16 +2428,270 @@ def init_db() -> None:
               key TEXT PRIMARY KEY, owner TEXT, created REAL, rpm INTEGER, active INTEGER);
             CREATE TABLE IF NOT EXISTS receipts(
               hash TEXT PRIMARY KEY, receipt_id TEXT, action TEXT, ts REAL, body TEXT);
+            CREATE UNIQUE INDEX IF NOT EXISTS receipts_receipt_id_idx
+              ON receipts(receipt_id);
+            CREATE TABLE IF NOT EXISTS khipu_heads(
+              id INTEGER PRIMARY KEY CHECK(id=1),
+              hash TEXT NOT NULL);
+            INSERT OR IGNORE INTO khipu_heads(id,hash)
+              VALUES(1,'0000000000000000000000000000000000000000000000000000000000000000');
+            CREATE TABLE IF NOT EXISTS governance_consumptions(
+              receipt_id TEXT PRIMARY KEY,
+              receipt_hash TEXT NOT NULL,
+              governed_action TEXT NOT NULL,
+              resource TEXT NOT NULL,
+              consumed REAL NOT NULL);
             """
         )
+        _rehydrate_khipu_tip(c)
         c.commit()
+
+
+def _decode_db_receipt(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    try:
+        body = json.loads(row["body"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if (
+        not isinstance(body, dict)
+        or body.get("hash") != row["hash"]
+        or body.get("receipt_id") != row["receipt_id"]
+        or body.get("action") != row["action"]
+        or body.get("ts") != row["ts"]
+    ):
+        return None
+    return body
+
+
+def _db_read_receipt(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+) -> dict[str, Any] | None:
+    state, receipt = _db_read_receipt_state(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+    )
+    return receipt if state == "FOUND" else None
+
+
+def _db_read_receipt_state(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+) -> tuple[str, dict[str, Any] | None]:
+    if receipt_id is None and receipt_hash is None:
+        return "NOT_FOUND", None
+    clauses = []
+    values: list[str] = []
+    if receipt_id is not None:
+        clauses.append("receipt_id=?")
+        values.append(receipt_id)
+    if receipt_hash is not None:
+        clauses.append("hash=?")
+        values.append(receipt_hash)
+    try:
+        with closing(_db()) as c:
+            row = c.execute(
+                "SELECT hash,receipt_id,action,ts,body FROM receipts WHERE "
+                + " AND ".join(clauses)
+                + " LIMIT 1",
+                values,
+            ).fetchone()
+    except sqlite3.Error:
+        return "UNAVAILABLE", None
+    receipt = _decode_db_receipt(row)
+    if row is None:
+        return "NOT_FOUND", None
+    if receipt is None:
+        return "INVALID", None
+    return "FOUND", receipt
+
+
+def _db_read_receipt_chain(
+    *,
+    receipt_id: str,
+    receipt_hash: str,
+) -> tuple[str, list[dict[str, Any]] | None]:
+    """Load one durable predecessor chain with one indexed recursive query."""
+    try:
+        with closing(_db()) as c:
+            rows = c.execute(
+                """
+                WITH RECURSIVE chain(
+                  hash, receipt_id, action, ts, body, prev, depth
+                ) AS (
+                  SELECT hash, receipt_id, action, ts, body,
+                         json_extract(body, '$.prev'), 0
+                    FROM receipts
+                   WHERE receipt_id=? AND hash=?
+                  UNION ALL
+                  SELECT r.hash, r.receipt_id, r.action, r.ts, r.body,
+                         json_extract(r.body, '$.prev'), chain.depth + 1
+                    FROM receipts AS r
+                    JOIN chain ON r.hash=chain.prev
+                   WHERE chain.prev != ?
+                )
+                SELECT hash, receipt_id, action, ts, body, depth
+                  FROM chain
+                 ORDER BY depth
+                """,
+                (receipt_id, receipt_hash, _KHIPU_GENESIS),
+            ).fetchall()
+    except sqlite3.Error:
+        return "UNAVAILABLE", None
+    if not rows:
+        return "NOT_FOUND", None
+    chain = []
+    for row in rows:
+        receipt = _decode_db_receipt(row)
+        if receipt is None:
+            return "INVALID", None
+        chain.append(receipt)
+    return "FOUND", chain
+
+
+def _rehydrate_khipu_tip(connection: sqlite3.Connection) -> None:
+    global _khipu_tip
+    head_row = connection.execute(
+        "SELECT hash FROM khipu_heads WHERE id=1"
+    ).fetchone()
+    head_hash = head_row["hash"] if head_row is not None else _KHIPU_GENESIS
+    if head_hash == _KHIPU_GENESIS:
+        row = connection.execute(
+            "SELECT hash,receipt_id,action,ts,body FROM receipts "
+            "ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+    else:
+        row = connection.execute(
+            "SELECT hash,receipt_id,action,ts,body FROM receipts "
+            "WHERE hash=? LIMIT 1",
+            (head_hash,),
+        ).fetchone()
+    receipt = _decode_db_receipt(row)
+    if receipt is None:
+        return
+    try:
+        valid = _khipu_core_digest(receipt) == receipt.get("hash")
+    except (KeyError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        return
+    connection.execute(
+        "UPDATE khipu_heads SET hash=? WHERE id=1",
+        (receipt["hash"],),
+    )
+    with _khipu_lock:
+        _khipu_tip = receipt["hash"]
+    _khipu_cache_put(receipt)
 
 
 def _db_write_receipt(body: dict[str, Any]) -> None:
     with closing(_db()) as c:
-        c.execute("INSERT OR IGNORE INTO receipts(hash,receipt_id,action,ts,body) VALUES(?,?,?,?,?)",
-                  (body["hash"], body["receipt_id"], body["action"], body["ts"], json.dumps(body, default=str)))
-        c.commit()
+        try:
+            c.execute("BEGIN IMMEDIATE")
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS receipts(
+                  hash TEXT PRIMARY KEY,
+                  receipt_id TEXT,
+                  action TEXT,
+                  ts REAL,
+                  body TEXT
+                )
+                """
+            )
+            c.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS receipts_receipt_id_idx "
+                "ON receipts(receipt_id)"
+            )
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS khipu_heads(
+                  id INTEGER PRIMARY KEY CHECK(id=1),
+                  hash TEXT NOT NULL
+                )
+                """
+            )
+            c.execute(
+                "INSERT OR IGNORE INTO khipu_heads(id,hash) VALUES(1,?)",
+                (_KHIPU_GENESIS,),
+            )
+            head_row = c.execute(
+                "SELECT hash FROM khipu_heads WHERE id=1"
+            ).fetchone()
+            predecessor_hash = (
+                head_row["hash"] if head_row is not None else _KHIPU_GENESIS
+            )
+            if predecessor_hash != _KHIPU_GENESIS:
+                predecessor_row = c.execute(
+                    "SELECT hash,receipt_id,action,ts,body FROM receipts "
+                    "WHERE hash=? LIMIT 1",
+                    (predecessor_hash,),
+                ).fetchone()
+                predecessor = _decode_db_receipt(predecessor_row)
+                if (
+                    predecessor is None
+                    or predecessor.get("chain_verified") is not True
+                    or _khipu_core_digest(predecessor) != predecessor_hash
+                ):
+                    raise sqlite3.IntegrityError(
+                        "persisted Khipu head is absent or invalid"
+                    )
+
+            body["prev"] = predecessor_hash
+            body["hash"] = _khipu_core_digest(body)
+            body["chain_verified"] = True
+            encoded = json.dumps(body, default=str)
+            c.execute(
+                "INSERT INTO receipts(hash,receipt_id,action,ts,body) "
+                "VALUES(?,?,?,?,?)",
+                (
+                    body["hash"],
+                    body["receipt_id"],
+                    body["action"],
+                    body["ts"],
+                    encoded,
+                ),
+            )
+            advanced = c.execute(
+                "UPDATE khipu_heads SET hash=? WHERE id=1 AND hash=?",
+                (body["hash"], predecessor_hash),
+            )
+            if advanced.rowcount != 1:
+                raise sqlite3.IntegrityError(
+                    "persisted Khipu head compare-and-swap failed"
+                )
+            c.commit()
+        except Exception:
+            c.rollback()
+            raise
+
+        signed_fields = _dsse_cosign(body)
+        if signed_fields:
+            signed_body = dict(body)
+            signed_body.update(signed_fields)
+            try:
+                c.execute("BEGIN IMMEDIATE")
+                updated = c.execute(
+                    "UPDATE receipts SET body=? WHERE hash=? AND receipt_id=?",
+                    (
+                        json.dumps(signed_body, default=str),
+                        body["hash"],
+                        body["receipt_id"],
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise sqlite3.IntegrityError(
+                        "durable receipt disappeared before DSSE update"
+                    )
+                c.commit()
+            except sqlite3.Error:
+                c.rollback()
+            else:
+                body.update(signed_fields)
 
 
 def mem_upsert_conversation(conv_id: str, user_id: str, title: str, system_prompt: str) -> None:
@@ -3038,6 +3703,7 @@ def attach(app) -> None:
     _app = app  # capture host app so khipu_emit can DSSE-co-sign via app.state
     init_db()
     SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
+    (SANDBOX_DIR / "media").mkdir(parents=True, exist_ok=True)
     app.include_router(router)
     print("[a11oy.code] orchestrator mounted at /api/a11oy/code/* (Doctrine v11 LOCKED; v12 PURIQ roadmap)", file=sys.stderr)
 
