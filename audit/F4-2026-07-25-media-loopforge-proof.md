@@ -1,0 +1,32 @@
+# Proof Packet — F4-2026-07-25-MEDIA-LOOPFORGE
+
+- `workcell_id`: `F4-2026-07-25-MEDIA-LOOPFORGE`
+- `agent`: CodexSmith
+- `objective`: bind a real Khipu write receipt into one C2PA-aligned media sidecar and promote Loop Forge into the first three holographic surface entries with honest safety framing.
+- `plan_summary`: extend the existing credential module, add focused receipt and priority tests, update the Loop Forge title/comments, document its safety boundary, and capture a live screenshot.
+- `patch_summary`:
+  - added atomic media write followed by the actual `khipu_emit` call
+  - binds the exact returned UUIDv4 receipt ID and sha256 receipt hash into `szl.khipu.receipt`
+  - leaves the attested-execution edge `UNAVAILABLE` until a real verifier integration exists
+  - adds canonical claim/receipt-link drift detection and preserves STRUCTURAL-ONLY / SELF_SIGNED / TAMPERED trust distinctions
+  - places Loop Forge at array index 2 and first within its Brain & Memory category
+  - replaces an overbroad reward-hacking claim with a bounded statement and documents runtime limitations
+- `test_results`:
+  - focused credential and surface suite: exit 0; 6 tests passed
+  - `verify_loop_forge.py`: exit 0; 23 source-level invariants passed
+  - `python -m py_compile ...`: exit 0
+  - `pnpm typecheck:doctrine`: exit 0
+  - `pnpm test:doctrine`: exit 0; 80 standalone doctrine tests passed
+  - banned-token scan: exit 0; 2,764 files scanned, 0 hits
+  - `git diff --check`: exit 0
+  - live local route: HTTP 200 at `/holographic#loopforge`; WebGL2 renderer; active surface title and MODELED label visible
+- `screenshot_refs`:
+  - `docs/assets/screenshots/current/2026-07-25-loop-forge-top-three.png`
+  - catalogued in `audit/screenshot-catalog.md`
+- `verification_notes`: the UI displayed Loop Forge as the active surface with the bounded-recursion and separate-referee wording; the DOM listed it first in Brain & Memory; the ordering test confirms its global array index is less than 3.
+- `public_claim_check`: PASS; no production, C2PA Trust List, embedded JUMBF, or hardware-attestation claim was introduced.
+- `security_check`: PASS; no key, token, secret, or environment value added. The signed test generates an ephemeral key in memory.
+- `known_gaps_update`: `docs/LOOP_FORGE_SAFETY.md` and the credential assertion explicitly record the missing hosted Lean execution, C2PA Trust List, embedded credential, and attested-execution link.
+- `proof_level`: 4
+- `recorded_at`: `2026-07-26T05:42:00Z`
+- `recorded_by`: CodexSmith
