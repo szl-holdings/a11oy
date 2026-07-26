@@ -459,6 +459,42 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             source,
         )
 
+    def test_observed_evidence_rechecks_when_a_suspended_page_resumes(self) -> None:
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        match = re.search(
+            r"function _resumeEvidenceRefresh\(\) \{.*?^\}",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        script = (
+            "const calls = [];\n"
+            "const document = {hidden: false};\n"
+            "let current = {def: {id: 'brain'}};\n"
+            "function _updateEvidenceRail(def, forceRefresh) {"
+            "calls.push([def.id, forceRefresh]);}\n"
+            + match.group(0)
+            + "\n_resumeEvidenceRefresh();"
+            + "\ndocument.hidden = true;"
+            + "\n_resumeEvidenceRefresh();"
+            + "\nconsole.log(JSON.stringify(calls));"
+        )
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(json.loads(result.stdout), [["brain", True]])
+        self.assertIn(
+            'document.addEventListener("visibilitychange", _resumeEvidenceRefresh)',
+            source,
+        )
+        self.assertIn(
+            'window.addEventListener("pageshow", _resumeEvidenceRefresh)',
+            source,
+        )
+
     def test_rejected_verdict_is_visibly_unverified(self) -> None:
         source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
         match = re.search(
@@ -613,6 +649,16 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertIn("needs: [deploy, readiness-verdict]", self.workflow)
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
         self.assertIn("--expected-source-sha \"$SOURCE_SHA\"", self.workflow)
+
+    def test_immutable_artifacts_are_unique_across_rerun_attempts(self) -> None:
+        self.assertIn(
+            "name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}",
+            self.workflow,
+        )
+        self.assertIn(
+            "name: canonical-a11oy-relock-${{ github.run_id }}-${{ github.run_attempt }}",
+            self.workflow,
+        )
 
     def test_issue_write_is_limited_to_relock_job(self) -> None:
         self.assertIn("contents: read", self.workflow)

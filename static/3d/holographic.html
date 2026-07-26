@@ -712,6 +712,12 @@ function _updateEvidenceRail(def, forceRefresh = false) {
     _scheduleEvidenceRefresh(def, readiness);
   });
 }
+function _resumeEvidenceRefresh() {
+  if (document.hidden || !current?.def) return;
+  _updateEvidenceRail(current.def, true);
+}
+document.addEventListener("visibilitychange", _resumeEvidenceRefresh);
+window.addEventListener("pageshow", _resumeEvidenceRefresh);
 const _panels = {};   // cat -> drop-panel element
 const _catBtns = {};  // cat -> dropdown button
 let searchLimit = 36;
