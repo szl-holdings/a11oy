@@ -14,7 +14,7 @@
       "stderr": "audit/release-command-logs/clean-checkout-install.stderr.txt",
       "stderr_sha256": "sha256:02370b4c9f5116503d6e3d2d377f06cbbfd1462259326775cffef820ed4d0615",
       "stdout": "audit/release-command-logs/clean-checkout-install.stdout.txt",
-      "stdout_sha256": "sha256:710820ad54c21e221b97068778792af8abfde18e61d7f3f8cc7e461e935dfb70"
+      "stdout_sha256": "sha256:18bcd2c9c105e99f9fc914ec6130c7f9bdab7f9460d437930e6681727ff78e6f"
     },
     {
       "command": [
@@ -105,27 +105,27 @@
   ],
   "declared_delivery_path": "PASS",
   "execution_context": "detached clean Git worktree at source_commit",
-  "generated_at": "2026-07-26T08:32:11+00:00",
+  "generated_at": "2026-07-26T08:40:56+00:00",
   "payload_determinism": {
     "first": {
-      "bytes": 433113,
-      "digest": "sha256:020f8e58279eff23b87d9eb178b55691623245a4be5fa852b290ce67c1f07a71",
+      "bytes": 433266,
+      "digest": "sha256:01a227c1917f0db584737dcf0d984952fda86bfcf19c69a166ae050fe3dbfabd",
       "files": 44
     },
     "second": {
-      "bytes": 433113,
-      "digest": "sha256:020f8e58279eff23b87d9eb178b55691623245a4be5fa852b290ce67c1f07a71",
+      "bytes": 433266,
+      "digest": "sha256:01a227c1917f0db584737dcf0d984952fda86bfcf19c69a166ae050fe3dbfabd",
       "files": 44
     },
     "status": "PASS"
   },
-  "source_commit": "9b7ca6b6c1c2088f3f02abd6552ae5e71471e568",
+  "source_commit": "62a285c8da552c2349978713597bceee04ccad09",
   "status": "FAILED",
   "tracked_clean_after": true,
   "tracked_clean_before": true,
   "web_workspace_gap": {
     "conclusion": "The broader web package cannot be installed from this repository alone.",
-    "generated_at": "2026-07-26T08:31:13+00:00",
+    "generated_at": "2026-07-26T08:40:24+00:00",
     "label": "FAILED",
     "missing": 12,
     "missing_packages": {

@@ -3,7 +3,7 @@
 
 # vLLM and SGLang methodology
 
-Generated at `2026-07-26T08:32:16+00:00` from tracked audit receipts.
+Generated at `2026-07-26T08:40:56+00:00` from tracked audit receipts.
 
 **PLANNED:** hold node, GPU, driver, CUDA, image, model/tokenizer revision, precision,
 parallelism, context, dataset revision, lengths, concurrency, request rate, warmup,

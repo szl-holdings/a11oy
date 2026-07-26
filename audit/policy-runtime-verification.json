@@ -108,10 +108,10 @@
       "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "generated_at": "2026-07-26T08:27:41+00:00",
+  "generated_at": "2026-07-26T08:40:03+00:00",
   "implementation_bundle_digest": "sha256:95954c916182287f998ee7cd0a4100dcd7da4d477e3067c9f0a4e7e70bd66a95",
   "implementation_paths_match_source_commit": true,
-  "implementation_source_commit": "9b7ca6b6c1c2088f3f02abd6552ae5e71471e568",
+  "implementation_source_commit": "62a285c8da552c2349978713597bceee04ccad09",
   "implementation_sources": {
     "package.json": "sha256:2dfb3149b98829ee77386d1c7b5d7e3568b026657439245d5cdc0bbce3b188e6",
     "packages/policy/package.json": "sha256:63b610282be700db5e93eca575a59a4fe1253f72194f8b34d99b4daf9e5fa331",

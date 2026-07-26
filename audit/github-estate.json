@@ -365,7 +365,7 @@
         "protected": false
       },
       {
-        "commit_sha": "9db774ddc109d2226498f3155cd3bbb36f76cb49",
+        "commit_sha": "1a550c488308c43795f8288ca7f0d4b46a65f4a3",
         "name": "ops/operation-verified-throughput-policy",
         "protected": false
       },
@@ -4504,7 +4504,7 @@
         "number": 1088,
         "state": "open",
         "title": "feat(policy): bind verified throughput authorization",
-        "updated_at": "2026-07-26T08:11:54Z"
+        "updated_at": "2026-07-26T08:34:44Z"
       },
       {
         "author": "stephenlutar2-hash",
@@ -6129,7 +6129,7 @@
       ]
     }
   },
-  "generated_at": "2026-07-26T08:30:41+00:00",
+  "generated_at": "2026-07-26T08:37:10+00:00",
   "label": "MEASURED",
   "organization": {
     "default_repository_permission": "read",
@@ -6153,7 +6153,7 @@
       "id": 1192658924,
       "name": "platform",
       "private": false,
-      "pushed_at": "2026-07-26T08:24:33Z",
+      "pushed_at": "2026-07-26T08:36:58Z",
       "updated_at": "2026-07-26T08:25:03Z",
       "visibility": "public"
     },
@@ -6177,7 +6177,7 @@
       "id": 1225834126,
       "name": "a11oy",
       "private": false,
-      "pushed_at": "2026-07-26T08:25:13Z",
+      "pushed_at": "2026-07-26T08:34:20Z",
       "updated_at": "2026-07-26T08:16:43Z",
       "visibility": "public"
     },

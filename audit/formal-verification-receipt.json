@@ -13,7 +13,7 @@
       "stderr": "audit/formal-logs/lake-update.stderr.txt",
       "stderr_sha256": "sha256:64cafc2206adf3359adbdf04138a4cb5d3624ea5294309ca7325284ceaa77c9d",
       "stdout": "audit/formal-logs/lake-update.stdout.txt",
-      "stdout_sha256": "sha256:dd36d1eae1747203743ac37b85112834e80d73c241c886dddd9cb5767c940fe7"
+      "stdout_sha256": "sha256:e04a41699acc830d933c33df07ddab77d727066ed60303c45a11ca00b6f28c6b"
     },
     {
       "command": [
@@ -79,7 +79,7 @@
     }
   ],
   "formal_artifact_digest": "sha256:d5988892503c025a1158038744ab518d048bdd022c32e718d4ab8e67eced6380",
-  "generated_at": "2026-07-26T08:27:15+00:00",
+  "generated_at": "2026-07-26T08:39:42+00:00",
   "independent_statement_review": {
     "reason": "A second human reviewer has not signed the English theorem statements.",
     "status": "AWAITING AUTHORIZATION"
@@ -95,7 +95,7 @@
   "paths_match_source_commit": true,
   "public_proved_count_change": 0,
   "public_proved_count_reason": "Only T1/T2 are in scope and independent English-statement review is absent.",
-  "source_commit": "9b7ca6b6c1c2088f3f02abd6552ae5e71471e568",
+  "source_commit": "62a285c8da552c2349978713597bceee04ccad09",
   "theorem_declarations": [
     "T1_default_denial",
     "T1_default_denial_not_executable",

@@ -1,4 +1,4 @@
 Attempting to download 4 file(s)
 Decompressing 5366 file(s)
-Unpacked in 147 ms
+Unpacked in 4922 ms
 Completed successfully!

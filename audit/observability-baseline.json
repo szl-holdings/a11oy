@@ -3,7 +3,7 @@
     "reason": "production collector configuration is unavailable",
     "status": "UNKNOWN"
   },
-  "generated_at": "2026-07-26T08:30:52+00:00",
+  "generated_at": "2026-07-26T08:37:19+00:00",
   "label": "MEASURED",
   "live_collector": {
     "reason": "no production collector credentials or endpoint were supplied",
