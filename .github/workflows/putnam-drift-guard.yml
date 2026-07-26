@@ -5,8 +5,9 @@ name: putnam drift guard
 # a11oy ships an embedded, transcribed verdict for the canonical Putnam 2025
 # problems (szl_putnam.py _PUTNAM/_SZL + the console putnam-2025-tab-patch
 # fallback FB_PROBS/FB_SZL) plus headline "N REAL / M DEMO / K OPEN" counts in
-# prose. The single source of truth is szl-holdings/lutar-lean branch
-# putnam-2025-canonical-set, where each Lutar/Putnam/P_*.lean carries an
+# prose. The single source of truth is immutable lutar-lean commit
+# baf483be3c832b64da47161b558e283d68da6650, where each
+# Lutar/Putnam/P_*.lean carries an
 # "**Honest status: REAL|DEMO|OPEN**" label and the SZL/*.lean originals declare
 # "All proofs are REAL" in their docstrings.
 #
@@ -61,7 +62,7 @@ jobs:
           python-version: '3.12'
       - name: Self-test the guard (offline negative fixtures)
         run: bash scripts/check_putnam_drift.test.sh
-      - name: Verify a11oy Putnam 2025 page matches canonical Lean labels
+      - name: Verify a11oy Putnam 2025 page matches immutable canonical Lean labels
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/check_putnam_drift.py --root .

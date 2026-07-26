@@ -76,6 +76,7 @@ class FakeApi:
         self.source_sha = source_sha
         self.repository_sha = "b" * 40
         self.runtime_sha = self.repository_sha
+        self.runtime_revision_shape = "attribute"
         self.private = False
         self.sdk = "docker"
         self.stage = "RUNNING"
@@ -84,14 +85,21 @@ class FakeApi:
         self.clones: dict[str, bool] = {}
 
     def space_info(self, _repo_id: str):
+        if self.runtime_revision_shape == "raw":
+            runtime = SimpleNamespace(
+                raw={"sha": self.runtime_sha},
+                stage=SimpleNamespace(value=self.stage),
+            )
+        else:
+            runtime = SimpleNamespace(
+                sha=self.runtime_sha,
+                stage=SimpleNamespace(value=self.stage),
+            )
         return SimpleNamespace(
             sha=self.repository_sha,
             sdk=self.sdk,
             private=self.private,
-            runtime=SimpleNamespace(
-                sha=self.runtime_sha,
-                stage=SimpleNamespace(value=self.stage),
-            ),
+            runtime=runtime,
         )
 
     def list_repo_files(self, _repo_id: str, repo_type: str):
@@ -116,8 +124,21 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
         },
         "build_info": {
             "status": "OBSERVED",
-            "build": {"state": "OBSERVED", "revision": source_sha},
-            "runtime": {"python": "3.12"},
+            "build": {
+                "state": "OBSERVED",
+                "revision": source_sha,
+                "revision_source": "env:SZL_GIT_SHA",
+                "version": None,
+                "version_source": "UNKNOWN",
+                "working_tree": "UNKNOWN",
+                "working_tree_source": "UNKNOWN",
+                "field_evidence": {
+                    "revision": "OBSERVED",
+                    "version": "UNKNOWN",
+                    "working_tree": "UNKNOWN",
+                },
+            },
+            "runtime": {"python": "3.12", "platform": "linux"},
             "receipt_minted": False,
         },
         "brain_capabilities": {
@@ -180,6 +201,29 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         self.assertTrue(report["source_revision_variable"]["matched"])
         self.assertFalse(any(report["clone_presence"].values()))
         self.assertTrue(report["routes"]["build_info"]["source_bound"])
+        self.assertEqual(
+            report["routes"]["build_info"]["build_identity"]["version_source"],
+            "UNKNOWN",
+        )
+
+    def test_runtime_revision_is_read_from_current_hub_raw_metadata(self) -> None:
+        api = FakeApi(self.source)
+        api.runtime_revision_shape = "raw"
+        report = relock.evaluate_once(
+            api, success_session(self.origin, self.source), self.contract
+        )
+        self.assertEqual(report["hf_runtime_sha"], api.runtime_sha)
+        self.assertEqual(
+            report["hf_runtime_sha_source"], "space_info.runtime.raw.sha"
+        )
+
+    def test_build_identity_evidence_conflicts_fail_closed(self) -> None:
+        session = success_session(self.origin, self.source)
+        build_url = self.origin + relock.ROUTES["build_info"]
+        build = session.responses[("GET", build_url)]._payload["build"]
+        build["working_tree"] = "CLEAN"
+        with self.assertRaisesRegex(relock.RelockError, "working-tree"):
+            relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_source_variable_mismatch_fails_closed(self) -> None:
         api = FakeApi(self.source)

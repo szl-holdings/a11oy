@@ -169,6 +169,9 @@ def test_build_info_uses_allowlisted_sha_and_never_emits_environment(monkeypatch
     assert body["build"]["revision"] == sha
     assert body["build"]["revision_source"] == "env:GITHUB_SHA"
     assert body["build"]["version"] == "2.1.0-test"
+    assert body["build"]["version_source"] == "env:A11OY_VERSION"
+    assert body["build"]["field_evidence"]["revision"] == "OBSERVED"
+    assert body["build"]["field_evidence"]["version"] == "OBSERVED"
     assert "must-not-appear" not in rendered
     assert "SECRET_TOKEN" not in rendered
 
@@ -184,6 +187,7 @@ def test_build_info_uses_hf_deployment_sha(monkeypatch):
     assert body["build"]["state"] == "OBSERVED"
     assert body["build"]["revision"] == sha
     assert body["build"]["revision_source"] == "env:SZL_GIT_SHA"
+    assert body["build"]["field_evidence"]["revision"] == "OBSERVED"
 
 
 def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
@@ -207,7 +211,34 @@ def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
     first = client.get("/api/build-info").json()
     second = client.get("/api/build-info").json()
     assert first["build"] == second["build"]
+    assert first["build"]["working_tree"] == "CLEAN"
+    assert first["build"]["working_tree_source"] == "git:status"
+    assert first["build"]["field_evidence"]["working_tree"] == "OBSERVED"
     assert calls == startup_calls
+
+
+def test_build_info_preserves_unknowns_when_metadata_is_unobservable(monkeypatch):
+    for name in contracts._ENV_SHA_NAMES + contracts._ENV_VERSION_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(contracts, "_safe_git", lambda _args: None)
+
+    body = TestClient(_app_with_catchall()).get("/api/build-info").json()
+    build = body["build"]
+
+    assert body["status"] == "OBSERVED"
+    assert body["receipt_minted"] is False
+    assert build["state"] == "UNKNOWN"
+    assert build["revision"] is None
+    assert build["revision_source"] == "UNKNOWN"
+    assert build["version"] is None
+    assert build["version_source"] == "UNKNOWN"
+    assert build["working_tree"] == "UNKNOWN"
+    assert build["working_tree_source"] == "UNKNOWN"
+    assert build["field_evidence"] == {
+        "revision": "UNKNOWN",
+        "version": "UNKNOWN",
+        "working_tree": "UNKNOWN",
+    }
 
 
 def test_otel_separates_in_process_exporter_and_collector():

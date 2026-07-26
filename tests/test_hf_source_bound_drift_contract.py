@@ -29,12 +29,13 @@ class SourceBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.base.sha", self.drift)
         self.assertIn("github.event.pull_request.head.sha", self.drift)
 
-    def test_predeploy_push_is_source_bound_and_manual_schedule_are_strict(self) -> None:
+    def test_pr_is_source_bound_and_postdeploy_manual_schedule_are_strict(self) -> None:
         expression = (
-            "mode: ${{ (github.event_name == 'pull_request' || "
-            "github.event_name == 'push') && 'source-bound-baseline' || 'direct' }}"
+            "mode: ${{ github.event_name == 'pull_request' && "
+            "'source-bound-baseline' || 'direct' }}"
         )
         self.assertIn(expression, self.drift)
+        self.assertNotIn("\n  push:", self.drift)
         self.assertIn("github-ref: ${{ github.sha }}", self.drift)
         self.assertIn("hf-ref: main", self.drift)
         self.assertIn("workflow_dispatch:", self.drift)
