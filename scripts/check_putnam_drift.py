@@ -26,11 +26,11 @@ canonical ``Lutar/Putnam`` tree from a local directory instead of the network.
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import re
 import sys
+import types
 import urllib.error
 import urllib.request
 from typing import Dict, List, Optional, Set, Tuple
@@ -144,11 +144,18 @@ def canonical_szl_status(text: str) -> Optional[str]:
 # a11oy embedded data — loader module + console fallback.
 # ---------------------------------------------------------------------------
 def load_loader(path: str):
-    spec = importlib.util.spec_from_file_location("szl_putnam_under_test", path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot import loader at %s" % path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    """Execute the loader from source without consulting a bytecode cache.
+
+    The drift guard's negative-fixture test deliberately makes same-size edits
+    in rapid succession. Timestamp-and-size based ``.pyc`` validation can then
+    accept stale bytecode and hide a real label mutation. Compiling the source
+    bytes directly makes both CI and local checks deterministic.
+    """
+    mod = types.ModuleType("szl_putnam_under_test")
+    mod.__file__ = path
+    with open(path, "rb") as fh:
+        source = fh.read()
+    exec(compile(source, path, "exec"), mod.__dict__)
     return mod
 
 
