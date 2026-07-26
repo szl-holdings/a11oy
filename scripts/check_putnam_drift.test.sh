@@ -11,7 +11,8 @@
 # REAL-count drift, REAL-source sorry/axiom violations, duplicate generated
 # markers, an out-of-policy kernel axiom report, multiline theorem headers,
 # section-vs-namespace scope handling, balanced nested attributes, and private
-# helper handling. Runs fully offline via PUTNAM_DRIFT_FIXTURE (no network).
+# helper handling, plus named instance proof auditing. Runs fully offline via
+# PUTNAM_DRIFT_FIXTURE (no network).
 # This is what keeps the guard from silently being neutered.
 # =============================================================================
 set -euo pipefail
@@ -273,6 +274,30 @@ cat > "$Q/axioms.txt" <<'TXT'
 TXT
 expect_pass_report "private helper does not require an unusable external name" \
   "$Q" "$Q/axioms.txt"
+
+# --- Fixture R: named instance proof is required and axiom-audited --------
+R="$TMP/R"; make_honest "$R"
+sed -i '/theorem proof/a class AuditWitness : Prop where\n\
+  witness : True\n\
+public instance (priority := 100) auditedInstance.{u} : AuditWitness := ⟨True.intro⟩' \
+  "$R/canon/SZL/One.lean"
+cat > "$R/missing-instance.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "named REAL instance is required in kernel report" \
+  "$R" "$R/missing-instance.txt"
+cat > "$R/out-of-policy.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.auditedInstance' depends on axioms: [Classical.choice, Rogue.audit]
+TXT
+expect_fail_report "named REAL instance cannot hide an out-of-policy axiom" \
+  "$R" "$R/out-of-policy.txt"
+cat > "$R/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.auditedInstance' depends on axioms: [Classical.choice]
+TXT
+expect_pass_report "named REAL instance has a complete in-policy kernel report" \
+  "$R" "$R/axioms.txt"
 
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"
