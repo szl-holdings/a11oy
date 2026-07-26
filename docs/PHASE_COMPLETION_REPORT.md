@@ -1,5 +1,11 @@
 # A11oy phase completion report
 
+> **Current-state correction, 2026-07-25:** this is a historical phase record,
+> not a current all-green statement. The operator action contract is a validated
+> **ROADMAP** design manifest. No authenticated, idempotent, durable action
+> lifecycle exists in this repository. The direct validation commands below
+> supersede the package-script aliases recorded by the original branch.
+
 This report closes the A11oy-local execution phases that can be completed from
 the current writable repository. It does not claim sibling repositories were
 modified directly. Cross-repo work remains queued through checksum-backed
@@ -24,12 +30,12 @@ passes.
 | Benchmark doctrine | `docs/benchmark-evolution-doctrine.md`, `benchmarks/benchmark-map.json` | `npm run benchmark:audit` |
 | Public pattern synthesis | `docs/PUBLIC_PATTERN_SYNTHESIS.md`, `docs/public-pattern-source-manifest.json` | `npm run patterns:audit` |
 | Controls evidence | `docs/controls-evidence-map.json` | `npm run controls:audit` |
-| Operator action contract | `docs/action-contract-manifest.json` | `npm run action-contract:audit` |
+| Operator action contract design | `docs/action-contract-manifest.json` | `python3 scripts/validate_action_contract_manifest.py`, `python3 scripts/test_validate_action_contract_manifest.py` |
 | HF staged test-results | `huggingface/test-results/MANIFEST.json` | `npm run hf:test-results:audit` |
 | GitHub Enterprise access runbook | `docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`, `docs/github-enterprise-access-checklist.json` | `npm run github:access:audit` |
 | Live access audit | `scripts/audit_github_access_permissions.py` | `npm run github:access:live:validate` |
 | Cross-repo handoff ledger | `docs/cross-repo-handoff-manifest.json` | `npm run cross-repo:handoff:audit` |
-| Runtime control/action-contract receipts | `packages/policy/src/contracts/controls.ts` | `npm run test:policy-contracts` |
+| Control/action-contract receipt-envelope helpers | `packages/policy/src/contracts/controls.ts` | Source-level helper coverage only; not an authenticated action lifecycle |
 | Runtime autonomous-learning receipts | `packages/policy/src/contracts/autonomous_learning.ts` | `npm run test:autonomy-contracts` |
 | Runtime cross-repo handoff receipts | `packages/policy/src/contracts/cross_repo_handoff.ts` | `npm run test:cross-repo-handoff` |
 
