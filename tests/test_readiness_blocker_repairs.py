@@ -15,6 +15,7 @@ import serve
 def test_feed_pulse_is_concurrent_bounded_and_honest_about_timeout(monkeypatch):
     active = 0
     active_lock = threading.Lock()
+    all_workers_done = threading.Event()
 
     def fake_get_feed(feed, timeout_s=None):
         nonlocal active
@@ -39,6 +40,8 @@ def test_feed_pulse_is_concurrent_bounded_and_honest_about_timeout(monkeypatch):
         finally:
             with active_lock:
                 active -= 1
+                if active == 0:
+                    all_workers_done.set()
 
     monkeypatch.setattr(serve._kl_live, "get_feed", fake_get_feed)
     monkeypatch.setattr(serve, "_KL_FEED_PULSE_TIMEOUT_S", 0.15)
@@ -49,6 +52,10 @@ def test_feed_pulse_is_concurrent_bounded_and_honest_about_timeout(monkeypatch):
     payload = json.loads(response.body)
 
     assert elapsed < 0.75
+    # The endpoint deadline can win the race against a cooperative worker by a
+    # few scheduler ticks.  Require that such a worker exits promptly without
+    # making the request wait for the abandoned thread.
+    assert all_workers_done.wait(0.25)
     assert active == 0
     assert payload["feed_count"] == 7
     assert payload["live_count"] == 6

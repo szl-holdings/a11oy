@@ -116,9 +116,11 @@ def _build_identity() -> dict[str, Any]:
             break
 
     dirty: Optional[bool] = None
+    working_tree_source = "UNKNOWN"
     status = _safe_git(["status", "--porcelain", "--untracked-files=normal"])
     if status and status.returncode == 0:
         dirty = bool(status.stdout.strip())
+        working_tree_source = "git:status"
 
     return {
         "state": "OBSERVED" if sha else "UNKNOWN",
@@ -129,6 +131,12 @@ def _build_identity() -> dict[str, Any]:
         "working_tree": (
             "DIRTY" if dirty is True else "CLEAN" if dirty is False else "UNKNOWN"
         ),
+        "working_tree_source": working_tree_source,
+        "field_evidence": {
+            "revision": "OBSERVED" if sha else "UNKNOWN",
+            "version": "OBSERVED" if version else "UNKNOWN",
+            "working_tree": "OBSERVED" if dirty is not None else "UNKNOWN",
+        },
     }
 
 
