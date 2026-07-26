@@ -3,13 +3,13 @@
 
 # Operation Verified Throughput estate ledger
 
-Generated at `2026-07-26T08:40:56+00:00` from tracked audit receipts.
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
 | Estate surface | Status | Receipt |
 |---|---|---|
 | GitHub repositories | MEASURED | 57 visible |
-| Canonical branches | MEASURED | 84 |
-| Canonical open pull requests | MEASURED | 8 |
+| Canonical branches | MEASURED | 83 |
+| Canonical open pull requests | MEASURED | 7 |
 | Workflow references | MEASURED | 195 |
 | Noncompliant workflow pins | FAILED | 1 |
 | Cloud/cluster estate | BLOCKED | `audit/cloud-estate.json` |

@@ -3,7 +3,7 @@
 
 # Failure injection
 
-Generated at `2026-07-26T08:40:56+00:00` from tracked audit receipts.
+Generated at `2026-07-26T08:58:19+00:00` from tracked audit receipts.
 
 **IMPLEMENTED NOT DEPLOYED:** policy inputs cover unknown fields, mutable targets,
 unsupported actions, expiry, missing rules, failed security receipts, missing approval,

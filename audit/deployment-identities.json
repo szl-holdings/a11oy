@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-26T08:37:10+00:00",
+  "generated_at": "2026-07-26T08:52:31+00:00",
   "label": "MEASURED",
   "surfaces": {
     "a11oy_build_info": {
@@ -12,7 +12,7 @@
             "version": "UNKNOWN",
             "working_tree": "UNKNOWN"
           },
-          "revision": "908cc11509b51fc85f8f1ed8542c32c1e6e77e2e",
+          "revision": "ee09cb20e6027008f1f40b8093188f71df96e175",
           "revision_source": "env:SZL_GIT_SHA",
           "state": "OBSERVED",
           "version": null,
@@ -257,7 +257,7 @@
             "bounded": true,
             "doctrine": "v11",
             "dropped_segments": 0,
-            "free_bytes": 435710074880,
+            "free_bytes": 364213219328,
             "last_error": null,
             "max_bytes_per_segment": 8388608,
             "max_total_bytes": 41943040,
@@ -287,7 +287,7 @@
           "bounded": true,
           "doctrine": "v11",
           "dropped_segments": 0,
-          "free_bytes": 435710074880,
+          "free_bytes": 364213219328,
           "last_error": null,
           "max_bytes_per_segment": 8388608,
           "max_total_bytes": 41943040,
@@ -301,7 +301,7 @@
           "write_failures": 0
         },
         "surface": "Brand Orchestration Layer",
-        "uptime_s": 1121.6,
+        "uptime_s": 110.5,
         "version": "2.0.0"
       },
       "url": "https://a-11-oy.com/api/a11oy/healthz"
@@ -316,7 +316,7 @@
             "version": "UNKNOWN",
             "working_tree": "UNKNOWN"
           },
-          "revision": "908cc11509b51fc85f8f1ed8542c32c1e6e77e2e",
+          "revision": "ee09cb20e6027008f1f40b8093188f71df96e175",
           "revision_source": "env:SZL_GIT_SHA",
           "state": "OBSERVED",
           "version": null,

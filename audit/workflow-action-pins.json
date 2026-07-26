@@ -1756,10 +1756,10 @@
       "workflow": ".github/workflows/zarf-build-and-sign.yml"
     }
   ],
-  "generated_at": "2026-07-26T08:37:17+00:00",
+  "generated_at": "2026-07-26T08:52:38+00:00",
   "label": "MEASURED",
   "scope": "canonical a11oy tracked workflows",
-  "source_commit": "62a285c8da552c2349978713597bceee04ccad09",
+  "source_commit": "d1e63459b3e5fa36456f3a84cb243e1d430c6e67",
   "summary": {
     "compliant": 194,
     "noncompliant": 1,

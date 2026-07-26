@@ -3,7 +3,7 @@
 
 # Operation Verified Throughput estate ledger
 
-Generated at `2026-07-26T08:37:10+00:00` by `scripts/operation_verified_throughput_inventory.py`.
+Generated at `2026-07-26T08:52:31+00:00` by `scripts/operation_verified_throughput_inventory.py`.
 
 | Surface | Label | Evidence |
 |---|---|---|

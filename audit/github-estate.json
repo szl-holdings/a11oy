@@ -45,11 +45,6 @@
         "protected": false
       },
       {
-        "commit_sha": "6f2d2365b1a694e152232ae17638ab27dff04057",
-        "name": "agent/f4-media-loopforge-final",
-        "protected": false
-      },
-      {
         "commit_sha": "9bd7c4ff9525ff639ae3120329eb67df0acd9e80",
         "name": "agent/fix-hf-module-drift-caller-pin",
         "protected": false
@@ -225,7 +220,7 @@
         "protected": false
       },
       {
-        "commit_sha": "d5bf41d34effdcd11a2de8cc1241fa448141012f",
+        "commit_sha": "29eb53015b5bf3b3c56f98bc6b4177197de2b4ae",
         "name": "compliance-baselines",
         "protected": false
       },
@@ -335,7 +330,7 @@
         "protected": false
       },
       {
-        "commit_sha": "908cc11509b51fc85f8f1ed8542c32c1e6e77e2e",
+        "commit_sha": "ee09cb20e6027008f1f40b8093188f71df96e175",
         "name": "main",
         "protected": true
       },
@@ -365,7 +360,7 @@
         "protected": false
       },
       {
-        "commit_sha": "1a550c488308c43795f8288ca7f0d4b46a65f4a3",
+        "commit_sha": "cc1f6c9feb8975f1a990873d840f5e34b9f46090",
         "name": "ops/operation-verified-throughput-policy",
         "protected": false
       },
@@ -4504,17 +4499,7 @@
         "number": 1088,
         "state": "open",
         "title": "feat(policy): bind verified throughput authorization",
-        "updated_at": "2026-07-26T08:34:44Z"
-      },
-      {
-        "author": "stephenlutar2-hash",
-        "base": "main",
-        "draft": false,
-        "head": "agent/f4-media-loopforge-final",
-        "number": 1087,
-        "state": "open",
-        "title": "feat(frontier): bind media credentials and promote Loop Forge",
-        "updated_at": "2026-07-26T08:23:17Z"
+        "updated_at": "2026-07-26T08:42:52Z"
       },
       {
         "author": "stephenlutar2-hash",
@@ -6129,7 +6114,7 @@
       ]
     }
   },
-  "generated_at": "2026-07-26T08:37:10+00:00",
+  "generated_at": "2026-07-26T08:52:31+00:00",
   "label": "MEASURED",
   "organization": {
     "default_repository_permission": "read",
@@ -6153,8 +6138,8 @@
       "id": 1192658924,
       "name": "platform",
       "private": false,
-      "pushed_at": "2026-07-26T08:36:58Z",
-      "updated_at": "2026-07-26T08:25:03Z",
+      "pushed_at": "2026-07-26T08:38:30Z",
+      "updated_at": "2026-07-26T08:38:44Z",
       "visibility": "public"
     },
     {
@@ -6165,7 +6150,7 @@
       "id": 1200488980,
       "name": ".github",
       "private": false,
-      "pushed_at": "2026-07-26T07:33:20Z",
+      "pushed_at": "2026-07-26T08:37:44Z",
       "updated_at": "2026-07-26T06:21:44Z",
       "visibility": "public"
     },
@@ -6177,8 +6162,8 @@
       "id": 1225834126,
       "name": "a11oy",
       "private": false,
-      "pushed_at": "2026-07-26T08:34:20Z",
-      "updated_at": "2026-07-26T08:16:43Z",
+      "pushed_at": "2026-07-26T08:48:56Z",
+      "updated_at": "2026-07-26T08:49:05Z",
       "visibility": "public"
     },
     {
@@ -6309,7 +6294,7 @@
       "id": 1255793212,
       "name": "hatun-mcp",
       "private": false,
-      "pushed_at": "2026-07-26T03:17:01Z",
+      "pushed_at": "2026-07-26T08:43:24Z",
       "updated_at": "2026-07-21T03:40:10Z",
       "visibility": "public"
     },
@@ -6390,7 +6375,7 @@
       "id": 1256687378,
       "name": "szl-lake",
       "private": false,
-      "pushed_at": "2026-07-26T04:17:43Z",
+      "pushed_at": "2026-07-26T08:37:46Z",
       "updated_at": "2026-07-26T03:53:24Z",
       "visibility": "public"
     },
@@ -6768,7 +6753,7 @@
       "id": 1301181479,
       "name": "szl-quant",
       "private": false,
-      "pushed_at": "2026-07-26T04:05:05Z",
+      "pushed_at": "2026-07-26T08:44:28Z",
       "updated_at": "2026-07-21T03:39:18Z",
       "visibility": "public"
     },
@@ -6780,7 +6765,7 @@
       "id": 1302781369,
       "name": "szl-telemetry",
       "private": false,
-      "pushed_at": "2026-07-25T08:26:41Z",
+      "pushed_at": "2026-07-26T08:41:20Z",
       "updated_at": "2026-07-21T02:41:15Z",
       "visibility": "public"
     },
@@ -6828,8 +6813,8 @@
   "summary": {
     "active_repositories": 45,
     "archived_repositories": 12,
-    "canonical_branches": 84,
-    "canonical_open_pull_requests": 8,
+    "canonical_branches": 83,
+    "canonical_open_pull_requests": 7,
     "organization_owners": 1,
     "repositories": 57
   }
