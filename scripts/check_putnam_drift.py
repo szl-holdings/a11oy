@@ -212,26 +212,51 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
         errors.append("canonical REAL %s: forbidden %s" % (rel, item))
 
     declarations: List[str] = []
-    namespaces: List[str] = []
-    for line in clean.splitlines():
-        ns = re.match(r"\s*namespace\s+([A-Za-z0-9_'.]+)\s*$", line)
-        if ns:
-            namespaces.append(ns.group(1))
+    scopes: List[Tuple[str, Optional[str]]] = []
+    command_re = re.compile(
+        r"(?m)^[ \t]*(?:@\[[^\]]*\][ \t\r\n]*)*"
+        r"(?:(?:private|protected|noncomputable)\s+)*"
+        r"(?P<kind>namespace|section|end|theorem|lemma)\b"
+    )
+    commands = list(command_re.finditer(clean))
+    lean_name = r"(?:«[^»\r\n]+»|[^\s:({\[\],]+)"
+
+    for index, command in enumerate(commands):
+        kind = command.group("kind")
+        stop = commands[index + 1].start() if index + 1 < len(commands) else len(clean)
+        tail = clean[command.end():stop]
+        same_line = tail.splitlines()[0] if tail else ""
+
+        if kind == "namespace":
+            name_match = re.match(r"[ \t]+(" + lean_name + r")", same_line)
+            if name_match:
+                scopes.append(("namespace", name_match.group(1)))
             continue
-        if re.match(r"\s*end(?:\s+[A-Za-z0-9_'.]+)?\s*$", line):
-            if namespaces:
-                namespaces.pop()
+        if kind == "section":
+            name_match = re.match(r"[ \t]+(" + lean_name + r")", same_line)
+            scopes.append(("section", name_match.group(1) if name_match else None))
             continue
-        decl = re.match(
-            r"\s*(?:@\[[^\]\n]*\]\s*)*"
-            r"(?:(?:private|protected|noncomputable)\s+)*"
-            r"(?:theorem|lemma)\s+([A-Za-z0-9_'.]+)\b",
-            line,
-        )
-        if not decl:
+        if kind == "end":
+            if scopes:
+                scopes.pop()
             continue
-        name = decl.group(1)
-        if "." not in name and namespaces:
+
+        name_match = re.match(r"\s+(" + lean_name + r")", tail)
+        if not name_match:
+            errors.append(
+                "canonical REAL %s: %s declaration has no parseable name"
+                % (rel, kind)
+            )
+            continue
+        name = name_match.group(1)
+        namespaces = [
+            scope_name
+            for scope_kind, scope_name in scopes
+            if scope_kind == "namespace" and scope_name
+        ]
+        if name.startswith("_root_."):
+            name = name[len("_root_."):]
+        elif namespaces:
             name = ".".join(namespaces + [name])
         declarations.append(name)
     if not declarations:

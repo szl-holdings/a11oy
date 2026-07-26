@@ -9,7 +9,8 @@
 # per-problem label drift, console-vs-loader divergence, count-phrase drift, a
 # missing canonical problem file, named "X and Y are OPEN" prose drift, SZL
 # REAL-count drift, REAL-source sorry/axiom violations, duplicate generated
-# markers, and an out-of-policy kernel axiom report. Runs fully offline via
+# markers, an out-of-policy kernel axiom report, multiline theorem headers,
+# and section-vs-namespace scope handling. Runs fully offline via
 # PUTNAM_DRIFT_FIXTURE (no network).
 # This is what keeps the guard from silently being neutered.
 # =============================================================================
@@ -52,6 +53,16 @@ expect_fail_report() {
     echo "[FAIL] $name (expected non-zero, got exit 0)"; FAIL=$((FAIL + 1))
   else
     echo "[PASS] $name (failed as expected)"; PASS=$((PASS + 1))
+  fi
+}
+
+expect_pass_report() {
+  local name="$1" root="$2" report="$3"
+  if PUTNAM_DRIFT_FIXTURE="$root/canon" python3 "$GUARD" --root "$root" \
+      --axiom-report "$report" >/dev/null 2>&1; then
+    echo "[PASS] $name (exit 0 as expected)"; PASS=$((PASS + 1))
+  else
+    echo "[FAIL] $name (expected exit 0, got non-zero)"; FAIL=$((FAIL + 1))
   fi
 }
 
@@ -206,6 +217,30 @@ cat > "$M/axioms.txt" <<'TXT'
 TXT
 expect_fail_report "attributed REAL theorem is required in kernel report" "$M" \
   "$M/axioms.txt"
+
+# --- Fixture N: split theorem header missing from report -> FAIL ----------
+N="$TMP/N"; make_honest "$N"
+sed -i '/end Lutar.Putnam.SZL.One/i theorem\n  splitHeader : True := by trivial' \
+  "$N/canon/SZL/One.lean"
+cat > "$N/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "multiline REAL theorem is required in kernel report" "$N" \
+  "$N/axioms.txt"
+
+# --- Fixture O: section end preserves namespace for later theorem -> PASS -
+O="$TMP/O"; make_honest "$O"
+sed -i '/end Lutar.Putnam.SZL.One/i section Local\n\
+theorem insideSection : True := by trivial\n\
+end Local\n\
+theorem afterSection : True := by trivial' "$O/canon/SZL/One.lean"
+cat > "$O/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.insideSection' does not depend on any axioms
+'Lutar.Putnam.SZL.One.afterSection' does not depend on any axioms
+TXT
+expect_pass_report "section end preserves namespace qualification" "$O" \
+  "$O/axioms.txt"
 
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"
