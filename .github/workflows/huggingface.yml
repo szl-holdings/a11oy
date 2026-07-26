@@ -51,6 +51,12 @@ jobs:
           pnpm ecosystem:readiness
           pnpm payload:verify
 
+      - name: Validate publish-bound Hugging Face evidence
+        run: |
+          pnpm hf:ecosystem:audit
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          node scripts/validate_huggingface_ecosystem_schema.mjs
+
       - name: Prepare Hugging Face payload
         run: pnpm payload:huggingface
 

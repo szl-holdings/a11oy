@@ -2,12 +2,27 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SZLHOLDINGS Hugging Face ecosystem manifest",
   "type": "object",
-  "required": ["schemaVersion", "generatedBy", "observedAt", "org", "counts", "inventory", "guardrails"],
+  "required": ["schemaVersion", "generatedBy", "observedAt", "org", "inventoryScope", "counts", "inventory", "guardrails"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "generatedBy": { "type": "string" },
-    "observedAt": { "type": "string" },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(?:Z|\\+00:00)$"
+    },
     "org": { "const": "SZLHOLDINGS" },
+    "inventoryScope": {
+      "type": "object",
+      "required": ["visibility", "authenticated", "privateAssetsIncluded", "countMeaning", "revisionFields"],
+      "properties": {
+        "visibility": { "const": "public-only" },
+        "authenticated": { "const": false },
+        "privateAssetsIncluded": { "const": false },
+        "countMeaning": { "type": "string" },
+        "revisionFields": { "type": "string" }
+      }
+    },
     "canonicalGitHubRepo": { "type": "string" },
     "canonicalRule": { "type": "string" },
     "publicApiEndpoints": {
@@ -23,7 +38,6 @@
         "spaces": { "type": "integer", "minimum": 0 }
       }
     },
-    "canonicalNumbers": { "type": "object" },
     "guardrails": {
       "type": "array",
       "items": { "type": "string" }
@@ -54,7 +68,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "repoType", "private", "unsafeFlags", "evidenceUrls"],
+        "required": ["id", "repoType", "private", "sha", "lastModified", "cardSemanticSha256", "unsafeFlags", "evidenceUrls"],
         "properties": {
           "id": { "type": "string" },
           "repoType": { "enum": ["model", "dataset", "space"] },
@@ -63,8 +77,19 @@
           "disabled": { "type": "boolean" },
           "sdk": { "type": ["string", "null"] },
           "license": { "type": ["string", "null"] },
-          "sha": { "type": ["string", "null"] },
-          "lastModified": { "type": ["string", "null"] },
+          "sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "lastModified": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "(?:Z|\\+00:00)$"
+          },
+          "cardSemanticSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
           "createdAt": { "type": ["string", "null"] },
           "tags": { "type": "array" },
           "claimStatus": { "type": "string" },
