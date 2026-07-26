@@ -37,7 +37,7 @@ Both are stated honestly. The **locked** figures are the doctrine contract; the 
   `Lutar/QEC/KitaevSurface`, `Lutar/DPI/DPIBound.lean` (Pinsker), `Lutar/Egyptian/AkhmimTable.lean`.
 - **PURIQ obligations:** `formulas/PuriqLean.lean` — `puriq_halting_safety`,
   `puriq_lambda_monotone`, `puriq_khipu_integrity`, `puriq_bekenstein_bound` (all `sorry`-tagged).
-- **Putnam:** 4/12 GREEN [A1, A5, B4, B6] (no sorries); 10/12 with structural skeletons.
+- **Putnam:** **0/12 PROVED** at canonical `lutar-lean@baf483be3c832b64da47161b558e283d68da6650`; 10 DEMO and 2 OPEN. The pinned `lake build PutnamSet` job and `scripts/check_putnam_drift.py` gate this generated tally.
 
 ## Zenodo DOIs
 
@@ -83,7 +83,7 @@ end-to-end and emits a self-test log. Results and the doctrine self-grade are pu
 thesis repo under `docs/audit/doctrine-pass-results.md`.
 The self-grade artifact lives at `papers/v13/self_grade.md` in the ouroboros-thesis repo
 (note: v13 here is the thesis paper version number, unrelated to governance versioning).
-The Putnam suite (4/12 GREEN) is the formal-math eval anchor.
+The Putnam suite is **0/12 PROVED**; its DEMO/OPEN files are not promoted to proof claims.
 
 ## Khipu receipt examples
 

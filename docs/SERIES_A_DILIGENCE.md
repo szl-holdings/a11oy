@@ -82,7 +82,7 @@ as `KORA`, `LUMINA`, `PARAGON`, or active `Lyte` copy.
 | Area | Investor-safe wording |
 | --- | --- |
 <!-- BEGIN GENERATED PUTNAM STATUS -->
-| Putnam 2025 Lean | **PROVED** — 0 of 12 Putnam problems currently carry a Lean `REAL` status; the complete canonical tally is 0 REAL / 10 DEMO / 2 OPEN at `lutar-lean@baf483be3c832b64da47161b558e283d68da6650`. This row is generated and checked by `scripts/check_putnam_drift.py`. |
+| Putnam 2025 Lean | **0/12 PROVED** — 0 of 12 Putnam problems currently carry a Lean `REAL` status; the complete canonical tally is 0 REAL / 10 DEMO / 2 OPEN at `lutar-lean@baf483be3c832b64da47161b558e283d68da6650`. This row is generated and checked only after the pinned `lake build PutnamSet` job succeeds, by `scripts/check_putnam_drift.py`. |
 <!-- END GENERATED PUTNAM STATUS -->
 | Runtime gates | A11oy main can cite seven policy gate files and ten theorem-runtime manifest entries. G36-G40 and broader totals are not live until merged and validated. |
 | UDS v0.3.0 | A11oy v0.3.0 has SBOM assets only; Vessels v0.3.0 has zero release assets. Use earlier signed assets or future owner-pushed assets for signed payload proof. |
