@@ -170,8 +170,8 @@ def test_build_info_uses_allowlisted_sha_and_never_emits_environment(monkeypatch
     assert body["build"]["revision_source"] == "env:GITHUB_SHA"
     assert body["build"]["version"] == "2.1.0-test"
     assert body["build"]["version_source"] == "env:A11OY_VERSION"
-    assert body["build"]["field_evidence"]["revision"] == "MEASURED"
-    assert body["build"]["field_evidence"]["version"] == "MEASURED"
+    assert body["build"]["field_evidence"]["revision"] == "OBSERVED"
+    assert body["build"]["field_evidence"]["version"] == "OBSERVED"
     assert "must-not-appear" not in rendered
     assert "SECRET_TOKEN" not in rendered
 
@@ -187,7 +187,7 @@ def test_build_info_uses_hf_deployment_sha(monkeypatch):
     assert body["build"]["state"] == "OBSERVED"
     assert body["build"]["revision"] == sha
     assert body["build"]["revision_source"] == "env:SZL_GIT_SHA"
-    assert body["build"]["field_evidence"]["revision"] == "MEASURED"
+    assert body["build"]["field_evidence"]["revision"] == "OBSERVED"
 
 
 def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
@@ -213,7 +213,7 @@ def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
     assert first["build"] == second["build"]
     assert first["build"]["working_tree"] == "CLEAN"
     assert first["build"]["working_tree_source"] == "git:status"
-    assert first["build"]["field_evidence"]["working_tree"] == "MEASURED"
+    assert first["build"]["field_evidence"]["working_tree"] == "OBSERVED"
     assert calls == startup_calls
 
 

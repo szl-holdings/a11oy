@@ -133,9 +133,9 @@ def _build_identity() -> dict[str, Any]:
         ),
         "working_tree_source": working_tree_source,
         "field_evidence": {
-            "revision": "MEASURED" if sha else "UNKNOWN",
-            "version": "MEASURED" if version else "UNKNOWN",
-            "working_tree": "MEASURED" if dirty is not None else "UNKNOWN",
+            "revision": "OBSERVED" if sha else "UNKNOWN",
+            "version": "OBSERVED" if version else "UNKNOWN",
+            "working_tree": "OBSERVED" if dirty is not None else "UNKNOWN",
         },
     }
 

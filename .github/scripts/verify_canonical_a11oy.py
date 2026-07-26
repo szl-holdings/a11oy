@@ -161,8 +161,8 @@ def validate_route(
         field_evidence = build.get("field_evidence")
         if not isinstance(field_evidence, Mapping):
             raise RelockError("build identity lacks per-field evidence classifications")
-        if field_evidence.get("revision") != "MEASURED":
-            raise RelockError("build revision is not classified from measured evidence")
+        if field_evidence.get("revision") != "OBSERVED":
+            raise RelockError("build revision is not classified as observed metadata")
 
         version = build.get("version")
         version_source = build.get("version_source")
@@ -177,7 +177,7 @@ def validate_route(
                 and bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}", version))
                 and isinstance(version_source, str)
                 and version_source.startswith("env:")
-                and field_evidence.get("version") == "MEASURED"
+                and field_evidence.get("version") == "OBSERVED"
             )
         if not version_valid:
             raise RelockError("build version value, source, and evidence classification conflict")
@@ -193,7 +193,7 @@ def validate_route(
             working_tree_valid = (
                 working_tree in {"CLEAN", "DIRTY"}
                 and working_tree_source == "git:status"
-                and field_evidence.get("working_tree") == "MEASURED"
+                and field_evidence.get("working_tree") == "OBSERVED"
             )
         if not working_tree_valid:
             raise RelockError(
