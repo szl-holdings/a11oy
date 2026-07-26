@@ -149,9 +149,8 @@ stopped loop, or readiness-check error then returns HTTP 503.
 `szl_uds_fleet.py` · `szl_uds_portability.py` · `runtime_attestation.py` · `szl_dsse.py` ·
 `sign_cert_dsse.py`; configs `.gitleaks.toml`, `.doctrine-allowlist`,
 `physical_bounds_certificate.dsse.json`. **HAVE:** selected release-scoped
-signatures and provenance assets exist. **ROADMAP:** SBOM coverage, complete
-current-image and per-build coverage, SLSA L3, FedRAMP, CMMC, Iron Bank, and ATO
-are not claimed achieved.
+signatures and provenance assets exist. **ROADMAP:** SBOM coverage and complete
+current-image and per-build coverage. **ROADMAP (not achieved):** SLSA L3, FedRAMP, CMMC, Iron Bank, and ATO.
 
 ### agents/ — the governed agentic loop `[EXISTS, single-shot]`
 `a11oy_agent_loop.py` · `a11oy_react_core.py` · `szl_agentic_loop.py` ·
