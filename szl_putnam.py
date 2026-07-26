@@ -5,7 +5,8 @@ szl_putnam.py — Putnam 2025 canonical-set honest verdict layer (a11oy console 
 Serves the **honest, per-problem** kernel verdict for the canonical Putnam 2025
 set (86th Putnam, Dec 6 2025: A1-A6, B1-B6) plus the three kernel-clean SZL
 originals that ship alongside it, transcribed faithfully from the Lean sources
-on ``szl-holdings/lutar-lean`` branch ``putnam-2025-canonical-set``.
+at immutable ``szl-holdings/lutar-lean`` commit
+``baf483be3c832b64da47161b558e283d68da6650``.
 
 Source of truth
 ---------------
@@ -25,9 +26,9 @@ on purpose — the SZL originals never inflate the Putnam REAL count.
 
 This module reads NOTHING from disk at runtime: the lutar-lean ``.lean`` files
 are not vendored into the a11oy image, so the verdict is embedded here as cited
-data and refreshed by re-deploying when the branch advances. Honest framing:
-this is a transcribed snapshot of the per-file labels at the pinned commit, not
-a live ``lake build`` performed inside this process.
+data and refreshed only by pinning and deploying a newly vetted commit. Honest
+framing: this is a transcribed snapshot of the per-file labels at the pinned
+commit, not a live ``lake build`` performed inside this process.
 
 Pattern mirrors szl_readiness.py / szl_contracting.py / szl_bounties.py::
 
@@ -48,12 +49,12 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 # --------------------------------------------------------------------------
-# Pinned canonical source (lutar-lean branch putnam-2025-canonical-set)
+# Pinned canonical source (immutable lutar-lean commit)
 # --------------------------------------------------------------------------
 _SHA = "baf483be3c832b64da47161b558e283d68da6650"
 _SHORT = "baf483b"
-_BRANCH = "putnam-2025-canonical-set"
-_COMPUTED = "2026-06-15"  # date this snapshot was transcribed from the branch
+_BRANCH = _SHA
+_COMPUTED = "2026-06-15"  # date this snapshot was transcribed from the immutable commit
 _REPO = "szl-holdings/lutar-lean"
 _TREE = "https://github.com/%s/tree/%s/Lutar/Putnam" % (_REPO, _SHA)
 _BASE = "https://github.com/%s/blob/%s/Lutar/Putnam/" % (_REPO, _SHA)
@@ -62,7 +63,7 @@ _DOCTRINE = "v11"
 _HONEST = (
     "Honest, doctrine-v11 per-problem verdict for the canonical Putnam 2025 set "
     "(A1-A6, B1-B6), transcribed faithfully from the `Honest status:` label in "
-    "each Lean source on lutar-lean branch %s @%s. REAL = kernel-checked, zero "
+    "each Lean source at canonical lutar-lean ref %s (%s). REAL = kernel-checked, zero "
     "`sorry`, in-policy axioms; DEMO = faithful statement, proof deferred with "
     "`sorry`; OPEN = corrected answer formalized, main proof deferred. The 12 "
     "Putnam problems are 0 REAL / 10 DEMO / 2 OPEN. The 3 SZL-native originals "
@@ -71,7 +72,7 @@ _HONEST = (
     "snapshot of the pinned commit, not a live `lake build` in this process."
 ) % (_BRANCH, _SHORT)
 
-_SOURCE = "%s — Lutar/Putnam/*.lean @ %s (branch %s)" % (_REPO, _SHORT, _BRANCH)
+_SOURCE = "%s — Lutar/Putnam/*.lean @ %s (canonical ref %s)" % (_REPO, _SHORT, _BRANCH)
 
 # --------------------------------------------------------------------------
 # Canonical 12 Putnam problems. (id, file, title, status, note)
