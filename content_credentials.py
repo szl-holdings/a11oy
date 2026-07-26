@@ -433,10 +433,11 @@ def _validate_khipu_receipt_link(
             "ai_generated": ai_generated,
             "model_id": model_id,
         },
+        require_durable=True,
     )
     if not authenticated:
         raise ValueError(
-            "khipu_receipt is not authenticated by the process-local Khipu registry"
+            "khipu_receipt is not authenticated by the durable Khipu registry"
         )
     return dict(link)
 
@@ -666,6 +667,7 @@ def write_asset_with_credential(
     original_asset = _snapshot_file(asset_path)
     original_sidecar = _snapshot_file(sidecar_path)
     asset_mutated = False
+    receipt = None
     try:
         _atomic_write_bytes(asset_path, asset_bytes)
         asset_mutated = True
@@ -718,6 +720,20 @@ def write_asset_with_credential(
             raise RuntimeError("credential failed verification after the sidecar commit")
     except Exception as exc:
         if asset_mutated:
+            failure_receipt = None
+            if receipt is not None:
+                try:
+                    failure_receipt = khipu_emit(
+                        "content-credential.media.write.failed",
+                        {
+                            "write_receipt_id": receipt.get("receipt_id"),
+                            "write_receipt_hash": receipt.get("hash"),
+                            "error_type": type(exc).__name__,
+                            "rollback_planned": True,
+                        },
+                    )
+                except Exception:
+                    failure_receipt = None
             rollback_errors = []
             for path, snapshot in (
                 (sidecar_path, original_sidecar),
@@ -727,6 +743,23 @@ def write_asset_with_credential(
                     _restore_snapshot(path, snapshot)
                 except Exception as rollback_exc:
                     rollback_errors.append(f"{path}: {rollback_exc!r}")
+            if receipt is not None and not rollback_errors:
+                try:
+                    khipu_emit(
+                        "content-credential.media.write.rollback",
+                        {
+                            "write_receipt_id": receipt.get("receipt_id"),
+                            "write_receipt_hash": receipt.get("hash"),
+                            "failure_receipt_id": (
+                                failure_receipt.get("receipt_id")
+                                if failure_receipt is not None
+                                else None
+                            ),
+                            "rollback_state": "COMPLETED",
+                        },
+                    )
+                except Exception:
+                    pass
             if rollback_errors:
                 raise RuntimeError(
                     "credential commit failed and rollback was incomplete: "

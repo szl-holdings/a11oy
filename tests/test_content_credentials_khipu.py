@@ -11,6 +11,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import a11oy_code_orchestrator as orchestrator  # noqa: E402
 from content_credentials import (  # noqa: E402
     CredentialSigner,
     KHIPU_ASSERTION_LABEL,
@@ -39,6 +40,23 @@ def _authorized_write():
 
 
 class ContentCredentialKhipuTests(unittest.TestCase):
+    def setUp(self):
+        self.state_directory = tempfile.TemporaryDirectory()
+        self.db_patch = patch.object(
+            orchestrator,
+            "DB_PATH",
+            str(Path(self.state_directory.name) / "a11oy-code.db"),
+        )
+        self.db_patch.start()
+        with orchestrator._khipu_lock:
+            orchestrator._khipu_receipts.clear()
+            orchestrator._khipu_tip = orchestrator._KHIPU_GENESIS
+        orchestrator.init_db()
+
+    def tearDown(self):
+        self.db_patch.stop()
+        self.state_directory.cleanup()
+
     def test_media_write_binds_the_actual_khipu_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             asset = Path(directory) / "governed-media.txt"
@@ -221,21 +239,71 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             sidecar.write_bytes(b"original sidecar\n")
 
             with patch(
-                "content_credentials.write_sidecar",
-                side_effect=OSError("simulated sidecar failure"),
-            ):
-                with self.assertRaises(OSError):
-                    write_asset_with_credential(
-                        asset_path=str(asset),
-                        asset_bytes=b"replacement\n",
-                        asset_title=asset.name,
-                        asset_format="text/plain",
-                        ai_generated=False,
-                        governance_context=_authorized_write(),
-                    )
+                "a11oy_code_orchestrator.khipu_emit",
+                wraps=orchestrator.khipu_emit,
+            ) as emit:
+                with patch(
+                    "content_credentials.write_sidecar",
+                    side_effect=OSError("simulated sidecar failure"),
+                ):
+                    with self.assertRaises(OSError):
+                        write_asset_with_credential(
+                            asset_path=str(asset),
+                            asset_bytes=b"replacement\n",
+                            asset_title=asset.name,
+                            asset_format="text/plain",
+                            ai_generated=False,
+                            governance_context=_authorized_write(),
+                        )
 
             self.assertEqual(asset.read_bytes(), b"original asset\n")
             self.assertEqual(sidecar.read_bytes(), b"original sidecar\n")
+            actions = [call.args[0] for call in emit.call_args_list]
+            self.assertIn("content-credential.media.write.failed", actions)
+            self.assertIn("content-credential.media.write.rollback", actions)
+
+    def test_durable_receipt_verifies_after_cache_is_cleared(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "durable-media.txt"
+            result = write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=b"durable\n",
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_context=_authorized_write(),
+            )
+            with orchestrator._khipu_lock:
+                orchestrator._khipu_receipts.clear()
+                orchestrator._khipu_tip = orchestrator._KHIPU_GENESIS
+            orchestrator.init_db()
+
+            verification = verify(result["credential"], asset_path=str(asset))
+            self.assertTrue(verification.ok)
+            self.assertTrue(verification.claim_hash_ok)
+            self.assertNotEqual(
+                orchestrator._khipu_tip,
+                orchestrator._KHIPU_GENESIS,
+            )
+
+    def test_receipt_cache_is_bounded_while_durable_history_still_verifies(self):
+        with patch.object(orchestrator, "_KHIPU_CACHE_MAX", 3):
+            receipts = [
+                khipu_emit("test.cache", {"index": index})
+                for index in range(6)
+            ]
+            self.assertLessEqual(len(orchestrator._khipu_receipts), 3)
+            oldest = receipts[0]
+            self.assertTrue(
+                khipu_verify_receipt(
+                    oldest["receipt_id"],
+                    oldest["hash"],
+                    expected_action="test.cache",
+                    expected_payload={"index": 0},
+                    require_durable=True,
+                )
+            )
+            self.assertLessEqual(len(orchestrator._khipu_receipts), 3)
 
 
 if __name__ == "__main__":
