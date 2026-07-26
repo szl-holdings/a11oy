@@ -250,6 +250,13 @@ class ActionContractGuardSelfTest(unittest.TestCase):
         ]
         self.assertEqual(run_validator(m), 1)
 
+    def test_unrelated_existing_python_script_cannot_replace_validators(self):
+        m = honest()
+        m["evidence"]["testCommands"] = [
+            "python3 scripts/tamper_release_receipt.py",
+        ]
+        self.assertEqual(run_validator(m), 1)
+
     def test_shell_indirection_cannot_masquerade_as_evidence(self):
         m = honest()
         m["evidence"]["testCommands"] = [

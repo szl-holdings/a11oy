@@ -35,7 +35,7 @@ lifecycle. The validator rejects:
 - author-supplied JUnit or other report-only promotion evidence;
 - a qualification program changed in the promotion PR instead of already
   existing byte-for-byte on protected `main`;
-- missing or shell-indirected evidence commands;
+- missing, substituted, reordered, or shell-indirected evidence commands;
 - removal of the explicit evidence boundary;
 - weakened egress, receipt-chain, clean-room, or UDS claim guards.
 
@@ -44,7 +44,7 @@ lifecycle. The validator rejects:
 | Validation | Result |
 | --- | --- |
 | Action-contract manifest validator | PASS |
-| Action-contract negative-fixture self-test | PASS, 19 tests including forged-report, protected-base, pinned-digest, and failing-suite cases |
+| Action-contract negative-fixture self-test | PASS, 20 tests including forged-report, substituted-command, protected-base, pinned-digest, and failing-suite cases |
 | Runtime-contract and nested-static focused suite | PASS, 20 tests |
 | Demo-critical routes and 3D substrate suite | PASS, 57 tests |
 | Policy action-envelope test | PASS |
