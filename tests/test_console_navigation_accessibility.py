@@ -71,6 +71,8 @@ def test_runtime_navigation_preserves_semantics_and_visible_focus() -> None:
     assert "n.removeAttribute('aria-current')" in html
     assert "act.setAttribute('aria-current','page')" in html
     assert "!n.closest('#pinned-host')" in html
+    assert "if(!pinnedCurrent && n.closest('#pinned-host'))" in html
+    assert "canonicalCurrent=canonicalCurrent||pinnedCurrent" in html
     assert "if(n===canonicalCurrent)" in html
     assert "var c = side.querySelector('.nav-item[data-view=\"command\"]')" not in html
 

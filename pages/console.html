@@ -2428,11 +2428,14 @@ function go(view){
   // tear down ALL live visuals (Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape) before switching
   tearDownAll();
   var canonicalCurrent=null;
+  var pinnedCurrent=null;
   document.querySelectorAll('.nav-item').forEach(function(n){
-    if(!canonicalCurrent && n.dataset.view===view && !n.closest('#pinned-host')){
-      canonicalCurrent=n;
+    if(n.dataset.view===view){
+      if(!pinnedCurrent && n.closest('#pinned-host')){ pinnedCurrent=n; }
+      if(!canonicalCurrent && !n.closest('#pinned-host')){ canonicalCurrent=n; }
     }
   });
+  canonicalCurrent=canonicalCurrent||pinnedCurrent;
   document.querySelectorAll('.nav-item').forEach(function(n){
     var active=n.dataset.view===view;
     n.classList.toggle('active',active);
