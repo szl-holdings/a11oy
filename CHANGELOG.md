@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontier now reports source reachability separately from operational
   readiness; a stopped operator, empty chain, modeled hardware, or unminted
   artifact can no longer produce a green compatibility rollup.
+- Downgraded the operator action contract from `verified-runtime` to `roadmap`.
+  Manifest and receipt-envelope validation no longer imply an authenticated,
+  idempotent, durable action lifecycle.
+- Removed author-supplied JUnit as action-contract promotion evidence.
+  `verified-runtime` now requires execution of a digest-pinned qualification
+  program already present byte-for-byte on protected `main`; the current
+  program fails closed while the runtime remains `roadmap`.
 - Hatun and Immune surfaces now start at unknown/probing and expose only signer,
   chain, verdict, and invocation evidence actually observed by the backend.
 - Added mobile overflow, touch-target, and narrow-viewport handling to Hatun and

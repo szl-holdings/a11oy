@@ -47,6 +47,7 @@ assert.equal(verifyReceipt(controlReceipt).valid, true);
 
 const actionContract = getActionContractManifest();
 assert.equal(actionContract.schemaVersion, "a11oy.action-contract.v0.1");
+assert.equal(actionContract.claimStatus, "roadmap");
 assert.equal(actionContract.cleanRoom.copyingRule, "pattern-only");
 assert.equal(actionContract.egressLimits.defaultDeny, true);
 assert.ok(actionContract.egressLimits.deniedCapabilities.includes("private-repo-ingestion"));
@@ -71,7 +72,7 @@ const actionReceipt = emitActionContractReceipt({
 });
 assert.equal(actionReceipt.event_type, "A11OY_OPERATION");
 assert.equal(actionReceipt.policy?.vertical, "a11oy");
-assert.equal(actionReceipt.policy?.regime, "doctrine-v6");
+assert.equal(actionReceipt.policy?.regime, "doctrine-v11");
 assert.equal(verifyReceipt(actionReceipt).valid, true);
 
 console.log("[policy-contracts] OK controls/action-contract receipts");

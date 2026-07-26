@@ -19,6 +19,7 @@ ALLOWED_STATUSES = {
     "schema-complete-no-live-score",
     "access-pending-handoff-queued",
     "generated-payload-ready",
+    "roadmap-design-validated-runtime-not-implemented",
 }
 
 

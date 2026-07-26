@@ -24,13 +24,17 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import inspect
 import io
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _VALIDATOR = os.path.join(_HERE, "validate_action_contract_manifest.py")
@@ -45,6 +49,19 @@ _REAL = json.loads(Path(validator.CONTRACT_PATH).read_text(encoding="utf-8"))
 def honest() -> dict:
     """A copy of the real, committed contract — the sanity-floor fixture."""
     return copy.deepcopy(_REAL)
+
+
+def promote_to_verified_runtime(manifest: dict) -> None:
+    manifest["claimStatus"] = "verified-runtime"
+    manifest["execution"].update(
+        {
+            "runtimeStatus": "live",
+            "runtimeImplemented": True,
+            "authenticatedExecution": True,
+            "idempotencyEnforced": True,
+            "durableReceiptLifecycle": True,
+        }
+    )
 
 
 def run_validator(manifest: dict) -> int:
@@ -117,6 +134,137 @@ class ActionContractGuardSelfTest(unittest.TestCase):
     def test_bad_claim_status_fails(self):
         m = honest()
         m["claimStatus"] = "production-ready"
+        self.assertEqual(run_validator(m), 1)
+
+    def test_same_manifest_runtime_flags_cannot_promote_without_independent_evidence(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        self.assertEqual(run_validator(m), 1)
+
+    def test_forged_external_junit_cannot_promote(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        with tempfile.NamedTemporaryFile(suffix=".xml") as forged:
+            forged.write(
+                b"<testsuite><testcase "
+                b"name='test_authenticated_operator_execution'/></testsuite>"
+            )
+            forged.flush()
+            self.assertTrue(Path(forged.name).is_file())
+            self.assertNotIn(
+                "runtime_evidence_junit",
+                inspect.signature(validator.main).parameters,
+            )
+            self.assertEqual(run_validator(m), 1)
+
+    def test_verified_runtime_runs_exact_pinned_protected_suite(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        suite_bytes = validator.PINNED_RUNTIME_SUITE_PATH.read_bytes()
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="qualification passed\n",
+        )
+        with (
+            mock.patch.object(
+                validator,
+                "protected_runtime_suite_bytes",
+                return_value=suite_bytes,
+            ),
+            mock.patch.object(
+                validator.subprocess,
+                "run",
+                return_value=completed,
+            ) as run,
+        ):
+            self.assertEqual(run_validator(m), 0)
+        run.assert_called_once_with(
+            [sys.executable, str(validator.PINNED_RUNTIME_SUITE_PATH)],
+            cwd=validator.REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+            timeout=validator.RUNTIME_SUITE_TIMEOUT_SECONDS,
+            text=True,
+        )
+
+    def test_verified_runtime_rejects_suite_not_on_protected_base(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        with (
+            mock.patch.object(
+                validator,
+                "protected_runtime_suite_bytes",
+                return_value=b"author-supplied replacement",
+            ),
+            mock.patch.object(validator.subprocess, "run") as run,
+        ):
+            self.assertEqual(run_validator(m), 1)
+        run.assert_not_called()
+
+    def test_verified_runtime_rejects_modified_suite_digest(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        with (
+            mock.patch.object(
+                validator,
+                "PINNED_RUNTIME_SUITE_SHA256",
+                "0" * 64,
+            ),
+            mock.patch.object(
+                validator,
+                "protected_runtime_suite_bytes",
+            ) as protected,
+        ):
+            self.assertEqual(run_validator(m), 1)
+        protected.assert_not_called()
+
+    def test_verified_runtime_rejects_failing_pinned_suite(self):
+        m = honest()
+        promote_to_verified_runtime(m)
+        suite_bytes = validator.PINNED_RUNTIME_SUITE_PATH.read_bytes()
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="BLOCKED: runtime remains ROADMAP\n",
+        )
+        with (
+            mock.patch.object(
+                validator,
+                "protected_runtime_suite_bytes",
+                return_value=suite_bytes,
+            ),
+            mock.patch.object(
+                validator.subprocess,
+                "run",
+                return_value=completed,
+            ),
+        ):
+            self.assertEqual(run_validator(m), 1)
+
+    def test_nonexistent_evidence_command_fails(self):
+        m = honest()
+        m["evidence"]["testCommands"] = [
+            "python3 scripts/does_not_exist.py",
+        ]
+        self.assertEqual(run_validator(m), 1)
+
+    def test_shell_indirection_cannot_masquerade_as_evidence(self):
+        m = honest()
+        m["evidence"]["testCommands"] = [
+            "npm run action-contract:audit",
+        ]
+        self.assertEqual(run_validator(m), 1)
+
+    def test_runtime_boundary_cannot_be_dropped(self):
+        m = honest()
+        m["execution"]["evidenceBoundary"] = "manifest is runtime"
+        self.assertEqual(run_validator(m), 1)
+
+    def test_stale_doctrine_regime_fails(self):
+        m = honest()
+        m["intent"]["regime"] = "doctrine-v6"
         self.assertEqual(run_validator(m), 1)
 
 

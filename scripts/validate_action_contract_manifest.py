@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
+import re
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,10 +16,117 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = REPO_ROOT / "docs" / "action-contract-manifest.json"
 PATTERNS_PATH = REPO_ROOT / "docs" / "public-pattern-source-manifest.json"
+PINNED_RUNTIME_SUITE_PATH = (
+    REPO_ROOT / "scripts" / "qualify_action_contract_runtime.py"
+)
+PINNED_RUNTIME_SUITE_SHA256 = (
+    "b5a72ace9d1cea00339f50b1605080e9326b86c92df1168df53e58aaffd11e17"
+)
+PROTECTED_BASE_REF = "origin/main"
+RUNTIME_SUITE_TIMEOUT_SECONDS = 300
 
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_evidence_command(command: str) -> str | None:
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return f"evidence command is not parseable: {command}"
+    if len(parts) != 2 or parts[0] not in {"python", "python3"}:
+        return (
+            "evidence commands must be direct Python validators with no shell "
+            f"indirection: {command}"
+        )
+    scripts_root = (REPO_ROOT / "scripts").resolve()
+    script_path = (REPO_ROOT / parts[1]).resolve()
+    if (
+        not script_path.is_relative_to(scripts_root)
+        or script_path.suffix != ".py"
+        or not script_path.is_file()
+    ):
+        return f"evidence command target does not exist: {command}"
+    return None
+
+
+def protected_runtime_suite_bytes() -> bytes | None:
+    """Read the pinned suite from the protected base, never from PR evidence."""
+    try:
+        merge_base = subprocess.run(
+            ["git", "merge-base", "HEAD", PROTECTED_BASE_REF],
+            cwd=REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=30,
+        )
+        if merge_base.returncode != 0:
+            return None
+        base_commit = merge_base.stdout.decode("ascii", errors="strict").strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", base_commit):
+            return None
+        relative_suite = PINNED_RUNTIME_SUITE_PATH.relative_to(REPO_ROOT).as_posix()
+        base_suite = subprocess.run(
+            ["git", "show", f"{base_commit}:{relative_suite}"],
+            cwd=REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=30,
+        )
+        return base_suite.stdout if base_suite.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        return None
+
+
+def validate_pinned_runtime_suite() -> list[str]:
+    """Execute only a digest-pinned suite already present on protected main."""
+    try:
+        current_suite = PINNED_RUNTIME_SUITE_PATH.read_bytes()
+    except OSError:
+        return ["verified-runtime pinned qualification suite is unavailable"]
+
+    current_digest = hashlib.sha256(current_suite).hexdigest()
+    if current_digest != PINNED_RUNTIME_SUITE_SHA256:
+        return [
+            "verified-runtime pinned qualification suite digest does not match "
+            "the validator"
+        ]
+
+    protected_suite = protected_runtime_suite_bytes()
+    if protected_suite is None:
+        return [
+            "verified-runtime requires the pinned qualification suite to exist "
+            "on protected origin/main before the promotion change"
+        ]
+    if protected_suite != current_suite:
+        return [
+            "verified-runtime qualification suite differs from protected "
+            "origin/main; land suite changes separately before promotion"
+        ]
+
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(PINNED_RUNTIME_SUITE_PATH)],
+            cwd=REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+            timeout=RUNTIME_SUITE_TIMEOUT_SECONDS,
+            text=True,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return [f"verified-runtime pinned qualification suite could not run: {exc}"]
+    if completed.returncode != 0:
+        first_line = (completed.stdout or "").strip().splitlines()
+        detail = first_line[0] if first_line else "no diagnostic output"
+        return [
+            "verified-runtime pinned qualification suite failed "
+            f"(exit {completed.returncode}): {detail}"
+        ]
+    return []
 
 
 def main() -> int:
@@ -43,6 +155,10 @@ def main() -> int:
         if not identity.get(field):
             errors.append(f"identity.{field} is required")
 
+    intent = contract.get("intent", {})
+    if intent.get("regime") != "doctrine-v11":
+        errors.append("intent.regime must match the current doctrine-v11 contract")
+
     policy = contract.get("policy", {})
     for field in ["policyDocumentRef", "policyHash", "mandatoryAxes", "minimumLambdaCoverage", "approvalGate"]:
         if field not in policy:
@@ -59,10 +175,22 @@ def main() -> int:
     for collection in ["manifestRefs", "attestationRefs", "testCommands", "localEvidenceRefs", "claimRefs"]:
         if not isinstance(evidence.get(collection), list):
             errors.append(f"evidence.{collection} must be a list")
+    commands = evidence.get("testCommands", [])
+    if not commands:
+        errors.append("evidence.testCommands must contain executable validators")
+    for command in commands:
+        if not isinstance(command, str):
+            errors.append("evidence.testCommands entries must be strings")
+            continue
+        command_error = validate_evidence_command(command)
+        if command_error:
+            errors.append(command_error)
     for collection in ["manifestRefs", "attestationRefs", "localEvidenceRefs", "claimRefs"]:
         for ref in evidence.get(collection, []):
             if not (REPO_ROOT / ref).exists():
                 errors.append(f"evidence ref does not exist: {ref}")
+    if "do not prove" not in str(evidence.get("evidenceBoundary", "")).lower():
+        errors.append("evidence.evidenceBoundary must state what validation does not prove")
 
     receipt_sinks = contract.get("receiptSinks", {})
     if receipt_sinks.get("chainMode") != "hash-chain":
@@ -100,6 +228,28 @@ def main() -> int:
     if "proof point" not in uds.get("wording", "").lower():
         errors.append("udsProofPoint.wording must use proof point language")
 
+    execution = contract.get("execution", {})
+    runtime_status = execution.get("runtimeStatus")
+    if contract.get("claimStatus") == "roadmap":
+        if runtime_status != "roadmap":
+            errors.append("roadmap action contracts require execution.runtimeStatus=roadmap")
+        if execution.get("runtimeImplemented") is not False:
+            errors.append("roadmap action contracts require execution.runtimeImplemented=false")
+    if contract.get("claimStatus") == "verified-runtime":
+        if runtime_status != "live":
+            errors.append("verified-runtime requires execution.runtimeStatus=live")
+        for field in [
+            "runtimeImplemented",
+            "authenticatedExecution",
+            "idempotencyEnforced",
+            "durableReceiptLifecycle",
+        ]:
+            if execution.get(field) is not True:
+                errors.append(f"verified-runtime requires execution.{field}=true")
+        errors.extend(validate_pinned_runtime_suite())
+    if "do not constitute" not in str(execution.get("evidenceBoundary", "")).lower():
+        errors.append("execution.evidenceBoundary must reject manifest-only runtime proof")
+
     if errors:
         print("Action contract manifest validation failed:")
         for error in errors:
@@ -111,4 +261,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.parse_args()
     sys.exit(main())
