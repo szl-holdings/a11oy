@@ -43,7 +43,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "@szl-holdings/a11oy-receipt-substrate": "workspace:*"
+    "@szl-holdings/a11oy-receipt-substrate": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

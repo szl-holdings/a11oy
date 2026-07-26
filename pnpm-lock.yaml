@@ -61,7 +61,7 @@ importers:
   packages/policy:
     dependencies:
       '@szl-holdings/a11oy-receipt-substrate':
-        specifier: workspace:*
+        specifier: ^0.1.0
         version: link:../receipt-substrate
     devDependencies:
       '@types/node':

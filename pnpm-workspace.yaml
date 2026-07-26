@@ -8,6 +8,8 @@ packages:
   - "web/packages/a11oy-core"
   - "web/packages/a11oy-connection"
 
+linkWorkspacePackages: true
+
 allowBuilds:
   esbuild@0.28.1: true
   unrs-resolver@1.12.2: true
