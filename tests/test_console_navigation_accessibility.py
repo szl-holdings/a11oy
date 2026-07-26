@@ -70,3 +70,4 @@ def test_runtime_navigation_preserves_semantics_and_visible_focus() -> None:
     assert "n.setAttribute('aria-current','page')" in html
     assert "n.removeAttribute('aria-current')" in html
     assert "act.setAttribute('aria-current','page')" in html
+    assert "var c = side.querySelector('.nav-item[data-view=\"command\"]')" not in html

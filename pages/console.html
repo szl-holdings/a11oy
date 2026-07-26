@@ -15984,10 +15984,6 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var cur = (location.hash||'#command').slice(1).split('/')[0];
       var act = side.querySelector('.nav-item[data-view="'+cur+'"]');
       if(act){ act.classList.add('active'); act.setAttribute('aria-current','page'); }
-      else {
-        var c = side.querySelector('.nav-item[data-view="command"]');
-        if(c){ c.classList.add('active'); c.setAttribute('aria-current','page'); }
-      }
     }catch(e){}
     return true;
   }
