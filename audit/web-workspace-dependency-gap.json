@@ -1,0 +1,125 @@
+{
+  "conclusion": "The broader web package cannot be installed from this repository alone.",
+  "generated_at": "2026-07-26T08:40:24+00:00",
+  "label": "FAILED",
+  "missing": 12,
+  "missing_packages": {
+    "@szl-holdings/billing-client": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl-holdings/domain-profiles": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl-holdings/flexcache": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl-holdings/frontier-mythos": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl-holdings/shared-contracts": {
+      "reason": "no tracked package manifest",
+      "section": "devDependencies"
+    },
+    "@szl-holdings/speech-specialist": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl-holdings/telemetry-standards": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl/a11oy-runtime": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@szl/substrate-client": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@workspace/a11oy-fabric": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@workspace/codex-kernel": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    },
+    "@workspace/sovereign-substrate": {
+      "reason": "no tracked package manifest",
+      "section": "dependencies"
+    }
+  },
+  "requested": 28,
+  "resolved": 16,
+  "resolved_packages": {
+    "@szl-holdings/api-client-react": {
+      "manifest": "organs/sentra/stubs/szl-holdings-api-client-react/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/brand-registry": {
+      "manifest": "organs/sentra/stubs/szl-holdings-brand-registry/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/design-system": {
+      "manifest": "organs/sentra/stubs/szl-holdings-design-system/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/formulas": {
+      "manifest": "organs/sentra/stubs/szl-holdings-formulas/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/omnia-shell": {
+      "manifest": "organs/sentra/stubs/szl-holdings-omnia-shell/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/payload": {
+      "manifest": "organs/sentra/stubs/szl-holdings-payload/package.json",
+      "section": "devDependencies"
+    },
+    "@szl-holdings/platform-registry": {
+      "manifest": "organs/sentra/stubs/szl-holdings-platform-registry/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/replit-auth-web": {
+      "manifest": "organs/sentra/stubs/szl-holdings-replit-auth-web/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/security-headers": {
+      "manifest": "organs/sentra/stubs/szl-holdings-security-headers/package.json",
+      "section": "devDependencies"
+    },
+    "@szl-holdings/shared-proxy": {
+      "manifest": "organs/sentra/stubs/szl-holdings-shared-proxy/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/shared-ui": {
+      "manifest": "organs/sentra/stubs/szl-holdings-shared-ui/package.json",
+      "section": "dependencies"
+    },
+    "@szl-holdings/szl-doctrine": {
+      "manifest": "organs/sentra/stubs/szl-holdings-szl-doctrine/package.json",
+      "section": "devDependencies"
+    },
+    "@szl/alloy": {
+      "manifest": "organs/sentra/stubs/szl-alloy/package.json",
+      "section": "dependencies"
+    },
+    "@workspace/a11oy-orchestration": {
+      "manifest": "organs/sentra/stubs/workspace-a11oy-orchestration/package.json",
+      "section": "dependencies"
+    },
+    "@workspace/ouroboros": {
+      "manifest": "organs/sentra/stubs/workspace-ouroboros/package.json",
+      "section": "dependencies"
+    },
+    "@workspace/tokens": {
+      "manifest": "organs/sentra/stubs/workspace-tokens/package.json",
+      "section": "dependencies"
+    }
+  },
+  "scope": "web/package.json workspace protocol dependencies"
+}

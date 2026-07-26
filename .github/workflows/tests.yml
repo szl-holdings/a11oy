@@ -131,7 +131,7 @@ jobs:
         run: |
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
-      - name: Run demo-critical route-table guard
+      - name: Run demo-critical route and nested-static delivery guards
         # RECURRING REGRESSION GUARD: szl_* route REGISTRATIONS keep getting dropped
         # from serve.py during mesh/rebrand refactors while the handler modules stay
         # in-image but unwired — so the live endpoints 404 (energy/operator/status #460,
@@ -139,7 +139,10 @@ jobs:
         # 2026-06-16). This guard boots the REAL app in-process (no mocks, no network)
         # and FAILS if ANY demo-critical route is missing from the assembled route
         # table — turning a silent live 404 into a red CI gate before the demo.
-        run: pytest tests/test_demo_critical_routes.py -q
+        # The nested-static suite exercises the assembled app as well: the owning
+        # path-converter route must return GET/HEAD 200 while missing scoped
+        # assets and undeclared root files remain fail-closed JSON 404s.
+        run: pytest tests/test_demo_critical_routes.py tests/test_holographic_static_route_runtime.py -q
 
   python-energy-autostart-readyz:
     name: Energy-operator autostart + /readyz redeploy-stall guard (pytest)
@@ -353,6 +356,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A verified-runtime promotion must compare its qualification suite
+          # byte-for-byte with the protected base rather than trust PR evidence.
+          fetch-depth: 0
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -362,11 +369,14 @@ jobs:
         # Negative-fixture self-test gating scripts/validate_action_contract_manifest.py:
         # feeds the REAL validator tampered contracts (egress defaultDeny off, a dropped
         # denied capability, copyingRule not pattern-only, emptied UDS forbiddenClaims,
-        # non-hash-chain receipts) and asserts it FAILS on each, plus the committed contract
-        # which must PASS. Proves the clean-room/least-privilege guard can't be silently
-        # loosened. Pure stdlib (unittest), no network, no live manifest touched. Run by
-        # file path: the scripts dir is not an importable package.
-        run: python3 scripts/test_validate_action_contract_manifest.py
+        # non-hash-chain receipts, substituted evidence commands, forgeable JUnit, and a
+        # PR-modified qualification suite) and asserts each FAILS, plus the committed
+        # ROADMAP contract which must PASS.
+        # verified-runtime can only execute the digest-pinned suite already on protected
+        # main. Pure stdlib (unittest), no network, no live manifest touched.
+        run: |
+          python3 scripts/validate_action_contract_manifest.py
+          python3 scripts/test_validate_action_contract_manifest.py
 
   anatomy-map-selftest:
     name: Anatomy/formula/runtime map validator self-test (stdlib, network-free)

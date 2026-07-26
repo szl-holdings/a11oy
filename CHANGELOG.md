@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontier now reports source reachability separately from operational
   readiness; a stopped operator, empty chain, modeled hardware, or unminted
   artifact can no longer produce a green compatibility rollup.
+- Downgraded the operator action contract from `verified-runtime` to `roadmap`.
+  Manifest and receipt-envelope validation no longer imply an authenticated,
+  idempotent, durable action lifecycle.
+- Removed author-supplied JUnit as action-contract promotion evidence.
+  `verified-runtime` now requires execution of a digest-pinned qualification
+  program already present byte-for-byte on protected `main`; the current
+  program fails closed while the runtime remains `roadmap`.
 - Hatun and Immune surfaces now start at unknown/probing and expose only signer,
   chain, verdict, and invocation evidence actually observed by the backend.
 - Added mobile overflow, touch-target, and narrow-viewport handling to Hatun and
@@ -72,8 +79,10 @@ theorem); the locked-8 set stays at 8. No label is upgraded here.
 - **Governed VQC / QML frontier tab** — parameter-shift hybrid VQC, labeled
   **SIMULATION-ONLY** (PRs #764, #782). Not a physical quantum device.
 - **Attested inference** — TEE attestation bound to a Λ-gated inference receipt;
-  `tee_attestation` field auto-populates **MEASURED** only on a live TDX/Nitro
-  node, otherwise honest **UNAVAILABLE** on CPU Spaces (PR #767).
+  `tee_attestation` is **SAMPLE** when evidence is merely observed on a live
+  TDX/Nitro node and becomes **MEASURED** only after the configured verifier
+  authenticates a fresh, request-bound, non-debug, allowlisted measurement;
+  otherwise it is honest **UNAVAILABLE** on CPU Spaces (PR #767).
 - **Durable bounded receipt/energy ledger** — durable, size-bounded store with an
   honest **storage-pressure** signal (OK / PRESSURE / UNAVAILABLE), surfaced on
   `/healthz` (PR #774).

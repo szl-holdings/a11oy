@@ -1,0 +1,1357 @@
+{
+  "generated_at": "2026-07-26T08:52:38+00:00",
+  "label": "MEASURED",
+  "scope": "canonical a11oy workflow identity declarations",
+  "summary": {
+    "static_credential_name_references": 0,
+    "workflows_with_oidc": 6
+  },
+  "workflows": [
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/a11oy-api-health.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/alert-channel-watch.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/anatomy-map-drift.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/arena-signal-reasons-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/boot-preflight-selftest.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/bounties-drift.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/brain-honesty-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/bundle-integrity-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/bundle-ref-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/ci.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/claim-compiler.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/codeql.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/commit-lint.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "read",
+          "permission": "pull-requests"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/console-tab-liveness.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/constellation-honesty-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/copy-completeness-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/copy-sync-lockstep-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/cosign.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        },
+        {
+          "level": "write",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/dco.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "read",
+          "permission": "pull-requests"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/demo-freeze-hotfix-validate.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "read",
+          "permission": "pull-requests"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/demo-freeze.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/dependabot-auto-merge.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "pull-requests"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/deploy-verify-brain-now.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/deploy-verify-canonical-a11oy-now.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/docker-build.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        },
+        {
+          "level": "write",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/dockerfile-copy-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/dockerfile-size.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/docs-toolchain-review.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/doctrine-grep.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/doctrine.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/dsse-receipts.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/eval-arena-negative-control.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/fuzz.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/gguf-weight-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": true,
+      "path": ".github/workflows/ghcr-build-push.yml",
+      "permissions_observed": [
+        {
+          "level": "write",
+          "permission": "attestations"
+        },
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        },
+        {
+          "level": "write",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/gitleaks.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/governed-agent-bench.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hetzner-currency.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-bucket-selftest.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-corpus-card-honesty.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-corpus-freshness.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-corpus-guards-selftest.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-corpus-repair.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-corpus-reverify.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-drift-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-git-sha-sync.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-module-drift.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-sync-backend.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/hf-sync.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/huggingface.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/infra-pointer-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/infra-vendoring-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/kev-feed-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/lean-citation-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/llama-wheel-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/local-image-refs-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/lockfile-registry.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/namespace-leak-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "read",
+          "permission": "pull-requests"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/no-hf-mirror-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/no-runtime-cdn-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": true,
+      "path": ".github/workflows/one-lathe-receipt.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/operational.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/overclaim-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/package-knowledge-sync.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/page-claim-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/pages-knowledge-sync.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/phantom-required-check-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/pin-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/pinn-honesty-gate.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/private-ip-leak-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/public-claim-integrity.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/publish-packages.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/putnam-drift-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/readiness-harness.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/readme-frontmatter-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/register-invocation-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/rekor-recheck.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/release-receipt-summary-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/release-receipt-verify.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": true,
+      "path": ".github/workflows/release.yml",
+      "permissions_observed": [
+        {
+          "level": "write",
+          "permission": "attestations"
+        },
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        },
+        {
+          "level": "write",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/router-constellation-contract.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": true,
+      "path": ".github/workflows/sbom-syft.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": true,
+      "path": ".github/workflows/sbom.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        },
+        {
+          "level": "read",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/scap-scan.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": true,
+      "path": ".github/workflows/scorecard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/service-status-link-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/shared-file-drift.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/shared-module-hash-lock.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/signing-key-image-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/slsa-build.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/slsa-provenance.yml",
+      "permissions_observed": [
+        {
+          "level": "write",
+          "permission": "attestations"
+        },
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/slsa.yml",
+      "permissions_observed": [
+        {
+          "level": "write",
+          "permission": "attestations"
+        },
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/smoke-monitor.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/sovereign-node-drop.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/status-page-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/status-page.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/surface-registry-sync-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/tau-eval-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/tests.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "read",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/trivy.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/uds-sign-release.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/url-secret-leak-guard.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/vendor-sync-check.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/whatsnew-feed-honesty.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/zarf-build-and-sign.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "id-token"
+        },
+        {
+          "level": "write",
+          "permission": "packages"
+        }
+      ],
+      "static_credential_names": []
+    },
+    {
+      "id_token_write": false,
+      "path": ".github/workflows/zenodo-readback.yml",
+      "permissions_observed": [
+        {
+          "level": "read",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "contents"
+        },
+        {
+          "level": "write",
+          "permission": "pull-requests"
+        }
+      ],
+      "static_credential_names": []
+    }
+  ]
+}

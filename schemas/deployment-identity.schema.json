@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/deployment-identity.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "A11oy immutable deployment identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "service",
+    "source_commit",
+    "workflow_ref",
+    "image_digest",
+    "attestation_digest",
+    "sbom_digest",
+    "policy_version",
+    "formal_artifact_digest",
+    "model_revision",
+    "runtime",
+    "runtime_version",
+    "hardware",
+    "deployed_at",
+    "trace_id"
+  ],
+  "properties": {
+    "service": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "workflow_ref": {
+      "type": "string",
+      "pattern": "^.+@[0-9a-f]{40}$"
+    },
+    "image_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "attestation_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "sbom_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "policy_version": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "formal_artifact_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "model_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40,64}$"
+    },
+    "runtime": {
+      "enum": [
+        "sglang",
+        "vllm"
+      ]
+    },
+    "runtime_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "hardware": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "deployed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trace_id": {
+      "type": "string",
+      "pattern": "^(?!0{32}$)[0-9a-f]{32}$"
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}
