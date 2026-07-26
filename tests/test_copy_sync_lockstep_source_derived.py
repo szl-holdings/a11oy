@@ -52,6 +52,44 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     )
                 )
 
+    def test_deployer_and_dockerfile_evidence_split_across_jobs_is_rejected(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                with:
+                  hf-repo: SZLHOLDINGS/a11oy
+              unrelated:
+                uses: example.invalid/workflows/other.yml@1111111111111111111111111111111111111111
+                with:
+                  dockerfile-path: Dockerfile
+            """
+        )
+        self.assertFalse(CHECKER.has_source_derived_deploy_contract(workflow))
+
+    def test_deployer_and_dockerfile_evidence_in_same_job_passes(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: source-derived deploy
+            jobs:
+              unrelated:
+                runs-on: ubuntu-latest
+                steps:
+                  - run: echo no-op
+              deploy:
+                name: Exact source-derived deployment
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+                with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  dockerfile-path: "Dockerfile"
+                  prune: true
+                secrets:
+                  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+            """
+        )
+        self.assertTrue(CHECKER.has_source_derived_deploy_contract(workflow))
+
     def test_shipped_repository_passes_the_real_lockstep_guard(self) -> None:
         with mock.patch.object(sys, "argv", ["check_copy_sync_lockstep.py", str(ROOT)]):
             self.assertEqual(0, CHECKER.main())

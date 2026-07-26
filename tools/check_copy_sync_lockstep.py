@@ -257,26 +257,105 @@ def transitive_local_imports(root, entry_files, local_mods):
 # --------------------------------------------------------------------------- #
 # hf-sync deployment-contract parsing.
 # --------------------------------------------------------------------------- #
+def workflow_job_blocks(workflow_text):
+    """Yield ``(job_id, block_lines, job_indent)`` from a workflow's jobs map."""
+    lines = workflow_text.splitlines()
+    jobs_index = None
+    jobs_indent = None
+    for index, raw in enumerate(lines):
+        if re.match(r"^[ \t]*jobs:\s*(?:#.*)?$", raw):
+            jobs_index = index
+            jobs_indent = len(raw) - len(raw.lstrip())
+            break
+    if jobs_index is None:
+        return []
+
+    job_header = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(?:#.*)?$")
+    blocks = []
+    current_id = None
+    current_lines = []
+    job_indent = None
+
+    for raw in lines[jobs_index + 1:]:
+        stripped = raw.strip()
+        indent = len(raw) - len(raw.lstrip())
+        if stripped and not stripped.startswith("#") and indent <= jobs_indent:
+            break
+        header = job_header.match(stripped) if stripped else None
+        if header and indent > jobs_indent:
+            if job_indent is None:
+                job_indent = indent
+            if indent == job_indent:
+                if current_id is not None:
+                    blocks.append((current_id, current_lines, job_indent))
+                current_id = header.group(1)
+                current_lines = [raw]
+                continue
+        if current_id is not None:
+            current_lines.append(raw)
+    if current_id is not None:
+        blocks.append((current_id, current_lines, job_indent))
+    return blocks
+
+
+def job_has_source_derived_deploy_contract(block_lines, job_indent):
+    """Require the pinned deployer and Dockerfile input in one reusable job."""
+    property_indents = []
+    for raw in block_lines[1:]:
+        stripped = raw.strip()
+        if stripped and not stripped.startswith("#"):
+            indent = len(raw) - len(raw.lstrip())
+            if indent > job_indent:
+                property_indents.append(indent)
+    if not property_indents:
+        return False
+    property_indent = min(property_indents)
+
+    pinned_controller = False
+    with_index = None
+    for index, raw in enumerate(block_lines[1:], start=1):
+        stripped = raw.strip()
+        indent = len(raw) - len(raw.lstrip())
+        if indent != property_indent:
+            continue
+        if re.fullmatch(
+            r"uses:\s*szl-holdings/\.github/\.github/workflows/"
+            r"reusable-hf-deploy\.yml@[0-9a-fA-F]{40}\s*(?:#.*)?",
+            stripped,
+        ):
+            pinned_controller = True
+        if re.fullmatch(r"with:\s*(?:#.*)?", stripped):
+            with_index = index
+    if not pinned_controller or with_index is None:
+        return False
+
+    for raw in block_lines[with_index + 1:]:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= property_indent:
+            break
+        if re.fullmatch(
+            r"dockerfile-path:\s*[\"']?Dockerfile[\"']?\s*(?:#.*)?",
+            stripped,
+        ):
+            return True
+    return False
+
+
 def has_source_derived_deploy_contract(hf_sync_text):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
     exact set. Requiring both a commit-pinned controller and the explicit
-    Dockerfile input prevents a comment or unrelated reusable workflow from
-    satisfying CHECK 3.
+    Dockerfile input in the same job prevents a comment, step, or unrelated
+    reusable workflow from satisfying CHECK 3.
     """
-    pinned_controller = re.search(
-        r"uses:\s*szl-holdings/\.github/\.github/workflows/"
-        r"reusable-hf-deploy\.yml@[0-9a-fA-F]{40}\s*$",
-        hf_sync_text,
-        re.MULTILINE,
+    return any(
+        job_has_source_derived_deploy_contract(block_lines, job_indent)
+        for _job_id, block_lines, job_indent in workflow_job_blocks(hf_sync_text)
     )
-    dockerfile_input = re.search(
-        r"^\s*dockerfile-path:\s*[\"']?Dockerfile[\"']?\s*$",
-        hf_sync_text,
-        re.MULTILINE,
-    )
-    return bool(pinned_controller and dockerfile_input)
 
 
 def parse_hf_sync_mirror(hf_sync_text):
