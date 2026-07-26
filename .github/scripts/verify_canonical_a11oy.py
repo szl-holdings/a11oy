@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import time
@@ -24,7 +25,12 @@ from huggingface_hub import HfApi
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 REPO_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPORT_SCHEMA = "szl.a11oy-deployment-relock/v4"
-REQUIRED_REMOTE_FILES = {"Dockerfile", "console/3d/holographic.html"}
+HOLOGRAPHIC_SOURCE_PATH = "static/3d/holographic.html"
+HOLOGRAPHIC_SOURCE_MARKERS = (
+    "A11oy Holographic Operations",
+    "The estate, observed—not assumed.",
+)
+REQUIRED_REMOTE_FILES = {"Dockerfile", HOLOGRAPHIC_SOURCE_PATH}
 ROUTES = {
     "livez": "/api/livez",
     "build_info": "/api/build-info",
@@ -113,11 +119,99 @@ def require_json(response: requests.Response) -> Mapping[str, Any]:
     return payload
 
 
+def validate_readiness_summary(
+    payload: Mapping[str, Any],
+    source_sha: str,
+    *,
+    expected_origin: str,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    if (
+        payload.get("honest") is not True
+        or payload.get("view") != "summary"
+        or payload.get("available") is not True
+        or payload.get("matrix_available") is not True
+        or payload.get("probe_verdict_available") is not True
+        or payload.get("verdict_source_revision") != source_sha
+    ):
+        raise RelockError("readiness summary is unavailable or source-unbound")
+    if normalize_origin(payload.get("verdict_base")) != normalize_origin(
+        expected_origin
+    ):
+        raise RelockError("readiness verdict was not probed at the canonical origin")
+
+    checked_at = payload.get("verdict_checked_at")
+    if (
+        not isinstance(checked_at, str)
+        or re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z",
+            checked_at,
+        )
+        is None
+    ):
+        raise RelockError("readiness verdict lacks a strict UTC observation time")
+    try:
+        checked = datetime.fromisoformat(checked_at[:-1] + "+00:00")
+    except ValueError as exc:
+        raise RelockError(
+            "readiness verdict observation time is invalid"
+        ) from exc
+    current = now or datetime.now(timezone.utc)
+    age_seconds = (current - checked).total_seconds()
+    if age_seconds < 0 or age_seconds > 86400:
+        raise RelockError("readiness verdict is future-dated or stale")
+
+    summary = payload.get("verdict_summary")
+    if not isinstance(summary, Mapping):
+        raise RelockError("readiness verdict summary is unavailable")
+    fields = (
+        "endpoints",
+        "ok",
+        "skippedStateChanging",
+        "lies",
+        "unreachable",
+        "throttled",
+    )
+    counts = [summary.get(field) for field in fields]
+    if not all(
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value >= 0
+        for value in counts
+    ):
+        raise RelockError("readiness verdict counts are incomplete or invalid")
+    endpoints, _, skipped, *_ = counts
+    if (
+        endpoints <= 0
+        or endpoints - skipped <= 0
+        or sum(counts[1:]) != endpoints
+    ):
+        raise RelockError("readiness verdict outcomes are incomplete")
+    if summary["lies"] != 0:
+        raise RelockError("readiness verdict contains doctrine lies")
+    p95_worst = summary.get("p95_worst")
+    if (
+        not isinstance(p95_worst, (int, float))
+        or isinstance(p95_worst, bool)
+        or not math.isfinite(p95_worst)
+        or p95_worst < 0
+    ):
+        raise RelockError("readiness verdict latency is incomplete or invalid")
+    return {
+        "source_revision": source_sha,
+        "checked_at": checked_at,
+        "base": normalize_origin(expected_origin),
+        "age_seconds": age_seconds,
+        "summary": dict(summary),
+    }
+
+
 def validate_route(
     name: str,
     response: requests.Response,
     source_sha: str,
     source_variable: str,
+    origin: str,
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
@@ -127,10 +221,7 @@ def validate_route(
     }
     if name == "holographic":
         text = response.text
-        if (
-            "A11oy Holographic Operations" not in text
-            or "The estate, observed—not assumed." not in text
-        ):
+        if not all(marker in text for marker in HOLOGRAPHIC_SOURCE_MARKERS):
             raise RelockError("holographic surface lacks the reviewed source markers")
         evidence["source_markers"] = True
         return evidence
@@ -219,13 +310,11 @@ def validate_route(
         ):
             raise RelockError("Brain capabilities contract is incomplete")
     elif name == "readiness":
-        if (
-            payload.get("honest") is not True
-            or payload.get("view") != "summary"
-            or not isinstance(payload.get("matrix_available"), bool)
-            or not isinstance(payload.get("probe_verdict_available"), bool)
-        ):
-            raise RelockError("readiness summary contract is incomplete or dishonest")
+        evidence["verdict"] = validate_readiness_summary(
+            payload,
+            source_sha,
+            expected_origin=origin,
+        )
     return evidence
 
 
@@ -244,7 +333,13 @@ def probe_routes(
             raise RelockError(
                 f"{path} is not operational: HEAD={head.status_code}; GET={get.status_code}"
             )
-        evidence = validate_route(name, get, source_sha, source_variable)
+        evidence = validate_route(
+            name,
+            get,
+            source_sha,
+            source_variable,
+            origin,
+        )
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
     return output
