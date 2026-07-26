@@ -10,8 +10,8 @@
 # missing canonical problem file, named "X and Y are OPEN" prose drift, SZL
 # REAL-count drift, REAL-source sorry/axiom violations, duplicate generated
 # markers, an out-of-policy kernel axiom report, multiline theorem headers,
-# and section-vs-namespace scope handling. Runs fully offline via
-# PUTNAM_DRIFT_FIXTURE (no network).
+# section-vs-namespace scope handling, balanced nested attributes, and private
+# helper handling. Runs fully offline via PUTNAM_DRIFT_FIXTURE (no network).
 # This is what keeps the guard from silently being neutered.
 # =============================================================================
 set -euo pipefail
@@ -241,6 +241,38 @@ cat > "$O/axioms.txt" <<'TXT'
 TXT
 expect_pass_report "section end preserves namespace qualification" "$O" \
   "$O/axioms.txt"
+
+# --- Fixture P: nested attribute theorem is audited -> FAIL then PASS -----
+P="$TMP/P"; make_honest "$P"
+sed -i '/theorem proof/a @[aesop safe apply (rule_sets := [foo])] theorem nestedAttribute : True := by trivial' \
+  "$P/canon/SZL/One.lean"
+cat > "$P/missing-axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "nested-attribute REAL theorem is required in kernel report" \
+  "$P" "$P/missing-axioms.txt"
+cat > "$P/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.nestedAttribute' does not depend on any axioms
+TXT
+expect_pass_report "nested-attribute REAL theorem has a complete kernel report" \
+  "$P" "$P/axioms.txt"
+
+# --- Fixture Q: private helper omitted, public dependent audited ----------
+Q="$TMP/Q"; make_honest "$Q"
+sed -i '/theorem proof/a private theorem secret : True := by trivial\n\
+theorem publicUsesPrivate : True := secret' "$Q/canon/SZL/One.lean"
+cat > "$Q/missing-public.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+TXT
+expect_fail_report "public theorem depending on private helper is still audited" \
+  "$Q" "$Q/missing-public.txt"
+cat > "$Q/axioms.txt" <<'TXT'
+'Lutar.Putnam.SZL.One.proof' does not depend on any axioms
+'Lutar.Putnam.SZL.One.publicUsesPrivate' does not depend on any axioms
+TXT
+expect_pass_report "private helper does not require an unusable external name" \
+  "$Q" "$Q/axioms.txt"
 
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"

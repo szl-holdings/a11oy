@@ -193,17 +193,50 @@ def strip_lean_comments_and_strings(text: str) -> str:
     return "".join(out)
 
 
+def mask_lean_attributes(rel: str, text: str, errors: List[str]) -> str:
+    """Blank balanced ``@[...]`` attributes while preserving source offsets."""
+    out = list(text)
+    cursor = 0
+    while True:
+        start = text.find("@[", cursor)
+        if start < 0:
+            break
+        depth = 0
+        end = start + 1
+        while end < len(text):
+            char = text[end]
+            if char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+                if depth == 0:
+                    end += 1
+                    break
+            end += 1
+        if depth != 0:
+            errors.append(
+                "canonical REAL %s: unterminated attribute syntax" % rel
+            )
+            end = len(text)
+        for index in range(start, end):
+            if out[index] != "\n":
+                out[index] = " "
+        cursor = end
+    return "".join(out)
+
+
 def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
     """Validate a REAL source and return every theorem/lemma it declares."""
     clean = strip_lean_comments_and_strings(text)
+    command_text = mask_lean_attributes(rel, clean, errors)
     forbidden = []
     if re.search(r"\b(?:sorry|sorryAx|admit)\b", clean):
         forbidden.append("sorry/sorryAx/admit")
     if re.search(
-        r"(?m)^\s*(?:@\[[^\n]*\]\s*)*"
+        r"(?m)^[ \t]*"
         r"(?:(?:private|protected|noncomputable|unsafe)\s+)*"
         r"(?:axiom|constant)\b",
-        clean,
+        command_text,
     ):
         forbidden.append("new axiom/constant declaration")
     if re.search(r"\bnative_decide\b", clean):
@@ -214,17 +247,21 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
     declarations: List[str] = []
     scopes: List[Tuple[str, Optional[str]]] = []
     command_re = re.compile(
-        r"(?m)^[ \t]*(?:@\[[^\]]*\][ \t\r\n]*)*"
-        r"(?:(?:private|protected|noncomputable)\s+)*"
+        r"(?m)^[ \t]*"
+        r"(?P<modifiers>(?:(?:private|protected|noncomputable)\s+)*)"
         r"(?P<kind>namespace|section|end|theorem|lemma)\b"
     )
-    commands = list(command_re.finditer(clean))
+    commands = list(command_re.finditer(command_text))
     lean_name = r"(?:«[^»\r\n]+»|[^\s:({\[\],]+)"
 
     for index, command in enumerate(commands):
         kind = command.group("kind")
-        stop = commands[index + 1].start() if index + 1 < len(commands) else len(clean)
-        tail = clean[command.end():stop]
+        stop = (
+            commands[index + 1].start()
+            if index + 1 < len(commands)
+            else len(command_text)
+        )
+        tail = command_text[command.end():stop]
         same_line = tail.splitlines()[0] if tail else ""
 
         if kind == "namespace":
@@ -248,6 +285,10 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
                 % (rel, kind)
             )
             continue
+        if "private" in command.group("modifiers").split():
+            # Private declarations get compiler-generated inaccessible names.
+            # Their public dependents remain covered by the external audit.
+            continue
         name = name_match.group(1)
         namespaces = [
             scope_name
@@ -260,7 +301,10 @@ def real_lean_declarations(rel: str, text: str, errors: List[str]) -> List[str]:
             name = ".".join(namespaces + [name])
         declarations.append(name)
     if not declarations:
-        errors.append("canonical REAL %s: no theorem/lemma declarations found" % rel)
+        errors.append(
+            "canonical REAL %s: no externally auditable public "
+            "theorem/lemma declarations found" % rel
+        )
     return declarations
 
 
