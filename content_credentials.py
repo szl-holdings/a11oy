@@ -94,6 +94,11 @@ TRUST_STRUCTURAL_ONLY = "STRUCTURAL-ONLY"   # unsigned; structure only, NEVER a 
 TRUST_SELF_SIGNED = "SELF_SIGNED"           # real sig, own key, NOT C2PA-TL anchored
 TRUST_C2PA_TRUST_LIST = "C2PA_TRUST_LIST"   # would require a CA cert from the C2PA TL
 TRUST_TAMPERED = "TAMPERED"                 # hash/sig mismatch — reject
+TRUST_AUTH_UNAVAILABLE = "AUTHENTICATION-UNAVAILABLE"
+
+
+class KhipuAuthenticationUnavailable(RuntimeError):
+    """The authoritative receipt store cannot currently answer verification."""
 
 DOCTRINE = (
     "v11 LOCKED: NO fabricated signatures; UNSIGNED stays STRUCTURAL-ONLY (never a fake "
@@ -236,7 +241,7 @@ class ContentCredentialManifest:
     labels: dict = field(default_factory=lambda: {
         "ai_generated": "explicit EU AI Act Art.50(2) machine-readable AI flag",
         "asset_hash": "C2PA hard binding (c2pa.hash.data) to the real asset bytes",
-        "trust": "reported by verify(): STRUCTURAL-ONLY | SELF_SIGNED | C2PA_TRUST_LIST | TAMPERED",
+        "trust": "reported by verify(): STRUCTURAL-ONLY | SELF_SIGNED | C2PA_TRUST_LIST | AUTHENTICATION-UNAVAILABLE | TAMPERED",
     })
     citations: dict = field(default_factory=lambda: dict(CITATIONS))
 
@@ -409,6 +414,8 @@ def _validate_khipu_receipt_link(
         raise ValueError("khipu_receipt.chain_verified must be true")
     if link.get("receipt_hash_alg") != "sha256":
         raise ValueError("khipu_receipt.receipt_hash_alg must be sha256")
+    if not isinstance(link.get("dsse_signed"), bool):
+        raise ValueError("khipu_receipt.dsse_signed must be a boolean")
 
     attested = link.get("attested_execution")
     if attested != {
@@ -420,9 +427,9 @@ def _validate_khipu_receipt_link(
             "attested_execution must remain UNAVAILABLE until a real verifier integration exists"
         )
 
-    from a11oy_code_orchestrator import khipu_verify_receipt
+    from a11oy_code_orchestrator import khipu_authenticate_receipt
 
-    authenticated = khipu_verify_receipt(
+    authentication = khipu_authenticate_receipt(
         receipt_id,
         receipt_hash,
         expected_action="content-credential.media.write",
@@ -433,9 +440,14 @@ def _validate_khipu_receipt_link(
             "ai_generated": ai_generated,
             "model_id": model_id,
         },
+        expected_dsse_signed=link["dsse_signed"],
         require_durable=True,
     )
-    if not authenticated:
+    if authentication == "UNAVAILABLE":
+        raise KhipuAuthenticationUnavailable(
+            "durable Khipu registry is unavailable"
+        )
+    if authentication != "VERIFIED":
         raise ValueError(
             "khipu_receipt is not authenticated by the durable Khipu registry"
         )
@@ -780,10 +792,11 @@ def write_asset_with_credential(
 @dataclass
 class VerifyResult:
     ok: bool                      # cryptographically + structurally consistent
-    trust_level: str              # STRUCTURAL-ONLY | SELF_SIGNED | C2PA_TRUST_LIST | TAMPERED
+    trust_level: str              # includes explicit unavailable and tampered states
     hash_ok: bool                 # asset bytes match the manifest hard binding
     claim_hash_ok: bool           # canonical claim + receipt link match their binding
     signature_ok: Optional[bool]  # None when unsigned
+    khipu_authentication: str     # NOT_PRESENT | VERIFIED | UNAVAILABLE | INVALID
     self_signed: bool
     reasons: list
     summary: str
@@ -807,6 +820,7 @@ def verify(
          the canonical claim. A tampered claim or wrong key => signature_ok False.
       3. TRUST LEVEL, reported HONESTLY:
            - no signature        => STRUCTURAL-ONLY (never a green)
+           - receipt store absent => AUTHENTICATION-UNAVAILABLE (not tampering)
            - hash or sig mismatch => TAMPERED (reject)
            - valid self-signed   => SELF_SIGNED (NOT C2PA-TL anchored)
            - key in trust_list_pubkeys (a stand-in for the C2PA Trust List) => C2PA_TRUST_LIST
@@ -829,6 +843,7 @@ def verify(
         if assertion.get("label") == KHIPU_ASSERTION_LABEL
     ]
     top_level_receipt = manifest.get("khipu_receipt")
+    khipu_authentication = "NOT_PRESENT"
     if top_level_receipt is not None:
         claim_hash_ok = claim_hash_ok and receipt_assertions == [top_level_receipt]
         try:
@@ -840,13 +855,22 @@ def verify(
                 ai_generated=manifest.get("ai_generated"),
                 model_id=manifest.get("model_id"),
             )
+            khipu_authentication = "VERIFIED"
+        except KhipuAuthenticationUnavailable as exc:
+            khipu_authentication = "UNAVAILABLE"
+            reasons.append(
+                "KHIPU AUTHENTICATION UNAVAILABLE: the receipt assertion could "
+                f"not be checked against durable state ({exc})."
+            )
         except Exception as exc:
+            khipu_authentication = "INVALID"
             claim_hash_ok = False
             reasons.append(
-                "KHIPU AUTHENTICATION UNAVAILABLE: the receipt assertion is not "
+                "KHIPU AUTHENTICATION INVALID: the receipt assertion is not "
                 f"authenticated by the authoritative registry ({exc})."
             )
     elif receipt_assertions:
+        khipu_authentication = "INVALID"
         claim_hash_ok = False
 
     if not claim_hash_ok:
@@ -919,12 +943,15 @@ def verify(
     if not hash_ok or not claim_hash_ok:
         trust_level = TRUST_TAMPERED
         ok = False
+    elif sigs and not signature_ok:
+        trust_level = TRUST_TAMPERED
+        ok = False
+    elif khipu_authentication == "UNAVAILABLE":
+        trust_level = TRUST_AUTH_UNAVAILABLE
+        ok = False
     elif not sigs:
         trust_level = TRUST_STRUCTURAL_ONLY
         ok = True  # structurally consistent; still NOT cryptographically validated
-    elif not signature_ok:
-        trust_level = TRUST_TAMPERED
-        ok = False
     else:
         # Valid signature + matching bytes. Is the key a C2PA-Trust-List anchor?
         on_trust_list = False
@@ -947,6 +974,7 @@ def verify(
     summary = (
         f"hard_binding={'OK' if hash_ok else 'MISMATCH'}; "
         f"claim_binding={'OK' if claim_hash_ok else 'MISMATCH'}; "
+        f"khipu_authentication={khipu_authentication}; "
         f"signature={'n/a (unsigned)' if signature_ok is None else ('OK' if signature_ok else 'FAIL')}; "
         f"trust_level={trust_level}. "
         + ("A signature is NOT proof of safety (Doctrine v11); trust reported honestly.")
@@ -958,6 +986,7 @@ def verify(
         hash_ok=hash_ok,
         claim_hash_ok=claim_hash_ok,
         signature_ok=signature_ok,
+        khipu_authentication=khipu_authentication,
         self_signed=self_signed,
         reasons=reasons,
         summary=summary,
@@ -969,7 +998,9 @@ __all__ = [
     "KHIPU_ASSERTION_LABEL", "DOCTRINE", "CITATIONS",
     "DST_TRAINED_ALGORITHMIC", "DST_COMPOSITE_WITH_TRAINED", "DST_DIGITAL_CAPTURE",
     "DST_CREATIVE_WORK",
-    "TRUST_STRUCTURAL_ONLY", "TRUST_SELF_SIGNED", "TRUST_C2PA_TRUST_LIST", "TRUST_TAMPERED",
+    "TRUST_STRUCTURAL_ONLY", "TRUST_SELF_SIGNED", "TRUST_C2PA_TRUST_LIST",
+    "TRUST_TAMPERED", "TRUST_AUTH_UNAVAILABLE",
+    "KhipuAuthenticationUnavailable",
     "sha256_file", "sha256_bytes",
     "Ingredient", "ContentCredentialManifest", "build_manifest",
     "CredentialSigner", "build_credential", "write_sidecar",

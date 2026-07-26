@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,8 @@ import a11oy_code_orchestrator as orchestrator  # noqa: E402
 from content_credentials import (  # noqa: E402
     CredentialSigner,
     KHIPU_ASSERTION_LABEL,
+    KhipuAuthenticationUnavailable,
+    TRUST_AUTH_UNAVAILABLE,
     TRUST_SELF_SIGNED,
     TRUST_STRUCTURAL_ONLY,
     TRUST_TAMPERED,
@@ -141,7 +144,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
             self.assertEqual(verification.trust_level, TRUST_SELF_SIGNED)
 
     def test_manifest_rejects_a_fabricated_or_unattested_link(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, KhipuAuthenticationUnavailable)):
             build_manifest(
                 asset_bytes=b"asset",
                 asset_title="asset.txt",
@@ -228,8 +231,9 @@ class ContentCredentialKhipuTests(unittest.TestCase):
 
             verification = verify(tampered, asset_path=str(asset))
             self.assertFalse(verification.ok)
-            self.assertFalse(verification.claim_hash_ok)
-            self.assertEqual(verification.trust_level, TRUST_TAMPERED)
+            self.assertTrue(verification.claim_hash_ok)
+            self.assertEqual(verification.khipu_authentication, "UNAVAILABLE")
+            self.assertEqual(verification.trust_level, TRUST_AUTH_UNAVAILABLE)
 
     def test_sidecar_failure_rolls_back_asset_and_existing_sidecar(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -304,6 +308,83 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                 )
             )
             self.assertLessEqual(len(orchestrator._khipu_receipts), 3)
+
+    def test_persistence_failure_does_not_advance_or_poison_chain_tip(self):
+        original_tip = orchestrator._khipu_tip
+        with patch.object(
+            orchestrator,
+            "_db_write_receipt",
+            side_effect=sqlite3.OperationalError("simulated lock"),
+        ):
+            failed = khipu_emit("test.persistence.failure", {"ok": False})
+
+        self.assertFalse(failed["chain_verified"])
+        self.assertEqual(failed["persistence_state"], "UNAVAILABLE")
+        self.assertEqual(orchestrator._khipu_tip, original_tip)
+        self.assertNotIn(failed["receipt_id"], orchestrator._khipu_receipts)
+
+        recovered = khipu_emit("test.persistence.recovered", {"ok": True})
+        self.assertEqual(recovered["prev"], original_tip)
+        self.assertTrue(recovered["chain_verified"])
+        self.assertTrue(
+            khipu_verify_receipt(
+                recovered["receipt_id"],
+                recovered["hash"],
+                require_durable=True,
+            )
+        )
+
+    def test_dsse_signed_status_is_authenticated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "unsigned-media.txt"
+            result = write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=b"unsigned\n",
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_context=_authorized_write(),
+            )
+            tampered = copy.deepcopy(result["credential"])
+            tampered["active_manifest"]["khipu_receipt"]["dsse_signed"] = True
+            tampered["active_manifest"]["claim"]["assertions"][-1]["data"][
+                "dsse_signed"
+            ] = True
+            tampered["claim_sha256"] = sha256_bytes(
+                _canon(tampered["active_manifest"]["claim"])
+            )
+
+            verification = verify(tampered, asset_path=str(asset))
+            self.assertFalse(verification.ok)
+            self.assertEqual(verification.khipu_authentication, "INVALID")
+            self.assertEqual(verification.trust_level, TRUST_TAMPERED)
+
+    def test_missing_registry_is_unavailable_not_tampered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "portable-media.txt"
+            result = write_asset_with_credential(
+                asset_path=str(asset),
+                asset_bytes=b"portable\n",
+                asset_title=asset.name,
+                asset_format="text/plain",
+                ai_generated=False,
+                governance_context=_authorized_write(),
+            )
+            with orchestrator._khipu_lock:
+                orchestrator._khipu_receipts.clear()
+            with patch.object(
+                orchestrator,
+                "DB_PATH",
+                str(Path(directory) / "unavailable-host.db"),
+            ):
+                orchestrator.init_db()
+                verification = verify(result["credential"], asset_path=str(asset))
+
+            self.assertFalse(verification.ok)
+            self.assertTrue(verification.hash_ok)
+            self.assertTrue(verification.claim_hash_ok)
+            self.assertEqual(verification.khipu_authentication, "UNAVAILABLE")
+            self.assertEqual(verification.trust_level, TRUST_AUTH_UNAVAILABLE)
 
 
 if __name__ == "__main__":
