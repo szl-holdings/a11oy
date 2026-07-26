@@ -2781,7 +2781,7 @@ try:
 except Exception as _szl_vqc_e:  # pragma: no cover
     print(f"[a11oy] Governed VQC NOT registered: {_szl_vqc_e!r}", file=__import__("sys").stderr)
 
-# ── WAVE-25 Loop Forge (loopforge, 67th surface): kernel-gated bounded-recursion
+# ── WAVE-25 Loop Forge (loopforge, promoted top-three surface): kernel-gated bounded-recursion
 # agentic loop + MODELED J-lens workspace readout over the REAL flower/brain node
 # set. MODELED demonstration on a REAL topology — NOT a trained model, NOT a real
 # Jacobian, NOT alive/conscious. The MODELED kernel-acceptance oracle mirrors the

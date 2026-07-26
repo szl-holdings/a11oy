@@ -40,7 +40,10 @@ import base64
 import hashlib
 import json
 import os
+import stat
+import tempfile
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
@@ -71,6 +74,7 @@ except Exception:  # pragma: no cover - cryptography present in our image
 CLAIM_GENERATOR_DEFAULT = "szl-content-credentials/1.0.0"
 MANIFEST_TYPE = "szl/c2pa-content-credential/v1"
 DSSE_PAYLOAD_TYPE = "application/vnd.szl.c2pa-content-credential+json"
+KHIPU_ASSERTION_LABEL = "szl.khipu.receipt"
 
 # C2PA digitalSourceType IRIs (IPTC vocabulary, used verbatim by C2PA assertions).
 DST_TRAINED_ALGORITHMIC = (
@@ -91,6 +95,11 @@ TRUST_STRUCTURAL_ONLY = "STRUCTURAL-ONLY"   # unsigned; structure only, NEVER a 
 TRUST_SELF_SIGNED = "SELF_SIGNED"           # real sig, own key, NOT C2PA-TL anchored
 TRUST_C2PA_TRUST_LIST = "C2PA_TRUST_LIST"   # would require a CA cert from the C2PA TL
 TRUST_TAMPERED = "TAMPERED"                 # hash/sig mismatch — reject
+TRUST_AUTH_UNAVAILABLE = "AUTHENTICATION-UNAVAILABLE"
+
+
+class KhipuAuthenticationUnavailable(RuntimeError):
+    """The authoritative receipt store cannot currently answer verification."""
 
 DOCTRINE = (
     "v11 LOCKED: NO fabricated signatures; UNSIGNED stays STRUCTURAL-ONLY (never a fake "
@@ -228,11 +237,12 @@ class ContentCredentialManifest:
     ingredients: list               # list of Ingredient dicts
     created_utc: float
     instance_id: str
+    khipu_receipt: Optional[dict] = None
     doctrine: str = DOCTRINE
     labels: dict = field(default_factory=lambda: {
         "ai_generated": "explicit EU AI Act Art.50(2) machine-readable AI flag",
         "asset_hash": "C2PA hard binding (c2pa.hash.data) to the real asset bytes",
-        "trust": "reported by verify(): STRUCTURAL-ONLY | SELF_SIGNED | C2PA_TRUST_LIST | TAMPERED",
+        "trust": "reported by verify(): STRUCTURAL-ONLY | SELF_SIGNED | C2PA_TRUST_LIST | AUTHENTICATION-UNAVAILABLE | TAMPERED",
     })
     citations: dict = field(default_factory=lambda: dict(CITATIONS))
 
@@ -257,6 +267,8 @@ class ContentCredentialManifest:
         ]
         if self.ingredients:
             a.append({"label": "c2pa.ingredients", "data": {"ingredients": self.ingredients}})
+        if self.khipu_receipt:
+            a.append({"label": KHIPU_ASSERTION_LABEL, "data": self.khipu_receipt})
         return a
 
     def claim(self) -> dict:
@@ -296,6 +308,7 @@ def build_manifest(
     ingredients: Optional[list] = None,
     edited: bool = False,
     digital_source_type: Optional[str] = None,
+    khipu_receipt: Optional[dict] = None,
 ) -> ContentCredentialManifest:
     """Build a C2PA-aligned manifest. Provide EITHER asset_path (a REAL file, hashed
     streaming) OR asset_bytes. `ai_generated` carries the explicit Art.50(2) flag and,
@@ -335,6 +348,15 @@ def build_manifest(
         f"{asset_hash}:{now}:{asset_title}".encode()
     ).hexdigest()[:32]
 
+    validated_khipu_receipt = _validate_khipu_receipt_link(
+        khipu_receipt,
+        asset_hash=asset_hash,
+        asset_title=asset_title,
+        asset_format=asset_format,
+        ai_generated=ai_generated,
+        model_id=model_id,
+    )
+
     return ContentCredentialManifest(
         manifest_type=MANIFEST_TYPE,
         claim_generator=claim_generator,
@@ -348,7 +370,89 @@ def build_manifest(
         ingredients=ing,
         created_utc=now,
         instance_id=instance_id,
+        khipu_receipt=validated_khipu_receipt,
     )
+
+
+def _validate_khipu_receipt_link(
+    link: Optional[dict],
+    *,
+    asset_hash: str,
+    asset_title: str,
+    asset_format: str,
+    ai_generated: bool,
+    model_id: Optional[str],
+) -> Optional[dict]:
+    """Validate the receipt reference that will be signed into the claim.
+
+    This validates the Khipu emitter's receipt shape. The media-write helper
+    sources the value from the actual emitter. The
+    attested-execution edge remains explicitly unavailable until an independently
+    verified attestation receipt is wired; callers cannot paint it green here.
+    """
+    if link is None:
+        return None
+    if not isinstance(link, dict):
+        raise TypeError("khipu_receipt must be a dict")
+
+    receipt_id = link.get("receipt_id")
+    receipt_hash = link.get("receipt_hash")
+    if not isinstance(receipt_id, str) or not receipt_id.strip():
+        raise ValueError("khipu_receipt.receipt_id must be a non-empty string")
+    try:
+        parsed_receipt_id = uuid.UUID(receipt_id)
+    except (ValueError, AttributeError) as exc:
+        raise ValueError("khipu_receipt.receipt_id must be a canonical UUID") from exc
+    if str(parsed_receipt_id) != receipt_id or parsed_receipt_id.version != 4:
+        raise ValueError("khipu_receipt.receipt_id must be a canonical UUIDv4")
+    if (
+        not isinstance(receipt_hash, str)
+        or len(receipt_hash) != 64
+        or any(ch not in "0123456789abcdef" for ch in receipt_hash)
+    ):
+        raise ValueError("khipu_receipt.receipt_hash must be a lowercase sha256 hex digest")
+    if link.get("chain_verified") is not True:
+        raise ValueError("khipu_receipt.chain_verified must be true")
+    if link.get("receipt_hash_alg") != "sha256":
+        raise ValueError("khipu_receipt.receipt_hash_alg must be sha256")
+    if not isinstance(link.get("dsse_signed"), bool):
+        raise ValueError("khipu_receipt.dsse_signed must be a boolean")
+
+    attested = link.get("attested_execution")
+    if attested != {
+        "state": "UNAVAILABLE",
+        "receipt_id": None,
+        "reason": "no independently verified attestation receipt supplied",
+    }:
+        raise ValueError(
+            "attested_execution must remain UNAVAILABLE until a real verifier integration exists"
+        )
+
+    from a11oy_code_orchestrator import khipu_authenticate_receipt
+
+    authentication = khipu_authenticate_receipt(
+        receipt_id,
+        receipt_hash,
+        expected_action="content-credential.media.write",
+        expected_payload={
+            "asset_title": asset_title,
+            "asset_format": asset_format,
+            "asset_hash": asset_hash,
+            "ai_generated": ai_generated,
+            "model_id": model_id,
+        },
+        expected_dsse_signed=link["dsse_signed"],
+        require_durable=True,
+    )
+    if authentication == "UNAVAILABLE":
+        raise KhipuAuthenticationUnavailable(
+            "durable Khipu registry is unavailable"
+        )
+    if authentication != "VERIFIED":
+        raise ValueError(
+            "khipu_receipt is not authenticated by the durable Khipu registry"
+        )
+    return dict(link)
 
 
 # --------------------------------------------------------------------------- #
@@ -477,17 +581,251 @@ def write_sidecar(asset_path: str, credential: dict) -> str:
     """Write the C2PA sidecar next to the asset as <asset>.c2pa.json. Returns the path.
     (c2patool can later EMBED the same claim as a JUMBF box in the asset itself.)"""
     out = asset_path + ".c2pa.json"
-    with open(out, "w") as f:
-        json.dump(credential, f, indent=2, default=str)
+    encoded = (json.dumps(credential, indent=2, default=str) + "\n").encode("utf-8")
+    _atomic_write_bytes(out, encoded)
     return out
+
+
+def _atomic_write_bytes(asset_path: str, asset_bytes: bytes) -> None:
+    """Atomically replace one asset path with the supplied bytes."""
+    if not isinstance(asset_bytes, bytes):
+        raise TypeError("asset_bytes must be bytes")
+    parent = os.path.dirname(os.path.abspath(asset_path))
+    if not os.path.isdir(parent):
+        raise FileNotFoundError(f"asset parent directory does not exist: {parent}")
+    destination_mode = (
+        stat.S_IMODE(os.stat(asset_path, follow_symlinks=False).st_mode)
+        if os.path.exists(asset_path)
+        else 0o644
+    )
+    temp_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=os.path.basename(asset_path) + ".",
+            suffix=".tmp",
+            dir=parent,
+            delete=False,
+        ) as handle:
+            temp_path = handle.name
+            handle.write(asset_bytes)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temp_path, destination_mode)
+        os.replace(temp_path, asset_path)
+    except Exception:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
+
+
+def _snapshot_file(path: str) -> Optional[bytes]:
+    """Read an existing regular file before a two-file credential commit."""
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+def _restore_snapshot(path: str, snapshot: Optional[bytes]) -> None:
+    """Restore a captured file or remove a file created by a failed commit."""
+    if snapshot is None:
+        if os.path.exists(path):
+            os.unlink(path)
+        return
+    _atomic_write_bytes(path, snapshot)
+
+
+def write_asset_with_credential(
+    *,
+    asset_path: str,
+    asset_bytes: bytes,
+    asset_title: str,
+    asset_format: str,
+    ai_generated: bool,
+    model_id: Optional[str] = None,
+    claim_generator: str = CLAIM_GENERATOR_DEFAULT,
+    actions: Optional[list] = None,
+    ingredients: Optional[list] = None,
+    edited: bool = False,
+    digital_source_type: Optional[str] = None,
+    signer: Optional[CredentialSigner] = None,
+    governance_decision: Optional[dict] = None,
+) -> dict:
+    """Write one media asset, emit its real Khipu receipt, then bind that receipt
+    into the C2PA-aligned sidecar.
+
+    Ordering is deliberate: the deny-by-default PURIQ decision must allow the
+    state change before the asset is replaced. Receipt-on-write then means
+    `khipu_emit` records the completed write. Reads and verification do not emit
+    a receipt. The final attested-execution edge stays UNAVAILABLE because this
+    module does not contain a hardware attestation verifier.
+    """
+    from a11oy_code_orchestrator import consume_governance_decision, khipu_emit
+
+    gate = dict(governance_decision or {})
+    governed_resource = os.path.abspath(asset_path)
+    governed_asset_hash = sha256_bytes(asset_bytes)
+    receipt_link = gate.get("khipu_receipt")
+    expected_payload = {
+        "action": "fs_write",
+        "allow": gate.get("allow"),
+        "score": gate.get("score"),
+        "lambda": gate.get("lambda"),
+        "hukla_fired": gate.get("hukla_fired"),
+        "yuyay_violations": gate.get("yuyay_violations"),
+        "resource": gate.get("resource"),
+        "asset_sha256": gate.get("asset_sha256"),
+    }
+    receipt_id = (
+        receipt_link.get("receipt_id") if isinstance(receipt_link, dict) else None
+    )
+    receipt_hash = (
+        receipt_link.get("hash") if isinstance(receipt_link, dict) else None
+    )
+    evidence_is_bound = (
+        gate.get("allow") is True
+        and gate.get("resource") == governed_resource
+        and gate.get("asset_sha256") == governed_asset_hash
+        and isinstance(receipt_id, str)
+        and isinstance(receipt_hash, str)
+        and receipt_link.get("chain_verified") is True
+        and receipt_link.get("persistence_state") == "SQLITE"
+    )
+    if not evidence_is_bound or not consume_governance_decision(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+        governed_action="fs_write",
+        resource=governed_resource,
+        expected_payload=expected_payload,
+    ):
+        raise PermissionError(
+            "PURIQ gate denied media write: an authenticated, durable, "
+            "unused decision bound to the exact resource and bytes is required"
+        )
+
+    sidecar_path = asset_path + ".c2pa.json"
+    original_asset = _snapshot_file(asset_path)
+    original_sidecar = _snapshot_file(sidecar_path)
+    asset_mutated = False
+    receipt = None
+    try:
+        _atomic_write_bytes(asset_path, asset_bytes)
+        asset_mutated = True
+        asset_hash = sha256_file(asset_path)
+
+        receipt = khipu_emit(
+            "content-credential.media.write",
+            {
+                "asset_title": asset_title,
+                "asset_format": asset_format,
+                "asset_hash": asset_hash,
+                "ai_generated": ai_generated,
+                "model_id": model_id,
+            },
+        )
+        receipt_link = {
+            "receipt_id": receipt.get("receipt_id"),
+            "receipt_hash": receipt.get("hash"),
+            "receipt_hash_alg": "sha256",
+            "chain_verified": receipt.get("chain_verified"),
+            "dsse_signed": bool(receipt.get("dsse_signed", False)),
+            "attested_execution": {
+                "state": "UNAVAILABLE",
+                "receipt_id": None,
+                "reason": "no independently verified attestation receipt supplied",
+            },
+        }
+        manifest = build_manifest(
+            asset_bytes=asset_bytes,
+            asset_title=asset_title,
+            asset_format=asset_format,
+            ai_generated=ai_generated,
+            model_id=model_id,
+            claim_generator=claim_generator,
+            actions=actions,
+            ingredients=ingredients,
+            edited=edited,
+            digital_source_type=digital_source_type,
+            khipu_receipt=receipt_link,
+        )
+        credential = build_credential(manifest, signer)
+        staged_verification = verify(credential, asset_bytes=asset_bytes)
+        if not staged_verification.ok:
+            raise RuntimeError(
+                "credential failed verification before the sidecar commit"
+            )
+        sidecar_path = write_sidecar(asset_path, credential)
+        verification = verify(credential, asset_path=asset_path)
+        if not verification.ok:
+            raise RuntimeError("credential failed verification after the sidecar commit")
+    except Exception as exc:
+        if asset_mutated:
+            failure_receipt = None
+            if receipt is not None:
+                try:
+                    failure_receipt = khipu_emit(
+                        "content-credential.media.write.failed",
+                        {
+                            "write_receipt_id": receipt.get("receipt_id"),
+                            "write_receipt_hash": receipt.get("hash"),
+                            "error_type": type(exc).__name__,
+                            "rollback_planned": True,
+                        },
+                    )
+                except Exception:
+                    failure_receipt = None
+            rollback_errors = []
+            for path, snapshot in (
+                (sidecar_path, original_sidecar),
+                (asset_path, original_asset),
+            ):
+                try:
+                    _restore_snapshot(path, snapshot)
+                except Exception as rollback_exc:
+                    rollback_errors.append(f"{path}: {rollback_exc!r}")
+            if receipt is not None and not rollback_errors:
+                try:
+                    khipu_emit(
+                        "content-credential.media.write.rollback",
+                        {
+                            "write_receipt_id": receipt.get("receipt_id"),
+                            "write_receipt_hash": receipt.get("hash"),
+                            "failure_receipt_id": (
+                                failure_receipt.get("receipt_id")
+                                if failure_receipt is not None
+                                else None
+                            ),
+                            "rollback_state": "COMPLETED",
+                        },
+                    )
+                except Exception:
+                    pass
+            if rollback_errors:
+                raise RuntimeError(
+                    "credential commit failed and rollback was incomplete: "
+                    + "; ".join(rollback_errors)
+                ) from exc
+        raise
+    return {
+        "asset_path": asset_path,
+        "asset_hash": asset_hash,
+        "sidecar_path": sidecar_path,
+        "khipu_receipt": receipt,
+        "governance_decision": gate,
+        "credential": credential,
+        "verification": verification.to_dict(),
+    }
 
 
 @dataclass
 class VerifyResult:
     ok: bool                      # cryptographically + structurally consistent
-    trust_level: str              # STRUCTURAL-ONLY | SELF_SIGNED | C2PA_TRUST_LIST | TAMPERED
+    trust_level: str              # includes explicit unavailable and tampered states
     hash_ok: bool                 # asset bytes match the manifest hard binding
+    claim_hash_ok: bool           # canonical claim + receipt link match their binding
     signature_ok: Optional[bool]  # None when unsigned
+    khipu_authentication: str     # NOT_PRESENT | VERIFIED | UNAVAILABLE | INVALID
     self_signed: bool
     reasons: list
     summary: str
@@ -511,6 +849,7 @@ def verify(
          the canonical claim. A tampered claim or wrong key => signature_ok False.
       3. TRUST LEVEL, reported HONESTLY:
            - no signature        => STRUCTURAL-ONLY (never a green)
+           - receipt store absent => AUTHENTICATION-UNAVAILABLE (not tampering)
            - hash or sig mismatch => TAMPERED (reject)
            - valid self-signed   => SELF_SIGNED (NOT C2PA-TL anchored)
            - key in trust_list_pubkeys (a stand-in for the C2PA Trust List) => C2PA_TRUST_LIST
@@ -523,6 +862,51 @@ def verify(
     manifest = credential.get("active_manifest", {})
     claim = manifest.get("claim") or {}
     expected_hash = manifest.get("asset_hash") or claim.get("asset", {}).get("hash")
+    expected_claim_hash = credential.get("claim_sha256")
+    actual_claim_hash = sha256_bytes(_canon(claim))
+    claim_hash_ok = actual_claim_hash == expected_claim_hash
+
+    receipt_assertions = [
+        assertion.get("data")
+        for assertion in claim.get("assertions", [])
+        if assertion.get("label") == KHIPU_ASSERTION_LABEL
+    ]
+    top_level_receipt = manifest.get("khipu_receipt")
+    khipu_authentication = "NOT_PRESENT"
+    if top_level_receipt is not None:
+        claim_hash_ok = claim_hash_ok and receipt_assertions == [top_level_receipt]
+        try:
+            _validate_khipu_receipt_link(
+                top_level_receipt,
+                asset_hash=expected_hash,
+                asset_title=manifest.get("asset_title"),
+                asset_format=manifest.get("asset_format"),
+                ai_generated=manifest.get("ai_generated"),
+                model_id=manifest.get("model_id"),
+            )
+            khipu_authentication = "VERIFIED"
+        except KhipuAuthenticationUnavailable as exc:
+            khipu_authentication = "UNAVAILABLE"
+            reasons.append(
+                "KHIPU AUTHENTICATION UNAVAILABLE: the receipt assertion could "
+                f"not be checked against durable state ({exc})."
+            )
+        except Exception as exc:
+            khipu_authentication = "INVALID"
+            claim_hash_ok = False
+            reasons.append(
+                "KHIPU AUTHENTICATION INVALID: the receipt assertion is not "
+                f"authenticated by the authoritative registry ({exc})."
+            )
+    elif receipt_assertions:
+        khipu_authentication = "INVALID"
+        claim_hash_ok = False
+
+    if not claim_hash_ok:
+        reasons.append(
+            "CLAIM-BINDING MISMATCH: canonical claim hash or Khipu receipt assertion "
+            "does not match the credential binding."
+        )
 
     # 1. Hard binding to real bytes.
     if asset_path is not None:
@@ -585,12 +969,18 @@ def verify(
                 reasons.append(f"signature check error: {e!r}")
 
     # 3. Honest trust level.
-    if not sigs:
-        trust_level = TRUST_STRUCTURAL_ONLY
-        ok = hash_ok  # structurally consistent iff the bytes match; still NOT validated
-    elif not hash_ok or not signature_ok:
+    if not hash_ok or not claim_hash_ok:
         trust_level = TRUST_TAMPERED
         ok = False
+    elif sigs and not signature_ok:
+        trust_level = TRUST_TAMPERED
+        ok = False
+    elif khipu_authentication == "UNAVAILABLE":
+        trust_level = TRUST_AUTH_UNAVAILABLE
+        ok = False
+    elif not sigs:
+        trust_level = TRUST_STRUCTURAL_ONLY
+        ok = True  # structurally consistent; still NOT cryptographically validated
     else:
         # Valid signature + matching bytes. Is the key a C2PA-Trust-List anchor?
         on_trust_list = False
@@ -612,6 +1002,8 @@ def verify(
 
     summary = (
         f"hard_binding={'OK' if hash_ok else 'MISMATCH'}; "
+        f"claim_binding={'OK' if claim_hash_ok else 'MISMATCH'}; "
+        f"khipu_authentication={khipu_authentication}; "
         f"signature={'n/a (unsigned)' if signature_ok is None else ('OK' if signature_ok else 'FAIL')}; "
         f"trust_level={trust_level}. "
         + ("A signature is NOT proof of safety (Doctrine v11); trust reported honestly.")
@@ -621,7 +1013,9 @@ def verify(
         ok=ok,
         trust_level=trust_level,
         hash_ok=hash_ok,
+        claim_hash_ok=claim_hash_ok,
         signature_ok=signature_ok,
+        khipu_authentication=khipu_authentication,
         self_signed=self_signed,
         reasons=reasons,
         summary=summary,
@@ -629,13 +1023,17 @@ def verify(
 
 
 __all__ = [
-    "CLAIM_GENERATOR_DEFAULT", "MANIFEST_TYPE", "DSSE_PAYLOAD_TYPE", "DOCTRINE", "CITATIONS",
+    "CLAIM_GENERATOR_DEFAULT", "MANIFEST_TYPE", "DSSE_PAYLOAD_TYPE",
+    "KHIPU_ASSERTION_LABEL", "DOCTRINE", "CITATIONS",
     "DST_TRAINED_ALGORITHMIC", "DST_COMPOSITE_WITH_TRAINED", "DST_DIGITAL_CAPTURE",
     "DST_CREATIVE_WORK",
-    "TRUST_STRUCTURAL_ONLY", "TRUST_SELF_SIGNED", "TRUST_C2PA_TRUST_LIST", "TRUST_TAMPERED",
+    "TRUST_STRUCTURAL_ONLY", "TRUST_SELF_SIGNED", "TRUST_C2PA_TRUST_LIST",
+    "TRUST_TAMPERED", "TRUST_AUTH_UNAVAILABLE",
+    "KhipuAuthenticationUnavailable",
     "sha256_file", "sha256_bytes",
     "Ingredient", "ContentCredentialManifest", "build_manifest",
-    "CredentialSigner", "build_credential", "write_sidecar", "VerifyResult", "verify",
+    "CredentialSigner", "build_credential", "write_sidecar",
+    "write_asset_with_credential", "VerifyResult", "verify",
 ]
 
 

@@ -44,6 +44,7 @@ memory write is Khipu-receipted.
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import math
@@ -53,8 +54,10 @@ import secrets
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import uuid
+from collections import OrderedDict
 from contextlib import closing
 from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
@@ -743,6 +746,12 @@ DEFAULT_SYSTEM_PROMPT = (
 
 _KHIPU_GENESIS = "0" * 64
 _khipu_tip = _KHIPU_GENESIS
+_khipu_lock = threading.RLock()
+try:
+    _KHIPU_CACHE_MAX = max(16, int(os.environ.get("A11OY_KHIPU_CACHE_MAX", "512")))
+except ValueError:
+    _KHIPU_CACHE_MAX = 512
+_khipu_receipts: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
 # Reference to the host FastAPI app, captured in attach(app), so khipu_emit can
 # co-sign receipts through the REAL DSSE signer (app.state.szl_emit_signed_receipt,
@@ -775,6 +784,246 @@ def _dsse_cosign(body: dict[str, Any]) -> dict[str, Any]:
         return {}  # never break the turn over a signing hiccup
 
 
+def _khipu_core_digest(receipt: dict[str, Any]) -> str:
+    core = {
+        "receipt_id": receipt["receipt_id"],
+        "action": receipt["action"],
+        "ts": receipt["ts"],
+        "prev": receipt["prev"],
+        "payload": receipt["payload"],
+    }
+    return hashlib.sha256(
+        json.dumps(core, sort_keys=True, default=str).encode()
+    ).hexdigest()
+
+
+def _khipu_cache_put(receipt: dict[str, Any]) -> None:
+    receipt_id = receipt.get("receipt_id")
+    if not isinstance(receipt_id, str):
+        return
+    with _khipu_lock:
+        _khipu_receipts[receipt_id] = copy.deepcopy(receipt)
+        _khipu_receipts.move_to_end(receipt_id)
+        while len(_khipu_receipts) > _KHIPU_CACHE_MAX:
+            _khipu_receipts.popitem(last=False)
+
+
+def _khipu_load_receipt(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+    durable_only: bool = False,
+) -> dict[str, Any] | None:
+    state, receipt = _khipu_load_receipt_state(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+        durable_only=durable_only,
+    )
+    return receipt if state == "FOUND" else None
+
+
+def _khipu_load_receipt_state(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+    durable_only: bool = False,
+) -> tuple[str, dict[str, Any] | None]:
+    if not durable_only:
+        with _khipu_lock:
+            if receipt_id is not None:
+                cached = _khipu_receipts.get(receipt_id)
+            else:
+                cached = next(
+                    (
+                        candidate
+                        for candidate in _khipu_receipts.values()
+                        if candidate.get("hash") == receipt_hash
+                    ),
+                    None,
+                )
+            if cached is not None and (
+                receipt_hash is None or cached.get("hash") == receipt_hash
+            ):
+                return "FOUND", copy.deepcopy(cached)
+
+    state, durable = _db_read_receipt_state(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+    )
+    if durable is not None:
+        _khipu_cache_put(durable)
+        return "FOUND", copy.deepcopy(durable)
+    return state, None
+
+
+def khipu_authenticate_receipt(
+    receipt_id: str,
+    receipt_hash: str,
+    *,
+    expected_action: str | None = None,
+    expected_payload: dict[str, Any] | None = None,
+    expected_dsse_signed: bool | None = None,
+    require_durable: bool = False,
+) -> str:
+    """Authenticate a receipt against durable Khipu data with a bounded cache.
+
+    A supplied identifier and digest are never sufficient by themselves. When
+    ``require_durable`` is true, every chain link must be present in SQLite so a
+    saved credential remains verifiable across workers and process restarts.
+    """
+    durable_chain: list[dict[str, Any]] | None = None
+    if require_durable:
+        state, durable_chain = _db_read_receipt_chain(
+            receipt_id=receipt_id,
+            receipt_hash=receipt_hash,
+        )
+        known = durable_chain[0] if durable_chain else None
+        for durable_receipt in durable_chain or []:
+            _khipu_cache_put(durable_receipt)
+    else:
+        state, known = _khipu_load_receipt_state(
+            receipt_id=receipt_id,
+            receipt_hash=receipt_hash,
+            durable_only=False,
+        )
+    if known is None:
+        return (
+            "UNAVAILABLE"
+            if state in {"UNAVAILABLE", "NOT_FOUND"}
+            else "INVALID"
+        )
+    if (
+        known.get("hash") != receipt_hash
+        or known.get("chain_verified") is not True
+        or expected_action is not None
+        and known.get("action") != expected_action
+        or expected_payload is not None
+        and known.get("payload") != expected_payload
+        or expected_dsse_signed is not None
+        and bool(known.get("dsse_signed", False)) is not expected_dsse_signed
+    ):
+        return "INVALID"
+
+    if durable_chain is not None:
+        for index, cursor in enumerate(durable_chain):
+            cursor_hash = cursor.get("hash")
+            if (
+                cursor.get("receipt_id") is None
+                or not isinstance(cursor_hash, str)
+                or cursor.get("chain_verified") is not True
+                or _khipu_core_digest(cursor) != cursor_hash
+            ):
+                return "INVALID"
+            previous = cursor.get("prev")
+            if previous == _KHIPU_GENESIS:
+                return (
+                    "VERIFIED"
+                    if index == len(durable_chain) - 1
+                    else "INVALID"
+                )
+            if (
+                index + 1 >= len(durable_chain)
+                or durable_chain[index + 1].get("hash") != previous
+            ):
+                return "UNAVAILABLE"
+        return "UNAVAILABLE"
+
+    cursor = known
+    visited: set[str] = set()
+    while True:
+        cursor_hash = cursor.get("hash")
+        if (
+            cursor.get("receipt_id") is None
+            or not isinstance(cursor_hash, str)
+            or cursor_hash in visited
+            or cursor.get("chain_verified") is not True
+            or _khipu_core_digest(cursor) != cursor_hash
+        ):
+            return "INVALID"
+        if cursor.get("prev") == _KHIPU_GENESIS:
+            return "VERIFIED"
+        visited.add(cursor_hash)
+        predecessor_state, predecessor = _khipu_load_receipt_state(
+            receipt_hash=cursor.get("prev"),
+            durable_only=require_durable,
+        )
+        if predecessor is None:
+            return (
+                "UNAVAILABLE"
+                if predecessor_state in {"UNAVAILABLE", "NOT_FOUND"}
+                else "INVALID"
+            )
+        cursor = predecessor
+
+
+def khipu_verify_receipt(
+    receipt_id: str,
+    receipt_hash: str,
+    *,
+    expected_action: str | None = None,
+    expected_payload: dict[str, Any] | None = None,
+    expected_dsse_signed: bool | None = None,
+    require_durable: bool = False,
+) -> bool:
+    return (
+        khipu_authenticate_receipt(
+            receipt_id,
+            receipt_hash,
+            expected_action=expected_action,
+            expected_payload=expected_payload,
+            expected_dsse_signed=expected_dsse_signed,
+            require_durable=require_durable,
+        )
+        == "VERIFIED"
+    )
+
+
+def consume_governance_decision(
+    *,
+    receipt_id: str,
+    receipt_hash: str,
+    governed_action: str,
+    resource: str,
+    expected_payload: dict[str, Any],
+) -> bool:
+    """Authenticate and atomically consume one durable governance decision."""
+    if (
+        khipu_authenticate_receipt(
+            receipt_id,
+            receipt_hash,
+            expected_action="puriq.decide",
+            expected_payload=expected_payload,
+            require_durable=True,
+        )
+        != "VERIFIED"
+    ):
+        return False
+    try:
+        with closing(_db()) as c:
+            c.execute("BEGIN IMMEDIATE")
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS governance_consumptions(
+                  receipt_id TEXT PRIMARY KEY,
+                  receipt_hash TEXT NOT NULL,
+                  governed_action TEXT NOT NULL,
+                  resource TEXT NOT NULL,
+                  consumed REAL NOT NULL
+                )
+                """
+            )
+            c.execute(
+                "INSERT INTO governance_consumptions("
+                "receipt_id,receipt_hash,governed_action,resource,consumed"
+                ") VALUES(?,?,?,?,?)",
+                (receipt_id, receipt_hash, governed_action, resource, time.time()),
+            )
+            c.commit()
+    except sqlite3.Error:
+        return False
+    return True
+
+
 def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Emit a chain-verified Khipu receipt. prod_i Khipu_i(a) requires chain_verified.
 
@@ -785,24 +1034,29 @@ def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     turns genuinely true rather than aspirational.
     """
     global _khipu_tip
-    ts = time.time()
-    body = {
-        "receipt_id": str(uuid.uuid4()),
-        "action": action,
-        "ts": ts,
-        "prev": _khipu_tip,
-        "payload": payload,
-    }
-    h = hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode()).hexdigest()
-    body["hash"] = h
-    body["chain_verified"] = True
-    _khipu_tip = h
-    body.update(_dsse_cosign(body))  # additive: dsse_digest/dsse_signed if a signer is wired
-    try:
-        _db_write_receipt(body)
-    except Exception:
-        pass  # receipt persistence is best-effort; in-memory chain still verifies
-    return body
+    with _khipu_lock:
+        body = {
+            "receipt_id": str(uuid.uuid4()),
+            "action": action,
+            "ts": time.time(),
+            "prev": _khipu_tip,
+            "payload": copy.deepcopy(payload),
+        }
+        body["hash"] = _khipu_core_digest(body)
+        body["chain_verified"] = True
+        body.update(
+            _dsse_cosign(body)
+        )  # additive: dsse_digest/dsse_signed if a signer is wired
+        try:
+            _db_write_receipt(body)
+        except Exception:
+            body["chain_verified"] = False
+            body["persistence_state"] = "UNAVAILABLE"
+            return copy.deepcopy(body)
+        body["persistence_state"] = "SQLITE"
+        _khipu_tip = body["hash"]
+        _khipu_cache_put(body)
+    return copy.deepcopy(body)
 
 
 # ---------------------------------------------------------------------------
@@ -933,10 +1187,18 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
         reason = f"PURIQ score {score:.3f} < threshold {PURIQ_THRESHOLD}"
     else:
         reason = "PURIQ gate passed."
-    receipt = khipu_emit("puriq.decide", {
+    resource = ctx.get("asset_path") if isinstance(ctx.get("asset_path"), str) else None
+    asset_sha256 = (
+        ctx.get("asset_sha256")
+        if isinstance(ctx.get("asset_sha256"), str)
+        else None
+    )
+    receipt_payload = {
         "action": action, "allow": allow, "score": round(score, 4),
         "lambda": lam, "hukla_fired": huk_fired, "yuyay_violations": yviol,
-    })
+        "resource": resource, "asset_sha256": asset_sha256,
+    }
+    receipt = khipu_emit("puriq.decide", receipt_payload)
     return {
         "allow": allow,
         "score": round(score, 4),
@@ -949,8 +1211,11 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
         "two_person_required": two_person_required,
         "threshold": PURIQ_THRESHOLD,
         "reason": reason,
+        "resource": resource,
+        "asset_sha256": asset_sha256,
         "khipu_receipt": {"receipt_id": receipt["receipt_id"], "hash": receipt["hash"],
-                          "chain_verified": receipt["chain_verified"]},
+                          "chain_verified": receipt["chain_verified"],
+                          "persistence_state": receipt.get("persistence_state")},
     }
 
 
@@ -2017,15 +2282,178 @@ def init_db() -> None:
               key TEXT PRIMARY KEY, owner TEXT, created REAL, rpm INTEGER, active INTEGER);
             CREATE TABLE IF NOT EXISTS receipts(
               hash TEXT PRIMARY KEY, receipt_id TEXT, action TEXT, ts REAL, body TEXT);
+            CREATE UNIQUE INDEX IF NOT EXISTS receipts_receipt_id_idx
+              ON receipts(receipt_id);
+            CREATE TABLE IF NOT EXISTS governance_consumptions(
+              receipt_id TEXT PRIMARY KEY,
+              receipt_hash TEXT NOT NULL,
+              governed_action TEXT NOT NULL,
+              resource TEXT NOT NULL,
+              consumed REAL NOT NULL);
             """
         )
+        _rehydrate_khipu_tip(c)
         c.commit()
+
+
+def _decode_db_receipt(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    try:
+        body = json.loads(row["body"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if (
+        not isinstance(body, dict)
+        or body.get("hash") != row["hash"]
+        or body.get("receipt_id") != row["receipt_id"]
+        or body.get("action") != row["action"]
+        or body.get("ts") != row["ts"]
+    ):
+        return None
+    return body
+
+
+def _db_read_receipt(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+) -> dict[str, Any] | None:
+    state, receipt = _db_read_receipt_state(
+        receipt_id=receipt_id,
+        receipt_hash=receipt_hash,
+    )
+    return receipt if state == "FOUND" else None
+
+
+def _db_read_receipt_state(
+    *,
+    receipt_id: str | None = None,
+    receipt_hash: str | None = None,
+) -> tuple[str, dict[str, Any] | None]:
+    if receipt_id is None and receipt_hash is None:
+        return "NOT_FOUND", None
+    clauses = []
+    values: list[str] = []
+    if receipt_id is not None:
+        clauses.append("receipt_id=?")
+        values.append(receipt_id)
+    if receipt_hash is not None:
+        clauses.append("hash=?")
+        values.append(receipt_hash)
+    try:
+        with closing(_db()) as c:
+            row = c.execute(
+                "SELECT hash,receipt_id,action,ts,body FROM receipts WHERE "
+                + " AND ".join(clauses)
+                + " LIMIT 1",
+                values,
+            ).fetchone()
+    except sqlite3.Error:
+        return "UNAVAILABLE", None
+    receipt = _decode_db_receipt(row)
+    if row is None:
+        return "NOT_FOUND", None
+    if receipt is None:
+        return "INVALID", None
+    return "FOUND", receipt
+
+
+def _db_read_receipt_chain(
+    *,
+    receipt_id: str,
+    receipt_hash: str,
+) -> tuple[str, list[dict[str, Any]] | None]:
+    """Load one durable predecessor chain with one indexed recursive query."""
+    try:
+        with closing(_db()) as c:
+            rows = c.execute(
+                """
+                WITH RECURSIVE chain(
+                  hash, receipt_id, action, ts, body, prev, depth
+                ) AS (
+                  SELECT hash, receipt_id, action, ts, body,
+                         json_extract(body, '$.prev'), 0
+                    FROM receipts
+                   WHERE receipt_id=? AND hash=?
+                  UNION ALL
+                  SELECT r.hash, r.receipt_id, r.action, r.ts, r.body,
+                         json_extract(r.body, '$.prev'), chain.depth + 1
+                    FROM receipts AS r
+                    JOIN chain ON r.hash=chain.prev
+                   WHERE chain.prev != ?
+                )
+                SELECT hash, receipt_id, action, ts, body, depth
+                  FROM chain
+                 ORDER BY depth
+                """,
+                (receipt_id, receipt_hash, _KHIPU_GENESIS),
+            ).fetchall()
+    except sqlite3.Error:
+        return "UNAVAILABLE", None
+    if not rows:
+        return "NOT_FOUND", None
+    chain = []
+    for row in rows:
+        receipt = _decode_db_receipt(row)
+        if receipt is None:
+            return "INVALID", None
+        chain.append(receipt)
+    return "FOUND", chain
+
+
+def _rehydrate_khipu_tip(connection: sqlite3.Connection) -> None:
+    global _khipu_tip
+    row = connection.execute(
+        "SELECT hash,receipt_id,action,ts,body FROM receipts "
+        "ORDER BY rowid DESC LIMIT 1"
+    ).fetchone()
+    receipt = _decode_db_receipt(row)
+    if receipt is None:
+        return
+    try:
+        valid = _khipu_core_digest(receipt) == receipt.get("hash")
+    except (KeyError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        return
+    with _khipu_lock:
+        _khipu_tip = receipt["hash"]
+    _khipu_cache_put(receipt)
 
 
 def _db_write_receipt(body: dict[str, Any]) -> None:
     with closing(_db()) as c:
-        c.execute("INSERT OR IGNORE INTO receipts(hash,receipt_id,action,ts,body) VALUES(?,?,?,?,?)",
-                  (body["hash"], body["receipt_id"], body["action"], body["ts"], json.dumps(body, default=str)))
+        c.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS receipts(
+              hash TEXT PRIMARY KEY, receipt_id TEXT, action TEXT, ts REAL, body TEXT);
+            CREATE UNIQUE INDEX IF NOT EXISTS receipts_receipt_id_idx
+              ON receipts(receipt_id);
+            """
+        )
+        encoded = json.dumps(body, default=str)
+        inserted = c.execute(
+            "INSERT OR IGNORE INTO receipts(hash,receipt_id,action,ts,body) "
+            "VALUES(?,?,?,?,?)",
+            (
+                body["hash"],
+                body["receipt_id"],
+                body["action"],
+                body["ts"],
+                encoded,
+            ),
+        )
+        if inserted.rowcount == 0:
+            existing = c.execute(
+                "SELECT hash,receipt_id,action,ts,body FROM receipts "
+                "WHERE hash=? OR receipt_id=? LIMIT 1",
+                (body["hash"], body["receipt_id"]),
+            ).fetchone()
+            if _decode_db_receipt(existing) != body:
+                raise sqlite3.IntegrityError(
+                    "receipt identifier or hash conflicts with durable history"
+                )
         c.commit()
 
 

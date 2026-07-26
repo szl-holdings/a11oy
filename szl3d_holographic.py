@@ -40,6 +40,7 @@ from urllib.request import Request, urlopen
 SURFACES: List[Dict[str, str]] = [
     {"id": "integritycontrol", "cat": "governance", "title": "Integrity Control Plane", "owner": "Wave15"},
     {"id": "atlas", "cat": "map", "flag": True, "title": "Atlas", "owner": "Wave27"},
+    {"id": "loopforge", "cat": "brain", "title": "Loop Forge", "owner": "Wave25"},
     {"id": "frontier", "cat": "map", "title": "Frontier", "owner": "Dev0"},
     {"id": "neuromorphic", "cat": "more", "title": "Neuromorphic", "owner": "Dev0"},
     {"id": "interpretability", "cat": "governance", "title": "Interpretability", "owner": "Dev0"},
@@ -109,7 +110,6 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "zkinfer", "cat": "proof", "title": "zkML Proof-of-Inference (Cryptographic Receipts)", "owner": "Wave18"},
     {"id": "flower", "cat": "brain", "title": "Flower Brain", "owner": "Wave24"},
     {"id": "agentmem", "cat": "brain", "title": "AgentMem · Λ-Governed Agent Memory (synthesis)", "owner": "Wave19"},
-    {"id": "loopforge", "cat": "brain", "title": "Loop Forge", "owner": "Wave25"},
     {"id": "edgefusion", "cat": "energy", "title": "EdgeFusion · Λ-Gated Energy-Proportional Sensor Fusion (synthesis)", "owner": "Wave19"},
     {"id": "evalarena", "cat": "governance", "flag": True, "title": "Eval Arena · Governed Eval / Red-Team", "owner": "WaveH-Team2"},
     {"id": "vqc", "cat": "energy", "title": "Governed VQC · Parameter-Shift Hybrid QML (MODELED)", "owner": "WaveH"},
