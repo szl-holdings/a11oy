@@ -166,9 +166,9 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
             "verdict_expected_base": origin,
             "verdict_summary": {
                 "endpoints": 5,
-                "ok": 3,
+                "ok": 4,
                 "skippedStateChanging": 0,
-                "lies": 1,
+                "lies": 0,
                 "unreachable": 0,
                 "throttled": 1,
                 "p95_worst": 1806,
@@ -226,6 +226,16 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             report["routes"]["build_info"]["build_identity"]["version_source"],
             "UNKNOWN",
         )
+
+    def test_relock_rejects_any_doctrine_lie(self) -> None:
+        session = success_session(self.origin, self.source)
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        readiness = session.responses[("GET", readiness_url)]._payload
+        readiness["verdict_summary"]["ok"] = 3
+        readiness["verdict_summary"]["lies"] = 1
+
+        with self.assertRaisesRegex(relock.RelockError, "doctrine lies"):
+            relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
         self.assertEqual(
@@ -302,9 +312,9 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             "verdict_expected_base": "https://szlholdings-a11oy.hf.space",
             "verdict_summary": {
                 "endpoints": 5,
-                "ok": 3,
+                "ok": 4,
                 "skippedStateChanging": 0,
-                "lies": 1,
+                "lies": 0,
                 "unreachable": 0,
                 "throttled": 1,
                 "p95_worst": 1806,
@@ -332,6 +342,18 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "readiness": {
                     **valid,
                     "verdict_summary": {**valid["verdict_summary"], "endpoints": 6},
+                },
+                "revision": "a" * 40,
+            },
+            {
+                "name": "doctrine lie",
+                "readiness": {
+                    **valid,
+                    "verdict_summary": {
+                        **valid["verdict_summary"],
+                        "ok": 3,
+                        "lies": 1,
+                    },
                 },
                 "revision": "a" * 40,
             },
@@ -420,6 +442,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 False,
                 False,
                 False,
+                False,
             ],
         )
 
@@ -492,6 +515,44 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         )
         self.assertIn(
             'window.addEventListener("pageshow", _resumeEvidenceRefresh)',
+            source,
+        )
+
+    def test_superseded_evidence_fetch_cannot_overwrite_newer_evidence(self) -> None:
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        match = re.search(
+            r"async function _fetchEvidenceSnapshot\(forceRefresh = false\) \{.*?^\}",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        script = (
+            "let evidenceSnapshotPromise = null;\n"
+            "let evidenceRefreshGeneration = 0;\n"
+            "const pending = [];\n"
+            "function fetch(url) { return new Promise((resolve) => "
+            "pending.push(() => resolve({ok:true,json:async()=>({url})}))); }\n"
+            + match.group(0)
+            + "\n(async () => {"
+            + "\n  const oldRequest = _fetchEvidenceSnapshot();"
+            + "\n  const newRequest = _fetchEvidenceSnapshot(true);"
+            + "\n  pending.slice(2).forEach((resolve) => resolve());"
+            + "\n  const newResult = await newRequest;"
+            + "\n  pending.slice(0, 2).forEach((resolve) => resolve());"
+            + "\n  const oldResult = await oldRequest;"
+            + "\n  console.log(JSON.stringify([oldResult.generation,"
+            + " newResult.generation, evidenceRefreshGeneration]));"
+            + "\n})();"
+        )
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(json.loads(result.stdout), [0, 1, 1])
+        self.assertIn(
+            "if (generation !== evidenceRefreshGeneration) return;",
             source,
         )
 
@@ -649,6 +710,21 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertIn("needs: [deploy, readiness-verdict]", self.workflow)
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
         self.assertIn("--expected-source-sha \"$SOURCE_SHA\"", self.workflow)
+        self.assertIn("--soft", self.workflow)
+        self.assertLess(
+            self.workflow.index("node tools/readiness-harness/probe_runner.mjs"),
+            self.workflow.index("Upload immutable full probe evidence"),
+        )
+        self.assertLess(
+            self.workflow.index("Upload immutable full probe evidence"),
+            self.workflow.index(
+                "python .github/scripts/publish_readiness_verdict.py"
+            ),
+        )
+        publisher = (
+            ROOT / ".github" / "scripts" / "publish_readiness_verdict.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("probe summary contains doctrine lies", publisher)
 
     def test_immutable_artifacts_are_unique_across_rerun_attempts(self) -> None:
         self.assertIn(

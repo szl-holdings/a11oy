@@ -61,9 +61,9 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
         "sourceRevision": source_sha,
         "summary": {
             "endpoints": 5,
-            "ok": 3,
+            "ok": 4,
             "skippedStateChanging": 0,
-            "lies": 1,
+            "lies": 0,
             "unreachable": 0,
             "throttled": 1,
             "p95_worst": 1806,

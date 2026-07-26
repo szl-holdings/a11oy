@@ -582,6 +582,7 @@ const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const EVIDENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let evidenceSnapshotPromise = null;
 let evidenceRefreshTimer = null;
+let evidenceRefreshGeneration = 0;
 if (evidenceToggle && evidencePanel) {
   evidenceToggle.addEventListener("click", () => {
     const open = evidenceToggle.getAttribute("aria-expanded") !== "true";
@@ -597,8 +598,12 @@ if (evidenceToggle && evidencePanel) {
   });
 }
 async function _fetchEvidenceSnapshot(forceRefresh = false) {
-  if (forceRefresh) evidenceSnapshotPromise = null;
+  if (forceRefresh) {
+    evidenceRefreshGeneration += 1;
+    evidenceSnapshotPromise = null;
+  }
   if (evidenceSnapshotPromise) return evidenceSnapshotPromise;
+  const generation = evidenceRefreshGeneration;
   evidenceSnapshotPromise = (async () => {
     const getJson = async (url) => {
       try {
@@ -610,7 +615,7 @@ async function _fetchEvidenceSnapshot(forceRefresh = false) {
       getJson("/api/a11oy/v1/readiness/tab-matrix?view=summary"),
       getJson("/api/build-info"),
     ]);
-    return { readiness, build };
+    return { readiness, build, generation };
   })();
   return evidenceSnapshotPromise;
 }
@@ -652,6 +657,7 @@ function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
   return (
     endpoints > 0 &&
     executed > 0 &&
+    verdict.lies === 0 &&
     outcomes.reduce((total, value) => total + value, 0) === endpoints
   );
 }
@@ -693,7 +699,8 @@ function _updateEvidenceRail(def, forceRefresh = false) {
   if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
   if (evidenceRuntime) evidenceRuntime.textContent = "CHECKING";
   if (evidenceReadiness) evidenceReadiness.textContent = "CHECKING";
-  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build }) => {
+  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build, generation }) => {
+    if (generation !== evidenceRefreshGeneration) return;
     const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
     const revision = build?.build?.revision || build?.revision || null;
     if (evidenceRuntime) evidenceRuntime.textContent = revision ? `${buildState} · ${String(revision).slice(0,12)}…` : buildState;

@@ -100,6 +100,8 @@ def compact_verdict(
     endpoints, _, skipped, *_ = counts
     if endpoints <= 0 or endpoints - skipped <= 0 or sum(counts[1:]) != endpoints:
         raise VerdictError("probe summary outcomes are inconsistent")
+    if summary["lies"] != 0:
+        raise VerdictError("probe summary contains doctrine lies")
     p95_worst = summary.get("p95_worst")
     if (
         not isinstance(p95_worst, (int, float))

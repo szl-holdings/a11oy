@@ -187,6 +187,8 @@ def validate_readiness_summary(
         or sum(counts[1:]) != endpoints
     ):
         raise RelockError("readiness verdict outcomes are incomplete")
+    if summary["lies"] != 0:
+        raise RelockError("readiness verdict contains doctrine lies")
     p95_worst = summary.get("p95_worst")
     if (
         not isinstance(p95_worst, (int, float))
