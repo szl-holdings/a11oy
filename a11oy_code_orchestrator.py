@@ -1187,7 +1187,11 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
         reason = f"PURIQ score {score:.3f} < threshold {PURIQ_THRESHOLD}"
     else:
         reason = "PURIQ gate passed."
-    resource = ctx.get("asset_path") if isinstance(ctx.get("asset_path"), str) else None
+    resource = (
+        os.path.abspath(ctx["asset_path"])
+        if isinstance(ctx.get("asset_path"), str)
+        else None
+    )
     asset_sha256 = (
         ctx.get("asset_sha256")
         if isinstance(ctx.get("asset_sha256"), str)
@@ -1199,6 +1203,15 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
         "resource": resource, "asset_sha256": asset_sha256,
     }
     receipt = khipu_emit("puriq.decide", receipt_payload)
+    receipt_is_durable = (
+        receipt.get("chain_verified") is True
+        and receipt.get("persistence_state") == "SQLITE"
+    )
+    if allow and not receipt_is_durable:
+        allow = False
+        reason = (
+            "PURIQ gate denied: the decision receipt was not durably persisted."
+        )
     return {
         "allow": allow,
         "score": round(score, 4),

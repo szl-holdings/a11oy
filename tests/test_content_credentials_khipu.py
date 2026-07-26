@@ -276,6 +276,71 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                     governance_decision=decision,
                 )
 
+    def test_puriq_denies_when_decision_receipt_cannot_persist(self):
+        with patch.object(
+            orchestrator,
+            "_db_write_receipt",
+            side_effect=sqlite3.OperationalError("simulated lock"),
+        ):
+            decision = orchestrator.puriq_decide(
+                "fs_write",
+                {
+                    "risk": "high",
+                    "authorized": True,
+                    "has_provenance": True,
+                    "license_class": "GREEN",
+                    "two_person_attested": True,
+                    "chain_verified": True,
+                    "tool": "fs_write",
+                    "asset_path": "relative-media.txt",
+                    "asset_sha256": sha256_bytes(b"media\n"),
+                },
+            )
+
+        self.assertFalse(decision["allow"])
+        self.assertIn("not durably persisted", decision["reason"])
+        self.assertFalse(decision["khipu_receipt"]["chain_verified"])
+        self.assertEqual(
+            decision["khipu_receipt"]["persistence_state"],
+            "UNAVAILABLE",
+        )
+
+    def test_relative_resource_is_canonicalized_when_decision_is_issued(self):
+        original_directory = os.getcwd()
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                os.chdir(directory)
+                asset = Path("relative-media.txt")
+                asset_bytes = b"relative media\n"
+                decision = orchestrator.puriq_decide(
+                    "fs_write",
+                    {
+                        "risk": "high",
+                        "authorized": True,
+                        "has_provenance": True,
+                        "license_class": "GREEN",
+                        "two_person_attested": True,
+                        "chain_verified": True,
+                        "tool": "fs_write",
+                        "asset_path": str(asset),
+                        "asset_sha256": sha256_bytes(asset_bytes),
+                    },
+                )
+
+                result = write_asset_with_credential(
+                    asset_path=str(asset),
+                    asset_bytes=asset_bytes,
+                    asset_title=asset.name,
+                    asset_format="text/plain",
+                    ai_generated=False,
+                    governance_decision=decision,
+                )
+            finally:
+                os.chdir(original_directory)
+
+        self.assertEqual(decision["resource"], str(Path(directory) / asset))
+        self.assertEqual(result["asset_hash"], sha256_bytes(asset_bytes))
+
     def test_khipu_registry_freezes_payloads_and_validates_predecessors(self):
         payload = {"nested": {"state": "original"}}
         receipt = khipu_emit("test.freeze", payload)

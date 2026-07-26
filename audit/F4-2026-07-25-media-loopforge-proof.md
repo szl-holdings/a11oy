@@ -7,6 +7,7 @@
 - `patch_summary`:
   - added atomic media write followed by the actual `khipu_emit` call
   - requires a durable PURIQ decision bound to the exact destination and asset bytes, then consumes it atomically so it cannot be replayed
+  - denies the governed action when its PURIQ decision receipt cannot persist and canonicalizes relative asset paths when the decision is issued
   - verifies each durable receipt chain with one recursive SQLite query rather than opening a connection for every predecessor
   - preserves an existing asset's permission mode across atomic replacement and gives new files mode `0644`
   - binds the exact returned UUIDv4 receipt ID and sha256 receipt hash into `szl.khipu.receipt`
@@ -15,7 +16,7 @@
   - places Loop Forge at array index 2 and first within its Brain & Memory category
   - replaces an overbroad reward-hacking claim with a bounded statement and documents runtime limitations
 - `test_results`:
-  - focused credential and surface suite: exit 0; 19 tests passed, 1 POSIX-only permission test skipped on Windows
+  - focused credential and surface suite: exit 0; 21 tests passed, 1 POSIX-only permission test skipped on Windows
   - `verify_loop_forge.py`: exit 0; 23 source-level invariants passed
   - `python -m py_compile ...`: exit 0
   - `pnpm typecheck:doctrine`: exit 0
@@ -26,7 +27,7 @@
 - `screenshot_refs`:
   - `docs/assets/screenshots/current/2026-07-25-loop-forge-top-three.png`
   - catalogued in `audit/screenshot-catalog.md`
-- `verification_notes`: the UI displayed Loop Forge as the active surface with the bounded-recursion and separate-referee wording; the DOM listed it first in Brain & Memory; the ordering test confirms its global array index is less than 3. Negative tests reject raw governance booleans, resource/content mismatches, and decision replay; a connection-count assertion locks durable chain verification to one database connection.
+- `verification_notes`: the UI displayed Loop Forge as the active surface with the bounded-recursion and separate-referee wording; the DOM listed it first in Brain & Memory; the ordering test confirms its global array index is less than 3. Negative tests reject raw governance booleans, resource/content mismatches, decision replay, and execution without a durable PURIQ receipt; a relative-path round trip locks consistent resource canonicalization and a connection-count assertion locks durable chain verification to one database connection.
 - `public_claim_check`: PASS; no production, C2PA Trust List, embedded JUMBF, or hardware-attestation claim was introduced.
 - `security_check`: PASS; no key, token, secret, or environment value added. The signed test generates an ephemeral key in memory.
 - `known_gaps_update`: `docs/LOOP_FORGE_SAFETY.md` and the credential assertion explicitly record the missing hosted Lean execution, C2PA Trust List, embedded credential, and attested-execution link.
