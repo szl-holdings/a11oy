@@ -24,6 +24,10 @@ PINNED_RUNTIME_SUITE_SHA256 = (
 )
 PROTECTED_BASE_REF = "origin/main"
 RUNTIME_SUITE_TIMEOUT_SECONDS = 300
+REQUIRED_EVIDENCE_COMMANDS = [
+    "python3 scripts/validate_action_contract_manifest.py",
+    "python3 scripts/test_validate_action_contract_manifest.py",
+]
 
 
 def load_json(path: Path) -> dict:
@@ -178,6 +182,11 @@ def main() -> int:
     commands = evidence.get("testCommands", [])
     if not commands:
         errors.append("evidence.testCommands must contain executable validators")
+    if commands != REQUIRED_EVIDENCE_COMMANDS:
+        errors.append(
+            "evidence.testCommands must be exactly the action-contract manifest "
+            "validator and its adversarial self-test"
+        )
     for command in commands:
         if not isinstance(command, str):
             errors.append("evidence.testCommands entries must be strings")

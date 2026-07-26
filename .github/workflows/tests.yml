@@ -369,8 +369,9 @@ jobs:
         # Negative-fixture self-test gating scripts/validate_action_contract_manifest.py:
         # feeds the REAL validator tampered contracts (egress defaultDeny off, a dropped
         # denied capability, copyingRule not pattern-only, emptied UDS forbiddenClaims,
-        # non-hash-chain receipts, forgeable JUnit, a PR-modified qualification suite) and
-        # asserts it FAILS on each, plus the committed ROADMAP contract which must PASS.
+        # non-hash-chain receipts, substituted evidence commands, forgeable JUnit, and a
+        # PR-modified qualification suite) and asserts each FAILS, plus the committed
+        # ROADMAP contract which must PASS.
         # verified-runtime can only execute the digest-pinned suite already on protected
         # main. Pure stdlib (unittest), no network, no live manifest touched.
         run: |
