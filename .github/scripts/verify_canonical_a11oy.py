@@ -24,7 +24,12 @@ from huggingface_hub import HfApi
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 REPO_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPORT_SCHEMA = "szl.a11oy-deployment-relock/v4"
-REQUIRED_REMOTE_FILES = {"Dockerfile", "console/3d/holographic.html"}
+HOLOGRAPHIC_SOURCE_PATH = "static/3d/holographic.html"
+HOLOGRAPHIC_SOURCE_MARKERS = (
+    "A11oy Holographic Operations",
+    "The estate, observed—not assumed.",
+)
+REQUIRED_REMOTE_FILES = {"Dockerfile", HOLOGRAPHIC_SOURCE_PATH}
 ROUTES = {
     "livez": "/api/livez",
     "build_info": "/api/build-info",
@@ -127,10 +132,7 @@ def validate_route(
     }
     if name == "holographic":
         text = response.text
-        if (
-            "A11oy Holographic Operations" not in text
-            or "The estate, observed—not assumed." not in text
-        ):
+        if not all(marker in text for marker in HOLOGRAPHIC_SOURCE_MARKERS):
             raise RelockError("holographic surface lacks the reviewed source markers")
         evidence["source_markers"] = True
         return evidence

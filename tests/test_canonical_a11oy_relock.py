@@ -80,7 +80,7 @@ class FakeApi:
         self.private = False
         self.sdk = "docker"
         self.stage = "RUNNING"
-        self.files = {"Dockerfile", "console/3d/holographic.html", "serve.py"}
+        self.files = {"Dockerfile", "static/3d/holographic.html", "serve.py"}
         self.variables = {"SZL_GIT_SHA": SimpleNamespace(value=source_sha)}
         self.clones: dict[str, bool] = {}
 
@@ -205,6 +205,34 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             report["routes"]["build_info"]["build_identity"]["version_source"],
             "UNKNOWN",
         )
+
+    def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
+        self.assertEqual(
+            relock.HOLOGRAPHIC_SOURCE_PATH,
+            relock.ROUTES["holographic"].lstrip("/"),
+        )
+        source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
+        for marker in relock.HOLOGRAPHIC_SOURCE_MARKERS:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, source)
+        self.assertIn(relock.HOLOGRAPHIC_SOURCE_PATH, relock.REQUIRED_REMOTE_FILES)
+        self.assertNotIn(
+            "console/3d/holographic.html",
+            relock.REQUIRED_REMOTE_FILES,
+        )
+
+    def test_live_holographic_surface_missing_either_marker_fails_closed(self) -> None:
+        for marker in relock.HOLOGRAPHIC_SOURCE_MARKERS:
+            session = success_session(self.origin, self.source)
+            url = self.origin + relock.ROUTES["holographic"]
+            response = session.responses[("GET", url)]
+            response.text = response.text.replace(marker, "")
+            response.content = response.text.encode("utf-8")
+            with self.subTest(marker=marker), self.assertRaisesRegex(
+                relock.RelockError,
+                "reviewed source markers",
+            ):
+                relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_runtime_revision_is_read_from_current_hub_raw_metadata(self) -> None:
         api = FakeApi(self.source)
