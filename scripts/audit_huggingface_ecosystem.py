@@ -4,28 +4,75 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import re
 import urllib.request
 from pathlib import Path
 from typing import Any
 
 
-REPO_ROOT = Path.cwd()
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
 ORG = "SZLHOLDINGS"
-OBSERVED_AT = "2026-05-30T03:43:04Z"
+PAGE_LIMIT = 100
 
 
-def fetch_json(url: str) -> Any:
+def fetch_page(url: str) -> tuple[Any, str | None]:
     with urllib.request.urlopen(url, timeout=30) as response:
-        return json.load(response)
+        data = json.load(response)
+        link = response.headers.get("Link", "")
+    next_url = None
+    for part in link.split(","):
+        match = re.search(r'<([^>]+)>\s*;\s*rel="?next"?', part, re.IGNORECASE)
+        if match:
+            next_url = match.group(1)
+            break
+    return data, next_url
 
 
 def api_items(kind: str) -> list[dict[str, Any]]:
-    data = fetch_json(f"https://huggingface.co/api/{kind}?author={ORG}&limit=100")
-    if not isinstance(data, list):
-        raise TypeError(f"Expected list from Hugging Face {kind} API")
-    return sorted(data, key=lambda item: item.get("id", ""))
+    url: str | None = (
+        f"https://huggingface.co/api/{kind}?author={ORG}&limit={PAGE_LIMIT}"
+    )
+    items: dict[str, dict[str, Any]] = {}
+    seen_urls: set[str] = set()
+    while url:
+        if url in seen_urls:
+            raise RuntimeError(f"Pagination loop from Hugging Face {kind} API: {url}")
+        seen_urls.add(url)
+        data, url = fetch_page(url)
+        if not isinstance(data, list):
+            raise TypeError(f"Expected list from Hugging Face {kind} API")
+        for item in data:
+            if not isinstance(item, dict):
+                raise TypeError(f"Expected object item from Hugging Face {kind} API")
+            item_id = item.get("id") or item.get("modelId")
+            if not isinstance(item_id, str) or not item_id:
+                raise ValueError(f"Hugging Face {kind} API item has no repository id")
+            items[item_id] = item
+    return sorted(items.values(), key=lambda item: item.get("id", ""))
+
+
+def observed_at_now() -> str:
+    return (
+        dt.datetime.now(dt.timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def evidence_url(item_id: str, repo_type: str) -> str:
+    prefix = {"model": "", "dataset": "datasets/", "space": "spaces/"}[repo_type]
+    return f"https://huggingface.co/{prefix}{item_id}"
+
+
+def display_path(path: Path) -> Path:
+    try:
+        return path.relative_to(REPO_ROOT)
+    except ValueError:
+        return path
 
 
 def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
@@ -46,7 +93,7 @@ def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
         "tags": tags,
         "claimStatus": "generated-mirror" if item_id == "SZLHOLDINGS/a11oy-v19-substrate" else "inventory",
         "evidenceUrls": [
-            f"https://huggingface.co/{item_id}",
+            evidence_url(str(item_id), repo_type),
         ],
         "unsafeFlags": unsafe_flags(str(item_id), repo_type, tags, card),
     }
@@ -70,7 +117,7 @@ def unsafe_flags(item_id: str, repo_type: str, tags: list[Any], card: dict[str, 
     return flags
 
 
-def build_manifest() -> dict[str, Any]:
+def build_manifest(*, observed_at: str) -> dict[str, Any]:
     models = [item_summary(item, "model") for item in api_items("models")]
     datasets = [item_summary(item, "dataset") for item in api_items("datasets")]
     spaces = [item_summary(item, "space") for item in api_items("spaces")]
@@ -82,27 +129,22 @@ def build_manifest() -> dict[str, Any]:
     return {
         "schemaVersion": 1,
         "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-        "observedAt": OBSERVED_AT,
+        "observedAt": observed_at,
         "org": ORG,
+        "inventoryScope": {
+            "visibility": "public-only",
+            "authenticated": False,
+            "privateAssetsIncluded": False,
+            "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
+        },
         "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",
         "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
         "publicApiEndpoints": [
-            f"https://huggingface.co/api/models?author={ORG}&limit=100",
-            f"https://huggingface.co/api/datasets?author={ORG}&limit=100",
-            f"https://huggingface.co/api/spaces?author={ORG}&limit=100",
+            f"https://huggingface.co/api/models?author={ORG}&limit={PAGE_LIMIT}",
+            f"https://huggingface.co/api/datasets?author={ORG}&limit={PAGE_LIMIT}",
+            f"https://huggingface.co/api/spaces?author={ORG}&limit={PAGE_LIMIT}",
         ],
         "counts": counts,
-        "canonicalNumbers": {
-            "hfSpaces": counts["spaces"],
-            "hfDatasets": counts["datasets"],
-            "hfModels": counts["models"],
-            "githubPublicRepos": 19,
-            "leanDeclarations": 217,
-            "leanAxioms": 12,
-            "leanSorries": 7,
-            "anchorFormulaGates": "35/35",
-            "benchmarkBaseline": "8.3% (1/12)",
-        },
         "guardrails": [
             "Do not present Counsel, Terra, or Carlota Jo as active demo surfaces.",
             "Do not use KORA, LUMINA, PARAGON, or active Lyte framing.",
@@ -139,18 +181,49 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--observed-at",
+        help="Explicit RFC 3339 observation time for deterministic generation.",
+    )
     args = parser.parse_args()
     output = Path(args.output)
-    rendered = json.dumps(build_manifest(), indent=2, sort_keys=False) + "\n"
     if args.check:
-        if not output.exists() or output.read_text(encoding="utf-8") != rendered:
+        if not output.exists():
             print(f"Hugging Face ecosystem manifest is stale: {output}")
             return 1
-        print(f"Hugging Face ecosystem manifest is current: {output.relative_to(REPO_ROOT)}")
+        try:
+            existing = json.loads(output.read_text(encoding="utf-8"))
+            observed_at = existing["observedAt"]
+            if not isinstance(observed_at, str) or not observed_at:
+                raise ValueError("observedAt must be a non-empty string")
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            print(f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
+            return 1
+        rendered = (
+            json.dumps(
+                build_manifest(observed_at=observed_at),
+                indent=2,
+                sort_keys=False,
+            )
+            + "\n"
+        )
+        if output.read_text(encoding="utf-8") != rendered:
+            print(f"Hugging Face ecosystem manifest is stale: {output}")
+            return 1
+        print(f"Hugging Face ecosystem manifest is current: {display_path(output)}")
         return 0
+    observed_at = args.observed_at or observed_at_now()
+    rendered = (
+        json.dumps(
+            build_manifest(observed_at=observed_at),
+            indent=2,
+            sort_keys=False,
+        )
+        + "\n"
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8")
-    print(f"Wrote Hugging Face ecosystem manifest: {output.relative_to(REPO_ROOT)}")
+    print(f"Wrote Hugging Face ecosystem manifest: {display_path(output)}")
     return 0
 
 
