@@ -112,9 +112,10 @@ a{color:inherit;text-decoration:none;}
 .nav-group.mod-proofs{color:#a09cc0;border-left-color:rgba(160,156,192,.3);}
 .nav-group.mod-lake{color:var(--gold-bright);border-left-color:rgba(214,198,154,.3);}
 .nav-group.mod-api{color:var(--muted);border-left-color:rgba(136,136,136,.25);}
-.nav-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--paragraph);font:13.5px var(--display);text-align:left;transition:.15s;border:1px solid transparent;background:transparent;}
+.nav-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--paragraph);font:13.5px var(--display);text-align:left;transition:.15s;border:1px solid transparent;background:transparent;appearance:none;}
 .nav-item:hover{background:var(--gold-soft);color:var(--cream);}
 .nav-item.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal-line);}
+.nav-item:focus-visible{outline:2px solid var(--teal);outline-offset:2px;color:var(--cream);}
 .nav-item .ico{width:16px;text-align:center;opacity:.8;font-size:12px;}
 .side-foot{margin-top:1.2rem;padding:.7rem .6rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7;}
 
@@ -721,56 +722,56 @@ details.raw[open] summary{color:var(--muted);}
 
     <!-- ── 1 · HOME ─────────────────────────────────────────────────────── -->
     <div class="nav-group mod-home">Home</div>
-    <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
-    <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
+    <button type="button" class="nav-item active" data-view="command" aria-current="page" onclick="go('command')"><span class="ico">◎</span>Command Center</button>
+    <button type="button" class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</button>
 
     <!-- ── 2 · OPERATE ──────────────────────────────────────────────────── -->
     <div class="nav-group mod-operate">Operate</div>
-    <div class="nav-item" data-view="launcher" onclick="go('launcher')"><span class="ico">▦</span>App Launcher</div>
-    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
-    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
-    <div class="nav-item" data-view="decision" onclick="go('decision')"><span class="ico">◈</span>Governed Decision</div>
+    <button type="button" class="nav-item" data-view="launcher" onclick="go('launcher')"><span class="ico">▦</span>App Launcher</button>
+    <button type="button" class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</button>
+    <button type="button" class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</button>
+    <button type="button" class="nav-item" data-view="decision" onclick="go('decision')"><span class="ico">◈</span>Governed Decision</button>
 
     <!-- ── 3 · BUILD ────────────────────────────────────────────────────── -->
     <div class="nav-group mod-build">Build</div>
-    <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
-    <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
-    <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
-    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
-    <div class="nav-item" data-view="genome" onclick="go('genome')"><span class="ico">⬢</span>Genome</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
+    <button type="button" class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</button>
+    <button type="button" class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</button>
+    <button type="button" class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</button>
+    <button type="button" class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</button>
+    <button type="button" class="nav-item" data-view="genome" onclick="go('genome')"><span class="ico">⬢</span>Genome</button>
+    <button type="button" class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</button>
 
     <!-- ── 4 · OBSERVE ──────────────────────────────────────────────────── -->
     <!-- Khipu receipt lake + recorded eval/replay. Chain is the proof-of-governance hero. -->
     <div class="nav-group mod-observe">Observe</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⬡</span>Evidence Ledger</div>
-    <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
+    <button type="button" class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</button>
+    <button type="button" class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⬡</span>Evidence Ledger</button>
+    <button type="button" class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</button>
+    <button type="button" class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</button>
 
     <!-- ── 5 · GOVERN ───────────────────────────────────────────────────── -->
     <!-- DOCTRINE: Λ = Conjecture 1 (never theorem, never 1.0). 8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}. -->
     <div class="nav-group mod-govern">Govern</div>
-    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score (Λ)</div>
-    <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
-    <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
-    <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
+    <button type="button" class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score (Λ)</button>
+    <button type="button" class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</button>
+    <button type="button" class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</button>
+    <button type="button" class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</button>
 
     <!-- ── 6 · RESEARCH ─────────────────────────────────────────────────── -->
     <div class="nav-group mod-research">Research</div>
-    <div class="nav-item" data-view="publications" onclick="go('publications')"><span class="ico">▤</span>Publications</div>
-    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
-    <div class="nav-item" data-view="labs" onclick="go('labs')"><span class="ico">⚛</span>Labs<span class="lab-chip">EXPERIMENTAL</span></div>
-    <div class="nav-item" data-view="labsintro" onclick="go('labsintro')"><span class="ico">⊹</span>Labs · what we extend<span class="lab-chip">EXPERIMENTAL</span></div>
+    <button type="button" class="nav-item" data-view="publications" onclick="go('publications')"><span class="ico">▤</span>Publications</button>
+    <button type="button" class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</button>
+    <button type="button" class="nav-item" data-view="labs" onclick="go('labs')"><span class="ico">⚛</span>Labs<span class="lab-chip">EXPERIMENTAL</span></button>
+    <button type="button" class="nav-item" data-view="labsintro" onclick="go('labsintro')"><span class="ico">⊹</span>Labs · what we extend<span class="lab-chip">EXPERIMENTAL</span></button>
 
     <!-- ── 7 · MORE ─────────────────────────────────────────────────────── -->
     <!-- DOCTRINE: energy_joules UNAVAILABLE until sovereign GPU + meter online; UI says
          UNAVAILABLE, never fakes watts. SCI = (E × I + M) / R per ISO 21031:2024. -->
     <div class="nav-group mod-more">More ▾</div>
-    <div class="nav-item" data-view="energy" onclick="go('energy')"><span class="ico">⚡</span>Energy Telemetry</div>
-    <div class="nav-item" data-view="energySci" onclick="go('energySci')"><span class="ico">♻</span>SCI Scores</div>
-    <div class="nav-item" data-view="energyReceipts" onclick="go('energyReceipts')"><span class="ico">⎙</span>Energy Receipts</div>
-    <div class="nav-item" data-view="energyGrid" onclick="go('energyGrid')"><span class="ico">⊟</span>Grid Settings</div>
+    <button type="button" class="nav-item" data-view="energy" onclick="go('energy')"><span class="ico">⚡</span>Energy Telemetry</button>
+    <button type="button" class="nav-item" data-view="energySci" onclick="go('energySci')"><span class="ico">♻</span>SCI Scores</button>
+    <button type="button" class="nav-item" data-view="energyReceipts" onclick="go('energyReceipts')"><span class="ico">⎙</span>Energy Receipts</button>
+    <button type="button" class="nav-item" data-view="energyGrid" onclick="go('energyGrid')"><span class="ico">⊟</span>Grid Settings</button>
 
     <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
@@ -2426,7 +2427,12 @@ function go(view){
   if(!VIEWS[view]){ console.warn('unknown tab: '+view); return; }
   // tear down ALL live visuals (Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape) before switching
   tearDownAll();
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  document.querySelectorAll('.nav-item').forEach(function(n){
+    var active=n.dataset.view===view;
+    n.classList.toggle('active',active);
+    if(active){ n.setAttribute('aria-current','page'); }
+    else { n.removeAttribute('aria-current'); }
+  });
   const v=VIEWS[view];const c=el('content');
   // Stash the requested view key (which may carry a deep-linked sub-tab, e.g.
   // 'vdefense/decision') BEFORE render. vertPack reads this to open the correct
@@ -11769,9 +11775,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   var SHA='baf483be3c832b64da47161b558e283d68da6650';
   var SHORT='baf483b';
   var BRANCH='putnam-2025-canonical-set';
+  var REF=SHA;
   var COMPUTED='2026-06-15';
-  var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+SHA+'/Lutar/Putnam';
-  var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Putnam/';
+  var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+REF+'/Lutar/Putnam';
+  var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+REF+'/Lutar/Putnam/';
   var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98';
   // Embedded fallback snapshot (matches the live loader exactly), used if the API is unreachable.
   var FB_PROBS=[
@@ -11803,7 +11810,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var pb=j.putnam||{}, sb=j.szl_originals||{};
     var probs=(pb.problems||[]).map(function(p){ return {id:p.id,file:p.file,url:p.url||(BASE+p.file),status:p.status,note:p.note}; });
     var szl=(sb.items||[]).map(function(s){ return {id:s.id,file:s.file,url:s.url||(BASE+s.file),status:s.status,note:s.note,theorems:s.theorems||[]}; });
-    return { live:true, sha:j.sha||SHA, short:j.short||SHORT, branch:j.branch||BRANCH, computed:j.computed||COMPUTED, tree:j.tree||TREE,
+    return { live:true, sha:j.sha||SHA, short:j.short||SHORT, branch:j.branch||BRANCH, ref:j.canonical_ref||j.sha||REF, computed:j.computed||COMPUTED, tree:j.tree||TREE,
              probs:probs, szl:szl,
              real:(pb.real!=null?pb.real:probs.filter(function(p){return p.status==='REAL';}).length),
              demo:(pb.demo!=null?pb.demo:probs.filter(function(p){return p.status==='DEMO';}).length),
@@ -11813,7 +11820,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function fromFallback(){
     var probs=FB_PROBS.map(function(p){ return {id:p[0],file:p[1],url:BASE+p[1],status:p[2],note:p[3]}; });
     var szl=FB_SZL.map(function(s){ return {id:s[0],file:s[1],url:BASE+s[1],status:s[2],note:s[3],theorems:[]}; });
-    return { live:false, sha:SHA, short:SHORT, branch:BRANCH, computed:COMPUTED, tree:TREE,
+    return { live:false, sha:SHA, short:SHORT, branch:BRANCH, ref:REF, computed:COMPUTED, tree:TREE,
              probs:probs, szl:szl,
              real:probs.filter(function(p){return p.status==='REAL';}).length,
              demo:probs.filter(function(p){return p.status==='DEMO';}).length,
@@ -11828,12 +11835,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(m.live){
       H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+TEAL+';margin:0 0 14px;">'
         +'\u25c9 LIVE \u00b7 doctrine-v11 kernel verdict served from this organ\u2019s /api/'+esc(NS)+'/v1/putnam, '
-        +'transcribed from <a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+TEAL+';">lutar-lean '+esc(m.branch)+' @'+esc(m.short)+'</a>'
+        +'transcribed from <a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+TEAL+';">lutar-lean branch '+esc(m.branch)+' \u00b7 pinned @'+esc(m.short)+'</a>'
         +' \u00b7 '+esc(m.computed)+'.</div>';
     } else {
       H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+GOLD+';margin:0 0 14px;">'
         +'\u25c8 CACHED SNAPSHOT \u00b7 doctrine-v11 kernel verdict from '
-        +'<a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean '+esc(m.branch)+' @'+esc(m.short)+'</a>'
+        +'<a href="'+esc(m.tree)+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean branch '+esc(m.branch)+' \u00b7 pinned @'+esc(m.short)+'</a>'
         +' \u00b7 '+esc(m.computed)+' \u2014 live loader unreachable; embedded numbers match the pinned commit; re-deploy to refresh.</div>';
     }
     // bridge paragraph VERBATIM
@@ -15977,8 +15984,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     try{
       var cur = (location.hash||'#command').slice(1).split('/')[0];
       var act = side.querySelector('.nav-item[data-view="'+cur+'"]');
-      if(act) act.classList.add('active');
-      else { var c = side.querySelector('.nav-item[data-view="command"]'); if(c) c.classList.add('active'); }
+      if(act){ act.classList.add('active'); act.setAttribute('aria-current','page'); }
     }catch(e){}
     return true;
   }
@@ -16131,7 +16137,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(!p.length){ host.innerHTML=''; return; }
     var h='<div class="nav-group mod-pinned">★ Pinned</div>';
     p.forEach(function(k){
-      h+='<div class="nav-item" data-view="'+esc(k)+'" onclick="go(\''+esc(k)+'\')"><span class="ico">★</span>'+esc(titleOf(k))+'</div>';
+      h+='<button type="button" class="nav-item" data-view="'+esc(k)+'" onclick="go(\''+esc(k)+'\')"><span class="ico">★</span>'+esc(titleOf(k))+'</button>';
     });
     host.innerHTML=h;
   }
