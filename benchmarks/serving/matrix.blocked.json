@@ -1,0 +1,14 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "repetitions": 5,
+  "workloads": ["sharegpt", "random", "long-context", "structured-output"],
+  "gpu_node": null,
+  "model_revision": null,
+  "tokenizer_revision": null,
+  "vllm_version": "0.26.0-candidate-unverified",
+  "sglang_version": "0.5.16-candidate-unverified",
+  "vllm_endpoint": null,
+  "sglang_endpoint": null,
+  "client_path": null,
+  "cell_timeout_seconds": 900
+}

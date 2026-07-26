@@ -1,0 +1,58 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "claims": [
+      {
+        "claim": "Putnam 2025",
+        "evidence": "docs/SERIES_A_DILIGENCE.md",
+        "label": "PROVED",
+        "value": "0/12"
+      },
+      {
+        "claim": "T1/T2 Lean boundary",
+        "evidence": "formal/LutarPolicy/LutarPolicy/Theorems.lean",
+        "label": "MODELED",
+        "value": "kernel checked; public count remains 0/12"
+      },
+      {
+        "claim": "runtime refinement",
+        "evidence": "tests/test_operation_verified_policy.py",
+        "label": "MEASURED",
+        "value": "168 finite domain cases plus adversarial receipts"
+      },
+      {
+        "claim": "existing GHCR provenance",
+        "evidence": "audit/provenance-baseline.json",
+        "label": "MEASURED",
+        "value": "sha256:5f3f48219d0c74f29ebfd6df6d7b8b68903daf6772cf6483124f458a3beca416"
+      },
+      {
+        "claim": "SLSA Build L3",
+        "evidence": "reports/operation-verified-throughput/SLSA_LEVEL_3_AUDIT.md",
+        "label": "PLANNED",
+        "value": "not achieved"
+      },
+      {
+        "claim": "vLLM versus SGLang performance",
+        "evidence": "reports/operation-verified-throughput/VLLM_SGLANG_RAW_RESULTS.json",
+        "label": "PLANNED",
+        "value": "no GPU result"
+      },
+      {
+        "claim": "Killinchu /code and /chat",
+        "evidence": "audit/deployment-identities.json",
+        "label": "MEASURED",
+        "value": "live HTTP 200"
+      },
+      {
+        "claim": "canonical web application",
+        "evidence": "tests/test_web_build_boundary.py",
+        "label": "MEASURED",
+        "value": "pinned platform source builds and typechecks"
+      }
+    ],
+    "status": "MEASURED"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

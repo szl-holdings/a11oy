@@ -1,0 +1,38 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "risks": [
+      {
+        "id": "R-003",
+        "owner": "@szl-holdings/security-reviewers",
+        "risk": "No owned staging cluster is available for admission negative-control evidence.",
+        "severity": "HIGH",
+        "status": "BLOCKED"
+      },
+      {
+        "id": "R-004",
+        "owner": "@szl-holdings/release-maintainers",
+        "risk": "Secret-backed Space snapshot restoration evidence must remain current.",
+        "severity": "HIGH",
+        "status": "MEASURED"
+      },
+      {
+        "id": "R-005",
+        "owner": "@szl-holdings/formal-reviewers",
+        "risk": "T1/T2 English statements lack independent review; public count stays 0/12.",
+        "severity": "MEDIUM",
+        "status": "BLOCKED"
+      },
+      {
+        "id": "R-006",
+        "owner": "@szl-holdings/performance-maintainers",
+        "risk": "No controlled GPU benchmark environment is available.",
+        "severity": "MEDIUM",
+        "status": "BLOCKED"
+      }
+    ],
+    "status": "MEASURED"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

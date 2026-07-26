@@ -11,6 +11,21 @@ SPDX-License-Identifier: Apache-2.0
 >
 > **Doctrine v11 LOCKED · 749/14/163 · Λ = Conjecture 1 · HONESTY OVER CHECKLIST.**
 
+a11oy is a full deployable application — UI, runtime, server, and shipped libraries — and also a TypeScript workspace. Its operational Hugging Face surface is produced by `pnpm payload:huggingface`. Its diligence demo is `pnpm test:doctrine` running vitest in web/packages/a11oy-core.
+
+The clean web-application build boundary is the independently released
+`szl-holdings/platform` monorepo pinned as the `vendor/platform` gitlink. Run
+`git submodule update --init --depth 1`, then `pnpm build:web` and
+`pnpm typecheck:web`. Both commands verify the exact platform commit and use
+that repository's pinned pnpm version and lockfile before building
+`vendor/platform/artifacts/a11oy`.
+
+The root `web/` tree is a retained historical mirror used by the doctrine
+package boundary and static-source audits; it is not the canonical SPA build
+target. A module-graph audit found 495 unresolved local imports in that mirror,
+so it is explicitly **RETIRED** as an application build boundary rather than
+being filled with no-op pages or fabricated packages.
+
 ---
 
 ## 1. The synthesis thesis — governed code-as-action

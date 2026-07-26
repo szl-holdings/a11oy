@@ -1,0 +1,26 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "artifact": "oci://ghcr.io/szl-holdings/a11oy@sha256:5f3f48219d0c74f29ebfd6df6d7b8b68903daf6772cf6483124f458a3beca416",
+    "attestation_id": 37130249,
+    "github_attestation_verified": true,
+    "limitations": [
+      "Existing builder is not a protected reusable workflow.",
+      "Existing workflow also signed mutable tags.",
+      "SLSA verifier 2.7.1 found no matching SLSA-native attestation for this digest."
+    ],
+    "rekor_log_index": 2255395975,
+    "slsa_level": "Build L2 evidence observed; L3 not claimed",
+    "slsa_verifier": {
+      "binary_digest": "sha256:1d8f61ad747ecc3d375d2a563cebf2991748b7da1a9bda9a500804c3c499e3c0",
+      "verify_image_result": "FAILED: no matching attestations",
+      "version": "2.7.1"
+    },
+    "source_commit": "7ccf04fb65f060115fb01392c739bb4e6c2fe5b8",
+    "status": "MEASURED",
+    "verification_command": "gh attestation verify oci://ghcr.io/szl-holdings/a11oy@sha256:5f3f48219d0c74f29ebfd6df6d7b8b68903daf6772cf6483124f458a3beca416 --repo szl-holdings/a11oy",
+    "workflow_run": "https://github.com/szl-holdings/a11oy/actions/runs/30187276319/attempts/1"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

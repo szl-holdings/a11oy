@@ -1,0 +1,129 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "a11oy": {
+      "expected_source_commit": "af43e4b71529c2bab3227763fdb4b5969c2cd6ce",
+      "hf_source": {
+        "disabled": false,
+        "gated": false,
+        "host": "https://szlholdings-a11oy.hf.space",
+        "id": "SZLHOLDINGS/a11oy",
+        "lastModified": "2026-07-26T07:31:22.000Z",
+        "private": false,
+        "runtime": {
+          "hardware": {
+            "current": "cpu-basic",
+            "requested": "cpu-basic"
+          },
+          "stage": "RUNNING"
+        },
+        "sdk": "docker",
+        "sha": "a21cf6409361a4611236d780d4e7c24f35997eef",
+        "subdomain": "szlholdings-a11oy"
+      },
+      "identity_status": "MATCH",
+      "runtime_build_info": {
+        "build": {
+          "field_evidence": {
+            "revision": "OBSERVED",
+            "version": "UNKNOWN",
+            "working_tree": "UNKNOWN"
+          },
+          "revision": "af43e4b71529c2bab3227763fdb4b5969c2cd6ce",
+          "revision_source": "env:SZL_GIT_SHA",
+          "state": "OBSERVED",
+          "version": null,
+          "version_source": "UNKNOWN",
+          "working_tree": "UNKNOWN",
+          "working_tree_source": "UNKNOWN"
+        },
+        "receipt_minted": false,
+        "runtime": {
+          "platform": "linux",
+          "python": "3.12.13"
+        },
+        "service": "a11oy",
+        "status": "OBSERVED"
+      }
+    },
+    "backup_restoration": {
+      "evidence": "audit/hf-backup-restoration.json",
+      "repositories": [
+        {
+          "archive_sha256": "c4b0b2b6f63da49aa2ea3fa42aa9a89eb0c2125d0afe89dad81ab7e9a02feac6",
+          "manifest_sha256": "2269a54e3def3d90bbb08d64cf61c9f1afc439cec4d49aaa840a1ef357abe212",
+          "repository": "SZLHOLDINGS/a11oy",
+          "restore_match": true,
+          "revision": "a21cf6409361a4611236d780d4e7c24f35997eef"
+        },
+        {
+          "archive_sha256": "7550ed8e29edbd20f47ebb7646ce0cee3ef96bbfc9dcaadf2d28c1728a258716",
+          "manifest_sha256": "4113d1bea69028ffd57cc73a346b349b07f0a7037aa7d3feb642919d55a40db9",
+          "repository": "SZLHOLDINGS/killinchu",
+          "restore_match": true,
+          "revision": "515d01191039709553bcc47b275aaaaafd6e7238"
+        }
+      ],
+      "status": "MEASURED",
+      "workflow_run_url": "https://github.com/szl-holdings/a11oy/actions/runs/30193943839"
+    },
+    "killinchu": {
+      "expected_source_commit": "3bafc337446548902ee28086c3c6c17b486e70e9",
+      "hf_source": {
+        "disabled": false,
+        "gated": false,
+        "host": "https://szlholdings-killinchu.hf.space",
+        "id": "SZLHOLDINGS/killinchu",
+        "lastModified": "2026-07-26T06:22:17.000Z",
+        "private": false,
+        "runtime": {
+          "hardware": {
+            "current": "cpu-basic",
+            "requested": "cpu-basic"
+          },
+          "stage": "RUNNING"
+        },
+        "sdk": "docker",
+        "sha": "515d01191039709553bcc47b275aaaaafd6e7238",
+        "subdomain": "szlholdings-killinchu"
+      },
+      "identity_status": "MATCH",
+      "live_image_digest": "UNAVAILABLE",
+      "observed_runtime_commit": "3bafc337446548902ee28086c3c6c17b486e70e9",
+      "routes": {
+        "/api/killinchu/v1/honest": {
+          "status": "MEASURED",
+          "status_code": 200,
+          "url": "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest"
+        },
+        "/chat": {
+          "status": "MEASURED",
+          "status_code": 200,
+          "url": "https://szlholdings-killinchu.hf.space/chat"
+        },
+        "/code": {
+          "status": "MEASURED",
+          "status_code": 200,
+          "url": "https://szlholdings-killinchu.hf.space/code"
+        }
+      },
+      "runtime_build_info": {
+        "build": {
+          "revision": "3bafc337446548902ee28086c3c6c17b486e70e9",
+          "revision_source": "env:SZL_GIT_SHA",
+          "state": "OBSERVED"
+        },
+        "receipt_minted": false,
+        "service": "killinchu",
+        "status": "OBSERVED"
+      },
+      "source_completeness": {
+        "evidence": "Dockerfile COPY source inventory and exact-source reusable deployment",
+        "status": "MEASURED"
+      }
+    },
+    "status": "MEASURED"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

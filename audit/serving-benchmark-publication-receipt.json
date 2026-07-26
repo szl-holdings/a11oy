@@ -1,0 +1,8 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "label": "PREPARED IN A PR",
+  "publication_authorized": false,
+  "artifact": "reports/operation-verified-throughput/VLLM_SGLANG_RAW_RESULTS.json",
+  "sha256": "f4198955e1157a57a4425ae36e89e86092a850812059ba8a6e35d874714bc694",
+  "bytes": 23665
+}

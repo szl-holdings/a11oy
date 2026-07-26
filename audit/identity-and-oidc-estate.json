@@ -1,0 +1,16 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "github_oidc_permission_references": 19,
+    "managed_cloud_workload_identities": {
+      "reason": "cloud control plane unavailable",
+      "status": "BLOCKED"
+    },
+    "proposed_reusable_builder": ".github/workflows/reusable-build.yml",
+    "static_secret_reference_count": 65,
+    "status": "MEASURED",
+    "worker_receipt_authority": "public-key verification only"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

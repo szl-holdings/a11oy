@@ -1,0 +1,3441 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "references": [
+      {
+        "action": "actions/checkout",
+        "line": 46,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/a11oy-api-health.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 57,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/a11oy-api-health.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 139,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/alert-channel-watch.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "f7231270c8a4f227301bfee544f848938b71f14d",
+        "release_name": "main",
+        "workflow": ".github/workflows/anatomy-map-drift.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 68,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/arena-signal-reasons-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 69,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/arena-signal-reasons-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 81,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/arena-signal-reasons-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 82,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/arena-signal-reasons-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 43,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/boot-preflight-selftest.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 45,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/boot-preflight-selftest.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 31,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/bounties-drift.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 46,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/brain-honesty-check.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 48,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/brain-honesty-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 63,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/brain-honesty-check.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 65,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/brain-honesty-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 27,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/bundle-integrity-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 28,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/bundle-integrity-guard.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-bundle-ref-check.yml",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "79cb06b79d6a3156a5796948295617ff6b207683",
+        "release_name": "main",
+        "workflow": ".github/workflows/bundle-ref-check.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-docs-ci.yml",
+        "line": 35,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb",
+        "release_name": "v1 (.github main)",
+        "workflow": ".github/workflows/ci.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-secret-scan.yml",
+        "line": 38,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb",
+        "release_name": "v1 (.github main)",
+        "workflow": ".github/workflows/ci.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 61,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/claim-compiler.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 63,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/claim-compiler.yml"
+      },
+      {
+        "action": "step-security/harden-runner",
+        "line": 36,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+        "release_name": "v2.20.0",
+        "workflow": ".github/workflows/codeql.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v4",
+        "workflow": ".github/workflows/codeql.yml"
+      },
+      {
+        "action": "github/codeql-action/init",
+        "line": 44,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "7188fc363630916deb702c7fdcf4e481b751f97a",
+        "release_name": "v4.37.1",
+        "workflow": ".github/workflows/codeql.yml"
+      },
+      {
+        "action": "github/codeql-action/analyze",
+        "line": 57,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "7188fc363630916deb702c7fdcf4e481b751f97a",
+        "release_name": "v4.37.1",
+        "workflow": ".github/workflows/codeql.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/console-tab-liveness.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 20,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/console-tab-liveness.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 66,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/constellation-honesty-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 78,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/constellation-honesty-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 58,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/copy-completeness-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 61,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/copy-completeness-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/copy-sync-lockstep-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 42,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/copy-sync-lockstep-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 33,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/cosign.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 36,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v4.1.2",
+        "workflow": ".github/workflows/cosign.yml"
+      },
+      {
+        "action": "docker/login-action",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+        "release_name": "v4.4.0",
+        "workflow": ".github/workflows/cosign.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 25,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/dco.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 34,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/demo-freeze-hotfix-validate.yml"
+      },
+      {
+        "action": "dependabot/fetch-metadata",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "25dd0e34f4fe68f24cc83900b1fe3fe149efef98",
+        "release_name": "v3.1.0",
+        "workflow": ".github/workflows/dependabot-auto-merge.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5b0d38fadadc073812bfc6175a1e823cd529939f",
+        "release_name": null,
+        "workflow": ".github/workflows/deploy-verify-brain-now.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 153,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/deploy-verify-brain-now.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
+        "line": 49,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5b0d38fadadc073812bfc6175a1e823cd529939f",
+        "release_name": null,
+        "workflow": ".github/workflows/deploy-verify-canonical-a11oy-now.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 253,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/deploy-verify-canonical-a11oy-now.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "docker/setup-buildx-action",
+        "line": 53,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+        "release_name": "v4.2.0",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "docker/login-action",
+        "line": 85,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+        "release_name": "v4.4.0",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "docker/build-push-action",
+        "line": 93,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+        "release_name": "v7.3.0",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "anchore/sbom-action",
+        "line": 140,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e22c389904149dbc22b58101806040fa8d37a610",
+        "release_name": "v0.24.0",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "anchore/sbom-action",
+        "line": 149,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e22c389904149dbc22b58101806040fa8d37a610",
+        "release_name": "v0.24.0",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 158,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v4.1.2",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "anchore/sbom-action",
+        "line": 171,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e22c389904149dbc22b58101806040fa8d37a610",
+        "release_name": "v0.24.0",
+        "workflow": ".github/workflows/docker-build.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 35,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 37,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+      },
+      {
+        "action": "docker/setup-buildx-action",
+        "line": 52,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+        "release_name": "v4.2.0",
+        "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+      },
+      {
+        "action": "docker/build-push-action",
+        "line": 54,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+        "release_name": "v7.3.0",
+        "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 25,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v5.0.1",
+        "workflow": ".github/workflows/dockerfile-size.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/docs-toolchain-review.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 53,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/docs-toolchain-review.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 113,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/docs-toolchain-review.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/doctrine-grep.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 45,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/doctrine-grep.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/doctrine-check.yml",
+        "line": 12,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "2b6d13ae00ab73e0075aa2b8dc765cab62825d84",
+        "release_name": "main (post-#189: authoritative checker + INV2 exemption for intentional ORPO negative-training data)",
+        "workflow": ".github/workflows/doctrine.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 46,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/dsse-receipts.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 47,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/dsse-receipts.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 71,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/dsse-receipts.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 98,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/dsse-receipts.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 197,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/dsse-receipts.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 298,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/dsse-receipts.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 63,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/eval-arena-negative-control.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 64,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/eval-arena-negative-control.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 82,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/eval-arena-negative-control.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 83,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/eval-arena-negative-control.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 17,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/fuzz.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 20,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v4.4.0",
+        "workflow": ".github/workflows/fuzz.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 84,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/gguf-weight-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 85,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/gguf-weight-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 21,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/ghcr-build-push.yml"
+      },
+      {
+        "action": "docker/login-action",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+        "release_name": "v4.4.0",
+        "workflow": ".github/workflows/ghcr-build-push.yml"
+      },
+      {
+        "action": "docker/setup-buildx-action",
+        "line": 45,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+        "release_name": "v4.2.0",
+        "workflow": ".github/workflows/ghcr-build-push.yml"
+      },
+      {
+        "action": "docker/build-push-action",
+        "line": 60,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+        "release_name": "v7.3.0",
+        "workflow": ".github/workflows/ghcr-build-push.yml"
+      },
+      {
+        "action": "actions/attest-build-provenance",
+        "line": 211,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+        "release_name": "v4.1.1",
+        "workflow": ".github/workflows/ghcr-build-push.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 216,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v3.8.1",
+        "workflow": ".github/workflows/ghcr-build-push.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 34,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/gitleaks.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 72,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/gitleaks.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 38,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/governed-agent-bench.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 41,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/governed-agent-bench.yml"
+      },
+      {
+        "action": "step-security/harden-runner",
+        "line": 31,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+        "release_name": "v2.20.0",
+        "workflow": ".github/workflows/hf-backup-restore.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 35,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-backup-restore.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-backup-restore.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-backup-restore.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-bucket-selftest.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 42,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-bucket-selftest.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 53,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-card-honesty.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 54,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-corpus-card-honesty.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 87,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-card-honesty.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 96,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/hf-corpus-card-honesty.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 47,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-freshness.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 48,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-corpus-freshness.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 81,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-freshness.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 90,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/hf-corpus-freshness.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 51,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-guards-selftest.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 52,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-corpus-guards-selftest.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 54,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-repair.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 55,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-corpus-repair.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 90,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-repair.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 105,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-reverify.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 106,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-corpus-reverify.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 144,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-corpus-reverify.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 153,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/hf-corpus-reverify.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 58,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-drift-check.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml",
+        "line": 29,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "96573c9049c0c705072cf51024d5ef12ccbee98c",
+        "release_name": ".github PR #307: immutable source-bound live baseline",
+        "workflow": ".github/workflows/hf-module-drift.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 65,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-sync-backend.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 69,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-sync-backend.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
+        "line": 33,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+        "release_name": null,
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 58,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 65,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 70,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 90,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 115,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 122,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 151,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/hf-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 24,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/huggingface.yml"
+      },
+      {
+        "action": "pnpm/action-setup",
+        "line": 27,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0ebf47130e4866e96fce0953f49152a61190b271",
+        "release_name": "v4",
+        "workflow": ".github/workflows/huggingface.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v6",
+        "workflow": ".github/workflows/huggingface.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 38,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/huggingface.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 37,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/infra-pointer-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/infra-pointer-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 38,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/infra-vendoring-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/infra-vendoring-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 72,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/kev-feed-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 83,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/kev-feed-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 66,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/lean-citation-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 68,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/lean-citation-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 74,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/llama-wheel-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 83,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/llama-wheel-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 84,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/llama-wheel-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 56,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/local-image-refs-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 58,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/local-image-refs-guard.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-lockfile-registry-check.yml",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "79cb06b79d6a3156a5796948295617ff6b207683",
+        "release_name": "main",
+        "workflow": ".github/workflows/lockfile-registry.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 18,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/namespace-leak-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/no-hf-mirror-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 26,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/no-runtime-cdn-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 43,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 44,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 69,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 70,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 111,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 119,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 178,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/one-lathe-receipt.yml"
+      },
+      {
+        "action": "step-security/harden-runner",
+        "line": 66,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+        "release_name": "v2.20.0",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 70,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v4",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "pnpm/action-setup",
+        "line": 74,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0ebf47130e4866e96fce0953f49152a61190b271",
+        "release_name": "v4",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 78,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "step-security/harden-runner",
+        "line": 103,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+        "release_name": "v2.20.0",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 107,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "pnpm/action-setup",
+        "line": 112,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0ebf47130e4866e96fce0953f49152a61190b271",
+        "release_name": "v4",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 116,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/operational.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/reusable-overclaim-guard.yml",
+        "line": 20,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "79cb06b79d6a3156a5796948295617ff6b207683",
+        "release_name": "main",
+        "workflow": ".github/workflows/overclaim-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 79,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/package-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 81,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/package-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 97,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/package-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 99,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/package-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 56,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/page-claim-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 57,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/page-claim-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 69,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/page-claim-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 70,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/page-claim-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 69,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/pages-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 71,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/pages-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 87,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/pages-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 89,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/pages-knowledge-sync.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 67,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/phantom-required-check-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 78,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/phantom-required-check-guard.yml"
+      },
+      {
+        "action": "szl-holdings/.github/.github/workflows/pin-check-reusable.yml",
+        "line": 22,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "1bbd857634a87d3a824be86ec7a79aaa8e4937e8",
+        "release_name": null,
+        "workflow": ".github/workflows/pin-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 43,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/pinn-honesty-gate.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 44,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/pinn-honesty-gate.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 58,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/pinn-honesty-gate.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 59,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/pinn-honesty-gate.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 33,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/private-ip-leak-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 46,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/public-claim-integrity.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 47,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/public-claim-integrity.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 106,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/public-claim-integrity.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 61,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/publish-packages.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 64,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/publish-packages.yml"
+      },
+      {
+        "action": "pnpm/action-setup",
+        "line": 71,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0ebf47130e4866e96fce0953f49152a61190b271",
+        "release_name": "v6.0.9",
+        "workflow": ".github/workflows/publish-packages.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 60,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/putnam-drift-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 62,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/putnam-drift-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 78,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/putnam-drift-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 83,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/putnam-drift-guard.yml"
+      },
+      {
+        "action": "actions/cache/restore",
+        "line": 120,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+        "release_name": "v5.0.5",
+        "workflow": ".github/workflows/putnam-drift-guard.yml"
+      },
+      {
+        "action": "actions/cache/save",
+        "line": 152,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+        "release_name": "v5.0.5",
+        "workflow": ".github/workflows/putnam-drift-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 51,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 65,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 66,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 94,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 106,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 125,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 126,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/readiness-harness.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 13,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/readme-frontmatter-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 66,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/register-invocation-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 69,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/register-invocation-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 105,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/rekor-recheck.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 106,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/rekor-recheck.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 209,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/rekor-recheck.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 218,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/rekor-recheck.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 71,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release-receipt-summary-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 72,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/release-receipt-summary-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 105,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release-receipt-summary-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 106,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/release-receipt-summary-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 117,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release-receipt-verify.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 118,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/release-receipt-verify.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 243,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release-receipt-verify.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 256,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/release-receipt-verify.yml"
+      },
+      {
+        "action": "./.github/workflows/public-claim-integrity.yml",
+        "line": 15,
+        "pin_policy": "local",
+        "pinned": true,
+        "reference": "local-checkout",
+        "release_name": null,
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 21,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 22,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "anchore/sbom-action",
+        "line": 44,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e22c389904149dbc22b58101806040fa8d37a610",
+        "release_name": "v0.17.9",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/attest-build-provenance",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+        "release_name": "v4",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/attest-sbom",
+        "line": 57,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "c604332985a26aa8cf1bdc465b92731239ec6b9e",
+        "release_name": "v4",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 63,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v4.1.2",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "softprops/action-gh-release",
+        "line": 76,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d0d9888cb7fd7b750713d6e236d1fcb99157228",
+        "release_name": "v3.0.2",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 102,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "./.github/actions/sign-receipts",
+        "line": 104,
+        "pin_policy": "local",
+        "pinned": true,
+        "reference": "local-checkout",
+        "release_name": null,
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 116,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/release.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "docker/login-action",
+        "line": 42,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+        "release_name": "v4.4.0",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "docker/setup-buildx-action",
+        "line": 48,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+        "release_name": "v4.2.0",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "docker/build-push-action",
+        "line": 52,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+        "release_name": "v7.3.0",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "anchore/sbom-action",
+        "line": 73,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e22c389904149dbc22b58101806040fa8d37a610",
+        "release_name": "v0.24.0",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "anchore/scan-action",
+        "line": 81,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e1165082ffb1fe366ebaf02d8526e7c4989ea9d2",
+        "release_name": "v7.4.0",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "actions/attest-build-provenance",
+        "line": 91,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+        "release_name": "v4.1.1",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 97,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v4.1.2",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 140,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/reusable-build.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/router-constellation-contract.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 33,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/router-constellation-contract.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 36,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/router-constellation-contract.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 17,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/sbom-syft.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 26,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7",
+        "workflow": ".github/workflows/sbom-syft.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 20,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/sbom.yml"
+      },
+      {
+        "action": "anchore/sbom-action",
+        "line": 23,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e22c389904149dbc22b58101806040fa8d37a610",
+        "release_name": "v0.17.0",
+        "workflow": ".github/workflows/sbom.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/sbom.yml"
+      },
+      {
+        "action": "step-security/harden-runner",
+        "line": 45,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+        "release_name": "v2.20.0",
+        "workflow": ".github/workflows/scap-scan.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/scap-scan.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 109,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/scap-scan.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 135,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/scap-scan.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 193,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/scap-scan.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 23,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/scorecard.yml"
+      },
+      {
+        "action": "ossf/scorecard-action",
+        "line": 28,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "4eaacf0543bb3f2c246792bd56e8cdeffafb205a",
+        "release_name": "v2.4.3",
+        "workflow": ".github/workflows/scorecard.yml"
+      },
+      {
+        "action": "github/codeql-action/upload-sarif",
+        "line": 35,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "cf463419fdde78c727231e445622a9ac37966f84",
+        "release_name": "v3.28.15",
+        "workflow": ".github/workflows/scorecard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 56,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/service-status-link-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 66,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/service-status-link-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/shared-file-drift.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 44,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/shared-file-drift.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 77,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/shared-file-drift.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 37,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/shared-module-hash-lock.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/shared-module-hash-lock.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 49,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/signing-key-image-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 51,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/signing-key-image-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 70,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/signing-key-image-guard.yml"
+      },
+      {
+        "action": "step-security/harden-runner",
+        "line": 34,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+        "release_name": "v2.20.0",
+        "workflow": ".github/workflows/slsa-build.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa-build.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 54,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa-build.yml"
+      },
+      {
+        "action": "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml",
+        "line": 67,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "f7dd8c54c2067bafc12ca7a55595d5ee9b75204a",
+        "release_name": "v2.1.0",
+        "workflow": ".github/workflows/slsa-build.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 36,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa-provenance.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/slsa-provenance.yml"
+      },
+      {
+        "action": "actions/attest-build-provenance",
+        "line": 79,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+        "release_name": "v4.1.1",
+        "workflow": ".github/workflows/slsa-provenance.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 84,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa-provenance.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 65,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa.yml"
+      },
+      {
+        "action": "actions/attest-build-provenance",
+        "line": 86,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+        "release_name": "v4.1.1",
+        "workflow": ".github/workflows/slsa.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 115,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 153,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa.yml"
+      },
+      {
+        "action": "./.github/actions/sign-receipts",
+        "line": 158,
+        "pin_policy": "local",
+        "pinned": true,
+        "reference": "local-checkout",
+        "release_name": null,
+        "workflow": ".github/workflows/slsa.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 170,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/slsa.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 68,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/sovereign-node-drop.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 82,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/sovereign-node-drop.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 57,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/status-page-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 67,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/status-page-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 39,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/status-page.yml"
+      },
+      {
+        "action": "actions/github-script",
+        "line": 46,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+        "release_name": "v9.0.0",
+        "workflow": ".github/workflows/status-page.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 38,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/surface-registry-sync-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 40,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/surface-registry-sync-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 55,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tau-eval-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 56,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tau-eval-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 67,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tau-eval-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 68,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tau-eval-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-node",
+        "line": 25,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "820762786026740c76f36085b0efc47a31fe5020",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 54,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 57,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 75,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 77,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 98,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 101,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 124,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 127,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 148,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 151,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 174,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 177,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 198,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 199,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 220,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 223,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 241,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 244,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 271,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 273,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 288,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 291,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 308,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 311,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 329,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 332,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 355,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 358,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 375,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 376,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 391,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 392,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 407,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 408,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 423,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 424,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 439,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 440,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 455,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 456,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 471,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 472,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 487,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 488,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 503,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 506,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 532,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 535,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 560,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 563,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 585,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 588,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 609,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 612,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 640,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 643,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 662,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 665,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 684,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 687,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 715,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 718,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 745,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 748,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 769,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 772,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 805,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 806,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/tests.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/trivy.yml"
+      },
+      {
+        "action": "aquasecurity/trivy-action",
+        "line": 22,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+        "release_name": "0.36.0",
+        "workflow": ".github/workflows/trivy.yml"
+      },
+      {
+        "action": "github/codeql-action/upload-sarif",
+        "line": 32,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "cf463419fdde78c727231e445622a9ac37966f84",
+        "release_name": "v3.28.15",
+        "workflow": ".github/workflows/trivy.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 44,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/trivy.yml"
+      },
+      {
+        "action": "anchore/scan-action",
+        "line": 51,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "e1165082ffb1fe366ebaf02d8526e7c4989ea9d2",
+        "release_name": "v7.4.0",
+        "workflow": ".github/workflows/trivy.yml"
+      },
+      {
+        "action": "github/codeql-action/upload-sarif",
+        "line": 61,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "cf463419fdde78c727231e445622a9ac37966f84",
+        "release_name": "v3.28.15",
+        "workflow": ".github/workflows/trivy.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 85,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/uds-sign-release.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 132,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v4.1.2",
+        "workflow": ".github/workflows/uds-sign-release.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 48,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/url-secret-leak-guard.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 50,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/url-secret-leak-guard.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 19,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/vendor-sync-check.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 38,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/whatsnew-feed-honesty.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 41,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/whatsnew-feed-honesty.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 75,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "docker/setup-buildx-action",
+        "line": 80,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+        "release_name": "v4.2.0",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "docker/login-action",
+        "line": 84,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+        "release_name": "v4.4.0",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "docker/build-push-action",
+        "line": 91,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+        "release_name": "v7.3.0",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "sigstore/cosign-installer",
+        "line": 171,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "release_name": "v4.1.2",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 240,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "./.github/actions/sign-receipts",
+        "line": 242,
+        "pin_policy": "local",
+        "pinned": true,
+        "reference": "local-checkout",
+        "release_name": null,
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "actions/upload-artifact",
+        "line": 252,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/zarf-build-and-sign.yml"
+      },
+      {
+        "action": "actions/checkout",
+        "line": 26,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release_name": "v7.0.1",
+        "workflow": ".github/workflows/zenodo-readback.yml"
+      },
+      {
+        "action": "actions/setup-python",
+        "line": 27,
+        "pin_policy": "full-sha",
+        "pinned": true,
+        "reference": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "release_name": "v7.0.0",
+        "workflow": ".github/workflows/zenodo-readback.yml"
+      }
+    ],
+    "status": "MEASURED",
+    "total": 381,
+    "unpinned": []
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

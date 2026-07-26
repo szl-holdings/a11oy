@@ -1,0 +1,21 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "clusters": [],
+    "destructive_changes_performed": false,
+    "identities": [],
+    "namespaces": [],
+    "owner_authorization_received": true,
+    "reason": "No named cloud account, non-local staging cluster context, registry admin plane, or secret-manager credential is available in this execution environment.",
+    "registries": [
+      {
+        "access": "public-read",
+        "name": "ghcr.io/szl-holdings/a11oy"
+      }
+    ],
+    "secret_paths": [],
+    "status": "BLOCKED"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

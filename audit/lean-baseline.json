@@ -1,0 +1,19 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "data": {
+    "build_command": "cd formal/LutarPolicy && lake build",
+    "clean_build_result": "PASS",
+    "kernel_checked_theorems": [
+      "T1 default denial",
+      "T2 rejected implies non-executable"
+    ],
+    "mathlib_input_revision": "v4.18.0",
+    "mathlib_resolved_revision": "aa936c36e8484abd300577139faf8e945850831a",
+    "public_claim": "0/12 PROVED",
+    "public_claim_reason": "Fewer than four theorems and no independent English-statement review.",
+    "status": "MEASURED",
+    "toolchain": "leanprover/lean4:v4.18.0"
+  },
+  "generated_at": "2026-07-26T08:09:00.789958Z",
+  "generator": "scripts/generate_operation_inventory.py"
+}

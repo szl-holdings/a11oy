@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/action-request.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "Governed action request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "trace_id",
+    "principal",
+    "action_type",
+    "target",
+    "source_commit",
+    "artifact_digest",
+    "requested_transition",
+    "preconditions",
+    "test_receipts",
+    "provenance_receipt",
+    "security_receipts",
+    "blast_radius",
+    "rollback",
+    "human_approvals",
+    "expires_at"
+  ],
+  "properties": {
+    "request_id": {"type": "string", "format": "uuid"},
+    "trace_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "principal": {"type": "string", "pattern": "^(agent|human|workload):[A-Za-z0-9][A-Za-z0-9._:/-]{2,127}$"},
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "deploy.staging",
+        "deploy.production",
+        "secret.rotate",
+        "identity.change",
+        "policy.change",
+        "database.migrate",
+        "traffic.change",
+        "ruleset.change",
+        "admission.change",
+        "model.promote",
+        "benchmark.publish",
+        "claim.upgrade",
+        "infrastructure.destroy"
+      ]
+    },
+    "target": {"type": "string", "pattern": "^[a-z][a-z0-9+.-]*://[^\\s:@]+@sha256:[0-9a-f]{64}$"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "artifact_digest": {"$ref": "#/$defs/digest"},
+    "requested_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"enum": ["development", "staging", "production"]},
+        "to": {"enum": ["staging", "production", "retired"]}
+      }
+    },
+    "preconditions": {"type": "array", "items": {"type": "string"}, "maxItems": 64},
+    "test_receipts": {"type": "array", "items": {"$ref": "#/$defs/digest"}, "maxItems": 128},
+    "provenance_receipt": {"type": "object"},
+    "security_receipts": {"type": "array", "items": {"type": "object"}, "maxItems": 128},
+    "blast_radius": {"type": "object"},
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_digest", "procedure"],
+      "properties": {
+        "target_digest": {"$ref": "#/$defs/digest"},
+        "procedure": {"type": "string", "minLength": 1, "maxLength": 4096}
+      }
+    },
+    "human_approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approver", "scope", "approved_at"],
+        "properties": {
+          "approver": {"type": "string", "pattern": "^human:[A-Za-z0-9][A-Za-z0-9._:/-]{2,127}$"},
+          "scope": {"type": "string", "minLength": 1, "maxLength": 256},
+          "approved_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "maxItems": 16
+    },
+    "expires_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

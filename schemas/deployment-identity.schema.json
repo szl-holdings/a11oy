@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/deployment-identity.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "Deployment identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["service", "environment", "source_commit", "artifact_digest", "runtime", "observed_at", "identity_status"],
+  "properties": {
+    "service": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{1,127}$"},
+    "environment": {"enum": ["development", "staging", "production"]},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "artifact_digest": {"type": "string", "pattern": "^(sha256:[0-9a-f]{64}|UNAVAILABLE)$"},
+    "model_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+    "tokenizer_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+    "runtime": {"type": "string", "minLength": 1, "maxLength": 256},
+    "deployed_at": {"type": "string", "format": "date-time"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "identity_status": {"enum": ["MATCH", "MISMATCH", "INCOMPLETE", "UNAVAILABLE"]}
+  }
+}
