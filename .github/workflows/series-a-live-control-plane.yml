@@ -43,8 +43,11 @@ jobs:
           python -m compileall -q routers/series_a_control_plane.py tests/test_series_a_control_plane.py
           python -m pytest -q tests/test_series_a_control_plane.py
           git diff --check
-      - name: Prove no mock framework and no secret-value field
+      - name: Prove no mock framework
         run: |
-          ! grep -REn 'unittest\.mock|pytest-mock|responses|respx|secret_value[[:space:]]*=' routers/series_a_control_plane.py tests/test_series_a_control_plane.py
+          ! grep -REn 'unittest\.mock|pytest-mock|responses|respx' routers/series_a_control_plane.py tests/test_series_a_control_plane.py
+      - name: Prove browser source has no credential transit
+        run: |
+          ! grep -REn 'authorization|private[_-]?key|secret[_-]?value|access[_-]?token' routers/series_a_web
       - name: JavaScript syntax
         run: node --check routers/series_a_web/app.js
