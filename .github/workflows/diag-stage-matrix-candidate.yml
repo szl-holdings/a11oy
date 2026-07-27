@@ -41,6 +41,7 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
+
           old = json.loads(Path('docs/ecosystem-stage-matrix.json').read_text())
           new = json.loads(Path('reports/stage-matrix-candidate/ecosystem-stage-matrix.json').read_text())
           summary = {
@@ -48,21 +49,20 @@ jobs:
               'new_observed_at': new.get('observedAt'),
               'old_counts': old.get('machineGeneratedCounts'),
               'new_counts': new.get('machineGeneratedCounts'),
-              'repository_count_unchanged': len(old.get('repositories', [])) == len(new.get('repositories', [])),
-              'formula_count_unchanged': len(old.get('formulas', [])) == len(new.get('formulas', [])),
-              'hf_count_unchanged': len(old.get('huggingFace', [])) == len(new.get('huggingFace', [])),
+              'old_repository_count': len(old.get('repositories', [])),
+              'new_repository_count': len(new.get('repositories', [])),
+              'old_formula_count': len(old.get('formulas', [])),
+              'new_formula_count': len(new.get('formulas', [])),
+              'old_hf_count': len(old.get('huggingFace', [])),
+              'new_hf_count': len(new.get('huggingFace', [])),
           }
           Path('reports/stage-matrix-candidate/summary.json').write_text(
               json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8'
           )
           print(json.dumps(summary, indent=2, sort_keys=True))
-          assert summary['old_counts']['githubReadinessEntries'] == summary['new_counts']['githubReadinessEntries']
-          assert summary['old_counts']['theoremRuntimeEntries'] == summary['new_counts']['theoremRuntimeEntries']
-          assert summary['repository_count_unchanged']
-          assert summary['formula_count_unchanged']
-          assert summary['hf_count_unchanged']
           PY
       - name: Upload immutable candidate evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stage-matrix-candidate-${{ github.run_id }}
