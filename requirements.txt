@@ -10,7 +10,7 @@ vsp-otel>=0.1
 # every span goes nowhere (shelfware). Export is GATED on OTEL_EXPORTER_OTLP_ENDPOINT:
 # when unset, vsp_otel stays honestly in-process-only (no collector is claimed);
 # when set, spans export OTLP/gRPC to that endpoint.
-opentelemetry-sdk>=1.43.0
+opentelemetry-sdk>=1.44.0
 opentelemetry-exporter-otlp>=1.44.0
 # Runtime signing/import parity with the Docker image. Exact pin: the DSSE and
 # boot-ephemeral Council signer must not silently resolve a different crypto
