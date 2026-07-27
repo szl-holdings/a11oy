@@ -10,6 +10,7 @@ on:
       - "scripts/sign_lathe_snapshot.py"
       - "scripts/verify_lathe_snapshot_receipt.py"
       - "tests/test_lathe_*.py"
+      - "tests/test_verify_lathe_snapshot_receipt.py"
       - "szl_formulas.py"
       - ".github/requirements/ci-core.txt"
       - ".github/requirements/ci-sigstore.txt"
@@ -22,6 +23,7 @@ on:
       - "scripts/lathe_*.py"
       - "scripts/sign_lathe_snapshot.py"
       - "scripts/verify_lathe_snapshot_receipt.py"
+      - "tests/test_verify_lathe_snapshot_receipt.py"
       - "szl_formulas.py"
       - ".github/requirements/ci-core.txt"
       - ".github/requirements/ci-sigstore.txt"
@@ -55,7 +57,11 @@ jobs:
             --output "$RUNNER_TEMP/program-snapshot.v1.json"
           cmp artifacts/lathe/program-snapshot.v1.json "$RUNNER_TEMP/program-snapshot.v1.json"
       - name: Run One Lathe contract suites
-        run: python -m pytest -q tests/test_lathe_snapshot.py tests/test_lathe_receipt.py
+        run: >-
+          python -m pytest -q
+          tests/test_lathe_snapshot.py
+          tests/test_lathe_receipt.py
+          tests/test_verify_lathe_snapshot_receipt.py
 
   sign-and-verify:
     name: Sign and independently verify
