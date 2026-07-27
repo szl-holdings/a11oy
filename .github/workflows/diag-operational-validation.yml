@@ -49,31 +49,31 @@ jobs:
               echo
             } >> "$report"
             "$@" >> "$report" 2>&1
-            code=$?
-            echo "EXIT_CODE=$code" >> "$report"
-            if [ "$code" -ne 0 ]; then
+            stage_code=$?
+            echo "EXIT_CODE=$stage_code" >> "$report"
+            if [ "$stage_code" -ne 0 ]; then
               echo "failed_stage=$name" >> "$GITHUB_OUTPUT"
-              echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-              return "$code"
+              return "$stage_code"
             fi
             return 0
           }
 
-          run_stage validate-operational bash scripts/validate-operational.sh || true
-          code="${PIPESTATUS[0]}"
-          if [ "$code" -eq 0 ]; then run_stage audit-ecosystem python3 scripts/test_audit_huggingface_ecosystem.py || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage compile-ecosystem python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage hf-ecosystem-audit pnpm hf:ecosystem:audit || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage stage-matrix python3 scripts/build_ecosystem_stage_matrix.py --check || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage schema-test node scripts/test_validate_huggingface_ecosystem_schema.mjs || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage schema-validate node scripts/validate_huggingface_ecosystem_schema.mjs || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage payload-verify npm run payload:verify || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage payload-huggingface npm run payload:huggingface || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage payload-bundle npm run payload:bundle || code=$?; fi
-          if [ "$code" -eq 0 ]; then run_stage payload-bundle-verify npm run payload:bundle:verify || code=$?; fi
+          code=0
+          run_stage validate-operational bash scripts/validate-operational.sh
+          code=$?
+          if [ "$code" -eq 0 ]; then run_stage audit-ecosystem python3 scripts/test_audit_huggingface_ecosystem.py; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage compile-ecosystem python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage hf-ecosystem-audit pnpm hf:ecosystem:audit; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage stage-matrix python3 scripts/build_ecosystem_stage_matrix.py --check; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage schema-test node scripts/test_validate_huggingface_ecosystem_schema.mjs; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage schema-validate node scripts/validate_huggingface_ecosystem_schema.mjs; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-verify npm run payload:verify; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-huggingface npm run payload:huggingface; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-bundle npm run payload:bundle; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-bundle-verify npm run payload:bundle:verify; code=$?; fi
 
           cat "$report"
-          echo "exit_code=${code:-0}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Upload bounded diagnostic evidence
         if: always()
