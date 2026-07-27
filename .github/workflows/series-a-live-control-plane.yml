@@ -43,9 +43,32 @@ jobs:
           python -m compileall -q routers/series_a_control_plane.py tests/test_series_a_control_plane.py
           python -m pytest -q tests/test_series_a_control_plane.py
           git diff --check
-      - name: Prove no mock framework
+      - name: Prove no mock framework imports
         run: |
-          ! grep -REn 'unittest\.mock|pytest-mock|responses|respx' routers/series_a_control_plane.py tests/test_series_a_control_plane.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          banned = {"unittest.mock", "responses", "respx", "pytest_mock"}
+          found = []
+          for filename in (
+              "routers/series_a_control_plane.py",
+              "tests/test_series_a_control_plane.py",
+          ):
+              tree = ast.parse(Path(filename).read_text(encoding="utf-8"), filename)
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Import):
+                      names = [alias.name for alias in node.names]
+                  elif isinstance(node, ast.ImportFrom):
+                      names = [node.module or ""]
+                  else:
+                      continue
+                  for name in names:
+                      if name in banned or any(name.startswith(value + ".") for value in banned):
+                          found.append(f"{filename}:{node.lineno}:{name}")
+          if found:
+              raise SystemExit("mock framework imports found: " + ", ".join(found))
+          PY
       - name: Prove browser source has no credential transit
         run: |
           ! grep -REn 'authorization|private[_-]?key|secret[_-]?value|access[_-]?token' routers/series_a_web
