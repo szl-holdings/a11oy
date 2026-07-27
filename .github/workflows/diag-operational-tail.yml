@@ -79,6 +79,7 @@ jobs:
           ))
           summary = {
               'schema': 'szl.a11oy-grype-root-cause/v1',
+              'repository': os.environ['GITHUB_REPOSITORY'],
               'source_revision': os.environ['GITHUB_SHA'],
               'high_or_critical_count': len(findings),
               'findings': findings,
