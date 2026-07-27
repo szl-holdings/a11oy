@@ -1,0 +1,71 @@
+name: Ecosystem Stage Matrix — Bounded Candidate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diag-stage-matrix-candidate.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-stage-matrix-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Render and verify exact stage-matrix candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Render exact candidate from canonical inputs
+        run: |
+          set -euo pipefail
+          mkdir -p reports/stage-matrix-candidate
+          python3 scripts/build_ecosystem_stage_matrix.py \
+            --output reports/stage-matrix-candidate/ecosystem-stage-matrix.json
+          python3 scripts/build_ecosystem_stage_matrix.py \
+            --check \
+            --output reports/stage-matrix-candidate/ecosystem-stage-matrix.json
+          diff -u docs/ecosystem-stage-matrix.json \
+            reports/stage-matrix-candidate/ecosystem-stage-matrix.json \
+            > reports/stage-matrix-candidate/stage-matrix.diff || true
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          old = json.loads(Path('docs/ecosystem-stage-matrix.json').read_text())
+          new = json.loads(Path('reports/stage-matrix-candidate/ecosystem-stage-matrix.json').read_text())
+          summary = {
+              'old_observed_at': old.get('observedAt'),
+              'new_observed_at': new.get('observedAt'),
+              'old_counts': old.get('machineGeneratedCounts'),
+              'new_counts': new.get('machineGeneratedCounts'),
+              'repository_count_unchanged': len(old.get('repositories', [])) == len(new.get('repositories', [])),
+              'formula_count_unchanged': len(old.get('formulas', [])) == len(new.get('formulas', [])),
+              'hf_count_unchanged': len(old.get('huggingFace', [])) == len(new.get('huggingFace', [])),
+          }
+          Path('reports/stage-matrix-candidate/summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          assert summary['old_counts']['githubReadinessEntries'] == summary['new_counts']['githubReadinessEntries']
+          assert summary['old_counts']['theoremRuntimeEntries'] == summary['new_counts']['theoremRuntimeEntries']
+          assert summary['repository_count_unchanged']
+          assert summary['formula_count_unchanged']
+          assert summary['hf_count_unchanged']
+          PY
+      - name: Upload immutable candidate evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage-matrix-candidate-${{ github.run_id }}
+          path: reports/stage-matrix-candidate
+          if-no-files-found: error
+          retention-days: 14
