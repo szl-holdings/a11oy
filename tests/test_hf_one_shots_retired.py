@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+"""Network-free proof that superseded A11oy HF one-shots stay retired."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,3 +33,14 @@ def test_hf_sync_is_the_permanent_source_derived_authority():
     trigger_prefix = workflow.split("permissions:", 1)[0]
     assert "paths:" not in trigger_prefix
     assert "5b0d3818cf5780092dc1ffd78731707a1ebbcce9" not in workflow
+
+
+def main() -> int:
+    test_superseded_one_shots_are_absent()
+    test_hf_sync_is_the_permanent_source_derived_authority()
+    print("A11oy HF one-shot retirement contract verified")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
