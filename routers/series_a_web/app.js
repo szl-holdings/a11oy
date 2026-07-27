@@ -6,6 +6,11 @@
     const node = document.querySelector(`[data-key="${key}"]`);
     if (node) node.textContent = terminal(value);
   };
+  const sha256 = async (text) => {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, "0")).join("");
+  };
   const request = async (path, options = {}) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
@@ -53,10 +58,16 @@
   document.getElementById("passport").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const evidenceStatement = JSON.stringify({
+      source: "series-a-ui",
+      target: form.get("target"),
+      label: form.get("label"),
+      observed_at: new Date().toISOString()
+    });
     const body = {
       principal_id: "series-a-ui",
       action: {type: form.get("type"), target: form.get("target"), impact: "MODERATE", irreversible: false},
-      evidence: [{evidence_id: "ui-observation", label: form.get("label"), content_digest: "ui-declared-current-session"}],
+      evidence: [{evidence_id: "ui-observation", label: form.get("label"), content_digest: await sha256(evidenceStatement)}],
       expected_if_withheld: "Current state persists",
       expected_if_acted: "Bounded action completes or fails closed"
     };
