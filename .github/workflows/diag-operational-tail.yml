@@ -1,0 +1,97 @@
+name: Operational Tail — Bounded Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diag-operational-tail.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-operational-tail-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Capture the first failing operational command
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run each operational command independently
+        id: diagnose
+        shell: bash
+        run: |
+          set +e
+          mkdir -p reports/operational-tail
+          report=reports/operational-tail/commands.log
+          : > "$report"
+
+          run_stage() {
+            stage="$1"
+            shift
+            {
+              echo
+              echo "===== ${stage} ====="
+              printf 'COMMAND:'
+              printf ' %q' "$@"
+              echo
+            } >> "$report"
+            "$@" >> "$report" 2>&1
+            stage_code=$?
+            echo "EXIT_CODE=${stage_code}" >> "$report"
+            if [ "$stage_code" -ne 0 ]; then
+              echo "failed_stage=${stage}" >> "$GITHUB_OUTPUT"
+              return "$stage_code"
+            fi
+            return 0
+          }
+
+          code=0
+          run_stage validate-operational bash scripts/validate-operational.sh; code=$?
+          if [ "$code" -eq 0 ]; then run_stage audit-tests python3 scripts/test_audit_huggingface_ecosystem.py; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage compile python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage ecosystem-audit pnpm hf:ecosystem:audit; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage stage-matrix python3 scripts/build_ecosystem_stage_matrix.py --check; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage schema-tests node scripts/test_validate_huggingface_ecosystem_schema.mjs; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage schema-validation node scripts/validate_huggingface_ecosystem_schema.mjs; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-verify npm run payload:verify; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-huggingface npm run payload:huggingface; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-bundle npm run payload:bundle; code=$?; fi
+          if [ "$code" -eq 0 ]; then run_stage payload-bundle-verify npm run payload:bundle:verify; code=$?; fi
+
+          cat "$report"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload immutable diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: operational-tail-${{ github.run_id }}
+          path: reports/operational-tail
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve the failing result
+        env:
+          EXIT_CODE: ${{ steps.diagnose.outputs.exit_code }}
+          FAILED_STAGE: ${{ steps.diagnose.outputs.failed_stage }}
+        run: |
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Operational tail failed at ${FAILED_STAGE:-unknown}; inspect the artifact."
+            exit "$code"
+          fi
+          echo 'All operational commands passed independently.'
