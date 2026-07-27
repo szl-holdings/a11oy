@@ -37,5 +37,6 @@ jobs:
       - name: Enforce retirement and permanent-authority contract
         run: |
           set -euo pipefail
-          python -m pytest -q tests/test_hf_one_shots_retired.py
+          python -m py_compile tests/test_hf_one_shots_retired.py
+          python tests/test_hf_one_shots_retired.py
           git diff --check
