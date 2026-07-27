@@ -37,6 +37,7 @@ GOVERNANCE_PREDICATE_TYPE = (
     "https://szl-holdings.dev/attestations/governance-receipt/v1"
 )
 MAX_RECEIPT_BYTES = 32 * 1024 * 1024
+MAX_PROTOBUF_INT64 = (1 << 63) - 1
 
 
 def load_receipt_envelope(path: Path) -> dict:
@@ -83,6 +84,37 @@ def _decode_statement(envelope: dict) -> dict:
     return statement
 
 
+def _protobuf_nonnegative_int64(value: object, *, field: str) -> int:
+    """Normalize an int64 from protobuf JSON without weakening its domain.
+
+    Protobuf JSON encodes 64-bit integers as decimal strings, while legacy
+    Sigstore/Rekor JSON can expose a JSON number. Accept both canonical forms,
+    then return one ordinary Python integer. Booleans, signs, leading zeroes,
+    whitespace, exponent/fraction forms, negatives, and values above int64 are
+    rejected so a parser-compatibility repair cannot become a coercion bypass.
+    """
+
+    if isinstance(value, bool):
+        raise ValueError(f"verified Sigstore bundle has an invalid {field}")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str):
+        if (
+            not value
+            or not value.isascii()
+            or not value.isdecimal()
+            or (len(value) > 1 and value.startswith("0"))
+        ):
+            raise ValueError(f"verified Sigstore bundle has an invalid {field}")
+        parsed = int(value, 10)
+    else:
+        raise ValueError(f"verified Sigstore bundle has an invalid {field}")
+
+    if parsed < 0 or parsed > MAX_PROTOBUF_INT64:
+        raise ValueError(f"verified Sigstore bundle has an invalid {field}")
+    return parsed
+
+
 def verified_rekor_log_index(envelope: dict) -> int:
     """Read the Rekor index from the same bundle verified by Sigstore."""
 
@@ -93,10 +125,7 @@ def verified_rekor_log_index(envelope: dict) -> int:
     )
     if not isinstance(entries, list) or len(entries) != 1:
         raise ValueError("verified Sigstore bundle must contain exactly one Rekor entry")
-    log_index = entries[0].get("logIndex")
-    if not isinstance(log_index, int) or isinstance(log_index, bool) or log_index < 0:
-        raise ValueError("verified Sigstore bundle has an invalid Rekor log index")
-    return log_index
+    return _protobuf_nonnegative_int64(entries[0].get("logIndex"), field="Rekor log index")
 
 
 def verify_subject(
