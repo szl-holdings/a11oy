@@ -46,7 +46,13 @@ def test_passport_blocks_unknown_evidence_and_writes_signed_or_honestly_unsigned
                     "impact": "MODERATE",
                     "irreversible": False,
                 },
-                "evidence": [{"evidence_id": "e1", "label": "UNKNOWN"}],
+                "evidence": [
+                    {
+                        "evidence_id": "e1",
+                        "label": "UNKNOWN",
+                        "content_digest": "e" * 64,
+                    }
+                ],
             },
         )
         receipts = client.get("/api/a11oy/v1/series-a/receipts").json()["items"]
@@ -73,7 +79,13 @@ def test_allow_passport_is_one_attempt(tmp_path: Path) -> None:
                 "impact": "MODERATE",
                 "irreversible": False,
             },
-            "evidence": [{"evidence_id": "e1", "label": "MEASURED"}],
+            "evidence": [
+                {
+                    "evidence_id": "e1",
+                    "label": "MEASURED",
+                    "content_digest": "e" * 64,
+                }
+            ],
         }
     )
     digest = passport["passport_digest"]
@@ -109,7 +121,13 @@ def test_private_reasoning_and_secret_values_are_absent(tmp_path: Path) -> None:
                 "impact": "MODERATE",
                 "irreversible": False,
             },
-            "evidence": [{"evidence_id": "e1", "label": "MEASURED"}],
+            "evidence": [
+                {
+                    "evidence_id": "e1",
+                    "label": "MEASURED",
+                    "content_digest": "e" * 64,
+                }
+            ],
         }
     )
     assert value["passport"]["private_reasoning_collected"] is False
