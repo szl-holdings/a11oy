@@ -89,9 +89,10 @@ def _protobuf_nonnegative_int64(value: object, *, field: str) -> int:
 
     Protobuf JSON encodes 64-bit integers as decimal strings, while legacy
     Sigstore/Rekor JSON can expose a JSON number. Accept both canonical forms,
-    then return one ordinary Python integer. Booleans, signs, leading zeroes,
-    whitespace, exponent/fraction forms, negatives, and values above int64 are
-    rejected so a parser-compatibility repair cannot become a coercion bypass.
+    then return one ordinary Python integer. Booleans, signs, zero-prefixed
+    strings, whitespace, exponent/fraction forms, negatives, and values above
+    int64 are rejected so a parser-compatibility repair cannot become a coercion
+    bypass.
     """
 
     if isinstance(value, bool):
