@@ -1,0 +1,166 @@
+name: One Lathe Verifier — Read-Only Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/one-lathe-verifier-diagnostics-pr.yml
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: one-lathe-verifier-diag-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TARGET_RUN_ID: '29770274965'
+  TARGET_JOB_ID: '89871763601'
+  REPORT_PATH: reports/one-lathe-verifier-diagnostic.json
+
+jobs:
+  inspect:
+    name: Exact verifier failure and current source binding
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'diag/one-lathe-verifier-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Query the failed verifier job read-only
+        id: query
+        shell: python
+        run: |
+          import io
+          import json
+          import os
+          import re
+          import subprocess
+          import zipfile
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          run_id = int(os.environ['TARGET_RUN_ID'])
+          job_id = int(os.environ['TARGET_JOB_ID'])
+
+          def api(path, *, binary=False):
+              process = subprocess.run(
+                  ['gh', 'api', '--method', 'GET', path],
+                  check=False,
+                  capture_output=True,
+                  env=os.environ,
+              )
+              if binary:
+                  payload = process.stdout
+              else:
+                  text = process.stdout.decode('utf-8', errors='replace')
+                  try:
+                      payload = json.loads(text) if text.strip() else None
+                  except json.JSONDecodeError:
+                      payload = text[:10000]
+              return {
+                  'ok': process.returncode == 0,
+                  'returncode': process.returncode,
+                  'payload': payload,
+                  'stderr': process.stderr.decode('utf-8', errors='replace').strip()[:4000],
+              }
+
+          def decode_logs(raw):
+              if not raw:
+                  return ''
+              try:
+                  with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                      return '\n'.join(
+                          archive.read(name).decode('utf-8', errors='replace')
+                          for name in sorted(archive.namelist())
+                      )
+              except zipfile.BadZipFile:
+                  return raw.decode('utf-8', errors='replace')
+
+          run = api(f'repos/{repository}/actions/runs/{run_id}')
+          job = api(f'repos/{repository}/actions/jobs/{job_id}')
+          logs = api(f'repos/{repository}/actions/jobs/{job_id}/logs', binary=True)
+          text = decode_logs(logs['payload'] if logs['ok'] else b'')
+          patterns = (
+              '[lathe-verify]',
+              'verification failed',
+              'VerificationError',
+              'Traceback',
+              'Rekor',
+              'Fulcio',
+              'certificate',
+              'identity',
+              'subject',
+              'digest',
+              'ERROR',
+              'REFUSED',
+              'Exception',
+          )
+          lines = text.splitlines()
+          selected = []
+          indices = {
+              index
+              for index, line in enumerate(lines)
+              if any(pattern.lower() in line.lower() for pattern in patterns)
+          }
+          for index in sorted(indices):
+              for offset in range(max(0, index - 2), min(len(lines), index + 3)):
+                  selected.append(lines[offset][-4000:])
+          deduped = []
+          seen = set()
+          for line in selected:
+              if line not in seen:
+                  seen.add(line)
+                  deduped.append(line)
+
+          classification = 'UNCLASSIFIED'
+          joined = '\n'.join(deduped).lower()
+          if 'certificate' in joined and ('identity' in joined or 'issuer' in joined):
+              classification = 'SIGSTORE_IDENTITY_OR_CERTIFICATE'
+          elif 'rekor' in joined or 'transparency' in joined:
+              classification = 'REKOR_INCLUSION_OR_LOOKUP'
+          elif 'subject' in joined or 'digest' in joined:
+              classification = 'SUBJECT_OR_DIGEST_BINDING'
+          elif not logs['ok']:
+              classification = 'LOG_ACCESS_FAILED'
+
+          report = {
+              'schema': 'szl.one-lathe-verifier-diagnostic/v1',
+              'generated_at': datetime.now(timezone.utc).isoformat(),
+              'repository': repository,
+              'target_run_id': run_id,
+              'target_job_id': job_id,
+              'run_query': run,
+              'job_query': job,
+              'logs_query_ok': logs['ok'],
+              'logs_query_error': logs['stderr'],
+              'classification': classification,
+              'failure_lines': deduped[-250:],
+              'credential_value_recorded': False,
+              'mutation': False,
+          }
+          path = Path(os.environ['REPORT_PATH'])
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          slug = re.sub(r'[^a-z0-9]+', '-', classification.lower()).strip('-') or 'unknown'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'slug={slug[:120]}\n')
+          print(json.dumps({
+              'classification': classification,
+              'failure_lines': deduped[-80:],
+              'logs_query_ok': logs['ok'],
+          }, indent=2, sort_keys=True))
+
+      - name: Upload immutable diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: one-lathe-verifier-${{ steps.query.outputs.slug || 'unclassified' }}-${{ github.run_id }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 30
