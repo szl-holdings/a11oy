@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -129,6 +130,22 @@ def test_compatibility_env_pem_uses_shared_signer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("SZL_COSIGN_PRIVATE_KEY_PEM", private_pem())
+
+    private_key, public_pem, source, error = (
+        a11oy_signing_key.load_signing_key()
+    )
+
+    assert private_key is not None
+    assert fingerprint(public_pem)
+    assert source == "persistent:env:SZL_COSIGN_PRIVATE_KEY_PEM"
+    assert error == ""
+
+
+def test_base64_compatibility_env_uses_shared_signer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    encoded = base64.b64encode(private_pem().encode("ascii")).decode("ascii")
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_KEY_PEM", encoded)
 
     private_key, public_pem, source, error = (
         a11oy_signing_key.load_signing_key()

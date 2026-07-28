@@ -22,6 +22,7 @@ in cache keys or diagnostics. Key material is never logged or returned except
 for the public PEM.
 """
 
+import base64
 import hashlib
 import os
 import threading
@@ -204,8 +205,14 @@ def load_signing_key(env=None):
             _KEY_CACHE[identity] = result
             return result
 
+        load_pem = pem
+        if b"BEGIN" not in load_pem:
+            try:
+                load_pem = base64.b64decode(load_pem, validate=True)
+            except Exception:
+                load_pem = pem
         try:
-            private_key = _ser.load_pem_private_key(pem, password=None)
+            private_key = _ser.load_pem_private_key(load_pem, password=None)
         except Exception as e:
             result = (
                 None,
