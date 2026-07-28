@@ -1,15 +1,11 @@
 name: Sync git_sha to HF Space
 
-# Additive, drift-safe companion to hf-sync.yml (which mirrors README + front-door
-# files). This workflow ONLY keeps the HuggingFace Space variable SZL_GIT_SHA equal
-# to the deployed GitHub commit, so /api/a11oy/v1/honest reports the real running
-# commit and a stale Space is self-detecting. It NEVER touches a Space file, so it
-# cannot perturb the fragile README/LFS sync path. It writes the variable only when
-# it actually changed, to avoid redundant Space factory rebuilds.
+# Manual recovery only. The canonical hf-sync.yml deployment is the sole
+# automatic owner of SZL_GIT_SHA so the variable cannot advance ahead of the
+# published runtime. This workflow remains available for an explicitly
+# dispatched recovery after an operator has verified the deployed source.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
 
 permissions:
@@ -21,6 +17,7 @@ concurrency:
 
 jobs:
   sync-git-sha:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -54,7 +51,7 @@ jobs:
           else:
               api.add_space_variable(
                   repo_id=space, key="SZL_GIT_SHA", value=sha,
-                  description="Deployed GitHub commit; surfaced at /api/a11oy/v1/honest for staleness detection. Maintained by hf-git-sha-sync.",
+                  description="Deployed GitHub commit; surfaced at /api/a11oy/v1/honest for staleness detection. Automatic binding is owned by the canonical relock deployer.",
               )
               print("Set SZL_GIT_SHA on Space:", cur, "->", sha)
           PYEOF
