@@ -284,10 +284,24 @@ def _subsystem_label(env, subsystem):
         s.name for s in specs
         if s.kind == SECRET and not _present(env, s.name)
     }
+    credential_unavailable = False
     for alternatives in _CREDENTIAL_ALTERNATIVES.get(subsystem, ()):
-        if any(_present(env, name) for name in alternatives):
+        if subsystem == "signing":
+            # Presence alone is not readiness. Validate the exact inline or
+            # mounted source against the shared loader so a missing path,
+            # malformed PEM, wrong key type/curve, or strict-mode absence can
+            # never produce a false LIVE label.
+            from a11oy_signing_key import load_signing_key
+            private_key, _, source, _ = load_signing_key(env=env)
+            if private_key is None or source == "unavailable":
+                credential_unavailable = True
+            elif source.startswith("persistent:"):
+                missing_secrets.difference_update(alternatives)
+        elif any(_present(env, name) for name in alternatives):
             missing_secrets.difference_update(alternatives)
     if missing_required:
+        label = UNAVAILABLE
+    elif credential_unavailable:
         label = UNAVAILABLE
     elif missing_secrets:
         label = DEGRADED

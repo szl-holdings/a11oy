@@ -35,6 +35,16 @@ import szl_boot_preflight as pf  # noqa: E402
 _SECRET_SENTINEL = "sk-THIS-IS-A-SECRET-VALUE-DO-NOT-LEAK-0xDEADBEEF"
 
 
+def _valid_private_pem():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    return ec.generate_private_key(ec.SECP256R1()).private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode("ascii")
+
+
 # ---------------------------------------------------------------------------
 # 1. Empty env => DEGRADED, never UNAVAILABLE, never crash.
 # ---------------------------------------------------------------------------
@@ -109,14 +119,19 @@ def test_every_name_single_kind_and_collision_list():
 def test_present_secret_lights_subsystem():
     # Either accepted inline key lights the signing subsystem.
     for name in ("SZL_COSIGN_PRIVATE_PEM", "A11OY_RECEIPT_KEY_PEM"):
-        ready = pf.readiness(env={name: _SECRET_SENTINEL})
+        ready = pf.readiness(env={name: _valid_private_pem()})
         signing = [s for s in ready["subsystems"]
                    if s["subsystem"] == "signing"][0]
         assert signing["label"] == pf.LIVE, signing
         assert signing["missing_secrets"] == [], signing
 
     # A mounted key source is an equivalent persistent credential.
-    mounted = pf.readiness(env={"A11OY_RECEIPT_KEY_PATH": "/run/secrets/key.pem"})
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        path = os.path.join(temp_dir, "receipt.pem")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(_valid_private_pem())
+        mounted = pf.readiness(env={"A11OY_RECEIPT_KEY_PATH": path})
     signing_mounted = [s for s in mounted["subsystems"]
                        if s["subsystem"] == "signing"][0]
     assert signing_mounted["label"] == pf.LIVE, signing_mounted
@@ -125,6 +140,22 @@ def test_present_secret_lights_subsystem():
     signing_absent = [s for s in pf.readiness(env={})["subsystems"]
                       if s["subsystem"] == "signing"][0]
     assert signing_absent["label"] == pf.DEGRADED
+
+
+def test_invalid_signing_alternative_never_reports_live():
+    missing_path = pf.readiness(
+        env={"A11OY_RECEIPT_KEY_PATH": "/definitely/missing/receipt.pem"}
+    )
+    missing_signing = [s for s in missing_path["subsystems"]
+                       if s["subsystem"] == "signing"][0]
+    assert missing_signing["label"] == pf.UNAVAILABLE, missing_signing
+
+    malformed = pf.readiness(
+        env={"SZL_COSIGN_PRIVATE_PEM": "not a private key"}
+    )
+    malformed_signing = [s for s in malformed["subsystems"]
+                         if s["subsystem"] == "signing"][0]
+    assert malformed_signing["label"] == pf.UNAVAILABLE, malformed_signing
 
 
 def test_empty_string_counts_as_absent():

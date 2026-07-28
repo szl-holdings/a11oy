@@ -42,8 +42,9 @@ _KEY_CACHE = {}
 _KEY_CACHE_LOCK = threading.Lock()
 
 
-def _strict_mode_enabled():
-    return os.environ.get(
+def _strict_mode_enabled(env=None):
+    env = os.environ if env is None else env
+    return env.get(
         "A11OY_REQUIRE_PERSISTENT_SIGNING", ""
     ).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -79,13 +80,14 @@ def _file_request(path, strict):
     )
 
 
-def _configured_request():
-    strict = _strict_mode_enabled()
+def _configured_request(env=None):
+    env = os.environ if env is None else env
+    strict = _strict_mode_enabled(env)
 
     for name in _INLINE_KEY_NAMES:
-        if name not in os.environ:
+        if name not in env:
             continue
-        value = os.environ.get(name, "")
+        value = env.get(name, "")
         pem = value.encode("utf-8")
         identity = ("env", name, _pem_digest(pem), strict)
         if not value.strip():
@@ -97,8 +99,8 @@ def _configured_request():
             )
         return (identity, pem, "persistent:env:%s" % name, "")
 
-    if "A11OY_RECEIPT_KEY_PATH" in os.environ:
-        path = os.environ.get("A11OY_RECEIPT_KEY_PATH", "").strip()
+    if "A11OY_RECEIPT_KEY_PATH" in env:
+        path = env.get("A11OY_RECEIPT_KEY_PATH", "").strip()
         if not path:
             return (
                 ("file", "empty", strict),
@@ -109,8 +111,8 @@ def _configured_request():
         return _file_request(path, strict)
 
     key_dir_env = "A11OY" + "_RECEIPT_KEY_DIR"
-    key_dir_configured = key_dir_env in os.environ
-    key_dir = os.environ.get(key_dir_env, "").strip()
+    key_dir_configured = key_dir_env in env
+    key_dir = env.get(key_dir_env, "").strip()
     if key_dir_configured and not key_dir:
         return (
             ("directory", "empty", strict),
@@ -142,8 +144,11 @@ def _configured_request():
     return (("ephemeral", key_dir), b"", "ephemeral", "")
 
 
-def load_signing_key():
+def load_signing_key(env=None):
     """Return ``(private_key, public_pem, source, error)``.
+
+    ``env`` may be an explicit environment mapping for preflight validation;
+    runtime callers default to ``os.environ``.
 
     ``source`` is ``persistent:env:<name>``, ``persistent:<path>``,
     ``ephemeral``, or ``unavailable``. A configured persistent source never
@@ -160,7 +165,7 @@ def load_signing_key():
             "cryptography unavailable: %s" % type(e).__name__,
         )
 
-    identity, pem, source, request_error = _configured_request()
+    identity, pem, source, request_error = _configured_request(env)
 
     with _KEY_CACHE_LOCK:
         cached = _KEY_CACHE.get(identity)
