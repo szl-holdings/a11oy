@@ -500,10 +500,19 @@ def test_allow_passport_is_one_attempt(tmp_path: Path) -> None:
     assert passport["passport"]["decision"] == "ALLOW"
     assert passport["passport"]["governance"]["allowed"] is True
     assert service.store.load_passport(digest)["attempts"] == 0
-    service.store.consume_attempt(digest)
+    service.store.begin_execution(
+        digest,
+        service.runtime_boot_id,
+        "2026-07-28T16:00:00Z",
+    )
     assert service.store.load_passport(digest)["attempts"] == 1
+    assert service.store.execution_status(digest)["state"] == "PENDING"
     try:
-        service.store.consume_attempt(digest)
+        service.store.begin_execution(
+            digest,
+            service.runtime_boot_id,
+            "2026-07-28T16:00:01Z",
+        )
     except RuntimeError:
         pass
     else:
@@ -942,6 +951,87 @@ def test_successful_execution_is_recoverable_by_passport_digest(
     assert recovered.headers["cache-control"] == "no-store"
     assert recovered.json()["outcome"]["status"] == "SUCCEEDED"
     assert recovered.json()["outcome_receipt"]["kind"] == "passport.outcome"
+    execution = service.store.execution_status(digest)
+    assert execution["state"] == "COMPLETED"
+    assert (
+        execution["outcome_receipt_hash"]
+        == recovered.json()["outcome_receipt"]["receipt_hash"]
+    )
+
+
+def test_start_reconciles_interrupted_execution_without_replaying_action(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database = tmp_path / "series-a.sqlite3"
+    first = control.Service(str(database))
+    evidence = observed_evidence(first)
+    passport = first.evaluate_passport(
+        {
+            "principal_id": "tester",
+            "action": {
+                "type": "probe.public_surface",
+                "target": "https://a-11-oy.com/healthz",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": evidence,
+        }
+    )
+    digest = passport["passport_digest"]
+    started_at = "2026-07-28T16:00:00Z"
+    first.store.begin_execution(
+        digest,
+        first.runtime_boot_id,
+        started_at,
+    )
+    assert first.store.outcome_for_passport(digest) is None
+
+    second = control.Service(str(database))
+    probes = 0
+
+    async def probe(_target: str) -> dict[str, object]:
+        nonlocal probes
+        probes += 1
+        return {"status": "SUCCEEDED"}
+
+    monkeypatch.setattr(second, "_probe", probe)
+    monkeypatch.setenv("A11OY_SERIES_A_STARTUP_REFRESH", "0")
+    asyncio.run(second.start())
+
+    recovered = second.store.outcome_for_passport(digest)
+    execution = second.store.execution_status(digest)
+    assert probes == 0
+    assert recovered is not None
+    assert recovered["outcome"]["status"] == "FAILED"
+    assert recovered["outcome"]["error_class"] == "ExecutionInterrupted"
+    assert (
+        recovered["outcome"]["reconciliation"]
+        == "INTERRUPTED_EXECUTION_RECONCILED"
+    )
+    assert recovered["outcome"]["started_at"] == started_at
+    assert recovered["outcome"]["previous_runtime_boot_id"] == first.runtime_boot_id
+    assert "may have started or partially completed" in recovered["outcome"][
+        "uncertainty"
+    ]
+    assert execution["state"] == "RECONCILED"
+    assert (
+        execution["outcome_receipt_hash"]
+        == recovered["outcome_receipt"]["receipt_hash"]
+    )
+    assert second.store.load_passport(digest)["attempts"] == 1
+
+    receipt_count = len(second.store.list_receipts(200))
+    third = control.Service(str(database))
+    monkeypatch.setattr(third, "_probe", probe)
+    asyncio.run(third.start())
+    assert probes == 0
+    assert len(third.store.list_receipts(200)) == receipt_count
+    assert (
+        third.store.outcome_for_passport(digest)["outcome_receipt"][
+            "receipt_hash"
+        ]
+        == recovered["outcome_receipt"]["receipt_hash"]
+    )
 
 
 def test_receipt_chain_links_exact_previous_hash(tmp_path: Path) -> None:

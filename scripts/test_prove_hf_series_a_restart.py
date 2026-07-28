@@ -34,12 +34,19 @@ class Response:
         return self.value
 
 
-def status(source: str, *, receipts: int, head: str) -> dict:
+def status(
+    source: str,
+    *,
+    receipts: int,
+    head: str,
+    boot: str = "boot_" + ("1" * 32),
+) -> dict:
     return {
         "schema": "szl.series-a-status/v1",
         "state": "OBSERVED",
         "terminal": True,
         "source_revision": source,
+        "runtime_boot_id": boot,
         "signing_key_source": proof.EXPECTED_SIGNER,
         "database": proof.EXPECTED_DATABASE,
         "storage": {
@@ -61,7 +68,12 @@ class Session:
         self.source = source
         self.statuses = [
             status(source, receipts=1, head="2" * 64),
-            status(source, receipts=2, head="3" * 64),
+            status(
+                source,
+                receipts=2,
+                head="3" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
         ]
         self.headers = {}
 
@@ -94,13 +106,33 @@ class StartupReceiptSession(Session):
         self.statuses = [
             status(source, receipts=0, head=None),
             status(source, receipts=1, head="2" * 64),
-            status(source, receipts=2, head="3" * 64),
+            status(
+                source,
+                receipts=2,
+                head="3" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
         ]
         self.posts = 0
 
     def post(self, *_args, **_kwargs):
         self.posts += 1
         raise AssertionError("public restart proof must not bypass passports")
+
+
+class DrainingSession(Session):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.statuses = [
+            status(source, receipts=1, head="2" * 64),
+            status(source, receipts=1, head="2" * 64),
+            status(
+                source,
+                receipts=2,
+                head="3" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+        ]
 
 
 class Api:
@@ -131,6 +163,7 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
 
     assert report["ok"] is True
     assert report["restart_requested"] is True
+    assert report["proof"]["runtime_boot_identity_changed"] is True
     assert report["proof"]["database_instance_stable"] is True
     assert report["proof"]["pre_restart_chain_head_recovered"] is True
     assert api.calls == [
@@ -159,11 +192,56 @@ def test_prove_waits_for_startup_receipt_without_direct_refresh(
     assert report["ok"] is True
     assert session.posts == 0
     assert report["before"]["storage"]["receipt_count"] == 1
+    assert report["before"]["runtime_boot_id"] != report["after"]["runtime_boot_id"]
+
+
+def test_prove_rejects_successful_capture_from_same_runtime(monkeypatch) -> None:
+    source = "a" * 40
+    api = Api()
+    session = Session(source)
+    session.statuses[1]["runtime_boot_id"] = session.statuses[0][
+        "runtime_boot_id"
+    ]
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(
+        proof.RestartProofError,
+        match="runtime restart was not observed",
+    ):
+        proof.prove(
+            api=api,
+            session=session,
+            repo_id="SZLHOLDINGS/a11oy",
+            origin="https://a-11-oy.com",
+            source_sha=source,
+            attempts=2,
+            retry_seconds=0,
+        )
+
+
+def test_prove_polls_past_draining_old_runtime(monkeypatch) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=Api(),
+        session=DrainingSession(source),
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=2,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert report["before"]["runtime_boot_id"] == "boot_" + ("1" * 32)
+    assert report["after"]["runtime_boot_id"] == "boot_" + ("2" * 32)
 
 
 def test_validate_restart_rejects_key_or_database_identity_change() -> None:
     before = {
         "source_revision": "a" * 40,
+        "runtime_boot_id": "boot_" + ("1" * 32),
         "signing_key_source": proof.EXPECTED_SIGNER,
         "public_key_sha256": "b" * 64,
         "storage": {
@@ -173,9 +251,17 @@ def test_validate_restart_rejects_key_or_database_identity_change() -> None:
             "chain_head": "2" * 64,
         },
     }
+    restarted = {"runtime_boot_id": "boot_" + ("2" * 32)}
     for update in (
-        {"public_key_sha256": "c" * 64},
-        {"storage": {**before["storage"], "instance_id": "store_" + ("4" * 32)}},
+        {"runtime_boot_id": before["runtime_boot_id"]},
+        {**restarted, "public_key_sha256": "c" * 64},
+        {
+            **restarted,
+            "storage": {
+                **before["storage"],
+                "instance_id": "store_" + ("4" * 32),
+            },
+        },
     ):
         after = {**before, **update}
         with pytest.raises(proof.RestartProofError):
