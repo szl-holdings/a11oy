@@ -217,13 +217,13 @@ def test_event_cursor_resumes_from_last_event_id_and_validates_range() -> None:
             "headers": [(b"last-event-id", b"12000")],
         }
     )
-    query_wins = Request(
+    delivered_event_wins = Request(
         {
             "type": "http",
             "method": "GET",
             "path": "/events",
-            "query_string": b"after=12001",
-            "headers": [(b"last-event-id", b"12000")],
+            "query_string": b"after=12000",
+            "headers": [(b"last-event-id", b"12001")],
         }
     )
     malformed = Request(
@@ -237,7 +237,7 @@ def test_event_cursor_resumes_from_last_event_id_and_validates_range() -> None:
     )
 
     assert control._event_cursor(resumed) == 12000
-    assert control._event_cursor(query_wins) == 12001
+    assert control._event_cursor(delivered_event_wins) == 12001
     with pytest.raises(control.HTTPException) as error:
         control._event_cursor(malformed)
     assert error.value.status_code == 400

@@ -1055,9 +1055,9 @@ def _asset(name: str) -> str:
 
 
 def _event_cursor(request: Request) -> int:
-    raw = request.query_params.get("after")
+    raw = request.headers.get("last-event-id")
     if raw is None:
-        raw = request.headers.get("last-event-id", "0")
+        raw = request.query_params.get("after", "0")
     try:
         cursor = int(raw or 0)
     except (TypeError, ValueError) as exc:
