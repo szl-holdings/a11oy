@@ -121,11 +121,13 @@ class FakeApi:
             runtime = SimpleNamespace(
                 raw={"sha": self.runtime_sha},
                 stage=SimpleNamespace(value=self.stage),
+                volumes=self.volumes,
             )
         else:
             runtime = SimpleNamespace(
                 sha=self.runtime_sha,
                 stage=SimpleNamespace(value=self.stage),
+                volumes=self.volumes,
             )
         return SimpleNamespace(
             sha=self.repository_sha,

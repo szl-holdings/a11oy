@@ -110,10 +110,10 @@ class EventuallyConsistentApi:
         self.volume_snapshots = list(volume_snapshots)
         self.variable_snapshots = list(variable_snapshots)
 
-    def get_space_runtime(self, *, repo_id: str):
+    def space_info(self, *, repo_id: str):
         assert repo_id == config.CANONICAL_SPACE
         value = self.volume_snapshots.pop(0)
-        return SimpleNamespace(volumes=value)
+        return SimpleNamespace(runtime=SimpleNamespace(volumes=value))
 
     def get_space_variables(self, *, repo_id: str):
         assert repo_id == config.CANONICAL_SPACE
@@ -162,3 +162,12 @@ def test_await_readback_still_fails_closed_at_bound() -> None:
             delay_seconds=0,
             sleep=lambda _seconds: None,
         )
+
+
+def test_volume_readback_fails_closed_when_space_info_omits_metadata() -> None:
+    api = SimpleNamespace(
+        space_info=lambda *, repo_id: SimpleNamespace(runtime=None)
+    )
+
+    with pytest.raises(config.RuntimeConfigError, match="runtime metadata"):
+        config.read_space_volumes(api, repo_id=config.CANONICAL_SPACE)

@@ -471,10 +471,14 @@ def evaluate_once(
             f"canonical signing secret is absent: {CANONICAL_SIGNING_SECRET}"
         )
 
-    runtime = api.get_space_runtime(contract["repo_id"])
+    runtime = getattr(info, "runtime", None)
+    if runtime is None or getattr(runtime, "volumes", None) is None:
+        raise RelockError(
+            "canonical Space info lacks authoritative volume metadata"
+        )
     volumes = [
         volume_record(item)
-        for item in list(getattr(runtime, "volumes", None) or [])
+        for item in list(runtime.volumes)
     ]
     data_volumes = [
         item for item in volumes if item["mount_path"] == "/data"
