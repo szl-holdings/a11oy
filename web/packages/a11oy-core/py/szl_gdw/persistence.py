@@ -51,8 +51,8 @@ class SessionConflict(PersistenceError):
     """A session identifier or optimistic state version conflicts."""
 
 
-class SessionLimitExceeded(PersistenceError):
-    """The durable global session quota has been reached."""
+class SessionQuotaExceeded(PersistenceError):
+    """The durable global session ceiling has been reached."""
 
 
 class ReplayConflict(PersistenceError):
@@ -314,7 +314,7 @@ class SQLiteWorkspaceStore:
         persistent_required: bool = False,
         required_mount: str | Path | None = None,
         journal_mode: str = "WAL",
-        max_sessions: int = 128,
+        max_sessions: int = 1000,
     ) -> None:
         path_text = str(path)
         if (
@@ -328,18 +328,18 @@ class SQLiteWorkspaceStore:
             raise ValueError("max_json_bytes must be between 1 KiB and 16 MiB")
         if not (0.1 <= timeout_seconds <= 120.0):
             raise ValueError("timeout_seconds must be between 0.1 and 120")
-        normalized_journal_mode = str(journal_mode).strip().upper()
-        if normalized_journal_mode not in {"DELETE", "WAL"}:
+        selected_journal_mode = str(journal_mode).strip().upper()
+        if selected_journal_mode not in {"DELETE", "WAL"}:
             raise ValueError("journal_mode must be DELETE or WAL")
-        if not isinstance(max_sessions, int) or not (1 <= max_sessions <= 100_000):
-            raise ValueError("max_sessions must be between 1 and 100000")
+        if not isinstance(max_sessions, int) or not (1 <= max_sessions <= 1_000_000):
+            raise ValueError("max_sessions must be between 1 and 1000000")
 
         self.path = str(Path(path_text).expanduser().resolve())
         self.max_json_bytes = max_json_bytes
         self.timeout_seconds = timeout_seconds
-        self.journal_mode = normalized_journal_mode
-        self.max_sessions = max_sessions
         self.persistent_required = bool(persistent_required)
+        self.journal_mode = selected_journal_mode
+        self.max_sessions = max_sessions
         self.required_mount = (
             str(Path(required_mount).expanduser().resolve())
             if required_mount is not None
@@ -602,8 +602,8 @@ class SQLiteWorkspaceStore:
                     db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
                 )
                 if session_count >= self.max_sessions:
-                    raise SessionLimitExceeded(
-                        "durable workspace session quota is exhausted"
+                    raise SessionQuotaExceeded(
+                        "durable session capacity is exhausted"
                     )
                 receipt, envelope = _sign_khipu(receipt_body)
                 receipt_hash = _digest(receipt)
@@ -640,7 +640,7 @@ class SQLiteWorkspaceStore:
                     ),
                 )
                 db.commit()
-            except (SessionConflict, SessionLimitExceeded):
+            except (SessionConflict, SessionQuotaExceeded):
                 db.rollback()
                 raise
             except sqlite3.IntegrityError as exc:
@@ -1079,8 +1079,6 @@ class SQLiteWorkspaceStore:
             "schema_version": SCHEMA_VERSION,
             "storage_instance_id": metadata["storage_instance_id"],
             "path": self.path,
-            "journal_mode": self.journal_mode,
-            "max_sessions": self.max_sessions,
             "persistent_required": self.persistent_required,
             "required_mount": self.required_mount,
             "mount_ok": bool(

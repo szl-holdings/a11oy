@@ -13,14 +13,6 @@ from szl_gdw import api
 from szl_gdw.persistence import PersistenceError
 
 
-def _allow_governance(_action):
-    return {
-        "allowed": True,
-        "decision": "ALLOW",
-        "reason_codes": ["TEST_FILE_BACKED_GOVERNANCE_PASS"],
-    }
-
-
 @pytest.fixture(autouse=True)
 def unsigned_runtime(monkeypatch):
     monkeypatch.setattr(szl_dsse, "_load_private_key", lambda: None)
@@ -32,7 +24,11 @@ def client(tmp_path):
     api.register(
         app,
         db_path=tmp_path / "api.sqlite3",
-        governance_gate=_allow_governance,
+        governance_gate=lambda _: {
+            "decision": "allow",
+            "receipt": {"receipt_id": "test-governance"},
+            "dsse": {"signed": False, "signatures": []},
+        },
     )
     return TestClient(app)
 
@@ -84,6 +80,7 @@ def test_status_session_step_receipt_and_exact_replay(client):
     expected = first.json()
     expected["replayed"] = True
     assert replay.json() == expected
+    assert first.json()["governance"]["decision"] == "allow"
 
     receipt_id = first.json()["khipu_receipt"]["receipt_id"]
     receipt = client.get(f"/api/a11oy/v1/gdw/receipts/{receipt_id}")
@@ -93,46 +90,32 @@ def test_status_session_step_receipt_and_exact_replay(client):
     assert receipt.json()["label"] == "MODELED"
 
 
-def test_missing_or_denying_governance_gate_fails_before_kernel(tmp_path):
+def test_step_fails_closed_when_doctrine_governance_denies(tmp_path):
     app = FastAPI()
-    api.register(app, db_path=tmp_path / "ungoverned.sqlite3")
-    ungoverned = TestClient(app)
-    ungoverned.post(
-        "/api/a11oy/v1/gdw/sessions",
-        json={"session_id": "ungoverned"},
-    )
-    status = ungoverned.get("/api/a11oy/v1/gdw/status")
-    refused = ungoverned.post(
-        "/api/a11oy/v1/gdw/sessions/ungoverned/step",
-        json=_step_body(),
-    )
-
-    assert status.json()["governance_ready"] is False
-    assert status.json()["runtime_ready"] is False
-    assert refused.status_code == 503
-    assert refused.json()["error"] == "GOVERNED_RUNTIME_UNAVAILABLE"
-
-    denied_app = FastAPI()
     api.register(
-        denied_app,
+        app,
         db_path=tmp_path / "denied.sqlite3",
-        governance_gate=lambda _action: {
-            "allowed": False,
-            "decision": "DENY",
+        governance_gate=lambda _: {
+            "decision": "deny",
+            "receipt": {"receipt_id": "denied"},
+            "dsse": {"signed": False, "signatures": []},
         },
     )
-    denied = TestClient(denied_app)
-    denied.post(
+    denied_client = TestClient(app)
+    created = denied_client.post(
         "/api/a11oy/v1/gdw/sessions",
         json={"session_id": "denied"},
     )
-    denied_step = denied.post(
+    denied = denied_client.post(
         "/api/a11oy/v1/gdw/sessions/denied/step",
         json=_step_body(),
     )
 
-    assert denied_step.status_code == 403
-    assert denied_step.json()["error"] == "GOVERNANCE_DENIED"
+    assert created.status_code == 201
+    assert denied.status_code == 403
+    assert denied.json()["error"] == "GOVERNANCE_DENIED"
+    telemetry = denied_client.get("/api/a11oy/v1/gdw/telemetry").json()
+    assert telemetry["storage"]["counts"]["receipts"] == 1
 
 
 def test_gets_and_aggregate_do_not_mint_or_change_storage(

@@ -31,7 +31,7 @@ complete route contract remains visible but state operations return `503`
 without a temporary fallback. `SZL_GDW_ALLOW_EPHEMERAL=1` exists for explicit
 local development only. Persistent bucket deployments use SQLite rollback-journal
 `DELETE` mode, and session creation is bounded by the durable
-`SZL_GDW_MAX_SESSIONS` quota (default `128`).
+`SZL_GDW_MAX_SESSIONS` quota (default `1000`).
 
 ## API contract
 

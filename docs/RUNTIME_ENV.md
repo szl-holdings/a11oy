@@ -137,7 +137,7 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | `SZL_GDW_REQUIRED_MOUNT` | variable | optional | Required mount containing the GDW database; writes fail closed when absent. | `/data` |
 | `SZL_GDW_ALLOW_EPHEMERAL` | variable | optional | Explicit local-development override permitting a temporary GDW database. Never enable for production. | `0` |
 | `SZL_GDW_SQLITE_JOURNAL_MODE` | variable | optional | SQLite journal mode. The persistent `/data` bucket defaults to rollback-journal `DELETE`; local files default to `WAL`. | `DELETE` |
-| `SZL_GDW_MAX_SESSIONS` | variable | optional | Durable global session quota enforced atomically before creating a session. | `128` |
+| `SZL_GDW_MAX_SESSIONS` | variable | optional | Durable global session quota enforced atomically before creating a session. | `1000` |
 
 ### signing
 
