@@ -48,6 +48,76 @@ def test_mutable_envelope_metadata_cannot_replace_signed_key_identity() -> None:
     assert envelope["key_fingerprint_sha256"] != identity["key_fingerprint_sha256"]
 
 
+def test_runtime_verifier_rejects_keyid_substitution() -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.runtime.keyid.binding"})
+    envelope["signatures"][0]["keyid"] = "0" * 64
+    verdict = serve._a11oy_loop_verify(envelope)
+    assert verdict["signature_valid"] is False
+    assert verdict["keyid_expected"] == serve._A11OY_KEYID
+    assert verdict["detail"] == "unexpected keyid for a11oy shared public key"
+
+
+def test_runtime_verifier_retains_legacy_inimage_keyid() -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.runtime.legacy.keyid"})
+    envelope["signatures"][0]["keyid"] = "a11oy-inimage-ecdsa-p256"
+    verdict = serve._a11oy_loop_verify(envelope)
+    assert verdict["signature_valid"] is True
+    assert verdict["keyid_expected"] == serve._A11OY_KEYID
+    assert verdict["keyid_verified"] == "a11oy-inimage-ecdsa-p256"
+
+
+@pytest.mark.parametrize("payload_type", [None, "", "   "])
+def test_runtime_verifier_rejects_missing_payload_type(payload_type) -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.runtime.payload-type"})
+    if payload_type is None:
+        envelope.pop("payloadType")
+    else:
+        envelope["payloadType"] = payload_type
+
+    verdict = serve._a11oy_loop_verify(envelope)
+
+    assert verdict["signature_valid"] is False
+    assert verdict["detail"] == (
+        "DSSE envelope payloadType must be a non-empty string"
+    )
+
+
+def test_public_verifier_accepts_shared_runtime_signature() -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.public.runtime.verify"})
+    response = TestClient(serve.app).post(
+        "/api/a11oy/v1/verify/receipt",
+        json={"envelope": envelope},
+    )
+    assert response.status_code == 200
+    signature = next(
+        check
+        for check in response.json()["checks"]
+        if check["check"] == "signature"
+    )
+    assert signature["status"] == "VERIFIED"
+    assert signature["keyid_expected"] == serve._A11OY_KEYID
+    assert signature["verify_key_url"] == "/cosign.pub"
+
+
+def test_public_verifier_rejects_tampered_runtime_payload() -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.public.runtime.tamper"})
+    payload = bytearray(base64.b64decode(envelope["payload"]))
+    payload[-1] ^= 1
+    envelope["payload"] = base64.b64encode(payload).decode("ascii")
+    response = TestClient(serve.app).post(
+        "/api/a11oy/v1/verify/receipt",
+        json={"envelope": envelope},
+    )
+    assert response.status_code == 200
+    signature = next(
+        check
+        for check in response.json()["checks"]
+        if check["check"] == "signature"
+    )
+    assert response.json()["verdict"] == "FAIL"
+    assert signature["status"] == "MISMATCH"
+
+
 def test_root_wow_and_series_a_share_one_process_key(tmp_path) -> None:
     service = series_a_control_plane.Service(
         str(tmp_path / "series-a.sqlite3")

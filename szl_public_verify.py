@@ -170,28 +170,50 @@ def _check_signature(env: dict[str, Any], runtime_verify_fn=None) -> dict[str, A
         return {**out, "status": UNSIGNED_LOCAL,
                 "detail": ("envelope has no signatures[]; nothing to verify "
                            "(honest UNSIGNED-LOCAL — no signature fabricated)")}
+    payload_type = env.get("payloadType")
+    if not isinstance(payload_type, str) or not payload_type.strip():
+        return {
+            **out,
+            "status": MISMATCH,
+            "detail": "DSSE envelope payloadType must be a non-empty string",
+        }
     keyids = [str(s.get("keyid") or "") for s in sigs if isinstance(s, dict)]
-    if "a11oy-inimage-ecdsa-p256" in keyids:
-        # Live Nemo/Council receipts use the per-boot key served at
-        # /cosign.pub, not the long-lived organization key embedded in
-        # szl_dsse. The old static-key-only path falsely marked them MISMATCH.
-        if not callable(runtime_verify_fn):
-            return {**out, "status": UNAVAILABLE,
-                    "verify_key_url": "/cosign.pub",
-                    "keyid_expected": "a11oy-inimage-ecdsa-p256",
-                    "detail": "in-image verifier callback unavailable in this context"}
+    runtime_verdict = None
+    if callable(runtime_verify_fn):
+        # The live signer uses a SHA-256 public-key fingerprint as keyid. Older
+        # receipts used the literal a11oy-inimage-ecdsa-p256 label. Always ask
+        # the runtime verifier first so both forms are checked against the exact
+        # key served by this deployment at /cosign.pub. If that key does not
+        # verify the envelope, fall through to the retained organization-key
+        # verifier so historical receipts remain verifiable.
         try:
             runtime_verdict = runtime_verify_fn(env)
         except Exception as e:
-            return {**out, "status": UNAVAILABLE,
-                    "verify_key_url": "/cosign.pub",
-                    "detail": f"in-image verify error: {type(e).__name__}"}
-        return {**out,
-                "status": (VERIFIED if runtime_verdict.get("signature_valid")
-                           else MISMATCH),
+            runtime_verdict = {
+                "signature_valid": False,
+                "detail": f"in-image verify error: {type(e).__name__}",
+            }
+        if runtime_verdict.get("signature_valid") is True:
+            return {
+                **out,
+                "status": VERIFIED,
+                "verify_key_url": "/cosign.pub",
+                "keyid_expected": runtime_verdict.get("keyid_expected"),
+                "signatures": [{
+                    "keyid": (
+                        runtime_verdict.get("keyid_verified")
+                        or runtime_verdict.get("keyid_expected")
+                    ),
+                    "verified": True,
+                    "verified_by": "runtime:/cosign.pub",
+                }],
+                "detail": runtime_verdict.get("detail"),
+            }
+    elif "a11oy-inimage-ecdsa-p256" in keyids:
+        return {**out, "status": UNAVAILABLE,
                 "verify_key_url": "/cosign.pub",
                 "keyid_expected": "a11oy-inimage-ecdsa-p256",
-                "detail": runtime_verdict.get("detail")}
+                "detail": "in-image verifier callback unavailable in this context"}
     try:
         verdict = szl_dsse.verify_envelope(env)
     except Exception as e:
@@ -206,7 +228,12 @@ def _check_signature(env: dict[str, Any], runtime_verify_fn=None) -> dict[str, A
             "signatures": verdict.get("signatures"),
             "keyid_expected": verdict.get("keyid_expected"),
             "pae_sha256": verdict.get("pae_sha256"),
-            "reason": verdict.get("reason")}
+            "reason": verdict.get("reason"),
+            "runtime_detail": (
+                runtime_verdict.get("detail")
+                if isinstance(runtime_verdict, dict)
+                else None
+            )}
 
 
 # ---------------------------------------------------------------------------
