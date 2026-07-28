@@ -5,8 +5,10 @@ on:
     branches:
       - main
     paths:
+      - "LICENSE"
       - "benchmarks/governed-agent-bench/**"
       - "benchmarks/benchmark-map.json"
+      - ".github/requirements/governed-agent-bench-publish.txt"
       - "scripts/validate_benchmark_map.py"
       - "scripts/test_validate_benchmark_map.py"
       - ".github/workflows/governed-agent-bench.yml"
@@ -14,19 +16,20 @@ on:
     branches:
       - main
     paths:
+      - "LICENSE"
       - "benchmarks/governed-agent-bench/**"
       - "benchmarks/benchmark-map.json"
+      - ".github/requirements/governed-agent-bench-publish.txt"
       - "scripts/validate_benchmark_map.py"
       - "scripts/test_validate_benchmark_map.py"
       - ".github/workflows/governed-agent-bench.yml"
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: governed-agent-bench-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   benchmark:
@@ -36,11 +39,36 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+
+      - name: Resolve deterministic source metadata
+        id: source
+        shell: bash
+        env:
+          EXPECTED_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          observed_revision="$(git rev-parse HEAD)"
+          if [[ "$observed_revision" != "$EXPECTED_SOURCE_REVISION" ]]; then
+            echo "checked-out source revision mismatch" >&2
+            exit 1
+          fi
+          source_timestamp="$(git show -s --format=%cI "$observed_revision")"
+          if [[ -z "$source_timestamp" ]]; then
+            echo "source commit timestamp is unavailable" >&2
+            exit 1
+          fi
+          {
+            echo "revision=$observed_revision"
+            echo "timestamp=$source_timestamp"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Score the known-good fixture
         run: >-
@@ -71,13 +99,11 @@ jobs:
           fi
 
       - name: Build exact Hub publication payloads
-        env:
-          SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: >-
           python benchmarks/governed-agent-bench/build_publication.py
           --output reports/governed-agent-bench-publication
-          --source-revision "$SOURCE_REVISION"
-          --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          --source-revision "${{ steps.source.outputs.revision }}"
+          --observed-at "${{ steps.source.outputs.timestamp }}"
 
       - name: Upload prerelease publication evidence
         if: always()
@@ -89,17 +115,21 @@ jobs:
           retention-days: 30
 
   publish:
-    name: Publish dataset and live leaderboard
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    name: Publish and verify source-bound leaderboard
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'szl-holdings/a11oy'
     needs: benchmark
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       PUBLICATION_DIR: reports/governed-agent-bench-publication
     steps:
       - name: Check out exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up Python
@@ -107,15 +137,45 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install pinned Hugging Face client
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
+      - name: Resolve deterministic source metadata
+        id: source
+        shell: bash
+        env:
+          EXPECTED_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          observed_revision="$(git rev-parse HEAD)"
+          if [[ "$observed_revision" != "$EXPECTED_SOURCE_REVISION" ]]; then
+            echo "checked-out protected source revision mismatch" >&2
+            exit 1
+          fi
+          source_timestamp="$(git show -s --format=%cI "$observed_revision")"
+          if [[ -z "$source_timestamp" ]]; then
+            echo "source commit timestamp is unavailable" >&2
+            exit 1
+          fi
+          {
+            echo "revision=$observed_revision"
+            echo "timestamp=$source_timestamp"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install hash-locked Hugging Face client
+        env:
+          PIP_NO_INPUT: "1"
+          PIP_NO_CACHE_DIR: "1"
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          --only-binary=:all:
+          --require-hashes
+          -r .github/requirements/governed-agent-bench-publish.txt
 
       - name: Rebuild exact payload from protected main
         run: >-
           python benchmarks/governed-agent-bench/build_publication.py
           --output "$PUBLICATION_DIR"
-          --source-revision "$GITHUB_SHA"
-          --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          --source-revision "${{ steps.source.outputs.revision }}"
+          --observed-at "${{ steps.source.outputs.timestamp }}"
 
       - name: Publish and read back immutable revisions
         env:
@@ -123,10 +183,12 @@ jobs:
         run: >-
           python benchmarks/governed-agent-bench/publish_huggingface.py
           --bundle "$PUBLICATION_DIR"
-          --source-revision "$GITHUB_SHA"
+          --source-revision "${{ steps.source.outputs.revision }}"
           --receipt "$PUBLICATION_DIR/publication-receipt.json"
+          --space-timeout-seconds 900
+          --poll-interval-seconds 10
 
-      - name: Upload immutable publication receipt
+      - name: Upload complete or partial publication receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
