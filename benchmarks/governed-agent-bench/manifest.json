@@ -27,7 +27,8 @@
   },
   "publication": {
     "hugging_face_dataset": "SZLHOLDINGS/governed-agent-bench",
-    "state": "ROADMAP",
-    "rule": "GitHub is canonical; no Hub benchmark or leaderboard claim until the immutable corpus, evaluator, license, and reproduced submissions are published together."
+    "hugging_face_space": "SZLHOLDINGS/governed-agent-bench",
+    "state": "READY_FOR_PROTECTED_PUBLICATION",
+    "rule": "GitHub is canonical; the Hub dataset and Space become live only after the protected main workflow publishes and independently reads back every exact file at immutable revisions."
   }
 }
