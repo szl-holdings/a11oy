@@ -47,6 +47,7 @@ TTL_SECONDS = 300
 DEFAULT_REFRESH_INTERVAL_SECONDS = 240
 MIN_REFRESH_INTERVAL_SECONDS = 30
 MAX_REFRESH_INTERVAL_SECONDS = TTL_SECONDS - 30
+MAX_SNAPSHOT_HISTORY = 12
 MAX_BODY = 64 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
@@ -83,6 +84,10 @@ def _refresh_interval_seconds() -> int:
         MIN_REFRESH_INTERVAL_SECONDS,
         min(requested, MAX_REFRESH_INTERVAL_SECONDS),
     )
+
+
+def _refresh_delay_seconds(interval_seconds: int, elapsed_seconds: float) -> float:
+    return max(0.0, float(interval_seconds) - max(0.0, elapsed_seconds))
 
 
 def _canonical(value: Any) -> bytes:
@@ -354,6 +359,15 @@ class Store:
                     manifest["observed_at"],
                     manifest["valid_until"],
                 ),
+            )
+            db.execute(
+                """DELETE FROM snapshots
+                   WHERE digest NOT IN (
+                     SELECT digest FROM snapshots
+                     ORDER BY observed_at DESC, digest DESC
+                     LIMIT ?
+                   )""",
+                (MAX_SNAPSHOT_HISTORY,),
             )
         return digest
 
@@ -682,6 +696,7 @@ class Service:
         interval_seconds = _refresh_interval_seconds()
         actor = "startup"
         while True:
+            cycle_started = time.monotonic()
             try:
                 await self.refresh(actor)
             except asyncio.CancelledError:
@@ -696,7 +711,8 @@ class Service:
                     },
                 )
             actor = "periodic"
-            await asyncio.sleep(interval_seconds)
+            elapsed = max(0.0, time.monotonic() - cycle_started)
+            await asyncio.sleep(_refresh_delay_seconds(interval_seconds, elapsed))
 
     async def stop(self) -> None:
         task = self.background_task
@@ -710,7 +726,45 @@ class Service:
         except asyncio.CancelledError:
             pass
 
-    async def refresh(self, actor: str) -> dict[str, Any]:
+    async def refresh(
+        self,
+        actor: str,
+        *,
+        governance: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        action = {
+            "type": "estate.refresh",
+            "target": "szl://estate/current",
+            "impact": "MODERATE",
+            "irreversible": False,
+        }
+        decision = dict(governance) if governance is not None else self._governance_gate(action)
+        authorization = self.store.append_receipt(
+            "estate.refresh.authorization",
+            {
+                "actor": actor,
+                "action_digest": _sha(action),
+                "decision": decision.get("decision", "DENY"),
+                "reason_codes": decision.get(
+                    "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
+                ),
+            },
+            self.signer,
+        )
+        if not decision.get("allowed"):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "GOVERNANCE_DENY",
+                    "reason_codes": decision.get(
+                        "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
+                    ),
+                    "receipt_hash": authorization["receipt_hash"],
+                    "signature_status": authorization["envelope"][
+                        "signature_status"
+                    ],
+                },
+            )
         if self.refresh_lock.locked():
             raise HTTPException(status_code=409, detail="estate refresh already running")
         async with self.refresh_lock:
@@ -1002,7 +1056,10 @@ class Service:
         try:
             async def run() -> dict[str, Any]:
                 if action["type"] == "estate.refresh":
-                    result = await self.refresh(str(passport["passport_id"]))
+                    result = await self.refresh(
+                        str(passport["passport_id"]),
+                        governance=governance,
+                    )
                     return {
                         "status": "SUCCEEDED",
                         "manifest_digest": result["manifest"]["manifest_digest"],

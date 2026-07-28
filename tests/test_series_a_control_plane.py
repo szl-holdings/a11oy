@@ -103,10 +103,11 @@ def test_periodic_refresh_retries_and_records_failure_honestly(
 
     events = service.store.events_since(0)
     assert actors == ["startup", "periodic"]
-    assert sleeps == [
-        control.DEFAULT_REFRESH_INTERVAL_SECONDS,
-        control.DEFAULT_REFRESH_INTERVAL_SECONDS,
-    ]
+    assert len(sleeps) == 2
+    assert all(
+        0 <= value <= control.DEFAULT_REFRESH_INTERVAL_SECONDS
+        for value in sleeps
+    )
     assert events[-1]["kind"] == "estate.refresh.failed"
     assert events[-1]["payload"] == {
         "actor": "startup",
@@ -114,6 +115,84 @@ def test_periodic_refresh_retries_and_records_failure_honestly(
         "error_class": "RuntimeError",
         "error": "collector unavailable",
     }
+
+
+def test_periodic_schedule_accounts_for_collection_time(
+) -> None:
+    assert control._refresh_delay_seconds(240, 75.0) == 165.0
+    assert control._refresh_delay_seconds(240, 240.0) == 0.0
+    assert control._refresh_delay_seconds(240, 300.0) == 0.0
+    assert control._refresh_delay_seconds(240, -1.0) == 240.0
+
+
+def test_refresh_fails_closed_before_collection_when_governance_denies(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = control.Service(str(tmp_path / "series-a.sqlite3"))
+    collected = False
+
+    async def collect() -> dict[str, object]:
+        nonlocal collected
+        collected = True
+        return {}
+
+    monkeypatch.setattr(service.collector, "collect", collect)
+    monkeypatch.setattr(
+        service,
+        "_governance_gate",
+        lambda action: {
+            "allowed": False,
+            "decision": "DENY",
+            "reason_codes": ["TEST_GOVERNANCE_DENY"],
+        },
+    )
+
+    with pytest.raises(control.HTTPException) as error:
+        asyncio.run(service.refresh("periodic"))
+
+    receipts = service.store.list_receipts()
+    assert error.value.status_code == 403
+    assert collected is False
+    assert receipts[0]["kind"] == "estate.refresh.authorization"
+    assert receipts[0]["receipt"]["payload"]["decision"] == "DENY"
+    assert receipts[0]["receipt"]["payload"]["reason_codes"] == [
+        "TEST_GOVERNANCE_DENY"
+    ]
+
+
+def test_snapshot_history_is_bounded_without_pruning_receipts(
+    tmp_path: Path,
+) -> None:
+    service = control.Service(str(tmp_path / "series-a.sqlite3"))
+    total = control.MAX_SNAPSHOT_HISTORY + 5
+    for index in range(total):
+        observed_at = (
+            datetime.now(timezone.utc) + timedelta(seconds=index)
+        ).isoformat().replace("+00:00", "Z")
+        manifest = {
+            "schema": control.SCHEMA_MANIFEST,
+            "observed_at": observed_at,
+            "valid_until": (
+                datetime.now(timezone.utc)
+                + timedelta(minutes=5, seconds=index)
+            ).isoformat().replace("+00:00", "Z"),
+            "status": "OBSERVED",
+            "counts": {"index": index},
+        }
+        service.store.save_snapshot(manifest, service.signer.sign(manifest))
+        service.store.append_receipt(
+            "snapshot.test",
+            {"index": index},
+            service.signer,
+        )
+
+    with service.store.connect() as db:
+        snapshot_count = db.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
+        receipt_count = db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0]
+
+    assert snapshot_count == control.MAX_SNAPSHOT_HISTORY
+    assert receipt_count == total
+    assert service.store.latest_snapshot()["manifest"]["counts"]["index"] == total - 1
 
 
 def test_background_refresh_cancels_cleanly_on_shutdown(
