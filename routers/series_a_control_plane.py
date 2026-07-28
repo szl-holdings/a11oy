@@ -186,7 +186,11 @@ class ReceiptSigner:
 
     @property
     def keyid(self) -> str | None:
-        return _sha(self.public_pem.encode("utf-8")) if self.public_pem else None
+        return (
+            _sha(self.public_pem.strip().encode("utf-8"))
+            if self.public_pem
+            else None
+        )
 
     def sign(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         body = _canonical(dict(payload))
