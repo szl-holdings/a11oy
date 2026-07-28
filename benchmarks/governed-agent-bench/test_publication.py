@@ -39,6 +39,44 @@ def _load_publisher():
     return module
 
 
+def _write_manifested_payload(
+    payload: Path,
+    publisher,
+    *,
+    repo_type: str = "dataset",
+    repo_id: str = "SZLHOLDINGS/governed-agent-bench",
+    source_revision: str = "a" * 40,
+) -> None:
+    payload.mkdir()
+    (payload / "leaderboard.json").write_text(
+        '{"eligible_model_submissions":0}\n',
+        encoding="utf-8",
+    )
+    files = [
+        {
+            "path": "leaderboard.json",
+            "bytes": (payload / "leaderboard.json").stat().st_size,
+            "sha256": hashlib.sha256(
+                (payload / "leaderboard.json").read_bytes()
+            ).hexdigest(),
+        }
+    ]
+    (payload / "publication-manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": publisher.MANIFEST_SCHEMA,
+                "managed_by": publisher.MANAGED_BY,
+                "repo_type": repo_type,
+                "repo_id": repo_id,
+                "source_revision": source_revision,
+                "observed_at": "2026-07-28T12:00:00Z",
+                "files": files,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 class PublicationTests(unittest.TestCase):
     def test_bundle_is_hash_closed_and_truth_labeled(self):
         builder = _load_builder()
@@ -106,7 +144,32 @@ class PublicationTests(unittest.TestCase):
             requirements = (output / "space" / "requirements.txt").read_text(
                 encoding="utf-8"
             )
-            self.assertEqual(requirements, "gradio==6.20.0\n")
+            self.assertEqual(
+                requirements,
+                "--only-binary=:all:\ngradio==6.20.0\n",
+            )
+
+    def test_bundle_rebuild_is_identical_for_same_source_metadata(self):
+        builder = _load_builder()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = root / "first"
+            second = root / "second"
+            for output in (first, second):
+                builder.build(
+                    output,
+                    "a" * 40,
+                    "2026-07-28T12:00:00Z",
+                )
+
+            def snapshot(folder):
+                return {
+                    path.relative_to(folder).as_posix(): path.read_bytes()
+                    for path in sorted(folder.rglob("*"))
+                    if path.is_file()
+                }
+
+            self.assertEqual(snapshot(first), snapshot(second))
 
     def test_invalid_source_revision_fails_closed(self):
         builder = _load_builder()
@@ -142,15 +205,21 @@ class PublicationTests(unittest.TestCase):
             ):
                 publisher._require_bundle_source(dataset, space, supplied)
 
-    def test_publish_job_is_protected_main_only(self):
+
+    def test_publish_job_has_no_manual_path_and_is_non_cancelable(self):
         workflow = (
             HERE.parents[1] / ".github" / "workflows" / "governed-agent-bench.yml"
         ).read_text(encoding="utf-8")
+        self.assertNotIn("workflow_dispatch:", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
+        self.assertIn("github.event_name == 'push'", workflow)
+        self.assertIn("github.ref == 'refs/heads/main'", workflow)
+        self.assertIn('"LICENSE"', workflow)
         self.assertIn(
-            "if: github.event_name != 'pull_request' && "
-            "github.ref == 'refs/heads/main'",
+            ".github/requirements/governed-agent-bench-publish.txt",
             workflow,
         )
+        self.assertIn("--require-hashes", workflow)
 
     def test_remote_publication_deletes_stale_files_and_closes_inventory(self):
         publisher = _load_publisher()
@@ -168,7 +237,12 @@ class PublicationTests(unittest.TestCase):
             def __init__(self):
                 self.remote = {
                     "publication-manifest.json": json.dumps(
-                        {"managed_by": publisher.MANAGED_BY}
+                        {
+                            "schema_version": publisher.MANIFEST_SCHEMA,
+                            "managed_by": publisher.MANAGED_BY,
+                            "repo_type": "dataset",
+                            "repo_id": "SZLHOLDINGS/governed-agent-bench",
+                        }
                     ).encode(),
                     "stale.txt": b"must disappear",
                 }
@@ -199,15 +273,7 @@ class PublicationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             payload = tmp_path / "payload"
-            payload.mkdir()
-            (payload / "publication-manifest.json").write_text(
-                json.dumps({"managed_by": publisher.MANAGED_BY}),
-                encoding="utf-8",
-            )
-            (payload / "leaderboard.json").write_text(
-                '{"eligible_model_submissions":0}\n',
-                encoding="utf-8",
-            )
+            _write_manifested_payload(payload, publisher)
             api = FakeApi()
             downloads = tmp_path / "downloads"
             downloads.mkdir()
@@ -229,6 +295,7 @@ class PublicationTests(unittest.TestCase):
                         "SZLHOLDINGS/governed-agent-bench",
                         "dataset",
                         payload,
+                        "a" * 40,
                         "test-token",
                     )
                 )
@@ -256,14 +323,17 @@ class PublicationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             payload = tmp_path / "payload"
-            payload.mkdir()
-            (payload / "publication-manifest.json").write_text(
-                json.dumps({"managed_by": publisher.MANAGED_BY}),
-                encoding="utf-8",
-            )
+            _write_manifested_payload(payload, publisher)
             foreign = tmp_path / "foreign.json"
             foreign.write_text(
-                '{"managed_by":"another/repository"}',
+                json.dumps(
+                    {
+                        "schema_version": publisher.MANIFEST_SCHEMA,
+                        "managed_by": "another/repository",
+                        "repo_type": "dataset",
+                        "repo_id": "SZLHOLDINGS/governed-agent-bench",
+                    }
+                ),
                 encoding="utf-8",
             )
 
@@ -282,8 +352,50 @@ class PublicationTests(unittest.TestCase):
                         "SZLHOLDINGS/governed-agent-bench",
                         "dataset",
                         payload,
+                        "a" * 40,
                         "test-token",
                     )
+
+    def test_local_manifest_must_bind_source_and_target(self):
+        publisher = _load_publisher()
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = Path(tmp) / "payload"
+            _write_manifested_payload(payload, publisher)
+            with self.assertRaisesRegex(
+                publisher.PublicationError,
+                "source_revision mismatch",
+            ):
+                publisher._manifest_is_bound(
+                    publisher._files(payload),
+                    "SZLHOLDINGS/governed-agent-bench",
+                    "dataset",
+                    "b" * 40,
+                )
+
+    def test_space_source_binding_requires_exact_publication_identity(self):
+        publisher = _load_publisher()
+        source_revision = "a" * 40
+        dataset_revision = "b" * 40
+        expected = {
+            "publication.json": json.dumps(
+                {
+                    "source_revision": source_revision,
+                    "dataset_revision": dataset_revision,
+                }
+            ).encode(),
+            "leaderboard.json": json.dumps(
+                {"source_revision": source_revision}
+            ).encode(),
+        }
+        binding = publisher._space_source_binding(
+            expected,
+            source_revision,
+            dataset_revision,
+        )
+        self.assertEqual(
+            binding["verified_by"],
+            "ANONYMOUS_EXACT_SPACE_FILE_READBACK",
+        )
 
     def test_anonymous_repository_readback_is_exact_and_public(self):
         publisher = _load_publisher()
@@ -612,6 +724,72 @@ class PublicationTests(unittest.TestCase):
             "          HF_TOKEN:",
             workflow,
         )
+
+    def test_space_failure_writes_recoverable_partial_receipt(self):
+        publisher = _load_publisher()
+
+        def fake_publish(
+            _api,
+            _repo_id,
+            repo_type,
+            _folder,
+            _source_revision,
+            _token,
+            on_revision=None,
+        ):
+            if repo_type == "dataset":
+                if on_revision is not None:
+                    on_revision("b" * 40, "published")
+                return (
+                    "b" * 40,
+                    {"leaderboard.json": {"bytes": 1, "sha256": "0" * 64}},
+                    "published",
+                    ["leaderboard.json"],
+                )
+            raise publisher.PublicationError("space failed closed")
+
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.HfApi = lambda token: object()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle"
+            (bundle / "dataset").mkdir(parents=True)
+            (bundle / "space").mkdir()
+            receipt_path = root / "publication-receipt.json"
+            with (
+                patch.dict(sys.modules, {"huggingface_hub": fake_hub}),
+                patch.dict(publisher.os.environ, {"HF_TOKEN": "test-token"}),
+                patch.object(
+                    publisher,
+                    "_publish_and_readback",
+                    side_effect=fake_publish,
+                ),
+                patch.object(
+                    publisher,
+                    "_verify_public_repository",
+                    return_value={"files": {}},
+                ),
+            ):
+                with self.assertRaises(publisher.PublicationError):
+                    publisher.publish(
+                        bundle,
+                        "a" * 40,
+                        "SZLHOLDINGS/governed-agent-bench",
+                        "SZLHOLDINGS/governed-agent-bench",
+                        receipt_path,
+                        0.0,
+                        0.0,
+                    )
+
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                receipt["status"],
+                "PARTIAL_PUBLICATION_FAILED_CLOSED",
+            )
+            self.assertEqual(receipt["publication_state"], "NOT_LIVE")
+            self.assertEqual(receipt["dataset"]["revision"], "b" * 40)
+            self.assertEqual(receipt["failure"]["stage"], "space_publication")
 
 
 if __name__ == "__main__":
