@@ -58,10 +58,13 @@ for _p in (os.getcwd(), _REPO_ROOT):
 
 # --- Independent copy of the doctrine honesty vocabulary. Re-typed on purpose: this
 # guard must NOT import szl_frontier_index, or a bug there would hide behind itself.
+# DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
+# MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). It stays outside
+# _BANNED_LABELS, so a surface still cannot use it to dress up a measurement as a green claim.
 HONEST_VOCAB = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
-    "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
-    "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
 )
 NATIVE = "a11oy-native"
 CATALOG_PATH = "/api/a11oy/v1/frontier-index/catalog"

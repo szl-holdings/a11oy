@@ -14,6 +14,8 @@ logic itself, only controlled surface inputs where a real violation cannot be fo
   4. Unreachable manifest -> UNKNOWN (degrades to DEGRADED, never a fabricated pass).
   5. NEVER upgrades a label: a surface's declared honest label is read VERBATIM.
   6. Doctrine: locked-8 exact, adds nothing, Λ = Conjecture 1, trust 0.97 (never 100%).
+  7. The honest vocabulary recognises DECLARED (asserted, not measured, never upgraded),
+     so an honestly-labelled surface is SATISFIED instead of falsely flagged.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -23,6 +25,7 @@ pytest.importorskip("starlette.testclient")
 from fastapi.testclient import TestClient  # noqa: E402
 
 import serve  # noqa: E402
+import szl_frontier_index as fi  # noqa: E402
 import szl_honestywall as hw  # noqa: E402
 
 STATUS = "/api/a11oy/v1/govern/honestywall/status"
@@ -188,6 +191,64 @@ def test_status_in_real_estate_is_consistent():
     for e in j["surfaces"]:
         if e.get("label") is not None:
             assert e["label"] in vocab, f"{e['id']}: non-vocab label {e['label']}"
+
+
+# --------------------------------------------------------------------------- #
+# 7. DECLARED is an honest label (asserted, not measured, never upgraded)
+# --------------------------------------------------------------------------- #
+def test_declared_label_is_in_honest_vocabulary():
+    """Regression: DECLARED honestly means 'asserted/stated, not measured and not proven'
+    (same contract as EvidenceLabel.DECLARED in szl_quantum_utility). Its absence from the
+    vocabulary made every honestly-DECLARED surface the single reachable violation that
+    dragged the whole estate verdict to VIOLATED."""
+    assert "DECLARED" in hw.HONEST_LABELS
+    for payload in ({"label": "DECLARED"}, {"data_label": "DECLARED"},
+                    {"doctrine": {"label_top": "DECLARED"}}):
+        label_tok, _prov, checks = hw._eval_payload(payload)
+        assert label_tok == "DECLARED", f"{payload} resolved to {label_tok!r}"
+        by = {c["invariant"]: c for c in checks}
+        vocab = by.get("label_in_honest_vocabulary")
+        assert vocab is not None, f"invariant not evaluated for {payload}"
+        assert vocab["status"] == hw.SATISFIED, f"honest DECLARED wrongly flagged: {payload}"
+
+
+def test_declared_is_never_upgraded_to_measured_or_proven():
+    """DECLARED is a WEAK claim and must stay weak — never silently promoted."""
+    for raw in ("DECLARED", "DECLARED — static registry, live metadata fetched separately"):
+        label_tok, _prov, _checks = hw._eval_payload({"label": raw})
+        assert label_tok == "DECLARED", f"{raw!r} upgraded to {label_tok!r}"
+
+
+def test_shared_label_resolver_also_recognises_declared():
+    """The wall delegates token resolution to szl_frontier_index._primary_label, so that
+    shared vocabulary — not only the wall's own copy — gates the verdict. Both must agree."""
+    assert "DECLARED" in fi.HONEST_LABELS
+    assert fi._primary_label("DECLARED") == "DECLARED"
+    assert set(hw.HONEST_LABELS) == set(fi.HONEST_LABELS)
+
+
+def test_frontier_registry_declared_label_is_satisfied():
+    """The real surface that triggered this: the primary-project registry labels its static,
+    operator-asserted registry DECLARED and labels only live GitHub reads MEASURED. Reading
+    its OWN manifest must now be SATISFIED, never a violation."""
+    registry = pytest.importorskip("research.a11oy_primary_project_registry")
+    assert registry.STATIC_LABEL == "DECLARED"
+    assert registry.LIVE_LABEL == "MEASURED", "measurements must keep the MEASURED label"
+    label_tok, _prov, checks = hw._eval_payload(registry.info())
+    assert label_tok == "DECLARED"
+    by = {c["invariant"]: c for c in checks}
+    assert by["label_in_honest_vocabulary"]["status"] == hw.SATISFIED
+
+
+def test_widened_vocabulary_did_not_become_a_rubber_stamp():
+    """Recognising DECLARED must not turn the check into a pass-everything. Λ is Conjecture 1,
+    never a theorem: the strings below are NEGATIVE examples the estate never declares, kept
+    only to prove a label outside the honest set is still VIOLATED."""
+    for raw in ("UNRECOGNIZED-MARKETING-LABEL", "TOTALLY-VERIFIED-BY-ASSERTION"):
+        label_tok, _prov, checks = hw._eval_payload({"label": raw})
+        by = {c["invariant"]: c for c in checks}
+        assert label_tok is None, f"{raw!r} must map to NO honest token, got {label_tok!r}"
+        assert by["label_in_honest_vocabulary"]["status"] == hw.VIOLATED
 
 
 def test_lambda_negated_theorem_is_not_a_violation():

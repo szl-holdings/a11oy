@@ -58,10 +58,13 @@ from typing import Any
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings. This is the
 # ALLOWED set a surface's backend may emit; the catalog reports whichever one the backend
 # actually returns, never a token outside this set.
+# DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
+# MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). `_primary_label` here is
+# the shared resolver the honesty wall delegates to, so this set gates that verdict too.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
-    "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
-    "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
 )
 # The self label of this ecosystem surface itself.
 MODELED = "MODELED"

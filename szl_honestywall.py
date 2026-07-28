@@ -58,10 +58,13 @@ from typing import Any
 # never silently blank the vocabulary; tests grep these exact strings. This is the ALLOWED set a
 # surface's backend may declare — the wall reports whichever one the backend actually returns,
 # VERBATIM, never a token outside this set, never upgraded.
+# DECLARED = asserted/stated by the operator, NOT measured and NOT proven; it is never upgraded to
+# MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). It is an honest weak claim
+# in the same spirit as MODELED / ROADMAP, so its absence here flagged honest surfaces as liars.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
-    "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
-    "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
 )
 
 # This surface's own top label — a derived aggregate digest, not a measurement.

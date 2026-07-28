@@ -53,6 +53,8 @@ HONEST_LABELS = {
     "MEASURED", "UNAVAILABLE", "REPLAY", "HEURISTIC", "DERIVED", "VERIFIED",
     "ROADMAP", "ILLUSTRATIVE", "STRUCTURAL", "EXPERIMENTAL", "UNSIGNED",
     "FOUNDER-GATED", "FOUNDER", "GATED", "AWAITING", "PENDING", "REVIEW",
+    # DECLARED — asserted/stated, not measured and not proven; never upgraded to MEASURED.
+    "DECLARED",
 }
 
 # EXACT key names we treat as the honesty-disclosure label (checked strictly against
