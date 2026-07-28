@@ -1,0 +1,101 @@
+{
+  "info": {
+    "name": "GDW one-tap operational validation",
+    "description": "Authenticated schema, state-flow, receipt, metrics, and persistence checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{authToken}}", "type": "string"}]
+  },
+  "event": [{
+    "listen": "prerequest",
+    "script": {
+      "type": "text/javascript",
+      "exec": [
+        "const now = new Date().toISOString();",
+        "pm.variables.set('requestNow', now);",
+        "pm.environment.set('requestId', 'req-' + now.replace(/[:.]/g, '-'));",
+        "pm.request.headers.upsert({ key: 'X-Request-Id', value: pm.environment.get('requestId') });"
+      ]
+    }
+  }],
+  "item": [
+    {
+      "name": "Healthz",
+      "request": {"method": "GET", "url": "{{baseUrl}}/api/a11oy/v1/gdw/healthz"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('service is real', () => pm.expect(pm.response.json().status).to.eql('REAL'));"
+      ]}}]
+    },
+    {
+      "name": "GDW Step 1",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"session_id\":\"{{sessionId}}\",\"request\":\"first governed transition\",\"allowed_experts\":[\"planner\",\"retriever\",\"auditor\"],\"risk_budget\":0.35,\"mode_hint\":\"auto\",\"dry_run\":false}"},
+        "url": "{{baseUrl}}/api/a11oy/v1/gdw/step"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "const body = pm.response.json();",
+        "pm.test('decision is valid', () => pm.expect(body.decision).to.be.oneOf(['ACCEPT','REJECT','QUARANTINE']));",
+        "pm.test('proposal id is string', () => pm.expect(body.proposal_id).to.be.a('string'));",
+        "pm.test('state hash is canonical', () => pm.expect(body.state_hash).to.match(/^[a-f0-9]{64}$/));",
+        "pm.test('audit object exists', () => pm.expect(body.audit).to.be.an('object'));",
+        "pm.test('accepted write has receipt', () => { if (body.decision === 'ACCEPT') pm.expect(body.receipt_hash).to.match(/^[a-f0-9]{64}$/); });",
+        "pm.environment.set('priorStep', body.step);",
+        "pm.environment.set('lastProposalId', body.proposal_id);",
+        "pm.environment.set('lastStateHash', body.state_hash);"
+      ]}}]
+    },
+    {
+      "name": "GDW Step 2 same session",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"session_id\":\"{{sessionId}}\",\"request\":\"second governed transition\",\"allowed_experts\":[\"planner\",\"retriever\",\"auditor\"],\"risk_budget\":0.45,\"mode_hint\":\"auto\",\"dry_run\":false}"},
+        "url": "{{baseUrl}}/api/a11oy/v1/gdw/step"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "const body = pm.response.json(); const prior = Number(pm.environment.get('priorStep'));",
+        "pm.test('step is monotonic', () => pm.expect(body.step).to.be.above(prior));",
+        "pm.test('accepted write has receipt', () => pm.expect(body.receipt_hash).to.match(/^[a-f0-9]{64}$/));",
+        "pm.environment.set('priorStep', body.step);"
+      ]}}]
+    },
+    {
+      "name": "GDW Dry Run",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"session_id\":\"{{sessionId}}\",\"request\":\"non-mutating preview\",\"allowed_experts\":[\"planner\",\"auditor\"],\"risk_budget\":0.35,\"mode_hint\":\"laguna_hybrid\",\"dry_run\":true}"},
+        "url": "{{baseUrl}}/api/a11oy/v1/gdw/step"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "const body = pm.response.json();",
+        "pm.test('dry run preserves step', () => pm.expect(body.step).to.eql(Number(pm.environment.get('priorStep'))));",
+        "pm.test('dry run has no receipt', () => pm.expect(body.receipt_hash).to.eql(null));"
+      ]}}]
+    },
+    {
+      "name": "Metrics",
+      "request": {"method": "GET", "url": "{{baseUrl}}/api/a11oy/v1/gdw/metrics"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('prometheus counters exist', () => pm.expect(pm.response.text()).to.include('gdw_requests_total'));"
+      ]}}]
+    },
+    {
+      "name": "Persistence Integrity",
+      "request": {"method": "GET", "url": "{{baseUrl}}/api/a11oy/v1/gdw/integrity"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('sqlite is clean', () => pm.expect(pm.response.json().ok).to.eql(true));"
+      ]}}]
+    }
+  ]
+}
