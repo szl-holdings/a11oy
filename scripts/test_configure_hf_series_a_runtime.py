@@ -127,6 +127,13 @@ def exact_variables() -> dict:
     }
 
 
+def test_managed_runtime_enables_periodic_freshness_before_ttl() -> None:
+    assert config.SERIES_A_VARIABLES["A11OY_SERIES_A_STARTUP_REFRESH"] == "1"
+    assert int(
+        config.SERIES_A_VARIABLES["A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS"]
+    ) < 300
+
+
 def test_await_readback_accepts_bounded_eventual_consistency() -> None:
     api = EventuallyConsistentApi(
         [[], [], [volume(config.CANONICAL_BUCKET, "/data")]],

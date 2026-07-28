@@ -30,6 +30,8 @@ SERIES_A_VARIABLES = {
     "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
     "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane.sqlite3",
     "A11OY_SERIES_A_REQUIRE_MOUNT": DATA_MOUNT,
+    "A11OY_SERIES_A_STARTUP_REFRESH": "1",
+    "A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS": "240",
     # SQLite WAL requires shared-memory semantics that are not portable across
     # network filesystems. The rollback journal is the conservative NFS choice.
     "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",

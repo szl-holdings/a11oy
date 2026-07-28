@@ -290,6 +290,38 @@ def test_startup_refresh_zero_disables_periodic_task(
     assert service.store.events_since(0)[-1]["kind"] == "estate.refresh.skipped"
 
 
+def test_canonical_startup_starts_registered_refresh_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = FastAPI()
+    monkeypatch.setenv("A11OY_SERIES_A_STARTUP_REFRESH", "1")
+    control.register(value, db_path=str(tmp_path / "series-a.sqlite3"))
+    service = value.state.szl_series_a_service
+
+    async def scenario() -> None:
+        entered = asyncio.Event()
+
+        async def refresh(actor: str) -> dict[str, object]:
+            assert actor == "startup"
+            entered.set()
+            await asyncio.Event().wait()
+            return {}
+
+        monkeypatch.setattr(service, "refresh", refresh)
+        first = await control.start_registered_service(value)
+        task = service.background_task
+        second = await control.start_registered_service(value)
+        await entered.wait()
+
+        assert first["state"] == "RUNNING"
+        assert first["task_running"] is True
+        assert second["state"] == "RUNNING"
+        assert service.background_task is task
+        await service.stop()
+
+    asyncio.run(scenario())
+
+
 def test_routes_are_front_moved_and_head_is_bodyless(tmp_path: Path) -> None:
     value = app(tmp_path)
     paths = [getattr(route, "path", None) for route in value.routes]

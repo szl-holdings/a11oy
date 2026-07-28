@@ -826,6 +826,18 @@ class Service:
         except asyncio.CancelledError:
             pass
 
+    def scheduler_status(self) -> dict[str, Any]:
+        task = self.background_task
+        enabled = (
+            os.environ.get("A11OY_SERIES_A_STARTUP_REFRESH") or "1"
+        ).strip() != "0"
+        return {
+            "enabled": enabled,
+            "started": self.started,
+            "task_running": bool(task is not None and not task.done()),
+            "interval_seconds": _refresh_interval_seconds(),
+        }
+
     async def refresh(
         self,
         actor: str,
@@ -894,6 +906,7 @@ class Service:
                 "signing_key_source": self.signer.source,
                 "database": self.store.path,
                 "storage": self.store.storage_status(),
+                "refresh_scheduler": self.scheduler_status(),
                 "detail": "no completed refresh is persisted yet",
             }
         valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
@@ -913,6 +926,7 @@ class Service:
             "signing_key_source": self.signer.source,
             "database": self.store.path,
             "storage": self.store.storage_status(),
+            "refresh_scheduler": self.scheduler_status(),
         }
 
     def _governance_gate(self, action: Mapping[str, Any]) -> dict[str, Any]:
@@ -1266,6 +1280,22 @@ def _asset(name: str) -> str:
 
 def _asset_digest(name: str) -> str:
     return hashlib.sha256(_asset_bytes(name)).hexdigest()
+
+
+async def start_registered_service(app: FastAPI) -> dict[str, Any]:
+    """Start the registered controller from the canonical application lifecycle."""
+
+    service = getattr(app.state, "szl_series_a_service", None)
+    if not isinstance(service, Service):
+        return {
+            "state": "UNAVAILABLE",
+            "reason": "Series-A service is not registered",
+        }
+    await service.start()
+    return {
+        "state": "RUNNING" if service.scheduler_status()["task_running"] else "DISABLED",
+        **service.scheduler_status(),
+    }
 
 
 def _event_cursor(request: Request) -> int:
