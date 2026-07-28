@@ -39,9 +39,12 @@ def test_restore_replaces_existing_destination(tmp_path: Path) -> None:
     assert not (restored / "stale.txt").exists()
 
 
-def test_snapshot_workflow_pins_compatible_download_dependencies() -> None:
+def test_workflow_pins_compatible_snapshot_progress_runtime() -> None:
     workflow = (
-        Path(__file__).parents[1] / ".github" / "workflows" / "hf-backup-restore.yml"
+        Path(__file__).resolve().parents[1]
+        / ".github"
+        / "workflows"
+        / "hf-backup-restore.yml"
     ).read_text(encoding="utf-8")
 
     assert '"huggingface_hub==1.19.0"' in workflow
