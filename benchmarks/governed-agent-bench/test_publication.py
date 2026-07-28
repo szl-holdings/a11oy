@@ -25,6 +25,28 @@ def _load_builder():
     return module
 
 
+def _load_publisher():
+    spec = importlib.util.spec_from_file_location(
+        "governed_agent_bench_publish_huggingface",
+        HERE / "publish_huggingface.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+class FakeAdd:
+    def __init__(self, *, path_in_repo, path_or_fileobj):
+        self.path_in_repo = path_in_repo
+        self.body = path_or_fileobj.read()
+
+
+class FakeDelete:
+    def __init__(self, *, path_in_repo):
+        self.path_in_repo = path_in_repo
+
+
 class PublicationTests(unittest.TestCase):
     def test_bundle_is_hash_closed_and_truth_labeled(self):
         builder = _load_builder()
@@ -90,6 +112,60 @@ class PublicationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(builder.PublicationBuildError):
                 builder.build(Path(tmp), "main", "2026-07-28T12:00:00Z")
+
+    def test_publish_job_is_bound_to_protected_main(self):
+        workflow = (HERE.parents[1] / ".github" / "workflows" / "governed-agent-bench.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
+            workflow,
+        )
+
+    def test_operation_plan_deletes_every_stale_remote_path(self):
+        publisher = _load_publisher()
+        expected = {
+            "README.md": b"card\n",
+            "publication-manifest.json": json.dumps(
+                {"managed_by": publisher.MANAGED_BY}
+            ).encode(),
+        }
+        operations, stale = publisher._operation_plan(
+            expected,
+            {"README.md", "publication-manifest.json", "renamed.json", "stale.txt"},
+            FakeAdd,
+            FakeDelete,
+        )
+        self.assertEqual(stale, ("renamed.json", "stale.txt"))
+        self.assertEqual(
+            {item.path_in_repo for item in operations if isinstance(item, FakeAdd)},
+            set(expected),
+        )
+        self.assertEqual(
+            {item.path_in_repo for item in operations if isinstance(item, FakeDelete)},
+            set(stale),
+        )
+
+    def test_exact_inventory_rejects_unexpected_remote_file(self):
+        publisher = _load_publisher()
+        with self.assertRaisesRegex(publisher.PublicationError, "unexpected=.*stale.txt"):
+            publisher._require_exact_inventory(
+                "SZLHOLDINGS/example",
+                "dataset",
+                {"README.md": b"card\n"},
+                {"README.md", "stale.txt"},
+            )
+
+    def test_exact_inventory_accepts_only_the_payload(self):
+        publisher = _load_publisher()
+        self.assertIsNone(
+            publisher._require_exact_inventory(
+                "SZLHOLDINGS/example",
+                "space",
+                {"README.md": b"card\n", "app.py": b"pass\n"},
+                {"app.py", "README.md"},
+            )
+        )
 
 
 if __name__ == "__main__":

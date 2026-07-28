@@ -44,24 +44,83 @@ def _manifest_is_managed(files: dict[str, bytes]) -> None:
         raise PublicationError("publication manifest ownership mismatch")
 
 
+def _operation_plan(expected, remote_files, add_type, delete_type):
+    stale = tuple(sorted(set(remote_files) - set(expected)))
+    operations = [
+        add_type(path_in_repo=name, path_or_fileobj=io.BytesIO(body))
+        for name, body in sorted(expected.items())
+    ]
+    operations.extend(delete_type(path_in_repo=name) for name in stale)
+    return operations, stale
+
+
+def _require_exact_inventory(repo_id: str, repo_type: str, expected, observed) -> None:
+    expected_paths = set(expected)
+    observed_paths = set(observed)
+    if observed_paths != expected_paths:
+        raise PublicationError(
+            f"immutable inventory mismatch for {repo_type}:{repo_id}: "
+            f"missing={sorted(expected_paths - observed_paths)}; "
+            f"unexpected={sorted(observed_paths - expected_paths)}"
+        )
+
+
 def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token: str):
-    from huggingface_hub import CommitOperationAdd, hf_hub_download
+    from huggingface_hub import (
+        CommitOperationAdd,
+        CommitOperationDelete,
+        hf_hub_download,
+    )
 
     expected = _files(folder)
     _manifest_is_managed(expected)
+    preexisting = api.repo_exists(repo_id=repo_id, repo_type=repo_type)
     api.create_repo(repo_id=repo_id, repo_type=repo_type, private=False, exist_ok=True)
+    remote_before = (
+        set(api.list_repo_files(repo_id=repo_id, repo_type=repo_type))
+        if preexisting
+        else set()
+    )
+    operations, stale = _operation_plan(
+        expected,
+        remote_before,
+        CommitOperationAdd,
+        CommitOperationDelete,
+    )
+    if stale and preexisting:
+        try:
+            remote_manifest_path = hf_hub_download(
+                repo_id=repo_id,
+                repo_type=repo_type,
+                filename="publication-manifest.json",
+                token=token,
+                force_download=True,
+            )
+            remote_manifest = Path(remote_manifest_path).read_bytes()
+            _manifest_is_managed({"publication-manifest.json": remote_manifest})
+        except Exception as exc:  # noqa: BLE001
+            if isinstance(exc, PublicationError):
+                raise
+            raise PublicationError(
+                f"refusing to delete files from an unowned {repo_type} repository: {repo_id}"
+            ) from exc
     commit = api.create_commit(
         repo_id=repo_id,
         repo_type=repo_type,
-        operations=[
-            CommitOperationAdd(path_in_repo=name, path_or_fileobj=io.BytesIO(body))
-            for name, body in expected.items()
-        ],
+        operations=operations,
         commit_message="publish governed-agent-bench from protected GitHub source",
     )
     revision = commit.oid
+    remote_after = set(
+        api.list_repo_files(
+            repo_id=repo_id,
+            repo_type=repo_type,
+            revision=revision,
+        )
+    )
+    _require_exact_inventory(repo_id, repo_type, expected, remote_after)
     observed = {}
-    for name, body in expected.items():
+    for name, body in sorted(expected.items()):
         path = hf_hub_download(
             repo_id=repo_id,
             repo_type=repo_type,
@@ -77,7 +136,7 @@ def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token
             "bytes": len(readback),
             "sha256": hashlib.sha256(readback).hexdigest(),
         }
-    return revision, observed
+    return revision, observed, stale
 
 
 def publish(
@@ -103,7 +162,7 @@ def publish(
         raise PublicationError("huggingface_hub is not installed") from exc
 
     api = HfApi(token=token)
-    dataset_revision, dataset_files = _publish_and_readback(
+    dataset_revision, dataset_files, dataset_deleted = _publish_and_readback(
         api, dataset_repo, "dataset", dataset, token
     )
 
@@ -134,7 +193,7 @@ def publish(
             encoding="utf-8",
             newline="\n",
         )
-        space_revision, space_files = _publish_and_readback(
+        space_revision, space_files, space_deleted = _publish_and_readback(
             api, space_repo, "space", resolved_space, token
         )
 
@@ -147,11 +206,15 @@ def publish(
             "repo_id": dataset_repo,
             "revision": dataset_revision,
             "files": dataset_files,
+            "deleted_paths": list(dataset_deleted),
+            "exact_inventory_verified": True,
         },
         "space": {
             "repo_id": space_repo,
             "revision": space_revision,
             "files": space_files,
+            "deleted_paths": list(space_deleted),
+            "exact_inventory_verified": True,
         },
         "status": "VERIFIED_IMMUTABLE_READBACK",
         "credential_value_recorded": False,
