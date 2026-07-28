@@ -1921,6 +1921,26 @@ try:
 except Exception as _brainagent_e:  # pragma: no cover
     print(f"[a11oy] Brain agent NOT registered: {_brainagent_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- ESTATE CONSTITUTION (feat/frontier-estateconstitution) — the per-query brain-constitution
+# pattern lifted to the WHOLE ESTATE, graded continuously: GET
+# /api/a11oy/v1/govern/estateconstitution/info (the Articles + grading contract), GET
+# /api/a11oy/v1/govern/estateconstitution/status (per-Article COMPLIANT/VIOLATED/UNAVAILABLE +
+# overall CONSTITUTIONAL/IN-VIOLATION/INSUFFICIENT-SIGNAL + the honest manifest-coverage
+# disclosure; mints nothing), POST /api/a11oy/v1/govern/estateconstitution/receipt (unsigned
+# SHA-256 receipt-on-write). Articles: the honesty wall holds (0 REACHABLE violations), no surface
+# declares a fabricated MEASURED label, manifest coverage is DISCLOSED honestly (NATIVE-OK vs
+# NO-MANIFEST counted out loud — papering over the gap is the violation), doctrine invariants hold.
+# Evidence is the szl_honestywall aggregate read in-process through a GUARDED import; an unreadable
+# aggregate makes an Article UNAVAILABLE, NEVER a fabricated pass, and the estate is never
+# CONSTITUTIONAL while any evaluable Article is VIOLATED. Pure reads on GET (0 sign-on-GET).
+# Registered BEFORE the SPA /{full_path:path} catch-all. Additive, try/except-guarded.
+try:
+    import szl_estateconstitution as _szl_estateconstitution
+    _estateconstitution_status = _szl_estateconstitution.register(app, ns="a11oy")
+    print(f"[a11oy] Estate constitution registered: {_estateconstitution_status}", file=__import__("sys").stderr)
+except Exception as _estateconstitution_e:  # pragma: no cover
+    print(f"[a11oy] Estate constitution NOT registered: {_estateconstitution_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
