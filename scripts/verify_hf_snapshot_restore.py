@@ -16,8 +16,8 @@ import os
 import shutil
 import tarfile
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Iterable
+from pathlib import Path, PurePosixPath
+from typing import Any, Callable, Iterable
 
 DEFAULT_REPOSITORIES = ("SZLHOLDINGS/a11oy", "SZLHOLDINGS/killinchu")
 
@@ -91,10 +91,62 @@ def verify_local_snapshot(source: Path, workspace: Path, name: str) -> dict[str,
     }
 
 
+def download_snapshot_files(
+    api: Any,
+    repo_id: str,
+    revision: str,
+    source: Path,
+    token: str,
+    download_file: Callable[..., str],
+) -> list[str]:
+    """Download every file from one immutable Hub revision without concurrency.
+
+    ``snapshot_download`` delegates an empty file list to ``tqdm.thread_map`` in
+    some client versions, which raises an opaque ``min()`` error before evidence
+    can be written. Listing first also makes the completeness boundary explicit:
+    an empty repository is a hard failure, and every returned path must be safe.
+    """
+    files = sorted(
+        str(path)
+        for path in api.list_repo_files(
+            repo_id=repo_id,
+            repo_type="space",
+            revision=revision,
+        )
+    )
+    if not files:
+        raise RuntimeError(
+            f"Hugging Face returned no files for {repo_id}@{revision}"
+        )
+
+    if source.exists():
+        shutil.rmtree(source)
+    source.mkdir(parents=True)
+
+    for filename in files:
+        relative = PurePosixPath(filename)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise RuntimeError(f"unsafe Hub path for {repo_id}: {filename}")
+        cached = Path(
+            download_file(
+                repo_id=repo_id,
+                filename=filename,
+                repo_type="space",
+                revision=revision,
+                token=token,
+            )
+        )
+        destination = source.joinpath(*relative.parts)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(cached, destination)
+
+    return files
+
+
 def verify_spaces(
     repositories: Iterable[str], workspace: Path, token: str
 ) -> dict[str, Any]:
-    from huggingface_hub import HfApi, snapshot_download
+    from huggingface_hub import HfApi, hf_hub_download
 
     api = HfApi(token=token)
     results = []
@@ -105,15 +157,27 @@ def verify_spaces(
             raise RuntimeError(f"Hugging Face did not return a revision for {repo_id}")
         name = repo_id.replace("/", "--")
         source = workspace / "snapshots" / name
-        snapshot_download(
-            repo_id=repo_id,
-            repo_type="space",
-            revision=revision,
-            local_dir=source,
-            token=token,
+        remote_files = download_snapshot_files(
+            api,
+            repo_id,
+            revision,
+            source,
+            token,
+            hf_hub_download,
         )
         result = verify_local_snapshot(source, workspace, name)
-        result.update({"repository": repo_id, "revision": revision})
+        if result["file_count"] != len(remote_files):
+            raise RuntimeError(
+                f"downloaded file count differs for {repo_id}: "
+                f"{result['file_count']} != {len(remote_files)}"
+            )
+        result.update(
+            {
+                "repository": repo_id,
+                "revision": revision,
+                "remote_file_count": len(remote_files),
+            }
+        )
         results.append(result)
 
     return {
