@@ -66,6 +66,17 @@ def test_runtime_verifier_retains_legacy_inimage_keyid() -> None:
     assert verdict["keyid_verified"] == "a11oy-inimage-ecdsa-p256"
 
 
+def test_runtime_verifier_retains_legacy_raw_pem_keyid() -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.runtime.legacy.pem.keyid"})
+    envelope["signatures"][0]["keyid"] = serve._A11OY_LEGACY_RAW_PEM_KEYID
+
+    verdict = serve._a11oy_loop_verify(envelope)
+
+    assert verdict["signature_valid"] is True
+    assert verdict["keyid_expected"] == serve._A11OY_KEYID
+    assert verdict["keyid_verified"] == serve._A11OY_LEGACY_RAW_PEM_KEYID
+
+
 @pytest.mark.parametrize("payload_type", [None, "", "   "])
 def test_runtime_verifier_rejects_missing_payload_type(payload_type) -> None:
     envelope = serve._a11oy_sign_receipt({"event": "test.runtime.payload-type"})
