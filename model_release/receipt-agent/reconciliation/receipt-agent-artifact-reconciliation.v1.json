@@ -25,6 +25,9 @@
   },
   "current_public_head_equivalence": {
     "verified": true,
+    "qualified_commit_git_object_verified": true,
+    "public_head_commit_git_object_verified": true,
+    "complete_revision_tree_delta_verified": true,
     "inference_bearing_blob_count": 12,
     "all_inference_bearing_git_blobs_equal": true,
     "non_inference_delta": [
@@ -49,6 +52,6 @@
     "NOT_INDEPENDENT_OWNER_IDENTITY_ASSURANCE",
     "NOT_GENERAL_CAPABILITY_EVIDENCE"
   ],
-  "fixture_sha256": "e31e7cca246da87b7a75031f43189224826bf6bfda3f2cf7a497adcd7862d8dd",
-  "reconciliation_sha256": "8f01ca03f23752edfbeb4eaf8f5aa63d19802348b9818125a79bd88b63dd2ac9"
+  "fixture_sha256": "9a79520905ef04e4417b5accf3aa582a5020c37c52d25b31c9c8bcd95868d0ff",
+  "reconciliation_sha256": "8361880787feb8bc2d3307bcc5d4e2c673b0fabe62694760df967eb39815f799"
 }

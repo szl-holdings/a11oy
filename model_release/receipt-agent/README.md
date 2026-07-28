@@ -34,7 +34,10 @@ turn retrieved text into a mathematical proof.
 The artifact reconciliation in `reconciliation/` distinguishes signed-receipt
 validity, raw artifact SHA-256, the original signer's
 `SHA256(UTF8(basename) || raw bytes)` domain, and public-head equivalence. At
-the frozen observed head, ReceiptAgent is
+the frozen observed head, raw Git commit objects reproduce both declared
+revision IDs, serialized root/subtree objects reproduce their commit-bound
+tree IDs, and the complete tree delta is the one non-inference estate marker.
+ReceiptAgent is
 `ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED`. This state does not expand
 the bounded CPU evaluation or establish hosted serving, general quality,
 promotion, deployment, or independent owner identity.

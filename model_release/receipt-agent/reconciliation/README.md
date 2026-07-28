@@ -16,11 +16,14 @@ The evidence deliberately separates three claims:
    `SHA256(UTF8(basename) || raw file bytes)` digest. Those digest domains are
    different by design. The reconciler reconstructs each canonical Git LFS
    pointer from the measured raw SHA-256 and byte count, then verifies its Git
-   blob SHA-1 against the frozen qualified/public trees.
+   blob SHA-1 against the frozen qualified/public trees. The frozen raw commit
+   objects are hashed back to both declared revisions, and every serialized
+   root/subtree is hashed back to the tree identity named by its commit.
 3. **Current public-head equivalence.** At observed public head
    `2e62cb5f8e6a17052da532305a467861094a2109`, all 12 inference-bearing Git
-   blobs equal the qualified revision. The only delta is the additive,
-   non-inference `SZL_ESTATE_MANAGED.json` marker.
+   blobs equal the qualified revision. A complete walk of both hash-bound trees
+   proves that the only repository blob delta is the additive, non-inference
+   `SZL_ESTATE_MANAGED.json` marker.
 
 The resulting state is
 `ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED`. It does not establish hosted
@@ -39,4 +42,5 @@ python model_release/receipt-agent/reconciliation/reconcile_artifact_binding.py 
 
 The check performs no network access. Negative tests mutate the qualification
 self-digest, digest-domain vectors, raw artifact identity, signature evidence,
-and inference-bearing Git blobs; every mutation must refuse.
+revision commit objects, serialized trees, and inference-bearing Git blobs;
+every mutation must refuse.

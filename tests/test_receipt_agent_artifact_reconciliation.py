@@ -59,6 +59,24 @@ def test_signature_artifact_and_public_head_claims_remain_distinct():
     assert stored["exact_qualified_artifact_binding"]["verified"] is True
     assert stored["current_public_head_equivalence"]["verified"] is True
     assert (
+        stored["current_public_head_equivalence"][
+            "qualified_commit_git_object_verified"
+        ]
+        is True
+    )
+    assert (
+        stored["current_public_head_equivalence"][
+            "public_head_commit_git_object_verified"
+        ]
+        is True
+    )
+    assert (
+        stored["current_public_head_equivalence"][
+            "complete_revision_tree_delta_verified"
+        ]
+        is True
+    )
+    assert (
         stored["exact_qualified_artifact_binding"]["model_raw_sha256"]
         != stored["exact_qualified_artifact_binding"][
             "model_receipt_directory_sha256"
@@ -137,6 +155,43 @@ def test_coordinated_artifact_metadata_tamper_cannot_escape_lfs_binding():
     with pytest.raises(
         RECON.ReconciliationRefusal,
         match="raw artifact claim does not bind to the frozen LFS pointer",
+    ):
+        RECON.reconcile(fixture, qualification)
+
+
+def test_coordinated_blob_transcription_cannot_escape_revision_tree_binding():
+    fixture = load(FIXTURE)
+    qualification = load(QUALIFICATION)
+    for entry in fixture["inference_bearing_blobs"]:
+        if entry["path"] == "config.json":
+            entry["qualified_git_blob_sha1"] = "0" * 40
+            entry["public_head_git_blob_sha1"] = "0" * 40
+    for revision in ("qualified", "public_head"):
+        root = fixture["git_object_evidence"][revision]["trees"][0]
+        for entry in root["entries"]:
+            if entry["name"] == "config.json":
+                entry["object_sha1"] = "0" * 40
+
+    with pytest.raises(
+        RECON.ReconciliationRefusal,
+        match="tree object identity mismatch",
+    ):
+        RECON.reconcile(fixture, qualification)
+
+
+def test_commit_object_tamper_cannot_preserve_declared_revision():
+    fixture = load(FIXTURE)
+    qualification = load(QUALIFICATION)
+    encoded = fixture["git_object_evidence"]["qualified"]["commit_object_base64"]
+    raw = bytearray(__import__("base64").b64decode(encoded))
+    raw[-1] ^= 1
+    fixture["git_object_evidence"]["qualified"]["commit_object_base64"] = (
+        __import__("base64").b64encode(raw).decode("ascii")
+    )
+
+    with pytest.raises(
+        RECON.ReconciliationRefusal,
+        match="commit object identity mismatch",
     ):
         RECON.reconcile(fixture, qualification)
 

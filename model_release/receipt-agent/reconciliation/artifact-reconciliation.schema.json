@@ -101,12 +101,18 @@
       "type": "object",
       "required": [
         "verified",
+        "qualified_commit_git_object_verified",
+        "public_head_commit_git_object_verified",
+        "complete_revision_tree_delta_verified",
         "inference_bearing_blob_count",
         "all_inference_bearing_git_blobs_equal",
         "non_inference_delta"
       ],
       "properties": {
         "verified": {"const": true},
+        "qualified_commit_git_object_verified": {"const": true},
+        "public_head_commit_git_object_verified": {"const": true},
+        "complete_revision_tree_delta_verified": {"const": true},
         "inference_bearing_blob_count": {"const": 12},
         "all_inference_bearing_git_blobs_equal": {"const": true},
         "non_inference_delta": {

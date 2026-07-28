@@ -88,6 +88,12 @@ def git_blob_sha1(value: bytes) -> str:
     return hashlib.sha1(header + value, usedforsecurity=False).hexdigest()
 
 
+def git_object_sha1(kind: str, value: bytes) -> str:
+    _require(kind in {"commit", "tree"}, "unsupported Git object kind")
+    header = kind.encode("ascii") + b" " + str(len(value)).encode("ascii") + b"\0"
+    return hashlib.sha1(header + value, usedforsecurity=False).hexdigest()
+
+
 def lfs_pointer_git_blob_sha1(raw_sha256: str, size: int) -> str:
     pointer = (
         "version https://git-lfs.github.com/spec/v1\n"
@@ -150,6 +156,122 @@ def _verify_digest_vector(vector: dict[str, Any]) -> None:
     _require(raw_sha != receipt_sha, "digest domains must remain explicitly distinct")
 
 
+def _verify_revision_git_evidence(
+    evidence: dict[str, Any],
+    *,
+    label: str,
+    expected_revision: str,
+) -> dict[str, str]:
+    _strict_keys(
+        evidence,
+        {"revision", "commit_object_base64", "trees"},
+        f"{label}_git_evidence",
+    )
+    _require(evidence["revision"] == expected_revision, f"{label} evidence revision mismatch")
+    commit_object = base64.b64decode(evidence["commit_object_base64"], validate=True)
+    _require(
+        git_object_sha1("commit", commit_object) == expected_revision,
+        f"{label} commit object identity mismatch",
+    )
+    commit_lines = commit_object.splitlines()
+    _require(
+        commit_lines
+        and commit_lines[0].startswith(b"tree ")
+        and len(commit_lines[0]) == 45,
+        f"{label} commit object lacks one root tree",
+    )
+    root_tree_sha1 = commit_lines[0][5:].decode("ascii")
+    _require(_is_hex(root_tree_sha1, 40), f"{label} root tree identity is invalid")
+
+    tree_records = evidence["trees"]
+    _require(isinstance(tree_records, list), f"{label} tree evidence must be a list")
+    trees_by_path: dict[str, dict[str, Any]] = {}
+    for tree in tree_records:
+        _strict_keys(tree, {"path", "tree_sha1", "entries"}, f"{label} tree")
+        path = tree["path"]
+        _require(
+            isinstance(path, str)
+            and (path == "" or (not path.startswith("/") and not path.endswith("/"))),
+            f"{label} tree path is invalid",
+        )
+        _require(path not in trees_by_path, f"{label} duplicate tree path: {path}")
+        _require(_is_hex(tree["tree_sha1"], 40), f"{label} tree identity is invalid: {path}")
+        entries = tree["entries"]
+        _require(isinstance(entries, list), f"{label} tree entries must be a list: {path}")
+        names: set[str] = set()
+        serialized = bytearray()
+        for entry in entries:
+            _strict_keys(
+                entry,
+                {"mode", "type", "object_sha1", "name"},
+                f"{label} tree entry",
+            )
+            name = entry["name"]
+            _require(
+                isinstance(name, str)
+                and name
+                and "/" not in name
+                and "\0" not in name,
+                f"{label} tree entry name is invalid",
+            )
+            _require(name not in names, f"{label} duplicate tree entry: {path}/{name}")
+            names.add(name)
+            is_tree = entry["type"] == "tree"
+            _require(
+                (is_tree and entry["mode"] == "040000")
+                or (entry["type"] == "blob" and entry["mode"] in {"100644", "100755"}),
+                f"{label} tree entry mode/type mismatch: {path}/{name}",
+            )
+            _require(
+                _is_hex(entry["object_sha1"], 40),
+                f"{label} tree entry identity is invalid: {path}/{name}",
+            )
+            object_mode = "40000" if is_tree else entry["mode"]
+            serialized.extend(object_mode.encode("ascii"))
+            serialized.extend(b" ")
+            serialized.extend(name.encode("utf-8"))
+            serialized.extend(b"\0")
+            serialized.extend(bytes.fromhex(entry["object_sha1"]))
+        _require(
+            git_object_sha1("tree", bytes(serialized)) == tree["tree_sha1"],
+            f"{label} tree object identity mismatch: {path or '<root>'}",
+        )
+        trees_by_path[path] = tree
+
+    root = trees_by_path.get("")
+    _require(root is not None, f"{label} root tree evidence is missing")
+    _require(
+        root["tree_sha1"] == root_tree_sha1,
+        f"{label} root tree does not bind to the commit object",
+    )
+
+    blobs: dict[str, str] = {}
+    visited_trees: set[str] = set()
+
+    def walk_tree(path: str, expected_tree_sha1: str) -> None:
+        tree = trees_by_path.get(path)
+        _require(tree is not None, f"{label} referenced tree evidence is missing: {path}")
+        _require(
+            tree["tree_sha1"] == expected_tree_sha1,
+            f"{label} referenced tree identity mismatch: {path}",
+        )
+        visited_trees.add(path)
+        for entry in tree["entries"]:
+            child_path = f"{path}/{entry['name']}" if path else entry["name"]
+            if entry["type"] == "tree":
+                walk_tree(child_path, entry["object_sha1"])
+            else:
+                _require(child_path not in blobs, f"{label} duplicate blob path: {child_path}")
+                blobs[child_path] = entry["object_sha1"]
+
+    walk_tree("", root_tree_sha1)
+    _require(
+        visited_trees == set(trees_by_path),
+        f"{label} tree evidence contains an unreachable tree",
+    )
+    return blobs
+
+
 def reconcile(
     fixture: dict[str, Any],
     qualification_receipt: dict[str, Any],
@@ -165,6 +287,7 @@ def reconcile(
             "qualification_receipt",
             "signature_evidence",
             "digest_test_vectors",
+            "git_object_evidence",
             "inference_bearing_blobs",
             "public_head_delta",
             "authorization",
@@ -238,6 +361,23 @@ def reconcile(
     for vector in vectors:
         _verify_digest_vector(vector)
 
+    git_evidence = fixture["git_object_evidence"]
+    _strict_keys(
+        git_evidence,
+        {"qualified", "public_head"},
+        "git_object_evidence",
+    )
+    qualified_tree_blobs = _verify_revision_git_evidence(
+        git_evidence["qualified"],
+        label="qualified",
+        expected_revision=QUALIFIED_REVISION,
+    )
+    public_head_tree_blobs = _verify_revision_git_evidence(
+        git_evidence["public_head"],
+        label="public-head",
+        expected_revision=PUBLIC_HEAD_REVISION,
+    )
+
     entries = fixture["inference_bearing_blobs"]
     _require(isinstance(entries, list), "inference-bearing blob inventory must be a list")
     paths = {entry["path"] for entry in entries}
@@ -263,6 +403,16 @@ def reconcile(
         _require(
             entry["qualified_git_blob_sha1"] == entry["public_head_git_blob_sha1"],
             f"inference-bearing public-head drift: {entry['path']}",
+        )
+        _require(
+            qualified_tree_blobs.get(entry["path"])
+            == entry["qualified_git_blob_sha1"],
+            f"qualified path/blob is not bound to the declared revision: {entry['path']}",
+        )
+        _require(
+            public_head_tree_blobs.get(entry["path"])
+            == entry["public_head_git_blob_sha1"],
+            f"public-head path/blob is not bound to the declared revision: {entry['path']}",
         )
 
     candidate = qualification_receipt["candidate"]
@@ -332,6 +482,16 @@ def reconcile(
         "public-head delta is not the frozen metadata-only change",
     )
     _require(
+        set(public_head_tree_blobs) - set(qualified_tree_blobs)
+        == {"SZL_ESTATE_MANAGED.json"}
+        and set(qualified_tree_blobs) - set(public_head_tree_blobs) == set()
+        and all(
+            qualified_tree_blobs[path] == public_head_tree_blobs[path]
+            for path in qualified_tree_blobs
+        ),
+        "complete revision tree delta is not the frozen metadata-only addition",
+    )
+    _require(
         fixture["authorization"]
         == {
             "trained": False,
@@ -373,6 +533,9 @@ def reconcile(
         },
         "current_public_head_equivalence": {
             "verified": True,
+            "qualified_commit_git_object_verified": True,
+            "public_head_commit_git_object_verified": True,
+            "complete_revision_tree_delta_verified": True,
             "inference_bearing_blob_count": len(entries),
             "all_inference_bearing_git_blobs_equal": True,
             "non_inference_delta": delta,
