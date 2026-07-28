@@ -195,9 +195,11 @@ def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) ->
     assert 'request("/passports/execute"' in script.text
     assert 'new EventSource(API + "/events")' in script.text
     assert "EVENT_KINDS.forEach" in script.text
-    assert "EXECUTION_TIMEOUT_MS = 60000" in script.text
+    assert "EXECUTION_TIMEOUT_MS = 135000" in script.text
     assert "evaluationRevision" in script.text
     assert "recoverOutcome" in script.text
+    assert "/passports/outcomes/${encodeURIComponent(passportDigest)}" in script.text
+    assert "PENDING_RECONCILIATION" in script.text
 
 
 def test_execute_rechecks_governance_and_preserves_attempt_on_deny(
@@ -242,6 +244,60 @@ def test_execute_rechecks_governance_and_preserves_attempt_on_deny(
     assert service.store.load_passport(digest)["attempts"] == 0
     assert receipts[0]["kind"] == "passport.execution-denied"
     assert receipts[0]["envelope"]["signature_status"] == "SIGNED"
+
+
+def test_successful_execution_is_recoverable_by_passport_digest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    passport = service.evaluate_passport(
+        {
+            "principal_id": "tester",
+            "action": {
+                "type": "probe.public_surface",
+                "target": "https://a-11-oy.com/healthz",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": observed_evidence(service),
+        }
+    )
+    digest = passport["passport_digest"]
+
+    async def probe(target: str) -> dict[str, object]:
+        return {
+            "status": "SUCCEEDED",
+            "target": target,
+            "http_status": 200,
+            "latency_ms": 1,
+        }
+
+    monkeypatch.setattr(service, "_probe", probe)
+
+    with TestClient(value) as client:
+        missing = client.get(
+            "/api/a11oy/v1/series-a/passports/outcomes/" + ("f" * 64)
+        )
+        executed = client.post(
+            "/api/a11oy/v1/series-a/passports/execute",
+            json={"passport_digest": digest},
+        )
+        recovered = client.get(
+            f"/api/a11oy/v1/series-a/passports/outcomes/{digest}"
+        )
+
+    assert missing.status_code == 404
+    assert executed.status_code == 200
+    assert recovered.status_code == 200
+    assert recovered.json()["outcome"] == executed.json()["outcome"]
+    assert (
+        recovered.json()["outcome_receipt"]["receipt_hash"]
+        == executed.json()["outcome_receipt"]["receipt_hash"]
+    )
+    assert recovered.headers["cache-control"] == "no-store"
+    assert recovered.json()["outcome"]["status"] == "SUCCEEDED"
+    assert recovered.json()["outcome_receipt"]["kind"] == "passport.outcome"
 
 
 def test_receipt_chain_links_exact_previous_hash(tmp_path: Path) -> None:

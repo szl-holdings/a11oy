@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const API = "/api/a11oy/v1/series-a";
-  const EXECUTION_TIMEOUT_MS = 60000;
+  const EXECUTION_TIMEOUT_MS = 135000;
   const DEFAULT_TARGETS = {
     "estate.refresh": "szl://estate/current",
     "probe.public_surface": "https://a-11-oy.com/healthz"
@@ -145,8 +145,10 @@
         executableDigest = value.passport_digest;
         executeButton.disabled = false;
       }
-    } catch (error) { output.textContent = `UNAVAILABLE: ${error.message || error}`; }
-    await load();
+    } catch (error) {
+      if (revision === evaluationRevision) output.textContent = `UNAVAILABLE: ${error.message || error}`;
+    }
+    if (revision === evaluationRevision) await load();
   });
   const renderOutcome = (outcome, receipt) => {
     executionOutput.textContent = JSON.stringify({
@@ -162,14 +164,12 @@
     }, null, 2);
   };
   const recoverOutcome = async (passportDigest) => {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
       try {
-        const receipts = await request("/receipts");
-        const found = (receipts.items || []).find(item =>
-          item.kind === "passport.outcome" &&
-          item.receipt?.payload?.passport_digest === passportDigest
+        const value = await request(
+          `/passports/outcomes/${encodeURIComponent(passportDigest)}`
         );
-        if (found) return {outcome: found.receipt.payload, receipt: found};
+        return {outcome: value.outcome, receipt: value.outcome_receipt};
       } catch {}
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
@@ -191,7 +191,7 @@
     } catch (error) {
       const recovered = await recoverOutcome(passportDigest);
       if (recovered) renderOutcome(recovered.outcome, recovered.receipt);
-      else executionOutput.textContent = `UNAVAILABLE: ${error.message || error}`;
+      else executionOutput.textContent = `PENDING_RECONCILIATION · execution was not retried: ${error.message || error}`;
     }
     await load();
   });
