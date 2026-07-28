@@ -584,6 +584,7 @@ function cleanDate(value: unknown): string | undefined {
   const minute = Number(minuteText);
   const second = Number(secondText);
   const millisecond = Number((fraction + "000").slice(0, 3));
+  if (zone === "-00:00") return undefined;
   if (zone !== "Z") {
     const offsetHour = Number(zone.slice(1, 3));
     const offsetMinute = Number(zone.slice(4, 6));

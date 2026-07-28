@@ -186,15 +186,28 @@ test("source dates require an explicit timezone and normalize deterministically"
   assert.equal(zoned.sources[0]?.last_updated_at, "2026-07-28T12:00:00.000Z");
   assert.equal(zoneLess.sources[0]?.published_at, undefined);
   assert.equal(zoneLess.sources[0]?.last_updated_at, undefined);
+
+  const leapDay = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/leap-day",
+      published_at: "2024-02-29T23:59:59+00:00",
+    }],
+  });
+  assert.equal(leapDay.sources[0]?.published_at, "2024-02-29T23:59:59.000Z");
 });
 
 test("source dates reject impossible calendar values and offsets", () => {
   const base = fixtures.cases.find((candidate) => candidate.name === "matching");
   assert.ok(base);
   const invalidValues = [
+    "2026-02-29T12:00:00Z",
     "2026-02-30T00:00:00Z",
+    "2026-04-31T12:00:00Z",
     "2026-13-01T00:00:00Z",
+    "2026-07-28T24:00:00Z",
     "2026-07-28T24:01:00Z",
+    "2026-07-28T12:00:00-00:00",
     "2026-07-28T12:00:00+24:00",
     "2026-07-28T12:00:00+04:60",
   ];
@@ -207,7 +220,7 @@ test("source dates reject impossible calendar values and offsets", () => {
         published_at,
       }],
     });
-    assert.equal(normalized.sources[0]?.published_at, undefined);
+    assert.equal(normalized.sources[0]?.published_at, undefined, published_at);
   }
 });
 
