@@ -1,0 +1,110 @@
+name: manifest-coverage guard
+
+# PERMANENT CI guard (Doctrine v11). The Honesty Wall (szl_honestywall.py) can only verify a
+# registered surface (szl3d_holographic.SURFACES) when some a11oy GET route under
+# /api/{ns}/v1 has a path SEGMENT equal to that surface id; otherwise the wall honestly
+# reports NO-MANIFEST and skips it. #890 (szl_surface_manifests.py) closed a batch of that
+# gap with a truthful UNAVAILABLE manifest per client-only surface — but nothing stopped the
+# gap from reopening on the next surface added.
+#
+# This job keeps it closed: scripts/check_manifest_coverage.py prints the honest
+# NATIVE-OK / NO-MANIFEST split, fails if coverage drops below the level recorded when the
+# guard shipped, and RATCHETS — a surface added in the PR must ship a manifest the wall can
+# read. Pre-existing NO-MANIFEST surfaces are not retroactively failed.
+#
+# The checker is stdlib-only and STATIC: it parses the registry and the route paths modules
+# declare rather than booting the app inside a governance job, so its counts are an estimate
+# of the live wall's read, never a measurement. The live authority stays
+# GET /api/a11oy/v1/govern/honestywall/status.
+#
+# Observability only. Adds nothing to the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22};
+# Λ remains Conjecture 1 (advisory, never a theorem). No secrets; contents: read.
+# A negative control proves the checker REJECTS a planted gap, and a positive control proves
+# it ACCEPTS an honest manifest, before it is trusted against the real tree (org guard
+# pattern, cf. surface-registry-sync-guard.yml).
+#
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manifest-coverage:
+    name: every registered surface ships an honesty manifest the wall can read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # the new-surface ratchet diffs the registry against the PR base
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Byte-validate the checker (ast.parse) before running it
+        run: python3 -c "import ast; ast.parse(open('scripts/check_manifest_coverage.py').read()); print('checker ast OK')"
+
+      - name: Self-test the checker (fixture negative control)
+        run: python3 scripts/check_manifest_coverage.py --selftest
+
+      - name: Negative + positive control on the real tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          # Base-revision surface ids from the PRISTINE registry, so the controls exercise the
+          # ratchet without needing git inside the copy.
+          python3 - "$tmp/base_ids.txt" <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          from pathlib import Path
+          from check_manifest_coverage import registry_ids
+          ids = registry_ids(Path("szl3d_holographic.py").read_text(encoding="utf-8"))
+          assert ids, "no surface ids parsed from the registry"
+          Path(sys.argv[1]).write_text("\n".join(ids), encoding="utf-8")
+          PY
+          cp -r . "$tmp/repo"
+          cd "$tmp/repo"
+          # Plant a surface that ships no manifest at all.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("szl3d_holographic.py")
+          s = p.read_text(encoding="utf-8")
+          anchor = "SURFACES: List[Dict[str, str]] = ["
+          assert anchor in s, "negative control could not find the SURFACES literal"
+          planted = '\n    {"id": "plantedgap", "cat": "more", "title": "Planted Coverage Gap"},'
+          p.write_text(s.replace(anchor, anchor + planted, 1), encoding="utf-8")
+          PY
+          if python3 scripts/check_manifest_coverage.py --root . --base-ids-from "$tmp/base_ids.txt"; then
+            echo "NEGATIVE CONTROL FAILED: checker passed a surface with no honesty manifest" >&2
+            exit 1
+          fi
+          echo "negative control OK — planted manifest gap was rejected"
+          # Same planted surface, now with the honest UNAVAILABLE manifest: must be accepted,
+          # so the ratchet fails a missing manifest and not merely a new surface.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("szl_surface_manifests.py")
+          s = p.read_text(encoding="utf-8")
+          anchor = "CLIENT_ONLY_SURFACES = [\n"
+          assert anchor in s, "positive control could not find CLIENT_ONLY_SURFACES"
+          p.write_text(s.replace(anchor, anchor + '    "plantedgap",\n', 1), encoding="utf-8")
+          PY
+          python3 scripts/check_manifest_coverage.py --root . --base-ids-from "$tmp/base_ids.txt"
+          echo "positive control OK — an honest manifest for the new surface was accepted"
+
+      - name: Run the manifest-coverage guard against the PR
+        run: |
+          python3 scripts/check_manifest_coverage.py \
+            --root . --base-ref "origin/${{ github.base_ref }}"
