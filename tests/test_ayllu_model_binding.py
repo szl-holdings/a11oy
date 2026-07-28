@@ -52,6 +52,13 @@ def test_all_personas_map_once_to_declared_forge_profiles():
     assert binding["runtime_backend_is_profile_pinned"] is False
     assert binding["hard_boundaries"]["personas_are_separate_weights"] is False
     assert release_binding["schema_version"] == binding["schema"]
+    assert release_binding["profile_states"] == profile_states
+    assert release_binding["profile_states"]["ReceiptAgent-v1"] == (
+        "ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED"
+    )
+    assert release_binding["profile_states"]["BrainNavigator-v1"] == (
+        "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT"
+    )
     assert release_binding["profile_mappings"] == {
         item["persona"]: item["primary_profile"] for item in mappings
     }
