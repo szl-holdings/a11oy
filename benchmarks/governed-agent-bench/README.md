@@ -84,8 +84,23 @@ after the benchmark tests pass on `main`, and independently reads every file
 back from the immutable Hub revisions. The workflow retains the resulting
 publication receipt as a GitHub Actions artifact.
 
-Until that post-merge receipt exists, Hub publication remains
-**READY_FOR_PROTECTED_PUBLICATION**, not live. Any mirror must link to the exact
-Git commit and preserve the `SAMPLE`, `COMPUTED`, and `STRUCTURE_ONLY` labels.
-The initial leaderboard contains no eligible model submissions; its 100-point
-row is explicitly a reference conformance fixture, not a model ranking.
+Publication is now **PUBLISHED_PROTECTED**:
+
+- dataset: <https://huggingface.co/datasets/SZLHOLDINGS/governed-agent-bench>
+- live leaderboard: <https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench>
+- protected workflow:
+  <https://github.com/szl-holdings/a11oy/actions/workflows/governed-agent-bench.yml?query=branch%3Amain>
+
+The first immutable read-back receipt was produced by
+[run 30382562989](https://github.com/szl-holdings/a11oy/actions/runs/30382562989)
+for protected source `bafcc2c9cada9e209564c00ee511282333a83b2f`. It closed
+dataset revision `998a42653aff23bf60e18cbe2a7c368de1a90eef` and Space
+revision `654aaf2f7246cc1471e1324f2550647e1dabbabd`, including exact
+complete remote inventories.
+
+Each later protected-main release must produce its own receipt; the historic
+receipt is not evidence for a newer source revision. Any mirror must link to
+the exact Git commit and preserve the `SAMPLE`, `COMPUTED`, and
+`STRUCTURE_ONLY` labels. The initial leaderboard contains no eligible model
+submissions; its 100-point row is explicitly a reference conformance fixture,
+not a model ranking.
