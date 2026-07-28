@@ -4,9 +4,11 @@
 Persistent key discovery, in priority order:
 
 1. ``SZL_COSIGN_PRIVATE_PEM`` inline runtime secret.
-2. ``A11OY_RECEIPT_KEY_PEM`` inline compatibility secret.
-3. ``A11OY_RECEIPT_KEY_PATH`` mounted PEM file.
-4. The first recognized PEM file in ``A11OY_RECEIPT_KEY_DIR`` or the
+2. ``SZL_COSIGN_PRIVATE_KEY_PEM`` inline compatibility secret.
+3. ``A11OY_RECEIPT_KEY_PEM`` inline compatibility secret.
+4. Legacy ``szlcosig*`` inline compatibility secrets.
+5. ``A11OY_RECEIPT_KEY_PATH`` mounted PEM file.
+6. The first recognized PEM file in ``A11OY_RECEIPT_KEY_DIR`` or the
    conventional ``/etc/szl/receipt-key`` mount.
 
 A configured source that is empty, missing, unreadable, malformed, or not
@@ -21,6 +23,7 @@ in cache keys or diagnostics. Key material is never logged or returned except
 for the public PEM.
 """
 
+import base64
 import hashlib
 import os
 import threading
@@ -36,7 +39,12 @@ _CANDIDATE_FILENAMES = (
 )
 _INLINE_KEY_NAMES = (
     "SZL_COSIGN_PRIVATE_PEM",
+    "SZL_COSIGN_PRIVATE_KEY_PEM",
     "A11OY_RECEIPT_KEY_PEM",
+    "szlcosig",
+    "szlcosig1",
+    "SZLCOSIG",
+    "SZLCOSIG1",
 )
 _KEY_CACHE = {}
 _KEY_CACHE_LOCK = threading.Lock()
@@ -88,8 +96,8 @@ def _configured_request(env=None):
         if name not in env:
             continue
         value = env.get(name, "")
-        pem = value.encode("utf-8")
-        identity = ("env", name, _pem_digest(pem), strict)
+        raw_pem = value.encode("utf-8")
+        identity = ("env", name, _pem_digest(raw_pem), strict)
         if not value.strip():
             return (
                 identity,
@@ -97,6 +105,18 @@ def _configured_request(env=None):
                 "",
                 "%s is configured but empty" % name,
             )
+        pem = raw_pem
+        if b"BEGIN" not in pem:
+            try:
+                pem = base64.b64decode(raw_pem, validate=True)
+            except Exception as e:
+                return (
+                    identity,
+                    b"",
+                    "",
+                    "%s is neither PEM nor valid base64: %s"
+                    % (name, type(e).__name__),
+                )
         return (identity, pem, "persistent:env:%s" % name, "")
 
     if "A11OY_RECEIPT_KEY_PATH" in env:
