@@ -101,6 +101,12 @@ jobs:
             throw "Exact bridge source is dirty."
           }
 
+          $controlLock = Join-Path $env:GITHUB_WORKSPACE (
+            ".github\requirements\nemo-v3-control-win-py312.lock"
+          )
+          if (-not (Test-Path -LiteralPath $controlLock -PathType Leaf)) {
+            throw "Hash-verified trusted-control lock file is missing."
+          }
           & $python -m venv $control
           if ($LASTEXITCODE -ne 0) {
             throw "Trusted control virtual environment creation failed."
@@ -108,10 +114,16 @@ jobs:
           $controlPython = Join-Path $control "Scripts\python.exe"
           & $controlPython -m pip install `
             --disable-pip-version-check `
-            "huggingface_hub==1.24.0" `
-            "PyNaCl==1.6.2"
+            --require-hashes `
+            --only-binary=:all: `
+            --no-deps `
+            --requirement $controlLock
           if ($LASTEXITCODE -ne 0) {
-            throw "Trusted control dependency installation failed."
+            throw "Hash-verified trusted control dependency installation failed."
+          }
+          & $controlPython -m pip check
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hash-verified trusted control dependency set is inconsistent."
           }
 
           $docker = (Get-Command docker.exe -ErrorAction Stop).Source
