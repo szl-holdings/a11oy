@@ -90,6 +90,7 @@
   };
   document.getElementById("refresh").addEventListener("click", async () => {
     const button = document.getElementById("refresh");
+    let failureMessage = null;
     button.disabled = true;
     try {
       if (!currentEvidence) {
@@ -118,14 +119,30 @@
           }`
         );
       }
-      await request("/passports/execute", {
+      const executed = await request("/passports/execute", {
         method: "POST",
         headers: {"content-type": "application/json"},
         body: JSON.stringify({passport_digest: evaluated.passport_digest})
       }, EXECUTION_TIMEOUT_MS);
+      if (executed.outcome?.status !== "SUCCEEDED") {
+        if (executed.outcome && executed.outcome_receipt) {
+          renderOutcome(executed.outcome, executed.outcome_receipt);
+        }
+        throw new Error(
+          `REFRESH_EXECUTION_${executed.outcome?.status || "UNAVAILABLE"}: ${
+            executed.outcome?.error?.message || "governed refresh did not succeed"
+          }`
+        );
+      }
     } catch (error) {
-      document.getElementById("updated").textContent = String(error.message || error);
-    } finally { button.disabled = false; await load(); }
+      failureMessage = String(error.message || error);
+    } finally {
+      button.disabled = false;
+      await load();
+      if (failureMessage) {
+        document.getElementById("updated").textContent = failureMessage;
+      }
+    }
   });
   const actionSelect = document.querySelector('select[name="type"]');
   const targetInput = document.querySelector('input[name="target"]');

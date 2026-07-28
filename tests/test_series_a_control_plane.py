@@ -685,6 +685,9 @@ def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) ->
     assert style.headers["cache-control"] == "public,max-age=31536000,immutable"
     assert unversioned_script.headers["cache-control"] == "no-store"
     assert 'request("/passports/execute"' in script.text
+    assert 'executed.outcome?.status !== "SUCCEEDED"' in script.text
+    assert "REFRESH_EXECUTION_" in script.text
+    assert "if (failureMessage)" in script.text
     assert 'request("/refresh"' not in script.text
     assert script.text.count('request("/passports/evaluate"') == 2
     assert script.text.count('request("/passports/execute"') == 2

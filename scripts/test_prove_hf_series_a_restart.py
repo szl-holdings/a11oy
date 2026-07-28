@@ -120,6 +120,18 @@ class StartupReceiptSession(Session):
         raise AssertionError("public restart proof must not bypass passports")
 
 
+class TransientStartupReceiptSession(StartupReceiptSession):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.build_failures = 1
+
+    def get(self, url: str, **kwargs):
+        if url.endswith("/api/build-info") and self.build_failures:
+            self.build_failures -= 1
+            raise TimeoutError("transient startup build-info timeout")
+        return super().get(url, **kwargs)
+
+
 class DrainingSession(Session):
     def __init__(self, source: str) -> None:
         super().__init__(source)
@@ -146,6 +158,17 @@ class Api:
         )
 
 
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
 def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -> None:
     source = "a" * 40
     api = Api()
@@ -166,6 +189,8 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
     assert report["proof"]["runtime_boot_identity_changed"] is True
     assert report["proof"]["database_instance_stable"] is True
     assert report["proof"]["pre_restart_chain_head_recovered"] is True
+    assert report["proof"]["single_shared_polling_deadline"] is True
+    assert report["polling_deadline_seconds"] == 1200
     assert api.calls == [
         {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
     ]
@@ -193,6 +218,55 @@ def test_prove_waits_for_startup_receipt_without_direct_refresh(
     assert session.posts == 0
     assert report["before"]["storage"]["receipt_count"] == 1
     assert report["before"]["runtime_boot_id"] != report["after"]["runtime_boot_id"]
+
+
+def test_prove_retries_transient_startup_capture_failure(monkeypatch) -> None:
+    source = "a" * 40
+    api = Api()
+    session = TransientStartupReceiptSession(source)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=api,
+        session=session,
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert session.build_failures == 0
+    assert report["before"]["storage"]["receipt_count"] == 1
+
+
+def test_pre_and_post_restart_polling_share_one_deadline(monkeypatch) -> None:
+    source = "a" * 40
+    api = Api()
+    clock = FakeClock()
+    monkeypatch.setattr(proof.time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(proof.time, "sleep", clock.sleep)
+
+    with pytest.raises(
+        proof.RestartProofError,
+        match="runtime restart was not observed",
+    ):
+        proof.prove(
+            api=api,
+            session=StartupReceiptSession(source),
+            repo_id="SZLHOLDINGS/a11oy",
+            origin="https://a-11-oy.com",
+            source_sha=source,
+            attempts=90,
+            retry_seconds=1,
+            deadline_seconds=2,
+        )
+
+    assert api.calls == [
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
+    ]
+    assert clock.now == 2
 
 
 def test_prove_rejects_successful_capture_from_same_runtime(monkeypatch) -> None:

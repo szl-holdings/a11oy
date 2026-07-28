@@ -112,26 +112,44 @@ def _json(response: HttpResponse) -> Mapping[str, Any]:
     return value
 
 
+def _remaining_timeout(deadline: float | None, maximum: int) -> int:
+    if deadline is None:
+        return maximum
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RestartProofError("shared restart-proof deadline expired")
+    return max(1, min(maximum, int(remaining + 0.999)))
+
+
+def _sleep_within_deadline(seconds: int, deadline: float) -> None:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return
+    time.sleep(min(max(0, seconds), remaining))
+
+
 def capture(
     session: HttpSession,
     origin: str,
     expected_source: str,
+    *,
+    deadline: float | None = None,
 ) -> dict[str, Any]:
     status = _json(
         session.get(
             origin + "/api/a11oy/v1/series-a/status",
-            timeout=45,
+            timeout=_remaining_timeout(deadline, 45),
         )
     )
     build = _json(
         session.get(
             origin + "/api/build-info",
-            timeout=45,
+            timeout=_remaining_timeout(deadline, 45),
         )
     )
     key = session.get(
         origin + "/api/a11oy/v1/series-a/public-key",
-        timeout=45,
+        timeout=_remaining_timeout(deadline, 45),
     )
     key.raise_for_status()
     storage = status.get("storage")
@@ -231,32 +249,63 @@ def prove(
     source_sha: str,
     attempts: int,
     retry_seconds: int,
+    deadline_seconds: int = 1_200,
 ) -> dict[str, Any]:
-    before = capture(session, origin, source_sha)
-    if before["storage"]["receipt_count"] == 0:
-        # Public refresh is passport-only. The canonical startup scheduler owns
-        # the initial observation, so the proof waits for its persisted receipt
-        # instead of invoking a privileged mutation shortcut.
-        for _ in range(max(1, attempts)):
-            time.sleep(max(0, retry_seconds))
-            before = capture(session, origin, source_sha)
-            if before["storage"]["receipt_count"] > 0:
+    deadline = time.monotonic() + max(1, deadline_seconds)
+    poll_attempts = max(1, attempts)
+    before: dict[str, Any] | None = None
+    startup_error: Exception | None = None
+    # Public refresh is passport-only. The canonical startup scheduler owns
+    # the initial observation, so the proof waits for its persisted receipt
+    # instead of invoking a privileged mutation shortcut. Transient capture
+    # failures consume attempts but not the single shared workflow deadline.
+    for attempt in range(poll_attempts):
+        try:
+            candidate = capture(
+                session,
+                origin,
+                source_sha,
+                deadline=deadline,
+            )
+            before = candidate
+            if candidate["storage"]["receipt_count"] > 0:
                 break
-    if before["storage"]["receipt_count"] == 0:
-        raise RestartProofError("no receipt exists to recover across restart")
+        except Exception as exc:  # noqa: BLE001 - bounded startup polling
+            startup_error = exc
+        if attempt + 1 < poll_attempts:
+            _sleep_within_deadline(retry_seconds, deadline)
+        if time.monotonic() >= deadline:
+            break
+    if before is None or before["storage"]["receipt_count"] == 0:
+        detail = (
+            f": {type(startup_error).__name__}: {str(startup_error)[:180]}"
+            if startup_error is not None
+            else ""
+        )
+        raise RestartProofError(
+            "no receipt exists to recover before the shared deadline" + detail
+        )
 
+    _remaining_timeout(deadline, 1)
     restart = api.restart_space(repo_id=repo_id, factory_reboot=False)
     stage = getattr(getattr(restart, "runtime", None), "stage", None)
     stage = getattr(stage, "value", stage)
     # Do not accept a response from the pre-restart process as post-restart
     # evidence while the control plane is still draining.
-    time.sleep(max(10, retry_seconds))
+    _sleep_within_deadline(max(10, retry_seconds), deadline)
 
     last_error: Exception | None = None
     after: dict[str, Any] | None = None
-    for _ in range(max(1, attempts)):
+    for attempt in range(poll_attempts):
+        if time.monotonic() >= deadline:
+            break
         try:
-            candidate = capture(session, origin, source_sha)
+            candidate = capture(
+                session,
+                origin,
+                source_sha,
+                deadline=deadline,
+            )
             if candidate["runtime_boot_id"] == before["runtime_boot_id"]:
                 raise RestartProofError(
                     "runtime boot identity did not change across restart"
@@ -265,7 +314,8 @@ def prove(
             break
         except Exception as exc:  # noqa: BLE001 - bounded restart polling
             last_error = exc
-            time.sleep(max(0, retry_seconds))
+            if attempt + 1 < poll_attempts:
+                _sleep_within_deadline(retry_seconds, deadline)
     if after is None:
         raise RestartProofError(
             "runtime restart was not observed after bounded polling: "
@@ -275,7 +325,7 @@ def prove(
     receipts = _json(
         session.get(
             origin + "/api/a11oy/v1/series-a/receipts?limit=200",
-            timeout=60,
+            timeout=_remaining_timeout(deadline, 60),
         )
     )
     items = receipts.get("items")
@@ -294,6 +344,7 @@ def prove(
         "ok": True,
         "repo_id": repo_id,
         "origin": origin,
+        "polling_deadline_seconds": max(1, deadline_seconds),
         "restart_requested": True,
         "restart_response_stage": str(stage or "UNKNOWN"),
         "before": before,
@@ -306,6 +357,7 @@ def prove(
             "database_creation_identity_stable": True,
             "receipt_count_non_regressing": True,
             "pre_restart_chain_head_recovered": True,
+            "single_shared_polling_deadline": True,
         },
         "secret_values_read": False,
     }
@@ -319,6 +371,7 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--attempts", type=int, default=90)
     parser.add_argument("--retry-seconds", type=int, default=10)
+    parser.add_argument("--deadline-seconds", type=int, default=1200)
     args = parser.parse_args()
 
     source = args.source_sha.strip().lower()
@@ -345,6 +398,7 @@ def main() -> int:
         source_sha=source,
         attempts=args.attempts,
         retry_seconds=args.retry_seconds,
+        deadline_seconds=args.deadline_seconds,
     )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
