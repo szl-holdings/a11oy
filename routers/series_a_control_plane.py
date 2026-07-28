@@ -44,6 +44,10 @@ HF_ORG = "SZLHOLDINGS"
 CANONICAL_SPACE = f"{HF_ORG}/a11oy"
 FORBIDDEN_CLONES = tuple(f"{HF_ORG}/a11oy-clone-{index}" for index in range(1, 5))
 TTL_SECONDS = 300
+DEFAULT_REFRESH_INTERVAL_SECONDS = 240
+MIN_REFRESH_INTERVAL_SECONDS = 30
+MAX_REFRESH_INTERVAL_SECONDS = TTL_SECONDS - 30
+MAX_SNAPSHOT_HISTORY = 12
 MAX_BODY = 64 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
@@ -65,6 +69,25 @@ def _future(seconds: int) -> str:
     return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(
         timespec="milliseconds"
     ).replace("+00:00", "Z")
+
+
+def _refresh_interval_seconds() -> int:
+    raw = (
+        os.environ.get("A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS")
+        or str(DEFAULT_REFRESH_INTERVAL_SECONDS)
+    ).strip()
+    try:
+        requested = int(raw)
+    except ValueError:
+        requested = DEFAULT_REFRESH_INTERVAL_SECONDS
+    return max(
+        MIN_REFRESH_INTERVAL_SECONDS,
+        min(requested, MAX_REFRESH_INTERVAL_SECONDS),
+    )
+
+
+def _refresh_delay_seconds(interval_seconds: int, elapsed_seconds: float) -> float:
+    return max(0.0, float(interval_seconds) - max(0.0, elapsed_seconds))
 
 
 def _canonical(value: Any) -> bytes:
@@ -336,6 +359,15 @@ class Store:
                     manifest["observed_at"],
                     manifest["valid_until"],
                 ),
+            )
+            db.execute(
+                """DELETE FROM snapshots
+                   WHERE digest NOT IN (
+                     SELECT digest FROM snapshots
+                     ORDER BY observed_at DESC, digest DESC
+                     LIMIT ?
+                   )""",
+                (MAX_SNAPSHOT_HISTORY,),
             )
         return digest
 
@@ -655,15 +687,84 @@ class Service:
             self.store.append_event("estate.refresh.skipped", {"reason": "explicit test/runtime configuration"})
             return
 
-        async def run() -> None:
+        self.background_task = asyncio.create_task(
+            self._refresh_loop(),
+            name="a11oy-series-a-periodic-refresh",
+        )
+
+    async def _refresh_loop(self) -> None:
+        interval_seconds = _refresh_interval_seconds()
+        actor = "startup"
+        while True:
+            cycle_started = time.monotonic()
             try:
-                await self.refresh("startup")
+                await self.refresh(actor)
+            except asyncio.CancelledError:
+                raise
             except Exception as exc:
-                self.store.append_event("estate.refresh.failed", _safe_error(exc))
+                self.store.append_event(
+                    "estate.refresh.failed",
+                    {
+                        "actor": actor,
+                        "retry_in_seconds": interval_seconds,
+                        **_safe_error(exc),
+                    },
+                )
+            actor = "periodic"
+            elapsed = max(0.0, time.monotonic() - cycle_started)
+            await asyncio.sleep(_refresh_delay_seconds(interval_seconds, elapsed))
 
-        self.background_task = asyncio.create_task(run(), name="a11oy-series-a-startup-refresh")
+    async def stop(self) -> None:
+        task = self.background_task
+        self.background_task = None
+        self.started = False
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
-    async def refresh(self, actor: str) -> dict[str, Any]:
+    async def refresh(
+        self,
+        actor: str,
+        *,
+        governance: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        action = {
+            "type": "estate.refresh",
+            "target": "szl://estate/current",
+            "impact": "MODERATE",
+            "irreversible": False,
+        }
+        decision = dict(governance) if governance is not None else self._governance_gate(action)
+        authorization = self.store.append_receipt(
+            "estate.refresh.authorization",
+            {
+                "actor": actor,
+                "action_digest": _sha(action),
+                "decision": decision.get("decision", "DENY"),
+                "reason_codes": decision.get(
+                    "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
+                ),
+            },
+            self.signer,
+        )
+        if not decision.get("allowed"):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "GOVERNANCE_DENY",
+                    "reason_codes": decision.get(
+                        "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
+                    ),
+                    "receipt_hash": authorization["receipt_hash"],
+                    "signature_status": authorization["envelope"][
+                        "signature_status"
+                    ],
+                },
+            )
         if self.refresh_lock.locked():
             raise HTTPException(status_code=409, detail="estate refresh already running")
         async with self.refresh_lock:
@@ -955,7 +1056,10 @@ class Service:
         try:
             async def run() -> dict[str, Any]:
                 if action["type"] == "estate.refresh":
-                    result = await self.refresh(str(passport["passport_id"]))
+                    result = await self.refresh(
+                        str(passport["passport_id"]),
+                        governance=governance,
+                    )
                     return {
                         "status": "SUCCEEDED",
                         "manifest_digest": result["manifest"]["manifest_digest"],
@@ -1239,6 +1343,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     add_handler = getattr(app, "add_event_handler", None)
     if callable(add_handler):
         add_handler("startup", service.start)
+        add_handler("shutdown", service.stop)
 
     return {
         "ok": True,
