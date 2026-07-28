@@ -298,6 +298,30 @@ def test_source_revision_cannot_make_mismatched_assets_immutable(
     )
 
 
+def test_asset_cache_digest_and_response_share_one_read(
+    tmp_path: Path, monkeypatch
+) -> None:
+    original = control._asset_bytes
+    reads = 0
+
+    def changing_asset(name: str) -> bytes:
+        nonlocal reads
+        if name != "app.js":
+            return original(name)
+        reads += 1
+        return b"first bytes" if reads == 1 else b"different bytes"
+
+    monkeypatch.setattr(control, "_asset_bytes", changing_asset)
+    expected = hashlib.sha256(b"first bytes").hexdigest()
+    value = app(tmp_path)
+    with TestClient(value) as client:
+        response = client.get(f"/series-a/app.js?v={expected}")
+    assert reads == 1
+    assert response.content == b"first bytes"
+    assert hashlib.sha256(response.content).hexdigest() == expected
+    assert response.headers["cache-control"] == "public,max-age=31536000,immutable"
+
+
 def test_execute_rechecks_governance_and_preserves_attempt_on_deny(
     tmp_path: Path, monkeypatch
 ) -> None:
