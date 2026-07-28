@@ -1047,11 +1047,19 @@ async def _bounded_json(request: Request) -> dict[str, Any]:
     return value
 
 
-def _asset(name: str) -> str:
+def _asset_bytes(name: str) -> bytes:
     path = Path(__file__).resolve().parent / "series_a_web" / name
     if not path.is_file():
         raise HTTPException(status_code=404, detail=f"asset missing: {name}")
-    return path.read_text(encoding="utf-8")
+    return path.read_bytes()
+
+
+def _asset(name: str) -> str:
+    return _asset_bytes(name).decode("utf-8")
+
+
+def _asset_digest(name: str) -> str:
+    return hashlib.sha256(_asset_bytes(name)).hexdigest()
 
 
 def _event_cursor(request: Request) -> int:
@@ -1067,9 +1075,8 @@ def _event_cursor(request: Request) -> int:
     return cursor
 
 
-def _asset_cache_control(request: Request) -> str:
-    revision = _git_revision()
-    if revision != "UNKNOWN" and request.query_params.get("v") == revision:
+def _asset_cache_control(request: Request, name: str) -> str:
+    if request.query_params.get("v") == _asset_digest(name):
         return "public,max-age=31536000,immutable"
     return "no-store"
 
@@ -1084,11 +1091,15 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     async def page(request: Request) -> Response:
         if request.method == "HEAD":
             return Response(status_code=200, media_type="text/html")
-        html = _asset("index.html").replace("__SOURCE_REVISION__", _git_revision())
+        html = (
+            _asset("index.html")
+            .replace("__APP_ASSET_DIGEST__", _asset_digest("app.js"))
+            .replace("__STYLE_ASSET_DIGEST__", _asset_digest("styles.css"))
+        )
         return HTMLResponse(html, headers={"cache-control": "no-store"})
 
     async def js(request: Request) -> Response:
-        headers = {"cache-control": _asset_cache_control(request)}
+        headers = {"cache-control": _asset_cache_control(request, "app.js")}
         if request.method == "HEAD":
             return Response(
                 status_code=200,
@@ -1096,13 +1107,13 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
                 headers=headers,
             )
         return Response(
-            _asset("app.js"),
+            _asset_bytes("app.js"),
             media_type="application/javascript",
             headers=headers,
         )
 
     async def css(request: Request) -> Response:
-        headers = {"cache-control": _asset_cache_control(request)}
+        headers = {"cache-control": _asset_cache_control(request, "styles.css")}
         if request.method == "HEAD":
             return Response(
                 status_code=200,
@@ -1110,7 +1121,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
                 headers=headers,
             )
         return Response(
-            _asset("styles.css"),
+            _asset_bytes("styles.css"),
             media_type="text/css",
             headers=headers,
         )
