@@ -327,7 +327,7 @@ def _space_runtime_ready(info: dict[str, object], revision: str) -> bool:
     return runtime.get("stage") == "RUNNING" and runtime.get("sha") == revision
 
 
-def _space_identity_source(expected: dict[str, bytes]) -> str:
+def _space_identity_revisions(expected: dict[str, bytes]) -> tuple[str, str]:
     try:
         publication = json.loads(expected["publication.json"])
     except (KeyError, json.JSONDecodeError) as exc:
@@ -335,10 +335,19 @@ def _space_identity_source(expected: dict[str, bytes]) -> str:
     source_revision = publication.get("source_revision")
     if not isinstance(source_revision, str) or not SHA_RE.fullmatch(source_revision):
         raise PublicationError("Space publication identity lacks an exact source revision")
-    return source_revision
+    dataset_revision = publication.get("dataset_revision")
+    if not isinstance(dataset_revision, str) or not SHA_RE.fullmatch(
+        dataset_revision
+    ):
+        raise PublicationError("Space publication identity lacks an exact dataset revision")
+    return source_revision, dataset_revision
 
 
-def _validate_space_identity(body: bytes, source_revision: str) -> dict[str, object]:
+def _validate_space_identity(
+    body: bytes,
+    source_revision: str,
+    dataset_revision: str,
+) -> dict[str, object]:
     try:
         config = json.loads(body)
     except json.JSONDecodeError as exc:
@@ -353,9 +362,12 @@ def _validate_space_identity(body: bytes, source_revision: str) -> dict[str, obj
         raise PublicationError("Space /config lacks the expected application identity")
     if source_revision not in encoded:
         raise PublicationError("Space /config lacks the exact protected source revision")
+    if dataset_revision not in encoded:
+        raise PublicationError("Space /config lacks the exact published dataset revision")
     return {
         "application": "Governed Agent Bench",
         "source_revision": source_revision,
+        "dataset_revision": dataset_revision,
     }
 
 
@@ -374,7 +386,7 @@ def _wait_for_public_space(
     deadline = monotonic() + timeout_seconds
     latest: dict[str, object] = {}
     latest_error: PublicationError | None = None
-    source_revision = _space_identity_source(expected)
+    source_revision, dataset_revision = _space_identity_revisions(expected)
     while monotonic() < deadline:
         try:
             latest = fetch_json(
@@ -426,7 +438,11 @@ def _wait_for_public_space(
                         "Space identity endpoint is not serving: "
                         f"status={identity_status} bytes={len(identity_body)}"
                     )
-                identity = _validate_space_identity(identity_body, source_revision)
+                identity = _validate_space_identity(
+                    identity_body,
+                    source_revision,
+                    dataset_revision,
+                )
             except PublicationError as exc:
                 latest_error = exc
             else:

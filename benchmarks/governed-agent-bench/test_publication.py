@@ -455,7 +455,8 @@ class PublicationTests(unittest.TestCase):
                                     "props": {
                                         "value": (
                                             "# Governed Agent Bench\n"
-                                            f"source={source_revision}"
+                                            f"source={source_revision}\n"
+                                            f"dataset={dataset_revision}"
                                         )
                                     },
                                 }
@@ -468,8 +469,12 @@ class PublicationTests(unittest.TestCase):
             return 200, expected[url.rsplit("/", 1)[-1]]
 
         source_revision = "f" * 40
+        dataset_revision = "a" * 40
         expected["publication.json"] = json.dumps(
-            {"source_revision": source_revision}
+            {
+                "source_revision": source_revision,
+                "dataset_revision": dataset_revision,
+            }
         ).encode()
         states = iter(
             [
@@ -507,15 +512,23 @@ class PublicationTests(unittest.TestCase):
             result["runtime"]["identity"]["source_revision"],
             source_revision,
         )
+        self.assertEqual(
+            result["runtime"]["identity"]["dataset_revision"],
+            dataset_revision,
+        )
 
     def test_space_ignores_terminal_failure_from_stale_runtime_revision(self):
         publisher = _load_publisher()
         revision = "1" * 40
         source_revision = "2" * 40
+        dataset_revision = "4" * 40
         expected = {
             "README.md": b"space\n",
             "publication.json": json.dumps(
-                {"source_revision": source_revision}
+                {
+                    "source_revision": source_revision,
+                    "dataset_revision": dataset_revision,
+                }
             ).encode(),
         }
         states = iter(
@@ -547,7 +560,8 @@ class PublicationTests(unittest.TestCase):
                                 "props": {
                                     "value": (
                                         "Governed Agent Bench "
-                                        f"{source_revision}"
+                                        f"{source_revision} "
+                                        f"{dataset_revision}"
                                     )
                                 }
                             }
@@ -584,7 +598,10 @@ class PublicationTests(unittest.TestCase):
                 revision,
                 {
                     "publication.json": json.dumps(
-                        {"source_revision": "8" * 40}
+                        {
+                            "source_revision": "8" * 40,
+                            "dataset_revision": "9" * 40,
+                        }
                     ).encode()
                 },
                 timeout_seconds=1.0,
@@ -629,6 +646,7 @@ class PublicationTests(unittest.TestCase):
     def test_space_identity_endpoint_must_match_application_and_source(self):
         publisher = _load_publisher()
         source_revision = "6" * 40
+        dataset_revision = "7" * 40
         with self.assertRaisesRegex(
             publisher.PublicationError,
             "expected application identity",
@@ -643,16 +661,50 @@ class PublicationTests(unittest.TestCase):
                     }
                 ).encode(),
                 source_revision,
+                dataset_revision,
             )
 
-    def test_space_retries_stale_identity_until_source_matches(self):
+    def test_space_identity_endpoint_requires_exact_dataset_revision(self):
+        publisher = _load_publisher()
+        source_revision = "6" * 40
+        dataset_revision = "7" * 40
+        with self.assertRaisesRegex(
+            publisher.PublicationError,
+            "exact published dataset revision",
+        ):
+            publisher._validate_space_identity(
+                json.dumps(
+                    {
+                        "mode": "blocks",
+                        "components": [
+                            {
+                                "props": {
+                                    "value": (
+                                        "Governed Agent Bench "
+                                        f"{source_revision} "
+                                        f"{'8' * 40}"
+                                    )
+                                }
+                            }
+                        ],
+                    }
+                ).encode(),
+                source_revision,
+                dataset_revision,
+            )
+
+    def test_space_retries_stale_identity_until_revision_tuple_matches(self):
         publisher = _load_publisher()
         revision = "b" * 40
         source_revision = "c" * 40
+        dataset_revision = "e" * 40
         expected = {
             "README.md": b"space\n",
             "publication.json": json.dumps(
-                {"source_revision": source_revision}
+                {
+                    "source_revision": source_revision,
+                    "dataset_revision": dataset_revision,
+                }
             ).encode(),
         }
         config_calls = {"count": 0}
@@ -660,8 +712,8 @@ class PublicationTests(unittest.TestCase):
         def fetch_bytes(url: str, _timeout_seconds: float):
             if url.endswith(".hf.space/config"):
                 config_calls["count"] += 1
-                observed_source = (
-                    "d" * 40 if config_calls["count"] == 1 else source_revision
+                observed_dataset = (
+                    "d" * 40 if config_calls["count"] == 1 else dataset_revision
                 )
                 return 200, json.dumps(
                     {
@@ -671,7 +723,8 @@ class PublicationTests(unittest.TestCase):
                                 "props": {
                                     "value": (
                                         "Governed Agent Bench "
-                                        f"{observed_source}"
+                                        f"{source_revision} "
+                                        f"{observed_dataset}"
                                     )
                                 }
                             }
@@ -704,6 +757,10 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(
             result["runtime"]["identity"]["source_revision"],
             source_revision,
+        )
+        self.assertEqual(
+            result["runtime"]["identity"]["dataset_revision"],
+            dataset_revision,
         )
 
     def test_public_readback_caps_every_request_to_remaining_deadline(self):
@@ -809,7 +866,7 @@ class PublicationTests(unittest.TestCase):
                 ),
                 patch.object(
                     publisher,
-                    "_verify_public_repository",
+                    "_wait_for_public_repository",
                     return_value={"files": {}},
                 ),
             ):
