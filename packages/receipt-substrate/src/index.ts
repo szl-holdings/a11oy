@@ -499,7 +499,9 @@ const SENSITIVE_SOURCE_QUERY_KEYS = new Set([
   "sig",
   "token",
 ]);
-const DIGESTED_SOURCE_QUERY_KEYS = new Set(["code"]);
+const DIGESTED_SOURCE_QUERY_KEYS = new Set(["code", "q", "snippet"]);
+const ZONED_RFC3339_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const SENSITIVE_SOURCE_QUERY_PREFIXES = ["x-amz-", "x-goog-", "x-oss-"];
 const TRACKING_SOURCE_QUERY_PREFIXES = ["utm_"];
 const TRACKING_SOURCE_QUERY_KEYS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid"]);
@@ -569,8 +571,10 @@ function cleanHttpStatus(value: unknown): number | undefined {
 }
 
 function cleanDate(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value.trim()) return undefined;
-  const date = new Date(value);
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.trim();
+  if (!ZONED_RFC3339_PATTERN.test(cleaned)) return undefined;
+  const date = new Date(cleaned);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 

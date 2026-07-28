@@ -117,6 +117,73 @@ test("content-selecting code parameters retain distinct redacted identities", ()
   assert.match(new URL(openai.sources[0]?.url ?? "").searchParams.get("code") ?? "", /^sha256:/);
 });
 
+test("query and snippet selectors retain distinct digested identities without leaking content", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const openai = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/paper?q=private-query-alpha&snippet=private-snippet-alpha",
+    }],
+  });
+  const perplexity = normalizePerplexitySearchResult({
+    ...base.perplexity,
+    results: [{
+      url: "https://research.example/paper?q=private-query-beta&snippet=private-snippet-beta",
+    }],
+  });
+  const comparison = compareResearchEvidence({
+    query_sha256: fixtures.query_sha256,
+    policy_sha256: fixtures.policy_sha256,
+    providers: [openai, perplexity],
+  });
+  const serialized = JSON.stringify(comparison);
+  const openaiUrl = new URL(openai.sources[0]?.url ?? "");
+  const perplexityUrl = new URL(perplexity.sources[0]?.url ?? "");
+
+  for (const forbidden of [
+    "private-query-alpha",
+    "private-query-beta",
+    "private-snippet-alpha",
+    "private-snippet-beta",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false);
+  }
+  for (const key of ["q", "snippet"]) {
+    assert.match(openaiUrl.searchParams.get(key) ?? "", /^sha256:[a-f0-9]{64}$/);
+    assert.match(perplexityUrl.searchParams.get(key) ?? "", /^sha256:[a-f0-9]{64}$/);
+    assert.notEqual(openaiUrl.searchParams.get(key), perplexityUrl.searchParams.get(key));
+  }
+  assert.equal(comparison.source_url_overlap_count, 0);
+  assert.equal(comparison.label, "DIVERGENT");
+});
+
+test("source dates require an explicit timezone and normalize deterministically", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const zoned = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/zoned",
+      published_at: "2026-07-28T08:00:00-04:00",
+      last_updated_at: "2026-07-28T12:00:00Z",
+    }],
+  });
+  const zoneLess = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/zone-less",
+      published_at: "2026-07-28T12:00:00",
+      last_updated_at: "2026-07-28",
+    }],
+  });
+
+  assert.equal(zoned.sources[0]?.published_at, "2026-07-28T12:00:00.000Z");
+  assert.equal(zoned.sources[0]?.last_updated_at, "2026-07-28T12:00:00.000Z");
+  assert.equal(zoneLess.sources[0]?.published_at, undefined);
+  assert.equal(zoneLess.sources[0]?.last_updated_at, undefined);
+});
+
 test("vendor-prefixed presigned credentials never enter normalized evidence", () => {
   const base = fixtures.cases.find((candidate) => candidate.name === "matching");
   assert.ok(base);
