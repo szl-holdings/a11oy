@@ -225,6 +225,15 @@ def test_rotation_retains_old_key_across_restart_when_configured(monkeypatch):
     assert szl_dsse.verify_envelope(first_envelope)["verified"] is True
 
 
+def test_oversized_retained_public_key_config_fails_closed(monkeypatch):
+    monkeypatch.setenv(
+        szl_dsse.TRUSTED_PUBLIC_PEMS_ENV,
+        "x" * (szl_dsse.MAX_TRUSTED_PUBLIC_PEMS_BYTES + 1),
+    )
+
+    assert szl_dsse._configured_trusted_public_pems() == []
+
+
 def test_non_p256_private_key_fails_closed(monkeypatch):
     """A configured key of the wrong algorithm never produces a signature."""
     from cryptography.hazmat.primitives.asymmetric import rsa

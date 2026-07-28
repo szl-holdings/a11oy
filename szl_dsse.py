@@ -83,6 +83,8 @@ KEYID = "szlholdings-cosign"
 KHIPU_PAYLOAD_TYPE = "application/vnd.szl.khipu+json"
 COSIGN_PUB_FINGERPRINT_ENV = "SZL_COSIGN_PUB_SHA256"  # optional pin
 TRUSTED_PUBLIC_PEMS_ENV = "SZL_COSIGN_TRUSTED_PUBLIC_PEMS"
+MAX_TRUSTED_PUBLIC_KEYS = 32
+MAX_TRUSTED_PUBLIC_PEMS_BYTES = 16 * 1024
 
 # The published public key (szl-holdings/.github/cosign.pub). Embedded so the
 # /khipu/verify endpoint can verify WITHOUT a network call. This is PUBLIC data.
@@ -219,18 +221,22 @@ def _configured_trusted_public_pems() -> list[tuple[str | None, str]]:
     raw = os.environ.get(TRUSTED_PUBLIC_PEMS_ENV, "").strip()
     if not raw:
         return []
+    if len(raw.encode("utf-8")) > MAX_TRUSTED_PUBLIC_PEMS_BYTES:
+        return []
     try:
         value = json.loads(raw)
     except Exception:
         return []
     if isinstance(value, list):
-        return [(None, pem) for pem in value if isinstance(pem, str)]
+        return [
+            (None, pem) for pem in value if isinstance(pem, str)
+        ][:MAX_TRUSTED_PUBLIC_KEYS]
     if isinstance(value, dict):
         return [
             (str(alias), pem)
             for alias, pem in value.items()
             if isinstance(pem, str)
-        ]
+        ][:MAX_TRUSTED_PUBLIC_KEYS]
     return []
 
 
