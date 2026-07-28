@@ -77,7 +77,7 @@ def test_unsigned_fallback_when_secret_absent(monkeypatch):
 def test_real_signature_with_ephemeral_key_verifies(monkeypatch):
     """Secret present (ephemeral test key) -> REAL signature that verifies
     against the matching public key via raw cryptography AND via the module's
-    own verify path when the embedded public key is swapped to the test key."""
+    own active-runtime verify path."""
     priv_pem, pub_pem = _gen_ephemeral_keypair()
     monkeypatch.delenv(_LEGACY_ENV, raising=False)
     monkeypatch.setenv(_PRIV_ENV, priv_pem)
@@ -101,9 +101,9 @@ def test_real_signature_with_ephemeral_key_verifies(monkeypatch):
     sig = base64.b64decode(sig_entry["sig"])
     pub.verify(sig, msg, ec.ECDSA(hashes.SHA256()))  # raises InvalidSignature on failure
 
-    # 2) Module verify path: point the embedded public key at the test public
-    #    key and confirm verify_envelope() validates the just-made signature.
-    monkeypatch.setattr(szl_dsse, "COSIGN_PUBLIC_PEM", pub_pem, raising=True)
+    # 2) Module verify path derives the active public key from the same runtime
+    #    secret, so no unrelated embedded key can invalidate a fresh receipt.
+    assert szl_dsse.active_public_key_pem() == pub_pem
     verdict = szl_dsse.verify_envelope(env)
     assert verdict["verified"] is True
 
@@ -149,6 +149,26 @@ def test_legacy_env_var_still_works(monkeypatch):
     env = szl_dsse.sign_payload({"compat": True})
     assert env["signed"] is True
     assert len(env["signatures"]) == 1
+
+
+def test_non_p256_private_key_fails_closed(monkeypatch):
+    """A configured key of the wrong algorithm never produces a signature."""
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, private_pem)
+    importlib.reload(szl_dsse)
+
+    assert szl_dsse.signing_available() is False
+    envelope = szl_dsse.sign_payload({"wrong": "algorithm"})
+    assert envelope["signed"] is False
+    assert envelope["signatures"] == []
 
 
 @pytest.mark.skipif(
