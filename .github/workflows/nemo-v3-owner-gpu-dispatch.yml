@@ -1,0 +1,162 @@
+name: Nemo v3 owner GPU dispatch
+
+# Securely lends the existing repository-managed Hugging Face credential to an
+# ephemeral, owner-controlled GPU runner. The token remains a masked Actions
+# secret: it is never written into the bridge installation, repository, or job
+# artifacts. repository_dispatch always loads this workflow from the protected
+# default branch; unlike workflow_dispatch, callers cannot select another ref.
+
+on:
+  repository_dispatch:
+    types: [nemo-v3-owner-gpu]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nemo-v3-owner-gpu-attempt
+  cancel-in-progress: false
+
+jobs:
+  credential-preflight:
+    name: Verify managed Hugging Face access
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - name: Require live credential and private receipt access
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN is not configured on this repository."
+            exit 1
+          fi
+
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          whoami_status="$(
+            curl --silent --show-error \
+              --output "$tmp/whoami.json" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${HF_TOKEN}" \
+              https://huggingface.co/api/whoami-v2
+          )"
+          if [ "$whoami_status" != "200" ]; then
+            echo "::error::The managed Hugging Face credential is not live."
+            exit 1
+          fi
+
+          receipt_status="$(
+            curl --silent --show-error \
+              --output "$tmp/receipt-dataset.json" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${HF_TOKEN}" \
+              https://huggingface.co/api/datasets/SZLHOLDINGS/szl-training-receipts
+          )"
+          if [ "$receipt_status" != "200" ]; then
+            echo "::error::The managed credential cannot read the private receipt dataset."
+            exit 1
+          fi
+
+          echo "Managed Hugging Face credential is live; private receipt access is verified."
+
+  execute:
+    name: Execute signed Nemo v3 job on owner GPU
+    needs: credential-preflight
+    runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
+    timeout-minutes: 300
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      JOB_ID: job-2026-nemo-v3-governed-attempt-1
+      BRIDGE_ROOT: C:\szl-bridge
+      BRIDGE_REVISION: f7153a23453f7e6fd54c0b248f17c0cdd1ab00af
+    steps:
+      - name: Run verify-first bridge and verify a fresh immutable receipt
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if ([string]::IsNullOrWhiteSpace($env:HF_TOKEN)) {
+            throw "HF_TOKEN was not injected into the owner runner."
+          }
+
+          $dispatcher = Join-Path $env:BRIDGE_ROOT "dispatcher.py"
+          $ledger = Join-Path $env:BRIDGE_ROOT "jobs\seen.txt"
+          $receiptKey = Join-Path $env:BRIDGE_ROOT "keys\laptop_key.pem"
+          $publicKey = Join-Path $env:BRIDGE_ROOT "keys\laptop_pubkey.json"
+          $jobPath = Join-Path $env:BRIDGE_ROOT ("jobs\" + $env:JOB_ID + ".json")
+          $receiptDir = Join-Path $env:BRIDGE_ROOT ("jobs\" + $env:JOB_ID + "\receipts")
+          $pythonCandidates = @(
+            (Join-Path $env:USERPROFILE "miniconda3\envs\szl-bridge\python.exe"),
+            (Join-Path $env:USERPROFILE "miniconda3\envs\szl-bridge\Scripts\python.exe")
+          )
+          $python = $pythonCandidates | Where-Object {
+            Test-Path -LiteralPath $_ -PathType Leaf
+          } | Select-Object -First 1
+
+          foreach ($required in @($dispatcher, $receiptKey, $publicKey, $python)) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Required owner bridge component is missing: $required"
+            }
+          }
+
+          if (
+            (Test-Path -LiteralPath $ledger -PathType Leaf) -and
+            (Select-String `
+              -LiteralPath $ledger `
+              -Pattern ("^" + [regex]::Escape($env:JOB_ID) + "(?:\s|$)") `
+              -Quiet)
+          ) {
+            throw "This one-attempt job is already present in the local terminal ledger."
+          }
+
+          $startedAt = [DateTimeOffset]::UtcNow.ToString("o")
+          $cacheBuster = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+          $jobUri = (
+            "https://raw.githubusercontent.com/szl-holdings/szl-gpu-bridge/" +
+            $env:BRIDGE_REVISION + "/queue/pending/" + $env:JOB_ID + ".json?t=" +
+            $cacheBuster
+          )
+          Invoke-WebRequest `
+            -Uri $jobUri `
+            -OutFile $jobPath `
+            -Headers @{ "User-Agent" = "szl-nemo-v3-owner-dispatch" }
+
+          & $python $dispatcher $jobPath
+          $dispatcherExit = $LASTEXITCODE
+
+          $verifier = Join-Path $env:RUNNER_TEMP "verify_nemo_owner_receipt.py"
+          $verifierUri = (
+            "https://raw.githubusercontent.com/" + $env:GITHUB_REPOSITORY + "/" +
+            $env:GITHUB_SHA + "/.github/scripts/verify_nemo_owner_receipt.py"
+          )
+          Invoke-WebRequest `
+            -Uri $verifierUri `
+            -OutFile $verifier `
+            -Headers @{ "User-Agent" = "szl-nemo-v3-owner-dispatch" }
+
+          & $python $verifier `
+            --receipt-dir $receiptDir `
+            --expected-key $publicKey `
+            --job-id $env:JOB_ID `
+            --since $startedAt `
+            --repo-id "SZLHOLDINGS/szl-training-receipts"
+          if ($LASTEXITCODE -ne 0) {
+            throw (
+              "Fresh signed-receipt verification failed after dispatcher exit " +
+              "$dispatcherExit."
+            )
+          }
+
+          if (-not (Test-Path -LiteralPath $ledger -PathType Leaf)) {
+            New-Item -ItemType File -Path $ledger -Force | Out-Null
+          }
+          Add-Content `
+            -LiteralPath $ledger `
+            -Value ($env:JOB_ID + "  # VERIFIED_FRESH_IMMUTABLE_SIGNED_RECEIPT")
+
+          Write-Host "Fresh Nemo v3 receipt is signature-verified and read back immutably."
