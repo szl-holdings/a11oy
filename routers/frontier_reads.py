@@ -14,7 +14,9 @@ Shared serve.py module-scope state referenced (unchanged, via `import serve`):
 this group, so it moves here with the routes. Registered BEFORE the /api/a11oy/
 {path:path} Node proxy + SPA catch-all, identical to the pre-refactor inline block.
 
-REFACTOR-ONLY: paths, methods, and payloads are byte-identical to before.
+The additive Series-A controller is registered at this same pre-catch-all seam. It
+keeps GET/HEAD read-only, uses explicit POSTs for refresh/evaluate/execute, and
+fails one surface closed without taking down the existing frontier reads.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -42,8 +44,7 @@ _A11OY_VERTICALS = [
 
 
 def register(app) -> dict:
-    """Attach the frontier read route group to `app`, identically to the prior
-    inline serve.py block. Called BEFORE the Node proxy + SPA catch-all."""
+    """Attach frontier reads and the additive Series-A control plane."""
     import serve  # shared module-scope state lives at serve module scope
 
     @app.get("/api/a11oy/v1/forecast-baseline")
@@ -60,7 +61,6 @@ def register(app) -> dict:
                              "verticals": _A11OY_VERTICALS,
                              "honesty": "Live = shipping pack; stub = scaffolded, roadmap."})
 
-    # ---- Business Observability (5 domains) on REAL in-image data (no fabricated KPIs) ----
     @app.get("/api/a11oy/v1/observability/business")
     @app.get("/v1/observability/business")
     async def a11oy_business_observability_v2() -> JSONResponse:
@@ -89,8 +89,27 @@ def register(app) -> dict:
             "lambda_status": "Conjecture 1 (advisory)",
         })
 
-    return {"ok": True, "ns": "a11oy", "group": "frontier-reads", "routes": [
-        "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
-        "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
-        "/api/a11oy/v1/observability/business", "/v1/observability/business",
-    ]}
+    try:
+        from routers import series_a_control_plane as _series_a_control_plane
+
+        series_a = _series_a_control_plane.register(app, ns="a11oy")
+    except Exception as exc:  # one additive surface must never take down A11oy
+        series_a = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": [],
+        }
+
+    return {
+        "ok": True,
+        "ns": "a11oy",
+        "group": "frontier-reads",
+        "series_a": series_a,
+        "routes": [
+            "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
+            "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
+            "/api/a11oy/v1/observability/business", "/v1/observability/business",
+            "/series-a", "/api/a11oy/v1/series-a/status",
+        ],
+    }

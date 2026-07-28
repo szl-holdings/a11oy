@@ -10,10 +10,10 @@
 # imports these only on the REAL training path — --dry-run needs none of them.
 transformers>=4.43.0
 peft>=0.19.1
-trl>=1.8.0
+trl>=1.9.1
 datasets>=5.0.0
 accelerate>=1.14.0
-bitsandbytes>=0.49.2
+bitsandbytes>=0.50.0
 sentencepiece>=0.2.2
 # For the GGUF export step (llama.cpp's convert_lora_to_gguf.py):
 gguf>=0.19.0

@@ -18,9 +18,11 @@ SAME lexical position the routes used to occupy — i.e. BEFORE the SPA
   * a missing/broken group can NEVER take down the SPA (guarded), and
   * the register() functions are IMPORTED + CALLED (register-invocation-guard clean).
 
-This is REFACTOR-ONLY. No endpoint behavior changes. Parity is proven by
-tools_serve_split/capture_routes.py (before/after route-table fingerprint) plus the
-Wave-J frontier contract suite (tests/test_frontier_endpoints.py) and TestClient.
+The additive `series_a_control_plane` module is not a refactor-only route group. It
+is the single governed integration seam for current estate truth, Counterfactual
+Action Passports, signed receipts, and bounded one-attempt effectors. It is exported
+here so invocation and package-integrity checks can prove the production module is
+intentional rather than an orphaned source file.
 
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
@@ -28,4 +30,9 @@ OUTSIDE the guarded-import-liveness first-party scan — and the files exist any
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 
-__all__ = ["lambda_bounty", "research_3d", "frontier_reads"]
+__all__ = [
+    "lambda_bounty",
+    "research_3d",
+    "frontier_reads",
+    "series_a_control_plane",
+]
