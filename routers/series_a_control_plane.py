@@ -686,6 +686,101 @@ class Service:
             "database": self.store.path,
         }
 
+    def _governance_gate(self, action: Mapping[str, Any]) -> dict[str, Any]:
+        """Run the file-backed doctrine and codename gates, failing closed."""
+        try:
+            import szl_colang_policy
+
+            policy = szl_colang_policy.get_policy()
+            if not policy.loaded:
+                raise RuntimeError("no file-backed Colang policy is loaded")
+            colang = policy.evaluate(
+                {
+                    "tool": "execute",
+                    "effecting": True,
+                    "events": ["gate.evaluate"],
+                    "action_type": str(action.get("type") or ""),
+                    "target": str(action.get("target") or ""),
+                    "high_impact": str(action.get("impact") or "").upper()
+                    in {"HIGH", "CRITICAL"},
+                    "irreversible": bool(action.get("irreversible", False)),
+                }
+            )
+        except Exception as exc:
+            return {
+                "allowed": False,
+                "decision": "DENY",
+                "reason_codes": ["DOCTRINE_GATE_UNAVAILABLE"],
+                "detail": _safe_error(exc),
+            }
+
+        try:
+            import szl_codename_gate
+
+            codename_hits = [
+                str(value) for value in szl_codename_gate.scan_text(_canonical(action).decode())
+            ]
+        except Exception as exc:
+            return {
+                "allowed": False,
+                "decision": "DENY",
+                "reason_codes": ["CODENAME_GATE_UNAVAILABLE"],
+                "detail": _safe_error(exc),
+                "colang": colang,
+            }
+
+        reasons: list[str] = []
+        if not colang.get("allow"):
+            reasons.append("DOCTRINE_POLICY_DENY")
+        if codename_hits:
+            reasons.append("CODENAME_POLICY_DENY")
+        return {
+            "allowed": not reasons,
+            "decision": "ALLOW" if not reasons else "DENY",
+            "reason_codes": reasons or ["FILE_BACKED_GOVERNANCE_PASS"],
+            "colang": {
+                "decision": colang.get("decision"),
+                "fired_flows": colang.get("fired_flows", []),
+                "flows_evaluated": colang.get("flows_evaluated", []),
+                "policy_files": colang.get("policy_files", []),
+            },
+            "codename_gate": {
+                "clean": not codename_hits,
+                "hits": codename_hits,
+            },
+        }
+
+    def _fresh_evidence_reasons(self, evidence: Any) -> list[str]:
+        """Require a current server-signed estate snapshot for executable evidence."""
+        if not isinstance(evidence, list) or not evidence:
+            return ["EVIDENCE_REQUIRED"]
+        latest = self.store.latest_snapshot()
+        if latest is None:
+            return ["FRESH_SERVER_EVIDENCE_REQUIRED"]
+        try:
+            valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return ["FRESH_SERVER_EVIDENCE_REQUIRED"]
+        if datetime.now(timezone.utc) >= valid_until:
+            return ["FRESH_SERVER_EVIDENCE_REQUIRED"]
+        if latest["envelope"].get("signature_status") != "SIGNED":
+            return ["SIGNED_SERVER_EVIDENCE_REQUIRED"]
+
+        reasons: list[str] = []
+        for item in evidence:
+            if not isinstance(item, dict) or item.get("label") in {"UNKNOWN", "UNAVAILABLE"}:
+                reasons.append("NON_ACTIONABLE_EVIDENCE")
+                continue
+            expected = {
+                "label": "OBSERVED",
+                "content_digest": latest["digest"],
+                "observed_at": latest["observed_at"],
+                "valid_until": latest["valid_until"],
+            }
+            if any(item.get(key) != value for key, value in expected.items()):
+                reasons.append("SERVER_OBSERVED_EVIDENCE_REQUIRED")
+        return sorted(set(reasons))
+
     def evaluate_passport(self, body: Mapping[str, Any]) -> dict[str, Any]:
         action = body.get("action")
         if not isinstance(action, dict):
@@ -727,15 +822,14 @@ class Service:
             reasons = ["BOUNDED_REVERSIBLE_ACTION"]
 
         evidence = body.get("evidence")
-        if not isinstance(evidence, list) or not evidence:
+        evidence_reasons = self._fresh_evidence_reasons(evidence)
+        governance = self._governance_gate(action)
+        if evidence_reasons:
             decision = "BLOCK"
-            reasons = sorted(set(reasons + ["EVIDENCE_REQUIRED"]))
-        else:
-            for item in evidence:
-                if not isinstance(item, dict) or item.get("label") in {"UNKNOWN", "UNAVAILABLE"}:
-                    decision = "BLOCK"
-                    reasons = sorted(set(reasons + ["NON_ACTIONABLE_EVIDENCE"]))
-                    break
+            reasons = sorted(set(reasons + evidence_reasons))
+        if not governance["allowed"]:
+            decision = "BLOCK"
+            reasons = sorted(set(reasons + governance["reason_codes"]))
 
         no_action = {
             "scenario_id": "no-action",
@@ -764,6 +858,7 @@ class Service:
             "counterfactuals": [no_action, proposed],
             "decision": decision,
             "reason_codes": reasons,
+            "governance": governance,
             "max_attempts": 1,
             "private_reasoning_collected": False,
         }
@@ -784,8 +879,26 @@ class Service:
             raise HTTPException(status_code=409, detail="passport attempt already consumed")
         if passport["decision"] != "ALLOW":
             raise HTTPException(status_code=403, detail=f"passport decision is {passport['decision']}")
-        self.store.consume_attempt(digest)
         action = passport["action"]
+        governance = self._governance_gate(action)
+        evidence_reasons = self._fresh_evidence_reasons(passport.get("evidence"))
+        if not governance["allowed"] or evidence_reasons:
+            reasons = sorted(set(governance["reason_codes"] + evidence_reasons))
+            denial_receipt = self.store.append_receipt(
+                "passport.execution-denied",
+                {"passport_digest": digest, "reason_codes": reasons},
+                self.signer,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "GOVERNANCE_DENY",
+                    "reason_codes": reasons,
+                    "receipt_hash": denial_receipt["receipt_hash"],
+                    "signature_status": denial_receipt["envelope"]["signature_status"],
+                },
+            )
+        self.store.consume_attempt(digest)
         started = _now()
         try:
             if action["type"] == "estate.refresh":
@@ -808,6 +921,7 @@ class Service:
                 "attempt": 1,
                 "max_attempts": 1,
                 "passport_digest": digest,
+                "governance": governance,
             }
         )
         receipt = self.store.append_receipt("passport.outcome", outcome, self.signer)
