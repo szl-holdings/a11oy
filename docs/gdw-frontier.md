@@ -12,10 +12,13 @@ evidence dashboard.
 The successor implementation is real code on a draft branch. It is not merged,
 deployed, or production-verified. Protected `main` continues to expose the
 Wave-26/Wave-28 consolidation hold until this successor receives independent
-review and a protected merge. Each benchmark remains `UNMEASURED` until its own
-output is captured. Exporting a theorem input is not a proof; Lean results are
-reported separately. The control API chooses a route but does not claim that a
-model kernel ran.
+review and a protected merge. The protected deployment path now provisions a
+fresh `/data/a11oy/gdw/v2` generation, installs only a digest-bound principal
+registry in the Space secret store, exercises an authenticated state
+transition, drains its two effects, and requires a clean integrity result.
+Each benchmark remains `UNMEASURED` until its own output is captured. Exporting
+a theorem input is not a proof; Lean results are reported separately. The
+control API chooses a route but does not claim that a model kernel ran.
 
 `GDW_PROOF_EXPORT_MODE=outbox` is the only accepted production mode. Each
 accepted transition commits state, request, an explicitly `UNSIGNED_ATOMIC`
@@ -26,10 +29,18 @@ request response, receipt ledger, full payload digest, and effect key are checke
 again before export. This is durable local atomicity plus retry-safe projection,
 not cross-system two-phase commit.
 
+The admin-only drain route is invoked by exact-source promotion and by the
+bounded scheduled `gdw-drain.yml` workflow. Its bearer value remains a GitHub
+Actions secret; only the SHA-256-bound registry is installed as a Hugging Face
+Space secret. Every scheduled result is secret-free.
+
 ## Runtime
 
-Set `GDW_PRINCIPALS_JSON`, `GDW_DB_PATH`, `GDW_PROOF_DIR`, and
-`GDW_RECEIPT_PROJECTION_DIR`, then start `serve:app`.
+Set `GDW_PRINCIPALS_JSON`, `GDW_DB_PATH`, `GDW_PROOF_DIR`,
+`GDW_RECEIPT_PROJECTION_DIR`, and `GDW_SQLITE_JOURNAL`, then start `serve:app`.
+The canonical Hugging Face promotion uses a fresh `/data/a11oy/gdw/v2`
+generation and `GDW_SQLITE_JOURNAL=DELETE`; WAL remains the local-filesystem
+default and is not asserted portable across the mounted network volume.
 `GDW_PRINCIPALS_JSON` is an object keyed by canonical principal ID. Each value
 contains a lowercase SHA-256 bearer-token digest and a non-empty subset of the
 `user` and `admin` roles. Plaintext bearer tokens are not stored in the registry.
@@ -63,6 +74,7 @@ Routes:
 - `GET /api/a11oy/v1/gdw/bench/meta`
 - `GET /api/a11oy/v1/gdw/metrics`
 - `GET /api/a11oy/v1/gdw/integrity`
+- `POST /api/a11oy/v1/gdw/drain` (admin only)
 - `GET /api/a11oy/v1/gdw/sessions/{session_id}`
 - `POST /api/a11oy/v1/gdw/step`
 

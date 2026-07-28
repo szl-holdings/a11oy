@@ -7,14 +7,20 @@ the post-merge governance and atomicity correction, which requires its own
 protected merge, exact-source relock, and live checks.
 
 Successor status: `MEASURED_LOCAL` for the forward-only draft working tree only.
-The local adversarial suite passed `17 / 17` on 2026-07-28. It covered strict
+The local GDW adversarial suite passed `19 / 19` on 2026-07-28, and the
+digest-registry/runtime-configuration suite passed `4 / 4`. The combined
+focused promotion run passed `27`, skipped one hardware-dependent case, and
+failed none. It covered strict
 rejection of unknown policy flows and evaluator exceptions, persisted principal
 ownership, cross-owner
 read/replay/mutation denial, bounded request quotas and post-export reclamation,
 canonical outbox tamper detection even after attacker-controlled rehashing,
 generation-bound immutable artifacts across database reset, lease-token fencing,
-and replay telemetry. This is not independent review, protected merge,
-deployment, or production evidence.
+replay telemetry, admin-only idempotent effect drain, and network-volume-safe
+SQLite journal selection. The broad serve-router parity test exceeded a bounded
+two-minute local run and remains `UNVERIFIED` in this working tree; the hosted
+route/OpenAPI gates are separate evidence. This is not independent review,
+protected merge, deployment, or production evidence.
 
 ## Operational scope
 

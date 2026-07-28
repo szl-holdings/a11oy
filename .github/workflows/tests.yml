@@ -47,6 +47,27 @@ jobs:
       - name: Run policy gate tests
         run: npm run test:policy-gates
 
+  python-gdw-successor:
+    name: GDW authenticated durability and promotion contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove GDW state, policy, drain, journal, and promotion contracts
+        run: >-
+          pytest
+          tests/test_gdw_frontier.py
+          tests/test_gdw_attention.py
+          tests/test_gdw_bench_tools.py
+          tests/test_openapi_schema_generation.py
+          scripts/test_configure_hf_gdw_runtime.py
+          -q
+
   python-operator-reason:
     name: Operator & reason endpoint tests (pytest)
     runs-on: ubuntu-latest

@@ -51,6 +51,9 @@ class GDWWorkspace:
     def __init__(self, path: Optional[str] = None):
         configured = path or os.environ.get("GDW_DB_PATH", "output/gdw/gdw.sqlite3")
         self.path = Path(configured).resolve()
+        self.journal_mode = os.environ.get("GDW_SQLITE_JOURNAL", "WAL").strip().upper()
+        if self.journal_mode not in {"DELETE", "WAL"}:
+            raise RuntimeError("GDW_SQLITE_JOURNAL must be DELETE or WAL")
         self._initialise()
 
     def _connect(self) -> sqlite3.Connection:
@@ -76,7 +79,15 @@ class GDWWorkspace:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             connection = sqlite3.connect(str(self.path), timeout=30.0)
             try:
-                connection.execute("PRAGMA journal_mode=WAL")
+                observed_journal = str(
+                    connection.execute(
+                        f"PRAGMA journal_mode={self.journal_mode}"
+                    ).fetchone()[0]
+                ).upper()
+                if observed_journal != self.journal_mode:
+                    raise RuntimeError(
+                        "configured SQLite journal mode did not converge"
+                    )
                 connection.execute("PRAGMA synchronous=NORMAL")
                 connection.execute("PRAGMA foreign_keys=ON")
                 self._ensure_schema(connection)
@@ -1255,6 +1266,11 @@ class GDWWorkspace:
             generation_id = str(generation["value"]) if generation else ""
             if len(generation_id) != 32:
                 violations["effect_binding_mismatches"] += 1
+            observed_journal = str(
+                connection.execute("PRAGMA journal_mode").fetchone()[0]
+            ).upper()
+            if observed_journal != self.journal_mode:
+                violations["effect_binding_mismatches"] += 1
             violation_count = sum(int(value) for value in violations.values())
             return {
                 "ok": check == "ok" and violation_count == 0,
@@ -1267,7 +1283,8 @@ class GDWWorkspace:
                 "violations": violations,
                 "generation_id": generation_id,
                 "path": str(self.path),
-                "wal": True,
+                "journal_mode": observed_journal,
+                "wal": observed_journal == "WAL",
                 "synchronous": "NORMAL",
             }
         finally:

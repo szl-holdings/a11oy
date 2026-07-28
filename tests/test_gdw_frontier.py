@@ -772,3 +772,59 @@ def test_stale_worker_is_fenced_and_replay_does_not_remint_metric(
         )
     for current in new_claims:
         workspace.validate_claimed_effect(current)
+
+
+def test_admin_drain_exports_all_effects_and_is_idempotent(
+    tmp_path, monkeypatch
+):
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        transition = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="drain-session"),
+            headers=headers("drain-request"),
+        )
+        assert transition.status_code == 200
+
+        denied = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-b-token"},
+        )
+        assert denied.status_code == 403
+
+        drained = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+        assert drained.status_code == 200
+        assert drained.json()["exported"] == 2
+        assert drained.json()["failed"] == 0
+        assert drained.json()["pending_effects"] == 0
+        assert drained.json()["integrity_ok"] is True
+
+        replayed_drain = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+        assert replayed_drain.status_code == 200
+        assert replayed_drain.json()["exported"] == 0
+        assert replayed_drain.json()["pending_effects"] == 0
+
+
+def test_network_safe_delete_journal_is_measured_and_invalid_mode_fails(
+    tmp_path, monkeypatch
+):
+    import pytest
+
+    from gdw_workspace import GDWWorkspace
+
+    monkeypatch.setenv("GDW_SQLITE_JOURNAL", "DELETE")
+    workspace = GDWWorkspace(str(tmp_path / "delete-journal.sqlite3"))
+    integrity = workspace.integrity()
+    assert integrity["ok"] is True
+    assert integrity["journal_mode"] == "DELETE"
+    assert integrity["wal"] is False
+
+    monkeypatch.setenv("GDW_SQLITE_JOURNAL", "MEMORY")
+    with pytest.raises(RuntimeError, match="must be DELETE or WAL"):
+        GDWWorkspace(str(tmp_path / "invalid-journal.sqlite3"))

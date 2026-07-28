@@ -14,6 +14,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from gdw_attention import AttentionFeatures, choose_attention_mode
+from gdw_drain import drain_effects
 from gdw_proofs import build_proof_payload, sha256_json
 from gdw_telemetry import GDWTelemetry
 from gdw_workspace import GDWWorkspace
@@ -406,7 +407,7 @@ def register(app, ns: str = "a11oy"):
                 "service": "gdw-frontier",
                 "status": "REAL",
                 "write_ready": True,
-                "persistence": "SQLITE_WAL",
+                "persistence": f"SQLITE_{workspace.journal_mode}",
                 "generation_id": workspace.generation_id(),
                 "external_effects": "OUTBOX_ONLY",
                 "benchmark_claim": "UNMEASURED",
@@ -417,11 +418,32 @@ def register(app, ns: str = "a11oy"):
                 "status": "UNAVAILABLE",
                 "label": "UNAVAILABLE",
                 "write_ready": False,
-                "persistence": "SQLITE_WAL",
+                "persistence": "SQLITE_CONFIGURATION_GATED",
                 "external_effects": "DISABLED",
                 "reason": f"semantic gate closed: {type(exc).__name__}",
                 "benchmark_claim": "UNMEASURED",
             }
+
+    @app.post(prefix + "/drain")
+    @app.post("/v1/gdw/drain")
+    def gdw_drain(
+        limit: int = 100,
+        authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    ):
+        _authenticate(authorization, "admin")
+        workspace = _available_workspace()
+        try:
+            result = drain_effects(workspace, limit=limit)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"GDW effect drain failed closed: {type(exc).__name__}",
+            ) from exc
+        if result["failed"] or not result["integrity_ok"]:
+            raise HTTPException(status_code=503, detail=result)
+        return result
 
     @app.get(prefix + "/bench/meta")
     @app.get("/v1/gdw/bench/meta")
@@ -823,6 +845,7 @@ def register(app, ns: str = "a11oy"):
             prefix + "/bench/meta",
             prefix + "/metrics",
             prefix + "/integrity",
+            prefix + "/drain",
             prefix + "/sessions/{session_id}",
             prefix + "/step",
         ],
