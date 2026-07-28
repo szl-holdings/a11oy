@@ -2,6 +2,12 @@
 
 Date: 2026-07-28
 
+Current delivery status: `UNAVAILABLE`. This file preserves historical,
+isolated-harness evidence. It does not authorize the merged operational surface;
+the routes are now fail-closed pending canonical governance, persistent
+ownership/quota/retention controls, conflict-free route ownership, and
+transactionally durable receipt/proof publication.
+
 Status: `MEASURED` in an isolated local harness; production and Hugging Face deployment remain `UNVERIFIED` until the protected merge, image publication, exact-source relock, and live endpoint checks complete.
 
 ## Operational scope

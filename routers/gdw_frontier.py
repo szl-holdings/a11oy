@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
 from fastapi import Header, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from gdw_attention import AttentionFeatures, choose_attention_mode
@@ -24,6 +24,15 @@ from szl_sgh_scheduler import build_plan
 _TELEMETRY = GDWTelemetry()
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _EXPERTS = {"planner", "retriever", "auditor", "verifier", "operator"}
+_HOLD_REASON = "GDW_CONSOLIDATION_REQUIRED"
+_HOLD_DETAIL = {
+    "schema": "szl.gdw.hold/v1",
+    "status": "UNAVAILABLE",
+    "label": "UNAVAILABLE",
+    "reason": _HOLD_REASON,
+    "write_ready": False,
+    "external_effects": "DISABLED",
+}
 
 
 class GDWStepRequest(BaseModel):
@@ -99,6 +108,11 @@ def _decision(payload: GDWStepRequest) -> str:
     return "ACCEPT"
 
 
+def _hold_response() -> JSONResponse:
+    """Keep the conflicted surface fail-closed until one contract replaces it."""
+    return JSONResponse(status_code=503, content=_HOLD_DETAIL)
+
+
 def register(app, ns: str = "a11oy"):
     prefix = f"/api/{ns}/v1/gdw"
 
@@ -107,9 +121,12 @@ def register(app, ns: str = "a11oy"):
     def gdw_healthz():
         return {
             "service": "gdw-frontier",
-            "status": "REAL",
-            "write_ready": bool(os.environ.get("GDW_AUTH_TOKEN")),
-            "persistence": "SQLITE_WAL",
+            "status": "UNAVAILABLE",
+            "label": "UNAVAILABLE",
+            "reason": _HOLD_REASON,
+            "write_ready": False,
+            "external_effects": "DISABLED",
+            "persistence": "DISABLED_PENDING_CONSOLIDATION",
             "benchmark_claim": "UNMEASURED",
         }
 
@@ -118,6 +135,7 @@ def register(app, ns: str = "a11oy"):
     def gdw_bench_meta(
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
+        return _hold_response()
         _authorise(authorization)
         return {
             "service": "gdw-frontier",
@@ -136,6 +154,7 @@ def register(app, ns: str = "a11oy"):
     def gdw_metrics(
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
+        return _hold_response()
         _authorise(authorization)
         return PlainTextResponse(
             _TELEMETRY.render(),
@@ -147,6 +166,7 @@ def register(app, ns: str = "a11oy"):
     def gdw_integrity(
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
+        return _hold_response()
         _authorise(authorization)
         return GDWWorkspace().integrity()
 
@@ -156,6 +176,7 @@ def register(app, ns: str = "a11oy"):
         session_id: str,
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
+        return _hold_response()
         _authorise(authorization)
         if not _ID_PATTERN.fullmatch(session_id):
             raise HTTPException(status_code=422, detail="invalid session_id")
@@ -171,6 +192,7 @@ def register(app, ns: str = "a11oy"):
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
         x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id"),
     ):
+        return _hold_response()
         started = time.perf_counter()
         _authorise(authorization)
         request_id = _validate_identifiers(payload, x_request_id)
