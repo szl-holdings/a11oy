@@ -116,6 +116,24 @@ def test_inference_bearing_public_head_drift_refuses():
         RECON.reconcile(fixture, qualification)
 
 
+def test_exact_coordinated_zero_blob_ids_refuse_against_revision_tree():
+    fixture = load(FIXTURE)
+    qualification = load(QUALIFICATION)
+    entry = next(
+        item
+        for item in fixture["inference_bearing_blobs"]
+        if item["path"] == "config.json"
+    )
+    entry["qualified_git_blob_sha1"] = "0" * 40
+    entry["public_head_git_blob_sha1"] = "0" * 40
+
+    with pytest.raises(
+        RECON.ReconciliationRefusal,
+        match="qualified path/blob is not bound to the declared revision: config.json",
+    ):
+        RECON.reconcile(fixture, qualification)
+
+
 def test_qualification_receipt_self_digest_tamper_refuses():
     fixture = load(FIXTURE)
     qualification = load(QUALIFICATION)
