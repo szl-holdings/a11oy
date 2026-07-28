@@ -24,8 +24,8 @@ def make_app(tmp_path, monkeypatch):
     monkeypatch.setenv("GDW_DB_PATH", str(db_path))
     monkeypatch.setenv("GDW_PROOF_DIR", str(proof_dir))
     app = FastAPI()
-    gdw_frontier.register(app)
-    return app, db_path, proof_dir
+    registration = gdw_frontier.register(app)
+    return app, db_path, proof_dir, registration
 
 
 def payload():
@@ -52,7 +52,9 @@ def assert_hold(response):
 
 
 def test_health_truthfully_reports_unavailable(tmp_path, monkeypatch):
-    app, db_path, proof_dir = make_app(tmp_path, monkeypatch)
+    app, db_path, proof_dir, registration = make_app(tmp_path, monkeypatch)
+    assert registration["state"] == "UNAVAILABLE"
+    assert registration["reason"] == "GDW_CONSOLIDATION_REQUIRED"
 
     with TestClient(app) as client:
         for path in ("/api/a11oy/v1/gdw/healthz", "/v1/gdw/healthz"):
@@ -72,7 +74,7 @@ def test_health_truthfully_reports_unavailable(tmp_path, monkeypatch):
 
 
 def test_all_operational_routes_fail_closed_without_artifacts(tmp_path, monkeypatch):
-    app, db_path, proof_dir = make_app(tmp_path, monkeypatch)
+    app, db_path, proof_dir, _registration = make_app(tmp_path, monkeypatch)
     receipt_count_before = len(szl_receipt_substrate._LEDGER)
 
     with TestClient(app) as client:
@@ -112,7 +114,8 @@ def test_all_operational_routes_fail_closed_without_artifacts(tmp_path, monkeypa
 
 
 def test_hold_precedes_authentication(tmp_path, monkeypatch):
-    app, db_path, proof_dir = make_app(tmp_path, monkeypatch)
+    app, db_path, proof_dir, _registration = make_app(tmp_path, monkeypatch)
+    receipt_count_before = len(szl_receipt_substrate._LEDGER)
 
     with TestClient(app) as client:
         assert_hold(client.get("/api/a11oy/v1/gdw/integrity"))
@@ -123,6 +126,19 @@ def test_hold_precedes_authentication(tmp_path, monkeypatch):
                 headers={"X-Request-Id": "no-auth"},
             )
         )
+        assert_hold(client.post("/api/a11oy/v1/gdw/step"))
+        assert_hold(
+            client.post(
+                "/api/a11oy/v1/gdw/step",
+                content=b"{not-json",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "not-a-bearer-token",
+                    "X-Request-Id": "spaces are not canonical",
+                },
+            )
+        )
 
     assert not db_path.exists()
     assert not proof_dir.exists()
+    assert len(szl_receipt_substrate._LEDGER) == receipt_count_before
