@@ -29,7 +29,7 @@ for SZL Khipu receipts, backed by the SZLHOLDINGS **Cosign** keypair.
       and Python verifies cosign-produced sigs — full round-trip equivalence).
 
   payloadType for Khipu receipts: "application/vnd.szl.khipu+json"
-  keyid: "szlholdings-cosign"
+  keyid: SHA-256 fingerprint for new receipts; "szlholdings-cosign" legacy
 """
 # ---------------------------------------------------------------------------
 # DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
@@ -127,6 +127,8 @@ PRIVATE_KEY_ENV_VARS = (
 LEGACY_KEYID = KEYID
 VERIFY_KEY_BUNDLE_ENV = "A11OY_RECEIPT_VERIFY_KEYS_PEM"
 VERIFY_KEY_PATHS_ENV = "A11OY_RECEIPT_VERIFY_KEY_PATHS"
+MAX_VERIFY_KEYS = 32
+MAX_VERIFY_BUNDLE_BYTES = 1024 * 1024
 
 
 def _load_shared_key():
@@ -138,8 +140,8 @@ def _load_shared_key():
         return None, "", "unavailable", "shared key load failed: %s" % type(e).__name__
 
 
-def _load_private_key():
-    """Return only a persistent shared P-256 signer.
+def _load_persistent_signer():
+    """Return one atomic persistent (private_key, public_pem) pair.
 
     The process-wide loader may produce an honest boot-ephemeral identity for
     non-strict receipt surfaces. Khipu keeps its established no-secret
@@ -151,7 +153,13 @@ def _load_private_key():
         and isinstance(source, str)
         and source.startswith("persistent:")
     ):
-        return None
+        return None, ""
+    return private_key, _public_pem
+
+
+def _load_private_key():
+    """Compatibility helper returning only the persistent private key."""
+    private_key, _public_pem = _load_persistent_signer()
     return private_key
 
 
@@ -162,13 +170,15 @@ def active_public_key_pem() -> str:
 
 
 def _pem_blocks(value: str) -> list[str]:
+    if len((value or "").encode("utf-8")) > MAX_VERIFY_BUNDLE_BYTES:
+        return []
     return [
         block.strip() + "\n"
         for block in re.findall(
             r"-----BEGIN PUBLIC KEY-----.*?-----END PUBLIC KEY-----",
             value or "",
             flags=re.DOTALL,
-        )
+        )[:MAX_VERIFY_KEYS]
     ]
 
 
@@ -176,15 +186,20 @@ def _configured_verification_pems() -> list[str]:
     """Load explicitly retained public keys; private material is never read."""
     pems = _pem_blocks(os.environ.get(VERIFY_KEY_BUNDLE_ENV, ""))
     raw_paths = os.environ.get(VERIFY_KEY_PATHS_ENV, "")
-    for path in (item.strip() for item in raw_paths.split(os.pathsep)):
+    for path in list(
+        item.strip() for item in raw_paths.split(os.pathsep)
+    )[:MAX_VERIFY_KEYS]:
         if not path:
             continue
         try:
             with open(path, "r", encoding="utf-8") as handle:
-                pems.extend(_pem_blocks(handle.read()))
+                value = handle.read(MAX_VERIFY_BUNDLE_BYTES + 1)
+                pems.extend(_pem_blocks(value))
         except Exception:
             continue
-    return pems
+        if len(pems) >= MAX_VERIFY_KEYS:
+            break
+    return pems[:MAX_VERIFY_KEYS]
 
 
 def _public_key_record(public_pem: str, source: str):
@@ -268,8 +283,9 @@ def sign_payload(payload_obj: Any, payload_type: str = KHIPU_PAYLOAD_TYPE) -> di
         "_pae_sha256": sha256_content_address(to_sign, purpose="dsse-pae"),
         "_signed_at": datetime.now(timezone.utc).isoformat(),
     }
-    priv = _load_private_key()
-    if priv is None:
+    priv, signing_public_pem = _load_persistent_signer()
+    signing_record = _public_key_record(signing_public_pem, "signing")
+    if priv is None or signing_record is None:
         env["signatures"] = []
         env["honesty"] = ("UNSIGNED — neither SZL_COSIGN_PRIVATE_KEY_PEM nor "
                           "SZL_COSIGN_PRIVATE_PEM secret present in this runtime; "
@@ -279,7 +295,10 @@ def sign_payload(payload_obj: Any, payload_type: str = KHIPU_PAYLOAD_TYPE) -> di
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives import hashes
     sig = priv.sign(to_sign, ec.ECDSA(hashes.SHA256()))
-    env["signatures"] = [{"sig": base64.b64encode(sig).decode("ascii"), "keyid": active_keyid()}]
+    env["signatures"] = [{
+        "sig": base64.b64encode(sig).decode("ascii"),
+        "keyid": signing_record["fingerprint"],
+    }]
     env["signed"] = True
     env["honesty"] = ("REAL — ECDSA-P256-SHA256 over DSSE PAE; verifiable by "
                       "`cosign verify-blob --key cosign.pub` and by the /khipu/verify endpoint.")
