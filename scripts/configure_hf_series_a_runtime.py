@@ -16,8 +16,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 
 CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
@@ -143,6 +144,52 @@ def _volume_objects(records: Iterable[Mapping[str, Any]]) -> list[Any]:
     ]
 
 
+def await_readback(
+    api: Any,
+    *,
+    repo_id: str,
+    bucket: str,
+    secret_names: Iterable[str],
+    attempts: int = 60,
+    delay_seconds: float = 5,
+    sleep: Callable[[float], None] = time.sleep,
+) -> tuple[list[Any], int]:
+    """Poll boundedly until the Hub reflects both volume and variable writes."""
+
+    if attempts < 1 or delay_seconds < 0:
+        raise RuntimeConfigError("readback bounds must be non-negative")
+    missing_volume = True
+    remaining_variables: dict[str, str] = dict(SERIES_A_VARIABLES)
+    observed_volumes: list[Any] = []
+    for attempt in range(1, attempts + 1):
+        observed_runtime = api.get_space_runtime(repo_id=repo_id)
+        observed_volumes = list(
+            getattr(observed_runtime, "volumes", None) or []
+        )
+        _, missing_volume = plan_volumes(observed_volumes, bucket=bucket)
+        observed_variables = api.get_space_variables(repo_id=repo_id)
+        remaining_variables = plan_variables(
+            observed_variables,
+            secret_names,
+        )
+        if not missing_volume and not remaining_variables:
+            return observed_volumes, attempt
+        if attempt < attempts:
+            sleep(delay_seconds)
+
+    detail = []
+    if missing_volume:
+        detail.append("persistent volume")
+    if remaining_variables:
+        detail.append(
+            "variables=" + ",".join(sorted(remaining_variables))
+        )
+    raise RuntimeConfigError(
+        f"runtime readback did not converge after {attempts} attempts: "
+        + "; ".join(detail)
+    )
+
+
 def configure(
     *,
     repo_id: str,
@@ -186,19 +233,12 @@ def configure(
             ),
         )
 
-    observed_runtime = api.get_space_runtime(repo_id=repo_id)
-    observed_volumes = list(getattr(observed_runtime, "volumes", None) or [])
-    _, still_missing = plan_volumes(observed_volumes, bucket=bucket)
-    if still_missing:
-        raise RuntimeConfigError("persistent volume readback did not converge")
-
-    observed_variables = api.get_space_variables(repo_id=repo_id)
-    remaining_variables = plan_variables(observed_variables, secret_names)
-    if remaining_variables:
-        raise RuntimeConfigError(
-            "runtime variable readback did not converge: "
-            + ",".join(sorted(remaining_variables))
-        )
+    observed_volumes, readback_attempts = await_readback(
+        api,
+        repo_id=repo_id,
+        bucket=bucket,
+        secret_names=secret_names,
+    )
 
     return {
         "schema": "szl.hf-series-a-runtime-config/v1",
@@ -208,6 +248,7 @@ def configure(
         "signing_secret_present": True,
         "volumes": [volume_record(item) for item in observed_volumes],
         "volume_changed": volume_change,
+        "readback_attempts": readback_attempts,
         "variables_managed": sorted(SERIES_A_VARIABLES),
         "variables_changed": sorted(variable_changes),
         "converged": True,
