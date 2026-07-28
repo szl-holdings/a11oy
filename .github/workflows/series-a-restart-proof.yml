@@ -1,0 +1,53 @@
+name: Series-A Restart Durability Proof
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: series-a-restart-proof
+  cancel-in-progress: false
+
+jobs:
+  restart-proof:
+    name: Restart and prove persistent signer, database, and receipt chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      PROOF_PATH: /tmp/series-a-restart-proof.json
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact restart-proof clients
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+
+      - name: Restart canonical runtime and prove recovery
+        run: >-
+          python scripts/prove_hf_series_a_restart.py
+          --repo-id "SZLHOLDINGS/a11oy"
+          --origin "https://a-11-oy.com"
+          --source-sha "${GITHUB_SHA}"
+          --output "$PROOF_PATH"
+
+      - name: Upload immutable restart proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: series-a-restart-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.PROOF_PATH }}
+          if-no-files-found: error
+          retention-days: 90

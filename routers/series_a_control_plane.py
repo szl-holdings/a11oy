@@ -53,6 +53,7 @@ MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
 EXECUTION_TIMEOUT_SECONDS = 120
 ALLOWED_ACTIONS = {"estate.refresh", "probe.public_surface"}
+ALLOWED_SQLITE_JOURNALS = {"DELETE", "PERSIST", "TRUNCATE", "WAL"}
 ALLOWED_PROBE_HOSTS = {
     "a-11-oy.com",
     "a11oy.net",
@@ -88,6 +89,27 @@ def _refresh_interval_seconds() -> int:
 
 def _refresh_delay_seconds(interval_seconds: int, elapsed_seconds: float) -> float:
     return max(0.0, float(interval_seconds) - max(0.0, elapsed_seconds))
+
+
+def _enabled(name: str) -> bool:
+    return (os.environ.get(name) or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _sqlite_journal_mode() -> str:
+    requested = (
+        os.environ.get("A11OY_SERIES_A_SQLITE_JOURNAL") or "WAL"
+    ).strip().upper()
+    if requested not in ALLOWED_SQLITE_JOURNALS:
+        raise RuntimeError(
+            "A11OY_SERIES_A_SQLITE_JOURNAL must be one of "
+            + ",".join(sorted(ALLOWED_SQLITE_JOURNALS))
+        )
+    return requested
 
 
 def _canonical(value: Any) -> bytes:
@@ -202,16 +224,41 @@ class ReceiptSigner:
 
 class Store:
     def __init__(self, requested_path: str | None = None) -> None:
+        self.persistent_required = _enabled(
+            "A11OY_REQUIRE_PERSISTENT_STORAGE"
+        )
+        self.required_mount = (
+            os.environ.get("A11OY_SERIES_A_REQUIRE_MOUNT") or ""
+        ).strip()
+        self.journal_mode = _sqlite_journal_mode()
         self.path = self._resolve_path(requested_path)
         self.lock = threading.RLock()
         self._init()
 
-    @staticmethod
-    def _resolve_path(requested: str | None) -> str:
-        candidates = [
-            requested or os.environ.get("A11OY_SERIES_A_DB") or "/data/series-a/control-plane.sqlite3",
-            "/tmp/a11oy_series_a_control_plane.sqlite3",
-        ]
+    def _resolve_path(self, requested: str | None) -> str:
+        primary = (
+            requested
+            or os.environ.get("A11OY_SERIES_A_DB")
+            or "/data/series-a/control-plane.sqlite3"
+        )
+        if self.required_mount:
+            mount = Path(self.required_mount).resolve()
+            candidate = Path(primary).resolve()
+            try:
+                candidate.relative_to(mount)
+            except ValueError as exc:
+                raise RuntimeError(
+                    "Series-A database path is outside the required storage mount"
+                ) from exc
+            if not os.path.ismount(str(mount)):
+                raise RuntimeError(
+                    "required Series-A storage mount is not attached: "
+                    + str(mount)
+                )
+
+        candidates = [primary]
+        if not self.persistent_required and not self.required_mount:
+            candidates.append("/tmp/a11oy_series_a_control_plane.sqlite3")
         for candidate in candidates:
             try:
                 path = Path(candidate)
@@ -222,13 +269,23 @@ class Store:
                 return str(path)
             except Exception:
                 continue
+        if self.persistent_required or self.required_mount:
+            raise RuntimeError("required persistent SQLite location is not writable")
         raise RuntimeError("no writable SQLite location")
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA journal_mode=WAL")
+        selected = connection.execute(
+            f"PRAGMA journal_mode={self.journal_mode}"
+        ).fetchone()[0]
+        if str(selected).upper() != self.journal_mode:
+            connection.close()
+            raise RuntimeError(
+                "SQLite journal mode mismatch: requested "
+                f"{self.journal_mode}, observed {selected}"
+            )
         connection.execute("PRAGMA synchronous=FULL")
         return connection
 
@@ -267,8 +324,51 @@ class Store:
                   payload TEXT NOT NULL,
                   created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS metadata(
+                  key TEXT PRIMARY KEY,
+                  value TEXT NOT NULL
+                );
                 """
             )
+            db.execute(
+                "INSERT OR IGNORE INTO metadata(key,value) VALUES(?,?)",
+                ("storage_instance_id", f"store_{uuid.uuid4().hex}"),
+            )
+            db.execute(
+                "INSERT OR IGNORE INTO metadata(key,value) VALUES(?,?)",
+                ("storage_created_at", _now()),
+            )
+
+    def storage_status(self) -> dict[str, Any]:
+        with self.lock, self.connect() as db:
+            metadata = {
+                row["key"]: row["value"]
+                for row in db.execute(
+                    "SELECT key,value FROM metadata ORDER BY key"
+                ).fetchall()
+            }
+            receipt = db.execute(
+                """SELECT COUNT(*) AS count,
+                          COALESCE(MAX(sequence), 0) AS last_sequence
+                   FROM receipts"""
+            ).fetchone()
+            head = db.execute(
+                "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
+            ).fetchone()
+        return {
+            "persistence_required": self.persistent_required,
+            "required_mount": self.required_mount or None,
+            "mount_verified": bool(
+                self.required_mount
+                and os.path.ismount(str(Path(self.required_mount).resolve()))
+            ),
+            "journal_mode": self.journal_mode,
+            "instance_id": metadata.get("storage_instance_id"),
+            "created_at": metadata.get("storage_created_at"),
+            "receipt_count": int(receipt["count"]),
+            "last_receipt_sequence": int(receipt["last_sequence"]),
+            "chain_head": head["receipt_hash"] if head else None,
+        }
 
     def append_event(self, kind: str, payload: Mapping[str, Any]) -> None:
         with self.lock, self.connect() as db:
@@ -793,6 +893,7 @@ class Service:
                 "source_revision": _git_revision(),
                 "signing_key_source": self.signer.source,
                 "database": self.store.path,
+                "storage": self.store.storage_status(),
                 "detail": "no completed refresh is persisted yet",
             }
         valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
@@ -811,6 +912,7 @@ class Service:
             "signature_status": latest["envelope"].get("signature_status"),
             "signing_key_source": self.signer.source,
             "database": self.store.path,
+            "storage": self.store.storage_status(),
         }
 
     def _governance_gate(self, action: Mapping[str, Any]) -> dict[str, Any]:
@@ -1363,6 +1465,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         "namespace": ns,
         "routes": sorted(added),
         "database": service.store.path,
+        "storage": service.store.storage_status(),
         "signing_key_source": service.signer.source,
         "sign_on_read": False,
         "effectors": sorted(ALLOWED_ACTIONS),

@@ -13277,11 +13277,12 @@ except Exception as _gv_e:
 #   GET  /api/lake/v1/chain/head GET /api/lake/v1/health
 # Routes are inserted at the HEAD of app.router.routes inside register() so the
 # new namespace wins over the /api/a11oy/{path:path} Node proxy + SPA catch-all.
-# DURABILITY: the Space has storage=None — the local $SZL_LAKE_DIR NDJSON store
-# backs the live API for this process; every receipt is ALSO mirrored fire-and-
-# forget to the HF dataset SZLHOLDINGS/a11oy-verifiable-corpus (HFBucket) and the
-# chain is hydrated-on-boot from that dataset (honest no-op when token/repo
-# absent). Documented env contract: SZL_RECEIPT_SINK=https://szlholdings-a11oy.hf.space/api/lake/v1
+# DURABILITY: the protected deploy path attaches an existing bucket volume at
+# /data and sets $SZL_LAKE_DIR to a namespaced path. The local NDJSON store backs
+# the live API; every receipt is ALSO mirrored fire-and-forget to the HF dataset
+# SZLHOLDINGS/a11oy-verifiable-corpus (HFBucket), and the chain is hydrated-on-
+# boot from that dataset (honest no-op when token/repo absent). Documented env
+# contract: SZL_RECEIPT_SINK=https://szlholdings-a11oy.hf.space/api/lake/v1
 # Additive, try/except-guarded; a dataset hiccup NEVER blocks a governed turn.
 # ============================================================================
 try:

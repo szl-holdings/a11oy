@@ -106,6 +106,7 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | `A11OY_OMEN_BASE_URL` | variable | optional | OMEN GPU-lung base URL (energy MEASURED path). | (none / feature off) |
 | `A11OY_OMEN_STANDBY` | variable | optional | 1 => OMEN standby (default); 0 => live lung. | 1 |
 | `SZL_ENERGY_LEDGER_PATH` | variable | optional | Persistent path for the energy/receipt ledger; ephemeral if unset. | (none / feature off) |
+| `SZL_LAKE_DIR` | variable | optional | Persistent directory for the unified Khipu receipt ledger. | (none / feature off) |
 
 ### feeds
 
@@ -123,6 +124,15 @@ whether the *subsystem* is unavailable without it (never means "crash").
 |---|---|---|---|---|
 | `HF_ROUTER_TOKEN` | secret | optional | Token for the HF Inference router (voter proxy). | (unset → subsystem DEGRADED) |
 | `HF_TOKEN` | secret | optional | HuggingFace Hub token (corpus bucket read/write, router proxy). | (unset → subsystem DEGRADED) |
+
+### series-a-storage
+
+| Env name | Kind | Required | Purpose | Honest default |
+|---|---|---|---|---|
+| `A11OY_REQUIRE_PERSISTENT_STORAGE` | variable | optional | `1` disables ephemeral SQLite fallback for the Series-A control plane. | `0` |
+| `A11OY_SERIES_A_DB` | variable | optional | SQLite path under the attached persistent bucket volume. | (unset) |
+| `A11OY_SERIES_A_REQUIRE_MOUNT` | variable | optional | Required attached volume mount containing the Series-A database. | (unset) |
+| `A11OY_SERIES_A_SQLITE_JOURNAL` | variable | optional | SQLite journal mode selected for the mounted filesystem. | `WAL` |
 
 ### signing
 
@@ -177,6 +187,10 @@ A11OY_OMEN_STANDBY
 A11OY_RECEIPT_KEY_DIR
 A11OY_RECEIPT_KEY_PATH
 A11OY_REQUIRE_PERSISTENT_SIGNING
+A11OY_REQUIRE_PERSISTENT_STORAGE
+A11OY_SERIES_A_DB
+A11OY_SERIES_A_REQUIRE_MOUNT
+A11OY_SERIES_A_SQLITE_JOURNAL
 COSIGN_KEYID
 COSIGN_PUBLIC_PEM
 HF_ROUTER_BASE
@@ -186,6 +200,7 @@ STRIPE_PRICE_PER_KWH_CENTS
 SZL_BUILD_TIME
 SZL_ENERGY_LEDGER_PATH
 SZL_GIT_SHA
+SZL_LAKE_DIR
 ```
 
 > **Founder unblock for the 2026-07-08 outage:** in HF Space Settings, find the
