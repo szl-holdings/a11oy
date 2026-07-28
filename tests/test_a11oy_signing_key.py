@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 
 import pytest
@@ -15,7 +16,12 @@ import a11oy_signing_key
 
 _KEY_ENV_NAMES = (
     "SZL_COSIGN_PRIVATE_PEM",
+    "SZL_COSIGN_PRIVATE_KEY_PEM",
     "A11OY_RECEIPT_KEY_PEM",
+    "szlcosig",
+    "szlcosig1",
+    "SZLCOSIG",
+    "SZLCOSIG1",
     "A11OY_RECEIPT_KEY_PATH",
     "A11OY_RECEIPT_KEY_DIR",
     "A11OY_REQUIRE_PERSISTENT_SIGNING",
@@ -75,6 +81,22 @@ def test_optional_env_pem_is_supported(monkeypatch: pytest.MonkeyPatch) -> None:
     assert private_key is not None
     assert public_pem.startswith("-----BEGIN PUBLIC KEY-----")
     assert source == "persistent:env:A11OY_RECEIPT_KEY_PEM"
+    assert error == ""
+
+
+def test_compatibility_alias_accepts_base64_wrapped_pem(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    encoded = base64.b64encode(private_pem().encode("ascii")).decode("ascii")
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_KEY_PEM", encoded)
+
+    private_key, public_pem, source, error = (
+        a11oy_signing_key.load_signing_key()
+    )
+
+    assert private_key is not None
+    assert fingerprint(public_pem)
+    assert source == "persistent:env:SZL_COSIGN_PRIVATE_KEY_PEM"
     assert error == ""
 
 
