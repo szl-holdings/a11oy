@@ -43,6 +43,7 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check
           "huggingface_hub==1.19.0"
+          "tqdm==4.69.0"
       - name: Snapshot and restore both live Spaces
         run: python scripts/verify_hf_snapshot_restore.py
       - name: Upload backup artifacts and evidence
