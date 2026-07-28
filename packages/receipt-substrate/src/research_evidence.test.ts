@@ -137,7 +137,11 @@ test("query and snippet selectors retain distinct digested identities without le
     policy_sha256: fixtures.policy_sha256,
     providers: [openai, perplexity],
   });
-  const serialized = JSON.stringify(comparison);
+  const receipt = emitTwoWitnessResearchReceipt(comparison, {
+    actor_id: "did:example:selector-redaction",
+    timestamp: new Date("2026-07-28T12:00:00.000Z"),
+  });
+  const serialized = JSON.stringify(receipt.envelope);
   const openaiUrl = new URL(openai.sources[0]?.url ?? "");
   const perplexityUrl = new URL(perplexity.sources[0]?.url ?? "");
 
