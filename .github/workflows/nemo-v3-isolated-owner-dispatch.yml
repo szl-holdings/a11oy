@@ -20,7 +20,8 @@ jobs:
     name: Execute one credential-separated Nemo v3 attempt
     if: >-
       github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
-      github.actor == 'stephenlutar2-hash'
+      github.actor == 'stephenlutar2-hash' &&
+      github.triggering_actor == 'stephenlutar2-hash'
     runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
     timeout-minutes: 330
     env:
