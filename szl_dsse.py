@@ -16,7 +16,8 @@ for SZL Khipu receipts, backed by the SZLHOLDINGS **Cosign** keypair.
   KEY MODEL (honest):
     - The canonical signing key is the SZLHOLDINGS Cosign keypair generated with
       `cosign generate-key-pair` (imported from an OpenSSL P-256 EC key).
-    - cosign.pub is published at szl-holdings/.github/cosign.pub (PUBLIC).
+    - The active runtime public key is published at /cosign.pub (PUBLIC); the
+      embedded organization key remains an offline/historical fallback only.
     - The PRIVATE key is delivered to each Space ONLY as a runtime secret
       env var `SZL_COSIGN_PRIVATE_PEM` (PKCS8 PEM). It is NEVER committed to a
       repo (HF or GitHub). If the secret is absent the module reports
@@ -43,7 +44,8 @@ for SZL Khipu receipts, backed by the SZLHOLDINGS **Cosign** keypair.
 #                szl_be_hardening.py (DurableKhipu stores signed receipts)
 # Doctrine note: Private key is RUNTIME SECRET ONLY (SZL_COSIGN_PRIVATE_KEY_PEM).
 #                NEVER commit it. Absent = PLACEHOLDER mode (honest, no fabrication).
-#                Public key is embedded in COSIGN_PUBLIC_PEM for offline verification.
+#                Active public key is derived from the runtime signer; the embedded
+#                COSIGN_PUBLIC_PEM remains the no-secret offline fallback.
 # PAE spec:      DSSEv1 SP LEN(type) SP type SP LEN(body) SP body
 # ---------------------------------------------------------------------------
 # INTEROP NOTE — relationship to the shared `szl-receipt` lib (v0.1.0):
@@ -87,7 +89,7 @@ bt5gw4jQ3RuBuIYIZchnfn9XLZf5KKw+zRfq5EJ8S+5cqwai5Wz0FDSyyA==
 -----END PUBLIC KEY-----
 """
 
-PUB_KEY_URL = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+PUB_KEY_URL = "/cosign.pub"
 
 # ---------------------------------------------------------------------------
 # Canonical JSON  +  DSSE PAE
@@ -105,22 +107,22 @@ def pae(payload_type: str, body: bytes) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Key loading (private = runtime secret; public = embedded)
+# Key loading (private = runtime secret; public = active or embedded fallback)
 # ---------------------------------------------------------------------------
 
-# Runtime secret env var names, in resolution order. The canonical name is
-# SZL_COSIGN_PRIVATE_KEY_PEM (Kubernetes secretKeyRef + GitHub org secret); the
-# established SZL_COSIGN_PRIVATE_PEM is kept as a backward-compatible fallback.
+# Runtime secret env var names, in resolution order. A11oy's shared signer uses
+# SZL_COSIGN_PRIVATE_PEM; the older *_KEY_PEM spelling and legacy aliases remain
+# compatible fallbacks.
 # NEITHER is ever committed — both are runtime-only secrets.
-PRIVATE_KEY_ENV_VARS = ("SZL_COSIGN_PRIVATE_KEY_PEM", "SZL_COSIGN_PRIVATE_PEM", "szlcosig", "szlcosig1", "SZLCOSIG", "SZLCOSIG1")
+PRIVATE_KEY_ENV_VARS = ("SZL_COSIGN_PRIVATE_PEM", "SZL_COSIGN_PRIVATE_KEY_PEM", "szlcosig", "szlcosig1", "SZLCOSIG", "SZLCOSIG1")
 
 
 def _load_private_key():
     """Load the Cosign EC private key from the runtime secret.
 
     Resolution order (additive, never raises into the request path):
-      1. SZL_COSIGN_PRIVATE_KEY_PEM   (canonical — k8s secretKeyRef / org secret)
-      2. SZL_COSIGN_PRIVATE_PEM       (legacy szlholdings-cosign fallback)
+      1. SZL_COSIGN_PRIVATE_PEM       (canonical shared A11oy signer)
+      2. SZL_COSIGN_PRIVATE_KEY_PEM   (compatibility spelling)
 
     Returns None if no secret is present or the value is invalid — the caller
     then emits an honest UNSIGNED envelope. NEVER fabricates a key."""
@@ -137,14 +139,38 @@ def _load_private_key():
         if "BEGIN" not in pem:
             pem = base64.b64decode(pem).decode("utf-8")
         from cryptography.hazmat.primitives.serialization import load_pem_private_key
-        return load_pem_private_key(pem.encode("utf-8"), password=None)
+        from cryptography.hazmat.primitives.asymmetric import ec
+        private_key = load_pem_private_key(pem.encode("utf-8"), password=None)
+        if not isinstance(private_key, ec.EllipticCurvePrivateKey):
+            return None
+        if getattr(private_key.curve, "name", "") != "secp256r1":
+            return None
+        return private_key
     except Exception:
         return None
 
 
+def active_public_key_pem() -> str:
+    """Return the public half of the active runtime signer.
+
+    When a private runtime secret is configured, deriving its public key keeps
+    newly emitted receipts, the in-process verifier, and the live public-key
+    routes cryptographically aligned. With no runtime signer, preserve the
+    published organization key as the historical/offline verification fallback.
+    """
+    private_key = _load_private_key()
+    if private_key is None:
+        return COSIGN_PUBLIC_PEM.strip() + "\n"
+    from cryptography.hazmat.primitives import serialization
+    return private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+
+
 def _load_public_key():
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
-    return load_pem_public_key(COSIGN_PUBLIC_PEM.encode("utf-8"))
+    return load_pem_public_key(active_public_key_pem().encode("utf-8"))
 
 
 def signing_available() -> bool:
@@ -153,7 +179,7 @@ def signing_available() -> bool:
 
 def public_key_fingerprint() -> str:
     return sha256_content_address(
-        COSIGN_PUBLIC_PEM.strip().encode(), purpose="public-key"
+        active_public_key_pem().strip().encode(), purpose="public-key"
     )
 
 

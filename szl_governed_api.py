@@ -42,6 +42,7 @@ from __future__ import annotations
 import os
 import time
 import json
+import hashlib
 import urllib.request
 import urllib.error
 
@@ -573,7 +574,7 @@ def _pub_gov(g: dict, conformal_blocks: dict | None = None) -> dict:
 
 
 # --- register on the a11oy FastAPI app (repo convention) ----------------------
-def register(app, ns: str = "a11oy"):  # pragma: no cover
+def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragma: no cover
     """Attach the buyer-facing governed-inference surface to the a11oy app.
 
     Routes (ADDITIVE — no overlap with existing /api/a11oy/* namespaces):
@@ -669,19 +670,37 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     except Exception:
         _landing = None
 
-    # CRITICAL honesty fix: serve the REAL cosign public key (the one receipts are
-    # actually signed with) at /cosign.pub + /.well-known/cosign.pub, sourced from
-    # the SAME material szl_dsse uses to verify. This guarantees the published key
-    # ALWAYS matches the signing key — a buyer following "verify against /cosign.pub"
-    # succeeds. (Front-inserted so it wins over serve.py's stale ephemeral-key route.)
+    # Serve the shared runtime key at /cosign.pub + /.well-known/cosign.pub.
+    # serve.py injects the same PEM exposed by /api/a11oy/cosign.pub and
+    # Series-A; standalone callers use szl_dsse's active signer key. The routes
+    # are front-inserted so they win over the SPA catch-all.
     try:
         from starlette.responses import PlainTextResponse
         import szl_dsse as _dsse
-        _PUBPEM = _dsse.COSIGN_PUBLIC_PEM.strip() + "\n"
+        _selected_public_pem = (
+            public_pem if public_pem is not None
+            else _dsse.active_public_key_pem()
+        )
+        _PUBPEM = (_selected_public_pem or "").strip()
+        _PUB_SHA256 = (
+            hashlib.sha256(_PUBPEM.encode("ascii")).hexdigest()
+            if _PUBPEM else ""
+        )
         async def _pubkey(request=None):
-            return PlainTextResponse(_PUBPEM, media_type="application/x-pem-file",
-                                     headers={"x-keyid": getattr(_dsse, "KEYID", "szlholdings-cosign"),
-                                              "x-pub-sha256": _dsse.public_key_fingerprint()})
+            if not _PUBPEM:
+                return PlainTextResponse(
+                    "# shared signing key unavailable\n",
+                    status_code=503,
+                    headers={"cache-control": "no-store"},
+                )
+            return PlainTextResponse(
+                _PUBPEM + "\n",
+                media_type="application/x-pem-file",
+                headers={
+                    "cache-control": "no-store",
+                    "x-pub-sha256": _PUB_SHA256,
+                },
+            )
     except Exception:
         _pubkey = None
 

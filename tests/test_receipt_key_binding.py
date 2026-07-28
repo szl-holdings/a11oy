@@ -14,6 +14,10 @@ pytest.importorskip("cryptography")
 import serve
 import a11oy_dev1_endpoints
 from routers import series_a_control_plane
+from cryptography.hazmat.primitives import serialization
+from starlette.testclient import TestClient
+from fastapi import FastAPI
+import szl_governed_api
 
 
 def test_shared_key_identity_is_signed_not_envelope_only() -> None:
@@ -61,3 +65,35 @@ def test_root_wow_and_series_a_share_one_process_key(tmp_path) -> None:
     assert service.signer.keyid == hashlib.sha256(
         public_pem.encode("utf-8")
     ).hexdigest()
+
+
+def test_every_live_public_key_alias_serves_the_shared_signer() -> None:
+    client = TestClient(serve.app)
+    fingerprints = set()
+    for path in (
+        "/cosign.pub",
+        "/.well-known/cosign.pub",
+        "/api/a11oy/cosign.pub",
+        "/api/a11oy/v1/series-a/public-key",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, (path, response.text)
+        assert response.headers["cache-control"] == "no-store"
+        public_key = serialization.load_pem_public_key(response.content)
+        der = public_key.public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        fingerprints.add(hashlib.sha256(der).hexdigest())
+    assert len(fingerprints) == 1
+
+
+def test_empty_injected_key_fails_closed_on_both_public_aliases() -> None:
+    isolated = FastAPI()
+    szl_governed_api.register(isolated, public_pem="")
+    client = TestClient(isolated)
+    for path in ("/cosign.pub", "/.well-known/cosign.pub"):
+        response = client.get(path)
+        assert response.status_code == 503
+        assert response.headers["cache-control"] == "no-store"
+        assert "unavailable" in response.text

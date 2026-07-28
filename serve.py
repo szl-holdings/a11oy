@@ -13256,7 +13256,11 @@ except Exception as _mi_e:
 # ============================================================================
 try:
     import szl_governed_api as _szl_govern
-    _govern_status = _szl_govern.register(app, ns="a11oy")
+    _govern_status = _szl_govern.register(
+        app,
+        ns="a11oy",
+        public_pem=_A11OY_PUB_PEM or "",
+    )
     print(f"[a11oy] governed-inference product registered: {_govern_status}", file=__import__("sys").stderr)
 except Exception as _gv_e:
     print(f"[a11oy] governed-inference register FAILED (non-fatal): {_gv_e!r}", file=__import__("sys").stderr)
