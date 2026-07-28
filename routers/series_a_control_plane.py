@@ -700,6 +700,25 @@ class Service:
         elif not target:
             decision = "BLOCK"
             reasons = ["TARGET_REQUIRED"]
+        elif action_type == "estate.refresh" and target != "szl://estate/current":
+            decision = "BLOCK"
+            reasons = ["TARGET_NOT_ALLOWLISTED"]
+        elif action_type == "probe.public_surface":
+            parsed_target = urlsplit(target)
+            if (
+                parsed_target.scheme != "https"
+                or parsed_target.hostname not in ALLOWED_PROBE_HOSTS
+                or parsed_target.username
+                or parsed_target.password
+            ):
+                decision = "BLOCK"
+                reasons = ["TARGET_NOT_ALLOWLISTED"]
+            elif impact in {"HIGH", "CRITICAL"} or irreversible:
+                decision = "REQUIRE_APPROVAL"
+                reasons = ["INDEPENDENT_APPROVAL_REQUIRED"]
+            else:
+                decision = "ALLOW"
+                reasons = ["BOUNDED_REVERSIBLE_ACTION"]
         elif impact in {"HIGH", "CRITICAL"} or irreversible:
             decision = "REQUIRE_APPROVAL"
             reasons = ["INDEPENDENT_APPROVAL_REQUIRED"]

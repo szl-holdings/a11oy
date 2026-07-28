@@ -1,10 +1,29 @@
 (() => {
   "use strict";
   const API = "/api/a11oy/v1/series-a";
+  const DEFAULT_TARGETS = {
+    "estate.refresh": "szl://estate/current",
+    "probe.public_surface": "https://a-11-oy.com/healthz"
+  };
+  const EVENT_KINDS = [
+    "estate.refresh",
+    "estate.refresh.failed",
+    "estate.refresh.skipped",
+    "passport.evaluate",
+    "passport.outcome"
+  ];
+  let executableDigest = null;
   const terminal = (value) => value == null ? "UNKNOWN" : String(value);
   const set = (key, value) => {
     const node = document.querySelector(`[data-key="${key}"]`);
     if (node) node.textContent = terminal(value);
+  };
+  const executeButton = document.getElementById("execute");
+  const executionOutput = document.getElementById("execution-result");
+  const resetExecution = () => {
+    executableDigest = null;
+    executeButton.disabled = true;
+    executionOutput.textContent = "No authorized execution attempted.";
   };
   const sha256 = async (text) => {
     const bytes = new TextEncoder().encode(text);
@@ -55,8 +74,18 @@
       document.getElementById("updated").textContent = String(error.message || error);
     } finally { button.disabled = false; await load(); }
   });
+  const actionSelect = document.querySelector('select[name="type"]');
+  const targetInput = document.querySelector('input[name="target"]');
+  const evidenceSelect = document.querySelector('select[name="label"]');
+  actionSelect.addEventListener("change", () => {
+    targetInput.value = DEFAULT_TARGETS[actionSelect.value] || "";
+    resetExecution();
+  });
+  targetInput.addEventListener("input", resetExecution);
+  evidenceSelect.addEventListener("change", resetExecution);
   document.getElementById("passport").addEventListener("submit", async (event) => {
     event.preventDefault();
+    resetExecution();
     const form = new FormData(event.currentTarget);
     const evidenceStatement = JSON.stringify({
       source: "series-a-ui",
@@ -76,9 +105,68 @@
     try {
       const value = await request("/passports/evaluate", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)});
       output.textContent = JSON.stringify({decision: value.passport.decision, reason_codes: value.passport.reason_codes, passport_digest: value.passport_digest, signature_status: value.decision_receipt.envelope.signature_status}, null, 2);
+      if (value.passport.decision === "ALLOW") {
+        executableDigest = value.passport_digest;
+        executeButton.disabled = false;
+      }
     } catch (error) { output.textContent = `UNAVAILABLE: ${error.message || error}`; }
     await load();
   });
+  executeButton.addEventListener("click", async () => {
+    if (!executableDigest) return;
+    const passportDigest = executableDigest;
+    executableDigest = null;
+    executeButton.disabled = true;
+    executionOutput.textContent = "EXECUTING · attempt 1 of 1";
+    try {
+      const value = await request("/passports/execute", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({passport_digest: passportDigest})
+      });
+      executionOutput.textContent = JSON.stringify({
+        status: value.outcome.status,
+        target: value.outcome.target,
+        http_status: value.outcome.http_status,
+        latency_ms: value.outcome.latency_ms,
+        attempt: value.outcome.attempt,
+        max_attempts: value.outcome.max_attempts,
+        receipt_hash: value.outcome_receipt.receipt_hash,
+        signature_status: value.outcome_receipt.envelope.signature_status
+      }, null, 2);
+    } catch (error) {
+      executionOutput.textContent = `UNAVAILABLE: ${error.message || error}`;
+    }
+    await load();
+  });
+  const eventRail = document.getElementById("events");
+  const seenEvents = new Set();
+  const appendEvent = (event) => {
+    let value;
+    try { value = JSON.parse(event.data); }
+    catch { return; }
+    if (!value.event_id || seenEvents.has(value.event_id)) return;
+    seenEvents.add(value.event_id);
+    const item = document.createElement("li");
+    item.textContent = `${value.kind} · ${value.created_at} · ${value.event_id.slice(0, 14)}…`;
+    if (eventRail.firstElementChild?.textContent === "CONNECTING") eventRail.replaceChildren();
+    eventRail.prepend(item);
+    while (eventRail.children.length > 8) eventRail.lastElementChild.remove();
+  };
+  if ("EventSource" in window) {
+    const source = new EventSource(API + "/events");
+    EVENT_KINDS.forEach(kind => source.addEventListener(kind, appendEvent));
+    source.addEventListener("open", () => {
+      if (eventRail.firstElementChild?.textContent === "CONNECTING") {
+        eventRail.firstElementChild.textContent = "CONNECTED · waiting for governed events";
+      }
+    });
+    source.addEventListener("error", () => {
+      if (!eventRail.children.length) eventRail.innerHTML = "<li>RECONNECTING</li>";
+    });
+  } else {
+    eventRail.innerHTML = "<li>UNAVAILABLE · EventSource is not supported</li>";
+  }
   load();
   window.setInterval(load, 60000);
 })();

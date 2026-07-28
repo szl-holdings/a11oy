@@ -100,6 +100,57 @@ def test_allow_passport_is_one_attempt(tmp_path: Path) -> None:
         raise AssertionError("second attempt was accepted")
 
 
+def test_action_target_binding_fails_closed(tmp_path: Path) -> None:
+    service = app(tmp_path).state.szl_series_a_service
+    evidence = [
+        {
+            "evidence_id": "e1",
+            "label": "MEASURED",
+            "content_digest": "e" * 64,
+        }
+    ]
+    mismatched_refresh = service.evaluate_passport(
+        {
+            "action": {
+                "type": "estate.refresh",
+                "target": "https://a-11-oy.com/healthz",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": evidence,
+        }
+    )
+    unapproved_probe = service.evaluate_passport(
+        {
+            "action": {
+                "type": "probe.public_surface",
+                "target": "https://example.com/",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": evidence,
+        }
+    )
+    assert mismatched_refresh["passport"]["decision"] == "BLOCK"
+    assert mismatched_refresh["passport"]["reason_codes"] == ["TARGET_NOT_ALLOWLISTED"]
+    assert unapproved_probe["passport"]["decision"] == "BLOCK"
+    assert unapproved_probe["passport"]["reason_codes"] == ["TARGET_NOT_ALLOWLISTED"]
+
+
+def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) -> None:
+    value = app(tmp_path)
+    with TestClient(value) as client:
+        page = client.get("/series-a")
+        script = client.get("/series-a/app.js")
+    assert 'id="execute"' in page.text
+    assert 'id="execution-result"' in page.text
+    assert 'id="events"' in page.text
+    assert "szl://estate/current" in page.text
+    assert 'request("/passports/execute"' in script.text
+    assert 'new EventSource(API + "/events")' in script.text
+    assert "EVENT_KINDS.forEach" in script.text
+
+
 def test_receipt_chain_links_exact_previous_hash(tmp_path: Path) -> None:
     value = app(tmp_path)
     service = value.state.szl_series_a_service
