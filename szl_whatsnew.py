@@ -51,10 +51,13 @@ from typing import Any
 
 # Honesty-label vocabulary (doctrine v11). Re-stated here (not imported) so a broken import
 # can never silently blank the vocabulary; tests grep these exact strings.
+# DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
+# MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). The feed reads each
+# surface's label VERBATIM from the catalog, so an honest DECLARED must be representable here.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
-    "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
-    "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
 )
 MODELED = "MODELED"
 LIVE = "LIVE"
