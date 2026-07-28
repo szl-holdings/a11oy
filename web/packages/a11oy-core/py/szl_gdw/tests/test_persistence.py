@@ -15,6 +15,7 @@ from szl_gdw.persistence import (
     PersistenceError,
     SchemaVersionError,
     SessionConflict,
+    SessionLimitExceeded,
     SQLiteWorkspaceStore,
 )
 
@@ -98,3 +99,31 @@ def test_persistent_mode_requires_attached_mount(tmp_path):
             persistent_required=True,
             required_mount=tmp_path,
         )
+
+
+def test_delete_journal_mode_is_supported_for_bucket_backed_deployments(
+    tmp_path,
+):
+    path = tmp_path / "rollback.sqlite3"
+    store = SQLiteWorkspaceStore(path, journal_mode="DELETE")
+
+    with sqlite3.connect(path) as db:
+        observed = str(db.execute("PRAGMA journal_mode").fetchone()[0]).upper()
+
+    assert observed == "DELETE"
+    assert store.snapshot()["journal_mode"] == "DELETE"
+
+
+def test_durable_session_quota_is_atomic_and_survives_reopen(tmp_path):
+    path = tmp_path / "quota.sqlite3"
+    SQLiteWorkspaceStore(path, max_sessions=1).create_session(
+        WorkspaceState(session_id="quota-1", step=0)
+    )
+    reopened = SQLiteWorkspaceStore(path, max_sessions=1)
+
+    with pytest.raises(SessionLimitExceeded):
+        reopened.create_session(
+            WorkspaceState(session_id="quota-2", step=0)
+        )
+
+    assert reopened.snapshot()["counts"]["sessions"] == 1

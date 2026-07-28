@@ -128,6 +128,83 @@ app = FastAPI(
 _GDW_PACKAGE_ROOT = (
     Path(__file__).resolve().parent / "web" / "packages" / "a11oy-core" / "py"
 )
+
+
+def _gdw_governance_gate(action):
+    """Run the existing file-backed doctrine, codename, and route gates."""
+    try:
+        import json as _gdw_json
+        import szl_codename_gate as _gdw_codename
+        import szl_colang_policy as _gdw_colang
+        import szl_governance_gateway as _gdw_gateway
+
+        policy = _gdw_colang.get_policy()
+        if not policy.loaded:
+            raise RuntimeError("file-backed Colang policy is unavailable")
+        colang = policy.evaluate(
+            {
+                "tool": "execute",
+                "effecting": True,
+                "events": ["gate.evaluate"],
+                "action_type": str(action.get("type") or ""),
+                "target": str(action.get("target") or ""),
+                "high_impact": str(action.get("impact") or "").upper()
+                in {"HIGH", "CRITICAL"},
+                "irreversible": bool(action.get("irreversible", False)),
+            }
+        )
+        codename_hits = list(
+            _gdw_codename.scan_text(
+                _gdw_json.dumps(
+                    action,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+        )
+        route = _gdw_gateway.route(
+            str(action.get("request") or "")[:8_192],
+            classification="INTERNAL",
+            min_tier="T1",
+            task="gdw.step",
+        )
+        reasons = []
+        if not colang.get("allow"):
+            reasons.append("DOCTRINE_POLICY_DENY")
+        if codename_hits:
+            reasons.append("CODENAME_POLICY_DENY")
+        if not route.get("chosen"):
+            reasons.append("GOVERNANCE_ROUTE_UNAVAILABLE")
+        return {
+            "allowed": not reasons,
+            "decision": "ALLOW" if not reasons else "DENY",
+            "reason_codes": reasons or ["FILE_BACKED_GOVERNANCE_PASS"],
+            "colang": {
+                "decision": colang.get("decision"),
+                "fired_flows": colang.get("fired_flows", []),
+                "policy_files": colang.get("policy_files", []),
+            },
+            "codename_gate": {
+                "clean": not codename_hits,
+                "hits": sorted(str(item) for item in codename_hits),
+            },
+            "route": {
+                "sensitivity": route.get("sensitivity"),
+                "airgap_required": route.get("airgap_required"),
+                "chosen": (route.get("chosen") or {}).get("id"),
+                "zone": (route.get("chosen") or {}).get("zone"),
+            },
+        }
+    except Exception as exc:
+        return {
+            "allowed": False,
+            "decision": "DENY",
+            "reason_codes": ["GOVERNANCE_GATE_UNAVAILABLE"],
+            "detail": type(exc).__name__,
+        }
+
+
 try:
     if str(_GDW_PACKAGE_ROOT) not in sys.path:
         sys.path.insert(0, str(_GDW_PACKAGE_ROOT))
@@ -138,6 +215,7 @@ try:
         app,
         ns="a11oy",
         kernel=_GDWKernel(),
+        governance_gate=_gdw_governance_gate,
     )
     print(
         f"[a11oy] Wave 26 GDW registered: {_GDW_REGISTRATION}",

@@ -51,6 +51,10 @@ class SessionConflict(PersistenceError):
     """A session identifier or optimistic state version conflicts."""
 
 
+class SessionLimitExceeded(PersistenceError):
+    """The durable global session quota has been reached."""
+
+
 class ReplayConflict(PersistenceError):
     """An idempotency key was reused for a different request."""
 
@@ -309,6 +313,8 @@ class SQLiteWorkspaceStore:
         timeout_seconds: float = 30.0,
         persistent_required: bool = False,
         required_mount: str | Path | None = None,
+        journal_mode: str = "WAL",
+        max_sessions: int = 128,
     ) -> None:
         path_text = str(path)
         if (
@@ -322,10 +328,17 @@ class SQLiteWorkspaceStore:
             raise ValueError("max_json_bytes must be between 1 KiB and 16 MiB")
         if not (0.1 <= timeout_seconds <= 120.0):
             raise ValueError("timeout_seconds must be between 0.1 and 120")
+        normalized_journal_mode = str(journal_mode).strip().upper()
+        if normalized_journal_mode not in {"DELETE", "WAL"}:
+            raise ValueError("journal_mode must be DELETE or WAL")
+        if not isinstance(max_sessions, int) or not (1 <= max_sessions <= 100_000):
+            raise ValueError("max_sessions must be between 1 and 100000")
 
         self.path = str(Path(path_text).expanduser().resolve())
         self.max_json_bytes = max_json_bytes
         self.timeout_seconds = timeout_seconds
+        self.journal_mode = normalized_journal_mode
+        self.max_sessions = max_sessions
         self.persistent_required = bool(persistent_required)
         self.required_mount = (
             str(Path(required_mount).expanduser().resolve())
@@ -410,10 +423,14 @@ class SQLiteWorkspaceStore:
                         db.rollback()
                         raise
                 journal_mode = str(
-                    db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+                    db.execute(
+                        f"PRAGMA journal_mode={self.journal_mode}"
+                    ).fetchone()[0]
                 ).upper()
-                if journal_mode != "WAL":
-                    raise SchemaVersionError("database could not enable WAL mode")
+                if journal_mode != self.journal_mode:
+                    raise SchemaVersionError(
+                        "database could not enable the configured journal mode"
+                    )
                 self._verify_schema(db)
             except sqlite3.Error as exc:
                 raise PersistenceError("database initialization failed") from exc
@@ -581,6 +598,13 @@ class SQLiteWorkspaceStore:
                     "SELECT 1 FROM sessions WHERE session_id=?", (session_id,)
                 ).fetchone() is not None:
                     raise SessionConflict("session already exists")
+                session_count = int(
+                    db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+                )
+                if session_count >= self.max_sessions:
+                    raise SessionLimitExceeded(
+                        "durable workspace session quota is exhausted"
+                    )
                 receipt, envelope = _sign_khipu(receipt_body)
                 receipt_hash = _digest(receipt)
                 receipt_json = _canonical_json(receipt, self.max_json_bytes)
@@ -616,7 +640,7 @@ class SQLiteWorkspaceStore:
                     ),
                 )
                 db.commit()
-            except SessionConflict:
+            except (SessionConflict, SessionLimitExceeded):
                 db.rollback()
                 raise
             except sqlite3.IntegrityError as exc:
@@ -1055,6 +1079,8 @@ class SQLiteWorkspaceStore:
             "schema_version": SCHEMA_VERSION,
             "storage_instance_id": metadata["storage_instance_id"],
             "path": self.path,
+            "journal_mode": self.journal_mode,
+            "max_sessions": self.max_sessions,
             "persistent_required": self.persistent_required,
             "required_mount": self.required_mount,
             "mount_ok": bool(

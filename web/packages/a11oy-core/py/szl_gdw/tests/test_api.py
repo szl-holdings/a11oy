@@ -13,6 +13,14 @@ from szl_gdw import api
 from szl_gdw.persistence import PersistenceError
 
 
+def _allow_governance(_action):
+    return {
+        "allowed": True,
+        "decision": "ALLOW",
+        "reason_codes": ["TEST_FILE_BACKED_GOVERNANCE_PASS"],
+    }
+
+
 @pytest.fixture(autouse=True)
 def unsigned_runtime(monkeypatch):
     monkeypatch.setattr(szl_dsse, "_load_private_key", lambda: None)
@@ -21,7 +29,11 @@ def unsigned_runtime(monkeypatch):
 @pytest.fixture
 def client(tmp_path):
     app = FastAPI()
-    api.register(app, db_path=tmp_path / "api.sqlite3")
+    api.register(
+        app,
+        db_path=tmp_path / "api.sqlite3",
+        governance_gate=_allow_governance,
+    )
     return TestClient(app)
 
 
@@ -79,6 +91,48 @@ def test_status_session_step_receipt_and_exact_replay(client):
     assert receipt.json()["receipt"]["request_digest"]
     assert receipt.json()["dsse"]["signed"] is False
     assert receipt.json()["label"] == "MODELED"
+
+
+def test_missing_or_denying_governance_gate_fails_before_kernel(tmp_path):
+    app = FastAPI()
+    api.register(app, db_path=tmp_path / "ungoverned.sqlite3")
+    ungoverned = TestClient(app)
+    ungoverned.post(
+        "/api/a11oy/v1/gdw/sessions",
+        json={"session_id": "ungoverned"},
+    )
+    status = ungoverned.get("/api/a11oy/v1/gdw/status")
+    refused = ungoverned.post(
+        "/api/a11oy/v1/gdw/sessions/ungoverned/step",
+        json=_step_body(),
+    )
+
+    assert status.json()["governance_ready"] is False
+    assert status.json()["runtime_ready"] is False
+    assert refused.status_code == 503
+    assert refused.json()["error"] == "GOVERNED_RUNTIME_UNAVAILABLE"
+
+    denied_app = FastAPI()
+    api.register(
+        denied_app,
+        db_path=tmp_path / "denied.sqlite3",
+        governance_gate=lambda _action: {
+            "allowed": False,
+            "decision": "DENY",
+        },
+    )
+    denied = TestClient(denied_app)
+    denied.post(
+        "/api/a11oy/v1/gdw/sessions",
+        json={"session_id": "denied"},
+    )
+    denied_step = denied.post(
+        "/api/a11oy/v1/gdw/sessions/denied/step",
+        json=_step_body(),
+    )
+
+    assert denied_step.status_code == 403
+    assert denied_step.json()["error"] == "GOVERNANCE_DENIED"
 
 
 def test_gets_and_aggregate_do_not_mint_or_change_storage(

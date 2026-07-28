@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
-from typing import Annotated, Any, List, Mapping, Optional
+from typing import Annotated, Any, Callable, List, Mapping, Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -27,6 +27,7 @@ from .persistence import (
     PersistenceError,
     ReplayConflict,
     SessionConflict,
+    SessionLimitExceeded,
     SessionNotFound,
     SQLiteWorkspaceStore,
     receipt_to_dict,
@@ -45,6 +46,7 @@ MAX_BATCH = 4
 MAX_TOKENS = 64
 MAX_SOURCES = 16
 MAX_DIMENSION = 512
+DEFAULT_MAX_SESSIONS = 128
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _NS_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 PRIMARY_CITATIONS = [
@@ -155,6 +157,14 @@ def _request_payload(body: BaseModel) -> Mapping[str, Any]:
     return body.model_dump(mode="json")
 
 
+def _positive_bounded_int(raw: str, *, default: int, maximum: int) -> int:
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if 1 <= value <= maximum else default
+
+
 async def _parse_body(request: Request, model: Any) -> BaseModel:
     try:
         declared = request.headers.get("content-length")
@@ -248,8 +258,13 @@ def register(
     kernel: Any = None,
     db_path: Optional[str | Path] = None,
     telemetry: Optional[OperationalTelemetry] = None,
+    governance_gate: Optional[
+        Callable[[Mapping[str, Any]], Mapping[str, Any]]
+    ] = None,
     persistent_required: Optional[bool] = None,
     required_mount: Optional[str | Path] = None,
+    journal_mode: Optional[str] = None,
+    max_sessions: Optional[int] = None,
 ) -> Mapping[str, Any]:
     """Register the GDW surface before the host application's SPA catch-all."""
 
@@ -262,7 +277,11 @@ def register(
             "status": "already_registered",
             "label": "MODELED",
             "base": base,
-            "runtime_ready": workspace is not None or kernel is not None,
+            "runtime_ready": (
+                (workspace is not None or kernel is not None)
+                and governance_gate is not None
+            ),
+            "governance_ready": governance_gate is not None,
         }
 
     storage_unavailable: Optional[Mapping[str, Any]] = None
@@ -293,10 +312,29 @@ def register(
             else None
         )
         try:
+            selected_journal_mode = (
+                journal_mode
+                if journal_mode is not None
+                else os.environ.get(
+                    "SZL_GDW_SQLITE_JOURNAL_MODE",
+                    "DELETE" if require_persistent else "WAL",
+                )
+            )
+            selected_max_sessions = (
+                max_sessions
+                if max_sessions is not None
+                else _positive_bounded_int(
+                    os.environ.get("SZL_GDW_MAX_SESSIONS", ""),
+                    default=DEFAULT_MAX_SESSIONS,
+                    maximum=100_000,
+                )
+            )
             store = SQLiteWorkspaceStore(
                 selected_path,
                 persistent_required=require_persistent,
                 required_mount=selected_mount,
+                journal_mode=selected_journal_mode,
+                max_sessions=selected_max_sessions,
             )
         except PersistenceError:
             store = None
@@ -341,8 +379,13 @@ def register(
             "label": "MODELED",
             "status": "MODELED",
             "citations": PRIMARY_CITATIONS,
-            "runtime_ready": runtime is not None and storage_ready,
+            "runtime_ready": (
+                runtime is not None
+                and storage_ready
+                and governance_gate is not None
+            ),
             "storage_ready": storage_ready,
+            "governance_ready": governance_gate is not None,
             "storage": storage,
             "limitations": {
                 "training_evidence": "UNAVAILABLE",
@@ -390,6 +433,13 @@ def register(
         except SessionConflict:
             observations.record_error("conflict")
             return _error(409, "SESSION_CONFLICT", "session already exists")
+        except SessionLimitExceeded:
+            observations.record_error("quota")
+            return _error(
+                429,
+                "SESSION_LIMIT_REACHED",
+                "durable workspace session quota is exhausted",
+            )
         except PersistenceError:
             observations.record_error("persistence")
             return _error(503, "PERSISTENCE_UNAVAILABLE", "session could not be stored")
@@ -428,12 +478,12 @@ def register(
         except IntegrityViolation:
             observations.record_error("validation")
             return _error(422, "INVALID_INPUT", "step request is invalid")
-        if runtime is None or repository is None:
+        if runtime is None or repository is None or governance_gate is None:
             observations.record_error("unavailable")
             return _error(
                 503,
                 "GOVERNED_RUNTIME_UNAVAILABLE",
-                "governed runtime or durable storage is unavailable",
+                "governance gate, governed runtime, or durable storage is unavailable",
             )
         try:
             session_id = _valid_identifier(session_id, "session_id")
@@ -451,6 +501,32 @@ def register(
                 )
                 return response
 
+            governance = governance_gate(
+                {
+                    "type": "workspace.step",
+                    "target": f"szl://gdw/session/{session_id}",
+                    "effecting": True,
+                    "irreversible": False,
+                    "impact": "MODERATE",
+                    "request": body.request,
+                    "risk_budget": body.risk_budget,
+                    "evidence_count": len(body.evidence),
+                    "allowed_expert_count": len(body.allowed_experts),
+                }
+            )
+            if (
+                not isinstance(governance, Mapping)
+                or governance.get("allowed") is not True
+                or governance.get("decision") != "ALLOW"
+            ):
+                observations.record_error("governance")
+                return _error(
+                    403,
+                    "GOVERNANCE_DENIED",
+                    "the file-backed governance boundary denied this step",
+                )
+            governance_payload = _api_jsonable(governance)
+            _canonical_digest(governance_payload)
             record = repository.recover_session(session_id)
             state = record["state"]
             evidence = [
@@ -477,6 +553,7 @@ def register(
             receipt_payload = receipt_to_dict(receipt)
             audit_payload = _api_jsonable(audit)
             audit_payload["receipt"] = receipt_payload
+            audit_payload["governance"] = governance_payload
             _canonical_digest(audit_payload)
             response = {
                 "schema": "szl.gdw.step/v1",
@@ -651,8 +728,13 @@ def register(
         "label": "MODELED",
         "base": base,
         "citations": PRIMARY_CITATIONS,
-        "runtime_ready": runtime is not None and repository is not None,
+        "runtime_ready": (
+            runtime is not None
+            and repository is not None
+            and governance_gate is not None
+        ),
         "storage_ready": repository is not None,
+        "governance_ready": governance_gate is not None,
         "routes": [
             base + "/status",
             base + "/sessions",

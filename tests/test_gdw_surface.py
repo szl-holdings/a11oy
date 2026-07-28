@@ -17,11 +17,20 @@ from szl_gdw.api import register
 from szl_gdw.kernel_adapter import GovernedWorkspaceKernel
 
 
+def _allow_governance(_action):
+    return {
+        "allowed": True,
+        "decision": "ALLOW",
+        "reason_codes": ["TEST_FILE_BACKED_GOVERNANCE_PASS"],
+    }
+
+
 def _client(tmp_path: Path) -> TestClient:
     app = FastAPI()
     registration = register(
         app,
         kernel=GovernedWorkspaceKernel(),
+        governance_gate=_allow_governance,
         db_path=tmp_path / "workspace.sqlite3",
         persistent_required=False,
     )
