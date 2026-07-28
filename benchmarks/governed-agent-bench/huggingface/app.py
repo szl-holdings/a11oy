@@ -97,9 +97,9 @@ with gr.Blocks(title="Governed Agent Bench") as demo:
         label="Immutable publication identity",
     )
     gr.Markdown(
-        """
+        f"""
         [Dataset](https://huggingface.co/datasets/SZLHOLDINGS/governed-agent-bench)
-        · [Canonical source](https://github.com/szl-holdings/a11oy/tree/main/benchmarks/governed-agent-bench)
+        · [Canonical source](https://github.com/szl-holdings/a11oy/tree/{PUBLICATION["source_revision"]}/benchmarks/governed-agent-bench)
 
         Model submissions remain empty until an exact JSONL trace, model and
         license identity, evaluator revision, result, and publication receipt
