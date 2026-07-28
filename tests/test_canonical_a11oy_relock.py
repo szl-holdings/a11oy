@@ -822,7 +822,15 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             "python .github/scripts/publish_readiness_verdict.py",
             self.workflow,
         )
-        self.assertIn("needs: [deploy, readiness-verdict]", self.workflow)
+        runtime_config = self.workflow.split(
+            "  runtime-config:", 1
+        )[1].split("\n  deploy:", 1)[0]
+        self.assertIn("needs: deploy", runtime_config)
+        self.assertIn("needs: runtime-config", self.workflow)
+        self.assertIn(
+            "needs: [runtime-config, readiness-verdict]",
+            self.workflow,
+        )
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
         self.assertIn("--expected-source-sha \"$SOURCE_SHA\"", self.workflow)
         self.assertIn("--soft", self.workflow)
