@@ -120,6 +120,101 @@ app = FastAPI(
     redoc_url=None,
 )
 
+# Wave 26: Lambda-AttnRes + Governed Delta Workspace. The API always registers
+# its complete route contract; without the required /data mount it reports
+# storage/runtime unavailable and rejects every state operation (no temporary
+# production fallback). Tensor work is imported lazily by the bounded aggregate
+# endpoint so a missing optional backend cannot take down the rest of a11oy.
+_GDW_PACKAGE_ROOT = (
+    Path(__file__).resolve().parent / "web" / "packages" / "a11oy-core" / "py"
+)
+try:
+    if str(_GDW_PACKAGE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_GDW_PACKAGE_ROOT))
+    import a11oy_vertical_feeds as _GDWGovernance
+    from szl_gdw.api import register as _register_gdw
+    from szl_gdw.kernel_adapter import GovernedWorkspaceKernel as _GDWKernel
+
+    def _gdw_governance_gate(payload):
+        risk_budget = float(payload.get("risk_budget", 1.0))
+        return _GDWGovernance.governed_turn(
+            "general",
+            str(payload.get("request", "")),
+            declared="INTERNAL",
+            severity=max(0.0, min(1.0, 1.0 - risk_budget)),
+            action_kind="state_transition",
+        )
+
+    _GDW_REGISTRATION = _register_gdw(
+        app,
+        ns="a11oy",
+        kernel=_GDWKernel(),
+        governance_gate=_gdw_governance_gate,
+    )
+    print(
+        f"[a11oy] Wave 26 GDW registered: {_GDW_REGISTRATION}",
+        file=sys.stderr,
+    )
+except Exception as _gdw_registration_error:  # pragma: no cover - boot guard
+    _GDW_REGISTRATION = {
+        "status": "UNAVAILABLE",
+        "label": "MODELED",
+        "reason": type(_gdw_registration_error).__name__,
+    }
+    print(
+        "[a11oy] Wave 26 GDW unavailable; existing routes unaffected: "
+        f"{_gdw_registration_error!r}",
+        file=sys.stderr,
+    )
+
+
+def _gdw_static_response(filename: str, media_type: str, *, page: bool = False):
+    """Serve the exact bytes hashed in the response; GET/HEAD mint nothing."""
+    import base64 as _gdw_base64
+    import hashlib as _gdw_hashlib
+
+    path = _GDW_PACKAGE_ROOT / "szl_gdw" / "static" / filename
+    try:
+        content = path.read_bytes()
+    except OSError:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "schema": "szl.gdw.error/v1",
+                "label": "MODELED",
+                "status": "UNAVAILABLE",
+                "error": "OPERATOR_ASSET_UNAVAILABLE",
+            },
+        )
+    digest_bytes = _gdw_hashlib.sha256(content).digest()
+    digest_hex = digest_bytes.hex()
+    headers = {
+        "Cache-Control": "no-store" if page else "no-cache, must-revalidate",
+        "Content-Digest": (
+            "sha-256=:"
+            + _gdw_base64.b64encode(digest_bytes).decode("ascii")
+            + ":"
+        ),
+        "ETag": f'"{digest_hex}"',
+        "X-Content-Type-Options": "nosniff",
+    }
+    return Response(content=content, media_type=media_type, headers=headers)
+
+
+@app.api_route("/gdw", methods=["GET", "HEAD"], include_in_schema=False)
+async def gdw_operator_page():
+    return _gdw_static_response("index.html", "text/html; charset=utf-8", page=True)
+
+
+@app.api_route("/gdw/app.js", methods=["GET", "HEAD"], include_in_schema=False)
+async def gdw_operator_script():
+    return _gdw_static_response("app.js", "text/javascript; charset=utf-8")
+
+
+@app.api_route("/gdw/styles.css", methods=["GET", "HEAD"], include_in_schema=False)
+async def gdw_operator_styles():
+    return _gdw_static_response("styles.css", "text/css; charset=utf-8")
+
 # Waqay Security Loop (wave 15): expose only the deterministic, read-only
 # contract.  The implementation has no deployment, recall, repository, signing,
 # model, or other external effector.  Mutation endpoints stay deliberately
@@ -14493,6 +14588,59 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
         f"[a11oy] ayllu council wall NOT registered (non-fatal): {_ayllu_wall_error!r}",
         file=sys.stderr,
     )
+
+# Several legacy response middlewares inject shared, self-hosted navigation into
+# HTML after the route handler runs. Finalize the GDW digest outside that stack
+# so Content-Digest and ETag bind the bytes the client actually receives.
+class _GDWRepresentationDigest:
+    def __init__(self, app):
+        self.inner_app = app
+
+    async def __call__(self, scope, receive, send):
+        if (
+            scope.get("type") != "http"
+            or scope.get("method") != "GET"
+            or scope.get("path") not in {"/gdw", "/gdw/app.js", "/gdw/styles.css"}
+        ):
+            await self.inner_app(scope, receive, send)
+            return
+
+        messages = []
+
+        async def capture(message):
+            messages.append(message)
+
+        await self.inner_app(scope, receive, capture)
+        body = b"".join(
+            message.get("body", b"")
+            for message in messages
+            if message.get("type") == "http.response.body"
+        )
+        import base64 as _gdw_final_b64
+        import hashlib as _gdw_final_hashlib
+
+        digest_bytes = _gdw_final_hashlib.sha256(body).digest()
+        digest_value = (
+            b"sha-256=:"
+            + _gdw_final_b64.b64encode(digest_bytes)
+            + b":"
+        )
+        etag_value = b'"' + digest_bytes.hex().encode("ascii") + b'"'
+        for message in messages:
+            if message.get("type") == "http.response.start":
+                headers = [
+                    (name, value)
+                    for name, value in message.get("headers", [])
+                    if name.lower() not in {b"content-digest", b"etag"}
+                ]
+                headers.extend(
+                    [(b"content-digest", digest_value), (b"etag", etag_value)]
+                )
+                message["headers"] = headers
+            await send(message)
+
+
+app.add_middleware(_GDWRepresentationDigest)
 
 
 if __name__ == "__main__":
