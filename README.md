@@ -187,6 +187,23 @@ python3 .github/shared-module-hash-check.py --update
 
 ---
 
+## Governed Delta Workspace
+
+> Runtime status: `UNAVAILABLE`. The GDW operational routes are intentionally
+> fail-closed while the Wave 26 and Wave 28 implementations are consolidated
+> behind one authenticated, owner-bound, doctrine-gated contract with durable
+> receipt/proof publication semantics. Health remains available; state,
+> telemetry, benchmark metadata, integrity, and step routes return HTTP 503
+> without creating artifacts.
+
+> GDW Frontier Push Pack is a MODELED instrumentation and verification extension for the Governed Delta Workspace. It provides load testing, operator validation, hybrid scheduling research hooks, KDA-vs-MLA memory benchmarking, and Lean-oriented proof export. It does not claim frontier benchmark superiority, proprietary activation access, or production-scale guarantees beyond the measured harness outputs.
+
+The contained runtime, Postman collection, load tools, offline dashboard, memory
+benchmark, proof-input bridge, and the conditions for restoring service are documented in
+[`docs/gdw-frontier.md`](docs/gdw-frontier.md). A checked theorem is reported
+separately from an exported theorem input, and every throughput result is scoped
+to its captured run.
+
 ## Learn more
 
 - [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md)
