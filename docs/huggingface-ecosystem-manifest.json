@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-07-28T18:13:35Z",
+  "observedAt": "2026-07-28T18:47:33Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -767,9 +767,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "762567ca892f6b76824b799f04d313aaa50acf7e",
-        "lastModified": "2026-07-28T17:48:46.000Z",
-        "cardSemanticSha256": "edf105c229220cb06d56e83442570615d6fe6dde2f5d5571e363aacfa89caca1",
+        "sha": "a182f0e68f15246ec6e0735745152623fdbba190",
+        "lastModified": "2026-07-28T18:38:53.000Z",
+        "cardSemanticSha256": "a701b6965e63774e439eb504a4ee9722e7e67a77eb9bd9bfe05c2a692517de64",
         "createdAt": "2026-07-28T17:22:41.000Z",
         "tags": [
           "task_categories:other",
@@ -1570,8 +1570,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "44d2c74872566c71d5b710748fc62aee5fa6e6f4",
-        "lastModified": "2026-07-28T17:13:38.000Z",
+        "sha": "4061178a3ddb9163382c08e704936283e739d360",
+        "lastModified": "2026-07-28T18:44:36.000Z",
         "cardSemanticSha256": "8ce97ede8f29636a0d1b5bd9bd22f58a1a1a71f891a23787138a9bb67debf5ae",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -1654,8 +1654,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "2bfe4151a814ba11c97c10b6ded86d37e52000f1",
-        "lastModified": "2026-07-28T18:08:59.000Z",
+        "sha": "9207872580ecc18e5270ef94677e33df7bbb8003",
+        "lastModified": "2026-07-28T18:35:33.000Z",
         "cardSemanticSha256": "d3d715d86184d4348d78b5c5f6ca7bf89b9258d2aef9e85775c142e8dbd2642f",
         "createdAt": "2026-06-28T05:33:51.000Z",
         "tags": [
@@ -1732,9 +1732,9 @@
         "disabled": false,
         "sdk": "gradio",
         "license": "apache-2.0",
-        "sha": "5198d358277a6e183a15423dc2dabf041479cd91",
-        "lastModified": "2026-07-28T17:48:50.000Z",
-        "cardSemanticSha256": "7c79fa1bace398d547825ae93401e1ce92e9813337c8fd264211fbdfce63bf54",
+        "sha": "832eaad8447cec83a1be335e2187fd302e89ff60",
+        "lastModified": "2026-07-28T18:39:01.000Z",
+        "cardSemanticSha256": "fd0fdba43a8213330e700d2924b4ee8668887e10cfa1f9853f0e75832b54b582",
         "createdAt": "2026-07-28T17:22:42.000Z",
         "tags": [
           "gradio",
