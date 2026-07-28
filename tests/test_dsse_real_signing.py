@@ -90,7 +90,7 @@ def test_real_signature_with_ephemeral_key_verifies(monkeypatch):
     assert env["signed"] is True
     assert len(env["signatures"]) == 1
     sig_entry = env["signatures"][0]
-    assert sig_entry["keyid"] == szl_dsse.KEYID
+    assert sig_entry["keyid"] == szl_dsse.active_keyid()
     assert "REAL" in env["honesty"]
 
     # 1) Verify the signature against the test public key with raw cryptography,
@@ -137,7 +137,7 @@ def test_valid_signature_with_wrong_keyid_fails_verification(monkeypatch):
 
     verdict = szl_dsse.verify_envelope(env)
     assert verdict["verified"] is False
-    assert verdict["signatures"][0]["reason"] == "unexpected keyid"
+    assert verdict["signatures"][0]["reason"] == "unexpected or unavailable keyid"
 
 
 def test_legacy_env_var_still_works(monkeypatch):
@@ -171,6 +171,37 @@ def test_non_p256_private_key_fails_closed(monkeypatch):
     assert envelope["signatures"] == []
 
 
+def test_retained_public_key_verifies_after_rotation(monkeypatch):
+    """A receipt selects its retained public key after the active key rotates."""
+    old_private_pem, old_public_pem = _gen_ephemeral_keypair()
+    new_private_pem, _new_public_pem = _gen_ephemeral_keypair()
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, old_private_pem)
+    monkeypatch.delenv(szl_dsse.VERIFY_KEY_BUNDLE_ENV, raising=False)
+    importlib.reload(szl_dsse)
+
+    old_envelope = szl_dsse.sign_payload({"rotation": "before"})
+    old_keyid = old_envelope["signatures"][0]["keyid"]
+    assert old_keyid == szl_dsse.active_keyid()
+
+    monkeypatch.setenv(_PRIV_ENV, new_private_pem)
+    monkeypatch.setenv(szl_dsse.VERIFY_KEY_BUNDLE_ENV, old_public_pem)
+    importlib.reload(szl_dsse)
+
+    assert szl_dsse.active_keyid() != old_keyid
+    verdict = szl_dsse.verify_envelope(old_envelope)
+    assert verdict["verified"] is True
+    assert verdict["pub_fingerprint_sha256"] == old_keyid
+    assert verdict["signatures"][0]["key_source"] == "operator-retained"
+
+    # Legacy envelopes used one constant keyid. They remain verifiable by trying
+    # the bounded retained ring rather than silently binding to the new signer.
+    old_envelope["signatures"][0]["keyid"] = szl_dsse.LEGACY_KEYID
+    legacy_verdict = szl_dsse.verify_envelope(old_envelope)
+    assert legacy_verdict["verified"] is True
+    assert legacy_verdict["pub_fingerprint_sha256"] == old_keyid
+
+
 @pytest.mark.skipif(
     not (os.environ.get(_PRIV_ENV) or os.environ.get(_LEGACY_ENV)),
     reason="real cosign private key not present in env; skip real-key round-trip "
@@ -191,6 +222,8 @@ def test_real_org_key_roundtrip_if_present():
 def _restore_module():
     yield
     # Restore a clean module state for any downstream tests
-    for _n in (_PRIV_ENV, _LEGACY_ENV):
+    for _n in (*szl_dsse.PRIVATE_KEY_ENV_VARS,
+               szl_dsse.VERIFY_KEY_BUNDLE_ENV,
+               szl_dsse.VERIFY_KEY_PATHS_ENV):
         os.environ.pop(_n, None)
     importlib.reload(szl_dsse)
