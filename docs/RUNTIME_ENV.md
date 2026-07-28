@@ -128,7 +128,11 @@ whether the *subsystem* is unavailable without it (never means "crash").
 
 | Env name | Kind | Required | Purpose | Honest default |
 |---|---|---|---|---|
-| `SZL_COSIGN_PRIVATE_PEM` | secret | optional | DSSE/cosign ECDSA-P256 PRIVATE key PEM. Absent => UNSIGNED-LOCAL receipts (honest), never a fabricated signature. | (unset → subsystem DEGRADED) |
+| `SZL_COSIGN_PRIVATE_PEM` | secret | optional | Canonical DSSE/cosign ECDSA-P256 PRIVATE key PEM used by the shared receipt signer. | (unset → ephemeral only when strict mode is off) |
+| `A11OY_RECEIPT_KEY_PEM` | secret | optional | Optional compatibility ECDSA-P256 PRIVATE key PEM used only when `SZL_COSIGN_PRIVATE_PEM` is absent. | (unset) |
+| `A11OY_RECEIPT_KEY_PATH` | variable | optional | Path to a mounted ECDSA-P256 receipt private key. A configured missing or invalid file fails closed. | (unset) |
+| `A11OY_RECEIPT_KEY_DIR` | variable | optional | Directory containing a mounted ECDSA-P256 receipt private key. A configured directory with no candidate fails closed. | `/etc/szl/receipt-key` |
+| `A11OY_REQUIRE_PERSISTENT_SIGNING` | variable | optional | `1` requires a valid persistent receipt key and disables ephemeral fallback. | `0` |
 | `COSIGN_KEYID` | variable | optional | Key identifier surfaced in verify receipts (non-secret). | (none / feature off) |
 | `COSIGN_PUBLIC_PEM` | variable | optional | DSSE cosign PUBLIC key PEM (safe to expose; verification only). | (none / feature off) |
 
@@ -138,6 +142,7 @@ Configure these in HF Space Settings → **Secrets** (credentials, never in Vari
 
 ```
 A11OY_GPU_TOKEN
+A11OY_RECEIPT_KEY_PEM
 ANTHROPIC_API_KEY
 DEEPSEEK_API_KEY
 ELECTRICITY_MAPS_API_KEY
@@ -169,6 +174,9 @@ A11OY_LOCAL_MODEL
 A11OY_MODEL_BASE_URL
 A11OY_OMEN_BASE_URL
 A11OY_OMEN_STANDBY
+A11OY_RECEIPT_KEY_DIR
+A11OY_RECEIPT_KEY_PATH
+A11OY_REQUIRE_PERSISTENT_SIGNING
 COSIGN_KEYID
 COSIGN_PUBLIC_PEM
 HF_ROUTER_BASE

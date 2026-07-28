@@ -145,11 +145,25 @@ def verify_dsse_receipt(envelope: Mapping[str, Any], public_pem: bytes) -> dict[
     identity = payload.get("_signing_identity")
     _require(isinstance(identity, dict), "signed key identity is missing")
     fingerprint = _sha256(public_pem.strip())
+    key_scope = identity.get("key_scope")
+    key_lifetime = identity.get("key_lifetime")
+    allowed_key_lifetimes = {
+        "PROCESS_BOOT_EPHEMERAL": "UNTIL_PROCESS_RESTART",
+        "DEPLOYMENT_PERSISTENT": "UNTIL_SECRET_ROTATION",
+    }
+    _require(
+        isinstance(key_scope, str) and key_scope in allowed_key_lifetimes,
+        "signed key identity has an unsupported key_scope",
+    )
+    _require(
+        key_lifetime == allowed_key_lifetimes[key_scope],
+        "signed key identity has an invalid scope/lifetime pair",
+    )
     expected_identity = {
         "keyid": keyid,
         "verify_key_url": VERIFY_KEY_PATH,
-        "key_scope": "PROCESS_BOOT_EPHEMERAL",
-        "key_lifetime": "UNTIL_PROCESS_RESTART",
+        "key_scope": key_scope,
+        "key_lifetime": key_lifetime,
         "key_fingerprint_sha256": fingerprint,
     }
     for field, expected in expected_identity.items():
@@ -409,6 +423,13 @@ def verify_turn(
         "model_attestation_sha256": attestation_sha,
         "receipt_payload_sha256": _sha256(base64.b64decode(response["receipt"]["payload"])),
         "receipt_signature_sha256": _sha256(base64.b64decode(signature["sig"])),
+        "signing_identity": {
+            "key_scope": receipt["_signing_identity"]["key_scope"],
+            "key_lifetime": receipt["_signing_identity"]["key_lifetime"],
+            "key_fingerprint_sha256": receipt["_signing_identity"][
+                "key_fingerprint_sha256"
+            ],
+        },
         "grounding": grounding_summary,
     }
 
@@ -569,6 +590,12 @@ def verify_live(
         ))
 
     handle_plane = _handle_plane_observation(second_brain, rag_status)
+    signing_identities = [turn["signing_identity"] for turn in turns]
+    _require(
+        all(identity == signing_identities[0] for identity in signing_identities),
+        "verified turns used different signing identities",
+    )
+    signing_identity = signing_identities[0]
     captured = (now or (lambda: dt.datetime.now(dt.timezone.utc)))()
     _require(captured.tzinfo is not None, "capture timestamp must be timezone-aware")
     return {
@@ -582,7 +609,8 @@ def verify_live(
         "public_key": {
             "algorithm": "ECDSA-P256-SHA256",
             "verify_key_path": VERIFY_KEY_PATH,
-            "key_scope": "PROCESS_BOOT_EPHEMERAL",
+            "key_scope": signing_identity["key_scope"],
+            "key_lifetime": signing_identity["key_lifetime"],
             "key_fingerprint_sha256": public_fingerprint,
         },
         "second_brain": {

@@ -133,9 +133,23 @@ _REGISTRY = [
 
     # ---- provenance / signing (SECRET private key; PUBLIC material is a var) ----
     EnvSpec("SZL_COSIGN_PRIVATE_PEM", SECRET, "signing",
-            "DSSE/cosign ECDSA-P256 PRIVATE key PEM. Absent => UNSIGNED-LOCAL "
-            "receipts (honest), never a fabricated signature.",
+            "Canonical DSSE/cosign ECDSA-P256 PRIVATE key PEM used by the "
+            "shared receipt signer.",
             required=False, default=None),
+    EnvSpec("A11OY_RECEIPT_KEY_PEM", SECRET, "signing",
+            "Optional compatibility ECDSA-P256 PRIVATE key PEM used only when "
+            "SZL_COSIGN_PRIVATE_PEM is absent.",
+            required=False, default=None),
+    EnvSpec("A11OY_RECEIPT_KEY_PATH", VARIABLE, "signing",
+            "Path to a mounted ECDSA-P256 receipt private key.",
+            default=None),
+    EnvSpec("A11OY_RECEIPT_KEY_DIR", VARIABLE, "signing",
+            "Directory containing a mounted ECDSA-P256 receipt private key.",
+            default=None),
+    EnvSpec("A11OY_REQUIRE_PERSISTENT_SIGNING", VARIABLE, "signing",
+            "1 requires a valid persistent receipt key and disables ephemeral "
+            "fallback.",
+            default="0"),
     EnvSpec("COSIGN_PUBLIC_PEM", VARIABLE, "signing",
             "DSSE cosign PUBLIC key PEM (safe to expose; verification only).",
             default=None),
@@ -187,6 +201,16 @@ _REGISTRY = [
 
 _BY_NAME = {s.name: s for s in _REGISTRY}
 _SUBSYSTEMS = sorted({s.subsystem for s in _REGISTRY})
+_CREDENTIAL_ALTERNATIVES = {
+    "signing": (
+        frozenset({
+            "SZL_COSIGN_PRIVATE_PEM",
+            "A11OY_RECEIPT_KEY_PEM",
+            "A11OY_RECEIPT_KEY_PATH",
+            "A11OY_RECEIPT_KEY_DIR",
+        }),
+    ),
+}
 
 
 def registry():
@@ -246,15 +270,38 @@ def preflight_report(env=None):
 
 
 def _subsystem_label(env, subsystem):
-    """Per-subsystem honest readiness. Absent optional secret => DEGRADED;
-    absent required (subsystem-critical) => UNAVAILABLE; else LIVE."""
+    """Per-subsystem honest readiness.
+
+    Absent optional credentials => DEGRADED; absent required
+    (subsystem-critical) => UNAVAILABLE; else LIVE. Credential alternatives
+    model equivalent sources such as inline or mounted signing keys.
+    """
     specs = [s for s in _REGISTRY if s.subsystem == subsystem]
     missing_required = [s.name for s in specs
                         if s.required and not _present(env, s.name)]
     # a subsystem's "credentials" are its secrets; missing ones degrade it
-    missing_secrets = [s.name for s in specs
-                       if s.kind == SECRET and not _present(env, s.name)]
+    missing_secrets = {
+        s.name for s in specs
+        if s.kind == SECRET and not _present(env, s.name)
+    }
+    credential_unavailable = False
+    for alternatives in _CREDENTIAL_ALTERNATIVES.get(subsystem, ()):
+        if subsystem == "signing":
+            # Presence alone is not readiness. Validate the exact inline or
+            # mounted source against the shared loader so a missing path,
+            # malformed PEM, wrong key type/curve, or strict-mode absence can
+            # never produce a false LIVE label.
+            from a11oy_signing_key import load_signing_key
+            private_key, _, source, _ = load_signing_key(env=env)
+            if private_key is None or source == "unavailable":
+                credential_unavailable = True
+            elif source.startswith("persistent:"):
+                missing_secrets.difference_update(alternatives)
+        elif any(_present(env, name) for name in alternatives):
+            missing_secrets.difference_update(alternatives)
     if missing_required:
+        label = UNAVAILABLE
+    elif credential_unavailable:
         label = UNAVAILABLE
     elif missing_secrets:
         label = DEGRADED

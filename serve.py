@@ -6679,8 +6679,9 @@ async def _a11oy_signing_status():
         if _non_repudiation else
         (
             "PARTIAL -- ECDSA-P256 key is %s; HMAC layer is %s. "
-            "Set A11OY_RECEIPT_KEY_PATH/DIR and A11OY_HMAC_KEY as HF Space secrets "
-            "for full non-repudiation. See /api/a11oy/v1/honest for doctrine labels."
+            "Set SZL_COSIGN_PRIVATE_PEM and A11OY_HMAC_KEY as HF Space secrets, "
+            "then enable A11OY_REQUIRE_PERSISTENT_SIGNING for fail-closed "
+            "non-repudiation. See /api/a11oy/v1/honest for doctrine labels."
             % (_key_source, _hmac_layer)
         )
     )
@@ -8805,9 +8806,10 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
 # formulas {F1,F4,F7,F11,F12,F18,F19,F22}. SLSA L1 honest; L2 .att emitted (not independently verified); L3 build-provenance roadmap
 # (not yet claimed); NOT FedRAMP/Iron Bank/CMMC/ATO without roadmap. No
 # cross-origin organ dependencies — a11oy is fully self-contained.
-# The DSSE key below is a REAL ephemeral ECDSA P-256 key generated in-image
-# at boot (resets on rebuild). Receipts signed with it verify PASS in-browser
-# and a tampered byte verifies FAIL. Honest label everywhere.
+# The DSSE key below is loaded by the shared ECDSA P-256 key loader. A
+# configured persistent secret survives restarts; a non-strict runtime without
+# one uses one process-local ephemeral identity. Receipts verify in-browser and
+# a tampered byte verifies FAIL. Honest label everywhere.
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ===========================================================================
 import base64 as _b64v2
@@ -8816,22 +8818,30 @@ import json as _jsonv2
 from datetime import datetime as _dtv2, timezone as _tzv2
 from fastapi.responses import PlainTextResponse
 
-# ---- In-image ephemeral ECDSA P-256 signing key (real, generated at boot) ----
-_A11OY_KEYID = "a11oy-inimage-ecdsa-p256"
+# ---- Shared ECDSA P-256 signing key (persistent secret, ephemeral fallback) ----
+_A11OY_KEYID = "unavailable"
 _A11OY_PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _A11OY_PRIV = None
 _A11OY_PUB_PEM = None
+_A11OY_KEY_SOURCE = "unavailable"
 _A11OY_KEY_ERR = None
 try:
     from cryptography.hazmat.primitives.asymmetric import ec as _ecv2
-    from cryptography.hazmat.primitives import hashes as _hashesv2, serialization as _serv2
-    _A11OY_PRIV = _ecv2.generate_private_key(_ecv2.SECP256R1())
-    _A11OY_PUB_PEM = _A11OY_PRIV.public_key().public_bytes(
-        encoding=_serv2.Encoding.PEM,
-        format=_serv2.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
+    from cryptography.hazmat.primitives import hashes as _hashesv2
+    from a11oy_signing_key import load_signing_key as _load_a11oy_signing_key
+
+    (
+        _A11OY_PRIV,
+        _A11OY_PUB_PEM,
+        _A11OY_KEY_SOURCE,
+        _A11OY_KEY_ERR,
+    ) = _load_a11oy_signing_key()
+    if _A11OY_PUB_PEM:
+        _A11OY_KEYID = _hashv2.sha256(
+            _A11OY_PUB_PEM.strip().encode("ascii")
+        ).hexdigest()
 except Exception as _e:  # pragma: no cover
-    _A11OY_KEY_ERR = str(_e)
+    _A11OY_KEY_ERR = "%s: shared signing key unavailable" % type(_e).__name__
 
 
 def _a11oy_pae(payload_type: str, body: bytes) -> bytes:
@@ -8848,12 +8858,33 @@ def _a11oy_canonical(obj) -> bytes:
 
 def _a11oy_sign_receipt(payload_obj) -> dict:
     """Produce a DSSE envelope over the canonical JSON of payload_obj using the
-    in-image ephemeral key. Honest UNSIGNED marker if key unavailable."""
+    shared process key. Honest UNSIGNED marker if key unavailable."""
+    key_persistent = (
+        isinstance(_A11OY_KEY_SOURCE, str)
+        and _A11OY_KEY_SOURCE.startswith("persistent:")
+    )
     key_identity = {
         "keyid": _A11OY_KEYID,
         "verify_key_url": "/api/a11oy/cosign.pub",
-        "key_scope": "PROCESS_BOOT_EPHEMERAL",
-        "key_lifetime": "UNTIL_PROCESS_RESTART",
+        "key_scope": (
+            "DEPLOYMENT_PERSISTENT"
+            if key_persistent
+            else (
+                "PROCESS_BOOT_EPHEMERAL"
+                if _A11OY_KEY_SOURCE == "ephemeral"
+                else "UNAVAILABLE"
+            )
+        ),
+        "key_lifetime": (
+            "UNTIL_SECRET_ROTATION"
+            if key_persistent
+            else (
+                "UNTIL_PROCESS_RESTART"
+                if _A11OY_KEY_SOURCE == "ephemeral"
+                else "UNAVAILABLE"
+            )
+        ),
+        "key_source": _A11OY_KEY_SOURCE,
         "key_fingerprint_sha256": (
             _hashv2.sha256((_A11OY_PUB_PEM or "").strip().encode()).hexdigest()
             if _A11OY_PUB_PEM else None
@@ -8885,20 +8916,26 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     if _A11OY_PRIV is None:
         env["signatures"] = []
         env["signed"] = False
-        env["honesty"] = ("UNSIGNED — in-image key unavailable in this runtime "
+        env["honesty"] = ("UNSIGNED — shared key unavailable in this runtime "
                           "(%s); no signature fabricated." % (_A11OY_KEY_ERR or "no crypto"))
         return env
     sig = _A11OY_PRIV.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
     env["signatures"] = [{"sig": _b64v2.b64encode(sig).decode("ascii"), "keyid": _A11OY_KEYID}]
     env["signed"] = True
-    env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
-                      "in-image key generated at server boot. Verify in-browser "
-                      "against /api/a11oy/cosign.pub; a tampered byte fails. "
-                      "Key resets on process restart.")
+    env["honesty"] = (
+        "REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by the deployment "
+        "key. Verify against /api/a11oy/cosign.pub; a tampered byte fails. "
+        "Identity remains stable until the configured secret rotates."
+        if key_persistent
+        else
+        "REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by the shared "
+        "process key. Verify against /api/a11oy/cosign.pub; a tampered byte "
+        "fails. Identity resets on process restart."
+    )
     return env
 
 
-# Ayllu registers earlier in this module, before the ephemeral signer exists.
+# Ayllu registers earlier in this module, before the shared signer exists.
 # Expose the signer through app.state so its request handlers can resolve it
 # lazily after startup. This removes the previous always-UNSIGNED Council path
 # without re-registering duplicate routes or committing any key material.
@@ -8911,13 +8948,21 @@ def _a11oy_pubkey_fpr() -> str:
     return _hashv2.sha256(_A11OY_PUB_PEM.strip().encode()).hexdigest()[:16]
 
 
-# ---- /cosign.pub — serve a11oy's in-image public key (PEM, text/plain) ----
+# ---- /cosign.pub — serve a11oy's shared public key (PEM, text/plain) --------
 @app.get("/cosign.pub")
 @app.get("/api/a11oy/cosign.pub")
 async def a11oy_cosign_pub_v2() -> Response:
     if not _A11OY_PUB_PEM:
-        return PlainTextResponse("# a11oy in-image key unavailable\n", status_code=503)
-    return PlainTextResponse(_A11OY_PUB_PEM, media_type="text/plain")
+        return PlainTextResponse(
+            "# a11oy shared key unavailable\n",
+            status_code=503,
+            headers={"cache-control": "no-store"},
+        )
+    return PlainTextResponse(
+        _A11OY_PUB_PEM,
+        media_type="text/plain",
+        headers={"cache-control": "no-store"},
+    )
 
 
 # ---- /demo-cosign.pub — DEMO-ONLY public key (PEM, text/plain) -------------
@@ -12555,7 +12600,7 @@ try:
     import sys as _loop_sys
 
     def _a11oy_loop_verify(env):
-        """Re-verify a DSSE envelope against a11oy's in-image public key by
+        """Re-verify a DSSE envelope against a11oy's shared public key by
         recomputing the PAE over the embedded payload. Returns the structured
         verdict the loop module expects. Honest: if no key/sig, signature_valid
         is False with a clear reason."""
@@ -12569,7 +12614,7 @@ try:
                         "detail": "unsigned envelope (no signature bytes present)"}
             if _A11OY_PRIV is None:
                 return {"signature_valid": False,
-                        "detail": "in-image key unavailable in this runtime"}
+                        "detail": "shared key unavailable in this runtime"}
             body = _b64x.b64decode(payload_b64)
             to_verify = _a11oy_pae(ptype, body)
             pub = _A11OY_PRIV.public_key()
@@ -12577,7 +12622,7 @@ try:
             pub.verify(sig, to_verify, _ecv2.ECDSA(_hashesv2.SHA256()))
             return {"signature_valid": True,
                     "detail": "ECDSA-P256-SHA256 over DSSE PAE verified against "
-                              "a11oy in-image public key (/cosign.pub)."}
+                              "a11oy shared public key (/cosign.pub)."}
         except Exception as _ve:
             return {"signature_valid": False,
                     "detail": "signature check failed: %s" % type(_ve).__name__}
@@ -12595,8 +12640,17 @@ try:
         _a11oy_sign_receipt,
         verify_fn=_a11oy_loop_verify,
         pub_pem_fn=_a11oy_loop_pubpem,
-        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
-                      "resets on rebuild, verifiable vs /cosign.pub)"),
+        signer_label=(
+            "deployment-persistent ECDSA-P256 (stable until secret rotation, "
+            "verifiable vs /cosign.pub)"
+            if _A11OY_KEY_SOURCE.startswith("persistent:")
+            else (
+            "shared process ECDSA-P256 (ephemeral until restart, verifiable "
+            "vs /cosign.pub)"
+            if _A11OY_KEY_SOURCE == "ephemeral"
+            else "UNAVAILABLE (shared signing key failed closed)"
+            )
+        ),
     )
     print(f"[a11oy] governed agent loop registered: {_loop_status}", file=_loop_sys.stderr)
     _LOOP_DIAG = {"status": "ok", "registered": _loop_status}
