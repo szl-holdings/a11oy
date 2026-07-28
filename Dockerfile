@@ -521,7 +521,7 @@ COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js stati
 
 # --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---
 # … (full rationale: docs/DOCKERFILE_NOTES.md §67)
-COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co ./policy/colang/
+COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co policy/colang/gdw_enforcement_contract.json ./policy/colang/
 # GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
 # … (full rationale: docs/DOCKERFILE_NOTES.md §68)
 COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py

@@ -2,25 +2,37 @@
 
 Date: 2026-07-28
 
-Current delivery status: `UNAVAILABLE`. This file preserves historical,
-isolated-harness evidence. It does not authorize the merged operational surface;
-the routes are now fail-closed pending canonical governance, persistent
-ownership/quota/retention controls, conflict-free route ownership, and
-transactionally durable receipt/proof publication.
+Status: `MEASURED` historical isolated-harness evidence. It does not validate
+the post-merge governance and atomicity correction, which requires its own
+protected merge, exact-source relock, and live checks.
 
-Status: `MEASURED` in an isolated local harness; production and Hugging Face deployment remain `UNVERIFIED` until the protected merge, image publication, exact-source relock, and live endpoint checks complete.
+Successor status: `MEASURED_LOCAL` for the forward-only draft working tree only.
+The local adversarial suite passed `17 / 17` on 2026-07-28. It covered strict
+rejection of unknown policy flows and evaluator exceptions, persisted principal
+ownership, cross-owner
+read/replay/mutation denial, bounded request quotas and post-export reclamation,
+canonical outbox tamper detection even after attacker-controlled rehashing,
+generation-bound immutable artifacts across database reset, lease-token fencing,
+and replay telemetry. This is not independent review, protected merge,
+deployment, or production evidence.
 
 ## Operational scope
 
 The A11oy runtime is the canonical implementation owner. This change adds:
 
-- authenticated GDW step, metrics, metadata, and integrity APIs;
+- principal-authenticated GDW step, metrics, metadata, and integrity APIs;
 - replay-safe request IDs with conflict rejection;
 - SQLite WAL persistence with a serialized writer queue;
 - ACCEPT, REJECT, and QUARANTINE state transitions;
 - a policy dispatcher for `kda_local`, `laguna_hybrid`, and `mla_global`;
-- signed activation receipts using the existing A11oy receipt substrate;
-- synchronous proof export and a durable proof-outbox mode;
+- deterministic local receipts (the original run used the in-memory A11oy
+  substrate; those receipts were not cryptographically signed);
+- canonical receipt/proof intent plus full-digest-bound outbox projection;
+  synchronous external export is rejected by the corrective contract;
+- bounded owner/global request, session, and artifact quotas with finite
+  retention and export-aware reclamation;
+- immutable owner-scoped, generation- and content-bound artifact identities;
+- token-fenced effect leases and fail-closed integrity checks;
 - Prometheus text metrics, dashboard exports, Postman checks, burst and Locust load tools;
 - CUDA memory comparison tooling for KDA and MLA state;
 - Lean models for scheduler soundness, activation receipts, replay, and delta-state invariants.
@@ -43,11 +55,27 @@ The API policy selects a route but does not claim that the selected research ker
 - Throughput: `42.05221442` requests/second.
 - Latency: p50 `2,880.92855 ms`, p95 `19,368.32543 ms`, p99 `36,283.72173 ms`.
 
-The run satisfies functional completeness and integrity gates. The observed p95 and p99 do not establish a production latency SLA.
+The historical run satisfied its then-current functional and integrity gates.
+The observed p95 and p99 do not establish a production latency SLA, and the run
+does not exercise the successor semantics.
 
 ### Failure and remediation
 
-The first synchronous-proof 10,000-request run returned `9,967` successful responses and `33` errors. Receipts and SQLite integrity remained complete, but the run failed the strict response gate. Proof publication was moved behind a durable SQLite outbox, and the burst client received bounded same-request-ID transport retries. The final fresh run completed with zero transport or response errors, and all outbox rows were subsequently exported.
+The first synchronous-proof 10,000-request run returned `9,967` successful
+responses and `33` errors. Receipts and SQLite integrity appeared complete, but
+the run failed the strict response gate and did not prove cross-system
+atomicity. The correction moves both receipt and proof projections behind one
+transactional effect outbox with deterministic idempotency keys and leased
+claims. The historical final fresh run completed with zero transport or response
+errors; it is not evidence for the corrected implementation until the corrected
+harness is rerun.
+
+The first correction draft remained unsafe: unknown Colang flows could be
+reported as evaluated without enforcement; one global token had no persisted
+object ownership; outbox rows were not bound back to canonical response and
+receipt identities; reset databases could overwrite evidence paths; and stale
+workers could interfere with newer leases. The forward-only successor repairs
+those contracts but remains draft and unreviewed at this evidence boundary.
 
 ### Postman
 
