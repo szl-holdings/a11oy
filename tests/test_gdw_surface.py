@@ -24,6 +24,11 @@ def _client(tmp_path: Path) -> TestClient:
         kernel=GovernedWorkspaceKernel(),
         db_path=tmp_path / "workspace.sqlite3",
         persistent_required=False,
+        governance_gate=lambda _: {
+            "decision": "allow",
+            "receipt": {"receipt_id": "root-contract-governance"},
+            "dsse": {"signed": False, "signatures": []},
+        },
     )
     assert registration["runtime_ready"] is True
     assert registration["storage_ready"] is True
