@@ -47,6 +47,7 @@ TTL_SECONDS = 300
 MAX_BODY = 64 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
+EXECUTION_TIMEOUT_SECONDS = 120
 ALLOWED_ACTIONS = {"estate.refresh", "probe.public_surface"}
 ALLOWED_PROBE_HOSTS = {
     "a-11-oy.com",
@@ -381,6 +382,30 @@ class Store:
             if result.rowcount != 1:
                 raise RuntimeError("passport attempt is absent or already consumed")
 
+    def outcome_for_passport(self, digest: str) -> dict[str, Any] | None:
+        with self.lock, self.connect() as db:
+            rows = db.execute(
+                """SELECT sequence,kind,payload,envelope,receipt_hash,created_at
+                   FROM receipts WHERE kind='passport.outcome'
+                   ORDER BY sequence DESC"""
+            ).fetchall()
+        for row in rows:
+            receipt = json.loads(row["payload"])
+            outcome = receipt.get("payload")
+            if isinstance(outcome, dict) and outcome.get("passport_digest") == digest:
+                return {
+                    "outcome": outcome,
+                    "outcome_receipt": {
+                        "sequence": row["sequence"],
+                        "kind": row["kind"],
+                        "receipt": receipt,
+                        "envelope": json.loads(row["envelope"]),
+                        "receipt_hash": row["receipt_hash"],
+                        "created_at": row["created_at"],
+                    },
+                }
+        return None
+
 
 @dataclass
 class Observation:
@@ -618,6 +643,7 @@ class Service:
         self.signer = ReceiptSigner()
         self.collector = Collector()
         self.refresh_lock = asyncio.Lock()
+        self.execution_tasks: set[asyncio.Task[Any]] = set()
         self.started = False
         self.background_task: asyncio.Task[Any] | None = None
 
@@ -899,19 +925,47 @@ class Service:
                 },
             )
         self.store.consume_attempt(digest)
+        task = asyncio.create_task(
+            self._execute_consumed(digest, passport, governance),
+            name=f"series-a-execute-{digest[:12]}",
+        )
+        self.execution_tasks.add(task)
+
+        def finished(value: asyncio.Task[Any]) -> None:
+            self.execution_tasks.discard(value)
+            if not value.cancelled():
+                try:
+                    value.exception()
+                except Exception:
+                    pass
+
+        task.add_done_callback(finished)
+        return await asyncio.shield(task)
+
+    async def _execute_consumed(
+        self,
+        digest: str,
+        passport: Mapping[str, Any],
+        governance: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        action = passport["action"]
         started = _now()
         try:
-            if action["type"] == "estate.refresh":
-                result = await self.refresh(passport["passport_id"])
-                outcome = {
-                    "status": "SUCCEEDED",
-                    "manifest_digest": result["manifest"]["manifest_digest"],
-                    "estate_status": result["manifest"]["status"],
-                }
-            elif action["type"] == "probe.public_surface":
-                outcome = await self._probe(str(action["target"]))
-            else:
+            async def run() -> dict[str, Any]:
+                if action["type"] == "estate.refresh":
+                    result = await self.refresh(str(passport["passport_id"]))
+                    return {
+                        "status": "SUCCEEDED",
+                        "manifest_digest": result["manifest"]["manifest_digest"],
+                        "estate_status": result["manifest"]["status"],
+                    }
+                if action["type"] == "probe.public_surface":
+                    return await self._probe(str(action["target"]))
                 raise RuntimeError("action left allowlist after authorization")
+
+            outcome = await asyncio.wait_for(
+                run(), timeout=EXECUTION_TIMEOUT_SECONDS
+            )
         except Exception as exc:
             outcome = {"status": "FAILED", **_safe_error(exc)}
         outcome.update(
@@ -1047,6 +1101,23 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     async def execute(request: Request) -> Response:
         return JSONResponse(await service.execute(await _bounded_json(request)))
 
+    async def passport_outcome(request: Request) -> Response:
+        digest = str(request.path_params.get("passport_digest") or "").lower()
+        if len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest):
+            raise HTTPException(
+                status_code=422,
+                detail="passport digest must be 64 lowercase hex characters",
+            )
+        value = service.store.outcome_for_passport(digest)
+        if value is None:
+            raise HTTPException(
+                status_code=404,
+                detail="passport outcome not persisted yet",
+            )
+        if request.method == "HEAD":
+            return Response(status_code=200, media_type="application/json")
+        return JSONResponse(value, headers={"cache-control": "no-store"})
+
     async def receipts(request: Request) -> Response:
         if request.method == "HEAD":
             return Response(status_code=200, media_type="application/json")
@@ -1090,6 +1161,11 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         (f"{prefix}/refresh", refresh, ["POST"]),
         (f"{prefix}/passports/evaluate", evaluate, ["POST"]),
         (f"{prefix}/passports/execute", execute, ["POST"]),
+        (
+            f"{prefix}/passports/outcomes/{{passport_digest}}",
+            passport_outcome,
+            ["GET", "HEAD"],
+        ),
         (f"{prefix}/receipts", receipts, ["GET", "HEAD"]),
         (f"{prefix}/trust", trust, ["GET", "HEAD"]),
         (f"{prefix}/public-key", public_key, ["GET", "HEAD"]),
