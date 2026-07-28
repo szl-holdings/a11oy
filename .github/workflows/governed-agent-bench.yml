@@ -49,7 +49,11 @@ jobs:
           --strict
 
       - name: Run benchmark contract tests
-        run: python -m unittest benchmarks/governed-agent-bench/test_score.py -v
+        run: >-
+          python -m unittest
+          benchmarks/governed-agent-bench/test_score.py
+          benchmarks/governed-agent-bench/test_publication.py
+          -v
 
       - name: Validate benchmark registry
         run: |
@@ -65,3 +69,67 @@ jobs:
             echo "false-green negative control unexpectedly passed" >&2
             exit 1
           fi
+
+      - name: Build exact Hub publication payloads
+        env:
+          SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python benchmarks/governed-agent-bench/build_publication.py
+          --output reports/governed-agent-bench-publication
+          --source-revision "$SOURCE_REVISION"
+          --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Upload prerelease publication evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: governed-agent-bench-prerelease-${{ github.run_id }}
+          path: reports/governed-agent-bench-publication
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish dataset and live leaderboard
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      PUBLICATION_DIR: reports/governed-agent-bench-publication
+    steps:
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Hugging Face client
+        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
+
+      - name: Rebuild exact payload from protected main
+        run: >-
+          python benchmarks/governed-agent-bench/build_publication.py
+          --output "$PUBLICATION_DIR"
+          --source-revision "$GITHUB_SHA"
+          --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Publish and read back immutable revisions
+        run: >-
+          python benchmarks/governed-agent-bench/publish_huggingface.py
+          --bundle "$PUBLICATION_DIR"
+          --source-revision "$GITHUB_SHA"
+          --receipt "$PUBLICATION_DIR/publication-receipt.json"
+
+      - name: Upload immutable publication receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: governed-agent-bench-publication-${{ github.run_id }}
+          path: reports/governed-agent-bench-publication
+          if-no-files-found: error
+          retention-days: 90

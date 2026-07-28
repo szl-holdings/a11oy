@@ -78,8 +78,14 @@ not prose quality.
 
 ## Publication boundary
 
-GitHub is canonical. A future Hugging Face dataset and leaderboard are
-**ROADMAP** until the exact corpus, schema, evaluator, immutable revision,
-license, and reproduced submissions are published together. Any mirror must
-link to the Git commit and preserve the `SAMPLE`, `COMPUTED`, and
-`STRUCTURE_ONLY` labels.
+GitHub is canonical. The protected publication lane builds one exact Hugging
+Face dataset and one read-only Gradio leaderboard Space, publishes both only
+after the benchmark tests pass on `main`, and independently reads every file
+back from the immutable Hub revisions. The workflow retains the resulting
+publication receipt as a GitHub Actions artifact.
+
+Until that post-merge receipt exists, Hub publication remains
+**READY_FOR_PROTECTED_PUBLICATION**, not live. Any mirror must link to the exact
+Git commit and preserve the `SAMPLE`, `COMPUTED`, and `STRUCTURE_ONLY` labels.
+The initial leaderboard contains no eligible model submissions; its 100-point
+row is explicitly a reference conformance fixture, not a model ranking.
