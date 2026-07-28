@@ -82,6 +82,10 @@ import Lutar.Round13.Lambda_Uniqueness
 -- (NOT imported — it carries honest `sorry` placeholders). No new axiom; the
 -- locked v11 count (749/14/163) is unchanged (this scope is counter-excluded).
 import Lutar.Puriq.Formulas.ProvedFormulas
+-- Wave 26 structural hooks: exact blend endpoints/rational closure and
+-- reject-preserves-state disposal. Neither upgrades Lambda uniqueness.
+import Lutar.LambdaAttnRes
+import Lutar.GovernedWorkspace
 
 
 /-!

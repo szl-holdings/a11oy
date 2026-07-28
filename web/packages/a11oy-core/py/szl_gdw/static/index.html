@@ -1,0 +1,196 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+  <title>Governed Delta Workspace · Wave 26</title>
+  <link rel="stylesheet" href="/gdw/styles.css">
+  <script src="/gdw/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <header class="topbar">
+    <a class="wordmark" href="/console">A11OY <span>operator</span></a>
+    <div class="truth-strip" aria-label="Truth status">
+      <span class="truth-label">MODELED</span>
+      <span id="connection-state" class="connection" data-state="pending">checking runtime</span>
+    </div>
+  </header>
+
+  <main id="workspace">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Wave 26 · Λ-AttnRes</p>
+        <h1 id="page-title">Governed Delta Workspace</h1>
+        <p class="lede">A copy-on-write state organ where every mutation crosses a fail-closed kernel and every committed write is bound to a durable Khipu receipt.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="refresh-status" class="button secondary" type="button">Refresh status</button>
+        <a class="button ghost" href="/holographic#gdw">Open 3D catalog</a>
+      </div>
+    </section>
+
+    <section class="status-grid" aria-label="Runtime status">
+      <article class="metric">
+        <span>Runtime</span>
+        <strong id="runtime-ready">—</strong>
+        <small>kernel + durable state</small>
+      </article>
+      <article class="metric">
+        <span>Storage</span>
+        <strong id="storage-ready">—</strong>
+        <small id="storage-basis">persistent mount required</small>
+      </article>
+      <article class="metric">
+        <span>Session step</span>
+        <strong id="session-step">—</strong>
+        <small id="session-hash">no active session</small>
+      </article>
+      <article class="metric">
+        <span>Last receipt</span>
+        <strong id="receipt-signing">—</strong>
+        <small id="receipt-id">no committed write</small>
+      </article>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite">
+      Status and computation remain MODELED. Training, hardware, energy, and performance evidence are UNAVAILABLE.
+    </div>
+
+    <section class="work-grid">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="kicker">01 · durable state</p>
+            <h2>Create or recover a session</h2>
+          </div>
+          <span class="tag">receipt-on-write</span>
+        </div>
+        <form id="session-form">
+          <label for="session-id">Session ID</label>
+          <div class="inline">
+            <input id="session-id" name="session_id" maxlength="128"
+                   pattern="[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"
+                   autocomplete="off" required>
+            <button id="generate-session" class="button ghost" type="button">Generate</button>
+          </div>
+          <label for="session-risk">Risk budget <output id="session-risk-value">0.50</output></label>
+          <input id="session-risk" name="risk_budget" type="range" min="0" max="1" step="0.01" value="0.5">
+          <div class="form-actions">
+            <button class="button primary" type="submit">Create session</button>
+            <button id="recover-session" class="button secondary" type="button">Recover</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="kicker">02 · kernel boundary</p>
+            <h2>Propose a governed step</h2>
+          </div>
+          <span class="tag">copy-on-write</span>
+        </div>
+        <form id="step-form">
+          <label for="request-text">Bounded request</label>
+          <textarea id="request-text" name="request" maxlength="8192" rows="5"
+                    placeholder="Describe the modeled workspace operation…" required></textarea>
+          <div class="field-pair">
+            <div>
+              <label for="idempotency-key">Idempotency key</label>
+              <input id="idempotency-key" maxlength="128" required>
+            </div>
+            <div>
+              <label for="step-risk">Risk budget</label>
+              <input id="step-risk" type="number" min="0" max="1" step="0.01" value="0.5" required>
+            </div>
+          </div>
+          <label for="experts">Allowed experts <span class="muted">(comma-separated)</span></label>
+          <input id="experts" maxlength="1024" placeholder="expert-a, expert-b">
+          <details>
+            <summary>Attach bounded evidence</summary>
+            <div class="details-grid">
+              <div>
+                <label for="evidence-id">Evidence ID</label>
+                <input id="evidence-id" maxlength="128" placeholder="evidence-1">
+              </div>
+              <div>
+                <label for="evidence-trust">Trust</label>
+                <input id="evidence-trust" type="number" min="0" max="1" step="0.01" value="0.5">
+              </div>
+              <div class="full">
+                <label for="evidence-uri">Source URI</label>
+                <input id="evidence-uri" maxlength="2048" placeholder="https://example.org/source">
+              </div>
+              <div class="full">
+                <label for="evidence-hash">Content SHA-256</label>
+                <input id="evidence-hash" minlength="64" maxlength="64"
+                       pattern="[0-9a-f]{64}" spellcheck="false" placeholder="64 lowercase hex characters">
+              </div>
+              <div class="full">
+                <label for="evidence-observed">Observed at</label>
+                <input id="evidence-observed" type="datetime-local">
+              </div>
+            </div>
+          </details>
+          <button class="button primary wide" type="submit">Submit to immutable kernel</button>
+        </form>
+      </article>
+
+      <article class="panel aggregate-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="kicker">03 · modeled tensor path</p>
+            <h2>Run Λ-AttnRes aggregation</h2>
+          </div>
+          <span class="tag">bounded · read/compute</span>
+        </div>
+        <form id="aggregate-form">
+          <label for="sources">Sources tensor <span class="muted">(B,T,S,D JSON)</span></label>
+          <textarea id="sources" rows="5" spellcheck="false">[[[[1,4],[4,1]]]]</textarea>
+          <div class="field-pair">
+            <div>
+              <label for="lambda">λ blend <output id="lambda-value">0.25</output></label>
+              <input id="lambda" type="range" min="0" max="1" step="0.01" value="0.25">
+            </div>
+            <label class="check">
+              <input id="egyptian" type="checkbox" checked>
+              <span>Exact rational projection</span>
+            </label>
+          </div>
+          <button class="button secondary wide" type="submit">Compute modeled aggregate</button>
+        </form>
+      </article>
+
+      <article class="panel audit-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="kicker">04 · inspect</p>
+            <h2>Receipt and certificate</h2>
+          </div>
+          <button id="copy-output" class="button ghost" type="button">Copy JSON</button>
+        </div>
+        <pre id="output" tabindex="0" aria-label="Latest API result">No operation executed.</pre>
+      </article>
+    </section>
+
+    <section class="limitations">
+      <h2>Truth boundary</h2>
+      <div>
+        <p><strong>Implemented:</strong> bounded aggregation, immutable kernel disposal, transactional SQLite state, replay-safe writes, DSSE-enveloped Khipu records, read-only GETs, and honest degraded registration.</p>
+        <p><strong>Not claimed:</strong> improved training loss, model quality, hardware behavior, energy savings, throughput, production deployment, or formal Λ uniqueness. Those remain UNAVAILABLE or Conjecture 1 until their separate evidence gates close.</p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <span>Doctrine v11 · locked-8 unchanged · Λ = Conjecture 1</span>
+    <a href="/api/a11oy/v1/gdw/status">Status JSON</a>
+  </footer>
+  <script src="/vendor/a11oy-operator-widget.js" data-surface="a11oy" defer></script>
+</body>
+</html>

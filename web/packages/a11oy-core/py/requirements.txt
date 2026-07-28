@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+
+# Runtime pins for the MODELED Governed Delta Workspace.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi==0.137.1
+torch==2.13.0+cpu
