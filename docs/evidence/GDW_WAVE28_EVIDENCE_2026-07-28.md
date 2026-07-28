@@ -2,7 +2,9 @@
 
 Date: 2026-07-28
 
-Status: `MEASURED` in an isolated local harness; production and Hugging Face deployment remain `UNVERIFIED` until the protected merge, image publication, exact-source relock, and live endpoint checks complete.
+Status: `MEASURED` historical isolated-harness evidence. It does not validate
+the post-merge governance and atomicity correction, which requires its own
+protected merge, exact-source relock, and live checks.
 
 ## Operational scope
 
@@ -13,8 +15,10 @@ The A11oy runtime is the canonical implementation owner. This change adds:
 - SQLite WAL persistence with a serialized writer queue;
 - ACCEPT, REJECT, and QUARANTINE state transitions;
 - a policy dispatcher for `kda_local`, `laguna_hybrid`, and `mla_global`;
-- signed activation receipts using the existing A11oy receipt substrate;
-- synchronous proof export and a durable proof-outbox mode;
+- deterministic local receipts (the original run used the in-memory A11oy
+  substrate; those receipts were not cryptographically signed);
+- durable receipt/proof outbox projection; synchronous external export is
+  rejected by the corrective contract;
 - Prometheus text metrics, dashboard exports, Postman checks, burst and Locust load tools;
 - CUDA memory comparison tooling for KDA and MLA state;
 - Lean models for scheduler soundness, activation receipts, replay, and delta-state invariants.
@@ -41,7 +45,14 @@ The run satisfies functional completeness and integrity gates. The observed p95 
 
 ### Failure and remediation
 
-The first synchronous-proof 10,000-request run returned `9,967` successful responses and `33` errors. Receipts and SQLite integrity remained complete, but the run failed the strict response gate. Proof publication was moved behind a durable SQLite outbox, and the burst client received bounded same-request-ID transport retries. The final fresh run completed with zero transport or response errors, and all outbox rows were subsequently exported.
+The first synchronous-proof 10,000-request run returned `9,967` successful
+responses and `33` errors. Receipts and SQLite integrity appeared complete, but
+the run failed the strict response gate and did not prove cross-system
+atomicity. The post-merge correction moves both receipt and proof projections
+behind one transactional effect outbox with deterministic idempotency keys and
+leased claims. The historical final fresh run completed with zero transport or
+response errors; it is not evidence for the corrected implementation until the
+corrected harness is rerun.
 
 ### Postman
 

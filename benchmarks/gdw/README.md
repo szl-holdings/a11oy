@@ -19,6 +19,7 @@ python benchmarks/gdw/drain_proof_outbox.py --limit 1000
 Use `--shared-session shared-burst` on the burst client to stress serialized
 same-session transitions and SQLite contention. Raw JSON, CSV, summary JSON,
 offline HTML, and checksums are written under `output/bench_results/`.
-`outbox` mode atomically persists every theorem input with the transition and
-lets the drain export files outside the write transaction. `sync` mode remains
-the default for low-volume operator validation.
+`outbox` mode atomically persists the transition, deterministic local receipt,
+and receipt/proof projection records, then lets a leased drain export
+idempotently named files outside the write transaction. `sync` mode is rejected
+because an external write before SQLite commit can orphan or duplicate evidence.

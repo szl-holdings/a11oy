@@ -14,10 +14,9 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from gdw_attention import AttentionFeatures, choose_attention_mode
-from gdw_proofs import build_proof_payload, export_proof_payload, sha256_json
+from gdw_proofs import build_proof_payload, sha256_json
 from gdw_telemetry import GDWTelemetry
 from gdw_workspace import GDWWorkspace
-from szl_receipt_substrate import append_receipt
 from szl_sgh_scheduler import build_plan
 
 
@@ -97,6 +96,120 @@ def _decision(payload: GDWStepRequest) -> str:
     if payload.risk_budget >= 0.75:
         return "QUARANTINE"
     return "ACCEPT"
+
+
+def _governance_gate(
+    payload_data: dict,
+    request_id: str,
+    request_digest: str,
+) -> dict:
+    action = {
+        "tool": "execute",
+        "effecting": True,
+        "events": ["gate.evaluate"],
+        "action_type": "gdw.step",
+        "target": payload_data["session_id"],
+        "request_id": request_id,
+        "request_digest": request_digest,
+        "text": payload_data["request"],
+        "high_impact": float(payload_data["risk_budget"]) >= 0.75,
+        "irreversible": False,
+    }
+    try:
+        import szl_colang_policy
+
+        policy = szl_colang_policy.get_policy()
+        if not policy.loaded:
+            raise RuntimeError("no file-backed Colang policy is loaded")
+        colang = policy.evaluate(action)
+    except Exception as exc:
+        return {
+            "allowed": False,
+            "decision": "DENY",
+            "reason_codes": ["DOCTRINE_GATE_UNAVAILABLE"],
+            "detail": type(exc).__name__,
+            "writer_is_judge": False,
+        }
+
+    try:
+        import szl_codename_gate
+
+        serialized = json.dumps(
+            payload_data, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        )
+        codename_hits = sorted(
+            {str(value) for value in szl_codename_gate.scan_text(serialized)}
+        )
+    except Exception as exc:
+        return {
+            "allowed": False,
+            "decision": "DENY",
+            "reason_codes": ["CODENAME_GATE_UNAVAILABLE"],
+            "detail": type(exc).__name__,
+            "writer_is_judge": False,
+            "colang": {
+                "decision": colang.get("decision"),
+                "fired_flows": colang.get("fired_flows", []),
+                "flows_evaluated": colang.get("flows_evaluated", []),
+                "policy_files": colang.get("policy_files", []),
+            },
+        }
+
+    reasons = []
+    if not colang.get("allow"):
+        reasons.append("DOCTRINE_POLICY_DENY")
+    if codename_hits:
+        reasons.append("CODENAME_POLICY_DENY")
+    return {
+        "allowed": not reasons,
+        "decision": "ALLOW" if not reasons else "DENY",
+        "reason_codes": reasons or ["FILE_BACKED_GOVERNANCE_PASS"],
+        "writer_is_judge": False,
+        "colang": {
+            "decision": colang.get("decision"),
+            "fired_flows": colang.get("fired_flows", []),
+            "flows_evaluated": colang.get("flows_evaluated", []),
+            "policy_files": colang.get("policy_files", []),
+        },
+        "codename_gate": {
+            "clean": not codename_hits,
+            "hits": codename_hits,
+        },
+    }
+
+
+def _atomic_receipt(
+    *,
+    proposal_id: str,
+    request_id: str,
+    session_id: str,
+    step: int,
+    before_hash: str,
+    after_hash: str,
+    scheduler_mode: str,
+    governance: dict,
+    timestamp: str,
+) -> dict:
+    receipt = {
+        "schema": "szl.gdw.transaction-receipt/v1",
+        "status": "UNSIGNED_ATOMIC",
+        "proposal_id": proposal_id,
+        "request_id": request_id,
+        "session_id": session_id,
+        "step": step,
+        "state_before_hash": before_hash,
+        "state_after_hash": after_hash,
+        "scheduler_mode": scheduler_mode,
+        "governance_evidence_sha256": sha256_json(governance),
+        "governance": governance,
+        "created_at": timestamp,
+    }
+    receipt["receipt_hash"] = sha256_json(receipt)
+    return receipt
+
+
+def _effect_key(request_id: str, kind: str) -> str:
+    return hashlib.sha256(f"{request_id}:{kind}".encode("utf-8")).hexdigest()
 
 
 def register(app, ns: str = "a11oy"):
@@ -232,7 +345,13 @@ def register(app, ns: str = "a11oy"):
                 )
                 routing = choose_attention_mode(features, payload.mode_hint)
                 selected_mode = routing["mode"]
-                decision = _decision(payload)
+                precondition_decision = _decision(payload)
+                governance = _governance_gate(
+                    payload_data, request_id, request_digest
+                )
+                decision = precondition_decision
+                if decision == "ACCEPT" and not governance["allowed"]:
+                    decision = "REJECT"
                 mutates = decision == "ACCEPT" and not payload.dry_run
                 step = before_step + 1 if mutates else before_step
                 proposal_id = hashlib.sha256(
@@ -258,20 +377,18 @@ def register(app, ns: str = "a11oy"):
                         after_hash,
                         timestamp,
                     )
-                    receipt = append_receipt(
-                        actor_id="gdw-frontier",
-                        tool_name="gdw.step",
-                        payload={
-                            "proposal_id": proposal_id,
-                            "request_id": request_id,
-                            "session_id": payload.session_id,
-                            "step": step,
-                            "state_before_hash": before_hash,
-                            "state_after_hash": after_hash,
-                            "scheduler_mode": selected_mode,
-                        },
+                    receipt = _atomic_receipt(
+                        proposal_id=proposal_id,
+                        request_id=request_id,
+                        session_id=payload.session_id,
+                        step=step,
+                        before_hash=before_hash,
+                        after_hash=after_hash,
+                        scheduler_mode=selected_mode,
+                        governance=governance,
+                        timestamp=timestamp,
                     )
-                    receipt_hash = receipt.get("receipt_hash") or sha256_json(receipt)
+                    receipt_hash = receipt["receipt_hash"]
                 else:
                     state = previous["state"] if previous else {"state": "GENESIS"}
                     after_hash = before_hash
@@ -287,29 +404,23 @@ def register(app, ns: str = "a11oy"):
                     scheduler_mode=selected_mode,
                     receipt_hash=receipt_hash,
                     dry_run=payload.dry_run,
+                    governance=governance,
                 )
                 proof_mode = os.environ.get(
-                    "GDW_PROOF_EXPORT_MODE", "sync"
+                    "GDW_PROOF_EXPORT_MODE", "outbox"
                 ).strip().lower()
-                if proof_mode == "outbox":
-                    workspace.save_proof_outbox(
-                        connection,
-                        proposal_id,
-                        proof_payload,
-                        proof_payload["payload_sha256"],
-                        timestamp,
-                    )
-                    proof_artifact = {
-                        "status": "OUTBOX_PERSISTED",
-                        "payload_sha256": proof_payload["payload_sha256"],
-                        "formal_status": "NOT_RUN",
-                    }
-                elif proof_mode == "sync":
-                    proof_artifact = export_proof_payload(proof_payload)
-                else:
+                if proof_mode != "outbox":
                     raise ValueError(
-                        "GDW_PROOF_EXPORT_MODE must be 'sync' or 'outbox'"
+                        "GDW_PROOF_EXPORT_MODE must be 'outbox'; "
+                        "synchronous external effects are not transaction-safe"
                     )
+                proof_artifact = {
+                    "status": "OUTBOX_PENDING",
+                    "kind": "proof_export",
+                    "idempotency_key": _effect_key(request_id, "proof_export"),
+                    "payload_sha256": proof_payload["payload_sha256"],
+                    "formal_status": "NOT_RUN",
+                }
                 plan = build_plan(
                     tasks=("governance", "attention_route", "state_transition", "verify"),
                     meta={"proposal_id": proposal_id},
@@ -326,16 +437,18 @@ def register(app, ns: str = "a11oy"):
                     "state_hash": after_hash,
                     "state_before_hash": before_hash,
                     "receipt_hash": receipt_hash or None,
+                    "receipt_status": receipt.get("status") if receipt else None,
                     "scheduler_mode": selected_mode,
                     "routing": routing,
                     "kernel_execution": "NOT_EXECUTED_BY_CONTROL_API",
                     "dry_run": payload.dry_run,
                     "replayed": False,
                     "audit": {
-                        "governance": "DENY_BY_DEFAULT",
+                        "governance": governance,
+                        "precondition_decision": precondition_decision,
                         "allowed_experts": sorted(set(payload.allowed_experts)),
                         "plan_version": plan["plan_version"],
-                        "receipt_substrate": "szl_receipt_substrate"
+                        "receipt_substrate": "gdw.sqlite.atomic/v1"
                         if receipt is not None
                         else None,
                         "proof_export_mode": proof_mode,
@@ -362,6 +475,24 @@ def register(app, ns: str = "a11oy"):
                         receipt,
                         timestamp,
                     )
+                    workspace.save_effect_outbox(
+                        connection,
+                        request_id,
+                        "receipt_projection",
+                        receipt,
+                        sha256_json(receipt),
+                        _effect_key(request_id, "receipt_projection"),
+                        timestamp,
+                    )
+                workspace.save_effect_outbox(
+                    connection,
+                    request_id,
+                    "proof_export",
+                    proof_payload,
+                    proof_payload["payload_sha256"],
+                    _effect_key(request_id, "proof_export"),
+                    timestamp,
+                )
 
             _TELEMETRY.observe(
                 (time.perf_counter() - started) * 1000.0,

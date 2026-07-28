@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import threading
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
@@ -90,10 +91,32 @@ class GDWWorkspace:
                 created_at TEXT NOT NULL,
                 exported_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS effect_outbox (
+                idempotency_key TEXT PRIMARY KEY,
+                request_id TEXT NOT NULL,
+                kind TEXT NOT NULL
+                    CHECK(kind IN ('receipt_projection', 'proof_export')),
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                status TEXT NOT NULL
+                    CHECK(status IN ('PENDING', 'CLAIMED', 'EXPORTED')),
+                attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+                lease_owner TEXT,
+                lease_until TEXT,
+                last_error TEXT,
+                artifact_json TEXT,
+                created_at TEXT NOT NULL,
+                exported_at TEXT,
+                UNIQUE(request_id, kind),
+                FOREIGN KEY(request_id) REFERENCES requests(request_id)
+                    DEFERRABLE INITIALLY DEFERRED
+            );
             CREATE INDEX IF NOT EXISTS idx_requests_session ON requests(session_id);
             CREATE INDEX IF NOT EXISTS idx_receipts_session ON receipts(session_id, step);
             CREATE INDEX IF NOT EXISTS idx_proof_outbox_status
                 ON proof_outbox(status, created_at);
+            CREATE INDEX IF NOT EXISTS idx_effect_outbox_status
+                ON effect_outbox(status, lease_until, created_at);
             """
         )
 
@@ -247,6 +270,139 @@ class GDWWorkspace:
             ),
         )
 
+    @staticmethod
+    def save_effect_outbox(
+        connection: sqlite3.Connection,
+        request_id: str,
+        kind: str,
+        payload: Dict[str, Any],
+        payload_sha256: str,
+        idempotency_key: str,
+        created_at: str,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO effect_outbox(
+                idempotency_key, request_id, kind, payload_json,
+                payload_sha256, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?)
+            """,
+            (
+                idempotency_key,
+                request_id,
+                kind,
+                json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                payload_sha256,
+                created_at,
+            ),
+        )
+
+    def claim_effects(
+        self,
+        worker_id: str,
+        limit: int = 100,
+        lease_seconds: int = 300,
+    ) -> list:
+        if not worker_id or len(worker_id) > 128:
+            raise ValueError("worker_id must contain 1-128 characters")
+        bounded = max(1, min(int(limit), 10000))
+        lease = max(1, min(int(lease_seconds), 3600))
+        now = datetime.now(timezone.utc)
+        now_text = now.isoformat()
+        lease_until = (now + timedelta(seconds=lease)).isoformat()
+        claimed = []
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE effect_outbox
+                SET status = 'PENDING', lease_owner = NULL, lease_until = NULL
+                WHERE status = 'CLAIMED' AND lease_until <= ?
+                """,
+                (now_text,),
+            )
+            rows = connection.execute(
+                """
+                SELECT idempotency_key, request_id, kind, payload_json,
+                       payload_sha256, attempts
+                FROM effect_outbox
+                WHERE status = 'PENDING'
+                ORDER BY created_at, idempotency_key
+                LIMIT ?
+                """,
+                (bounded,),
+            ).fetchall()
+            for row in rows:
+                updated = connection.execute(
+                    """
+                    UPDATE effect_outbox
+                    SET status = 'CLAIMED', lease_owner = ?, lease_until = ?,
+                        attempts = attempts + 1, last_error = NULL
+                    WHERE idempotency_key = ? AND status = 'PENDING'
+                    """,
+                    (worker_id, lease_until, row["idempotency_key"]),
+                )
+                if updated.rowcount != 1:
+                    continue
+                claimed.append(
+                    {
+                        "idempotency_key": row["idempotency_key"],
+                        "request_id": row["request_id"],
+                        "kind": row["kind"],
+                        "payload": json.loads(row["payload_json"]),
+                        "payload_sha256": row["payload_sha256"],
+                        "attempt": int(row["attempts"]) + 1,
+                        "lease_owner": worker_id,
+                        "lease_until": lease_until,
+                    }
+                )
+        return claimed
+
+    def mark_effect_exported(
+        self,
+        idempotency_key: str,
+        worker_id: str,
+        artifact: Dict[str, Any],
+        exported_at: str,
+    ) -> None:
+        with self.transaction() as connection:
+            updated = connection.execute(
+                """
+                UPDATE effect_outbox
+                SET status = 'EXPORTED', artifact_json = ?, exported_at = ?,
+                    lease_owner = NULL, lease_until = NULL, last_error = NULL
+                WHERE idempotency_key = ? AND status = 'CLAIMED'
+                      AND lease_owner = ?
+                """,
+                (
+                    json.dumps(artifact, sort_keys=True, separators=(",", ":")),
+                    exported_at,
+                    idempotency_key,
+                    worker_id,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("effect claim is absent, expired, or owned elsewhere")
+
+    def release_effect(
+        self,
+        idempotency_key: str,
+        worker_id: str,
+        error: str,
+    ) -> None:
+        with self.transaction() as connection:
+            updated = connection.execute(
+                """
+                UPDATE effect_outbox
+                SET status = 'PENDING', lease_owner = NULL, lease_until = NULL,
+                    last_error = ?
+                WHERE idempotency_key = ? AND status = 'CLAIMED'
+                      AND lease_owner = ?
+                """,
+                (str(error)[:1024], idempotency_key, worker_id),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("effect claim is absent, expired, or owned elsewhere")
+
     def pending_proofs(self, limit: int = 100) -> list:
         bounded = max(1, min(int(limit), 10000))
         connection = self._connect()
@@ -304,13 +460,30 @@ class GDWWorkspace:
         try:
             check = connection.execute("PRAGMA integrity_check").fetchone()[0]
             counts = {}
-            for table in ("session_state", "requests", "receipts", "proof_outbox"):
+            for table in (
+                "session_state",
+                "requests",
+                "receipts",
+                "proof_outbox",
+                "effect_outbox",
+            ):
                 counts[table] = int(
                     connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 )
             pending_proofs = int(
                 connection.execute(
                     "SELECT COUNT(*) FROM proof_outbox WHERE status = 'PENDING'"
+                ).fetchone()[0]
+            )
+            pending_effects = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox "
+                    "WHERE status IN ('PENDING', 'CLAIMED')"
+                ).fetchone()[0]
+            )
+            claimed_effects = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox WHERE status = 'CLAIMED'"
                 ).fetchone()[0]
             )
             orphan_receipts = int(
@@ -327,6 +500,8 @@ class GDWWorkspace:
                 "sqlite_integrity": check,
                 "orphan_receipts": orphan_receipts,
                 "pending_proofs": pending_proofs,
+                "pending_effects": pending_effects,
+                "claimed_effects": claimed_effects,
                 "counts": counts,
                 "path": str(self.path),
                 "wal": True,
