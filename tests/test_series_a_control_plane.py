@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -24,7 +25,10 @@ def app(tmp_path: Path) -> FastAPI:
 
 
 def observed_evidence(
-    service: control.Service, *, status: str = "OBSERVED"
+    service: control.Service,
+    *,
+    status: str = "OBSERVED",
+    critical_failures: list[str] | None = None,
 ) -> list[dict[str, str]]:
     now = datetime.now(timezone.utc)
     observed_at = now.isoformat().replace("+00:00", "Z")
@@ -35,7 +39,11 @@ def observed_evidence(
         "valid_until": valid_until,
         "source_revision": "a" * 40,
         "status": status,
-        "critical_failures": [] if status == "OBSERVED" else ["ESTATE_BLOCKED"],
+        "critical_failures": (
+            critical_failures
+            if critical_failures is not None
+            else ([] if status == "OBSERVED" else ["ESTATE_BLOCKED"])
+        ),
         "counts": {},
     }
     envelope = service.signer.sign(manifest)
@@ -337,6 +345,106 @@ def test_routes_are_front_moved_and_head_is_bodyless(tmp_path: Path) -> None:
     assert status.json()["terminal"] is True
 
 
+def test_direct_refresh_is_restricted_to_the_passport_flow(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    observed_evidence(service)
+    collected = False
+
+    async def collect() -> dict[str, object]:
+        nonlocal collected
+        collected = True
+        return {}
+
+    monkeypatch.setattr(service.collector, "collect", collect)
+
+    with TestClient(value) as client:
+        before_receipts = service.store.list_receipts()
+        before_events = service.store.events_since(0)
+        response = client.post(
+            "/api/a11oy/v1/series-a/refresh",
+            json={"actor": "browser-shortcut"},
+        )
+        after_receipts = service.store.list_receipts()
+        after_events = service.store.events_since(0)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "DIRECT_REFRESH_DISABLED",
+        "required_flow": [
+            "/api/a11oy/v1/series-a/passports/evaluate",
+            "/api/a11oy/v1/series-a/passports/execute",
+        ],
+    }
+    assert collected is False
+    assert after_receipts == before_receipts
+    assert after_events == before_events
+
+
+def test_governed_refresh_passport_executes_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    evidence = observed_evidence(service)
+    collected = 0
+
+    async def collect() -> dict[str, object]:
+        nonlocal collected
+        collected += 1
+        now = datetime.now(timezone.utc)
+        manifest: dict[str, object] = {
+            "schema": control.SCHEMA_MANIFEST,
+            "observed_at": now.isoformat().replace("+00:00", "Z"),
+            "valid_until": (now + timedelta(minutes=5))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "source_revision": "a" * 40,
+            "status": "OBSERVED",
+            "critical_failures": [],
+            "counts": {"github_repositories": 57},
+        }
+        manifest["manifest_digest"] = control._sha(manifest)
+        return manifest
+
+    monkeypatch.setattr(service.collector, "collect", collect)
+
+    with TestClient(value) as client:
+        evaluated = client.post(
+            "/api/a11oy/v1/series-a/passports/evaluate",
+            json={
+                "principal_id": "series-a-ui",
+                "action": {
+                    "type": "estate.refresh",
+                    "target": "szl://estate/current",
+                    "impact": "MODERATE",
+                    "irreversible": False,
+                },
+                "evidence": evidence,
+            },
+        )
+        assert evaluated.status_code == 200
+        digest = evaluated.json()["passport_digest"]
+        executed = client.post(
+            "/api/a11oy/v1/series-a/passports/execute",
+            json={"passport_digest": digest},
+        )
+        replay = client.post(
+            "/api/a11oy/v1/series-a/passports/execute",
+            json={"passport_digest": digest},
+        )
+
+    assert evaluated.json()["passport"]["decision"] == "ALLOW"
+    assert executed.status_code == 200
+    assert executed.json()["outcome"]["status"] == "SUCCEEDED"
+    assert executed.json()["outcome"]["estate_status"] == "OBSERVED"
+    assert service.store.load_passport(digest)["attempts"] == 1
+    assert collected == 1
+    assert replay.status_code == 409
+
+
 def test_passport_blocks_unknown_evidence_and_writes_signed_or_honestly_unsigned_receipt(tmp_path: Path) -> None:
     value = app(tmp_path)
     observed_evidence(value.state.szl_series_a_service)
@@ -478,6 +586,36 @@ def test_blocked_server_snapshot_cannot_authorize_execution(tmp_path: Path) -> N
     )
 
 
+def test_server_critical_failure_cannot_be_relabelled_observed(
+    tmp_path: Path,
+) -> None:
+    service = app(tmp_path).state.szl_series_a_service
+    evidence = observed_evidence(
+        service,
+        status="OBSERVED",
+        critical_failures=["canonical_a11oy_singleton_failed"],
+    )
+    assert evidence[0]["label"] == "OBSERVED"
+
+    result = service.evaluate_passport(
+        {
+            "action": {
+                "type": "estate.refresh",
+                "target": "szl://estate/current",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": evidence,
+        }
+    )
+
+    assert result["passport"]["decision"] == "BLOCK"
+    assert result["passport"]["reason_codes"] == [
+        "BOUNDED_REVERSIBLE_ACTION",
+        "CRITICAL_FAILURE_FREE_SERVER_EVIDENCE_REQUIRED",
+    ]
+
+
 def test_event_cursor_resumes_from_last_event_id_and_validates_range() -> None:
     resumed = Request(
         {
@@ -538,6 +676,9 @@ def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) ->
     assert style.headers["cache-control"] == "public,max-age=31536000,immutable"
     assert unversioned_script.headers["cache-control"] == "no-store"
     assert 'request("/passports/execute"' in script.text
+    assert 'request("/refresh"' not in script.text
+    assert script.text.count('request("/passports/evaluate"') == 2
+    assert script.text.count('request("/passports/execute"') == 2
     assert 'new EventSource(API + "/events")' in script.text
     assert "EVENT_KINDS.forEach" in script.text
     assert "EXECUTION_TIMEOUT_MS = 135000" in script.text
@@ -592,7 +733,7 @@ def test_asset_cache_digest_and_response_share_one_read(
     assert response.headers["cache-control"] == "public,max-age=31536000,immutable"
 
 
-def test_execute_rechecks_governance_and_preserves_attempt_on_deny(
+def test_execute_rechecks_governance_and_terminalizes_attempt_on_deny(
     tmp_path: Path, monkeypatch
 ) -> None:
     value = app(tmp_path)
@@ -623,17 +764,130 @@ def test_execute_rechecks_governance_and_preserves_attempt_on_deny(
     )
 
     with TestClient(value) as client:
-        response = client.post(
+        first = client.post(
             "/api/a11oy/v1/series-a/passports/execute",
             json={"passport_digest": digest},
         )
-        receipts = client.get("/api/a11oy/v1/series-a/receipts").json()["items"]
+        after_first_receipts = client.get(
+            "/api/a11oy/v1/series-a/receipts"
+        ).json()["items"]
+        after_first_events = service.store.events_since(0)
+        second = client.post(
+            "/api/a11oy/v1/series-a/passports/execute",
+            json={"passport_digest": digest},
+        )
+        after_second_receipts = client.get(
+            "/api/a11oy/v1/series-a/receipts"
+        ).json()["items"]
+        after_second_events = service.store.events_since(0)
 
-    assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "GOVERNANCE_DENY"
-    assert service.store.load_passport(digest)["attempts"] == 0
-    assert receipts[0]["kind"] == "passport.execution-denied"
-    assert receipts[0]["envelope"]["signature_status"] == "SIGNED"
+    assert first.status_code == 403
+    assert first.json()["detail"]["code"] == "GOVERNANCE_DENY"
+    assert service.store.load_passport(digest)["attempts"] == 1
+    assert after_first_receipts[0]["kind"] == "passport.execution-denied"
+    assert after_first_receipts[0]["envelope"]["signature_status"] == "SIGNED"
+    assert second.status_code == 409
+    assert second.json()["detail"] == "passport attempt already consumed"
+    assert after_second_receipts == after_first_receipts
+    assert after_second_events == after_first_events
+
+
+def test_blocked_passport_first_execute_is_terminal_and_replay_is_read_only(
+    tmp_path: Path,
+) -> None:
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    passport = service.evaluate_passport(
+        {
+            "principal_id": "tester",
+            "action": {
+                "type": "probe.public_surface",
+                "target": "https://a-11-oy.com/healthz",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": [
+                {
+                    "evidence_id": "caller-relabel",
+                    "label": "OBSERVED",
+                    "content_digest": "e" * 64,
+                }
+            ],
+        }
+    )
+    digest = passport["passport_digest"]
+    assert passport["passport"]["decision"] == "BLOCK"
+
+    with TestClient(value) as client:
+        first = client.post(
+            "/api/a11oy/v1/series-a/passports/execute",
+            json={"passport_digest": digest},
+        )
+        after_first_receipts = client.get(
+            "/api/a11oy/v1/series-a/receipts"
+        ).json()["items"]
+        after_first_events = service.store.events_since(0)
+        second = client.post(
+            "/api/a11oy/v1/series-a/passports/execute",
+            json={"passport_digest": digest},
+        )
+        after_second_receipts = client.get(
+            "/api/a11oy/v1/series-a/receipts"
+        ).json()["items"]
+        after_second_events = service.store.events_since(0)
+
+    assert first.status_code == 403
+    assert first.json()["detail"]["code"] == "PASSPORT_DECISION_DENY"
+    assert first.json()["detail"]["reason_codes"] == ["PASSPORT_DECISION_BLOCK"]
+    assert service.store.load_passport(digest)["attempts"] == 1
+    assert after_first_receipts[0]["kind"] == "passport.execution-denied"
+    assert second.status_code == 409
+    assert after_second_receipts == after_first_receipts
+    assert after_second_events == after_first_events
+
+
+def test_denied_attempt_compare_and_swap_allows_one_writer(
+    tmp_path: Path,
+) -> None:
+    service = app(tmp_path).state.szl_series_a_service
+    passport = service.evaluate_passport(
+        {
+            "action": {
+                "type": "probe.public_surface",
+                "target": "https://a-11-oy.com/healthz",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": observed_evidence(service),
+        }
+    )
+    digest = passport["passport_digest"]
+
+    def deny() -> str:
+        try:
+            service.store.consume_denied_attempt(
+                digest,
+                {
+                    "passport_digest": digest,
+                    "reason_codes": ["CONCURRENT_TEST_DENY"],
+                },
+                service.signer,
+            )
+        except RuntimeError:
+            return "ALREADY_CONSUMED"
+        return "TERMINALIZED"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: deny(), range(2)))
+
+    assert sorted(results) == ["ALREADY_CONSUMED", "TERMINALIZED"]
+    assert service.store.load_passport(digest)["attempts"] == 1
+    denials = [
+        item
+        for item in service.store.list_receipts()
+        if item["kind"] == "passport.execution-denied"
+    ]
+    assert len(denials) == 1
 
 
 def test_successful_execution_is_recoverable_by_passport_digest(

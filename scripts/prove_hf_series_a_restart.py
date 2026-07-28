@@ -224,13 +224,14 @@ def prove(
 ) -> dict[str, Any]:
     before = capture(session, origin, source_sha)
     if before["storage"]["receipt_count"] == 0:
-        response = session.post(
-            origin + "/api/a11oy/v1/series-a/refresh",
-            json={"actor": "protected-deploy-restart-proof"},
-            timeout=180,
-        )
-        response.raise_for_status()
-        before = capture(session, origin, source_sha)
+        # Public refresh is passport-only. The canonical startup scheduler owns
+        # the initial observation, so the proof waits for its persisted receipt
+        # instead of invoking a privileged mutation shortcut.
+        for _ in range(max(1, attempts)):
+            time.sleep(max(0, retry_seconds))
+            before = capture(session, origin, source_sha)
+            if before["storage"]["receipt_count"] > 0:
+                break
     if before["storage"]["receipt_count"] == 0:
         raise RestartProofError("no receipt exists to recover across restart")
 
