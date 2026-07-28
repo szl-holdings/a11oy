@@ -117,6 +117,113 @@ test("content-selecting code parameters retain distinct redacted identities", ()
   assert.match(new URL(openai.sources[0]?.url ?? "").searchParams.get("code") ?? "", /^sha256:/);
 });
 
+test("query and snippet selectors retain distinct digested identities without leaking content", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const openai = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/paper?q=private-query-alpha&snippet=private-snippet-alpha",
+    }],
+  });
+  const perplexity = normalizePerplexitySearchResult({
+    ...base.perplexity,
+    results: [{
+      url: "https://research.example/paper?q=private-query-beta&snippet=private-snippet-beta",
+    }],
+  });
+  const comparison = compareResearchEvidence({
+    query_sha256: fixtures.query_sha256,
+    policy_sha256: fixtures.policy_sha256,
+    providers: [openai, perplexity],
+  });
+  const receipt = emitTwoWitnessResearchReceipt(comparison, {
+    actor_id: "did:example:selector-redaction",
+    timestamp: new Date("2026-07-28T12:00:00.000Z"),
+  });
+  const serialized = JSON.stringify(receipt.envelope);
+  const openaiUrl = new URL(openai.sources[0]?.url ?? "");
+  const perplexityUrl = new URL(perplexity.sources[0]?.url ?? "");
+
+  for (const forbidden of [
+    "private-query-alpha",
+    "private-query-beta",
+    "private-snippet-alpha",
+    "private-snippet-beta",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false);
+  }
+  for (const key of ["q", "snippet"]) {
+    assert.match(openaiUrl.searchParams.get(key) ?? "", /^sha256:[a-f0-9]{64}$/);
+    assert.match(perplexityUrl.searchParams.get(key) ?? "", /^sha256:[a-f0-9]{64}$/);
+    assert.notEqual(openaiUrl.searchParams.get(key), perplexityUrl.searchParams.get(key));
+  }
+  assert.equal(comparison.source_url_overlap_count, 0);
+  assert.equal(comparison.label, "DIVERGENT");
+});
+
+test("source dates require an explicit timezone and normalize deterministically", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const zoned = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/zoned",
+      published_at: "2026-07-28T08:00:00-04:00",
+      last_updated_at: "2026-07-28T12:00:00Z",
+    }],
+  });
+  const zoneLess = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/zone-less",
+      published_at: "2026-07-28T12:00:00",
+      last_updated_at: "2026-07-28",
+    }],
+  });
+
+  assert.equal(zoned.sources[0]?.published_at, "2026-07-28T12:00:00.000Z");
+  assert.equal(zoned.sources[0]?.last_updated_at, "2026-07-28T12:00:00.000Z");
+  assert.equal(zoneLess.sources[0]?.published_at, undefined);
+  assert.equal(zoneLess.sources[0]?.last_updated_at, undefined);
+
+  const leapDay = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/leap-day",
+      published_at: "2024-02-29T23:59:59+00:00",
+    }],
+  });
+  assert.equal(leapDay.sources[0]?.published_at, "2024-02-29T23:59:59.000Z");
+});
+
+test("source dates reject impossible calendar values and offsets", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const invalidValues = [
+    "2026-02-29T12:00:00Z",
+    "2026-02-30T00:00:00Z",
+    "2026-04-31T12:00:00Z",
+    "2026-13-01T00:00:00Z",
+    "2026-07-28T24:00:00Z",
+    "2026-07-28T24:01:00Z",
+    "2026-07-28T12:00:00-00:00",
+    "2026-07-28T12:00:00+24:00",
+    "2026-07-28T12:00:00+04:60",
+  ];
+
+  for (const published_at of invalidValues) {
+    const normalized = normalizeOpenAIWebSearchResult({
+      ...base.openai,
+      sources: [{
+        url: "https://research.example/invalid-time",
+        published_at,
+      }],
+    });
+    assert.equal(normalized.sources[0]?.published_at, undefined, published_at);
+  }
+});
+
 test("vendor-prefixed presigned credentials never enter normalized evidence", () => {
   const base = fixtures.cases.find((candidate) => candidate.name === "matching");
   assert.ok(base);
