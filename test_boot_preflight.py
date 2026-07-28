@@ -107,12 +107,21 @@ def test_every_name_single_kind_and_collision_list():
 # 5. Present secret => that subsystem LIVE; absent => DEGRADED.
 # ---------------------------------------------------------------------------
 def test_present_secret_lights_subsystem():
-    # signing subsystem's only secret is SZL_COSIGN_PRIVATE_PEM
-    env = {"SZL_COSIGN_PRIVATE_PEM": _SECRET_SENTINEL}
-    ready = pf.readiness(env=env)
-    signing = [s for s in ready["subsystems"] if s["subsystem"] == "signing"][0]
-    assert signing["label"] == pf.LIVE, signing
-    # and with it absent, DEGRADED
+    # Either accepted inline key lights the signing subsystem.
+    for name in ("SZL_COSIGN_PRIVATE_PEM", "A11OY_RECEIPT_KEY_PEM"):
+        ready = pf.readiness(env={name: _SECRET_SENTINEL})
+        signing = [s for s in ready["subsystems"]
+                   if s["subsystem"] == "signing"][0]
+        assert signing["label"] == pf.LIVE, signing
+        assert signing["missing_secrets"] == [], signing
+
+    # A mounted key source is an equivalent persistent credential.
+    mounted = pf.readiness(env={"A11OY_RECEIPT_KEY_PATH": "/run/secrets/key.pem"})
+    signing_mounted = [s for s in mounted["subsystems"]
+                       if s["subsystem"] == "signing"][0]
+    assert signing_mounted["label"] == pf.LIVE, signing_mounted
+
+    # With every accepted source absent, signing honestly degrades.
     signing_absent = [s for s in pf.readiness(env={})["subsystems"]
                       if s["subsystem"] == "signing"][0]
     assert signing_absent["label"] == pf.DEGRADED
