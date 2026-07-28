@@ -43,6 +43,25 @@ The receipt retains every exact system prompt, user prompt, raw output, input
 and output token count, output digest, generation duration, artifact/source
 binding, runtime version, and memory observation.
 
+## Artifact digest-domain reconciliation (2026-07-28)
+
+The apparent conflict between the receipt-declared weight hashes and the public
+LFS raw SHA-256 values came from comparing different digest domains. The
+original training signer used
+`SHA256(UTF8(basename) || raw safetensors bytes)`, while Hugging Face LFS and the
+qualification contract expose raw file-byte SHA-256. This qualification
+already computed and checked both domains while reading the exact 3.09 GB model
+and 147.8 MB adapter.
+
+The network-free reconciliation under `../reconciliation/` verifies this
+receipt's self-digest, freezes both digest domains, and records that all 12
+inference-bearing Git blobs at public head
+`2e62cb5f8e6a17052da532305a467861094a2109` equal revision
+`fa73dc1bd8eeece727d0b5c1db52448ec0703e8b`. The only public-head delta is the
+non-inference `SZL_ESTATE_MANAGED.json` marker. The resulting state is
+`ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED`; the evaluation limits below
+and every promotion gate remain in force.
+
 ## Limits
 
 This is a structural-contract evaluation, not an evidence-grounding benchmark.
