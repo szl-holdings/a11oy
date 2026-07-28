@@ -8834,6 +8834,7 @@ from fastapi.responses import PlainTextResponse
 
 # ---- Shared ECDSA P-256 signing key (persistent secret, ephemeral fallback) ----
 _A11OY_KEYID = "unavailable"
+_A11OY_LEGACY_RAW_PEM_KEYID = "unavailable"
 _A11OY_PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _A11OY_PRIV = None
 _A11OY_PUB_PEM = None
@@ -8853,6 +8854,9 @@ try:
     if _A11OY_PUB_PEM:
         _A11OY_KEYID = _hashv2.sha256(
             _A11OY_PUB_PEM.strip().encode("ascii")
+        ).hexdigest()
+        _A11OY_LEGACY_RAW_PEM_KEYID = _hashv2.sha256(
+            _A11OY_PUB_PEM.encode("ascii")
         ).hexdigest()
         import szl_dsse as _a11oy_runtime_dsse
         _a11oy_runtime_dsse.configure_runtime_public_key(_A11OY_PUB_PEM)
@@ -12639,6 +12643,7 @@ try:
             expected_keyid = _A11OY_KEYID
             accepted_keyids = {
                 expected_keyid,
+                _A11OY_LEGACY_RAW_PEM_KEYID,
                 "a11oy-inimage-ecdsa-p256",
             }
             matching_sigs = [
