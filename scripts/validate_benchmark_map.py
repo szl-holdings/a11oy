@@ -48,6 +48,54 @@ def main() -> int:
             if "cracked" in allowed_claim or "solved" in allowed_claim:
                 errors.append(f"{entry_id}: allowedClaim contains unsupported benchmark language")
 
+        if entry_id == "governed-agent-bench-v0":
+            honesty = entry.get("honesty", {})
+            disallowed = set(honesty.get("disallowedClaims", []))
+            if "eligible model leaderboard results published" not in disallowed:
+                errors.append(
+                    f"{entry_id}: disallowedClaims must preserve the zero-model-results boundary"
+                )
+            if "public leaderboard published" in disallowed:
+                errors.append(
+                    f"{entry_id}: published reference leaderboard contradicts disallowedClaims"
+                )
+
+            publication = entry.get("publication", {})
+            if publication.get("state") != "PUBLISHED_PROTECTED":
+                errors.append(f"{entry_id}: publication.state must be PUBLISHED_PROTECTED")
+            for field in ("dataset", "space"):
+                if publication.get(field) != "SZLHOLDINGS/governed-agent-bench":
+                    errors.append(
+                        f"{entry_id}: publication.{field} must name the governed-agent-bench Hub repository"
+                    )
+            first_verified = publication.get("firstVerified", {})
+            for field in ("sourceRevision", "datasetRevision", "spaceRevision"):
+                revision = first_verified.get(field)
+                if (
+                    not isinstance(revision, str)
+                    or len(revision) != 40
+                    or any(ch not in "0123456789abcdef" for ch in revision)
+                ):
+                    errors.append(
+                        f"{entry_id}: publication.firstVerified.{field} must be a 40-character lowercase hex revision"
+                    )
+            if first_verified.get("workflowRun") != (
+                "https://github.com/szl-holdings/a11oy/actions/runs/30382562989"
+            ):
+                errors.append(
+                    f"{entry_id}: publication.firstVerified.workflowRun must preserve the observed protected run"
+                )
+            if first_verified.get("status") != "VERIFIED_IMMUTABLE_READBACK":
+                errors.append(
+                    f"{entry_id}: publication.firstVerified.status must be VERIFIED_IMMUTABLE_READBACK"
+                )
+            truth_boundary = str(publication.get("truthBoundary", "")).lower()
+            for phrase in ("zero eligible model submissions", "not a model ranking"):
+                if phrase not in truth_boundary:
+                    errors.append(
+                        f"{entry_id}: publication.truthBoundary missing {phrase!r}"
+                    )
+
         corpus = entry.get("corpus", {})
         if corpus.get("sealed") and corpus.get("digestStatus") != "sealed":
             errors.append(f"{entry_id}: sealed corpus must have digestStatus=sealed")
