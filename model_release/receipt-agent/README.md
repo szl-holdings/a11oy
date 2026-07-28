@@ -31,6 +31,17 @@ turn retrieved text into a mathematical proof.
 | Formula admission | 146 formula crosswalk records + 2 SZL-Lake evidence records = 148 holdout tranche rows | All 148 are holdout; zero are admitted to train. Formula IDs are namespace-scoped. |
 | Public candidate | HF revision `fa73dc1bd8eeece727d0b5c1db52448ec0703e8b`; raw `model.safetensors` SHA-256 `a797592fb35c32cc6ebf5739c0a1d9312123300acaf09987d207d86196bc6e7d` | `MEASURED` only by the bounded CPU contract qualification below; not promoted or deployed by this repository. |
 
+The artifact reconciliation in `reconciliation/` distinguishes signed-receipt
+validity, raw artifact SHA-256, the original signer's
+`SHA256(UTF8(basename) || raw bytes)` domain, and public-head equivalence. At
+the frozen observed head, raw Git commit objects reproduce both declared
+revision IDs, serialized root/subtree objects reproduce their commit-bound
+tree IDs, and the complete tree delta is the one non-inference estate marker.
+ReceiptAgent is
+`ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED`. This state does not expand
+the bounded CPU evaluation or establish hosted serving, general quality,
+promotion, deployment, or independent owner identity.
+
 ## Exact-revision CPU qualification (2026-07-21)
 
 `qualification/heldout-contract-v1.json` freezes the public artifact, public

@@ -18,13 +18,23 @@ Every turn binds independent runtime facts:
 5. for grounded turns, the evidence-set and grounding digests used by the
    controller.
 
-The state is `PROFILE_AWARE_LOCAL_ROUTING_ARTIFACT_BINDING_PARTIAL`. Exact local
-tags were observed for ReceiptAgent and BrainNavigator, and independently checked
-local DSSE turn envelopes verified. Their release artifact identities remain
-unbound or in conflict, however. Promotion to a pinned state still requires a
-model-load receipt binding the base revision, adapter SHA-256, local weight/blob
-identity, served identity, immutable published artifact identities, reconciliation
-of those identities, and clean reload evaluation.
+The council-wide state remains
+`PROFILE_AWARE_LOCAL_ROUTING_ARTIFACT_BINDING_PARTIAL` because profiles qualify
+independently. ReceiptAgent is now
+`ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED`: the measured CPU
+qualification binds the raw model and adapter bytes separately from the
+original signer's basename-plus-bytes digest domain, and all 12
+inference-bearing Git blobs at frozen public head
+`2e62cb5f8e6a17052da532305a467861094a2109` equal the qualified revision.
+BrainNavigator remains `SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT` and is
+not changed by the ReceiptAgent reconciliation.
+
+This does not bind an Ayllu turn to local loaded weights and does not promote
+ReceiptAgent. Promotion to a pinned state still requires a model-load receipt
+binding the base revision, adapter SHA-256, local weight/blob identity, served
+identity, immutable published artifact identities, and clean reload evaluation.
+A later ReceiptAgent public head fails closed until its inference-bearing blobs
+are reconciled again.
 
 ## Authority boundary
 

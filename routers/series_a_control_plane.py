@@ -52,6 +52,7 @@ MAX_BODY = 64 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
 EXECUTION_TIMEOUT_SECONDS = 120
+EXECUTION_RECONCILE_AFTER_SECONDS = EXECUTION_TIMEOUT_SECONDS + 30
 ALLOWED_ACTIONS = {"estate.refresh", "probe.public_surface"}
 ALLOWED_SQLITE_JOURNALS = {"DELETE", "PERSIST", "TRUNCATE", "WAL"}
 ALLOWED_PROBE_HOSTS = {
@@ -311,6 +312,14 @@ class Store:
                   attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 1),
                   created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS passport_executions(
+                  passport_digest TEXT PRIMARY KEY REFERENCES passports(digest),
+                  state TEXT NOT NULL CHECK(state IN ('PENDING','COMPLETED','RECONCILED')),
+                  runtime_boot_id TEXT NOT NULL,
+                  started_at TEXT NOT NULL,
+                  completed_at TEXT,
+                  outcome_receipt_hash TEXT
+                );
                 CREATE TABLE IF NOT EXISTS receipts(
                   sequence INTEGER PRIMARY KEY AUTOINCREMENT,
                   receipt_id TEXT NOT NULL UNIQUE,
@@ -402,36 +411,58 @@ class Store:
         self, kind: str, payload: Mapping[str, Any], signer: ReceiptSigner
     ) -> dict[str, Any]:
         with self.lock, self.connect() as db:
-            row = db.execute(
-                "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
-            ).fetchone()
-            previous = row["receipt_hash"] if row else "0" * 64
-            receipt = {
-                "schema": SCHEMA_RECEIPT,
-                "receipt_id": f"rcpt_{uuid.uuid4().hex}",
-                "kind": kind,
-                "created_at": _now(),
-                "source_revision": _git_revision(),
-                "previous_receipt_hash": previous,
-                "payload": dict(payload),
-            }
-            envelope = signer.sign(receipt)
-            receipt_hash = _sha(envelope)
-            db.execute(
-                """INSERT INTO receipts(receipt_id,kind,payload,envelope,previous_hash,receipt_hash,created_at)
-                   VALUES(?,?,?,?,?,?,?)""",
-                (
-                    receipt["receipt_id"],
-                    kind,
-                    json.dumps(receipt, sort_keys=True),
-                    json.dumps(envelope, sort_keys=True),
-                    previous,
-                    receipt_hash,
-                    receipt["created_at"],
-                ),
+            value = self._append_receipt_in_transaction(
+                db, kind, payload, signer
             )
-        self.append_event(kind, {"receipt_hash": receipt_hash, "receipt_id": receipt["receipt_id"]})
-        return {"receipt": receipt, "envelope": envelope, "receipt_hash": receipt_hash}
+        self.append_event(
+            kind,
+            {
+                "receipt_hash": value["receipt_hash"],
+                "receipt_id": value["receipt"]["receipt_id"],
+            },
+        )
+        return value
+
+    @staticmethod
+    def _append_receipt_in_transaction(
+        db: sqlite3.Connection,
+        kind: str,
+        payload: Mapping[str, Any],
+        signer: ReceiptSigner,
+    ) -> dict[str, Any]:
+        row = db.execute(
+            "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
+        ).fetchone()
+        previous = row["receipt_hash"] if row else "0" * 64
+        receipt = {
+            "schema": SCHEMA_RECEIPT,
+            "receipt_id": f"rcpt_{uuid.uuid4().hex}",
+            "kind": kind,
+            "created_at": _now(),
+            "source_revision": _git_revision(),
+            "previous_receipt_hash": previous,
+            "payload": dict(payload),
+        }
+        envelope = signer.sign(receipt)
+        receipt_hash = _sha(envelope)
+        db.execute(
+            """INSERT INTO receipts(receipt_id,kind,payload,envelope,previous_hash,receipt_hash,created_at)
+               VALUES(?,?,?,?,?,?,?)""",
+            (
+                receipt["receipt_id"],
+                kind,
+                json.dumps(receipt, sort_keys=True),
+                json.dumps(envelope, sort_keys=True),
+                previous,
+                receipt_hash,
+                receipt["created_at"],
+            ),
+        )
+        return {
+            "receipt": receipt,
+            "envelope": envelope,
+            "receipt_hash": receipt_hash,
+        }
 
     def list_receipts(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.lock, self.connect() as db:
@@ -510,13 +541,224 @@ class Store:
         value["attempts"] = row["attempts"]
         return value
 
-    def consume_attempt(self, digest: str) -> None:
+    def begin_execution(
+        self,
+        digest: str,
+        runtime_boot_id: str,
+        started_at: str,
+    ) -> None:
+        """Consume one attempt and persist its execution intent atomically."""
         with self.lock, self.connect() as db:
             result = db.execute(
                 "UPDATE passports SET attempts=1 WHERE digest=? AND attempts=0", (digest,)
             )
             if result.rowcount != 1:
                 raise RuntimeError("passport attempt is absent or already consumed")
+            db.execute(
+                """INSERT INTO passport_executions(
+                     passport_digest,state,runtime_boot_id,started_at
+                   ) VALUES(?,?,?,?)""",
+                (digest, "PENDING", runtime_boot_id, started_at),
+            )
+
+    def execution_status(self, digest: str) -> dict[str, Any] | None:
+        with self.lock, self.connect() as db:
+            row = db.execute(
+                """SELECT passport_digest,state,runtime_boot_id,started_at,
+                          completed_at,outcome_receipt_hash
+                   FROM passport_executions WHERE passport_digest=?""",
+                (digest,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def next_execution_reconciliation_delay(
+        self,
+        *,
+        stale_after_seconds: int = EXECUTION_RECONCILE_AFTER_SECONDS,
+        now: datetime | None = None,
+    ) -> float | None:
+        """Return the bounded delay before the oldest pending intent is stale."""
+        with self.lock, self.connect() as db:
+            rows = db.execute(
+                """SELECT started_at FROM passport_executions
+                   WHERE state='PENDING'
+                   ORDER BY started_at"""
+            ).fetchall()
+        if not rows:
+            return None
+        current = now or datetime.now(timezone.utc)
+        delays: list[float] = []
+        for row in rows:
+            try:
+                started = datetime.fromisoformat(
+                    str(row["started_at"]).replace("Z", "+00:00")
+                )
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                age = max(0.0, (current - started).total_seconds())
+                delays.append(max(0.0, float(stale_after_seconds) - age))
+            except (TypeError, ValueError):
+                # A malformed persisted timestamp cannot prove a live execution.
+                delays.append(0.0)
+        return min(delays)
+
+    def complete_execution(
+        self,
+        digest: str,
+        outcome: Mapping[str, Any],
+        signer: ReceiptSigner,
+    ) -> dict[str, Any]:
+        """Persist the terminal outcome and close its intent in one transaction."""
+        with self.lock, self.connect() as db:
+            row = db.execute(
+                "SELECT state FROM passport_executions WHERE passport_digest=?",
+                (digest,),
+            ).fetchone()
+            if row is None or row["state"] != "PENDING":
+                raise RuntimeError("execution intent is absent or already terminal")
+            value = self._append_receipt_in_transaction(
+                db,
+                "passport.outcome",
+                outcome,
+                signer,
+            )
+            result = db.execute(
+                """UPDATE passport_executions
+                   SET state='COMPLETED',completed_at=?,outcome_receipt_hash=?
+                   WHERE passport_digest=? AND state='PENDING'""",
+                (
+                    str(outcome.get("completed_at") or _now()),
+                    value["receipt_hash"],
+                    digest,
+                ),
+            )
+            if result.rowcount != 1:
+                raise RuntimeError("execution intent changed before completion")
+        self.append_event(
+            "passport.outcome",
+            {
+                "receipt_hash": value["receipt_hash"],
+                "receipt_id": value["receipt"]["receipt_id"],
+            },
+        )
+        return value
+
+    def reconcile_interrupted_executions(
+        self,
+        signer: ReceiptSigner,
+        *,
+        stale_after_seconds: int = EXECUTION_RECONCILE_AFTER_SECONDS,
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Terminalize stale abandoned intents without replaying their actions."""
+        current = now or datetime.now(timezone.utc)
+        completed_at = current.isoformat().replace("+00:00", "Z")
+        reconciled: list[dict[str, Any]] = []
+        with self.lock, self.connect() as db:
+            rows = db.execute(
+                """SELECT passport_digest,runtime_boot_id,started_at
+                   FROM passport_executions
+                   WHERE state='PENDING'
+                   ORDER BY started_at,passport_digest"""
+            ).fetchall()
+            for row in rows:
+                try:
+                    started = datetime.fromisoformat(
+                        str(row["started_at"]).replace("Z", "+00:00")
+                    )
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=timezone.utc)
+                    age = max(0.0, (current - started).total_seconds())
+                except (TypeError, ValueError):
+                    age = float(stale_after_seconds)
+                if age < stale_after_seconds:
+                    continue
+                outcome = {
+                    "status": "FAILED",
+                    "error_class": "ExecutionInterrupted",
+                    "error": (
+                        "runtime ended before a terminal outcome was persisted"
+                    ),
+                    "uncertainty": (
+                        "the admitted action may have started or partially completed; "
+                        "it was not replayed"
+                    ),
+                    "reconciliation": "INTERRUPTED_EXECUTION_RECONCILED",
+                    "previous_runtime_boot_id": row["runtime_boot_id"],
+                    "started_at": row["started_at"],
+                    "completed_at": completed_at,
+                    "attempt": 1,
+                    "max_attempts": 1,
+                    "passport_digest": row["passport_digest"],
+                    "governance": {
+                        "allowed": True,
+                        "decision": "ALLOW",
+                        "reason_codes": [
+                            "PREVIOUS_RUNTIME_ADMISSION_PERSISTED"
+                        ],
+                    },
+                }
+                value = self._append_receipt_in_transaction(
+                    db,
+                    "passport.outcome",
+                    outcome,
+                    signer,
+                )
+                result = db.execute(
+                    """UPDATE passport_executions
+                       SET state='RECONCILED',completed_at=?,outcome_receipt_hash=?
+                       WHERE passport_digest=? AND state='PENDING'""",
+                    (
+                        completed_at,
+                        value["receipt_hash"],
+                        row["passport_digest"],
+                    ),
+                )
+                if result.rowcount != 1:
+                    raise RuntimeError(
+                        "execution intent changed during reconciliation"
+                    )
+                reconciled.append(value)
+        for value in reconciled:
+            self.append_event(
+                "passport.outcome",
+                {
+                    "receipt_hash": value["receipt_hash"],
+                    "receipt_id": value["receipt"]["receipt_id"],
+                },
+            )
+        return reconciled
+
+    def consume_denied_attempt(
+        self,
+        digest: str,
+        payload: Mapping[str, Any],
+        signer: ReceiptSigner,
+    ) -> dict[str, Any]:
+        """Consume the single attempt and persist its denial in one transaction."""
+        with self.lock, self.connect() as db:
+            result = db.execute(
+                "UPDATE passports SET attempts=1 WHERE digest=? AND attempts=0",
+                (digest,),
+            )
+            if result.rowcount != 1:
+                raise RuntimeError(
+                    "passport attempt is absent or already consumed"
+                )
+            value = self._append_receipt_in_transaction(
+                db,
+                "passport.execution-denied",
+                payload,
+                signer,
+            )
+        self.append_event(
+            "passport.execution-denied",
+            {
+                "receipt_hash": value["receipt_hash"],
+                "receipt_id": value["receipt"]["receipt_id"],
+            },
+        )
+        return value
 
     def outcome_for_passport(self, digest: str) -> dict[str, Any] | None:
         with self.lock, self.connect() as db:
@@ -778,14 +1020,22 @@ class Service:
         self.store = Store(db_path)
         self.signer = ReceiptSigner()
         self.collector = Collector()
+        self.runtime_boot_id = f"boot_{uuid.uuid4().hex}"
         self.refresh_lock = asyncio.Lock()
         self.execution_tasks: set[asyncio.Task[Any]] = set()
+        self.reconciliation_task: asyncio.Task[Any] | None = None
         self.started = False
         self.background_task: asyncio.Task[Any] | None = None
 
     async def start(self) -> None:
         if self.started:
             return
+        self.store.reconcile_interrupted_executions(self.signer)
+        if self.store.next_execution_reconciliation_delay() is not None:
+            self.reconciliation_task = asyncio.create_task(
+                self._reconcile_pending_executions(),
+                name="a11oy-series-a-execution-reconciliation",
+            )
         self.started = True
         if (os.environ.get("A11OY_SERIES_A_STARTUP_REFRESH") or "1").strip() == "0":
             self.store.append_event("estate.refresh.skipped", {"reason": "explicit test/runtime configuration"})
@@ -795,6 +1045,16 @@ class Service:
             self._refresh_loop(),
             name="a11oy-series-a-periodic-refresh",
         )
+
+    async def _reconcile_pending_executions(self) -> None:
+        """Wait out the live-execution bound, then fail closed without replay."""
+        while True:
+            delay = self.store.next_execution_reconciliation_delay()
+            if delay is None:
+                return
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self.store.reconcile_interrupted_executions(self.signer)
 
     async def _refresh_loop(self) -> None:
         interval_seconds = _refresh_interval_seconds()
@@ -819,16 +1079,28 @@ class Service:
             await asyncio.sleep(_refresh_delay_seconds(interval_seconds, elapsed))
 
     async def stop(self) -> None:
+        reconciliation = self.reconciliation_task
+        self.reconciliation_task = None
+        if reconciliation is not None:
+            reconciliation.cancel()
+            try:
+                await reconciliation
+            except asyncio.CancelledError:
+                pass
         task = self.background_task
         self.background_task = None
         self.started = False
-        if task is None:
-            return
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        executions = list(self.execution_tasks)
+        for execution in executions:
+            execution.cancel()
+        if executions:
+            await asyncio.gather(*executions, return_exceptions=True)
 
     def scheduler_status(self) -> dict[str, Any]:
         task = self.background_task
@@ -907,6 +1179,7 @@ class Service:
                 "state": "PENDING",
                 "terminal": True,
                 "source_revision": _git_revision(),
+                "runtime_boot_id": self.runtime_boot_id,
                 "signing_key_source": self.signer.source,
                 "database": self.store.path,
                 "storage": self.store.storage_status(),
@@ -921,6 +1194,7 @@ class Service:
             "state": "STALE" if stale else manifest["status"],
             "terminal": True,
             "source_revision": _git_revision(),
+            "runtime_boot_id": self.runtime_boot_id,
             "manifest_digest": latest["digest"],
             "observed_at": latest["observed_at"],
             "valid_until": latest["valid_until"],
@@ -1004,8 +1278,12 @@ class Service:
         latest = self.store.latest_snapshot()
         if latest is None:
             return ["FRESH_SERVER_EVIDENCE_REQUIRED"]
-        if latest.get("manifest", {}).get("status") != "OBSERVED":
+        manifest = latest.get("manifest")
+        if not isinstance(manifest, dict) or manifest.get("status") != "OBSERVED":
             return ["OBSERVED_SERVER_EVIDENCE_REQUIRED"]
+        critical_failures = manifest.get("critical_failures")
+        if not isinstance(critical_failures, list) or critical_failures:
+            return ["CRITICAL_FAILURE_FREE_SERVER_EVIDENCE_REQUIRED"]
         try:
             valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
         except (TypeError, ValueError):
@@ -1127,17 +1405,45 @@ class Service:
         if passport["attempts"] != 0:
             raise HTTPException(status_code=409, detail="passport attempt already consumed")
         if passport["decision"] != "ALLOW":
-            raise HTTPException(status_code=403, detail=f"passport decision is {passport['decision']}")
+            reasons = [f"PASSPORT_DECISION_{passport['decision']}"]
+            try:
+                denial_receipt = self.store.consume_denied_attempt(
+                    digest,
+                    {"passport_digest": digest, "reason_codes": reasons},
+                    self.signer,
+                )
+            except RuntimeError as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="passport attempt already consumed",
+                ) from exc
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "PASSPORT_DECISION_DENY",
+                    "reason_codes": reasons,
+                    "receipt_hash": denial_receipt["receipt_hash"],
+                    "signature_status": denial_receipt["envelope"][
+                        "signature_status"
+                    ],
+                },
+            )
         action = passport["action"]
         governance = self._governance_gate(action)
         evidence_reasons = self._fresh_evidence_reasons(passport.get("evidence"))
         if not governance["allowed"] or evidence_reasons:
             reasons = sorted(set(governance["reason_codes"] + evidence_reasons))
-            denial_receipt = self.store.append_receipt(
-                "passport.execution-denied",
-                {"passport_digest": digest, "reason_codes": reasons},
-                self.signer,
-            )
+            try:
+                denial_receipt = self.store.consume_denied_attempt(
+                    digest,
+                    {"passport_digest": digest, "reason_codes": reasons},
+                    self.signer,
+                )
+            except RuntimeError as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="passport attempt already consumed",
+                ) from exc
             raise HTTPException(
                 status_code=403,
                 detail={
@@ -1147,9 +1453,20 @@ class Service:
                     "signature_status": denial_receipt["envelope"]["signature_status"],
                 },
             )
-        self.store.consume_attempt(digest)
+        started = _now()
+        try:
+            self.store.begin_execution(
+                digest,
+                self.runtime_boot_id,
+                started,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail="passport attempt already consumed",
+            ) from exc
         task = asyncio.create_task(
-            self._execute_consumed(digest, passport, governance),
+            self._execute_consumed(digest, passport, governance, started),
             name=f"series-a-execute-{digest[:12]}",
         )
         self.execution_tasks.add(task)
@@ -1170,9 +1487,9 @@ class Service:
         digest: str,
         passport: Mapping[str, Any],
         governance: Mapping[str, Any],
+        started: str,
     ) -> dict[str, Any]:
         action = passport["action"]
-        started = _now()
         try:
             async def run() -> dict[str, Any]:
                 if action["type"] == "estate.refresh":
@@ -1204,7 +1521,7 @@ class Service:
                 "governance": governance,
             }
         )
-        receipt = self.store.append_receipt("passport.outcome", outcome, self.signer)
+        receipt = self.store.complete_execution(digest, outcome, self.signer)
         return {"outcome": outcome, "outcome_receipt": receipt}
 
     async def _probe(self, target: str) -> dict[str, Any]:
@@ -1385,9 +1702,17 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         return JSONResponse(payload, headers={"cache-control": "no-store"})
 
     async def refresh(request: Request) -> Response:
-        body = await _bounded_json(request)
-        actor = str(body.get("actor") or "operator")[:120]
-        return JSONResponse(await service.refresh(actor))
+        await _bounded_json(request)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "DIRECT_REFRESH_DISABLED",
+                "required_flow": [
+                    f"{prefix}/passports/evaluate",
+                    f"{prefix}/passports/execute",
+                ],
+            },
+        )
 
     async def evaluate(request: Request) -> Response:
         return JSONResponse(service.evaluate_passport(await _bounded_json(request)))
