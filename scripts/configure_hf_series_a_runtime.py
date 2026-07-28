@@ -144,6 +144,25 @@ def _volume_objects(records: Iterable[Mapping[str, Any]]) -> list[Any]:
     ]
 
 
+def read_space_volumes(api: Any, *, repo_id: str) -> list[Any]:
+    """Read mounted volumes through the same metadata path as the HF CLI.
+
+    ``hf spaces volumes ls`` reads ``space_info().runtime.volumes``.  The
+    dedicated runtime endpoint can temporarily omit newly attached volumes
+    even after the Space has rebuilt with the mount, so it is not the
+    authoritative configuration readback for this operation.
+    """
+
+    info = api.space_info(repo_id=repo_id)
+    runtime = getattr(info, "runtime", None)
+    if runtime is None:
+        raise RuntimeConfigError("Space info did not include runtime metadata")
+    volumes = getattr(runtime, "volumes", None)
+    if volumes is None:
+        raise RuntimeConfigError("Space runtime did not include volume metadata")
+    return list(volumes)
+
+
 def await_readback(
     api: Any,
     *,
@@ -162,10 +181,7 @@ def await_readback(
     remaining_variables: dict[str, str] = dict(SERIES_A_VARIABLES)
     observed_volumes: list[Any] = []
     for attempt in range(1, attempts + 1):
-        observed_runtime = api.get_space_runtime(repo_id=repo_id)
-        observed_volumes = list(
-            getattr(observed_runtime, "volumes", None) or []
-        )
+        observed_volumes = read_space_volumes(api, repo_id=repo_id)
         _, missing_volume = plan_volumes(observed_volumes, bucket=bucket)
         observed_variables = api.get_space_variables(repo_id=repo_id)
         remaining_variables = plan_variables(
@@ -201,8 +217,7 @@ def configure(
     if not token:
         raise RuntimeConfigError("HF_TOKEN is required")
     api = HfApi(token=token)
-    runtime = api.get_space_runtime(repo_id=repo_id)
-    current_volumes = list(getattr(runtime, "volumes", None) or [])
+    current_volumes = read_space_volumes(api, repo_id=repo_id)
     desired_volumes, volume_change = plan_volumes(
         current_volumes,
         bucket=bucket,
