@@ -30,6 +30,13 @@ jobs:
       BRIDGE_ROOT: C:\szl-bridge
       CACHE_ROOT: C:\szl-bridge-cache
     steps:
+      - name: Check out the exact dispatched default-branch revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Prepare exact public source and trusted control runtime
         shell: powershell
         run: |
