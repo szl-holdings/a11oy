@@ -90,12 +90,59 @@
   };
   document.getElementById("refresh").addEventListener("click", async () => {
     const button = document.getElementById("refresh");
+    let refreshFailure = "";
     button.disabled = true;
     try {
-      await request("/refresh", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({actor: "series-a-ui"})});
+      if (!currentEvidence) {
+        throw new Error("OBSERVED signed server evidence is required");
+      }
+      const evaluated = await request("/passports/evaluate", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          principal_id: "series-a-ui",
+          action: {
+            type: "estate.refresh",
+            target: "szl://estate/current",
+            impact: "MODERATE",
+            irreversible: false
+          },
+          evidence: [{...currentEvidence}],
+          expected_if_withheld: "Current estate observation remains unchanged",
+          expected_if_acted: "A bounded governed estate refresh completes or fails closed"
+        })
+      });
+      if (evaluated.passport?.decision !== "ALLOW") {
+        throw new Error(
+          `PASSPORT_${evaluated.passport?.decision || "UNAVAILABLE"}: ${
+            (evaluated.passport?.reason_codes || []).join(",")
+          }`
+        );
+      }
+      const executed = await request("/passports/execute", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({passport_digest: evaluated.passport_digest})
+      }, EXECUTION_TIMEOUT_MS);
+      if (executed.outcome?.status !== "SUCCEEDED") {
+        if (executed.outcome && executed.outcome_receipt) {
+          renderOutcome(executed.outcome, executed.outcome_receipt);
+        }
+        throw new Error(
+          `REFRESH_${executed.outcome?.status || "UNAVAILABLE"}: ${
+            executed.outcome?.error || executed.outcome?.error_class || "governed refresh failed"
+          }`
+        );
+      }
     } catch (error) {
-      document.getElementById("updated").textContent = String(error.message || error);
-    } finally { button.disabled = false; await load(); }
+      refreshFailure = String(error.message || error);
+    } finally {
+      button.disabled = false;
+      await load();
+      if (refreshFailure) {
+        document.getElementById("updated").textContent = refreshFailure;
+      }
+    }
   });
   const actionSelect = document.querySelector('select[name="type"]');
   const targetInput = document.querySelector('input[name="target"]');

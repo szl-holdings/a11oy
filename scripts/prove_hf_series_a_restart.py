@@ -111,26 +111,48 @@ def _json(response: HttpResponse) -> Mapping[str, Any]:
     return value
 
 
+def _request_timeout(deadline: float, maximum: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RestartProofError("shared restart-proof deadline expired")
+    return min(maximum, remaining)
+
+
+def _sleep_within_deadline(deadline: float, seconds: int) -> bool:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return False
+    time.sleep(min(max(0, seconds), remaining))
+    return time.monotonic() < deadline
+
+
 def capture(
     session: HttpSession,
     origin: str,
     expected_source: str,
+    *,
+    deadline: float | None = None,
 ) -> dict[str, Any]:
+    def timeout(maximum: float) -> float:
+        if deadline is None:
+            return maximum
+        return _request_timeout(deadline, maximum)
+
     status = _json(
         session.get(
             origin + "/api/a11oy/v1/series-a/status",
-            timeout=45,
+            timeout=timeout(45),
         )
     )
     build = _json(
         session.get(
             origin + "/api/build-info",
-            timeout=45,
+            timeout=timeout(45),
         )
     )
     key = session.get(
         origin + "/api/a11oy/v1/series-a/public-key",
-        timeout=45,
+        timeout=timeout(45),
     )
     key.raise_for_status()
     storage = status.get("storage")
@@ -222,34 +244,67 @@ def prove(
     attempts: int,
     retry_seconds: int,
 ) -> dict[str, Any]:
-    before = capture(session, origin, source_sha)
+    retry_budget_seconds = max(
+        1.0,
+        float(max(1, attempts) * max(0, retry_seconds)),
+    )
+    deadline = time.monotonic() + retry_budget_seconds
+    before = capture(session, origin, source_sha, deadline=deadline)
     if before["storage"]["receipt_count"] == 0:
-        response = session.post(
-            origin + "/api/a11oy/v1/series-a/refresh",
-            json={"actor": "protected-deploy-restart-proof"},
-            timeout=180,
+        # Public refresh is passport-only. The canonical startup scheduler owns
+        # the initial observation, so the proof waits for its persisted receipt
+        # instead of invoking a privileged mutation shortcut.
+        last_startup_error: Exception | None = None
+        for _ in range(max(1, attempts)):
+            if not _sleep_within_deadline(deadline, retry_seconds):
+                break
+            try:
+                before = capture(
+                    session,
+                    origin,
+                    source_sha,
+                    deadline=deadline,
+                )
+            except Exception as exc:  # noqa: BLE001 - bounded startup polling
+                last_startup_error = exc
+                continue
+            if before["storage"]["receipt_count"] > 0:
+                break
+    if before["storage"]["receipt_count"] == 0:
+        suffix = (
+            f": {type(last_startup_error).__name__}"
+            if last_startup_error is not None
+            else ""
         )
-        response.raise_for_status()
-        before = capture(session, origin, source_sha)
-    if before["storage"]["receipt_count"] == 0:
-        raise RestartProofError("no receipt exists to recover across restart")
+        raise RestartProofError(
+            f"no receipt exists to recover across restart{suffix}"
+        )
 
     restart = api.restart_space(repo_id=repo_id, factory_reboot=False)
     stage = getattr(getattr(restart, "runtime", None), "stage", None)
     stage = getattr(stage, "value", stage)
     # Do not accept a response from the pre-restart process as post-restart
     # evidence while the control plane is still draining.
-    time.sleep(max(10, retry_seconds))
+    if not _sleep_within_deadline(deadline, max(10, retry_seconds)):
+        raise RestartProofError("shared restart-proof deadline expired after restart")
 
     last_error: Exception | None = None
     after: dict[str, Any] | None = None
     for _ in range(max(1, attempts)):
+        if time.monotonic() >= deadline:
+            break
         try:
-            after = capture(session, origin, source_sha)
+            after = capture(
+                session,
+                origin,
+                source_sha,
+                deadline=deadline,
+            )
             break
         except Exception as exc:  # noqa: BLE001 - bounded restart polling
             last_error = exc
-            time.sleep(max(0, retry_seconds))
+            if not _sleep_within_deadline(deadline, retry_seconds):
+                break
     if after is None:
         raise RestartProofError(
             f"runtime did not recover after restart: {type(last_error).__name__}"
@@ -258,7 +313,7 @@ def prove(
     receipts = _json(
         session.get(
             origin + "/api/a11oy/v1/series-a/receipts?limit=200",
-            timeout=60,
+            timeout=_request_timeout(deadline, 60),
         )
     )
     items = receipts.get("items")

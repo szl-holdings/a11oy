@@ -88,6 +88,34 @@ class Session:
         raise AssertionError(url)
 
 
+class StartupReceiptSession(Session):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.statuses = [
+            status(source, receipts=0, head=None),
+            status(source, receipts=1, head="2" * 64),
+            status(source, receipts=2, head="3" * 64),
+        ]
+        self.posts = 0
+
+    def post(self, *_args, **_kwargs):
+        self.posts += 1
+        raise AssertionError("public restart proof must not bypass passports")
+
+
+class TransientStartupSession(StartupReceiptSession):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.status_calls = 0
+
+    def get(self, url: str, **kwargs):
+        if url.endswith("/series-a/status"):
+            self.status_calls += 1
+            if self.status_calls == 2:
+                raise TimeoutError("startup runtime is still settling")
+        return super().get(url, **kwargs)
+
+
 class Api:
     def __init__(self) -> None:
         self.calls = []
@@ -118,6 +146,82 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
     assert report["restart_requested"] is True
     assert report["proof"]["database_instance_stable"] is True
     assert report["proof"]["pre_restart_chain_head_recovered"] is True
+    assert api.calls == [
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
+    ]
+
+
+def test_prove_waits_for_startup_receipt_without_direct_refresh(
+    monkeypatch,
+) -> None:
+    source = "a" * 40
+    api = Api()
+    session = StartupReceiptSession(source)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=api,
+        session=session,
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=2,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert session.posts == 0
+    assert report["before"]["storage"]["receipt_count"] == 1
+
+
+def test_prove_retries_transient_startup_capture_failure(monkeypatch) -> None:
+    source = "a" * 40
+    api = Api()
+    session = TransientStartupSession(source)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=api,
+        session=session,
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert session.status_calls == 4
+    assert report["before"]["storage"]["receipt_count"] == 1
+
+
+def test_prove_uses_one_deadline_across_pre_and_post_restart(monkeypatch) -> None:
+    source = "a" * 40
+    api = Api()
+    clock = {"now": 0.0}
+
+    monkeypatch.setattr(proof.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(
+        proof.time,
+        "sleep",
+        lambda seconds: clock.__setitem__("now", clock["now"] + seconds),
+    )
+
+    with pytest.raises(
+        proof.RestartProofError,
+        match="shared restart-proof deadline expired after restart",
+    ):
+        proof.prove(
+            api=api,
+            session=StartupReceiptSession(source),
+            repo_id="SZLHOLDINGS/a11oy",
+            origin="https://a-11-oy.com",
+            source_sha=source,
+            attempts=2,
+            retry_seconds=10,
+        )
+
+    assert clock["now"] == 20.0
     assert api.calls == [
         {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
     ]
