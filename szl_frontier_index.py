@@ -490,7 +490,8 @@ def build_catalog(app, ns: str = "a11oy") -> dict:
         if (now - ts) < _CATALOG_TTL:
             return val
     val = _build_catalog(app, ns)
-    build_catalog._cache = (now, val)  # type: ignore[attr-defined]
+    completed_at = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    build_catalog._cache = (completed_at, val)  # type: ignore[attr-defined]
     return val
 
 
