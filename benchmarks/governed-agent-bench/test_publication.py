@@ -329,6 +329,7 @@ class PublicationTests(unittest.TestCase):
         publisher = _load_publisher()
         expected = {"README.md": b"space\n"}
         revision = "d" * 40
+        dataset_revision = "a" * 40
 
         def fetch_bytes(url: str):
             if url.endswith(".hf.space/config"):
@@ -337,14 +338,16 @@ class PublicationTests(unittest.TestCase):
                     json.dumps(
                         {
                             "mode": "blocks",
+                            "title": "Governed Agent Bench",
                             "components": [
                                 {
-                                    "type": "markdown",
+                                    "type": "json",
                                     "props": {
-                                        "value": (
-                                            "# Governed Agent Bench\n"
-                                            f"source={source_revision}"
-                                        )
+                                        "label": "Immutable publication identity",
+                                        "value": {
+                                            "source_revision": source_revision,
+                                            "dataset_revision": dataset_revision,
+                                        },
                                     },
                                 }
                             ],
@@ -357,7 +360,10 @@ class PublicationTests(unittest.TestCase):
 
         source_revision = "f" * 40
         expected["publication.json"] = json.dumps(
-            {"source_revision": source_revision}
+            {
+                "source_revision": source_revision,
+                "dataset_revision": dataset_revision,
+            }
         ).encode()
         states = iter(
             [
@@ -381,7 +387,7 @@ class PublicationTests(unittest.TestCase):
             "SZLHOLDINGS/governed-agent-bench",
             revision,
             expected,
-            timeout_seconds=1.0,
+            deadline_monotonic=1.0,
             poll_interval_seconds=0.0,
             fetch_json=lambda _url: next(states),
             fetch_bytes=fetch_bytes,
@@ -395,15 +401,23 @@ class PublicationTests(unittest.TestCase):
             result["runtime"]["identity"]["source_revision"],
             source_revision,
         )
+        self.assertEqual(
+            result["runtime"]["identity"]["dataset_revision"],
+            dataset_revision,
+        )
 
     def test_space_ignores_terminal_failure_from_stale_runtime_revision(self):
         publisher = _load_publisher()
         revision = "1" * 40
         source_revision = "2" * 40
+        dataset_revision = "4" * 40
         expected = {
             "README.md": b"space\n",
             "publication.json": json.dumps(
-                {"source_revision": source_revision}
+                {
+                    "source_revision": source_revision,
+                    "dataset_revision": dataset_revision,
+                }
             ).encode(),
         }
         states = iter(
@@ -430,13 +444,16 @@ class PublicationTests(unittest.TestCase):
                 return 200, json.dumps(
                     {
                         "mode": "blocks",
+                        "title": "Governed Agent Bench",
                         "components": [
                             {
+                                "type": "json",
                                 "props": {
-                                    "value": (
-                                        "Governed Agent Bench "
-                                        f"{source_revision}"
-                                    )
+                                    "label": "Immutable publication identity",
+                                    "value": {
+                                        "source_revision": source_revision,
+                                        "dataset_revision": dataset_revision,
+                                    },
                                 }
                             }
                         ],
@@ -451,7 +468,7 @@ class PublicationTests(unittest.TestCase):
             "SZLHOLDINGS/governed-agent-bench",
             revision,
             expected,
-            timeout_seconds=1.0,
+            deadline_monotonic=1.0,
             poll_interval_seconds=0.0,
             fetch_json=lambda _url: next(states),
             fetch_bytes=fetch_bytes,
@@ -472,10 +489,13 @@ class PublicationTests(unittest.TestCase):
                 revision,
                 {
                     "publication.json": json.dumps(
-                        {"source_revision": "8" * 40}
+                        {
+                            "source_revision": "8" * 40,
+                            "dataset_revision": "9" * 40,
+                        }
                     ).encode()
                 },
-                timeout_seconds=1.0,
+                deadline_monotonic=1.0,
                 poll_interval_seconds=0.0,
                 fetch_json=lambda _url: {
                     "runtime": {"stage": "BUILD_ERROR", "sha": revision}
@@ -504,7 +524,7 @@ class PublicationTests(unittest.TestCase):
             "dataset",
             revision,
             expected,
-            timeout_seconds=1.0,
+            deadline_monotonic=1.0,
             poll_interval_seconds=0.0,
             fetch_json=fetch_json,
             fetch_bytes=lambda _url: (200, expected["README.md"]),
@@ -517,6 +537,7 @@ class PublicationTests(unittest.TestCase):
     def test_space_identity_endpoint_must_match_application_and_source(self):
         publisher = _load_publisher()
         source_revision = "6" * 40
+        dataset_revision = "7" * 40
         with self.assertRaisesRegex(
             publisher.PublicationError,
             "expected application identity",
@@ -531,6 +552,256 @@ class PublicationTests(unittest.TestCase):
                     }
                 ).encode(),
                 source_revision,
+                dataset_revision,
+            )
+
+    def test_space_runtime_retries_root_and_config_until_exact_identity(self):
+        publisher = _load_publisher()
+        revision = "a" * 40
+        source_revision = "b" * 40
+        dataset_revision = "c" * 40
+        old_dataset_revision = "d" * 40
+        expected = {
+            "README.md": b"space\n",
+            "publication.json": json.dumps(
+                {
+                    "source_revision": source_revision,
+                    "dataset_revision": dataset_revision,
+                }
+            ).encode(),
+        }
+        info = {
+            "private": False,
+            "sha": revision,
+            "siblings": [{"rfilename": name} for name in expected],
+            "runtime": {"stage": "RUNNING", "sha": revision},
+            "subdomain": "szlholdings-governed-agent-bench",
+        }
+        root_calls = {"count": 0}
+        config_calls = {"count": 0}
+
+        def fetch_bytes(url: str):
+            if url.endswith(".hf.space/"):
+                root_calls["count"] += 1
+                if root_calls["count"] == 1:
+                    return 503, b"starting"
+                return 200, b"<html>running</html>"
+            if url.endswith(".hf.space/config"):
+                config_calls["count"] += 1
+                observed_dataset = (
+                    old_dataset_revision
+                    if config_calls["count"] == 1
+                    else dataset_revision
+                )
+                return 200, json.dumps(
+                    {
+                        "mode": "blocks",
+                        "title": "Governed Agent Bench",
+                        "components": [
+                            {
+                                "type": "json",
+                                "props": {
+                                    "label": "Immutable publication identity",
+                                    "value": {
+                                        "source_revision": source_revision,
+                                        "dataset_revision": observed_dataset,
+                                    },
+                                }
+                            }
+                        ],
+                    }
+                ).encode()
+            return 200, expected[url.rsplit("/", 1)[-1]]
+
+        result = publisher._wait_for_public_space(
+            "SZLHOLDINGS/governed-agent-bench",
+            revision,
+            expected,
+            deadline_monotonic=1.0,
+            poll_interval_seconds=0.0,
+            fetch_json=lambda _url: info,
+            fetch_bytes=fetch_bytes,
+            sleep=lambda _seconds: None,
+            monotonic=lambda: 0.0,
+        )
+
+        self.assertEqual(root_calls["count"], 3)
+        self.assertEqual(config_calls["count"], 2)
+        self.assertEqual(
+            result["runtime"]["identity"]["dataset_revision"],
+            dataset_revision,
+        )
+
+    def test_space_identity_rejects_stale_dataset_revision(self):
+        publisher = _load_publisher()
+        source_revision = "1" * 40
+        dataset_revision = "2" * 40
+        stale_dataset_revision = "3" * 40
+        body = json.dumps(
+            {
+                "mode": "blocks",
+                "title": "Governed Agent Bench",
+                "components": [
+                    {
+                        "type": "json",
+                        "props": {
+                            "label": "Immutable publication identity",
+                            "value": {
+                                "source_revision": source_revision,
+                                "dataset_revision": stale_dataset_revision,
+                            },
+                        }
+                    }
+                ],
+            }
+        ).encode()
+
+        with self.assertRaisesRegex(
+            publisher.PublicationError,
+            "exact published dataset revision",
+        ):
+            publisher._validate_space_identity(
+                body,
+                source_revision,
+                dataset_revision,
+            )
+
+    def test_publish_uses_one_deadline_and_leaves_ci_headroom(self):
+        publisher = _load_publisher()
+        builder = _load_builder()
+        source_revision = "4" * 40
+        dataset_revision = "5" * 40
+        space_revision = "6" * 40
+        observed_deadlines = []
+
+        class HfApi:
+            def __init__(self, **_):
+                pass
+
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.HfApi = HfApi
+
+        def publish_and_readback(_api, _repo_id, repo_type, folder, _token):
+            revision = dataset_revision if repo_type == "dataset" else space_revision
+            files = publisher._files(folder)
+            observed = {
+                name: {
+                    "bytes": len(body),
+                    "sha256": hashlib.sha256(body).hexdigest(),
+                }
+                for name, body in files.items()
+            }
+            return revision, observed, "published", sorted(files)
+
+        def wait_dataset(
+            _repo_id,
+            _repo_type,
+            _revision,
+            expected,
+            deadline_monotonic,
+            _poll_interval_seconds,
+        ):
+            observed_deadlines.append(deadline_monotonic)
+            return {"files": {name: {} for name in expected}}
+
+        def wait_space(
+            _repo_id,
+            _revision,
+            expected,
+            deadline_monotonic,
+            _poll_interval_seconds,
+        ):
+            observed_deadlines.append(deadline_monotonic)
+            publication = json.loads(expected["publication.json"])
+            self.assertEqual(publication["dataset_revision"], dataset_revision)
+            return {
+                "files": {name: {} for name in expected},
+                "runtime": {
+                    "stage": "RUNNING",
+                    "sha": space_revision,
+                    "identity": publication,
+                },
+            }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle"
+            builder.build(bundle, source_revision, "2026-07-28T12:00:00Z")
+            with (
+                patch.dict(
+                    sys.modules,
+                    {"huggingface_hub": fake_hub},
+                ),
+                patch.dict(
+                    "os.environ",
+                    {"HF_TOKEN": "test-token"},
+                ),
+                patch.object(
+                    publisher,
+                    "_publish_and_readback",
+                    side_effect=publish_and_readback,
+                ),
+                patch.object(
+                    publisher,
+                    "_wait_for_public_repository",
+                    side_effect=wait_dataset,
+                ),
+                patch.object(
+                    publisher,
+                    "_wait_for_public_space",
+                    side_effect=wait_space,
+                ),
+                patch.object(publisher.time, "monotonic", return_value=100.0),
+            ):
+                publisher.publish(
+                    bundle,
+                    source_revision,
+                    "SZLHOLDINGS/governed-agent-bench",
+                    "SZLHOLDINGS/governed-agent-bench",
+                    root / "receipt.json",
+                )
+
+        self.assertEqual(
+            observed_deadlines,
+            [100.0 + publisher.PUBLICATION_TIMEOUT_SECONDS] * 2,
+        )
+        workflow = (
+            HERE.parents[1] / ".github" / "workflows" / "governed-agent-bench.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("timeout-minutes: 20", workflow)
+        self.assertLessEqual(publisher.PUBLICATION_TIMEOUT_SECONDS, 14 * 60)
+
+    def test_space_wait_refuses_when_shared_deadline_is_already_spent(self):
+        publisher = _load_publisher()
+        expected = {
+            "publication.json": json.dumps(
+                {
+                    "source_revision": "7" * 40,
+                    "dataset_revision": "8" * 40,
+                }
+            ).encode(),
+        }
+
+        with self.assertRaisesRegex(
+            publisher.PublicationError,
+            "overall publication deadline",
+        ):
+            publisher._wait_for_public_space(
+                "SZLHOLDINGS/governed-agent-bench",
+                "9" * 40,
+                expected,
+                deadline_monotonic=10.0,
+                poll_interval_seconds=1.0,
+                fetch_json=lambda _url: self.fail(
+                    "network must not run after the shared deadline"
+                ),
+                fetch_bytes=lambda _url: self.fail(
+                    "readback must not run after the shared deadline"
+                ),
+                sleep=lambda _seconds: self.fail(
+                    "sleep must not run after the shared deadline"
+                ),
+                monotonic=lambda: 11.0,
             )
 
     def test_workflow_scopes_hf_token_to_the_publish_step(self):

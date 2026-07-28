@@ -31,6 +31,7 @@ SPACE_RUNTIME_FAILURE_STAGES = {
     "NO_APP_FILE",
     "RUNTIME_ERROR",
 }
+PUBLICATION_TIMEOUT_SECONDS = 840.0
 
 
 class PublicationError(RuntimeError):
@@ -186,7 +187,7 @@ def _wait_for_public_repository(
     repo_type: str,
     revision: str,
     expected: dict[str, bytes],
-    timeout_seconds: float,
+    deadline_monotonic: float,
     poll_interval_seconds: float,
     *,
     fetch_json=_public_json,
@@ -194,9 +195,8 @@ def _wait_for_public_repository(
     sleep=time.sleep,
     monotonic=time.monotonic,
 ) -> dict[str, object]:
-    deadline = monotonic() + timeout_seconds
     latest_error: PublicationError | None = None
-    while monotonic() <= deadline:
+    while monotonic() <= deadline_monotonic:
         try:
             return _verify_public_repository(
                 repo_id,
@@ -208,9 +208,13 @@ def _wait_for_public_repository(
             )
         except PublicationError as exc:
             latest_error = exc
-        sleep(poll_interval_seconds)
+        remaining = deadline_monotonic - monotonic()
+        if remaining <= 0:
+            break
+        sleep(min(poll_interval_seconds, remaining))
     raise PublicationError(
-        "public immutable readback did not converge before timeout: "
+        "public immutable readback did not converge before the overall "
+        "publication deadline: "
         f"{repo_type}:{repo_id} expected={revision!r} last_error={latest_error}"
     )
 
@@ -222,7 +226,7 @@ def _space_runtime_ready(info: dict[str, object], revision: str) -> bool:
     return runtime.get("stage") == "RUNNING" and runtime.get("sha") == revision
 
 
-def _space_identity_source(expected: dict[str, bytes]) -> str:
+def _space_identity(expected: dict[str, bytes]) -> tuple[str, str]:
     try:
         publication = json.loads(expected["publication.json"])
     except (KeyError, json.JSONDecodeError) as exc:
@@ -230,10 +234,17 @@ def _space_identity_source(expected: dict[str, bytes]) -> str:
     source_revision = publication.get("source_revision")
     if not isinstance(source_revision, str) or not SHA_RE.fullmatch(source_revision):
         raise PublicationError("Space publication identity lacks an exact source revision")
-    return source_revision
+    dataset_revision = publication.get("dataset_revision")
+    if not isinstance(dataset_revision, str) or not SHA_RE.fullmatch(dataset_revision):
+        raise PublicationError("Space publication identity lacks an exact dataset revision")
+    return source_revision, dataset_revision
 
 
-def _validate_space_identity(body: bytes, source_revision: str) -> dict[str, object]:
+def _validate_space_identity(
+    body: bytes,
+    source_revision: str,
+    dataset_revision: str,
+) -> dict[str, object]:
     try:
         config = json.loads(body)
     except json.JSONDecodeError as exc:
@@ -243,14 +254,30 @@ def _validate_space_identity(body: bytes, source_revision: str) -> dict[str, obj
     components = config.get("components")
     if not isinstance(components, list):
         raise PublicationError("Space /config does not expose components")
-    encoded = json.dumps(config, sort_keys=True)
-    if "Governed Agent Bench" not in encoded:
+    if config.get("title") != "Governed Agent Bench":
         raise PublicationError("Space /config lacks the expected application identity")
-    if source_revision not in encoded:
+    identities = [
+        component["props"]["value"]
+        for component in components
+        if isinstance(component, dict)
+        and component.get("type") == "json"
+        and isinstance(component.get("props"), dict)
+        and component["props"].get("label") == "Immutable publication identity"
+        and isinstance(component["props"].get("value"), dict)
+    ]
+    if len(identities) != 1:
+        raise PublicationError(
+            "Space /config lacks one structured immutable publication identity"
+        )
+    identity = identities[0]
+    if identity.get("source_revision") != source_revision:
         raise PublicationError("Space /config lacks the exact protected source revision")
+    if identity.get("dataset_revision") != dataset_revision:
+        raise PublicationError("Space /config lacks the exact published dataset revision")
     return {
         "application": "Governed Agent Bench",
         "source_revision": source_revision,
+        "dataset_revision": dataset_revision,
     }
 
 
@@ -258,7 +285,7 @@ def _wait_for_public_space(
     repo_id: str,
     revision: str,
     expected: dict[str, bytes],
-    timeout_seconds: float,
+    deadline_monotonic: float,
     poll_interval_seconds: float,
     *,
     fetch_json=_public_json,
@@ -266,71 +293,86 @@ def _wait_for_public_space(
     sleep=time.sleep,
     monotonic=time.monotonic,
 ) -> dict[str, object]:
-    deadline = monotonic() + timeout_seconds
     latest: dict[str, object] = {}
-    while monotonic() <= deadline:
+    latest_error: PublicationError | None = None
+    stage = None
+    runtime_sha = None
+    source_revision, dataset_revision = _space_identity(expected)
+    while monotonic() <= deadline_monotonic:
         try:
             latest = fetch_json(_repo_api_url(repo_id, "space"))
-        except PublicationError:
+        except PublicationError as exc:
             latest = {}
+            latest_error = exc
         runtime = latest.get("runtime")
         stage = runtime.get("stage") if isinstance(runtime, dict) else None
         runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
         if stage in SPACE_RUNTIME_FAILURE_STAGES and runtime_sha == revision:
             raise PublicationError(f"Space entered terminal failure stage: {stage}")
         if _space_runtime_ready(latest, revision):
-            _validate_public_info(latest, repo_id, "space", revision, set(expected))
+            try:
+                public = _verify_public_repository(
+                    repo_id,
+                    "space",
+                    revision,
+                    expected,
+                    fetch_json=lambda _url: latest,
+                    fetch_bytes=fetch_bytes,
+                )
+                subdomain = latest.get("subdomain")
+                if not isinstance(subdomain, str) or not re.fullmatch(
+                    r"[a-z0-9-]+", subdomain
+                ):
+                    raise PublicationError("Space public subdomain is missing or invalid")
+                public_url = f"https://{subdomain}.hf.space/"
+                status, body = fetch_bytes(public_url)
+                if status != 200 or not body:
+                    raise PublicationError(
+                        "Space public root is not serving: "
+                        f"status={status} bytes={len(body)}"
+                    )
+                identity_url = f"{public_url}config"
+                identity_status, identity_body = fetch_bytes(identity_url)
+                if identity_status != 200 or not identity_body:
+                    raise PublicationError(
+                        "Space identity endpoint is not serving: "
+                        f"status={identity_status} bytes={len(identity_body)}"
+                    )
+                identity = _validate_space_identity(
+                    identity_body,
+                    source_revision,
+                    dataset_revision,
+                )
+                runtime = latest["runtime"]
+                public["runtime"] = {
+                    "stage": runtime["stage"],
+                    "sha": runtime["sha"],
+                    "public_url": public_url,
+                    "http_status": status,
+                    "response_bytes": len(body),
+                    "identity_url": identity_url,
+                    "identity_http_status": identity_status,
+                    "identity": identity,
+                }
+                return public
+            except PublicationError as exc:
+                latest_error = exc
+        elif latest:
+            latest_error = PublicationError(
+                "Space runtime is not exact-revision RUNNING: "
+                f"stage={stage!r} runtime_sha={runtime_sha!r}"
+            )
+        remaining = deadline_monotonic - monotonic()
+        if remaining <= 0:
             break
-        sleep(poll_interval_seconds)
-    else:
-        runtime = latest.get("runtime")
-        stage = runtime.get("stage") if isinstance(runtime, dict) else None
-        runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
-        raise PublicationError(
-            "Space did not reach exact-revision RUNNING state before timeout: "
-            f"stage={stage!r} runtime_sha={runtime_sha!r} expected={revision!r}"
-        )
+        sleep(min(poll_interval_seconds, remaining))
 
-    public = _verify_public_repository(
-        repo_id,
-        "space",
-        revision,
-        expected,
-        fetch_json=lambda _url: latest,
-        fetch_bytes=fetch_bytes,
+    raise PublicationError(
+        "Space did not expose the exact public runtime identity before the "
+        "overall publication deadline: "
+        f"stage={stage!r} runtime_sha={runtime_sha!r} expected={revision!r} "
+        f"last_error={latest_error}"
     )
-    subdomain = latest.get("subdomain")
-    if not isinstance(subdomain, str) or not re.fullmatch(r"[a-z0-9-]+", subdomain):
-        raise PublicationError("Space public subdomain is missing or invalid")
-    public_url = f"https://{subdomain}.hf.space/"
-    status, body = fetch_bytes(public_url)
-    if status != 200 or not body:
-        raise PublicationError(
-            f"Space public root is not serving: status={status} bytes={len(body)}"
-        )
-    identity_url = f"{public_url}config"
-    identity_status, identity_body = fetch_bytes(identity_url)
-    if identity_status != 200 or not identity_body:
-        raise PublicationError(
-            "Space identity endpoint is not serving: "
-            f"status={identity_status} bytes={len(identity_body)}"
-        )
-    identity = _validate_space_identity(
-        identity_body,
-        _space_identity_source(expected),
-    )
-    runtime = latest["runtime"]
-    public["runtime"] = {
-        "stage": runtime["stage"],
-        "sha": runtime["sha"],
-        "public_url": public_url,
-        "http_status": status,
-        "response_bytes": len(body),
-        "identity_url": identity_url,
-        "identity_http_status": identity_status,
-        "identity": identity,
-    }
-    return public
 
 
 def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token: str):
@@ -459,9 +501,8 @@ def publish(
     dataset_repo: str,
     space_repo: str,
     receipt_path: Path,
-    space_timeout_seconds: float = 900.0,
+    publication_timeout_seconds: float = PUBLICATION_TIMEOUT_SECONDS,
     poll_interval_seconds: float = 10.0,
-    dataset_timeout_seconds: float = 180.0,
 ) -> dict[str, object]:
     if not SHA_RE.fullmatch(source_revision):
         raise PublicationError("source revision must be 40 lowercase hexadecimal characters")
@@ -473,6 +514,9 @@ def publish(
     if not dataset.is_dir() or not space.is_dir():
         raise PublicationError("bundle must contain dataset and space folders")
     _require_bundle_source(dataset, space, source_revision)
+    if publication_timeout_seconds <= 0:
+        raise PublicationError("publication timeout must be positive")
+    publication_deadline = time.monotonic() + publication_timeout_seconds
 
     try:
         from huggingface_hub import HfApi
@@ -493,7 +537,7 @@ def publish(
         "dataset",
         dataset_revision,
         _files(dataset),
-        dataset_timeout_seconds,
+        publication_deadline,
         poll_interval_seconds,
     )
 
@@ -536,7 +580,7 @@ def publish(
             space_repo,
             space_revision,
             _files(resolved_space),
-            space_timeout_seconds,
+            publication_deadline,
             poll_interval_seconds,
         )
 
@@ -581,8 +625,15 @@ def main() -> int:
     parser.add_argument("--dataset-repo", default="SZLHOLDINGS/governed-agent-bench")
     parser.add_argument("--space-repo", default="SZLHOLDINGS/governed-agent-bench")
     parser.add_argument("--receipt", type=Path, required=True)
-    parser.add_argument("--space-timeout-seconds", type=float, default=900.0)
-    parser.add_argument("--dataset-timeout-seconds", type=float, default=180.0)
+    parser.add_argument(
+        "--publication-timeout-seconds",
+        type=float,
+        default=PUBLICATION_TIMEOUT_SECONDS,
+        help=(
+            "one bounded deadline for Hub publication and anonymous readback; "
+            "the default leaves six minutes inside the 20-minute CI job"
+        ),
+    )
     parser.add_argument("--poll-interval-seconds", type=float, default=10.0)
     args = parser.parse_args()
     try:
@@ -592,9 +643,8 @@ def main() -> int:
             args.dataset_repo,
             args.space_repo,
             args.receipt,
-            args.space_timeout_seconds,
+            args.publication_timeout_seconds,
             args.poll_interval_seconds,
-            args.dataset_timeout_seconds,
         )
     except PublicationError as exc:
         print(f"publication failed: {exc}", file=sys.stderr)
