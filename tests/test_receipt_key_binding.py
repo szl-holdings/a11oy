@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives import serialization
 from starlette.testclient import TestClient
 from fastapi import FastAPI
 import szl_governed_api
+import szl_dsse
 
 
 def test_shared_key_identity_is_signed_not_envelope_only() -> None:
@@ -86,6 +87,11 @@ def test_every_live_public_key_alias_serves_the_shared_signer() -> None:
         )
         fingerprints.add(hashlib.sha256(der).hexdigest())
     assert len(fingerprints) == 1
+
+
+def test_dsse_verifier_uses_the_live_shared_public_alias() -> None:
+    assert szl_dsse.active_public_key_pem() == serve._A11OY_PUB_PEM
+    assert szl_dsse.active_keyid() == serve._A11OY_KEYID
 
 
 def test_empty_injected_key_fails_closed_on_both_public_aliases() -> None:
