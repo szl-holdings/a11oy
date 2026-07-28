@@ -979,10 +979,76 @@ class GDWWorkspace:
 
     @staticmethod
     def scoped_effect_key(
-        namespace: str, owner_id: str, request_id: str, kind: str
+        namespace: str,
+        owner_id: str,
+        request_id: str,
+        kind: str,
+        payload_sha256: str,
     ) -> str:
-        material = f"{namespace}\x1f{owner_id}\x1f{request_id}\x1f{kind}"
+        if (
+            len(payload_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in payload_sha256)
+        ):
+            raise GDWConfigurationError(
+                "effect payload digest must be a lowercase SHA-256 value"
+            )
+        material = (
+            f"{namespace}\x1f{owner_id}\x1f{request_id}\x1f"
+            f"{kind}\x1f{payload_sha256}"
+        )
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def effect_binding_errors(cls, row: Dict[str, Any]) -> list[str]:
+        errors = []
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            return ["payload_not_object"]
+        kind = str(row.get("kind") or "")
+        request_id = str(row.get("request_id") or "")
+        namespace = str(row.get("namespace") or "")
+        owner_id = str(row.get("owner_id") or "")
+        if kind == "proof_export":
+            claimed_digest = str(payload.get("payload_sha256") or "")
+            unsigned = dict(payload)
+            unsigned.pop("payload_sha256", None)
+            observed_digest = hashlib.sha256(
+                _json_text(unsigned).encode("utf-8")
+            ).hexdigest()
+            if claimed_digest != observed_digest:
+                errors.append("proof_payload_digest_invalid")
+            payload_digest = claimed_digest
+            principal = payload.get("governance", {}).get("principal", {})
+        elif kind == "receipt_projection":
+            payload_digest = hashlib.sha256(
+                _json_text(payload).encode("utf-8")
+            ).hexdigest()
+            principal = payload
+        else:
+            return ["unsupported_effect_kind"]
+        if row.get("payload_sha256") != payload_digest:
+            errors.append("row_payload_digest_mismatch")
+        if payload.get("request_id") != request_id:
+            errors.append("request_identity_mismatch")
+        if not isinstance(principal, dict) or (
+            principal.get("namespace") != namespace
+            or principal.get("owner_id") != owner_id
+        ):
+            errors.append("principal_identity_mismatch")
+        try:
+            expected_key = cls.scoped_effect_key(
+                namespace,
+                owner_id,
+                request_id,
+                kind,
+                payload_digest,
+            )
+        except GDWConfigurationError:
+            errors.append("payload_digest_invalid")
+        else:
+            if row.get("idempotency_key") != expected_key:
+                errors.append("idempotency_key_mismatch")
+        return errors
 
     def save_effect_outbox(
         self,
@@ -1000,10 +1066,16 @@ class GDWWorkspace:
     ) -> str:
         ns, owner = self._identity(namespace, owner_id)
         payload_text = _json_text(payload)
-        canonical_key = self.scoped_effect_key(ns, owner, request_id, kind)
+        canonical_key = self.scoped_effect_key(
+            ns,
+            owner,
+            request_id,
+            kind,
+            payload_sha256,
+        )
         if idempotency_key and self.production and idempotency_key != canonical_key:
             raise GDWConfigurationError(
-                "effect idempotency key is not bound to namespace and owner"
+                "effect idempotency key is not bound to identity and payload"
             )
         key = canonical_key
         bounded_attempts = max_attempts or self.effect_max_attempts
@@ -1690,8 +1762,37 @@ class GDWWorkspace:
                     params,
                 ).fetchone()[0]
             )
+            effect_rows = connection.execute(
+                """
+                SELECT namespace, owner_id, idempotency_key, request_id, kind,
+                       payload_json, payload_sha256
+                FROM effect_outbox
+                WHERE payload_json IS NOT NULL
+                """
+                + (
+                    ""
+                    if global_scope
+                    else " AND namespace = ? AND owner_id = ?"
+                ),
+                params,
+            ).fetchall()
+            invalid_effect_bindings = 0
+            for row in effect_rows:
+                try:
+                    payload = json.loads(row["payload_json"])
+                except (TypeError, json.JSONDecodeError):
+                    invalid_effect_bindings += 1
+                    continue
+                candidate = dict(row)
+                candidate["payload"] = payload
+                if self.effect_binding_errors(candidate):
+                    invalid_effect_bindings += 1
             result = {
-                "ok": check == "ok" and orphan_receipts == 0,
+                "ok": (
+                    check == "ok"
+                    and orphan_receipts == 0
+                    and invalid_effect_bindings == 0
+                ),
                 "schema_version": SCHEMA_VERSION,
                 "sqlite_integrity": check,
                 "orphan_receipts": orphan_receipts,
@@ -1699,6 +1800,7 @@ class GDWWorkspace:
                 "pending_effects": pending_effects,
                 "claimed_effects": claimed_effects,
                 "dead_letter_effects": dead_letter_effects,
+                "invalid_effect_bindings": invalid_effect_bindings,
                 "counts": counts,
                 "scope": "global" if global_scope else "owner",
                 "journal_mode": str(

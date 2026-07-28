@@ -66,13 +66,31 @@ def _export_json_artifact(
     root.mkdir(parents=True, exist_ok=True)
     destination = root / filename
     encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    if destination.exists():
+        if destination.read_bytes() != encoded:
+            raise FileExistsError(
+                "refusing to overwrite an existing non-identical GDW artifact"
+            )
+        return {
+            "status": "EXPORTED",
+            "path": str(destination),
+            "sha256": hashlib.sha256(encoded).hexdigest(),
+            "reused": True,
+        }
     handle, temporary = tempfile.mkstemp(prefix=".gdw-artifact-", suffix=".tmp", dir=root)
     try:
         with os.fdopen(handle, "wb") as stream:
             stream.write(encoded)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, destination)
+        try:
+            os.link(temporary, destination)
+        except FileExistsError:
+            if destination.read_bytes() != encoded:
+                raise FileExistsError(
+                    "refusing to overwrite a concurrently created "
+                    "non-identical GDW artifact"
+                )
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -80,6 +98,7 @@ def _export_json_artifact(
         "status": "EXPORTED",
         "path": str(destination),
         "sha256": hashlib.sha256(encoded).hexdigest(),
+        "reused": False,
     }
 
 

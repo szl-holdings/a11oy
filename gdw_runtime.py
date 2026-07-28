@@ -12,7 +12,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-from gdw_proofs import export_proof_payload, export_receipt_projection
+from gdw_proofs import (
+    export_proof_payload,
+    export_receipt_projection,
+)
 from gdw_workspace import GDWWorkspace
 
 
@@ -252,7 +255,14 @@ def prepare_runtime(
     return observed
 
 
+def _verify_effect_binding(row: Mapping[str, Any]) -> None:
+    errors = GDWWorkspace.effect_binding_errors(dict(row))
+    if errors:
+        raise ValueError("invalid effect binding: " + ",".join(errors))
+
+
 def _export_effect(row: Mapping[str, Any]) -> dict[str, Any]:
+    _verify_effect_binding(row)
     if row["kind"] == "proof_export":
         return export_proof_payload(row["payload"])
     if row["kind"] == "receipt_projection":
@@ -300,26 +310,27 @@ def drain_once(
         remaining = bounded - exported - failed
         if remaining <= 0:
             break
-        for row in store.pending_proofs(
-            remaining,
-            namespace=namespace,
-            owner_id=owner_id,
-        ):
-            try:
-                artifact = export_proof_payload(row["payload"])
-                store.mark_proof_exported(
-                    row["proposal_id"],
-                    artifact,
-                    _now(),
-                    namespace=namespace,
-                    owner_id=owner_id,
-                )
-                exported += 1
-            except Exception as exc:
-                failed += 1
-                errors.append(f"legacy:{type(exc).__name__}")
-            if exported + failed >= bounded:
-                break
+        if not store.production:
+            for row in store.pending_proofs(
+                remaining,
+                namespace=namespace,
+                owner_id=owner_id,
+            ):
+                try:
+                    artifact = export_proof_payload(row["payload"])
+                    store.mark_proof_exported(
+                        row["proposal_id"],
+                        artifact,
+                        _now(),
+                        namespace=namespace,
+                        owner_id=owner_id,
+                    )
+                    exported += 1
+                except Exception as exc:
+                    failed += 1
+                    errors.append(f"legacy:{type(exc).__name__}")
+                if exported + failed >= bounded:
+                    break
 
         remaining = bounded - exported - failed
         if remaining <= 0:
@@ -344,13 +355,16 @@ def drain_once(
                 )
                 exported += 1
             except Exception as exc:
-                store.release_effect(
-                    row["idempotency_key"],
-                    owner,
-                    f"{type(exc).__name__}: {str(exc)[:240]}",
-                    namespace=namespace,
-                    owner_id=owner_id,
-                )
+                try:
+                    store.release_effect(
+                        row["idempotency_key"],
+                        owner,
+                        f"{type(exc).__name__}: {str(exc)[:240]}",
+                        namespace=namespace,
+                        owner_id=owner_id,
+                    )
+                except RuntimeError:
+                    errors.append(f"{row['kind']}:CLAIM_LOST")
                 failed += 1
                 errors.append(f"{row['kind']}:{type(exc).__name__}")
 

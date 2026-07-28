@@ -53,9 +53,11 @@ behind one transactional effect outbox with deterministic idempotency keys and
 leased claims. The restoration branch additionally binds stable principals,
 per-owner/global quotas, retention tombstones, bounded retry/dead-letter state,
 verified persistent `/data` paths, a network-safe journal, and a supervised
-drain worker. The historical final fresh run completed with zero transport or
-response errors; it is not evidence for the corrected implementation until the
-corrected harness is rerun.
+drain worker. It also fails closed on unknown policy flows, reports the
+in-process writer/judge boundary, validates row-to-payload effect bindings, and
+refuses non-identical artifact replacement. The historical final fresh run
+completed with zero transport or response errors; it is not evidence for the
+corrected implementation until the corrected harness is rerun.
 
 ### Postman
 

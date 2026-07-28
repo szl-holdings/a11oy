@@ -36,7 +36,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 # Candidate locations for the policy dir (image: /app/policy/colang; repo-relative).
 _POLICY_DIRS = [
@@ -289,6 +289,20 @@ class ColangPolicy:
     def loaded(self) -> bool:
         return bool(self.files)
 
+    @property
+    def unsupported_flows(self) -> list[str]:
+        return sorted(
+            {
+                flow["name"]
+                for flow in self.all_flows()
+                if flow["name"] not in _FLOW_LOGIC
+            }
+        )
+
+    @property
+    def enforcement_ready(self) -> bool:
+        return self.loaded and not self.unsupported_flows
+
     def all_flows(self) -> list[dict]:
         out = []
         for f in self.files:
@@ -304,20 +318,40 @@ class ColangPolicy:
         action = action or {}
         fired: list[dict] = []
         evaluated: list[str] = []
+        unsupported: list[str] = []
+        evaluation_errors: list[str] = []
         for fl in self.all_flows():
             name = fl["name"]
             logic = _FLOW_LOGIC.get(name)
             evaluated.append(name)
             if logic is None:
+                unsupported.append(name)
+                fired.append({
+                    "flow": name,
+                    "reason": "UNSUPPORTED_FLOW_FAIL_CLOSED",
+                    "file": fl["file"],
+                    "policy_id": fl["policy_id"],
+                    "policy_version": fl["policy_version"],
+                })
                 continue
             try:
                 violated = bool(logic(action))
             except Exception:
-                violated = False
+                violated = True
+                evaluation_errors.append(name)
             if violated:
-                fired.append({"flow": name, "reason": fl.get("reason") or name,
-                              "file": fl["file"], "policy_id": fl["policy_id"],
-                              "policy_version": fl["policy_version"]})
+                reason = (
+                    "FLOW_EVALUATION_ERROR"
+                    if name in evaluation_errors
+                    else fl.get("reason") or name
+                )
+                fired.append({
+                    "flow": name,
+                    "reason": reason,
+                    "file": fl["file"],
+                    "policy_id": fl["policy_id"],
+                    "policy_version": fl["policy_version"],
+                })
         allow = len(fired) == 0
         return {
             "allow": allow,
@@ -325,6 +359,9 @@ class ColangPolicy:
             "fired_flows": fired,
             "fired_count": len(fired),
             "flows_evaluated": evaluated,
+            "unsupported_flows": sorted(unsupported),
+            "evaluation_errors": sorted(evaluation_errors),
+            "enforcement_ready": not unsupported and not evaluation_errors,
             "matched_count": len(fired),
             "policy_files": [{"name": f["name"], "sha256": f["sha256"],
                               "policy_id": f["policy_id"],

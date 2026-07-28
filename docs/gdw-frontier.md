@@ -5,6 +5,11 @@ the canonical file-backed Colang policy, versioned SQLite state, idempotency key
 atomic local receipts, structured theorem inputs, load tooling, and an offline
 evidence dashboard.
 
+Policy evaluation is currently in-process, so receipts truthfully report
+`writer_is_judge=true`; they do not claim an independent policy authority.
+Unknown file-backed flows and policy evaluation errors fail closed instead of
+being silently skipped.
+
 ## Truth boundary
 
 > GDW Frontier Push Pack is a MODELED instrumentation and verification extension for the Governed Delta Workspace. It provides load testing, operator validation, hybrid scheduling research hooks, KDA-vs-MLA memory benchmarking, and Lean-oriented proof export. It does not claim frontier benchmark superiority, proprietary activation access, or production-scale guarantees beyond the measured harness outputs.
@@ -21,6 +26,11 @@ local receipt, and deterministic receipt/proof outbox records in one SQLite
 transaction. A leased drain writes idempotently named JSON artifacts after
 commit. This is durable local atomicity plus retry-safe projection, not
 cross-system two-phase commit.
+
+Each effect key binds namespace, owner, request, effect kind, and immutable
+payload digest. The drain revalidates the row, principal, request, payload
+digest, and key before publication. Existing non-identical artifacts are never
+overwritten.
 
 ## Runtime
 

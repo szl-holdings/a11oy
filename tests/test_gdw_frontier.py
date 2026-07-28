@@ -104,6 +104,7 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
         assert body["proof"]["status"] == "OUTBOX_PENDING"
         governance = body["audit"]["governance"]
         assert governance["allowed"] is True
+        assert governance["writer_is_judge"] is True
         assert governance["principal"]["owner_id"] == "owner-a"
         assert governance["reason_codes"] == ["FILE_BACKED_GOVERNANCE_PASS"]
         assert governance["colang"]["policy_files"]
@@ -557,3 +558,56 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
     assert "private-worker-identity" not in encoded
     assert '"rows"' not in encoded
     assert body["persistence"]["storage"]["sqlite_integrity"] == "ok"
+
+
+def test_unknown_file_backed_policy_flow_fails_closed(tmp_path):
+    from szl_colang_policy import ColangPolicy
+
+    (tmp_path / "unknown.co").write_text(
+        "\n".join(
+            [
+                "# policy_id: test-unknown",
+                "# policy_version: 1.0.0",
+                "define flow deny_all_gdw_effects",
+                "  user action requested $action",
+                "  bot refuse action with reason \"deny_all\"",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    policy = ColangPolicy(tmp_path)
+    result = policy.evaluate({"effecting": True})
+
+    assert policy.enforcement_ready is False
+    assert policy.unsupported_flows == ["deny_all_gdw_effects"]
+    assert result["allow"] is False
+    assert result["decision"] == "deny"
+    assert result["enforcement_ready"] is False
+    assert result["unsupported_flows"] == ["deny_all_gdw_effects"]
+    assert result["fired_flows"][0]["reason"] == "UNSUPPORTED_FLOW_FAIL_CLOSED"
+
+
+def test_replay_telemetry_does_not_count_a_new_receipt(tmp_path, monkeypatch):
+    from gdw_telemetry import GDWTelemetry
+
+    telemetry = GDWTelemetry()
+    monkeypatch.setattr(gdw_frontier, "_TELEMETRY", telemetry)
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(),
+            headers=headers("telemetry-replay"),
+        )
+        replay = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(),
+            headers=headers("telemetry-replay"),
+        )
+
+    assert first.status_code == replay.status_code == 200
+    assert replay.json()["replayed"] is True
+    snapshot = telemetry.snapshot()
+    assert snapshot["requests"] == 2
+    assert snapshot["receipts"] == 1

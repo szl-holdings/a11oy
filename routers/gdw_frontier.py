@@ -156,6 +156,7 @@ def _governance_ready() -> bool:
         policy = szl_colang_policy.get_policy()
         return bool(
             policy.loaded
+            and policy.enforcement_ready
             and callable(getattr(szl_codename_gate, "scan_text", None))
         )
     except Exception:
@@ -263,7 +264,7 @@ def _governance_gate(
             "decision": "DENY",
             "reason_codes": ["DOCTRINE_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
-            "writer_is_judge": False,
+            "writer_is_judge": True,
             "principal": {
                 "owner_id": principal.owner_id,
                 "namespace": principal.namespace,
@@ -286,7 +287,7 @@ def _governance_gate(
             "decision": "DENY",
             "reason_codes": ["CODENAME_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
-            "writer_is_judge": False,
+            "writer_is_judge": True,
             "principal": {
                 "owner_id": principal.owner_id,
                 "namespace": principal.namespace,
@@ -309,7 +310,7 @@ def _governance_gate(
         "allowed": not reasons,
         "decision": "ALLOW" if not reasons else "DENY",
         "reason_codes": reasons or ["FILE_BACKED_GOVERNANCE_PASS"],
-        "writer_is_judge": False,
+        "writer_is_judge": True,
         "principal": {
             "owner_id": principal.owner_id,
             "namespace": principal.namespace,
@@ -501,7 +502,7 @@ def register(app, ns: str = "a11oy"):
                         (time.perf_counter() - started) * 1000.0,
                         decision,
                         selected_mode,
-                        bool(receipt_hash),
+                        False,
                     )
                     return cached_response
 
@@ -624,6 +625,7 @@ def register(app, ns: str = "a11oy"):
                         principal.owner_id,
                         request_id,
                         "proof_export",
+                        proof_payload["payload_sha256"],
                     ),
                     "payload_sha256": proof_payload["payload_sha256"],
                     "formal_status": "NOT_RUN",
@@ -678,6 +680,7 @@ def register(app, ns: str = "a11oy"):
                     timestamp,
                 )
                 if receipt is not None:
+                    receipt_payload_sha256 = sha256_json(receipt)
                     workspace.save_receipt(
                         connection,
                         receipt_hash,
@@ -692,12 +695,13 @@ def register(app, ns: str = "a11oy"):
                         request_id,
                         "receipt_projection",
                         receipt,
-                        sha256_json(receipt),
+                        receipt_payload_sha256,
                         workspace.scoped_effect_key(
                             principal.namespace,
                             principal.owner_id,
                             request_id,
                             "receipt_projection",
+                            receipt_payload_sha256,
                         ),
                         timestamp,
                     )
@@ -712,6 +716,7 @@ def register(app, ns: str = "a11oy"):
                         principal.owner_id,
                         request_id,
                         "proof_export",
+                        proof_payload["payload_sha256"],
                     ),
                     timestamp,
                 )
