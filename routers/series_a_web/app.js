@@ -90,6 +90,7 @@
   };
   document.getElementById("refresh").addEventListener("click", async () => {
     const button = document.getElementById("refresh");
+    let failure = null;
     button.disabled = true;
     try {
       if (!currentEvidence) {
@@ -118,14 +119,23 @@
           }`
         );
       }
-      await request("/passports/execute", {
+      const value = await request("/passports/execute", {
         method: "POST",
         headers: {"content-type": "application/json"},
         body: JSON.stringify({passport_digest: evaluated.passport_digest})
       }, EXECUTION_TIMEOUT_MS);
+      if (value.outcome?.status !== "SUCCEEDED") {
+        throw new Error(
+          `SERIES_A_REFRESH_FAILED: ${value.outcome?.error_class || value.outcome?.status || "UNKNOWN"}`
+        );
+      }
     } catch (error) {
-      document.getElementById("updated").textContent = String(error.message || error);
-    } finally { button.disabled = false; await load(); }
+      failure = String(error.message || error);
+    } finally {
+      button.disabled = false;
+      await load();
+      if (failure) document.getElementById("updated").textContent = failure;
+    }
   });
   const actionSelect = document.querySelector('select[name="type"]');
   const targetInput = document.querySelector('input[name="target"]');
