@@ -1075,8 +1075,8 @@ def _event_cursor(request: Request) -> int:
     return cursor
 
 
-def _asset_cache_control(request: Request, name: str) -> str:
-    if request.query_params.get("v") == _asset_digest(name):
+def _asset_cache_control(request: Request, content: bytes) -> str:
+    if request.query_params.get("v") == hashlib.sha256(content).hexdigest():
         return "public,max-age=31536000,immutable"
     return "no-store"
 
@@ -1099,7 +1099,8 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         return HTMLResponse(html, headers={"cache-control": "no-store"})
 
     async def js(request: Request) -> Response:
-        headers = {"cache-control": _asset_cache_control(request, "app.js")}
+        content = _asset_bytes("app.js")
+        headers = {"cache-control": _asset_cache_control(request, content)}
         if request.method == "HEAD":
             return Response(
                 status_code=200,
@@ -1107,13 +1108,14 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
                 headers=headers,
             )
         return Response(
-            _asset_bytes("app.js"),
+            content,
             media_type="application/javascript",
             headers=headers,
         )
 
     async def css(request: Request) -> Response:
-        headers = {"cache-control": _asset_cache_control(request, "styles.css")}
+        content = _asset_bytes("styles.css")
+        headers = {"cache-control": _asset_cache_control(request, content)}
         if request.method == "HEAD":
             return Response(
                 status_code=200,
@@ -1121,7 +1123,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
                 headers=headers,
             )
         return Response(
-            _asset_bytes("styles.css"),
+            content,
             media_type="text/css",
             headers=headers,
         )
