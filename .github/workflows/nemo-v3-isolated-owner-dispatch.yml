@@ -1,0 +1,232 @@
+name: Nemo v3 isolated owner GPU dispatch
+
+# repository_dispatch always loads this workflow from the protected default
+# branch. The managed Hub credential is scoped to two trusted helper steps and
+# never enters the networkless remote-code execution container.
+
+on:
+  repository_dispatch:
+    types: [nemo-v3-isolated-owner-gpu]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nemo-v3-isolated-owner-gpu-attempt
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    name: Execute one credential-separated Nemo v3 attempt
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == 'stephenlutar2-hash'
+    runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
+    timeout-minutes: 330
+    env:
+      JOB_ID: job-2026-nemo-v3-governed-attempt-1
+      BRIDGE_REVISION: 31a49762fdf9adc2b661137f61c5cd27ed8f0af3
+      TRAINING_IMAGE: unsloth/unsloth@sha256:9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123
+      BRIDGE_ROOT: C:\szl-bridge
+      CACHE_ROOT: C:\szl-bridge-cache
+    steps:
+      - name: Prepare exact public source and trusted control runtime
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $git = Get-Command git.exe -ErrorAction SilentlyContinue
+          if ($git) {
+            $gitExecutable = $git.Source
+          } else {
+            $gitPath = (
+              "C:\Users\steph\.cache\codex-runtimes\codex-primary-runtime" +
+              "\dependencies\native\git\cmd\git.exe"
+            )
+            if (-not (Test-Path -LiteralPath $gitPath -PathType Leaf)) {
+              throw "Git is unavailable on the owner runner."
+            }
+            $gitExecutable = $gitPath
+            Add-Content `
+              -LiteralPath $env:GITHUB_PATH `
+              -Value (Split-Path -Parent $gitPath)
+          }
+
+          $python = (
+            "C:\Users\steph\.cache\codex-runtimes\codex-primary-runtime" +
+            "\dependencies\python\python.exe"
+          )
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+            $pythonCommand = Get-Command python.exe -ErrorAction Stop
+            $python = $pythonCommand.Source
+          }
+
+          $source = Join-Path $env:RUNNER_TEMP (
+            "szl-gpu-bridge-" + $env:GITHUB_RUN_ID
+          )
+          $control = Join-Path $env:RUNNER_TEMP (
+            "szl-nemo-control-" + $env:GITHUB_RUN_ID
+          )
+          if (
+            (Test-Path -LiteralPath $source) -or
+            (Test-Path -LiteralPath $control)
+          ) {
+            throw "Per-run trusted source or control path already exists."
+          }
+
+          & $gitExecutable clone `
+            --filter=blob:none `
+            --no-checkout `
+            https://github.com/szl-holdings/szl-gpu-bridge.git `
+            $source
+          if ($LASTEXITCODE -ne 0) {
+            throw "Bridge clone failed."
+          }
+          & $gitExecutable -C $source fetch `
+            --depth=1 `
+            origin `
+            $env:BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact bridge revision fetch failed."
+          }
+          & $gitExecutable -C $source checkout --detach $env:BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact bridge revision checkout failed."
+          }
+          $observed = (& $gitExecutable -C $source rev-parse HEAD).Trim()
+          if ($observed -ne $env:BRIDGE_REVISION) {
+            throw "Bridge source revision mismatch: $observed"
+          }
+          if (& $gitExecutable -C $source status --porcelain --untracked-files=no) {
+            throw "Exact bridge source is dirty."
+          }
+
+          & $python -m venv $control
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted control virtual environment creation failed."
+          }
+          $controlPython = Join-Path $control "Scripts\python.exe"
+          & $controlPython -m pip install `
+            --disable-pip-version-check `
+            "huggingface_hub==1.24.0" `
+            "PyNaCl==1.6.2"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted control dependency installation failed."
+          }
+
+          $docker = (Get-Command docker.exe -ErrorAction Stop).Source
+          & $docker pull $env:TRAINING_IMAGE
+          if ($LASTEXITCODE -ne 0) {
+            throw "Digest-pinned Unsloth image pull failed."
+          }
+          & $docker run `
+            --rm `
+            --gpus all `
+            --network none `
+            --entrypoint python `
+            $env:TRAINING_IMAGE `
+            -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Digest-pinned container cannot access the owner GPU."
+          }
+
+          "BRIDGE_SOURCE=$source" | Add-Content -LiteralPath $env:GITHUB_ENV
+          "CONTROL_PYTHON=$controlPython" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Prefetch exact authenticated inputs without executing model code
+        shell: powershell
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:HF_TOKEN)) {
+            throw "HF_TOKEN was not injected into the trusted prefetch step."
+          }
+
+          $hfCache = Join-Path $env:CACHE_ROOT "huggingface\hub"
+          $inputCache = Join-Path $env:CACHE_ROOT "inputs"
+          foreach ($directory in @($hfCache, $inputCache)) {
+            if (-not (Test-Path -LiteralPath $directory)) {
+              New-Item -ItemType Directory -Path $directory | Out-Null
+            }
+          }
+          $spec = Join-Path $env:BRIDGE_SOURCE (
+            "queue\pending\" + $env:JOB_ID + ".json"
+          )
+          $engineKey = Join-Path $env:BRIDGE_SOURCE "keys\engine_pubkey.json"
+          $receipt = Join-Path $inputCache ($env:JOB_ID + "-prefetch.json")
+
+          & $env:CONTROL_PYTHON `
+            (Join-Path $env:BRIDGE_SOURCE "laptop\prefetch_nemo_v3.py") `
+            --spec $spec `
+            --engine-key $engineKey `
+            --hf-cache $hfCache `
+            --input-cache $inputCache `
+            --receipt $receipt
+          if ($LASTEXITCODE -ne 0) {
+            throw "Authenticated prefetch failed."
+          }
+
+      - name: Execute remote model code without network, credentials, or signing key
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          & powershell.exe `
+            -NoProfile `
+            -NonInteractive `
+            -ExecutionPolicy Bypass `
+            -File (
+              Join-Path $env:BRIDGE_SOURCE "laptop\run_nemo_v3_isolated.ps1"
+            ) `
+            -JobId $env:JOB_ID `
+            -BridgeRevision $env:BRIDGE_REVISION `
+            -Image $env:TRAINING_IMAGE `
+            -BridgeSource $env:BRIDGE_SOURCE `
+            -BridgeRoot $env:BRIDGE_ROOT `
+            -HfCache (Join-Path $env:CACHE_ROOT "huggingface\hub") `
+            -InputCache (Join-Path $env:CACHE_ROOT "inputs")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Credentialless GPU execution failed."
+          }
+
+      - name: Sign, upload, and immutably read back the fresh receipt
+        shell: powershell
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:HF_TOKEN)) {
+            throw "HF_TOKEN was not injected into the trusted finalizer step."
+          }
+
+          $jobRoot = Join-Path $env:BRIDGE_ROOT ("jobs\" + $env:JOB_ID)
+          $outbox = Join-Path $jobRoot "receipt-outbox"
+          $intents = @(
+            Get-ChildItem -LiteralPath $outbox -Filter "*.intent.json" -File
+          )
+          if ($intents.Count -ne 1) {
+            throw "Expected one fresh receipt intent; found $($intents.Count)."
+          }
+          $notBefore = Get-Content -LiteralPath (
+            Join-Path $env:BRIDGE_ROOT (
+              "control\" + $env:JOB_ID + "-not-before.txt"
+            )
+          ) -Raw
+
+          & $env:CONTROL_PYTHON `
+            (Join-Path $env:BRIDGE_SOURCE "laptop\finalize_nemo_v3_receipt.py") `
+            --spec (
+              Join-Path $env:BRIDGE_SOURCE (
+                "queue\pending\" + $env:JOB_ID + ".json"
+              )
+            ) `
+            --intent $intents[0].FullName `
+            --engine-key (
+              Join-Path $env:BRIDGE_SOURCE "keys\engine_pubkey.json"
+            ) `
+            --bridge-root $env:BRIDGE_ROOT `
+            --not-before $notBefore.Trim() `
+            --ledger (Join-Path $env:BRIDGE_ROOT "jobs\seen.txt")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted receipt finalization failed."
+          }
