@@ -136,7 +136,7 @@ test("vendor-prefixed presigned credentials never enter normalized evidence", ()
   assert.equal(openai.sources[0]?.url, "https://research.example/paper?topic=governance");
 });
 
-test("comparison projects provider and source fields through an explicit allowlist", () => {
+test("comparison rejects undeclared provider, usage, and source fields", () => {
   const base = fixtures.cases.find((candidate) => candidate.name === "matching");
   assert.ok(base);
   const openai = normalizeOpenAIWebSearchResult(base.openai);
@@ -144,6 +144,10 @@ test("comparison projects provider and source fields through an explicit allowli
   const unsafeOpenAI = {
     ...openai,
     api_key: "must-not-escape",
+    usage: {
+      ...(openai.usage ?? {}),
+      response_body: "raw usage must not be receipted",
+    },
     sources: openai.sources.map((source) => ({
       ...source,
       snippet: "raw snippet must not be receipted",
@@ -154,15 +158,81 @@ test("comparison projects provider and source fields through an explicit allowli
     policy_sha256: fixtures.policy_sha256,
     providers: [unsafeOpenAI, perplexity],
   });
-  const receipt = emitTwoWitnessResearchReceipt(comparison, {
-    actor_id: "did:example:projection-test",
-  });
-  const serialized = JSON.stringify(receipt.envelope);
+  const serialized = JSON.stringify(comparison);
 
   assert.equal(serialized.includes("must-not-escape"), false);
+  assert.equal(serialized.includes("raw usage must not be receipted"), false);
   assert.equal(serialized.includes("raw snippet must not be receipted"), false);
   assert.equal(serialized.includes("\"api_key\""), false);
+  assert.equal(serialized.includes("\"response_body\""), false);
   assert.equal(serialized.includes("\"snippet\""), false);
+  assert.equal(comparison.integrity_valid, false);
+  assert.ok(
+    comparison.integrity_errors.includes("openai: unexpected provider field api_key"),
+  );
+  assert.ok(
+    comparison.integrity_errors.includes("openai: unexpected usage field response_body"),
+  );
+  assert.ok(
+    comparison.integrity_errors.includes("openai: source 0 unexpected field snippet"),
+  );
+  assert.throws(
+    () => emitTwoWitnessResearchReceipt(comparison, {
+      actor_id: "did:example:projection-test",
+    }),
+    /comparison verification failed/,
+  );
+});
+
+test("direct comparison rebuilds credential-bearing allowed fields before receipt emission", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const openai = normalizeOpenAIWebSearchResult(base.openai);
+  const perplexity = normalizePerplexitySearchResult(base.perplexity);
+  const unsafeOpenAI = {
+    ...openai,
+    response_id: { api_key: "response-id-secret-must-not-escape" },
+    model: { snippet: "model-secret-must-not-escape" },
+    sources: openai.sources.map((source, index) => (
+      index === 0
+        ? {
+          ...source,
+          url: `${source.url}?X-Amz-Credential=source-secret-must-not-escape`,
+        }
+        : source
+    )),
+  } as unknown as NormalizedResearchProviderEvidence;
+  const comparison = compareResearchEvidence({
+    query_sha256: fixtures.query_sha256,
+    policy_sha256: fixtures.policy_sha256,
+    providers: [unsafeOpenAI, perplexity],
+  });
+  const receipt = emitTwoWitnessResearchReceipt(comparison, {
+    actor_id: "did:example:allowed-field-negative",
+  });
+  const serialized = JSON.stringify(receipt.envelope);
+  const payload = receipt.envelope.payload as Record<string, unknown>;
+
+  for (const forbidden of [
+    "response-id-secret-must-not-escape",
+    "model-secret-must-not-escape",
+    "source-secret-must-not-escape",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false);
+  }
+  assert.equal(comparison.providers[0]?.response_id, undefined);
+  assert.equal(comparison.providers[0]?.model, undefined);
+  assert.equal(
+    comparison.providers[0]?.sources[0]?.url,
+    "https://example.com/research/report",
+  );
+  assert.equal(comparison.integrity_valid, true);
+  assert.equal(payload.evidence_class, "MODELED");
+  assert.equal(payload.signature_state, "UNSIGNED_LOCAL");
+  assert.equal(payload.external_attestation_state, "EXTERNAL_ATTESTATION_FALSE");
+  assert.equal(payload.external_attestation, false);
+  assert.equal(payload.action_authorization_state, "ACTION_AUTHORIZED_FALSE");
+  assert.equal(payload.action_authorized, false);
 });
 
 test("live adapters remain disabled and the public label vocabulary excludes a truth claim", () => {
