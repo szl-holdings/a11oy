@@ -57,6 +57,32 @@ def _manifest_is_managed(files: dict[str, bytes]) -> None:
         raise PublicationError("publication manifest ownership mismatch")
 
 
+def _require_declared_source(path: Path, source_revision: str) -> None:
+    try:
+        document = json.loads(path.read_bytes())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PublicationError(f"source identity document is invalid: {path}") from exc
+    observed = document.get("source_revision")
+    if observed != source_revision:
+        raise PublicationError(
+            "publication source revision mismatch: "
+            f"{path} expected={source_revision!r} observed={observed!r}"
+        )
+
+
+def _require_bundle_source(
+    dataset: Path,
+    space: Path,
+    source_revision: str,
+) -> None:
+    for path in (
+        dataset / "publication-manifest.json",
+        space / "publication-manifest.json",
+        space / "publication.json",
+    ):
+        _require_declared_source(path, source_revision)
+
+
 def _public_bytes(url: str, timeout_seconds: float = 30.0) -> tuple[int, bytes]:
     request = Request(url, headers={"User-Agent": "szl-governed-agent-bench/1"})
     try:
@@ -155,11 +181,77 @@ def _verify_public_repository(
     return {"info": info, "files": observed}
 
 
+def _wait_for_public_repository(
+    repo_id: str,
+    repo_type: str,
+    revision: str,
+    expected: dict[str, bytes],
+    timeout_seconds: float,
+    poll_interval_seconds: float,
+    *,
+    fetch_json=_public_json,
+    fetch_bytes=_public_bytes,
+    sleep=time.sleep,
+    monotonic=time.monotonic,
+) -> dict[str, object]:
+    deadline = monotonic() + timeout_seconds
+    latest_error: PublicationError | None = None
+    while monotonic() <= deadline:
+        try:
+            return _verify_public_repository(
+                repo_id,
+                repo_type,
+                revision,
+                expected,
+                fetch_json=fetch_json,
+                fetch_bytes=fetch_bytes,
+            )
+        except PublicationError as exc:
+            latest_error = exc
+        sleep(poll_interval_seconds)
+    raise PublicationError(
+        "public immutable readback did not converge before timeout: "
+        f"{repo_type}:{repo_id} expected={revision!r} last_error={latest_error}"
+    )
+
+
 def _space_runtime_ready(info: dict[str, object], revision: str) -> bool:
     runtime = info.get("runtime")
     if not isinstance(runtime, dict):
         return False
     return runtime.get("stage") == "RUNNING" and runtime.get("sha") == revision
+
+
+def _space_identity_source(expected: dict[str, bytes]) -> str:
+    try:
+        publication = json.loads(expected["publication.json"])
+    except (KeyError, json.JSONDecodeError) as exc:
+        raise PublicationError("Space payload lacks a valid publication identity") from exc
+    source_revision = publication.get("source_revision")
+    if not isinstance(source_revision, str) or not SHA_RE.fullmatch(source_revision):
+        raise PublicationError("Space publication identity lacks an exact source revision")
+    return source_revision
+
+
+def _validate_space_identity(body: bytes, source_revision: str) -> dict[str, object]:
+    try:
+        config = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise PublicationError("Space /config returned invalid JSON") from exc
+    if not isinstance(config, dict) or config.get("mode") != "blocks":
+        raise PublicationError("Space /config is not a Gradio blocks application")
+    components = config.get("components")
+    if not isinstance(components, list):
+        raise PublicationError("Space /config does not expose components")
+    encoded = json.dumps(config, sort_keys=True)
+    if "Governed Agent Bench" not in encoded:
+        raise PublicationError("Space /config lacks the expected application identity")
+    if source_revision not in encoded:
+        raise PublicationError("Space /config lacks the exact protected source revision")
+    return {
+        "application": "Governed Agent Bench",
+        "source_revision": source_revision,
+    }
 
 
 def _wait_for_public_space(
@@ -183,7 +275,8 @@ def _wait_for_public_space(
             latest = {}
         runtime = latest.get("runtime")
         stage = runtime.get("stage") if isinstance(runtime, dict) else None
-        if stage in SPACE_RUNTIME_FAILURE_STAGES:
+        runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
+        if stage in SPACE_RUNTIME_FAILURE_STAGES and runtime_sha == revision:
             raise PublicationError(f"Space entered terminal failure stage: {stage}")
         if _space_runtime_ready(latest, revision):
             _validate_public_info(latest, repo_id, "space", revision, set(expected))
@@ -215,6 +308,17 @@ def _wait_for_public_space(
         raise PublicationError(
             f"Space public root is not serving: status={status} bytes={len(body)}"
         )
+    identity_url = f"{public_url}config"
+    identity_status, identity_body = fetch_bytes(identity_url)
+    if identity_status != 200 or not identity_body:
+        raise PublicationError(
+            "Space identity endpoint is not serving: "
+            f"status={identity_status} bytes={len(identity_body)}"
+        )
+    identity = _validate_space_identity(
+        identity_body,
+        _space_identity_source(expected),
+    )
     runtime = latest["runtime"]
     public["runtime"] = {
         "stage": runtime["stage"],
@@ -222,6 +326,9 @@ def _wait_for_public_space(
         "public_url": public_url,
         "http_status": status,
         "response_bytes": len(body),
+        "identity_url": identity_url,
+        "identity_http_status": identity_status,
+        "identity": identity,
     }
     return public
 
@@ -354,6 +461,7 @@ def publish(
     receipt_path: Path,
     space_timeout_seconds: float = 900.0,
     poll_interval_seconds: float = 10.0,
+    dataset_timeout_seconds: float = 180.0,
 ) -> dict[str, object]:
     if not SHA_RE.fullmatch(source_revision):
         raise PublicationError("source revision must be 40 lowercase hexadecimal characters")
@@ -364,6 +472,7 @@ def publish(
     space = bundle / "space"
     if not dataset.is_dir() or not space.is_dir():
         raise PublicationError("bundle must contain dataset and space folders")
+    _require_bundle_source(dataset, space, source_revision)
 
     try:
         from huggingface_hub import HfApi
@@ -379,11 +488,13 @@ def publish(
     ) = _publish_and_readback(
         api, dataset_repo, "dataset", dataset, token
     )
-    dataset_public = _verify_public_repository(
+    dataset_public = _wait_for_public_repository(
         dataset_repo,
         "dataset",
         dataset_revision,
         _files(dataset),
+        dataset_timeout_seconds,
+        poll_interval_seconds,
     )
 
     with tempfile.TemporaryDirectory(prefix="governed-agent-bench-space-") as tmp:
@@ -471,6 +582,7 @@ def main() -> int:
     parser.add_argument("--space-repo", default="SZLHOLDINGS/governed-agent-bench")
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--space-timeout-seconds", type=float, default=900.0)
+    parser.add_argument("--dataset-timeout-seconds", type=float, default=180.0)
     parser.add_argument("--poll-interval-seconds", type=float, default=10.0)
     args = parser.parse_args()
     try:
@@ -482,6 +594,7 @@ def main() -> int:
             args.receipt,
             args.space_timeout_seconds,
             args.poll_interval_seconds,
+            args.dataset_timeout_seconds,
         )
     except PublicationError as exc:
         print(f"publication failed: {exc}", file=sys.stderr)
