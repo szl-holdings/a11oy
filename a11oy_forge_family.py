@@ -41,6 +41,7 @@ import json
 import os
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 from cryptography.hazmat.primitives.serialization import load_der_public_key
@@ -50,6 +51,14 @@ _ROUTE = "/api/forge/family"
 _HF = "https://huggingface.co"
 _RECEIPT_FILES = ("owner_pubkey.json", "training_receipt.signed.json", "eval_receipt.signed.json")
 _CACHE_TTL_SECONDS = 300  # receipt BYTES only; verification always re-runs
+_RECONCILIATION_STATE = "ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED"
+_RECONCILIATION_PATH = (
+    Path(__file__).resolve().parent
+    / "model_release"
+    / "receipt-agent"
+    / "reconciliation"
+    / "receipt-agent-artifact-reconciliation.v1.json"
+)
 
 _MODELS = (
     {
@@ -57,6 +66,7 @@ _MODELS = (
         "displayName": "SZL-Forge-1.5B-ReceiptAgent",
         "hfRepo": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
         "pinEnv": "A11OY_OWNER_KEYID",
+        "artifactReconciliation": True,
     },
     {
         "model": "khipu",
@@ -97,6 +107,48 @@ async def _fetch_receipt_bytes(client: httpx.AsyncClient, repo: str) -> dict:
     return entry
 
 
+async def _fetch_public_head(client: httpx.AsyncClient, repo: str) -> str:
+    """Observe the current public head independently of cached receipt bytes."""
+    response = await client.get(f"{_HF}/api/models/{repo}")
+    response.raise_for_status()
+    payload = response.json()
+    revision = payload.get("sha") if isinstance(payload, dict) else None
+    if (
+        not isinstance(revision, str)
+        or len(revision) != 40
+        or any(character not in "0123456789abcdef" for character in revision)
+    ):
+        raise ValueError("Hugging Face model API did not return a lowercase hex head")
+    return revision
+
+
+def _load_receipt_agent_reconciliation() -> dict:
+    """Load and self-verify the frozen, non-promoting reconciliation artifact."""
+    value = json.loads(_RECONCILIATION_PATH.read_text(encoding="utf-8"))
+    recorded = value.get("reconciliation_sha256")
+    unsigned = dict(value)
+    unsigned.pop("reconciliation_sha256", None)
+    computed = _sha256_hex(_canonical(unsigned).encode("utf-8"))
+    if recorded != computed:
+        raise ValueError("ReceiptAgent reconciliation self-digest mismatch")
+    if value.get("state") != _RECONCILIATION_STATE:
+        raise ValueError("ReceiptAgent reconciliation state mismatch")
+    if value.get("repository") != "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent":
+        raise ValueError("ReceiptAgent reconciliation repository mismatch")
+    if value.get("authorization") != {
+        "trained": False,
+        "uploaded": False,
+        "promoted": False,
+        "deployed": False,
+    }:
+        raise ValueError("ReceiptAgent reconciliation overstates authorization")
+    binding = value.get("exact_qualified_artifact_binding") or {}
+    head = value.get("current_public_head_equivalence") or {}
+    if binding.get("verified") is not True or head.get("verified") is not True:
+        raise ValueError("ReceiptAgent reconciliation is not fully verified")
+    return value
+
+
 def _verify_one_receipt(receipt: dict, owner_spki_b64: str, owner_key_id: str, expected_kind_word: str) -> dict:
     """Run every check for one signed receipt. Returns {check_name: bool} + meta."""
     checks = {}
@@ -130,7 +182,12 @@ def _verify_one_receipt(receipt: dict, owner_spki_b64: str, owner_key_id: str, e
     }
 
 
-def _band_for_model(cfg: dict, raw_files: dict, fetched_at_epoch: float) -> dict:
+def _band_for_model(
+    cfg: dict,
+    raw_files: dict,
+    fetched_at_epoch: float,
+    public_head_revision: str | None = None,
+) -> dict:
     """Build one fully-verified wall band. Verification runs on every call."""
     owner = json.loads(raw_files["owner_pubkey.json"])
     training = json.loads(raw_files["training_receipt.signed.json"])
@@ -141,7 +198,7 @@ def _band_for_model(cfg: dict, raw_files: dict, fetched_at_epoch: float) -> dict
     owner_checks = {
         "ownerAlgoIsEd25519": owner.get("algo") == "ed25519",
         "ownerKeyIdDerivesFromSpki": (
-            _sha256_hex(base64.b64decode(owner_spki_b64)) [:16] == owner_key_id
+            _sha256_hex(base64.b64decode(owner_spki_b64))[:16] == owner_key_id
             if owner_spki_b64 else False
         ),
     }
@@ -168,6 +225,71 @@ def _band_for_model(cfg: dict, raw_files: dict, fetched_at_epoch: float) -> dict
 
     training_verified = owner_checks["ownerAlgoIsEd25519"] and owner_checks["ownerKeyIdDerivesFromSpki"] and training_result["allPassed"] and pin_ok
     eval_verified = owner_checks["ownerAlgoIsEd25519"] and owner_checks["ownerKeyIdDerivesFromSpki"] and eval_result["allPassed"] and chain_ok and pin_ok
+    receipt_signatures_verified = training_verified and eval_verified
+    verification_layers = {
+        "receiptSignatureValidity": {
+            "verified": receipt_signatures_verified,
+            "training": training_verified,
+            "evaluation": eval_verified,
+            "trustBoundary": {
+                "PINNED": "PINNED_OWNER_KEY",
+                "PIN_MISMATCH": "PIN_MISMATCH_FAIL_CLOSED",
+                "REPO_DECLARED": (
+                    "REPOSITORY_DECLARED_KEY_NOT_INDEPENDENTLY_PINNED"
+                ),
+            }[key_trust],
+        },
+        "exactQualifiedArtifactBinding": {
+            "verified": None,
+            "state": "NOT_EVALUATED_FOR_THIS_PROFILE",
+        },
+        "currentPublicHeadEquivalence": {
+            "verified": None,
+            "state": "NOT_EVALUATED_FOR_THIS_PROFILE",
+            "observedHead": public_head_revision,
+        },
+        "promotion": {
+            "authorized": False,
+            "state": "NOT_PROMOTED",
+        },
+    }
+    profile_state = None
+    fully_verified = receipt_signatures_verified
+    if cfg.get("artifactReconciliation"):
+        reconciliation = _load_receipt_agent_reconciliation()
+        artifact_binding = reconciliation["exact_qualified_artifact_binding"]
+        frozen_head = reconciliation["public_head_revision"]
+        current_head_equivalent = public_head_revision == frozen_head
+        verification_layers["exactQualifiedArtifactBinding"] = {
+            "verified": artifact_binding["verified"] is True,
+            "state": _RECONCILIATION_STATE,
+            "qualifiedRevision": reconciliation["qualified_revision"],
+            "qualificationReceiptSha256": artifact_binding[
+                "qualification_receipt_sha256"
+            ],
+            "digestDomain": artifact_binding["digest_domain"],
+        }
+        verification_layers["currentPublicHeadEquivalence"] = {
+            "verified": current_head_equivalent,
+            "state": (
+                "INFERENCE_BEARING_BLOBS_EQUIVALENT_TO_QUALIFIED_REVISION"
+                if current_head_equivalent
+                else "PUBLIC_HEAD_CHANGED_RECONCILIATION_REQUIRED"
+            ),
+            "observedHead": public_head_revision,
+            "reconciledHead": frozen_head,
+            "failClosedOnHeadChange": True,
+        }
+        fully_verified = (
+            receipt_signatures_verified
+            and artifact_binding["verified"] is True
+            and current_head_equivalent
+        )
+        profile_state = (
+            _RECONCILIATION_STATE
+            if fully_verified
+            else "ARTIFACT_RECONCILIATION_FAILED_CLOSED"
+        )
     ep = eval_result["payload"]
     tp = training_result["payload"]
 
@@ -178,11 +300,26 @@ def _band_for_model(cfg: dict, raw_files: dict, fetched_at_epoch: float) -> dict
         "keyId": owner_key_id,
         "keyTrust": key_trust,
         "pinEnv": pin_env,
-        "verified": training_verified and eval_verified,
+        "verified": fully_verified,
+        "profileState": profile_state,
         "status": (
             (["TRAINED_RECEIPT_VERIFIED"] if training_verified else ["TRAINING_RECEIPT_FAILED"])
             + (["EVAL_RECEIPT_VERIFIED"] if eval_verified else ["EVAL_RECEIPT_FAILED"])
+            + (
+                [
+                    "ARTIFACT_BYTES_RECONCILED_MEASURED",
+                    "CURRENT_PUBLIC_HEAD_EQUIVALENT",
+                    "NOT_PROMOTED",
+                ]
+                if cfg.get("artifactReconciliation") and fully_verified
+                else (
+                    ["ARTIFACT_RECONCILIATION_FAILED_CLOSED", "NOT_PROMOTED"]
+                    if cfg.get("artifactReconciliation")
+                    else []
+                )
+            )
         ),
+        "verificationLayers": verification_layers,
         "checks": {
             "owner": owner_checks,
             "training": training_result["checks"],
@@ -215,8 +352,20 @@ async def _forge_family_handler():
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         for cfg in _MODELS:
             try:
+                public_head_revision = None
+                if cfg.get("artifactReconciliation"):
+                    public_head_revision = await _fetch_public_head(
+                        client, cfg["hfRepo"]
+                    )
                 entry = await _fetch_receipt_bytes(client, cfg["hfRepo"])
-                bands.append(_band_for_model(cfg, entry["files"], entry["at"]))
+                bands.append(
+                    _band_for_model(
+                        cfg,
+                        entry["files"],
+                        entry["at"],
+                        public_head_revision,
+                    )
+                )
             except Exception as band_error:  # loud, honest, isolated per band
                 bands.append({
                     "model": cfg["model"],

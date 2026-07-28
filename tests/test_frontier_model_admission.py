@@ -161,7 +161,7 @@ def test_receipt_agent_status_matches_canonical_release_manifests() -> None:
         item for item in forge_family["profiles"]
         if item["profile_id"] == "ReceiptAgent-v1"
     )
-    assert forge_profile["state"] == "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT"
+    assert forge_profile["state"] == "ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED"
     assert "model is never the signer" in forge_profile["role"]
 
     strategy = " ".join(registry["flagship_strategy"]["strategy"])
