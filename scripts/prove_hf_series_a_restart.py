@@ -22,6 +22,7 @@ from huggingface_hub import HfApi
 SCHEMA = "szl.series-a-restart-proof/v1"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 STORE_ID = re.compile(r"^store_[0-9a-f]{32}$")
+BOOT_ID = re.compile(r"^boot_[0-9a-f]{32}$")
 RECEIPT_HASH = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_SIGNER = "persistent:env:SZL_COSIGN_PRIVATE_PEM"
 EXPECTED_DATABASE = "/data/a11oy/series-a/control-plane.sqlite3"
@@ -140,6 +141,7 @@ def capture(
         or str(status.get("source_revision") or "").lower() != expected_source
         or status.get("signing_key_source") != EXPECTED_SIGNER
         or status.get("database") != EXPECTED_DATABASE
+        or BOOT_ID.fullmatch(str(status.get("runtime_boot_id") or "")) is None
         or not isinstance(storage, Mapping)
         or storage.get("persistence_required") is not True
         or storage.get("required_mount") != "/data"
@@ -167,6 +169,7 @@ def capture(
         raise RestartProofError("empty receipt chain unexpectedly has a head")
     return {
         "source_revision": expected_source,
+        "runtime_boot_id": status["runtime_boot_id"],
         "signing_key_source": status["signing_key_source"],
         "public_key_sha256": hashlib.sha256(key.content).hexdigest(),
         "database": status["database"],
@@ -189,6 +192,13 @@ def validate_restart(
 ) -> None:
     if before.get("source_revision") != after.get("source_revision"):
         raise RestartProofError("source revision changed across restart")
+    if before.get("runtime_boot_id") == after.get("runtime_boot_id"):
+        raise RestartProofError("runtime boot identity did not change across restart")
+    if (
+        BOOT_ID.fullmatch(str(before.get("runtime_boot_id") or "")) is None
+        or BOOT_ID.fullmatch(str(after.get("runtime_boot_id") or "")) is None
+    ):
+        raise RestartProofError("runtime boot identity evidence is invalid")
     if before.get("signing_key_source") != after.get("signing_key_source"):
         raise RestartProofError("signing source changed across restart")
     if before.get("public_key_sha256") != after.get("public_key_sha256"):
@@ -246,14 +256,20 @@ def prove(
     after: dict[str, Any] | None = None
     for _ in range(max(1, attempts)):
         try:
-            after = capture(session, origin, source_sha)
+            candidate = capture(session, origin, source_sha)
+            if candidate["runtime_boot_id"] == before["runtime_boot_id"]:
+                raise RestartProofError(
+                    "runtime boot identity did not change across restart"
+                )
+            after = candidate
             break
         except Exception as exc:  # noqa: BLE001 - bounded restart polling
             last_error = exc
             time.sleep(max(0, retry_seconds))
     if after is None:
         raise RestartProofError(
-            f"runtime did not recover after restart: {type(last_error).__name__}"
+            "runtime restart was not observed after bounded polling: "
+            f"{type(last_error).__name__}: {str(last_error)[:180]}"
         )
 
     receipts = _json(
@@ -284,6 +300,7 @@ def prove(
         "after": after,
         "proof": {
             "source_stable": True,
+            "runtime_boot_identity_changed": True,
             "public_signing_identity_stable": True,
             "database_instance_stable": True,
             "database_creation_identity_stable": True,

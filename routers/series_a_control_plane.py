@@ -311,6 +311,14 @@ class Store:
                   attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 1),
                   created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS passport_executions(
+                  passport_digest TEXT PRIMARY KEY REFERENCES passports(digest),
+                  state TEXT NOT NULL CHECK(state IN ('PENDING','COMPLETED','RECONCILED')),
+                  runtime_boot_id TEXT NOT NULL,
+                  started_at TEXT NOT NULL,
+                  completed_at TEXT,
+                  outcome_receipt_hash TEXT
+                );
                 CREATE TABLE IF NOT EXISTS receipts(
                   sequence INTEGER PRIMARY KEY AUTOINCREMENT,
                   receipt_id TEXT NOT NULL UNIQUE,
@@ -532,13 +540,147 @@ class Store:
         value["attempts"] = row["attempts"]
         return value
 
-    def consume_attempt(self, digest: str) -> None:
+    def begin_execution(
+        self,
+        digest: str,
+        runtime_boot_id: str,
+        started_at: str,
+    ) -> None:
+        """Consume one attempt and persist its execution intent atomically."""
         with self.lock, self.connect() as db:
             result = db.execute(
                 "UPDATE passports SET attempts=1 WHERE digest=? AND attempts=0", (digest,)
             )
             if result.rowcount != 1:
                 raise RuntimeError("passport attempt is absent or already consumed")
+            db.execute(
+                """INSERT INTO passport_executions(
+                     passport_digest,state,runtime_boot_id,started_at
+                   ) VALUES(?,?,?,?)""",
+                (digest, "PENDING", runtime_boot_id, started_at),
+            )
+
+    def execution_status(self, digest: str) -> dict[str, Any] | None:
+        with self.lock, self.connect() as db:
+            row = db.execute(
+                """SELECT passport_digest,state,runtime_boot_id,started_at,
+                          completed_at,outcome_receipt_hash
+                   FROM passport_executions WHERE passport_digest=?""",
+                (digest,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def complete_execution(
+        self,
+        digest: str,
+        outcome: Mapping[str, Any],
+        signer: ReceiptSigner,
+    ) -> dict[str, Any]:
+        """Persist the terminal outcome and close its intent in one transaction."""
+        with self.lock, self.connect() as db:
+            row = db.execute(
+                "SELECT state FROM passport_executions WHERE passport_digest=?",
+                (digest,),
+            ).fetchone()
+            if row is None or row["state"] != "PENDING":
+                raise RuntimeError("execution intent is absent or already terminal")
+            value = self._append_receipt_in_transaction(
+                db,
+                "passport.outcome",
+                outcome,
+                signer,
+            )
+            result = db.execute(
+                """UPDATE passport_executions
+                   SET state='COMPLETED',completed_at=?,outcome_receipt_hash=?
+                   WHERE passport_digest=? AND state='PENDING'""",
+                (
+                    str(outcome.get("completed_at") or _now()),
+                    value["receipt_hash"],
+                    digest,
+                ),
+            )
+            if result.rowcount != 1:
+                raise RuntimeError("execution intent changed before completion")
+        self.append_event(
+            "passport.outcome",
+            {
+                "receipt_hash": value["receipt_hash"],
+                "receipt_id": value["receipt"]["receipt_id"],
+            },
+        )
+        return value
+
+    def reconcile_interrupted_executions(
+        self,
+        signer: ReceiptSigner,
+    ) -> list[dict[str, Any]]:
+        """Terminalize abandoned intents without replaying their actions."""
+        completed_at = _now()
+        reconciled: list[dict[str, Any]] = []
+        with self.lock, self.connect() as db:
+            rows = db.execute(
+                """SELECT passport_digest,runtime_boot_id,started_at
+                   FROM passport_executions
+                   WHERE state='PENDING'
+                   ORDER BY started_at,passport_digest"""
+            ).fetchall()
+            for row in rows:
+                outcome = {
+                    "status": "FAILED",
+                    "error_class": "ExecutionInterrupted",
+                    "error": (
+                        "runtime ended before a terminal outcome was persisted"
+                    ),
+                    "uncertainty": (
+                        "the admitted action may have started or partially completed; "
+                        "it was not replayed"
+                    ),
+                    "reconciliation": "INTERRUPTED_EXECUTION_RECONCILED",
+                    "previous_runtime_boot_id": row["runtime_boot_id"],
+                    "started_at": row["started_at"],
+                    "completed_at": completed_at,
+                    "attempt": 1,
+                    "max_attempts": 1,
+                    "passport_digest": row["passport_digest"],
+                    "governance": {
+                        "allowed": True,
+                        "decision": "ALLOW",
+                        "reason_codes": [
+                            "PREVIOUS_RUNTIME_ADMISSION_PERSISTED"
+                        ],
+                    },
+                }
+                value = self._append_receipt_in_transaction(
+                    db,
+                    "passport.outcome",
+                    outcome,
+                    signer,
+                )
+                result = db.execute(
+                    """UPDATE passport_executions
+                       SET state='RECONCILED',completed_at=?,outcome_receipt_hash=?
+                       WHERE passport_digest=? AND state='PENDING'""",
+                    (
+                        completed_at,
+                        value["receipt_hash"],
+                        row["passport_digest"],
+                    ),
+                )
+                if result.rowcount != 1:
+                    raise RuntimeError(
+                        "execution intent changed during reconciliation"
+                    )
+                reconciled.append(value)
+        for value in reconciled:
+            self.append_event(
+                "passport.outcome",
+                {
+                    "receipt_hash": value["receipt_hash"],
+                    "receipt_id": value["receipt"]["receipt_id"],
+                },
+            )
+        return reconciled
 
     def consume_denied_attempt(
         self,
@@ -831,6 +973,7 @@ class Service:
         self.store = Store(db_path)
         self.signer = ReceiptSigner()
         self.collector = Collector()
+        self.runtime_boot_id = f"boot_{uuid.uuid4().hex}"
         self.refresh_lock = asyncio.Lock()
         self.execution_tasks: set[asyncio.Task[Any]] = set()
         self.started = False
@@ -839,6 +982,7 @@ class Service:
     async def start(self) -> None:
         if self.started:
             return
+        self.store.reconcile_interrupted_executions(self.signer)
         self.started = True
         if (os.environ.get("A11OY_SERIES_A_STARTUP_REFRESH") or "1").strip() == "0":
             self.store.append_event("estate.refresh.skipped", {"reason": "explicit test/runtime configuration"})
@@ -875,13 +1019,17 @@ class Service:
         task = self.background_task
         self.background_task = None
         self.started = False
-        if task is None:
-            return
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        executions = list(self.execution_tasks)
+        for execution in executions:
+            execution.cancel()
+        if executions:
+            await asyncio.gather(*executions, return_exceptions=True)
 
     def scheduler_status(self) -> dict[str, Any]:
         task = self.background_task
@@ -960,6 +1108,7 @@ class Service:
                 "state": "PENDING",
                 "terminal": True,
                 "source_revision": _git_revision(),
+                "runtime_boot_id": self.runtime_boot_id,
                 "signing_key_source": self.signer.source,
                 "database": self.store.path,
                 "storage": self.store.storage_status(),
@@ -974,6 +1123,7 @@ class Service:
             "state": "STALE" if stale else manifest["status"],
             "terminal": True,
             "source_revision": _git_revision(),
+            "runtime_boot_id": self.runtime_boot_id,
             "manifest_digest": latest["digest"],
             "observed_at": latest["observed_at"],
             "valid_until": latest["valid_until"],
@@ -1232,15 +1382,20 @@ class Service:
                     "signature_status": denial_receipt["envelope"]["signature_status"],
                 },
             )
+        started = _now()
         try:
-            self.store.consume_attempt(digest)
+            self.store.begin_execution(
+                digest,
+                self.runtime_boot_id,
+                started,
+            )
         except RuntimeError as exc:
             raise HTTPException(
                 status_code=409,
                 detail="passport attempt already consumed",
             ) from exc
         task = asyncio.create_task(
-            self._execute_consumed(digest, passport, governance),
+            self._execute_consumed(digest, passport, governance, started),
             name=f"series-a-execute-{digest[:12]}",
         )
         self.execution_tasks.add(task)
@@ -1261,9 +1416,9 @@ class Service:
         digest: str,
         passport: Mapping[str, Any],
         governance: Mapping[str, Any],
+        started: str,
     ) -> dict[str, Any]:
         action = passport["action"]
-        started = _now()
         try:
             async def run() -> dict[str, Any]:
                 if action["type"] == "estate.refresh":
@@ -1295,7 +1450,7 @@ class Service:
                 "governance": governance,
             }
         )
-        receipt = self.store.append_receipt("passport.outcome", outcome, self.signer)
+        receipt = self.store.complete_execution(digest, outcome, self.signer)
         return {"outcome": outcome, "outcome_receipt": receipt}
 
     async def _probe(self, target: str) -> dict[str, Any]:
