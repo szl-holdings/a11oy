@@ -18,6 +18,8 @@ _SCHEMA_LOCK = threading.RLock()
 _PROCESS_WRITE_LOCK = threading.RLock()
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _TRUTHY = {"1", "true", "yes", "on"}
+_JOURNAL_MODES = {"DELETE", "WAL"}
+_SYNCHRONOUS_MODES = {"FULL", "NORMAL"}
 _V1_TABLES = (
     "session_state",
     "requests",
@@ -327,6 +329,18 @@ class GDWWorkspace:
             )
         self.namespace = _checked_identity(configured_namespace or "a11oy", "namespace")
         self.owner_id = _checked_identity(configured_owner or "local-owner", "owner_id")
+        self.journal_mode = os.environ.get("GDW_SQLITE_JOURNAL", "WAL").upper()
+        if self.journal_mode not in _JOURNAL_MODES:
+            raise GDWConfigurationError(
+                "GDW_SQLITE_JOURNAL must be DELETE or WAL"
+            )
+        self.synchronous_mode = os.environ.get(
+            "GDW_SQLITE_SYNCHRONOUS", "NORMAL"
+        ).upper()
+        if self.synchronous_mode not in _SYNCHRONOUS_MODES:
+            raise GDWConfigurationError(
+                "GDW_SQLITE_SYNCHRONOUS must be FULL or NORMAL"
+            )
         self.quota_policy = quota_policy or GDWQuotaPolicy.from_environment()
         self.retention_seconds = _env_int("GDW_RETENTION_SECONDS", 30 * 24 * 60 * 60)
         self.tombstone_seconds = _env_int("GDW_TOMBSTONE_SECONDS", 90 * 24 * 60 * 60)
@@ -343,7 +357,17 @@ class GDWWorkspace:
         )
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=30000")
-        connection.execute("PRAGMA synchronous=NORMAL")
+        observed_journal = str(
+            connection.execute(
+                f"PRAGMA journal_mode={self.journal_mode}"
+            ).fetchone()[0]
+        ).upper()
+        if observed_journal != self.journal_mode:
+            connection.close()
+            raise GDWConfigurationError(
+                "SQLite journal mode does not match GDW_SQLITE_JOURNAL"
+            )
+        connection.execute(f"PRAGMA synchronous={self.synchronous_mode}")
         connection.execute("PRAGMA foreign_keys=ON")
         return connection
 
@@ -554,8 +578,16 @@ class GDWWorkspace:
             connection.row_factory = sqlite3.Row
             try:
                 connection.execute("PRAGMA busy_timeout=30000")
-                connection.execute("PRAGMA journal_mode=WAL")
-                connection.execute("PRAGMA synchronous=NORMAL")
+                selected_journal = str(
+                    connection.execute(
+                        f"PRAGMA journal_mode={self.journal_mode}"
+                    ).fetchone()[0]
+                ).upper()
+                if selected_journal != self.journal_mode:
+                    raise GDWConfigurationError(
+                        "SQLite journal mode does not match GDW_SQLITE_JOURNAL"
+                    )
+                connection.execute(f"PRAGMA synchronous={self.synchronous_mode}")
                 connection.execute("PRAGMA foreign_keys=ON")
                 tables = self._table_names(connection)
                 if not tables:
@@ -1270,6 +1302,25 @@ class GDWWorkspace:
         finally:
             connection.close()
 
+    def pending_effect_identities(self) -> list[Tuple[str, str]]:
+        """Return principals with pending work for the trusted drain supervisor."""
+
+        connection = self._connect()
+        try:
+            rows = connection.execute(
+                """
+                SELECT namespace, owner_id FROM effect_outbox
+                WHERE status IN ('PENDING', 'CLAIMED')
+                UNION
+                SELECT namespace, owner_id FROM proof_outbox
+                WHERE status = 'PENDING'
+                ORDER BY namespace, owner_id
+                """
+            ).fetchall()
+            return [(row["namespace"], row["owner_id"]) for row in rows]
+        finally:
+            connection.close()
+
     @staticmethod
     def _reconcile_usage(connection: sqlite3.Connection) -> None:
         timestamp = _text_time()
@@ -1589,6 +1640,29 @@ class GDWWorkspace:
                     effect_params,
                 ).fetchone()[0]
             )
+            claimed_predicate = (
+                "status = 'CLAIMED'"
+                if global_scope
+                else "namespace = ? AND owner_id = ? AND status = 'CLAIMED'"
+            )
+            claimed_effects = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM effect_outbox WHERE {claimed_predicate}",
+                    effect_params,
+                ).fetchone()[0]
+            )
+            dead_letter_predicate = (
+                "status = 'DEAD_LETTER'"
+                if global_scope
+                else "namespace = ? AND owner_id = ? AND status = 'DEAD_LETTER'"
+            )
+            dead_letter_effects = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox "
+                    f"WHERE {dead_letter_predicate}",
+                    effect_params,
+                ).fetchone()[0]
+            )
             proof_predicate = (
                 "status = 'PENDING'"
                 if global_scope
@@ -1623,10 +1697,14 @@ class GDWWorkspace:
                 "orphan_receipts": orphan_receipts,
                 "pending_proofs": pending_proofs,
                 "pending_effects": pending_effects,
+                "claimed_effects": claimed_effects,
+                "dead_letter_effects": dead_letter_effects,
                 "counts": counts,
                 "scope": "global" if global_scope else "owner",
-                "wal": True,
-                "synchronous": "NORMAL",
+                "journal_mode": str(
+                    connection.execute("PRAGMA journal_mode").fetchone()[0]
+                ).upper(),
+                "synchronous": self.synchronous_mode,
             }
             if global_scope:
                 result["path"] = str(self.path)
