@@ -37,3 +37,15 @@ def test_restore_replaces_existing_destination(tmp_path: Path) -> None:
 
     assert build_manifest(restored) == build_manifest(source)
     assert not (restored / "stale.txt").exists()
+
+
+def test_workflow_pins_compatible_snapshot_progress_runtime() -> None:
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / ".github"
+        / "workflows"
+        / "hf-backup-restore.yml"
+    ).read_text(encoding="utf-8")
+
+    assert '"huggingface_hub==1.19.0"' in workflow
+    assert '"tqdm==4.69.0"' in workflow
