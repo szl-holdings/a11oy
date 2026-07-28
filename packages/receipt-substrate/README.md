@@ -43,8 +43,10 @@ The comparison emits only:
 - `UNAVAILABLE` when neither provider succeeds.
 
 These labels do not authorize an action. The receipt explicitly records
-`action_authorized: false`, `signature_state: UNSIGNED_LOCAL`, and
-`external_attestation: false`.
+`evidence_class: MODELED`, `signature_state: UNSIGNED_LOCAL`,
+`external_attestation_state: EXTERNAL_ATTESTATION_FALSE`, and
+`action_authorization_state: ACTION_AUTHORIZED_FALSE` alongside the matching
+false boolean fields.
 
 Live provider adapters are feature-flagged off. This package accepts no
 provider credentials, performs no network calls, excludes raw queries and

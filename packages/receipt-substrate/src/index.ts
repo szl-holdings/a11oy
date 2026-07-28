@@ -503,6 +503,39 @@ const DIGESTED_SOURCE_QUERY_KEYS = new Set(["code"]);
 const SENSITIVE_SOURCE_QUERY_PREFIXES = ["x-amz-", "x-goog-", "x-oss-"];
 const TRACKING_SOURCE_QUERY_PREFIXES = ["utm_"];
 const TRACKING_SOURCE_QUERY_KEYS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid"]);
+const NORMALIZED_PROVIDER_KEYS = new Set([
+  "schema_version",
+  "provider",
+  "api_surface",
+  "tool",
+  "status",
+  "query_sha256",
+  "policy_sha256",
+  "response_id",
+  "model",
+  "http_status",
+  "caller_observed_latency_ms",
+  "usage",
+  "provider_reported_cost_usd",
+  "sources",
+  "source_count",
+  "source_list_sha256",
+]);
+const NORMALIZED_SOURCE_KEYS = new Set([
+  "url",
+  "domain",
+  "title_sha256",
+  "published_at",
+  "last_updated_at",
+]);
+const NORMALIZED_USAGE_KEYS = new Set([
+  "input_tokens",
+  "output_tokens",
+  "total_tokens",
+  "reasoning_tokens",
+  "cached_tokens",
+  "search_queries",
+]);
 
 function cleanOptionalText(value: unknown, maxLength = 256): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -641,65 +674,147 @@ function normalizeResearchUsage(input: ResearchUsageInput | undefined): Normaliz
   return Object.keys(usage).length > 0 ? usage : undefined;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function unexpectedKeys(
+  value: Record<string, unknown>,
+  allowed: ReadonlySet<string>,
+): readonly string[] {
+  return Object.keys(value).filter((key) => !allowed.has(key)).sort();
+}
+
 function projectNormalizedResearchSource(
-  input: NormalizedResearchSource,
+  input: unknown,
 ): NormalizedResearchSource {
+  const record = isRecord(input) ? input : {};
+  const url = cleanSourceUrl(record.url) ?? "";
+  const domain = cleanOptionalText(record.domain, 253)?.toLowerCase() ?? "";
+  const titleSha256 = record.title_sha256 === undefined
+    ? undefined
+    : cleanSha256(record.title_sha256);
+  const publishedAt = cleanDate(record.published_at);
+  const lastUpdatedAt = cleanDate(record.last_updated_at);
   return {
-    url: input.url,
-    domain: input.domain,
-    ...(input.title_sha256 !== undefined ? { title_sha256: input.title_sha256 } : {}),
-    ...(input.published_at !== undefined ? { published_at: input.published_at } : {}),
-    ...(input.last_updated_at !== undefined
-      ? { last_updated_at: input.last_updated_at }
-      : {}),
+    url,
+    domain,
+    ...(titleSha256 !== undefined ? { title_sha256: titleSha256 } : {}),
+    ...(publishedAt !== undefined ? { published_at: publishedAt } : {}),
+    ...(lastUpdatedAt !== undefined ? { last_updated_at: lastUpdatedAt } : {}),
   };
 }
 
 function projectNormalizedResearchUsage(
-  input: NormalizedResearchUsage | undefined,
+  input: unknown,
 ): NormalizedResearchUsage | undefined {
-  if (!input) return undefined;
+  if (!isRecord(input)) return undefined;
   const projected: NormalizedResearchUsage = {
-    ...(input.input_tokens !== undefined ? { input_tokens: input.input_tokens } : {}),
-    ...(input.output_tokens !== undefined ? { output_tokens: input.output_tokens } : {}),
-    ...(input.total_tokens !== undefined ? { total_tokens: input.total_tokens } : {}),
-    ...(input.reasoning_tokens !== undefined
-      ? { reasoning_tokens: input.reasoning_tokens }
+    ...(cleanNonNegativeInteger(input.input_tokens) !== undefined
+      ? { input_tokens: cleanNonNegativeInteger(input.input_tokens) }
       : {}),
-    ...(input.cached_tokens !== undefined ? { cached_tokens: input.cached_tokens } : {}),
-    ...(input.search_queries !== undefined
-      ? { search_queries: input.search_queries }
+    ...(cleanNonNegativeInteger(input.output_tokens) !== undefined
+      ? { output_tokens: cleanNonNegativeInteger(input.output_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.total_tokens) !== undefined
+      ? { total_tokens: cleanNonNegativeInteger(input.total_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.reasoning_tokens) !== undefined
+      ? { reasoning_tokens: cleanNonNegativeInteger(input.reasoning_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.cached_tokens) !== undefined
+      ? { cached_tokens: cleanNonNegativeInteger(input.cached_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.search_queries) !== undefined
+      ? { search_queries: cleanNonNegativeInteger(input.search_queries) }
       : {}),
   };
   return Object.keys(projected).length > 0 ? projected : undefined;
 }
 
 function projectNormalizedProviderEvidence(
-  input: NormalizedResearchProviderEvidence,
+  input: unknown,
 ): NormalizedResearchProviderEvidence {
-  const usage = projectNormalizedResearchUsage(input.usage);
+  const record = isRecord(input) ? input : {};
+  const provider = record.provider === "openai" || record.provider === "perplexity"
+    ? record.provider
+    : "invalid" as ResearchProvider;
+  const apiSurface = record.api_surface === "openai.responses.web_search"
+    || record.api_surface === "perplexity.search"
+    ? record.api_surface
+    : "invalid" as NormalizedResearchProviderEvidence["api_surface"];
+  const tool = record.tool === "web_search" || record.tool === "search"
+    ? record.tool
+    : "invalid" as NormalizedResearchProviderEvidence["tool"];
+  const responseId = cleanOptionalText(record.response_id);
+  const model = cleanOptionalText(record.model);
+  const httpStatus = cleanHttpStatus(record.http_status);
+  const latencyMs = cleanNonNegativeNumber(record.caller_observed_latency_ms);
+  const usage = projectNormalizedResearchUsage(record.usage);
+  const costUsd = cleanNonNegativeNumber(record.provider_reported_cost_usd);
+  const suppliedSources = Array.isArray(record.sources) ? record.sources : [];
+  const sources = suppliedSources.map(projectNormalizedResearchSource);
   return {
-    schema_version: input.schema_version,
-    provider: input.provider,
-    api_surface: input.api_surface,
-    tool: input.tool,
-    status: input.status,
-    query_sha256: input.query_sha256,
-    policy_sha256: input.policy_sha256,
-    ...(input.response_id !== undefined ? { response_id: input.response_id } : {}),
-    ...(input.model !== undefined ? { model: input.model } : {}),
-    ...(input.http_status !== undefined ? { http_status: input.http_status } : {}),
-    ...(input.caller_observed_latency_ms !== undefined
-      ? { caller_observed_latency_ms: input.caller_observed_latency_ms }
-      : {}),
+    schema_version: record.schema_version === "a11oy.research_provider_evidence/v0"
+      ? record.schema_version
+      : "invalid" as NormalizedResearchProviderEvidence["schema_version"],
+    provider,
+    api_surface: apiSurface,
+    tool,
+    status: cleanStatus(record.status),
+    query_sha256: cleanSha256(record.query_sha256),
+    policy_sha256: cleanSha256(record.policy_sha256),
+    ...(responseId ? { response_id: responseId } : {}),
+    ...(model ? { model } : {}),
+    ...(httpStatus !== undefined ? { http_status: httpStatus } : {}),
+    ...(latencyMs !== undefined ? { caller_observed_latency_ms: latencyMs } : {}),
     ...(usage ? { usage } : {}),
-    ...(input.provider_reported_cost_usd !== undefined
-      ? { provider_reported_cost_usd: input.provider_reported_cost_usd }
-      : {}),
-    sources: input.sources.map(projectNormalizedResearchSource),
-    source_count: input.source_count,
-    source_list_sha256: input.source_list_sha256,
+    ...(costUsd !== undefined ? { provider_reported_cost_usd: costUsd } : {}),
+    sources,
+    source_count: cleanNonNegativeInteger(record.source_count) ?? -1,
+    source_list_sha256: cleanSha256(record.source_list_sha256),
   };
+}
+
+function structuralResearchEvidenceErrors(
+  providers: readonly unknown[],
+): readonly string[] {
+  const errors: string[] = [];
+  for (const [providerIndex, input] of providers.entries()) {
+    if (!isRecord(input)) {
+      errors.push(`provider ${providerIndex}: expected an object`);
+      continue;
+    }
+    const providerLabel = input.provider === "openai" || input.provider === "perplexity"
+      ? input.provider
+      : `provider ${providerIndex}`;
+    for (const key of unexpectedKeys(input, NORMALIZED_PROVIDER_KEYS)) {
+      errors.push(`${providerLabel}: unexpected provider field ${key}`);
+    }
+    if (input.usage !== undefined) {
+      if (!isRecord(input.usage)) {
+        errors.push(`${providerLabel}: usage must be an object`);
+      } else {
+        for (const key of unexpectedKeys(input.usage, NORMALIZED_USAGE_KEYS)) {
+          errors.push(`${providerLabel}: unexpected usage field ${key}`);
+        }
+      }
+    }
+    if (!Array.isArray(input.sources)) {
+      errors.push(`${providerLabel}: sources must be an array`);
+      continue;
+    }
+    for (const [sourceIndex, source] of input.sources.entries()) {
+      if (!isRecord(source)) {
+        errors.push(`${providerLabel}: source ${sourceIndex} must be an object`);
+        continue;
+      }
+      for (const key of unexpectedKeys(source, NORMALIZED_SOURCE_KEYS)) {
+        errors.push(`${providerLabel}: source ${sourceIndex} unexpected field ${key}`);
+      }
+    }
+  }
+  return errors;
 }
 
 function normalizeProviderEvidence(input: {
@@ -805,10 +920,13 @@ export function compareResearchEvidence(input: {
 }): ResearchEvidenceComparison {
   const querySha256 = cleanSha256(input.query_sha256);
   const policySha256 = cleanSha256(input.policy_sha256);
-  const providers = input.providers
+  const suppliedProviders = Array.isArray(input.providers) ? input.providers : [];
+  const errors = Array.isArray(input.providers)
+    ? [...structuralResearchEvidenceErrors(suppliedProviders)]
+    : ["providers must be an array"];
+  const providers = suppliedProviders
     .map(projectNormalizedProviderEvidence)
     .sort((left, right) => left.provider.localeCompare(right.provider));
-  const errors: string[] = [];
 
   if (!SHA256_PATTERN.test(querySha256)) errors.push("expected query_sha256 is not a SHA-256 digest");
   if (!SHA256_PATTERN.test(policySha256)) errors.push("expected policy_sha256 is not a SHA-256 digest");
@@ -937,8 +1055,11 @@ export function emitTwoWitnessResearchReceipt(
   const payload = {
     schema_version: "a11oy.two_witness_research_receipt/v0",
     live_adapters_enabled: TWO_WITNESS_LIVE_ADAPTERS_ENABLED,
+    evidence_class: "MODELED",
     signature_state: "UNSIGNED_LOCAL",
+    external_attestation_state: "EXTERNAL_ATTESTATION_FALSE",
     external_attestation: false,
+    action_authorization_state: "ACTION_AUTHORIZED_FALSE",
     action_authorized: false,
     query_sha256: comparison.query_sha256,
     policy_sha256: comparison.policy_sha256,
