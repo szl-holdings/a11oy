@@ -90,7 +90,7 @@ jobs:
 
   publish:
     name: Publish dataset and live leaderboard
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 20

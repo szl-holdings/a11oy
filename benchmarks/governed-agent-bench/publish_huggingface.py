@@ -45,21 +45,105 @@ def _manifest_is_managed(files: dict[str, bytes]) -> None:
 
 
 def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token: str):
-    from huggingface_hub import CommitOperationAdd, hf_hub_download
+    from huggingface_hub import CommitOperationAdd, CommitOperationDelete, hf_hub_download
 
     expected = _files(folder)
     _manifest_is_managed(expected)
-    api.create_repo(repo_id=repo_id, repo_type=repo_type, private=False, exist_ok=True)
-    commit = api.create_commit(
-        repo_id=repo_id,
-        repo_type=repo_type,
-        operations=[
+
+    existed = api.repo_exists(repo_id=repo_id, repo_type=repo_type, token=token)
+    if existed:
+        remote_files = set(
+            api.list_repo_files(repo_id=repo_id, repo_type=repo_type, revision="main")
+        )
+        if remote_files:
+            if "publication-manifest.json" not in remote_files:
+                raise PublicationError(
+                    f"refusing to replace unmanaged {repo_type} repository: {repo_id}"
+                )
+            owner_path = hf_hub_download(
+                repo_id=repo_id,
+                repo_type=repo_type,
+                filename="publication-manifest.json",
+                revision="main",
+                token=token,
+                force_download=True,
+            )
+            try:
+                owner = json.loads(Path(owner_path).read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise PublicationError(
+                    f"remote ownership manifest is invalid: {repo_type}:{repo_id}"
+                ) from exc
+            if owner.get("managed_by") != MANAGED_BY:
+                raise PublicationError(
+                    f"refusing to replace foreign {repo_type} repository: {repo_id}"
+                )
+    else:
+        create_kwargs = {
+            "repo_id": repo_id,
+            "repo_type": repo_type,
+            "private": False,
+            "exist_ok": False,
+        }
+        if repo_type == "space":
+            create_kwargs["space_sdk"] = "gradio"
+        api.create_repo(
+            **create_kwargs,
+        )
+        remote_files = set(
+            api.list_repo_files(repo_id=repo_id, repo_type=repo_type, revision="main")
+        )
+
+    expected_names = set(expected)
+    current_is_exact = remote_files == expected_names
+    if current_is_exact:
+        for name, body in expected.items():
+            path = hf_hub_download(
+                repo_id=repo_id,
+                repo_type=repo_type,
+                filename=name,
+                revision="main",
+                token=token,
+                force_download=True,
+            )
+            if Path(path).read_bytes() != body:
+                current_is_exact = False
+                break
+
+    if current_is_exact:
+        revision = api.repo_info(repo_id=repo_id, repo_type=repo_type).sha
+        action = "already_exact"
+    else:
+        stale = sorted(remote_files - expected_names)
+        operations = [
             CommitOperationAdd(path_in_repo=name, path_or_fileobj=io.BytesIO(body))
             for name, body in expected.items()
-        ],
-        commit_message="publish governed-agent-bench from protected GitHub source",
+        ]
+        operations.extend(CommitOperationDelete(path_in_repo=name) for name in stale)
+        commit = api.create_commit(
+            repo_id=repo_id,
+            repo_type=repo_type,
+            operations=operations,
+            commit_message="publish governed-agent-bench from protected GitHub source",
+        )
+        revision = commit.oid
+        action = "published"
+
+    observed_inventory = set(
+        api.list_repo_files(
+            repo_id=repo_id,
+            repo_type=repo_type,
+            revision=revision,
+        )
     )
-    revision = commit.oid
+    if observed_inventory != expected_names:
+        missing = sorted(expected_names - observed_inventory)
+        unexpected = sorted(observed_inventory - expected_names)
+        raise PublicationError(
+            f"immutable inventory mismatch for {repo_type}:{repo_id}; "
+            f"missing={missing!r}; unexpected={unexpected!r}"
+        )
+
     observed = {}
     for name, body in expected.items():
         path = hf_hub_download(
@@ -77,7 +161,7 @@ def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token
             "bytes": len(readback),
             "sha256": hashlib.sha256(readback).hexdigest(),
         }
-    return revision, observed
+    return revision, observed, action, sorted(observed_inventory)
 
 
 def publish(
@@ -103,7 +187,12 @@ def publish(
         raise PublicationError("huggingface_hub is not installed") from exc
 
     api = HfApi(token=token)
-    dataset_revision, dataset_files = _publish_and_readback(
+    (
+        dataset_revision,
+        dataset_files,
+        dataset_action,
+        dataset_inventory,
+    ) = _publish_and_readback(
         api, dataset_repo, "dataset", dataset, token
     )
 
@@ -134,7 +223,12 @@ def publish(
             encoding="utf-8",
             newline="\n",
         )
-        space_revision, space_files = _publish_and_readback(
+        (
+            space_revision,
+            space_files,
+            space_action,
+            space_inventory,
+        ) = _publish_and_readback(
             api, space_repo, "space", resolved_space, token
         )
 
@@ -146,11 +240,15 @@ def publish(
         "dataset": {
             "repo_id": dataset_repo,
             "revision": dataset_revision,
+            "action": dataset_action,
+            "inventory": dataset_inventory,
             "files": dataset_files,
         },
         "space": {
             "repo_id": space_repo,
             "revision": space_revision,
+            "action": space_action,
+            "inventory": space_inventory,
             "files": space_files,
         },
         "status": "VERIFIED_IMMUTABLE_READBACK",
