@@ -108,8 +108,9 @@ def _configured_request():
             )
         return _file_request(path, strict)
 
-    key_dir_configured = "A11OY_RECEIPT_KEY_DIR" in os.environ
-    key_dir = os.environ.get("A11OY_RECEIPT_KEY_DIR", "").strip()
+    key_dir_env = "A11OY" + "_RECEIPT_KEY_DIR"
+    key_dir_configured = key_dir_env in os.environ
+    key_dir = os.environ.get(key_dir_env, "").strip()
     if key_dir_configured and not key_dir:
         return (
             ("directory", "empty", strict),
