@@ -1054,6 +1054,10 @@ def _asset(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _asset_version(name: str) -> str:
+    return hashlib.sha256(_asset(name).encode("utf-8")).hexdigest()
+
+
 def _event_cursor(request: Request) -> int:
     raw = request.headers.get("last-event-id")
     if raw is None:
@@ -1067,9 +1071,8 @@ def _event_cursor(request: Request) -> int:
     return cursor
 
 
-def _asset_cache_control(request: Request) -> str:
-    revision = _git_revision()
-    if revision != "UNKNOWN" and request.query_params.get("v") == revision:
+def _asset_cache_control(request: Request, asset_version: str) -> str:
+    if request.query_params.get("v") == asset_version:
         return "public,max-age=31536000,immutable"
     return "no-store"
 
@@ -1084,11 +1087,17 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     async def page(request: Request) -> Response:
         if request.method == "HEAD":
             return Response(status_code=200, media_type="text/html")
-        html = _asset("index.html").replace("__SOURCE_REVISION__", _git_revision())
+        html = (
+            _asset("index.html")
+            .replace("__APP_JS_VERSION__", _asset_version("app.js"))
+            .replace("__STYLES_CSS_VERSION__", _asset_version("styles.css"))
+        )
         return HTMLResponse(html, headers={"cache-control": "no-store"})
 
     async def js(request: Request) -> Response:
-        headers = {"cache-control": _asset_cache_control(request)}
+        script = _asset("app.js")
+        version = hashlib.sha256(script.encode("utf-8")).hexdigest()
+        headers = {"cache-control": _asset_cache_control(request, version)}
         if request.method == "HEAD":
             return Response(
                 status_code=200,
@@ -1096,13 +1105,15 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
                 headers=headers,
             )
         return Response(
-            _asset("app.js"),
+            script,
             media_type="application/javascript",
             headers=headers,
         )
 
     async def css(request: Request) -> Response:
-        headers = {"cache-control": _asset_cache_control(request)}
+        stylesheet = _asset("styles.css")
+        version = hashlib.sha256(stylesheet.encode("utf-8")).hexdigest()
+        headers = {"cache-control": _asset_cache_control(request, version)}
         if request.method == "HEAD":
             return Response(
                 status_code=200,
@@ -1110,7 +1121,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
                 headers=headers,
             )
         return Response(
-            _asset("styles.css"),
+            stylesheet,
             media_type="text/css",
             headers=headers,
         )

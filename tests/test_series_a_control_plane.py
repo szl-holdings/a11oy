@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -243,25 +244,24 @@ def test_event_cursor_resumes_from_last_event_id_and_validates_range() -> None:
     assert error.value.status_code == 400
 
 
-def test_frontend_wires_one_attempt_execution_and_live_events(
-    tmp_path: Path, monkeypatch
-) -> None:
-    monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
+def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) -> None:
     value = app(tmp_path)
-    revision = control._git_revision()
+    script_version = control._asset_version("app.js")
+    style_version = control._asset_version("styles.css")
     with TestClient(value) as client:
         page = client.get("/series-a")
-        script = client.get(f"/series-a/app.js?v={revision}")
-        style = client.get(f"/series-a/styles.css?v={revision}")
+        script = client.get(f"/series-a/app.js?v={script_version}")
+        style = client.get(f"/series-a/styles.css?v={style_version}")
         unversioned_script = client.get("/series-a/app.js")
     assert 'id="execute"' in page.text
     assert 'id="execution-result"' in page.text
     assert 'id="events"' in page.text
     assert "szl://estate/current" in page.text
     assert "server-signed snapshot" in page.text
-    assert f'/series-a/app.js?v={revision}' in page.text
-    assert f'/series-a/styles.css?v={revision}' in page.text
-    assert "__SOURCE_REVISION__" not in page.text
+    assert f'/series-a/app.js?v={script_version}' in page.text
+    assert f'/series-a/styles.css?v={style_version}' in page.text
+    assert "__APP_JS_VERSION__" not in page.text
+    assert "__STYLES_CSS_VERSION__" not in page.text
     assert script.headers["cache-control"] == "public,max-age=31536000,immutable"
     assert style.headers["cache-control"] == "public,max-age=31536000,immutable"
     assert unversioned_script.headers["cache-control"] == "no-store"
@@ -278,17 +278,24 @@ def test_frontend_wires_one_attempt_execution_and_live_events(
     assert "PENDING_RECONCILIATION" in script.text
 
 
-def test_unknown_source_revision_never_makes_assets_immutable(
+def test_asset_versions_bind_the_exact_bytes_without_source_revision(
     tmp_path: Path, monkeypatch
 ) -> None:
     for key in ("SZL_GIT_SHA", "A11OY_GIT_SHA", "GITHUB_SHA"):
         monkeypatch.delenv(key, raising=False)
+    script_version = hashlib.sha256(
+        control._asset("app.js").encode("utf-8")
+    ).hexdigest()
     value = app(tmp_path)
     with TestClient(value) as client:
         page = client.get("/series-a")
-        script = client.get("/series-a/app.js?v=UNKNOWN")
-    assert "/series-a/app.js?v=UNKNOWN" in page.text
-    assert script.headers["cache-control"] == "no-store"
+        exact_script = client.get(f"/series-a/app.js?v={script_version}")
+        stale_script = client.get("/series-a/app.js?v=" + "a" * 64)
+    assert f"/series-a/app.js?v={script_version}" in page.text
+    assert exact_script.headers["cache-control"] == (
+        "public,max-age=31536000,immutable"
+    )
+    assert stale_script.headers["cache-control"] == "no-store"
 
 
 def test_execute_rechecks_governance_and_preserves_attempt_on_deny(
