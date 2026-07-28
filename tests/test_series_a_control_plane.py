@@ -6,8 +6,10 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from routers import series_a_control_plane as control
 
@@ -19,7 +21,9 @@ def app(tmp_path: Path) -> FastAPI:
     return value
 
 
-def observed_evidence(service: control.Service) -> list[dict[str, str]]:
+def observed_evidence(
+    service: control.Service, *, status: str = "OBSERVED"
+) -> list[dict[str, str]]:
     now = datetime.now(timezone.utc)
     observed_at = now.isoformat().replace("+00:00", "Z")
     valid_until = (now + timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
@@ -28,8 +32,8 @@ def observed_evidence(service: control.Service) -> list[dict[str, str]]:
         "observed_at": observed_at,
         "valid_until": valid_until,
         "source_revision": "a" * 40,
-        "status": "OBSERVED",
-        "critical_failures": [],
+        "status": status,
+        "critical_failures": [] if status == "OBSERVED" else ["ESTATE_BLOCKED"],
         "counts": {},
     }
     envelope = service.signer.sign(manifest)
@@ -180,6 +184,63 @@ def test_browser_claimed_observation_cannot_authorize_execution(tmp_path: Path) 
     )
     assert result["passport"]["decision"] == "BLOCK"
     assert "SERVER_OBSERVED_EVIDENCE_REQUIRED" in result["passport"]["reason_codes"]
+
+
+def test_blocked_server_snapshot_cannot_authorize_execution(tmp_path: Path) -> None:
+    service = app(tmp_path).state.szl_series_a_service
+    evidence = observed_evidence(service, status="BLOCKED")
+    result = service.evaluate_passport(
+        {
+            "action": {
+                "type": "estate.refresh",
+                "target": "szl://estate/current",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": evidence,
+        }
+    )
+    assert result["passport"]["decision"] == "BLOCK"
+    assert (
+        "OBSERVED_SERVER_EVIDENCE_REQUIRED"
+        in result["passport"]["reason_codes"]
+    )
+
+
+def test_event_cursor_resumes_from_last_event_id_and_validates_range() -> None:
+    resumed = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/events",
+            "query_string": b"",
+            "headers": [(b"last-event-id", b"12000")],
+        }
+    )
+    query_wins = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/events",
+            "query_string": b"after=12001",
+            "headers": [(b"last-event-id", b"12000")],
+        }
+    )
+    malformed = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/events",
+            "query_string": b"",
+            "headers": [(b"last-event-id", b"not-a-sequence")],
+        }
+    )
+
+    assert control._event_cursor(resumed) == 12000
+    assert control._event_cursor(query_wins) == 12001
+    with pytest.raises(control.HTTPException) as error:
+        control._event_cursor(malformed)
+    assert error.value.status_code == 400
 
 
 def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) -> None:
