@@ -55,7 +55,12 @@ per-owner/global quotas, retention tombstones, bounded retry/dead-letter state,
 verified persistent `/data` paths, a network-safe journal, and a supervised
 drain worker. It also fails closed on unknown policy flows, reports the
 in-process writer/judge boundary, validates row-to-payload effect bindings, and
-refuses non-identical artifact replacement. The historical final fresh run
+refuses non-identical artifact replacement. The corrective source now also
+roots exact policy/parser/evaluator bytes, binds effects to persisted
+request/receipt intent and a database generation, fences lease finalization,
+transactionally migrates valid schema-v2 effects, refuses provenance-free
+nonempty v1 attribution, and requires a fresh supervisor success before `REAL`.
+The historical final fresh run
 completed with zero transport or response errors; it is not evidence for the
 corrected implementation until the corrected harness is rerun.
 

@@ -1,9 +1,11 @@
 """Operational guards for GDW auth, state, receipts, proofs, and concurrency."""
 
+import hashlib
 import json
 import sys
 import types
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -266,14 +268,17 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     )
     for row in pending:
         if row["kind"] == "proof_export":
-            artifact = export_proof_payload(row["payload"])
+            artifact = export_proof_payload(
+                row["payload"], artifact_id=row["intent_sha256"]
+            )
         else:
             artifact = export_receipt_projection(
-                row["payload"], row["idempotency_key"]
+                row["payload"], row["intent_sha256"]
             )
         workspace.mark_effect_exported(
             row["idempotency_key"],
             "test-drain",
+            row["claim_generation"],
             artifact,
             "2026-07-28T00:00:00+00:00",
         )
@@ -319,15 +324,70 @@ def test_governance_denial_and_unavailable_policy_never_mutate(
             "/api/a11oy/v1/gdw/integrity",
             headers={"Authorization": "Bearer test-token"},
         ).json()
-    assert unavailable.status_code == 200
+    assert unavailable.status_code == 503
     unavailable_body = unavailable.json()
-    assert unavailable_body["decision"] == "REJECT"
-    assert unavailable_body["receipt_hash"] is None
-    assert unavailable_body["audit"]["governance"]["reason_codes"] == [
-        "DOCTRINE_GATE_UNAVAILABLE"
+    assert unavailable_body["detail"]["reason"] == "GDW_WRITE_SURFACE_UNAVAILABLE"
+    assert unavailable_body["detail"]["write_blockers"] == [
+        "GOVERNANCE_SOURCE_UNREADY"
     ]
     assert integrity["counts"]["session_state"] == 0
     assert integrity["counts"]["receipts"] == 0
+
+
+def test_step_authenticates_before_body_validation_and_never_mutates(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    malformed = {"session_id": [], "request": {"not": "text"}}
+    with TestClient(app) as client:
+        unauthenticated = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=malformed,
+            headers={"X-Request-Id": "malformed-unauthenticated"},
+        )
+        authenticated = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=malformed,
+            headers=headers("malformed-authenticated"),
+        )
+        integrity = client.get(
+            "/api/a11oy/v1/gdw/integrity",
+            headers={"Authorization": "Bearer test-token"},
+        ).json()
+
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.json()["detail"] == "missing_authorization"
+    assert authenticated.status_code == 422
+    assert authenticated.json()["detail"] == "invalid GDW step request"
+    for table in ("session_state", "requests", "receipts", "effect_outbox"):
+        assert integrity["counts"][table] == 0
+
+
+def test_unready_write_surface_rejects_before_auth_or_body_parsing(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: False)
+    with TestClient(app) as client:
+        unauthenticated = client.post(
+            "/api/a11oy/v1/gdw/step",
+            content=b"{invalid-json",
+            headers={"X-Request-Id": "unready-invalid"},
+        )
+        response = client.post(
+            "/api/a11oy/v1/gdw/step",
+            content=b"{invalid-json",
+            headers=headers("unready-invalid-authenticated"),
+        )
+
+    assert unauthenticated.status_code == 401
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "reason": "GDW_WRITE_SURFACE_UNAVAILABLE",
+        "write_blockers": ["GOVERNANCE_SOURCE_UNREADY"],
+    }
 
 
 def test_transaction_failure_rolls_back_without_external_effects(
@@ -527,7 +587,7 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
             "storage": {
                 "database_path": "/data/a11oy/gdw/gdw.sqlite3",
                 "proof_directory": "/data/a11oy/gdw/proofs",
-                "persistent_storage_required": True,
+                "persistence_required": True,
                 "mount_verified": True,
                 "journal_mode_requested": "DELETE",
                 "journal_mode_observed": "DELETE",
@@ -535,12 +595,19 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
                 "synchronous_observed": 2,
                 "sqlite_integrity": "ok",
                 "proof_export_mode": "outbox",
+                "schema_version": 3,
+                "database_generation_id": "a" * 32,
             },
             "drain": {
                 "enabled": True,
                 "running": True,
                 "worker_id": "private-worker-identity",
-                "last_outcome": "DRAINED",
+                "last_outcome": "SUCCEEDED",
+                "last_success_at": datetime.now(timezone.utc).isoformat(),
+                "run_generation_id": "b" * 32,
+                "success_run_generation_id": "b" * 32,
+                "success_database_generation_id": "a" * 32,
+                "max_staleness_seconds": 60,
                 "last_report": {"rows": ["private"]},
             },
         },
@@ -560,10 +627,126 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
     assert body["persistence"]["storage"]["sqlite_integrity"] == "ok"
 
 
-def test_unknown_file_backed_policy_flow_fails_closed(tmp_path):
-    from szl_colang_policy import ColangPolicy
+def test_health_refuses_real_when_outbox_supervisor_is_retrying(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "prepared_at": "2026-07-28T00:00:00+00:00",
+            "error": None,
+            "storage": {
+                "persistence_required": True,
+                "mount_verified": True,
+                "journal_mode_requested": "DELETE",
+                "journal_mode_observed": "DELETE",
+                "synchronous_requested": "FULL",
+                "synchronous_observed": 2,
+                "sqlite_integrity": "ok",
+                "proof_export_mode": "outbox",
+                "schema_version": 3,
+                "database_generation_id": "a" * 32,
+            },
+            "drain": {
+                "enabled": True,
+                "running": True,
+                "last_outcome": "RETRYING",
+                "last_success_at": datetime.now(timezone.utc).isoformat(),
+                "run_generation_id": "b" * 32,
+                "success_run_generation_id": "b" * 32,
+                "success_database_generation_id": "a" * 32,
+                "max_staleness_seconds": 60,
+            },
+        },
+    )
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    with TestClient(app) as client:
+        body = client.get("/api/a11oy/v1/gdw/healthz").json()
 
-    (tmp_path / "unknown.co").write_text(
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_ready"] is False
+    assert body["write_blockers"] == ["OUTBOX_SUPERVISOR_NOT_HEALTHY"]
+
+
+def test_health_requires_persistent_verified_storage_in_production(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "storage": {
+                "persistence_required": False,
+                "mount_verified": False,
+                "journal_mode_requested": "DELETE",
+                "journal_mode_observed": "DELETE",
+                "synchronous_requested": "FULL",
+                "synchronous_observed": 2,
+                "sqlite_integrity": "ok",
+                "proof_export_mode": "outbox",
+                "schema_version": 3,
+                "database_generation_id": "a" * 32,
+            },
+            "drain": {
+                "enabled": True,
+                "running": True,
+                "last_outcome": "SUCCEEDED",
+                "last_success_at": datetime.now(timezone.utc).isoformat(),
+                "run_generation_id": "b" * 32,
+                "success_run_generation_id": "b" * 32,
+                "success_database_generation_id": "a" * 32,
+                "max_staleness_seconds": 60,
+            },
+        },
+    )
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    with TestClient(app) as client:
+        body = client.get("/api/a11oy/v1/gdw/healthz").json()
+
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_blockers"] == [
+        "PERSISTENCE_NOT_REQUIRED",
+        "PERSISTENT_MOUNT_UNVERIFIED",
+    ]
+
+
+def test_health_uses_one_governance_readiness_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    calls = []
+
+    def one_snapshot():
+        calls.append(True)
+        return True
+
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", one_snapshot)
+    with TestClient(app) as client:
+        body = client.get("/api/a11oy/v1/gdw/healthz").json()
+
+    assert len(calls) == 1
+    assert body["status"] == "REAL"
+    assert body["write_ready"] is True
+    assert body["governance_ready"] is True
+
+
+def test_unknown_file_backed_policy_flow_fails_closed(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "unknown.co"
+    policy_path.write_text(
         "\n".join(
             [
                 "# policy_id: test-unknown",
@@ -575,8 +758,25 @@ def test_unknown_file_backed_policy_flow_fails_closed(tmp_path):
         ),
         encoding="utf-8",
     )
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": {
+                    policy_path.name: hashlib.sha256(
+                        policy_path.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
-    policy = ColangPolicy(tmp_path)
+    trusted = {
+        policy_path.name: hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    }
+    policy = ColangPolicy(tmp_path, trusted_policy_files=trusted)
     result = policy.evaluate({"effecting": True})
 
     assert policy.enforcement_ready is False
@@ -585,7 +785,160 @@ def test_unknown_file_backed_policy_flow_fails_closed(tmp_path):
     assert result["decision"] == "deny"
     assert result["enforcement_ready"] is False
     assert result["unsupported_flows"] == ["deny_all_gdw_effects"]
-    assert result["fired_flows"][0]["reason"] == "UNSUPPORTED_FLOW_FAIL_CLOSED"
+    assert result["fired_flows"][0]["reason"] == "POLICY_SOURCE_INVALID"
+    assert result["validation_errors"] == [
+        "unsupported_flow:deny_all_gdw_effects"
+    ]
+
+
+def test_cached_colang_policy_fails_closed_on_exact_source_drift(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "bound.co"
+    original = "\n".join(
+        [
+            "# policy_id: test-bound",
+            "# policy_version: 1.0.0",
+            "define flow refuse_prompt_injection",
+            "  if matches_injection_signature($action)",
+            '    refuse with reason "PROMPT_INJECTION"',
+        ]
+    )
+    policy_path.write_text(original, encoding="utf-8")
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": {
+                    policy_path.name: hashlib.sha256(
+                        policy_path.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    trusted = {
+        policy_path.name: hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    }
+    policy = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    assert policy.enforcement_ready is True
+
+    policy_path.write_text(
+        original.replace("matches_injection_signature", "is_destructive"),
+        encoding="utf-8",
+    )
+    drifted = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    result = drifted.evaluate({"text": "ordinary text"})
+
+    assert result["allow"] is False
+    assert result["enforcement_ready"] is False
+    assert result["fired_flows"][0]["reason"] == "POLICY_SOURCE_DRIFT"
+    assert result["source_contract_errors"] == [
+        "flow_guard_mismatch:refuse_prompt_injection",
+        "policy_file_digest_mismatch:bound.co",
+    ]
+
+
+def test_exact_policy_contract_rejects_empty_bundle(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "empty.co"
+    policy_path.write_text(
+        "# policy_id: empty\n# policy_version: 1.0.0\n",
+        encoding="utf-8",
+    )
+    trusted = {
+        policy_path.name: hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    }
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": trusted,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    policy = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    result = policy.evaluate({"text": "ordinary"})
+
+    assert policy.loaded is True
+    assert policy.enforcement_ready is False
+    assert policy.validation_errors == ["policy_file_has_no_flows:empty.co"]
+    assert result["allow"] is False
+    assert result["fired_flows"][0]["reason"] == "POLICY_SOURCE_INVALID"
+
+
+def test_policy_and_adjacent_contract_cannot_change_trusted_guard(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "roe_core.co"
+    policy_path.write_text(
+        "\n".join(
+            [
+                "# policy_id: a11oy-roe-core",
+                "# policy_version: 1.0.0",
+                "define flow refuse_prompt_injection",
+                "  if is_destructive($action)",
+                '    bot refuse action with reason "prompt_injection_detected"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": {
+                    policy_path.name: hashlib.sha256(
+                        policy_path.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    policy = ColangPolicy(tmp_path)
+
+    assert policy.enforcement_ready is False
+    assert policy.bundle_sha256 is None
+    assert policy.evaluate({"destructive": True})["allow"] is False
+
+
+def test_evaluator_contract_hash_covers_real_evaluator_source():
+    import szl_colang_policy
+
+    source = open(szl_colang_policy.__file__, encoding="utf-8").read()
+    match = __import__("re").search(
+        r"^# BEGIN EXACT POLICY EVALUATOR CONTRACT\r?\n"
+        r"(?P<region>.*?)"
+        r"^# END EXACT POLICY EVALUATOR CONTRACT$",
+        source,
+        __import__("re").MULTILINE | __import__("re").DOTALL,
+    )
+
+    assert match is not None
+    assert len(match.group("region")) > 5_000
+    assert "_FLOW_LOGIC" in match.group("region")
+    assert "def _matches_injection_signature" in match.group("region")
+    assert szl_colang_policy._evaluator_region_sha256() == hashlib.sha256(
+        match.group("region").replace("\r\n", "\n").encode("utf-8")
+    ).hexdigest()
+
+
+def test_container_copies_exact_policy_contract():
+    dockerfile = open("Dockerfile", encoding="utf-8").read()
+
+    assert (
+        "policy/colang/enforcement-contract.json ./policy/colang/"
+        in dockerfile
+    )
 
 
 def test_replay_telemetry_does_not_count_a_new_receipt(tmp_path, monkeypatch):

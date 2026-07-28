@@ -8,7 +8,10 @@ evidence dashboard.
 Policy evaluation is currently in-process, so receipts truthfully report
 `writer_is_judge=true`; they do not claim an independent policy authority.
 Unknown file-backed flows and policy evaluation errors fail closed instead of
-being silently skipped.
+being silently skipped. The runtime loads a fresh immutable policy snapshot for
+each gate, roots the exact two reviewed Colang files in the evaluator source,
+and binds the parser/evaluator digest into the snapshot. Policy, contract, and
+evaluator drift cannot fall back to a cached allow.
 
 ## Truth boundary
 
@@ -28,14 +31,18 @@ commit. This is durable local atomicity plus retry-safe projection, not
 cross-system two-phase commit.
 
 Each effect key binds namespace, owner, request, effect kind, and immutable
-payload digest. The drain revalidates the row, principal, request, payload
-digest, and key before publication. Existing non-identical artifacts are never
-overwritten.
+payload digest. A separate canonical intent binds those values to the persisted
+request response, receipt (when mutating), and database-generation identity.
+Every claim has an incrementing fencing generation and an observed-time lease;
+stale or expired workers cannot attach an artifact. Artifacts are named by the
+intent digest, so an identical retry reuses bytes while different content or a
+different database generation receives a different path. Existing
+non-identical artifacts are never overwritten.
 
 ## Runtime
 
 Production starts through `gdw_runtime.py`, verifies an attached persistent
-mount, provisions or validates schema v2, selects the declared network-safe
+mount, provisions or validates schema v3, selects the declared network-safe
 SQLite journal, then supervises the leased outbox drain and `serve.py`.
 `GDW_CREDENTIALS_JSON` is a secret-managed version-1 credential registry whose
 entries bind a stable `owner_id`, namespace, rotating `key_id`, and scopes to a
@@ -45,13 +52,20 @@ Reusing an id with identical content replays the prior response; changing the
 content returns HTTP 409. Session, request, receipt, proof, and effect identities
 are scoped by namespace and owner.
 
-Production also requires explicit `/data`-contained database, proof, and receipt
-paths. Per-owner and global quotas are enforced inside the same write
+Production requires schema v3, a valid database-generation identity, and
+explicit `/data`-contained database, proof, and receipt paths. Valid active v2
+effects migrate transactionally into v3; invalid or compacted v2 evidence fails
+closed for an offline evidence-preserving migration. Any nonempty unscoped v1
+store also requires an offline provenance migration and is never attributed to
+a typed owner or environment variable. Per-owner and global quotas are enforced
+inside the same write
 transaction. Expiration preserves session and idempotency tombstones, garbage
 collection never deletes unexported effects, and permanent export failures use
-bounded backoff before `DEAD_LETTER`. Without a valid credential registry,
-attached mount, exact schema, or running supervisor, health reports
-`UNAVAILABLE` and writes fail closed.
+bounded backoff before `DEAD_LETTER`. Health reports `REAL` only after verified
+storage, exact journal/synchronous settings, the current schema/database
+generation, and a fresh successful pass from the currently running supervisor.
+Without those conditions or a valid credential registry and exact governance
+snapshot, health reports `UNAVAILABLE` and writes fail closed.
 
 Routes:
 

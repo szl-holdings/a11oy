@@ -9,9 +9,9 @@ import time
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from gdw_attention import AttentionFeatures, choose_attention_mode
 from gdw_auth import (
@@ -64,6 +64,24 @@ def _dump_model(model):
     if hasattr(model, "model_dump"):
         return model.model_dump(mode="json")
     return model.dict()
+
+
+def _model_schema(model):
+    if hasattr(model, "model_json_schema"):
+        return model.model_json_schema()
+    return model.schema()
+
+
+def _validate_step_payload(value) -> GDWStepRequest:
+    try:
+        if hasattr(GDWStepRequest, "model_validate"):
+            return GDWStepRequest.model_validate(value)
+        return GDWStepRequest.parse_obj(value)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="invalid GDW step request",
+        ) from exc
 
 
 def _now() -> str:
@@ -163,6 +181,109 @@ def _governance_ready() -> bool:
         return False
 
 
+def _policy_bundle_sha256() -> Optional[str]:
+    try:
+        import szl_colang_policy
+
+        policy = szl_colang_policy.get_policy()
+        if not policy.enforcement_ready:
+            return None
+        return policy.bundle_sha256
+    except Exception:
+        return None
+
+
+def _write_readiness(
+    namespace: str,
+) -> tuple[bool, list[str], int, dict, bool]:
+    runtime = runtime_health()
+    production = os.environ.get(
+        "GDW_PRODUCTION_MODE", ""
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    blockers = []
+    if production:
+        storage = runtime.get("storage") or {}
+        drain = runtime.get("drain") or {}
+        if runtime.get("evidence_label") != "VERIFIED":
+            blockers.append("RUNTIME_EVIDENCE_UNVERIFIED")
+        if runtime.get("startup_state") != "READY":
+            blockers.append("RUNTIME_NOT_READY")
+        if storage.get("sqlite_integrity") != "ok":
+            blockers.append("SQLITE_INTEGRITY_UNVERIFIED")
+        if storage.get("schema_version") != GDWWorkspace.schema_version():
+            blockers.append("SCHEMA_VERSION_UNVERIFIED")
+        if not re.fullmatch(
+            r"[0-9a-f]{32}",
+            str(storage.get("database_generation_id") or ""),
+        ):
+            blockers.append("DATABASE_GENERATION_UNVERIFIED")
+        if storage.get("proof_export_mode") != "outbox":
+            blockers.append("OUTBOX_MODE_UNVERIFIED")
+        if storage.get("journal_mode_observed") != storage.get(
+            "journal_mode_requested"
+        ):
+            blockers.append("JOURNAL_MODE_MISMATCH")
+        if storage.get("persistence_required") is not True:
+            blockers.append("PERSISTENCE_NOT_REQUIRED")
+        if storage.get("mount_verified") is not True:
+            blockers.append("PERSISTENT_MOUNT_UNVERIFIED")
+        expected_synchronous = {"FULL": 2, "NORMAL": 1}.get(
+            storage.get("synchronous_requested")
+        )
+        if storage.get("synchronous_observed") != expected_synchronous:
+            blockers.append("SYNCHRONOUS_MODE_MISMATCH")
+        if not drain.get("enabled") or not drain.get("running"):
+            blockers.append("OUTBOX_SUPERVISOR_NOT_RUNNING")
+        if drain.get("last_outcome") != "SUCCEEDED":
+            blockers.append("OUTBOX_SUPERVISOR_NOT_HEALTHY")
+        if drain.get("success_run_generation_id") != drain.get(
+            "run_generation_id"
+        ):
+            blockers.append("OUTBOX_SUPERVISOR_SUCCESS_STALE")
+        if drain.get("success_database_generation_id") != storage.get(
+            "database_generation_id"
+        ):
+            blockers.append("OUTBOX_SUPERVISOR_DATABASE_STALE")
+        try:
+            success_at = datetime.fromisoformat(
+                str(drain.get("last_success_at") or "").replace("Z", "+00:00")
+            )
+            age = (datetime.now(timezone.utc) - success_at).total_seconds()
+            max_age = int(drain.get("max_staleness_seconds") or 0)
+            if max_age < 1 or age < 0 or age > max_age:
+                raise ValueError
+        except (TypeError, ValueError):
+            blockers.append("OUTBOX_SUPERVISOR_HEARTBEAT_STALE")
+    try:
+        credentials = _credential_registry()
+        credential_count = credentials.credential_count
+    except AuthConfigurationError:
+        credential_count = 0
+        blockers.append("CREDENTIAL_REGISTRY_UNAVAILABLE")
+    governance_ready = _governance_ready()
+    if not governance_ready:
+        blockers.append("GOVERNANCE_SOURCE_UNREADY")
+    return (
+        not blockers,
+        sorted(set(blockers)),
+        credential_count,
+        runtime,
+        governance_ready,
+    )
+
+
+def _require_write_ready(namespace: str) -> None:
+    ready, blockers, _, _, _ = _write_readiness(namespace)
+    if not ready:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "reason": "GDW_WRITE_SURFACE_UNAVAILABLE",
+                "write_blockers": blockers,
+            },
+        )
+
+
 def _public_runtime_health(runtime: dict) -> dict:
     storage = runtime.get("storage")
     public_storage = None
@@ -170,7 +291,7 @@ def _public_runtime_health(runtime: dict) -> dict:
         public_storage = {
             key: storage.get(key)
             for key in (
-                "persistent_storage_required",
+                "persistence_required",
                 "mount_verified",
                 "journal_mode_requested",
                 "synchronous_requested",
@@ -178,6 +299,8 @@ def _public_runtime_health(runtime: dict) -> dict:
                 "journal_mode_observed",
                 "synchronous_observed",
                 "sqlite_integrity",
+                "schema_version",
+                "database_generation_id",
             )
             if key in storage
         }
@@ -255,9 +378,11 @@ def _governance_gate(
         import szl_colang_policy
 
         policy = szl_colang_policy.get_policy()
-        if not policy.loaded:
-            raise RuntimeError("no file-backed Colang policy is loaded")
+        if not policy.enforcement_ready:
+            raise RuntimeError("exact file-backed Colang policy is not ready")
         colang = policy.evaluate(action)
+        if not colang.get("enforcement_ready"):
+            raise RuntimeError("Colang policy evaluation failed exact-source checks")
     except Exception as exc:
         return {
             "allowed": False,
@@ -298,6 +423,7 @@ def _governance_gate(
                 "fired_flows": colang.get("fired_flows", []),
                 "flows_evaluated": colang.get("flows_evaluated", []),
                 "policy_files": colang.get("policy_files", []),
+                "bundle_sha256": colang.get("bundle_sha256"),
             },
         }
 
@@ -321,6 +447,7 @@ def _governance_gate(
             "fired_flows": colang.get("fired_flows", []),
             "flows_evaluated": colang.get("flows_evaluated", []),
             "policy_files": colang.get("policy_files", []),
+            "bundle_sha256": colang.get("bundle_sha256"),
         },
         "codename_gate": {
             "clean": not codename_hits,
@@ -369,29 +496,21 @@ def register(app, ns: str = "a11oy"):
     @app.get(prefix + "/healthz")
     @app.get("/v1/gdw/healthz")
     def gdw_healthz():
-        runtime = runtime_health()
+        (
+            write_ready,
+            blockers,
+            credential_count,
+            runtime,
+            governance_ready,
+        ) = _write_readiness(ns)
         public_runtime = _public_runtime_health(runtime)
-        production = os.environ.get(
-            "GDW_PRODUCTION_MODE", ""
-        ).strip().lower() in {"1", "true", "yes", "on"}
-        runtime_ready = (
-            runtime.get("startup_state") == "READY" if production else True
-        )
-        try:
-            credentials = _credential_registry()
-            credential_count = credentials.credential_count
-            auth_ready = True
-        except AuthConfigurationError:
-            credential_count = 0
-            auth_ready = False
-        governance_ready = _governance_ready()
-        write_ready = runtime_ready and auth_ready and governance_ready
         return {
             "service": "gdw-frontier",
             "status": "REAL" if write_ready else "UNAVAILABLE",
             "write_ready": write_ready,
             "credential_count": credential_count,
             "governance_ready": governance_ready,
+            "write_blockers": blockers,
             "persistence": public_runtime,
             "benchmark_claim": "UNMEASURED",
         }
@@ -463,10 +582,21 @@ def register(app, ns: str = "a11oy"):
             raise HTTPException(status_code=404, detail="session not found")
         return state
 
-    @app.post(prefix + "/step")
-    @app.post("/v1/gdw/step")
-    def gdw_step(
-        payload: GDWStepRequest,
+    request_body_contract = {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": _model_schema(GDWStepRequest),
+                }
+            },
+        }
+    }
+
+    @app.post(prefix + "/step", openapi_extra=request_body_contract)
+    @app.post("/v1/gdw/step", openapi_extra=request_body_contract)
+    async def gdw_step(
+        request: Request,
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
         x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id"),
     ):
@@ -476,15 +606,24 @@ def register(app, ns: str = "a11oy"):
             namespace=ns,
             required_scopes=("step:write",),
         )
+        _require_write_ready(ns)
+        try:
+            raw_payload = await request.json()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="invalid GDW step request",
+            ) from exc
+        payload = _validate_step_payload(raw_payload)
         request_id = _validate_identifiers(payload, x_request_id)
         payload_data = _dump_model(payload)
         request_digest = _sha(payload_data)
-        workspace = _workspace(principal)
         selected_mode = "unresolved"
         decision = "ERROR"
         receipt_hash = ""
 
         try:
+            workspace = _workspace(principal)
             with workspace.transaction() as connection:
                 cached = workspace.cached_request(connection, request_id)
                 if cached is not None:
@@ -493,6 +632,18 @@ def register(app, ns: str = "a11oy"):
                         raise HTTPException(
                             status_code=409,
                             detail="X-Request-Id was already used with different content",
+                        )
+                    current_bundle = _policy_bundle_sha256()
+                    cached_bundle = (
+                        cached_response.get("audit", {})
+                        .get("governance", {})
+                        .get("colang", {})
+                        .get("bundle_sha256")
+                    )
+                    if not current_bundle or cached_bundle != current_bundle:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="policy snapshot changed; replay refused",
                         )
                     cached_response["replayed"] = True
                     selected_mode = cached_response["scheduler_mode"]

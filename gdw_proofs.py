@@ -102,7 +102,19 @@ def _export_json_artifact(
     }
 
 
-def export_proof_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _validate_artifact_id(artifact_id: str) -> None:
+    if (
+        len(artifact_id) != 64
+        or any(ch not in "0123456789abcdef" for ch in artifact_id)
+    ):
+        raise ValueError("artifact_id must be a lowercase SHA-256 digest")
+
+
+def export_proof_payload(
+    payload: Dict[str, Any],
+    *,
+    artifact_id: str | None = None,
+) -> Dict[str, Any]:
     root = Path(os.environ.get("GDW_PROOF_DIR", "output/proofs")).resolve()
     proposal_id = payload["proposal_id"]
     if not proposal_id or any(ch not in "0123456789abcdef" for ch in proposal_id):
@@ -112,29 +124,31 @@ def export_proof_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     unsigned_payload.pop("payload_sha256", None)
     if claimed_digest != sha256_json(unsigned_payload):
         raise ValueError("proof payload_sha256 does not match canonical payload")
-    artifact = _export_json_artifact(root, f"{proposal_id}.json", payload)
+    resolved_artifact_id = artifact_id or claimed_digest
+    _validate_artifact_id(resolved_artifact_id)
+    artifact = _export_json_artifact(
+        root,
+        f"{resolved_artifact_id}.json",
+        payload,
+    )
     artifact.update({"status": "INPUT_EXPORTED", "formal_status": "NOT_RUN"})
     return artifact
 
 
 def export_receipt_projection(
     payload: Dict[str, Any],
-    idempotency_key: str,
+    artifact_id: str,
 ) -> Dict[str, Any]:
     root = Path(
         os.environ.get("GDW_RECEIPT_PROJECTION_DIR", "output/gdw/receipts")
     ).resolve()
-    if (
-        len(idempotency_key) != 64
-        or any(ch not in "0123456789abcdef" for ch in idempotency_key)
-    ):
-        raise ValueError("idempotency_key must be a lowercase SHA-256 digest")
+    _validate_artifact_id(artifact_id)
     claimed_digest = payload.get("receipt_hash")
     unsigned_payload = dict(payload)
     unsigned_payload.pop("receipt_hash", None)
     if claimed_digest != sha256_json(unsigned_payload):
         raise ValueError("receipt_hash does not match canonical receipt")
-    artifact = _export_json_artifact(root, f"{idempotency_key}.json", payload)
+    artifact = _export_json_artifact(root, f"{artifact_id}.json", payload)
     artifact.update(
         {
             "status": "RECEIPT_PROJECTED",

@@ -39,6 +39,10 @@ _STATE: dict[str, Any] = {
         "last_success_at": None,
         "last_error": None,
         "last_report": None,
+        "run_generation_id": None,
+        "success_run_generation_id": None,
+        "success_database_generation_id": None,
+        "max_staleness_seconds": None,
     },
 }
 
@@ -233,6 +237,8 @@ def prepare_runtime(
             "journal_mode_observed": selected,
             "synchronous_observed": observed_synchronous,
             "sqlite_integrity": integrity,
+            "schema_version": workspace.schema_version(),
+            "database_generation_id": workspace.database_generation_id,
             "workspace_path": str(workspace.path),
         }
     except GDWRuntimeError:
@@ -255,20 +261,30 @@ def prepare_runtime(
     return observed
 
 
-def _verify_effect_binding(row: Mapping[str, Any]) -> None:
-    errors = GDWWorkspace.effect_binding_errors(dict(row))
+def _verify_effect_binding(
+    workspace: GDWWorkspace,
+    row: Mapping[str, Any],
+) -> None:
+    errors = workspace.effect_binding_errors_for_row(dict(row))
     if errors:
         raise ValueError("invalid effect binding: " + ",".join(errors))
 
 
-def _export_effect(row: Mapping[str, Any]) -> dict[str, Any]:
-    _verify_effect_binding(row)
+def _export_effect(
+    workspace: GDWWorkspace,
+    row: Mapping[str, Any],
+) -> dict[str, Any]:
+    _verify_effect_binding(workspace, row)
+    artifact_id = str(row["intent_sha256"])
     if row["kind"] == "proof_export":
-        return export_proof_payload(row["payload"])
+        return export_proof_payload(
+            row["payload"],
+            artifact_id=artifact_id,
+        )
     if row["kind"] == "receipt_projection":
         return export_receipt_projection(
             row["payload"],
-            row["idempotency_key"],
+            artifact_id,
         )
     raise ValueError(f"unsupported effect kind: {row['kind']}")
 
@@ -344,10 +360,18 @@ def drain_once(
         )
         for row in rows:
             try:
-                artifact = _export_effect(row)
+                store.assert_effect_claim(
+                    row["idempotency_key"],
+                    owner,
+                    row["claim_generation"],
+                    namespace=namespace,
+                    owner_id=owner_id,
+                )
+                artifact = _export_effect(store, row)
                 store.mark_effect_exported(
                     row["idempotency_key"],
                     owner,
+                    row["claim_generation"],
                     artifact,
                     _now(),
                     namespace=namespace,
@@ -359,6 +383,7 @@ def drain_once(
                     store.release_effect(
                         row["idempotency_key"],
                         owner,
+                        row["claim_generation"],
                         f"{type(exc).__name__}: {str(exc)[:240]}",
                         namespace=namespace,
                         owner_id=owner_id,
@@ -457,7 +482,24 @@ class OutboxSupervisor:
         self._thread.start()
 
     def _run(self) -> None:
-        _set_drain_state(running=True, worker_id=self.worker_id)
+        run_generation_id = uuid.uuid4().hex
+        with _STATE_LOCK:
+            database_generation_id = str(
+                (_STATE.get("storage") or {}).get("database_generation_id") or ""
+            )
+        _set_drain_state(
+            running=True,
+            worker_id=self.worker_id,
+            last_outcome="STARTING",
+            last_attempt_at=None,
+            last_success_at=None,
+            last_error=None,
+            last_report=None,
+            run_generation_id=run_generation_id,
+            success_run_generation_id=None,
+            success_database_generation_id=None,
+            max_staleness_seconds=max(30, self.interval_seconds * 3),
+        )
         delay = 0
         retry_delay = self.interval_seconds
         try:
@@ -470,7 +512,7 @@ class OutboxSupervisor:
                         lease_seconds=self.lease_seconds,
                         worker_id=self.worker_id,
                     )
-                    if report["failed"]:
+                    if report["failed"] or report["legacy_pending_proofs"]:
                         retry_delay = min(
                             self.retry_max_seconds,
                             max(self.interval_seconds, retry_delay * 2),
@@ -478,7 +520,10 @@ class OutboxSupervisor:
                         delay = retry_delay
                         _set_drain_state(
                             last_outcome="RETRY_SCHEDULED",
-                            last_error="bounded drain pass reported failures",
+                            last_error=(
+                                "bounded drain pass reported failures or "
+                                "unmigrated legacy proofs"
+                            ),
                             last_report=report,
                         )
                     else:
@@ -489,6 +534,10 @@ class OutboxSupervisor:
                             last_success_at=_now(),
                             last_error=None,
                             last_report=report,
+                            success_run_generation_id=run_generation_id,
+                            success_database_generation_id=(
+                                database_generation_id
+                            ),
                         )
                 except Exception as exc:
                     retry_delay = min(

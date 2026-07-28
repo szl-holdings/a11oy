@@ -49,7 +49,19 @@ _POLICY_DIRS = [
 _FLOW_RE = re.compile(r"^define\s+flow\s+([A-Za-z0-9_]+)\s*$")
 _REASON_RE = re.compile(r'with\s+reason\s+"([^"]+)"')
 _PRED_RE = re.compile(r"\b([a-z_][a-z0-9_]*)\s*\(\s*\$action\s*\)")
+_CONTRACT_NAME = "enforcement-contract.json"
+_EVALUATOR_REGION_BEGIN = "# BEGIN EXACT POLICY EVALUATOR CONTRACT"
+_EVALUATOR_REGION_END = "# END EXACT POLICY EVALUATOR CONTRACT"
 
+# BEGIN EXACT POLICY EVALUATOR CONTRACT
+_CANONICAL_POLICY_FILES = {
+    "killinchu_threat.co": (
+        "3c47dfd730d738f1ce0b722b5ccc21fb12dda70ccb288043ffe10b78479df9c2"
+    ),
+    "roe_core.co": (
+        "77598deb89c4bebeb3682b30a0a01fcebc73a089183fa0a9a2877ad1fd732984"
+    ),
+}
 # Threat / injection signatures the policy predicates actually scan for. Mirrors
 # the in-image arena gate so policy enforcement is consistent across surfaces.
 _INJECTION_SIGS = ["ignore previous", "ignore policy", "exfiltrate", "override",
@@ -210,6 +222,57 @@ _FLOW_LOGIC = {
     "require_sensor_quorum":
         lambda a: _is_threat_decision(a) and not _sensor_quorum_met(a),
 }
+_FLOW_GUARDS = {
+    "refuse_destructive_actions": [
+        "is_destructive",
+        "has_operator_authorization",
+    ],
+    "refuse_pii_exfiltration": ["requests_pii_exfiltration"],
+    "refuse_prompt_injection": ["matches_injection_signature"],
+    "require_operator_approval_high_impact": [
+        "is_high_impact",
+        "has_operator_approval_event",
+    ],
+    "enforce_payload_ceiling": ["payload_exceeds_ceiling"],
+    "policy_before_effect": ["is_effecting", "policy_evaluated_before"],
+    "no_autonomous_engagement": [
+        "is_engagement",
+        "has_human_authorization",
+    ],
+    "require_calibrated_classifier": [
+        "is_automated_response",
+        "classifier_calibration_gate_pass",
+    ],
+    "require_singleton_conformal_set": [
+        "is_automated_response",
+        "conformal_set_ambiguous",
+    ],
+    "require_sensor_quorum": ["is_threat_decision", "sensor_quorum_met"],
+}
+
+
+def _load_enforcement_contract(
+    directory: Path,
+    trusted_policy_files: dict[str, str],
+) -> dict:
+    path = directory / _CONTRACT_NAME
+    try:
+        contract = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("policy enforcement contract is unavailable") from exc
+    if contract.get("schema") != "szl.colang-enforcement-contract/v1":
+        raise ValueError("policy enforcement contract schema is unsupported")
+    expected_files = contract.get("policy_files")
+    if not isinstance(expected_files, dict) or not expected_files:
+        raise ValueError("policy enforcement contract has no policy file bindings")
+    expected_contract = {
+        "schema": "szl.colang-enforcement-contract/v1",
+        "evaluator_region_sha256": _LOADED_EVALUATOR_SHA256,
+        "policy_files": trusted_policy_files,
+    }
+    if contract != expected_contract:
+        raise ValueError("policy enforcement contract is not rooted in trusted source")
+    return contract
 
 
 def _parse_flows(text: str) -> list[dict]:
@@ -230,13 +293,41 @@ def _parse_flows(text: str) -> list[dict]:
         rm = _REASON_RE.search(line)
         if rm and not current["reason"]:
             current["reason"] = rm.group(1)
-        for pm in _PRED_RE.finditer(line):
-            g = pm.group(1)
-            if g not in current["guards"]:
-                current["guards"].append(g)
+        if line.strip().startswith("if "):
+            for pm in _PRED_RE.finditer(line):
+                g = pm.group(1)
+                if g not in current["guards"]:
+                    current["guards"].append(g)
     if current:
         flows.append(current)
     return flows
+# END EXACT POLICY EVALUATOR CONTRACT
+
+
+def _evaluator_region_sha256() -> str:
+    """Hash the exact reviewed evaluator/parser region from loaded source."""
+
+    source = Path(__file__).read_text(encoding="utf-8").replace("\r\n", "\n")
+    pattern = re.compile(
+        r"^# BEGIN EXACT POLICY EVALUATOR CONTRACT\r?\n"
+        r"(?P<region>.*?)"
+        r"^# END EXACT POLICY EVALUATOR CONTRACT$",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(source)
+    if match is None:
+        raise ValueError("policy evaluator contract markers are missing")
+    region = match.group("region")
+    if (
+        "_FLOW_LOGIC" not in region
+        or "def _matches_injection_signature" not in region
+        or "def _parse_flows" not in region
+    ):
+        raise ValueError("policy evaluator contract region is incomplete")
+    return hashlib.sha256(region.encode("utf-8")).hexdigest()
+
+
+_LOADED_EVALUATOR_SHA256 = _evaluator_region_sha256()
 
 
 _NEMO_AVAILABLE = False
@@ -250,19 +341,43 @@ except Exception:
 class ColangPolicy:
     """Loaded, file-backed, auditable Colang policy set."""
 
-    def __init__(self, directory: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        directory: Optional[Path] = None,
+        *,
+        trusted_policy_files: Optional[dict[str, str]] = None,
+    ) -> None:
         self.directory = directory or _resolve_dir()
+        self.trusted_policy_files = dict(
+            trusted_policy_files or _CANONICAL_POLICY_FILES
+        )
         self.files: list[dict] = []
+        self.contract: Optional[dict] = None
+        self.contract_errors: list[str] = []
+        self.validation_errors: list[str] = []
+        self._bundle_sha256: Optional[str] = None
         self._load()
 
     def _load(self) -> None:
         self.files = []
+        self.contract = None
+        self.contract_errors = []
+        self.validation_errors = []
+        self._bundle_sha256 = None
         if not self.directory:
+            self.contract_errors = ["policy_directory_unavailable"]
             return
+        try:
+            self.contract = _load_enforcement_contract(
+                self.directory,
+                self.trusted_policy_files,
+            )
+        except ValueError:
+            self.contract_errors = ["enforcement_contract_unavailable"]
         for p in sorted(self.directory.glob("*.co")):
             try:
                 raw = p.read_bytes()
-                text = raw.decode("utf-8", "replace")
+                text = raw.decode("utf-8", "strict")
                 flows = _parse_flows(text)
                 pid = None
                 pver = None
@@ -282,8 +397,63 @@ class ColangPolicy:
                     "flows": flows,
                     "content": text,
                 })
-            except Exception:
-                continue
+            except (OSError, UnicodeDecodeError):
+                self.validation_errors.append(f"policy_file_unreadable:{p.name}")
+        self.validation_errors.extend(self._flow_validation_errors())
+        self.validation_errors = sorted(set(self.validation_errors))
+        self.contract_errors.extend(self._snapshot_contract_errors())
+        self.contract_errors = sorted(set(self.contract_errors))
+        if not self.contract_errors and not self.validation_errors and self.contract:
+            self._bundle_sha256 = hashlib.sha256(
+                json.dumps(
+                    self.contract,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+
+    def _flow_validation_errors(self) -> list[str]:
+        errors = []
+        observed_names = []
+        for source in self.files:
+            if not source["flows"]:
+                errors.append(f"policy_file_has_no_flows:{source['name']}")
+            if not source["policy_id"]:
+                errors.append(f"policy_id_missing:{source['name']}")
+            if not source["policy_version"]:
+                errors.append(f"policy_version_missing:{source['name']}")
+            for flow in source["flows"]:
+                name = flow["name"]
+                observed_names.append(name)
+                if not flow["reason"]:
+                    errors.append(f"flow_reason_missing:{name}")
+                expected_guards = _FLOW_GUARDS.get(name)
+                if expected_guards is None:
+                    errors.append(f"unsupported_flow:{name}")
+                elif flow["guards"] != expected_guards:
+                    errors.append(f"flow_guard_mismatch:{name}")
+        duplicates = {
+            name for name in observed_names if observed_names.count(name) > 1
+        }
+        errors.extend(f"duplicate_flow:{name}" for name in sorted(duplicates))
+        return errors
+
+    def _snapshot_contract_errors(self) -> list[str]:
+        """Validate the immutable bytes loaded into this policy snapshot."""
+        if not self.directory or not self.contract:
+            return self.contract_errors or ["enforcement_contract_unavailable"]
+        errors: list[str] = []
+        expected_files = self.contract["policy_files"]
+        observed_names = {source["name"] for source in self.files}
+        if observed_names != set(expected_files):
+            errors.append("policy_file_set_mismatch")
+        observed_hashes = {
+            source["name"]: source["sha256"] for source in self.files
+        }
+        for name, expected_sha in sorted(expected_files.items()):
+            if observed_hashes.get(name) != expected_sha:
+                errors.append(f"policy_file_digest_mismatch:{name}")
+        return sorted(set(errors))
 
     @property
     def loaded(self) -> bool:
@@ -301,7 +471,16 @@ class ColangPolicy:
 
     @property
     def enforcement_ready(self) -> bool:
-        return self.loaded and not self.unsupported_flows
+        return (
+            self.loaded
+            and not self.unsupported_flows
+            and not self.contract_errors
+            and not self.validation_errors
+        )
+
+    @property
+    def bundle_sha256(self) -> Optional[str]:
+        return self._bundle_sha256
 
     def all_flows(self) -> list[dict]:
         out = []
@@ -320,6 +499,49 @@ class ColangPolicy:
         evaluated: list[str] = []
         unsupported: list[str] = []
         evaluation_errors: list[str] = []
+        source_errors = sorted(
+            set(self.contract_errors + self.validation_errors)
+        )
+        if source_errors:
+            return {
+                "allow": False,
+                "decision": "deny",
+                "fired_flows": [
+                    {
+                        "flow": "exact_source_contract",
+                        "reason": (
+                            "POLICY_SOURCE_DRIFT"
+                            if self.contract_errors
+                            else "POLICY_SOURCE_INVALID"
+                        ),
+                        "file": _CONTRACT_NAME,
+                        "policy_id": "szl-colang-exact-source",
+                        "policy_version": "1",
+                    }
+                ],
+                "fired_count": 1,
+                "flows_evaluated": [],
+                "unsupported_flows": self.unsupported_flows,
+                "evaluation_errors": [],
+                "validation_errors": list(self.validation_errors),
+                "source_contract_errors": source_errors,
+                "bundle_sha256": None,
+                "enforcement_ready": False,
+                "matched_count": 1,
+                "policy_files": [
+                    {
+                        "name": f["name"],
+                        "sha256": f["sha256"],
+                        "policy_id": f["policy_id"],
+                        "policy_version": f["policy_version"],
+                    }
+                    for f in self.files
+                ],
+                "honesty": (
+                    "The exact reviewed policy/evaluator source contract did not "
+                    "match current on-disk bytes; enforcement failed closed."
+                ),
+            }
         for fl in self.all_flows():
             name = fl["name"]
             logic = _FLOW_LOGIC.get(name)
@@ -361,6 +583,8 @@ class ColangPolicy:
             "flows_evaluated": evaluated,
             "unsupported_flows": sorted(unsupported),
             "evaluation_errors": sorted(evaluation_errors),
+            "source_contract_errors": [],
+            "bundle_sha256": self.bundle_sha256,
             "enforcement_ready": not unsupported and not evaluation_errors,
             "matched_count": len(fired),
             "policy_files": [{"name": f["name"], "sha256": f["sha256"],
@@ -380,6 +604,18 @@ class ColangPolicy:
             "nemoguardrails_runtime_present": _NEMO_AVAILABLE,
             "file_count": len(self.files),
             "flow_count": len(self.all_flows()),
+            "enforcement_ready": self.enforcement_ready,
+            "source_contract_errors": list(self.contract_errors),
+            "validation_errors": list(self.validation_errors),
+            "bundle_sha256": self.bundle_sha256,
+            "enforcement_contract": {
+                "schema": self.contract.get("schema"),
+                "evaluator_region_sha256": self.contract.get(
+                    "evaluator_region_sha256"
+                ),
+            }
+            if self.contract
+            else None,
             "files": self.files,
             "honesty": (
                 "Policy is FILE-BACKED and version-controlled: each rule is a "
@@ -394,14 +630,11 @@ class ColangPolicy:
         }
 
 
-_SINGLETON: Optional[ColangPolicy] = None
-
-
 def get_policy(reload: bool = False) -> ColangPolicy:
-    global _SINGLETON
-    if _SINGLETON is None or reload:
-        _SINGLETON = ColangPolicy()
-    return _SINGLETON
+    # Policy files are tiny. A fresh immutable snapshot avoids stale singleton
+    # state and binds evaluation, evidence, and bundle identity to one read.
+    del reload
+    return ColangPolicy()
 
 
 if __name__ == "__main__":  # pragma: no cover

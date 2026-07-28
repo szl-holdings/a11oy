@@ -7,13 +7,14 @@ import os
 import re
 import sqlite3
 import threading
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _SCHEMA_LOCK = threading.RLock()
 _PROCESS_WRITE_LOCK = threading.RLock()
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -155,6 +156,7 @@ _SCHEMA_STATEMENTS = (
     CREATE TABLE schema_meta (
         schema_name TEXT PRIMARY KEY,
         schema_version INTEGER NOT NULL,
+        database_generation_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
         upgraded_at TEXT NOT NULL
     )
@@ -244,10 +246,13 @@ _SCHEMA_STATEMENTS = (
         namespace TEXT NOT NULL,
         owner_id TEXT NOT NULL,
         idempotency_key TEXT NOT NULL,
+        database_generation_id TEXT NOT NULL,
         request_id TEXT NOT NULL,
         kind TEXT NOT NULL CHECK(kind IN ('receipt_projection', 'proof_export')),
+        receipt_hash TEXT,
         payload_json TEXT,
         payload_sha256 TEXT NOT NULL,
+        intent_sha256 TEXT NOT NULL,
         status TEXT NOT NULL
             CHECK(status IN ('PENDING', 'CLAIMED', 'EXPORTED', 'DEAD_LETTER')),
         attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
@@ -255,6 +260,8 @@ _SCHEMA_STATEMENTS = (
         next_attempt_at TEXT NOT NULL,
         lease_owner TEXT,
         lease_until TEXT,
+        claim_generation INTEGER NOT NULL DEFAULT 0
+            CHECK(claim_generation >= 0),
         last_error TEXT,
         artifact_json TEXT,
         created_at TEXT NOT NULL,
@@ -264,6 +271,9 @@ _SCHEMA_STATEMENTS = (
         UNIQUE(namespace, owner_id, request_id, kind),
         FOREIGN KEY(namespace, owner_id, request_id)
             REFERENCES requests(namespace, owner_id, request_id)
+            DEFERRABLE INITIALLY DEFERRED,
+        FOREIGN KEY(namespace, owner_id, receipt_hash)
+            REFERENCES receipts(namespace, owner_id, receipt_hash)
             DEFERRABLE INITIALLY DEFERRED
     )
     """,
@@ -346,7 +356,12 @@ class GDWWorkspace:
         self.tombstone_seconds = _env_int("GDW_TOMBSTONE_SECONDS", 90 * 24 * 60 * 60)
         self.effect_max_attempts = _env_int("GDW_EFFECT_MAX_ATTEMPTS", 8)
         self.effect_backoff_seconds = _env_int("GDW_EFFECT_BACKOFF_SECONDS", 5)
+        self.database_generation_id = ""
         self._initialise()
+
+    @staticmethod
+    def schema_version() -> int:
+        return SCHEMA_VERSION
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(
@@ -382,17 +397,24 @@ class GDWWorkspace:
         }
 
     @staticmethod
-    def _create_schema(connection: sqlite3.Connection, timestamp: str) -> None:
+    def _create_schema(
+        connection: sqlite3.Connection,
+        timestamp: str,
+        generation_id: Optional[str] = None,
+    ) -> str:
+        generation = generation_id or uuid.uuid4().hex
         for statement in _SCHEMA_STATEMENTS:
             connection.execute(statement)
         connection.execute(
             """
             INSERT INTO schema_meta(
-                schema_name, schema_version, created_at, upgraded_at
-            ) VALUES ('gdw', ?, ?, ?)
+                schema_name, schema_version, database_generation_id,
+                created_at, upgraded_at
+            ) VALUES ('gdw', ?, ?, ?, ?)
             """,
-            (SCHEMA_VERSION, timestamp, timestamp),
+            (SCHEMA_VERSION, generation, timestamp, timestamp),
         )
+        return generation
 
     @staticmethod
     def _legacy_row_count(connection: sqlite3.Connection, tables: set) -> int:
@@ -403,24 +425,20 @@ class GDWWorkspace:
         )
 
     def _migrate_v1(self, connection: sqlite3.Connection, tables: set) -> None:
-        namespace = os.environ.get("GDW_LEGACY_NAMESPACE")
-        owner_id = os.environ.get("GDW_LEGACY_OWNER_ID")
-        nonempty = self._legacy_row_count(connection, tables) > 0
-        if nonempty and (not namespace or not owner_id):
-            raise GDWLegacyMigrationRequired(
-                "nonempty v1 workspace requires GDW_LEGACY_NAMESPACE and "
-                "GDW_LEGACY_OWNER_ID"
-            )
-        migration_namespace = _checked_identity(
-            namespace or self.namespace, "GDW_LEGACY_NAMESPACE"
-        )
-        migration_owner = _checked_identity(
-            owner_id or self.owner_id, "GDW_LEGACY_OWNER_ID"
-        )
+        del tables
         timestamp = _text_time()
         connection.execute("PRAGMA foreign_keys=OFF")
         connection.execute("BEGIN IMMEDIATE")
         try:
+            locked_tables = self._table_names(connection)
+            nonempty = self._legacy_row_count(
+                connection, locked_tables
+            ) > 0
+            if nonempty:
+                raise GDWLegacyMigrationRequired(
+                    "nonempty v1 workspace has no durable owner/provenance "
+                    "binding; an offline evidence-preserving migration is required"
+                )
             for index in (
                 "idx_requests_session",
                 "idx_receipts_session",
@@ -429,88 +447,12 @@ class GDWWorkspace:
             ):
                 connection.execute(f"DROP INDEX IF EXISTS {index}")
             for table in _V1_TABLES:
-                if table in tables:
+                if table in locked_tables:
                     connection.execute(f"ALTER TABLE {table} RENAME TO {table}_v1")
             self._create_schema(connection, timestamp)
 
-            if "session_state" in tables:
-                connection.execute(
-                    """
-                    INSERT INTO session_state(
-                        namespace, owner_id, session_id, step, state_json,
-                        state_hash, lifecycle, created_at, updated_at,
-                        last_accessed_at
-                    )
-                    SELECT ?, ?, session_id, step, state_json, state_hash,
-                           'ACTIVE', updated_at, updated_at, updated_at
-                    FROM session_state_v1
-                    """,
-                    (migration_namespace, migration_owner),
-                )
-            if "requests" in tables:
-                connection.execute(
-                    """
-                    INSERT INTO requests(
-                        namespace, owner_id, request_id, request_digest,
-                        session_id, response_json, response_hash, lifecycle,
-                        created_at
-                    )
-                    SELECT ?, ?, request_id, request_digest, session_id,
-                           response_json, response_hash, 'ACTIVE', created_at
-                    FROM requests_v1
-                    """,
-                    (migration_namespace, migration_owner),
-                )
-            if "receipts" in tables:
-                connection.execute(
-                    """
-                    INSERT INTO receipts(
-                        namespace, owner_id, receipt_hash, request_id,
-                        session_id, step, receipt_json, created_at
-                    )
-                    SELECT ?, ?, receipt_hash, request_id, session_id, step,
-                           receipt_json, created_at
-                    FROM receipts_v1
-                    """,
-                    (migration_namespace, migration_owner),
-                )
-            if "proof_outbox" in tables:
-                connection.execute(
-                    """
-                    INSERT INTO proof_outbox(
-                        namespace, owner_id, proposal_id, payload_json,
-                        payload_sha256, status, artifact_json, created_at,
-                        exported_at
-                    )
-                    SELECT ?, ?, proposal_id, payload_json, payload_sha256,
-                           status, artifact_json, created_at, exported_at
-                    FROM proof_outbox_v1
-                    """,
-                    (migration_namespace, migration_owner),
-                )
-            if "effect_outbox" in tables:
-                connection.execute(
-                    """
-                    INSERT INTO effect_outbox(
-                        namespace, owner_id, idempotency_key, request_id, kind,
-                        payload_json, payload_sha256, status, attempts,
-                        max_attempts, next_attempt_at, lease_owner, lease_until,
-                        last_error, artifact_json, created_at, exported_at
-                    )
-                    SELECT ?, ?, idempotency_key, request_id, kind,
-                           payload_json, payload_sha256, status, attempts, ?,
-                           created_at, lease_owner, lease_until, last_error,
-                           artifact_json, created_at, exported_at
-                    FROM effect_outbox_v1
-                    """,
-                    (
-                        migration_namespace,
-                        migration_owner,
-                        self.effect_max_attempts,
-                    ),
-                )
             for table in reversed(_V1_TABLES):
-                if table in tables:
+                if table in locked_tables:
                     connection.execute(f"DROP TABLE {table}_v1")
             self._reconcile_usage(connection)
             connection.execute("COMMIT")
@@ -520,10 +462,200 @@ class GDWWorkspace:
         finally:
             connection.execute("PRAGMA foreign_keys=ON")
 
+    def _migrate_v2(self, connection: sqlite3.Connection) -> None:
+        """Transactionally bind valid v2 effects to a new database generation."""
+
+        timestamp = _text_time()
+        generation = uuid.uuid4().hex
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            version = connection.execute(
+                "SELECT schema_version FROM schema_meta WHERE schema_name = 'gdw'"
+            ).fetchone()
+            if version is None or int(version[0]) != 2:
+                raise GDWSchemaError("GDW v2 migration source changed under lock")
+            required = {
+                "schema_meta",
+                "usage",
+                "session_state",
+                "requests",
+                "receipts",
+                "proof_outbox",
+                "effect_outbox",
+            }
+            missing = required - self._table_names(connection)
+            if missing:
+                raise GDWSchemaError(
+                    "GDW v2 schema is incomplete: " + ", ".join(sorted(missing))
+                )
+            connection.execute("DROP INDEX IF EXISTS idx_effect_outbox_status")
+            connection.execute(
+                "ALTER TABLE effect_outbox RENAME TO effect_outbox_v2"
+            )
+            connection.execute(_SCHEMA_STATEMENTS[6])
+            connection.execute(
+                "ALTER TABLE schema_meta "
+                "ADD COLUMN database_generation_id TEXT"
+            )
+            connection.execute(
+                """
+                UPDATE schema_meta
+                SET schema_version = ?, database_generation_id = ?,
+                    upgraded_at = ?
+                WHERE schema_name = 'gdw'
+                """,
+                (SCHEMA_VERSION, generation, timestamp),
+            )
+            self.database_generation_id = generation
+            rows = connection.execute(
+                "SELECT * FROM effect_outbox_v2 ORDER BY namespace, owner_id, "
+                "created_at, idempotency_key"
+            ).fetchall()
+            for source in rows:
+                if source["payload_json"] is None:
+                    raise GDWLegacyMigrationRequired(
+                        "compacted v2 effects require an offline "
+                        "evidence-preserving migration"
+                    )
+                try:
+                    payload = json.loads(source["payload_json"])
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect payload is not canonical JSON"
+                    ) from exc
+                namespace = str(source["namespace"])
+                owner_id = str(source["owner_id"])
+                request_id = str(source["request_id"])
+                kind = str(source["kind"])
+                payload_sha256 = self._effect_payload_digest(kind, payload)
+                if source["payload_sha256"] != payload_sha256:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect payload digest is invalid"
+                    )
+                canonical_key = self.scoped_effect_key(
+                    namespace,
+                    owner_id,
+                    request_id,
+                    kind,
+                    payload_sha256,
+                )
+                if source["idempotency_key"] != canonical_key:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect idempotency binding is invalid"
+                    )
+                request_anchor = self._request_anchor(
+                    connection, namespace, owner_id, request_id
+                )
+                receipt_hash = None
+                if kind == "receipt_projection":
+                    receipt_anchor = self._receipt_anchor(
+                        connection, namespace, owner_id, request_id
+                    )
+                    receipt_hash = receipt_anchor["receipt_hash"]
+                    if payload != receipt_anchor["receipt"]:
+                        raise GDWLegacyMigrationRequired(
+                            "v2 receipt effect differs from persisted receipt"
+                        )
+                elif kind == "proof_export":
+                    expected_proof = self._expected_proof_payload(
+                        request_anchor
+                    )
+                    if payload != expected_proof:
+                        raise GDWLegacyMigrationRequired(
+                            "v2 proof effect differs from persisted request"
+                        )
+                    claimed_receipt_hash = str(
+                        expected_proof.get("delta_update_receipt_hash") or ""
+                    )
+                    if claimed_receipt_hash:
+                        receipt_anchor = self._receipt_anchor(
+                            connection, namespace, owner_id, request_id
+                        )
+                        receipt_hash = receipt_anchor["receipt_hash"]
+                        if receipt_hash != claimed_receipt_hash:
+                            raise GDWLegacyMigrationRequired(
+                                "v2 proof receipt anchor is invalid"
+                            )
+                intent_sha256 = self._canonical_effect_intent(
+                    request_anchor,
+                    namespace=namespace,
+                    owner_id=owner_id,
+                    request_id=request_id,
+                    kind=kind,
+                    payload_sha256=payload_sha256,
+                    receipt_hash=receipt_hash,
+                )
+                status = source["status"]
+                if status == "CLAIMED":
+                    status = (
+                        "DEAD_LETTER"
+                        if int(source["attempts"]) >= int(source["max_attempts"])
+                        else "PENDING"
+                    )
+                connection.execute(
+                    """
+                    INSERT INTO effect_outbox(
+                        namespace, owner_id, idempotency_key,
+                        database_generation_id, request_id, kind, receipt_hash,
+                        payload_json, payload_sha256, intent_sha256, status,
+                        attempts, max_attempts, next_attempt_at, lease_owner,
+                        lease_until, claim_generation, last_error, artifact_json,
+                        created_at, exported_at, tombstoned_at
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        0, ?, ?, ?, ?, ?
+                    )
+                    """,
+                    (
+                        namespace,
+                        owner_id,
+                        canonical_key,
+                        generation,
+                        request_id,
+                        kind,
+                        receipt_hash,
+                        _json_text(payload),
+                        payload_sha256,
+                        intent_sha256,
+                        status,
+                        int(source["attempts"]),
+                        int(source["max_attempts"]),
+                        source["next_attempt_at"],
+                        (
+                            source["lease_owner"]
+                            if status == "CLAIMED"
+                            else None
+                        ),
+                        (
+                            source["lease_until"]
+                            if status == "CLAIMED"
+                            else None
+                        ),
+                        source["last_error"],
+                        source["artifact_json"],
+                        source["created_at"],
+                        source["exported_at"],
+                        source["tombstoned_at"],
+                    ),
+                )
+            connection.execute("DROP TABLE effect_outbox_v2")
+            connection.execute(_SCHEMA_STATEMENTS[-1])
+            self._reconcile_usage(connection)
+            connection.execute("COMMIT")
+        except Exception:
+            connection.execute("ROLLBACK")
+            raise
+        finally:
+            connection.execute("PRAGMA foreign_keys=ON")
+
     @staticmethod
-    def _validate_schema(connection: sqlite3.Connection) -> None:
+    def _validate_schema(connection: sqlite3.Connection) -> str:
         row = connection.execute(
-            "SELECT schema_version FROM schema_meta WHERE schema_name = 'gdw'"
+            """
+            SELECT schema_version, database_generation_id
+            FROM schema_meta WHERE schema_name = 'gdw'
+            """
         ).fetchone()
         if row is None or int(row[0]) != SCHEMA_VERSION:
             observed = None if row is None else int(row[0])
@@ -553,6 +685,9 @@ class GDWWorkspace:
                 "owner_id",
                 "max_attempts",
                 "next_attempt_at",
+                "database_generation_id",
+                "intent_sha256",
+                "claim_generation",
             },
         }
         for table, expected in expected_columns.items():
@@ -563,6 +698,10 @@ class GDWWorkspace:
                 raise GDWSchemaError(
                     f"GDW schema table {table} is missing required columns"
                 )
+        generation_id = str(row["database_generation_id"] or "")
+        if not re.fullmatch(r"[0-9a-f]{32}", generation_id):
+            raise GDWSchemaError("GDW database generation id is invalid")
+        return generation_id
 
     def _initialise(self) -> None:
         with _SCHEMA_LOCK:
@@ -604,7 +743,14 @@ class GDWWorkspace:
                         raise
                 elif "schema_meta" not in tables:
                     self._migrate_v1(connection, tables)
-                self._validate_schema(connection)
+                else:
+                    version = connection.execute(
+                        "SELECT schema_version FROM schema_meta "
+                        "WHERE schema_name = 'gdw'"
+                    ).fetchone()
+                    if version is not None and int(version[0]) == 2:
+                        self._migrate_v2(connection)
+                self.database_generation_id = self._validate_schema(connection)
             finally:
                 connection.close()
 
@@ -871,6 +1017,13 @@ class GDWWorkspace:
     ) -> None:
         ns, owner = self._identity(namespace, owner_id)
         response_text = _json_text(response)
+        canonical_response_hash = hashlib.sha256(
+            response_text.encode("utf-8")
+        ).hexdigest()
+        if response_hash != canonical_response_hash:
+            raise GDWConfigurationError(
+                "request response hash does not match canonical response"
+            )
         timestamp = _text_time(created_at)
         expiry = (
             expires_at
@@ -899,7 +1052,7 @@ class GDWWorkspace:
                 request_digest,
                 session_id,
                 response_text,
-                response_hash,
+                canonical_response_hash,
                 timestamp,
                 expiry,
             ),
@@ -920,6 +1073,42 @@ class GDWWorkspace:
     ) -> None:
         ns, owner = self._identity(namespace, owner_id)
         receipt_text = _json_text(receipt)
+        claimed_receipt_hash = str(receipt.get("receipt_hash") or "")
+        unsigned_receipt = dict(receipt)
+        unsigned_receipt.pop("receipt_hash", None)
+        canonical_receipt_hash = hashlib.sha256(
+            _json_text(unsigned_receipt).encode("utf-8")
+        ).hexdigest()
+        if (
+            receipt_hash != claimed_receipt_hash
+            or receipt_hash != canonical_receipt_hash
+        ):
+            raise GDWConfigurationError(
+                "receipt hash does not match canonical receipt"
+            )
+        request_anchor = self._request_anchor(
+            connection, ns, owner, request_id
+        )
+        expected_identity = {
+            "namespace": ns,
+            "owner_id": owner,
+            "request_id": request_id,
+            "session_id": session_id,
+            "step": int(step),
+        }
+        for field, expected in expected_identity.items():
+            if receipt.get(field) != expected:
+                raise GDWConfigurationError(
+                    f"receipt {field} does not match persisted identity"
+                )
+        if request_anchor["session_id"] != session_id:
+            raise GDWConfigurationError(
+                "receipt session does not match persisted request"
+            )
+        if request_anchor["response"].get("receipt_hash") != receipt_hash:
+            raise GDWConfigurationError(
+                "receipt hash does not match persisted response"
+            )
         self._reserve_usage(connection, ns, owner, stored_bytes=_byte_len(receipt_text))
         connection.execute(
             """
@@ -931,7 +1120,7 @@ class GDWWorkspace:
             (
                 ns,
                 owner,
-                receipt_hash,
+                canonical_receipt_hash,
                 request_id,
                 session_id,
                 step,
@@ -998,8 +1187,163 @@ class GDWWorkspace:
         )
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _effect_payload_digest(kind: str, payload: Dict[str, Any]) -> str:
+        if kind == "proof_export":
+            claimed_digest = str(payload.get("payload_sha256") or "")
+            unsigned = dict(payload)
+            unsigned.pop("payload_sha256", None)
+            observed_digest = hashlib.sha256(
+                _json_text(unsigned).encode("utf-8")
+            ).hexdigest()
+            if claimed_digest != observed_digest:
+                raise GDWConfigurationError(
+                    "proof payload digest does not match canonical payload"
+                )
+            return claimed_digest
+        if kind == "receipt_projection":
+            return hashlib.sha256(
+                _json_text(payload).encode("utf-8")
+            ).hexdigest()
+        raise GDWConfigurationError("unsupported effect kind")
+
+    @staticmethod
+    def _request_anchor(
+        connection: sqlite3.Connection,
+        namespace: str,
+        owner_id: str,
+        request_id: str,
+    ) -> Dict[str, Any]:
+        row = connection.execute(
+            """
+            SELECT request_digest, session_id, response_json, response_hash,
+                   lifecycle
+            FROM requests
+            WHERE namespace = ? AND owner_id = ? AND request_id = ?
+            """,
+            (namespace, owner_id, request_id),
+        ).fetchone()
+        if row is None or row["response_json"] is None:
+            raise GDWConfigurationError("effect request anchor is unavailable")
+        try:
+            response = json.loads(row["response_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError(
+                "effect request anchor is not canonical JSON"
+            ) from exc
+        observed_hash = hashlib.sha256(
+            _json_text(response).encode("utf-8")
+        ).hexdigest()
+        if observed_hash != row["response_hash"]:
+            raise GDWConfigurationError("effect request response hash is invalid")
+        return {
+            "request_digest": row["request_digest"],
+            "session_id": row["session_id"],
+            "response_hash": row["response_hash"],
+            "response": response,
+            "lifecycle": row["lifecycle"],
+        }
+
+    @staticmethod
+    def _receipt_anchor(
+        connection: sqlite3.Connection,
+        namespace: str,
+        owner_id: str,
+        request_id: str,
+    ) -> Dict[str, Any]:
+        row = connection.execute(
+            """
+            SELECT receipt_hash, request_id, session_id, step, receipt_json
+            FROM receipts
+            WHERE namespace = ? AND owner_id = ? AND request_id = ?
+            """,
+            (namespace, owner_id, request_id),
+        ).fetchone()
+        if row is None or row["receipt_json"] is None:
+            raise GDWConfigurationError("effect receipt anchor is unavailable")
+        try:
+            receipt = json.loads(row["receipt_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError(
+                "effect receipt anchor is not canonical JSON"
+            ) from exc
+        claimed = str(receipt.get("receipt_hash") or "")
+        unsigned = dict(receipt)
+        unsigned.pop("receipt_hash", None)
+        observed = hashlib.sha256(
+            _json_text(unsigned).encode("utf-8")
+        ).hexdigest()
+        if claimed != row["receipt_hash"] or observed != row["receipt_hash"]:
+            raise GDWConfigurationError("effect receipt anchor hash is invalid")
+        expected_identity = {
+            "namespace": namespace,
+            "owner_id": owner_id,
+            "request_id": row["request_id"],
+            "session_id": row["session_id"],
+            "step": int(row["step"]),
+        }
+        for field, expected in expected_identity.items():
+            if receipt.get(field) != expected:
+                raise GDWConfigurationError(
+                    f"effect receipt {field} identity is invalid"
+                )
+        return {"receipt_hash": row["receipt_hash"], "receipt": receipt}
+
+    @staticmethod
+    def _expected_proof_payload(
+        request_anchor: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        from gdw_proofs import build_proof_payload
+
+        response = request_anchor["response"]
+        try:
+            return build_proof_payload(
+                proposal_id=response["proposal_id"],
+                request_id=response["request_id"],
+                step=int(response["step"]),
+                before_hash=response["state_before_hash"],
+                after_hash=response["state_hash"],
+                decision=response["decision"],
+                scheduler_mode=response["scheduler_mode"],
+                receipt_hash=response.get("receipt_hash") or "",
+                dry_run=bool(response["dry_run"]),
+                governance=response["audit"]["governance"],
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise GDWConfigurationError(
+                "persisted request cannot reconstruct proof intent"
+            ) from exc
+
+    def _canonical_effect_intent(
+        self,
+        request_anchor: Dict[str, Any],
+        *,
+        namespace: str,
+        owner_id: str,
+        request_id: str,
+        kind: str,
+        payload_sha256: str,
+        receipt_hash: Optional[str],
+    ) -> str:
+        material = {
+            "schema": "szl.gdw.effect-intent/v1",
+            "database_generation_id": self.database_generation_id,
+            "namespace": namespace,
+            "owner_id": owner_id,
+            "request_id": request_id,
+            "request_digest": request_anchor["request_digest"],
+            "session_id": request_anchor["session_id"],
+            "response_hash": request_anchor["response_hash"],
+            "kind": kind,
+            "payload_sha256": payload_sha256,
+            "receipt_hash": receipt_hash,
+        }
+        return hashlib.sha256(_json_text(material).encode("utf-8")).hexdigest()
+
     @classmethod
     def effect_binding_errors(cls, row: Dict[str, Any]) -> list[str]:
+        """Validate row-local bindings; persisted anchors are checked separately."""
+
         errors = []
         payload = row.get("payload")
         if not isinstance(payload, dict):
@@ -1050,6 +1394,80 @@ class GDWWorkspace:
                 errors.append("idempotency_key_mismatch")
         return errors
 
+    def _connection_effect_binding_errors(
+        self,
+        connection: sqlite3.Connection,
+        row: Dict[str, Any],
+    ) -> list[str]:
+        errors = self.effect_binding_errors(row)
+        try:
+            request_anchor = self._request_anchor(
+                connection,
+                str(row.get("namespace") or ""),
+                str(row.get("owner_id") or ""),
+                str(row.get("request_id") or ""),
+            )
+        except GDWConfigurationError as exc:
+            return sorted(set(errors + [str(exc)]))
+        payload = row.get("payload")
+        kind = str(row.get("kind") or "")
+        receipt_hash = None
+        try:
+            if kind == "receipt_projection":
+                receipt_anchor = self._receipt_anchor(
+                    connection,
+                    row["namespace"],
+                    row["owner_id"],
+                    row["request_id"],
+                )
+                receipt_hash = receipt_anchor["receipt_hash"]
+                if payload != receipt_anchor["receipt"]:
+                    errors.append("receipt_payload_anchor_mismatch")
+            elif kind == "proof_export":
+                expected_proof = self._expected_proof_payload(request_anchor)
+                if payload != expected_proof:
+                    errors.append("proof_payload_anchor_mismatch")
+                claimed_receipt_hash = str(
+                    expected_proof.get("delta_update_receipt_hash") or ""
+                )
+                if claimed_receipt_hash:
+                    receipt_anchor = self._receipt_anchor(
+                        connection,
+                        row["namespace"],
+                        row["owner_id"],
+                        row["request_id"],
+                    )
+                    receipt_hash = receipt_anchor["receipt_hash"]
+                    if receipt_hash != claimed_receipt_hash:
+                        errors.append("proof_receipt_anchor_mismatch")
+            else:
+                errors.append("unsupported_effect_kind")
+        except GDWConfigurationError as exc:
+            errors.append(str(exc))
+        if row.get("receipt_hash") != receipt_hash:
+            errors.append("receipt_hash_anchor_mismatch")
+        if row.get("database_generation_id") != self.database_generation_id:
+            errors.append("database_generation_mismatch")
+        expected_intent = self._canonical_effect_intent(
+            request_anchor,
+            namespace=row["namespace"],
+            owner_id=row["owner_id"],
+            request_id=row["request_id"],
+            kind=kind,
+            payload_sha256=str(row.get("payload_sha256") or ""),
+            receipt_hash=receipt_hash,
+        )
+        if row.get("intent_sha256") != expected_intent:
+            errors.append("effect_intent_mismatch")
+        return sorted(set(errors))
+
+    def effect_binding_errors_for_row(self, row: Dict[str, Any]) -> list[str]:
+        connection = self._connect()
+        try:
+            return self._connection_effect_binding_errors(connection, row)
+        finally:
+            connection.close()
+
     def save_effect_outbox(
         self,
         connection: sqlite3.Connection,
@@ -1066,12 +1484,59 @@ class GDWWorkspace:
     ) -> str:
         ns, owner = self._identity(namespace, owner_id)
         payload_text = _json_text(payload)
+        canonical_payload_sha256 = self._effect_payload_digest(kind, payload)
+        if payload_sha256 != canonical_payload_sha256:
+            raise GDWConfigurationError(
+                "effect payload digest does not match canonical payload"
+            )
+        request_anchor = self._request_anchor(
+            connection, ns, owner, request_id
+        )
+        receipt_hash = None
+        if kind == "receipt_projection":
+            receipt_anchor = self._receipt_anchor(
+                connection, ns, owner, request_id
+            )
+            receipt_hash = receipt_anchor["receipt_hash"]
+            if payload != receipt_anchor["receipt"]:
+                raise GDWConfigurationError(
+                    "receipt projection differs from persisted receipt"
+                )
+        elif kind == "proof_export":
+            expected_proof = self._expected_proof_payload(request_anchor)
+            if payload != expected_proof:
+                raise GDWConfigurationError(
+                    "proof export differs from persisted request intent"
+                )
+            claimed_receipt_hash = str(
+                expected_proof.get("delta_update_receipt_hash") or ""
+            )
+            if claimed_receipt_hash:
+                receipt_anchor = self._receipt_anchor(
+                    connection, ns, owner, request_id
+                )
+                receipt_hash = receipt_anchor["receipt_hash"]
+                if receipt_hash != claimed_receipt_hash:
+                    raise GDWConfigurationError(
+                        "proof receipt differs from persisted receipt"
+                    )
+        else:
+            raise GDWConfigurationError("unsupported effect kind")
+        intent_sha256 = self._canonical_effect_intent(
+            request_anchor,
+            namespace=ns,
+            owner_id=owner,
+            request_id=request_id,
+            kind=kind,
+            payload_sha256=canonical_payload_sha256,
+            receipt_hash=receipt_hash,
+        )
         canonical_key = self.scoped_effect_key(
             ns,
             owner,
             request_id,
             kind,
-            payload_sha256,
+            canonical_payload_sha256,
         )
         if idempotency_key and self.production and idempotency_key != canonical_key:
             raise GDWConfigurationError(
@@ -1092,19 +1557,23 @@ class GDWWorkspace:
         connection.execute(
             """
             INSERT INTO effect_outbox(
-                namespace, owner_id, idempotency_key, request_id, kind,
-                payload_json, payload_sha256, status, attempts, max_attempts,
+                namespace, owner_id, idempotency_key, database_generation_id,
+                request_id, kind, receipt_hash, payload_json, payload_sha256,
+                intent_sha256, status, attempts, max_attempts,
                 next_attempt_at, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?, ?, ?)
             """,
             (
                 ns,
                 owner,
                 key,
+                self.database_generation_id,
                 request_id,
                 kind,
+                receipt_hash,
                 payload_text,
-                payload_sha256,
+                canonical_payload_sha256,
+                intent_sha256,
                 bounded_attempts,
                 timestamp,
                 timestamp,
@@ -1132,19 +1601,47 @@ class GDWWorkspace:
         lease_until = (current + timedelta(seconds=lease)).isoformat()
         claimed = []
         with self.transaction() as connection:
+            expired_terminal = int(
+                connection.execute(
+                    """
+                    SELECT COUNT(*) FROM effect_outbox
+                    WHERE namespace = ? AND owner_id = ? AND status = 'CLAIMED'
+                          AND lease_until <= ? AND attempts >= max_attempts
+                    """,
+                    (ns, owner, now_text),
+                ).fetchone()[0]
+            )
+            if expired_terminal:
+                connection.execute(
+                    """
+                    UPDATE effect_outbox
+                    SET status = 'DEAD_LETTER', lease_owner = NULL,
+                        lease_until = NULL, last_error = 'LEASE_EXPIRED_FINAL_ATTEMPT'
+                    WHERE namespace = ? AND owner_id = ? AND status = 'CLAIMED'
+                          AND lease_until <= ? AND attempts >= max_attempts
+                    """,
+                    (ns, owner, now_text),
+                )
+                self._reserve_usage(
+                    connection,
+                    ns,
+                    owner,
+                    pending_effects=-expired_terminal,
+                )
             connection.execute(
                 """
                 UPDATE effect_outbox
                 SET status = 'PENDING', lease_owner = NULL, lease_until = NULL
                 WHERE namespace = ? AND owner_id = ? AND status = 'CLAIMED'
-                      AND lease_until <= ?
+                      AND lease_until <= ? AND attempts < max_attempts
                 """,
                 (ns, owner, now_text),
             )
             rows = connection.execute(
                 """
-                SELECT idempotency_key, request_id, kind, payload_json,
-                       payload_sha256, attempts, max_attempts
+                SELECT idempotency_key, database_generation_id, request_id,
+                       kind, receipt_hash, payload_json, payload_sha256,
+                       intent_sha256, attempts, max_attempts, claim_generation
                 FROM effect_outbox
                 WHERE namespace = ? AND owner_id = ? AND status = 'PENDING'
                       AND next_attempt_at <= ? AND attempts < max_attempts
@@ -1158,7 +1655,9 @@ class GDWWorkspace:
                     """
                     UPDATE effect_outbox
                     SET status = 'CLAIMED', lease_owner = ?, lease_until = ?,
-                        attempts = attempts + 1, last_error = NULL
+                        attempts = attempts + 1,
+                        claim_generation = claim_generation + 1,
+                        last_error = NULL
                     WHERE namespace = ? AND owner_id = ?
                           AND idempotency_key = ? AND status = 'PENDING'
                     """,
@@ -1177,22 +1676,81 @@ class GDWWorkspace:
                         "namespace": ns,
                         "owner_id": owner,
                         "idempotency_key": row["idempotency_key"],
+                        "database_generation_id": row["database_generation_id"],
                         "request_id": row["request_id"],
                         "kind": row["kind"],
+                        "receipt_hash": row["receipt_hash"],
                         "payload": json.loads(row["payload_json"]),
                         "payload_sha256": row["payload_sha256"],
+                        "intent_sha256": row["intent_sha256"],
                         "attempt": int(row["attempts"]) + 1,
                         "max_attempts": int(row["max_attempts"]),
                         "lease_owner": worker_id,
                         "lease_until": lease_until,
+                        "claim_generation": int(row["claim_generation"]) + 1,
                     }
                 )
         return claimed
+
+    def assert_effect_claim(
+        self,
+        idempotency_key: str,
+        worker_id: str,
+        claim_generation: int,
+        *,
+        namespace: Optional[str] = None,
+        owner_id: Optional[str] = None,
+        now: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        ns, owner = self._identity(namespace, owner_id)
+        current = _text_time(now)
+        connection = self._connect()
+        try:
+            row = connection.execute(
+                """
+                SELECT namespace, owner_id, idempotency_key,
+                       database_generation_id, request_id, kind, receipt_hash,
+                       payload_json, payload_sha256, intent_sha256,
+                       claim_generation, lease_owner, lease_until
+                FROM effect_outbox
+                WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+                      AND status = 'CLAIMED' AND lease_owner = ?
+                      AND claim_generation = ? AND lease_until > ?
+                """,
+                (
+                    ns,
+                    owner,
+                    idempotency_key,
+                    worker_id,
+                    int(claim_generation),
+                    current,
+                ),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError(
+                    "effect claim is absent, expired, or owned elsewhere"
+                )
+            candidate = dict(row)
+            try:
+                candidate["payload"] = json.loads(row["payload_json"])
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise RuntimeError("effect claim payload is invalid") from exc
+            errors = self._connection_effect_binding_errors(
+                connection, candidate
+            )
+            if errors:
+                raise RuntimeError(
+                    "effect claim binding is invalid: " + ",".join(errors)
+                )
+            return candidate
+        finally:
+            connection.close()
 
     def mark_effect_exported(
         self,
         idempotency_key: str,
         worker_id: str,
+        claim_generation: int,
         artifact: Dict[str, Any],
         exported_at: str,
         *,
@@ -1201,6 +1759,8 @@ class GDWWorkspace:
     ) -> None:
         ns, owner = self._identity(namespace, owner_id)
         artifact_text = _json_text(artifact)
+        completed_at = _text_time(exported_at)
+        observed_now = _text_time()
         with self.transaction() as connection:
             updated = connection.execute(
                 """
@@ -1209,14 +1769,17 @@ class GDWWorkspace:
                     lease_owner = NULL, lease_until = NULL, last_error = NULL
                 WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
                       AND status = 'CLAIMED' AND lease_owner = ?
+                      AND claim_generation = ? AND lease_until > ?
                 """,
                 (
                     artifact_text,
-                    _text_time(exported_at),
+                    completed_at,
                     ns,
                     owner,
                     idempotency_key,
                     worker_id,
+                    int(claim_generation),
+                    observed_now,
                 ),
             )
             if updated.rowcount != 1:
@@ -1235,6 +1798,7 @@ class GDWWorkspace:
         self,
         idempotency_key: str,
         worker_id: str,
+        claim_generation: int,
         error: str,
         *,
         namespace: Optional[str] = None,
@@ -1250,8 +1814,16 @@ class GDWWorkspace:
                 FROM effect_outbox
                 WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
                       AND status = 'CLAIMED' AND lease_owner = ?
+                      AND claim_generation = ? AND lease_until > ?
                 """,
-                (ns, owner, idempotency_key, worker_id),
+                (
+                    ns,
+                    owner,
+                    idempotency_key,
+                    worker_id,
+                    int(claim_generation),
+                    current.isoformat(),
+                ),
             ).fetchone()
             if row is None:
                 raise RuntimeError(
@@ -1270,6 +1842,7 @@ class GDWWorkspace:
                     last_error = ?, next_attempt_at = ?
                 WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
                       AND status = 'CLAIMED' AND lease_owner = ?
+                      AND claim_generation = ? AND lease_until > ?
                 """,
                 (
                     status,
@@ -1279,6 +1852,8 @@ class GDWWorkspace:
                     owner,
                     idempotency_key,
                     worker_id,
+                    int(claim_generation),
+                    current.isoformat(),
                 ),
             )
             if terminal:
@@ -1764,8 +2339,9 @@ class GDWWorkspace:
             )
             effect_rows = connection.execute(
                 """
-                SELECT namespace, owner_id, idempotency_key, request_id, kind,
-                       payload_json, payload_sha256
+                SELECT namespace, owner_id, idempotency_key,
+                       database_generation_id, request_id, kind, receipt_hash,
+                       payload_json, payload_sha256, intent_sha256
                 FROM effect_outbox
                 WHERE payload_json IS NOT NULL
                 """
@@ -1785,7 +2361,9 @@ class GDWWorkspace:
                     continue
                 candidate = dict(row)
                 candidate["payload"] = payload
-                if self.effect_binding_errors(candidate):
+                if self._connection_effect_binding_errors(
+                    connection, candidate
+                ):
                     invalid_effect_bindings += 1
             result = {
                 "ok": (
@@ -1794,6 +2372,7 @@ class GDWWorkspace:
                     and invalid_effect_bindings == 0
                 ),
                 "schema_version": SCHEMA_VERSION,
+                "database_generation_id": self.database_generation_id,
                 "sqlite_integrity": check,
                 "orphan_receipts": orphan_receipts,
                 "pending_proofs": pending_proofs,

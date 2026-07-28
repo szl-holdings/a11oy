@@ -191,8 +191,14 @@ python3 .github/shared-module-hash-check.py --update
 
 > Runtime write status is configuration-bound. GDW reports `REAL` only when its
 > secret-managed credential registry, canonical governance gates, verified
-> persistent storage, exact schema, and supervised outbox drain are ready.
+> persistent storage, exact schema, and a fresh generation-bound supervised
+> outbox pass are ready.
 > Otherwise it reports `UNAVAILABLE` and writes fail closed.
+>
+> The public deployment remains `UNAVAILABLE` until this corrective source is
+> protected-merged, exact-source relocked, and the production credential and
+> persistence contracts are observed live. Source tests are not deployment
+> evidence.
 
 > GDW Frontier Push Pack is a MODELED instrumentation and verification extension for the Governed Delta Workspace. It provides load testing, operator validation, hybrid scheduling research hooks, KDA-vs-MLA memory benchmarking, and Lean-oriented proof export. It does not claim frontier benchmark superiority, proprietary activation access, or production-scale guarantees beyond the measured harness outputs.
 

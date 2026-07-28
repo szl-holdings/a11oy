@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from gdw_proofs import build_proof_payload
 from gdw_workspace import (
     SCHEMA_VERSION,
     GDWConfigurationError,
@@ -15,6 +16,12 @@ from gdw_workspace import (
     GDWSchemaError,
     GDWWorkspace,
 )
+
+
+def _canonical_hash(payload):
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def _policy(**overrides):
@@ -43,7 +50,27 @@ def _workspace(path, owner="owner-a", namespace="a11oy", policy=None):
 
 def _save_request(workspace, request_id, session_id="session", created_at=None):
     timestamp = created_at or datetime.now(timezone.utc).isoformat()
-    response = {"request_id": request_id, "owner": workspace.owner_id}
+    response = {
+        "proposal_id": "a" * 64,
+        "request_id": request_id,
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "b" * 64,
+        "decision": "REJECT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": None,
+        "dry_run": True,
+        "audit": {
+            "governance": {
+                "allowed": False,
+                "policy": "test",
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
     with workspace.transaction() as connection:
         workspace.save_request(
             connection,
@@ -51,9 +78,62 @@ def _save_request(workspace, request_id, session_id="session", created_at=None):
             hashlib.sha256(request_id.encode()).hexdigest(),
             session_id,
             response,
-            hashlib.sha256(json.dumps(response).encode()).hexdigest(),
+            _canonical_hash(response),
             timestamp,
         )
+    return response
+
+
+def _proof_payload(response):
+    return build_proof_payload(
+        proposal_id=response["proposal_id"],
+        request_id=response["request_id"],
+        step=response["step"],
+        before_hash=response["state_before_hash"],
+        after_hash=response["state_hash"],
+        decision=response["decision"],
+        scheduler_mode=response["scheduler_mode"],
+        receipt_hash=response.get("receipt_hash") or "",
+        dry_run=response["dry_run"],
+        governance=response["audit"]["governance"],
+    )
+
+
+def _receipt_payload(workspace, request_id, session_id="session"):
+    receipt = {
+        "request_id": request_id,
+        "session_id": session_id,
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "step": 0,
+        "decision": "REJECT",
+    }
+    receipt["receipt_hash"] = _canonical_hash(receipt)
+    return receipt
+
+
+def _queue_proof(
+    workspace,
+    request_id="request",
+    *,
+    created_at=None,
+    max_attempts=None,
+):
+    timestamp = created_at or datetime.now(timezone.utc).isoformat()
+    response = _save_request(workspace, request_id, created_at=timestamp)
+    proof = _proof_payload(response)
+    with workspace.transaction() as connection:
+        key = workspace.save_effect_outbox(
+            connection,
+            request_id,
+            "proof_export",
+            proof,
+            proof["payload_sha256"],
+            None,
+            timestamp,
+            max_attempts=max_attempts,
+        )
+    return key, proof
 
 
 def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
@@ -84,7 +164,7 @@ def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
                 f"digest-{marker}",
                 "same-session",
                 {"marker": marker},
-                f"response-{marker}",
+                _canonical_hash({"marker": marker}),
                 timestamp,
             )
 
@@ -132,15 +212,19 @@ def test_nonempty_legacy_database_requires_explicit_owner_mapping(
 
     monkeypatch.setenv("GDW_LEGACY_NAMESPACE", "legacy-ns")
     monkeypatch.setenv("GDW_LEGACY_OWNER_ID", "legacy-owner")
-    migrated = _workspace(path, owner="legacy-owner", namespace="legacy-ns")
-    assert migrated.read_session("legacy-session")["state"] == {"legacy": True}
-    assert migrated.integrity()["schema_version"] == SCHEMA_VERSION
-    assert (
-        _workspace(path, owner="other", namespace="legacy-ns").read_session(
-            "legacy-session"
+    with pytest.raises(GDWLegacyMigrationRequired):
+        _workspace(path, owner="legacy-owner", namespace="legacy-ns")
+    connection = sqlite3.connect(path)
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM session_state").fetchone()[0] == 1
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'schema_meta'"
+            ).fetchone()[0]
+            == 0
         )
-        is None
-    )
+    finally:
+        connection.close()
 
 
 def test_production_path_and_schema_fail_closed(tmp_path):
@@ -220,6 +304,29 @@ def test_pending_effect_quota_rolls_back_the_whole_transition(tmp_path):
         policy=_policy(owner_pending_effects=1),
     )
     timestamp = datetime.now(timezone.utc).isoformat()
+    receipt = _receipt_payload(workspace, "request")
+    response = {
+        "proposal_id": "a" * 64,
+        "request_id": "request",
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "b" * 64,
+        "decision": "ACCEPT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": receipt["receipt_hash"],
+        "dry_run": False,
+        "audit": {
+            "governance": {
+                "allowed": False,
+                "policy": "test",
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
+    proof = _proof_payload(response)
     with pytest.raises(GDWQuotaExceeded):
         with workspace.transaction() as connection:
             workspace.save_state(
@@ -230,25 +337,34 @@ def test_pending_effect_quota_rolls_back_the_whole_transition(tmp_path):
                 "request",
                 "request-digest",
                 "session",
-                {"ok": True},
-                "response-hash",
+                response,
+                _canonical_hash(response),
+                timestamp,
+            )
+            workspace.save_receipt(
+                connection,
+                receipt["receipt_hash"],
+                "request",
+                "session",
+                0,
+                receipt,
                 timestamp,
             )
             workspace.save_effect_outbox(
                 connection,
                 "request",
                 "receipt_projection",
-                {"receipt": True},
-                "a" * 64,
+                receipt,
+                _canonical_hash(receipt),
                 None,
                 timestamp,
             )
             workspace.save_effect_outbox(
                 connection,
-                    "request",
-                    "proof_export",
-                    {"proof": True},
-                    "b" * 64,
+                "request",
+                "proof_export",
+                proof,
+                proof["payload_sha256"],
                 None,
                 timestamp,
             )
@@ -267,14 +383,15 @@ def test_pending_effect_quota_rolls_back_the_whole_transition(tmp_path):
 def test_effect_retry_is_bounded_backed_off_and_dead_lettered(tmp_path):
     workspace = _workspace(tmp_path / "retry.sqlite3")
     start = datetime(2026, 7, 28, tzinfo=timezone.utc)
-    _save_request(workspace, "request", created_at=start.isoformat())
+    response = _save_request(workspace, "request", created_at=start.isoformat())
+    proof = _proof_payload(response)
     with workspace.transaction() as connection:
         key = workspace.save_effect_outbox(
             connection,
             "request",
             "proof_export",
-            {"proof": "payload"},
-            "b" * 64,
+            proof,
+            proof["payload_sha256"],
             None,
             start.isoformat(),
             max_attempts=2,
@@ -283,14 +400,29 @@ def test_effect_retry_is_bounded_backed_off_and_dead_lettered(tmp_path):
     first = workspace.claim_effects("worker", now=start)
     assert first[0]["attempt"] == 1
     assert first[0]["idempotency_key"] == key
-    assert workspace.release_effect(key, "worker", "temporary", now=start) == "PENDING"
+    assert (
+        workspace.release_effect(
+            key,
+            "worker",
+            first[0]["claim_generation"],
+            "temporary",
+            now=start,
+        )
+        == "PENDING"
+    )
     assert workspace.claim_effects("worker", now=start + timedelta(seconds=1)) == []
 
     retry_time = start + timedelta(seconds=workspace.effect_backoff_seconds)
     second = workspace.claim_effects("worker", now=retry_time)
     assert second[0]["attempt"] == 2
     assert (
-        workspace.release_effect(key, "worker", "permanent", now=retry_time)
+        workspace.release_effect(
+            key,
+            "worker",
+            second[0]["claim_generation"],
+            "permanent",
+            now=retry_time,
+        )
         == "DEAD_LETTER"
     )
     assert workspace.claim_effects("worker", now=start + timedelta(days=365)) == []
@@ -319,6 +451,28 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
     monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
     workspace = _workspace(tmp_path / "gc.sqlite3")
     start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    response = {
+        "proposal_id": "a" * 64,
+        "request_id": "request",
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "b" * 64,
+        "decision": "REJECT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": None,
+        "dry_run": True,
+        "audit": {
+            "governance": {
+                "allowed": False,
+                "policy": "test",
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
+    proof = _proof_payload(response)
     with workspace.transaction() as connection:
         workspace.save_state(
             connection,
@@ -334,8 +488,8 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
             "request",
             "digest",
             "session",
-            {"large": "response"},
-            "response-hash",
+            response,
+            _canonical_hash(response),
             start.isoformat(),
             expires_at=(start + timedelta(seconds=1)).isoformat(),
         )
@@ -343,8 +497,8 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
             connection,
             "request",
             "proof_export",
-            {"large": "unexported"},
-            "c" * 64,
+            proof,
+            proof["payload_sha256"],
             None,
             start.isoformat(),
         )
@@ -372,14 +526,15 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
     finally:
         connection.close()
     assert effect["status"] == "PENDING"
-    assert json.loads(effect["payload_json"]) == {"large": "unexported"}
+    assert json.loads(effect["payload_json"]) == proof
     assert request["lifecycle"] == "ACTIVE"
     assert request["response_json"] is not None
 
-    claim = workspace.claim_effects("worker", now=start + timedelta(seconds=30))[0]
+    claim = workspace.claim_effects("worker")[0]
     workspace.mark_effect_exported(
         claim["idempotency_key"],
         "worker",
+        claim["claim_generation"],
         {"artifact": True},
         (start + timedelta(seconds=30)).isoformat(),
     )
@@ -427,3 +582,463 @@ def test_usage_reconciliation_repairs_persistent_counter_drift(tmp_path):
     assert repaired["active_requests"] == 1
     assert repaired["pending_effects"] == 0
     assert repaired["stored_bytes"] > 0
+
+
+def test_full_effect_rebind_cannot_escape_persisted_proof_intent(tmp_path):
+    workspace = _workspace(tmp_path / "rebind.sqlite3")
+    key, proof = _queue_proof(workspace)
+    changed = dict(proof)
+    changed["formal_status"] = "ATTACKER_REBOUND"
+    changed.pop("payload_sha256")
+    changed["payload_sha256"] = _canonical_hash(changed)
+    changed_key = workspace.scoped_effect_key(
+        workspace.namespace,
+        workspace.owner_id,
+        "request",
+        "proof_export",
+        changed["payload_sha256"],
+    )
+    with workspace.transaction() as connection:
+        request_anchor = workspace._request_anchor(
+            connection,
+            workspace.namespace,
+            workspace.owner_id,
+            "request",
+        )
+        changed_intent = workspace._canonical_effect_intent(
+            request_anchor,
+            namespace=workspace.namespace,
+            owner_id=workspace.owner_id,
+            request_id="request",
+            kind="proof_export",
+            payload_sha256=changed["payload_sha256"],
+            receipt_hash=None,
+        )
+        connection.execute(
+            """
+            UPDATE effect_outbox
+            SET idempotency_key = ?, payload_json = ?, payload_sha256 = ?,
+                intent_sha256 = ?
+            WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+            """,
+            (
+                changed_key,
+                json.dumps(changed, sort_keys=True, separators=(",", ":")),
+                changed["payload_sha256"],
+                changed_intent,
+                workspace.namespace,
+                workspace.owner_id,
+                key,
+            ),
+        )
+
+    assert workspace.integrity()["invalid_effect_bindings"] == 1
+    claim = workspace.claim_effects("worker")[0]
+    with pytest.raises(RuntimeError, match="proof_payload_anchor_mismatch"):
+        workspace.assert_effect_claim(
+            claim["idempotency_key"],
+            "worker",
+            claim["claim_generation"],
+        )
+
+
+def test_receipt_effect_must_match_persisted_receipt_bytes(tmp_path):
+    workspace = _workspace(tmp_path / "receipt-rebind.sqlite3")
+    receipt = _receipt_payload(workspace, "request")
+    response = {
+        "proposal_id": "a" * 64,
+        "request_id": "request",
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "c" * 64,
+        "decision": "ACCEPT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": receipt["receipt_hash"],
+        "dry_run": False,
+        "audit": {
+            "governance": {
+                "allowed": True,
+                "policy": "test",
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
+    with workspace.transaction() as connection:
+        workspace.save_request(
+            connection,
+            "request",
+            "request-digest",
+            "session",
+            response,
+            _canonical_hash(response),
+            "2026-07-28T00:00:00+00:00",
+        )
+        workspace.save_receipt(
+            connection,
+            receipt["receipt_hash"],
+            "request",
+            "session",
+            0,
+            receipt,
+            "2026-07-28T00:00:00+00:00",
+        )
+        key = workspace.save_effect_outbox(
+            connection,
+            "request",
+            "receipt_projection",
+            receipt,
+            _canonical_hash(receipt),
+            None,
+            "2026-07-28T00:00:00+00:00",
+        )
+
+    changed = dict(receipt)
+    changed["decision"] = "ATTACKER_REBOUND"
+    changed.pop("receipt_hash")
+    changed["receipt_hash"] = _canonical_hash(changed)
+    changed_digest = _canonical_hash(changed)
+    changed_key = workspace.scoped_effect_key(
+        workspace.namespace,
+        workspace.owner_id,
+        "request",
+        "receipt_projection",
+        changed_digest,
+    )
+    with workspace.transaction() as connection:
+        request_anchor = workspace._request_anchor(
+            connection,
+            workspace.namespace,
+            workspace.owner_id,
+            "request",
+        )
+        changed_intent = workspace._canonical_effect_intent(
+            request_anchor,
+            namespace=workspace.namespace,
+            owner_id=workspace.owner_id,
+            request_id="request",
+            kind="receipt_projection",
+            payload_sha256=changed_digest,
+            receipt_hash=receipt["receipt_hash"],
+        )
+        connection.execute(
+            """
+            UPDATE effect_outbox
+            SET idempotency_key = ?, payload_json = ?, payload_sha256 = ?,
+                intent_sha256 = ?
+            WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+            """,
+            (
+                changed_key,
+                json.dumps(changed, sort_keys=True, separators=(",", ":")),
+                changed_digest,
+                changed_intent,
+                workspace.namespace,
+                workspace.owner_id,
+                key,
+            ),
+        )
+
+    assert workspace.integrity()["invalid_effect_bindings"] == 1
+
+
+def test_expired_and_stale_claim_generations_cannot_finalize(
+    tmp_path,
+    monkeypatch,
+):
+    import gdw_workspace
+
+    workspace = _workspace(tmp_path / "fencing.sqlite3")
+    start = datetime.now(timezone.utc)
+    key, _ = _queue_proof(
+        workspace,
+        created_at=start.isoformat(),
+        max_attempts=3,
+    )
+    first = workspace.claim_effects(
+        "same-worker",
+        lease_seconds=1,
+        now=start,
+    )[0]
+    expired = start + timedelta(seconds=2)
+    monkeypatch.setattr(gdw_workspace, "_utc_now", lambda: expired)
+    with pytest.raises(RuntimeError, match="expired"):
+        workspace.mark_effect_exported(
+            key,
+            "same-worker",
+            first["claim_generation"],
+            {"path": "stale"},
+            expired.isoformat(),
+        )
+
+    second = workspace.claim_effects(
+        "same-worker",
+        lease_seconds=30,
+        now=expired,
+    )[0]
+    assert second["claim_generation"] > first["claim_generation"]
+    with pytest.raises(RuntimeError, match="expired"):
+        workspace.mark_effect_exported(
+            key,
+            "same-worker",
+            first["claim_generation"],
+            {"path": "stale-generation"},
+            expired.isoformat(),
+        )
+    workspace.mark_effect_exported(
+        key,
+        "same-worker",
+        second["claim_generation"],
+        {"path": "current"},
+        expired.isoformat(),
+    )
+    assert workspace.integrity()["pending_effects"] == 0
+
+
+def test_expired_final_attempt_dead_letters_and_reconciles_quota(tmp_path):
+    workspace = _workspace(tmp_path / "expired-final.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    _queue_proof(
+        workspace,
+        created_at=start.isoformat(),
+        max_attempts=1,
+    )
+    assert workspace.claim_effects(
+        "first-worker",
+        lease_seconds=1,
+        now=start,
+    )
+    assert (
+        workspace.claim_effects(
+            "second-worker",
+            now=start + timedelta(seconds=2),
+        )
+        == []
+    )
+    integrity = workspace.integrity()
+    assert integrity["dead_letter_effects"] == 1
+    assert integrity["pending_effects"] == 0
+    assert workspace.reconcile_usage()["pending_effects"] == 0
+
+
+def test_historical_export_timestamp_cannot_extend_an_expired_lease(tmp_path):
+    workspace = _workspace(tmp_path / "historical-finalize.sqlite3")
+    historical = datetime.now(timezone.utc) - timedelta(seconds=10)
+    key, _ = _queue_proof(
+        workspace,
+        created_at=historical.isoformat(),
+        max_attempts=2,
+    )
+    claim = workspace.claim_effects(
+        "historical-worker",
+        lease_seconds=1,
+        now=historical,
+    )[0]
+
+    with pytest.raises(RuntimeError, match="expired"):
+        workspace.mark_effect_exported(
+            key,
+            "historical-worker",
+            claim["claim_generation"],
+            {"path": "stale"},
+            historical.isoformat(),
+        )
+
+
+def test_v2_effects_migrate_transactionally_to_generation_bound_v3(tmp_path):
+    path = tmp_path / "v2.sqlite3"
+    workspace = _workspace(path)
+    _queue_proof(workspace)
+    old_generation = workspace.database_generation_id
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("DROP INDEX idx_effect_outbox_status")
+        connection.execute(
+            "ALTER TABLE effect_outbox RENAME TO effect_outbox_v3"
+        )
+        connection.execute(
+            """
+            CREATE TABLE effect_outbox (
+                namespace TEXT NOT NULL,
+                owner_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                request_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                payload_json TEXT,
+                payload_sha256 TEXT NOT NULL,
+                status TEXT NOT NULL,
+                attempts INTEGER NOT NULL,
+                max_attempts INTEGER NOT NULL,
+                next_attempt_at TEXT NOT NULL,
+                lease_owner TEXT,
+                lease_until TEXT,
+                last_error TEXT,
+                artifact_json TEXT,
+                created_at TEXT NOT NULL,
+                exported_at TEXT,
+                tombstoned_at TEXT,
+                PRIMARY KEY(namespace, owner_id, idempotency_key)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO effect_outbox(
+                namespace, owner_id, idempotency_key, request_id, kind,
+                payload_json, payload_sha256, status, attempts, max_attempts,
+                next_attempt_at, lease_owner, lease_until, last_error,
+                artifact_json, created_at, exported_at, tombstoned_at
+            )
+            SELECT namespace, owner_id, idempotency_key, request_id, kind,
+                   payload_json, payload_sha256, status, attempts, max_attempts,
+                   next_attempt_at, lease_owner, lease_until, last_error,
+                   artifact_json, created_at, exported_at, tombstoned_at
+            FROM effect_outbox_v3
+            """
+        )
+        connection.execute("DROP TABLE effect_outbox_v3")
+        connection.execute(
+            """
+            CREATE INDEX idx_effect_outbox_status
+            ON effect_outbox(
+                namespace, owner_id, status, next_attempt_at,
+                lease_until, created_at
+            )
+            """
+        )
+        connection.execute(
+            "ALTER TABLE schema_meta DROP COLUMN database_generation_id"
+        )
+        connection.execute(
+            "UPDATE schema_meta SET schema_version = 2 WHERE schema_name = 'gdw'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    migrated = _workspace(path)
+
+    assert migrated.database_generation_id != old_generation
+    assert migrated.integrity()["ok"] is True
+    assert migrated.integrity()["schema_version"] == 3
+    claim = migrated.claim_effects("migrated-worker")
+    assert len(claim) == 1
+    assert (
+        claim[0]["database_generation_id"]
+        == migrated.database_generation_id
+    )
+    assert claim[0]["claim_generation"] == 1
+
+
+def test_receipt_identity_fields_are_bound_before_persistence(tmp_path):
+    workspace = _workspace(tmp_path / "receipt-identity.sqlite3")
+    receipt = _receipt_payload(workspace, "request", session_id="wrong-session")
+    response = {
+        "proposal_id": "a" * 64,
+        "request_id": "request",
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "c" * 64,
+        "decision": "ACCEPT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": receipt["receipt_hash"],
+        "dry_run": False,
+        "audit": {
+            "governance": {
+                "allowed": True,
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
+    with pytest.raises(GDWConfigurationError, match="session"):
+        with workspace.transaction() as connection:
+            workspace.save_request(
+                connection,
+                "request",
+                "digest",
+                "correct-session",
+                response,
+                _canonical_hash(response),
+                "2026-07-28T00:00:00+00:00",
+            )
+            workspace.save_receipt(
+                connection,
+                receipt["receipt_hash"],
+                "request",
+                "correct-session",
+                0,
+                receipt,
+                "2026-07-28T00:00:00+00:00",
+            )
+    assert workspace.integrity()["counts"]["requests"] == 0
+
+
+def test_mutating_proof_requires_its_persisted_receipt_anchor(tmp_path):
+    workspace = _workspace(tmp_path / "proof-receipt.sqlite3")
+    receipt = _receipt_payload(workspace, "request")
+    response = {
+        "proposal_id": "a" * 64,
+        "request_id": "request",
+        "step": 1,
+        "state_before_hash": "b" * 64,
+        "state_hash": "c" * 64,
+        "decision": "ACCEPT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": receipt["receipt_hash"],
+        "dry_run": False,
+        "audit": {
+            "governance": {
+                "allowed": True,
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
+    proof = _proof_payload(response)
+    with workspace.transaction() as connection:
+        workspace.save_request(
+            connection,
+            "request",
+            "digest",
+            "session",
+            response,
+            _canonical_hash(response),
+            "2026-07-28T00:00:00+00:00",
+        )
+        workspace.save_receipt(
+            connection,
+            receipt["receipt_hash"],
+            "request",
+            "session",
+            0,
+            receipt,
+            "2026-07-28T00:00:00+00:00",
+        )
+        workspace.save_effect_outbox(
+            connection,
+            "request",
+            "proof_export",
+            proof,
+            proof["payload_sha256"],
+            None,
+            "2026-07-28T00:00:00+00:00",
+        )
+    connection = sqlite3.connect(path := workspace.path)
+    try:
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("DELETE FROM receipts")
+        connection.commit()
+    finally:
+        connection.close()
+
+    integrity = _workspace(path).integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_effect_bindings"] == 1
