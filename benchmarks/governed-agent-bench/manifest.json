@@ -28,7 +28,15 @@
   "publication": {
     "hugging_face_dataset": "SZLHOLDINGS/governed-agent-bench",
     "hugging_face_space": "SZLHOLDINGS/governed-agent-bench",
-    "state": "READY_FOR_PROTECTED_PUBLICATION",
-    "rule": "GitHub is canonical; the Hub dataset and Space become live only after the protected main workflow publishes and independently reads back every exact file at immutable revisions."
+    "state": "PUBLISHED_PROTECTED",
+    "rule": "GitHub is canonical; each protected main revision becomes the current Hub release only after the workflow publishes it, proves the complete remote inventories are exact, and independently reads every file back from immutable revisions.",
+    "first_verified_publication": {
+      "observed_at": "2026-07-28T17:22:45Z",
+      "source_revision": "bafcc2c9cada9e209564c00ee511282333a83b2f",
+      "dataset_revision": "998a42653aff23bf60e18cbe2a7c368de1a90eef",
+      "space_revision": "654aaf2f7246cc1471e1324f2550647e1dabbabd",
+      "workflow_run": "https://github.com/szl-holdings/a11oy/actions/runs/30382562989",
+      "status": "VERIFIED_IMMUTABLE_READBACK"
+    }
   }
 }

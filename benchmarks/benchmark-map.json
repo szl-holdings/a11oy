@@ -151,9 +151,9 @@
         ]
       },
       "honesty": {
-        "allowedClaim": "reproducible SAMPLE governability trace benchmark with deterministic local scoring",
+        "allowedClaim": "reproducible SAMPLE governability trace benchmark with deterministic local scoring and a protected public reference leaderboard containing zero eligible model submissions",
         "disallowedClaims": [
-          "public leaderboard published",
+          "eligible model leaderboard results published",
           "cryptographic receipt verification",
           "production behavior proven",
           "leaderboard superiority"
@@ -163,6 +163,19 @@
           "score": "COMPUTED",
           "receiptVerification": "STRUCTURE_ONLY"
         }
+      },
+      "publication": {
+        "state": "PUBLISHED_PROTECTED",
+        "dataset": "SZLHOLDINGS/governed-agent-bench",
+        "space": "SZLHOLDINGS/governed-agent-bench",
+        "firstVerified": {
+          "sourceRevision": "bafcc2c9cada9e209564c00ee511282333a83b2f",
+          "datasetRevision": "998a42653aff23bf60e18cbe2a7c368de1a90eef",
+          "spaceRevision": "654aaf2f7246cc1471e1324f2550647e1dabbabd",
+          "workflowRun": "https://github.com/szl-holdings/a11oy/actions/runs/30382562989",
+          "status": "VERIFIED_IMMUTABLE_READBACK"
+        },
+        "truthBoundary": "The public leaderboard contains zero eligible model submissions; its 100-point row is a SAMPLE/COMPUTED/STRUCTURE_ONLY reference fixture, not a model ranking."
       },
       "formulaRoutes": [],
       "judges": [
