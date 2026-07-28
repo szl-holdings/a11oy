@@ -357,12 +357,25 @@ def _validate_space_identity(
     components = config.get("components")
     if not isinstance(components, list):
         raise PublicationError("Space /config does not expose components")
-    encoded = json.dumps(config, sort_keys=True)
-    if "Governed Agent Bench" not in encoded:
+    if config.get("title") != "Governed Agent Bench":
         raise PublicationError("Space /config lacks the expected application identity")
-    if source_revision not in encoded:
+    identities = [
+        component["props"]["value"]
+        for component in components
+        if isinstance(component, dict)
+        and component.get("type") == "json"
+        and isinstance(component.get("props"), dict)
+        and component["props"].get("label") == "Immutable publication identity"
+        and isinstance(component["props"].get("value"), dict)
+    ]
+    if len(identities) != 1:
+        raise PublicationError(
+            "Space /config lacks one structured immutable publication identity"
+        )
+    identity = identities[0]
+    if identity.get("source_revision") != source_revision:
         raise PublicationError("Space /config lacks the exact protected source revision")
-    if dataset_revision not in encoded:
+    if identity.get("dataset_revision") != dataset_revision:
         raise PublicationError("Space /config lacks the exact published dataset revision")
     return {
         "application": "Governed Agent Bench",

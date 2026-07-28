@@ -449,15 +449,16 @@ class PublicationTests(unittest.TestCase):
                     json.dumps(
                         {
                             "mode": "blocks",
+                            "title": "Governed Agent Bench",
                             "components": [
                                 {
-                                    "type": "markdown",
+                                    "type": "json",
                                     "props": {
-                                        "value": (
-                                            "# Governed Agent Bench\n"
-                                            f"source={source_revision}\n"
-                                            f"dataset={dataset_revision}"
-                                        )
+                                        "label": "Immutable publication identity",
+                                        "value": {
+                                            "source_revision": source_revision,
+                                            "dataset_revision": dataset_revision,
+                                        },
                                     },
                                 }
                             ],
@@ -555,14 +556,16 @@ class PublicationTests(unittest.TestCase):
                 return 200, json.dumps(
                     {
                         "mode": "blocks",
+                        "title": "Governed Agent Bench",
                         "components": [
                             {
+                                "type": "json",
                                 "props": {
-                                    "value": (
-                                        "Governed Agent Bench "
-                                        f"{source_revision} "
-                                        f"{dataset_revision}"
-                                    )
+                                    "label": "Immutable publication identity",
+                                    "value": {
+                                        "source_revision": source_revision,
+                                        "dataset_revision": dataset_revision,
+                                    },
                                 }
                             }
                         ],
@@ -676,14 +679,16 @@ class PublicationTests(unittest.TestCase):
                 json.dumps(
                     {
                         "mode": "blocks",
+                        "title": "Governed Agent Bench",
                         "components": [
                             {
+                                "type": "json",
                                 "props": {
-                                    "value": (
-                                        "Governed Agent Bench "
-                                        f"{source_revision} "
-                                        f"{'8' * 40}"
-                                    )
+                                    "label": "Immutable publication identity",
+                                    "value": {
+                                        "source_revision": source_revision,
+                                        "dataset_revision": "8" * 40,
+                                    },
                                 }
                             }
                         ],
@@ -718,14 +723,16 @@ class PublicationTests(unittest.TestCase):
                 return 200, json.dumps(
                     {
                         "mode": "blocks",
+                        "title": "Governed Agent Bench",
                         "components": [
                             {
+                                "type": "json",
                                 "props": {
-                                    "value": (
-                                        "Governed Agent Bench "
-                                        f"{source_revision} "
-                                        f"{observed_dataset}"
-                                    )
+                                    "label": "Immutable publication identity",
+                                    "value": {
+                                        "source_revision": source_revision,
+                                        "dataset_revision": observed_dataset,
+                                    },
                                 }
                             }
                         ],
