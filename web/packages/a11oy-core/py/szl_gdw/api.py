@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
-from typing import Annotated, Any, List, Mapping, Optional
+from typing import Annotated, Any, Callable, List, Mapping, Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -28,6 +28,7 @@ from .persistence import (
     ReplayConflict,
     SessionConflict,
     SessionNotFound,
+    SessionQuotaExceeded,
     SQLiteWorkspaceStore,
     receipt_to_dict,
     state_to_dict,
@@ -248,8 +249,13 @@ def register(
     kernel: Any = None,
     db_path: Optional[str | Path] = None,
     telemetry: Optional[OperationalTelemetry] = None,
+    governance_gate: Optional[
+        Callable[[Mapping[str, Any]], Mapping[str, Any]]
+    ] = None,
     persistent_required: Optional[bool] = None,
     required_mount: Optional[str | Path] = None,
+    journal_mode: Optional[str] = None,
+    max_sessions: Optional[int] = None,
 ) -> Mapping[str, Any]:
     """Register the GDW surface before the host application's SPA catch-all."""
 
@@ -293,12 +299,27 @@ def register(
             else None
         )
         try:
+            selected_journal_mode = (
+                journal_mode
+                if journal_mode is not None
+                else os.environ.get(
+                    "SZL_GDW_SQLITE_JOURNAL_MODE",
+                    "DELETE" if require_persistent else "WAL",
+                )
+            )
+            selected_max_sessions = (
+                max_sessions
+                if max_sessions is not None
+                else int(os.environ.get("SZL_GDW_MAX_SESSIONS", "1000"))
+            )
             store = SQLiteWorkspaceStore(
                 selected_path,
                 persistent_required=require_persistent,
                 required_mount=selected_mount,
+                journal_mode=selected_journal_mode,
+                max_sessions=selected_max_sessions,
             )
-        except PersistenceError:
+        except (PersistenceError, TypeError, ValueError):
             store = None
             storage_unavailable = {
                 "schema": "szl.gdw.storage-snapshot/v1",
@@ -390,6 +411,13 @@ def register(
         except SessionConflict:
             observations.record_error("conflict")
             return _error(409, "SESSION_CONFLICT", "session already exists")
+        except SessionQuotaExceeded:
+            observations.record_error("quota")
+            return _error(
+                429,
+                "SESSION_QUOTA_EXCEEDED",
+                "durable session capacity is exhausted",
+            )
         except PersistenceError:
             observations.record_error("persistence")
             return _error(503, "PERSISTENCE_UNAVAILABLE", "session could not be stored")
@@ -453,6 +481,53 @@ def register(
 
             record = repository.recover_session(session_id)
             state = record["state"]
+            if governance_gate is None:
+                observations.record_error("governance")
+                return _error(
+                    503,
+                    "GOVERNANCE_UNAVAILABLE",
+                    "doctrine governance is unavailable",
+                )
+            try:
+                governance = governance_gate(request_payload)
+            except Exception:
+                observations.record_error("governance")
+                return _error(
+                    503,
+                    "GOVERNANCE_UNAVAILABLE",
+                    "doctrine governance failed closed",
+                )
+            if not isinstance(governance, Mapping):
+                observations.record_error("governance")
+                return _error(
+                    503,
+                    "GOVERNANCE_UNAVAILABLE",
+                    "doctrine governance returned no verifiable decision",
+                )
+            governance_decision = str(
+                governance.get("decision", "deny")
+            ).strip().lower()
+            if governance_decision != "allow":
+                observations.record_error("governance")
+                return _error(
+                    403,
+                    "GOVERNANCE_DENIED",
+                    "doctrine governance did not authorize the transition",
+                )
+            if not isinstance(governance.get("receipt"), Mapping) or not isinstance(
+                governance.get("dsse"), Mapping
+            ):
+                observations.record_error("governance")
+                return _error(
+                    503,
+                    "GOVERNANCE_EVIDENCE_UNAVAILABLE",
+                    "doctrine governance evidence is incomplete",
+                )
+            governance_evidence = {
+                "decision": governance_decision,
+                "receipt": _api_jsonable(governance["receipt"]),
+                "dsse": _api_jsonable(governance["dsse"]),
+            }
             evidence = [
                 Evidence(
                     evidence_id=item.evidence_id,
@@ -489,6 +564,7 @@ def register(
                 "state_hash": next_state.canonical_hash(),
                 "state": state_to_dict(next_state),
                 "audit": audit_payload,
+                "governance": governance_evidence,
                 "replayed": False,
             }
             committed = repository.commit_transition(

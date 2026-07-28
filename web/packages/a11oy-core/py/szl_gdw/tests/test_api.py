@@ -21,7 +21,15 @@ def unsigned_runtime(monkeypatch):
 @pytest.fixture
 def client(tmp_path):
     app = FastAPI()
-    api.register(app, db_path=tmp_path / "api.sqlite3")
+    api.register(
+        app,
+        db_path=tmp_path / "api.sqlite3",
+        governance_gate=lambda _: {
+            "decision": "allow",
+            "receipt": {"receipt_id": "test-governance"},
+            "dsse": {"signed": False, "signatures": []},
+        },
+    )
     return TestClient(app)
 
 
@@ -72,6 +80,7 @@ def test_status_session_step_receipt_and_exact_replay(client):
     expected = first.json()
     expected["replayed"] = True
     assert replay.json() == expected
+    assert first.json()["governance"]["decision"] == "allow"
 
     receipt_id = first.json()["khipu_receipt"]["receipt_id"]
     receipt = client.get(f"/api/a11oy/v1/gdw/receipts/{receipt_id}")
@@ -79,6 +88,34 @@ def test_status_session_step_receipt_and_exact_replay(client):
     assert receipt.json()["receipt"]["request_digest"]
     assert receipt.json()["dsse"]["signed"] is False
     assert receipt.json()["label"] == "MODELED"
+
+
+def test_step_fails_closed_when_doctrine_governance_denies(tmp_path):
+    app = FastAPI()
+    api.register(
+        app,
+        db_path=tmp_path / "denied.sqlite3",
+        governance_gate=lambda _: {
+            "decision": "deny",
+            "receipt": {"receipt_id": "denied"},
+            "dsse": {"signed": False, "signatures": []},
+        },
+    )
+    denied_client = TestClient(app)
+    created = denied_client.post(
+        "/api/a11oy/v1/gdw/sessions",
+        json={"session_id": "denied"},
+    )
+    denied = denied_client.post(
+        "/api/a11oy/v1/gdw/sessions/denied/step",
+        json=_step_body(),
+    )
+
+    assert created.status_code == 201
+    assert denied.status_code == 403
+    assert denied.json()["error"] == "GOVERNANCE_DENIED"
+    telemetry = denied_client.get("/api/a11oy/v1/gdw/telemetry").json()
+    assert telemetry["storage"]["counts"]["receipts"] == 1
 
 
 def test_gets_and_aggregate_do_not_mint_or_change_storage(

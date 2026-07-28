@@ -131,13 +131,25 @@ _GDW_PACKAGE_ROOT = (
 try:
     if str(_GDW_PACKAGE_ROOT) not in sys.path:
         sys.path.insert(0, str(_GDW_PACKAGE_ROOT))
+    import a11oy_vertical_feeds as _GDWGovernance
     from szl_gdw.api import register as _register_gdw
     from szl_gdw.kernel_adapter import GovernedWorkspaceKernel as _GDWKernel
+
+    def _gdw_governance_gate(payload):
+        risk_budget = float(payload.get("risk_budget", 1.0))
+        return _GDWGovernance.governed_turn(
+            "general",
+            str(payload.get("request", "")),
+            declared="INTERNAL",
+            severity=max(0.0, min(1.0, 1.0 - risk_budget)),
+            action_kind="state_transition",
+        )
 
     _GDW_REGISTRATION = _register_gdw(
         app,
         ns="a11oy",
         kernel=_GDWKernel(),
+        governance_gate=_gdw_governance_gate,
     )
     print(
         f"[a11oy] Wave 26 GDW registered: {_GDW_REGISTRATION}",
