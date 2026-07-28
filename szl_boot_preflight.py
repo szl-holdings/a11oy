@@ -201,6 +201,16 @@ _REGISTRY = [
 
 _BY_NAME = {s.name: s for s in _REGISTRY}
 _SUBSYSTEMS = sorted({s.subsystem for s in _REGISTRY})
+_CREDENTIAL_ALTERNATIVES = {
+    "signing": (
+        frozenset({
+            "SZL_COSIGN_PRIVATE_PEM",
+            "A11OY_RECEIPT_KEY_PEM",
+            "A11OY_RECEIPT_KEY_PATH",
+            "A11OY_RECEIPT_KEY_DIR",
+        }),
+    ),
+}
 
 
 def registry():
@@ -260,14 +270,23 @@ def preflight_report(env=None):
 
 
 def _subsystem_label(env, subsystem):
-    """Per-subsystem honest readiness. Absent optional secret => DEGRADED;
-    absent required (subsystem-critical) => UNAVAILABLE; else LIVE."""
+    """Per-subsystem honest readiness.
+
+    Absent optional credentials => DEGRADED; absent required
+    (subsystem-critical) => UNAVAILABLE; else LIVE. Credential alternatives
+    model equivalent sources such as inline or mounted signing keys.
+    """
     specs = [s for s in _REGISTRY if s.subsystem == subsystem]
     missing_required = [s.name for s in specs
                         if s.required and not _present(env, s.name)]
     # a subsystem's "credentials" are its secrets; missing ones degrade it
-    missing_secrets = [s.name for s in specs
-                       if s.kind == SECRET and not _present(env, s.name)]
+    missing_secrets = {
+        s.name for s in specs
+        if s.kind == SECRET and not _present(env, s.name)
+    }
+    for alternatives in _CREDENTIAL_ALTERNATIVES.get(subsystem, ()):
+        if any(_present(env, name) for name in alternatives):
+            missing_secrets.difference_update(alternatives)
     if missing_required:
         label = UNAVAILABLE
     elif missing_secrets:
