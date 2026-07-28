@@ -268,69 +268,73 @@ def _wait_for_public_space(
 ) -> dict[str, object]:
     deadline = monotonic() + timeout_seconds
     latest: dict[str, object] = {}
+    latest_error: PublicationError | None = None
+    source_revision = _space_identity_source(expected)
     while monotonic() <= deadline:
         try:
             latest = fetch_json(_repo_api_url(repo_id, "space"))
-        except PublicationError:
+        except PublicationError as exc:
             latest = {}
+            latest_error = exc
         runtime = latest.get("runtime")
         stage = runtime.get("stage") if isinstance(runtime, dict) else None
         runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
         if stage in SPACE_RUNTIME_FAILURE_STAGES and runtime_sha == revision:
             raise PublicationError(f"Space entered terminal failure stage: {stage}")
         if _space_runtime_ready(latest, revision):
-            _validate_public_info(latest, repo_id, "space", revision, set(expected))
-            break
+            try:
+                public = _verify_public_repository(
+                    repo_id,
+                    "space",
+                    revision,
+                    expected,
+                    fetch_json=lambda _url: latest,
+                    fetch_bytes=fetch_bytes,
+                )
+                subdomain = latest.get("subdomain")
+                if not isinstance(subdomain, str) or not re.fullmatch(
+                    r"[a-z0-9-]+", subdomain
+                ):
+                    raise PublicationError("Space public subdomain is missing or invalid")
+                public_url = f"https://{subdomain}.hf.space/"
+                status, body = fetch_bytes(public_url)
+                if status != 200 or not body:
+                    raise PublicationError(
+                        f"Space public root is not serving: "
+                        f"status={status} bytes={len(body)}"
+                    )
+                identity_url = f"{public_url}config"
+                identity_status, identity_body = fetch_bytes(identity_url)
+                if identity_status != 200 or not identity_body:
+                    raise PublicationError(
+                        "Space identity endpoint is not serving: "
+                        f"status={identity_status} bytes={len(identity_body)}"
+                    )
+                identity = _validate_space_identity(identity_body, source_revision)
+            except PublicationError as exc:
+                latest_error = exc
+            else:
+                runtime = latest["runtime"]
+                public["runtime"] = {
+                    "stage": runtime["stage"],
+                    "sha": runtime["sha"],
+                    "public_url": public_url,
+                    "http_status": status,
+                    "response_bytes": len(body),
+                    "identity_url": identity_url,
+                    "identity_http_status": identity_status,
+                    "identity": identity,
+                }
+                return public
         sleep(poll_interval_seconds)
-    else:
-        runtime = latest.get("runtime")
-        stage = runtime.get("stage") if isinstance(runtime, dict) else None
-        runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
-        raise PublicationError(
-            "Space did not reach exact-revision RUNNING state before timeout: "
-            f"stage={stage!r} runtime_sha={runtime_sha!r} expected={revision!r}"
-        )
-
-    public = _verify_public_repository(
-        repo_id,
-        "space",
-        revision,
-        expected,
-        fetch_json=lambda _url: latest,
-        fetch_bytes=fetch_bytes,
+    runtime = latest.get("runtime")
+    stage = runtime.get("stage") if isinstance(runtime, dict) else None
+    runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
+    raise PublicationError(
+        "Space did not converge to exact public runtime before timeout: "
+        f"stage={stage!r} runtime_sha={runtime_sha!r} expected={revision!r} "
+        f"last_error={latest_error}"
     )
-    subdomain = latest.get("subdomain")
-    if not isinstance(subdomain, str) or not re.fullmatch(r"[a-z0-9-]+", subdomain):
-        raise PublicationError("Space public subdomain is missing or invalid")
-    public_url = f"https://{subdomain}.hf.space/"
-    status, body = fetch_bytes(public_url)
-    if status != 200 or not body:
-        raise PublicationError(
-            f"Space public root is not serving: status={status} bytes={len(body)}"
-        )
-    identity_url = f"{public_url}config"
-    identity_status, identity_body = fetch_bytes(identity_url)
-    if identity_status != 200 or not identity_body:
-        raise PublicationError(
-            "Space identity endpoint is not serving: "
-            f"status={identity_status} bytes={len(identity_body)}"
-        )
-    identity = _validate_space_identity(
-        identity_body,
-        _space_identity_source(expected),
-    )
-    runtime = latest["runtime"]
-    public["runtime"] = {
-        "stage": runtime["stage"],
-        "sha": runtime["sha"],
-        "public_url": public_url,
-        "http_status": status,
-        "response_bytes": len(body),
-        "identity_url": identity_url,
-        "identity_http_status": identity_status,
-        "identity": identity,
-    }
-    return public
 
 
 def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token: str):

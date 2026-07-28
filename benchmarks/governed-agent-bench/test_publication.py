@@ -533,6 +533,74 @@ class PublicationTests(unittest.TestCase):
                 source_revision,
             )
 
+    def test_space_retries_stale_identity_until_source_matches(self):
+        publisher = _load_publisher()
+        revision = "b" * 40
+        source_revision = "c" * 40
+        expected = {
+            "README.md": b"space\n",
+            "publication.json": json.dumps(
+                {"source_revision": source_revision}
+            ).encode(),
+        }
+        config_calls = {"count": 0}
+
+        def fetch_bytes(url: str):
+            if url.endswith(".hf.space/config"):
+                config_calls["count"] += 1
+                observed_source = (
+                    "d" * 40 if config_calls["count"] == 1 else source_revision
+                )
+                return 200, json.dumps(
+                    {
+                        "mode": "blocks",
+                        "components": [
+                            {
+                                "props": {
+                                    "value": (
+                                        "Governed Agent Bench "
+                                        f"{observed_source}"
+                                    )
+                                }
+                            }
+                        ],
+                    }
+                ).encode()
+            if url.endswith(".hf.space/"):
+                return 200, b"<html>running</html>"
+            return 200, expected[url.rsplit("/", 1)[-1]]
+
+        result = publisher._wait_for_public_space(
+            "SZLHOLDINGS/governed-agent-bench",
+            revision,
+            expected,
+            timeout_seconds=1.0,
+            poll_interval_seconds=0.0,
+            fetch_json=lambda _url: {
+                "private": False,
+                "sha": revision,
+                "siblings": [{"rfilename": name} for name in expected],
+                "runtime": {"stage": "RUNNING", "sha": revision},
+                "subdomain": "szlholdings-governed-agent-bench",
+            },
+            fetch_bytes=fetch_bytes,
+            sleep=lambda _seconds: None,
+            monotonic=lambda: 0.0,
+        )
+
+        self.assertEqual(config_calls["count"], 2)
+        self.assertEqual(
+            result["runtime"]["identity"]["source_revision"],
+            source_revision,
+        )
+
+    def test_publish_job_timeout_covers_publication_deadlines(self):
+        workflow = (
+            HERE.parents[1] / ".github" / "workflows" / "governed-agent-bench.yml"
+        ).read_text(encoding="utf-8")
+        publish_job = workflow.split("\n  publish:\n", maxsplit=1)[1]
+        self.assertIn("timeout-minutes: 30", publish_job)
+
     def test_workflow_scopes_hf_token_to_the_publish_step(self):
         workflow = (
             HERE.parents[1] / ".github" / "workflows" / "governed-agent-bench.yml"
