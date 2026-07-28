@@ -117,7 +117,7 @@ jobs:
           elan default "leanprover/lean4:v4.18.0"
           lake --version
       - name: Restore canonical Lake cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: lutar-lean/.lake
           key: putnam-lake-${{ runner.os }}-${{ hashFiles('lutar-lean/lean-toolchain') }}-${{ hashFiles('lutar-lean/lake-manifest.json') }}-baf483be3c832b64da47161b558e283d68da6650
@@ -149,7 +149,7 @@ jobs:
             --axiom-report "$RUNNER_TEMP/putnam-real-axioms.txt"
       - name: Save canonical Lake cache
         if: success()
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: lutar-lean/.lake
           key: putnam-lake-${{ runner.os }}-${{ hashFiles('lutar-lean/lean-toolchain') }}-${{ hashFiles('lutar-lean/lake-manifest.json') }}-baf483be3c832b64da47161b558e283d68da6650
