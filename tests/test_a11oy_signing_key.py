@@ -15,6 +15,7 @@ import a11oy_signing_key
 
 _KEY_ENV_NAMES = (
     "SZL_COSIGN_PRIVATE_PEM",
+    "SZL_COSIGN_PRIVATE_KEY_PEM",
     "A11OY_RECEIPT_KEY_PEM",
     "A11OY_RECEIPT_KEY_PATH",
     "A11OY_RECEIPT_KEY_DIR",
@@ -75,6 +76,43 @@ def test_optional_env_pem_is_supported(monkeypatch: pytest.MonkeyPatch) -> None:
     assert private_key is not None
     assert public_pem.startswith("-----BEGIN PUBLIC KEY-----")
     assert source == "persistent:env:A11OY_RECEIPT_KEY_PEM"
+    assert error == ""
+
+
+def test_compatibility_env_pem_uses_shared_signer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_KEY_PEM", private_pem())
+
+    private_key, public_pem, source, error = (
+        a11oy_signing_key.load_signing_key()
+    )
+
+    assert private_key is not None
+    assert fingerprint(public_pem)
+    assert source == "persistent:env:SZL_COSIGN_PRIVATE_KEY_PEM"
+    assert error == ""
+
+
+def test_canonical_env_precedes_compatibility_spelling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canonical = private_pem()
+    compatibility = private_pem()
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_PEM", canonical)
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_KEY_PEM", compatibility)
+
+    _, public_pem, source, error = a11oy_signing_key.load_signing_key()
+
+    canonical_private = serialization.load_pem_private_key(
+        canonical.encode("ascii"), password=None
+    )
+    canonical_public = canonical_private.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    assert fingerprint(public_pem) == fingerprint(canonical_public)
+    assert source == "persistent:env:SZL_COSIGN_PRIVATE_PEM"
     assert error == ""
 
 

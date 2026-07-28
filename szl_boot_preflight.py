@@ -136,9 +136,13 @@ _REGISTRY = [
             "Canonical DSSE/cosign ECDSA-P256 PRIVATE key PEM used by the "
             "shared receipt signer.",
             required=False, default=None),
+    EnvSpec("SZL_COSIGN_PRIVATE_KEY_PEM", SECRET, "signing",
+            "Compatibility spelling for the DSSE/cosign ECDSA-P256 PRIVATE "
+            "key; used only when SZL_COSIGN_PRIVATE_PEM is absent.",
+            required=False, default=None),
     EnvSpec("A11OY_RECEIPT_KEY_PEM", SECRET, "signing",
             "Optional compatibility ECDSA-P256 PRIVATE key PEM used only when "
-            "SZL_COSIGN_PRIVATE_PEM is absent.",
+            "both SZL_COSIGN_PRIVATE_PEM spellings are absent.",
             required=False, default=None),
     EnvSpec("A11OY_RECEIPT_KEY_PATH", VARIABLE, "signing",
             "Path to a mounted ECDSA-P256 receipt private key.",
@@ -155,6 +159,10 @@ _REGISTRY = [
             default=None),
     EnvSpec("COSIGN_KEYID", VARIABLE, "signing",
             "Key identifier surfaced in verify receipts (non-secret).",
+            default=None),
+    EnvSpec("SZL_COSIGN_TRUSTED_PUBLIC_PEMS", VARIABLE, "signing",
+            "JSON list or object of retained P-256 PUBLIC PEMs accepted when "
+            "verifying receipts issued before signer rotation.",
             default=None),
 
     # ---- governed compute authority (store only the bearer SHA-256) ----
@@ -205,6 +213,7 @@ _CREDENTIAL_ALTERNATIVES = {
     "signing": (
         frozenset({
             "SZL_COSIGN_PRIVATE_PEM",
+            "SZL_COSIGN_PRIVATE_KEY_PEM",
             "A11OY_RECEIPT_KEY_PEM",
             "A11OY_RECEIPT_KEY_PATH",
             "A11OY_RECEIPT_KEY_DIR",

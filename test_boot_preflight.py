@@ -118,7 +118,11 @@ def test_every_name_single_kind_and_collision_list():
 # ---------------------------------------------------------------------------
 def test_present_secret_lights_subsystem():
     # Either accepted inline key lights the signing subsystem.
-    for name in ("SZL_COSIGN_PRIVATE_PEM", "A11OY_RECEIPT_KEY_PEM"):
+    for name in (
+        "SZL_COSIGN_PRIVATE_PEM",
+        "SZL_COSIGN_PRIVATE_KEY_PEM",
+        "A11OY_RECEIPT_KEY_PEM",
+    ):
         ready = pf.readiness(env={name: _valid_private_pem()})
         signing = [s for s in ready["subsystems"]
                    if s["subsystem"] == "signing"][0]

@@ -13,6 +13,7 @@ pytest.importorskip("cryptography")
 
 import serve
 import a11oy_dev1_endpoints
+import szl_dsse
 from routers import series_a_control_plane
 from cryptography.hazmat.primitives import serialization
 from starlette.testclient import TestClient
@@ -34,6 +35,7 @@ def test_shared_key_identity_is_signed_not_envelope_only() -> None:
         assert identity["key_scope"] == "PROCESS_BOOT_EPHEMERAL"
         assert identity["key_lifetime"] == "UNTIL_PROCESS_RESTART"
     assert identity["key_fingerprint_sha256"] == envelope["key_fingerprint_sha256"]
+    assert szl_dsse.verify_envelope(envelope)["verified"] is True
 
 
 def test_mutable_envelope_metadata_cannot_replace_signed_key_identity() -> None:
@@ -60,6 +62,7 @@ def test_root_wow_and_series_a_share_one_process_key(tmp_path) -> None:
 
     public_pem = public_keys.pop()
     expected = hashlib.sha256(public_pem.strip().encode()).hexdigest()
+    assert szl_dsse.active_public_key_pem() == public_pem
     assert serve._A11OY_KEYID == expected
     assert a11oy_dev1_endpoints._KEYID == expected[:16]
     assert service.signer.keyid == hashlib.sha256(
