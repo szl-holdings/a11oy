@@ -18,12 +18,13 @@
       "model_id": "SZL-Forge-1.5B-ReceiptAgent-v1",
       "hf_target": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
       "weight_artifact_required": true,
-      "state": "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT",
+      "state": "ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED",
       "role": "Evidence-bound drafts in independently signed runtime receipt envelopes, abstention, formula references, and proposal-only tools; the model is never the signer.",
       "runtime": "model_release/receipt-agent/receipt_runtime.py",
       "training_contract": "model_release/szl-forge/training-contract.json",
       "runtime_tag": "receiptagent:latest",
-      "artifact_honesty": "Remote weights and signed receipts exist, but the receipt-declared adapter/full-weight hashes do not match the published LFS artifacts; promotion remains blocked."
+      "artifact_reconciliation": "model_release/receipt-agent/reconciliation/receipt-agent-artifact-reconciliation.v1.json",
+      "artifact_honesty": "The exact qualified revision binds raw model/adapter SHA-256 values separately from the original signer's SHA256(UTF8 basename || raw bytes) digest domain. At frozen public head 2e62cb5f8e6a17052da532305a467861094a2109, all 12 inference-bearing Git blobs equal the qualified revision; only a non-inference estate marker was added. This is MEASURED artifact reconciliation, not promotion, deployment, hosted serving, general quality, or independent owner-identity assurance."
     },
     {
       "profile_id": "BrainNavigator-v1",

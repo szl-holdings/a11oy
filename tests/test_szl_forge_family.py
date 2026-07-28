@@ -22,13 +22,25 @@ class SZLForgeFamilyTests(unittest.TestCase):
         self.assertTrue(all(item["weight_artifact_required"] is True for item in profiles))
         self.assertTrue(all(item["hf_target"].startswith("SZLHOLDINGS/") for item in profiles))
 
-    def test_two_signed_profiles_remain_blocked_on_artifact_binding(self) -> None:
+    def test_receipt_agent_reconciles_without_changing_khipu(self) -> None:
         states = {item["profile_id"]: item["state"] for item in self.registry["profiles"]}
         conflict = "SIGNED_RECEIPTS_VALID_ARTIFACT_BINDING_CONFLICT"
-        self.assertEqual(states["ReceiptAgent-v1"], conflict)
+        self.assertEqual(
+            states["ReceiptAgent-v1"],
+            "ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED",
+        )
         self.assertEqual(states["BrainNavigator-v1"], conflict)
         self.assertTrue(all(state.startswith("PLANNED_") for key, state in states.items()
                             if key not in {"ReceiptAgent-v1", "BrainNavigator-v1"}))
+        receipt_agent = next(
+            item for item in self.registry["profiles"]
+            if item["profile_id"] == "ReceiptAgent-v1"
+        )
+        self.assertEqual(
+            receipt_agent["artifact_reconciliation"],
+            "model_release/receipt-agent/reconciliation/"
+            "receipt-agent-artifact-reconciliation.v1.json",
+        )
 
     def test_brain_and_external_inference_remain_fail_closed(self) -> None:
         brain = self.registry["brain_policy"]
