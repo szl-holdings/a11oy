@@ -22,9 +22,11 @@ from huggingface_hub import HfApi
 SCHEMA = "szl.series-a-restart-proof/v1"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 STORE_ID = re.compile(r"^store_[0-9a-f]{32}$")
+BOOT_ID = re.compile(r"^boot_[0-9a-f]{32}$")
 RECEIPT_HASH = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_SIGNER = "persistent:env:SZL_COSIGN_PRIVATE_PEM"
 EXPECTED_DATABASE = "/data/a11oy/series-a/control-plane.sqlite3"
+DEFAULT_DEADLINE_SECONDS = 20 * 60
 
 
 class RestartProofError(RuntimeError):
@@ -58,7 +60,7 @@ class HttpSession:
         method: str,
         url: str,
         *,
-        timeout: int,
+        timeout: float,
         value: Mapping[str, Any] | None = None,
     ) -> HttpResponse:
         data = None
@@ -74,7 +76,7 @@ class HttpSession:
                 content=response.read(),
             )
 
-    def get(self, url: str, *, timeout: int) -> HttpResponse:
+    def get(self, url: str, *, timeout: float) -> HttpResponse:
         return self._request("GET", url, timeout=timeout)
 
     def post(
@@ -111,27 +113,53 @@ def _json(response: HttpResponse) -> Mapping[str, Any]:
     return value
 
 
+def _remaining_timeout(deadline: float, maximum: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RestartProofError("restart proof deadline exhausted")
+    return max(0.1, min(maximum, remaining))
+
+
+def _check_deadline(deadline: float) -> None:
+    if time.monotonic() >= deadline:
+        raise RestartProofError("restart proof deadline exhausted")
+
+
+def _sleep_with_deadline(deadline: float, seconds: float) -> None:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RestartProofError("restart proof deadline exhausted")
+    time.sleep(min(max(0.0, seconds), remaining))
+    _check_deadline(deadline)
+
+
 def capture(
     session: HttpSession,
     origin: str,
     expected_source: str,
+    deadline: float | None = None,
 ) -> dict[str, Any]:
+    if deadline is None:
+        deadline = time.monotonic() + DEFAULT_DEADLINE_SECONDS
     status = _json(
         session.get(
             origin + "/api/a11oy/v1/series-a/status",
-            timeout=45,
+            timeout=_remaining_timeout(deadline, 45),
         )
     )
+    _check_deadline(deadline)
     build = _json(
         session.get(
             origin + "/api/build-info",
-            timeout=45,
+            timeout=_remaining_timeout(deadline, 45),
         )
     )
+    _check_deadline(deadline)
     key = session.get(
         origin + "/api/a11oy/v1/series-a/public-key",
-        timeout=45,
+        timeout=_remaining_timeout(deadline, 45),
     )
+    _check_deadline(deadline)
     key.raise_for_status()
     storage = status.get("storage")
     build_record = build.get("build")
@@ -140,6 +168,7 @@ def capture(
         or str(status.get("source_revision") or "").lower() != expected_source
         or status.get("signing_key_source") != EXPECTED_SIGNER
         or status.get("database") != EXPECTED_DATABASE
+        or BOOT_ID.fullmatch(str(status.get("runtime_boot_id") or "")) is None
         or not isinstance(storage, Mapping)
         or storage.get("persistence_required") is not True
         or storage.get("required_mount") != "/data"
@@ -167,6 +196,7 @@ def capture(
         raise RestartProofError("empty receipt chain unexpectedly has a head")
     return {
         "source_revision": expected_source,
+        "runtime_boot_id": status["runtime_boot_id"],
         "signing_key_source": status["signing_key_source"],
         "public_key_sha256": hashlib.sha256(key.content).hexdigest(),
         "database": status["database"],
@@ -189,6 +219,13 @@ def validate_restart(
 ) -> None:
     if before.get("source_revision") != after.get("source_revision"):
         raise RestartProofError("source revision changed across restart")
+    if before.get("runtime_boot_id") == after.get("runtime_boot_id"):
+        raise RestartProofError("runtime boot identity did not change across restart")
+    if (
+        BOOT_ID.fullmatch(str(before.get("runtime_boot_id") or "")) is None
+        or BOOT_ID.fullmatch(str(after.get("runtime_boot_id") or "")) is None
+    ):
+        raise RestartProofError("runtime boot identity evidence is invalid")
     if before.get("signing_key_source") != after.get("signing_key_source"):
         raise RestartProofError("signing source changed across restart")
     if before.get("public_key_sha256") != after.get("public_key_sha256"):
@@ -221,46 +258,72 @@ def prove(
     source_sha: str,
     attempts: int,
     retry_seconds: int,
+    deadline_seconds: int = DEFAULT_DEADLINE_SECONDS,
 ) -> dict[str, Any]:
-    before = capture(session, origin, source_sha)
+    if attempts < 1 or retry_seconds < 0 or deadline_seconds < 1:
+        raise RestartProofError("polling bounds must be positive and finite")
+    deadline = time.monotonic() + deadline_seconds
+    before = capture(session, origin, source_sha, deadline)
+    startup_error: Exception | None = None
     if before["storage"]["receipt_count"] == 0:
-        response = session.post(
-            origin + "/api/a11oy/v1/series-a/refresh",
-            json={"actor": "protected-deploy-restart-proof"},
-            timeout=180,
+        # Public refresh is passport-only. The canonical startup scheduler owns
+        # the initial observation, so the proof waits for its persisted receipt
+        # instead of invoking a privileged mutation shortcut.
+        for _ in range(max(1, attempts)):
+            _sleep_with_deadline(deadline, retry_seconds)
+            try:
+                candidate = capture(session, origin, source_sha, deadline)
+                before = candidate
+                if before["storage"]["receipt_count"] > 0:
+                    break
+            except Exception as exc:  # noqa: BLE001 - bounded startup polling
+                startup_error = exc
+    if before["storage"]["receipt_count"] == 0:
+        detail = (
+            f": {type(startup_error).__name__}: {str(startup_error)[:180]}"
+            if startup_error is not None
+            else ""
         )
-        response.raise_for_status()
-        before = capture(session, origin, source_sha)
-    if before["storage"]["receipt_count"] == 0:
-        raise RestartProofError("no receipt exists to recover across restart")
+        raise RestartProofError(
+            "no receipt exists to recover across restart" + detail
+        )
 
+    _check_deadline(deadline)
     restart = api.restart_space(repo_id=repo_id, factory_reboot=False)
+    _check_deadline(deadline)
     stage = getattr(getattr(restart, "runtime", None), "stage", None)
     stage = getattr(stage, "value", stage)
     # Do not accept a response from the pre-restart process as post-restart
     # evidence while the control plane is still draining.
-    time.sleep(max(10, retry_seconds))
+    _sleep_with_deadline(deadline, max(10, retry_seconds))
 
     last_error: Exception | None = None
     after: dict[str, Any] | None = None
     for _ in range(max(1, attempts)):
         try:
-            after = capture(session, origin, source_sha)
+            candidate = capture(session, origin, source_sha, deadline)
+            if candidate["runtime_boot_id"] == before["runtime_boot_id"]:
+                raise RestartProofError(
+                    "runtime boot identity did not change across restart"
+                )
+            after = candidate
             break
         except Exception as exc:  # noqa: BLE001 - bounded restart polling
             last_error = exc
-            time.sleep(max(0, retry_seconds))
+            _sleep_with_deadline(deadline, retry_seconds)
     if after is None:
         raise RestartProofError(
-            f"runtime did not recover after restart: {type(last_error).__name__}"
+            "runtime restart was not observed after bounded polling: "
+            f"{type(last_error).__name__}: {str(last_error)[:180]}"
         )
 
     receipts = _json(
         session.get(
             origin + "/api/a11oy/v1/series-a/receipts?limit=200",
-            timeout=60,
+            timeout=_remaining_timeout(deadline, 60),
         )
     )
+    _check_deadline(deadline)
     items = receipts.get("items")
     if not isinstance(items, list):
         raise RestartProofError("receipt recovery endpoint is incomplete")
@@ -283,6 +346,7 @@ def prove(
         "after": after,
         "proof": {
             "source_stable": True,
+            "runtime_boot_identity_changed": True,
             "public_signing_identity_stable": True,
             "database_instance_stable": True,
             "database_creation_identity_stable": True,
@@ -301,6 +365,11 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--attempts", type=int, default=90)
     parser.add_argument("--retry-seconds", type=int, default=10)
+    parser.add_argument(
+        "--deadline-seconds",
+        type=int,
+        default=DEFAULT_DEADLINE_SECONDS,
+    )
     args = parser.parse_args()
 
     source = args.source_sha.strip().lower()
@@ -327,6 +396,7 @@ def main() -> int:
         source_sha=source,
         attempts=args.attempts,
         retry_seconds=args.retry_seconds,
+        deadline_seconds=args.deadline_seconds,
     )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
