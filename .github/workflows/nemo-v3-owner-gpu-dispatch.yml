@@ -1,0 +1,112 @@
+name: Nemo v3 owner GPU dispatch
+
+# Securely lends the existing repository-managed Hugging Face credential to an
+# ephemeral, owner-controlled GPU runner. The token remains a masked Actions
+# secret: it is never written into the bridge installation, repository, or job
+# artifacts. Manual dispatch is available only from the protected default branch.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nemo-v3-owner-gpu-attempt
+  cancel-in-progress: false
+
+jobs:
+  credential-preflight:
+    name: Verify managed Hugging Face access
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - name: Require live credential and private receipt access
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN is not configured on this repository."
+            exit 1
+          fi
+
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          whoami_status="$(
+            curl --silent --show-error \
+              --output "$tmp/whoami.json" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${HF_TOKEN}" \
+              https://huggingface.co/api/whoami-v2
+          )"
+          if [ "$whoami_status" != "200" ]; then
+            echo "::error::The managed Hugging Face credential is not live."
+            exit 1
+          fi
+
+          receipt_status="$(
+            curl --silent --show-error \
+              --output "$tmp/receipt-dataset.json" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${HF_TOKEN}" \
+              https://huggingface.co/api/datasets/SZLHOLDINGS/szl-training-receipts
+          )"
+          if [ "$receipt_status" != "200" ]; then
+            echo "::error::The managed credential cannot read the private receipt dataset."
+            exit 1
+          fi
+
+          echo "Managed Hugging Face credential is live; private receipt access is verified."
+
+  execute:
+    name: Execute signed Nemo v3 job on owner GPU
+    needs: credential-preflight
+    runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
+    timeout-minutes: 300
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      JOB_ID: job-2026-nemo-v3-governed-attempt-1
+      BRIDGE_ROOT: C:\szl-bridge
+    steps:
+      - name: Run verify-first bridge and require a terminal signed receipt
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if ([string]::IsNullOrWhiteSpace($env:HF_TOKEN)) {
+            throw "HF_TOKEN was not injected into the owner runner."
+          }
+
+          $daemon = Join-Path $env:BRIDGE_ROOT "daemon.ps1"
+          $dispatcher = Join-Path $env:BRIDGE_ROOT "dispatcher.py"
+          $ledger = Join-Path $env:BRIDGE_ROOT "jobs\seen.txt"
+          $receiptKey = Join-Path $env:BRIDGE_ROOT "keys\receipt_ed25519.pem"
+          $python = Join-Path $env:USERPROFILE "miniconda3\envs\szl-bridge\python.exe"
+
+          foreach ($required in @($daemon, $dispatcher, $receiptKey, $python)) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Required owner bridge component is missing: $required"
+            }
+          }
+
+          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $daemon
+          if ($LASTEXITCODE -ne 0) {
+            throw "The owner bridge daemon returned exit code $LASTEXITCODE."
+          }
+
+          if (-not (Test-Path -LiteralPath $ledger -PathType Leaf)) {
+            throw "The owner bridge did not produce its consumed-job ledger."
+          }
+
+          $terminal = Select-String `
+            -LiteralPath $ledger `
+            -Pattern ("^" + [regex]::Escape($env:JOB_ID) + "(?:\s|$)") `
+            -Quiet
+          if (-not $terminal) {
+            throw "The signed Nemo v3 job did not reach a terminal receipt state."
+          }
+
+          Write-Host "Signed Nemo v3 job reached a terminal receipt state."
