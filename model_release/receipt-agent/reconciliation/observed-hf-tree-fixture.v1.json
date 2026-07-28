@@ -1,7 +1,7 @@
 {
   "schema_version": "szl.receiptagent-artifact-reconciliation-fixture.v1",
   "repository": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
-  "observed_at": "2026-07-28T18:00:00Z",
+  "observed_at": "2026-07-28T18:10:16.424425Z",
   "qualified_revision": "fa73dc1bd8eeece727d0b5c1db52448ec0703e8b",
   "public_head_revision": "2e62cb5f8e6a17052da532305a467861094a2109",
   "qualification_receipt": {

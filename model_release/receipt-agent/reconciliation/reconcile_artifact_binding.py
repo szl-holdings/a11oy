@@ -83,6 +83,20 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def git_blob_sha1(value: bytes) -> str:
+    header = b"blob " + str(len(value)).encode("ascii") + b"\0"
+    return hashlib.sha1(header + value, usedforsecurity=False).hexdigest()
+
+
+def lfs_pointer_git_blob_sha1(raw_sha256: str, size: int) -> str:
+    pointer = (
+        "version https://git-lfs.github.com/spec/v1\n"
+        f"oid sha256:{raw_sha256}\n"
+        f"size {size}\n"
+    ).encode("ascii")
+    return git_blob_sha1(pointer)
+
+
 def self_digest(value: dict[str, Any], field: str) -> str:
     unsigned = dict(value)
     unsigned.pop(field, None)
@@ -263,6 +277,8 @@ def reconcile(
         == "SHA256_UTF8_BASENAME_CONCAT_RAW_FILE_BYTES",
         "artifact digest domain mismatch",
     )
+    entry_by_path = {entry["path"]: entry for entry in entries}
+    lfs_pointer_blobs: dict[str, str] = {}
     for key in ("model_file", "adapter_file"):
         frozen = fixture_binding[key]
         measured = candidate[key]
@@ -278,6 +294,30 @@ def reconcile(
             frozen["raw_sha256"] != frozen["receipt_directory_sha256"],
             f"{key} digest domains were collapsed",
         )
+        _require(
+            _is_hex(frozen["raw_sha256"], 64),
+            f"{key} raw SHA-256 is invalid",
+        )
+        _require(
+            isinstance(frozen["bytes"], int)
+            and not isinstance(frozen["bytes"], bool)
+            and frozen["bytes"] > 0,
+            f"{key} byte count is invalid",
+        )
+        recorded_blob = entry_by_path.get(frozen["path"])
+        _require(
+            recorded_blob is not None,
+            f"{key} is absent from the frozen Git tree",
+        )
+        pointer_blob = lfs_pointer_git_blob_sha1(
+            frozen["raw_sha256"],
+            frozen["bytes"],
+        )
+        _require(
+            pointer_blob == recorded_blob["qualified_git_blob_sha1"],
+            f"{key} raw artifact claim does not bind to the frozen LFS pointer",
+        )
+        lfs_pointer_blobs[key] = pointer_blob
 
     delta = fixture["public_head_delta"]
     _require(
@@ -327,6 +367,8 @@ def reconcile(
             "adapter_receipt_directory_sha256": candidate["adapter_file"][
                 "receipt_directory_sha256"
             ],
+            "model_lfs_pointer_git_blob_sha1": lfs_pointer_blobs["model_file"],
+            "adapter_lfs_pointer_git_blob_sha1": lfs_pointer_blobs["adapter_file"],
             "digest_domain": fixture_binding["digest_domain"],
         },
         "current_public_head_equivalence": {

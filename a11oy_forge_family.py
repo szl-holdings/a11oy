@@ -76,8 +76,8 @@ _MODELS = (
     },
 )
 
-# repo -> {"at": epoch, "files": {name: bytes}}
-_byte_cache: dict = {}
+# (repo, immutable revision) -> {"at": epoch, "files": {name: bytes}}
+_byte_cache: dict[tuple[str, str], dict] = {}
 
 
 def _now_iso() -> str:
@@ -93,17 +93,22 @@ def _canonical(payload: dict) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-async def _fetch_receipt_bytes(client: httpx.AsyncClient, repo: str) -> dict:
-    cached = _byte_cache.get(repo)
+async def _fetch_receipt_bytes(
+    client: httpx.AsyncClient,
+    repo: str,
+    revision: str,
+) -> dict:
+    cache_key = (repo, revision)
+    cached = _byte_cache.get(cache_key)
     if cached and (time.time() - cached["at"]) < _CACHE_TTL_SECONDS:
         return cached
     files = {}
     for name in _RECEIPT_FILES:
-        resp = await client.get(f"{_HF}/{repo}/resolve/main/{name}")
+        resp = await client.get(f"{_HF}/{repo}/resolve/{revision}/{name}")
         resp.raise_for_status()
         files[name] = resp.content
     entry = {"at": time.time(), "files": files}
-    _byte_cache[repo] = entry
+    _byte_cache[cache_key] = entry
     return entry
 
 
@@ -352,12 +357,14 @@ async def _forge_family_handler():
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         for cfg in _MODELS:
             try:
-                public_head_revision = None
-                if cfg.get("artifactReconciliation"):
-                    public_head_revision = await _fetch_public_head(
-                        client, cfg["hfRepo"]
-                    )
-                entry = await _fetch_receipt_bytes(client, cfg["hfRepo"])
+                public_head_revision = await _fetch_public_head(
+                    client, cfg["hfRepo"]
+                )
+                entry = await _fetch_receipt_bytes(
+                    client,
+                    cfg["hfRepo"],
+                    public_head_revision,
+                )
                 bands.append(
                     _band_for_model(
                         cfg,

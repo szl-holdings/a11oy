@@ -64,6 +64,8 @@
         "model_receipt_directory_sha256",
         "adapter_raw_sha256",
         "adapter_receipt_directory_sha256",
+        "model_lfs_pointer_git_blob_sha1",
+        "adapter_lfs_pointer_git_blob_sha1",
         "digest_domain"
       ],
       "properties": {
@@ -82,6 +84,12 @@
         },
         "adapter_receipt_directory_sha256": {
           "const": "5eb426c1a4cd17faa4c46590d3aff22671023f64a179e7b47b5bcab4c59e47cd"
+        },
+        "model_lfs_pointer_git_blob_sha1": {
+          "const": "1a6ef2a0a8e2281b4d543060f9df5f766d6ee764"
+        },
+        "adapter_lfs_pointer_git_blob_sha1": {
+          "const": "0cb49f48902ad765f489fd45b21cc186afca93ad"
         },
         "digest_domain": {
           "const": "SHA256_UTF8_BASENAME_CONCAT_RAW_FILE_BYTES"

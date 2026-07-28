@@ -14,7 +14,9 @@ The evidence deliberately separates three claims:
    `model.safetensors` and `adapter/adapter_model.safetensors`, and separately
    checked the original signer's
    `SHA256(UTF8(basename) || raw file bytes)` digest. Those digest domains are
-   different by design.
+   different by design. The reconciler reconstructs each canonical Git LFS
+   pointer from the measured raw SHA-256 and byte count, then verifies its Git
+   blob SHA-1 against the frozen qualified/public trees.
 3. **Current public-head equivalence.** At observed public head
    `2e62cb5f8e6a17052da532305a467861094a2109`, all 12 inference-bearing Git
    blobs equal the qualified revision. The only delta is the additive,

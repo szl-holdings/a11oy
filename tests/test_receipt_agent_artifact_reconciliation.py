@@ -106,6 +106,41 @@ def test_qualification_receipt_self_digest_tamper_refuses():
         RECON.reconcile(fixture, qualification)
 
 
+def test_coordinated_artifact_metadata_tamper_cannot_escape_lfs_binding():
+    fixture = load(FIXTURE)
+    qualification = load(QUALIFICATION)
+    content = b"x"
+    raw_sha256, receipt_directory_sha256 = RECON.raw_and_receipt_digest(
+        "model.safetensors",
+        content,
+    )
+    tampered_claim = {
+        "path": "model.safetensors",
+        "bytes": len(content),
+        "sha256": raw_sha256,
+        "receipt_directory_sha256": receipt_directory_sha256,
+    }
+    qualification["candidate"]["model_file"] = tampered_claim
+    qualification["receipt_sha256"] = RECON.receipt_digest(qualification)
+    fixture["qualification_receipt"]["receipt_sha256"] = qualification[
+        "receipt_sha256"
+    ]
+    fixture["qualification_receipt"]["artifact_binding"]["model_file"] = {
+        "path": tampered_claim["path"],
+        "bytes": tampered_claim["bytes"],
+        "raw_sha256": tampered_claim["sha256"],
+        "receipt_directory_sha256": tampered_claim[
+            "receipt_directory_sha256"
+        ],
+    }
+
+    with pytest.raises(
+        RECON.ReconciliationRefusal,
+        match="raw artifact claim does not bind to the frozen LFS pointer",
+    ):
+        RECON.reconcile(fixture, qualification)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [

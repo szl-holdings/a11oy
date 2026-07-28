@@ -194,3 +194,183 @@ def test_public_head_fetch_requires_lowercase_hex():
 
     with pytest.raises(ValueError, match="lowercase hex head"):
         asyncio.run(FORGE._fetch_public_head(FakeClient(), "owner/repository"))
+
+
+def test_receipt_fetch_is_revision_pinned_and_cache_is_revision_scoped():
+    class FakeResponse:
+        def __init__(self, content):
+            self.content = content
+
+        def raise_for_status(self):
+            return None
+
+    class FakeClient:
+        def __init__(self):
+            self.urls = []
+
+        async def get(self, url):
+            self.urls.append(url)
+            revision = url.split("/resolve/", 1)[1].split("/", 1)[0]
+            return FakeResponse(revision.encode("ascii"))
+
+    revision_a = "a" * 40
+    revision_b = "b" * 40
+    client = FakeClient()
+    FORGE._byte_cache.clear()
+
+    first = asyncio.run(
+        FORGE._fetch_receipt_bytes(client, "owner/repository", revision_a)
+    )
+    cached = asyncio.run(
+        FORGE._fetch_receipt_bytes(client, "owner/repository", revision_a)
+    )
+    second = asyncio.run(
+        FORGE._fetch_receipt_bytes(client, "owner/repository", revision_b)
+    )
+
+    assert first is cached
+    assert first["files"]["owner_pubkey.json"] == revision_a.encode("ascii")
+    assert second["files"]["owner_pubkey.json"] == revision_b.encode("ascii")
+    assert len(client.urls) == len(FORGE._RECEIPT_FILES) * 2
+    assert all("/resolve/main/" not in url for url in client.urls)
+    assert {
+        revision
+        for revision in (revision_a, revision_b)
+        if any(f"/resolve/{revision}/" in url for url in client.urls)
+    } == {revision_a, revision_b}
+    assert set(FORGE._byte_cache) == {
+        ("owner/repository", revision_a),
+        ("owner/repository", revision_b),
+    }
+
+
+def test_handler_binds_receipts_to_the_same_observed_revision(monkeypatch):
+    receipt_files = _signed_files()
+    observed_head = PUBLIC_HEAD
+
+    class FakeResponse:
+        def __init__(self, *, content=None, payload=None):
+            self.content = content
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.urls = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        async def get(self, url):
+            self.urls.append(url)
+            if "/api/models/" in url:
+                return FakeResponse(payload={"sha": observed_head})
+            marker = f"/resolve/{observed_head}/"
+            assert marker in url
+            filename = url.split(marker, 1)[1]
+            return FakeResponse(content=receipt_files[filename])
+
+    clients = []
+
+    def build_client(*args, **kwargs):
+        client = FakeClient(*args, **kwargs)
+        clients.append(client)
+        return client
+
+    monkeypatch.delenv("A11OY_OWNER_KEYID", raising=False)
+    monkeypatch.setattr(FORGE, "_MODELS", (_receipt_agent_config(),))
+    monkeypatch.setattr(FORGE.httpx, "AsyncClient", build_client)
+    FORGE._byte_cache.clear()
+
+    result = asyncio.run(FORGE._forge_family_handler())
+
+    assert result["models"][0]["verified"] is True
+    assert len(clients) == 1
+    assert all("/resolve/main/" not in url for url in clients[0].urls)
+    assert {
+        url for url in clients[0].urls if "/resolve/" in url
+    } == {
+        f"{FORGE._HF}/{_receipt_agent_config()['hfRepo']}"
+        f"/resolve/{observed_head}/{name}"
+        for name in FORGE._RECEIPT_FILES
+    }
+
+
+def test_handler_head_change_refuses_and_does_not_reuse_prior_revision_cache(
+    monkeypatch,
+):
+    receipt_files = _signed_files()
+    observed_heads = iter((PUBLIC_HEAD, "b" * 40))
+
+    class FakeResponse:
+        def __init__(self, *, content=None, payload=None):
+            self.content = content
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.observed_head = next(observed_heads)
+            self.urls = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        async def get(self, url):
+            self.urls.append(url)
+            if "/api/models/" in url:
+                return FakeResponse(payload={"sha": self.observed_head})
+            marker = f"/resolve/{self.observed_head}/"
+            assert marker in url
+            filename = url.split(marker, 1)[1]
+            return FakeResponse(content=receipt_files[filename])
+
+    clients = []
+
+    def build_client(*args, **kwargs):
+        client = FakeClient(*args, **kwargs)
+        clients.append(client)
+        return client
+
+    monkeypatch.delenv("A11OY_OWNER_KEYID", raising=False)
+    monkeypatch.setattr(FORGE, "_MODELS", (_receipt_agent_config(),))
+    monkeypatch.setattr(FORGE.httpx, "AsyncClient", build_client)
+    FORGE._byte_cache.clear()
+
+    first = asyncio.run(FORGE._forge_family_handler())
+    second = asyncio.run(FORGE._forge_family_handler())
+
+    assert first["models"][0]["verified"] is True
+    assert second["models"][0]["verified"] is False
+    assert (
+        second["models"][0]["verificationLayers"]["currentPublicHeadEquivalence"][
+            "state"
+        ]
+        == "PUBLIC_HEAD_CHANGED_RECONCILIATION_REQUIRED"
+    )
+    assert set(FORGE._byte_cache) == {
+        (_receipt_agent_config()["hfRepo"], PUBLIC_HEAD),
+        (_receipt_agent_config()["hfRepo"], "b" * 40),
+    }
+    assert all(
+        f"/resolve/{client.observed_head}/" in url
+        for client in clients
+        for url in client.urls
+        if "/resolve/" in url
+    )
