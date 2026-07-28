@@ -70,6 +70,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any
@@ -110,67 +111,133 @@ def pae(payload_type: str, body: bytes) -> bytes:
 # Key loading (private = runtime secret; public = active or embedded fallback)
 # ---------------------------------------------------------------------------
 
-# Runtime secret env var names, in resolution order. A11oy's shared signer uses
-# SZL_COSIGN_PRIVATE_PEM; the older *_KEY_PEM spelling and legacy aliases remain
-# compatible fallbacks.
-# NEITHER is ever committed — both are runtime-only secrets.
-PRIVATE_KEY_ENV_VARS = ("SZL_COSIGN_PRIVATE_PEM", "SZL_COSIGN_PRIVATE_KEY_PEM", "szlcosig", "szlcosig1", "SZLCOSIG", "SZLCOSIG1")
+# Runtime secret names accepted by the shared loader.  Khipu signing remains
+# fail-closed unless that loader reports a persistent source; its non-strict
+# ephemeral key is still used as the live public alias and by other receipt
+# surfaces in this process.
+PRIVATE_KEY_ENV_VARS = (
+    "SZL_COSIGN_PRIVATE_PEM",
+    "SZL_COSIGN_PRIVATE_KEY_PEM",
+    "A11OY_RECEIPT_KEY_PEM",
+    "szlcosig",
+    "szlcosig1",
+    "SZLCOSIG",
+    "SZLCOSIG1",
+)
+LEGACY_KEYID = KEYID
+VERIFY_KEY_BUNDLE_ENV = "A11OY_RECEIPT_VERIFY_KEYS_PEM"
+VERIFY_KEY_PATHS_ENV = "A11OY_RECEIPT_VERIFY_KEY_PATHS"
+
+
+def _load_shared_key():
+    """Return the process-wide signer tuple without exposing key material."""
+    try:
+        from a11oy_signing_key import load_signing_key
+        return load_signing_key()
+    except Exception as e:
+        return None, "", "unavailable", "shared key load failed: %s" % type(e).__name__
 
 
 def _load_private_key():
-    """Load the Cosign EC private key from the runtime secret.
+    """Return only a persistent shared P-256 signer.
 
-    Resolution order (additive, never raises into the request path):
-      1. SZL_COSIGN_PRIVATE_PEM       (canonical shared A11oy signer)
-      2. SZL_COSIGN_PRIVATE_KEY_PEM   (compatibility spelling)
+    The process-wide loader may produce an honest boot-ephemeral identity for
+    non-strict receipt surfaces. Khipu keeps its established no-secret
+    contract: without a persistent configured source it emits UNSIGNED.
+    """
+    private_key, _public_pem, source, _error = _load_shared_key()
+    if not (
+        private_key is not None
+        and isinstance(source, str)
+        and source.startswith("persistent:")
+    ):
+        return None
+    return private_key
 
-    Returns None if no secret is present or the value is invalid — the caller
-    then emits an honest UNSIGNED envelope. NEVER fabricates a key."""
-    pem = None
-    for _name in PRIVATE_KEY_ENV_VARS:
-        val = os.environ.get(_name)
-        if val:
-            pem = val
-            break
-    if not pem:
+
+def active_public_key_pem() -> str:
+    """Return the exact public key exposed by the shared live aliases."""
+    _private_key, public_pem, _source, _error = _load_shared_key()
+    return public_pem or ""
+
+
+def _pem_blocks(value: str) -> list[str]:
+    return [
+        block.strip() + "\n"
+        for block in re.findall(
+            r"-----BEGIN PUBLIC KEY-----.*?-----END PUBLIC KEY-----",
+            value or "",
+            flags=re.DOTALL,
+        )
+    ]
+
+
+def _configured_verification_pems() -> list[str]:
+    """Load explicitly retained public keys; private material is never read."""
+    pems = _pem_blocks(os.environ.get(VERIFY_KEY_BUNDLE_ENV, ""))
+    raw_paths = os.environ.get(VERIFY_KEY_PATHS_ENV, "")
+    for path in (item.strip() for item in raw_paths.split(os.pathsep)):
+        if not path:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                pems.extend(_pem_blocks(handle.read()))
+        except Exception:
+            continue
+    return pems
+
+
+def _public_key_record(public_pem: str, source: str):
+    if not public_pem:
         return None
     try:
-        # Allow the secret to be provided base64-wrapped (HF UI friendliness)
-        if "BEGIN" not in pem:
-            pem = base64.b64decode(pem).decode("utf-8")
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key
+        from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric import ec
-        private_key = load_pem_private_key(pem.encode("utf-8"), password=None)
-        if not isinstance(private_key, ec.EllipticCurvePrivateKey):
+        public_key = serialization.load_pem_public_key(public_pem.encode("utf-8"))
+        if not isinstance(public_key, ec.EllipticCurvePublicKey):
             return None
-        if getattr(private_key.curve, "name", "") != "secp256r1":
+        if getattr(public_key.curve, "name", "") != "secp256r1":
             return None
-        return private_key
+        normalized = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("ascii")
+        fingerprint = sha256_content_address(
+            normalized.strip().encode("ascii"), purpose="public-key"
+        )
+        return {
+            "fingerprint": fingerprint,
+            "public_key": public_key,
+            "public_pem": normalized,
+            "source": source,
+        }
     except Exception:
         return None
 
 
-def active_public_key_pem() -> str:
-    """Return the public half of the active runtime signer.
+def _verification_keyring() -> list[dict[str, Any]]:
+    """Return active, embedded-historical, and operator-retained public keys."""
+    candidates = [
+        (active_public_key_pem(), "active"),
+        (COSIGN_PUBLIC_PEM, "embedded-historical"),
+    ]
+    candidates.extend(
+        (pem, "operator-retained") for pem in _configured_verification_pems()
+    )
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for public_pem, source in candidates:
+        record = _public_key_record(public_pem, source)
+        if record is None or record["fingerprint"] in seen:
+            continue
+        seen.add(record["fingerprint"])
+        records.append(record)
+    return records
 
-    When a private runtime secret is configured, deriving its public key keeps
-    newly emitted receipts, the in-process verifier, and the live public-key
-    routes cryptographically aligned. With no runtime signer, preserve the
-    published organization key as the historical/offline verification fallback.
-    """
-    private_key = _load_private_key()
-    if private_key is None:
-        return COSIGN_PUBLIC_PEM.strip() + "\n"
-    from cryptography.hazmat.primitives import serialization
-    return private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
 
-
-def _load_public_key():
-    from cryptography.hazmat.primitives.serialization import load_pem_public_key
-    return load_pem_public_key(active_public_key_pem().encode("utf-8"))
+def active_keyid() -> str:
+    record = _public_key_record(active_public_key_pem(), "active")
+    return record["fingerprint"] if record is not None else ""
 
 
 def signing_available() -> bool:
@@ -178,9 +245,7 @@ def signing_available() -> bool:
 
 
 def public_key_fingerprint() -> str:
-    return sha256_content_address(
-        active_public_key_pem().strip().encode(), purpose="public-key"
-    )
+    return active_keyid()
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +279,7 @@ def sign_payload(payload_obj: Any, payload_type: str = KHIPU_PAYLOAD_TYPE) -> di
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives import hashes
     sig = priv.sign(to_sign, ec.ECDSA(hashes.SHA256()))
-    env["signatures"] = [{"sig": base64.b64encode(sig).decode("ascii"), "keyid": KEYID}]
+    env["signatures"] = [{"sig": base64.b64encode(sig).decode("ascii"), "keyid": active_keyid()}]
     env["signed"] = True
     env["honesty"] = ("REAL — ECDSA-P256-SHA256 over DSSE PAE; verifiable by "
                       "`cosign verify-blob --key cosign.pub` and by the /khipu/verify endpoint.")
@@ -223,12 +288,18 @@ def sign_payload(payload_obj: Any, payload_type: str = KHIPU_PAYLOAD_TYPE) -> di
 
 
 def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
-    """Verify a DSSE envelope's signature against the SZLHOLDINGS cosign.pub.
+    """Verify a DSSE envelope against the identified retained P-256 key.
 
-    Recomputes PAE over the embedded payload + payloadType and checks the
-    ECDSA signature. Returns a structured verdict (never raises)."""
-    out: dict[str, Any] = {"keyid_expected": KEYID, "pub_fingerprint_sha256": public_key_fingerprint(),
-                           "verify_key_url": PUB_KEY_URL}
+    New envelopes carry the SHA-256 public-key fingerprint as keyid.
+    Historical envelopes using szlholdings-cosign are tried against the
+    bounded keyring so a configured rotation does not invalidate old receipts.
+    """
+    active_id = active_keyid()
+    out: dict[str, Any] = {
+        "keyid_expected": active_id or LEGACY_KEYID,
+        "pub_fingerprint_sha256": active_id or None,
+        "verify_key_url": PUB_KEY_URL,
+    }
     try:
         payload_b64 = env.get("payload")
         payload_type = env.get("payloadType")
@@ -239,40 +310,92 @@ def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
             return {**out, "verified": False, "reason": "no signatures (unsigned envelope)"}
         body = base64.b64decode(payload_b64)
         to_verify = pae(payload_type, body)
-        out["pae_sha256"] = sha256_content_address(to_verify, purpose="dsse-pae")
-        pub = _load_public_key()
+        out["pae_sha256"] = sha256_content_address(
+            to_verify, purpose="dsse-pae"
+        )
+        ring = _verification_keyring()
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives import hashes
         from cryptography.exceptions import InvalidSignature
         results = []
         any_ok = False
-        for s in sigs:
-            sig_b64 = s.get("sig", "")
-            keyid = s.get("keyid", "")
-            if keyid != KEYID:
+        verified_fingerprint = None
+        for signature in sigs:
+            sig_b64 = signature.get("sig", "")
+            keyid = str(signature.get("keyid", ""))
+            requested_fingerprint = (
+                keyid.split(":", 1)[1]
+                if keyid.startswith("sha256:")
+                else keyid
+            )
+            if keyid == LEGACY_KEYID:
+                candidates = ring
+            else:
+                candidates = [
+                    record
+                    for record in ring
+                    if record["fingerprint"] == requested_fingerprint
+                ]
+            if not candidates:
                 results.append({
                     "keyid": keyid,
                     "verified": False,
-                    "reason": "unexpected keyid",
+                    "reason": "unexpected or unavailable keyid",
                 })
                 continue
             try:
-                sig = base64.b64decode(sig_b64)
-                pub.verify(sig, to_verify, ec.ECDSA(hashes.SHA256()))
-                results.append({"keyid": keyid, "verified": True})
-                any_ok = True
-            except InvalidSignature:
-                results.append({"keyid": keyid, "verified": False, "reason": "signature mismatch"})
-            except Exception as e:  # malformed sig
-                print(f"[dsse] signature verify error: {e!r}", file=sys.stderr)
-                results.append({"keyid": keyid, "verified": False, "reason": "signature verify error"})
-        # Optionally decode the payload back for the caller's convenience
+                signature_bytes = base64.b64decode(sig_b64)
+            except Exception:
+                results.append({
+                    "keyid": keyid,
+                    "verified": False,
+                    "reason": "signature decode error",
+                })
+                continue
+            matched = None
+            for record in candidates:
+                try:
+                    record["public_key"].verify(
+                        signature_bytes,
+                        to_verify,
+                        ec.ECDSA(hashes.SHA256()),
+                    )
+                    matched = record
+                    break
+                except InvalidSignature:
+                    continue
+                except Exception as e:
+                    print(
+                        f"[dsse] signature verify error: {e!r}",
+                        file=sys.stderr,
+                    )
+            if matched is None:
+                results.append({
+                    "keyid": keyid,
+                    "verified": False,
+                    "reason": "signature mismatch",
+                })
+                continue
+            results.append({
+                "keyid": keyid,
+                "verified": True,
+                "pub_fingerprint_sha256": matched["fingerprint"],
+                "key_source": matched["source"],
+            })
+            any_ok = True
+            verified_fingerprint = matched["fingerprint"]
         try:
             out["payload_decoded"] = json.loads(body)
         except Exception:
             pass
-        return {**out, "verified": any_ok, "signatures": results,
-                "payloadType": payload_type}
+        if verified_fingerprint:
+            out["pub_fingerprint_sha256"] = verified_fingerprint
+        return {
+            **out,
+            "verified": any_ok,
+            "signatures": results,
+            "payloadType": payload_type,
+        }
     except Exception as e:
         print(f"[dsse] verify_envelope error: {e!r}", file=sys.stderr)
         return {**out, "verified": False, "reason": "verification error"}
