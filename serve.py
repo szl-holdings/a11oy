@@ -550,6 +550,24 @@ async def quantum_utility_receipt_replay(request: Request) -> JSONResponse:
         )
 
 
+# Governed Delta Workspace (wave 28): authenticated, deny-by-default state
+# transitions over SQLite WAL, idempotency keys, the shared receipt substrate,
+# structured theorem inputs, and honest benchmark metadata. Runtime route
+# decisions are REAL; benchmark claims remain UNMEASURED until a captured run.
+# Registered before both catch-alls.
+try:
+    from routers import gdw_frontier as _gdw_frontier
+
+    _GDW_FRONTIER_STATUS = _gdw_frontier.register(app, ns="a11oy")
+except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface closed
+    _GDW_FRONTIER_STATUS = {
+        "ok": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_gdw_frontier_error).__name__,
+        "routes": [],
+    }
+
+
 # External numerical-engine frontier (wave 18). The module accepts only fixed
 # matrix solve, symmetric-eigenvalue, and reference-vector operations. GNU
 # Octave and MATLAB remain external installations; missing engine, offline

@@ -4,3 +4,5 @@ SPDX-License-Identifier: Apache-2.0
 -/
 
 import LutarPolicy.Theorems
+import LutarPolicy.GDW.ReceiptReplay
+import LutarPolicy.GDW.DeltaStateInvariant
