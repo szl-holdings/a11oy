@@ -114,7 +114,10 @@ RUN pip install --no-cache-dir \
     "lmdb==2.2.1" \
     "slowapi==0.1.10" \
     "defusedxml==0.7.1" \
-    "numpy==2.1.3"
+    "numpy==2.1.3" && \
+    pip install --no-cache-dir \
+      --index-url https://download.pytorch.org/whl/cpu \
+      "torch==2.13.0+cpu"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
@@ -612,8 +615,11 @@ COPY szl_spend_cap.py ./szl_spend_cap.py
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # … (full rationale: docs/DOCKERFILE_NOTES.md §91)
 COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py szl_compute_pool_contract.py szl_estateconstitution.py ./
-COPY gdw_attention.py gdw_workspace.py gdw_telemetry.py gdw_proofs.py ./
-COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
+COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/gdw.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
+# WAVE 26 GDW — package-local core, governed API, persistence, and operator assets.
+# serve.py prepends this exact directory to sys.path and registers it fail-closed.
+COPY web/packages/a11oy-core/py/szl_gdw/__init__.py web/packages/a11oy-core/py/szl_gdw/api.py web/packages/a11oy-core/py/szl_gdw/kernel_adapter.py web/packages/a11oy-core/py/szl_gdw/lambda_attnres.py web/packages/a11oy-core/py/szl_gdw/math_core.py web/packages/a11oy-core/py/szl_gdw/models.py web/packages/a11oy-core/py/szl_gdw/persistence.py web/packages/a11oy-core/py/szl_gdw/telemetry.py web/packages/a11oy-core/py/szl_gdw/workspace.py ./web/packages/a11oy-core/py/szl_gdw/
+COPY web/packages/a11oy-core/py/szl_gdw/static/index.html web/packages/a11oy-core/py/szl_gdw/static/app.js web/packages/a11oy-core/py/szl_gdw/static/styles.css ./web/packages/a11oy-core/py/szl_gdw/static/
 
 # FORGE-FAMILY WALL (2026-07-14): /api/forge/family — server-side ed25519
 # … (full rationale: docs/DOCKERFILE_NOTES.md §92)

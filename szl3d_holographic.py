@@ -129,6 +129,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "agenttts", "cat": "reasoning", "title": "Agent Test-Time Compute · Multi-Agent TTC (best-of-N agents + verifier-guided selection)", "owner": "WaveQ-Dev3"},
     {"id": "cryptopipeline", "cat": "proof", "title": "Crypto-Pipeline · End-to-End AI Lifecycle Verifiable Transcript (MODELED)", "owner": "WaveQ-Dev2"},
     {"id": "gateddelta", "cat": "attention", "title": "Gated Delta-Rule Linear Attention · state recall (MODELED)", "owner": "WaveQ-Dev1"},
+    {"id": "gdw", "cat": "governance", "title": "Governed Delta Workspace · Lambda-AttnRes · immutable disposal (MODELED)", "owner": "Wave26"},
     {"id": "agentops", "cat": "reasoning", "title": "Agent Ops · bounded operate loop (ground→act→self-eval→gate, Ouroboros-bounded, writer≠judge)", "owner": "WaveP-Dev5"},
     {"id": "lgmi", "cat": "governance", "title": "LGMI · Λ-Governed Mechanistic Interpretability (synthesis)", "owner": "WaveP-Dev4"},
     {"id": "gnqs", "cat": "quant", "title": "GNQS · Governed-Norm Quantization Stability (synthesis)", "owner": "WaveP-Dev4"},

@@ -1,5 +1,13 @@
 # Governed Delta Workspace operational harness
 
+> **Runtime status: QUARANTINED.** The Wave 28 router is not registered in
+> `serve.py` and its Python modules are not copied into the runtime image. The
+> local measurements below remain historical harness evidence only. The
+> registered `/api/a11oy/v1/gdw` implementation is Wave 26, which routes state
+> transitions through the repository governance gateway and persists its own
+> durable evidence. Wave 28 may return only after governance authorization and
+> post-commit receipt/proof outbox recovery are proved end to end.
+
 GDW binds an authenticated FastAPI control surface to deny-by-default routing,
 SQLite WAL state, idempotency keys, A11oy's receipt substrate, structured theorem
 inputs, load tooling, and an offline evidence dashboard.
@@ -20,7 +28,9 @@ mode writes each artifact before returning and is used by the Postman flow.
 
 ## Runtime
 
-Set `GDW_AUTH_TOKEN`, `GDW_DB_PATH`, and `GDW_PROOF_DIR`, then start `serve:app`.
+The following is the quarantined Wave 28 harness contract, not a served route
+contract. Set `GDW_AUTH_TOKEN`, `GDW_DB_PATH`, and `GDW_PROOF_DIR` only when
+running that harness in an isolated development environment.
 Every write requires `Authorization: Bearer ...` and a unique `X-Request-Id`.
 Reusing an id with identical content replays the prior response; changing the
 content returns HTTP 409.

@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Wave 26 GDW
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/wave26-gdw.yml"
+      - "Dockerfile"
+      - "serve.py"
+      - "docs/WAVE26_GDW_*.md"
+      - "pages/console.html"
+      - "proofs/lutar-lean/**"
+      - "static/3d/holographic.html"
+      - "static/3d/surfaces/gdw.js"
+      - "szl3d_holographic.py"
+      - "tests/test_demo_critical_routes.py"
+      - "tests/test_gdw_surface.py"
+      - "tools/check_surface_registry_sync.py"
+      - "web/packages/a11oy-core/py/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wave26-gdw.yml"
+      - "Dockerfile"
+      - "serve.py"
+      - "docs/WAVE26_GDW_*.md"
+      - "pages/console.html"
+      - "proofs/lutar-lean/**"
+      - "static/3d/holographic.html"
+      - "static/3d/surfaces/gdw.js"
+      - "szl3d_holographic.py"
+      - "tests/test_demo_critical_routes.py"
+      - "tests/test_gdw_surface.py"
+      - "tools/check_surface_registry_sync.py"
+      - "web/packages/a11oy-core/py/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: web/packages/a11oy-core/py/requirements-test.txt
+      - name: Install pinned contract dependencies
+        run: python -m pip install --requirement web/packages/a11oy-core/py/requirements-test.txt
+      - name: Execute GDW contracts
+        env:
+          PYTHONPATH: web/packages/a11oy-core/py
+        run: >-
+          python -m pytest -q
+          web/packages/a11oy-core/py/szl_gdw/tests
+          tests/test_gdw_surface.py
+      - name: Verify deploy and registry wiring
+        run: |
+          python tools/check_surface_registry_sync.py
+          node --check web/packages/a11oy-core/py/szl_gdw/static/app.js
+          node --check static/3d/surfaces/gdw.js
+
+  lean-kernel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: proofs/lutar-lean
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned elan
+        working-directory: .
+        run: |
+          set -euo pipefail
+          ELAN_VER=v4.2.3
+          ELAN_TARBALL=elan-x86_64-unknown-linux-gnu.tar.gz
+          EXPECTED=df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2
+          curl -sSfL \
+            "https://github.com/leanprover/elan/releases/download/$ELAN_VER/$ELAN_TARBALL" \
+            -o /tmp/elan.tar.gz
+          echo "$EXPECTED  /tmp/elan.tar.gz" | sha256sum -c
+          mkdir -p /tmp/elan-init
+          tar xzf /tmp/elan.tar.gz -C /tmp/elan-init
+          /tmp/elan-init/elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Compile Wave 26 hooks in the pinned Lean project
+        run: |
+          set -euo pipefail
+          test "$(cat lean-toolchain)" = "leanprover/lean4:v4.13.0"
+          elan toolchain install "leanprover/lean4:v4.13.0" || true
+          elan default "leanprover/lean4:v4.13.0"
+          lake exe cache get
+          lake env lean Lutar/LambdaAttnRes.lean
+          lake env lean Lutar/GovernedWorkspace.lean

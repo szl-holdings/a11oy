@@ -2,7 +2,11 @@
 
 Date: 2026-07-28
 
-Status: `MEASURED` in an isolated local harness; production and Hugging Face deployment remain `UNVERIFIED` until the protected merge, image publication, exact-source relock, and live endpoint checks complete.
+Status: `MEASURED` in an isolated local harness and `QUARANTINED` from the
+served runtime. The Wave 28 router is not registered and its modules are not
+copied into the image because repository-governance authorization and
+post-commit receipt/proof outbox recovery were not proved. These measurements
+do not establish production or Hugging Face deployment readiness.
 
 ## Operational scope
 
