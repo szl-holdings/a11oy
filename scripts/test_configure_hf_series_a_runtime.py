@@ -103,3 +103,62 @@ def test_plan_variables_fails_closed_on_secret_variable_collision() -> None:
             {"A11OY_REQUIRE_PERSISTENT_STORAGE"},
             {"A11OY_REQUIRE_PERSISTENT_STORAGE": "1"},
         )
+
+
+class EventuallyConsistentApi:
+    def __init__(self, volume_snapshots, variable_snapshots) -> None:
+        self.volume_snapshots = list(volume_snapshots)
+        self.variable_snapshots = list(variable_snapshots)
+
+    def get_space_runtime(self, *, repo_id: str):
+        assert repo_id == config.CANONICAL_SPACE
+        value = self.volume_snapshots.pop(0)
+        return SimpleNamespace(volumes=value)
+
+    def get_space_variables(self, *, repo_id: str):
+        assert repo_id == config.CANONICAL_SPACE
+        return self.variable_snapshots.pop(0)
+
+
+def exact_variables() -> dict:
+    return {
+        name: SimpleNamespace(value=value)
+        for name, value in config.SERIES_A_VARIABLES.items()
+    }
+
+
+def test_await_readback_accepts_bounded_eventual_consistency() -> None:
+    api = EventuallyConsistentApi(
+        [[], [], [volume(config.CANONICAL_BUCKET, "/data")]],
+        [{}, exact_variables(), exact_variables()],
+    )
+    sleeps = []
+
+    observed, attempts = config.await_readback(
+        api,
+        repo_id=config.CANONICAL_SPACE,
+        bucket=config.CANONICAL_BUCKET,
+        secret_names={config.CANONICAL_SIGNING_SECRET},
+        attempts=3,
+        delay_seconds=0,
+        sleep=sleeps.append,
+    )
+
+    assert attempts == 3
+    assert config.volume_record(observed[0])["source"] == config.CANONICAL_BUCKET
+    assert sleeps == [0, 0]
+
+
+def test_await_readback_still_fails_closed_at_bound() -> None:
+    api = EventuallyConsistentApi([[], []], [{}, {}])
+
+    with pytest.raises(config.RuntimeConfigError, match="after 2 attempts"):
+        config.await_readback(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            bucket=config.CANONICAL_BUCKET,
+            secret_names={config.CANONICAL_SIGNING_SECRET},
+            attempts=2,
+            delay_seconds=0,
+            sleep=lambda _seconds: None,
+        )
