@@ -1,7 +1,7 @@
 # Governed Delta Workspace operational harness
 
 GDW binds an authenticated FastAPI control surface to deny-by-default routing,
-the canonical file-backed Colang policy, SQLite WAL state, idempotency keys,
+the canonical file-backed Colang policy, versioned SQLite state, idempotency keys,
 atomic local receipts, structured theorem inputs, load tooling, and an offline
 evidence dashboard.
 
@@ -24,11 +24,24 @@ cross-system two-phase commit.
 
 ## Runtime
 
-Set `GDW_AUTH_TOKEN`, `GDW_DB_PATH`, `GDW_PROOF_DIR`, and
-`GDW_RECEIPT_PROJECTION_DIR`, then start `serve:app`. Every write requires
-`Authorization: Bearer ...` and a unique `X-Request-Id`.
+Production starts through `gdw_runtime.py`, verifies an attached persistent
+mount, provisions or validates schema v2, selects the declared network-safe
+SQLite journal, then supervises the leased outbox drain and `serve.py`.
+`GDW_CREDENTIALS_JSON` is a secret-managed version-1 credential registry whose
+entries bind a stable `owner_id`, namespace, rotating `key_id`, and scopes to a
+bearer credential. Raw bearer values are never persisted in the workspace.
+Every write requires the `step:write` scope and a unique `X-Request-Id`.
 Reusing an id with identical content replays the prior response; changing the
-content returns HTTP 409.
+content returns HTTP 409. Session, request, receipt, proof, and effect identities
+are scoped by namespace and owner.
+
+Production also requires explicit `/data`-contained database, proof, and receipt
+paths. Per-owner and global quotas are enforced inside the same write
+transaction. Expiration preserves session and idempotency tombstones, garbage
+collection never deletes unexported effects, and permanent export failures use
+bounded backoff before `DEAD_LETTER`. Without a valid credential registry,
+attached mount, exact schema, or running supervisor, health reports
+`UNAVAILABLE` and writes fail closed.
 
 Routes:
 

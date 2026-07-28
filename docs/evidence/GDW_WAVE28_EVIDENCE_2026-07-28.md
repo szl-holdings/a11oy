@@ -12,7 +12,7 @@ The A11oy runtime is the canonical implementation owner. This change adds:
 
 - authenticated GDW step, metrics, metadata, and integrity APIs;
 - replay-safe request IDs with conflict rejection;
-- SQLite WAL persistence with a serialized writer queue;
+- versioned owner-scoped SQLite persistence with a serialized writer queue;
 - ACCEPT, REJECT, and QUARANTINE state transitions;
 - a policy dispatcher for `kda_local`, `laguna_hybrid`, and `mla_global`;
 - deterministic local receipts (the original run used the in-memory A11oy
@@ -50,7 +50,10 @@ responses and `33` errors. Receipts and SQLite integrity appeared complete, but
 the run failed the strict response gate and did not prove cross-system
 atomicity. The post-merge correction moves both receipt and proof projections
 behind one transactional effect outbox with deterministic idempotency keys and
-leased claims. The historical final fresh run completed with zero transport or
+leased claims. The restoration branch additionally binds stable principals,
+per-owner/global quotas, retention tombstones, bounded retry/dead-letter state,
+verified persistent `/data` paths, a network-safe journal, and a supervised
+drain worker. The historical final fresh run completed with zero transport or
 response errors; it is not evidence for the corrected implementation until the
 corrected harness is rerun.
 

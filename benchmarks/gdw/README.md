@@ -4,7 +4,7 @@ These commands produce run-specific evidence. They do not establish a universal
 throughput or production-scale claim.
 
 ```powershell
-$env:GDW_AUTH_TOKEN = 'local-only-token'
+$env:GDW_CREDENTIALS_JSON = '{"version":1,"credentials":[{"owner_id":"local-owner","namespace":"a11oy","key_id":"local-1","token":"replace-with-a-secret-managed-token","scopes":["bench:read","integrity:read","metrics:read","session:read","step:write"]}]}'
 $env:GDW_PROOF_EXPORT_MODE = 'outbox'
 # Full integration target:
 python -m uvicorn serve:app --host 127.0.0.1 --port 8080
@@ -23,3 +23,6 @@ offline HTML, and checksums are written under `output/bench_results/`.
 and receipt/proof projection records, then lets a leased drain export
 idempotently named files outside the write transaction. `sync` mode is rejected
 because an external write before SQLite commit can orphan or duplicate evidence.
+The container entry point supervises bounded drain passes. On persistent
+network-backed storage, use `GDW_SQLITE_JOURNAL=DELETE`,
+`GDW_SQLITE_SYNCHRONOUS=FULL`, and paths contained by the verified mount.

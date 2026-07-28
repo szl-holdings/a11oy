@@ -1,5 +1,6 @@
 """Operational guards for GDW auth, state, receipts, proofs, and concurrency."""
 
+import json
 import sys
 import types
 from concurrent.futures import ThreadPoolExecutor
@@ -11,7 +12,44 @@ from routers import gdw_frontier
 
 
 def make_app(tmp_path, monkeypatch):
-    monkeypatch.setenv("GDW_AUTH_TOKEN", "test-token")
+    monkeypatch.delenv("GDW_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GDW_ALLOW_LEGACY_AUTH", raising=False)
+    monkeypatch.setenv(
+        "GDW_CREDENTIALS_JSON",
+        json.dumps(
+            {
+                "version": 1,
+                "credentials": [
+                    {
+                        "owner_id": "owner-a",
+                        "namespace": "a11oy",
+                        "key_id": "test-a",
+                        "token": "test-token",
+                        "scopes": [
+                            "bench:read",
+                            "integrity:read",
+                            "metrics:read",
+                            "session:read",
+                            "step:write",
+                        ],
+                    },
+                    {
+                        "owner_id": "owner-b",
+                        "namespace": "a11oy",
+                        "key_id": "test-b",
+                        "token": "test-token-b",
+                        "scopes": [
+                            "bench:read",
+                            "integrity:read",
+                            "metrics:read",
+                            "session:read",
+                            "step:write",
+                        ],
+                    },
+                ],
+            }
+        ),
+    )
     monkeypatch.setenv("GDW_DB_PATH", str(tmp_path / "gdw.sqlite3"))
     monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
     monkeypatch.setenv(
@@ -66,6 +104,7 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
         assert body["proof"]["status"] == "OUTBOX_PENDING"
         governance = body["audit"]["governance"]
         assert governance["allowed"] is True
+        assert governance["principal"]["owner_id"] == "owner-a"
         assert governance["reason_codes"] == ["FILE_BACKED_GOVERNANCE_PASS"]
         assert governance["colang"]["policy_files"]
         assert all(
@@ -210,7 +249,7 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     from gdw_proofs import export_proof_payload, export_receipt_projection
     from gdw_workspace import GDWWorkspace
 
-    workspace = GDWWorkspace()
+    workspace = GDWWorkspace(namespace="a11oy", owner_id="owner-a")
     pending = workspace.claim_effects("test-drain", limit=10)
     assert {row["kind"] for row in pending} == {
         "receipt_projection",
@@ -359,7 +398,9 @@ def test_same_request_concurrency_commits_once(tmp_path, monkeypatch):
 
     from gdw_workspace import GDWWorkspace
 
-    integrity = GDWWorkspace().integrity()
+    integrity = GDWWorkspace(
+        namespace="a11oy", owner_id="owner-a"
+    ).integrity()
     assert integrity["counts"]["session_state"] == 1
     assert integrity["counts"]["requests"] == 1
     assert integrity["counts"]["receipts"] == 1
@@ -379,7 +420,7 @@ def test_effect_claim_is_leased_and_retry_uses_same_key(tmp_path, monkeypatch):
     from gdw_proofs import export_receipt_projection
     from gdw_workspace import GDWWorkspace
 
-    workspace = GDWWorkspace()
+    workspace = GDWWorkspace(namespace="a11oy", owner_id="owner-a")
     first = workspace.claim_effects("worker-a", limit=10, lease_seconds=60)
     assert len(first) == 2
     assert workspace.claim_effects("worker-b", limit=10) == []
@@ -421,3 +462,98 @@ def test_sync_export_mode_fails_closed_before_commit(tmp_path, monkeypatch):
     assert response.status_code == 500
     for table in ("session_state", "requests", "receipts", "effect_outbox"):
         assert integrity["counts"][table] == 0
+
+
+def test_owner_keyspaces_are_isolated_at_the_api_boundary(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    owner_a = headers("shared-request")
+    owner_b = {
+        "Authorization": "Bearer test-token-b",
+        "X-Request-Id": "shared-request",
+    }
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="shared-session"),
+            headers=owner_a,
+        )
+        assert first.status_code == 200
+        foreign_read = client.get(
+            "/api/a11oy/v1/gdw/sessions/shared-session",
+            headers={"Authorization": "Bearer test-token-b"},
+        )
+        assert foreign_read.status_code == 404
+        second = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="shared-session"),
+            headers=owner_b,
+        )
+        assert second.status_code == 200
+
+    first_body = first.json()
+    second_body = second.json()
+    assert first_body["principal"]["owner_id"] == "owner-a"
+    assert second_body["principal"]["owner_id"] == "owner-b"
+    assert first_body["step"] == second_body["step"] == 1
+    assert first_body["receipt_hash"] != second_body["receipt_hash"]
+
+
+def test_health_requires_governance_readiness(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: False)
+    with TestClient(app) as client:
+        response = client.get("/api/a11oy/v1/gdw/healthz")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_ready"] is False
+    assert body["governance_ready"] is False
+    assert body["credential_count"] == 2
+
+
+def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "prepared_at": "2026-07-28T00:00:00+00:00",
+            "error": None,
+            "storage": {
+                "database_path": "/data/a11oy/gdw/gdw.sqlite3",
+                "proof_directory": "/data/a11oy/gdw/proofs",
+                "persistent_storage_required": True,
+                "mount_verified": True,
+                "journal_mode_requested": "DELETE",
+                "journal_mode_observed": "DELETE",
+                "synchronous_requested": "FULL",
+                "synchronous_observed": 2,
+                "sqlite_integrity": "ok",
+                "proof_export_mode": "outbox",
+            },
+            "drain": {
+                "enabled": True,
+                "running": True,
+                "worker_id": "private-worker-identity",
+                "last_outcome": "DRAINED",
+                "last_report": {"rows": ["private"]},
+            },
+        },
+    )
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    with TestClient(app) as client:
+        response = client.get("/api/a11oy/v1/gdw/healthz")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "REAL"
+    assert body["write_ready"] is True
+    encoded = json.dumps(body, sort_keys=True)
+    assert "/data/" not in encoded
+    assert "private-worker-identity" not in encoded
+    assert '"rows"' not in encoded
+    assert body["persistence"]["storage"]["sqlite_integrity"] == "ok"

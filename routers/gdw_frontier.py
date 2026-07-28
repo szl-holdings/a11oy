@@ -1,10 +1,10 @@
 """Authenticated Governed Delta Workspace API and benchmark surfaces."""
 
 import hashlib
-import hmac
 import json
 import os
 import re
+import threading
 import time
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
@@ -14,15 +14,31 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from gdw_attention import AttentionFeatures, choose_attention_mode
+from gdw_auth import (
+    AuthConfigurationError,
+    AuthenticationError,
+    Principal,
+    authenticate_bearer,
+    load_credential_registry,
+)
 from gdw_proofs import build_proof_payload, sha256_json
+from gdw_runtime import runtime_health
 from gdw_telemetry import GDWTelemetry
-from gdw_workspace import GDWWorkspace
+from gdw_workspace import (
+    GDWConfigurationError,
+    GDWLifecycleError,
+    GDWQuotaExceeded,
+    GDWWorkspace,
+)
 from szl_sgh_scheduler import build_plan
 
 
 _TELEMETRY = GDWTelemetry()
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _EXPERTS = {"planner", "retriever", "auditor", "verifier", "operator"}
+_AUTH_LOCK = threading.RLock()
+_AUTH_REGISTRY = None
+_AUTH_FINGERPRINT = None
 
 
 class GDWStepRequest(BaseModel):
@@ -61,17 +77,132 @@ def _sha(value) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _authorise(authorization: Optional[str]) -> None:
-    token = os.environ.get("GDW_AUTH_TOKEN")
-    if not token:
+def _credential_registry():
+    global _AUTH_FINGERPRINT, _AUTH_REGISTRY
+    registry_json = os.environ.get("GDW_CREDENTIALS_JSON")
+    legacy_enabled = os.environ.get(
+        "GDW_ALLOW_LEGACY_AUTH", ""
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    legacy_scopes = tuple(
+        value.strip()
+        for value in os.environ.get("GDW_LEGACY_SCOPES", "").split(",")
+        if value.strip()
+    )
+    fingerprint = _sha(
+        {
+            "registry": registry_json,
+            "legacy_enabled": legacy_enabled,
+            "legacy_token": os.environ.get("GDW_AUTH_TOKEN"),
+            "legacy_owner": os.environ.get("GDW_OWNER_ID"),
+            "legacy_namespace": os.environ.get("GDW_NAMESPACE"),
+            "legacy_scopes": legacy_scopes,
+        }
+    )
+    with _AUTH_LOCK:
+        if _AUTH_REGISTRY is not None and _AUTH_FINGERPRINT == fingerprint:
+            return _AUTH_REGISTRY
+        registry = load_credential_registry(
+            registry_json,
+            legacy_enabled=legacy_enabled,
+            legacy_token=os.environ.get("GDW_AUTH_TOKEN"),
+            legacy_owner_id=os.environ.get("GDW_OWNER_ID"),
+            legacy_namespace=os.environ.get("GDW_NAMESPACE"),
+            legacy_scopes=legacy_scopes,
+        )
+        _AUTH_REGISTRY = registry
+        _AUTH_FINGERPRINT = fingerprint
+        return registry
+
+
+def _authorise(
+    authorization: Optional[str],
+    *,
+    namespace: str,
+    required_scopes=(),
+) -> Principal:
+    try:
+        return authenticate_bearer(
+            authorization,
+            _credential_registry(),
+            namespace=namespace,
+            required_scopes=required_scopes,
+        )
+    except AuthConfigurationError as exc:
         raise HTTPException(
             status_code=503,
-            detail="GDW_AUTH_TOKEN is not configured; write surface is unavailable",
+            detail="GDW credential registry is unavailable",
+        ) from exc
+    except AuthenticationError as exc:
+        status = 403 if exc.code in {
+            "credential_revoked",
+            "foreign_namespace",
+            "missing_scopes",
+        } else 401
+        raise HTTPException(status_code=status, detail=exc.code) from exc
+
+
+def _workspace(principal: Principal) -> GDWWorkspace:
+    return GDWWorkspace(
+        namespace=principal.namespace,
+        owner_id=principal.owner_id,
+    )
+
+
+def _governance_ready() -> bool:
+    try:
+        import szl_codename_gate
+        import szl_colang_policy
+
+        policy = szl_colang_policy.get_policy()
+        return bool(
+            policy.loaded
+            and callable(getattr(szl_codename_gate, "scan_text", None))
         )
-    supplied = authorization or ""
-    expected = "Bearer " + token
-    if not hmac.compare_digest(supplied, expected):
-        raise HTTPException(status_code=401, detail="invalid bearer token")
+    except Exception:
+        return False
+
+
+def _public_runtime_health(runtime: dict) -> dict:
+    storage = runtime.get("storage")
+    public_storage = None
+    if isinstance(storage, dict):
+        public_storage = {
+            key: storage.get(key)
+            for key in (
+                "persistent_storage_required",
+                "mount_verified",
+                "journal_mode_requested",
+                "synchronous_requested",
+                "proof_export_mode",
+                "journal_mode_observed",
+                "synchronous_observed",
+                "sqlite_integrity",
+            )
+            if key in storage
+        }
+    drain = runtime.get("drain")
+    public_drain = None
+    if isinstance(drain, dict):
+        public_drain = {
+            key: drain.get(key)
+            for key in (
+                "enabled",
+                "running",
+                "last_outcome",
+                "last_attempt_at",
+                "last_success_at",
+                "last_error",
+            )
+            if key in drain
+        }
+    return {
+        "startup_state": runtime.get("startup_state"),
+        "evidence_label": runtime.get("evidence_label"),
+        "storage": public_storage,
+        "drain": public_drain,
+        "prepared_at": runtime.get("prepared_at"),
+        "error": runtime.get("error"),
+    }
 
 
 def _validate_identifiers(payload: GDWStepRequest, request_id: Optional[str]) -> str:
@@ -102,6 +233,7 @@ def _governance_gate(
     payload_data: dict,
     request_id: str,
     request_digest: str,
+    principal: Principal,
 ) -> dict:
     action = {
         "tool": "execute",
@@ -111,6 +243,9 @@ def _governance_gate(
         "target": payload_data["session_id"],
         "request_id": request_id,
         "request_digest": request_digest,
+        "principal": principal.owner_id,
+        "namespace": principal.namespace,
+        "credential_key_id": principal.key_id,
         "text": payload_data["request"],
         "high_impact": float(payload_data["risk_budget"]) >= 0.75,
         "irreversible": False,
@@ -129,6 +264,11 @@ def _governance_gate(
             "reason_codes": ["DOCTRINE_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
             "writer_is_judge": False,
+            "principal": {
+                "owner_id": principal.owner_id,
+                "namespace": principal.namespace,
+                "key_id": principal.key_id,
+            },
         }
 
     try:
@@ -147,6 +287,11 @@ def _governance_gate(
             "reason_codes": ["CODENAME_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
             "writer_is_judge": False,
+            "principal": {
+                "owner_id": principal.owner_id,
+                "namespace": principal.namespace,
+                "key_id": principal.key_id,
+            },
             "colang": {
                 "decision": colang.get("decision"),
                 "fired_flows": colang.get("fired_flows", []),
@@ -165,6 +310,11 @@ def _governance_gate(
         "decision": "ALLOW" if not reasons else "DENY",
         "reason_codes": reasons or ["FILE_BACKED_GOVERNANCE_PASS"],
         "writer_is_judge": False,
+        "principal": {
+            "owner_id": principal.owner_id,
+            "namespace": principal.namespace,
+            "key_id": principal.key_id,
+        },
         "colang": {
             "decision": colang.get("decision"),
             "fired_flows": colang.get("fired_flows", []),
@@ -188,6 +338,7 @@ def _atomic_receipt(
     after_hash: str,
     scheduler_mode: str,
     governance: dict,
+    principal: Principal,
     timestamp: str,
 ) -> dict:
     receipt = {
@@ -196,6 +347,9 @@ def _atomic_receipt(
         "proposal_id": proposal_id,
         "request_id": request_id,
         "session_id": session_id,
+        "owner_id": principal.owner_id,
+        "namespace": principal.namespace,
+        "credential_key_id": principal.key_id,
         "step": step,
         "state_before_hash": before_hash,
         "state_after_hash": after_hash,
@@ -208,21 +362,36 @@ def _atomic_receipt(
     return receipt
 
 
-def _effect_key(request_id: str, kind: str) -> str:
-    return hashlib.sha256(f"{request_id}:{kind}".encode("utf-8")).hexdigest()
-
-
 def register(app, ns: str = "a11oy"):
     prefix = f"/api/{ns}/v1/gdw"
 
     @app.get(prefix + "/healthz")
     @app.get("/v1/gdw/healthz")
     def gdw_healthz():
+        runtime = runtime_health()
+        public_runtime = _public_runtime_health(runtime)
+        production = os.environ.get(
+            "GDW_PRODUCTION_MODE", ""
+        ).strip().lower() in {"1", "true", "yes", "on"}
+        runtime_ready = (
+            runtime.get("startup_state") == "READY" if production else True
+        )
+        try:
+            credentials = _credential_registry()
+            credential_count = credentials.credential_count
+            auth_ready = True
+        except AuthConfigurationError:
+            credential_count = 0
+            auth_ready = False
+        governance_ready = _governance_ready()
+        write_ready = runtime_ready and auth_ready and governance_ready
         return {
             "service": "gdw-frontier",
-            "status": "REAL",
-            "write_ready": bool(os.environ.get("GDW_AUTH_TOKEN")),
-            "persistence": "SQLITE_WAL",
+            "status": "REAL" if write_ready else "UNAVAILABLE",
+            "write_ready": write_ready,
+            "credential_count": credential_count,
+            "governance_ready": governance_ready,
+            "persistence": public_runtime,
             "benchmark_claim": "UNMEASURED",
         }
 
@@ -231,7 +400,11 @@ def register(app, ns: str = "a11oy"):
     def gdw_bench_meta(
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
-        _authorise(authorization)
+        _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("bench:read",),
+        )
         return {
             "service": "gdw-frontier",
             "implementation_status": "REAL",
@@ -249,7 +422,11 @@ def register(app, ns: str = "a11oy"):
     def gdw_metrics(
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
-        _authorise(authorization)
+        _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("metrics:read",),
+        )
         return PlainTextResponse(
             _TELEMETRY.render(),
             media_type="text/plain; version=0.0.4; charset=utf-8",
@@ -260,8 +437,12 @@ def register(app, ns: str = "a11oy"):
     def gdw_integrity(
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
-        _authorise(authorization)
-        return GDWWorkspace().integrity()
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("integrity:read",),
+        )
+        return _workspace(principal).integrity()
 
     @app.get(prefix + "/sessions/{session_id}")
     @app.get("/v1/gdw/sessions/{session_id}")
@@ -269,10 +450,14 @@ def register(app, ns: str = "a11oy"):
         session_id: str,
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ):
-        _authorise(authorization)
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("session:read",),
+        )
         if not _ID_PATTERN.fullmatch(session_id):
             raise HTTPException(status_code=422, detail="invalid session_id")
-        state = GDWWorkspace().read_session(session_id)
+        state = _workspace(principal).read_session(session_id)
         if state is None:
             raise HTTPException(status_code=404, detail="session not found")
         return state
@@ -285,11 +470,15 @@ def register(app, ns: str = "a11oy"):
         x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id"),
     ):
         started = time.perf_counter()
-        _authorise(authorization)
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("step:write",),
+        )
         request_id = _validate_identifiers(payload, x_request_id)
         payload_data = _dump_model(payload)
         request_digest = _sha(payload_data)
-        workspace = GDWWorkspace()
+        workspace = _workspace(principal)
         selected_mode = "unresolved"
         decision = "ERROR"
         receipt_hash = ""
@@ -321,6 +510,8 @@ def register(app, ns: str = "a11oy"):
                     before_step = 0
                     before_hash = _sha(
                         {
+                            "namespace": principal.namespace,
+                            "owner_id": principal.owner_id,
                             "session_id": payload.session_id,
                             "step": 0,
                             "state": "GENESIS",
@@ -347,7 +538,7 @@ def register(app, ns: str = "a11oy"):
                 selected_mode = routing["mode"]
                 precondition_decision = _decision(payload)
                 governance = _governance_gate(
-                    payload_data, request_id, request_digest
+                    payload_data, request_id, request_digest, principal
                 )
                 decision = precondition_decision
                 if decision == "ACCEPT" and not governance["allowed"]:
@@ -355,12 +546,22 @@ def register(app, ns: str = "a11oy"):
                 mutates = decision == "ACCEPT" and not payload.dry_run
                 step = before_step + 1 if mutates else before_step
                 proposal_id = hashlib.sha256(
-                    (request_id + ":" + request_digest).encode("utf-8")
+                    (
+                        principal.namespace
+                        + ":"
+                        + principal.owner_id
+                        + ":"
+                        + request_id
+                        + ":"
+                        + request_digest
+                    ).encode("utf-8")
                 ).hexdigest()[:32]
                 timestamp = _now()
 
                 if mutates:
                     state = {
+                        "namespace": principal.namespace,
+                        "owner_id": principal.owner_id,
                         "session_id": payload.session_id,
                         "step": step,
                         "previous_state_hash": before_hash,
@@ -386,6 +587,7 @@ def register(app, ns: str = "a11oy"):
                         after_hash=after_hash,
                         scheduler_mode=selected_mode,
                         governance=governance,
+                        principal=principal,
                         timestamp=timestamp,
                     )
                     receipt_hash = receipt["receipt_hash"]
@@ -417,7 +619,12 @@ def register(app, ns: str = "a11oy"):
                 proof_artifact = {
                     "status": "OUTBOX_PENDING",
                     "kind": "proof_export",
-                    "idempotency_key": _effect_key(request_id, "proof_export"),
+                    "idempotency_key": workspace.scoped_effect_key(
+                        principal.namespace,
+                        principal.owner_id,
+                        request_id,
+                        "proof_export",
+                    ),
                     "payload_sha256": proof_payload["payload_sha256"],
                     "formal_status": "NOT_RUN",
                 }
@@ -432,6 +639,11 @@ def register(app, ns: str = "a11oy"):
                     "proposal_id": proposal_id,
                     "request_id": request_id,
                     "session_id": payload.session_id,
+                    "principal": {
+                        "owner_id": principal.owner_id,
+                        "namespace": principal.namespace,
+                        "key_id": principal.key_id,
+                    },
                     "decision": decision,
                     "step": step,
                     "state_hash": after_hash,
@@ -481,7 +693,12 @@ def register(app, ns: str = "a11oy"):
                         "receipt_projection",
                         receipt,
                         sha256_json(receipt),
-                        _effect_key(request_id, "receipt_projection"),
+                        workspace.scoped_effect_key(
+                            principal.namespace,
+                            principal.owner_id,
+                            request_id,
+                            "receipt_projection",
+                        ),
                         timestamp,
                     )
                 workspace.save_effect_outbox(
@@ -490,7 +707,12 @@ def register(app, ns: str = "a11oy"):
                     "proof_export",
                     proof_payload,
                     proof_payload["payload_sha256"],
-                    _effect_key(request_id, "proof_export"),
+                    workspace.scoped_effect_key(
+                        principal.namespace,
+                        principal.owner_id,
+                        request_id,
+                        "proof_export",
+                    ),
                     timestamp,
                 )
 
@@ -503,6 +725,21 @@ def register(app, ns: str = "a11oy"):
             return response
         except HTTPException:
             raise
+        except GDWQuotaExceeded as exc:
+            raise HTTPException(
+                status_code=429,
+                detail="GDW quota exceeded",
+            ) from exc
+        except GDWLifecycleError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail="GDW object is outside its active lifecycle",
+            ) from exc
+        except GDWConfigurationError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW durable workspace is unavailable",
+            ) from exc
         except Exception as exc:
             _TELEMETRY.observe(
                 (time.perf_counter() - started) * 1000.0,
