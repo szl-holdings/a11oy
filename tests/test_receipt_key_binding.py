@@ -135,9 +135,34 @@ def test_root_wow_and_series_a_share_one_process_key(tmp_path) -> None:
     assert szl_dsse.active_public_key_pem() == public_pem
     assert serve._A11OY_KEYID == expected
     assert a11oy_dev1_endpoints._KEYID == expected[:16]
-    assert service.signer.keyid == hashlib.sha256(
-        public_pem.encode("utf-8")
-    ).hexdigest()
+    assert service.signer.keyid == expected
+
+
+def test_public_verifier_accepts_series_a_runtime_signature(tmp_path) -> None:
+    service = series_a_control_plane.Service(
+        str(tmp_path / "series-a.sqlite3")
+    )
+    envelope = service.signer.sign(
+        {
+            "schema": series_a_control_plane.SCHEMA_RECEIPT,
+            "kind": "test.series-a.runtime.verify",
+        }
+    )
+
+    response = TestClient(serve.app).post(
+        "/api/a11oy/v1/verify/receipt",
+        json={"envelope": envelope},
+    )
+    assert response.status_code == 200
+    signature = next(
+        check
+        for check in response.json()["checks"]
+        if check["check"] == "signature"
+    )
+    assert response.json()["verdict"] == "PARTIAL"
+    assert signature["status"] == "VERIFIED"
+    assert signature["keyid_expected"] == serve._A11OY_KEYID
+    assert signature["verify_key_url"] == "/cosign.pub"
 
 
 def test_every_live_public_key_alias_serves_the_shared_signer() -> None:
