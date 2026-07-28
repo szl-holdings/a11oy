@@ -4558,6 +4558,20 @@ async def startup() -> None:
     global _node_proc, _http_client
     load_gates()
     _http_client = httpx.AsyncClient(timeout=30.0)
+    try:
+        from routers.series_a_control_plane import start_registered_service
+
+        _series_a_startup = await start_registered_service(app)
+        print(
+            f"[a11oy] Series-A refresh scheduler: {_series_a_startup}",
+            file=sys.stderr,
+        )
+    except Exception as _series_a_startup_error:
+        print(
+            "[a11oy] Series-A refresh scheduler failed honestly: "
+            f"{_series_a_startup_error!r}",
+            file=sys.stderr,
+        )
     if A11OY_SERVE_SCRIPT.exists():
         try:
             # FIX (Yachay 2026-06-02 / v1 :8081 503 repair): the previous launch used
