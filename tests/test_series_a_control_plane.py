@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -50,6 +51,109 @@ def observed_evidence(
             "signature_status": envelope["signature_status"],
         }
     ]
+
+
+def test_refresh_interval_is_bounded_before_snapshot_ttl(monkeypatch) -> None:
+    monkeypatch.delenv("A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS", raising=False)
+    assert control._refresh_interval_seconds() == 240
+    assert control._refresh_interval_seconds() < control.TTL_SECONDS
+
+    monkeypatch.setenv("A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS", "1")
+    assert (
+        control._refresh_interval_seconds()
+        == control.MIN_REFRESH_INTERVAL_SECONDS
+    )
+
+    monkeypatch.setenv("A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS", "999")
+    assert (
+        control._refresh_interval_seconds()
+        == control.MAX_REFRESH_INTERVAL_SECONDS
+    )
+
+    monkeypatch.setenv("A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS", "invalid")
+    assert (
+        control._refresh_interval_seconds()
+        == control.DEFAULT_REFRESH_INTERVAL_SECONDS
+    )
+
+
+def test_periodic_refresh_retries_and_records_failure_honestly(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = control.Service(str(tmp_path / "series-a.sqlite3"))
+    actors: list[str] = []
+    sleeps: list[int] = []
+
+    async def refresh(actor: str) -> dict[str, object]:
+        actors.append(actor)
+        if actor == "startup":
+            raise RuntimeError("collector unavailable")
+        return {}
+
+    async def sleep(seconds: int) -> None:
+        sleeps.append(seconds)
+        if len(sleeps) == 2:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(service, "refresh", refresh)
+    monkeypatch.setattr(control.asyncio, "sleep", sleep)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(service._refresh_loop())
+
+    events = service.store.events_since(0)
+    assert actors == ["startup", "periodic"]
+    assert sleeps == [
+        control.DEFAULT_REFRESH_INTERVAL_SECONDS,
+        control.DEFAULT_REFRESH_INTERVAL_SECONDS,
+    ]
+    assert events[-1]["kind"] == "estate.refresh.failed"
+    assert events[-1]["payload"] == {
+        "actor": "startup",
+        "retry_in_seconds": control.DEFAULT_REFRESH_INTERVAL_SECONDS,
+        "error_class": "RuntimeError",
+        "error": "collector unavailable",
+    }
+
+
+def test_background_refresh_cancels_cleanly_on_shutdown(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = control.Service(str(tmp_path / "series-a.sqlite3"))
+    monkeypatch.setenv("A11OY_SERIES_A_STARTUP_REFRESH", "1")
+
+    async def scenario() -> None:
+        entered = asyncio.Event()
+
+        async def refresh(actor: str) -> dict[str, object]:
+            assert actor == "startup"
+            entered.set()
+            await asyncio.Event().wait()
+            return {}
+
+        monkeypatch.setattr(service, "refresh", refresh)
+        await service.start()
+        await entered.wait()
+        task = service.background_task
+        assert task is not None
+        await service.stop()
+        assert task.cancelled()
+        assert service.background_task is None
+        assert service.started is False
+
+    asyncio.run(scenario())
+
+
+def test_startup_refresh_zero_disables_periodic_task(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = control.Service(str(tmp_path / "series-a.sqlite3"))
+    monkeypatch.setenv("A11OY_SERIES_A_STARTUP_REFRESH", "0")
+
+    asyncio.run(service.start())
+
+    assert service.background_task is None
+    assert service.store.events_since(0)[-1]["kind"] == "estate.refresh.skipped"
 
 
 def test_routes_are_front_moved_and_head_is_bodyless(tmp_path: Path) -> None:

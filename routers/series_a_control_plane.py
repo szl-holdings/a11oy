@@ -44,6 +44,9 @@ HF_ORG = "SZLHOLDINGS"
 CANONICAL_SPACE = f"{HF_ORG}/a11oy"
 FORBIDDEN_CLONES = tuple(f"{HF_ORG}/a11oy-clone-{index}" for index in range(1, 5))
 TTL_SECONDS = 300
+DEFAULT_REFRESH_INTERVAL_SECONDS = 240
+MIN_REFRESH_INTERVAL_SECONDS = 30
+MAX_REFRESH_INTERVAL_SECONDS = TTL_SECONDS - 30
 MAX_BODY = 64 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
@@ -65,6 +68,21 @@ def _future(seconds: int) -> str:
     return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(
         timespec="milliseconds"
     ).replace("+00:00", "Z")
+
+
+def _refresh_interval_seconds() -> int:
+    raw = (
+        os.environ.get("A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS")
+        or str(DEFAULT_REFRESH_INTERVAL_SECONDS)
+    ).strip()
+    try:
+        requested = int(raw)
+    except ValueError:
+        requested = DEFAULT_REFRESH_INTERVAL_SECONDS
+    return max(
+        MIN_REFRESH_INTERVAL_SECONDS,
+        min(requested, MAX_REFRESH_INTERVAL_SECONDS),
+    )
 
 
 def _canonical(value: Any) -> bytes:
@@ -655,13 +673,42 @@ class Service:
             self.store.append_event("estate.refresh.skipped", {"reason": "explicit test/runtime configuration"})
             return
 
-        async def run() -> None:
-            try:
-                await self.refresh("startup")
-            except Exception as exc:
-                self.store.append_event("estate.refresh.failed", _safe_error(exc))
+        self.background_task = asyncio.create_task(
+            self._refresh_loop(),
+            name="a11oy-series-a-periodic-refresh",
+        )
 
-        self.background_task = asyncio.create_task(run(), name="a11oy-series-a-startup-refresh")
+    async def _refresh_loop(self) -> None:
+        interval_seconds = _refresh_interval_seconds()
+        actor = "startup"
+        while True:
+            try:
+                await self.refresh(actor)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.store.append_event(
+                    "estate.refresh.failed",
+                    {
+                        "actor": actor,
+                        "retry_in_seconds": interval_seconds,
+                        **_safe_error(exc),
+                    },
+                )
+            actor = "periodic"
+            await asyncio.sleep(interval_seconds)
+
+    async def stop(self) -> None:
+        task = self.background_task
+        self.background_task = None
+        self.started = False
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     async def refresh(self, actor: str) -> dict[str, Any]:
         if self.refresh_lock.locked():
@@ -1239,6 +1286,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     add_handler = getattr(app, "add_event_handler", None)
     if callable(add_handler):
         add_handler("startup", service.start)
+        add_handler("shutdown", service.stop)
 
     return {
         "ok": True,
