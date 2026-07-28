@@ -34,11 +34,18 @@
       <label>Action
         <select name="type"><option value="estate.refresh">Refresh estate truth</option><option value="probe.public_surface">Probe public surface</option></select>
       </label>
-      <label>Target <input name="target" value="https://a-11-oy.com/healthz" required></label>
-      <label>Evidence label <select name="label"><option>MEASURED</option><option>REPORTED</option><option>UNKNOWN</option></select></label>
+      <label>Target <input name="target" value="szl://estate/current" required></label>
+      <label>Evidence label <select name="label"><option value="OBSERVED">OBSERVED · server-signed snapshot</option><option value="UNKNOWN">UNKNOWN · fail-closed demo</option></select></label>
       <button type="submit">Evaluate passport</button>
+      <button id="execute" type="button" disabled>Execute authorized action</button>
     </form>
     <pre id="passport-result" aria-live="polite">No passport evaluated.</pre>
+    <pre id="execution-result" aria-live="polite">No authorized execution attempted.</pre>
+    <p>Execution is bounded to one attempt and is enabled only for an ALLOW passport.</p>
+  </section>
+  <section class="panel">
+    <h2>Live event rail</h2>
+    <ol id="events" aria-live="polite"><li>CONNECTING</li></ol>
   </section>
   <section class="panel">
     <h2>Latest signed receipts</h2>
