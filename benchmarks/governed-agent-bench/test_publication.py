@@ -410,7 +410,7 @@ class PublicationTests(unittest.TestCase):
             "siblings": [{"rfilename": name} for name in expected],
         }
 
-        def fetch_bytes(url: str):
+        def fetch_bytes(url: str, _timeout_seconds: float):
             name = url.rsplit("/", 1)[-1]
             return 200, expected[name]
 
@@ -419,7 +419,7 @@ class PublicationTests(unittest.TestCase):
             "dataset",
             revision,
             expected,
-            fetch_json=lambda _url: info,
+            fetch_json=lambda _url, _timeout: info,
             fetch_bytes=fetch_bytes,
         )
         self.assertEqual(set(result["files"]), set(expected))
@@ -433,7 +433,7 @@ class PublicationTests(unittest.TestCase):
                 "dataset",
                 revision,
                 expected,
-                fetch_json=lambda _url: private_info,
+                fetch_json=lambda _url, _timeout: private_info,
                 fetch_bytes=fetch_bytes,
             )
 
@@ -442,7 +442,7 @@ class PublicationTests(unittest.TestCase):
         expected = {"README.md": b"space\n"}
         revision = "d" * 40
 
-        def fetch_bytes(url: str):
+        def fetch_bytes(url: str, _timeout_seconds: float):
             if url.endswith(".hf.space/config"):
                 return (
                     200,
@@ -495,7 +495,7 @@ class PublicationTests(unittest.TestCase):
             expected,
             timeout_seconds=1.0,
             poll_interval_seconds=0.0,
-            fetch_json=lambda _url: next(states),
+            fetch_json=lambda _url, _timeout: next(states),
             fetch_bytes=fetch_bytes,
             sleep=lambda _seconds: None,
             monotonic=lambda: 0.0,
@@ -537,7 +537,7 @@ class PublicationTests(unittest.TestCase):
             ]
         )
 
-        def fetch_bytes(url: str):
+        def fetch_bytes(url: str, _timeout_seconds: float):
             if url.endswith(".hf.space/config"):
                 return 200, json.dumps(
                     {
@@ -565,7 +565,7 @@ class PublicationTests(unittest.TestCase):
             expected,
             timeout_seconds=1.0,
             poll_interval_seconds=0.0,
-            fetch_json=lambda _url: next(states),
+            fetch_json=lambda _url, _timeout: next(states),
             fetch_bytes=fetch_bytes,
             sleep=lambda _seconds: None,
             monotonic=lambda: 0.0,
@@ -589,10 +589,10 @@ class PublicationTests(unittest.TestCase):
                 },
                 timeout_seconds=1.0,
                 poll_interval_seconds=0.0,
-                fetch_json=lambda _url: {
+                fetch_json=lambda _url, _timeout: {
                     "runtime": {"stage": "BUILD_ERROR", "sha": revision}
                 },
-                fetch_bytes=lambda _url: (200, b"unused"),
+                fetch_bytes=lambda _url, _timeout: (200, b"unused"),
                 sleep=lambda _seconds: None,
                 monotonic=lambda: 0.0,
             )
@@ -603,7 +603,7 @@ class PublicationTests(unittest.TestCase):
         expected = {"README.md": b"dataset\n"}
         calls = {"count": 0}
 
-        def fetch_json(_url: str):
+        def fetch_json(_url: str, _timeout_seconds: float):
             calls["count"] += 1
             return {
                 "private": False,
@@ -619,7 +619,7 @@ class PublicationTests(unittest.TestCase):
             timeout_seconds=1.0,
             poll_interval_seconds=0.0,
             fetch_json=fetch_json,
-            fetch_bytes=lambda _url: (200, expected["README.md"]),
+            fetch_bytes=lambda _url, _timeout: (200, expected["README.md"]),
             sleep=lambda _seconds: None,
             monotonic=lambda: 0.0,
         )
@@ -657,7 +657,7 @@ class PublicationTests(unittest.TestCase):
         }
         config_calls = {"count": 0}
 
-        def fetch_bytes(url: str):
+        def fetch_bytes(url: str, _timeout_seconds: float):
             if url.endswith(".hf.space/config"):
                 config_calls["count"] += 1
                 observed_source = (
@@ -688,7 +688,7 @@ class PublicationTests(unittest.TestCase):
             expected,
             timeout_seconds=1.0,
             poll_interval_seconds=0.0,
-            fetch_json=lambda _url: {
+            fetch_json=lambda _url, _timeout: {
                 "private": False,
                 "sha": revision,
                 "siblings": [{"rfilename": name} for name in expected],
@@ -705,6 +705,45 @@ class PublicationTests(unittest.TestCase):
             result["runtime"]["identity"]["source_revision"],
             source_revision,
         )
+
+    def test_public_readback_caps_every_request_to_remaining_deadline(self):
+        publisher = _load_publisher()
+        revision = "e" * 40
+        expected = {
+            "README.md": b"one\n",
+            "publication-manifest.json": b"two\n",
+        }
+        observed_timeouts = []
+        clock = iter([0.0, 9.5, 10.0])
+
+        def fetch_json(_url: str, timeout_seconds: float):
+            observed_timeouts.append(timeout_seconds)
+            return {
+                "private": False,
+                "sha": revision,
+                "siblings": [{"rfilename": name} for name in expected],
+            }
+
+        def fetch_bytes(url: str, timeout_seconds: float):
+            observed_timeouts.append(timeout_seconds)
+            return 200, expected[url.rsplit("/", 1)[-1]]
+
+        with self.assertRaisesRegex(
+            publisher.PublicationError,
+            "deadline exhausted",
+        ):
+            publisher._verify_public_repository(
+                "SZLHOLDINGS/governed-agent-bench",
+                "dataset",
+                revision,
+                expected,
+                fetch_json=fetch_json,
+                fetch_bytes=fetch_bytes,
+                deadline=10.0,
+                monotonic=lambda: next(clock),
+            )
+
+        self.assertEqual(observed_timeouts, [10.0, 0.5])
 
     def test_publish_job_timeout_covers_publication_deadlines(self):
         workflow = (
@@ -754,8 +793,11 @@ class PublicationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bundle = root / "bundle"
-            (bundle / "dataset").mkdir(parents=True)
-            (bundle / "space").mkdir()
+            _load_builder().build(
+                bundle,
+                "a" * 40,
+                "2026-07-28T12:00:00Z",
+            )
             receipt_path = root / "publication-receipt.json"
             with (
                 patch.dict(sys.modules, {"huggingface_hub": fake_hub}),

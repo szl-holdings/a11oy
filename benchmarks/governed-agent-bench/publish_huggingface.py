@@ -172,8 +172,8 @@ def _public_bytes(url: str, timeout_seconds: float = 30.0) -> tuple[int, bytes]:
         raise PublicationError(f"anonymous HTTP read failed: {url}: {exc}") from exc
 
 
-def _public_json(url: str) -> dict[str, object]:
-    status, body = _public_bytes(url)
+def _public_json(url: str, timeout_seconds: float = 30.0) -> dict[str, object]:
+    status, body = _public_bytes(url, timeout_seconds)
     if status != 200:
         raise PublicationError(f"anonymous API read returned HTTP {status}: {url}")
     try:
@@ -183,6 +183,16 @@ def _public_json(url: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise PublicationError(f"anonymous API read returned a non-object: {url}")
     return value
+
+
+def _remaining_request_timeout(
+    deadline: float,
+    monotonic=time.monotonic,
+) -> float:
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        raise PublicationError("public readback deadline exhausted")
+    return min(30.0, remaining)
 
 
 def _repo_api_url(repo_id: str, repo_type: str) -> str:
@@ -239,12 +249,22 @@ def _verify_public_repository(
     *,
     fetch_json=_public_json,
     fetch_bytes=_public_bytes,
+    deadline: float | None = None,
+    monotonic=time.monotonic,
 ) -> dict[str, object]:
-    info = fetch_json(_repo_api_url(repo_id, repo_type))
+    def request_timeout() -> float:
+        if deadline is None:
+            return 30.0
+        return _remaining_request_timeout(deadline, monotonic)
+
+    info = fetch_json(_repo_api_url(repo_id, repo_type), request_timeout())
     _validate_public_info(info, repo_id, repo_type, revision, set(expected))
     observed = {}
     for name, body in expected.items():
-        status, readback = fetch_bytes(_resolve_url(repo_id, repo_type, revision, name))
+        status, readback = fetch_bytes(
+            _resolve_url(repo_id, repo_type, revision, name),
+            request_timeout(),
+        )
         if status != 200:
             raise PublicationError(
                 f"anonymous immutable readback returned HTTP {status}: "
@@ -276,7 +296,7 @@ def _wait_for_public_repository(
 ) -> dict[str, object]:
     deadline = monotonic() + timeout_seconds
     latest_error: PublicationError | None = None
-    while monotonic() <= deadline:
+    while monotonic() < deadline:
         try:
             return _verify_public_repository(
                 repo_id,
@@ -285,10 +305,15 @@ def _wait_for_public_repository(
                 expected,
                 fetch_json=fetch_json,
                 fetch_bytes=fetch_bytes,
+                deadline=deadline,
+                monotonic=monotonic,
             )
         except PublicationError as exc:
             latest_error = exc
-        sleep(poll_interval_seconds)
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            break
+        sleep(min(poll_interval_seconds, remaining))
     raise PublicationError(
         "public immutable readback did not converge before timeout: "
         f"{repo_type}:{repo_id} expected={revision!r} last_error={latest_error}"
@@ -350,9 +375,12 @@ def _wait_for_public_space(
     latest: dict[str, object] = {}
     latest_error: PublicationError | None = None
     source_revision = _space_identity_source(expected)
-    while monotonic() <= deadline:
+    while monotonic() < deadline:
         try:
-            latest = fetch_json(_repo_api_url(repo_id, "space"))
+            latest = fetch_json(
+                _repo_api_url(repo_id, "space"),
+                _remaining_request_timeout(deadline, monotonic),
+            )
         except PublicationError as exc:
             latest = {}
             latest_error = exc
@@ -368,8 +396,10 @@ def _wait_for_public_space(
                     "space",
                     revision,
                     expected,
-                    fetch_json=lambda _url: latest,
+                    fetch_json=lambda _url, _timeout: latest,
                     fetch_bytes=fetch_bytes,
+                    deadline=deadline,
+                    monotonic=monotonic,
                 )
                 subdomain = latest.get("subdomain")
                 if not isinstance(subdomain, str) or not re.fullmatch(
@@ -377,14 +407,20 @@ def _wait_for_public_space(
                 ):
                     raise PublicationError("Space public subdomain is missing or invalid")
                 public_url = f"https://{subdomain}.hf.space/"
-                status, body = fetch_bytes(public_url)
+                status, body = fetch_bytes(
+                    public_url,
+                    _remaining_request_timeout(deadline, monotonic),
+                )
                 if status != 200 or not body:
                     raise PublicationError(
                         f"Space public root is not serving: "
                         f"status={status} bytes={len(body)}"
                     )
                 identity_url = f"{public_url}config"
-                identity_status, identity_body = fetch_bytes(identity_url)
+                identity_status, identity_body = fetch_bytes(
+                    identity_url,
+                    _remaining_request_timeout(deadline, monotonic),
+                )
                 if identity_status != 200 or not identity_body:
                     raise PublicationError(
                         "Space identity endpoint is not serving: "
@@ -406,7 +442,10 @@ def _wait_for_public_space(
                     "identity": identity,
                 }
                 return public
-        sleep(poll_interval_seconds)
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            break
+        sleep(min(poll_interval_seconds, remaining))
     runtime = latest.get("runtime")
     stage = runtime.get("stage") if isinstance(runtime, dict) else None
     runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
