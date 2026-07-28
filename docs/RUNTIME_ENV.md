@@ -133,6 +133,9 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | `A11OY_SERIES_A_DB` | variable | optional | SQLite path under the attached persistent bucket volume. | (unset) |
 | `A11OY_SERIES_A_REQUIRE_MOUNT` | variable | optional | Required attached volume mount containing the Series-A database. | (unset) |
 | `A11OY_SERIES_A_SQLITE_JOURNAL` | variable | optional | SQLite journal mode selected for the mounted filesystem. | `WAL` |
+| `SZL_GDW_DB_PATH` | variable | optional | Wave 26 Governed Delta Workspace SQLite path under the attached persistent volume. | `/data/a11oy/gdw/workspace.sqlite3` |
+| `SZL_GDW_REQUIRED_MOUNT` | variable | optional | Required mount containing the GDW database; writes fail closed when absent. | `/data` |
+| `SZL_GDW_ALLOW_EPHEMERAL` | variable | optional | Explicit local-development override permitting a temporary GDW database. Never enable for production. | `0` |
 
 ### signing
 
@@ -199,6 +202,9 @@ SPACE_COMMIT_SHA
 STRIPE_PRICE_PER_KWH_CENTS
 SZL_BUILD_TIME
 SZL_ENERGY_LEDGER_PATH
+SZL_GDW_ALLOW_EPHEMERAL
+SZL_GDW_DB_PATH
+SZL_GDW_REQUIRED_MOUNT
 SZL_GIT_SHA
 SZL_LAKE_DIR
 ```

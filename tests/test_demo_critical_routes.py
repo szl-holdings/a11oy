@@ -67,6 +67,10 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/frontier-index/catalog",    # Wave-Q honest ecosystem catalog the status aggregate is built on (drift-proof source)
     "/api/a11oy/v1/models/frontier-adoption",  # Wave-26 pinned model-admission contract
     "/api/a11oy/v1/models/estate",             # Wave-26 fail-closed live HF estate merge
+    "/api/a11oy/v1/gdw/status",                # Wave-26 governed delta workspace readiness
+    "/api/a11oy/v1/gdw/sessions",              # receipt-on-write governed workspace state
+    "/api/a11oy/v1/gdw/aggregate",             # bounded Lambda-AttnRes modeled computation
+    "/gdw",                                    # Wave-26 operator workspace page
 ]
 
 
@@ -129,6 +133,7 @@ def test_no_demo_critical_route_dropped_as_a_set():
         "/verify-receipt",
         "/holographic",
         "/a11oy/holographic",
+        "/gdw",
     ),
 )
 def test_investor_facing_pages_support_get_and_head(path):
