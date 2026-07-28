@@ -133,6 +133,37 @@ class BenchmarkMapGuardSelfTest(unittest.TestCase):
         m["entries"][i]["ciGates"].append("verify-receipt-chain")
         self.assertEqual(run_validator(m), 1)
 
+    def test_governed_agent_publication_state_is_evidence_bound(self):
+        i = governed_agent_index()
+        for field, value in (
+            ("state", "READY_FOR_PROTECTED_PUBLICATION"),
+            ("dataset", "SZLHOLDINGS/other"),
+            ("space", "SZLHOLDINGS/other"),
+        ):
+            with self.subTest(field=field):
+                m = honest()
+                m["entries"][i]["publication"][field] = value
+                self.assertEqual(run_validator(m), 1)
+
+    def test_governed_agent_publication_revisions_are_exact(self):
+        i = governed_agent_index()
+        for field in ("sourceRevision", "datasetRevision", "spaceRevision"):
+            with self.subTest(field=field):
+                m = honest()
+                m["entries"][i]["publication"]["firstVerified"][field] = "not-a-revision"
+                self.assertEqual(run_validator(m), 1)
+
+    def test_governed_agent_zero_model_boundary_is_required(self):
+        i = governed_agent_index()
+        m = honest()
+        claims = m["entries"][i]["honesty"]["disallowedClaims"]
+        claims.remove("eligible model leaderboard results published")
+        self.assertEqual(run_validator(m), 1)
+
+        m = honest()
+        m["entries"][i]["publication"]["truthBoundary"] = "A public leaderboard exists."
+        self.assertEqual(run_validator(m), 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
