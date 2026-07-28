@@ -91,6 +91,29 @@ def verify_local_snapshot(source: Path, workspace: Path, name: str) -> dict[str,
     }
 
 
+def download_space_snapshot(
+    *,
+    repo_id: str,
+    revision: str,
+    source: Path,
+    token: str,
+    siblings: Iterable[Any] | None,
+    snapshot_download: Any,
+) -> None:
+    """Download a Space, or materialize an explicitly empty repository."""
+
+    if siblings is not None and not tuple(siblings):
+        source.mkdir(parents=True, exist_ok=True)
+        return
+    snapshot_download(
+        repo_id=repo_id,
+        repo_type="space",
+        revision=revision,
+        local_dir=source,
+        token=token,
+    )
+
+
 def verify_spaces(
     repositories: Iterable[str], workspace: Path, token: str
 ) -> dict[str, Any]:
@@ -105,12 +128,13 @@ def verify_spaces(
             raise RuntimeError(f"Hugging Face did not return a revision for {repo_id}")
         name = repo_id.replace("/", "--")
         source = workspace / "snapshots" / name
-        snapshot_download(
+        download_space_snapshot(
             repo_id=repo_id,
-            repo_type="space",
             revision=revision,
-            local_dir=source,
+            source=source,
             token=token,
+            siblings=getattr(info, "siblings", None),
+            snapshot_download=snapshot_download,
         )
         result = verify_local_snapshot(source, workspace, name)
         result.update({"repository": repo_id, "revision": revision})
