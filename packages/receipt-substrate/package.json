@@ -9,7 +9,7 @@
   "author": "Stephen P. Lutar",
   "repository": "github:szl-holdings/a11oy",
   "scripts": {
-    "test": "node src/receipt_substrate.test.ts",
+    "test": "node src/receipt_substrate.test.ts && node --test src/research_evidence.test.ts",
     "test:serve": "node --test src/serve.test.ts",
     "smoke": "node src/cli.ts --out /tmp/a11oy-operational-receipts.jsonl --actor did:example:operator --tool receipted_retrieval --payload-json '{\"query\":\"status\",\"limit\":3}'",
     "selftest": "node src/selftest.ts",

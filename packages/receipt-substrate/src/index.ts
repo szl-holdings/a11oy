@@ -362,3 +362,617 @@ export function readReceiptJsonl(path: string): OperationalReceipt[] {
 export function appendReceiptJsonl(path: string, receipt: OperationalReceipt): void {
   fs.appendFileSync(path, receiptToJsonl(receipt), "utf8");
 }
+
+export const TWO_WITNESS_LIVE_ADAPTERS_ENABLED = false as const;
+
+export type ResearchEvidenceLabel =
+  | "CORROBORATED"
+  | "DIVERGENT"
+  | "SINGLE_PROVIDER"
+  | "INSUFFICIENT"
+  | "UNAVAILABLE";
+
+export type ResearchProvider = "openai" | "perplexity";
+export type ResearchProviderStatus = "SUCCESS" | "UNAVAILABLE" | "ERROR";
+
+export interface ResearchUsageInput {
+  readonly input_tokens?: number;
+  readonly output_tokens?: number;
+  readonly total_tokens?: number;
+  readonly reasoning_tokens?: number;
+  readonly cached_tokens?: number;
+  readonly search_queries?: number;
+}
+
+export interface OpenAIResearchSourceInput {
+  readonly url: string;
+  readonly title?: string;
+  readonly published_at?: string;
+  readonly last_updated_at?: string;
+}
+
+export interface PerplexityResearchResultInput {
+  readonly url: string;
+  readonly title?: string;
+  readonly date?: string;
+  readonly last_updated?: string;
+}
+
+export interface OpenAIWebSearchResultInput {
+  readonly provider: "openai";
+  readonly status: ResearchProviderStatus;
+  readonly query_sha256: string;
+  readonly policy_sha256: string;
+  readonly response_id?: string;
+  readonly model?: string;
+  readonly http_status?: number;
+  readonly latency_ms?: number;
+  readonly usage?: ResearchUsageInput;
+  readonly cost_usd?: number;
+  readonly sources?: readonly OpenAIResearchSourceInput[];
+}
+
+export interface PerplexitySearchResultInput {
+  readonly provider: "perplexity";
+  readonly status: ResearchProviderStatus;
+  readonly query_sha256: string;
+  readonly policy_sha256: string;
+  readonly response_id?: string;
+  readonly model?: string;
+  readonly http_status?: number;
+  readonly latency_ms?: number;
+  readonly usage?: ResearchUsageInput;
+  readonly cost_usd?: number;
+  readonly results?: readonly PerplexityResearchResultInput[];
+}
+
+export interface NormalizedResearchSource {
+  readonly url: string;
+  readonly domain: string;
+  readonly title_sha256?: string;
+  readonly published_at?: string;
+  readonly last_updated_at?: string;
+}
+
+export interface NormalizedResearchUsage {
+  readonly input_tokens?: number;
+  readonly output_tokens?: number;
+  readonly total_tokens?: number;
+  readonly reasoning_tokens?: number;
+  readonly cached_tokens?: number;
+  readonly search_queries?: number;
+}
+
+export interface NormalizedResearchProviderEvidence {
+  readonly schema_version: "a11oy.research_provider_evidence/v0";
+  readonly provider: ResearchProvider;
+  readonly api_surface: "openai.responses.web_search" | "perplexity.search";
+  readonly tool: "web_search" | "search";
+  readonly status: ResearchProviderStatus;
+  readonly query_sha256: string;
+  readonly policy_sha256: string;
+  readonly response_id?: string;
+  readonly model?: string;
+  readonly http_status?: number;
+  readonly caller_observed_latency_ms?: number;
+  readonly usage?: NormalizedResearchUsage;
+  readonly provider_reported_cost_usd?: number;
+  readonly sources: readonly NormalizedResearchSource[];
+  readonly source_count: number;
+  readonly source_list_sha256: string;
+}
+
+export interface ResearchEvidenceComparison {
+  readonly schema_version: "a11oy.research_evidence_comparison/v0";
+  readonly label: ResearchEvidenceLabel;
+  readonly query_sha256: string;
+  readonly policy_sha256: string;
+  readonly providers: readonly NormalizedResearchProviderEvidence[];
+  readonly successful_provider_count: number;
+  readonly evidence_provider_count: number;
+  readonly source_union_count: number;
+  readonly source_url_overlap_count: number;
+  readonly source_domain_overlap_count: number;
+  readonly source_url_jaccard: number;
+  readonly integrity_valid: boolean;
+  readonly integrity_errors: readonly string[];
+  readonly action_authorized: false;
+}
+
+export interface TwoWitnessResearchReceiptOptions extends EmitReceiptOptions {
+  readonly actor_id: string;
+  readonly invocation_id?: string;
+}
+
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const SENSITIVE_SOURCE_QUERY_KEYS = new Set([
+  "access_token",
+  "api_key",
+  "apikey",
+  "auth",
+  "authorization",
+  "credential",
+  "key",
+  "password",
+  "secret",
+  "signature",
+  "sig",
+  "token",
+]);
+const DIGESTED_SOURCE_QUERY_KEYS = new Set(["code"]);
+const SENSITIVE_SOURCE_QUERY_PREFIXES = ["x-amz-", "x-goog-", "x-oss-"];
+const TRACKING_SOURCE_QUERY_PREFIXES = ["utm_"];
+const TRACKING_SOURCE_QUERY_KEYS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid"]);
+
+function cleanOptionalText(value: unknown, maxLength = 256): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.normalize("NFC").trim();
+  if (!cleaned || cleaned.length > maxLength || /[\r\n]/.test(cleaned)) return undefined;
+  return cleaned;
+}
+
+function cleanSha256(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function cleanStatus(value: unknown): ResearchProviderStatus {
+  if (value === "SUCCESS" || value === "UNAVAILABLE" || value === "ERROR") return value;
+  return "ERROR";
+}
+
+function cleanNonNegativeNumber(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+function cleanNonNegativeInteger(value: unknown): number | undefined {
+  const cleaned = cleanNonNegativeNumber(value);
+  return cleaned !== undefined && Number.isInteger(cleaned) ? cleaned : undefined;
+}
+
+function cleanHttpStatus(value: unknown): number | undefined {
+  const cleaned = cleanNonNegativeInteger(value);
+  return cleaned !== undefined && cleaned >= 100 && cleaned <= 599 ? cleaned : undefined;
+}
+
+function cleanDate(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function cleanSourceUrl(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  try {
+    const url = new URL(raw.trim());
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
+      return undefined;
+    }
+
+    url.hash = "";
+    for (const key of [...url.searchParams.keys()]) {
+      const lower = key.toLowerCase();
+      if (DIGESTED_SOURCE_QUERY_KEYS.has(lower)) {
+        const digests = url.searchParams
+          .getAll(key)
+          .map((value) => (
+            /^sha256:[a-f0-9]{64}$/.test(value)
+              ? value.slice("sha256:".length)
+              : hashHex(value, "SHA-256")
+          ))
+          .sort();
+        url.searchParams.delete(key);
+        for (const digest of digests) {
+          url.searchParams.append(key, `sha256:${digest}`);
+        }
+        continue;
+      }
+      if (
+        SENSITIVE_SOURCE_QUERY_KEYS.has(lower)
+        || SENSITIVE_SOURCE_QUERY_PREFIXES.some((prefix) => lower.startsWith(prefix))
+        || TRACKING_SOURCE_QUERY_KEYS.has(lower)
+        || TRACKING_SOURCE_QUERY_PREFIXES.some((prefix) => lower.startsWith(prefix))
+      ) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.searchParams.sort();
+    url.hostname = url.hostname.toLowerCase();
+    if ((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) {
+      url.port = "";
+    }
+    if (url.pathname.length > 1 && url.pathname.endsWith("/")) {
+      url.pathname = url.pathname.replace(/\/+$/, "");
+    }
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeResearchSources(
+  inputs: readonly {
+    readonly url: string;
+    readonly title?: string;
+    readonly published_at?: string;
+    readonly last_updated_at?: string;
+  }[],
+): readonly NormalizedResearchSource[] {
+  const byUrl = new Map<string, NormalizedResearchSource>();
+  for (const input of inputs) {
+    const url = cleanSourceUrl(input.url);
+    if (!url) continue;
+    const title = cleanOptionalText(input.title, 2_000);
+    const domain = new URL(url).hostname;
+    const source: NormalizedResearchSource = {
+      url,
+      domain,
+      ...(title ? { title_sha256: hashHex(title, "SHA-256") } : {}),
+      ...(cleanDate(input.published_at) ? { published_at: cleanDate(input.published_at) } : {}),
+      ...(cleanDate(input.last_updated_at) ? { last_updated_at: cleanDate(input.last_updated_at) } : {}),
+    };
+    byUrl.set(url, source);
+  }
+  return [...byUrl.values()].sort((left, right) => left.url.localeCompare(right.url));
+}
+
+function normalizeResearchUsage(input: ResearchUsageInput | undefined): NormalizedResearchUsage | undefined {
+  if (!input) return undefined;
+  const usage: NormalizedResearchUsage = {
+    ...(cleanNonNegativeInteger(input.input_tokens) !== undefined
+      ? { input_tokens: cleanNonNegativeInteger(input.input_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.output_tokens) !== undefined
+      ? { output_tokens: cleanNonNegativeInteger(input.output_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.total_tokens) !== undefined
+      ? { total_tokens: cleanNonNegativeInteger(input.total_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.reasoning_tokens) !== undefined
+      ? { reasoning_tokens: cleanNonNegativeInteger(input.reasoning_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.cached_tokens) !== undefined
+      ? { cached_tokens: cleanNonNegativeInteger(input.cached_tokens) }
+      : {}),
+    ...(cleanNonNegativeInteger(input.search_queries) !== undefined
+      ? { search_queries: cleanNonNegativeInteger(input.search_queries) }
+      : {}),
+  };
+  return Object.keys(usage).length > 0 ? usage : undefined;
+}
+
+function projectNormalizedResearchSource(
+  input: NormalizedResearchSource,
+): NormalizedResearchSource {
+  return {
+    url: input.url,
+    domain: input.domain,
+    ...(input.title_sha256 !== undefined ? { title_sha256: input.title_sha256 } : {}),
+    ...(input.published_at !== undefined ? { published_at: input.published_at } : {}),
+    ...(input.last_updated_at !== undefined
+      ? { last_updated_at: input.last_updated_at }
+      : {}),
+  };
+}
+
+function projectNormalizedResearchUsage(
+  input: NormalizedResearchUsage | undefined,
+): NormalizedResearchUsage | undefined {
+  if (!input) return undefined;
+  const projected: NormalizedResearchUsage = {
+    ...(input.input_tokens !== undefined ? { input_tokens: input.input_tokens } : {}),
+    ...(input.output_tokens !== undefined ? { output_tokens: input.output_tokens } : {}),
+    ...(input.total_tokens !== undefined ? { total_tokens: input.total_tokens } : {}),
+    ...(input.reasoning_tokens !== undefined
+      ? { reasoning_tokens: input.reasoning_tokens }
+      : {}),
+    ...(input.cached_tokens !== undefined ? { cached_tokens: input.cached_tokens } : {}),
+    ...(input.search_queries !== undefined
+      ? { search_queries: input.search_queries }
+      : {}),
+  };
+  return Object.keys(projected).length > 0 ? projected : undefined;
+}
+
+function projectNormalizedProviderEvidence(
+  input: NormalizedResearchProviderEvidence,
+): NormalizedResearchProviderEvidence {
+  const usage = projectNormalizedResearchUsage(input.usage);
+  return {
+    schema_version: input.schema_version,
+    provider: input.provider,
+    api_surface: input.api_surface,
+    tool: input.tool,
+    status: input.status,
+    query_sha256: input.query_sha256,
+    policy_sha256: input.policy_sha256,
+    ...(input.response_id !== undefined ? { response_id: input.response_id } : {}),
+    ...(input.model !== undefined ? { model: input.model } : {}),
+    ...(input.http_status !== undefined ? { http_status: input.http_status } : {}),
+    ...(input.caller_observed_latency_ms !== undefined
+      ? { caller_observed_latency_ms: input.caller_observed_latency_ms }
+      : {}),
+    ...(usage ? { usage } : {}),
+    ...(input.provider_reported_cost_usd !== undefined
+      ? { provider_reported_cost_usd: input.provider_reported_cost_usd }
+      : {}),
+    sources: input.sources.map(projectNormalizedResearchSource),
+    source_count: input.source_count,
+    source_list_sha256: input.source_list_sha256,
+  };
+}
+
+function normalizeProviderEvidence(input: {
+  readonly provider: ResearchProvider;
+  readonly api_surface: NormalizedResearchProviderEvidence["api_surface"];
+  readonly tool: NormalizedResearchProviderEvidence["tool"];
+  readonly status: ResearchProviderStatus;
+  readonly query_sha256: string;
+  readonly policy_sha256: string;
+  readonly response_id?: string;
+  readonly model?: string;
+  readonly http_status?: number;
+  readonly latency_ms?: number;
+  readonly usage?: ResearchUsageInput;
+  readonly cost_usd?: number;
+  readonly sources: readonly NormalizedResearchSource[];
+}): NormalizedResearchProviderEvidence {
+  const responseId = cleanOptionalText(input.response_id);
+  const model = cleanOptionalText(input.model);
+  const httpStatus = cleanHttpStatus(input.http_status);
+  const latencyMs = cleanNonNegativeNumber(input.latency_ms);
+  const usage = normalizeResearchUsage(input.usage);
+  const costUsd = cleanNonNegativeNumber(input.cost_usd);
+  return {
+    schema_version: "a11oy.research_provider_evidence/v0",
+    provider: input.provider,
+    api_surface: input.api_surface,
+    tool: input.tool,
+    status: cleanStatus(input.status),
+    query_sha256: cleanSha256(input.query_sha256),
+    policy_sha256: cleanSha256(input.policy_sha256),
+    ...(responseId ? { response_id: responseId } : {}),
+    ...(model ? { model } : {}),
+    ...(httpStatus !== undefined ? { http_status: httpStatus } : {}),
+    ...(latencyMs !== undefined ? { caller_observed_latency_ms: latencyMs } : {}),
+    ...(usage ? { usage } : {}),
+    ...(costUsd !== undefined ? { provider_reported_cost_usd: costUsd } : {}),
+    sources: input.sources,
+    source_count: input.sources.length,
+    source_list_sha256: hashHex(input.sources, "SHA-256"),
+  };
+}
+
+export function normalizeOpenAIWebSearchResult(
+  input: OpenAIWebSearchResultInput,
+): NormalizedResearchProviderEvidence {
+  return normalizeProviderEvidence({
+    provider: "openai",
+    api_surface: "openai.responses.web_search",
+    tool: "web_search",
+    status: input.status,
+    query_sha256: input.query_sha256,
+    policy_sha256: input.policy_sha256,
+    response_id: input.response_id,
+    model: input.model,
+    http_status: input.http_status,
+    latency_ms: input.latency_ms,
+    usage: input.usage,
+    cost_usd: input.cost_usd,
+    sources: normalizeResearchSources(input.sources ?? []),
+  });
+}
+
+export function normalizePerplexitySearchResult(
+  input: PerplexitySearchResultInput,
+): NormalizedResearchProviderEvidence {
+  return normalizeProviderEvidence({
+    provider: "perplexity",
+    api_surface: "perplexity.search",
+    tool: "search",
+    status: input.status,
+    query_sha256: input.query_sha256,
+    policy_sha256: input.policy_sha256,
+    response_id: input.response_id,
+    model: input.model,
+    http_status: input.http_status,
+    latency_ms: input.latency_ms,
+    usage: input.usage,
+    cost_usd: input.cost_usd,
+    sources: normalizeResearchSources(
+      (input.results ?? []).map((result) => ({
+        url: result.url,
+        title: result.title,
+        published_at: result.date,
+        last_updated_at: result.last_updated,
+      })),
+    ),
+  });
+}
+
+function intersectionSize(left: ReadonlySet<string>, right: ReadonlySet<string>): number {
+  let count = 0;
+  for (const value of left) {
+    if (right.has(value)) count += 1;
+  }
+  return count;
+}
+
+export function compareResearchEvidence(input: {
+  readonly query_sha256: string;
+  readonly policy_sha256: string;
+  readonly providers: readonly NormalizedResearchProviderEvidence[];
+}): ResearchEvidenceComparison {
+  const querySha256 = cleanSha256(input.query_sha256);
+  const policySha256 = cleanSha256(input.policy_sha256);
+  const providers = input.providers
+    .map(projectNormalizedProviderEvidence)
+    .sort((left, right) => left.provider.localeCompare(right.provider));
+  const errors: string[] = [];
+
+  if (!SHA256_PATTERN.test(querySha256)) errors.push("expected query_sha256 is not a SHA-256 digest");
+  if (!SHA256_PATTERN.test(policySha256)) errors.push("expected policy_sha256 is not a SHA-256 digest");
+
+  const expectedProviders = new Set<ResearchProvider>(["openai", "perplexity"]);
+  const seenProviders = new Set<ResearchProvider>();
+  for (const provider of providers) {
+    if (seenProviders.has(provider.provider)) errors.push(`duplicate provider: ${provider.provider}`);
+    seenProviders.add(provider.provider);
+    if (provider.schema_version !== "a11oy.research_provider_evidence/v0") {
+      errors.push(`${provider.provider}: schema_version mismatch`);
+    }
+    const expectedSurface = provider.provider === "openai"
+      ? "openai.responses.web_search"
+      : "perplexity.search";
+    const expectedTool = provider.provider === "openai" ? "web_search" : "search";
+    if (provider.api_surface !== expectedSurface) {
+      errors.push(`${provider.provider}: api_surface mismatch`);
+    }
+    if (provider.tool !== expectedTool) errors.push(`${provider.provider}: tool mismatch`);
+    if (!SHA256_PATTERN.test(provider.query_sha256)) {
+      errors.push(`${provider.provider}: query_sha256 is not a SHA-256 digest`);
+    } else if (provider.query_sha256 !== querySha256) {
+      errors.push(`${provider.provider}: query_sha256 mismatch`);
+    }
+    if (!SHA256_PATTERN.test(provider.policy_sha256)) {
+      errors.push(`${provider.provider}: policy_sha256 is not a SHA-256 digest`);
+    } else if (provider.policy_sha256 !== policySha256) {
+      errors.push(`${provider.provider}: policy_sha256 mismatch`);
+    }
+    if (provider.source_count !== provider.sources.length) {
+      errors.push(`${provider.provider}: source_count mismatch`);
+    }
+    if (provider.source_list_sha256 !== hashHex(provider.sources, "SHA-256")) {
+      errors.push(`${provider.provider}: source_list_sha256 mismatch`);
+    }
+    if (provider.status !== "SUCCESS" && provider.sources.length > 0) {
+      errors.push(`${provider.provider}: non-success status carries evidence`);
+    }
+    if (
+      provider.status === "SUCCESS"
+      && provider.http_status !== undefined
+      && (provider.http_status < 200 || provider.http_status >= 300)
+    ) {
+      errors.push(`${provider.provider}: success status conflicts with http_status`);
+    }
+    for (const [index, source] of provider.sources.entries()) {
+      if (cleanSourceUrl(source.url) !== source.url) {
+        errors.push(`${provider.provider}: source ${index} URL is not canonical`);
+      }
+      try {
+        if (new URL(source.url).hostname !== source.domain) {
+          errors.push(`${provider.provider}: source ${index} domain mismatch`);
+        }
+      } catch {
+        errors.push(`${provider.provider}: source ${index} URL is invalid`);
+      }
+      if (source.title_sha256 !== undefined && !SHA256_PATTERN.test(source.title_sha256)) {
+        errors.push(`${provider.provider}: source ${index} title_sha256 is invalid`);
+      }
+    }
+  }
+  for (const provider of expectedProviders) {
+    if (!seenProviders.has(provider)) errors.push(`missing provider: ${provider}`);
+  }
+
+  const openai = providers.find((provider) => provider.provider === "openai");
+  const perplexity = providers.find((provider) => provider.provider === "perplexity");
+  const openaiUrls = new Set(openai?.sources.map((source) => source.url) ?? []);
+  const perplexityUrls = new Set(perplexity?.sources.map((source) => source.url) ?? []);
+  const openaiDomains = new Set(openai?.sources.map((source) => source.domain) ?? []);
+  const perplexityDomains = new Set(perplexity?.sources.map((source) => source.domain) ?? []);
+  const sourceUrlOverlapCount = intersectionSize(openaiUrls, perplexityUrls);
+  const sourceDomainOverlapCount = intersectionSize(openaiDomains, perplexityDomains);
+  const sourceUnion = new Set([...openaiUrls, ...perplexityUrls]);
+  const successfulProviders = providers.filter((provider) => provider.status === "SUCCESS");
+  const evidenceProviders = successfulProviders.filter((provider) => provider.source_count > 0);
+
+  let label: ResearchEvidenceLabel;
+  if (errors.length > 0) {
+    label = "INSUFFICIENT";
+  } else if (successfulProviders.length === 0) {
+    label = "UNAVAILABLE";
+  } else if (evidenceProviders.length === 0 || evidenceProviders.length !== successfulProviders.length) {
+    label = "INSUFFICIENT";
+  } else if (successfulProviders.length === 1) {
+    label = "SINGLE_PROVIDER";
+  } else if (sourceUrlOverlapCount > 0) {
+    label = "CORROBORATED";
+  } else {
+    label = "DIVERGENT";
+  }
+
+  return {
+    schema_version: "a11oy.research_evidence_comparison/v0",
+    label,
+    query_sha256: querySha256,
+    policy_sha256: policySha256,
+    providers,
+    successful_provider_count: successfulProviders.length,
+    evidence_provider_count: evidenceProviders.length,
+    source_union_count: sourceUnion.size,
+    source_url_overlap_count: sourceUrlOverlapCount,
+    source_domain_overlap_count: sourceDomainOverlapCount,
+    source_url_jaccard: sourceUnion.size === 0
+      ? 0
+      : Number((sourceUrlOverlapCount / sourceUnion.size).toFixed(6)),
+    integrity_valid: errors.length === 0,
+    integrity_errors: errors.sort(),
+    action_authorized: false,
+  };
+}
+
+export function emitTwoWitnessResearchReceipt(
+  comparison: ResearchEvidenceComparison,
+  options: TwoWitnessResearchReceiptOptions,
+): OperationalReceipt {
+  const verifiedComparison = compareResearchEvidence({
+    query_sha256: comparison.query_sha256,
+    policy_sha256: comparison.policy_sha256,
+    providers: comparison.providers,
+  });
+  if (canonicalJson(verifiedComparison) !== canonicalJson(comparison)) {
+    throw new Error("research evidence comparison verification failed");
+  }
+  const payload = {
+    schema_version: "a11oy.two_witness_research_receipt/v0",
+    live_adapters_enabled: TWO_WITNESS_LIVE_ADAPTERS_ENABLED,
+    signature_state: "UNSIGNED_LOCAL",
+    external_attestation: false,
+    action_authorized: false,
+    query_sha256: comparison.query_sha256,
+    policy_sha256: comparison.policy_sha256,
+    label: comparison.label,
+    integrity_valid: comparison.integrity_valid,
+    integrity_errors: comparison.integrity_errors,
+    successful_provider_count: comparison.successful_provider_count,
+    evidence_provider_count: comparison.evidence_provider_count,
+    source_union_count: comparison.source_union_count,
+    source_url_overlap_count: comparison.source_url_overlap_count,
+    source_domain_overlap_count: comparison.source_domain_overlap_count,
+    source_url_jaccard: comparison.source_url_jaccard,
+    providers: comparison.providers,
+  };
+  const envelope = createToolEnvelope({
+    protocol: "a11oy",
+    actor_id: options.actor_id,
+    tool_name: "two_witness_research_compare_v0",
+    tool_version: "0.1.0",
+    invocation_id: options.invocation_id,
+    lambda_axes: ["provenance", "restraint"],
+    payload,
+    metadata: {
+      network_access: "DISABLED",
+      provider_credentials: "NOT_ACCEPTED",
+      live_adapter_feature_flag: "OFF",
+    },
+  });
+  return emitReceipt(envelope, {
+    previousReceipt: options.previousReceipt,
+    policy: options.policy,
+    quorumSignatures: options.quorumSignatures,
+    timestamp: options.timestamp,
+    sequence: options.sequence,
+    eventType: "A11OY_OPERATION",
+  });
+}
