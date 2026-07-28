@@ -1184,10 +1184,22 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
 
     async def public_key(request: Request) -> Response:
         if request.method == "HEAD":
-            return Response(status_code=200, media_type="text/plain")
+            return Response(
+                status_code=200,
+                media_type="text/plain",
+                headers={"cache-control": "no-store"},
+            )
         if not service.signer.public_pem:
-            return JSONResponse({"state": "UNAVAILABLE", "reason": service.signer.error}, status_code=503)
-        return Response(service.signer.public_pem, media_type="text/plain", headers={"cache-control": "public,max-age=300"})
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": service.signer.error},
+                status_code=503,
+                headers={"cache-control": "no-store"},
+            )
+        return Response(
+            service.signer.public_pem,
+            media_type="text/plain",
+            headers={"cache-control": "no-store"},
+        )
 
     async def events(request: Request) -> StreamingResponse:
         last = _event_cursor(request)

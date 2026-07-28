@@ -67,26 +67,17 @@ _KEY_ERR = ""
 _KEY_SOURCE = "unavailable"
 try:
     from cryptography.hazmat.primitives import hashes as _ch_hashes
-    from cryptography.hazmat.primitives import serialization as _ch_ser
     from cryptography.hazmat.primitives.asymmetric import ec as _ch_ec
 
-    try:
-        from a11oy_signing_key import load_signing_key as _a11oy_load_signing_key
-        _PRIV, _PUB_PEM, _KEY_SOURCE, _err = _a11oy_load_signing_key()
-        if _err:
-            raise RuntimeError(_err)
-        if _PRIV is None:
-            raise RuntimeError("load_signing_key returned no key")
-    except Exception:
-        # Loader unavailable / failed — preserve legacy ephemeral behaviour.
-        _PRIV = _ch_ec.generate_private_key(_ch_ec.SECP256R1())
-        _PUB_PEM = _PRIV.public_key().public_bytes(
-            _ch_ser.Encoding.PEM, _ch_ser.PublicFormat.SubjectPublicKeyInfo
-        ).decode("ascii")
-        _KEY_SOURCE = "ephemeral"
-    _KEYID = hashlib.sha256(_PUB_PEM.strip().encode()).hexdigest()[:16]
+    from a11oy_signing_key import load_signing_key as _a11oy_load_signing_key
+
+    _PRIV, _PUB_PEM, _KEY_SOURCE, _err = _a11oy_load_signing_key()
+    if _err:
+        _KEY_ERR = _err
+    if _PUB_PEM:
+        _KEYID = hashlib.sha256(_PUB_PEM.strip().encode()).hexdigest()[:16]
 except Exception as _e:  # pragma: no cover
-    _KEY_ERR = repr(_e)
+    _KEY_ERR = "%s: shared signing key unavailable" % type(_e).__name__
 
 # True when the wow signer uses a persistent key mounted from a Secret.
 _KEY_PERSISTENT = isinstance(_KEY_SOURCE, str) and _KEY_SOURCE.startswith("persistent:")
@@ -563,8 +554,16 @@ def register(app, ns: str = "a11oy") -> str:
     @app.get(f"{b}/cosign.pub")
     async def _wow_cosign():
         if not _PUB_PEM:
-            return PlainTextResponse("# wow in-image key unavailable\n", status_code=503)
-        return PlainTextResponse(_PUB_PEM, media_type="text/plain")
+            return PlainTextResponse(
+                "# wow shared key unavailable\n",
+                status_code=503,
+                headers={"cache-control": "no-store"},
+            )
+        return PlainTextResponse(
+            _PUB_PEM,
+            media_type="text/plain",
+            headers={"cache-control": "no-store"},
+        )
 
     @app.post(f"{b}/govern")
     @app.post(f"/v1/wow/govern")

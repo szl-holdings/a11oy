@@ -133,9 +133,23 @@ _REGISTRY = [
 
     # ---- provenance / signing (SECRET private key; PUBLIC material is a var) ----
     EnvSpec("SZL_COSIGN_PRIVATE_PEM", SECRET, "signing",
-            "DSSE/cosign ECDSA-P256 PRIVATE key PEM. Absent => UNSIGNED-LOCAL "
-            "receipts (honest), never a fabricated signature.",
+            "Canonical DSSE/cosign ECDSA-P256 PRIVATE key PEM used by the "
+            "shared receipt signer.",
             required=False, default=None),
+    EnvSpec("A11OY_RECEIPT_KEY_PEM", SECRET, "signing",
+            "Optional compatibility ECDSA-P256 PRIVATE key PEM used only when "
+            "SZL_COSIGN_PRIVATE_PEM is absent.",
+            required=False, default=None),
+    EnvSpec("A11OY_RECEIPT_KEY_PATH", VARIABLE, "signing",
+            "Path to a mounted ECDSA-P256 receipt private key.",
+            default=None),
+    EnvSpec("A11OY_RECEIPT_KEY_DIR", VARIABLE, "signing",
+            "Directory containing a mounted ECDSA-P256 receipt private key.",
+            default=None),
+    EnvSpec("A11OY_REQUIRE_PERSISTENT_SIGNING", VARIABLE, "signing",
+            "1 requires a valid persistent receipt key and disables ephemeral "
+            "fallback.",
+            default="0"),
     EnvSpec("COSIGN_PUBLIC_PEM", VARIABLE, "signing",
             "DSSE cosign PUBLIC key PEM (safe to expose; verification only).",
             default=None),
