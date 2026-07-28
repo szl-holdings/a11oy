@@ -195,6 +195,14 @@ def _remaining_request_timeout(
     return min(30.0, remaining)
 
 
+def _require_deadline_open(
+    deadline: float,
+    monotonic=time.monotonic,
+) -> None:
+    if monotonic() >= deadline:
+        raise PublicationError("public readback deadline exhausted")
+
+
 def _repo_api_url(repo_id: str, repo_type: str) -> str:
     collection = "datasets" if repo_type == "dataset" else "spaces"
     return f"{HF_API_ROOT}/{collection}/{quote(repo_id, safe='/')}"
@@ -258,6 +266,8 @@ def _verify_public_repository(
         return _remaining_request_timeout(deadline, monotonic)
 
     info = fetch_json(_repo_api_url(repo_id, repo_type), request_timeout())
+    if deadline is not None:
+        _require_deadline_open(deadline, monotonic)
     _validate_public_info(info, repo_id, repo_type, revision, set(expected))
     observed = {}
     for name, body in expected.items():
@@ -265,6 +275,8 @@ def _verify_public_repository(
             _resolve_url(repo_id, repo_type, revision, name),
             request_timeout(),
         )
+        if deadline is not None:
+            _require_deadline_open(deadline, monotonic)
         if status != 200:
             raise PublicationError(
                 f"anonymous immutable readback returned HTTP {status}: "
@@ -278,6 +290,8 @@ def _verify_public_repository(
             "bytes": len(readback),
             "sha256": hashlib.sha256(readback).hexdigest(),
         }
+    if deadline is not None:
+        _require_deadline_open(deadline, monotonic)
     return {"info": info, "files": observed}
 
 
@@ -406,6 +420,7 @@ def _wait_for_public_space(
                 _repo_api_url(repo_id, "space"),
                 _remaining_request_timeout(deadline, monotonic),
             )
+            _require_deadline_open(deadline, monotonic)
         except PublicationError as exc:
             latest = {}
             latest_error = exc
@@ -436,6 +451,7 @@ def _wait_for_public_space(
                     public_url,
                     _remaining_request_timeout(deadline, monotonic),
                 )
+                _require_deadline_open(deadline, monotonic)
                 if status != 200 or not body:
                     raise PublicationError(
                         f"Space public root is not serving: "
@@ -446,6 +462,7 @@ def _wait_for_public_space(
                     identity_url,
                     _remaining_request_timeout(deadline, monotonic),
                 )
+                _require_deadline_open(deadline, monotonic)
                 if identity_status != 200 or not identity_body:
                     raise PublicationError(
                         "Space identity endpoint is not serving: "
@@ -459,6 +476,7 @@ def _wait_for_public_space(
             except PublicationError as exc:
                 latest_error = exc
             else:
+                _require_deadline_open(deadline, monotonic)
                 runtime = latest["runtime"]
                 public["runtime"] = {
                     "stage": runtime["stage"],

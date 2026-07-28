@@ -778,7 +778,7 @@ class PublicationTests(unittest.TestCase):
             "publication-manifest.json": b"two\n",
         }
         observed_timeouts = []
-        clock = iter([0.0, 9.5, 10.0])
+        clock = iter([0.0, 0.5, 9.5, 10.0])
 
         def fetch_json(_url: str, timeout_seconds: float):
             observed_timeouts.append(timeout_seconds)
@@ -808,6 +808,85 @@ class PublicationTests(unittest.TestCase):
             )
 
         self.assertEqual(observed_timeouts, [10.0, 0.5])
+
+    def test_space_refuses_root_or_config_returned_after_deadline(self):
+        publisher = _load_publisher()
+        revision = "a" * 40
+        source_revision = "b" * 40
+        dataset_revision = "c" * 40
+        publication = json.dumps(
+            {
+                "source_revision": source_revision,
+                "dataset_revision": dataset_revision,
+            }
+        ).encode()
+        expected = {"publication.json": publication}
+
+        for expires_on in ("root", "config"):
+            with self.subTest(expires_on=expires_on):
+                clock = {"now": 0.0}
+                config_calls = {"count": 0}
+
+                def fetch_bytes(url: str, _timeout_seconds: float):
+                    if url.endswith(".hf.space/config"):
+                        config_calls["count"] += 1
+                        if expires_on == "config":
+                            clock["now"] = 2.0
+                        return 200, json.dumps(
+                            {
+                                "mode": "blocks",
+                                "title": "Governed Agent Bench",
+                                "components": [
+                                    {
+                                        "type": "json",
+                                        "props": {
+                                            "label": "Immutable publication identity",
+                                            "value": {
+                                                "source_revision": source_revision,
+                                                "dataset_revision": dataset_revision,
+                                            },
+                                        },
+                                    }
+                                ],
+                            }
+                        ).encode()
+                    if url.endswith(".hf.space/"):
+                        if expires_on == "root":
+                            clock["now"] = 2.0
+                        return 200, b"<html>running</html>"
+                    return 200, publication
+
+                with self.assertRaisesRegex(
+                    publisher.PublicationError,
+                    "deadline exhausted",
+                ):
+                    publisher._wait_for_public_space(
+                        "SZLHOLDINGS/governed-agent-bench",
+                        revision,
+                        expected,
+                        timeout_seconds=1.0,
+                        poll_interval_seconds=0.0,
+                        fetch_json=lambda _url, _timeout: {
+                            "private": False,
+                            "sha": revision,
+                            "siblings": [
+                                {"rfilename": "publication.json"}
+                            ],
+                            "runtime": {
+                                "stage": "RUNNING",
+                                "sha": revision,
+                            },
+                            "subdomain": "szlholdings-governed-agent-bench",
+                        },
+                        fetch_bytes=fetch_bytes,
+                        sleep=lambda _seconds: None,
+                        monotonic=lambda: clock["now"],
+                    )
+
+                if expires_on == "root":
+                    self.assertEqual(config_calls["count"], 0)
+                else:
+                    self.assertEqual(config_calls["count"], 1)
 
     def test_publish_job_timeout_covers_publication_deadlines(self):
         workflow = (
