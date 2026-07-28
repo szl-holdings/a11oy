@@ -4,6 +4,7 @@ from pathlib import Path
 
 from scripts.verify_hf_snapshot_restore import (
     build_manifest,
+    download_space_snapshot,
     restore_archive,
     verify_local_snapshot,
 )
@@ -37,6 +38,29 @@ def test_restore_replaces_existing_destination(tmp_path: Path) -> None:
 
     assert build_manifest(restored) == build_manifest(source)
     assert not (restored / "stale.txt").exists()
+
+
+def test_explicitly_empty_space_restores_as_an_exact_empty_archive(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "empty-space"
+
+    def fail_download(**_: object) -> None:
+        raise AssertionError("empty Space must not call snapshot_download")
+
+    download_space_snapshot(
+        repo_id="SZLHOLDINGS/empty-fixture",
+        revision="0" * 40,
+        source=source,
+        token="not-used",
+        siblings=[],
+        snapshot_download=fail_download,
+    )
+    result = verify_local_snapshot(source, tmp_path / "work", "empty-fixture")
+
+    assert result["restore_match"] is True
+    assert result["file_count"] == 0
+    assert result["total_bytes"] == 0
 
 
 def test_workflow_pins_compatible_snapshot_progress_runtime() -> None:
