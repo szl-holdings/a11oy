@@ -74,6 +74,9 @@ class PublicationTests(unittest.TestCase):
             leaderboard = json.loads(
                 (output / "dataset" / "leaderboard.json").read_text(encoding="utf-8")
             )
+            self.assertEqual(
+                leaderboard["status"], "REFERENCE_ONLY_NO_MODEL_SUBMISSIONS"
+            )
             self.assertEqual(leaderboard["eligible_model_submissions"], 0)
             self.assertEqual(leaderboard["model_submissions"], [])
             reference = leaderboard["reference_rows"][0]
@@ -247,6 +250,101 @@ class PublicationTests(unittest.TestCase):
                         payload,
                         "test-token",
                     )
+
+    def test_anonymous_repository_readback_is_exact_and_public(self):
+        publisher = _load_publisher()
+        expected = {
+            "README.md": b"public\n",
+            "publication-manifest.json": b'{"managed_by":"x"}\n',
+        }
+        revision = "c" * 40
+        info = {
+            "private": False,
+            "sha": revision,
+            "siblings": [{"rfilename": name} for name in expected],
+        }
+
+        def fetch_bytes(url: str):
+            name = url.rsplit("/", 1)[-1]
+            return 200, expected[name]
+
+        result = publisher._verify_public_repository(
+            "SZLHOLDINGS/governed-agent-bench",
+            "dataset",
+            revision,
+            expected,
+            fetch_json=lambda _url: info,
+            fetch_bytes=fetch_bytes,
+        )
+        self.assertEqual(set(result["files"]), set(expected))
+
+        private_info = dict(info, private=True)
+        with self.assertRaisesRegex(
+            publisher.PublicationError, "public visibility"
+        ):
+            publisher._verify_public_repository(
+                "SZLHOLDINGS/governed-agent-bench",
+                "dataset",
+                revision,
+                expected,
+                fetch_json=lambda _url: private_info,
+                fetch_bytes=fetch_bytes,
+            )
+
+    def test_space_waits_for_exact_running_revision_and_public_root(self):
+        publisher = _load_publisher()
+        expected = {"README.md": b"space\n"}
+        revision = "d" * 40
+        states = iter(
+            [
+                {
+                    "private": False,
+                    "sha": revision,
+                    "siblings": [{"rfilename": "README.md"}],
+                    "runtime": {"stage": "RUNNING_BUILDING", "sha": "e" * 40},
+                    "subdomain": "szlholdings-governed-agent-bench",
+                },
+                {
+                    "private": False,
+                    "sha": revision,
+                    "siblings": [{"rfilename": "README.md"}],
+                    "runtime": {"stage": "RUNNING", "sha": revision},
+                    "subdomain": "szlholdings-governed-agent-bench",
+                },
+            ]
+        )
+
+        def fetch_bytes(url: str):
+            if url.endswith(".hf.space/"):
+                return 200, b"<html>running</html>"
+            return 200, expected["README.md"]
+
+        result = publisher._wait_for_public_space(
+            "SZLHOLDINGS/governed-agent-bench",
+            revision,
+            expected,
+            timeout_seconds=1.0,
+            poll_interval_seconds=0.0,
+            fetch_json=lambda _url: next(states),
+            fetch_bytes=fetch_bytes,
+            sleep=lambda _seconds: None,
+            monotonic=lambda: 0.0,
+        )
+        self.assertEqual(result["runtime"]["stage"], "RUNNING")
+        self.assertEqual(result["runtime"]["sha"], revision)
+        self.assertEqual(result["runtime"]["http_status"], 200)
+
+    def test_workflow_scopes_hf_token_to_the_publish_step(self):
+        workflow = (
+            HERE.parents[1] / ".github" / "workflows" / "governed-agent-bench.yml"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(workflow.count("HF_TOKEN:"), 1)
+        self.assertIn(
+            "- name: Publish and read back immutable revisions\n"
+            "        env:\n"
+            "          HF_TOKEN:",
+            workflow,
+        )
 
 
 if __name__ == "__main__":

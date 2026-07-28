@@ -12,12 +12,25 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 MANAGED_BY = "szl-holdings/a11oy:benchmarks/governed-agent-bench"
+HF_API_ROOT = "https://huggingface.co/api"
+HF_WEB_ROOT = "https://huggingface.co"
+SPACE_RUNTIME_FAILURE_STAGES = {
+    "BUILD_ERROR",
+    "CONFIG_ERROR",
+    "DELETED",
+    "NO_APP_FILE",
+    "RUNTIME_ERROR",
+}
 
 
 class PublicationError(RuntimeError):
@@ -42,6 +55,175 @@ def _manifest_is_managed(files: dict[str, bytes]) -> None:
         raise PublicationError("payload lacks a valid publication manifest") from exc
     if manifest.get("managed_by") != MANAGED_BY:
         raise PublicationError("publication manifest ownership mismatch")
+
+
+def _public_bytes(url: str, timeout_seconds: float = 30.0) -> tuple[int, bytes]:
+    request = Request(url, headers={"User-Agent": "szl-governed-agent-bench/1"})
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            return int(response.status), response.read()
+    except (HTTPError, URLError, TimeoutError) as exc:
+        raise PublicationError(f"anonymous HTTP read failed: {url}: {exc}") from exc
+
+
+def _public_json(url: str) -> dict[str, object]:
+    status, body = _public_bytes(url)
+    if status != 200:
+        raise PublicationError(f"anonymous API read returned HTTP {status}: {url}")
+    try:
+        value = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise PublicationError(f"anonymous API read returned invalid JSON: {url}") from exc
+    if not isinstance(value, dict):
+        raise PublicationError(f"anonymous API read returned a non-object: {url}")
+    return value
+
+
+def _repo_api_url(repo_id: str, repo_type: str) -> str:
+    collection = "datasets" if repo_type == "dataset" else "spaces"
+    return f"{HF_API_ROOT}/{collection}/{quote(repo_id, safe='/')}"
+
+
+def _resolve_url(repo_id: str, repo_type: str, revision: str, name: str) -> str:
+    collection = "datasets" if repo_type == "dataset" else "spaces"
+    return (
+        f"{HF_WEB_ROOT}/{collection}/{quote(repo_id, safe='/')}/resolve/"
+        f"{quote(revision, safe='')}/{quote(name, safe='/')}"
+    )
+
+
+def _validate_public_info(
+    info: dict[str, object],
+    repo_id: str,
+    repo_type: str,
+    revision: str,
+    expected_names: set[str],
+) -> None:
+    if info.get("private") is not False:
+        raise PublicationError(
+            f"anonymous API does not prove public visibility: {repo_type}:{repo_id}"
+        )
+    if info.get("sha") != revision:
+        raise PublicationError(
+            f"public repository revision mismatch: {repo_type}:{repo_id} "
+            f"expected={revision!r} observed={info.get('sha')!r}"
+        )
+    siblings = info.get("siblings")
+    if not isinstance(siblings, list):
+        raise PublicationError(f"public repository inventory missing: {repo_type}:{repo_id}")
+    observed_names = {
+        entry.get("rfilename")
+        for entry in siblings
+        if isinstance(entry, dict) and isinstance(entry.get("rfilename"), str)
+    }
+    if observed_names != expected_names:
+        missing = sorted(expected_names - observed_names)
+        unexpected = sorted(observed_names - expected_names)
+        raise PublicationError(
+            "anonymous inventory mismatch: "
+            f"{repo_type}:{repo_id} missing={missing!r} unexpected={unexpected!r}"
+        )
+
+
+def _verify_public_repository(
+    repo_id: str,
+    repo_type: str,
+    revision: str,
+    expected: dict[str, bytes],
+    *,
+    fetch_json=_public_json,
+    fetch_bytes=_public_bytes,
+) -> dict[str, object]:
+    info = fetch_json(_repo_api_url(repo_id, repo_type))
+    _validate_public_info(info, repo_id, repo_type, revision, set(expected))
+    observed = {}
+    for name, body in expected.items():
+        status, readback = fetch_bytes(_resolve_url(repo_id, repo_type, revision, name))
+        if status != 200:
+            raise PublicationError(
+                f"anonymous immutable readback returned HTTP {status}: "
+                f"{repo_type}:{repo_id}/{name}"
+            )
+        if readback != body:
+            raise PublicationError(
+                f"anonymous immutable readback mismatch: {repo_type}:{repo_id}/{name}"
+            )
+        observed[name] = {
+            "bytes": len(readback),
+            "sha256": hashlib.sha256(readback).hexdigest(),
+        }
+    return {"info": info, "files": observed}
+
+
+def _space_runtime_ready(info: dict[str, object], revision: str) -> bool:
+    runtime = info.get("runtime")
+    if not isinstance(runtime, dict):
+        return False
+    return runtime.get("stage") == "RUNNING" and runtime.get("sha") == revision
+
+
+def _wait_for_public_space(
+    repo_id: str,
+    revision: str,
+    expected: dict[str, bytes],
+    timeout_seconds: float,
+    poll_interval_seconds: float,
+    *,
+    fetch_json=_public_json,
+    fetch_bytes=_public_bytes,
+    sleep=time.sleep,
+    monotonic=time.monotonic,
+) -> dict[str, object]:
+    deadline = monotonic() + timeout_seconds
+    latest: dict[str, object] = {}
+    while monotonic() <= deadline:
+        try:
+            latest = fetch_json(_repo_api_url(repo_id, "space"))
+        except PublicationError:
+            latest = {}
+        runtime = latest.get("runtime")
+        stage = runtime.get("stage") if isinstance(runtime, dict) else None
+        if stage in SPACE_RUNTIME_FAILURE_STAGES:
+            raise PublicationError(f"Space entered terminal failure stage: {stage}")
+        if _space_runtime_ready(latest, revision):
+            _validate_public_info(latest, repo_id, "space", revision, set(expected))
+            break
+        sleep(poll_interval_seconds)
+    else:
+        runtime = latest.get("runtime")
+        stage = runtime.get("stage") if isinstance(runtime, dict) else None
+        runtime_sha = runtime.get("sha") if isinstance(runtime, dict) else None
+        raise PublicationError(
+            "Space did not reach exact-revision RUNNING state before timeout: "
+            f"stage={stage!r} runtime_sha={runtime_sha!r} expected={revision!r}"
+        )
+
+    public = _verify_public_repository(
+        repo_id,
+        "space",
+        revision,
+        expected,
+        fetch_json=lambda _url: latest,
+        fetch_bytes=fetch_bytes,
+    )
+    subdomain = latest.get("subdomain")
+    if not isinstance(subdomain, str) or not re.fullmatch(r"[a-z0-9-]+", subdomain):
+        raise PublicationError("Space public subdomain is missing or invalid")
+    public_url = f"https://{subdomain}.hf.space/"
+    status, body = fetch_bytes(public_url)
+    if status != 200 or not body:
+        raise PublicationError(
+            f"Space public root is not serving: status={status} bytes={len(body)}"
+        )
+    runtime = latest["runtime"]
+    public["runtime"] = {
+        "stage": runtime["stage"],
+        "sha": runtime["sha"],
+        "public_url": public_url,
+        "http_status": status,
+        "response_bytes": len(body),
+    }
+    return public
 
 
 def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token: str):
@@ -170,6 +352,8 @@ def publish(
     dataset_repo: str,
     space_repo: str,
     receipt_path: Path,
+    space_timeout_seconds: float = 900.0,
+    poll_interval_seconds: float = 10.0,
 ) -> dict[str, object]:
     if not SHA_RE.fullmatch(source_revision):
         raise PublicationError("source revision must be 40 lowercase hexadecimal characters")
@@ -194,6 +378,12 @@ def publish(
         dataset_inventory,
     ) = _publish_and_readback(
         api, dataset_repo, "dataset", dataset, token
+    )
+    dataset_public = _verify_public_repository(
+        dataset_repo,
+        "dataset",
+        dataset_revision,
+        _files(dataset),
     )
 
     with tempfile.TemporaryDirectory(prefix="governed-agent-bench-space-") as tmp:
@@ -231,6 +421,13 @@ def publish(
         ) = _publish_and_readback(
             api, space_repo, "space", resolved_space, token
         )
+        space_public = _wait_for_public_space(
+            space_repo,
+            space_revision,
+            _files(resolved_space),
+            space_timeout_seconds,
+            poll_interval_seconds,
+        )
 
     receipt = {
         "schema_version": "szl.governed-agent-bench-publication-receipt.v1",
@@ -243,6 +440,7 @@ def publish(
             "action": dataset_action,
             "inventory": dataset_inventory,
             "files": dataset_files,
+            "public_readback": dataset_public["files"],
         },
         "space": {
             "repo_id": space_repo,
@@ -250,8 +448,10 @@ def publish(
             "action": space_action,
             "inventory": space_inventory,
             "files": space_files,
+            "public_readback": space_public["files"],
+            "runtime": space_public["runtime"],
         },
-        "status": "VERIFIED_IMMUTABLE_READBACK",
+        "status": "VERIFIED_PUBLIC_IMMUTABLE_READBACK_AND_RUNNING_SPACE",
         "credential_value_recorded": False,
     }
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,6 +470,8 @@ def main() -> int:
     parser.add_argument("--dataset-repo", default="SZLHOLDINGS/governed-agent-bench")
     parser.add_argument("--space-repo", default="SZLHOLDINGS/governed-agent-bench")
     parser.add_argument("--receipt", type=Path, required=True)
+    parser.add_argument("--space-timeout-seconds", type=float, default=900.0)
+    parser.add_argument("--poll-interval-seconds", type=float, default=10.0)
     args = parser.parse_args()
     try:
         receipt = publish(
@@ -278,6 +480,8 @@ def main() -> int:
             args.dataset_repo,
             args.space_repo,
             args.receipt,
+            args.space_timeout_seconds,
+            args.poll_interval_seconds,
         )
     except PublicationError as exc:
         print(f"publication failed: {exc}", file=sys.stderr)

@@ -95,7 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
       PUBLICATION_DIR: reports/governed-agent-bench-publication
     steps:
       - name: Check out exact protected source
@@ -119,6 +118,8 @@ jobs:
           --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
       - name: Publish and read back immutable revisions
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: >-
           python benchmarks/governed-agent-bench/publish_huggingface.py
           --bundle "$PUBLICATION_DIR"

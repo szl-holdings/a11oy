@@ -126,7 +126,7 @@ license: apache-2.0
 
 # Governed Agent Bench
 
-Live, evidence-labeled leaderboard for the governability benchmark published
+Evidence-labeled leaderboard payload for the governability benchmark generated
 from `szl-holdings/a11oy@{source_revision}`.
 
 The Space renders only committed benchmark output. It does not call a model,
@@ -200,7 +200,7 @@ def build(output: Path, source_revision: str, observed_at: str) -> dict[str, obj
         "schema_version": "szl.governed-agent-bench-leaderboard.v1",
         "benchmark": "governed-agent-bench",
         "benchmark_version": result["version"],
-        "status": "LIVE_REFERENCE_ONLY_NO_MODEL_SUBMISSIONS",
+        "status": "REFERENCE_ONLY_NO_MODEL_SUBMISSIONS",
         "source_repository": "szl-holdings/a11oy",
         "source_revision": source_revision,
         "observed_at": observed_at,
