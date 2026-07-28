@@ -89,6 +89,82 @@ test("provider normalizers produce stable source hashes and strip sensitive URL 
   assert.match(openai.sources[0]?.title_sha256 ?? "", /^[a-f0-9]{64}$/);
 });
 
+test("content-selecting code parameters retain distinct redacted identities", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const openai = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: "https://research.example/paper?code=alpha",
+    }],
+  });
+  const perplexity = normalizePerplexitySearchResult({
+    ...base.perplexity,
+    results: [{
+      url: "https://research.example/paper?code=beta",
+    }],
+  });
+  const comparison = compareResearchEvidence({
+    query_sha256: fixtures.query_sha256,
+    policy_sha256: fixtures.policy_sha256,
+    providers: [openai, perplexity],
+  });
+
+  assert.equal(comparison.source_url_overlap_count, 0);
+  assert.equal(comparison.label, "DIVERGENT");
+  assert.equal(JSON.stringify(comparison).includes("alpha"), false);
+  assert.equal(JSON.stringify(comparison).includes("beta"), false);
+  assert.match(new URL(openai.sources[0]?.url ?? "").searchParams.get("code") ?? "", /^sha256:/);
+});
+
+test("vendor-prefixed presigned credentials never enter normalized evidence", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const openai = normalizeOpenAIWebSearchResult({
+    ...base.openai,
+    sources: [{
+      url: [
+        "https://research.example/paper?topic=governance",
+        "X-Amz-Credential=must-not-escape",
+        "X-Amz-Signature=must-not-escape",
+      ].join("&"),
+    }],
+  });
+  const serialized = JSON.stringify(openai);
+
+  assert.equal(serialized.includes("must-not-escape"), false);
+  assert.equal(openai.sources[0]?.url, "https://research.example/paper?topic=governance");
+});
+
+test("comparison projects provider and source fields through an explicit allowlist", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const openai = normalizeOpenAIWebSearchResult(base.openai);
+  const perplexity = normalizePerplexitySearchResult(base.perplexity);
+  const unsafeOpenAI = {
+    ...openai,
+    api_key: "must-not-escape",
+    sources: openai.sources.map((source) => ({
+      ...source,
+      snippet: "raw snippet must not be receipted",
+    })),
+  } as NormalizedResearchProviderEvidence;
+  const comparison = compareResearchEvidence({
+    query_sha256: fixtures.query_sha256,
+    policy_sha256: fixtures.policy_sha256,
+    providers: [unsafeOpenAI, perplexity],
+  });
+  const receipt = emitTwoWitnessResearchReceipt(comparison, {
+    actor_id: "did:example:projection-test",
+  });
+  const serialized = JSON.stringify(receipt.envelope);
+
+  assert.equal(serialized.includes("must-not-escape"), false);
+  assert.equal(serialized.includes("raw snippet must not be receipted"), false);
+  assert.equal(serialized.includes("\"api_key\""), false);
+  assert.equal(serialized.includes("\"snippet\""), false);
+});
+
 test("live adapters remain disabled and the public label vocabulary excludes a truth claim", () => {
   const labels: readonly ResearchEvidenceLabel[] = [
     "CORROBORATED",

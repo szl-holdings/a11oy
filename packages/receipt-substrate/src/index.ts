@@ -491,7 +491,6 @@ const SENSITIVE_SOURCE_QUERY_KEYS = new Set([
   "apikey",
   "auth",
   "authorization",
-  "code",
   "credential",
   "key",
   "password",
@@ -500,6 +499,8 @@ const SENSITIVE_SOURCE_QUERY_KEYS = new Set([
   "sig",
   "token",
 ]);
+const DIGESTED_SOURCE_QUERY_KEYS = new Set(["code"]);
+const SENSITIVE_SOURCE_QUERY_PREFIXES = ["x-amz-", "x-goog-", "x-oss-"];
 const TRACKING_SOURCE_QUERY_PREFIXES = ["utm_"];
 const TRACKING_SOURCE_QUERY_KEYS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid"]);
 
@@ -551,8 +552,24 @@ function cleanSourceUrl(raw: unknown): string | undefined {
     url.hash = "";
     for (const key of [...url.searchParams.keys()]) {
       const lower = key.toLowerCase();
+      if (DIGESTED_SOURCE_QUERY_KEYS.has(lower)) {
+        const digests = url.searchParams
+          .getAll(key)
+          .map((value) => (
+            /^sha256:[a-f0-9]{64}$/.test(value)
+              ? value.slice("sha256:".length)
+              : hashHex(value, "SHA-256")
+          ))
+          .sort();
+        url.searchParams.delete(key);
+        for (const digest of digests) {
+          url.searchParams.append(key, `sha256:${digest}`);
+        }
+        continue;
+      }
       if (
         SENSITIVE_SOURCE_QUERY_KEYS.has(lower)
+        || SENSITIVE_SOURCE_QUERY_PREFIXES.some((prefix) => lower.startsWith(prefix))
         || TRACKING_SOURCE_QUERY_KEYS.has(lower)
         || TRACKING_SOURCE_QUERY_PREFIXES.some((prefix) => lower.startsWith(prefix))
       ) {
@@ -622,6 +639,67 @@ function normalizeResearchUsage(input: ResearchUsageInput | undefined): Normaliz
       : {}),
   };
   return Object.keys(usage).length > 0 ? usage : undefined;
+}
+
+function projectNormalizedResearchSource(
+  input: NormalizedResearchSource,
+): NormalizedResearchSource {
+  return {
+    url: input.url,
+    domain: input.domain,
+    ...(input.title_sha256 !== undefined ? { title_sha256: input.title_sha256 } : {}),
+    ...(input.published_at !== undefined ? { published_at: input.published_at } : {}),
+    ...(input.last_updated_at !== undefined
+      ? { last_updated_at: input.last_updated_at }
+      : {}),
+  };
+}
+
+function projectNormalizedResearchUsage(
+  input: NormalizedResearchUsage | undefined,
+): NormalizedResearchUsage | undefined {
+  if (!input) return undefined;
+  const projected: NormalizedResearchUsage = {
+    ...(input.input_tokens !== undefined ? { input_tokens: input.input_tokens } : {}),
+    ...(input.output_tokens !== undefined ? { output_tokens: input.output_tokens } : {}),
+    ...(input.total_tokens !== undefined ? { total_tokens: input.total_tokens } : {}),
+    ...(input.reasoning_tokens !== undefined
+      ? { reasoning_tokens: input.reasoning_tokens }
+      : {}),
+    ...(input.cached_tokens !== undefined ? { cached_tokens: input.cached_tokens } : {}),
+    ...(input.search_queries !== undefined
+      ? { search_queries: input.search_queries }
+      : {}),
+  };
+  return Object.keys(projected).length > 0 ? projected : undefined;
+}
+
+function projectNormalizedProviderEvidence(
+  input: NormalizedResearchProviderEvidence,
+): NormalizedResearchProviderEvidence {
+  const usage = projectNormalizedResearchUsage(input.usage);
+  return {
+    schema_version: input.schema_version,
+    provider: input.provider,
+    api_surface: input.api_surface,
+    tool: input.tool,
+    status: input.status,
+    query_sha256: input.query_sha256,
+    policy_sha256: input.policy_sha256,
+    ...(input.response_id !== undefined ? { response_id: input.response_id } : {}),
+    ...(input.model !== undefined ? { model: input.model } : {}),
+    ...(input.http_status !== undefined ? { http_status: input.http_status } : {}),
+    ...(input.caller_observed_latency_ms !== undefined
+      ? { caller_observed_latency_ms: input.caller_observed_latency_ms }
+      : {}),
+    ...(usage ? { usage } : {}),
+    ...(input.provider_reported_cost_usd !== undefined
+      ? { provider_reported_cost_usd: input.provider_reported_cost_usd }
+      : {}),
+    sources: input.sources.map(projectNormalizedResearchSource),
+    source_count: input.source_count,
+    source_list_sha256: input.source_list_sha256,
+  };
 }
 
 function normalizeProviderEvidence(input: {
@@ -727,7 +805,9 @@ export function compareResearchEvidence(input: {
 }): ResearchEvidenceComparison {
   const querySha256 = cleanSha256(input.query_sha256);
   const policySha256 = cleanSha256(input.policy_sha256);
-  const providers = [...input.providers].sort((left, right) => left.provider.localeCompare(right.provider));
+  const providers = input.providers
+    .map(projectNormalizedProviderEvidence)
+    .sort((left, right) => left.provider.localeCompare(right.provider));
   const errors: string[] = [];
 
   if (!SHA256_PATTERN.test(querySha256)) errors.push("expected query_sha256 is not a SHA-256 digest");
