@@ -12624,10 +12624,15 @@ try:
             import base64 as _b64x
             sigs = env.get("signatures") or []
             payload_b64 = env.get("payload")
-            ptype = env.get("payloadType") or _A11OY_PAYLOAD_TYPE
+            ptype = env.get("payloadType")
             if not sigs or not payload_b64:
                 return {"signature_valid": False,
                         "detail": "unsigned envelope (no signature bytes present)"}
+            if not isinstance(ptype, str) or not ptype.strip():
+                return {
+                    "signature_valid": False,
+                    "detail": "DSSE envelope payloadType must be a non-empty string",
+                }
             if _A11OY_PRIV is None:
                 return {"signature_valid": False,
                         "detail": "shared key unavailable in this runtime"}
@@ -14061,10 +14066,15 @@ def _a11oy_verify_for_factory(env):
         import base64 as _b64f
         sigs = env.get("signatures") or []
         payload_b64 = env.get("payload")
-        ptype = env.get("payloadType") or _A11OY_PAYLOAD_TYPE
+        ptype = env.get("payloadType")
         if not sigs or not payload_b64:
             return {"signature_valid": False,
                     "detail": "unsigned envelope (no signature bytes present)"}
+        if not isinstance(ptype, str) or not ptype.strip():
+            return {
+                "signature_valid": False,
+                "detail": "DSSE envelope payloadType must be a non-empty string",
+            }
         if _A11OY_PRIV is None:
             return {"signature_valid": False,
                     "detail": "in-image key unavailable in this runtime"}

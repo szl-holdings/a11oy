@@ -66,6 +66,22 @@ def test_runtime_verifier_retains_legacy_inimage_keyid() -> None:
     assert verdict["keyid_verified"] == "a11oy-inimage-ecdsa-p256"
 
 
+@pytest.mark.parametrize("payload_type", [None, "", "   "])
+def test_runtime_verifier_rejects_missing_payload_type(payload_type) -> None:
+    envelope = serve._a11oy_sign_receipt({"event": "test.runtime.payload-type"})
+    if payload_type is None:
+        envelope.pop("payloadType")
+    else:
+        envelope["payloadType"] = payload_type
+
+    verdict = serve._a11oy_loop_verify(envelope)
+
+    assert verdict["signature_valid"] is False
+    assert verdict["detail"] == (
+        "DSSE envelope payloadType must be a non-empty string"
+    )
+
+
 def test_public_verifier_accepts_shared_runtime_signature() -> None:
     envelope = serve._a11oy_sign_receipt({"event": "test.public.runtime.verify"})
     response = TestClient(serve.app).post(

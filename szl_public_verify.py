@@ -170,6 +170,13 @@ def _check_signature(env: dict[str, Any], runtime_verify_fn=None) -> dict[str, A
         return {**out, "status": UNSIGNED_LOCAL,
                 "detail": ("envelope has no signatures[]; nothing to verify "
                            "(honest UNSIGNED-LOCAL — no signature fabricated)")}
+    payload_type = env.get("payloadType")
+    if not isinstance(payload_type, str) or not payload_type.strip():
+        return {
+            **out,
+            "status": MISMATCH,
+            "detail": "DSSE envelope payloadType must be a non-empty string",
+        }
     keyids = [str(s.get("keyid") or "") for s in sigs if isinstance(s, dict)]
     runtime_verdict = None
     if callable(runtime_verify_fn):

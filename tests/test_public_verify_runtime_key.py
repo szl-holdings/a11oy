@@ -129,6 +129,41 @@ def test_runtime_verifier_keeps_keyid_bound(monkeypatch) -> None:
     assert keyid != envelope["signatures"][0]["keyid"]
 
 
+@pytest.mark.parametrize("payload_type", [None, "", "   "])
+def test_public_verifier_rejects_missing_payload_type(
+    monkeypatch,
+    payload_type,
+) -> None:
+    envelope, _, _ = _runtime_fixture()
+    if payload_type is None:
+        envelope.pop("payloadType")
+    else:
+        envelope["payloadType"] = payload_type
+    runtime_called = False
+
+    def fail_open_runtime_verifier(_candidate):
+        nonlocal runtime_called
+        runtime_called = True
+        return {"signature_valid": True}
+
+    monkeypatch.setattr(
+        szl_dsse,
+        "verify_envelope",
+        lambda _env: {"verified": True},
+    )
+
+    result = szl_public_verify._check_signature(
+        envelope,
+        runtime_verify_fn=fail_open_runtime_verifier,
+    )
+
+    assert result["status"] == szl_public_verify.MISMATCH
+    assert result["detail"] == (
+        "DSSE envelope payloadType must be a non-empty string"
+    )
+    assert runtime_called is False
+
+
 def test_historical_key_falls_back_to_static_verifier(monkeypatch) -> None:
     envelope, _, runtime_verify = _runtime_fixture()
     monkeypatch.setattr(
