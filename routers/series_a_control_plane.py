@@ -402,36 +402,58 @@ class Store:
         self, kind: str, payload: Mapping[str, Any], signer: ReceiptSigner
     ) -> dict[str, Any]:
         with self.lock, self.connect() as db:
-            row = db.execute(
-                "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
-            ).fetchone()
-            previous = row["receipt_hash"] if row else "0" * 64
-            receipt = {
-                "schema": SCHEMA_RECEIPT,
-                "receipt_id": f"rcpt_{uuid.uuid4().hex}",
-                "kind": kind,
-                "created_at": _now(),
-                "source_revision": _git_revision(),
-                "previous_receipt_hash": previous,
-                "payload": dict(payload),
-            }
-            envelope = signer.sign(receipt)
-            receipt_hash = _sha(envelope)
-            db.execute(
-                """INSERT INTO receipts(receipt_id,kind,payload,envelope,previous_hash,receipt_hash,created_at)
-                   VALUES(?,?,?,?,?,?,?)""",
-                (
-                    receipt["receipt_id"],
-                    kind,
-                    json.dumps(receipt, sort_keys=True),
-                    json.dumps(envelope, sort_keys=True),
-                    previous,
-                    receipt_hash,
-                    receipt["created_at"],
-                ),
+            value = self._append_receipt_in_transaction(
+                db, kind, payload, signer
             )
-        self.append_event(kind, {"receipt_hash": receipt_hash, "receipt_id": receipt["receipt_id"]})
-        return {"receipt": receipt, "envelope": envelope, "receipt_hash": receipt_hash}
+        self.append_event(
+            kind,
+            {
+                "receipt_hash": value["receipt_hash"],
+                "receipt_id": value["receipt"]["receipt_id"],
+            },
+        )
+        return value
+
+    @staticmethod
+    def _append_receipt_in_transaction(
+        db: sqlite3.Connection,
+        kind: str,
+        payload: Mapping[str, Any],
+        signer: ReceiptSigner,
+    ) -> dict[str, Any]:
+        row = db.execute(
+            "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
+        ).fetchone()
+        previous = row["receipt_hash"] if row else "0" * 64
+        receipt = {
+            "schema": SCHEMA_RECEIPT,
+            "receipt_id": f"rcpt_{uuid.uuid4().hex}",
+            "kind": kind,
+            "created_at": _now(),
+            "source_revision": _git_revision(),
+            "previous_receipt_hash": previous,
+            "payload": dict(payload),
+        }
+        envelope = signer.sign(receipt)
+        receipt_hash = _sha(envelope)
+        db.execute(
+            """INSERT INTO receipts(receipt_id,kind,payload,envelope,previous_hash,receipt_hash,created_at)
+               VALUES(?,?,?,?,?,?,?)""",
+            (
+                receipt["receipt_id"],
+                kind,
+                json.dumps(receipt, sort_keys=True),
+                json.dumps(envelope, sort_keys=True),
+                previous,
+                receipt_hash,
+                receipt["created_at"],
+            ),
+        )
+        return {
+            "receipt": receipt,
+            "envelope": envelope,
+            "receipt_hash": receipt_hash,
+        }
 
     def list_receipts(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.lock, self.connect() as db:
@@ -517,6 +539,37 @@ class Store:
             )
             if result.rowcount != 1:
                 raise RuntimeError("passport attempt is absent or already consumed")
+
+    def consume_denied_attempt(
+        self,
+        digest: str,
+        payload: Mapping[str, Any],
+        signer: ReceiptSigner,
+    ) -> dict[str, Any]:
+        """Consume the single attempt and persist its denial in one transaction."""
+        with self.lock, self.connect() as db:
+            result = db.execute(
+                "UPDATE passports SET attempts=1 WHERE digest=? AND attempts=0",
+                (digest,),
+            )
+            if result.rowcount != 1:
+                raise RuntimeError(
+                    "passport attempt is absent or already consumed"
+                )
+            value = self._append_receipt_in_transaction(
+                db,
+                "passport.execution-denied",
+                payload,
+                signer,
+            )
+        self.append_event(
+            "passport.execution-denied",
+            {
+                "receipt_hash": value["receipt_hash"],
+                "receipt_id": value["receipt"]["receipt_id"],
+            },
+        )
+        return value
 
     def outcome_for_passport(self, digest: str) -> dict[str, Any] | None:
         with self.lock, self.connect() as db:
@@ -1004,8 +1057,12 @@ class Service:
         latest = self.store.latest_snapshot()
         if latest is None:
             return ["FRESH_SERVER_EVIDENCE_REQUIRED"]
-        if latest.get("manifest", {}).get("status") != "OBSERVED":
+        manifest = latest.get("manifest")
+        if not isinstance(manifest, dict) or manifest.get("status") != "OBSERVED":
             return ["OBSERVED_SERVER_EVIDENCE_REQUIRED"]
+        critical_failures = manifest.get("critical_failures")
+        if not isinstance(critical_failures, list) or critical_failures:
+            return ["CRITICAL_FAILURE_FREE_SERVER_EVIDENCE_REQUIRED"]
         try:
             valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
         except (TypeError, ValueError):
@@ -1127,17 +1184,45 @@ class Service:
         if passport["attempts"] != 0:
             raise HTTPException(status_code=409, detail="passport attempt already consumed")
         if passport["decision"] != "ALLOW":
-            raise HTTPException(status_code=403, detail=f"passport decision is {passport['decision']}")
+            reasons = [f"PASSPORT_DECISION_{passport['decision']}"]
+            try:
+                denial_receipt = self.store.consume_denied_attempt(
+                    digest,
+                    {"passport_digest": digest, "reason_codes": reasons},
+                    self.signer,
+                )
+            except RuntimeError as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="passport attempt already consumed",
+                ) from exc
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "PASSPORT_DECISION_DENY",
+                    "reason_codes": reasons,
+                    "receipt_hash": denial_receipt["receipt_hash"],
+                    "signature_status": denial_receipt["envelope"][
+                        "signature_status"
+                    ],
+                },
+            )
         action = passport["action"]
         governance = self._governance_gate(action)
         evidence_reasons = self._fresh_evidence_reasons(passport.get("evidence"))
         if not governance["allowed"] or evidence_reasons:
             reasons = sorted(set(governance["reason_codes"] + evidence_reasons))
-            denial_receipt = self.store.append_receipt(
-                "passport.execution-denied",
-                {"passport_digest": digest, "reason_codes": reasons},
-                self.signer,
-            )
+            try:
+                denial_receipt = self.store.consume_denied_attempt(
+                    digest,
+                    {"passport_digest": digest, "reason_codes": reasons},
+                    self.signer,
+                )
+            except RuntimeError as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="passport attempt already consumed",
+                ) from exc
             raise HTTPException(
                 status_code=403,
                 detail={
@@ -1147,7 +1232,13 @@ class Service:
                     "signature_status": denial_receipt["envelope"]["signature_status"],
                 },
             )
-        self.store.consume_attempt(digest)
+        try:
+            self.store.consume_attempt(digest)
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail="passport attempt already consumed",
+            ) from exc
         task = asyncio.create_task(
             self._execute_consumed(digest, passport, governance),
             name=f"series-a-execute-{digest[:12]}",
@@ -1385,9 +1476,17 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         return JSONResponse(payload, headers={"cache-control": "no-store"})
 
     async def refresh(request: Request) -> Response:
-        body = await _bounded_json(request)
-        actor = str(body.get("actor") or "operator")[:120]
-        return JSONResponse(await service.refresh(actor))
+        await _bounded_json(request)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "DIRECT_REFRESH_DISABLED",
+                "required_flow": [
+                    f"{prefix}/passports/evaluate",
+                    f"{prefix}/passports/execute",
+                ],
+            },
+        )
 
     async def evaluate(request: Request) -> Response:
         return JSONResponse(service.evaluate_passport(await _bounded_json(request)))

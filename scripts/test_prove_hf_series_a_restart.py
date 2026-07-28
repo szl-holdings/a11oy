@@ -88,6 +88,21 @@ class Session:
         raise AssertionError(url)
 
 
+class StartupReceiptSession(Session):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.statuses = [
+            status(source, receipts=0, head=None),
+            status(source, receipts=1, head="2" * 64),
+            status(source, receipts=2, head="3" * 64),
+        ]
+        self.posts = 0
+
+    def post(self, *_args, **_kwargs):
+        self.posts += 1
+        raise AssertionError("public restart proof must not bypass passports")
+
+
 class Api:
     def __init__(self) -> None:
         self.calls = []
@@ -121,6 +136,29 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
     assert api.calls == [
         {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
     ]
+
+
+def test_prove_waits_for_startup_receipt_without_direct_refresh(
+    monkeypatch,
+) -> None:
+    source = "a" * 40
+    api = Api()
+    session = StartupReceiptSession(source)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=api,
+        session=session,
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=2,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert session.posts == 0
+    assert report["before"]["storage"]["receipt_count"] == 1
 
 
 def test_validate_restart_rejects_key_or_database_identity_change() -> None:
