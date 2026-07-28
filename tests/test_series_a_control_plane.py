@@ -182,16 +182,28 @@ def test_browser_claimed_observation_cannot_authorize_execution(tmp_path: Path) 
     assert "SERVER_OBSERVED_EVIDENCE_REQUIRED" in result["passport"]["reason_codes"]
 
 
-def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) -> None:
+def test_frontend_wires_one_attempt_execution_and_live_events(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
     value = app(tmp_path)
+    revision = control._git_revision()
     with TestClient(value) as client:
         page = client.get("/series-a")
-        script = client.get("/series-a/app.js")
+        script = client.get(f"/series-a/app.js?v={revision}")
+        style = client.get(f"/series-a/styles.css?v={revision}")
+        unversioned_script = client.get("/series-a/app.js")
     assert 'id="execute"' in page.text
     assert 'id="execution-result"' in page.text
     assert 'id="events"' in page.text
     assert "szl://estate/current" in page.text
     assert "server-signed snapshot" in page.text
+    assert f'/series-a/app.js?v={revision}' in page.text
+    assert f'/series-a/styles.css?v={revision}' in page.text
+    assert "__SOURCE_REVISION__" not in page.text
+    assert script.headers["cache-control"] == "public,max-age=31536000,immutable"
+    assert style.headers["cache-control"] == "public,max-age=31536000,immutable"
+    assert unversioned_script.headers["cache-control"] == "no-store"
     assert 'request("/passports/execute"' in script.text
     assert 'new EventSource(API + "/events")' in script.text
     assert "EVENT_KINDS.forEach" in script.text
@@ -203,6 +215,19 @@ def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) ->
     assert "recoverOutcome" in script.text
     assert "/passports/outcomes/${encodeURIComponent(passportDigest)}" in script.text
     assert "PENDING_RECONCILIATION" in script.text
+
+
+def test_unknown_source_revision_never_makes_assets_immutable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    for key in ("SZL_GIT_SHA", "A11OY_GIT_SHA", "GITHUB_SHA"):
+        monkeypatch.delenv(key, raising=False)
+    value = app(tmp_path)
+    with TestClient(value) as client:
+        page = client.get("/series-a")
+        script = client.get("/series-a/app.js?v=UNKNOWN")
+    assert "/series-a/app.js?v=UNKNOWN" in page.text
+    assert script.headers["cache-control"] == "no-store"
 
 
 def test_execute_rechecks_governance_and_preserves_attempt_on_deny(

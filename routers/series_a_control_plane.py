@@ -1052,6 +1052,13 @@ def _asset(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _asset_cache_control(request: Request) -> str:
+    revision = _git_revision()
+    if revision != "UNKNOWN" and request.query_params.get("v") == revision:
+        return "public,max-age=31536000,immutable"
+    return "no-store"
+
+
 def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> dict[str, Any]:
     if any(getattr(route, "path", None) == f"/api/{ns}/v1/series-a/status" for route in app.router.routes):
         return {"ok": True, "state": "ALREADY_REGISTERED", "routes": []}
@@ -1062,17 +1069,36 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     async def page(request: Request) -> Response:
         if request.method == "HEAD":
             return Response(status_code=200, media_type="text/html")
-        return HTMLResponse(_asset("index.html"), headers={"cache-control": "no-store"})
+        html = _asset("index.html").replace("__SOURCE_REVISION__", _git_revision())
+        return HTMLResponse(html, headers={"cache-control": "no-store"})
 
     async def js(request: Request) -> Response:
+        headers = {"cache-control": _asset_cache_control(request)}
         if request.method == "HEAD":
-            return Response(status_code=200, media_type="application/javascript")
-        return Response(_asset("app.js"), media_type="application/javascript", headers={"cache-control": "public,max-age=300"})
+            return Response(
+                status_code=200,
+                media_type="application/javascript",
+                headers=headers,
+            )
+        return Response(
+            _asset("app.js"),
+            media_type="application/javascript",
+            headers=headers,
+        )
 
     async def css(request: Request) -> Response:
+        headers = {"cache-control": _asset_cache_control(request)}
         if request.method == "HEAD":
-            return Response(status_code=200, media_type="text/css")
-        return Response(_asset("styles.css"), media_type="text/css", headers={"cache-control": "public,max-age=300"})
+            return Response(
+                status_code=200,
+                media_type="text/css",
+                headers=headers,
+            )
+        return Response(
+            _asset("styles.css"),
+            media_type="text/css",
+            headers=headers,
+        )
 
     async def status(request: Request) -> Response:
         payload = service.latest_status()
