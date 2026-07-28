@@ -12624,21 +12624,54 @@ try:
             import base64 as _b64x
             sigs = env.get("signatures") or []
             payload_b64 = env.get("payload")
-            ptype = env.get("payloadType") or _A11OY_PAYLOAD_TYPE
+            ptype = env.get("payloadType")
             if not sigs or not payload_b64:
                 return {"signature_valid": False,
                         "detail": "unsigned envelope (no signature bytes present)"}
+            if not isinstance(ptype, str) or not ptype.strip():
+                return {
+                    "signature_valid": False,
+                    "detail": "DSSE envelope payloadType must be a non-empty string",
+                }
             if _A11OY_PRIV is None:
                 return {"signature_valid": False,
                         "detail": "shared key unavailable in this runtime"}
+            expected_keyid = _A11OY_KEYID
+            accepted_keyids = {
+                expected_keyid,
+                "a11oy-inimage-ecdsa-p256",
+            }
+            matching_sigs = [
+                entry for entry in sigs
+                if isinstance(entry, dict)
+                and entry.get("keyid") in accepted_keyids
+            ]
+            if not matching_sigs:
+                return {
+                    "signature_valid": False,
+                    "keyid_expected": expected_keyid,
+                    "detail": "unexpected keyid for a11oy shared public key",
+                }
             body = _b64x.b64decode(payload_b64)
             to_verify = _a11oy_pae(ptype, body)
             pub = _A11OY_PRIV.public_key()
-            sig = _b64x.b64decode(sigs[0].get("sig", ""))
-            pub.verify(sig, to_verify, _ecv2.ECDSA(_hashesv2.SHA256()))
-            return {"signature_valid": True,
-                    "detail": "ECDSA-P256-SHA256 over DSSE PAE verified against "
-                              "a11oy shared public key (/cosign.pub)."}
+            for entry in matching_sigs:
+                try:
+                    sig = _b64x.b64decode(entry.get("sig", ""))
+                    pub.verify(sig, to_verify, _ecv2.ECDSA(_hashesv2.SHA256()))
+                    return {"signature_valid": True,
+                            "keyid_expected": expected_keyid,
+                            "keyid_verified": entry.get("keyid"),
+                            "detail": "ECDSA-P256-SHA256 over DSSE PAE verified "
+                                      "against a11oy shared public key "
+                                      "(/cosign.pub)."}
+                except Exception:
+                    continue
+            return {
+                "signature_valid": False,
+                "keyid_expected": expected_keyid,
+                "detail": "signature check failed for a11oy shared public key",
+            }
         except Exception as _ve:
             return {"signature_valid": False,
                     "detail": "signature check failed: %s" % type(_ve).__name__}
@@ -14033,10 +14066,15 @@ def _a11oy_verify_for_factory(env):
         import base64 as _b64f
         sigs = env.get("signatures") or []
         payload_b64 = env.get("payload")
-        ptype = env.get("payloadType") or _A11OY_PAYLOAD_TYPE
+        ptype = env.get("payloadType")
         if not sigs or not payload_b64:
             return {"signature_valid": False,
                     "detail": "unsigned envelope (no signature bytes present)"}
+        if not isinstance(ptype, str) or not ptype.strip():
+            return {
+                "signature_valid": False,
+                "detail": "DSSE envelope payloadType must be a non-empty string",
+            }
         if _A11OY_PRIV is None:
             return {"signature_valid": False,
                     "detail": "in-image key unavailable in this runtime"}
