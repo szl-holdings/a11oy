@@ -31,11 +31,23 @@ HOLOGRAPHIC_SOURCE_MARKERS = (
     "The estate, observed—not assumed.",
 )
 REQUIRED_REMOTE_FILES = {"Dockerfile", HOLOGRAPHIC_SOURCE_PATH}
+CANONICAL_SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
+CANONICAL_SERIES_A_BUCKET = "SZLHOLDINGS/szl-evidence"
+SERIES_A_VARIABLES = {
+    "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
+    "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
+    "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane.sqlite3",
+    "A11OY_SERIES_A_REQUIRE_MOUNT": "/data",
+    "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
+    "SZL_ENERGY_LEDGER_PATH": "/data/a11oy/energy/ledger.jsonl",
+    "SZL_LAKE_DIR": "/data/a11oy/khipu",
+}
 ROUTES = {
     "livez": "/api/livez",
     "build_info": "/api/build-info",
     "brain_capabilities": "/api/a11oy/v1/brain/capabilities",
     "readiness": "/api/a11oy/v1/readiness/tab-matrix?view=summary",
+    "series_a_status": "/api/a11oy/v1/series-a/status",
     "holographic": "/static/3d/holographic.html",
 }
 
@@ -105,6 +117,24 @@ def variable_value(value: Any) -> str | None:
     else:
         observed = getattr(value, "value", None)
     return str(observed) if observed is not None else None
+
+
+def volume_record(value: Any) -> dict[str, Any]:
+    def field(name: str, default: Any = None) -> Any:
+        if isinstance(value, Mapping):
+            return value.get(name, default)
+        return getattr(value, name, default)
+
+    volume_type = field("type", "")
+    volume_type = getattr(volume_type, "value", volume_type)
+    return {
+        "type": str(volume_type),
+        "source": str(field("source", "")),
+        "mount_path": str(field("mount_path", "")),
+        "read_only": bool(field("read_only", False)),
+        "path": field("path"),
+        "revision": field("revision"),
+    }
 
 
 def require_json(response: requests.Response) -> Mapping[str, Any]:
@@ -315,6 +345,48 @@ def validate_route(
             source_sha,
             expected_origin=origin,
         )
+    elif name == "series_a_status":
+        storage = payload.get("storage")
+        if (
+            payload.get("schema") != "szl.series-a-status/v1"
+            or payload.get("terminal") is not True
+            or str(payload.get("source_revision") or "").lower() != source_sha
+            or payload.get("signing_key_source")
+            != "persistent:env:SZL_COSIGN_PRIVATE_PEM"
+            or payload.get("database")
+            != SERIES_A_VARIABLES["A11OY_SERIES_A_DB"]
+            or not isinstance(storage, Mapping)
+            or storage.get("persistence_required") is not True
+            or storage.get("required_mount") != "/data"
+            or storage.get("mount_verified") is not True
+            or storage.get("journal_mode") != "DELETE"
+            or re.fullmatch(
+                r"store_[0-9a-f]{32}",
+                str(storage.get("instance_id") or ""),
+            )
+            is None
+            or not isinstance(storage.get("created_at"), str)
+            or not storage.get("created_at")
+            or not isinstance(storage.get("receipt_count"), int)
+            or isinstance(storage.get("receipt_count"), bool)
+            or storage.get("receipt_count") < 0
+            or not isinstance(storage.get("last_receipt_sequence"), int)
+            or isinstance(storage.get("last_receipt_sequence"), bool)
+            or storage.get("last_receipt_sequence") < storage.get("receipt_count")
+        ):
+            raise RelockError(
+                "Series-A signer or persistent storage contract is incomplete"
+            )
+        chain_head = storage.get("chain_head")
+        receipt_count = storage["receipt_count"]
+        if receipt_count == 0:
+            if chain_head is not None:
+                raise RelockError("empty Series-A receipt chain has a head")
+        elif re.fullmatch(r"[0-9a-f]{64}", str(chain_head or "")) is None:
+            raise RelockError("Series-A receipt chain head is invalid")
+        evidence["source_bound"] = True
+        evidence["signing_key_source"] = payload["signing_key_source"]
+        evidence["storage"] = dict(storage)
     return evidence
 
 
@@ -380,6 +452,42 @@ def evaluate_once(
         raise RelockError(
             f"source-binding variable mismatch: expected={contract['source_sha']}; observed={observed_source}"
         )
+    variable_drift = {
+        name: variable_value(variables.get(name))
+        for name, expected in SERIES_A_VARIABLES.items()
+        if variable_value(variables.get(name)) != expected
+    }
+    if variable_drift:
+        raise RelockError(
+            "Series-A runtime variable drift: " + ",".join(sorted(variable_drift))
+        )
+
+    secrets = api.get_space_secrets(contract["repo_id"])
+    if (
+        not isinstance(secrets, Mapping)
+        or CANONICAL_SIGNING_SECRET not in secrets
+    ):
+        raise RelockError(
+            f"canonical signing secret is absent: {CANONICAL_SIGNING_SECRET}"
+        )
+
+    runtime = api.get_space_runtime(contract["repo_id"])
+    volumes = [
+        volume_record(item)
+        for item in list(getattr(runtime, "volumes", None) or [])
+    ]
+    data_volumes = [
+        item for item in volumes if item["mount_path"] == "/data"
+    ]
+    if (
+        len(data_volumes) != 1
+        or data_volumes[0]["type"] != "bucket"
+        or data_volumes[0]["source"] != CANONICAL_SERIES_A_BUCKET
+        or data_volumes[0]["read_only"]
+    ):
+        raise RelockError(
+            "canonical read-write Series-A bucket is not attached at /data"
+        )
 
     routes = probe_routes(
         session,
@@ -406,6 +514,15 @@ def evaluate_once(
             "key": contract["variable"],
             "observed": observed_source,
             "matched": True,
+        },
+        "series_a_runtime": {
+            "signing_secret_present": True,
+            "variables": {
+                name: expected
+                for name, expected in sorted(SERIES_A_VARIABLES.items())
+            },
+            "volumes": volumes,
+            "persistent_contract_matched": True,
         },
         "hf_repository_sha": repository_sha,
         "hf_runtime_sha": runtime_sha,

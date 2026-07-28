@@ -125,6 +125,61 @@ def test_periodic_schedule_accounts_for_collection_time(
     assert control._refresh_delay_seconds(240, -1.0) == 240.0
 
 
+def test_required_storage_mount_fails_closed_when_not_attached(
+    tmp_path: Path, monkeypatch
+) -> None:
+    mount = tmp_path / "data"
+    database = mount / "a11oy" / "series-a" / "control-plane.sqlite3"
+    monkeypatch.setenv("A11OY_REQUIRE_PERSISTENT_STORAGE", "1")
+    monkeypatch.setenv("A11OY_SERIES_A_REQUIRE_MOUNT", str(mount))
+    monkeypatch.setattr(control.os.path, "ismount", lambda _: False)
+
+    with pytest.raises(RuntimeError, match="storage mount is not attached"):
+        control.Store(str(database))
+
+    assert not database.exists()
+
+
+def test_persistent_store_identity_and_chain_survive_reopen(
+    tmp_path: Path, monkeypatch
+) -> None:
+    mount = tmp_path / "data"
+    database = mount / "a11oy" / "series-a" / "control-plane.sqlite3"
+    monkeypatch.setenv("A11OY_REQUIRE_PERSISTENT_STORAGE", "1")
+    monkeypatch.setenv("A11OY_SERIES_A_REQUIRE_MOUNT", str(mount))
+    monkeypatch.setenv("A11OY_SERIES_A_SQLITE_JOURNAL", "DELETE")
+    monkeypatch.setattr(
+        control.os.path,
+        "ismount",
+        lambda value: Path(value).resolve() == mount.resolve(),
+    )
+
+    first = control.Store(str(database))
+    signer = control.ReceiptSigner()
+    receipt = first.append_receipt("restart-proof", {"value": 1}, signer)
+    before = first.storage_status()
+
+    reopened = control.Store(str(database))
+    after = reopened.storage_status()
+
+    assert before["persistence_required"] is True
+    assert before["mount_verified"] is True
+    assert before["journal_mode"] == "DELETE"
+    assert before["instance_id"] == after["instance_id"]
+    assert before["created_at"] == after["created_at"]
+    assert after["receipt_count"] == 1
+    assert after["last_receipt_sequence"] == 1
+    assert after["chain_head"] == receipt["receipt_hash"]
+
+
+def test_invalid_sqlite_journal_mode_fails_closed(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("A11OY_SERIES_A_SQLITE_JOURNAL", "MEMORY")
+    with pytest.raises(RuntimeError, match="must be one of"):
+        control.Store(str(tmp_path / "series-a.sqlite3"))
+
+
 def test_refresh_fails_closed_before_collection_when_governance_denies(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -157,6 +157,20 @@ _REGISTRY = [
             "Key identifier surfaced in verify receipts (non-secret).",
             default=None),
 
+    # ---- Series-A receipt persistence (VARIABLES; mounted bucket, no secret) ----
+    EnvSpec("A11OY_REQUIRE_PERSISTENT_STORAGE", VARIABLE, "series-a-storage",
+            "1 disables ephemeral SQLite fallback for the Series-A control plane.",
+            default="0"),
+    EnvSpec("A11OY_SERIES_A_DB", VARIABLE, "series-a-storage",
+            "SQLite path under the attached persistent bucket volume.",
+            default=None),
+    EnvSpec("A11OY_SERIES_A_REQUIRE_MOUNT", VARIABLE, "series-a-storage",
+            "Required attached volume mount containing the Series-A database.",
+            default=None),
+    EnvSpec("A11OY_SERIES_A_SQLITE_JOURNAL", VARIABLE, "series-a-storage",
+            "SQLite journal mode selected for the mounted filesystem.",
+            default="WAL"),
+
     # ---- governed compute authority (store only the bearer SHA-256) ----
     EnvSpec("A11OY_COMPUTE_TOKEN_SHA256", SECRET, "compute",
             "SHA-256 of the bearer accepted by stateful Yupaq compute routes. "
@@ -177,6 +191,9 @@ _REGISTRY = [
             "URL of a joule meter (energy MEASURED path).", default=None),
     EnvSpec("SZL_ENERGY_LEDGER_PATH", VARIABLE, "energy",
             "Persistent path for the energy/receipt ledger; ephemeral if unset.",
+            default=None),
+    EnvSpec("SZL_LAKE_DIR", VARIABLE, "energy",
+            "Persistent directory for the unified Khipu receipt ledger.",
             default=None),
 
     # ---- data feeds (SECRET API keys) ----
@@ -285,6 +302,8 @@ def _subsystem_label(env, subsystem):
         if s.kind == SECRET and not _present(env, s.name)
     }
     credential_unavailable = False
+    configuration_incomplete = []
+    storage_unavailable = False
     for alternatives in _CREDENTIAL_ALTERNATIVES.get(subsystem, ()):
         if subsystem == "signing":
             # Presence alone is not readiness. Validate the exact inline or
@@ -299,11 +318,44 @@ def _subsystem_label(env, subsystem):
                 missing_secrets.difference_update(alternatives)
         elif any(_present(env, name) for name in alternatives):
             missing_secrets.difference_update(alternatives)
+    if subsystem == "series-a-storage":
+        required_configuration = (
+            "A11OY_REQUIRE_PERSISTENT_STORAGE",
+            "A11OY_SERIES_A_DB",
+            "A11OY_SERIES_A_REQUIRE_MOUNT",
+            "A11OY_SERIES_A_SQLITE_JOURNAL",
+        )
+        configuration_incomplete = [
+            name for name in required_configuration
+            if not _present(env, name)
+        ]
+        if not configuration_incomplete:
+            try:
+                from pathlib import Path
+
+                enabled = str(
+                    env.get("A11OY_REQUIRE_PERSISTENT_STORAGE")
+                ).strip().lower() in {"1", "true", "yes", "on"}
+                mount = Path(
+                    str(env.get("A11OY_SERIES_A_REQUIRE_MOUNT"))
+                ).resolve()
+                database = Path(str(env.get("A11OY_SERIES_A_DB"))).resolve()
+                database.relative_to(mount)
+                journal = str(
+                    env.get("A11OY_SERIES_A_SQLITE_JOURNAL")
+                ).strip().upper()
+                storage_unavailable = (
+                    not enabled
+                    or journal not in {"DELETE", "PERSIST", "TRUNCATE", "WAL"}
+                    or not os.path.ismount(str(mount))
+                )
+            except Exception:
+                storage_unavailable = True
     if missing_required:
         label = UNAVAILABLE
-    elif credential_unavailable:
+    elif credential_unavailable or storage_unavailable:
         label = UNAVAILABLE
-    elif missing_secrets:
+    elif missing_secrets or configuration_incomplete:
         label = DEGRADED
     else:
         label = LIVE
@@ -312,6 +364,7 @@ def _subsystem_label(env, subsystem):
         "label": label,
         "missing_required": sorted(missing_required),
         "missing_secrets": sorted(missing_secrets),
+        "missing_configuration": sorted(configuration_incomplete),
     }
 
 

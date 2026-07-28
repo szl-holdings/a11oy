@@ -7,7 +7,6 @@ colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: true
-storage: large
 license: apache-2.0
 short_description: "a11oy — governed-AI Command Center, signed receipts"
 tags:
@@ -133,19 +132,29 @@ curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
 
 ### Persistent receipt storage (HF Space)
 
-The `storage: large` front-matter (above) enables [HF Persistent Storage](https://huggingface.co/docs/hub/spaces-storage) (up to 50 GB, free tier). Set:
+The protected deployment workflow attaches the existing
+`SZLHOLDINGS/szl-evidence` Storage Bucket read-write at `/data`, preserving any
+other attached volumes and failing closed if another volume already claims that
+mount. The Series-A database is namespaced at:
 
 ```
-SZL_LAKE_DIR=/data/khipu
+A11OY_SERIES_A_DB=/data/a11oy/series-a/control-plane.sqlite3
 ```
 
-as an HF Space secret or environment variable. Without this, Khipu receipts live on the ephemeral container filesystem (`./khipu`) and are lost on Space rebuild before the background HF-dataset mirror commits. With the mount, the ledger survives rebuilds and the mirror race is eliminated.
+Production also sets `A11OY_REQUIRE_PERSISTENT_STORAGE=1`,
+`A11OY_SERIES_A_REQUIRE_MOUNT=/data`, and the network-filesystem-safe SQLite
+rollback journal. If the bucket is detached or the database path escapes the
+mount, Series-A registration fails closed instead of falling back to `/tmp`.
+The unified Khipu and energy ledgers use separate `/data/a11oy/*` paths.
 
 **Required HF Space secrets for full signing integrity:**
-- `A11OY_HMAC_KEY` — HMAC signing key; absent = PLACEHOLDER signatures (honest label, non-repudiation disabled)
-- `A11OY_RECEIPT_KEY_PATH` or `A11OY_RECEIPT_KEY_DIR` — ECDSA P-256 PEM for DSSE signing; absent = ephemeral key (resets on rebuild)
+- `SZL_COSIGN_PRIVATE_PEM` — canonical ECDSA P-256 private PEM shared by all
+  receipt surfaces. The deployment sets `A11OY_REQUIRE_PERSISTENT_SIGNING=1`,
+  so an absent or malformed key disables signing instead of minting a
+  replacement identity.
 
-Check current signing status: `GET /api/a11oy/v1/signing-status`
+Check current signing and storage status at `GET /api/a11oy/v1/signing-status`
+and `GET /api/a11oy/v1/series-a/status`.
 
 ---
 

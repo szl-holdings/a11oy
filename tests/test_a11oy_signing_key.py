@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -63,6 +68,47 @@ def test_canonical_env_pem_has_stable_fingerprint(
     assert first[2:] == ("persistent:env:SZL_COSIGN_PRIVATE_PEM", "")
     assert second[2:] == first[2:]
     assert fingerprint(first[1]) == fingerprint(second[1])
+
+
+def test_canonical_env_identity_survives_process_restart() -> None:
+    script = """
+import hashlib
+import json
+from a11oy_signing_key import load_signing_key
+private_key, public_pem, source, error = load_signing_key()
+print(json.dumps({
+    "available": private_key is not None,
+    "fingerprint": hashlib.sha256(public_pem.encode("ascii")).hexdigest(),
+    "source": source,
+    "error": error,
+}))
+"""
+    env = dict(os.environ)
+    for name in _KEY_ENV_NAMES:
+        env.pop(name, None)
+    env["SZL_COSIGN_PRIVATE_PEM"] = private_pem()
+    env["A11OY_REQUIRE_PERSISTENT_SIGNING"] = "1"
+    root = Path(__file__).resolve().parents[1]
+
+    def boot() -> dict[str, object]:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=root,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return json.loads(result.stdout)
+
+    first = boot()
+    restarted = boot()
+
+    assert first == restarted
+    assert first["available"] is True
+    assert first["source"] == "persistent:env:SZL_COSIGN_PRIVATE_PEM"
+    assert first["error"] == ""
 
 
 def test_optional_env_pem_is_supported(monkeypatch: pytest.MonkeyPatch) -> None:

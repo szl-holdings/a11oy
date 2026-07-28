@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+# Copyright 2026 SZL Holdings - SPDX-License-Identifier: Apache-2.0
+"""Converge the canonical A11oy Space on fail-closed Series-A durability.
+
+The script is intentionally narrow:
+
+* it reuses an existing organization bucket and never creates storage;
+* it preserves every existing Space volume and fails on mount conflicts;
+* it requires the canonical signing-secret name without reading its value;
+* it writes only non-secret runtime variables; and
+* its report contains names and topology, never secret material.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+from typing import Any, Iterable, Mapping
+
+
+CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
+CANONICAL_BUCKET = "SZLHOLDINGS/szl-evidence"
+CANONICAL_SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
+DATA_MOUNT = "/data"
+SERIES_A_VARIABLES = {
+    "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
+    "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
+    "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane.sqlite3",
+    "A11OY_SERIES_A_REQUIRE_MOUNT": DATA_MOUNT,
+    # SQLite WAL requires shared-memory semantics that are not portable across
+    # network filesystems. The rollback journal is the conservative NFS choice.
+    "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
+    "SZL_ENERGY_LEDGER_PATH": "/data/a11oy/energy/ledger.jsonl",
+    "SZL_LAKE_DIR": "/data/a11oy/khipu",
+}
+
+
+class RuntimeConfigError(RuntimeError):
+    """Fail-closed runtime configuration error."""
+
+
+def _value(item: Any, name: str, default: Any = None) -> Any:
+    if isinstance(item, Mapping):
+        return item.get(name, default)
+    return getattr(item, name, default)
+
+
+def _enum_value(value: Any) -> Any:
+    return getattr(value, "value", value)
+
+
+def volume_record(item: Any) -> dict[str, Any]:
+    """Return a stable, secret-free volume representation."""
+
+    return {
+        "type": str(_enum_value(_value(item, "type", ""))),
+        "source": str(_value(item, "source", "")),
+        "mount_path": str(_value(item, "mount_path", "")),
+        "read_only": bool(_value(item, "read_only", False)),
+        "path": _value(item, "path"),
+        "revision": _value(item, "revision"),
+    }
+
+
+def plan_volumes(
+    current: Iterable[Any],
+    *,
+    bucket: str = CANONICAL_BUCKET,
+    mount_path: str = DATA_MOUNT,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Preserve current volumes and append the canonical bucket when absent."""
+
+    records = [volume_record(item) for item in current]
+    at_mount = [item for item in records if item["mount_path"] == mount_path]
+    if at_mount:
+        if len(at_mount) != 1:
+            raise RuntimeConfigError(
+                f"multiple volumes already claim required mount {mount_path}"
+            )
+        existing = at_mount[0]
+        if (
+            existing["type"] != "bucket"
+            or existing["source"] != bucket
+            or existing["read_only"]
+        ):
+            raise RuntimeConfigError(
+                f"required mount {mount_path} conflicts with an existing volume"
+            )
+        return records, False
+
+    records.append(
+        {
+            "type": "bucket",
+            "source": bucket,
+            "mount_path": mount_path,
+            "read_only": False,
+            "path": None,
+            "revision": None,
+        }
+    )
+    return records, True
+
+
+def plan_variables(
+    current: Mapping[str, Any],
+    secret_names: Iterable[str],
+    desired: Mapping[str, str] = SERIES_A_VARIABLES,
+) -> dict[str, str]:
+    """Return only drifted variables after checking secret-name collisions."""
+
+    secrets = set(secret_names)
+    collisions = sorted(set(desired) & secrets)
+    if collisions:
+        raise RuntimeConfigError(
+            "runtime variable names collide with Space secrets: "
+            + ",".join(collisions)
+        )
+
+    changes: dict[str, str] = {}
+    for name, expected in desired.items():
+        item = current.get(name)
+        observed = _value(item, "value") if item is not None else None
+        if str(observed) != expected:
+            changes[name] = expected
+    return changes
+
+
+def _volume_objects(records: Iterable[Mapping[str, Any]]) -> list[Any]:
+    from huggingface_hub import Volume
+
+    return [
+        Volume(
+            type=str(item["type"]),
+            source=str(item["source"]),
+            mount_path=str(item["mount_path"]),
+            read_only=bool(item["read_only"]),
+            path=item.get("path"),
+            revision=item.get("revision"),
+        )
+        for item in records
+    ]
+
+
+def configure(
+    *,
+    repo_id: str,
+    bucket: str,
+    token: str,
+) -> dict[str, Any]:
+    from huggingface_hub import HfApi
+
+    if not token:
+        raise RuntimeConfigError("HF_TOKEN is required")
+    api = HfApi(token=token)
+    runtime = api.get_space_runtime(repo_id=repo_id)
+    current_volumes = list(getattr(runtime, "volumes", None) or [])
+    desired_volumes, volume_change = plan_volumes(
+        current_volumes,
+        bucket=bucket,
+    )
+
+    secrets = api.get_space_secrets(repo_id=repo_id)
+    secret_names = set(secrets)
+    if CANONICAL_SIGNING_SECRET not in secret_names:
+        raise RuntimeConfigError(
+            f"required signing secret is absent: {CANONICAL_SIGNING_SECRET}"
+        )
+    variables = api.get_space_variables(repo_id=repo_id)
+    variable_changes = plan_variables(variables, secret_names)
+
+    if volume_change:
+        api.set_space_volumes(
+            repo_id=repo_id,
+            volumes=_volume_objects(desired_volumes),
+        )
+    for name, value in sorted(variable_changes.items()):
+        api.add_space_variable(
+            repo_id=repo_id,
+            key=name,
+            value=value,
+            description=(
+                "Protected deployment contract for persistent A11oy Series-A "
+                "signing and receipt storage."
+            ),
+        )
+
+    observed_runtime = api.get_space_runtime(repo_id=repo_id)
+    observed_volumes = list(getattr(observed_runtime, "volumes", None) or [])
+    _, still_missing = plan_volumes(observed_volumes, bucket=bucket)
+    if still_missing:
+        raise RuntimeConfigError("persistent volume readback did not converge")
+
+    observed_variables = api.get_space_variables(repo_id=repo_id)
+    remaining_variables = plan_variables(observed_variables, secret_names)
+    if remaining_variables:
+        raise RuntimeConfigError(
+            "runtime variable readback did not converge: "
+            + ",".join(sorted(remaining_variables))
+        )
+
+    return {
+        "schema": "szl.hf-series-a-runtime-config/v1",
+        "repo_id": repo_id,
+        "bucket": bucket,
+        "required_signing_secret": CANONICAL_SIGNING_SECRET,
+        "signing_secret_present": True,
+        "volumes": [volume_record(item) for item in observed_volumes],
+        "volume_changed": volume_change,
+        "variables_managed": sorted(SERIES_A_VARIABLES),
+        "variables_changed": sorted(variable_changes),
+        "converged": True,
+        "secret_values_read": False,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-id", default=CANONICAL_SPACE)
+    parser.add_argument("--bucket", default=CANONICAL_BUCKET)
+    parser.add_argument("--output")
+    args = parser.parse_args()
+
+    report = configure(
+        repo_id=args.repo_id,
+        bucket=args.bucket,
+        token=os.environ.get("HF_TOKEN", ""),
+    )
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.output:
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(encoded, encoding="utf-8")
+    print(encoded, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

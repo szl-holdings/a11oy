@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "verify_canonical_a11oy.py"
+RUNTIME_CONFIG_SCRIPT = ROOT / "scripts" / "configure_hf_series_a_runtime.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 
 if "requests" not in sys.modules:
@@ -29,6 +30,13 @@ SPEC = importlib.util.spec_from_file_location("verify_canonical_a11oy", SCRIPT)
 assert SPEC and SPEC.loader
 relock = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(relock)
+CONFIG_SPEC = importlib.util.spec_from_file_location(
+    "configure_hf_series_a_runtime",
+    RUNTIME_CONFIG_SCRIPT,
+)
+assert CONFIG_SPEC and CONFIG_SPEC.loader
+runtime_config = importlib.util.module_from_spec(CONFIG_SPEC)
+CONFIG_SPEC.loader.exec_module(runtime_config)
 
 
 class FakeResponse:
@@ -84,7 +92,28 @@ class FakeApi:
         self.sdk = "docker"
         self.stage = "RUNNING"
         self.files = {"Dockerfile", "static/3d/holographic.html", "serve.py"}
-        self.variables = {"SZL_GIT_SHA": SimpleNamespace(value=source_sha)}
+        self.variables = {
+            "SZL_GIT_SHA": SimpleNamespace(value=source_sha),
+            **{
+                name: SimpleNamespace(value=value)
+                for name, value in relock.SERIES_A_VARIABLES.items()
+            },
+        }
+        self.secrets = {
+            relock.CANONICAL_SIGNING_SECRET: SimpleNamespace(
+                key=relock.CANONICAL_SIGNING_SECRET
+            )
+        }
+        self.volumes = [
+            SimpleNamespace(
+                type="bucket",
+                source=relock.CANONICAL_SERIES_A_BUCKET,
+                mount_path="/data",
+                read_only=False,
+                path=None,
+                revision=None,
+            )
+        ]
         self.clones: dict[str, bool] = {}
 
     def space_info(self, _repo_id: str):
@@ -111,6 +140,12 @@ class FakeApi:
 
     def get_space_variables(self, _repo_id: str):
         return self.variables
+
+    def get_space_secrets(self, _repo_id: str):
+        return self.secrets
+
+    def get_space_runtime(self, _repo_id: str):
+        return SimpleNamespace(volumes=self.volumes)
 
     def repo_exists(self, repo_id: str, repo_type: str):
         assert repo_type == "space"
@@ -174,6 +209,25 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
                 "p95_worst": 1806,
             },
         },
+        "series_a_status": {
+            "schema": "szl.series-a-status/v1",
+            "state": "OBSERVED",
+            "terminal": True,
+            "source_revision": source_sha,
+            "signing_key_source": "persistent:env:SZL_COSIGN_PRIVATE_PEM",
+            "database": "/data/a11oy/series-a/control-plane.sqlite3",
+            "storage": {
+                "persistence_required": True,
+                "required_mount": "/data",
+                "mount_verified": True,
+                "journal_mode": "DELETE",
+                "instance_id": "store_" + ("1" * 32),
+                "created_at": "2026-07-28T15:00:00.000Z",
+                "receipt_count": 1,
+                "last_receipt_sequence": 1,
+                "chain_head": "2" * 64,
+            },
+        },
     }
     responses: dict[tuple[str, str], FakeResponse] = {}
     for name, path in relock.ROUTES.items():
@@ -220,11 +274,28 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         self.assertEqual(report["github_source_sha"], self.source)
         self.assertEqual(report["hf_repository_sha"], report["hf_runtime_sha"])
         self.assertTrue(report["source_revision_variable"]["matched"])
+        self.assertTrue(
+            report["series_a_runtime"]["persistent_contract_matched"]
+        )
         self.assertFalse(any(report["clone_presence"].values()))
         self.assertTrue(report["routes"]["build_info"]["source_bound"])
         self.assertEqual(
             report["routes"]["build_info"]["build_identity"]["version_source"],
             "UNKNOWN",
+        )
+
+    def test_runtime_config_and_relock_share_exact_durability_contract(self) -> None:
+        self.assertEqual(
+            relock.CANONICAL_SIGNING_SECRET,
+            runtime_config.CANONICAL_SIGNING_SECRET,
+        )
+        self.assertEqual(
+            relock.CANONICAL_SERIES_A_BUCKET,
+            runtime_config.CANONICAL_BUCKET,
+        )
+        self.assertEqual(
+            relock.SERIES_A_VARIABLES,
+            runtime_config.SERIES_A_VARIABLES,
         )
 
     def test_relock_rejects_any_doctrine_lie(self) -> None:
@@ -635,6 +706,50 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         with self.assertRaisesRegex(relock.RelockError, "variable mismatch"):
             relock.evaluate_once(api, success_session(self.origin, self.source), self.contract)
 
+    def test_series_a_runtime_variable_or_volume_drift_fails_closed(self) -> None:
+        api = FakeApi(self.source)
+        api.variables["A11OY_REQUIRE_PERSISTENT_STORAGE"] = SimpleNamespace(
+            value="0"
+        )
+        with self.assertRaisesRegex(relock.RelockError, "variable drift"):
+            relock.evaluate_once(
+                api,
+                success_session(self.origin, self.source),
+                self.contract,
+            )
+
+        api = FakeApi(self.source)
+        api.volumes[0].source = "SZLHOLDINGS/other"
+        with self.assertRaisesRegex(relock.RelockError, "bucket is not attached"):
+            relock.evaluate_once(
+                api,
+                success_session(self.origin, self.source),
+                self.contract,
+            )
+
+    def test_series_a_status_rejects_ephemeral_or_unmounted_storage(self) -> None:
+        status_url = self.origin + relock.ROUTES["series_a_status"]
+        for update in (
+            {"signing_key_source": "ephemeral"},
+            {"storage": {"mount_verified": False}},
+            {"storage": {"created_at": None}},
+        ):
+            session = success_session(self.origin, self.source)
+            payload = session.responses[("GET", status_url)]._payload
+            if "storage" in update:
+                payload["storage"].update(update["storage"])
+            else:
+                payload.update(update)
+            with self.subTest(update=update), self.assertRaisesRegex(
+                relock.RelockError,
+                "persistent storage contract",
+            ):
+                relock.evaluate_once(
+                    FakeApi(self.source),
+                    session,
+                    self.contract,
+                )
+
     def test_stale_runtime_revision_fails_closed(self) -> None:
         api = FakeApi(self.source)
         api.runtime_sha = "c" * 40
@@ -751,6 +866,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             "/api/build-info",
             "/api/a11oy/v1/brain/capabilities",
             "/api/a11oy/v1/readiness/tab-matrix?view=summary",
+            "/api/a11oy/v1/series-a/status",
             "/static/3d/holographic.html",
         ):
             self.assertIn(route, self.workflow)

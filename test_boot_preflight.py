@@ -164,6 +164,56 @@ def test_empty_string_counts_as_absent():
     assert "HF_TOKEN" in rep["absent"] and "HF_TOKEN" not in rep["present"]
 
 
+def test_series_a_storage_requires_exact_attached_mount():
+    env = {
+        "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
+        "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane.sqlite3",
+        "A11OY_SERIES_A_REQUIRE_MOUNT": "/data",
+        "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
+    }
+    original = pf.os.path.ismount
+    try:
+        pf.os.path.ismount = lambda value: value == os.path.abspath("/data")
+        ready = pf.readiness(env=env)
+        storage = [
+            item for item in ready["subsystems"]
+            if item["subsystem"] == "series-a-storage"
+        ][0]
+        assert storage["label"] == pf.LIVE, storage
+
+        escaped = dict(env)
+        escaped["A11OY_SERIES_A_DB"] = "/tmp/control-plane.sqlite3"
+        escaped_ready = pf.readiness(env=escaped)
+        escaped_storage = [
+            item for item in escaped_ready["subsystems"]
+            if item["subsystem"] == "series-a-storage"
+        ][0]
+        assert escaped_storage["label"] == pf.UNAVAILABLE, escaped_storage
+
+        detached = dict(env)
+        pf.os.path.ismount = lambda value: False
+        detached_ready = pf.readiness(env=detached)
+        detached_storage = [
+            item for item in detached_ready["subsystems"]
+            if item["subsystem"] == "series-a-storage"
+        ][0]
+        assert detached_storage["label"] == pf.UNAVAILABLE, detached_storage
+    finally:
+        pf.os.path.ismount = original
+
+    missing = [
+        item for item in pf.readiness(env={})["subsystems"]
+        if item["subsystem"] == "series-a-storage"
+    ][0]
+    assert missing["label"] == pf.DEGRADED
+    assert set(missing["missing_configuration"]) == {
+        "A11OY_REQUIRE_PERSISTENT_STORAGE",
+        "A11OY_SERIES_A_DB",
+        "A11OY_SERIES_A_REQUIRE_MOUNT",
+        "A11OY_SERIES_A_SQLITE_JOURNAL",
+    }
+
+
 # ---------------------------------------------------------------------------
 # 6 + 7. In-process app: /healthz stays 200 and /preflight works on a bare env.
 # Skipped (not failed) if fastapi/starlette/httpx are unavailable.
