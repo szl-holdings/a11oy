@@ -25,7 +25,7 @@
           {
             "url": "https://Example.com/research/report/?utm_source=fixture&token=must-not-escape#section",
             "title": "A shared source title",
-            "published_at": "2026-07-01"
+            "published_at": "2026-07-01T00:00:00Z"
           }
         ],
         "query": "raw query must not be receipted",
