@@ -27,7 +27,12 @@ def _canonical(value: Any) -> bytes:
 
 
 class FakeLiveA11oy:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        key_scope: str = "PROCESS_BOOT_EPHEMERAL",
+        key_lifetime: str = "UNTIL_PROCESS_RESTART",
+    ) -> None:
         self.private_key = ec.generate_private_key(ec.SECP256R1())
         self.public_pem = self.private_key.public_key().public_bytes(
             serialization.Encoding.PEM,
@@ -35,6 +40,8 @@ class FakeLiveA11oy:
         )
         self.fingerprint = hashlib.sha256(self.public_pem.strip()).hexdigest()
         self.keyid = self.fingerprint[:16]
+        self.key_scope = key_scope
+        self.key_lifetime = key_lifetime
         self.binding_contract = {
             "runtime_backend": {
                 "forge_profiles": {
@@ -95,8 +102,8 @@ class FakeLiveA11oy:
         identity = {
             "keyid": self.keyid,
             "verify_key_url": verifier.VERIFY_KEY_PATH,
-            "key_scope": "PROCESS_BOOT_EPHEMERAL",
-            "key_lifetime": "UNTIL_PROCESS_RESTART",
+            "key_scope": self.key_scope,
+            "key_lifetime": self.key_lifetime,
             "key_fingerprint_sha256": self.fingerprint,
         }
         signed_payload = {**payload, "_signing_identity": identity}
@@ -113,8 +120,8 @@ class FakeLiveA11oy:
             "signed": True,
             "_pae_sha256": hashlib.sha256(pae).hexdigest(),
             "verify_key_url": verifier.VERIFY_KEY_PATH,
-            "key_scope": "PROCESS_BOOT_EPHEMERAL",
-            "key_lifetime": "UNTIL_PROCESS_RESTART",
+            "key_scope": self.key_scope,
+            "key_lifetime": self.key_lifetime,
             "key_fingerprint_sha256": self.fingerprint,
         }
 
@@ -303,6 +310,40 @@ def test_verifier_passes_and_writes_content_addressed_privacy_safe_summary(tmp_p
     assert target.exists()
     assert target.stem.endswith(hashlib.sha256(target.read_bytes()).hexdigest())
     assert verifier.write_content_addressed(summary, tmp_path / "proof") == target
+
+
+def test_persistent_signing_identity_passes_and_is_reported():
+    live = FakeLiveA11oy(
+        key_scope="DEPLOYMENT_PERSISTENT",
+        key_lifetime="UNTIL_SECRET_ROTATION",
+    )
+
+    summary = verifier.verify_live(
+        "http://127.0.0.1:8765", client=live, now=lambda: FIXED_NOW
+    )
+
+    assert summary["verification_state"] == "PASS"
+    assert summary["public_key"]["key_scope"] == "DEPLOYMENT_PERSISTENT"
+    assert summary["public_key"]["key_lifetime"] == "UNTIL_SECRET_ROTATION"
+    assert all(
+        turn["signing_identity"]["key_scope"] == "DEPLOYMENT_PERSISTENT"
+        for turn in summary["turns"]
+    )
+
+
+def test_invalid_signing_scope_lifetime_pair_is_rejected():
+    live = FakeLiveA11oy(
+        key_scope="DEPLOYMENT_PERSISTENT",
+        key_lifetime="UNTIL_PROCESS_RESTART",
+    )
+
+    with pytest.raises(
+        verifier.VerificationError,
+        match="invalid scope/lifetime pair",
+    ):
+        verifier.verify_live(
+            "http://127.0.0.1:8765", client=live, now=lambda: FIXED_NOW
+        )
 
 
 def test_unknown_maskaq_citation_fails_closed_without_artifact(tmp_path: Path):
