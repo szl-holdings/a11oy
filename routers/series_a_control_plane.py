@@ -783,6 +783,8 @@ class Service:
         latest = self.store.latest_snapshot()
         if latest is None:
             return ["FRESH_SERVER_EVIDENCE_REQUIRED"]
+        if latest.get("manifest", {}).get("status") != "OBSERVED":
+            return ["OBSERVED_SERVER_EVIDENCE_REQUIRED"]
         try:
             valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
         except (TypeError, ValueError):
@@ -1052,6 +1054,19 @@ def _asset(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _event_cursor(request: Request) -> int:
+    raw = request.headers.get("last-event-id")
+    if raw is None:
+        raw = request.query_params.get("after", "0")
+    try:
+        cursor = int(raw or 0)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="event cursor must be an integer") from exc
+    if cursor < 0 or cursor > 9_223_372_036_854_775_807:
+        raise HTTPException(status_code=400, detail="event cursor is outside the supported range")
+    return cursor
+
+
 def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> dict[str, Any]:
     if any(getattr(route, "path", None) == f"/api/{ns}/v1/series-a/status" for route in app.router.routes):
         return {"ok": True, "state": "ALREADY_REGISTERED", "routes": []}
@@ -1136,7 +1151,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         return Response(service.signer.public_pem, media_type="text/plain", headers={"cache-control": "public,max-age=300"})
 
     async def events(request: Request) -> StreamingResponse:
-        last = int(request.query_params.get("after", "0") or 0)
+        last = _event_cursor(request)
 
         async def generate() -> AsyncIterator[bytes]:
             cursor = max(0, last)
