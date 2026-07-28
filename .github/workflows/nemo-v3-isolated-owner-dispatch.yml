@@ -20,7 +20,9 @@ jobs:
     name: Execute one credential-separated Nemo v3 attempt
     if: >-
       github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
-      github.actor == 'stephenlutar2-hash'
+      github.ref_protected &&
+      github.actor == 'stephenlutar2-hash' &&
+      github.triggering_actor == 'stephenlutar2-hash'
     runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
     timeout-minutes: 330
     env:
@@ -186,6 +188,57 @@ jobs:
             throw "Authenticated prefetch failed."
           }
 
+      - name: Atomically claim the single governed attempt
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $controlRoot = Join-Path $env:BRIDGE_ROOT "control"
+          if (-not (Test-Path -LiteralPath $controlRoot)) {
+            New-Item -ItemType Directory -Path $controlRoot -Force | Out-Null
+          }
+          $claimPath = Join-Path $controlRoot (
+            $env:JOB_ID + "-attempt.claim.json"
+          )
+          $specPath = Join-Path $env:BRIDGE_SOURCE (
+            "queue\pending\" + $env:JOB_ID + ".json"
+          )
+          $sha256 = [Security.Cryptography.SHA256]::Create()
+          try {
+            $specDigest = [BitConverter]::ToString(
+              $sha256.ComputeHash([IO.File]::ReadAllBytes($specPath))
+            ).Replace("-", "").ToLowerInvariant()
+          } finally {
+            $sha256.Dispose()
+          }
+          $claim = @{
+            jobId = $env:JOB_ID
+            bridgeRevision = $env:BRIDGE_REVISION
+            dispatchedRevision = "${{ github.sha }}"
+            envelopeSha256 = $specDigest
+            runId = "${{ github.run_id }}"
+            runAttempt = "${{ github.run_attempt }}"
+          } | ConvertTo-Json -Compress
+          $encoding = New-Object Text.UTF8Encoding($false)
+          $claimBytes = $encoding.GetBytes($claim + "`n")
+
+          try {
+            $stream = [IO.File]::Open(
+              $claimPath,
+              [IO.FileMode]::CreateNew,
+              [IO.FileAccess]::Write,
+              [IO.FileShare]::None
+            )
+          } catch [IO.IOException] {
+            throw "The single governed attempt was already claimed."
+          }
+          try {
+            $stream.Write($claimBytes, 0, $claimBytes.Length)
+            $stream.Flush($true)
+          } finally {
+            $stream.Dispose()
+          }
+
       - name: Execute remote model code without network, credentials, or signing key
         shell: powershell
         run: |
@@ -226,6 +279,22 @@ jobs:
           if ($intents.Count -ne 1) {
             throw "Expected one fresh receipt intent; found $($intents.Count)."
           }
+          $intent = Get-Content -LiteralPath $intents[0].FullName -Raw |
+            ConvertFrom-Json
+          $allowedReceiptNames = @(
+            "blocked_receipt.signed.json",
+            "nemo-v3-qualified.signed.json",
+            "nemo-v3-terminal.signed.json"
+          )
+          if ($intent.requestedReceiptName -notin $allowedReceiptNames) {
+            throw "Receipt intent requested an unapproved file name."
+          }
+          $expectedIntentName = (
+            $intent.requestedReceiptName -replace "\.signed\.json$", ".intent.json"
+          )
+          if ($intents[0].Name -cne $expectedIntentName) {
+            throw "Receipt intent file name does not match its requested receipt."
+          }
           $notBefore = Get-Content -LiteralPath (
             Join-Path $env:BRIDGE_ROOT (
               "control\" + $env:JOB_ID + "-not-before.txt"
@@ -248,4 +317,38 @@ jobs:
             --ledger (Join-Path $env:BRIDGE_ROOT "jobs\seen.txt")
           if ($LASTEXITCODE -ne 0) {
             throw "Trusted receipt finalization failed."
+          }
+
+      - name: Remove per-run trusted source and control runtime
+        if: ${{ always() }}
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $runnerTemp = [IO.Path]::GetFullPath(
+            $env:RUNNER_TEMP
+          ).TrimEnd("\") + "\"
+          $temporaryPaths = @(
+            (Join-Path $env:RUNNER_TEMP (
+              "szl-gpu-bridge-" + $env:GITHUB_RUN_ID
+            )),
+            (Join-Path $env:RUNNER_TEMP (
+              "szl-nemo-control-" + $env:GITHUB_RUN_ID
+            ))
+          )
+          foreach ($path in $temporaryPaths) {
+            $resolved = [IO.Path]::GetFullPath($path)
+            $leaf = Split-Path -Leaf $resolved
+            if (
+              -not $resolved.StartsWith(
+                $runnerTemp,
+                [StringComparison]::OrdinalIgnoreCase
+              ) -or
+              $leaf -notmatch "^szl-(gpu-bridge|nemo-control)-[0-9]+$"
+            ) {
+              throw "Refusing to clean an unexpected path: $resolved"
+            }
+            if (Test-Path -LiteralPath $resolved) {
+              Remove-Item -LiteralPath $resolved -Recurse -Force
+            }
           }
