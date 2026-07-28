@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 330
     env:
       JOB_ID: job-2026-nemo-v3-governed-attempt-1
-      BRIDGE_REVISION: 31a49762fdf9adc2b661137f61c5cd27ed8f0af3
+      BRIDGE_REVISION: 38ba3100b2e20075b6ac0c3e62745c0f811de370
       TRAINING_IMAGE: unsloth/unsloth@sha256:9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123
       BRIDGE_ROOT: C:\szl-bridge
       CACHE_ROOT: C:\szl-bridge-cache
@@ -314,6 +314,11 @@ jobs:
             ) `
             --bridge-root $env:BRIDGE_ROOT `
             --not-before $notBefore.Trim() `
+            --claim (
+              Join-Path $env:BRIDGE_ROOT (
+                "control\attempt-claims\" + $env:JOB_ID + ".json"
+              )
+            ) `
             --ledger (Join-Path $env:BRIDGE_ROOT "jobs\seen.txt")
           if ($LASTEXITCODE -ne 0) {
             throw "Trusted receipt finalization failed."

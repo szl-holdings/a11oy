@@ -61,7 +61,15 @@ def test_finalizer_binds_allowed_receipt_name_to_exact_intent_name() -> None:
         assert name in finalizer
     assert "$intents[0].Name -cne $expectedIntentName" in finalizer
     assert "--not-before $notBefore.Trim()" in finalizer
+    assert '"control\\attempt-claims\\" + $env:JOB_ID + ".json"' in finalizer
     assert '--ledger (Join-Path $env:BRIDGE_ROOT "jobs\\seen.txt")' in finalizer
+
+
+def test_workflow_pins_the_merged_attempt_claim_bridge() -> None:
+    assert (
+        "BRIDGE_REVISION: 38ba3100b2e20075b6ac0c3e62745c0f811de370"
+        in WORKFLOW
+    )
 
 
 def test_cleanup_is_always_run_and_confined_to_runner_temp() -> None:
