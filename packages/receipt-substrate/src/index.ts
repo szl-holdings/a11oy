@@ -501,7 +501,7 @@ const SENSITIVE_SOURCE_QUERY_KEYS = new Set([
 ]);
 const DIGESTED_SOURCE_QUERY_KEYS = new Set(["code", "q", "snippet"]);
 const ZONED_RFC3339_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/;
 const SENSITIVE_SOURCE_QUERY_PREFIXES = ["x-amz-", "x-goog-", "x-oss-"];
 const TRACKING_SOURCE_QUERY_PREFIXES = ["utm_"];
 const TRACKING_SOURCE_QUERY_KEYS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid"]);
@@ -573,7 +573,35 @@ function cleanHttpStatus(value: unknown): number | undefined {
 function cleanDate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const cleaned = value.trim();
-  if (!ZONED_RFC3339_PATTERN.test(cleaned)) return undefined;
+  const match = ZONED_RFC3339_PATTERN.exec(cleaned);
+  if (!match) return undefined;
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, fraction = "", zone] =
+    match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const millisecond = Number((fraction + "000").slice(0, 3));
+  if (zone !== "Z") {
+    const offsetHour = Number(zone.slice(1, 3));
+    const offsetMinute = Number(zone.slice(4, 6));
+    if (offsetHour > 23 || offsetMinute > 59) return undefined;
+  }
+  const calendar = new Date(0);
+  calendar.setUTCFullYear(year, month - 1, day);
+  calendar.setUTCHours(hour, minute, second, millisecond);
+  if (
+    calendar.getUTCFullYear() !== year ||
+    calendar.getUTCMonth() !== month - 1 ||
+    calendar.getUTCDate() !== day ||
+    calendar.getUTCHours() !== hour ||
+    calendar.getUTCMinutes() !== minute ||
+    calendar.getUTCSeconds() !== second
+  ) {
+    return undefined;
+  }
   const date = new Date(cleaned);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }

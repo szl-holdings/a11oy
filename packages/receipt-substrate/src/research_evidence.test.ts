@@ -188,6 +188,29 @@ test("source dates require an explicit timezone and normalize deterministically"
   assert.equal(zoneLess.sources[0]?.last_updated_at, undefined);
 });
 
+test("source dates reject impossible calendar values and offsets", () => {
+  const base = fixtures.cases.find((candidate) => candidate.name === "matching");
+  assert.ok(base);
+  const invalidValues = [
+    "2026-02-30T00:00:00Z",
+    "2026-13-01T00:00:00Z",
+    "2026-07-28T24:01:00Z",
+    "2026-07-28T12:00:00+24:00",
+    "2026-07-28T12:00:00+04:60",
+  ];
+
+  for (const published_at of invalidValues) {
+    const normalized = normalizeOpenAIWebSearchResult({
+      ...base.openai,
+      sources: [{
+        url: "https://research.example/invalid-time",
+        published_at,
+      }],
+    });
+    assert.equal(normalized.sources[0]?.published_at, undefined);
+  }
+});
+
 test("vendor-prefixed presigned credentials never enter normalized evidence", () => {
   const base = fixtures.cases.find((candidate) => candidate.name === "matching");
   assert.ok(base);
