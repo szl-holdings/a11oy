@@ -698,6 +698,8 @@ def test_frontend_wires_one_attempt_execution_and_live_events(tmp_path: Path) ->
     assert "recoverOutcome" in script.text
     assert "/passports/outcomes/${encodeURIComponent(passportDigest)}" in script.text
     assert "PENDING_RECONCILIATION" in script.text
+    assert 'value.outcome?.status !== "SUCCEEDED"' in script.text
+    assert "SERIES_A_REFRESH_FAILED" in script.text
 
 
 def test_source_revision_cannot_make_mismatched_assets_immutable(
@@ -1032,6 +1034,62 @@ def test_start_reconciles_interrupted_execution_without_replaying_action(
         ]
         == recovered["outcome_receipt"]["receipt_hash"]
     )
+
+
+def test_overlapping_runtime_does_not_reconcile_live_execution(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database = tmp_path / "series-a.sqlite3"
+    first = control.Service(str(database))
+    passport = first.evaluate_passport(
+        {
+            "principal_id": "tester",
+            "action": {
+                "type": "probe.public_surface",
+                "target": "https://a-11-oy.com/healthz",
+                "impact": "MODERATE",
+                "irreversible": False,
+            },
+            "evidence": observed_evidence(first),
+        }
+    )
+    digest = passport["passport_digest"]
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_probe(target: str) -> dict[str, object]:
+        entered.set()
+        await release.wait()
+        return {
+            "status": "SUCCEEDED",
+            "target": target,
+            "http_status": 200,
+            "latency_ms": 1,
+        }
+
+    monkeypatch.setattr(first, "_probe", slow_probe)
+    monkeypatch.setenv("A11OY_SERIES_A_STARTUP_REFRESH", "0")
+
+    async def scenario() -> None:
+        execution = asyncio.create_task(
+            first.execute({"passport_digest": digest})
+        )
+        await entered.wait()
+        second = control.Service(str(database))
+        await second.start()
+        assert second.store.execution_status(digest)["state"] == "PENDING"
+        assert second.store.outcome_for_passport(digest) is None
+        release.set()
+        completed = await execution
+        assert completed["outcome"]["status"] == "SUCCEEDED"
+        assert second.store.execution_status(digest)["state"] == "COMPLETED"
+        assert (
+            second.store.outcome_for_passport(digest)["outcome"]["status"]
+            == "SUCCEEDED"
+        )
+        await second.stop()
+
+    asyncio.run(scenario())
 
 
 def test_receipt_chain_links_exact_previous_hash(tmp_path: Path) -> None:

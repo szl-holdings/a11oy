@@ -135,6 +135,19 @@ class DrainingSession(Session):
         ]
 
 
+class TransientStartupSession(StartupReceiptSession):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.status_calls = 0
+
+    def get(self, url: str, **kwargs):
+        if url.endswith("/series-a/status"):
+            self.status_calls += 1
+            if self.status_calls == 2:
+                raise TimeoutError("transient startup status timeout")
+        return super().get(url, **kwargs)
+
+
 class Api:
     def __init__(self) -> None:
         self.calls = []
@@ -236,6 +249,44 @@ def test_prove_polls_past_draining_old_runtime(monkeypatch) -> None:
     assert report["ok"] is True
     assert report["before"]["runtime_boot_id"] == "boot_" + ("1" * 32)
     assert report["after"]["runtime_boot_id"] == "boot_" + ("2" * 32)
+
+
+def test_prove_retries_transient_startup_capture(monkeypatch) -> None:
+    source = "a" * 40
+    session = TransientStartupSession(source)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=Api(),
+        session=session,
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+
+
+def test_prove_uses_one_shared_deadline(monkeypatch) -> None:
+    source = "a" * 40
+    session = StartupReceiptSession(source)
+    clock = iter((0.0, 0.0, 0.0, 0.0, 0.0, 1.1))
+    monkeypatch.setattr(proof.time, "monotonic", lambda: next(clock, 1.1))
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(proof.RestartProofError, match="deadline exhausted"):
+        proof.prove(
+            api=Api(),
+            session=session,
+            repo_id="SZLHOLDINGS/a11oy",
+            origin="https://a-11-oy.com",
+            source_sha=source,
+            attempts=90,
+            retry_seconds=10,
+            deadline_seconds=1,
+        )
 
 
 def test_validate_restart_rejects_key_or_database_identity_change() -> None:

@@ -52,6 +52,7 @@ MAX_BODY = 64 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 20
 EXECUTION_TIMEOUT_SECONDS = 120
+EXECUTION_RECONCILE_AFTER_SECONDS = EXECUTION_TIMEOUT_SECONDS + 30
 ALLOWED_ACTIONS = {"estate.refresh", "probe.public_surface"}
 ALLOWED_SQLITE_JOURNALS = {"DELETE", "PERSIST", "TRUNCATE", "WAL"}
 ALLOWED_PROBE_HOSTS = {
@@ -570,6 +571,37 @@ class Store:
             ).fetchone()
         return dict(row) if row is not None else None
 
+    def next_execution_reconciliation_delay(
+        self,
+        *,
+        stale_after_seconds: int = EXECUTION_RECONCILE_AFTER_SECONDS,
+        now: datetime | None = None,
+    ) -> float | None:
+        """Return the bounded delay before the oldest pending intent is stale."""
+        with self.lock, self.connect() as db:
+            rows = db.execute(
+                """SELECT started_at FROM passport_executions
+                   WHERE state='PENDING'
+                   ORDER BY started_at"""
+            ).fetchall()
+        if not rows:
+            return None
+        current = now or datetime.now(timezone.utc)
+        delays: list[float] = []
+        for row in rows:
+            try:
+                started = datetime.fromisoformat(
+                    str(row["started_at"]).replace("Z", "+00:00")
+                )
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                age = max(0.0, (current - started).total_seconds())
+                delays.append(max(0.0, float(stale_after_seconds) - age))
+            except (TypeError, ValueError):
+                # A malformed persisted timestamp cannot prove a live execution.
+                delays.append(0.0)
+        return min(delays)
+
     def complete_execution(
         self,
         digest: str,
@@ -614,9 +646,13 @@ class Store:
     def reconcile_interrupted_executions(
         self,
         signer: ReceiptSigner,
+        *,
+        stale_after_seconds: int = EXECUTION_RECONCILE_AFTER_SECONDS,
+        now: datetime | None = None,
     ) -> list[dict[str, Any]]:
-        """Terminalize abandoned intents without replaying their actions."""
-        completed_at = _now()
+        """Terminalize stale abandoned intents without replaying their actions."""
+        current = now or datetime.now(timezone.utc)
+        completed_at = current.isoformat().replace("+00:00", "Z")
         reconciled: list[dict[str, Any]] = []
         with self.lock, self.connect() as db:
             rows = db.execute(
@@ -626,6 +662,17 @@ class Store:
                    ORDER BY started_at,passport_digest"""
             ).fetchall()
             for row in rows:
+                try:
+                    started = datetime.fromisoformat(
+                        str(row["started_at"]).replace("Z", "+00:00")
+                    )
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=timezone.utc)
+                    age = max(0.0, (current - started).total_seconds())
+                except (TypeError, ValueError):
+                    age = float(stale_after_seconds)
+                if age < stale_after_seconds:
+                    continue
                 outcome = {
                     "status": "FAILED",
                     "error_class": "ExecutionInterrupted",
@@ -976,6 +1023,7 @@ class Service:
         self.runtime_boot_id = f"boot_{uuid.uuid4().hex}"
         self.refresh_lock = asyncio.Lock()
         self.execution_tasks: set[asyncio.Task[Any]] = set()
+        self.reconciliation_task: asyncio.Task[Any] | None = None
         self.started = False
         self.background_task: asyncio.Task[Any] | None = None
 
@@ -983,6 +1031,11 @@ class Service:
         if self.started:
             return
         self.store.reconcile_interrupted_executions(self.signer)
+        if self.store.next_execution_reconciliation_delay() is not None:
+            self.reconciliation_task = asyncio.create_task(
+                self._reconcile_pending_executions(),
+                name="a11oy-series-a-execution-reconciliation",
+            )
         self.started = True
         if (os.environ.get("A11OY_SERIES_A_STARTUP_REFRESH") or "1").strip() == "0":
             self.store.append_event("estate.refresh.skipped", {"reason": "explicit test/runtime configuration"})
@@ -992,6 +1045,16 @@ class Service:
             self._refresh_loop(),
             name="a11oy-series-a-periodic-refresh",
         )
+
+    async def _reconcile_pending_executions(self) -> None:
+        """Wait out the live-execution bound, then fail closed without replay."""
+        while True:
+            delay = self.store.next_execution_reconciliation_delay()
+            if delay is None:
+                return
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self.store.reconcile_interrupted_executions(self.signer)
 
     async def _refresh_loop(self) -> None:
         interval_seconds = _refresh_interval_seconds()
@@ -1016,6 +1079,14 @@ class Service:
             await asyncio.sleep(_refresh_delay_seconds(interval_seconds, elapsed))
 
     async def stop(self) -> None:
+        reconciliation = self.reconciliation_task
+        self.reconciliation_task = None
+        if reconciliation is not None:
+            reconciliation.cancel()
+            try:
+                await reconciliation
+            except asyncio.CancelledError:
+                pass
         task = self.background_task
         self.background_task = None
         self.started = False
