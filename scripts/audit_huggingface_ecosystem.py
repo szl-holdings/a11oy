@@ -8,11 +8,12 @@ import datetime as dt
 import hashlib
 import json
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -25,10 +26,36 @@ RFC3339_UTC_RE = re.compile(
     r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])"
     r"T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|\+00:00)$"
 )
+RETRY_ATTEMPTS = 3
+RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+def open_url_with_retry(
+    url: str,
+    *,
+    timeout: float = 30,
+    attempts: int = RETRY_ATTEMPTS,
+    sleep: Callable[[float], None] = time.sleep,
+) -> Any:
+    """Open a live evidence URL with bounded retries and fail closed."""
+
+    if attempts < 1:
+        raise ValueError("attempts must be at least 1")
+    for attempt in range(attempts):
+        try:
+            return urllib.request.urlopen(url, timeout=timeout)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in RETRYABLE_HTTP_CODES or attempt + 1 == attempts:
+                raise
+        except (urllib.error.URLError, ConnectionError, TimeoutError):
+            if attempt + 1 == attempts:
+                raise
+        sleep(float(2**attempt))
+    raise RuntimeError("unreachable retry state")
 
 
 def fetch_page(url: str) -> tuple[Any, str | None]:
-    with urllib.request.urlopen(url, timeout=30) as response:
+    with open_url_with_retry(url) as response:
         data = json.load(response)
         link = response.headers.get("Link", "")
     next_url = None
@@ -133,7 +160,7 @@ def fetch_card_markdown(
         f"{encoded_revision}/README.md"
     )
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:
+        with open_url_with_retry(url) as response:
             return response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         if exc.code == 404:

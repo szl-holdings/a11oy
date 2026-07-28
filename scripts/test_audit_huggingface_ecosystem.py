@@ -85,6 +85,97 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             ["SZLHOLDINGS/a", "SZLHOLDINGS/b", "SZLHOLDINGS/c"],
         )
 
+    def test_live_fetch_retries_transient_transport_failure(self) -> None:
+        calls = 0
+        sleeps: list[float] = []
+        original_urlopen = audit.urllib.request.urlopen
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+        def flaky_urlopen(url: str, *, timeout: float):
+            nonlocal calls
+            calls += 1
+            self.assertEqual(url, "https://huggingface.co/api/models")
+            self.assertEqual(timeout, 30)
+            if calls < 3:
+                raise audit.urllib.error.URLError(
+                    ConnectionResetError("connection reset")
+                )
+            return Response()
+
+        audit.urllib.request.urlopen = flaky_urlopen
+        try:
+            response = audit.open_url_with_retry(
+                "https://huggingface.co/api/models",
+                sleep=sleeps.append,
+            )
+        finally:
+            audit.urllib.request.urlopen = original_urlopen
+
+        self.assertIsInstance(response, Response)
+        self.assertEqual(calls, 3)
+        self.assertEqual(sleeps, [1.0, 2.0])
+
+    def test_live_fetch_fails_closed_after_retry_exhaustion(self) -> None:
+        calls = 0
+        sleeps: list[float] = []
+        original_urlopen = audit.urllib.request.urlopen
+
+        def unavailable_urlopen(url: str, *, timeout: float):
+            nonlocal calls
+            calls += 1
+            raise audit.urllib.error.URLError(
+                ConnectionResetError("connection reset")
+            )
+
+        audit.urllib.request.urlopen = unavailable_urlopen
+        try:
+            with self.assertRaises(audit.urllib.error.URLError):
+                audit.open_url_with_retry(
+                    "https://huggingface.co/api/datasets",
+                    attempts=3,
+                    sleep=sleeps.append,
+                )
+        finally:
+            audit.urllib.request.urlopen = original_urlopen
+
+        self.assertEqual(calls, 3)
+        self.assertEqual(sleeps, [1.0, 2.0])
+
+    def test_live_fetch_does_not_retry_not_found(self) -> None:
+        calls = 0
+        sleeps: list[float] = []
+        original_urlopen = audit.urllib.request.urlopen
+
+        def missing_urlopen(url: str, *, timeout: float):
+            nonlocal calls
+            calls += 1
+            raise audit.urllib.error.HTTPError(
+                url,
+                404,
+                "Not Found",
+                {},
+                None,
+            )
+
+        audit.urllib.request.urlopen = missing_urlopen
+        try:
+            with self.assertRaises(audit.urllib.error.HTTPError):
+                audit.open_url_with_retry(
+                    "https://huggingface.co/missing",
+                    sleep=sleeps.append,
+                )
+        finally:
+            audit.urllib.request.urlopen = original_urlopen
+
+        self.assertEqual(calls, 1)
+        self.assertEqual(sleeps, [])
+
     def test_manifest_has_public_scope_and_no_unrelated_canonical_numbers(self) -> None:
         fixtures = {
             "models": [item("SZLHOLDINGS/model")],
