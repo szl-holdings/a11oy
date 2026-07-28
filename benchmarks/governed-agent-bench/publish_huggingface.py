@@ -45,21 +45,50 @@ def _manifest_is_managed(files: dict[str, bytes]) -> None:
 
 
 def _publish_and_readback(api, repo_id: str, repo_type: str, folder: Path, token: str):
-    from huggingface_hub import CommitOperationAdd, hf_hub_download
+    from huggingface_hub import CommitOperationAdd, CommitOperationDelete, hf_hub_download
 
     expected = _files(folder)
     _manifest_is_managed(expected)
     api.create_repo(repo_id=repo_id, repo_type=repo_type, private=False, exist_ok=True)
+    remote_before = set(
+        api.list_repo_files(
+            repo_id=repo_id,
+            repo_type=repo_type,
+            revision="main",
+            token=token,
+        )
+    )
+    operations = [
+        CommitOperationDelete(path_in_repo=name)
+        for name in sorted(remote_before - set(expected))
+    ]
+    operations.extend(
+        CommitOperationAdd(path_in_repo=name, path_or_fileobj=io.BytesIO(body))
+        for name, body in expected.items()
+    )
     commit = api.create_commit(
         repo_id=repo_id,
         repo_type=repo_type,
-        operations=[
-            CommitOperationAdd(path_in_repo=name, path_or_fileobj=io.BytesIO(body))
-            for name, body in expected.items()
-        ],
+        operations=operations,
         commit_message="publish governed-agent-bench from protected GitHub source",
     )
     revision = commit.oid
+    remote_after = set(
+        api.list_repo_files(
+            repo_id=repo_id,
+            repo_type=repo_type,
+            revision=revision,
+            token=token,
+        )
+    )
+    expected_names = set(expected)
+    if remote_after != expected_names:
+        missing = sorted(expected_names - remote_after)
+        unexpected = sorted(remote_after - expected_names)
+        raise PublicationError(
+            "immutable inventory mismatch: "
+            f"{repo_type}:{repo_id} missing={missing!r} unexpected={unexpected!r}"
+        )
     observed = {}
     for name, body in expected.items():
         path = hf_hub_download(

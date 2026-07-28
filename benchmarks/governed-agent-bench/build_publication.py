@@ -24,6 +24,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 DATASET_REPO = "SZLHOLDINGS/governed-agent-bench"
 SPACE_REPO = "SZLHOLDINGS/governed-agent-bench"
 MANAGED_BY = "szl-holdings/a11oy:benchmarks/governed-agent-bench"
+GITATTRIBUTES = "* text=auto eol=lf\n"
 
 
 class PublicationBuildError(RuntimeError):
@@ -145,6 +146,12 @@ def build(output: Path, source_revision: str, observed_at: str) -> dict[str, obj
     space = output / "space"
     dataset.mkdir(parents=True, exist_ok=True)
     space.mkdir(parents=True, exist_ok=True)
+    (dataset / ".gitattributes").write_text(
+        GITATTRIBUTES, encoding="utf-8", newline="\n"
+    )
+    (space / ".gitattributes").write_text(
+        GITATTRIBUTES, encoding="utf-8", newline="\n"
+    )
 
     canonical_files = {
         "cases.jsonl": HERE / "cases.jsonl",
