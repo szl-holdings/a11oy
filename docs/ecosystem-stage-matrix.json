@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-07-28T15:45:13Z",
+  "observedAt": "2026-07-28T17:49:37.270Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,8 +27,8 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 15,
-      "datasets": 26,
-      "spaces": 25
+      "datasets": 27,
+      "spaces": 26
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -980,6 +980,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-agent-bench"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/governed-receipts-bench",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1237,6 +1247,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench"
       ]
     },
     {
