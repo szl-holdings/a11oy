@@ -4,9 +4,10 @@
 Persistent key discovery, in priority order:
 
 1. ``SZL_COSIGN_PRIVATE_PEM`` inline runtime secret.
-2. ``A11OY_RECEIPT_KEY_PEM`` inline compatibility secret.
-3. ``A11OY_RECEIPT_KEY_PATH`` mounted PEM file.
-4. The first recognized PEM file in ``A11OY_RECEIPT_KEY_DIR`` or the
+2. ``SZL_COSIGN_PRIVATE_KEY_PEM`` inline compatibility secret.
+3. ``A11OY_RECEIPT_KEY_PEM`` inline compatibility secret.
+4. ``A11OY_RECEIPT_KEY_PATH`` mounted PEM file.
+5. The first recognized PEM file in ``A11OY_RECEIPT_KEY_DIR`` or the
    conventional ``/etc/szl/receipt-key`` mount.
 
 A configured source that is empty, missing, unreadable, malformed, or not
@@ -36,6 +37,7 @@ _CANDIDATE_FILENAMES = (
 )
 _INLINE_KEY_NAMES = (
     "SZL_COSIGN_PRIVATE_PEM",
+    "SZL_COSIGN_PRIVATE_KEY_PEM",
     "A11OY_RECEIPT_KEY_PEM",
 )
 _KEY_CACHE = {}

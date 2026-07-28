@@ -8840,6 +8840,8 @@ try:
         _A11OY_KEYID = _hashv2.sha256(
             _A11OY_PUB_PEM.strip().encode("ascii")
         ).hexdigest()
+        import szl_dsse as _a11oy_runtime_dsse
+        _a11oy_runtime_dsse.configure_runtime_public_key(_A11OY_PUB_PEM)
 except Exception as _e:  # pragma: no cover
     _A11OY_KEY_ERR = "%s: shared signing key unavailable" % type(_e).__name__
 
