@@ -30,6 +30,7 @@ env:
 jobs:
   runtime-config:
     name: Converge persistent signer and receipt storage
+    needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -70,7 +71,6 @@ jobs:
 
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    needs: runtime-config
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
     with:
       hf-repo: SZLHOLDINGS/a11oy
@@ -87,7 +87,7 @@ jobs:
 
   readiness-verdict:
     name: Probe and ingest exact post-deploy readiness verdict
-    needs: deploy
+    needs: runtime-config
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -145,7 +145,7 @@ jobs:
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: [deploy, readiness-verdict]
+    needs: [runtime-config, readiness-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
