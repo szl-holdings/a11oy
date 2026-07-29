@@ -63,6 +63,7 @@ def test_principal_registry_is_converged_as_digest_only_secret() -> None:
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
+        current_secret_names=set(),
         operator_token=token,
     ) == {config.PRINCIPAL_REGISTRY_SECRET}
     assert len(calls) == 1
@@ -87,6 +88,7 @@ def test_principal_registry_convergence_fails_closed() -> None:
             api,
             repo_id=config.CANONICAL_SPACE,
             current_variables={},
+            current_secret_names=set(),
             operator_token="x" * 48,
         )
     with pytest.raises(config.RuntimeConfigError, match="collides"):
@@ -96,8 +98,34 @@ def test_principal_registry_convergence_fails_closed() -> None:
             current_variables={
                 config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")
             },
+            current_secret_names=set(),
             operator_token="x" * 48,
         )
+
+
+@pytest.mark.parametrize("location", ["variable", "secret"])
+def test_competing_credential_registry_blocks_before_mutation(location: str) -> None:
+    calls: list[dict[str, object]] = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+        get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
+    )
+    variables = (
+        {"GDW_CREDENTIALS_JSON": SimpleNamespace(value="hidden")}
+        if location == "variable"
+        else {}
+    )
+    secret_names = {"GDW_CREDENTIALS_JSON"} if location == "secret" else set()
+
+    with pytest.raises(config.RuntimeConfigError, match="competing"):
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables=variables,
+            current_secret_names=secret_names,
+            operator_token="x" * 48,
+        )
+    assert calls == []
 
 
 def test_require_data_mount_is_fail_closed() -> None:
