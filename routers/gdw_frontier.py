@@ -167,7 +167,11 @@ def _credential_registry():
             legacy_enabled=legacy_enabled,
             legacy_token=os.environ.get("GDW_AUTH_TOKEN"),
             legacy_owner_id=os.environ.get("GDW_OWNER_ID"),
-            legacy_namespace=os.environ.get("GDW_NAMESPACE"),
+            legacy_namespace=(
+                os.environ.get("GDW_NAMESPACE")
+                if legacy_enabled
+                else None
+            ),
             legacy_scopes=legacy_scopes,
         )
         _AUTH_REGISTRY = registry

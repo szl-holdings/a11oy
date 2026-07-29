@@ -45,14 +45,16 @@ MUTATION_METHODS = {
     "restart_space",
 }
 LOCAL_SCRIPT_CALL = re.compile(
-    r"(?:^|\s)(?:python(?:3)?(?:\s+-[A-Za-z]+)*|bash|sh|node)\s+"
+    r"(?:^|\s)(?:"
+    r"python(?:3(?:\.\d+)?)?(?:\s+-[A-Za-z]+)*|bash|sh|node"
+    r")\s+"
     r"(?!-m(?:\s|$))"
     r"(?P<path>(?:\./)?(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+"
     r"\.(?:py|sh|js|mjs|cjs|ts))",
     re.MULTILINE,
 )
 LOCAL_MODULE_CALL = re.compile(
-    r"\bpython(?:3)?\b"
+    r"\bpython(?:3(?:\.\d+)?)?\b"
     r"(?:(?:[ \t]+(?!-m(?:[ \t]|$))[^ \t;&|]+))*"
     r"[ \t]+-m[ \t]+"
     r"(?P<module>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)"
@@ -393,7 +395,7 @@ on:
 jobs:
     mutate:
         steps:
-            - run: python -W error -X dev -m scripts.hf_writer
+            - run: python3.12 -W error -X dev -m scripts.hf_writer
               env:
                   SPACE_ID: SZLHOLDINGS/a11oy
 """

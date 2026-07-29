@@ -98,6 +98,40 @@ def headers(request_id):
     }
 
 
+def test_principal_registry_uses_namespace_without_enabling_legacy_auth(
+    monkeypatch,
+):
+    token = "principal-registry-token"
+    monkeypatch.delenv("GDW_CREDENTIALS_JSON", raising=False)
+    monkeypatch.delenv("GDW_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GDW_OWNER_ID", raising=False)
+    monkeypatch.delenv("GDW_ALLOW_LEGACY_AUTH", raising=False)
+    monkeypatch.setenv("GDW_NAMESPACE", "a11oy")
+    monkeypatch.setenv(
+        "GDW_PRINCIPALS_JSON",
+        json.dumps(
+            {
+                "gdw-operator": {
+                    "token_sha256": hashlib.sha256(
+                        token.encode("utf-8")
+                    ).hexdigest(),
+                    "roles": ["admin", "user"],
+                }
+            }
+        ),
+    )
+    monkeypatch.setattr(gdw_frontier, "_AUTH_REGISTRY", None)
+    monkeypatch.setattr(gdw_frontier, "_AUTH_FINGERPRINT", None)
+
+    principal = gdw_frontier._credential_registry().authenticate(
+        f"Bearer {token}",
+        namespace="a11oy",
+    )
+
+    assert principal.owner_id == "gdw-operator"
+    assert principal.namespace == "a11oy"
+
+
 def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
     with TestClient(app) as client:
