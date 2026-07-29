@@ -6,7 +6,8 @@ Status: `MEASURED` historical isolated-harness evidence. It does not validate
 the post-merge governance and atomicity correction, which requires its own
 protected merge, exact-source relock, and live checks.
 
-Successor status: `MEASURED_LOCAL` for the forward-only draft working tree only.
+Successor status: `MEASURED_LOCAL` for the forward-only corrective working tree
+only.
 The local GDW adversarial suite passed `19 / 19` on 2026-07-28, and the
 digest-registry/runtime-configuration suite passed `4 / 4`. The combined
 focused promotion run passed `27`, skipped one hardware-dependent case, and
@@ -21,6 +22,15 @@ SQLite journal selection. The broad serve-router parity test exceeded a bounded
 two-minute local run and remains `UNVERIFIED` in this working tree; the hosted
 route/OpenAPI gates are separate evidence. This is not independent review,
 protected merge, deployment, or production evidence.
+
+On 2026-07-29, the forward integration suite passed `133`, skipped one
+hardware-dependent case, and failed none. That run added digest-native
+authentication compatibility, transactional v2 proof-only migration,
+generation-visible responses/receipts/proof inputs, artifact readback and
+tamper verification, owner-scoped artifact quotas, admin-global integrity and
+drain controls, exact runtime-source verification, and both runtime
+configuration suites. Compile, Docker source inclusion, OpenAPI, and Git
+whitespace checks are separate gates; this remains local source evidence.
 
 ## Operational scope
 
