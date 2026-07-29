@@ -62,10 +62,15 @@ jobs:
         run: >-
           pytest
           tests/test_gdw_frontier.py
+          tests/test_gdw_auth.py
+          tests/test_gdw_auth_compat.py
+          tests/test_gdw_runtime.py
+          tests/test_gdw_workspace_v2.py
           tests/test_gdw_attention.py
           tests/test_gdw_bench_tools.py
           tests/test_openapi_schema_generation.py
           scripts/test_configure_hf_gdw_runtime.py
+          scripts/test_prove_hf_gdw_runtime.py
           -q
 
   python-operator-reason:

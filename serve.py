@@ -552,8 +552,9 @@ async def quantum_utility_receipt_replay(request: Request) -> JSONResponse:
 
 # Governed Delta Workspace (wave 28): authenticated, deny-by-default state
 # transitions over SQLite WAL, idempotency keys, the shared receipt substrate,
-# structured theorem inputs, and honest benchmark metadata. Runtime route
-# decisions are REAL; benchmark claims remain UNMEASURED until a captured run.
+# structured theorem inputs, and honest benchmark metadata. Runtime writes are
+# REAL only when the route's full readiness predicate passes; otherwise the
+# surface is UNAVAILABLE. Benchmark claims remain UNMEASURED until a captured run.
 # Registered before both catch-alls.
 try:
     from routers import gdw_frontier as _gdw_frontier

@@ -25,6 +25,12 @@ def test_desired_variables_digest_token_without_recording_it() -> None:
     assert config.PRINCIPAL_REGISTRY_SECRET not in variables
     assert variables["GDW_SQLITE_JOURNAL"] == "DELETE"
     assert variables["GDW_DB_PATH"].startswith("/data/")
+    assert variables["GDW_PRODUCTION_MODE"] == "1"
+    assert variables["GDW_REQUIRE_PERSISTENT_STORAGE"] == "1"
+    assert variables["GDW_REQUIRED_MOUNT"] == "/data"
+    assert variables["GDW_OUTBOX_ENABLED"] == "1"
+    assert variables["GDW_OWNER_MAX_PENDING_EFFECTS"] == "2000"
+    assert variables["GDW_EFFECT_MAX_ATTEMPTS"] == "20"
 
 
 def test_desired_variables_rejects_weak_operator_token() -> None:
@@ -40,6 +46,20 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
     }
     with pytest.raises(config.RuntimeConfigError, match="collide"):
         config.plan_variables({}, {"GDW_DB_PATH"}, desired)
+
+
+def test_principal_registry_must_be_preprovisioned_and_is_never_mutated() -> None:
+    config.require_preprovisioned_principal_registry(
+        {},
+        {config.PRINCIPAL_REGISTRY_SECRET},
+    )
+    with pytest.raises(config.RuntimeConfigError, match="preprovisioned"):
+        config.require_preprovisioned_principal_registry({}, set())
+    with pytest.raises(config.RuntimeConfigError, match="collides"):
+        config.require_preprovisioned_principal_registry(
+            {config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")},
+            {config.PRINCIPAL_REGISTRY_SECRET},
+        )
 
 
 def test_require_data_mount_is_fail_closed() -> None:

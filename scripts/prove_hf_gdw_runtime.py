@@ -8,23 +8,28 @@ import json
 import os
 import time
 from pathlib import Path
-
-import requests
+from urllib.request import Request, urlopen
 
 
 def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
     headers = dict(kwargs.pop("headers", {}))
+    payload = kwargs.pop("json", None)
+    if kwargs:
+        raise TypeError("unsupported request options")
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    response = requests.request(
-        method,
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    request = Request(
         url,
+        data=data,
         headers=headers,
-        timeout=30,
-        **kwargs,
+        method=method,
     )
-    response.raise_for_status()
-    return response.json()
+    with urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
@@ -34,16 +39,30 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         raise RuntimeError("GDW_OPERATOR_TOKEN is unavailable")
     base = origin.rstrip("/")
     health = None
+    deployed_revision = ""
     last_error = None
     for attempt in range(1, 121):
         try:
+            build_info = request_json("GET", f"{base}/api/build-info")
+            deployed_revision = str(
+                (build_info.get("build") or {}).get("revision") or ""
+            ).lower()
+            if deployed_revision != source_sha:
+                last_error = "SOURCE_REVISION_MISMATCH"
+                time.sleep(5)
+                continue
             candidate = request_json(
                 "GET", f"{base}/api/a11oy/v1/gdw/healthz"
             )
             if (
                 candidate.get("status") == "REAL"
                 and candidate.get("write_ready") is True
-                and candidate.get("persistence") == "SQLITE_DELETE"
+                and (
+                    (candidate.get("persistence") or {})
+                    .get("storage", {})
+                    .get("journal_mode_observed")
+                    == "DELETE"
+                )
             ):
                 health = candidate
                 break
@@ -72,6 +91,10 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         step.get("decision") != "ACCEPT"
         or step.get("receipt_status") != "UNSIGNED_ATOMIC"
         or step.get("proof", {}).get("status") != "OUTBOX_PENDING"
+        or step.get("database_generation_id")
+        != (health.get("persistence") or {})
+        .get("storage", {})
+        .get("database_generation_id")
     ):
         raise RuntimeError("GDW protected transition contract failed")
 
@@ -99,14 +122,17 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     if (
         integrity.get("ok") is not True
         or integrity.get("journal_mode") != "DELETE"
-        or session.get("state", {}).get("generation_id")
-        != health.get("generation_id")
+        or session.get("database_generation_id")
+        != (health.get("persistence") or {})
+        .get("storage", {})
+        .get("database_generation_id")
     ):
         raise RuntimeError("GDW live persistence contract failed")
 
     return {
         "schema": "szl.hf-gdw-live-proof/v1",
         "source_revision": source_sha,
+        "runtime_source_revision": deployed_revision,
         "health": health,
         "transition": {
             "decision": step["decision"],
@@ -119,7 +145,12 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             "ok": True,
             "journal_mode": integrity["journal_mode"],
             "pending_effects": integrity["pending_effects"],
-            "violations": integrity["violations"],
+            "invalid_effect_bindings": integrity[
+                "invalid_effect_bindings"
+            ],
+            "invalid_exported_artifacts": integrity[
+                "invalid_exported_artifacts"
+            ],
         },
         "credential_values_recorded": False,
     }
