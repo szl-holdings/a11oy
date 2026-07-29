@@ -2785,6 +2785,8 @@ class GDWWorkspace:
                     continue
                 try:
                     receipt = json.loads(row["receipt_json"])
+                    if not isinstance(receipt, dict):
+                        raise ValueError("receipt must be an object")
                     claimed = str(receipt.pop("receipt_hash", ""))
                     observed = hashlib.sha256(
                         _json_text(receipt).encode("utf-8")
@@ -2817,6 +2819,8 @@ class GDWWorkspace:
                     continue
                 try:
                     payload = json.loads(row["payload_json"])
+                    if not isinstance(payload, dict):
+                        raise ValueError("proof payload must be an object")
                     observed = self._effect_payload_digest(
                         "proof_export", payload
                     )

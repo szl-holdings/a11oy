@@ -1301,3 +1301,43 @@ def test_integrity_rejects_state_bound_to_another_session(tmp_path):
         match="session state digest or identity is invalid",
     ):
         workspace.read_session("session-a")
+
+
+def test_integrity_reports_non_object_receipt_and_proof_json(tmp_path):
+    workspace = _workspace(tmp_path / "non-object-integrity.sqlite3")
+    _queue_proof(workspace)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    with workspace.transaction() as connection:
+        connection.execute(
+            """
+            INSERT INTO receipts(
+                namespace, owner_id, receipt_hash, request_id, session_id,
+                step, receipt_json, created_at
+            ) VALUES (?, ?, ?, 'request', 'session', 0, '1', ?)
+            """,
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                "c" * 64,
+                timestamp,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO proof_outbox(
+                namespace, owner_id, proposal_id, payload_json,
+                payload_sha256, status, created_at
+            ) VALUES (?, ?, 'corrupt-proof', '1', ?, 'PENDING', ?)
+            """,
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                "d" * 64,
+                timestamp,
+            ),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_receipt_digests"] == 1
+    assert integrity["invalid_proof_digests"] == 1
