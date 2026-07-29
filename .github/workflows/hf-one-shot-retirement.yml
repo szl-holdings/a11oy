@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/deploy-verify-brain-now.yml
       - .github/workflows/deploy-verify-canonical-a11oy-now.yml
+      - .github/workflows/hf-git-sha-sync.yml
       - .github/workflows/hf-sync.yml
       - .github/workflows/hf-one-shot-retirement.yml
       - tests/test_hf_one_shots_retired.py
@@ -14,6 +15,7 @@ on:
     paths:
       - .github/workflows/deploy-verify-brain-now.yml
       - .github/workflows/deploy-verify-canonical-a11oy-now.yml
+      - .github/workflows/hf-git-sha-sync.yml
       - .github/workflows/hf-sync.yml
       - .github/workflows/hf-one-shot-retirement.yml
       - tests/test_hf_one_shots_retired.py
