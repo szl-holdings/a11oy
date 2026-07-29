@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-07-29T15:42:55Z",
+  "observedAt": "2026-07-29T15:55:47Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",

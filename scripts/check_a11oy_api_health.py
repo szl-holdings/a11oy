@@ -2,9 +2,9 @@
 """
 check_a11oy_api_health.py — standing health check for a11oy's live demo API.
 
-a11oy auto-syncs its serve.py from GitHub main to the Hugging Face Space
-(hf-sync-backend.yml) and an OID-diff guard (hf-module-drift-check) confirms the
-files match. But a sync can succeed yet a LIVE endpoint still 500 or drop its
+a11oy publishes its complete Dockerfile-derived runtime from GitHub main through
+the canonical hf-sync.yml writer, and an OID-diff guard (hf-module-drift-check)
+confirms the files match. But a sync can succeed yet a LIVE endpoint still 500 or drop its
 governed envelope — and the front-door smoke monitor only checks HTTP 200 on the
 Space shell, so it would stay green while every /api/a11oy/* path quietly served
 the SPA HTML with a 200.

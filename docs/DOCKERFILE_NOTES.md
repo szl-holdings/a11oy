@@ -130,7 +130,7 @@ from a one-line marker at the original location.
 # IDENTICAL order (sources concatenated in sequence; every basename is distinct so
 # nothing overwrites anything). Same single-line grouped-COPY form already used for
 # the segment-A/segment-B root-file COPY groups above, so any line-based COPY-set
-# parser (e.g. hf-sync-backend) reads it exactly as it reads those. Never `COPY . .`.
+# canonical Dockerfile-derived deployer reads it exactly as it reads those. Never `COPY . .`.
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
 # energy operator/ledger/projection modules — imported by serve.py (guarded);
@@ -186,7 +186,7 @@ from a one-line marker at the original location.
 # + szl_khipu (the shared signed-receipt chain), both already COPY'd above.
 # Governed Speculative Decoding (GAP 4) — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
-# /api/a11oy/v1/specdec/* 404s AND hf-sync-backend.yml (it parses this COPY set) would
+# /api/a11oy/v1/specdec/* 404s AND the canonical deployer (it parses this COPY set) would
 # not mirror it to the HF Space. Reimplements the acceptance-rejection math (Leviathan
 # 2023 / Chen 2023; SpecExec/Sequoia MIT REFERENCE only) and probes the tower's ollama
 # /api/tags at request time for a SAME-FAMILY draft+target pair; emits a MEASURED block
@@ -196,7 +196,7 @@ from a one-line marker at the original location.
 # MUST be per-file COPY'd (no `COPY . .`) or the import falls back and the honest
 # /api/a11oy/v1/immune/* namespace 404s. Reuses szl_khipu (the shared signed-
 # receipt chain), already COPY'd above. Auto-mirrored to the HF Space by
-# hf-sync-backend.yml (it parses the Dockerfile COPY set). web/immune.html (the
+# the canonical deployer (it parses the Dockerfile COPY set). web/immune.html (the
 # served page) is per-file COPY'd below and declared image_only in
 # .github/copy-sync-lockstep.json (same baked-only pattern as web/energy.html).
 # SWEEP D5 — Fabric/Tawantin + Auto-review HONEST /status SUMMARY surfaces.
@@ -206,28 +206,28 @@ from a one-line marker at the original location.
 # /api/a11oy/v1/autoreview/status (honest summary over the real autoreview
 # classifier/calibration/dial; rates ROADMAP until real runs). MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or serve.py's guarded import falls
-# back and those /status routes 404 live AND hf-sync-backend.yml (it parses this
+# back and those /status routes 404 live AND the canonical deployer (it parses this
 # COPY set) would not mirror it to the HF Space. Reuses the live sibling
 # endpoints via loopback; no new dep. Summary-only — no fabricated node/joule data.
 # SWEEP DEV 3 status module — imported by serve.py (guarded). MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB
 # and /api/a11oy/v1/{quant,qbio,holographic}/status 404 live. Reuses szl_quantum_bio,
 # szl_formulas, szl_pnt_mesh, szl_backend_hardening, szl3d_holographic + szl_khipu
-# (all already COPY'd above). hf-sync-backend.yml parses this COPY set to mirror it.
+# (all already COPY'd above). The canonical deployer parses this COPY set to mirror it.
 # Materials (Q'allariy) HONEST verifiable crystal-discovery surface — imported by
 # serve.py (guarded). MUST be per-file COPY'd (no `COPY . .`) or the import falls
-# back and /api/a11oy/v1/materials/* 404s AND hf-sync-backend.yml (it parses this
+# back and /api/a11oy/v1/materials/* 404s AND the canonical deployer (it parses this
 # Dockerfile COPY set) would not mirror it to the HF Space. Reuses szl_khipu (the
 # shared signed-receipt chain), already COPY'd above. szl_materials is the SHARED
 # Materials module (Crystal Novelty Certificate + appended DEV2/DEV3 groups).
 # szl_materials_predict.py is the governed property-PREDICTION vertical (MODELED+SAMPLE
 # numpy surrogate + calibrated ensemble UQ); MUST be per-file COPY'd (no `COPY . .`)
 # or serve.py's guarded import falls back and /api/a11oy/v1/materials/predict 404s AND
-# hf-sync-backend.yml (parses this COPY set) would not mirror it to the HF Space.
+# the canonical deployer (parses this COPY set) would not mirror it to the HF Space.
 # SWEEP D1 (SDA): szl_sda.py serves the honest Space/Domain-Awareness + counter-UAS
 # surface (/api/a11oy/v1/sda/* and /v1/sda/*). MUST be per-file COPY'd (no `COPY . .`)
 # or serve.py's guarded `import szl_sda` falls back to the stub (merged-but-not-live,
-# /api/a11oy/v1/sda/* 404s) AND hf-sync-backend (which parses this COPY set) would not
+# /api/a11oy/v1/sda/* 404s) AND the canonical deployer (which parses this COPY set) would not
 # mirror it to the HF Space. Reuses szl_khipu (shared signed-receipt chain, COPY'd
 # above) and the REAL counter-UAS drone-cyber logic. Tracks are REPLAY/SAMPLE/MODELED.
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
@@ -238,7 +238,7 @@ from a one-line marker at the original location.
 # 6DOF FMU co-sim, Restraint gate, signed DSSE receipts). szl_mbse_nav.py serves
 # /mbse /mbse-6dof /mbse-pipeline (0-CDN holo + inline-SVG charts) + the idempotent
 # nav injector. MUST be COPY'd or serve.py's guarded imports fall back (merged-but-
-# not-live) AND hf-sync-backend would not mirror them. Per-file COPY (no COPY . .).
+# not-live) AND the canonical deployer would not mirror them. Per-file COPY (no COPY . .).
 # SWEEP D2 — MBSE + Factory honest STATUS surfaces. szl_mbse.py serves the
 # honest LIVE /api/a11oy/v1/mbse/{status,models} over the real szl_mbse_cosim
 # substance (+ wires its /info,/watertank,/sixdof,/pipeline). szl_factory.py
@@ -541,14 +541,14 @@ from a one-line marker at the original location.
 # /api/a11oy/v1/restraint/{evaluate,bench,info}; web/restraint.html is served at
 # /restraint + /a11oy/restraint via _ptg_serve. Without these COPYs the guarded
 # import falls back and /restraint 404s. The .py auto-mirrors to the HF Space via
-# hf-sync-backend.yml (parses this COPY line); web/restraint.html is a baked-only
+# the canonical deployer (parses this COPY line); web/restraint.html is a baked-only
 # served page declared in .github/copy-sync-lockstep.json image_only_assets
 # (same pattern as web/nemo.html). Ladder + intensity adopted from Ponytail (MIT);
 # governance + measurement are ours.
 # QHAWAQ (FORMAL/LTL runtime constitutional intercept): the SHARED runtime monitor,
 # BYTE-IDENTICAL to killinchu. Imported by serve.py (try/except guarded); serves
 # /qhawaq + /api/a11oy/v1/qhawaq/*. Without this COPY the guarded import falls back
-# and /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
+# and /qhawaq 404s. The .py auto-mirrors to the HF Space via the canonical deployer.
 ```
 
 ## §25 — ADDITIVE (WALLPA): Voice / expression organ — renders governed actions into audio output.
@@ -559,7 +559,7 @@ from a one-line marker at the original location.
 # speak,speak/stream,narrate-doctrine}. OSS-only TTS (Piper→Coqui→OpenVoice→synthetic fallback).
 # F8 "Wallpa OSS-Only Safety" locked-proven theorem. Without this COPY the try/except in
 # serve.py (edge organs loop, line ~2238) silently swallows the ImportError and all /wallpa
-# endpoints return 404. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
+# endpoints return 404. The .py auto-mirrors to the HF Space via the canonical deployer.
 # ADDITIVE (SAPA): Energy per Successful Goal — frontier agentic unit on top of
 # the live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
 # (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
@@ -573,7 +573,7 @@ from a one-line marker at the original location.
 # served at /restraint-bench (+ /a11oy/restraint-bench) via _ptg_serve. The bench
 # harness benchmarks/restraint/run_bench.py is the runnable reproduce tool (writes
 # benchmarks/restraint/results.json -> dashboard flips SAMPLE->MEASURED). The .py
-# auto-mirrors to the HF Space via hf-sync-backend.yml (parses these COPY lines);
+# auto-mirrors to the HF Space via the canonical deployer (parses these COPY lines);
 # web/restraint-bench.html is a baked-only image-only asset (copy-sync-lockstep.json).
 # CONSUMES szl_restraint (R1) + szl_energy_sovereign (Forge) only; edits neither.
 # 0 runtime CDN (fonts only); 0 visible codenames; Ponytail CITED (MIT).
@@ -1296,7 +1296,7 @@ from a one-line marker at the original location.
 # back to a STUB on the Space (the recurring "merged-but-not-live" failure). conduction_aphasia
 # backs /conduction; szl_a11oy_live_feeds backs the a11oy live-feeds organ; szl_jack is imported
 # transitively by szl_live_wires. Per-file COPY (this Dockerfile never uses `COPY . .`). They
-# auto-mirror to the HF Space via hf-sync-backend.yml (which parses these COPY lines).
+# auto-mirror to the HF Space via the canonical deployer (which parses these COPY lines).
 ```
 
 ## §66 — --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
@@ -1333,7 +1333,7 @@ from a one-line marker at the original location.
 # OPA/Rego + OSCAL + NIST AI RMF MANAGE, conformal-calibrated, with flapping
 # detection. autoreview.html is served at /autoreview (0 runtime CDN; uses the
 # already-vendored /vendor/chart.umd.min.js + in-image shared label/receipt
-# engines). These COPY lines are parsed by the backend HF-sync workflow so the
+# engines). These COPY lines are parsed by the canonical deployer so the
 # files reach the Space (avoids the recurring "merged-but-not-live" failure).
 ```
 

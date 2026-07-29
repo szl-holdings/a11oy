@@ -2,7 +2,7 @@
 # Doctrine v11 | SLSA L1 honest
 # Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
 #
-# a11oy auto-syncs serve.py from GitHub main to the HF Space (hf-sync-backend.yml)
+# The canonical hf-sync.yml workflow publishes the complete Dockerfile-derived set
 # and hf-module-drift.yml confirms the files match by OID. But a sync can succeed
 # yet a LIVE endpoint still 500 or drop its governed envelope, and smoke-monitor.yml
 # only asserts HTTP 200 on the Space front-door — it would stay green while every

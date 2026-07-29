@@ -293,8 +293,8 @@ jobs:
         # packages.inference voters, or the sigstore SDK and is covered by other jobs.
         run: pytest tests/test_recheck_rekor_baseline.py tests/test_verify_release_receipts.py -q
 
-  hf-sync-backend-selftest:
-    name: hf-sync-backend push-path self-test (stdlib, network-free)
+  hf-single-writer-guard:
+    name: canonical HF single-writer guard (stdlib, network-free)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -302,13 +302,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Run hf-sync-backend self-test
-        # Proves the auto-push path of .github/scripts/hf_sync_backend.py: the OID-diff
-        # selection commits ONLY files whose content differs from the Space and leaves
-        # byte-identical files untouched. Pure stdlib (unittest) with injected fakes for
-        # HfApi/CommitOperationAdd — no network, no HF_TOKEN, the live Space is never
-        # touched. Run by file path: the .github/scripts dir is not an importable package.
-        run: python3 .github/scripts/test_hf_sync_backend.py
+      - name: Prove one automatic canonical Space writer
+        # The complete Dockerfile-derived publisher and the old partial backend/variable
+        # writers must never race under any automatic trigger. The negative fixture proves this
+        # guard detects a second mutation-capable workflow instead of always passing.
+        run: python3 tests/test_hf_single_writer.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)
