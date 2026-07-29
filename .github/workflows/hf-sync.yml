@@ -37,6 +37,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
+      SERIES_A_LIVE_REPORT: /tmp/series-a-restart-proof.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
       GDW_LIVE_REPORT: /tmp/gdw-live-proof.json
     steps:
@@ -71,6 +72,14 @@ jobs:
           --repo-id "$CANONICAL_SPACE"
           --output "$GDW_CONFIG_REPORT"
 
+      - name: Prove a persistent Series-A receipt across restart
+        run: >-
+          python scripts/prove_hf_series_a_restart.py
+          --repo-id "$CANONICAL_SPACE"
+          --origin "$CANONICAL_ORIGIN"
+          --source-sha "${{ github.sha }}"
+          --output "$SERIES_A_LIVE_REPORT"
+
       - name: Prove live authenticated transition, drain, and integrity
         run: >-
           python scripts/prove_hf_gdw_runtime.py
@@ -85,6 +94,7 @@ jobs:
           name: series-a-runtime-config-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ env.RUNTIME_CONFIG_REPORT }}
+            ${{ env.SERIES_A_LIVE_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
             ${{ env.GDW_LIVE_REPORT }}
           if-no-files-found: error

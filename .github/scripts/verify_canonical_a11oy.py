@@ -371,7 +371,7 @@ def validate_route(
             or not storage.get("created_at")
             or not isinstance(storage.get("receipt_count"), int)
             or isinstance(storage.get("receipt_count"), bool)
-            or storage.get("receipt_count") < 0
+            or storage.get("receipt_count") <= 0
             or not isinstance(storage.get("last_receipt_sequence"), int)
             or isinstance(storage.get("last_receipt_sequence"), bool)
             or storage.get("last_receipt_sequence") < storage.get("receipt_count")

@@ -735,6 +735,13 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             {"signing_key_source": "ephemeral"},
             {"storage": {"mount_verified": False}},
             {"storage": {"created_at": None}},
+            {
+                "storage": {
+                    "receipt_count": 0,
+                    "last_receipt_sequence": 0,
+                    "chain_head": None,
+                }
+            },
         ):
             session = success_session(self.origin, self.source)
             payload = session.responses[("GET", status_url)]._payload
@@ -850,6 +857,26 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             ROOT / ".github" / "scripts" / "publish_readiness_verdict.py"
         ).read_text(encoding="utf-8")
         self.assertIn("probe summary contains doctrine lies", publisher)
+
+    def test_runtime_config_proves_a_persisted_receipt_across_restart(self) -> None:
+        self.assertIn(
+            "python scripts/prove_hf_series_a_restart.py",
+            self.workflow,
+        )
+        self.assertIn(
+            "--output \"$SERIES_A_LIVE_REPORT\"",
+            self.workflow,
+        )
+        self.assertIn(
+            "${{ env.SERIES_A_LIVE_REPORT }}",
+            self.workflow,
+        )
+        self.assertLess(
+            self.workflow.index("python scripts/prove_hf_series_a_restart.py"),
+            self.workflow.index(
+                "python .github/scripts/verify_canonical_a11oy.py"
+            ),
+        )
 
     def test_immutable_artifacts_are_unique_across_rerun_attempts(self) -> None:
         self.assertIn(
