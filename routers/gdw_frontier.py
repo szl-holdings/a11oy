@@ -146,14 +146,21 @@ def _credential_registry():
         for value in os.environ.get("GDW_LEGACY_SCOPES", "").split(",")
         if value.strip()
     )
+    principal_namespace = os.environ.get("GDW_NAMESPACE") or "a11oy"
+    legacy_token = os.environ.get("GDW_AUTH_TOKEN") if legacy_enabled else None
+    legacy_owner_id = os.environ.get("GDW_OWNER_ID") if legacy_enabled else None
+    legacy_namespace = os.environ.get("GDW_NAMESPACE") if legacy_enabled else None
+    if not legacy_enabled:
+        legacy_scopes = ()
     fingerprint = _sha(
         {
             "registry": registry_json,
             "principal_registry": principal_registry_json,
+            "principal_namespace": principal_namespace,
             "legacy_enabled": legacy_enabled,
-            "legacy_token": os.environ.get("GDW_AUTH_TOKEN"),
-            "legacy_owner": os.environ.get("GDW_OWNER_ID"),
-            "legacy_namespace": os.environ.get("GDW_NAMESPACE"),
+            "legacy_token": legacy_token,
+            "legacy_owner": legacy_owner_id,
+            "legacy_namespace": legacy_namespace,
             "legacy_scopes": legacy_scopes,
         }
     )
@@ -163,11 +170,11 @@ def _credential_registry():
         registry = load_credential_registry(
             registry_json,
             principal_registry_json=principal_registry_json,
-            principal_registry_namespace=os.environ.get("GDW_NAMESPACE") or "a11oy",
+            principal_registry_namespace=principal_namespace,
             legacy_enabled=legacy_enabled,
-            legacy_token=os.environ.get("GDW_AUTH_TOKEN"),
-            legacy_owner_id=os.environ.get("GDW_OWNER_ID"),
-            legacy_namespace=os.environ.get("GDW_NAMESPACE"),
+            legacy_token=legacy_token,
+            legacy_owner_id=legacy_owner_id,
+            legacy_namespace=legacy_namespace,
             legacy_scopes=legacy_scopes,
         )
         _AUTH_REGISTRY = registry

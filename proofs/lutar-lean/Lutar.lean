@@ -69,6 +69,10 @@ import Lutar.PositionAware
 -- phd-math-frontier: TH-V18-11 Pareto archive finite stabilization (PROVED, 0 sorry, 0 new axiom)
 import Lutar.Thesis.TH_V18_11_ParetoFiniteStabilization
 import Lutar.LambdaPermInvariant
+-- Wave 26 MODELED hooks: rational depth certificates and fail-closed disposal.
+-- These add no loss/scaling claim and do not promote Lambda uniqueness.
+import Lutar.LambdaAttnRes
+import Lutar.GovernedWorkspace
 -- Round 13 Λ-closure (Cauchy_ND): closable sub-lemmas (sorry-free) + terminal CONDITIONAL
 -- uniqueness theorem (sorry-free) + counterexample fragment. The UNCONDITIONAL uniqueness
 -- carries ONE honest, tagged open obligation (FACTORIZATION_AXIOM_GAP / needs A6 bisymmetry).

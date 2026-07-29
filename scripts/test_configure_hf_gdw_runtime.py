@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -50,31 +53,47 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
 
 
 def test_principal_registry_converges_digest_without_bearer_material() -> None:
-    calls = []
+    token = "operator-token-" + ("x" * 48)
+    calls: list[dict[str, object]] = []
     api = SimpleNamespace(
         add_space_secret=lambda **kwargs: calls.append(kwargs),
+        get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
     )
-    token = "operator-token-" + ("x" * 40)
-    changed = config.converge_principal_registry(
+
+    secret_names, changed = config.converge_principal_registry(
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
         secret_names=set(),
         operator_token=token,
     )
-
+    assert secret_names == {config.PRINCIPAL_REGISTRY_SECRET}
     assert changed is True
     assert len(calls) == 1
-    written = calls[0]
-    assert written["key"] == config.PRINCIPAL_REGISTRY_SECRET
-    assert token not in written["value"]
-    assert __import__("json").loads(written["value"])[config.PRINCIPAL_ID][
-        "token_sha256"
-    ] == __import__("hashlib").sha256(token.encode("utf-8")).hexdigest()
+    assert calls[0]["key"] == config.PRINCIPAL_REGISTRY_SECRET
+    registry_text = str(calls[0]["value"])
+    assert token not in registry_text
+    assert json.loads(registry_text) == {
+        config.PRINCIPAL_ID: {
+            "roles": ["admin", "user"],
+            "token_sha256": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        }
+    }
 
 
-def test_principal_registry_rejects_variable_collision() -> None:
-    api = SimpleNamespace(add_space_secret=lambda **kwargs: None)
+def test_principal_registry_convergence_fails_closed() -> None:
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: None,
+        get_space_secrets=lambda **kwargs: [],
+    )
+    with pytest.raises(config.RuntimeConfigError, match="did not converge"):
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables={},
+        secret_names=set(),
+            operator_token="x" * 48,
+        )
     with pytest.raises(config.RuntimeConfigError, match="collides"):
         config.converge_principal_registry(
             api,
@@ -87,12 +106,77 @@ def test_principal_registry_rejects_variable_collision() -> None:
         )
 
 
+@pytest.mark.parametrize("location", ["variable", "secret"])
+def test_competing_credential_registry_blocks_before_mutation(location: str) -> None:
+    calls: list[dict[str, object]] = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+        get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
+    )
+    variables = (
+        {"GDW_CREDENTIALS_JSON": SimpleNamespace(value="hidden")}
+        if location == "variable"
+        else {}
+    )
+    secret_names = (
+        {config.CREDENTIAL_REGISTRY_SECRET}
+        if location == "secret"
+        else set()
+    )
+
+    with pytest.raises(config.RuntimeConfigError, match="conflicts"):
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables=variables,
+            secret_names=secret_names,
+            operator_token="x" * 48,
+        )
+    assert calls == []
+
+
+def test_managed_variable_secret_collision_blocks_before_auth_mutation(
+    monkeypatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+    api = SimpleNamespace(
+        space_info=lambda **kwargs: SimpleNamespace(
+            runtime=SimpleNamespace(
+                volumes=[
+                    SimpleNamespace(
+                        type="bucket",
+                        source="SZLHOLDINGS/szl-evidence",
+                        mount_path="/data",
+                        read_only=False,
+                    )
+                ]
+            )
+        ),
+        get_space_secrets=lambda **kwargs: ["GDW_DB_PATH"],
+        get_space_variables=lambda **kwargs: {},
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(HfApi=lambda **kwargs: api),
+    )
+
+    with pytest.raises(config.RuntimeConfigError, match="collide"):
+        config.configure(
+            repo_id=config.CANONICAL_SPACE,
+            hf_token="hf-control-token",
+            operator_token="x" * 48,
+        )
+    assert calls == []
+
+
 def test_existing_principal_registry_is_preserved() -> None:
     calls = []
     api = SimpleNamespace(
         add_space_secret=lambda **kwargs: calls.append(kwargs),
     )
-    changed = config.converge_principal_registry(
+    secret_names, changed = config.converge_principal_registry(
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
@@ -100,24 +184,8 @@ def test_existing_principal_registry_is_preserved() -> None:
         operator_token="x" * 48,
     )
 
+    assert secret_names == {config.PRINCIPAL_REGISTRY_SECRET}
     assert changed is False
-    assert calls == []
-
-
-def test_incompatible_credential_registry_fails_before_mutation() -> None:
-    calls = []
-    api = SimpleNamespace(
-        add_space_secret=lambda **kwargs: calls.append(kwargs),
-    )
-    with pytest.raises(config.RuntimeConfigError, match="conflicts"):
-        config.converge_principal_registry(
-            api,
-            repo_id=config.CANONICAL_SPACE,
-            current_variables={},
-            secret_names={config.CREDENTIAL_REGISTRY_SECRET},
-            operator_token="x" * 48,
-        )
-
     assert calls == []
 
 
