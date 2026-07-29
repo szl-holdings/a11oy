@@ -379,6 +379,8 @@ def drain_once(
                     row["proposal_id"],
                     artifact,
                     _now(),
+                    expected_payload=row["payload"],
+                    expected_payload_sha256=row["payload_sha256"],
                     namespace=namespace,
                     owner_id=owner_id,
                 )

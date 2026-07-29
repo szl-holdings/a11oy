@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 
+import gdw_runtime
 from gdw_proofs import sha256_json
 from gdw_runtime import drain_once
 from gdw_workspace import GDWWorkspace
@@ -76,3 +78,56 @@ def test_production_drain_rejects_a_rebound_legacy_proof(
     assert report["failed"] == 1
     assert report["legacy_pending_proofs"] == 1
     assert report["errors"] == ["legacy:ValueError"]
+
+
+def test_production_drain_rechecks_the_row_before_completion(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    workspace, _payload, _proof_dir = _legacy_workspace(
+        tmp_path,
+        monkeypatch,
+        payload_owner="local-owner",
+    )
+    original_export = gdw_runtime.export_proof_payload
+
+    def export_then_rebind(payload, **kwargs):
+        artifact = original_export(payload, **kwargs)
+        rebound = dict(payload)
+        rebound["owner_id"] = "attacker-owner"
+        rebound.pop("payload_sha256")
+        rebound["payload_sha256"] = sha256_json(rebound)
+        connection = workspace._connect()
+        try:
+            connection.execute(
+                """
+                UPDATE proof_outbox
+                SET payload_json = ?, payload_sha256 = ?
+                WHERE proposal_id = ?
+                """,
+                (
+                    json.dumps(
+                        rebound,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    rebound["payload_sha256"],
+                    rebound["proposal_id"],
+                ),
+            )
+        finally:
+            connection.close()
+        return artifact
+
+    monkeypatch.setattr(
+        gdw_runtime,
+        "export_proof_payload",
+        export_then_rebind,
+    )
+
+    report = drain_once(workspace=workspace, worker_id="migration-worker")
+
+    assert report["exported"] == 0
+    assert report["failed"] == 1
+    assert report["legacy_pending_proofs"] == 1
+    assert report["errors"] == ["legacy:RuntimeError"]
