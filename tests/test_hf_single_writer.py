@@ -47,6 +47,10 @@ LOCAL_SCRIPT_CALL = re.compile(
     r"\.(?:py|sh|js|mjs|cjs|ts))",
     re.MULTILINE,
 )
+LOCAL_MODULE_CALL = re.compile(
+    r"(?:^|\s)python(?:3)?(?:\s+-[A-Za-z]+)*\s+-m\s+"
+    r"(?P<module>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)"
+)
 LOCAL_ACTION_CALL = re.compile(
     r"(?m)^\s*(?:-\s*)?uses:\s*[\"']?\./(?P<path>[^#\s\"']+)"
 )
@@ -90,10 +94,23 @@ def _trigger_events(text: str) -> set[str]:
             }
         return {inline.strip("'\"")}
 
-    return {
-        match.group(1)
+    entries = [
+        (len(match.group("indent")), match.group("name"))
         for line in nested
-        if (match := re.fullmatch(r" {2}([A-Za-z_][\w-]*):.*", line))
+        if (
+            match := re.fullmatch(
+                r"(?P<indent> +)(?P<name>[A-Za-z_][\w-]*):.*",
+                line,
+            )
+        )
+    ]
+    if not entries:
+        return set()
+    event_indent = min(indent for indent, _ in entries)
+    return {
+        name
+        for indent, name in entries
+        if indent == event_indent
     }
 
 
@@ -171,6 +188,14 @@ def _referenced_sources(
         references = {
             match.group("path") for match in LOCAL_SCRIPT_CALL.finditer(current)
         }
+        for match in LOCAL_MODULE_CALL.finditer(current):
+            module_path = match.group("module").replace(".", "/")
+            references.update(
+                {
+                    f"{module_path}.py",
+                    f"{module_path}/__main__.py",
+                }
+            )
 
         for match in LOCAL_ACTION_CALL.finditer(current):
             action_dir = match.group("path").rstrip("/")
@@ -286,6 +311,21 @@ class HuggingFaceSingleWriterTests(unittest.TestCase):
             (directory / "ignored.txt").write_text("not a workflow\n", encoding="utf-8")
             self.assertEqual(set(load_workflows(directory)), {"one.yml", "two.yaml"})
 
+    def test_trigger_parser_accepts_consistent_nonstandard_indentation(self) -> None:
+        workflow = """
+name: indented
+on:
+    schedule:
+        - cron: "0 * * * *"
+    workflow_dispatch: {}
+jobs: {}
+"""
+        self.assertEqual(
+            _trigger_events(workflow),
+            {"schedule", "workflow_dispatch"},
+        )
+        self.assertTrue(_has_automatic_trigger(workflow))
+
     def test_canonical_writer_is_serialized_and_source_bound(self) -> None:
         text = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
         self.assertTrue(_has_main_push(text))
@@ -335,6 +375,37 @@ jobs:
                 repo_files,
             ),
             [CANONICAL_WORKFLOW, "unsafe-duplicate.yaml"],
+        )
+
+    def test_repo_local_python_module_writer_is_detected(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe module writer
+on:
+    schedule:
+        - cron: "0 * * * *"
+jobs:
+    mutate:
+        steps:
+            - run: python -m scripts.hf_writer
+              env:
+                  SPACE_ID: SZLHOLDINGS/a11oy
+"""
+        repo_files = {
+            "scripts/hf_writer.py": (
+                "from huggingface_hub import HfApi\n"
+                "HfApi().create_commit(repo_id='target', operations=[])\n"
+            )
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-module.yaml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-module.yaml"],
         )
 
 
