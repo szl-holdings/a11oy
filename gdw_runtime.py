@@ -15,6 +15,7 @@ from typing import Any, Mapping, Optional
 from gdw_proofs import (
     export_proof_payload,
     export_receipt_projection,
+    sha256_json,
 )
 from gdw_workspace import GDWWorkspace
 
@@ -270,6 +271,34 @@ def _verify_effect_binding(
         raise ValueError("invalid effect binding: " + ",".join(errors))
 
 
+def _verify_legacy_proof_binding(
+    workspace: GDWWorkspace,
+    row: Mapping[str, Any],
+) -> None:
+    payload = row["payload"]
+    claimed_digest = str(payload.get("payload_sha256") or "")
+    unsigned_payload = dict(payload)
+    unsigned_payload.pop("payload_sha256", None)
+    if row["proposal_id"] != payload.get("proposal_id"):
+        raise ValueError("legacy proof proposal binding is invalid")
+    if row["payload_sha256"] != claimed_digest:
+        raise ValueError("legacy proof row digest is invalid")
+    if claimed_digest != sha256_json(unsigned_payload):
+        raise ValueError("legacy proof payload digest is invalid")
+    for field, expected in (
+        ("namespace", row["namespace"]),
+        ("owner_id", row["owner_id"]),
+    ):
+        if field in payload and payload[field] != expected:
+            raise ValueError(f"legacy proof {field} binding is invalid")
+    if (
+        "database_generation_id" in payload
+        and payload["database_generation_id"]
+        != workspace.database_generation_id
+    ):
+        raise ValueError("legacy proof database generation binding is invalid")
+
+
 def _export_effect(
     workspace: GDWWorkspace,
     row: Mapping[str, Any],
@@ -328,30 +357,37 @@ def drain_once(
         remaining = bounded - exported - failed
         if remaining <= 0:
             break
-        if not store.production:
-            for row in store.pending_proofs(
-                remaining,
-                namespace=namespace,
-                owner_id=owner_id,
-            ):
-                try:
-                    artifact = export_proof_payload(
-                        row["payload"],
-                        owner_id=owner_id,
-                    )
-                    store.mark_proof_exported(
-                        row["proposal_id"],
-                        artifact,
-                        _now(),
-                        namespace=namespace,
-                        owner_id=owner_id,
-                    )
-                    exported += 1
-                except Exception as exc:
-                    failed += 1
-                    errors.append(f"legacy:{type(exc).__name__}")
-                if exported + failed >= bounded:
-                    break
+        for row in store.pending_proofs(
+            remaining,
+            namespace=namespace,
+            owner_id=owner_id,
+        ):
+            try:
+                _verify_legacy_proof_binding(store, row)
+                artifact = export_proof_payload(
+                    row["payload"],
+                    artifact_id=row["payload_sha256"],
+                    owner_id=owner_id,
+                )
+                artifact.update(
+                    {
+                        "migration_status": "LEGACY_PROOF_PRESERVED",
+                        "source_payload_sha256": row["payload_sha256"],
+                    }
+                )
+                store.mark_proof_exported(
+                    row["proposal_id"],
+                    artifact,
+                    _now(),
+                    namespace=namespace,
+                    owner_id=owner_id,
+                )
+                exported += 1
+            except Exception as exc:
+                failed += 1
+                errors.append(f"legacy:{type(exc).__name__}")
+            if exported + failed >= bounded:
+                break
 
         remaining = bounded - exported - failed
         if remaining <= 0:
