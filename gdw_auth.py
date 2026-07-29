@@ -1,9 +1,10 @@
 """Stable principal authentication for the Governed Delta Workspace.
 
 This services-layer module accepts a secret-managed JSON registry, reduces raw
-bearer tokens to fixed-length digests during parsing, and returns immutable
-principal identities. Raw tokens are never retained by the resulting registry
-or included in errors and representations.
+bearer tokens to fixed-length digests during parsing, accepts exact pre-hashed
+token bindings, and returns immutable principal identities. Raw tokens are
+never retained by the resulting registry or included in errors and
+representations.
 """
 
 import hashlib
@@ -17,11 +18,34 @@ from typing import Any, FrozenSet, Iterable, Optional, Tuple, Union
 _IDENTIFIER_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:-]{0,127}$")
 _REGISTRY_KEYS = frozenset({"version", "credentials"})
 _CREDENTIAL_KEYS = frozenset(
-    {"owner_id", "namespace", "key_id", "token", "scopes", "revoked"}
+    {
+        "owner_id",
+        "namespace",
+        "key_id",
+        "token",
+        "token_sha256",
+        "scopes",
+        "revoked",
+    }
 )
 _REQUIRED_CREDENTIAL_KEYS = frozenset(
-    {"owner_id", "namespace", "key_id", "token", "scopes"}
+    {"owner_id", "namespace", "key_id", "scopes"}
 )
+_TOKEN_KEYS = frozenset({"token", "token_sha256"})
+_LEGACY_PRINCIPAL_KEYS = frozenset({"token_sha256", "roles"})
+_LEGACY_ROLE_SCOPES = {
+    "user": frozenset({"session:read", "step:write"}),
+    "admin": frozenset(
+        {
+            "bench:read",
+            "integrity:global",
+            "integrity:read",
+            "metrics:read",
+            "session:read",
+            "step:write",
+        }
+    ),
+}
 _SAFE_AUTH_MESSAGES = {
     "missing_authorization": "bearer authorization is required",
     "invalid_authorization": "bearer authorization is invalid",
@@ -193,27 +217,43 @@ def _digest_registry_token(value: Any) -> bytes:
         token = None
 
 
+def _parse_token_sha256(value: Any) -> bytes:
+    if (
+        type(value) is not str
+        or not re.fullmatch(r"[0-9a-f]{64}", value)
+        or value == hashlib.sha256(b"").hexdigest()
+    ):
+        raise AuthConfigurationError(
+            "credential token_sha256 must be a lowercase SHA-256 digest"
+        )
+    return bytes.fromhex(value)
+
+
 def _credential_from_mapping(raw: Any, index: int) -> _Credential:
     if type(raw) is not dict:
         raise AuthConfigurationError(
             f"credential registry entry {index} must be an object"
         )
 
-    token_value = raw.pop("token", None)
-    try:
-        token_digest = _digest_registry_token(token_value)
-    finally:
-        token_value = None
-
     keys = frozenset(raw)
-    expected_without_token = _CREDENTIAL_KEYS - {"token"}
-    required_without_token = _REQUIRED_CREDENTIAL_KEYS - {"token"}
-    unknown = keys - expected_without_token
-    missing = required_without_token - keys
-    if unknown or missing:
+    unknown = keys - _CREDENTIAL_KEYS
+    missing = _REQUIRED_CREDENTIAL_KEYS - keys
+    token_keys = keys & _TOKEN_KEYS
+    if unknown or missing or len(token_keys) != 1:
         raise AuthConfigurationError(
             f"credential registry entry {index} has an invalid shape"
         )
+
+    token_key = next(iter(token_keys))
+    token_value = raw.pop(token_key)
+    try:
+        token_digest = (
+            _digest_registry_token(token_value)
+            if token_key == "token"
+            else _parse_token_sha256(token_value)
+        )
+    finally:
+        token_value = None
 
     owner_id = _validate_identifier("owner_id", raw["owner_id"])
     namespace = _validate_identifier("namespace", raw["namespace"])
@@ -235,6 +275,28 @@ def _credential_from_mapping(raw: Any, index: int) -> _Credential:
         scopes=scopes,
         revoked=revoked,
     )
+
+
+def _registry_from_credentials(
+    credentials: Iterable[_Credential],
+) -> CredentialRegistry:
+    values = []
+    token_digests = set()
+    key_ids = set()
+    for credential in credentials:
+        if credential.token_digest in token_digests:
+            raise AuthConfigurationError(
+                "credential registry contains a duplicate token"
+            )
+        key_identity = (credential.namespace, credential.key_id)
+        if key_identity in key_ids:
+            raise AuthConfigurationError(
+                "credential registry contains a duplicate namespace/key_id"
+            )
+        token_digests.add(credential.token_digest)
+        key_ids.add(key_identity)
+        values.append(credential)
+    return CredentialRegistry(values)
 
 
 def parse_credential_registry(
@@ -271,23 +333,77 @@ def parse_credential_registry(
         )
 
     credentials = []
-    token_digests = set()
-    key_ids = set()
     for index, raw_credential in enumerate(raw_credentials):
-        credential = _credential_from_mapping(raw_credential, index)
-        if credential.token_digest in token_digests:
-            raise AuthConfigurationError(
-                "credential registry contains a duplicate token"
+        credentials.append(_credential_from_mapping(raw_credential, index))
+    return _registry_from_credentials(credentials)
+
+
+def parse_legacy_principal_registry(
+    registry_json: Union[str, bytes, bytearray],
+    *,
+    namespace: str,
+) -> CredentialRegistry:
+    """Map the former digest-only principal registry to stable scoped credentials."""
+    canonical_namespace = _validate_identifier("namespace", namespace)
+    raw_registry = registry_json
+    try:
+        if not isinstance(raw_registry, (str, bytes, bytearray)):
+            raise AuthConfigurationError("principal registry must be JSON text")
+        if not raw_registry:
+            raise AuthConfigurationError("principal registry must not be empty")
+        try:
+            decoded = json.loads(
+                raw_registry,
+                object_pairs_hook=_reject_duplicate_object_keys,
             )
-        key_identity = (credential.namespace, credential.key_id)
-        if key_identity in key_ids:
+        except AuthConfigurationError:
+            raise
+        except (TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise AuthConfigurationError("principal registry is not valid JSON") from exc
+    finally:
+        raw_registry = None
+        registry_json = None
+
+    if type(decoded) is not dict or not decoded:
+        raise AuthConfigurationError(
+            "principal registry must contain at least one principal"
+        )
+
+    credentials = []
+    for index, (principal_id, raw_record) in enumerate(decoded.items()):
+        owner_id = _validate_identifier("principal_id", principal_id)
+        if (
+            type(raw_record) is not dict
+            or frozenset(raw_record) != _LEGACY_PRINCIPAL_KEYS
+        ):
             raise AuthConfigurationError(
-                "credential registry contains a duplicate namespace/key_id"
+                f"principal registry entry {index} has an invalid shape"
             )
-        token_digests.add(credential.token_digest)
-        key_ids.add(key_identity)
-        credentials.append(credential)
-    return CredentialRegistry(credentials)
+        roles = raw_record["roles"]
+        if type(roles) is not list or not roles:
+            raise AuthConfigurationError("principal roles must be a non-empty array")
+        if (
+            any(type(role) is not str or role not in _LEGACY_ROLE_SCOPES for role in roles)
+            or len(set(roles)) != len(roles)
+        ):
+            raise AuthConfigurationError("principal roles are invalid")
+        scopes = frozenset().union(
+            *(_LEGACY_ROLE_SCOPES[role] for role in roles)
+        )
+        key_id = "legacy:" + hashlib.sha256(
+            owner_id.encode("utf-8")
+        ).hexdigest()[:24]
+        credentials.append(
+            _Credential(
+                owner_id=owner_id,
+                namespace=canonical_namespace,
+                key_id=key_id,
+                token_digest=_parse_token_sha256(raw_record["token_sha256"]),
+                scopes=scopes,
+                revoked=False,
+            )
+        )
+    return _registry_from_credentials(credentials)
 
 
 def _legacy_registry(
@@ -322,6 +438,8 @@ def _legacy_registry(
 def load_credential_registry(
     registry_json: Optional[Union[str, bytes, bytearray]],
     *,
+    principal_registry_json: Optional[Union[str, bytes, bytearray]] = None,
+    principal_registry_namespace: Optional[str] = None,
     legacy_enabled: bool = False,
     legacy_token: Optional[str] = None,
     legacy_owner_id: Optional[str] = None,
@@ -330,16 +448,37 @@ def load_credential_registry(
     legacy_scopes: Iterable[str] = (),
 ) -> CredentialRegistry:
     """Load registry JSON or an explicitly enabled, fully bound legacy credential."""
+    legacy_scopes = tuple(legacy_scopes)
+    configured_registries = sum(
+        value is not None for value in (registry_json, principal_registry_json)
+    )
+    if configured_registries > 1:
+        raise AuthConfigurationError(
+            "credential registries cannot be configured together"
+        )
     legacy_values_present = any(
         value is not None
         for value in (legacy_token, legacy_owner_id, legacy_namespace)
-    )
+    ) or legacy_key_id != "legacy" or bool(legacy_scopes)
     if registry_json is not None:
         if legacy_enabled is True or legacy_values_present:
             raise AuthConfigurationError(
                 "registry and legacy authentication cannot be configured together"
             )
         return parse_credential_registry(registry_json)
+    if principal_registry_json is not None:
+        if legacy_enabled is True or legacy_values_present:
+            raise AuthConfigurationError(
+                "registry and legacy authentication cannot be configured together"
+            )
+        if principal_registry_namespace is None:
+            raise AuthConfigurationError(
+                "principal registry requires a namespace binding"
+            )
+        return parse_legacy_principal_registry(
+            principal_registry_json,
+            namespace=principal_registry_namespace,
+        )
     if legacy_enabled is not True:
         if legacy_values_present:
             raise AuthConfigurationError("legacy authentication is not enabled")

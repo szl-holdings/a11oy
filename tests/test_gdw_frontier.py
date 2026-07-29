@@ -102,6 +102,8 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
         assert body["step"] == 1
         assert len(body["state_hash"]) == 64
         assert len(body["receipt_hash"]) == 64
+        assert len(body["request_digest"]) == 64
+        assert len(body["database_generation_id"]) == 32
         assert body["receipt_status"] == "UNSIGNED_ATOMIC"
         assert body["proof"]["status"] == "OUTBOX_PENDING"
         governance = body["audit"]["governance"]
@@ -152,6 +154,14 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
         ).json()
         assert integrity["ok"] is True
         assert integrity["orphan_receipts"] == 0
+        session = client.get(
+            "/api/a11oy/v1/gdw/sessions/session-1",
+            headers={"Authorization": "Bearer test-token"},
+        ).json()
+        assert (
+            session["database_generation_id"]
+            == body["database_generation_id"]
+        )
 
 
 def test_reject_and_quarantine_preserve_state(tmp_path, monkeypatch):
@@ -265,6 +275,15 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     assert (
         receipt_row["payload"]["governance_evidence_sha256"]
         == proof_row["payload"]["governance_evidence_sha256"]
+    )
+    assert (
+        receipt_row["payload"]["database_generation_id"]
+        == proof_row["payload"]["database_generation_id"]
+        == workspace.database_generation_id
+    )
+    assert (
+        receipt_row["payload"]["request_digest"]
+        == proof_row["payload"]["request_digest"]
     )
     for row in pending:
         if row["kind"] == "proof_export":

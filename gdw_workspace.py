@@ -465,6 +465,8 @@ class GDWWorkspace:
     def _migrate_v2(self, connection: sqlite3.Connection) -> None:
         """Transactionally bind valid v2 effects to a new database generation."""
 
+        from gdw_proofs import build_proof_payload
+
         timestamp = _text_time()
         generation = uuid.uuid4().hex
         connection.execute("PRAGMA foreign_keys=OFF")
@@ -508,6 +510,38 @@ class GDWWorkspace:
                 (SCHEMA_VERSION, generation, timestamp),
             )
             self.database_generation_id = generation
+            online_migration_blockers = {
+                "session_state": connection.execute(
+                    "SELECT COUNT(*) FROM session_state "
+                    "WHERE state_json IS NOT NULL"
+                ).fetchone()[0],
+                "receipts": connection.execute(
+                    "SELECT COUNT(*) FROM receipts "
+                    "WHERE receipt_json IS NOT NULL"
+                ).fetchone()[0],
+                "proof_outbox": connection.execute(
+                    "SELECT COUNT(*) FROM proof_outbox "
+                    "WHERE payload_json IS NOT NULL"
+                ).fetchone()[0],
+                "exported_effects": connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox_v2 "
+                    "WHERE status = 'EXPORTED' OR artifact_json IS NOT NULL"
+                ).fetchone()[0],
+                "receipt_effects": connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox_v2 "
+                    "WHERE kind = 'receipt_projection'"
+                ).fetchone()[0],
+            }
+            blocked = sorted(
+                name
+                for name, count in online_migration_blockers.items()
+                if int(count)
+            )
+            if blocked:
+                raise GDWLegacyMigrationRequired(
+                    "stateful v2 records require an offline "
+                    "evidence-preserving migration: " + ",".join(blocked)
+                )
             rows = connection.execute(
                 "SELECT * FROM effect_outbox_v2 ORDER BY namespace, owner_id, "
                 "created_at, idempotency_key"
@@ -528,11 +562,152 @@ class GDWWorkspace:
                 owner_id = str(source["owner_id"])
                 request_id = str(source["request_id"])
                 kind = str(source["kind"])
-                payload_sha256 = self._effect_payload_digest(kind, payload)
-                if source["payload_sha256"] != payload_sha256:
+                source_payload_sha256 = self._effect_payload_digest(kind, payload)
+                if source["payload_sha256"] != source_payload_sha256:
                     raise GDWLegacyMigrationRequired(
                         "v2 effect payload digest is invalid"
                     )
+                source_key = self.scoped_effect_key(
+                    namespace,
+                    owner_id,
+                    request_id,
+                    kind,
+                    source_payload_sha256,
+                )
+                if source["idempotency_key"] != source_key:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect idempotency binding is invalid"
+                    )
+                if kind != "proof_export":
+                    raise GDWLegacyMigrationRequired(
+                        "v2 receipt effects require an offline "
+                        "evidence-preserving migration"
+                    )
+                request_row = connection.execute(
+                    """
+                    SELECT request_digest, session_id, response_json,
+                           response_hash
+                    FROM requests
+                    WHERE namespace = ? AND owner_id = ? AND request_id = ?
+                    """,
+                    (namespace, owner_id, request_id),
+                ).fetchone()
+                if request_row is None or request_row["response_json"] is None:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect request anchor is unavailable"
+                    )
+                try:
+                    response = json.loads(request_row["response_json"])
+                    governance = response["audit"]["governance"]
+                except (KeyError, TypeError, json.JSONDecodeError) as exc:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect request anchor is invalid"
+                    ) from exc
+                if (
+                    hashlib.sha256(
+                        _json_text(response).encode("utf-8")
+                    ).hexdigest()
+                    != request_row["response_hash"]
+                ):
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect request response hash is invalid"
+                    )
+                principal = response.get("principal")
+                if not isinstance(principal, dict):
+                    principal = {
+                        "namespace": namespace,
+                        "owner_id": owner_id,
+                        "key_id": "UNAVAILABLE_V2",
+                    }
+                if (
+                    principal.get("namespace") != namespace
+                    or principal.get("owner_id") != owner_id
+                ):
+                    raise GDWLegacyMigrationRequired(
+                        "v2 effect principal binding is invalid"
+                    )
+                legacy_proof = build_proof_payload(
+                    proposal_id=response["proposal_id"],
+                    request_id=response["request_id"],
+                    request_digest=str(request_row["request_digest"]),
+                    namespace=namespace,
+                    owner_id=owner_id,
+                    database_generation_id=str(
+                        response.get("database_generation_id") or ""
+                    ),
+                    step=int(response["step"]),
+                    before_hash=response["state_before_hash"],
+                    after_hash=response["state_hash"],
+                    decision=response["decision"],
+                    scheduler_mode=response["scheduler_mode"],
+                    receipt_hash=response.get("receipt_hash") or "",
+                    dry_run=bool(response["dry_run"]),
+                    governance=governance,
+                )
+                if "database_generation_id" not in payload:
+                    for field in (
+                        "request_digest",
+                        "namespace",
+                        "owner_id",
+                        "database_generation_id",
+                    ):
+                        legacy_proof.pop(field, None)
+                    legacy_proof.pop("payload_sha256", None)
+                    legacy_proof["payload_sha256"] = hashlib.sha256(
+                        _json_text(legacy_proof).encode("utf-8")
+                    ).hexdigest()
+                if payload != legacy_proof:
+                    raise GDWLegacyMigrationRequired(
+                        "v2 proof effect differs from persisted request"
+                    )
+                rebound_response = dict(response)
+                rebound_response["request_digest"] = str(
+                    request_row["request_digest"]
+                )
+                rebound_response["database_generation_id"] = generation
+                rebound_response["principal"] = principal
+                rebound_response["proposal_id"] = hashlib.sha256(
+                    _json_text(
+                        {
+                            "schema": "szl.gdw.proposal-identity/v1",
+                            "database_generation_id": generation,
+                            "namespace": namespace,
+                            "owner_id": owner_id,
+                            "request_id": request_id,
+                            "request_digest": str(
+                                request_row["request_digest"]
+                            ),
+                            "state_before_hash": response[
+                                "state_before_hash"
+                            ],
+                            "governance_evidence_sha256": hashlib.sha256(
+                                _json_text(governance).encode("utf-8")
+                            ).hexdigest(),
+                        }
+                    ).encode("utf-8")
+                ).hexdigest()
+                rebound_response_text = _json_text(rebound_response)
+                connection.execute(
+                    """
+                    UPDATE requests
+                    SET response_json = ?, response_hash = ?
+                    WHERE namespace = ? AND owner_id = ? AND request_id = ?
+                    """,
+                    (
+                        rebound_response_text,
+                        hashlib.sha256(
+                            rebound_response_text.encode("utf-8")
+                        ).hexdigest(),
+                        namespace,
+                        owner_id,
+                        request_id,
+                    ),
+                )
+                request_anchor = self._request_anchor(
+                    connection, namespace, owner_id, request_id
+                )
+                payload = self._expected_proof_payload(request_anchor)
+                payload_sha256 = self._effect_payload_digest(kind, payload)
                 canonical_key = self.scoped_effect_key(
                     namespace,
                     owner_id,
@@ -540,43 +715,7 @@ class GDWWorkspace:
                     kind,
                     payload_sha256,
                 )
-                if source["idempotency_key"] != canonical_key:
-                    raise GDWLegacyMigrationRequired(
-                        "v2 effect idempotency binding is invalid"
-                    )
-                request_anchor = self._request_anchor(
-                    connection, namespace, owner_id, request_id
-                )
                 receipt_hash = None
-                if kind == "receipt_projection":
-                    receipt_anchor = self._receipt_anchor(
-                        connection, namespace, owner_id, request_id
-                    )
-                    receipt_hash = receipt_anchor["receipt_hash"]
-                    if payload != receipt_anchor["receipt"]:
-                        raise GDWLegacyMigrationRequired(
-                            "v2 receipt effect differs from persisted receipt"
-                        )
-                elif kind == "proof_export":
-                    expected_proof = self._expected_proof_payload(
-                        request_anchor
-                    )
-                    if payload != expected_proof:
-                        raise GDWLegacyMigrationRequired(
-                            "v2 proof effect differs from persisted request"
-                        )
-                    claimed_receipt_hash = str(
-                        expected_proof.get("delta_update_receipt_hash") or ""
-                    )
-                    if claimed_receipt_hash:
-                        receipt_anchor = self._receipt_anchor(
-                            connection, namespace, owner_id, request_id
-                        )
-                        receipt_hash = receipt_anchor["receipt_hash"]
-                        if receipt_hash != claimed_receipt_hash:
-                            raise GDWLegacyMigrationRequired(
-                                "v2 proof receipt anchor is invalid"
-                            )
                 intent_sha256 = self._canonical_effect_intent(
                     request_anchor,
                     namespace=namespace,
@@ -926,6 +1065,7 @@ class GDWWorkspace:
             "namespace": ns,
             "owner_id": owner,
             "session_id": session_id,
+            "database_generation_id": self.database_generation_id,
             "step": int(row["step"]),
             "state": json.loads(row["state_json"]),
             "state_hash": row["state_hash"],
@@ -948,6 +1088,10 @@ class GDWWorkspace:
         expires_at: Optional[str] = None,
     ) -> None:
         ns, owner = self._identity(namespace, owner_id)
+        if state.get("database_generation_id") != self.database_generation_id:
+            raise GDWConfigurationError(
+                "state database generation does not match workspace"
+            )
         state_text = _json_text(state)
         timestamp = _text_time(updated_at)
         expiry = (
@@ -1095,6 +1239,7 @@ class GDWWorkspace:
             "request_id": request_id,
             "session_id": session_id,
             "step": int(step),
+            "database_generation_id": self.database_generation_id,
         }
         for field, expected in expected_identity.items():
             if receipt.get(field) != expected:
@@ -1208,7 +1353,62 @@ class GDWWorkspace:
         raise GDWConfigurationError("unsupported effect kind")
 
     @staticmethod
+    def artifact_binding_errors(
+        row: Dict[str, Any],
+        artifact: Any,
+    ) -> list[str]:
+        errors = []
+        if not isinstance(artifact, dict):
+            return ["artifact_not_object"]
+        identity = str(row.get("intent_sha256") or "")
+        owner_id = str(row.get("owner_id") or "")
+        kind = str(row.get("kind") or "")
+        if artifact.get("artifact_identity") != identity:
+            errors.append("artifact_identity_mismatch")
+        if artifact.get("immutable") is not True:
+            errors.append("artifact_not_immutable")
+        owner_scope = hashlib.sha256(owner_id.encode("utf-8")).hexdigest()[:32]
+        if artifact.get("owner_scope") != owner_scope:
+            errors.append("artifact_owner_scope_mismatch")
+        configured_root = (
+            os.environ.get("GDW_PROOF_DIR", "output/proofs")
+            if kind == "proof_export"
+            else os.environ.get(
+                "GDW_RECEIPT_PROJECTION_DIR",
+                "output/gdw/receipts",
+            )
+        )
+        if kind not in {"proof_export", "receipt_projection"}:
+            errors.append("artifact_kind_invalid")
+            return errors
+        expected_path = (
+            Path(configured_root).resolve()
+            / owner_scope
+            / f"{identity}.json"
+        )
+        try:
+            observed_path = Path(str(artifact.get("path") or "")).resolve()
+        except (OSError, RuntimeError, ValueError):
+            errors.append("artifact_path_invalid")
+            return errors
+        if observed_path != expected_path:
+            errors.append("artifact_path_mismatch")
+        if not observed_path.is_file():
+            errors.append("artifact_missing")
+            return errors
+        try:
+            observed_sha256 = hashlib.sha256(
+                observed_path.read_bytes()
+            ).hexdigest()
+        except OSError:
+            errors.append("artifact_unreadable")
+            return errors
+        if artifact.get("sha256") != observed_sha256:
+            errors.append("artifact_digest_mismatch")
+        return errors
+
     def _request_anchor(
+        self,
         connection: sqlite3.Connection,
         namespace: str,
         owner_id: str,
@@ -1236,6 +1436,38 @@ class GDWWorkspace:
         ).hexdigest()
         if observed_hash != row["response_hash"]:
             raise GDWConfigurationError("effect request response hash is invalid")
+        if response.get("request_digest") != row["request_digest"]:
+            raise GDWConfigurationError(
+                "effect request digest identity is invalid"
+            )
+        if response.get("database_generation_id") != self.database_generation_id:
+            raise GDWConfigurationError(
+                "effect request database generation is invalid"
+            )
+        try:
+            proposal_material = {
+                "schema": "szl.gdw.proposal-identity/v1",
+                "database_generation_id": self.database_generation_id,
+                "namespace": response["principal"]["namespace"],
+                "owner_id": response["principal"]["owner_id"],
+                "request_id": response["request_id"],
+                "request_digest": row["request_digest"],
+                "state_before_hash": response["state_before_hash"],
+                "governance_evidence_sha256": hashlib.sha256(
+                    _json_text(response["audit"]["governance"]).encode("utf-8")
+                ).hexdigest(),
+            }
+        except (KeyError, TypeError) as exc:
+            raise GDWConfigurationError(
+                "effect request proposal identity is unavailable"
+            ) from exc
+        expected_proposal_id = hashlib.sha256(
+            _json_text(proposal_material).encode("utf-8")
+        ).hexdigest()
+        if response.get("proposal_id") != expected_proposal_id:
+            raise GDWConfigurationError(
+                "effect request proposal identity is invalid"
+            )
         return {
             "request_digest": row["request_digest"],
             "session_id": row["session_id"],
@@ -1244,8 +1476,8 @@ class GDWWorkspace:
             "lifecycle": row["lifecycle"],
         }
 
-    @staticmethod
     def _receipt_anchor(
+        self,
         connection: sqlite3.Connection,
         namespace: str,
         owner_id: str,
@@ -1281,6 +1513,7 @@ class GDWWorkspace:
             "request_id": row["request_id"],
             "session_id": row["session_id"],
             "step": int(row["step"]),
+            "database_generation_id": self.database_generation_id,
         }
         for field, expected in expected_identity.items():
             if receipt.get(field) != expected:
@@ -1300,6 +1533,10 @@ class GDWWorkspace:
             return build_proof_payload(
                 proposal_id=response["proposal_id"],
                 request_id=response["request_id"],
+                request_digest=request_anchor["request_digest"],
+                namespace=response["principal"]["namespace"],
+                owner_id=response["principal"]["owner_id"],
+                database_generation_id=response["database_generation_id"],
                 step=int(response["step"]),
                 before_hash=response["state_before_hash"],
                 after_hash=response["state_hash"],
@@ -1374,6 +1611,10 @@ class GDWWorkspace:
             errors.append("row_payload_digest_mismatch")
         if payload.get("request_id") != request_id:
             errors.append("request_identity_mismatch")
+        if payload.get("database_generation_id") != row.get(
+            "database_generation_id"
+        ):
+            errors.append("database_generation_payload_mismatch")
         if not isinstance(principal, dict) or (
             principal.get("namespace") != namespace
             or principal.get("owner_id") != owner_id
@@ -1758,10 +1999,54 @@ class GDWWorkspace:
         owner_id: Optional[str] = None,
     ) -> None:
         ns, owner = self._identity(namespace, owner_id)
-        artifact_text = _json_text(artifact)
         completed_at = _text_time(exported_at)
         observed_now = _text_time()
         with self.transaction() as connection:
+            row = connection.execute(
+                """
+                SELECT namespace, owner_id, idempotency_key,
+                       database_generation_id, request_id, kind, receipt_hash,
+                       payload_json, payload_sha256, intent_sha256,
+                       status, artifact_json
+                FROM effect_outbox
+                WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+                      AND status = 'CLAIMED' AND lease_owner = ?
+                      AND claim_generation = ? AND lease_until > ?
+                """,
+                (
+                    ns,
+                    owner,
+                    idempotency_key,
+                    worker_id,
+                    int(claim_generation),
+                    observed_now,
+                ),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError(
+                    "effect claim is absent, expired, or owned elsewhere"
+                )
+            candidate = dict(row)
+            try:
+                candidate["payload"] = json.loads(row["payload_json"])
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise GDWConfigurationError(
+                    "effect claim payload is invalid"
+                ) from exc
+            binding_errors = self._connection_effect_binding_errors(
+                connection,
+                candidate,
+            )
+            artifact_errors = self.artifact_binding_errors(
+                candidate,
+                artifact,
+            )
+            errors = sorted(set(binding_errors + artifact_errors))
+            if errors:
+                raise GDWConfigurationError(
+                    "effect completion is invalid: " + ",".join(errors)
+                )
+            artifact_text = _json_text(artifact)
             updated = connection.execute(
                 """
                 UPDATE effect_outbox
@@ -2341,7 +2626,8 @@ class GDWWorkspace:
                 """
                 SELECT namespace, owner_id, idempotency_key,
                        database_generation_id, request_id, kind, receipt_hash,
-                       payload_json, payload_sha256, intent_sha256
+                       payload_json, payload_sha256, intent_sha256,
+                       status, artifact_json
                 FROM effect_outbox
                 WHERE payload_json IS NOT NULL
                 """
@@ -2353,6 +2639,7 @@ class GDWWorkspace:
                 params,
             ).fetchall()
             invalid_effect_bindings = 0
+            invalid_exported_artifacts = 0
             for row in effect_rows:
                 try:
                     payload = json.loads(row["payload_json"])
@@ -2365,11 +2652,22 @@ class GDWWorkspace:
                     connection, candidate
                 ):
                     invalid_effect_bindings += 1
+                if row["status"] == "EXPORTED":
+                    try:
+                        artifact = json.loads(row["artifact_json"])
+                    except (TypeError, json.JSONDecodeError):
+                        invalid_exported_artifacts += 1
+                    else:
+                        if self.artifact_binding_errors(candidate, artifact):
+                            invalid_exported_artifacts += 1
+                elif row["artifact_json"] is not None:
+                    invalid_exported_artifacts += 1
             result = {
                 "ok": (
                     check == "ok"
                     and orphan_receipts == 0
                     and invalid_effect_bindings == 0
+                    and invalid_exported_artifacts == 0
                 ),
                 "schema_version": SCHEMA_VERSION,
                 "database_generation_id": self.database_generation_id,
@@ -2380,6 +2678,7 @@ class GDWWorkspace:
                 "claimed_effects": claimed_effects,
                 "dead_letter_effects": dead_letter_effects,
                 "invalid_effect_bindings": invalid_effect_bindings,
+                "invalid_exported_artifacts": invalid_exported_artifacts,
                 "counts": counts,
                 "scope": "global" if global_scope else "owner",
                 "journal_mode": str(

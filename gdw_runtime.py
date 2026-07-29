@@ -280,11 +280,13 @@ def _export_effect(
         return export_proof_payload(
             row["payload"],
             artifact_id=artifact_id,
+            owner_id=str(row["owner_id"]),
         )
     if row["kind"] == "receipt_projection":
         return export_receipt_projection(
             row["payload"],
             artifact_id,
+            owner_id=str(row["owner_id"]),
         )
     raise ValueError(f"unsupported effect kind: {row['kind']}")
 
@@ -333,7 +335,10 @@ def drain_once(
                 owner_id=owner_id,
             ):
                 try:
-                    artifact = export_proof_payload(row["payload"])
+                    artifact = export_proof_payload(
+                        row["payload"],
+                        owner_id=owner_id,
+                    )
                     store.mark_proof_exported(
                         row["proposal_id"],
                         artifact,

@@ -22,7 +22,7 @@ from gdw_auth import (
     load_credential_registry,
 )
 from gdw_proofs import build_proof_payload, sha256_json
-from gdw_runtime import runtime_health
+from gdw_runtime import drain_once, runtime_health
 from gdw_telemetry import GDWTelemetry
 from gdw_workspace import (
     GDWConfigurationError,
@@ -98,6 +98,7 @@ def _sha(value) -> str:
 def _credential_registry():
     global _AUTH_FINGERPRINT, _AUTH_REGISTRY
     registry_json = os.environ.get("GDW_CREDENTIALS_JSON")
+    principal_registry_json = os.environ.get("GDW_PRINCIPALS_JSON")
     legacy_enabled = os.environ.get(
         "GDW_ALLOW_LEGACY_AUTH", ""
     ).strip().lower() in {"1", "true", "yes", "on"}
@@ -109,6 +110,7 @@ def _credential_registry():
     fingerprint = _sha(
         {
             "registry": registry_json,
+            "principal_registry": principal_registry_json,
             "legacy_enabled": legacy_enabled,
             "legacy_token": os.environ.get("GDW_AUTH_TOKEN"),
             "legacy_owner": os.environ.get("GDW_OWNER_ID"),
@@ -121,6 +123,8 @@ def _credential_registry():
             return _AUTH_REGISTRY
         registry = load_credential_registry(
             registry_json,
+            principal_registry_json=principal_registry_json,
+            principal_registry_namespace=os.environ.get("GDW_NAMESPACE") or "a11oy",
             legacy_enabled=legacy_enabled,
             legacy_token=os.environ.get("GDW_AUTH_TOKEN"),
             legacy_owner_id=os.environ.get("GDW_OWNER_ID"),
@@ -460,6 +464,7 @@ def _atomic_receipt(
     *,
     proposal_id: str,
     request_id: str,
+    request_digest: str,
     session_id: str,
     step: int,
     before_hash: str,
@@ -467,6 +472,7 @@ def _atomic_receipt(
     scheduler_mode: str,
     governance: dict,
     principal: Principal,
+    database_generation_id: str,
     timestamp: str,
 ) -> dict:
     receipt = {
@@ -474,9 +480,11 @@ def _atomic_receipt(
         "status": "UNSIGNED_ATOMIC",
         "proposal_id": proposal_id,
         "request_id": request_id,
+        "request_digest": request_digest,
         "session_id": session_id,
         "owner_id": principal.owner_id,
         "namespace": principal.namespace,
+        "database_generation_id": database_generation_id,
         "credential_key_id": principal.key_id,
         "step": step,
         "state_before_hash": before_hash,
@@ -563,6 +571,39 @@ def register(app, ns: str = "a11oy"):
             required_scopes=("integrity:read",),
         )
         return _workspace(principal).integrity()
+
+    @app.post(prefix + "/drain")
+    @app.post("/v1/gdw/drain")
+    def gdw_drain(
+        limit: int = 100,
+        authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    ):
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("integrity:global",),
+        )
+        _require_write_ready(ns)
+        report = drain_once(limit=limit)
+        integrity = _workspace(principal).integrity(global_scope=True)
+        return {
+            "schema": "szl.gdw.drain-report/v1",
+            **report,
+            "integrity_ok": integrity["ok"],
+            "database_generation_id": integrity["database_generation_id"],
+        }
+
+    @app.get(prefix + "/integrity/global")
+    @app.get("/v1/gdw/integrity/global")
+    def gdw_global_integrity(
+        authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    ):
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("integrity:global",),
+        )
+        return _workspace(principal).integrity(global_scope=True)
 
     @app.get(prefix + "/sessions/{session_id}")
     @app.get("/v1/gdw/sessions/{session_id}")
@@ -697,17 +738,19 @@ def register(app, ns: str = "a11oy"):
                     decision = "REJECT"
                 mutates = decision == "ACCEPT" and not payload.dry_run
                 step = before_step + 1 if mutates else before_step
-                proposal_id = hashlib.sha256(
-                    (
-                        principal.namespace
-                        + ":"
-                        + principal.owner_id
-                        + ":"
-                        + request_id
-                        + ":"
-                        + request_digest
-                    ).encode("utf-8")
-                ).hexdigest()[:32]
+                database_generation_id = workspace.database_generation_id
+                proposal_id = sha256_json(
+                    {
+                        "schema": "szl.gdw.proposal-identity/v1",
+                        "database_generation_id": database_generation_id,
+                        "namespace": principal.namespace,
+                        "owner_id": principal.owner_id,
+                        "request_id": request_id,
+                        "request_digest": request_digest,
+                        "state_before_hash": before_hash,
+                        "governance_evidence_sha256": sha256_json(governance),
+                    }
+                )
                 timestamp = _now()
 
                 if mutates:
@@ -715,6 +758,7 @@ def register(app, ns: str = "a11oy"):
                         "namespace": principal.namespace,
                         "owner_id": principal.owner_id,
                         "session_id": payload.session_id,
+                        "database_generation_id": database_generation_id,
                         "step": step,
                         "previous_state_hash": before_hash,
                         "request_digest": request_digest,
@@ -733,6 +777,7 @@ def register(app, ns: str = "a11oy"):
                     receipt = _atomic_receipt(
                         proposal_id=proposal_id,
                         request_id=request_id,
+                        request_digest=request_digest,
                         session_id=payload.session_id,
                         step=step,
                         before_hash=before_hash,
@@ -740,6 +785,7 @@ def register(app, ns: str = "a11oy"):
                         scheduler_mode=selected_mode,
                         governance=governance,
                         principal=principal,
+                        database_generation_id=database_generation_id,
                         timestamp=timestamp,
                     )
                     receipt_hash = receipt["receipt_hash"]
@@ -751,6 +797,10 @@ def register(app, ns: str = "a11oy"):
                 proof_payload = build_proof_payload(
                     proposal_id=proposal_id,
                     request_id=request_id,
+                    request_digest=request_digest,
+                    namespace=principal.namespace,
+                    owner_id=principal.owner_id,
+                    database_generation_id=database_generation_id,
                     step=step,
                     before_hash=before_hash,
                     after_hash=after_hash,
@@ -791,6 +841,8 @@ def register(app, ns: str = "a11oy"):
                     "benchmark_status": "UNMEASURED",
                     "proposal_id": proposal_id,
                     "request_id": request_id,
+                    "request_digest": request_digest,
+                    "database_generation_id": database_generation_id,
                     "session_id": payload.session_id,
                     "principal": {
                         "owner_id": principal.owner_id,
@@ -917,6 +969,8 @@ def register(app, ns: str = "a11oy"):
             prefix + "/bench/meta",
             prefix + "/metrics",
             prefix + "/integrity",
+            prefix + "/integrity/global",
+            prefix + "/drain",
             prefix + "/sessions/{session_id}",
             prefix + "/step",
         ],

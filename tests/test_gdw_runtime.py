@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sqlite3
 
@@ -5,7 +6,7 @@ import pytest
 
 import gdw_runtime
 from gdw_proofs import build_proof_payload, export_proof_payload, sha256_json
-from gdw_workspace import GDWWorkspace
+from gdw_workspace import GDWConfigurationError, GDWWorkspace
 
 
 def _persistent_environment(monkeypatch, tmp_path):
@@ -80,9 +81,11 @@ def test_prepare_runtime_rejects_synchronous_export(monkeypatch, tmp_path):
 
 
 def _queued_proof(workspace, request_id="request-1"):
+    request_digest = "b" * 64
     response = {
-        "proposal_id": "a" * 64,
         "request_id": request_id,
+        "request_digest": request_digest,
+        "database_generation_id": workspace.database_generation_id,
         "step": 0,
         "state_before_hash": "b" * 64,
         "state_hash": "b" * 64,
@@ -100,10 +103,33 @@ def _queued_proof(workspace, request_id="request-1"):
                 },
             }
         },
+        "principal": {
+            "namespace": workspace.namespace,
+            "owner_id": workspace.owner_id,
+            "key_id": "test-key",
+        },
     }
+    response["proposal_id"] = sha256_json(
+        {
+            "schema": "szl.gdw.proposal-identity/v1",
+            "database_generation_id": workspace.database_generation_id,
+            "namespace": workspace.namespace,
+            "owner_id": workspace.owner_id,
+            "request_id": request_id,
+            "request_digest": request_digest,
+            "state_before_hash": response["state_before_hash"],
+            "governance_evidence_sha256": sha256_json(
+                response["audit"]["governance"]
+            ),
+        }
+    )
     payload = build_proof_payload(
         proposal_id=response["proposal_id"],
         request_id=response["request_id"],
+        request_digest=request_digest,
+        namespace=workspace.namespace,
+        owner_id=workspace.owner_id,
+        database_generation_id=workspace.database_generation_id,
         step=response["step"],
         before_hash=response["state_before_hash"],
         after_hash=response["state_hash"],
@@ -117,7 +143,7 @@ def _queued_proof(workspace, request_id="request-1"):
         workspace.save_request(
             connection,
             request_id,
-            "b" * 64,
+            request_digest,
             "session-1",
             response,
             sha256_json(response),
@@ -161,7 +187,86 @@ def test_drain_once_exports_a_bounded_effect(monkeypatch, tmp_path):
     assert report["exported"] == 1
     assert report["failed"] == 0
     assert report["pending_effects"] == 0
-    assert (tmp_path / "proofs" / f"{intent_sha256}.json").is_file()
+    owner_scope = hashlib.sha256(workspace.owner_id.encode()).hexdigest()[:32]
+    assert (
+        tmp_path / "proofs" / owner_scope / f"{intent_sha256}.json"
+    ).is_file()
+
+
+def test_exported_artifact_tamper_fails_integrity(monkeypatch, tmp_path):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = GDWWorkspace(str(tmp_path / "gdw.sqlite3"))
+    _queued_proof(workspace)
+    assert gdw_runtime.drain_once(
+        worker_id="tamper-proof-worker",
+        workspace=workspace,
+    )["exported"] == 1
+    artifact_path = next((tmp_path / "proofs").rglob("*.json"))
+    artifact_path.write_text('{"tampered":true}\n', encoding="utf-8")
+
+    integrity = workspace.integrity()
+
+    assert integrity["ok"] is False
+    assert integrity["invalid_exported_artifacts"] == 1
+
+
+def test_effect_completion_rejects_wrong_artifact_identity(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = GDWWorkspace(str(tmp_path / "gdw.sqlite3"))
+    _queued_proof(workspace)
+    claim = workspace.claim_effects("binding-worker")[0]
+    artifact = gdw_runtime._export_effect(workspace, claim)
+    artifact["artifact_identity"] = "0" * 64
+
+    with pytest.raises(
+        GDWConfigurationError,
+        match="artifact_identity_mismatch",
+    ):
+        workspace.mark_effect_exported(
+            claim["idempotency_key"],
+            "binding-worker",
+            claim["claim_generation"],
+            artifact,
+            "2026-07-28T00:00:01+00:00",
+        )
+
+    assert workspace.integrity()["claimed_effects"] == 1
+
+
+def test_owner_artifact_quota_is_enforced(monkeypatch, tmp_path):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    monkeypatch.setenv("GDW_OWNER_MAX_ARTIFACTS", "1")
+    monkeypatch.setenv("GDW_GLOBAL_MAX_ARTIFACTS", "2")
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "a" * 64,
+        "request_id": "request-1",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    export_proof_payload(payload)
+    second = dict(payload)
+    second["request_id"] = "request-2"
+    second.pop("payload_sha256")
+    second["payload_sha256"] = sha256_json(second)
+
+    with pytest.raises(RuntimeError, match="per-owner artifact quota"):
+        export_proof_payload(second)
+
+
+def test_database_generation_changes_effect_artifact_identity(tmp_path):
+    first = GDWWorkspace(str(tmp_path / "first.sqlite3"))
+    second = GDWWorkspace(str(tmp_path / "second.sqlite3"))
+
+    first_intent = _queued_proof(first, request_id="same-request")
+    second_intent = _queued_proof(second, request_id="same-request")
+
+    assert first.database_generation_id != second.database_generation_id
+    assert first_intent != second_intent
 
 
 def test_failed_drain_releases_claim_for_retry(monkeypatch, tmp_path):
@@ -230,7 +335,7 @@ def test_drain_rejects_a_payload_rebound_to_a_claimed_row(
     assert integrity["invalid_effect_bindings"] == 1
     assert report["exported"] == 0
     assert report["failed"] == 1
-    assert not any((tmp_path / "proofs").glob("*.json"))
+    assert not any((tmp_path / "proofs").rglob("*.json"))
 
 
 def test_artifact_export_is_content_addressed_and_refuses_rebinding(
@@ -242,6 +347,7 @@ def test_artifact_export_is_content_addressed_and_refuses_rebinding(
         "schema": "szl.gdw.proof-input/v1",
         "proposal_id": "a" * 32,
         "request_id": "request",
+        "owner_id": "owner-a",
         "formal_status": "NOT_RUN",
     }
     payload["payload_sha256"] = sha256_json(payload)
