@@ -51,14 +51,15 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     if len(operator_token.encode("utf-8")) < 32:
         raise RuntimeError("GDW_OPERATOR_TOKEN is unavailable")
     base = origin.rstrip("/")
-    observed_source_revision = require_source_revision(
-        origin=base,
-        source_sha=source_sha,
-    )
+    observed_source_revision = None
     health = None
     last_error = None
     for attempt in range(1, 121):
         try:
+            observed_source_revision = require_source_revision(
+                origin=base,
+                source_sha=source_sha,
+            )
             candidate = request_json(
                 "GET", f"{base}/api/a11oy/v1/gdw/healthz"
             )
@@ -74,6 +75,8 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         time.sleep(5)
     if health is None:
         raise RuntimeError(f"GDW health did not converge: {last_error}")
+    if observed_source_revision is None:
+        raise RuntimeError("live source revision was not observed")
 
     request_id = f"promotion-{source_sha[:32]}"
     step = request_json(

@@ -14,7 +14,9 @@ from typing import Any, Dict, Iterator, Optional, Tuple
 
 _SCHEMA_LOCK = threading.RLock()
 _PROCESS_WRITE_LOCK = threading.RLock()
+_INTEGRITY_CACHE_LOCK = threading.RLock()
 _INITIALISED_PATHS = set()
+_RUNTIME_INTEGRITY_CACHE: Dict[str, Dict[str, Any]] = {}
 _OBJECT_TYPES = {"request", "session"}
 _EFFECT_KINDS = {"receipt_projection", "proof_export"}
 _REQUIRED_RUNTIME_TABLES = {
@@ -233,12 +235,15 @@ class GDWWorkspace:
 
     @contextlib.contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
+        preserve_verified_cache = self._cached_integrity_is_current()
         with _PROCESS_WRITE_LOCK:
             connection = self._connect()
             try:
                 connection.execute("BEGIN IMMEDIATE")
                 yield connection
                 connection.execute("COMMIT")
+                if preserve_verified_cache:
+                    self._mark_integrity_preserved()
             except Exception:
                 connection.execute("ROLLBACK")
                 raise
@@ -294,6 +299,57 @@ class GDWWorkspace:
             "violations": violations,
             "scope": "BOUNDED_RUNTIME_READINESS",
         }
+
+    def _storage_signature(self) -> Tuple[Tuple[str, int, int], ...]:
+        signature = []
+        for candidate in (self.path, Path(str(self.path) + "-wal")):
+            try:
+                stat = candidate.stat()
+            except FileNotFoundError:
+                continue
+            signature.append((candidate.name, stat.st_size, stat.st_mtime_ns))
+        return tuple(signature)
+
+    def _cached_integrity_is_current(self) -> bool:
+        key = str(self.path)
+        signature = self._storage_signature()
+        with _INTEGRITY_CACHE_LOCK:
+            cached = _RUNTIME_INTEGRITY_CACHE.get(key)
+            return bool(
+                cached
+                and cached.get("ok") is True
+                and cached.get("storage_signature") == signature
+            )
+
+    def _mark_integrity_preserved(self) -> None:
+        key = str(self.path)
+        with _INTEGRITY_CACHE_LOCK:
+            cached = _RUNTIME_INTEGRITY_CACHE.get(key)
+            if cached and cached.get("ok") is True:
+                cached["storage_signature"] = self._storage_signature()
+
+    def runtime_integrity(self) -> Dict[str, Any]:
+        """Cache a full verified result until storage changes outside a write."""
+        key = str(self.path)
+        signature = self._storage_signature()
+        with _INTEGRITY_CACHE_LOCK:
+            cached = _RUNTIME_INTEGRITY_CACHE.get(key)
+            if cached and cached.get("storage_signature") == signature:
+                result = dict(cached["result"])
+                result["cache_hit"] = True
+                result["scope"] = "CACHED_FULL_INTEGRITY"
+                return result
+
+        result = dict(self.integrity())
+        result["cache_hit"] = False
+        result["scope"] = "FULL_INTEGRITY_REFRESH"
+        with _INTEGRITY_CACHE_LOCK:
+            _RUNTIME_INTEGRITY_CACHE[key] = {
+                "ok": result.get("ok") is True,
+                "storage_signature": self._storage_signature(),
+                "result": dict(result),
+            }
+        return result
 
     @staticmethod
     def object_owner(

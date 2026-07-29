@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import re
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
@@ -25,6 +26,7 @@ from szl_sgh_scheduler import build_plan
 
 
 _TELEMETRY = GDWTelemetry()
+_STEP_WRITE_LOCK = threading.Lock()
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _EXPERTS = {"planner", "retriever", "auditor", "verifier", "operator"}
 _PRINCIPAL_ROLES = {"user", "admin"}
@@ -209,6 +211,9 @@ def _runtime_workspace() -> GDWWorkspace:
     readiness = workspace.readiness()
     if not readiness["ok"]:
         raise RuntimeError("GDW workspace readiness gate is closed")
+    integrity = workspace.runtime_integrity()
+    if not integrity["ok"]:
+        raise RuntimeError("GDW workspace integrity gate is closed")
     return workspace
 
 
@@ -659,6 +664,7 @@ def register(app, ns: str = "a11oy"):
         decision = "ERROR"
         receipt_hash = ""
 
+        await asyncio.to_thread(_STEP_WRITE_LOCK.acquire)
         try:
             with workspace.transaction() as connection:
                 cached = workspace.cached_request(
@@ -960,6 +966,8 @@ def register(app, ns: str = "a11oy"):
                 status_code=500,
                 detail=f"GDW transition failed closed: {type(exc).__name__}",
             ) from exc
+        finally:
+            _STEP_WRITE_LOCK.release()
 
     return {
         "ok": True,
