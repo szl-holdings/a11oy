@@ -665,9 +665,11 @@ class GDWWorkspace:
                         "v2 proof effect differs from persisted request"
                     )
                 rebound_response = dict(response)
+                rebound_response["request_id"] = request_id
                 rebound_response["request_digest"] = str(
                     request_row["request_digest"]
                 )
+                rebound_response["session_id"] = str(request_row["session_id"])
                 rebound_response["database_generation_id"] = generation
                 rebound_response["principal"] = principal
                 rebound_response["proposal_id"] = hashlib.sha256(
@@ -1026,7 +1028,8 @@ class GDWWorkspace:
         ns, owner = self._identity(namespace, owner_id)
         row = connection.execute(
             """
-            SELECT request_digest, response_json, lifecycle
+            SELECT namespace, owner_id, request_id, request_digest, session_id,
+                   response_json, response_hash, lifecycle
             FROM requests
             WHERE namespace = ? AND owner_id = ? AND request_id = ?
             """,
@@ -1036,7 +1039,54 @@ class GDWWorkspace:
             return None
         if row["lifecycle"] != "ACTIVE" or row["response_json"] is None:
             raise GDWLifecycleError("idempotency record is outside its replay window")
-        return row["request_digest"], json.loads(row["response_json"])
+        try:
+            response = json.loads(row["response_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError(
+                "idempotency response is not canonical JSON"
+            ) from exc
+        if not isinstance(response, dict):
+            raise GDWConfigurationError("idempotency response is not an object")
+        observed_hash = hashlib.sha256(
+            _json_text(response).encode("utf-8")
+        ).hexdigest()
+        expected_identity = {
+            "request_id": row["request_id"],
+            "request_digest": row["request_digest"],
+            "session_id": row["session_id"],
+            "database_generation_id": self.database_generation_id,
+        }
+        if observed_hash != row["response_hash"] or any(
+            response.get(field) != expected
+            for field, expected in expected_identity.items()
+        ):
+            raise GDWConfigurationError(
+                "idempotency response digest or identity is invalid"
+            )
+        principal = response.get("principal")
+        if not isinstance(principal, dict) or (
+            principal.get("namespace") != row["namespace"]
+            or principal.get("owner_id") != row["owner_id"]
+        ):
+            raise GDWConfigurationError(
+                "idempotency response principal identity is invalid"
+            )
+        receipt_hash = response.get("receipt_hash")
+        if receipt_hash:
+            receipt_anchor = self._receipt_anchor(
+                connection,
+                row["namespace"],
+                row["owner_id"],
+                row["request_id"],
+            )
+            if (
+                receipt_anchor["receipt_hash"] != receipt_hash
+                or receipt_anchor["receipt"].get("session_id") != row["session_id"]
+            ):
+                raise GDWConfigurationError(
+                    "idempotency response receipt binding is invalid"
+                )
+        return row["request_digest"], response
 
     def session_state(
         self,
@@ -1049,8 +1099,8 @@ class GDWWorkspace:
         ns, owner = self._identity(namespace, owner_id)
         row = connection.execute(
             """
-            SELECT step, state_json, state_hash, updated_at, lifecycle,
-                   expires_at
+            SELECT namespace, owner_id, session_id, step, state_json, state_hash,
+                   updated_at, lifecycle, expires_at
             FROM session_state
             WHERE namespace = ? AND owner_id = ? AND session_id = ?
             """,
@@ -1058,13 +1108,36 @@ class GDWWorkspace:
         ).fetchone()
         if row is None or row["lifecycle"] != "ACTIVE" or row["state_json"] is None:
             return None
+        try:
+            state = json.loads(row["state_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError("session state is not canonical JSON") from exc
+        if not isinstance(state, dict):
+            raise GDWConfigurationError("session state is not an object")
+        observed_hash = hashlib.sha256(
+            _json_text(state).encode("utf-8")
+        ).hexdigest()
+        expected_identity = {
+            "namespace": row["namespace"],
+            "owner_id": row["owner_id"],
+            "session_id": row["session_id"],
+            "step": int(row["step"]),
+            "database_generation_id": self.database_generation_id,
+        }
+        if observed_hash != row["state_hash"] or any(
+            state.get(field) != expected
+            for field, expected in expected_identity.items()
+        ):
+            raise GDWConfigurationError(
+                "session state digest or identity is invalid"
+            )
         return {
             "namespace": ns,
             "owner_id": owner,
             "session_id": session_id,
             "database_generation_id": self.database_generation_id,
             "step": int(row["step"]),
-            "state": json.loads(row["state_json"]),
+            "state": state,
             "state_hash": row["state_hash"],
             "updated_at": row["updated_at"],
             "expires_at": row["expires_at"],
@@ -2642,7 +2715,8 @@ class GDWWorkspace:
                 else " WHERE namespace = ? AND owner_id = ?"
             )
             for row in connection.execute(
-                "SELECT state_json, state_hash FROM session_state"
+                "SELECT namespace, owner_id, session_id, step, state_json, "
+                "state_hash FROM session_state"
                 + scoped_suffix,
                 params,
             ):
@@ -2653,12 +2727,27 @@ class GDWWorkspace:
                     observed = hashlib.sha256(
                         _json_text(state).encode("utf-8")
                     ).hexdigest()
-                    if observed != row["state_hash"]:
+                    expected_identity = {
+                        "namespace": row["namespace"],
+                        "owner_id": row["owner_id"],
+                        "session_id": row["session_id"],
+                        "step": int(row["step"]),
+                        "database_generation_id": self.database_generation_id,
+                    }
+                    if (
+                        not isinstance(state, dict)
+                        or observed != row["state_hash"]
+                        or any(
+                            state.get(field) != expected
+                            for field, expected in expected_identity.items()
+                        )
+                    ):
                         raise ValueError("state digest mismatch")
                 except (TypeError, ValueError, json.JSONDecodeError):
                     digest_violations["invalid_state_digests"] += 1
             for row in connection.execute(
-                "SELECT response_json, response_hash FROM requests"
+                "SELECT namespace, owner_id, request_id, request_digest, "
+                "session_id, response_json, response_hash FROM requests"
                 + scoped_suffix,
                 params,
             ):
@@ -2669,12 +2758,34 @@ class GDWWorkspace:
                     observed = hashlib.sha256(
                         _json_text(response).encode("utf-8")
                     ).hexdigest()
-                    if observed != row["response_hash"]:
+                    principal = (
+                        response.get("principal")
+                        if isinstance(response, dict)
+                        else None
+                    )
+                    expected_identity = {
+                        "request_id": row["request_id"],
+                        "request_digest": row["request_digest"],
+                        "session_id": row["session_id"],
+                        "database_generation_id": self.database_generation_id,
+                    }
+                    if (
+                        not isinstance(response, dict)
+                        or observed != row["response_hash"]
+                        or any(
+                            response.get(field) != expected
+                            for field, expected in expected_identity.items()
+                        )
+                        or not isinstance(principal, dict)
+                        or principal.get("namespace") != row["namespace"]
+                        or principal.get("owner_id") != row["owner_id"]
+                    ):
                         raise ValueError("request digest mismatch")
                 except (TypeError, ValueError, json.JSONDecodeError):
                     digest_violations["invalid_request_digests"] += 1
             for row in connection.execute(
-                "SELECT receipt_json, receipt_hash FROM receipts"
+                "SELECT namespace, owner_id, request_id, session_id, step, "
+                "receipt_json, receipt_hash FROM receipts"
                 + scoped_suffix,
                 params,
             ):
@@ -2686,7 +2797,22 @@ class GDWWorkspace:
                     observed = hashlib.sha256(
                         _json_text(receipt).encode("utf-8")
                     ).hexdigest()
-                    if claimed != row["receipt_hash"] or observed != row["receipt_hash"]:
+                    expected_identity = {
+                        "namespace": row["namespace"],
+                        "owner_id": row["owner_id"],
+                        "request_id": row["request_id"],
+                        "session_id": row["session_id"],
+                        "step": int(row["step"]),
+                        "database_generation_id": self.database_generation_id,
+                    }
+                    if (
+                        claimed != row["receipt_hash"]
+                        or observed != row["receipt_hash"]
+                        or any(
+                            receipt.get(field) != expected
+                            for field, expected in expected_identity.items()
+                        )
+                    ):
                         raise ValueError("receipt digest mismatch")
                 except (TypeError, ValueError, json.JSONDecodeError):
                     digest_violations["invalid_receipt_digests"] += 1

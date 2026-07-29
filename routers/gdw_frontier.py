@@ -965,26 +965,9 @@ def register(app, ns: str = "a11oy"):
         )
         await _acquire_step_write_locks(step_write_locks)
         try:
-            with workspace.transaction() as connection:
-                integrity = workspace.integrity(
-                    global_scope=True,
-                    connection=connection,
-                )
-                if not integrity["ok"]:
-                    raise GDWConfigurationError(
-                        "GDW workspace integrity gate is closed"
-                    )
             workspace.collect_garbage(limit=10_000)
             authorised_generation_id = workspace.database_generation_id
             with workspace.transaction() as connection:
-                integrity = workspace.integrity(
-                    global_scope=True,
-                    connection=connection,
-                )
-                if not integrity["ok"]:
-                    raise GDWConfigurationError(
-                        "GDW workspace integrity gate is closed"
-                    )
                 cached = workspace.cached_request(connection, request_id)
                 if cached is not None:
                     cached_digest, cached_response = cached
@@ -1042,14 +1025,6 @@ def register(app, ns: str = "a11oy"):
                 authorised_state_hash,
             )
             with workspace.transaction() as connection:
-                integrity = workspace.integrity(
-                    global_scope=True,
-                    connection=connection,
-                )
-                if not integrity["ok"]:
-                    raise GDWConfigurationError(
-                        "GDW workspace integrity gate is closed"
-                    )
                 cached = workspace.cached_request(connection, request_id)
                 if cached is not None:
                     cached_digest, cached_response = cached
