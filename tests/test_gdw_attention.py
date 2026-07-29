@@ -57,8 +57,8 @@ def test_torch_router_and_grouped_dispatch_when_available():
         lambda batch: batch + 3,
     )
     assert torch.equal(output[0], torch.full((4,), 2.0))
-    assert torch.equal(output[1], torch.full((4,), 4.0))
-    assert torch.equal(output[2], torch.full((4,), 3.0))
+    assert torch.equal(output[1], torch.full((4,), 3.0))
+    assert torch.equal(output[2], torch.full((4,), 4.0))
     selected, probabilities = router(x)
     assert selected.shape == (3,)
     assert probabilities.shape == (3, 3)

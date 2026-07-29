@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, Optional
 
 
 ROUTE_NAMES = ("kda_local", "laguna_hybrid", "mla_global")
+ROUTE_IDS = {name: route_id for route_id, name in enumerate(ROUTE_NAMES)}
 
 
 @dataclass(frozen=True)
@@ -124,7 +125,14 @@ def hybrid_attention_dispatch(
         raise ValueError("mode must be a one-dimensional tensor matching batch size")
 
     output: Optional[Any] = None
-    for route_id, route_fn in ((0, kda_fn), (1, mla_fn), (2, laguna_fn)):
+    route_functions = {
+        "kda_local": kda_fn,
+        "laguna_hybrid": laguna_fn,
+        "mla_global": mla_fn,
+    }
+    for route_name in ROUTE_NAMES:
+        route_id = ROUTE_IDS[route_name]
+        route_fn = route_functions[route_name]
         indexes = torch.nonzero(mode == route_id, as_tuple=False).flatten()
         if indexes.numel() == 0:
             continue
