@@ -105,15 +105,41 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     )
     if (
         drain.get("failed") != 0
-        or drain.get("pending_effects") != 0
         or drain.get("integrity_ok") is not True
     ):
         raise RuntimeError("GDW protected drain contract failed")
-    integrity = request_json(
-        "GET",
-        f"{base}/api/a11oy/v1/gdw/integrity",
-        token=operator_token,
-    )
+    integrity = None
+    last_integrity = None
+    for _attempt in range(1, 61):
+        candidate = request_json(
+            "GET",
+            f"{base}/api/a11oy/v1/gdw/integrity/global",
+            token=operator_token,
+        )
+        last_integrity = candidate
+        if (
+            candidate.get("ok") is True
+            and candidate.get("pending_effects") == 0
+            and candidate.get("claimed_effects") == 0
+        ):
+            integrity = candidate
+            break
+        time.sleep(1)
+    if integrity is None:
+        pending = (
+            last_integrity.get("pending_effects")
+            if isinstance(last_integrity, dict)
+            else None
+        )
+        claimed = (
+            last_integrity.get("claimed_effects")
+            if isinstance(last_integrity, dict)
+            else None
+        )
+        raise RuntimeError(
+            "GDW protected drain did not converge: "
+            f"pending={pending}, claimed={claimed}"
+        )
     session = request_json(
         "GET",
         f"{base}/api/a11oy/v1/gdw/sessions/protected-promotion",
