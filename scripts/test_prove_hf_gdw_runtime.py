@@ -51,6 +51,7 @@ def _live_response(method: str, url: str, **_kwargs):
             "journal_mode": "DELETE",
             "pending_effects": 0,
             "claimed_effects": 0,
+            "dead_letter_effects": 0,
             "invalid_effect_bindings": 0,
             "invalid_exported_artifacts": 0,
         }

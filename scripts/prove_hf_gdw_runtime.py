@@ -32,6 +32,15 @@ def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
         return json.loads(response.read().decode("utf-8"))
 
 
+def _drain_converged(candidate: dict) -> bool:
+    return (
+        candidate.get("ok") is True
+        and candidate.get("pending_effects") == 0
+        and candidate.get("claimed_effects") == 0
+        and candidate.get("dead_letter_effects") == 0
+    )
+
+
 def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     if len(source_sha) != 40 or any(ch not in "0123456789abcdef" for ch in source_sha):
         raise RuntimeError("source SHA must be canonical lowercase hexadecimal")
@@ -117,11 +126,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             token=operator_token,
         )
         last_integrity = candidate
-        if (
-            candidate.get("ok") is True
-            and candidate.get("pending_effects") == 0
-            and candidate.get("claimed_effects") == 0
-        ):
+        if _drain_converged(candidate):
             integrity = candidate
             break
         time.sleep(1)
@@ -136,9 +141,14 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             if isinstance(last_integrity, dict)
             else None
         )
+        dead_letter = (
+            last_integrity.get("dead_letter_effects")
+            if isinstance(last_integrity, dict)
+            else None
+        )
         raise RuntimeError(
             "GDW protected drain did not converge: "
-            f"pending={pending}, claimed={claimed}"
+            f"pending={pending}, claimed={claimed}, dead_letter={dead_letter}"
         )
     session = request_json(
         "GET",

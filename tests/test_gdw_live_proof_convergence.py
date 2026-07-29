@@ -44,6 +44,7 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
                 "journal_mode": "DELETE",
                 "pending_effects": pending,
                 "claimed_effects": pending,
+                "dead_letter_effects": 0,
                 "invalid_effect_bindings": 0,
                 "invalid_exported_artifacts": 0,
             }
@@ -69,3 +70,14 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
     assert integrity_reads == 2
     assert report["drain"]["pending_effects"] == 1
     assert report["integrity"]["pending_effects"] == 0
+
+
+def test_dead_letter_effect_is_not_terminal_convergence() -> None:
+    assert prove_hf_gdw_runtime._drain_converged(
+        {
+            "ok": True,
+            "pending_effects": 0,
+            "claimed_effects": 0,
+            "dead_letter_effects": 1,
+        }
+    ) is False
