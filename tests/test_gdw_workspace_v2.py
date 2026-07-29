@@ -563,6 +563,79 @@ def test_effect_retry_is_bounded_backed_off_and_dead_lettered(tmp_path):
     assert workspace.reconcile_usage()["pending_effects"] == 0
 
 
+def test_only_legacy_unsupported_link_failures_are_requeued(tmp_path):
+    workspace = _workspace(tmp_path / "legacy-link-retry.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    response = _save_request(
+        workspace,
+        "legacy-request",
+        created_at=start.isoformat(),
+    )
+    proof = _proof_payload(response)
+    ordinary_response = _save_request(
+        workspace,
+        "ordinary-request",
+        created_at=start.isoformat(),
+    )
+    ordinary_proof = _proof_payload(ordinary_response)
+    with workspace.transaction() as connection:
+        legacy_key = workspace.save_effect_outbox(
+            connection,
+            "legacy-request",
+            "proof_export",
+            proof,
+            proof["payload_sha256"],
+            None,
+            start.isoformat(),
+            max_attempts=3,
+        )
+        ordinary_key = workspace.save_effect_outbox(
+            connection,
+            "ordinary-request",
+            "proof_export",
+            ordinary_proof,
+            ordinary_proof["payload_sha256"],
+            None,
+            start.isoformat(),
+            max_attempts=3,
+        )
+
+    claimed = workspace.claim_effects("worker", limit=2, now=start)
+    by_key = {row["idempotency_key"]: row for row in claimed}
+    workspace.release_effect(
+        legacy_key,
+        "worker",
+        by_key[legacy_key]["claim_generation"],
+        (
+            "OSError: [Errno 95] Operation not supported: "
+            "'/data/.gdw-artifact-stage.tmp' -> '/data/proof.json'"
+        ),
+        now=start,
+    )
+    workspace.release_effect(
+        ordinary_key,
+        "worker",
+        by_key[ordinary_key]["claim_generation"],
+        "OSError: [Errno 5] storage I/O failure",
+        now=start,
+    )
+
+    recovery_time = start + timedelta(seconds=1)
+    assert workspace.requeue_legacy_link_failures(now=recovery_time) == 1
+    assert workspace.requeue_legacy_link_failures(now=recovery_time) == 0
+    recovered = workspace.claim_effects("recovery", now=recovery_time)
+
+    assert [row["idempotency_key"] for row in recovered] == [legacy_key]
+    assert recovered[0]["attempt"] == 2
+    assert (
+        workspace.claim_effects(
+            "ordinary",
+            now=recovery_time,
+        )
+        == []
+    )
+
+
 def test_gc_tombstones_expired_objects_but_never_unexported_effects(
     tmp_path, monkeypatch
 ):

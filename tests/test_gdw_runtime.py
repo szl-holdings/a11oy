@@ -71,6 +71,7 @@ def test_prepare_runtime_selects_network_safe_journal_and_reports_truth(
     assert observed["journal_mode_requested"] == "DELETE"
     assert observed["journal_mode_observed"] == "DELETE"
     assert observed["proof_export_mode"] == "outbox"
+    assert observed["legacy_link_failures_requeued"] == 0
     with sqlite3.connect(observed["database_path"]) as connection:
         assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
     health = gdw_runtime.runtime_health()
