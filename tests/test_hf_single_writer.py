@@ -222,8 +222,8 @@ def _referenced_sources(
             module_path = match.group("module").replace(".", "/")
             references.update(
                 {
-                    f"{module_path}.py",
-                    f"{module_path}/__main__.py",
+                    (f"{module_path}.py", ""),
+                    (f"{module_path}/__main__.py", ""),
                 }
             )
 
