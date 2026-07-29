@@ -32,6 +32,11 @@ _EXPERTS = {"planner", "retriever", "auditor", "verifier", "operator"}
 _PRINCIPAL_ROLES = {"user", "admin"}
 
 
+async def _acquire_step_write_lock() -> None:
+    while not _STEP_WRITE_LOCK.acquire(blocking=False):
+        await asyncio.sleep(0.01)
+
+
 class GDWStepRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=128)
     request: str = Field(min_length=1, max_length=4096)
@@ -664,7 +669,7 @@ def register(app, ns: str = "a11oy"):
         decision = "ERROR"
         receipt_hash = ""
 
-        await asyncio.to_thread(_STEP_WRITE_LOCK.acquire)
+        await _acquire_step_write_lock()
         try:
             with workspace.transaction() as connection:
                 cached = workspace.cached_request(

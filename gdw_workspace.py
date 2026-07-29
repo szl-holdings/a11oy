@@ -308,6 +308,38 @@ class GDWWorkspace:
             except FileNotFoundError:
                 continue
             signature.append((candidate.name, stat.st_size, stat.st_mtime_ns))
+        for variable in ("GDW_PROOF_DIR", "GDW_RECEIPT_PROJECTION_DIR"):
+            configured = os.environ.get(variable, "").strip()
+            if not configured:
+                continue
+            root = Path(configured).resolve()
+            try:
+                root_stat = root.stat()
+            except FileNotFoundError:
+                signature.append((variable + ":MISSING", 0, 0))
+                continue
+            signature.append(
+                (variable + ":.", root_stat.st_size, root_stat.st_mtime_ns)
+            )
+            for candidate in sorted(root.rglob("*.json")):
+                try:
+                    stat = candidate.stat()
+                except FileNotFoundError:
+                    signature.append(
+                        (
+                            variable + ":" + candidate.relative_to(root).as_posix(),
+                            -1,
+                            -1,
+                        )
+                    )
+                    continue
+                signature.append(
+                    (
+                        variable + ":" + candidate.relative_to(root).as_posix(),
+                        stat.st_size,
+                        stat.st_mtime_ns,
+                    )
+                )
         return tuple(signature)
 
     def _cached_integrity_is_current(self) -> bool:
