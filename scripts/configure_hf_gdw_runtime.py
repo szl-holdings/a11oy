@@ -16,7 +16,7 @@ CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
 DATA_MOUNT = "/data"
 PRINCIPAL_ID = "gdw-operator"
 PRINCIPAL_REGISTRY_SECRET = "GDW_PRINCIPALS_JSON"
-COMPETING_REGISTRY_NAMES = {"GDW_CREDENTIALS_JSON"}
+CREDENTIAL_REGISTRY_SECRET = "GDW_CREDENTIALS_JSON"
 STATIC_VARIABLES = {
     "GDW_PRODUCTION_MODE": "1",
     "GDW_NAMESPACE": "a11oy",
@@ -111,38 +111,37 @@ def converge_principal_registry(
     *,
     repo_id: str,
     current_variables: Mapping[str, Any],
-    current_secret_names: set[str],
+    secret_names: set[str],
     operator_token: str,
-) -> set[str]:
+) -> tuple[set[str], bool]:
     if PRINCIPAL_REGISTRY_SECRET in current_variables:
         raise RuntimeConfigError(
             "GDW principal registry collides with an existing Space variable"
         )
-    competing = sorted(
-        COMPETING_REGISTRY_NAMES
-        & (set(current_variables) | current_secret_names)
-    )
-    if competing:
+    if (
+        CREDENTIAL_REGISTRY_SECRET in current_variables
+        or CREDENTIAL_REGISTRY_SECRET in secret_names
+    ):
         raise RuntimeConfigError(
-            "competing GDW credential registry is configured: "
-            + ",".join(competing)
+            "GDW credential registry conflicts with the principal registry"
         )
-
+    if PRINCIPAL_REGISTRY_SECRET in secret_names:
+        return set(secret_names), False
     api.add_space_secret(
         repo_id=repo_id,
         key=PRINCIPAL_REGISTRY_SECRET,
         value=principal_registry_value(operator_token),
         description=(
-            "Digest-only GDW principal registry converged from the protected "
+            "Digest-only GDW principal registry converged from the masked "
             "GitHub Actions operator credential."
         ),
     )
-    secret_names = set(api.get_space_secrets(repo_id=repo_id))
-    if PRINCIPAL_REGISTRY_SECRET not in secret_names:
+    converged_secret_names = set(api.get_space_secrets(repo_id=repo_id))
+    if PRINCIPAL_REGISTRY_SECRET not in converged_secret_names:
         raise RuntimeConfigError(
             "GDW principal registry secret did not converge"
         )
-    return secret_names
+    return converged_secret_names, True
 
 
 def require_data_mount(api: Any, *, repo_id: str) -> dict[str, Any]:
@@ -209,11 +208,11 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         current_secret_names,
         desired,
     )
-    secret_names = converge_principal_registry(
+    secret_names, principal_registry_changed = converge_principal_registry(
         api,
         repo_id=repo_id,
         current_variables=current_variables,
-        current_secret_names=current_secret_names,
+        secret_names=current_secret_names,
         operator_token=operator_token,
     )
     for name, value in sorted(changes.items()):
@@ -241,7 +240,8 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         "variables_changed": sorted(changes),
         "secret_names_required": [PRINCIPAL_REGISTRY_SECRET],
         "secret_values_read": False,
-        "secret_values_mutated": True,
+        "secret_values_mutated": principal_registry_changed,
+        "principal_registry_converged": True,
         "readback_attempts": attempts,
         "converged": True,
         "operator_token_present": True,

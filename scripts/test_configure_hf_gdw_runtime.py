@@ -52,7 +52,7 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
         config.plan_variables({}, {"GDW_DB_PATH"}, desired)
 
 
-def test_principal_registry_is_converged_as_digest_only_secret() -> None:
+def test_principal_registry_converges_digest_without_bearer_material() -> None:
     token = "operator-token-" + ("x" * 48)
     calls: list[dict[str, object]] = []
     api = SimpleNamespace(
@@ -60,13 +60,15 @@ def test_principal_registry_is_converged_as_digest_only_secret() -> None:
         get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
     )
 
-    assert config.converge_principal_registry(
+    secret_names, changed = config.converge_principal_registry(
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
-        current_secret_names=set(),
+        secret_names=set(),
         operator_token=token,
-    ) == {config.PRINCIPAL_REGISTRY_SECRET}
+    )
+    assert secret_names == {config.PRINCIPAL_REGISTRY_SECRET}
+    assert changed is True
     assert len(calls) == 1
     assert calls[0]["key"] == config.PRINCIPAL_REGISTRY_SECRET
     registry_text = str(calls[0]["value"])
@@ -89,7 +91,7 @@ def test_principal_registry_convergence_fails_closed() -> None:
             api,
             repo_id=config.CANONICAL_SPACE,
             current_variables={},
-            current_secret_names=set(),
+        secret_names=set(),
             operator_token="x" * 48,
         )
     with pytest.raises(config.RuntimeConfigError, match="collides"):
@@ -99,7 +101,7 @@ def test_principal_registry_convergence_fails_closed() -> None:
             current_variables={
                 config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")
             },
-            current_secret_names=set(),
+            secret_names=set(),
             operator_token="x" * 48,
         )
 
@@ -116,14 +118,18 @@ def test_competing_credential_registry_blocks_before_mutation(location: str) -> 
         if location == "variable"
         else {}
     )
-    secret_names = {"GDW_CREDENTIALS_JSON"} if location == "secret" else set()
+    secret_names = (
+        {config.CREDENTIAL_REGISTRY_SECRET}
+        if location == "secret"
+        else set()
+    )
 
-    with pytest.raises(config.RuntimeConfigError, match="competing"):
+    with pytest.raises(config.RuntimeConfigError, match="conflicts"):
         config.converge_principal_registry(
             api,
             repo_id=config.CANONICAL_SPACE,
             current_variables=variables,
-            current_secret_names=secret_names,
+            secret_names=secret_names,
             operator_token="x" * 48,
         )
     assert calls == []
@@ -162,6 +168,24 @@ def test_managed_variable_secret_collision_blocks_before_auth_mutation(
             hf_token="hf-control-token",
             operator_token="x" * 48,
         )
+    assert calls == []
+
+
+def test_existing_principal_registry_is_preserved() -> None:
+    calls = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+    )
+    secret_names, changed = config.converge_principal_registry(
+        api,
+        repo_id=config.CANONICAL_SPACE,
+        current_variables={},
+        secret_names={config.PRINCIPAL_REGISTRY_SECRET},
+        operator_token="x" * 48,
+    )
+
+    assert secret_names == {config.PRINCIPAL_REGISTRY_SECRET}
+    assert changed is False
     assert calls == []
 
 
