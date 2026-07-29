@@ -1132,3 +1132,27 @@ def test_step_collects_expired_requests_before_quota_admission(
         )
 
     assert second.status_code == 200
+
+
+def test_step_uses_bounded_row_checks_not_global_integrity_scan(
+    tmp_path,
+    monkeypatch,
+):
+    from gdw_workspace import GDWWorkspace
+
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        monkeypatch.setattr(
+            GDWWorkspace,
+            "integrity",
+            lambda *args, **kwargs: (_ for _ in ()).throw(
+                AssertionError("global integrity scan reached request path")
+            ),
+        )
+        response = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="bounded-session"),
+            headers=headers("bounded-request"),
+        )
+
+    assert response.status_code == 200
