@@ -49,6 +49,7 @@ STATIC_VARIABLES = {
     "GDW_OUTBOX_RETRY_MAX_SECONDS": "60",
     "GDW_OUTBOX_BATCH_SIZE": "100",
     "GDW_OUTBOX_LEASE_SECONDS": "300",
+    "GDW_POLICY_ORIGIN": "https://szlholdings-a11oy.hf.space",
 }
 
 
