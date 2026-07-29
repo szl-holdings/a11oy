@@ -48,20 +48,21 @@ MUTATION_METHODS = {
     "delete_space_secret",
     "restart_space",
 }
-_LOCAL_EXECUTABLE_PATH = (
+_INTERPRETER_EXECUTABLE_PATH = (
     r"(?P<path>(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+"
-    r"\.(?:py|sh|js|mjs|cjs|ts))"
+    r"(?:\.(?:py|sh|js|mjs|cjs|ts))?)"
 )
 _DIRECT_EXECUTABLE_PATH = (
     r"(?P<path>(?:\./|(?:[A-Za-z0-9_.-]+/)+)"
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)"
 )
 LOCAL_SCRIPT_CALL = re.compile(
-    r"(?:^|\s)(?:"
-    r"python(?:3(?:\.\d+)?)?(?:\s+-[A-Za-z]+)*|bash|sh|node"
-    r")\s+"
-    r"(?!-m(?:\s|$))"
-    + _LOCAL_EXECUTABLE_PATH,
+    r"(?:^|[ \t])(?:"
+    r"python(?:3(?:\.\d+)?)?(?:[ \t]+-[A-Za-z]+)*|bash|sh|node"
+    r")"
+    r"(?![ \t]+-(?:c|e|m)(?:[ \t]|$))"
+    r"[ \t]+"
+    + _INTERPRETER_EXECUTABLE_PATH,
     re.MULTILINE,
 )
 LOCAL_MODULE_CALL = re.compile(
@@ -221,8 +222,20 @@ def _docker_local_sources(text: str) -> set[str]:
                 tokens = [str(value) for value in values]
             else:
                 tokens = shlex.split(spec, comments=True, posix=True)
+                copied_from_stage = False
                 while tokens and tokens[0].startswith("--"):
-                    tokens.pop(0)
+                    option = tokens.pop(0)
+                    if option == "--from":
+                        if not tokens:
+                            raise RuntimeError(
+                                "Docker action COPY --from is incomplete"
+                            )
+                        tokens.pop(0)
+                        copied_from_stage = True
+                    elif option.startswith("--from="):
+                        copied_from_stage = True
+                if copied_from_stage:
+                    continue
         except (ValueError, json.JSONDecodeError) as exc:
             raise RuntimeError("Docker action COPY/ADD cannot be bounded") from exc
         if len(tokens) < 2:
@@ -664,6 +677,21 @@ jobs:
     steps:
       - run: ./publish
 """
+        interpreter_competing = """
+name: unsafe interpreter extensionless writer
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    defaults:
+      run:
+        working-directory: tools/deploy
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: python publish
+"""
         repo_files = {
             "tools/deploy/publish": (
                 "client.upload_folder({repo_id: process.env.SPACE_ID})\n"
@@ -674,10 +702,17 @@ jobs:
                 {
                     CANONICAL_WORKFLOW: canonical,
                     "unsafe-extensionless.yml": competing,
+                    "unsafe-interpreter-extensionless.yml": (
+                        interpreter_competing
+                    ),
                 },
                 repo_files,
             ),
-            [CANONICAL_WORKFLOW, "unsafe-extensionless.yml"],
+            [
+                CANONICAL_WORKFLOW,
+                "unsafe-extensionless.yml",
+                "unsafe-interpreter-extensionless.yml",
+            ],
         )
 
     def test_local_docker_action_sources_are_resolved(self) -> None:
@@ -767,6 +802,12 @@ jobs:
                     ),
                 },
             )
+        self.assertEqual(
+            _docker_local_sources(
+                "COPY --from=builder /usr/local/bin/publish /publish\n"
+            ),
+            set(),
+        )
 
 
 if __name__ == "__main__":
