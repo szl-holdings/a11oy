@@ -33,10 +33,21 @@ def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
         return json.loads(response.read().decode("utf-8"))
 
 
-def _drain_is_complete(drain: dict, database_generation_id: str) -> bool:
+def _drain_converged(candidate: dict) -> bool:
+    return (
+        candidate.get("ok") is True
+        and candidate.get("pending_effects") == 0
+        and candidate.get("claimed_effects") == 0
+        and candidate.get("dead_letter_effects") == 0
+    )
+
+
+def _drain_contract_is_valid(
+    drain: dict,
+    database_generation_id: str,
+) -> bool:
     return (
         drain.get("failed") == 0
-        and drain.get("pending_effects") == 0
         and drain.get("legacy_pending_proofs") == 0
         and drain.get("integrity_ok") is True
         and drain.get("database_generation_id") == database_generation_id
@@ -48,13 +59,10 @@ def _global_integrity_is_complete(
     database_generation_id: str,
 ) -> bool:
     return (
-        integrity.get("ok") is True
+        _drain_converged(integrity)
         and integrity.get("database_generation_id") == database_generation_id
         and integrity.get("journal_mode") == "DELETE"
         and integrity.get("pending_proofs") == 0
-        and integrity.get("pending_effects") == 0
-        and integrity.get("claimed_effects") == 0
-        and integrity.get("dead_letter_effects") == 0
         and integrity.get("invalid_effect_bindings") == 0
         and integrity.get("invalid_exported_artifacts") == 0
     )
@@ -169,7 +177,10 @@ def _prove_drain_convergence(
         last_drain = initial_drain
         last_error = (
             "INITIAL_DRAIN_COMPLETE"
-            if _drain_is_complete(initial_drain, database_generation_id)
+            if _drain_contract_is_valid(
+                initial_drain,
+                database_generation_id,
+            )
             else "INITIAL_DRAIN_INCOMPLETE"
         )
     except Exception as exc:
@@ -223,7 +234,7 @@ def _prove_drain_convergence(
                 token=operator_token,
             )
             last_drain = confirmed_drain
-            if _drain_is_complete(
+            if _drain_contract_is_valid(
                 confirmed_drain,
                 database_generation_id,
             ):
