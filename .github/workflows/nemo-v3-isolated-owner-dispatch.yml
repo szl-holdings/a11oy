@@ -26,8 +26,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
     timeout-minutes: 330
     env:
-      JOB_ID: job-2026-nemo-v3-governed-attempt-1
-      BRIDGE_REVISION: 38ba3100b2e20075b6ac0c3e62745c0f811de370
+      OWNER_DISPATCH_JSON: ${{ toJson(github.event.client_payload) }}
       TRAINING_IMAGE: unsloth/unsloth@sha256:9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123
       BRIDGE_ROOT: C:\szl-bridge
       CACHE_ROOT: C:\szl-bridge-cache
@@ -39,7 +38,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Prepare exact public source and trusted control runtime
+      - name: Validate explicit owner dispatch selection
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -70,6 +69,63 @@ jobs:
             $python = $pythonCommand.Source
           }
 
+          $observed = (
+            & $gitExecutable -C $env:GITHUB_WORKSPACE rev-parse HEAD
+          ).Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $observed -cne "${{ github.sha }}"
+          ) {
+            throw "Checked-out source is not the exact dispatched github.sha."
+          }
+          if (
+            & $gitExecutable -C $env:GITHUB_WORKSPACE status `
+              --porcelain `
+              --untracked-files=no
+          ) {
+            throw "Exact dispatched source has tracked modifications."
+          }
+          $workflowBlob = (
+            & $gitExecutable -C $env:GITHUB_WORKSPACE rev-parse (
+              "${{ github.sha }}:" +
+              ".github/workflows/nemo-v3-isolated-owner-dispatch.yml"
+            )
+          ).Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $workflowBlob -cnotmatch "^[0-9a-f]{40}$"
+          ) {
+            throw "Protected owner workflow blob could not be resolved."
+          }
+
+          & $python `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            select `
+            --dispatch-json-env OWNER_DISPATCH_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $workflowBlob `
+            --github-env $env:GITHUB_ENV
+          if ($LASTEXITCODE -ne 0) {
+            throw "Explicit owner dispatch selection was rejected."
+          }
+
+          "GIT_EXECUTABLE=$gitExecutable" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+          "HOST_PYTHON=$python" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Prepare exact public source and trusted control runtime
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
           $source = Join-Path $env:RUNNER_TEMP (
             "szl-gpu-bridge-" + $env:GITHUB_RUN_ID
           )
@@ -83,7 +139,7 @@ jobs:
             throw "Per-run trusted source or control path already exists."
           }
 
-          & $gitExecutable clone `
+          & $env:GIT_EXECUTABLE clone `
             --filter=blob:none `
             --no-checkout `
             https://github.com/szl-holdings/szl-gpu-bridge.git `
@@ -91,22 +147,30 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Bridge clone failed."
           }
-          & $gitExecutable -C $source fetch `
+          & $env:GIT_EXECUTABLE -C $source fetch `
             --depth=1 `
             origin `
             $env:BRIDGE_REVISION
           if ($LASTEXITCODE -ne 0) {
             throw "Exact bridge revision fetch failed."
           }
-          & $gitExecutable -C $source checkout --detach $env:BRIDGE_REVISION
+          & $env:GIT_EXECUTABLE -C $source checkout `
+            --detach `
+            $env:BRIDGE_REVISION
           if ($LASTEXITCODE -ne 0) {
             throw "Exact bridge revision checkout failed."
           }
-          $observed = (& $gitExecutable -C $source rev-parse HEAD).Trim()
-          if ($observed -ne $env:BRIDGE_REVISION) {
+          $observed = (
+            & $env:GIT_EXECUTABLE -C $source rev-parse HEAD
+          ).Trim()
+          if ($observed -cne $env:BRIDGE_REVISION) {
             throw "Bridge source revision mismatch: $observed"
           }
-          if (& $gitExecutable -C $source status --porcelain --untracked-files=no) {
+          if (
+            & $env:GIT_EXECUTABLE -C $source status `
+              --porcelain `
+              --untracked-files=no
+          ) {
             throw "Exact bridge source is dirty."
           }
 
@@ -116,7 +180,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $controlLock -PathType Leaf)) {
             throw "Hash-verified trusted-control lock file is missing."
           }
-          & $python -m venv $control
+          & $env:HOST_PYTHON -m venv $control
           if ($LASTEXITCODE -ne 0) {
             throw "Trusted control virtual environment creation failed."
           }
@@ -133,6 +197,24 @@ jobs:
           & $controlPython -m pip check
           if ($LASTEXITCODE -ne 0) {
             throw "Hash-verified trusted control dependency set is inconsistent."
+          }
+
+          & $controlPython `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            verify-envelope `
+            --dispatch-json-env OWNER_DISPATCH_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
+            --bridge-source $source
+          if ($LASTEXITCODE -ne 0) {
+            throw "Owner signature or exact envelope binding was rejected."
           }
 
           $docker = (Get-Command docker.exe -ErrorAction Stop).Source
@@ -193,50 +275,25 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          $controlRoot = Join-Path $env:BRIDGE_ROOT "control"
-          if (-not (Test-Path -LiteralPath $controlRoot)) {
-            New-Item -ItemType Directory -Path $controlRoot -Force | Out-Null
-          }
-          $claimPath = Join-Path $controlRoot (
-            $env:JOB_ID + "-attempt.claim.json"
-          )
-          $specPath = Join-Path $env:BRIDGE_SOURCE (
-            "queue\pending\" + $env:JOB_ID + ".json"
-          )
-          $sha256 = [Security.Cryptography.SHA256]::Create()
-          try {
-            $specDigest = [BitConverter]::ToString(
-              $sha256.ComputeHash([IO.File]::ReadAllBytes($specPath))
-            ).Replace("-", "").ToLowerInvariant()
-          } finally {
-            $sha256.Dispose()
-          }
-          $claim = @{
-            jobId = $env:JOB_ID
-            bridgeRevision = $env:BRIDGE_REVISION
-            dispatchedRevision = "${{ github.sha }}"
-            envelopeSha256 = $specDigest
-            runId = "${{ github.run_id }}"
-            runAttempt = "${{ github.run_attempt }}"
-          } | ConvertTo-Json -Compress
-          $encoding = New-Object Text.UTF8Encoding($false)
-          $claimBytes = $encoding.GetBytes($claim + "`n")
-
-          try {
-            $stream = [IO.File]::Open(
-              $claimPath,
-              [IO.FileMode]::CreateNew,
-              [IO.FileAccess]::Write,
-              [IO.FileShare]::None
-            )
-          } catch [IO.IOException] {
-            throw "The single governed attempt was already claimed."
-          }
-          try {
-            $stream.Write($claimBytes, 0, $claimBytes.Length)
-            $stream.Flush($true)
-          } finally {
-            $stream.Dispose()
+          & $env:CONTROL_PYTHON `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            create-claim `
+            --dispatch-json-env OWNER_DISPATCH_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
+            --bridge-source $env:BRIDGE_SOURCE `
+            --bridge-root $env:BRIDGE_ROOT `
+            --run-id "${{ github.run_id }}" `
+            --run-attempt "${{ github.run_attempt }}"
+          if ($LASTEXITCODE -ne 0) {
+            throw "The selected governed attempt could not be claimed."
           }
 
       - name: Execute remote model code without network, credentials, or signing key

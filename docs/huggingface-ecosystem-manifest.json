@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-07-29T19:41:08Z",
+  "observedAt": "2026-07-29T22:01:18Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -1654,9 +1654,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "4679adf667c0752d908735ce054fd59ee0c30f9d",
-        "lastModified": "2026-07-29T17:39:00.000Z",
-        "cardSemanticSha256": "67339c8c8ef624de5c8d417140477909cbc2bc6ea77be2182ee33b629e2e13cc",
+        "sha": "757daafccb401329c3a11c7ef85d05e369765ea5",
+        "lastModified": "2026-07-29T21:46:29.000Z",
+        "cardSemanticSha256": "8f92d43ee7b3934a30cac4a9edea17dfda616e751df52655855ac1cb42be9ed1",
         "createdAt": "2026-06-28T05:33:51.000Z",
         "tags": [
           "docker",
