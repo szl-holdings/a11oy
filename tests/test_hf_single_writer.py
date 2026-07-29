@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
+import shlex
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
@@ -18,6 +20,8 @@ RETIRED_WORKFLOWS = {
     "hf-git-sha-sync.yml",
 }
 WORKFLOW_SUFFIXES = {".yml", ".yaml"}
+MAX_REFERENCED_SOURCES = 256
+MAX_REFERENCE_DEPTH = 16
 TARGET_MARKERS = (
     "SZLHOLDINGS/a11oy",
     "szlholdings-a11oy.hf.space",
@@ -44,14 +48,26 @@ MUTATION_METHODS = {
     "delete_space_secret",
     "restart_space",
 }
+_LOCAL_EXECUTABLE_PATH = (
+    r"(?P<path>(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+"
+    r"\.(?:py|sh|js|mjs|cjs|ts))"
+)
+_DIRECT_EXECUTABLE_PATH = (
+    r"(?P<path>(?:\./|(?:[A-Za-z0-9_.-]+/)+)"
+    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)"
+)
 LOCAL_SCRIPT_CALL = re.compile(
     r"(?:^|\s)(?:"
     r"python(?:3(?:\.\d+)?)?(?:\s+-[A-Za-z]+)*|bash|sh|node"
     r")\s+"
     r"(?!-m(?:\s|$))"
-    r"(?P<path>(?:\./)?(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+"
-    r"\.(?:py|sh|js|mjs|cjs|ts))",
+    + _LOCAL_EXECUTABLE_PATH,
     re.MULTILINE,
+)
+DIRECT_SCRIPT_CALL = re.compile(
+    r"(?m)^\s*(?:(?:-\s*)?run:\s*(?:[|>-]\s*)?|(?=\./))"
+    + _DIRECT_EXECUTABLE_PATH
+    + r"(?=\s|$)"
 )
 LOCAL_MODULE_CALL = re.compile(
     r"\bpython(?:3(?:\.\d+)?)?\b"
@@ -65,6 +81,13 @@ LOCAL_ACTION_CALL = re.compile(
 ACTION_ENTRYPOINT = re.compile(
     r"(?m)^\s*(?:main|pre|post):\s*[\"']?"
     r"(?P<path>[^#\s\"']+\.(?:py|sh|js|mjs|cjs|ts))"
+)
+ACTION_DOCKER_IMAGE = re.compile(
+    r"(?m)^\s*image:\s*[\"']?"
+    r"(?P<path>(?!docker://)[^#\s\"']+)[\"']?\s*(?:#.*)?$"
+)
+WORKING_DIRECTORY = re.compile(
+    r"(?m)^\s*working-directory:\s*(?P<path>.+?)\s*$"
 )
 
 
@@ -159,13 +182,76 @@ def _executable_text(text: str) -> str:
     )
 
 
+def _working_directories(text: str) -> set[str]:
+    """Return every bounded static run directory used by a workflow."""
+
+    directories = {""}
+    for match in WORKING_DIRECTORY.finditer(text):
+        raw_value = match.group("path")
+        if "${{" in raw_value:
+            raise RuntimeError("dynamic working-directory cannot be bounded")
+        try:
+            tokens = shlex.split(raw_value, comments=True, posix=True)
+        except ValueError as exc:
+            raise RuntimeError("working-directory cannot be bounded") from exc
+        if len(tokens) != 1:
+            raise RuntimeError("working-directory cannot be bounded")
+        raw_path = tokens[0]
+        path = PurePosixPath(raw_path.replace("\\", "/"))
+        if path.is_absolute() or ".." in path.parts:
+            raise RuntimeError("working-directory escapes the repository")
+        directories.add(path.as_posix().removeprefix("./"))
+    return directories
+
+
+def _docker_local_sources(text: str) -> set[str]:
+    """Return bounded local COPY/ADD inputs from a Docker action image."""
+
+    sources: set[str] = set()
+    for raw_line in text.splitlines():
+        match = re.match(r"^\s*(?:COPY|ADD)\s+(?P<spec>.+?)\s*$", raw_line, re.I)
+        if match is None:
+            continue
+        spec = match.group("spec")
+        try:
+            if spec.startswith("["):
+                values = json.loads(spec)
+                if not isinstance(values, list) or len(values) < 2:
+                    raise ValueError("invalid JSON-form COPY/ADD")
+                tokens = [str(value) for value in values]
+            else:
+                tokens = shlex.split(spec, comments=True, posix=True)
+                while tokens and tokens[0].startswith("--"):
+                    tokens.pop(0)
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise RuntimeError("Docker action COPY/ADD cannot be bounded") from exc
+        if len(tokens) < 2:
+            raise RuntimeError("Docker action COPY/ADD cannot be bounded")
+        for source in tokens[:-1]:
+            normalized = source.replace("\\", "/")
+            if (
+                normalized in {".", "./"}
+                or any(character in normalized for character in "*?[")
+                or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*://", normalized)
+            ):
+                raise RuntimeError("Docker action COPY/ADD source cannot be bounded")
+            sources.add(normalized)
+    return sources
+
+
 def _repo_source(
     relative_path: str,
     repo_files: dict[str, str] | None,
+    *,
+    base_dir: str = "",
 ) -> tuple[str, str] | None:
-    normalized = relative_path.replace("\\", "/").removeprefix("./")
+    candidate = PurePosixPath(relative_path.replace("\\", "/"))
+    if candidate.is_absolute() or ".." in candidate.parts:
+        return None
+    candidate = PurePosixPath(base_dir) / candidate
+    normalized = candidate.as_posix().removeprefix("./")
     parts = PurePosixPath(normalized).parts
-    if not parts or ".." in parts or PurePosixPath(normalized).is_absolute():
+    if not parts or ".." in parts:
         return None
 
     if repo_files is not None:
@@ -189,47 +275,103 @@ def _referenced_sources(
     """Include scripts and local actions that the workflow actually executes."""
 
     combined: list[tuple[str | None, str]] = [(None, text)]
-    queue = [text]
+    queue: list[tuple[str | None, str, int]] = [(None, text, 0)]
     visited: set[str] = set()
     while queue:
-        current = _executable_text(queue.pop())
-        references = {
+        current_path, source_text, depth = queue.pop()
+        if depth > MAX_REFERENCE_DEPTH:
+            raise RuntimeError("local writer reference depth is unbounded")
+        current = _executable_text(source_text)
+        direct_calls = {
+            match.group("path") for match in DIRECT_SCRIPT_CALL.finditer(current)
+        }
+        script_calls = {
             match.group("path") for match in LOCAL_SCRIPT_CALL.finditer(current)
         }
-        for match in LOCAL_MODULE_CALL.finditer(current):
-            module_path = match.group("module").replace(".", "/")
+        module_calls = {
+            match.group("module") for match in LOCAL_MODULE_CALL.finditer(current)
+        }
+        is_yaml_execution_context = (
+            current_path is None
+            or PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
+        )
+        working_directories = (
+            _working_directories(current)
+            if is_yaml_execution_context
+            and (script_calls or direct_calls or module_calls)
+            else {""}
+        )
+        references: set[tuple[str, str, bool]] = set()
+        for relative_path in script_calls | direct_calls:
             references.update(
-                {
+                (relative_path, base_dir, False)
+                for base_dir in working_directories
+            )
+        for module in module_calls:
+            module_path = module.replace(".", "/")
+            references.update(
+                (relative_path, base_dir, False)
+                for base_dir in working_directories
+                for relative_path in (
                     f"{module_path}.py",
                     f"{module_path}/__main__.py",
-                }
+                )
             )
 
         for match in LOCAL_ACTION_CALL.finditer(current):
             action_dir = match.group("path").rstrip("/")
             references.update(
                 {
-                    f"{action_dir}/action.yml",
-                    f"{action_dir}/action.yaml",
+                    (f"{action_dir}/action.yml", "", False),
+                    (f"{action_dir}/action.yaml", "", False),
                 }
             )
 
-        if re.search(r"(?m)^\s*(?:runs:|using:)", current):
+        if (
+            current_path is not None
+            and PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
+            and re.search(r"(?m)^\s*(?:runs:|using:)", current)
+        ):
+            action_dir = PurePosixPath(current_path).parent.as_posix()
             references.update(
-                match.group("path")
+                (match.group("path"), action_dir, True)
                 for match in ACTION_ENTRYPOINT.finditer(current)
             )
+            references.update(
+                (match.group("path"), action_dir, True)
+                for match in ACTION_DOCKER_IMAGE.finditer(current)
+            )
 
-        for relative_path in sorted(references):
-            source = _repo_source(relative_path, repo_files)
+        if (
+            current_path is not None
+            and PurePosixPath(current_path).name.lower().startswith("dockerfile")
+        ):
+            docker_dir = PurePosixPath(current_path).parent.as_posix()
+            references.update(
+                (relative_path, docker_dir, True)
+                for relative_path in _docker_local_sources(current)
+            )
+
+        for relative_path, base_dir, required in sorted(references):
+            source = _repo_source(
+                relative_path,
+                repo_files,
+                base_dir=base_dir,
+            )
             if source is None:
+                if required:
+                    raise RuntimeError(
+                        f"required local writer source is unavailable: {relative_path}"
+                    )
                 continue
             normalized, source_text = source
             if normalized in visited:
                 continue
+            if len(visited) >= MAX_REFERENCED_SOURCES:
+                raise RuntimeError("too many local writer references")
             visited.add(normalized)
             combined.append((normalized, source_text))
-            queue.append(source_text)
+            queue.append((normalized, source_text, depth + 1))
     return combined
 
 
@@ -447,6 +589,184 @@ jobs:
             ),
             [CANONICAL_WORKFLOW, "unsafe-secret.yaml"],
         )
+
+    def test_local_action_entrypoint_and_direct_script_are_resolved(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        local_action = """
+name: unsafe local action
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - uses: ./.github/actions/unsafe
+"""
+        direct_script = """
+name: unsafe direct script
+on:
+  workflow_run:
+    workflows: [upstream]
+    types: [completed]
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./.github/scripts/unsafe.sh
+"""
+        repo_files = {
+            ".github/actions/unsafe/action.yml": (
+                "runs:\n"
+                "  using: node20\n"
+                "  main: dist/index.js\n"
+            ),
+            ".github/actions/unsafe/dist/index.js": (
+                "client.upload_folder({repo_id: process.env.SPACE_ID})\n"
+            ),
+            ".github/scripts/unsafe.sh": (
+                "python -c 'HfApi().create_commit("
+                "repo_id=\"target\", operations=[])'\n"
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-action.yaml": local_action,
+                    "unsafe-script.yml": direct_script,
+                },
+                repo_files,
+            ),
+            [
+                CANONICAL_WORKFLOW,
+                "unsafe-action.yaml",
+                "unsafe-script.yml",
+            ],
+        )
+
+    def test_extensionless_writer_honors_static_working_directory(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe extensionless writer
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    defaults:
+      run:
+        working-directory: tools/deploy
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./publish
+"""
+        repo_files = {
+            "tools/deploy/publish": (
+                "client.upload_folder({repo_id: process.env.SPACE_ID})\n"
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-extensionless.yml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-extensionless.yml"],
+        )
+
+    def test_local_docker_action_sources_are_resolved(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe Docker action
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - uses: ./.github/actions/docker-writer
+"""
+        repo_files = {
+            ".github/actions/docker-writer/action.yml": (
+                "runs:\n"
+                "  using: docker\n"
+                "  image: Dockerfile\n"
+            ),
+            ".github/actions/docker-writer/Dockerfile": (
+                "FROM python:3.12-slim\n"
+                "COPY publish /usr/local/bin/publish\n"
+                'ENTRYPOINT ["/usr/local/bin/publish"]\n'
+            ),
+            ".github/actions/docker-writer/publish": (
+                "HfApi().create_commit(repo_id='target', operations=[])\n"
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-docker-action.yml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-docker-action.yml"],
+        )
+
+    def test_unbounded_local_writer_sources_fail_closed(self) -> None:
+        dynamic_directory = """
+name: dynamic writer
+on: [schedule]
+jobs:
+  mutate:
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - run: ./publish
+"""
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "dynamic working-directory cannot be bounded",
+        ):
+            find_automatic_writers(
+                {"dynamic-writer.yml": dynamic_directory},
+                {"publish": "print('not the resolved source')\n"},
+            )
+
+        docker_action = """
+name: unbounded Docker action
+on: [schedule]
+jobs:
+  mutate:
+    steps:
+      - uses: ./.github/actions/docker-writer
+"""
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Docker action COPY/ADD source cannot be bounded",
+        ):
+            find_automatic_writers(
+                {"docker-writer.yml": docker_action},
+                {
+                    ".github/actions/docker-writer/action.yml": (
+                        "runs:\n"
+                        "  using: docker\n"
+                        "  image: Dockerfile\n"
+                    ),
+                    ".github/actions/docker-writer/Dockerfile": (
+                        "FROM python:3.12-slim\n"
+                        "COPY . /app\n"
+                    ),
+                },
+            )
 
 
 if __name__ == "__main__":
