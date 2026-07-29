@@ -437,16 +437,10 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     assert workspace.integrity()["pending_effects"] == 0
 
 
-def test_bounded_drain_exports_both_effect_kinds_without_hard_links(
+def test_bounded_drain_exports_both_effect_kinds_atomically(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setattr(
-        "gdw_proofs.os.link",
-        lambda *_args: (_ for _ in ()).throw(
-            AssertionError("hard links must not be used")
-        ),
-    )
     app = make_app(tmp_path, monkeypatch)
     with TestClient(app) as client:
         result = client.post(

@@ -7,20 +7,28 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
     source_sha = "a" * 40
     database_generation_id = "b" * 32
     integrity_reads = 0
+    health_reads = 0
 
     def request_json(method, url, **_kwargs):
-        nonlocal integrity_reads
+        nonlocal health_reads, integrity_reads
         if url.endswith("/api/build-info"):
             return {"build": {"revision": source_sha}}
         if url.endswith("/gdw/healthz"):
+            health_reads += 1
             return {
                 "status": "REAL",
                 "write_ready": True,
+                "write_blockers": [],
                 "persistence": {
                     "storage": {
                         "journal_mode_observed": "DELETE",
                         "database_generation_id": database_generation_id,
-                    }
+                    },
+                    "drain": {
+                        "last_outcome": "SUCCEEDED",
+                        "last_attempt_at": f"attempt-{health_reads}",
+                        "last_success_at": f"success-{health_reads}",
+                    },
                 },
             }
         if method == "POST" and url.endswith("/gdw/step"):
@@ -34,16 +42,32 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
             return {
                 "failed": 0,
                 "pending_effects": 1,
+                "legacy_pending_proofs": 0,
                 "integrity_ok": True,
+                "database_generation_id": database_generation_id,
             }
         if method == "GET" and url.endswith("/gdw/integrity/global"):
             integrity_reads += 1
             pending = 1 if integrity_reads == 1 else 0
             return {
                 "ok": True,
+                "database_generation_id": database_generation_id,
                 "journal_mode": "DELETE",
+                "pending_proofs": 0,
                 "pending_effects": pending,
                 "claimed_effects": pending,
+                "dead_letter_effects": 0,
+                "invalid_effect_bindings": 0,
+                "invalid_exported_artifacts": 0,
+            }
+        if method == "GET" and url.endswith("/gdw/integrity"):
+            return {
+                "ok": True,
+                "database_generation_id": database_generation_id,
+                "journal_mode": "DELETE",
+                "pending_proofs": 0,
+                "pending_effects": 0,
+                "claimed_effects": 0,
                 "dead_letter_effects": 0,
                 "invalid_effect_bindings": 0,
                 "invalid_exported_artifacts": 0,
@@ -67,7 +91,8 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
         operator_token="operator-token-with-at-least-32-bytes",
     )
 
-    assert integrity_reads == 2
+    assert integrity_reads == 5
+    assert health_reads == 5
     assert report["drain"]["pending_effects"] == 1
     assert report["integrity"]["pending_effects"] == 0
 

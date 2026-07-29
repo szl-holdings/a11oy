@@ -1,14 +1,24 @@
 """Structured theorem-input export for asynchronous Lean checking."""
 
+import errno
 import hashlib
 import json
 import os
+import stat
+import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict
 
 
 _ARTIFACT_QUOTA_LOCK = threading.RLock()
+_TRANSIENT_LINK_ERRNOS = {
+    errno.ENOTSUP,
+    getattr(errno, "EOPNOTSUPP", errno.ENOTSUP),
+}
+_LINK_MAX_ATTEMPTS = 61
+_LINK_RETRY_SECONDS = 0.5
 
 
 def canonical_json(value: Any) -> str:
@@ -17,6 +27,42 @@ def canonical_json(value: Any) -> str:
 
 def sha256_json(value: Any) -> str:
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _read_existing_regular(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        if exc.errno == getattr(errno, "ELOOP", None):
+            raise FileExistsError(
+                "existing GDW artifact is not a regular file"
+            ) from None
+        raise
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise FileExistsError(
+                "existing GDW artifact is not a regular file"
+            )
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            return stream.read()
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _fsync_directory(path: Path) -> None:
+    if os.name != "posix":
+        return
+    descriptor = os.open(
+        path,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+    )
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def build_proof_payload(
@@ -88,11 +134,12 @@ def _export_json_artifact_unlocked(
     destination = owner_root / filename
     encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     expected_sha256 = hashlib.sha256(encoded).hexdigest()
-    if destination.exists():
-        if destination.read_bytes() != encoded:
+    if os.path.lexists(destination):
+        if _read_existing_regular(destination) != encoded:
             raise FileExistsError(
                 "refusing to overwrite an existing non-identical GDW artifact"
             )
+        _fsync_directory(owner_root)
         return {
             "status": "EXPORTED",
             "path": str(destination),
@@ -116,36 +163,49 @@ def _export_json_artifact_unlocked(
         raise RuntimeError("per-owner artifact quota exceeded")
     if sum(1 for _ in root.glob("*/*.json")) >= global_limit:
         raise RuntimeError("global artifact quota exceeded")
+    # A unique stage is owned only by this publisher. Process death can leave
+    # that hidden file unreferenced, but no retry or replica may delete an
+    # unknown concurrent stage or expose it as the final JSON artifact.
+    handle, staging = tempfile.mkstemp(
+        prefix=".gdw-artifact-",
+        suffix=".tmp",
+        dir=owner_root,
+    )
     reused = False
+    publication_mode = "HARD_LINK"
     try:
-        destination_handle = os.open(
-            destination,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-            0o600,
-        )
-    except FileExistsError:
-        if destination.read_bytes() != encoded:
-            raise FileExistsError(
-                "refusing to overwrite a concurrently created "
-                "non-identical GDW artifact"
-            )
-        reused = True
-    else:
-        stream = None
-        try:
-            stream = os.fdopen(destination_handle, "wb")
-            with stream:
-                stream.write(encoded)
-                stream.flush()
-                os.fsync(stream.fileno())
-        except BaseException:
-            if stream is None:
-                os.close(destination_handle)
+        with os.fdopen(handle, "wb") as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        for attempt in range(_LINK_MAX_ATTEMPTS):
             try:
-                os.unlink(destination)
-            except FileNotFoundError:
-                pass
-            raise
+                os.link(staging, destination)
+            except FileExistsError:
+                if _read_existing_regular(destination) != encoded:
+                    raise FileExistsError(
+                        "refusing to overwrite a concurrently created "
+                        "non-identical GDW artifact"
+                    )
+                reused = True
+                publication_mode = "REUSED"
+                break
+            except OSError as exc:
+                if (
+                    exc.errno not in _TRANSIENT_LINK_ERRNOS
+                    or attempt + 1 >= _LINK_MAX_ATTEMPTS
+                ):
+                    raise
+                publication_mode = "HARD_LINK_AFTER_FLUSH"
+                time.sleep(_LINK_RETRY_SECONDS)
+            else:
+                break
+        _fsync_directory(owner_root)
+    finally:
+        try:
+            os.unlink(staging)
+        except FileNotFoundError:
+            pass
     return {
         "status": "EXPORTED",
         "path": str(destination),
@@ -153,9 +213,7 @@ def _export_json_artifact_unlocked(
         "reused": reused,
         "immutable": True,
         "owner_scope": owner_scope,
-        "publication_mode": (
-            "REUSED" if reused else "EXCLUSIVE_CREATE"
-        ),
+        "publication_mode": publication_mode,
     }
 
 

@@ -51,6 +51,7 @@ def _live_response(method: str, url: str, **_kwargs):
                 "drain": {
                     "last_outcome": "SUCCEEDED",
                     "last_attempt_at": f"attempt-{_HEALTH_ATTEMPT}",
+                    "last_success_at": f"success-{_HEALTH_ATTEMPT}",
                 },
             },
         }
@@ -160,6 +161,69 @@ def test_live_proof_waits_for_supervised_drain_quiescence(monkeypatch):
     assert health_calls >= 3
     assert report["drain"]["pending_effects"] == 0
     assert report["global_integrity"]["claimed_effects"] == 0
+
+
+def test_convergence_counts_only_completed_supervisor_passes(monkeypatch):
+    health_calls = 0
+    drain_calls = 0
+    confirmation_at = []
+    completions = [
+        "2026-07-29T00:00:01+00:00",
+        "2026-07-29T00:00:01+00:00",
+        "2026-07-29T00:00:01+00:00",
+        "2026-07-29T00:00:02+00:00",
+        "2026-07-29T00:00:02+00:00",
+        "2026-07-29T00:00:03+00:00",
+    ]
+
+    def response(method: str, url: str, **_kwargs):
+        nonlocal health_calls, drain_calls
+        if method == "POST" and "/gdw/drain" in url:
+            drain_calls += 1
+            if drain_calls == 2:
+                confirmation_at.append(health_calls)
+            return {
+                "failed": 0,
+                "pending_effects": 0,
+                "legacy_pending_proofs": 0,
+                "integrity_ok": True,
+                "database_generation_id": GENERATION_ID,
+            }
+        if url.endswith("/gdw/integrity/global"):
+            return _complete_integrity()
+        if url.endswith("/gdw/healthz"):
+            marker = completions[health_calls]
+            health_calls += 1
+            return {
+                "status": "REAL",
+                "write_ready": True,
+                "write_blockers": [],
+                "persistence": {
+                    "storage": {
+                        "database_generation_id": GENERATION_ID,
+                    },
+                    "drain": {
+                        "last_outcome": "SUCCEEDED",
+                        "last_attempt_at": f"attempt-{health_calls}",
+                        "last_success_at": marker,
+                    },
+                },
+            }
+        raise AssertionError(f"unexpected request: {method} {url}")
+
+    monkeypatch.setattr(proof, "request_json", response)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    proof._prove_drain_convergence(
+        base="https://example.invalid",
+        operator_token="x" * 48,
+        database_generation_id=GENERATION_ID,
+        attempts=6,
+        delay_seconds=0,
+        required_stable_samples=3,
+    )
+
+    assert confirmation_at == [6]
 
 
 def test_live_proof_rejects_persistent_supervisor_failure(monkeypatch):

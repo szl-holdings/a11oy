@@ -108,6 +108,7 @@ def _safe_convergence_state(
         "write_blockers": health.get("write_blockers"),
         "supervisor_outcome": supervisor.get("last_outcome"),
         "supervisor_attempt_at": supervisor.get("last_attempt_at"),
+        "supervisor_success_at": supervisor.get("last_success_at"),
         "supervisor_errors": [
             value
             for value in (
@@ -165,7 +166,7 @@ def _prove_drain_convergence(
     last_health = None
     last_drain = None
     last_global_integrity = None
-    last_supervisor_attempt = None
+    last_supervisor_success = None
     stable_samples = 0
 
     try:
@@ -196,11 +197,11 @@ def _prove_drain_convergence(
                 token=operator_token,
             )
             last_global_integrity = global_integrity
-            supervisor_attempt = str(
+            supervisor_success = str(
                 (
                     (health.get("persistence") or {})
                     .get("drain", {})
-                    .get("last_attempt_at")
+                    .get("last_success_at")
                     or ""
                 )
             )
@@ -210,18 +211,18 @@ def _prove_drain_convergence(
                     global_integrity,
                     database_generation_id,
                 )
-                and supervisor_attempt
+                and supervisor_success
             ):
                 stable_samples = 0
-                last_supervisor_attempt = None
+                last_supervisor_success = None
                 last_error = "SUPERVISOR_NOT_QUIESCENT"
                 time.sleep(delay_seconds)
                 continue
-            if supervisor_attempt == last_supervisor_attempt:
-                last_error = "AWAITING_SUCCESSIVE_SUPERVISOR_INTERVAL"
+            if supervisor_success == last_supervisor_success:
+                last_error = "AWAITING_SUCCESSIVE_SUPERVISOR_COMPLETION"
                 time.sleep(delay_seconds)
                 continue
-            last_supervisor_attempt = supervisor_attempt
+            last_supervisor_success = supervisor_success
             stable_samples += 1
             if stable_samples < required_stable_samples:
                 last_error = "AWAITING_STABLE_SUPERVISOR_SAMPLES"
@@ -251,11 +252,11 @@ def _prove_drain_convergence(
                     return confirmed_drain, confirmed_integrity
             last_error = "CONFIRMATION_DRAIN_INCOMPLETE"
             stable_samples = 0
-            last_supervisor_attempt = None
+            last_supervisor_success = None
         except Exception as exc:
             last_error = f"CONVERGENCE_{type(exc).__name__}"
             stable_samples = 0
-            last_supervisor_attempt = None
+            last_supervisor_success = None
         time.sleep(delay_seconds)
 
     safe_state = _safe_convergence_state(
