@@ -3,6 +3,7 @@
 import hashlib
 import json
 import sys
+import threading
 import types
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -60,6 +61,7 @@ def make_app(tmp_path, monkeypatch):
     monkeypatch.setenv("GDW_PROOF_EXPORT_MODE", "outbox")
     monkeypatch.setenv("GDW_POLICY_ORIGIN", "https://policy.example.test")
     monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
+    monkeypatch.setattr(gdw_frontier, "_canonical_policy_ready", lambda: True)
     monkeypatch.setattr(
         gdw_frontier,
         "_canonical_policy_evaluate",
@@ -240,6 +242,84 @@ def test_same_session_concurrency_is_monotonic(tmp_path, monkeypatch):
         ).json()
     assert state["step"] == 24
     assert integrity["ok"] is True
+
+
+def test_replay_does_not_mint_another_policy_receipt(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    calls = []
+
+    def evaluate(action):
+        calls.append(action)
+        return {
+            "decision": "allow",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": hashlib.sha256(
+                json.dumps(action, sort_keys=True).encode("utf-8")
+            ).hexdigest(),
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+        }
+
+    monkeypatch.setattr(gdw_frontier, "_canonical_policy_evaluate", evaluate)
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(),
+            headers=headers("side-effect-free-replay"),
+        )
+        replay = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(),
+            headers=headers("side-effect-free-replay"),
+        )
+
+    assert first.status_code == replay.status_code == 200
+    assert replay.json()["replayed"] is True
+    assert len(calls) == 1
+
+
+def test_unrelated_sessions_evaluate_policy_concurrently(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    rendezvous = threading.Barrier(2)
+    counter_lock = threading.Lock()
+    active = 0
+    max_active = 0
+
+    def evaluate(action):
+        nonlocal active, max_active
+        with counter_lock:
+            active += 1
+            max_active = max(max_active, active)
+        try:
+            rendezvous.wait(timeout=5)
+        finally:
+            with counter_lock:
+                active -= 1
+        return {
+            "decision": "allow",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": hashlib.sha256(
+                json.dumps(action, sort_keys=True).encode("utf-8")
+            ).hexdigest(),
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+        }
+
+    monkeypatch.setattr(gdw_frontier, "_canonical_policy_evaluate", evaluate)
+
+    def send(index):
+        with TestClient(app) as client:
+            return client.post(
+                "/api/a11oy/v1/gdw/step",
+                json=payload(session_id=f"parallel-session-{index}"),
+                headers=headers(f"parallel-request-{index}"),
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(send, range(2)))
+
+    assert all(response.status_code == 200 for response in responses)
+    assert max_active == 2
 
 
 def test_metrics_and_bench_meta(tmp_path, monkeypatch):
@@ -609,6 +689,21 @@ def test_health_requires_governance_readiness(tmp_path, monkeypatch):
     assert body["write_ready"] is False
     assert body["governance_ready"] is False
     assert body["credential_count"] == 2
+
+
+def test_health_requires_live_canonical_policy_and_signer(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(gdw_frontier, "_canonical_policy_ready", lambda: False)
+    with TestClient(app) as client:
+        response = client.get("/api/a11oy/v1/gdw/healthz")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_ready"] is False
+    assert body["write_blockers"] == [
+        "CANONICAL_POLICY_GATEWAY_UNAVAILABLE"
+    ]
 
 
 def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):

@@ -40,14 +40,44 @@ _TELEMETRY = GDWTelemetry()
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _EXPERTS = {"planner", "retriever", "auditor", "verifier", "operator"}
 _AUTH_LOCK = threading.RLock()
-_STEP_WRITE_LOCK = threading.Lock()
+_STEP_WRITE_LOCKS = tuple(threading.Lock() for _ in range(1024))
+_POLICY_READINESS_LOCK = threading.Lock()
+_POLICY_READINESS_CACHE = {
+    "origin": None,
+    "checked_at": 0.0,
+    "ready": False,
+}
 _AUTH_REGISTRY = None
 _AUTH_FINGERPRINT = None
 
 
-async def _acquire_step_write_lock() -> None:
-    while not _STEP_WRITE_LOCK.acquire(blocking=False):
-        await asyncio.sleep(0.01)
+def _step_write_locks(
+    namespace: str,
+    owner_id: str,
+    session_id: str,
+    request_id: str,
+) -> tuple[threading.Lock, ...]:
+    indexes = set()
+    for scope, value in (("session", session_id), ("request", request_id)):
+        key = "\x00".join((scope, namespace, owner_id, value)).encode("utf-8")
+        digest = hashlib.sha256(key).digest()
+        indexes.add(int.from_bytes(digest[:4], "big") % len(_STEP_WRITE_LOCKS))
+    return tuple(_STEP_WRITE_LOCKS[index] for index in sorted(indexes))
+
+
+async def _acquire_step_write_locks(
+    locks: tuple[threading.Lock, ...],
+) -> None:
+    acquired = []
+    try:
+        for lock in locks:
+            while not lock.acquire(blocking=False):
+                await asyncio.sleep(0.01)
+            acquired.append(lock)
+    except BaseException:
+        for lock in reversed(acquired):
+            lock.release()
+        raise
 
 
 class GDWStepRequest(BaseModel):
@@ -280,6 +310,9 @@ def _write_readiness(
         _policy_gateway_origin()
     except RuntimeError:
         blockers.append("CANONICAL_POLICY_GATEWAY_UNCONFIGURED")
+    else:
+        if not _canonical_policy_ready():
+            blockers.append("CANONICAL_POLICY_GATEWAY_UNAVAILABLE")
     return (
         not blockers,
         sorted(set(blockers)),
@@ -375,6 +408,81 @@ def _policy_gateway_origin() -> str:
     if not origin.startswith("https://"):
         raise RuntimeError("GDW_POLICY_ORIGIN must be an HTTPS origin")
     return origin
+
+
+def _policy_readiness_timeout() -> float:
+    try:
+        configured = float(
+            os.environ.get("GDW_POLICY_READINESS_TIMEOUT_SECONDS", "3")
+        )
+    except ValueError:
+        configured = 3.0
+    return min(10.0, max(0.25, configured))
+
+
+def _policy_readiness_ttl() -> float:
+    try:
+        configured = float(
+            os.environ.get("GDW_POLICY_READINESS_TTL_SECONDS", "15")
+        )
+    except ValueError:
+        configured = 15.0
+    return min(300.0, max(1.0, configured))
+
+
+def _policy_gateway_json(path: str) -> dict:
+    request = UrlRequest(
+        _policy_gateway_origin() + path,
+        headers={"Accept": "application/json"},
+        method="GET",
+    )
+    with urlopen(request, timeout=_policy_readiness_timeout()) as response:
+        if response.status != 200:
+            raise RuntimeError("canonical policy readiness returned non-200")
+        result = json.loads(response.read().decode("utf-8"))
+    if not isinstance(result, dict):
+        raise RuntimeError("canonical policy readiness returned non-object JSON")
+    return result
+
+
+def _canonical_policy_ready() -> bool:
+    origin = _policy_gateway_origin()
+    now = time.monotonic()
+    with _POLICY_READINESS_LOCK:
+        if (
+            _POLICY_READINESS_CACHE["origin"] == origin
+            and now - float(_POLICY_READINESS_CACHE["checked_at"])
+            <= _policy_readiness_ttl()
+        ):
+            return bool(_POLICY_READINESS_CACHE["ready"])
+        ready = False
+        try:
+            health = _policy_gateway_json("/api/a11oy/v1/healthz")
+            signing = _policy_gateway_json("/api/a11oy/v1/signing-status")
+            backend = health.get("backend_health")
+            backend_ready = (
+                str(health.get("status") or "").lower() in {"ok", "ready"}
+                and (
+                    not isinstance(backend, dict)
+                    or backend.get("alive") is True
+                )
+            )
+            dsse_keyid = str(signing.get("dsse_keyid") or "")
+            signer_ready = (
+                signing.get("key_persistent") is True
+                and re.fullmatch(r"[0-9a-f]{16}", dsse_keyid) is not None
+            )
+            ready = backend_ready and signer_ready
+        except Exception:
+            ready = False
+        _POLICY_READINESS_CACHE.update(
+            {
+                "origin": origin,
+                "checked_at": time.monotonic(),
+                "ready": ready,
+            }
+        )
+        return ready
 
 
 def _canonical_policy_evaluate(action: dict) -> dict:
@@ -786,7 +894,7 @@ def register(app, ns: str = "a11oy"):
             namespace=ns,
             required_scopes=("step:write",),
         )
-        _require_write_ready(ns)
+        await asyncio.to_thread(_require_write_ready, ns)
         try:
             raw_payload = await request.json()
         except Exception as exc:
@@ -802,36 +910,16 @@ def register(app, ns: str = "a11oy"):
         decision = "ERROR"
         receipt_hash = ""
 
-        await _acquire_step_write_lock()
+        workspace = _workspace(principal)
+        step_write_locks = _step_write_locks(
+            principal.namespace,
+            principal.owner_id,
+            payload.session_id,
+            request_id,
+        )
+        await _acquire_step_write_locks(step_write_locks)
         try:
-            workspace = _workspace(principal)
             authorised_generation_id = workspace.database_generation_id
-            with workspace.transaction() as connection:
-                authorised_previous = workspace.session_state(
-                    connection,
-                    payload.session_id,
-                )
-                if authorised_previous is None:
-                    authorised_state_hash = _sha(
-                        {
-                            "namespace": principal.namespace,
-                            "owner_id": principal.owner_id,
-                            "session_id": payload.session_id,
-                            "step": 0,
-                            "state": "GENESIS",
-                        }
-                    )
-                else:
-                    authorised_state_hash = authorised_previous["state_hash"]
-            precondition_decision = _decision(payload)
-            governance = await _governance_gate(
-                payload_data,
-                request_id,
-                request_digest,
-                principal,
-                authorised_generation_id,
-                authorised_state_hash,
-            )
             with workspace.transaction() as connection:
                 cached = workspace.cached_request(connection, request_id)
                 if cached is not None:
@@ -864,7 +952,32 @@ def register(app, ns: str = "a11oy"):
                         False,
                     )
                     return cached_response
-
+                authorised_previous = workspace.session_state(
+                    connection,
+                    payload.session_id,
+                )
+                if authorised_previous is None:
+                    authorised_state_hash = _sha(
+                        {
+                            "namespace": principal.namespace,
+                            "owner_id": principal.owner_id,
+                            "session_id": payload.session_id,
+                            "step": 0,
+                            "state": "GENESIS",
+                        }
+                    )
+                else:
+                    authorised_state_hash = authorised_previous["state_hash"]
+            precondition_decision = _decision(payload)
+            governance = await _governance_gate(
+                payload_data,
+                request_id,
+                request_digest,
+                principal,
+                authorised_generation_id,
+                authorised_state_hash,
+            )
+            with workspace.transaction() as connection:
                 previous = workspace.session_state(connection, payload.session_id)
                 if previous is None:
                     before_step = 0
@@ -1133,7 +1246,8 @@ def register(app, ns: str = "a11oy"):
                 detail=f"GDW transition failed closed: {type(exc).__name__}",
             ) from exc
         finally:
-            _STEP_WRITE_LOCK.release()
+            for lock in reversed(step_write_locks):
+                lock.release()
 
     return {
         "ok": True,
