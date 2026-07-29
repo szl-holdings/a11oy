@@ -2189,18 +2189,22 @@ class GDWWorkspace:
         artifact: Dict[str, Any],
         exported_at: str,
         *,
+        expected_payload: Dict[str, Any],
+        expected_payload_sha256: str,
         namespace: Optional[str] = None,
         owner_id: Optional[str] = None,
     ) -> None:
         ns, owner = self._identity(namespace, owner_id)
         artifact_text = _json_text(artifact)
+        expected_payload_text = _json_text(expected_payload)
         with self.transaction() as connection:
             updated = connection.execute(
                 """
                 UPDATE proof_outbox
                 SET status = 'EXPORTED', artifact_json = ?, exported_at = ?
                 WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
-                      AND status = 'PENDING'
+                      AND status = 'PENDING' AND payload_json = ?
+                      AND payload_sha256 = ?
                 """,
                 (
                     artifact_text,
@@ -2208,10 +2212,14 @@ class GDWWorkspace:
                     ns,
                     owner,
                     proposal_id,
+                    expected_payload_text,
+                    expected_payload_sha256,
                 ),
             )
             if updated.rowcount != 1:
-                raise RuntimeError("proof is absent, exported, or owned elsewhere")
+                raise RuntimeError(
+                    "proof is absent, changed, exported, or owned elsewhere"
+                )
             self._reserve_usage(
                 connection,
                 ns,
