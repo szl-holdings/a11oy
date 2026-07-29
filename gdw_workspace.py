@@ -665,9 +665,11 @@ class GDWWorkspace:
                         "v2 proof effect differs from persisted request"
                     )
                 rebound_response = dict(response)
+                rebound_response["request_id"] = request_id
                 rebound_response["request_digest"] = str(
                     request_row["request_digest"]
                 )
+                rebound_response["session_id"] = str(request_row["session_id"])
                 rebound_response["database_generation_id"] = generation
                 rebound_response["principal"] = principal
                 rebound_response["proposal_id"] = hashlib.sha256(
@@ -1026,7 +1028,8 @@ class GDWWorkspace:
         ns, owner = self._identity(namespace, owner_id)
         row = connection.execute(
             """
-            SELECT request_digest, response_json, lifecycle
+            SELECT namespace, owner_id, request_id, request_digest, session_id,
+                   response_json, response_hash, lifecycle
             FROM requests
             WHERE namespace = ? AND owner_id = ? AND request_id = ?
             """,
@@ -1036,7 +1039,54 @@ class GDWWorkspace:
             return None
         if row["lifecycle"] != "ACTIVE" or row["response_json"] is None:
             raise GDWLifecycleError("idempotency record is outside its replay window")
-        return row["request_digest"], json.loads(row["response_json"])
+        try:
+            response = json.loads(row["response_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError(
+                "idempotency response is not canonical JSON"
+            ) from exc
+        if not isinstance(response, dict):
+            raise GDWConfigurationError("idempotency response is not an object")
+        observed_hash = hashlib.sha256(
+            _json_text(response).encode("utf-8")
+        ).hexdigest()
+        expected_identity = {
+            "request_id": row["request_id"],
+            "request_digest": row["request_digest"],
+            "session_id": row["session_id"],
+            "database_generation_id": self.database_generation_id,
+        }
+        if observed_hash != row["response_hash"] or any(
+            response.get(field) != expected
+            for field, expected in expected_identity.items()
+        ):
+            raise GDWConfigurationError(
+                "idempotency response digest or identity is invalid"
+            )
+        principal = response.get("principal")
+        if not isinstance(principal, dict) or (
+            principal.get("namespace") != row["namespace"]
+            or principal.get("owner_id") != row["owner_id"]
+        ):
+            raise GDWConfigurationError(
+                "idempotency response principal identity is invalid"
+            )
+        receipt_hash = response.get("receipt_hash")
+        if receipt_hash:
+            receipt_anchor = self._receipt_anchor(
+                connection,
+                row["namespace"],
+                row["owner_id"],
+                row["request_id"],
+            )
+            if (
+                receipt_anchor["receipt_hash"] != receipt_hash
+                or receipt_anchor["receipt"].get("session_id") != row["session_id"]
+            ):
+                raise GDWConfigurationError(
+                    "idempotency response receipt binding is invalid"
+                )
+        return row["request_digest"], response
 
     def session_state(
         self,
@@ -1049,8 +1099,8 @@ class GDWWorkspace:
         ns, owner = self._identity(namespace, owner_id)
         row = connection.execute(
             """
-            SELECT step, state_json, state_hash, updated_at, lifecycle,
-                   expires_at
+            SELECT namespace, owner_id, session_id, step, state_json, state_hash,
+                   updated_at, lifecycle, expires_at
             FROM session_state
             WHERE namespace = ? AND owner_id = ? AND session_id = ?
             """,
@@ -1058,20 +1108,36 @@ class GDWWorkspace:
         ).fetchone()
         if row is None or row["lifecycle"] != "ACTIVE" or row["state_json"] is None:
             return None
-        connection.execute(
-            """
-            UPDATE session_state SET last_accessed_at = ?
-            WHERE namespace = ? AND owner_id = ? AND session_id = ?
-            """,
-            (_text_time(), ns, owner, session_id),
-        )
+        try:
+            state = json.loads(row["state_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError("session state is not canonical JSON") from exc
+        if not isinstance(state, dict):
+            raise GDWConfigurationError("session state is not an object")
+        observed_hash = hashlib.sha256(
+            _json_text(state).encode("utf-8")
+        ).hexdigest()
+        expected_identity = {
+            "namespace": row["namespace"],
+            "owner_id": row["owner_id"],
+            "session_id": row["session_id"],
+            "step": int(row["step"]),
+            "database_generation_id": self.database_generation_id,
+        }
+        if observed_hash != row["state_hash"] or any(
+            state.get(field) != expected
+            for field, expected in expected_identity.items()
+        ):
+            raise GDWConfigurationError(
+                "session state digest or identity is invalid"
+            )
         return {
             "namespace": ns,
             "owner_id": owner,
             "session_id": session_id,
             "database_generation_id": self.database_generation_id,
             "step": int(row["step"]),
-            "state": json.loads(row["state_json"]),
+            "state": state,
             "state_hash": row["state_hash"],
             "updated_at": row["updated_at"],
             "expires_at": row["expires_at"],
@@ -2265,9 +2331,127 @@ class GDWWorkspace:
         finally:
             connection.close()
 
+    def lifecycle_identities(self) -> list[Tuple[str, str]]:
+        """Return principals whose retained state may need supervised cleanup."""
+
+        connection = self._connect()
+        try:
+            rows = connection.execute(
+                """
+                SELECT namespace, owner_id FROM session_state
+                UNION SELECT namespace, owner_id FROM requests
+                UNION SELECT namespace, owner_id FROM receipts
+                UNION SELECT namespace, owner_id FROM proof_outbox
+                UNION SELECT namespace, owner_id FROM effect_outbox
+                ORDER BY namespace, owner_id
+                """
+            ).fetchall()
+            return [(row["namespace"], row["owner_id"]) for row in rows]
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _reconcile_identity_usage(
+        connection: sqlite3.Connection,
+        namespace: str,
+        owner_id: str,
+    ) -> None:
+        timestamp = _text_time()
+        sessions = int(
+            connection.execute(
+                """
+                SELECT COUNT(*) FROM session_state
+                WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
+                """,
+                (namespace, owner_id),
+            ).fetchone()[0]
+        )
+        requests = int(
+            connection.execute(
+                """
+                SELECT COUNT(*) FROM requests
+                WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
+                """,
+                (namespace, owner_id),
+            ).fetchone()[0]
+        )
+        pending = int(
+            connection.execute(
+                """
+                SELECT
+                  (SELECT COUNT(*) FROM effect_outbox
+                   WHERE namespace = ? AND owner_id = ?
+                     AND status IN ('PENDING', 'CLAIMED')) +
+                  (SELECT COUNT(*) FROM proof_outbox
+                   WHERE namespace = ? AND owner_id = ? AND status = 'PENDING')
+                """,
+                (namespace, owner_id, namespace, owner_id),
+            ).fetchone()[0]
+        )
+        stored = int(
+            connection.execute(
+                """
+                SELECT
+                  COALESCE((SELECT SUM(LENGTH(CAST(state_json AS BLOB)))
+                            FROM session_state
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(LENGTH(CAST(response_json AS BLOB)))
+                            FROM requests
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(LENGTH(CAST(receipt_json AS BLOB)))
+                            FROM receipts
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(
+                              LENGTH(CAST(payload_json AS BLOB)) +
+                              COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
+                            FROM proof_outbox
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(
+                              LENGTH(CAST(payload_json AS BLOB)) +
+                              COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
+                            FROM effect_outbox
+                            WHERE namespace = ? AND owner_id = ?), 0)
+                """,
+                (
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                ),
+            ).fetchone()[0]
+        )
+        connection.execute(
+            """
+            INSERT INTO usage(
+                namespace, owner_id, active_sessions, active_requests,
+                pending_effects, stored_bytes, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(namespace, owner_id) DO UPDATE SET
+                active_sessions = excluded.active_sessions,
+                active_requests = excluded.active_requests,
+                pending_effects = excluded.pending_effects,
+                stored_bytes = excluded.stored_bytes,
+                updated_at = excluded.updated_at
+            """,
+            (
+                namespace,
+                owner_id,
+                sessions,
+                requests,
+                pending,
+                stored,
+                timestamp,
+            ),
+        )
+
     @staticmethod
     def _reconcile_usage(connection: sqlite3.Connection) -> None:
-        timestamp = _text_time()
         identities = connection.execute(
             """
             SELECT namespace, owner_id FROM session_state
@@ -2279,73 +2463,10 @@ class GDWWorkspace:
         ).fetchall()
         connection.execute("DELETE FROM usage")
         for identity in identities:
-            ns, owner = identity["namespace"], identity["owner_id"]
-            sessions = int(
-                connection.execute(
-                    """
-                    SELECT COUNT(*) FROM session_state
-                    WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
-                    """,
-                    (ns, owner),
-                ).fetchone()[0]
-            )
-            requests = int(
-                connection.execute(
-                    """
-                    SELECT COUNT(*) FROM requests
-                    WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
-                    """,
-                    (ns, owner),
-                ).fetchone()[0]
-            )
-            pending = int(
-                connection.execute(
-                    """
-                    SELECT
-                      (SELECT COUNT(*) FROM effect_outbox
-                       WHERE namespace = ? AND owner_id = ?
-                         AND status IN ('PENDING', 'CLAIMED')) +
-                      (SELECT COUNT(*) FROM proof_outbox
-                       WHERE namespace = ? AND owner_id = ? AND status = 'PENDING')
-                    """,
-                    (ns, owner, ns, owner),
-                ).fetchone()[0]
-            )
-            stored = int(
-                connection.execute(
-                    """
-                    SELECT
-                      COALESCE((SELECT SUM(LENGTH(CAST(state_json AS BLOB)))
-                                FROM session_state
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(LENGTH(CAST(response_json AS BLOB)))
-                                FROM requests
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(LENGTH(CAST(receipt_json AS BLOB)))
-                                FROM receipts
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(
-                                  LENGTH(CAST(payload_json AS BLOB)) +
-                                  COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
-                                FROM proof_outbox
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(
-                                  LENGTH(CAST(payload_json AS BLOB)) +
-                                  COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
-                                FROM effect_outbox
-                                WHERE namespace = ? AND owner_id = ?), 0)
-                    """,
-                    (ns, owner, ns, owner, ns, owner, ns, owner, ns, owner),
-                ).fetchone()[0]
-            )
-            connection.execute(
-                """
-                INSERT INTO usage(
-                    namespace, owner_id, active_sessions, active_requests,
-                    pending_effects, stored_bytes, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (ns, owner, sessions, requests, pending, stored, timestamp),
+            GDWWorkspace._reconcile_identity_usage(
+                connection,
+                identity["namespace"],
+                identity["owner_id"],
             )
 
     def reconcile_usage(self) -> Dict[str, int]:
@@ -2547,7 +2668,7 @@ class GDWWorkspace:
                 (ns, owner, purge_before),
             ).rowcount
             result["tombstones_purged"] = purged
-            self._reconcile_usage(connection)
+            self._reconcile_identity_usage(connection, ns, owner)
         return result
 
     def integrity(
@@ -2556,9 +2677,12 @@ class GDWWorkspace:
         namespace: Optional[str] = None,
         owner_id: Optional[str] = None,
         global_scope: bool = False,
+        connection: Optional[sqlite3.Connection] = None,
     ) -> Dict[str, Any]:
         ns, owner = self._identity(namespace, owner_id)
-        connection = self._connect()
+        owns_connection = connection is None
+        if connection is None:
+            connection = self._connect()
         try:
             check = connection.execute("PRAGMA integrity_check").fetchone()[0]
             predicate = "" if global_scope else " WHERE namespace = ? AND owner_id = ?"
@@ -2634,6 +2758,144 @@ class GDWWorkspace:
                     params,
                 ).fetchone()[0]
             )
+            digest_violations = {
+                "invalid_state_digests": 0,
+                "invalid_request_digests": 0,
+                "invalid_receipt_digests": 0,
+                "invalid_proof_digests": 0,
+            }
+            scoped_suffix = (
+                ""
+                if global_scope
+                else " WHERE namespace = ? AND owner_id = ?"
+            )
+            for row in connection.execute(
+                "SELECT namespace, owner_id, session_id, step, state_json, "
+                "state_hash FROM session_state"
+                + scoped_suffix,
+                params,
+            ):
+                if row["state_json"] is None:
+                    continue
+                try:
+                    state = json.loads(row["state_json"])
+                    observed = hashlib.sha256(
+                        _json_text(state).encode("utf-8")
+                    ).hexdigest()
+                    expected_identity = {
+                        "namespace": row["namespace"],
+                        "owner_id": row["owner_id"],
+                        "session_id": row["session_id"],
+                        "step": int(row["step"]),
+                        "database_generation_id": self.database_generation_id,
+                    }
+                    if (
+                        not isinstance(state, dict)
+                        or observed != row["state_hash"]
+                        or any(
+                            state.get(field) != expected
+                            for field, expected in expected_identity.items()
+                        )
+                    ):
+                        raise ValueError("state digest mismatch")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    digest_violations["invalid_state_digests"] += 1
+            for row in connection.execute(
+                "SELECT namespace, owner_id, request_id, request_digest, "
+                "session_id, response_json, response_hash FROM requests"
+                + scoped_suffix,
+                params,
+            ):
+                if row["response_json"] is None:
+                    continue
+                try:
+                    response = json.loads(row["response_json"])
+                    observed = hashlib.sha256(
+                        _json_text(response).encode("utf-8")
+                    ).hexdigest()
+                    principal = (
+                        response.get("principal")
+                        if isinstance(response, dict)
+                        else None
+                    )
+                    expected_identity = {
+                        "request_id": row["request_id"],
+                        "request_digest": row["request_digest"],
+                        "session_id": row["session_id"],
+                        "database_generation_id": self.database_generation_id,
+                    }
+                    if (
+                        not isinstance(response, dict)
+                        or observed != row["response_hash"]
+                        or any(
+                            response.get(field) != expected
+                            for field, expected in expected_identity.items()
+                        )
+                        or not isinstance(principal, dict)
+                        or principal.get("namespace") != row["namespace"]
+                        or principal.get("owner_id") != row["owner_id"]
+                    ):
+                        raise ValueError("request digest mismatch")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    digest_violations["invalid_request_digests"] += 1
+            for row in connection.execute(
+                "SELECT namespace, owner_id, request_id, session_id, step, "
+                "receipt_json, receipt_hash FROM receipts"
+                + scoped_suffix,
+                params,
+            ):
+                if row["receipt_json"] is None:
+                    continue
+                try:
+                    receipt = json.loads(row["receipt_json"])
+                    if not isinstance(receipt, dict):
+                        raise ValueError("receipt must be an object")
+                    claimed = str(receipt.pop("receipt_hash", ""))
+                    observed = hashlib.sha256(
+                        _json_text(receipt).encode("utf-8")
+                    ).hexdigest()
+                    expected_identity = {
+                        "namespace": row["namespace"],
+                        "owner_id": row["owner_id"],
+                        "request_id": row["request_id"],
+                        "session_id": row["session_id"],
+                        "step": int(row["step"]),
+                        "database_generation_id": self.database_generation_id,
+                    }
+                    if (
+                        claimed != row["receipt_hash"]
+                        or observed != row["receipt_hash"]
+                        or any(
+                            receipt.get(field) != expected
+                            for field, expected in expected_identity.items()
+                        )
+                    ):
+                        raise ValueError("receipt digest mismatch")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    digest_violations["invalid_receipt_digests"] += 1
+            for row in connection.execute(
+                "SELECT payload_json, payload_sha256 FROM proof_outbox"
+                + scoped_suffix,
+                params,
+            ):
+                if row["payload_json"] is None:
+                    continue
+                try:
+                    payload = json.loads(row["payload_json"])
+                    if not isinstance(payload, dict):
+                        raise ValueError("proof payload must be an object")
+                    observed = self._effect_payload_digest(
+                        "proof_export", payload
+                    )
+                    if observed != row["payload_sha256"]:
+                        raise ValueError("proof digest mismatch")
+                except (
+                    GDWConfigurationError,
+                    TypeError,
+                    ValueError,
+                    json.JSONDecodeError,
+                ):
+                    digest_violations["invalid_proof_digests"] += 1
             effect_rows = connection.execute(
                 """
                 SELECT namespace, owner_id, idempotency_key,
@@ -2678,6 +2940,7 @@ class GDWWorkspace:
                 "ok": (
                     check == "ok"
                     and orphan_receipts == 0
+                    and not any(digest_violations.values())
                     and invalid_effect_bindings == 0
                     and invalid_exported_artifacts == 0
                 ),
@@ -2691,6 +2954,7 @@ class GDWWorkspace:
                 "dead_letter_effects": dead_letter_effects,
                 "invalid_effect_bindings": invalid_effect_bindings,
                 "invalid_exported_artifacts": invalid_exported_artifacts,
+                **digest_violations,
                 "counts": counts,
                 "scope": "global" if global_scope else "owner",
                 "journal_mode": str(
@@ -2705,4 +2969,5 @@ class GDWWorkspace:
                 result["owner_id"] = owner
             return result
         finally:
-            connection.close()
+            if owns_connection:
+                connection.close()
