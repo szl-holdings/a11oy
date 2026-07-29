@@ -202,9 +202,9 @@ def _runtime_workspace() -> GDWWorkspace:
     _effect_limits()
     _strict_policy()
     workspace = GDWWorkspace()
-    integrity = workspace.integrity()
-    if not integrity["ok"]:
-        raise RuntimeError("GDW workspace integrity gate is closed")
+    readiness = workspace.readiness()
+    if not readiness["ok"]:
+        raise RuntimeError("GDW workspace readiness gate is closed")
     return workspace
 
 
@@ -410,6 +410,7 @@ def register(app, ns: str = "a11oy"):
                 "persistence": f"SQLITE_{workspace.journal_mode}",
                 "generation_id": workspace.generation_id(),
                 "external_effects": "OUTBOX_ONLY",
+                "storage_assurance": "UNVERIFIED",
                 "benchmark_claim": "UNMEASURED",
             }
         except Exception as exc:
@@ -420,7 +421,8 @@ def register(app, ns: str = "a11oy"):
                 "write_ready": False,
                 "persistence": "SQLITE_CONFIGURATION_GATED",
                 "external_effects": "DISABLED",
-                "reason": f"semantic gate closed: {type(exc).__name__}",
+                "reason": f"readiness gate closed: {type(exc).__name__}",
+                "storage_assurance": "UNVERIFIED",
                 "benchmark_claim": "UNMEASURED",
             }
 
@@ -441,7 +443,11 @@ def register(app, ns: str = "a11oy"):
                 status_code=503,
                 detail=f"GDW effect drain failed closed: {type(exc).__name__}",
             ) from exc
-        if result["failed"] or not result["integrity_ok"]:
+        if (
+            result["failed"]
+            or result["gc_failed"]
+            or not result["integrity_ok"]
+        ):
             raise HTTPException(status_code=503, detail=result)
         return result
 
@@ -499,6 +505,12 @@ def register(app, ns: str = "a11oy"):
             state = workspace.read_session(session_id, principal["principal_id"])
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"GDW session integrity failed closed: "
+                f"{type(exc).__name__}",
+            ) from exc
         if state is None:
             raise HTTPException(status_code=404, detail="session not found")
         return state

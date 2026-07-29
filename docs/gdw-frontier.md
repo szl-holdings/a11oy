@@ -1,7 +1,7 @@
 # Governed Delta Workspace operational harness
 
 GDW binds an authenticated FastAPI control surface to deny-by-default routing,
-the canonical file-backed Colang policy, SQLite WAL state, idempotency keys,
+the canonical file-backed Colang policy, configurable SQLite state, idempotency keys,
 atomic local receipts, structured theorem inputs, load tooling, and an offline
 evidence dashboard.
 
@@ -9,10 +9,10 @@ evidence dashboard.
 
 > GDW Frontier Push Pack is a MODELED instrumentation and verification extension for the Governed Delta Workspace. It provides load testing, operator validation, hybrid scheduling research hooks, KDA-vs-MLA memory benchmarking, and Lean-oriented proof export. It does not claim frontier benchmark superiority, proprietary activation access, or production-scale guarantees beyond the measured harness outputs.
 
-The successor implementation is real code on a draft branch. It is not merged,
-deployed, or production-verified. Protected `main` continues to expose the
-Wave-26/Wave-28 consolidation hold until this successor receives independent
-review and a protected merge. The protected deployment path now provisions a
+The successor implementation is merged real code. Live production status is
+still deployment-gated until the exact served source, authenticated fresh
+transition, drain convergence, and integrity evidence are observed together.
+The protected deployment path provisions a
 fresh `/data/a11oy/gdw/v2` generation, installs only a digest-bound principal
 registry in the Space secret store, exercises an authenticated state
 transition, drains its two effects, and requires a clean integrity result.
@@ -40,7 +40,9 @@ Set `GDW_PRINCIPALS_JSON`, `GDW_DB_PATH`, `GDW_PROOF_DIR`,
 `GDW_RECEIPT_PROJECTION_DIR`, and `GDW_SQLITE_JOURNAL`, then start `serve:app`.
 The canonical Hugging Face promotion uses a fresh `/data/a11oy/gdw/v2`
 generation and `GDW_SQLITE_JOURNAL=DELETE`; WAL remains the local-filesystem
-default and is not asserted portable across the mounted network volume.
+default. DELETE is a compatibility selection, not proof of mounted-volume
+locking, fsync, or crash correctness; storage assurance remains `UNVERIFIED`
+until a dedicated restart/concurrent-writer qualification passes.
 `GDW_PRINCIPALS_JSON` is an object keyed by canonical principal ID. Each value
 contains a lowercase SHA-256 bearer-token digest and a non-empty subset of the
 `user` and `admin` roles. Plaintext bearer tokens are not stored in the registry.
@@ -57,11 +59,15 @@ metrics, and integrity. These finite controls are configurable within hard caps:
 - `GDW_OWNER_MAX_ARTIFACTS` and `GDW_GLOBAL_MAX_ARTIFACTS`;
 - `GDW_RETENTION_SECONDS` and `GDW_MAX_EFFECT_ATTEMPTS`.
 
-Expired requests are reclaimed only after every effect is exported. Expired
-session state is reclaimed. Invalid configuration, a policy byte-lock mismatch,
+Expired requests are reclaimed only after every effect is exported. Their
+owner-bound receipt/proof files enter a durable, token-fenced artifact-GC
+outbox and are digest-checked before deletion. Missing files are idempotent
+recovery; path or digest divergence fails closed. Expired session state is
+reclaimed. Invalid configuration, a policy byte-lock mismatch,
 an unsupported policy flow, legacy pending proof rows, ledger divergence, dead
-effects, or artifact tampering closes the semantic gate before request-body
-parsing. Health then reports `UNAVAILABLE` and writes remain disabled.
+effects, or artifact tampering closes full integrity. Ordinary routes perform
+bounded readiness plus touched-row digest checks; the authenticated integrity
+route performs the complete ledger and artifact scan.
 
 The policy evaluator is in the same process as the writer, which is reported as
 `writer_is_judge=true`; the exact Colang source bytes and supported flow names

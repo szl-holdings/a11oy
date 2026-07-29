@@ -7,8 +7,53 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from gdw_proofs import export_proof_payload, export_receipt_projection
+from gdw_proofs import (
+    delete_exported_artifact,
+    export_proof_payload,
+    export_receipt_projection,
+)
 from gdw_workspace import GDWWorkspace
+
+
+def _drain_artifact_gc(
+    workspace: GDWWorkspace,
+    *,
+    limit: int,
+    worker_id: str,
+) -> Dict[str, Any]:
+    deleted = 0
+    failed = 0
+    error_classes = []
+    while deleted + failed < limit:
+        rows = workspace.claim_artifact_gc(worker_id, limit=1)
+        if not rows:
+            break
+        row = rows[0]
+        try:
+            workspace.validate_claimed_artifact_gc(row)
+            delete_exported_artifact(row)
+            if not workspace.complete_artifact_gc(
+                row["idempotency_key"],
+                worker_id,
+                row["claim_token"],
+            ):
+                raise RuntimeError("artifact GC claim expired before acknowledgement")
+            deleted += 1
+        except Exception as exc:
+            workspace.release_artifact_gc(
+                row["idempotency_key"],
+                worker_id,
+                row["claim_token"],
+                f"{type(exc).__name__}: {exc}",
+            )
+            failed += 1
+            error_classes.append(type(exc).__name__)
+            break
+    return {
+        "deleted": deleted,
+        "failed": failed,
+        "error_classes": error_classes,
+    }
 
 
 def drain_effects(
@@ -24,6 +69,12 @@ def drain_effects(
     exported = 0
     failed = 0
     error_classes = []
+    reclaimed = workspace.reclaim_expired_now()
+    gc_result = _drain_artifact_gc(
+        workspace,
+        limit=bounded,
+        worker_id=f"{worker}-artifact-gc",
+    )
 
     while exported + failed < bounded:
         rows = workspace.claim_effects(worker, limit=1)
@@ -66,12 +117,32 @@ def drain_effects(
             break
 
     integrity = workspace.integrity()
+    complete = (
+        failed == 0
+        and gc_result["failed"] == 0
+        and integrity["pending_effects"] == 0
+        and integrity["pending_artifact_gc"] == 0
+    )
     return {
         "schema": "szl.gdw-effect-drain/v1",
+        "limit": bounded,
         "exported": exported,
         "failed": failed,
         "error_classes": error_classes,
+        "reclaimed": reclaimed,
+        "gc_deleted": gc_result["deleted"],
+        "gc_failed": gc_result["failed"],
+        "gc_error_classes": gc_result["error_classes"],
         "pending_effects": integrity["pending_effects"],
+        "pending_artifact_gc": integrity["pending_artifact_gc"],
+        "complete": complete,
+        "limit_exhausted": (
+            (exported >= bounded and integrity["pending_effects"] > 0)
+            or (
+                gc_result["deleted"] >= bounded
+                and integrity["pending_artifact_gc"] > 0
+            )
+        ),
         "integrity_ok": integrity["ok"],
         "generation_id": integrity["generation_id"],
         "credential_values_recorded": False,

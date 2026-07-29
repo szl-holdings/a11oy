@@ -185,6 +185,24 @@ class GDWWorkspace:
                 FOREIGN KEY(request_id) REFERENCES requests(request_id)
                     DEFERRABLE INITIALLY DEFERRED
             );
+            CREATE TABLE IF NOT EXISTS artifact_gc (
+                idempotency_key TEXT PRIMARY KEY,
+                request_id TEXT NOT NULL,
+                kind TEXT NOT NULL
+                    CHECK(kind IN ('receipt_projection', 'proof_export')),
+                generation_id TEXT NOT NULL,
+                owner_id TEXT NOT NULL,
+                artifact_path TEXT NOT NULL,
+                artifact_sha256 TEXT NOT NULL,
+                status TEXT NOT NULL
+                    CHECK(status IN ('PENDING', 'CLAIMED')),
+                attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+                lease_owner TEXT,
+                lease_until TEXT,
+                claim_token TEXT,
+                last_error TEXT,
+                created_at TEXT NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_requests_session ON requests(session_id);
             CREATE INDEX IF NOT EXISTS idx_receipts_session ON receipts(session_id, step);
             CREATE INDEX IF NOT EXISTS idx_proof_outbox_status
@@ -193,6 +211,8 @@ class GDWWorkspace:
                 ON effect_outbox(status, lease_until, created_at);
             CREATE INDEX IF NOT EXISTS idx_object_owners_owner
                 ON object_owners(owner_id, object_type, expires_at);
+            CREATE INDEX IF NOT EXISTS idx_artifact_gc_status
+                ON artifact_gc(status, lease_until, created_at);
             """
         )
         # Forward-only compatibility for a local database first opened by the
@@ -309,7 +329,7 @@ class GDWWorkspace:
         connection: sqlite3.Connection,
         now_text: str,
     ) -> Dict[str, int]:
-        reclaimed = {"requests": 0, "sessions": 0}
+        reclaimed = {"requests": 0, "sessions": 0, "artifacts_queued": 0}
         requests = connection.execute(
             "SELECT object_id FROM object_owners "
             "WHERE object_type = 'request' AND expires_at <= ?",
@@ -326,6 +346,95 @@ class GDWWorkspace:
             )
             if pending:
                 continue
+            exported = connection.execute(
+                """
+                SELECT idempotency_key, request_id, kind, generation_id,
+                       owner_id, artifact_json, exported_at
+                FROM effect_outbox
+                WHERE request_id = ? AND status = 'EXPORTED'
+                ORDER BY idempotency_key
+                """,
+                (request_id,),
+            ).fetchall()
+            gc_rows = []
+            for effect in exported:
+                try:
+                    artifact = json.loads(effect["artifact_json"])
+                    artifact_path = str(artifact["path"])
+                    artifact_sha256 = str(artifact["sha256"])
+                    idempotency_key = str(effect["idempotency_key"])
+                    owner_id = str(effect["owner_id"])
+                    owner_scope = hashlib.sha256(
+                        owner_id.encode("utf-8")
+                    ).hexdigest()[:32]
+                    configured_root = (
+                        os.environ.get("GDW_PROOF_DIR", "output/proofs")
+                        if effect["kind"] == "proof_export"
+                        else os.environ.get(
+                            "GDW_RECEIPT_PROJECTION_DIR",
+                            "output/gdw/receipts",
+                        )
+                    )
+                    expected_path = (
+                        Path(configured_root).resolve()
+                        / owner_scope
+                        / f"{idempotency_key}.json"
+                    )
+                    artifact_path_object = Path(artifact_path)
+                    observed_path = artifact_path_object.resolve()
+                    if (
+                        artifact.get("immutable") is not True
+                        or artifact.get("owner_scope") != owner_scope
+                        or artifact.get("artifact_identity") != idempotency_key
+                        or len(artifact_sha256) != 64
+                        or any(
+                            ch not in "0123456789abcdef"
+                            for ch in artifact_sha256
+                        )
+                        or observed_path != expected_path
+                        or artifact_path_object.is_symlink()
+                    ):
+                        raise ValueError("exported artifact metadata is invalid")
+                    if observed_path.exists():
+                        if (
+                            not observed_path.is_file()
+                            or hashlib.sha256(
+                                observed_path.read_bytes()
+                            ).hexdigest()
+                            != artifact_sha256
+                        ):
+                            raise ValueError(
+                                "exported artifact content is invalid"
+                            )
+                    gc_rows.append(
+                        (
+                            idempotency_key,
+                            request_id,
+                            str(effect["kind"]),
+                            str(effect["generation_id"]),
+                            owner_id,
+                            str(expected_path),
+                            artifact_sha256,
+                            str(effect["exported_at"] or now_text),
+                        )
+                    )
+                except Exception as exc:
+                    raise ValueError(
+                        "expired request artifact cannot be reclaimed safely"
+                    ) from exc
+            for gc_row in gc_rows:
+                inserted = connection.execute(
+                    """
+                    INSERT INTO artifact_gc(
+                        idempotency_key, request_id, kind, generation_id,
+                        owner_id, artifact_path, artifact_sha256, status,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                    ON CONFLICT(idempotency_key) DO NOTHING
+                    """,
+                    gc_row,
+                )
+                reclaimed["artifacts_queued"] += int(inserted.rowcount == 1)
             connection.execute(
                 "DELETE FROM effect_outbox WHERE request_id = ?", (request_id,)
             )
@@ -384,6 +493,14 @@ class GDWWorkspace:
             )
             reclaimed["sessions"] += 1
         return reclaimed
+
+    def reclaim_expired_now(
+        self,
+        now_text: Optional[str] = None,
+    ) -> Dict[str, int]:
+        observed = now_text or datetime.now(timezone.utc).isoformat()
+        with self.transaction() as connection:
+            return self.reclaim_expired(connection, observed)
 
     @classmethod
     def admit_request(
@@ -480,7 +597,8 @@ class GDWWorkspace:
         owner_id: str,
     ) -> Optional[Tuple[str, Dict[str, Any]]]:
         row = connection.execute(
-            "SELECT request_digest, response_json FROM requests WHERE request_id = ?",
+            "SELECT request_digest, session_id, response_json, response_hash "
+            "FROM requests WHERE request_id = ?",
             (request_id,),
         ).fetchone()
         if row is None:
@@ -488,7 +606,35 @@ class GDWWorkspace:
         GDWWorkspace.require_object_owner(
             connection, "request", request_id, owner_id
         )
-        return row["request_digest"], json.loads(row["response_json"])
+        response = json.loads(row["response_json"])
+        if (
+            _sha256_json(response) != row["response_hash"]
+            or response.get("request_id") != request_id
+            or response.get("session_id") != row["session_id"]
+            or response.get("owner_id") != owner_id
+        ):
+            raise ValueError("cached request response digest is invalid")
+        receipt_hash = response.get("receipt_hash")
+        if receipt_hash:
+            receipt_row = connection.execute(
+                "SELECT request_id, session_id, receipt_json "
+                "FROM receipts WHERE receipt_hash = ?",
+                (receipt_hash,),
+            ).fetchone()
+            if (
+                receipt_row is None
+                or receipt_row["request_id"] != request_id
+                or receipt_row["session_id"] != row["session_id"]
+            ):
+                raise ValueError("cached request receipt binding is invalid")
+            receipt = json.loads(receipt_row["receipt_json"])
+            embedded_hash = receipt.pop("receipt_hash", None)
+            if (
+                embedded_hash != receipt_hash
+                or _sha256_json(receipt) != receipt_hash
+            ):
+                raise ValueError("cached request receipt digest is invalid")
+        return row["request_digest"], response
 
     @staticmethod
     def session_state(
@@ -507,10 +653,13 @@ class GDWWorkspace:
         ).fetchone()
         if row is None:
             return None
+        state = json.loads(row["state_json"])
+        if _sha256_json(state) != row["state_hash"]:
+            raise ValueError("session state digest is invalid")
         return {
             "session_id": session_id,
             "step": int(row["step"]),
-            "state": json.loads(row["state_json"]),
+            "state": state,
             "state_hash": row["state_hash"],
             "updated_at": row["updated_at"],
         }
@@ -674,6 +823,25 @@ class GDWWorkspace:
         )
         if idempotency_key != expected_key:
             raise ValueError("effect idempotency identity mismatch")
+        owner_limit = int(os.environ.get("GDW_OWNER_MAX_ARTIFACTS", "10000"))
+        global_limit = int(os.environ.get("GDW_GLOBAL_MAX_ARTIFACTS", "100000"))
+        if owner_limit < 1 or owner_limit > 100000:
+            raise RuntimeError("GDW owner artifact quota is invalid")
+        if global_limit < owner_limit or global_limit > 1000000:
+            raise RuntimeError("GDW global artifact quota is invalid")
+        owner_artifacts = int(
+            connection.execute(
+                "SELECT COUNT(*) FROM effect_outbox WHERE owner_id = ?",
+                (owner_id,),
+            ).fetchone()[0]
+        )
+        global_artifacts = int(
+            connection.execute("SELECT COUNT(*) FROM effect_outbox").fetchone()[0]
+        )
+        if owner_artifacts >= owner_limit:
+            raise OverflowError("per-owner active artifact quota exceeded")
+        if global_artifacts >= global_limit:
+            raise OverflowError("global active artifact quota exceeded")
         connection.execute(
             """
             INSERT INTO evidence_intents(
@@ -1021,6 +1189,165 @@ class GDWWorkspace:
             )
             return updated.rowcount == 1
 
+    def claim_artifact_gc(
+        self,
+        worker_id: str,
+        limit: int = 100,
+        lease_seconds: int = 300,
+        max_attempts: Optional[int] = None,
+    ) -> list:
+        if not worker_id or len(worker_id) > 128:
+            raise ValueError("worker_id must contain 1-128 characters")
+        bounded = max(1, min(int(limit), 1000))
+        lease = max(1, min(int(lease_seconds), 3600))
+        attempt_ceiling = max(
+            1,
+            min(
+                int(
+                    max_attempts
+                    if max_attempts is not None
+                    else os.environ.get("GDW_MAX_EFFECT_ATTEMPTS", "20")
+                ),
+                100,
+            ),
+        )
+        now = datetime.now(timezone.utc)
+        now_text = now.isoformat()
+        lease_until = (now + timedelta(seconds=lease)).isoformat()
+        claimed = []
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE artifact_gc
+                SET status = 'PENDING', lease_owner = NULL, lease_until = NULL,
+                    claim_token = NULL
+                WHERE status = 'CLAIMED' AND lease_until <= ?
+                """,
+                (now_text,),
+            )
+            rows = connection.execute(
+                """
+                SELECT idempotency_key, request_id, kind, generation_id,
+                       owner_id, artifact_path, artifact_sha256, attempts
+                FROM artifact_gc
+                WHERE status = 'PENDING' AND attempts < ?
+                ORDER BY created_at, idempotency_key
+                LIMIT ?
+                """,
+                (attempt_ceiling, bounded),
+            ).fetchall()
+            for row in rows:
+                claim_token = secrets.token_hex(16)
+                updated = connection.execute(
+                    """
+                    UPDATE artifact_gc
+                    SET status = 'CLAIMED', lease_owner = ?, lease_until = ?,
+                        claim_token = ?, attempts = attempts + 1,
+                        last_error = NULL
+                    WHERE idempotency_key = ? AND status = 'PENDING'
+                    """,
+                    (
+                        worker_id,
+                        lease_until,
+                        claim_token,
+                        row["idempotency_key"],
+                    ),
+                )
+                if updated.rowcount != 1:
+                    continue
+                claimed.append(
+                    {
+                        "idempotency_key": row["idempotency_key"],
+                        "request_id": row["request_id"],
+                        "kind": row["kind"],
+                        "generation_id": row["generation_id"],
+                        "owner_id": row["owner_id"],
+                        "artifact_path": row["artifact_path"],
+                        "artifact_sha256": row["artifact_sha256"],
+                        "attempt": int(row["attempts"]) + 1,
+                        "lease_owner": worker_id,
+                        "lease_until": lease_until,
+                        "claim_token": claim_token,
+                    }
+                )
+        return claimed
+
+    def validate_claimed_artifact_gc(self, claim: Dict[str, Any]) -> None:
+        connection = self._connect()
+        try:
+            row = connection.execute(
+                "SELECT * FROM artifact_gc WHERE idempotency_key = ?",
+                (claim["idempotency_key"],),
+            ).fetchone()
+            if (
+                row is None
+                or row["status"] != "CLAIMED"
+                or row["lease_owner"] != claim["lease_owner"]
+                or row["claim_token"] != claim["claim_token"]
+                or row["lease_until"] <= datetime.now(timezone.utc).isoformat()
+            ):
+                raise PermissionError("artifact GC claim is stale or unavailable")
+            for field in (
+                "request_id",
+                "kind",
+                "generation_id",
+                "owner_id",
+                "artifact_path",
+                "artifact_sha256",
+            ):
+                if str(row[field]) != str(claim[field]):
+                    raise ValueError("artifact GC claim diverges from ledger")
+        finally:
+            connection.close()
+
+    def complete_artifact_gc(
+        self,
+        idempotency_key: str,
+        worker_id: str,
+        claim_token: str,
+    ) -> bool:
+        with self.transaction() as connection:
+            deleted = connection.execute(
+                """
+                DELETE FROM artifact_gc
+                WHERE idempotency_key = ? AND status = 'CLAIMED'
+                      AND lease_owner = ? AND claim_token = ?
+                      AND lease_until > ?
+                """,
+                (
+                    idempotency_key,
+                    worker_id,
+                    claim_token,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            return deleted.rowcount == 1
+
+    def release_artifact_gc(
+        self,
+        idempotency_key: str,
+        worker_id: str,
+        claim_token: str,
+        error: str,
+    ) -> bool:
+        with self.transaction() as connection:
+            updated = connection.execute(
+                """
+                UPDATE artifact_gc
+                SET status = 'PENDING', lease_owner = NULL, lease_until = NULL,
+                    claim_token = NULL, last_error = ?
+                WHERE idempotency_key = ? AND status = 'CLAIMED'
+                      AND lease_owner = ? AND claim_token = ?
+                """,
+                (
+                    str(error)[:1024],
+                    idempotency_key,
+                    worker_id,
+                    claim_token,
+                ),
+            )
+            return updated.rowcount == 1
+
     def pending_proofs(self, limit: int = 100) -> list:
         bounded = max(1, min(int(limit), 10000))
         connection = self._connect()
@@ -1086,6 +1413,61 @@ class GDWWorkspace:
         finally:
             connection.close()
 
+    def readiness(self) -> Dict[str, Any]:
+        """Return a bounded storage/configuration readiness probe.
+
+        This intentionally does not hash ledger rows or exported artifacts.
+        Full epistemic and artifact verification remains the responsibility of
+        the authenticated integrity endpoint.
+        """
+
+        connection = self._connect()
+        try:
+            generation = connection.execute(
+                "SELECT value FROM workspace_meta WHERE key = 'generation_id'"
+            ).fetchone()
+            generation_id = str(generation["value"]) if generation else ""
+            observed_journal = str(
+                connection.execute("PRAGMA journal_mode").fetchone()[0]
+            ).upper()
+            foreign_keys = int(
+                connection.execute("PRAGMA foreign_keys").fetchone()[0]
+            )
+            required_tables = {
+                "session_state",
+                "requests",
+                "receipts",
+                "effect_outbox",
+                "artifact_gc",
+                "workspace_meta",
+                "object_owners",
+                "evidence_intents",
+            }
+            observed_tables = {
+                str(row["name"])
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+            missing_tables = sorted(required_tables - observed_tables)
+            ok = (
+                len(generation_id) == 32
+                and observed_journal == self.journal_mode
+                and foreign_keys == 1
+                and not missing_tables
+            )
+            return {
+                "ok": ok,
+                "generation_id": generation_id,
+                "journal_mode": observed_journal,
+                "foreign_keys": foreign_keys == 1,
+                "missing_tables": missing_tables,
+                "probe": "BOUNDED_READINESS",
+                "storage_assurance": "UNVERIFIED",
+            }
+        finally:
+            connection.close()
+
     def integrity(self) -> Dict[str, Any]:
         connection = self._connect()
         try:
@@ -1097,6 +1479,7 @@ class GDWWorkspace:
                 "receipts",
                 "proof_outbox",
                 "effect_outbox",
+                "artifact_gc",
                 "object_owners",
                 "evidence_intents",
             ):
@@ -1117,6 +1500,17 @@ class GDWWorkspace:
             claimed_effects = int(
                 connection.execute(
                     "SELECT COUNT(*) FROM effect_outbox WHERE status = 'CLAIMED'"
+                ).fetchone()[0]
+            )
+            pending_artifact_gc = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM artifact_gc "
+                    "WHERE status IN ('PENDING', 'CLAIMED')"
+                ).fetchone()[0]
+            )
+            claimed_artifact_gc = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM artifact_gc WHERE status = 'CLAIMED'"
                 ).fetchone()[0]
             )
             orphan_receipts = int(
@@ -1159,7 +1553,9 @@ class GDWWorkspace:
                 "intent_digest_mismatches": 0,
                 "effect_binding_mismatches": 0,
                 "artifact_mismatches": 0,
+                "artifact_gc_mismatches": 0,
                 "dead_effects": 0,
+                "dead_artifact_gc": 0,
             }
 
             for row in connection.execute(
@@ -1260,6 +1656,54 @@ class GDWWorkspace:
                     except Exception:
                         violations["artifact_mismatches"] += 1
 
+            for row in connection.execute("SELECT * FROM artifact_gc"):
+                try:
+                    idempotency_key = str(row["idempotency_key"])
+                    owner_id = str(row["owner_id"])
+                    owner_scope = hashlib.sha256(
+                        owner_id.encode("utf-8")
+                    ).hexdigest()[:32]
+                    configured_root = (
+                        os.environ.get("GDW_PROOF_DIR", "output/proofs")
+                        if row["kind"] == "proof_export"
+                        else os.environ.get(
+                            "GDW_RECEIPT_PROJECTION_DIR",
+                            "output/gdw/receipts",
+                        )
+                    )
+                    expected_path = (
+                        Path(configured_root).resolve()
+                        / owner_scope
+                        / f"{idempotency_key}.json"
+                    )
+                    stored_path = Path(str(row["artifact_path"]))
+                    artifact_sha256 = str(row["artifact_sha256"])
+                    if (
+                        len(idempotency_key) != 64
+                        or any(
+                            ch not in "0123456789abcdef"
+                            for ch in idempotency_key
+                        )
+                        or len(artifact_sha256) != 64
+                        or any(
+                            ch not in "0123456789abcdef"
+                            for ch in artifact_sha256
+                        )
+                        or stored_path.resolve() != expected_path
+                        or stored_path.is_symlink()
+                    ):
+                        raise ValueError("artifact GC identity is invalid")
+                    if expected_path.exists() and (
+                        not expected_path.is_file()
+                        or hashlib.sha256(expected_path.read_bytes()).hexdigest()
+                        != artifact_sha256
+                    ):
+                        raise ValueError("artifact GC target is invalid")
+                except Exception:
+                    violations["artifact_gc_mismatches"] += 1
+                if int(row["attempts"]) >= attempt_ceiling:
+                    violations["dead_artifact_gc"] += 1
+
             generation = connection.execute(
                 "SELECT value FROM workspace_meta WHERE key = 'generation_id'"
             ).fetchone()
@@ -1279,6 +1723,8 @@ class GDWWorkspace:
                 "pending_proofs": pending_proofs,
                 "pending_effects": pending_effects,
                 "claimed_effects": claimed_effects,
+                "pending_artifact_gc": pending_artifact_gc,
+                "claimed_artifact_gc": claimed_artifact_gc,
                 "counts": counts,
                 "violations": violations,
                 "generation_id": generation_id,
@@ -1286,6 +1732,7 @@ class GDWWorkspace:
                 "journal_mode": observed_journal,
                 "wal": observed_journal == "WAL",
                 "synchronous": "NORMAL",
+                "storage_assurance": "UNVERIFIED",
             }
         finally:
             connection.close()

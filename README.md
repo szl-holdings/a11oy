@@ -142,9 +142,10 @@ A11OY_SERIES_A_DB=/data/a11oy/series-a/control-plane.sqlite3
 ```
 
 Production also sets `A11OY_REQUIRE_PERSISTENT_STORAGE=1`,
-`A11OY_SERIES_A_REQUIRE_MOUNT=/data`, and the network-filesystem-safe SQLite
-rollback journal. If the bucket is detached or the database path escapes the
-mount, Series-A registration fails closed instead of falling back to `/tmp`.
+`A11OY_SERIES_A_REQUIRE_MOUNT=/data`, and the SQLite rollback journal selected
+for mounted-volume compatibility. Network-volume locking, fsync, and crash
+semantics remain `UNVERIFIED`. If the bucket is detached or the database path
+escapes the mount, Series-A registration fails closed instead of falling back to `/tmp`.
 The unified Khipu and energy ledgers use separate `/data/a11oy/*` paths.
 
 **Required HF Space secrets for full signing integrity:**
@@ -189,12 +190,11 @@ python3 .github/shared-module-hash-check.py --update
 
 ## Governed Delta Workspace
 
-> Runtime status: `UNAVAILABLE`. The GDW operational routes are intentionally
-> fail-closed while the Wave 26 and Wave 28 implementations are consolidated
-> behind one authenticated, owner-bound, doctrine-gated contract with durable
-> receipt/proof publication semantics. Health remains available; state,
-> telemetry, benchmark metadata, integrity, and step routes return HTTP 503
-> without creating artifacts.
+> Runtime status: `DEPLOYMENT_GATED`. The authenticated, owner-bound GDW
+> successor is merged. Configuration/readiness failures remain fail-closed;
+> production availability requires exact-source relock plus an authenticated
+> fresh transition, converged drain, and full integrity proof. Mounted-volume
+> storage assurance remains `UNVERIFIED`.
 
 > GDW Frontier Push Pack is a MODELED instrumentation and verification extension for the Governed Delta Workspace. It provides load testing, operator validation, hybrid scheduling research hooks, KDA-vs-MLA memory benchmarking, and Lean-oriented proof export. It does not claim frontier benchmark superiority, proprietary activation access, or production-scale guarantees beyond the measured harness outputs.
 

@@ -16,8 +16,9 @@ ownership, cross-owner
 read/replay/mutation denial, bounded request quotas and post-export reclamation,
 canonical outbox tamper detection even after attacker-controlled rehashing,
 generation-bound immutable artifacts across database reset, lease-token fencing,
-replay telemetry, admin-only idempotent effect drain, and network-volume-safe
-SQLite journal selection. The broad serve-router parity test exceeded a bounded
+replay telemetry, admin-only idempotent effect drain, and local DELETE-journal
+selection. Mounted-volume locking, fsync, and crash behavior remain
+`UNVERIFIED`. The broad serve-router parity test exceeded a bounded
 two-minute local run and remains `UNVERIFIED` in this working tree; the hosted
 route/OpenAPI gates are separate evidence. This is not independent review,
 protected merge, deployment, or production evidence.
@@ -28,7 +29,7 @@ The A11oy runtime is the canonical implementation owner. This change adds:
 
 - principal-authenticated GDW step, metrics, metadata, and integrity APIs;
 - replay-safe request IDs with conflict rejection;
-- SQLite WAL persistence with a serialized writer queue;
+- configurable SQLite persistence with a serialized writer queue;
 - ACCEPT, REJECT, and QUARANTINE state transitions;
 - a policy dispatcher for `kda_local`, `laguna_hybrid`, and `mla_global`;
 - deterministic local receipts (the original run used the in-memory A11oy
@@ -36,7 +37,7 @@ The A11oy runtime is the canonical implementation owner. This change adds:
 - canonical receipt/proof intent plus full-digest-bound outbox projection;
   synchronous external export is rejected by the corrective contract;
 - bounded owner/global request, session, and artifact quotas with finite
-  retention and export-aware reclamation;
+  retention and durable, token-fenced artifact reclamation;
 - immutable owner-scoped, generation- and content-bound artifact identities;
 - token-fenced effect leases and fail-closed integrity checks;
 - Prometheus text metrics, dashboard exports, Postman checks, burst and Locust load tools;

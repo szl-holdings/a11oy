@@ -49,22 +49,26 @@ jobs:
           )
           with urllib.request.urlopen(request, timeout=120) as response:
               payload = json.loads(response.read().decode("utf-8"))
+          summary = {
+              "schema": payload.get("schema"),
+              "exported": payload.get("exported"),
+              "gc_deleted": payload.get("gc_deleted"),
+              "pending_effects": payload.get("pending_effects"),
+              "pending_artifact_gc": payload.get("pending_artifact_gc"),
+              "complete": payload.get("complete"),
+              "limit_exhausted": payload.get("limit_exhausted"),
+              "integrity_ok": payload.get("integrity_ok"),
+              "credential_values_recorded": False,
+          }
+          print(json.dumps(summary, sort_keys=True))
           if (
               response.status != 200
               or payload.get("failed") != 0
+              or payload.get("gc_failed") != 0
+              or payload.get("pending_effects") != 0
+              or payload.get("pending_artifact_gc") != 0
+              or payload.get("complete") is not True
               or payload.get("integrity_ok") is not True
           ):
               raise SystemExit("GDW drain did not satisfy the live contract")
-          print(
-              json.dumps(
-                  {
-                      "schema": payload.get("schema"),
-                      "exported": payload.get("exported"),
-                      "pending_effects": payload.get("pending_effects"),
-                      "integrity_ok": payload.get("integrity_ok"),
-                      "credential_values_recorded": False,
-                  },
-                  sort_keys=True,
-              )
-          )
           PY

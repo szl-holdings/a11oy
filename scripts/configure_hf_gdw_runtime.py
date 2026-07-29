@@ -21,8 +21,8 @@ STATIC_VARIABLES = {
     "GDW_PROOF_DIR": "/data/a11oy/gdw/v2/proofs",
     "GDW_RECEIPT_PROJECTION_DIR": "/data/a11oy/gdw/v2/receipts",
     "GDW_PROOF_EXPORT_MODE": "outbox",
-    # The mounted Hugging Face bucket is a network filesystem. DELETE avoids
-    # WAL shared-memory assumptions while preserving transactional SQLite.
+    # DELETE avoids WAL shared-memory files. Mounted-volume locking, fsync, and
+    # crash semantics remain UNVERIFIED until a dedicated qualification run.
     "GDW_SQLITE_JOURNAL": "DELETE",
     "GDW_OWNER_MAX_REQUESTS": "1000",
     "GDW_OWNER_MAX_SESSIONS": "100",
@@ -191,6 +191,8 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         "secret_names_managed": [PRINCIPAL_REGISTRY_SECRET],
         "readback_attempts": attempts,
         "converged": True,
+        "journal_selection": "COMPATIBILITY_SELECTION",
+        "storage_assurance": "UNVERIFIED",
         "operator_token_present": True,
         "credential_values_recorded": False,
     }

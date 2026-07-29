@@ -811,7 +811,246 @@ def test_admin_drain_exports_all_effects_and_is_idempotent(
         assert replayed_drain.json()["pending_effects"] == 0
 
 
-def test_network_safe_delete_journal_is_measured_and_invalid_mode_fails(
+def test_expired_exported_request_reclaims_artifacts_and_restores_quota(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("GDW_OWNER_MAX_ARTIFACTS", "2")
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="gc-session"),
+            headers=headers("gc-request-one"),
+        )
+        assert created.status_code == 200
+        exported = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+        assert exported.status_code == 200
+
+    from gdw_workspace import GDWWorkspace
+
+    workspace = GDWWorkspace()
+    with workspace.transaction() as connection:
+        paths = [
+            json.loads(row["artifact_json"])["path"]
+            for row in connection.execute(
+                "SELECT artifact_json FROM effect_outbox "
+                "WHERE request_id = 'gc-request-one'"
+            )
+        ]
+        connection.execute(
+            "UPDATE object_owners SET expires_at = ? "
+            "WHERE object_type = 'request' AND object_id = 'gc-request-one'",
+            ("2000-01-01T00:00:00+00:00",),
+        )
+    assert len(paths) == 2
+    assert all(gdw_frontier.os.path.isfile(path) for path in paths)
+
+    with TestClient(app) as client:
+        collected = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+        second = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="gc-session"),
+            headers=headers("gc-request-two"),
+        )
+        second_drain = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+    assert collected.status_code == 200
+    assert collected.json()["reclaimed"]["requests"] == 1
+    assert collected.json()["gc_deleted"] == 2
+    assert collected.json()["pending_artifact_gc"] == 0
+    assert all(not gdw_frontier.os.path.exists(path) for path in paths)
+    assert second.status_code == 200
+    assert second_drain.status_code == 200
+    assert second_drain.json()["exported"] == 2
+
+
+def test_artifact_gc_refuses_digest_mismatch(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        assert (
+            client.post(
+                "/api/a11oy/v1/gdw/step",
+                json=payload(session_id="gc-tamper-session"),
+                headers=headers("gc-tamper-request"),
+            ).status_code
+            == 200
+        )
+        assert (
+            client.post(
+                "/api/a11oy/v1/gdw/drain?limit=10",
+                headers={"Authorization": "Bearer owner-a-token"},
+            ).status_code
+            == 200
+        )
+
+    from gdw_workspace import GDWWorkspace
+
+    workspace = GDWWorkspace()
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE object_owners SET expires_at = ? "
+            "WHERE object_type = 'request' AND object_id = 'gc-tamper-request'",
+            ("2000-01-01T00:00:00+00:00",),
+        )
+    assert workspace.reclaim_expired_now()["artifacts_queued"] == 2
+    with workspace.transaction() as connection:
+        target = connection.execute(
+            "SELECT artifact_path FROM artifact_gc "
+            "ORDER BY created_at, idempotency_key LIMIT 1"
+        ).fetchone()["artifact_path"]
+    with open(target, "ab") as stream:
+        stream.write(b"tamper")
+
+    from gdw_drain import drain_effects
+
+    result = drain_effects(workspace, limit=10, worker_id="gc-tamper-worker")
+    assert result["gc_failed"] == 1
+    assert result["integrity_ok"] is False
+    assert result["pending_artifact_gc"] == 2
+    assert workspace.integrity()["violations"]["artifact_gc_mismatches"] >= 1
+
+
+def test_artifact_gc_claim_token_fences_stale_worker(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="gc-fence-session"),
+            headers=headers("gc-fence-request"),
+        )
+        client.post(
+            "/api/a11oy/v1/gdw/drain?limit=10",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+
+    from gdw_proofs import delete_exported_artifact
+    from gdw_workspace import GDWWorkspace
+
+    workspace = GDWWorkspace()
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE object_owners SET expires_at = ? "
+            "WHERE object_type = 'request' AND object_id = 'gc-fence-request'",
+            ("2000-01-01T00:00:00+00:00",),
+        )
+    workspace.reclaim_expired_now()
+    stale = workspace.claim_artifact_gc("stale-gc-worker", limit=1)[0]
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE artifact_gc SET lease_until = ? WHERE idempotency_key = ?",
+            ("2000-01-01T00:00:00+00:00", stale["idempotency_key"]),
+        )
+    current = workspace.claim_artifact_gc("current-gc-worker", limit=1)[0]
+    assert current["idempotency_key"] == stale["idempotency_key"]
+    assert (
+        workspace.complete_artifact_gc(
+            stale["idempotency_key"],
+            "stale-gc-worker",
+            stale["claim_token"],
+        )
+        is False
+    )
+    delete_exported_artifact(current)
+    assert workspace.complete_artifact_gc(
+        current["idempotency_key"],
+        "current-gc-worker",
+        current["claim_token"],
+    )
+
+
+def test_health_uses_bounded_readiness_not_full_ledger_scan(
+    tmp_path, monkeypatch
+):
+    app = make_app(tmp_path, monkeypatch)
+
+    def forbidden_integrity(_self):
+        raise AssertionError("health must not scan the full ledger")
+
+    monkeypatch.setattr(
+        gdw_frontier.GDWWorkspace,
+        "integrity",
+        forbidden_integrity,
+    )
+    with TestClient(app) as client:
+        health = client.get("/api/a11oy/v1/gdw/healthz")
+    assert health.status_code == 200
+    assert health.json()["status"] == "REAL"
+    assert health.json()["write_ready"] is True
+    assert health.json()["storage_assurance"] == "UNVERIFIED"
+
+
+def test_touched_session_and_cached_response_tampering_fail_closed(
+    tmp_path, monkeypatch
+):
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="touched-session"),
+            headers=headers("touched-request"),
+        )
+        assert created.status_code == 200
+
+    from gdw_workspace import GDWWorkspace
+
+    workspace = GDWWorkspace()
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE requests SET response_json = ? WHERE request_id = ?",
+            ('{"forged":true}', "touched-request"),
+        )
+    with TestClient(app) as client:
+        replay = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="touched-session"),
+            headers=headers("touched-request"),
+        )
+    assert replay.status_code == 500
+
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE session_state SET state_json = ? WHERE session_id = ?",
+            ('{"forged":true}', "touched-session"),
+        )
+    with TestClient(app) as client:
+        read = client.get(
+            "/api/a11oy/v1/gdw/sessions/touched-session",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+    assert read.status_code == 503
+
+
+def test_bounded_drain_reports_remaining_backlog(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        assert (
+            client.post(
+                "/api/a11oy/v1/gdw/step",
+                json=payload(session_id="bounded-drain-session"),
+                headers=headers("bounded-drain-request"),
+            ).status_code
+            == 200
+        )
+        partial = client.post(
+            "/api/a11oy/v1/gdw/drain?limit=1",
+            headers={"Authorization": "Bearer owner-a-token"},
+        )
+    assert partial.status_code == 200
+    assert partial.json()["exported"] == 1
+    assert partial.json()["pending_effects"] == 1
+    assert partial.json()["complete"] is False
+    assert partial.json()["limit_exhausted"] is True
+
+
+def test_delete_journal_is_compatibility_selected_and_storage_unverified(
     tmp_path, monkeypatch
 ):
     import pytest
@@ -824,6 +1063,7 @@ def test_network_safe_delete_journal_is_measured_and_invalid_mode_fails(
     assert integrity["ok"] is True
     assert integrity["journal_mode"] == "DELETE"
     assert integrity["wal"] is False
+    assert integrity["storage_assurance"] == "UNVERIFIED"
 
     monkeypatch.setenv("GDW_SQLITE_JOURNAL", "MEMORY")
     with pytest.raises(RuntimeError, match="must be DELETE or WAL"):

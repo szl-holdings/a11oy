@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, Dict
@@ -14,6 +15,97 @@ def canonical_json(value: Any) -> str:
 
 def sha256_json(value: Any) -> str:
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _is_reparse_point(path: Path) -> bool:
+    try:
+        details = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISLNK(details.st_mode) or bool(
+        getattr(details, "st_file_attributes", 0) & 0x400
+    )
+
+
+def delete_exported_artifact(task: Dict[str, Any]) -> Dict[str, Any]:
+    """Delete one receipt/proof artifact using recomputed trusted identity."""
+
+    kind = str(task.get("kind") or "")
+    if kind == "proof_export":
+        root = Path(os.environ.get("GDW_PROOF_DIR", "output/proofs")).resolve()
+    elif kind == "receipt_projection":
+        root = Path(
+            os.environ.get(
+                "GDW_RECEIPT_PROJECTION_DIR",
+                "output/gdw/receipts",
+            )
+        ).resolve()
+    else:
+        raise ValueError("unsupported artifact GC kind")
+
+    identity = str(task.get("idempotency_key") or "")
+    expected_digest = str(task.get("artifact_sha256") or "")
+    owner_id = str(task.get("owner_id") or "")
+    if (
+        len(identity) != 64
+        or any(ch not in "0123456789abcdef" for ch in identity)
+        or len(expected_digest) != 64
+        or any(ch not in "0123456789abcdef" for ch in expected_digest)
+        or not owner_id
+    ):
+        raise ValueError("artifact GC identity is invalid")
+
+    owner_scope = hashlib.sha256(owner_id.encode("utf-8")).hexdigest()[:32]
+    owner_root = root / owner_scope
+    expected_path = owner_root / f"{identity}.json"
+    stored_path = Path(str(task.get("artifact_path") or ""))
+    if stored_path.resolve() != expected_path:
+        raise ValueError("artifact GC path is not owner- and effect-bound")
+    for component in (root, owner_root, stored_path):
+        if _is_reparse_point(component):
+            raise ValueError("artifact GC refuses symlink or reparse target")
+
+    if not expected_path.exists():
+        return {
+            "status": "ALREADY_ABSENT",
+            "artifact_identity": identity,
+            "sha256": expected_digest,
+        }
+    if not expected_path.is_file():
+        raise ValueError("artifact GC target is not a regular file")
+
+    before = expected_path.stat()
+    observed_digest = hashlib.sha256(expected_path.read_bytes()).hexdigest()
+    after = expected_path.stat()
+    stable_identity = (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+    ) == (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    )
+    if not stable_identity or observed_digest != expected_digest:
+        raise ValueError("artifact GC target changed or digest mismatched")
+
+    expected_path.unlink()
+    try:
+        directory_handle = os.open(str(owner_root), os.O_RDONLY)
+        try:
+            os.fsync(directory_handle)
+        finally:
+            os.close(directory_handle)
+    except OSError:
+        # Windows and some network filesystems do not expose directory fsync.
+        pass
+    return {
+        "status": "DELETED",
+        "artifact_identity": identity,
+        "sha256": expected_digest,
+    }
 
 
 def build_proof_payload(

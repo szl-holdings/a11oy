@@ -76,6 +76,7 @@ jobs:
           python scripts/prove_hf_gdw_runtime.py
           --origin "$CANONICAL_ORIGIN"
           --source-sha "${{ github.sha }}"
+          --attempt-id "${{ github.run_id }}:${{ github.run_attempt }}:${{ github.job }}"
           --output "$GDW_LIVE_REPORT"
 
       - name: Upload secret-free runtime configuration evidence
