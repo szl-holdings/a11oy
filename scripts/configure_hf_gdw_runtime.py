@@ -16,6 +16,7 @@ CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
 DATA_MOUNT = "/data"
 PRINCIPAL_ID = "gdw-operator"
 PRINCIPAL_REGISTRY_SECRET = "GDW_PRINCIPALS_JSON"
+COMPETING_REGISTRY_NAMES = {"GDW_CREDENTIALS_JSON"}
 STATIC_VARIABLES = {
     "GDW_PRODUCTION_MODE": "1",
     "GDW_NAMESPACE": "a11oy",
@@ -110,11 +111,21 @@ def converge_principal_registry(
     *,
     repo_id: str,
     current_variables: Mapping[str, Any],
+    current_secret_names: set[str],
     operator_token: str,
 ) -> set[str]:
     if PRINCIPAL_REGISTRY_SECRET in current_variables:
         raise RuntimeConfigError(
             "GDW principal registry collides with an existing Space variable"
+        )
+    competing = sorted(
+        COMPETING_REGISTRY_NAMES
+        & (set(current_variables) | current_secret_names)
+    )
+    if competing:
+        raise RuntimeConfigError(
+            "competing GDW credential registry is configured: "
+            + ",".join(competing)
         )
 
     api.add_space_secret(
@@ -191,11 +202,13 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
     desired = desired_variables(operator_token)
     api = HfApi(token=hf_token)
     volume = require_data_mount(api, repo_id=repo_id)
+    current_secret_names = set(api.get_space_secrets(repo_id=repo_id))
     current_variables = api.get_space_variables(repo_id=repo_id)
     secret_names = converge_principal_registry(
         api,
         repo_id=repo_id,
         current_variables=current_variables,
+        current_secret_names=current_secret_names,
         operator_token=operator_token,
     )
     changes = plan_variables(
