@@ -1173,3 +1173,57 @@ def test_mutating_proof_requires_its_persisted_receipt_anchor(tmp_path):
     integrity = _workspace(path).integrity()
     assert integrity["ok"] is False
     assert integrity["invalid_effect_bindings"] == 1
+
+
+def test_integrity_rejects_corrupt_state_digest_and_reads_do_not_write(tmp_path):
+    workspace = _workspace(tmp_path / "state-integrity.sqlite3")
+    timestamp = "2026-07-28T00:00:00+00:00"
+    state = {
+        "database_generation_id": workspace.database_generation_id,
+        "step": 1,
+    }
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session",
+            1,
+            state,
+            _canonical_hash(state),
+            timestamp,
+        )
+    connection = workspace._connect()
+    try:
+        before = connection.execute(
+            """
+            SELECT last_accessed_at FROM session_state
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()["last_accessed_at"]
+    finally:
+        connection.close()
+
+    assert workspace.read_session("session")["state"] == state
+    connection = workspace._connect()
+    try:
+        after = connection.execute(
+            """
+            SELECT last_accessed_at FROM session_state
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()["last_accessed_at"]
+        connection.execute(
+            """
+            UPDATE session_state SET state_hash = ?
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            ("0" * 64, workspace.namespace, workspace.owner_id),
+        )
+    finally:
+        connection.close()
+
+    integrity = workspace.integrity()
+    assert after == before
+    assert integrity["ok"] is False
+    assert integrity["invalid_state_digests"] == 1

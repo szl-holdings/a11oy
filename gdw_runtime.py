@@ -404,6 +404,7 @@ def drain_once(
         "exported": exported,
         "failed": failed,
         "pending_effects": integrity["pending_effects"],
+        "dead_letter_effects": integrity["dead_letter_effects"],
         "legacy_pending_proofs": integrity["pending_proofs"],
         "sqlite_integrity": integrity["sqlite_integrity"],
         "errors": errors,
@@ -517,7 +518,11 @@ class OutboxSupervisor:
                         lease_seconds=self.lease_seconds,
                         worker_id=self.worker_id,
                     )
-                    if report["failed"] or report["legacy_pending_proofs"]:
+                    if (
+                        report["failed"]
+                        or report["legacy_pending_proofs"]
+                        or report.get("dead_letter_effects", 0)
+                    ):
                         retry_delay = min(
                             self.retry_max_seconds,
                             max(self.interval_seconds, retry_delay * 2),
@@ -526,8 +531,8 @@ class OutboxSupervisor:
                         _set_drain_state(
                             last_outcome="RETRY_SCHEDULED",
                             last_error=(
-                                "bounded drain pass reported failures or "
-                                "unmigrated legacy proofs"
+                                "bounded drain pass reported failures, "
+                                "unmigrated legacy proofs, or dead-letter effects"
                             ),
                             last_report=report,
                         )
