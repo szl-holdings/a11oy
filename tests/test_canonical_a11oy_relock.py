@@ -217,7 +217,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
             "terminal": True,
             "source_revision": source_sha,
             "signing_key_source": "persistent:env:SZL_COSIGN_PRIVATE_PEM",
-            "database": "/data/a11oy/series-a/control-plane.sqlite3",
+            "database": "/data/a11oy/series-a/control-plane-v2.sqlite3",
             "storage": {
                 "persistence_required": True,
                 "required_mount": "/data",

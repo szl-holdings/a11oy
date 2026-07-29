@@ -128,6 +128,10 @@ def exact_variables() -> dict:
 
 
 def test_managed_runtime_enables_periodic_freshness_before_ttl() -> None:
+    assert (
+        config.SERIES_A_VARIABLES["A11OY_SERIES_A_DB"]
+        == "/data/a11oy/series-a/control-plane-v2.sqlite3"
+    )
     assert config.SERIES_A_VARIABLES["A11OY_SERIES_A_STARTUP_REFRESH"] == "1"
     assert int(
         config.SERIES_A_VARIABLES["A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS"]

@@ -36,7 +36,7 @@ CANONICAL_SERIES_A_BUCKET = "SZLHOLDINGS/szl-evidence"
 SERIES_A_VARIABLES = {
     "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
     "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
-    "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane.sqlite3",
+    "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane-v2.sqlite3",
     "A11OY_SERIES_A_REQUIRE_MOUNT": "/data",
     "A11OY_SERIES_A_STARTUP_REFRESH": "1",
     "A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS": "240",

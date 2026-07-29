@@ -28,7 +28,9 @@ DATA_MOUNT = "/data"
 SERIES_A_VARIABLES = {
     "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
     "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
-    "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane.sqlite3",
+    # Preserve the malformed v1 store at its original path for forensic
+    # recovery. This versioned path is a non-destructive operational rotation.
+    "A11OY_SERIES_A_DB": "/data/a11oy/series-a/control-plane-v2.sqlite3",
     "A11OY_SERIES_A_REQUIRE_MOUNT": DATA_MOUNT,
     "A11OY_SERIES_A_STARTUP_REFRESH": "1",
     "A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS": "240",
