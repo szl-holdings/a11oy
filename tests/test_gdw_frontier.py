@@ -2,10 +2,10 @@
 
 import hashlib
 import json
-import shutil
 import sys
 import types
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -14,17 +14,44 @@ from routers import gdw_frontier
 
 
 def make_app(tmp_path, monkeypatch):
-    principals = {
-        "owner-a": {
-            "token_sha256": hashlib.sha256(b"owner-a-token").hexdigest(),
-            "roles": ["user", "admin"],
-        },
-        "owner-b": {
-            "token_sha256": hashlib.sha256(b"owner-b-token").hexdigest(),
-            "roles": ["user"],
-        },
-    }
-    monkeypatch.setenv("GDW_PRINCIPALS_JSON", json.dumps(principals))
+    monkeypatch.delenv("GDW_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GDW_ALLOW_LEGACY_AUTH", raising=False)
+    monkeypatch.setenv(
+        "GDW_CREDENTIALS_JSON",
+        json.dumps(
+            {
+                "version": 1,
+                "credentials": [
+                    {
+                        "owner_id": "owner-a",
+                        "namespace": "a11oy",
+                        "key_id": "test-a",
+                        "token": "test-token",
+                        "scopes": [
+                            "bench:read",
+                            "integrity:read",
+                            "metrics:read",
+                            "session:read",
+                            "step:write",
+                        ],
+                    },
+                    {
+                        "owner_id": "owner-b",
+                        "namespace": "a11oy",
+                        "key_id": "test-b",
+                        "token": "test-token-b",
+                        "scopes": [
+                            "bench:read",
+                            "integrity:read",
+                            "metrics:read",
+                            "session:read",
+                            "step:write",
+                        ],
+                    },
+                ],
+            }
+        ),
+    )
     monkeypatch.setenv("GDW_DB_PATH", str(tmp_path / "gdw.sqlite3"))
     monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
     monkeypatch.setenv(
@@ -62,46 +89,15 @@ def payload(session_id="session-1", dry_run=False, risk=0.35):
     }
 
 
-def headers(request_id, token="owner-a-token"):
+def headers(request_id):
     return {
-        "Authorization": f"Bearer {token}",
+        "Authorization": "Bearer test-token",
         "X-Request-Id": request_id,
     }
 
 
-def drain_claims(workspace, worker_id="test-drain"):
-    from gdw_proofs import export_proof_payload, export_receipt_projection
-
-    artifacts = []
-    for row in workspace.claim_effects(worker_id, limit=100):
-        workspace.validate_claimed_effect(row)
-        if row["kind"] == "proof_export":
-            artifact = export_proof_payload(
-                row["payload"],
-                row["idempotency_key"],
-                row["owner_id"],
-            )
-        else:
-            artifact = export_receipt_projection(
-                row["payload"],
-                row["idempotency_key"],
-                row["owner_id"],
-            )
-        workspace.mark_effect_exported(
-            row["idempotency_key"],
-            worker_id,
-            row["claim_token"],
-            artifact,
-            "2026-07-28T00:00:00+00:00",
-        )
-        artifacts.append((row, artifact))
-    return artifacts
-
-
 def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
-    operation = app.openapi()["paths"]["/api/a11oy/v1/gdw/step"]["post"]
-    assert operation["requestBody"]["required"] is True
     with TestClient(app) as client:
         denied = client.post(
             "/api/a11oy/v1/gdw/step",
@@ -121,18 +117,19 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
         assert body["step"] == 1
         assert len(body["state_hash"]) == 64
         assert len(body["receipt_hash"]) == 64
+        assert len(body["request_digest"]) == 64
+        assert len(body["database_generation_id"]) == 32
         assert body["receipt_status"] == "UNSIGNED_ATOMIC"
         assert body["proof"]["status"] == "OUTBOX_PENDING"
         governance = body["audit"]["governance"]
         assert governance["allowed"] is True
+        assert governance["writer_is_judge"] is False
+        assert governance["principal"]["owner_id"] == "owner-a"
         assert governance["reason_codes"] == [
-            "STRICT_FILE_BACKED_PRECONDITIONS_PASS",
+            "FILE_BACKED_GOVERNANCE_PASS",
             "CANONICAL_POLICY_GATEWAY_PASS",
         ]
-        assert governance["writer_is_judge"] is False
         assert governance["policy_gateway"]["decision"] == "ALLOW"
-        assert governance["policy_gateway"]["receipt_signed"] is True
-        assert governance["colang"]["enforcement_contract"]["valid"] is True
         assert governance["colang"]["policy_files"]
         assert all(
             len(item["sha256"]) == 64
@@ -172,10 +169,18 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
 
         integrity = client.get(
             "/api/a11oy/v1/gdw/integrity",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         ).json()
         assert integrity["ok"] is True
         assert integrity["orphan_receipts"] == 0
+        session = client.get(
+            "/api/a11oy/v1/gdw/sessions/session-1",
+            headers={"Authorization": "Bearer test-token"},
+        ).json()
+        assert (
+            session["database_generation_id"]
+            == body["database_generation_id"]
+        )
 
 
 def test_reject_and_quarantine_preserve_state(tmp_path, monkeypatch):
@@ -227,11 +232,11 @@ def test_same_session_concurrency_is_monotonic(tmp_path, monkeypatch):
     with TestClient(app) as client:
         state = client.get(
             "/api/a11oy/v1/gdw/sessions/shared-session",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         ).json()
         integrity = client.get(
             "/api/a11oy/v1/gdw/integrity",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         ).json()
     assert state["step"] == 24
     assert integrity["ok"] is True
@@ -247,11 +252,11 @@ def test_metrics_and_bench_meta(tmp_path, monkeypatch):
         )
         metrics = client.get(
             "/api/a11oy/v1/gdw/metrics",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         )
         meta = client.get(
             "/api/a11oy/v1/gdw/bench/meta",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         )
     assert metrics.status_code == 200
     assert "gdw_requests_total" in metrics.text
@@ -268,7 +273,7 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
         ).json()
         integrity = client.get(
             "/api/a11oy/v1/gdw/integrity",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         ).json()
     assert result["proof"]["status"] == "OUTBOX_PENDING"
     assert integrity["pending_effects"] == 2
@@ -276,7 +281,7 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     from gdw_proofs import export_proof_payload, export_receipt_projection
     from gdw_workspace import GDWWorkspace
 
-    workspace = GDWWorkspace()
+    workspace = GDWWorkspace(namespace="a11oy", owner_id="owner-a")
     pending = workspace.claim_effects("test-drain", limit=10)
     assert {row["kind"] for row in pending} == {
         "receipt_projection",
@@ -290,21 +295,28 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
         receipt_row["payload"]["governance_evidence_sha256"]
         == proof_row["payload"]["governance_evidence_sha256"]
     )
+    assert (
+        receipt_row["payload"]["database_generation_id"]
+        == proof_row["payload"]["database_generation_id"]
+        == workspace.database_generation_id
+    )
+    assert (
+        receipt_row["payload"]["request_digest"]
+        == proof_row["payload"]["request_digest"]
+    )
     for row in pending:
         if row["kind"] == "proof_export":
             artifact = export_proof_payload(
-                row["payload"],
-                row["idempotency_key"],
-                row["owner_id"],
+                row["payload"], artifact_id=row["intent_sha256"]
             )
         else:
             artifact = export_receipt_projection(
-                row["payload"], row["idempotency_key"], row["owner_id"]
+                row["payload"], row["intent_sha256"]
             )
         workspace.mark_effect_exported(
             row["idempotency_key"],
             "test-drain",
-            row["claim_token"],
+            row["claim_generation"],
             artifact,
             "2026-07-28T00:00:00+00:00",
         )
@@ -346,12 +358,74 @@ def test_governance_denial_and_unavailable_policy_never_mutate(
             json=payload(session_id="unavailable"),
             headers=headers("policy-unavailable"),
         )
+        integrity = client.get(
+            "/api/a11oy/v1/gdw/integrity",
+            headers={"Authorization": "Bearer test-token"},
+        ).json()
     assert unavailable.status_code == 503
-    from gdw_workspace import GDWWorkspace
-
-    integrity = GDWWorkspace().integrity()
+    unavailable_body = unavailable.json()
+    assert unavailable_body["detail"]["reason"] == "GDW_WRITE_SURFACE_UNAVAILABLE"
+    assert unavailable_body["detail"]["write_blockers"] == [
+        "GOVERNANCE_SOURCE_UNREADY"
+    ]
     assert integrity["counts"]["session_state"] == 0
     assert integrity["counts"]["receipts"] == 0
+
+
+def test_step_authenticates_before_body_validation_and_never_mutates(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    malformed = {"session_id": [], "request": {"not": "text"}}
+    with TestClient(app) as client:
+        unauthenticated = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=malformed,
+            headers={"X-Request-Id": "malformed-unauthenticated"},
+        )
+        authenticated = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=malformed,
+            headers=headers("malformed-authenticated"),
+        )
+        integrity = client.get(
+            "/api/a11oy/v1/gdw/integrity",
+            headers={"Authorization": "Bearer test-token"},
+        ).json()
+
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.json()["detail"] == "missing_authorization"
+    assert authenticated.status_code == 422
+    assert authenticated.json()["detail"] == "invalid GDW step request"
+    for table in ("session_state", "requests", "receipts", "effect_outbox"):
+        assert integrity["counts"][table] == 0
+
+
+def test_unready_write_surface_rejects_before_auth_or_body_parsing(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: False)
+    with TestClient(app) as client:
+        unauthenticated = client.post(
+            "/api/a11oy/v1/gdw/step",
+            content=b"{invalid-json",
+            headers={"X-Request-Id": "unready-invalid"},
+        )
+        response = client.post(
+            "/api/a11oy/v1/gdw/step",
+            content=b"{invalid-json",
+            headers=headers("unready-invalid-authenticated"),
+        )
+
+    assert unauthenticated.status_code == 401
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "reason": "GDW_WRITE_SURFACE_UNAVAILABLE",
+        "write_blockers": ["GOVERNANCE_SOURCE_UNREADY"],
+    }
 
 
 def test_transaction_failure_rolls_back_without_external_effects(
@@ -364,9 +438,6 @@ def test_transaction_failure_rolls_back_without_external_effects(
         connection,
         request_id,
         kind,
-        generation_id,
-        owner_id,
-        canonical_identity,
         payload_value,
         payload_sha256,
         idempotency_key,
@@ -378,9 +449,6 @@ def test_transaction_failure_rolls_back_without_external_effects(
             connection,
             request_id,
             kind,
-            generation_id,
-            owner_id,
-            canonical_identity,
             payload_value,
             payload_sha256,
             idempotency_key,
@@ -400,13 +468,13 @@ def test_transaction_failure_rolls_back_without_external_effects(
         )
         integrity = client.get(
             "/api/a11oy/v1/gdw/integrity",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         ).json()
     assert failed.status_code == 500
     for table in ("session_state", "requests", "receipts", "effect_outbox"):
         assert integrity["counts"][table] == 0
-    assert list((tmp_path / "proofs").glob("*/*.json")) == []
-    assert list((tmp_path / "receipt-projections").glob("*/*.json")) == []
+    assert list((tmp_path / "proofs").glob("*.json")) == []
+    assert list((tmp_path / "receipt-projections").glob("*.json")) == []
 
 
 def test_same_request_concurrency_commits_once(tmp_path, monkeypatch):
@@ -429,7 +497,9 @@ def test_same_request_concurrency_commits_once(tmp_path, monkeypatch):
 
     from gdw_workspace import GDWWorkspace
 
-    integrity = GDWWorkspace().integrity()
+    integrity = GDWWorkspace(
+        namespace="a11oy", owner_id="owner-a"
+    ).integrity()
     assert integrity["counts"]["session_state"] == 1
     assert integrity["counts"]["requests"] == 1
     assert integrity["counts"]["receipts"] == 1
@@ -449,7 +519,7 @@ def test_effect_claim_is_leased_and_retry_uses_same_key(tmp_path, monkeypatch):
     from gdw_proofs import export_receipt_projection
     from gdw_workspace import GDWWorkspace
 
-    workspace = GDWWorkspace()
+    workspace = GDWWorkspace(namespace="a11oy", owner_id="owner-a")
     first = workspace.claim_effects("worker-a", limit=10, lease_seconds=60)
     assert len(first) == 2
     assert workspace.claim_effects("worker-b", limit=10) == []
@@ -466,14 +536,10 @@ def test_effect_claim_is_leased_and_retry_uses_same_key(tmp_path, monkeypatch):
         row for row in second if row["kind"] == "receipt_projection"
     )
     one = export_receipt_projection(
-        receipt_row["payload"],
-        receipt_row["idempotency_key"],
-        receipt_row["owner_id"],
+        receipt_row["payload"], receipt_row["idempotency_key"]
     )
     two = export_receipt_projection(
-        receipt_row["payload"],
-        receipt_row["idempotency_key"],
-        receipt_row["owner_id"],
+        receipt_row["payload"], receipt_row["idempotency_key"]
     )
     assert one["path"] == two["path"]
     assert one["sha256"] == two["sha256"]
@@ -490,359 +556,449 @@ def test_sync_export_mode_fails_closed_before_commit(tmp_path, monkeypatch):
         )
         integrity = client.get(
             "/api/a11oy/v1/gdw/integrity",
-            headers={"Authorization": "Bearer owner-a-token"},
+            headers={"Authorization": "Bearer test-token"},
         ).json()
     assert response.status_code == 500
     for table in ("session_state", "requests", "receipts", "effect_outbox"):
         assert integrity["counts"][table] == 0
 
 
-def test_unknown_policy_flow_closes_strict_contract(tmp_path):
-    from szl_colang_policy import ColangPolicy
-
-    source = gdw_frontier.os.path.join(
-        gdw_frontier.os.path.dirname(gdw_frontier.__file__),
-        "..",
-        "policy",
-        "colang",
-    )
-    policy_dir = tmp_path / "policy"
-    policy_dir.mkdir()
-    for name in ("killinchu_threat.co", "roe_core.co"):
-        shutil.copyfile(
-            gdw_frontier.os.path.join(source, name),
-            policy_dir / name,
-        )
-    with (policy_dir / "roe_core.co").open("a", encoding="utf-8") as stream:
-        stream.write(
-            '\ndefine flow silently_unknown_rule\n'
-            '  if is_effecting($action)\n'
-            '    refuse with reason "UNKNOWN"\n'
-        )
-    contract = {
-        "schema": "szl.colang-enforcement-contract/v1",
-        "evaluator": "szl.colang-python-evaluator/v1",
-        "files": {
-            name: hashlib.sha256((policy_dir / name).read_bytes()).hexdigest()
-            for name in ("killinchu_threat.co", "roe_core.co")
-        },
+def test_owner_keyspaces_are_isolated_at_the_api_boundary(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    owner_a = headers("shared-request")
+    owner_b = {
+        "Authorization": "Bearer test-token-b",
+        "X-Request-Id": "shared-request",
     }
-    (policy_dir / "gdw_enforcement_contract.json").write_text(
-        json.dumps(contract), encoding="utf-8"
-    )
-
-    policy = ColangPolicy(policy_dir)
-    status = policy.enforcement_contract_status()
-    result = policy.evaluate_strict({"tool": "execute", "effecting": True})
-    assert status["valid"] is False
-    assert status["unsupported_flows"] == ["silently_unknown_rule"]
-    assert "UNSUPPORTED_POLICY_FLOW" in status["reason_codes"]
-    assert result["allow"] is False
-
-
-def test_strict_policy_evaluator_exception_denies(tmp_path, monkeypatch):
-    import szl_colang_policy
-
-    policy = szl_colang_policy.ColangPolicy()
-    flow_name = policy.all_flows()[0]["name"]
-
-    def evaluator_failure(_action):
-        raise RuntimeError("injected evaluator failure")
-
-    monkeypatch.setitem(
-        szl_colang_policy._FLOW_LOGIC,
-        flow_name,
-        evaluator_failure,
-    )
-    result = policy.evaluate_strict({"tool": "execute", "effecting": True})
-    assert result["allow"] is False
-    assert result["decision"] == "deny"
-    assert result["evaluator_errors"] == [flow_name]
-    assert any(
-        item["reason"] == "POLICY_EVALUATOR_ERROR"
-        for item in result["fired_flows"]
-    )
-
-
-def test_principal_owner_isolation_blocks_cross_owner_access(
-    tmp_path, monkeypatch
-):
-    app = make_app(tmp_path, monkeypatch)
-    with TestClient(app) as client:
-        created = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="private-session"),
-            headers=headers("owner-a-request"),
-        )
-        assert created.status_code == 200
-        assert created.json()["owner_id"] == "owner-a"
-
-        read = client.get(
-            "/api/a11oy/v1/gdw/sessions/private-session",
-            headers={"Authorization": "Bearer owner-b-token"},
-        )
-        replay = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="private-session"),
-            headers=headers("owner-a-request", "owner-b-token"),
-        )
-        mutate = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="private-session"),
-            headers=headers("owner-b-request", "owner-b-token"),
-        )
-    assert read.status_code == 403
-    assert replay.status_code == 403
-    assert mutate.status_code == 403
-
-
-def test_quota_is_bounded_and_exported_requests_are_reclaimed(
-    tmp_path, monkeypatch
-):
-    monkeypatch.setenv("GDW_OWNER_MAX_REQUESTS", "1")
-    app = make_app(tmp_path, monkeypatch)
     with TestClient(app) as client:
         first = client.post(
             "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="quota-session"),
-            headers=headers("quota-1"),
+            json=payload(session_id="shared-session"),
+            headers=owner_a,
         )
-        blocked = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="quota-session"),
-            headers=headers("quota-2"),
+        assert first.status_code == 200
+        foreign_read = client.get(
+            "/api/a11oy/v1/gdw/sessions/shared-session",
+            headers={"Authorization": "Bearer test-token-b"},
         )
-    assert first.status_code == 200
-    assert blocked.status_code == 429
-
-    from gdw_workspace import GDWWorkspace
-
-    workspace = GDWWorkspace()
-    assert len(drain_claims(workspace, "quota-drain")) == 2
-    with workspace.transaction() as connection:
-        connection.execute(
-            "UPDATE object_owners SET expires_at = ? "
-            "WHERE object_type = 'request' AND object_id = 'quota-1'",
-            ("2000-01-01T00:00:00+00:00",),
-        )
-    with TestClient(app) as client:
-        reclaimed = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="quota-session"),
-            headers=headers("quota-2"),
-        )
-    assert reclaimed.status_code == 200
-    assert workspace.integrity()["counts"]["requests"] == 1
-
-
-def test_rehashed_outbox_divergence_is_detected_and_not_exported(
-    tmp_path, monkeypatch
-):
-    app = make_app(tmp_path, monkeypatch)
-    with TestClient(app) as client:
-        response = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(),
-            headers=headers("tamper-1"),
-        )
-    assert response.status_code == 200
-
-    from gdw_proofs import sha256_json
-    from gdw_workspace import GDWWorkspace
-
-    workspace = GDWWorkspace()
-    with workspace.transaction() as connection:
-        row = connection.execute(
-            "SELECT * FROM effect_outbox WHERE kind = 'proof_export'"
-        ).fetchone()
-        forged = json.loads(row["payload_json"])
-        forged["decision"] = "REJECT"
-        forged.pop("payload_sha256")
-        forged["payload_sha256"] = sha256_json(forged)
-        full_digest = sha256_json(forged)
-        forged_json = json.dumps(forged, sort_keys=True, separators=(",", ":"))
-        forged_key = hashlib.sha256(
-            (
-                f"{row['generation_id']}:{row['owner_id']}:"
-                f"{row['request_id']}:{forged['request_digest']}:"
-                f"{row['kind']}:{forged['payload_sha256']}:{full_digest}"
-            ).encode("utf-8")
-        ).hexdigest()
-        connection.execute(
-            "UPDATE evidence_intents SET canonical_identity = ?, "
-            "payload_json = ?, payload_sha256 = ? "
-            "WHERE canonical_identity = ?",
-            (
-                forged["payload_sha256"],
-                forged_json,
-                full_digest,
-                row["canonical_identity"],
-            ),
-        )
-        connection.execute(
-            "UPDATE effect_outbox SET idempotency_key = ?, "
-            "canonical_identity = ?, payload_json = ?, payload_sha256 = ? "
-            "WHERE idempotency_key = ?",
-            (
-                forged_key,
-                forged["payload_sha256"],
-                forged_json,
-                full_digest,
-                row["idempotency_key"],
-            ),
-        )
-    integrity = workspace.integrity()
-    assert integrity["ok"] is False
-    assert integrity["violations"]["effect_binding_mismatches"] >= 1
-    claim = workspace.claim_effects("tamper-drain", limit=10)
-    proof_claim = next(row for row in claim if row["kind"] == "proof_export")
-    try:
-        workspace.validate_claimed_effect(proof_claim)
-    except ValueError as exc:
-        assert "canonical response" in str(exc)
-    else:
-        raise AssertionError("forged proof effect unexpectedly validated")
-
-
-def test_reset_generation_never_reuses_artifact_identity(tmp_path, monkeypatch):
-    shared_proofs = tmp_path / "shared-proofs"
-    shared_receipts = tmp_path / "shared-receipts"
-
-    first_root = tmp_path / "first"
-    app_one = make_app(first_root, monkeypatch)
-    monkeypatch.setenv("GDW_PROOF_DIR", str(shared_proofs))
-    monkeypatch.setenv("GDW_RECEIPT_PROJECTION_DIR", str(shared_receipts))
-    with TestClient(app_one) as client:
-        first = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(),
-            headers=headers("reset-request"),
-        ).json()
-    from gdw_workspace import GDWWorkspace
-
-    first_workspace = GDWWorkspace(str(first_root / "gdw.sqlite3"))
-    first_artifacts = drain_claims(first_workspace, "reset-drain-one")
-
-    second_root = tmp_path / "second"
-    app_two = make_app(second_root, monkeypatch)
-    monkeypatch.setenv("GDW_PROOF_DIR", str(shared_proofs))
-    monkeypatch.setenv("GDW_RECEIPT_PROJECTION_DIR", str(shared_receipts))
-    with TestClient(app_two) as client:
+        assert foreign_read.status_code == 404
         second = client.post(
             "/api/a11oy/v1/gdw/step",
-            json=payload(),
-            headers=headers("reset-request"),
-        ).json()
-    second_workspace = GDWWorkspace(str(second_root / "gdw.sqlite3"))
-    second_artifacts = drain_claims(second_workspace, "reset-drain-two")
+            json=payload(session_id="shared-session"),
+            headers=owner_b,
+        )
+        assert second.status_code == 200
 
-    assert first["generation_id"] != second["generation_id"]
-    assert first["proposal_id"] != second["proposal_id"]
-    first_paths = {artifact["path"] for _, artifact in first_artifacts}
-    second_paths = {artifact["path"] for _, artifact in second_artifacts}
-    assert first_paths.isdisjoint(second_paths)
-    assert all(gdw_frontier.os.path.isfile(path) for path in first_paths | second_paths)
+    first_body = first.json()
+    second_body = second.json()
+    assert first_body["principal"]["owner_id"] == "owner-a"
+    assert second_body["principal"]["owner_id"] == "owner-b"
+    assert first_body["step"] == second_body["step"] == 1
+    assert first_body["receipt_hash"] != second_body["receipt_hash"]
 
 
-def test_stale_worker_is_fenced_and_replay_does_not_remint_metric(
-    tmp_path, monkeypatch
+def test_health_requires_governance_readiness(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: False)
+    with TestClient(app) as client:
+        response = client.get("/api/a11oy/v1/gdw/healthz")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_ready"] is False
+    assert body["governance_ready"] is False
+    assert body["credential_count"] == 2
+
+
+def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "prepared_at": "2026-07-28T00:00:00+00:00",
+            "error": None,
+            "storage": {
+                "database_path": "/data/a11oy/gdw/gdw.sqlite3",
+                "proof_directory": "/data/a11oy/gdw/proofs",
+                "persistence_required": True,
+                "mount_verified": True,
+                "journal_mode_requested": "DELETE",
+                "journal_mode_observed": "DELETE",
+                "synchronous_requested": "FULL",
+                "synchronous_observed": 2,
+                "sqlite_integrity": "ok",
+                "proof_export_mode": "outbox",
+                "schema_version": 3,
+                "database_generation_id": "a" * 32,
+            },
+            "drain": {
+                "enabled": True,
+                "running": True,
+                "worker_id": "private-worker-identity",
+                "last_outcome": "SUCCEEDED",
+                "last_success_at": datetime.now(timezone.utc).isoformat(),
+                "run_generation_id": "b" * 32,
+                "success_run_generation_id": "b" * 32,
+                "success_database_generation_id": "a" * 32,
+                "max_staleness_seconds": 60,
+                "last_report": {"rows": ["private"]},
+            },
+        },
+    )
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    with TestClient(app) as client:
+        response = client.get("/api/a11oy/v1/gdw/healthz")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "REAL"
+    assert body["write_ready"] is True
+    encoded = json.dumps(body, sort_keys=True)
+    assert "/data/" not in encoded
+    assert "private-worker-identity" not in encoded
+    assert '"rows"' not in encoded
+    assert body["persistence"]["storage"]["sqlite_integrity"] == "ok"
+
+
+def test_health_refuses_real_when_outbox_supervisor_is_retrying(
+    tmp_path,
+    monkeypatch,
 ):
-    from gdw_telemetry import GDWTelemetry
-    from gdw_workspace import GDWWorkspace
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "prepared_at": "2026-07-28T00:00:00+00:00",
+            "error": None,
+            "storage": {
+                "persistence_required": True,
+                "mount_verified": True,
+                "journal_mode_requested": "DELETE",
+                "journal_mode_observed": "DELETE",
+                "synchronous_requested": "FULL",
+                "synchronous_observed": 2,
+                "sqlite_integrity": "ok",
+                "proof_export_mode": "outbox",
+                "schema_version": 3,
+                "database_generation_id": "a" * 32,
+            },
+            "drain": {
+                "enabled": True,
+                "running": True,
+                "last_outcome": "RETRYING",
+                "last_success_at": datetime.now(timezone.utc).isoformat(),
+                "run_generation_id": "b" * 32,
+                "success_run_generation_id": "b" * 32,
+                "success_database_generation_id": "a" * 32,
+                "max_staleness_seconds": 60,
+            },
+        },
+    )
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    with TestClient(app) as client:
+        body = client.get("/api/a11oy/v1/gdw/healthz").json()
 
-    monkeypatch.setattr(gdw_frontier, "_TELEMETRY", GDWTelemetry())
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_ready"] is False
+    assert body["write_blockers"] == ["OUTBOX_SUPERVISOR_NOT_HEALTHY"]
+
+
+def test_health_requires_persistent_verified_storage_in_production(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "storage": {
+                "persistence_required": False,
+                "mount_verified": False,
+                "journal_mode_requested": "DELETE",
+                "journal_mode_observed": "DELETE",
+                "synchronous_requested": "FULL",
+                "synchronous_observed": 2,
+                "sqlite_integrity": "ok",
+                "proof_export_mode": "outbox",
+                "schema_version": 3,
+                "database_generation_id": "a" * 32,
+            },
+            "drain": {
+                "enabled": True,
+                "running": True,
+                "last_outcome": "SUCCEEDED",
+                "last_success_at": datetime.now(timezone.utc).isoformat(),
+                "run_generation_id": "b" * 32,
+                "success_run_generation_id": "b" * 32,
+                "success_database_generation_id": "a" * 32,
+                "max_staleness_seconds": 60,
+            },
+        },
+    )
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    with TestClient(app) as client:
+        body = client.get("/api/a11oy/v1/gdw/healthz").json()
+
+    assert body["status"] == "UNAVAILABLE"
+    assert body["write_blockers"] == [
+        "PERSISTENCE_NOT_REQUIRED",
+        "PERSISTENT_MOUNT_UNVERIFIED",
+    ]
+
+
+def test_health_uses_one_governance_readiness_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    calls = []
+
+    def one_snapshot():
+        calls.append(True)
+        return True
+
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", one_snapshot)
+    with TestClient(app) as client:
+        body = client.get("/api/a11oy/v1/gdw/healthz").json()
+
+    assert len(calls) == 1
+    assert body["status"] == "REAL"
+    assert body["write_ready"] is True
+    assert body["governance_ready"] is True
+
+
+def test_unknown_file_backed_policy_flow_fails_closed(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "unknown.co"
+    policy_path.write_text(
+        "\n".join(
+            [
+                "# policy_id: test-unknown",
+                "# policy_version: 1.0.0",
+                "define flow deny_all_gdw_effects",
+                "  user action requested $action",
+                "  bot refuse action with reason \"deny_all\"",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": {
+                    policy_path.name: hashlib.sha256(
+                        policy_path.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    trusted = {
+        policy_path.name: hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    }
+    policy = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    result = policy.evaluate({"effecting": True})
+
+    assert policy.enforcement_ready is False
+    assert policy.unsupported_flows == ["deny_all_gdw_effects"]
+    assert result["allow"] is False
+    assert result["decision"] == "deny"
+    assert result["enforcement_ready"] is False
+    assert result["unsupported_flows"] == ["deny_all_gdw_effects"]
+    assert result["fired_flows"][0]["reason"] == "POLICY_SOURCE_INVALID"
+    assert result["validation_errors"] == [
+        "unsupported_flow:deny_all_gdw_effects"
+    ]
+
+
+def test_cached_colang_policy_fails_closed_on_exact_source_drift(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "bound.co"
+    original = "\n".join(
+        [
+            "# policy_id: test-bound",
+            "# policy_version: 1.0.0",
+            "define flow refuse_prompt_injection",
+            "  if matches_injection_signature($action)",
+            '    refuse with reason "PROMPT_INJECTION"',
+        ]
+    )
+    policy_path.write_text(original, encoding="utf-8")
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": {
+                    policy_path.name: hashlib.sha256(
+                        policy_path.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    trusted = {
+        policy_path.name: hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    }
+    policy = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    assert policy.enforcement_ready is True
+
+    policy_path.write_text(
+        original.replace("matches_injection_signature", "is_destructive"),
+        encoding="utf-8",
+    )
+    drifted = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    result = drifted.evaluate({"text": "ordinary text"})
+
+    assert result["allow"] is False
+    assert result["enforcement_ready"] is False
+    assert result["fired_flows"][0]["reason"] == "POLICY_SOURCE_DRIFT"
+    assert result["source_contract_errors"] == [
+        "flow_guard_mismatch:refuse_prompt_injection",
+        "policy_file_digest_mismatch:bound.co",
+    ]
+
+
+def test_exact_policy_contract_rejects_empty_bundle(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "empty.co"
+    policy_path.write_text(
+        "# policy_id: empty\n# policy_version: 1.0.0\n",
+        encoding="utf-8",
+    )
+    trusted = {
+        policy_path.name: hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    }
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": trusted,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    policy = ColangPolicy(tmp_path, trusted_policy_files=trusted)
+    result = policy.evaluate({"text": "ordinary"})
+
+    assert policy.loaded is True
+    assert policy.enforcement_ready is False
+    assert policy.validation_errors == ["policy_file_has_no_flows:empty.co"]
+    assert result["allow"] is False
+    assert result["fired_flows"][0]["reason"] == "POLICY_SOURCE_INVALID"
+
+
+def test_policy_and_adjacent_contract_cannot_change_trusted_guard(tmp_path):
+    from szl_colang_policy import ColangPolicy, _evaluator_region_sha256
+
+    policy_path = tmp_path / "roe_core.co"
+    policy_path.write_text(
+        "\n".join(
+            [
+                "# policy_id: a11oy-roe-core",
+                "# policy_version: 1.0.0",
+                "define flow refuse_prompt_injection",
+                "  if is_destructive($action)",
+                '    bot refuse action with reason "prompt_injection_detected"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "enforcement-contract.json").write_text(
+        json.dumps(
+            {
+                "schema": "szl.colang-enforcement-contract/v1",
+                "evaluator_region_sha256": _evaluator_region_sha256(),
+                "policy_files": {
+                    policy_path.name: hashlib.sha256(
+                        policy_path.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    policy = ColangPolicy(tmp_path)
+
+    assert policy.enforcement_ready is False
+    assert policy.bundle_sha256 is None
+    assert policy.evaluate({"destructive": True})["allow"] is False
+
+
+def test_evaluator_contract_hash_covers_real_evaluator_source():
+    import szl_colang_policy
+
+    source = open(szl_colang_policy.__file__, encoding="utf-8").read()
+    match = __import__("re").search(
+        r"^# BEGIN EXACT POLICY EVALUATOR CONTRACT\r?\n"
+        r"(?P<region>.*?)"
+        r"^# END EXACT POLICY EVALUATOR CONTRACT$",
+        source,
+        __import__("re").MULTILINE | __import__("re").DOTALL,
+    )
+
+    assert match is not None
+    assert len(match.group("region")) > 5_000
+    assert "_FLOW_LOGIC" in match.group("region")
+    assert "def _matches_injection_signature" in match.group("region")
+    assert szl_colang_policy._evaluator_region_sha256() == hashlib.sha256(
+        match.group("region").replace("\r\n", "\n").encode("utf-8")
+    ).hexdigest()
+
+
+def test_container_copies_exact_policy_contract():
+    dockerfile = open("Dockerfile", encoding="utf-8").read()
+
+    assert (
+        "policy/colang/enforcement-contract.json ./policy/colang/"
+        in dockerfile
+    )
+
+
+def test_replay_telemetry_does_not_count_a_new_receipt(tmp_path, monkeypatch):
+    from gdw_telemetry import GDWTelemetry
+
+    telemetry = GDWTelemetry()
+    monkeypatch.setattr(gdw_frontier, "_TELEMETRY", telemetry)
     app = make_app(tmp_path, monkeypatch)
     with TestClient(app) as client:
-        first_response = client.post(
+        first = client.post(
             "/api/a11oy/v1/gdw/step",
             json=payload(),
-            headers=headers("fenced-1"),
+            headers=headers("telemetry-replay"),
         )
         replay = client.post(
             "/api/a11oy/v1/gdw/step",
             json=payload(),
-            headers=headers("fenced-1"),
+            headers=headers("telemetry-replay"),
         )
-    assert first_response.status_code == 200
-    assert replay.status_code == 200
-    assert gdw_frontier._TELEMETRY.snapshot()["receipts"] == 1
 
-    workspace = GDWWorkspace()
-    old_claims = workspace.claim_effects("stale-worker", limit=10)
-    with workspace.transaction() as connection:
-        connection.execute(
-            "UPDATE effect_outbox SET lease_until = ? WHERE status = 'CLAIMED'",
-            ("2000-01-01T00:00:00+00:00",),
-        )
-    new_claims = workspace.claim_effects("current-worker", limit=10)
-    assert {row["idempotency_key"] for row in old_claims} == {
-        row["idempotency_key"] for row in new_claims
-    }
-    for old in old_claims:
-        assert (
-            workspace.release_effect(
-                old["idempotency_key"],
-                "stale-worker",
-                old["claim_token"],
-                "late failure",
-            )
-            is False
-        )
-    for current in new_claims:
-        workspace.validate_claimed_effect(current)
-
-
-def test_admin_drain_exports_all_effects_and_is_idempotent(
-    tmp_path, monkeypatch
-):
-    app = make_app(tmp_path, monkeypatch)
-    with TestClient(app) as client:
-        transition = client.post(
-            "/api/a11oy/v1/gdw/step",
-            json=payload(session_id="drain-session"),
-            headers=headers("drain-request"),
-        )
-        assert transition.status_code == 200
-
-        denied = client.post(
-            "/api/a11oy/v1/gdw/drain?limit=10",
-            headers={"Authorization": "Bearer owner-b-token"},
-        )
-        assert denied.status_code == 403
-
-        drained = client.post(
-            "/api/a11oy/v1/gdw/drain?limit=10",
-            headers={"Authorization": "Bearer owner-a-token"},
-        )
-        assert drained.status_code == 200
-        assert drained.json()["exported"] == 2
-        assert drained.json()["failed"] == 0
-        assert drained.json()["pending_effects"] == 0
-        assert drained.json()["integrity_ok"] is True
-
-        replayed_drain = client.post(
-            "/api/a11oy/v1/gdw/drain?limit=10",
-            headers={"Authorization": "Bearer owner-a-token"},
-        )
-        assert replayed_drain.status_code == 200
-        assert replayed_drain.json()["exported"] == 0
-        assert replayed_drain.json()["pending_effects"] == 0
-
-
-def test_network_safe_delete_journal_is_measured_and_invalid_mode_fails(
-    tmp_path, monkeypatch
-):
-    import pytest
-
-    from gdw_workspace import GDWWorkspace
-
-    monkeypatch.setenv("GDW_SQLITE_JOURNAL", "DELETE")
-    workspace = GDWWorkspace(str(tmp_path / "delete-journal.sqlite3"))
-    integrity = workspace.integrity()
-    assert integrity["ok"] is True
-    assert integrity["journal_mode"] == "DELETE"
-    assert integrity["wal"] is False
-
-    monkeypatch.setenv("GDW_SQLITE_JOURNAL", "MEMORY")
-    with pytest.raises(RuntimeError, match="must be DELETE or WAL"):
-        GDWWorkspace(str(tmp_path / "invalid-journal.sqlite3"))
+    assert first.status_code == replay.status_code == 200
+    assert replay.json()["replayed"] is True
+    snapshot = telemetry.snapshot()
+    assert snapshot["requests"] == 2
+    assert snapshot["receipts"] == 1

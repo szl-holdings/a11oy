@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Converge GDW variables and a digest-only registry on canonical A11oy."""
+"""Converge GDW variables around a preprovisioned digest-only registry."""
 
 from __future__ import annotations
 
@@ -17,21 +17,38 @@ DATA_MOUNT = "/data"
 PRINCIPAL_ID = "gdw-operator"
 PRINCIPAL_REGISTRY_SECRET = "GDW_PRINCIPALS_JSON"
 STATIC_VARIABLES = {
-    "GDW_DB_PATH": "/data/a11oy/gdw/v2/gdw.sqlite3",
-    "GDW_PROOF_DIR": "/data/a11oy/gdw/v2/proofs",
-    "GDW_RECEIPT_PROJECTION_DIR": "/data/a11oy/gdw/v2/receipts",
+    "GDW_PRODUCTION_MODE": "1",
+    "GDW_NAMESPACE": "a11oy",
+    "GDW_SERVICE_OWNER_ID": "gdw-runtime",
+    "GDW_DB_PATH": "/data/a11oy/gdw/gdw.sqlite3",
+    "GDW_PROOF_DIR": "/data/a11oy/gdw/proofs",
+    "GDW_RECEIPT_PROJECTION_DIR": "/data/a11oy/gdw/receipts",
+    "GDW_REQUIRE_PERSISTENT_STORAGE": "1",
+    "GDW_REQUIRED_MOUNT": DATA_MOUNT,
+    "GDW_SQLITE_SYNCHRONOUS": "FULL",
     "GDW_PROOF_EXPORT_MODE": "outbox",
     # The mounted Hugging Face bucket is a network filesystem. DELETE avoids
     # WAL shared-memory assumptions while preserving transactional SQLite.
     "GDW_SQLITE_JOURNAL": "DELETE",
-    "GDW_OWNER_MAX_REQUESTS": "1000",
-    "GDW_OWNER_MAX_SESSIONS": "100",
-    "GDW_GLOBAL_MAX_REQUESTS": "100000",
-    "GDW_GLOBAL_MAX_SESSIONS": "10000",
+    "GDW_OWNER_MAX_ACTIVE_REQUESTS": "1000",
+    "GDW_OWNER_MAX_ACTIVE_SESSIONS": "100",
+    "GDW_OWNER_MAX_PENDING_EFFECTS": "2000",
+    "GDW_OWNER_MAX_STORED_BYTES": "268435456",
+    "GDW_GLOBAL_MAX_ACTIVE_REQUESTS": "100000",
+    "GDW_GLOBAL_MAX_ACTIVE_SESSIONS": "10000",
+    "GDW_GLOBAL_MAX_PENDING_EFFECTS": "100000",
+    "GDW_GLOBAL_MAX_STORED_BYTES": "2147483648",
     "GDW_OWNER_MAX_ARTIFACTS": "10000",
     "GDW_GLOBAL_MAX_ARTIFACTS": "100000",
     "GDW_RETENTION_SECONDS": "604800",
-    "GDW_MAX_EFFECT_ATTEMPTS": "20",
+    "GDW_TOMBSTONE_SECONDS": "2592000",
+    "GDW_EFFECT_MAX_ATTEMPTS": "20",
+    "GDW_EFFECT_BACKOFF_SECONDS": "5",
+    "GDW_OUTBOX_ENABLED": "1",
+    "GDW_OUTBOX_INTERVAL_SECONDS": "5",
+    "GDW_OUTBOX_RETRY_MAX_SECONDS": "60",
+    "GDW_OUTBOX_BATCH_SIZE": "100",
+    "GDW_OUTBOX_LEASE_SECONDS": "300",
     "GDW_POLICY_ORIGIN": "https://szlholdings-a11oy.hf.space",
 }
 
@@ -86,6 +103,20 @@ def plan_variables(
         for name, value in desired.items()
         if str(_value(current.get(name), "value", "")) != value
     }
+
+
+def require_preprovisioned_principal_registry(
+    current_variables: Mapping[str, Any],
+    secret_names: set[str],
+) -> None:
+    if PRINCIPAL_REGISTRY_SECRET in current_variables:
+        raise RuntimeConfigError(
+            "GDW principal registry collides with an existing Space variable"
+        )
+    if PRINCIPAL_REGISTRY_SECRET not in secret_names:
+        raise RuntimeConfigError(
+            "preprovisioned GDW principal registry secret is required"
+        )
 
 
 def require_data_mount(api: Any, *, repo_id: str) -> dict[str, Any]:
@@ -143,15 +174,14 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
     if not hf_token:
         raise RuntimeConfigError("HF_TOKEN is required")
     desired = desired_variables(operator_token)
-    principal_registry = principal_registry_value(operator_token)
     api = HfApi(token=hf_token)
     volume = require_data_mount(api, repo_id=repo_id)
     secret_names = set(api.get_space_secrets(repo_id=repo_id))
     current_variables = api.get_space_variables(repo_id=repo_id)
-    if PRINCIPAL_REGISTRY_SECRET in current_variables:
-        raise RuntimeConfigError(
-            "GDW principal registry collides with an existing Space variable"
-        )
+    require_preprovisioned_principal_registry(
+        current_variables,
+        secret_names,
+    )
     changes = plan_variables(
         current_variables,
         secret_names,
@@ -167,15 +197,6 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
                 "Bearer material is stored only in GitHub Actions."
             ),
         )
-    api.add_space_secret(
-        repo_id=repo_id,
-        key=PRINCIPAL_REGISTRY_SECRET,
-        value=principal_registry,
-        description=(
-            "Digest-bound GDW principal registry. Bearer material remains "
-            "only in GitHub Actions."
-        ),
-    )
     attempts = await_readback(
         api,
         repo_id=repo_id,
@@ -189,7 +210,9 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         "data_volume": volume,
         "variables_managed": sorted(desired),
         "variables_changed": sorted(changes),
-        "secret_names_managed": [PRINCIPAL_REGISTRY_SECRET],
+        "secret_names_required": [PRINCIPAL_REGISTRY_SECRET],
+        "secret_values_read": False,
+        "secret_values_mutated": False,
         "readback_attempts": attempts,
         "converged": True,
         "operator_token_present": True,
