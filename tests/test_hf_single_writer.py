@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
+import shlex
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
@@ -48,8 +50,7 @@ MUTATION_METHODS = {
 }
 _LOCAL_EXECUTABLE_PATH = (
     r"(?P<path>(?:\./|(?:[A-Za-z0-9_.-]+/)+)"
-    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
-    r"\.(?:py|sh|js|mjs|cjs|ts))"
+    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)"
 )
 LOCAL_SCRIPT_CALL = re.compile(
     r"(?:^|\s)(?:"
@@ -76,6 +77,9 @@ LOCAL_ACTION_CALL = re.compile(
 ACTION_ENTRYPOINT = re.compile(
     r"(?m)^\s*(?:main|pre|post):\s*[\"']?"
     r"(?P<path>[^#\s\"']+\.(?:py|sh|js|mjs|cjs|ts))"
+)
+ACTION_DOCKER_IMAGE = re.compile(
+    r"(?mi)^\s*image:\s*[\"']?(?P<path>(?!docker://)[^#\s\"']+)"
 )
 
 
@@ -166,8 +170,207 @@ def _has_main_push(text: str) -> bool:
 
 def _executable_text(text: str) -> str:
     return "\n".join(
-        line for line in text.splitlines() if not line.lstrip().startswith("#")
+        "" if line.lstrip().startswith("#") else line
+        for line in text.splitlines()
     )
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def _block_end(lines: list[str], start: int, indent: int) -> int:
+    for index in range(start + 1, len(lines)):
+        stripped = lines[index].strip()
+        if stripped and not stripped.startswith("#") and _indent(lines[index]) <= indent:
+            return index
+    return len(lines)
+
+
+def _direct_child_indent(
+    lines: list[str],
+    start: int,
+    end: int,
+    parent_indent: int,
+) -> int | None:
+    candidates = [
+        _indent(lines[index])
+        for index in range(start, end)
+        if lines[index].strip()
+        and not lines[index].lstrip().startswith("#")
+        and _indent(lines[index]) > parent_indent
+    ]
+    return min(candidates) if candidates else None
+
+
+def _yaml_scalar(value: str) -> str:
+    value = value.split(" #", 1)[0].strip().strip("\"'")
+    if not value or "${{" in value:
+        return ""
+    return value
+
+
+def _defaults_working_directory(
+    lines: list[str],
+    start: int,
+    end: int,
+    parent_indent: int,
+) -> str:
+    child_indent = _direct_child_indent(lines, start, end, parent_indent)
+    if child_indent is None:
+        return ""
+    for defaults_index in range(start, end):
+        if (
+            _indent(lines[defaults_index]) != child_indent
+            or lines[defaults_index].strip() != "defaults:"
+        ):
+            continue
+        defaults_end = min(
+            end,
+            _block_end(lines, defaults_index, child_indent),
+        )
+        run_indent = _direct_child_indent(
+            lines,
+            defaults_index + 1,
+            defaults_end,
+            child_indent,
+        )
+        if run_indent is None:
+            continue
+        for run_index in range(defaults_index + 1, defaults_end):
+            if (
+                _indent(lines[run_index]) != run_indent
+                or lines[run_index].strip() != "run:"
+            ):
+                continue
+            run_end = min(
+                defaults_end,
+                _block_end(lines, run_index, run_indent),
+            )
+            for index in range(run_index + 1, run_end):
+                match = re.fullmatch(
+                    r"\s*working-directory:\s*(?P<value>.+)",
+                    lines[index],
+                )
+                if match:
+                    return _yaml_scalar(match.group("value"))
+    return ""
+
+
+def _working_directory_for_run(text: str, offset: int) -> str:
+    lines = text.splitlines()
+    run_index = text.count("\n", 0, offset)
+    if run_index >= len(lines):
+        return ""
+
+    jobs_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if _indent(line) == 0 and line.strip() == "jobs:"
+        ),
+        None,
+    )
+    workflow_default = _defaults_working_directory(lines, 0, len(lines), -1)
+    if jobs_index is None:
+        return workflow_default
+
+    jobs_end = _block_end(lines, jobs_index, _indent(lines[jobs_index]))
+    if not jobs_index < run_index < jobs_end:
+        return workflow_default
+    job_indent = _direct_child_indent(
+        lines,
+        jobs_index + 1,
+        jobs_end,
+        _indent(lines[jobs_index]),
+    )
+    if job_indent is None:
+        return workflow_default
+    job_starts = [
+        index
+        for index in range(jobs_index + 1, jobs_end)
+        if index <= run_index
+        and _indent(lines[index]) == job_indent
+        and re.fullmatch(r"[A-Za-z0-9_.-]+:\s*", lines[index].strip())
+    ]
+    if not job_starts:
+        return workflow_default
+    job_start = job_starts[-1]
+    job_end = min(jobs_end, _block_end(lines, job_start, job_indent))
+    job_default = _defaults_working_directory(
+        lines,
+        job_start + 1,
+        job_end,
+        job_indent,
+    )
+
+    steps_candidates = [
+        index
+        for index in range(job_start + 1, min(job_end, run_index + 1))
+        if lines[index].strip() == "steps:"
+    ]
+    if not steps_candidates:
+        return job_default or workflow_default
+    steps_start = steps_candidates[-1]
+    steps_indent = _indent(lines[steps_start])
+    steps_end = min(job_end, _block_end(lines, steps_start, steps_indent))
+    if not steps_start < run_index < steps_end:
+        return job_default or workflow_default
+    step_indent = _direct_child_indent(
+        lines,
+        steps_start + 1,
+        steps_end,
+        steps_indent,
+    )
+    if step_indent is None:
+        return job_default or workflow_default
+    step_starts = [
+        index
+        for index in range(steps_start + 1, min(steps_end, run_index + 1))
+        if _indent(lines[index]) == step_indent
+        and lines[index].lstrip().startswith("- ")
+    ]
+    if not step_starts:
+        return job_default or workflow_default
+    step_start = step_starts[-1]
+    next_steps = [
+        index
+        for index in range(step_start + 1, steps_end)
+        if _indent(lines[index]) == step_indent
+        and lines[index].lstrip().startswith("- ")
+    ]
+    step_end = next_steps[0] if next_steps else steps_end
+    for index in range(step_start, step_end):
+        match = re.fullmatch(
+            r"\s*working-directory:\s*(?P<value>.+)",
+            lines[index],
+        )
+        if match:
+            return _yaml_scalar(match.group("value"))
+    return job_default or workflow_default
+
+
+def _docker_copy_sources(text: str) -> set[str]:
+    sources: set[str] = set()
+    for line in text.splitlines():
+        match = re.match(r"(?i)^\s*(?:COPY|ADD)\s+(?P<body>.+)$", line)
+        if not match:
+            continue
+        body = re.sub(r"^(?:--\S+\s+)*", "", match.group("body").strip())
+        try:
+            values = json.loads(body) if body.startswith("[") else shlex.split(body)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if not isinstance(values, list) or len(values) < 2:
+            continue
+        for value in values[:-1]:
+            if (
+                isinstance(value, str)
+                and "://" not in value
+                and not any(token in value for token in ("$", "*", "?"))
+            ):
+                sources.add(value)
+    return sources
 
 
 def _repo_source(
@@ -215,9 +418,19 @@ def _referenced_sources(
         current = _executable_text(source_text)
         references: set[tuple[str, str]] = {
             (match.group("path"), "")
-            for pattern in (LOCAL_SCRIPT_CALL, DIRECT_SCRIPT_CALL)
-            for match in pattern.finditer(current)
+            for match in LOCAL_SCRIPT_CALL.finditer(current)
         }
+        references.update(
+            (
+                match.group("path"),
+                (
+                    _working_directory_for_run(current, match.start())
+                    if current_path is None
+                    else PurePosixPath(current_path).parent.as_posix()
+                ),
+            )
+            for match in DIRECT_SCRIPT_CALL.finditer(current)
+        )
         for match in LOCAL_MODULE_CALL.finditer(current):
             module_path = match.group("module").replace(".", "/")
             references.update(
@@ -246,6 +459,20 @@ def _referenced_sources(
                 (match.group("path"), action_dir)
                 for match in ACTION_ENTRYPOINT.finditer(current)
             )
+            if re.search(r"(?mi)^\s*using:\s*[\"']?docker[\"']?\s*$", current):
+                references.update(
+                    (match.group("path"), action_dir)
+                    for match in ACTION_DOCKER_IMAGE.finditer(current)
+                )
+
+        if current_path is not None:
+            current_name = PurePosixPath(current_path).name.lower()
+            if current_name == "dockerfile" or current_name.endswith(".dockerfile"):
+                docker_dir = PurePosixPath(current_path).parent.as_posix()
+                references.update(
+                    (source_path, docker_dir)
+                    for source_path in _docker_copy_sources(current)
+                )
 
         for relative_path, base_dir in sorted(references):
             source = _repo_source(
@@ -536,6 +763,140 @@ jobs:
                 "unsafe-action.yaml",
                 "unsafe-script.yml",
             ],
+        )
+
+    def test_extensionless_direct_executable_is_resolved(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe extensionless writer
+on: [push]
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./scripts/deploy
+"""
+        repo_files = {
+            "scripts/deploy": (
+                "python -c 'HfApi().create_commit("
+                "repo_id=\"target\", operations=[])'\n"
+            )
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-extensionless.yml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-extensionless.yml"],
+        )
+
+    def test_direct_scripts_honor_all_working_directory_scopes(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        workflow_default = """
+name: workflow default writer
+on: [push]
+defaults:
+  run:
+    working-directory: workflow-tools
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./deploy
+"""
+        job_default = """
+name: job default writer
+on: [push]
+jobs:
+  mutate:
+    defaults:
+      run:
+        working-directory: job-tools
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./deploy
+"""
+        step_override = """
+name: step directory writer
+on: [push]
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./deploy
+        working-directory: step-tools
+"""
+        writer = (
+            "python -c 'HfApi().upload_folder("
+            "repo_id=\"target\", folder_path=\".\")'\n"
+        )
+        repo_files = {
+            "workflow-tools/deploy": writer,
+            "job-tools/deploy": writer,
+            "step-tools/deploy": writer,
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "workflow-default.yml": workflow_default,
+                    "job-default.yml": job_default,
+                    "step-override.yml": step_override,
+                },
+                repo_files,
+            ),
+            [
+                CANONICAL_WORKFLOW,
+                "job-default.yml",
+                "step-override.yml",
+                "workflow-default.yml",
+            ],
+        )
+
+    def test_local_docker_action_sources_are_resolved(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe docker action
+on: [push]
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - uses: ./.github/actions/docker-writer
+"""
+        repo_files = {
+            ".github/actions/docker-writer/action.yml": (
+                "runs:\n"
+                "  using: docker\n"
+                "  image: Dockerfile\n"
+            ),
+            ".github/actions/docker-writer/Dockerfile": (
+                "FROM python:3.12-slim\n"
+                "COPY entrypoint /entrypoint\n"
+                'ENTRYPOINT ["/entrypoint"]\n'
+            ),
+            ".github/actions/docker-writer/entrypoint": (
+                "python -c 'HfApi().upload_folder("
+                "repo_id=\"target\", folder_path=\".\")'\n"
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-docker-action.yml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-docker-action.yml"],
         )
 
 
