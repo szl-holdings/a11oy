@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Converge GDW variables around a preprovisioned digest-only registry."""
+"""Converge GDW variables and the digest-only principal registry."""
 
 from __future__ import annotations
 
@@ -105,18 +105,26 @@ def plan_variables(
     }
 
 
-def require_preprovisioned_principal_registry(
+def converge_principal_registry(
+    api: Any,
+    *,
+    repo_id: str,
     current_variables: Mapping[str, Any],
-    secret_names: set[str],
+    operator_token: str,
 ) -> None:
     if PRINCIPAL_REGISTRY_SECRET in current_variables:
         raise RuntimeConfigError(
             "GDW principal registry collides with an existing Space variable"
         )
-    if PRINCIPAL_REGISTRY_SECRET not in secret_names:
-        raise RuntimeConfigError(
-            "preprovisioned GDW principal registry secret is required"
-        )
+    api.add_space_secret(
+        repo_id=repo_id,
+        key=PRINCIPAL_REGISTRY_SECRET,
+        value=principal_registry_value(operator_token),
+        description=(
+            "Digest-only GDW principal registry converged from the masked "
+            "GitHub Actions operator credential."
+        ),
+    )
 
 
 def require_data_mount(api: Any, *, repo_id: str) -> dict[str, Any]:
@@ -178,10 +186,13 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
     volume = require_data_mount(api, repo_id=repo_id)
     secret_names = set(api.get_space_secrets(repo_id=repo_id))
     current_variables = api.get_space_variables(repo_id=repo_id)
-    require_preprovisioned_principal_registry(
-        current_variables,
-        secret_names,
+    converge_principal_registry(
+        api,
+        repo_id=repo_id,
+        current_variables=current_variables,
+        operator_token=operator_token,
     )
+    secret_names.add(PRINCIPAL_REGISTRY_SECRET)
     changes = plan_variables(
         current_variables,
         secret_names,
@@ -212,7 +223,8 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         "variables_changed": sorted(changes),
         "secret_names_required": [PRINCIPAL_REGISTRY_SECRET],
         "secret_values_read": False,
-        "secret_values_mutated": False,
+        "secret_values_mutated": True,
+        "principal_registry_converged": True,
         "readback_attempts": attempts,
         "converged": True,
         "operator_token_present": True,

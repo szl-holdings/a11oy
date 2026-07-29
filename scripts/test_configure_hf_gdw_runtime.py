@@ -49,17 +49,38 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
         config.plan_variables({}, {"GDW_DB_PATH"}, desired)
 
 
-def test_principal_registry_must_be_preprovisioned_and_is_never_mutated() -> None:
-    config.require_preprovisioned_principal_registry(
-        {},
-        {config.PRINCIPAL_REGISTRY_SECRET},
+def test_principal_registry_converges_digest_without_bearer_material() -> None:
+    calls = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
     )
-    with pytest.raises(config.RuntimeConfigError, match="preprovisioned"):
-        config.require_preprovisioned_principal_registry({}, set())
+    token = "operator-token-" + ("x" * 40)
+    config.converge_principal_registry(
+        api,
+        repo_id=config.CANONICAL_SPACE,
+        current_variables={},
+        operator_token=token,
+    )
+
+    assert len(calls) == 1
+    written = calls[0]
+    assert written["key"] == config.PRINCIPAL_REGISTRY_SECRET
+    assert token not in written["value"]
+    assert __import__("json").loads(written["value"])[config.PRINCIPAL_ID][
+        "token_sha256"
+    ] == __import__("hashlib").sha256(token.encode("utf-8")).hexdigest()
+
+
+def test_principal_registry_rejects_variable_collision() -> None:
+    api = SimpleNamespace(add_space_secret=lambda **kwargs: None)
     with pytest.raises(config.RuntimeConfigError, match="collides"):
-        config.require_preprovisioned_principal_registry(
-            {config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")},
-            {config.PRINCIPAL_REGISTRY_SECRET},
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables={
+                config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")
+            },
+            operator_token="x" * 48,
         )
 
 
