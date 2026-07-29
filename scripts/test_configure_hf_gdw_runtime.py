@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -49,17 +51,52 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
         config.plan_variables({}, {"GDW_DB_PATH"}, desired)
 
 
-def test_principal_registry_must_be_preprovisioned_and_is_never_mutated() -> None:
-    config.require_preprovisioned_principal_registry(
-        {},
-        {config.PRINCIPAL_REGISTRY_SECRET},
+def test_principal_registry_is_converged_as_digest_only_secret() -> None:
+    token = "operator-token-" + ("x" * 48)
+    calls: list[dict[str, object]] = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+        get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
     )
-    with pytest.raises(config.RuntimeConfigError, match="preprovisioned"):
-        config.require_preprovisioned_principal_registry({}, set())
+
+    assert config.converge_principal_registry(
+        api,
+        repo_id=config.CANONICAL_SPACE,
+        current_variables={},
+        operator_token=token,
+    ) == {config.PRINCIPAL_REGISTRY_SECRET}
+    assert len(calls) == 1
+    assert calls[0]["key"] == config.PRINCIPAL_REGISTRY_SECRET
+    registry_text = str(calls[0]["value"])
+    assert token not in registry_text
+    assert json.loads(registry_text) == {
+        config.PRINCIPAL_ID: {
+            "roles": ["admin", "user"],
+            "token_sha256": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        }
+    }
+
+
+def test_principal_registry_convergence_fails_closed() -> None:
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: None,
+        get_space_secrets=lambda **kwargs: [],
+    )
+    with pytest.raises(config.RuntimeConfigError, match="did not converge"):
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables={},
+            operator_token="x" * 48,
+        )
     with pytest.raises(config.RuntimeConfigError, match="collides"):
-        config.require_preprovisioned_principal_registry(
-            {config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")},
-            {config.PRINCIPAL_REGISTRY_SECRET},
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables={
+                config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")
+            },
+            operator_token="x" * 48,
         )
 
 
