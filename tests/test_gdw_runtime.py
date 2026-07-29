@@ -1,11 +1,22 @@
+import errno
 import hashlib
 import json
+import os
 import sqlite3
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
+import gdw_proofs
 import gdw_runtime
-from gdw_proofs import build_proof_payload, export_proof_payload, sha256_json
+from gdw_proofs import (
+    build_proof_payload,
+    export_proof_payload,
+    export_receipt_projection,
+    sha256_json,
+)
 from gdw_workspace import GDWConfigurationError, GDWWorkspace
 
 
@@ -367,6 +378,478 @@ def test_artifact_export_is_content_addressed_and_refuses_rebinding(
     assert distinct["path"] != first["path"]
 
 
+def test_both_artifact_kinds_publish_completed_stages_with_hard_links(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    monkeypatch.setenv(
+        "GDW_RECEIPT_PROJECTION_DIR",
+        str(tmp_path / "receipts"),
+    )
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "c" * 64,
+        "request_id": "network-mount",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+
+    artifact = export_proof_payload(payload)
+    receipt = {
+        "schema": "szl.gdw.delta-update-receipt/v1",
+        "request_id": "network-mount",
+        "owner_id": "owner-a",
+    }
+    receipt["receipt_hash"] = sha256_json(receipt)
+    projected = export_receipt_projection(
+        receipt,
+        "e" * 64,
+        owner_id="owner-a",
+    )
+
+    assert artifact["publication_mode"] == "HARD_LINK"
+    assert projected["publication_mode"] == "HARD_LINK"
+    assert Path(artifact["path"]).read_text(encoding="utf-8") == (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    )
+    assert export_proof_payload(payload)["reused"] is True
+
+
+def test_artifact_hard_link_reuses_a_concurrent_identical_file(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "d" * 64,
+        "request_id": "concurrent-identical",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    encoded = (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+
+    def concurrent_identical(_temporary, destination):
+        Path(destination).write_bytes(encoded)
+        raise FileExistsError
+
+    monkeypatch.setattr("gdw_proofs.os.link", concurrent_identical)
+
+    artifact = export_proof_payload(payload)
+
+    assert artifact["reused"] is True
+    assert artifact["publication_mode"] == "REUSED"
+
+
+def test_artifact_hard_link_never_overwrites_a_concurrent_mismatch(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "e" * 64,
+        "request_id": "concurrent-mismatch",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    observed_inode = None
+
+    def concurrent_mismatch(_temporary, destination):
+        nonlocal observed_inode
+        Path(destination).write_text("concurrent-mismatch", encoding="utf-8")
+        observed_inode = Path(destination).stat().st_ino
+        raise FileExistsError
+
+    monkeypatch.setattr("gdw_proofs.os.link", concurrent_mismatch)
+
+    with pytest.raises(FileExistsError, match="refusing to overwrite"):
+        export_proof_payload(payload)
+
+    destination = next((tmp_path / "proofs").rglob("*.json"))
+    assert destination.read_text(encoding="utf-8") == "concurrent-mismatch"
+    assert destination.stat().st_ino == observed_inode
+
+
+def test_artifact_temp_write_failure_never_exposes_a_partial_final(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "f" * 64,
+        "request_id": "partial-write",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    real_fsync = os.fsync
+    failures = 0
+
+    def fail_once(descriptor):
+        nonlocal failures
+        failures += 1
+        if failures == 1:
+            raise OSError("injected fsync failure")
+        return real_fsync(descriptor)
+
+    monkeypatch.setattr("gdw_proofs.os.fsync", fail_once)
+
+    with pytest.raises(OSError, match="injected fsync failure"):
+        export_proof_payload(payload)
+    assert not any((tmp_path / "proofs").rglob("*.json"))
+
+    artifact = export_proof_payload(payload)
+    assert artifact["reused"] is False
+    assert Path(artifact["path"]).is_file()
+
+
+def test_transient_link_failure_leaves_no_final_and_retry_succeeds(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "1" * 64,
+        "request_id": "outer-retry",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    real_link = os.link
+    monkeypatch.setattr(
+        "gdw_proofs.os.link",
+        lambda *_args: (_ for _ in ()).throw(
+            OSError("injected transient link failure")
+        ),
+    )
+
+    with pytest.raises(OSError, match="transient link failure"):
+        export_proof_payload(payload)
+    assert not any((tmp_path / "proofs").rglob("*.json"))
+    assert not any((tmp_path / "proofs").rglob("*.stage"))
+
+    monkeypatch.setattr("gdw_proofs.os.link", real_link)
+    artifact = export_proof_payload(payload)
+    assert Path(artifact["path"]).is_file()
+
+
+def test_transient_hf_mount_link_errno_is_retried_before_failure(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "5" * 64,
+        "request_id": "dirty-stage",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    real_link = os.link
+    attempts = 0
+
+    def link_after_flush(stage, destination):
+        nonlocal attempts
+        attempts += 1
+        assert Path(stage).is_file()
+        assert not Path(destination).exists()
+        if attempts < 3:
+            raise OSError(errno.ENOTSUP, "source is not committed yet")
+        real_link(stage, destination)
+
+    monkeypatch.setattr("gdw_proofs.os.link", link_after_flush)
+    monkeypatch.setattr("gdw_proofs.time.sleep", lambda _seconds: None)
+
+    artifact = export_proof_payload(payload)
+
+    assert attempts == 3
+    assert artifact["publication_mode"] == "HARD_LINK_AFTER_FLUSH"
+    assert Path(artifact["path"]).is_file()
+
+
+def test_transient_link_retry_bound_fails_without_exposing_final(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "a" * 64,
+        "request_id": "retry-bound",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    attempts = 0
+
+    def unsupported(_stage, _destination):
+        nonlocal attempts
+        attempts += 1
+        raise OSError(errno.ENOTSUP, "source remains dirty")
+
+    monkeypatch.setattr("gdw_proofs.os.link", unsupported)
+    monkeypatch.setattr("gdw_proofs.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("gdw_proofs._LINK_MAX_ATTEMPTS", 3)
+
+    with pytest.raises(OSError) as exc_info:
+        export_proof_payload(payload)
+
+    assert exc_info.value.errno == errno.ENOTSUP
+    assert attempts == 3
+    assert not any((tmp_path / "proofs").rglob("*.json"))
+    assert not any((tmp_path / "proofs").rglob("*.tmp"))
+
+
+def test_directory_fsync_is_capability_aware_but_propagates_io_errors(
+    monkeypatch,
+    tmp_path,
+):
+    closed = []
+    monkeypatch.setattr(gdw_proofs.os, "name", "posix")
+    monkeypatch.setattr(gdw_proofs.os, "open", lambda *_args: 41)
+    monkeypatch.setattr(gdw_proofs.os, "close", closed.append)
+    monkeypatch.setattr(
+        gdw_proofs.os,
+        "fsync",
+        lambda _descriptor: (_ for _ in ()).throw(
+            OSError(errno.ENOTSUP, "directory fsync unsupported")
+        ),
+    )
+
+    gdw_proofs._fsync_directory(tmp_path)
+    assert closed == [41]
+
+    monkeypatch.setattr(
+        gdw_proofs.os,
+        "fsync",
+        lambda _descriptor: (_ for _ in ()).throw(
+            OSError(errno.EIO, "directory sync failed")
+        ),
+    )
+    with pytest.raises(OSError) as exc_info:
+        gdw_proofs._fsync_directory(tmp_path)
+    assert exc_info.value.errno == errno.EIO
+    assert closed == [41, 41]
+
+
+def test_existing_artifact_symlink_is_rejected(monkeypatch, tmp_path):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "3" * 64,
+        "request_id": "symlink",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    owner_scope = hashlib.sha256(b"owner-a").hexdigest()[:32]
+    owner_root = tmp_path / "proofs" / owner_scope
+    owner_root.mkdir(parents=True)
+    target = tmp_path / "outside.json"
+    target.write_text("outside", encoding="utf-8")
+    destination = owner_root / f"{payload['payload_sha256']}.json"
+    try:
+        destination.symlink_to(target)
+    except OSError:
+        pytest.skip("symlink creation is not permitted")
+
+    with pytest.raises((FileExistsError, OSError)):
+        export_proof_payload(payload)
+    assert target.read_text(encoding="utf-8") == "outside"
+
+
+def test_process_death_before_finalization_leaves_no_visible_artifact(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "2" * 64,
+        "request_id": "process-death",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    environment = os.environ.copy()
+    environment["TEST_GDW_PAYLOAD"] = json.dumps(payload)
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, os; import gdw_proofs; "
+                "payload = json.loads(os.environ['TEST_GDW_PAYLOAD']); "
+                "gdw_proofs.os.link = lambda *_args: os._exit(17); "
+                "gdw_proofs.export_proof_payload(payload)"
+            ),
+        ],
+        cwd=Path(__file__).parents[1],
+        env=environment,
+        check=False,
+    )
+
+    assert process.returncode == 17
+    assert not any((tmp_path / "proofs").rglob("*.json"))
+    assert any((tmp_path / "proofs").rglob("*.tmp"))
+
+    artifact = export_proof_payload(payload)
+    assert Path(artifact["path"]).is_file()
+    assert any((tmp_path / "proofs").rglob("*.tmp"))
+
+
+def test_process_death_after_finalization_reuses_exact_artifact(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "4" * 64,
+        "request_id": "post-publication-death",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    environment = os.environ.copy()
+    environment["TEST_GDW_PAYLOAD"] = json.dumps(payload)
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, os; import gdw_proofs; "
+                "payload = json.loads(os.environ['TEST_GDW_PAYLOAD']); "
+                "real_link = os.link; "
+                "gdw_proofs.os.link = lambda *args: "
+                "(real_link(*args), os._exit(19))[1]; "
+                "gdw_proofs.export_proof_payload(payload)"
+            ),
+        ],
+        cwd=Path(__file__).parents[1],
+        env=environment,
+        check=False,
+    )
+
+    assert process.returncode == 19
+    assert len(list((tmp_path / "proofs").rglob("*.json"))) == 1
+    assert any((tmp_path / "proofs").rglob("*.tmp"))
+
+    artifact = export_proof_payload(payload)
+    assert artifact["reused"] is True
+    assert Path(artifact["path"]).is_file()
+    assert any((tmp_path / "proofs").rglob("*.tmp"))
+
+
+def test_two_processes_reuse_the_same_complete_artifact(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "6" * 64,
+        "request_id": "two-process-identical",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    environment = os.environ.copy()
+    environment["TEST_GDW_PAYLOAD"] = json.dumps(payload)
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "import json, os; from gdw_proofs import export_proof_payload; "
+            "payload = json.loads(os.environ['TEST_GDW_PAYLOAD']); "
+            "export_proof_payload(payload)"
+        ),
+    ]
+    processes = [
+        subprocess.Popen(
+            command,
+            cwd=Path(__file__).parents[1],
+            env=environment,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        for _ in range(2)
+    ]
+
+    assert [process.wait(timeout=30) for process in processes] == [0, 0]
+    finals = list((tmp_path / "proofs").rglob("*.json"))
+    assert len(finals) == 1
+    assert finals[0].read_text(encoding="utf-8") == (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    )
+
+
+def test_two_processes_never_overwrite_a_different_final(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payloads = []
+    for marker in ("7", "8"):
+        payload = {
+            "schema": "szl.gdw.proof-input/v1",
+            "proposal_id": marker * 64,
+            "request_id": f"two-process-{marker}",
+            "owner_id": "owner-a",
+            "formal_status": "NOT_RUN",
+        }
+        payload["payload_sha256"] = sha256_json(payload)
+        payloads.append(payload)
+    artifact_id = "9" * 64
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "import json, os; from gdw_proofs import export_proof_payload; "
+            "payload = json.loads(os.environ['TEST_GDW_PAYLOAD']); "
+            "export_proof_payload("
+            "payload, artifact_id=os.environ['TEST_GDW_ARTIFACT_ID'])"
+        ),
+    ]
+    processes = []
+    for payload in payloads:
+        environment = os.environ.copy()
+        environment["TEST_GDW_PAYLOAD"] = json.dumps(payload)
+        environment["TEST_GDW_ARTIFACT_ID"] = artifact_id
+        processes.append(
+            subprocess.Popen(
+                command,
+                cwd=Path(__file__).parents[1],
+                env=environment,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        )
+
+    return_codes = sorted(
+        process.wait(timeout=30) for process in processes
+    )
+    assert return_codes == [0, 1]
+    finals = list((tmp_path / "proofs").rglob("*.json"))
+    assert len(finals) == 1
+    assert finals[0].read_bytes() in {
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(
+            "utf-8"
+        )
+        for payload in payloads
+    }
+
+
 def test_lost_claim_does_not_crash_the_bounded_drain(
     monkeypatch,
     tmp_path,
@@ -469,8 +952,12 @@ def test_supervisor_binds_success_to_current_run_and_database(
             "exported": 0,
             "failed": 0,
             "pending_effects": 0,
+            "claimed_effects": 0,
+            "dead_letter_effects": 0,
             "legacy_pending_proofs": 0,
             "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
             "errors": [],
         },
     )
@@ -520,8 +1007,12 @@ def test_supervisor_retries_when_legacy_proofs_remain(monkeypatch):
             "exported": 0,
             "failed": 0,
             "pending_effects": 0,
+            "claimed_effects": 0,
+            "dead_letter_effects": 0,
             "legacy_pending_proofs": 1,
             "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
             "errors": [],
         },
     )
@@ -543,4 +1034,61 @@ def test_supervisor_retries_when_legacy_proofs_remain(monkeypatch):
     drain = gdw_runtime.runtime_health()["drain"]
 
     assert drain["last_outcome"] == "RETRY_SCHEDULED"
-    assert "unmigrated legacy proofs" in drain["last_error"]
+    assert "non-quiescent" in drain["last_error"]
+
+
+def test_supervisor_does_not_report_success_during_effect_backoff(
+    monkeypatch,
+):
+    database_generation = "d" * 32
+    monkeypatch.setattr(
+        gdw_runtime,
+        "_STATE",
+        {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "storage": {"database_generation_id": database_generation},
+            "drain": {
+                "enabled": False,
+                "running": False,
+                "last_outcome": "NOT_RUN",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        gdw_runtime,
+        "drain_once",
+        lambda **_kwargs: {
+            "attempted": 0,
+            "exported": 0,
+            "failed": 0,
+            "pending_effects": 1,
+            "claimed_effects": 0,
+            "dead_letter_effects": 0,
+            "legacy_pending_proofs": 0,
+            "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
+            "errors": [],
+        },
+    )
+    supervisor = gdw_runtime.OutboxSupervisor(
+        enabled=True,
+        interval_seconds=5,
+        retry_max_seconds=60,
+        batch_size=10,
+        lease_seconds=30,
+    )
+    waits = iter((False, True))
+    supervisor._stop = type(
+        "TwoPassStop",
+        (),
+        {"wait": lambda _self, _delay: next(waits)},
+    )()
+
+    supervisor._run()
+    drain = gdw_runtime.runtime_health()["drain"]
+
+    assert drain["last_outcome"] == "RETRY_SCHEDULED"
+    assert drain["last_success_at"] is None
+    assert drain["success_run_generation_id"] is None

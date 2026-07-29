@@ -29,8 +29,11 @@ def test_supervisor_does_not_report_success_with_pending_effects(
             "exported": 0,
             "failed": 0,
             "pending_effects": 8,
+            "dead_letter_effects": 0,
             "legacy_pending_proofs": 0,
             "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
             "errors": [],
         },
     )
@@ -52,7 +55,7 @@ def test_supervisor_does_not_report_success_with_pending_effects(
     drain = gdw_runtime.runtime_health()["drain"]
 
     assert drain["last_outcome"] == "RETRY_SCHEDULED"
-    assert "pending effects" in drain["last_error"]
+    assert drain["last_error"] == "bounded drain pass remains non-quiescent"
     assert drain["success_run_generation_id"] is None
 
 
