@@ -55,13 +55,15 @@ def test_principal_registry_converges_digest_without_bearer_material() -> None:
         add_space_secret=lambda **kwargs: calls.append(kwargs),
     )
     token = "operator-token-" + ("x" * 40)
-    config.converge_principal_registry(
+    changed = config.converge_principal_registry(
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
+        secret_names=set(),
         operator_token=token,
     )
 
+    assert changed is True
     assert len(calls) == 1
     written = calls[0]
     assert written["key"] == config.PRINCIPAL_REGISTRY_SECRET
@@ -80,8 +82,43 @@ def test_principal_registry_rejects_variable_collision() -> None:
             current_variables={
                 config.PRINCIPAL_REGISTRY_SECRET: SimpleNamespace(value="bad")
             },
+            secret_names=set(),
             operator_token="x" * 48,
         )
+
+
+def test_existing_principal_registry_is_preserved() -> None:
+    calls = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+    )
+    changed = config.converge_principal_registry(
+        api,
+        repo_id=config.CANONICAL_SPACE,
+        current_variables={},
+        secret_names={config.PRINCIPAL_REGISTRY_SECRET},
+        operator_token="x" * 48,
+    )
+
+    assert changed is False
+    assert calls == []
+
+
+def test_incompatible_credential_registry_fails_before_mutation() -> None:
+    calls = []
+    api = SimpleNamespace(
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+    )
+    with pytest.raises(config.RuntimeConfigError, match="conflicts"):
+        config.converge_principal_registry(
+            api,
+            repo_id=config.CANONICAL_SPACE,
+            current_variables={},
+            secret_names={config.CREDENTIAL_REGISTRY_SECRET},
+            operator_token="x" * 48,
+        )
+
+    assert calls == []
 
 
 def test_require_data_mount_is_fail_closed() -> None:

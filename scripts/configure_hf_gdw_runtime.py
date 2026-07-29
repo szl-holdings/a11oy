@@ -16,6 +16,7 @@ CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
 DATA_MOUNT = "/data"
 PRINCIPAL_ID = "gdw-operator"
 PRINCIPAL_REGISTRY_SECRET = "GDW_PRINCIPALS_JSON"
+CREDENTIAL_REGISTRY_SECRET = "GDW_CREDENTIALS_JSON"
 STATIC_VARIABLES = {
     "GDW_PRODUCTION_MODE": "1",
     "GDW_NAMESPACE": "a11oy",
@@ -110,12 +111,22 @@ def converge_principal_registry(
     *,
     repo_id: str,
     current_variables: Mapping[str, Any],
+    secret_names: set[str],
     operator_token: str,
-) -> None:
+) -> bool:
     if PRINCIPAL_REGISTRY_SECRET in current_variables:
         raise RuntimeConfigError(
             "GDW principal registry collides with an existing Space variable"
         )
+    if (
+        CREDENTIAL_REGISTRY_SECRET in current_variables
+        or CREDENTIAL_REGISTRY_SECRET in secret_names
+    ):
+        raise RuntimeConfigError(
+            "GDW credential registry conflicts with the principal registry"
+        )
+    if PRINCIPAL_REGISTRY_SECRET in secret_names:
+        return False
     api.add_space_secret(
         repo_id=repo_id,
         key=PRINCIPAL_REGISTRY_SECRET,
@@ -125,6 +136,7 @@ def converge_principal_registry(
             "GitHub Actions operator credential."
         ),
     )
+    return True
 
 
 def require_data_mount(api: Any, *, repo_id: str) -> dict[str, Any]:
@@ -186,10 +198,11 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
     volume = require_data_mount(api, repo_id=repo_id)
     secret_names = set(api.get_space_secrets(repo_id=repo_id))
     current_variables = api.get_space_variables(repo_id=repo_id)
-    converge_principal_registry(
+    principal_registry_changed = converge_principal_registry(
         api,
         repo_id=repo_id,
         current_variables=current_variables,
+        secret_names=secret_names,
         operator_token=operator_token,
     )
     secret_names.add(PRINCIPAL_REGISTRY_SECRET)
@@ -223,7 +236,7 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         "variables_changed": sorted(changes),
         "secret_names_required": [PRINCIPAL_REGISTRY_SECRET],
         "secret_values_read": False,
-        "secret_values_mutated": True,
+        "secret_values_mutated": principal_registry_changed,
         "principal_registry_converged": True,
         "readback_attempts": attempts,
         "converged": True,
