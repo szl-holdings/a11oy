@@ -18,6 +18,8 @@ RETIRED_WORKFLOWS = {
     "hf-git-sha-sync.yml",
 }
 WORKFLOW_SUFFIXES = {".yml", ".yaml"}
+MAX_REFERENCED_SOURCES = 256
+MAX_REFERENCE_DEPTH = 16
 TARGET_MARKERS = (
     "SZLHOLDINGS/a11oy",
     "szlholdings-a11oy.hf.space",
@@ -44,14 +46,23 @@ MUTATION_METHODS = {
     "delete_space_secret",
     "restart_space",
 }
+_LOCAL_EXECUTABLE_PATH = (
+    r"(?P<path>(?:\./|(?:[A-Za-z0-9_.-]+/)+)"
+    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
+    r"\.(?:py|sh|js|mjs|cjs|ts))"
+)
 LOCAL_SCRIPT_CALL = re.compile(
     r"(?:^|\s)(?:"
     r"python(?:3(?:\.\d+)?)?(?:\s+-[A-Za-z]+)*|bash|sh|node"
     r")\s+"
     r"(?!-m(?:\s|$))"
-    r"(?P<path>(?:\./)?(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+"
-    r"\.(?:py|sh|js|mjs|cjs|ts))",
+    + _LOCAL_EXECUTABLE_PATH,
     re.MULTILINE,
+)
+DIRECT_SCRIPT_CALL = re.compile(
+    r"(?m)^\s*(?:(?:-\s*)?run:\s*(?:[|>-]\s*)?|(?=\./))"
+    + _LOCAL_EXECUTABLE_PATH
+    + r"(?=\s|$)"
 )
 LOCAL_MODULE_CALL = re.compile(
     r"\bpython(?:3(?:\.\d+)?)?\b"
@@ -162,10 +173,16 @@ def _executable_text(text: str) -> str:
 def _repo_source(
     relative_path: str,
     repo_files: dict[str, str] | None,
+    *,
+    base_dir: str = "",
 ) -> tuple[str, str] | None:
-    normalized = relative_path.replace("\\", "/").removeprefix("./")
+    candidate = PurePosixPath(relative_path.replace("\\", "/"))
+    if candidate.is_absolute() or ".." in candidate.parts:
+        return None
+    candidate = PurePosixPath(base_dir) / candidate
+    normalized = candidate.as_posix().removeprefix("./")
     parts = PurePosixPath(normalized).parts
-    if not parts or ".." in parts or PurePosixPath(normalized).is_absolute():
+    if not parts or ".." in parts:
         return None
 
     if repo_files is not None:
@@ -189,19 +206,24 @@ def _referenced_sources(
     """Include scripts and local actions that the workflow actually executes."""
 
     combined: list[tuple[str | None, str]] = [(None, text)]
-    queue = [text]
+    queue: list[tuple[str | None, str, int]] = [(None, text, 0)]
     visited: set[str] = set()
     while queue:
-        current = _executable_text(queue.pop())
-        references = {
-            match.group("path") for match in LOCAL_SCRIPT_CALL.finditer(current)
+        current_path, source_text, depth = queue.pop()
+        if depth > MAX_REFERENCE_DEPTH:
+            raise RuntimeError("local writer reference depth is unbounded")
+        current = _executable_text(source_text)
+        references: set[tuple[str, str]] = {
+            (match.group("path"), "")
+            for pattern in (LOCAL_SCRIPT_CALL, DIRECT_SCRIPT_CALL)
+            for match in pattern.finditer(current)
         }
         for match in LOCAL_MODULE_CALL.finditer(current):
             module_path = match.group("module").replace(".", "/")
             references.update(
                 {
-                    f"{module_path}.py",
-                    f"{module_path}/__main__.py",
+                    (f"{module_path}.py", ""),
+                    (f"{module_path}/__main__.py", ""),
                 }
             )
 
@@ -209,27 +231,38 @@ def _referenced_sources(
             action_dir = match.group("path").rstrip("/")
             references.update(
                 {
-                    f"{action_dir}/action.yml",
-                    f"{action_dir}/action.yaml",
+                    (f"{action_dir}/action.yml", ""),
+                    (f"{action_dir}/action.yaml", ""),
                 }
             )
 
-        if re.search(r"(?m)^\s*(?:runs:|using:)", current):
+        if (
+            current_path is not None
+            and PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
+            and re.search(r"(?m)^\s*(?:runs:|using:)", current)
+        ):
+            action_dir = PurePosixPath(current_path).parent.as_posix()
             references.update(
-                match.group("path")
+                (match.group("path"), action_dir)
                 for match in ACTION_ENTRYPOINT.finditer(current)
             )
 
-        for relative_path in sorted(references):
-            source = _repo_source(relative_path, repo_files)
+        for relative_path, base_dir in sorted(references):
+            source = _repo_source(
+                relative_path,
+                repo_files,
+                base_dir=base_dir,
+            )
             if source is None:
                 continue
             normalized, source_text = source
             if normalized in visited:
                 continue
+            if len(visited) >= MAX_REFERENCED_SOURCES:
+                raise RuntimeError("too many local writer references")
             visited.add(normalized)
             combined.append((normalized, source_text))
-            queue.append(source_text)
+            queue.append((normalized, source_text, depth + 1))
     return combined
 
 
@@ -446,6 +479,63 @@ jobs:
                 repo_files,
             ),
             [CANONICAL_WORKFLOW, "unsafe-secret.yaml"],
+        )
+
+    def test_local_action_entrypoint_and_direct_script_are_resolved(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        local_action = """
+name: unsafe local action
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - uses: ./.github/actions/unsafe
+"""
+        direct_script = """
+name: unsafe direct script
+on:
+  workflow_run:
+    workflows: [upstream]
+    types: [completed]
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./.github/scripts/unsafe.sh
+"""
+        repo_files = {
+            ".github/actions/unsafe/action.yml": (
+                "runs:\n"
+                "  using: node20\n"
+                "  main: dist/index.js\n"
+            ),
+            ".github/actions/unsafe/dist/index.js": (
+                "client.upload_folder({repo_id: process.env.SPACE_ID})\n"
+            ),
+            ".github/scripts/unsafe.sh": (
+                "python -c 'HfApi().create_commit("
+                "repo_id=\"target\", operations=[])'\n"
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-action.yaml": local_action,
+                    "unsafe-script.yml": direct_script,
+                },
+                repo_files,
+            ),
+            [
+                CANONICAL_WORKFLOW,
+                "unsafe-action.yaml",
+                "unsafe-script.yml",
+            ],
         )
 
 
