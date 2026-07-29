@@ -95,9 +95,11 @@ API routes **before** the SPA catch-all, or they fall through to an HTML 200.
 
 ## Known gotchas (read before debugging — full list in `KNOWN_GOTCHAS.md`)
 
-- **GitHub ↔ HF Space drift:** `hf-sync.yml` syncs only `README.md`; app code reaches the Space
-  only when the GHCR image is rebuilt and the Space references the new tag. Check the commit in
-  `/api/a11oy/healthz`.
+- **GitHub ↔ HF Space drift:** `hf-sync.yml` is the only automatic writer for the canonical
+  Space. It derives the complete deployment set from Dockerfile `COPY` sources, publishes it,
+  binds the exact GitHub SHA, and attests the immutable Space commit. Never add a second
+  automatically triggered Space writer. Check `/api/build-info` and the Space API commit before
+  claiming relock.
 - **Per-file `COPY` in the Dockerfile:** a new `.py` not `COPY`-ed in is absent at runtime; its
   route silently falls through to the SPA catch-all (HTML 200, no JSON). Add a `COPY` line.
 - **`from __future__ import annotations` + FastAPI/Pydantic:** breaks model validation at

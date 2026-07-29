@@ -8,8 +8,9 @@ name: copy-sync lockstep guard
 # (a try/except-guarded import falls back because the module was never in the image).
 #
 # This ADDS a gate (it never weakens dockerfile-copy-guard / hf-module-drift /
-# hf-sync-backend). The checker lives in tools/check_copy_sync_lockstep.py (stdlib
-# only, ast for imports) and cross-checks three sets in one pass:
+# the canonical Dockerfile-derived deployer). The checker lives in
+# tools/check_copy_sync_lockstep.py (stdlib only, ast for imports) and cross-checks
+# three sets in one pass:
 #   CHECK 1  every Dockerfile COPY/ADD source exists in the repo.
 #   CHECK 2  every LOCAL .py module serve.py imports (transitively) is in the COPY set.
 #   CHECK 3  every non-.py asset COPY'd PER-FILE is covered by the pinned

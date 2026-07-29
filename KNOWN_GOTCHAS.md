@@ -10,14 +10,16 @@
 **What happens**: You push Python changes to GitHub `main`. CI goes green.
 The HF Space (`SZLHOLDINGS/a11oy`) keeps running old code. No error, no alert.
 
-**Why**: `hf-sync.yml` only syncs `README.md`. The Space runs a Docker image
-from GHCR. Application code only reaches the Space when:
-(a) the GHCR image is rebuilt (`ghcr-build-push.yml`) AND
-(b) the Space's `Dockerfile` or Space config is updated to reference the new tag.
+**Why**: More than one automatically triggered workflow writing the same Space creates a race.
+The later partial commit can supersede the complete Dockerfile-derived deployment,
+leaving the application apparently healthy while immutable source attestation fails.
 
-**Fix**: After merging a Python change, trigger `ghcr-build-push.yml` manually
-and confirm the Space restarts with the new image. Check `GET /api/a11oy/healthz`
-— the response includes the git commit.
+**Fix**: Keep `.github/workflows/hf-sync.yml` as the only automatic canonical
+Space writer. It publishes the complete Dockerfile-derived set, binds the exact
+GitHub SHA, waits for that immutable Space commit, and performs the live relock.
+The `canonical HF single-writer guard` CI job rejects any competing automatic
+writer. Check the Space API commit and `GET /api/build-info`; both must match the
+release evidence before claiming relock.
 
 ---
 
