@@ -212,6 +212,31 @@ def capture(
     }
 
 
+def await_capture(
+    session: HttpSession,
+    origin: str,
+    expected_source: str,
+    deadline: float,
+    *,
+    attempts: int,
+    retry_seconds: int,
+    context: str,
+) -> dict[str, Any]:
+    """Poll until the restarted public runtime exposes the required contract."""
+
+    last_error: Exception | None = None
+    for attempt in range(max(1, attempts)):
+        try:
+            return capture(session, origin, expected_source, deadline)
+        except Exception as exc:  # noqa: BLE001 - bounded runtime polling
+            last_error = exc
+            if attempt + 1 < max(1, attempts):
+                _sleep_with_deadline(deadline, retry_seconds)
+    raise RestartProofError(
+        f"{context}: {type(last_error).__name__}: {str(last_error)[:180]}"
+    )
+
+
 def validate_restart(
     before: Mapping[str, Any],
     after: Mapping[str, Any],
@@ -263,7 +288,31 @@ def prove(
     if attempts < 1 or retry_seconds < 0 or deadline_seconds < 1:
         raise RestartProofError("polling bounds must be positive and finite")
     deadline = time.monotonic() + deadline_seconds
-    before = capture(session, origin, source_sha, deadline)
+
+    # Hub variable writes are configuration-plane state. Explicitly restart
+    # before sampling so the public process is proved against the just-converged
+    # configuration instead of a retiring replica with stale environment.
+    activation_restart = api.restart_space(
+        repo_id=repo_id,
+        factory_reboot=False,
+    )
+    _check_deadline(deadline)
+    activation_stage = getattr(
+        getattr(activation_restart, "runtime", None),
+        "stage",
+        None,
+    )
+    activation_stage = getattr(activation_stage, "value", activation_stage)
+    _sleep_with_deadline(deadline, max(10, retry_seconds))
+    before = await_capture(
+        session,
+        origin,
+        source_sha,
+        deadline,
+        attempts=attempts,
+        retry_seconds=retry_seconds,
+        context="configured runtime was not observed after activation restart",
+    )
     startup_error: Exception | None = None
     if before["storage"]["receipt_count"] == 0:
         # Public refresh is passport-only. The canonical startup scheduler owns
@@ -289,10 +338,21 @@ def prove(
         )
 
     _check_deadline(deadline)
-    restart = api.restart_space(repo_id=repo_id, factory_reboot=False)
+    durability_restart = api.restart_space(
+        repo_id=repo_id,
+        factory_reboot=False,
+    )
     _check_deadline(deadline)
-    stage = getattr(getattr(restart, "runtime", None), "stage", None)
-    stage = getattr(stage, "value", stage)
+    durability_stage = getattr(
+        getattr(durability_restart, "runtime", None),
+        "stage",
+        None,
+    )
+    durability_stage = getattr(
+        durability_stage,
+        "value",
+        durability_stage,
+    )
     # Do not accept a response from the pre-restart process as post-restart
     # evidence while the control plane is still draining.
     _sleep_with_deadline(deadline, max(10, retry_seconds))
@@ -341,7 +401,15 @@ def prove(
         "repo_id": repo_id,
         "origin": origin,
         "restart_requested": True,
-        "restart_response_stage": str(stage or "UNKNOWN"),
+        "restart_response_stage": str(durability_stage or "UNKNOWN"),
+        "activation_restart_requested": True,
+        "activation_restart_response_stage": str(
+            activation_stage or "UNKNOWN"
+        ),
+        "durability_restart_requested": True,
+        "durability_restart_response_stage": str(
+            durability_stage or "UNKNOWN"
+        ),
         "before": before,
         "after": after,
         "proof": {

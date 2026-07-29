@@ -148,6 +148,19 @@ class TransientStartupSession(StartupReceiptSession):
         return super().get(url, **kwargs)
 
 
+class PreActivationSession(Session):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.statuses.insert(
+            0,
+            {
+                "ok": False,
+                "label": "UNAVAILABLE",
+                "reason": "DatabaseError: database disk image is malformed",
+            },
+        )
+
+
 class Api:
     def __init__(self) -> None:
         self.calls = []
@@ -180,8 +193,28 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
     assert report["proof"]["database_instance_stable"] is True
     assert report["proof"]["pre_restart_chain_head_recovered"] is True
     assert api.calls == [
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False},
         {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
     ]
+
+
+def test_prove_polls_past_pre_activation_runtime(monkeypatch) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=Api(),
+        session=PreActivationSession(source),
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert report["activation_restart_requested"] is True
+    assert report["durability_restart_requested"] is True
 
 
 def test_prove_waits_for_startup_receipt_without_direct_refresh(
