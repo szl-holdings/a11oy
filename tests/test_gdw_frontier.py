@@ -6,7 +6,7 @@ import sys
 import threading
 import types
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -1179,3 +1179,38 @@ def test_replay_telemetry_does_not_count_a_new_receipt(tmp_path, monkeypatch):
     snapshot = telemetry.snapshot()
     assert snapshot["requests"] == 2
     assert snapshot["receipts"] == 1
+
+
+def test_step_collects_expired_requests_before_quota_admission(
+    tmp_path,
+    monkeypatch,
+):
+    import gdw_runtime
+    import gdw_workspace
+    from gdw_workspace import GDWWorkspace
+
+    monkeypatch.setenv("GDW_OWNER_MAX_ACTIVE_REQUESTS", "1")
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "1")
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="quota-session-1"),
+            headers=headers("quota-request-1"),
+        )
+        assert first.status_code == 200
+        workspace = GDWWorkspace(
+            str(tmp_path / "gdw.sqlite3"),
+            namespace="a11oy",
+            owner_id="owner-a",
+        )
+        assert gdw_runtime.drain_once(workspace=workspace)["failed"] == 0
+        future = datetime.now(timezone.utc) + timedelta(seconds=2)
+        monkeypatch.setattr(gdw_workspace, "_utc_now", lambda: future)
+        second = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="quota-session-2"),
+            headers=headers("quota-request-2"),
+        )
+
+    assert second.status_code == 200
