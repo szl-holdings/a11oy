@@ -27,6 +27,7 @@ MUTATION_PATTERNS = (
     re.compile(
         r"\.\s*(?:create_commit|upload_file|upload_folder|"
         r"add_space_variable|set_space_variable|delete_space_variable|"
+        r"add_space_secret|set_space_secret|delete_space_secret|"
         r"restart_space)\s*\(",
         re.IGNORECASE,
     ),
@@ -38,6 +39,9 @@ MUTATION_METHODS = {
     "add_space_variable",
     "set_space_variable",
     "delete_space_variable",
+    "add_space_secret",
+    "set_space_secret",
+    "delete_space_secret",
     "restart_space",
 }
 LOCAL_SCRIPT_CALL = re.compile(
@@ -406,6 +410,38 @@ jobs:
                 repo_files,
             ),
             [CANONICAL_WORKFLOW, "unsafe-module.yaml"],
+        )
+
+    def test_secret_only_writer_is_detected(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe secret writer
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    steps:
+      - run: python3 scripts/hf_secret_writer.py
+        env:
+          SPACE_ID: SZLHOLDINGS/a11oy
+"""
+        repo_files = {
+            "scripts/hf_secret_writer.py": (
+                "from huggingface_hub import HfApi\n"
+                "HfApi().add_space_secret("
+                "repo_id='target', key='K', value='digest')\n"
+            )
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-secret.yaml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-secret.yaml"],
         )
 
 
