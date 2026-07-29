@@ -31,6 +31,21 @@ def make_app(tmp_path, monkeypatch):
         "GDW_RECEIPT_PROJECTION_DIR", str(tmp_path / "receipt-projections")
     )
     monkeypatch.setenv("GDW_PROOF_EXPORT_MODE", "outbox")
+    monkeypatch.setenv("GDW_POLICY_ORIGIN", "https://policy.example.test")
+    monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_canonical_policy_evaluate",
+        lambda action: {
+            "decision": "allow",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": hashlib.sha256(
+                json.dumps(action, sort_keys=True).encode("utf-8")
+            ).hexdigest(),
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+        },
+    )
     app = FastAPI()
     gdw_frontier.register(app)
     return app
@@ -111,9 +126,12 @@ def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
         governance = body["audit"]["governance"]
         assert governance["allowed"] is True
         assert governance["reason_codes"] == [
-            "STRICT_FILE_BACKED_GOVERNANCE_PASS"
+            "STRICT_FILE_BACKED_PRECONDITIONS_PASS",
+            "CANONICAL_POLICY_GATEWAY_PASS",
         ]
-        assert governance["writer_is_judge"] is True
+        assert governance["writer_is_judge"] is False
+        assert governance["policy_gateway"]["decision"] == "ALLOW"
+        assert governance["policy_gateway"]["receipt_signed"] is True
         assert governance["colang"]["enforcement_contract"]["valid"] is True
         assert governance["colang"]["policy_files"]
         assert all(

@@ -32,6 +32,7 @@ STATIC_VARIABLES = {
     "GDW_GLOBAL_MAX_ARTIFACTS": "100000",
     "GDW_RETENTION_SECONDS": "604800",
     "GDW_MAX_EFFECT_ATTEMPTS": "20",
+    "GDW_POLICY_ORIGIN": "https://szlholdings-a11oy.hf.space",
 }
 
 

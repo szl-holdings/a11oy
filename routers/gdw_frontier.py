@@ -1,5 +1,6 @@
 """Authenticated Governed Delta Workspace API and benchmark surfaces."""
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -8,6 +9,8 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 from fastapi import Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
@@ -201,10 +204,11 @@ def _runtime_workspace() -> GDWWorkspace:
     _retention_seconds()
     _effect_limits()
     _strict_policy()
+    _policy_gateway_origin()
     workspace = GDWWorkspace()
-    integrity = workspace.integrity()
-    if not integrity["ok"]:
-        raise RuntimeError("GDW workspace integrity gate is closed")
+    readiness = workspace.readiness()
+    if not readiness["ok"]:
+        raise RuntimeError("GDW workspace readiness gate is closed")
     return workspace
 
 
@@ -255,11 +259,60 @@ def _decision(payload: GDWStepRequest) -> str:
     return "ACCEPT"
 
 
-def _governance_gate(
+def _policy_gateway_origin() -> str:
+    origin = os.environ.get("GDW_POLICY_ORIGIN", "").strip().rstrip("/")
+    if not origin.startswith("https://"):
+        raise RuntimeError("GDW_POLICY_ORIGIN must be an HTTPS origin")
+    return origin
+
+
+def _canonical_policy_evaluate(action: dict) -> dict:
+    request = UrlRequest(
+        _policy_gateway_origin() + "/api/a11oy/v1/policy/evaluate",
+        data=json.dumps(
+            {"action": action},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=10) as response:
+        if response.status != 200:
+            raise RuntimeError("canonical policy gateway returned non-200")
+        result = json.loads(response.read().decode("utf-8"))
+    receipt_hash = str(result.get("receipt_hash") or "")
+    if (
+        result.get("gate") != "ThresholdPolicySeverity"
+        or len(receipt_hash) != 64
+        or any(ch not in "0123456789abcdef" for ch in receipt_hash)
+        or result.get("receipt_signed") is not True
+        or result.get("receipts_in_eq_out") is not True
+        or result.get("receipt_error")
+    ):
+        raise RuntimeError("canonical policy response is not verifiable")
+    return result
+
+
+def _risk_severity(risk_budget: float) -> str:
+    if risk_budget < 0.25:
+        return "low"
+    if risk_budget < 0.50:
+        return "medium"
+    if risk_budget < 0.75:
+        return "high"
+    if risk_budget < 0.90:
+        return "critical"
+    return "capital"
+
+
+async def _governance_gate(
     payload_data: dict,
     request_id: str,
     request_digest: str,
     principal_id: str,
+    generation_id: str,
+    state_before_hash: str,
 ) -> dict:
     action = {
         "tool": "execute",
@@ -286,8 +339,8 @@ def _governance_gate(
             "decision": "DENY",
             "reason_codes": ["DOCTRINE_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
-            "writer_is_judge": True,
-            "enforcement_mode": "IN_PROCESS_STRICT_FILE_LOCK",
+            "writer_is_judge": False,
+            "enforcement_mode": "LOCAL_PRECONDITIONS_PLUS_CANONICAL_POLICY_GATEWAY",
         }
 
     try:
@@ -305,8 +358,8 @@ def _governance_gate(
             "decision": "DENY",
             "reason_codes": ["CODENAME_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
-            "writer_is_judge": True,
-            "enforcement_mode": "IN_PROCESS_STRICT_FILE_LOCK",
+            "writer_is_judge": False,
+            "enforcement_mode": "LOCAL_PRECONDITIONS_PLUS_CANONICAL_POLICY_GATEWAY",
             "colang": {
                 "decision": colang.get("decision"),
                 "fired_flows": colang.get("fired_flows", []),
@@ -321,12 +374,80 @@ def _governance_gate(
         reasons.append("DOCTRINE_POLICY_DENY")
     if codename_hits:
         reasons.append("CODENAME_POLICY_DENY")
+    policy_gateway = None
+    if not reasons:
+        source_revision = os.environ.get("SZL_GIT_SHA", "").strip()
+        if (
+            len(source_revision) != 40
+            or any(ch not in "0123456789abcdef" for ch in source_revision)
+        ):
+            reasons.append("RUNTIME_IDENTITY_UNAVAILABLE")
+        else:
+            binding = {
+                "schema": "szl.gdw.authorization-binding/v1",
+                "action_type": "gdw.step",
+                "generation_id": generation_id,
+                "principal_id": principal_id,
+                "request_id": request_id,
+                "request_digest": request_digest,
+                "session_id": payload_data["session_id"],
+                "state_before_hash": state_before_hash,
+            }
+            binding_sha256 = _sha(binding)
+            gateway_action = {
+                "actionId": f"gdw:{binding_sha256}",
+                "severity": _risk_severity(float(payload_data["risk_budget"])),
+                "decisionClass": "ordinary",
+                "confidence": 1.0,
+                "witnesses": [
+                    {
+                        "id": f"principal:{principal_id}",
+                        "role": "operator",
+                        "attested": True,
+                    },
+                    {
+                        "id": (
+                            "workload:szl-holdings/a11oy@"
+                            f"{source_revision}"
+                        ),
+                        "role": "workload",
+                        "attested": True,
+                    },
+                ],
+            }
+            try:
+                result = await asyncio.to_thread(
+                    _canonical_policy_evaluate,
+                    gateway_action,
+                )
+                policy_gateway = {
+                    "decision": str(result.get("decision") or "").upper(),
+                    "gate": result["gate"],
+                    "receipt_hash": result["receipt_hash"],
+                    "receipt_signed": True,
+                    "receipts_in_eq_out": True,
+                    "binding_sha256": binding_sha256,
+                    "action_id": gateway_action["actionId"],
+                    "source_revision": source_revision,
+                    "witnesses": gateway_action["witnesses"],
+                }
+                if result.get("decision") != "allow":
+                    reasons.append("CANONICAL_POLICY_DENY")
+            except Exception as exc:
+                reasons.append("CANONICAL_POLICY_GATEWAY_UNAVAILABLE")
+                policy_gateway = {
+                    "decision": "UNAVAILABLE",
+                    "detail": type(exc).__name__,
+                }
     return {
         "allowed": not reasons,
         "decision": "ALLOW" if not reasons else "DENY",
-        "reason_codes": reasons or ["STRICT_FILE_BACKED_GOVERNANCE_PASS"],
-        "writer_is_judge": True,
-        "enforcement_mode": "IN_PROCESS_STRICT_FILE_LOCK",
+        "reason_codes": reasons or [
+            "STRICT_FILE_BACKED_PRECONDITIONS_PASS",
+            "CANONICAL_POLICY_GATEWAY_PASS",
+        ],
+        "writer_is_judge": False,
+        "enforcement_mode": "LOCAL_PRECONDITIONS_PLUS_CANONICAL_POLICY_GATEWAY",
         "colang": {
             "decision": colang.get("decision"),
             "fired_flows": colang.get("fired_flows", []),
@@ -338,6 +459,7 @@ def _governance_gate(
             "clean": not codename_hits,
             "hits": codename_hits,
         },
+        "policy_gateway": policy_gateway,
     }
 
 
@@ -597,11 +719,13 @@ def register(app, ns: str = "a11oy"):
                 routing = choose_attention_mode(features, payload.mode_hint)
                 selected_mode = routing["mode"]
                 precondition_decision = _decision(payload)
-                governance = _governance_gate(
+                governance = await _governance_gate(
                     payload_data,
                     request_id,
                     request_digest,
                     principal_id,
+                    generation_id,
+                    before_hash,
                 )
                 decision = precondition_decision
                 if decision == "ACCEPT" and not governance["allowed"]:

@@ -8,23 +8,41 @@ import json
 import os
 import time
 from pathlib import Path
-
-import requests
+from urllib.request import Request
+from urllib.request import urlopen
 
 
 def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
     headers = dict(kwargs.pop("headers", {}))
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    response = requests.request(
-        method,
+    body = kwargs.pop("json", None)
+    if kwargs:
+        raise TypeError("unsupported request arguments")
+    data = None
+    if body is not None:
+        data = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    request = Request(
         url,
+        data=data,
         headers=headers,
-        timeout=30,
-        **kwargs,
+        method=method,
     )
-    response.raise_for_status()
-    return response.json()
+    with urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def require_source_revision(*, origin: str, source_sha: str) -> str:
+    build_info = request_json(
+        "GET", origin.rstrip("/") + "/api/build-info"
+    )
+    observed = str(build_info.get("build", {}).get("revision") or "")
+    if build_info.get("status") != "OBSERVED" or observed != source_sha:
+        raise RuntimeError(
+            "live build revision does not match the requested source SHA"
+        )
+    return observed
 
 
 def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
@@ -33,6 +51,10 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     if len(operator_token.encode("utf-8")) < 32:
         raise RuntimeError("GDW_OPERATOR_TOKEN is unavailable")
     base = origin.rstrip("/")
+    observed_source_revision = require_source_revision(
+        origin=base,
+        source_sha=source_sha,
+    )
     health = None
     last_error = None
     for attempt in range(1, 121):
@@ -106,7 +128,8 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
 
     return {
         "schema": "szl.hf-gdw-live-proof/v1",
-        "source_revision": source_sha,
+        "source_revision": observed_source_revision,
+        "source_revision_state": "OBSERVED_EXACT_MATCH",
         "health": health,
         "transition": {
             "decision": step["decision"],

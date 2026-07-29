@@ -25,6 +25,7 @@ def test_desired_variables_digest_token_without_recording_it() -> None:
     assert config.PRINCIPAL_REGISTRY_SECRET not in variables
     assert variables["GDW_SQLITE_JOURNAL"] == "DELETE"
     assert variables["GDW_DB_PATH"].startswith("/data/")
+    assert variables["GDW_POLICY_ORIGIN"].startswith("https://")
 
 
 def test_desired_variables_rejects_weak_operator_token() -> None:

@@ -17,6 +17,15 @@ _PROCESS_WRITE_LOCK = threading.RLock()
 _INITIALISED_PATHS = set()
 _OBJECT_TYPES = {"request", "session"}
 _EFFECT_KINDS = {"receipt_projection", "proof_export"}
+_REQUIRED_RUNTIME_TABLES = {
+    "effect_outbox",
+    "evidence_intents",
+    "object_owners",
+    "receipts",
+    "requests",
+    "session_state",
+    "workspace_meta",
+}
 
 
 def _canonical_json(value: Any) -> str:
@@ -247,6 +256,44 @@ class GDWWorkspace:
             return str(row["value"])
         finally:
             connection.close()
+
+    def readiness(self) -> Dict[str, Any]:
+        """Run bounded startup checks; exhaustive evidence checks stay explicit."""
+        violations = []
+        observed_journal = "UNKNOWN"
+        generation_id = ""
+        try:
+            with self._connect() as connection:
+                observed_journal = str(
+                    connection.execute("PRAGMA journal_mode").fetchone()[0]
+                ).upper()
+                if observed_journal != self.journal_mode:
+                    violations.append("JOURNAL_MODE_MISMATCH")
+                placeholders = ",".join("?" for _ in _REQUIRED_RUNTIME_TABLES)
+                rows = connection.execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type = 'table' AND name IN (" + placeholders + ")",
+                    tuple(sorted(_REQUIRED_RUNTIME_TABLES)),
+                ).fetchall()
+                present = {str(row["name"]) for row in rows}
+                missing = sorted(_REQUIRED_RUNTIME_TABLES - present)
+                if missing:
+                    violations.append("MISSING_RUNTIME_TABLES:" + ",".join(missing))
+                row = connection.execute(
+                    "SELECT value FROM workspace_meta WHERE key = 'generation_id'"
+                ).fetchone()
+                generation_id = str(row["value"]) if row is not None else ""
+                if not generation_id:
+                    violations.append("GENERATION_ID_UNAVAILABLE")
+        except Exception as exc:
+            violations.append("READINESS_ERROR:" + type(exc).__name__)
+        return {
+            "ok": not violations,
+            "journal_mode": observed_journal,
+            "generation_id": generation_id,
+            "violations": violations,
+            "scope": "BOUNDED_RUNTIME_READINESS",
+        }
 
     @staticmethod
     def object_owner(
