@@ -85,6 +85,7 @@ def _safe_convergence_state(
     health: dict | None,
     drain: dict | None,
     global_integrity: dict | None,
+    stable_samples: int,
 ) -> dict:
     health = health or {}
     persistence = health.get("persistence") or {}
@@ -97,7 +98,16 @@ def _safe_convergence_state(
         "write_ready": health.get("write_ready"),
         "write_blockers": health.get("write_blockers"),
         "supervisor_outcome": supervisor.get("last_outcome"),
+        "supervisor_attempt_at": supervisor.get("last_attempt_at"),
+        "stable_samples": stable_samples,
         "drain_failed": drain.get("failed"),
+        "drain_errors": [
+            value
+            for value in (drain.get("errors") or [])
+            if isinstance(value, str)
+            and len(value) <= 96
+            and all(ch.isalnum() or ch in "_:" for ch in value)
+        ],
         "drain_pending_effects": drain.get("pending_effects"),
         "drain_legacy_pending_proofs": drain.get(
             "legacy_pending_proofs"
@@ -124,6 +134,7 @@ def _prove_drain_convergence(
     database_generation_id: str,
     attempts: int = 120,
     delay_seconds: float = 5,
+    required_stable_samples: int = 3,
 ) -> tuple[dict, dict]:
     """Prove a protected drain after the supervised outbox reaches quiescence."""
 
@@ -136,6 +147,8 @@ def _prove_drain_convergence(
     last_health = None
     last_drain = None
     last_global_integrity = None
+    last_supervisor_attempt = None
+    stable_samples = 0
 
     try:
         initial_drain = request_json(
@@ -144,19 +157,11 @@ def _prove_drain_convergence(
             token=operator_token,
         )
         last_drain = initial_drain
-        if _drain_is_complete(initial_drain, database_generation_id):
-            global_integrity = request_json(
-                "GET",
-                global_integrity_url,
-                token=operator_token,
-            )
-            last_global_integrity = global_integrity
-            if _global_integrity_is_complete(
-                global_integrity,
-                database_generation_id,
-            ):
-                return initial_drain, global_integrity
-        last_error = "INITIAL_DRAIN_INCOMPLETE"
+        last_error = (
+            "INITIAL_DRAIN_COMPLETE"
+            if _drain_is_complete(initial_drain, database_generation_id)
+            else "INITIAL_DRAIN_INCOMPLETE"
+        )
     except Exception as exc:
         last_error = f"INITIAL_DRAIN_{type(exc).__name__}"
 
@@ -170,14 +175,35 @@ def _prove_drain_convergence(
                 token=operator_token,
             )
             last_global_integrity = global_integrity
+            supervisor_attempt = str(
+                (
+                    (health.get("persistence") or {})
+                    .get("drain", {})
+                    .get("last_attempt_at")
+                    or ""
+                )
+            )
             if not (
                 _health_is_write_ready(health, database_generation_id)
                 and _global_integrity_is_complete(
                     global_integrity,
                     database_generation_id,
                 )
+                and supervisor_attempt
             ):
+                stable_samples = 0
+                last_supervisor_attempt = None
                 last_error = "SUPERVISOR_NOT_QUIESCENT"
+                time.sleep(delay_seconds)
+                continue
+            if supervisor_attempt == last_supervisor_attempt:
+                last_error = "AWAITING_SUCCESSIVE_SUPERVISOR_INTERVAL"
+                time.sleep(delay_seconds)
+                continue
+            last_supervisor_attempt = supervisor_attempt
+            stable_samples += 1
+            if stable_samples < required_stable_samples:
+                last_error = "AWAITING_STABLE_SUPERVISOR_SAMPLES"
                 time.sleep(delay_seconds)
                 continue
 
@@ -203,8 +229,12 @@ def _prove_drain_convergence(
                 ):
                     return confirmed_drain, confirmed_integrity
             last_error = "CONFIRMATION_DRAIN_INCOMPLETE"
+            stable_samples = 0
+            last_supervisor_attempt = None
         except Exception as exc:
             last_error = f"CONVERGENCE_{type(exc).__name__}"
+            stable_samples = 0
+            last_supervisor_attempt = None
         time.sleep(delay_seconds)
 
     safe_state = _safe_convergence_state(
@@ -212,6 +242,7 @@ def _prove_drain_convergence(
         health=last_health,
         drain=last_drain,
         global_integrity=last_global_integrity,
+        stable_samples=stable_samples,
     )
     raise RuntimeError(
         "GDW protected drain did not converge: "

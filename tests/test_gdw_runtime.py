@@ -1,6 +1,8 @@
+import errno
 import hashlib
 import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -367,6 +369,62 @@ def test_artifact_export_is_content_addressed_and_refuses_rebinding(
     assert distinct["path"] != first["path"]
 
 
+def test_artifact_export_falls_back_when_hard_links_are_unsupported(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    monkeypatch.setattr(
+        "gdw_proofs.os.link",
+        lambda *_args: (_ for _ in ()).throw(
+            OSError(errno.EOPNOTSUPP, "hard links unsupported")
+        ),
+    )
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "c" * 64,
+        "request_id": "network-mount",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+
+    artifact = export_proof_payload(payload)
+
+    assert artifact["publication_mode"] == "EXCLUSIVE_CREATE"
+    assert Path(artifact["path"]).read_text(encoding="utf-8") == (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    )
+    assert export_proof_payload(payload)["reused"] is True
+
+
+def test_artifact_fallback_never_overwrites_a_concurrent_mismatch(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+
+    def unsupported_after_mismatch(_temporary, destination):
+        Path(destination).write_text("concurrent-mismatch", encoding="utf-8")
+        raise OSError(errno.EOPNOTSUPP, "hard links unsupported")
+
+    monkeypatch.setattr("gdw_proofs.os.link", unsupported_after_mismatch)
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "d" * 64,
+        "request_id": "concurrent-mismatch",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+
+    with pytest.raises(FileExistsError, match="refusing to overwrite"):
+        export_proof_payload(payload)
+
+    destination = next((tmp_path / "proofs").rglob("*.json"))
+    assert destination.read_text(encoding="utf-8") == "concurrent-mismatch"
+
+
 def test_lost_claim_does_not_crash_the_bounded_drain(
     monkeypatch,
     tmp_path,
@@ -469,8 +527,12 @@ def test_supervisor_binds_success_to_current_run_and_database(
             "exported": 0,
             "failed": 0,
             "pending_effects": 0,
+            "claimed_effects": 0,
+            "dead_letter_effects": 0,
             "legacy_pending_proofs": 0,
             "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
             "errors": [],
         },
     )
@@ -520,8 +582,12 @@ def test_supervisor_retries_when_legacy_proofs_remain(monkeypatch):
             "exported": 0,
             "failed": 0,
             "pending_effects": 0,
+            "claimed_effects": 0,
+            "dead_letter_effects": 0,
             "legacy_pending_proofs": 1,
             "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
             "errors": [],
         },
     )
@@ -543,4 +609,61 @@ def test_supervisor_retries_when_legacy_proofs_remain(monkeypatch):
     drain = gdw_runtime.runtime_health()["drain"]
 
     assert drain["last_outcome"] == "RETRY_SCHEDULED"
-    assert "unmigrated legacy proofs" in drain["last_error"]
+    assert "non-quiescent" in drain["last_error"]
+
+
+def test_supervisor_does_not_report_success_during_effect_backoff(
+    monkeypatch,
+):
+    database_generation = "d" * 32
+    monkeypatch.setattr(
+        gdw_runtime,
+        "_STATE",
+        {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "storage": {"database_generation_id": database_generation},
+            "drain": {
+                "enabled": False,
+                "running": False,
+                "last_outcome": "NOT_RUN",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        gdw_runtime,
+        "drain_once",
+        lambda **_kwargs: {
+            "attempted": 0,
+            "exported": 0,
+            "failed": 0,
+            "pending_effects": 1,
+            "claimed_effects": 0,
+            "dead_letter_effects": 0,
+            "legacy_pending_proofs": 0,
+            "sqlite_integrity": "ok",
+            "invalid_effect_bindings": 0,
+            "invalid_exported_artifacts": 0,
+            "errors": [],
+        },
+    )
+    supervisor = gdw_runtime.OutboxSupervisor(
+        enabled=True,
+        interval_seconds=5,
+        retry_max_seconds=60,
+        batch_size=10,
+        lease_seconds=30,
+    )
+    waits = iter((False, True))
+    supervisor._stop = type(
+        "TwoPassStop",
+        (),
+        {"wait": lambda _self, _delay: next(waits)},
+    )()
+
+    supervisor._run()
+    drain = gdw_runtime.runtime_health()["drain"]
+
+    assert drain["last_outcome"] == "RETRY_SCHEDULED"
+    assert drain["last_success_at"] is None
+    assert drain["success_run_generation_id"] is None

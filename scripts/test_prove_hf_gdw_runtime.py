@@ -15,6 +15,7 @@ SPEC.loader.exec_module(proof)
 
 SOURCE_SHA = "a" * 40
 GENERATION_ID = "b" * 32
+_HEALTH_ATTEMPT = 0
 
 
 def _complete_integrity():
@@ -32,9 +33,11 @@ def _complete_integrity():
 
 
 def _live_response(method: str, url: str, **_kwargs):
+    global _HEALTH_ATTEMPT
     if url.endswith("/api/build-info"):
         return {"build": {"revision": SOURCE_SHA}}
     if url.endswith("/gdw/healthz"):
+        _HEALTH_ATTEMPT += 1
         return {
             "status": "REAL",
             "write_ready": True,
@@ -44,7 +47,10 @@ def _live_response(method: str, url: str, **_kwargs):
                     "journal_mode_observed": "DELETE",
                     "database_generation_id": GENERATION_ID,
                 },
-                "drain": {"last_outcome": "SUCCEEDED"},
+                "drain": {
+                    "last_outcome": "SUCCEEDED",
+                    "last_attempt_at": f"attempt-{_HEALTH_ATTEMPT}",
+                },
             },
         }
     if method == "POST" and url.endswith("/gdw/step"):
@@ -113,9 +119,10 @@ def test_live_proof_never_accepts_a_different_runtime_source(monkeypatch):
 def test_live_proof_waits_for_supervised_drain_quiescence(monkeypatch):
     drain_calls = 0
     integrity_calls = 0
+    health_calls = 0
 
     def response(method: str, url: str, **kwargs):
-        nonlocal drain_calls, integrity_calls
+        nonlocal drain_calls, integrity_calls, health_calls
         if method == "POST" and "/gdw/drain" in url:
             drain_calls += 1
             if drain_calls == 1:
@@ -134,6 +141,8 @@ def test_live_proof_waits_for_supervised_drain_quiescence(monkeypatch):
                     "pending_effects": 2,
                     "claimed_effects": 2,
                 }
+        if url.endswith("/gdw/healthz"):
+            health_calls += 1
         return _live_response(method, url, **kwargs)
 
     monkeypatch.setattr(proof, "request_json", response)
@@ -147,6 +156,7 @@ def test_live_proof_waits_for_supervised_drain_quiescence(monkeypatch):
 
     assert drain_calls == 2
     assert integrity_calls >= 2
+    assert health_calls >= 3
     assert report["drain"]["pending_effects"] == 0
     assert report["global_integrity"]["claimed_effects"] == 0
 

@@ -1,5 +1,6 @@
 """Structured theorem-input export for asynchronous Lean checking."""
 
+import errno
 import hashlib
 import json
 import os
@@ -10,6 +11,12 @@ from typing import Any, Dict
 
 
 _ARTIFACT_QUOTA_LOCK = threading.RLock()
+_HARD_LINK_UNSUPPORTED = {
+    errno.EPERM,
+    errno.EXDEV,
+    errno.ENOSYS,
+    errno.EOPNOTSUPP,
+}
 
 
 def canonical_json(value: Any) -> str:
@@ -119,6 +126,7 @@ def _export_json_artifact_unlocked(
     handle, temporary = tempfile.mkstemp(
         prefix=".gdw-artifact-", suffix=".tmp", dir=owner_root
     )
+    publication_mode = "HARD_LINK"
     try:
         with os.fdopen(handle, "wb") as stream:
             stream.write(encoded)
@@ -132,6 +140,27 @@ def _export_json_artifact_unlocked(
                     "refusing to overwrite a concurrently created "
                     "non-identical GDW artifact"
                 )
+        except OSError as exc:
+            if exc.errno not in _HARD_LINK_UNSUPPORTED:
+                raise
+            publication_mode = "EXCLUSIVE_CREATE"
+            try:
+                destination_handle = os.open(
+                    destination,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                )
+            except FileExistsError:
+                if destination.read_bytes() != encoded:
+                    raise FileExistsError(
+                        "refusing to overwrite a concurrently created "
+                        "non-identical GDW artifact"
+                    )
+            else:
+                with os.fdopen(destination_handle, "wb") as stream:
+                    stream.write(encoded)
+                    stream.flush()
+                    os.fsync(stream.fileno())
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -142,6 +171,7 @@ def _export_json_artifact_unlocked(
         "reused": False,
         "immutable": True,
         "owner_scope": owner_scope,
+        "publication_mode": publication_mode,
     }
 
 

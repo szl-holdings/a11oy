@@ -404,8 +404,14 @@ def drain_once(
         "exported": exported,
         "failed": failed,
         "pending_effects": integrity["pending_effects"],
+        "claimed_effects": integrity["claimed_effects"],
+        "dead_letter_effects": integrity["dead_letter_effects"],
         "legacy_pending_proofs": integrity["pending_proofs"],
         "sqlite_integrity": integrity["sqlite_integrity"],
+        "invalid_effect_bindings": integrity["invalid_effect_bindings"],
+        "invalid_exported_artifacts": integrity[
+            "invalid_exported_artifacts"
+        ],
         "errors": errors,
     }
 
@@ -517,7 +523,28 @@ class OutboxSupervisor:
                         lease_seconds=self.lease_seconds,
                         worker_id=self.worker_id,
                     )
-                    if report["failed"] or report["legacy_pending_proofs"]:
+                    terminal_failure = (
+                        report["dead_letter_effects"]
+                        or report["sqlite_integrity"] != "ok"
+                        or report["invalid_effect_bindings"]
+                        or report["invalid_exported_artifacts"]
+                    )
+                    retryable_work = (
+                        report["failed"]
+                        or report["pending_effects"]
+                        or report["legacy_pending_proofs"]
+                    )
+                    if terminal_failure:
+                        delay = self.retry_max_seconds
+                        _set_drain_state(
+                            last_outcome="FAILED",
+                            last_error=(
+                                "bounded drain pass reported terminal "
+                                "integrity or dead-letter failures"
+                            ),
+                            last_report=report,
+                        )
+                    elif retryable_work:
                         retry_delay = min(
                             self.retry_max_seconds,
                             max(self.interval_seconds, retry_delay * 2),
@@ -526,8 +553,7 @@ class OutboxSupervisor:
                         _set_drain_state(
                             last_outcome="RETRY_SCHEDULED",
                             last_error=(
-                                "bounded drain pass reported failures or "
-                                "unmigrated legacy proofs"
+                                "bounded drain pass remains non-quiescent"
                             ),
                             last_report=report,
                         )

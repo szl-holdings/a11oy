@@ -775,7 +775,23 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
                 "success_run_generation_id": "b" * 32,
                 "success_database_generation_id": "a" * 32,
                 "max_staleness_seconds": 60,
-                "last_report": {"rows": ["private"]},
+                "last_report": {
+                    "attempted": 0,
+                    "exported": 0,
+                    "failed": 0,
+                    "pending_effects": 0,
+                    "claimed_effects": 0,
+                    "dead_letter_effects": 0,
+                    "legacy_pending_proofs": 0,
+                    "sqlite_integrity": "ok",
+                    "invalid_effect_bindings": 0,
+                    "invalid_exported_artifacts": 0,
+                    "errors": [
+                        "proof_export:OSError",
+                        "private:secret=bearer-value",
+                    ],
+                    "rows": ["private"],
+                },
             },
         },
     )
@@ -790,7 +806,11 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
     encoded = json.dumps(body, sort_keys=True)
     assert "/data/" not in encoded
     assert "private-worker-identity" not in encoded
+    assert "bearer-value" not in encoded
     assert '"rows"' not in encoded
+    assert body["persistence"]["drain"]["last_report"]["errors"] == [
+        "proof_export:OSError"
+    ]
     assert body["persistence"]["storage"]["sqlite_integrity"] == "ok"
 
 

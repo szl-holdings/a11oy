@@ -286,6 +286,17 @@ def _write_readiness(
             blockers.append("OUTBOX_SUPERVISOR_NOT_RUNNING")
         if drain.get("last_outcome") != "SUCCEEDED":
             blockers.append("OUTBOX_SUPERVISOR_NOT_HEALTHY")
+        last_report = drain.get("last_report")
+        if isinstance(last_report, dict) and (
+            last_report.get("failed")
+            or last_report.get("pending_effects")
+            or last_report.get("dead_letter_effects")
+            or last_report.get("legacy_pending_proofs")
+            or last_report.get("invalid_effect_bindings")
+            or last_report.get("invalid_exported_artifacts")
+            or last_report.get("sqlite_integrity") != "ok"
+        ):
+            blockers.append("OUTBOX_SUPERVISOR_NOT_QUIESCENT")
         if drain.get("success_run_generation_id") != drain.get(
             "run_generation_id"
         ):
@@ -376,6 +387,34 @@ def _public_runtime_health(runtime: dict) -> dict:
             )
             if key in drain
         }
+        last_report = drain.get("last_report")
+        if isinstance(last_report, dict):
+            public_report = {
+                key: last_report.get(key)
+                for key in (
+                    "attempted",
+                    "exported",
+                    "failed",
+                    "pending_effects",
+                    "claimed_effects",
+                    "dead_letter_effects",
+                    "legacy_pending_proofs",
+                    "sqlite_integrity",
+                    "invalid_effect_bindings",
+                    "invalid_exported_artifacts",
+                )
+                if key in last_report
+            }
+            errors = last_report.get("errors")
+            if isinstance(errors, list):
+                public_report["errors"] = [
+                    value
+                    for value in errors
+                    if isinstance(value, str)
+                    and len(value) <= 96
+                    and re.fullmatch(r"[a-z_]+:[A-Za-z_]+", value)
+                ]
+            public_drain["last_report"] = public_report
     return {
         "startup_state": runtime.get("startup_state"),
         "evidence_label": runtime.get("evidence_label"),
