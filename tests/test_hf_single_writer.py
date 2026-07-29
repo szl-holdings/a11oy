@@ -49,7 +49,7 @@ MUTATION_METHODS = {
 _LOCAL_EXECUTABLE_PATH = (
     r"(?P<path>(?:\./|(?:[A-Za-z0-9_.-]+/)+)"
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
-    r"\.(?:py|sh|js|mjs|cjs|ts))"
+    r")"
 )
 LOCAL_SCRIPT_CALL = re.compile(
     r"(?:^|\s)(?:"
@@ -75,8 +75,15 @@ LOCAL_ACTION_CALL = re.compile(
 )
 ACTION_ENTRYPOINT = re.compile(
     r"(?m)^\s*(?:main|pre|post):\s*[\"']?"
-    r"(?P<path>[^#\s\"']+\.(?:py|sh|js|mjs|cjs|ts))"
+    r"(?P<path>[^#\s\"']+)"
 )
+ACTION_USING = re.compile(
+    r"(?m)^\s*using:\s*[\"']?(?P<using>[^#\s\"']+)"
+)
+ACTION_IMAGE = re.compile(
+    r"(?m)^\s*image:\s*[\"']?(?P<path>[^#\s\"']+)"
+)
+LOCAL_DOCKER_ACTION_SENTINEL = "__A11OY_LOCAL_DOCKER_ACTION_UNRESOLVED__"
 
 
 def _on_block(text: str) -> str:
@@ -170,6 +177,127 @@ def _executable_text(text: str) -> str:
     )
 
 
+def _line_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def _block_end(lines: list[str], start: int, indent: int) -> int:
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if _line_indent(line) <= indent:
+            return index
+    return len(lines)
+
+
+def _working_directory_value(line: str) -> str | None:
+    match = re.match(
+        r"^\s*working-directory:\s*(?P<value>.+?)\s*(?:#.*)?$",
+        line,
+    )
+    if match is None:
+        return None
+    value = match.group("value").strip().strip("'\"").replace("\\", "/")
+    if not value or "${{" in value:
+        raise RuntimeError("dynamic local writer working-directory is unbounded")
+    candidate = PurePosixPath(value)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise RuntimeError("local writer working-directory escapes the repository")
+    normalized = candidate.as_posix().removeprefix("./")
+    return "" if normalized == "." else normalized
+
+
+def _defaults_working_directory(
+    lines: list[str],
+    start: int,
+    end: int,
+    defaults_indent: int,
+) -> str | None:
+    for index in range(start, end):
+        if (
+            _line_indent(lines[index]) != defaults_indent
+            or not re.fullmatch(r"\s*defaults:\s*", lines[index])
+        ):
+            continue
+        defaults_end = min(_block_end(lines, index, defaults_indent), end)
+        for run_index in range(index + 1, defaults_end):
+            if (
+                _line_indent(lines[run_index]) != defaults_indent + 2
+                or not re.fullmatch(r"\s*run:\s*", lines[run_index])
+            ):
+                continue
+            run_end = min(
+                _block_end(lines, run_index, defaults_indent + 2),
+                defaults_end,
+            )
+            for value_index in range(run_index + 1, run_end):
+                if _line_indent(lines[value_index]) != defaults_indent + 4:
+                    continue
+                value = _working_directory_value(lines[value_index])
+                if value is not None:
+                    return value
+    return None
+
+
+def _workflow_working_directory(text: str, offset: int) -> str:
+    """Resolve step, job, then workflow run defaults for a direct command."""
+
+    lines = text.splitlines()
+    line_index = text.count("\n", 0, offset)
+
+    step_start: int | None = None
+    step_end: int | None = None
+    step_indent: int | None = None
+    step_pattern = re.compile(
+        r"\s*-\s*(?:name|id|if|uses|run|shell|working-directory|env|"
+        r"continue-on-error|timeout-minutes):"
+    )
+    for index in range(line_index, -1, -1):
+        if not step_pattern.match(lines[index]):
+            continue
+        candidate_indent = _line_indent(lines[index])
+        candidate_end = _block_end(lines, index, candidate_indent)
+        if line_index < candidate_end:
+            step_start = index
+            step_end = candidate_end
+            step_indent = candidate_indent
+            break
+    if step_start is not None and step_end is not None and step_indent is not None:
+        for index in range(step_start, step_end):
+            if _line_indent(lines[index]) != step_indent + 2:
+                continue
+            value = _working_directory_value(lines[index])
+            if value is not None:
+                return value
+
+    jobs_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if _line_indent(line) == 0 and re.fullmatch(r"jobs:\s*", line)
+        ),
+        None,
+    )
+    if jobs_index is not None:
+        jobs_end = _block_end(lines, jobs_index, 0)
+        for index in range(jobs_index + 1, min(line_index + 1, jobs_end)):
+            if (
+                _line_indent(lines[index]) != 2
+                or not re.fullmatch(r"\s*[A-Za-z0-9_.-]+:\s*", lines[index])
+            ):
+                continue
+            job_end = min(_block_end(lines, index, 2), jobs_end)
+            if line_index >= job_end:
+                continue
+            value = _defaults_working_directory(lines, index + 1, job_end, 4)
+            if value is not None:
+                return value
+
+    value = _defaults_working_directory(lines, 0, len(lines), 0)
+    return value or ""
+
+
 def _repo_source(
     relative_path: str,
     repo_files: dict[str, str] | None,
@@ -206,24 +334,33 @@ def _referenced_sources(
     """Include scripts and local actions that the workflow actually executes."""
 
     combined: list[tuple[str | None, str]] = [(None, text)]
-    queue: list[tuple[str | None, str, int]] = [(None, text, 0)]
+    queue: list[tuple[str | None, str, int, str]] = [(None, text, 0, "")]
     visited: set[str] = set()
     while queue:
-        current_path, source_text, depth = queue.pop()
+        current_path, source_text, depth, execution_dir = queue.pop()
         if depth > MAX_REFERENCE_DEPTH:
             raise RuntimeError("local writer reference depth is unbounded")
         current = _executable_text(source_text)
-        references: set[tuple[str, str]] = {
-            (match.group("path"), "")
-            for pattern in (LOCAL_SCRIPT_CALL, DIRECT_SCRIPT_CALL)
-            for match in pattern.finditer(current)
-        }
+        references: set[tuple[str, str, str]] = set()
+        for pattern in (LOCAL_SCRIPT_CALL, DIRECT_SCRIPT_CALL):
+            for match in pattern.finditer(current):
+                base_dir = (
+                    _workflow_working_directory(current, match.start())
+                    if current_path is None
+                    else execution_dir
+                )
+                references.add((match.group("path"), base_dir, base_dir))
         for match in LOCAL_MODULE_CALL.finditer(current):
             module_path = match.group("module").replace(".", "/")
+            base_dir = (
+                _workflow_working_directory(current, match.start())
+                if current_path is None
+                else execution_dir
+            )
             references.update(
                 {
-                    (f"{module_path}.py", ""),
-                    (f"{module_path}/__main__.py", ""),
+                    (f"{module_path}.py", base_dir, base_dir),
+                    (f"{module_path}/__main__.py", base_dir, base_dir),
                 }
             )
 
@@ -231,8 +368,8 @@ def _referenced_sources(
             action_dir = match.group("path").rstrip("/")
             references.update(
                 {
-                    (f"{action_dir}/action.yml", ""),
-                    (f"{action_dir}/action.yaml", ""),
+                    (f"{action_dir}/action.yml", "", ""),
+                    (f"{action_dir}/action.yaml", "", ""),
                 }
             )
 
@@ -243,11 +380,22 @@ def _referenced_sources(
         ):
             action_dir = PurePosixPath(current_path).parent.as_posix()
             references.update(
-                (match.group("path"), action_dir)
+                (match.group("path"), action_dir, "")
                 for match in ACTION_ENTRYPOINT.finditer(current)
             )
+            using = ACTION_USING.search(current)
+            if using is not None and using.group("using").lower() == "docker":
+                image = ACTION_IMAGE.search(current)
+                if image is not None and not image.group("path").startswith("docker://"):
+                    references.add((image.group("path"), action_dir, ""))
+                combined.append(
+                    (
+                        f"{current_path}#unresolved-docker-runtime",
+                        LOCAL_DOCKER_ACTION_SENTINEL,
+                    )
+                )
 
-        for relative_path, base_dir in sorted(references):
+        for relative_path, base_dir, child_execution_dir in sorted(references):
             source = _repo_source(
                 relative_path,
                 repo_files,
@@ -262,7 +410,14 @@ def _referenced_sources(
                 raise RuntimeError("too many local writer references")
             visited.add(normalized)
             combined.append((normalized, source_text))
-            queue.append((normalized, source_text, depth + 1))
+            queue.append(
+                (
+                    normalized,
+                    source_text,
+                    depth + 1,
+                    child_execution_dir,
+                )
+            )
     return combined
 
 
@@ -287,6 +442,10 @@ def _mutates_canonical_space(
 ) -> bool:
     sources = _referenced_sources(text, repo_files)
     lowered = "\n".join(source_text for _, source_text in sources).lower()
+    unresolved_local_docker_action = any(
+        source_text == LOCAL_DOCKER_ACTION_SENTINEL
+        for _, source_text in sources
+    )
     mutation_found = False
     for relative_path, source_text in sources:
         executable = _executable_text(source_text)
@@ -300,7 +459,7 @@ def _mutates_canonical_space(
             break
     return (
         any(marker.lower() in lowered for marker in TARGET_MARKERS)
-        and mutation_found
+        and (mutation_found or unresolved_local_docker_action)
     )
 
 
@@ -536,6 +695,136 @@ jobs:
                 "unsafe-action.yaml",
                 "unsafe-script.yml",
             ],
+        )
+
+    def test_extensionless_direct_executable_is_resolved(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe extensionless executable
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./scripts/deploy
+"""
+        repo_files = {
+            "scripts/deploy": (
+                "client.upload_folder(repo_id='SZLHOLDINGS/a11oy')\n"
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-extensionless.yml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-extensionless.yml"],
+        )
+
+    def test_direct_scripts_honor_all_working_directory_scopes(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        workflow_default = """
+name: unsafe workflow default
+on: [push]
+defaults:
+  run:
+    working-directory: workflow-tools
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./deploy
+"""
+        job_default = """
+name: unsafe job default
+on: [push]
+jobs:
+  mutate:
+    defaults:
+      run:
+        working-directory: job-tools
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./deploy
+"""
+        step_override = """
+name: unsafe step override
+on: [push]
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - run: ./deploy
+        working-directory: step-tools
+"""
+        writer = "client.create_commit(repo_id='SZLHOLDINGS/a11oy')\n"
+        repo_files = {
+            "workflow-tools/deploy": writer,
+            "job-tools/deploy": writer,
+            "step-tools/deploy": writer,
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-workflow-default.yml": workflow_default,
+                    "unsafe-job-default.yml": job_default,
+                    "unsafe-step-override.yml": step_override,
+                },
+                repo_files,
+            ),
+            [
+                CANONICAL_WORKFLOW,
+                "unsafe-job-default.yml",
+                "unsafe-step-override.yml",
+                "unsafe-workflow-default.yml",
+            ],
+        )
+
+    def test_local_docker_action_is_denied_conservatively(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe local Docker action
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    env:
+      SPACE_ID: SZLHOLDINGS/a11oy
+    steps:
+      - uses: ./.github/actions/docker-writer
+"""
+        repo_files = {
+            ".github/actions/docker-writer/action.yml": (
+                "runs:\n"
+                "  using: docker\n"
+                "  image: Dockerfile\n"
+            ),
+            ".github/actions/docker-writer/Dockerfile": (
+                "FROM python:3.12-slim\n"
+                "COPY deploy /deploy\n"
+                'ENTRYPOINT ["/deploy"]\n'
+            ),
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-docker-action.yml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-docker-action.yml"],
         )
 
 
