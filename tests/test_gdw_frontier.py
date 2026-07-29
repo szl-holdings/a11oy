@@ -437,6 +437,34 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     assert workspace.integrity()["pending_effects"] == 0
 
 
+def test_bounded_drain_exports_both_effect_kinds_atomically(
+    tmp_path,
+    monkeypatch,
+):
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        result = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(),
+            headers=headers("exclusive-drain-1"),
+        ).json()
+    assert result["proof"]["status"] == "OUTBOX_PENDING"
+
+    import gdw_runtime
+    from gdw_workspace import GDWWorkspace
+
+    workspace = GDWWorkspace(namespace="a11oy", owner_id="owner-a")
+    report = gdw_runtime.drain_once(
+        workspace=workspace,
+        worker_id="exclusive-drain-worker",
+    )
+
+    assert report["exported"] == 2
+    assert report["failed"] == 0
+    assert report["pending_effects"] == 0
+    assert report["dead_letter_effects"] == 0
+
+
 def test_governance_denial_and_unavailable_policy_never_mutate(
     tmp_path, monkeypatch
 ):
@@ -775,7 +803,23 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
                 "success_run_generation_id": "b" * 32,
                 "success_database_generation_id": "a" * 32,
                 "max_staleness_seconds": 60,
-                "last_report": {"rows": ["private"]},
+                "last_report": {
+                    "attempted": 0,
+                    "exported": 0,
+                    "failed": 0,
+                    "pending_effects": 0,
+                    "claimed_effects": 0,
+                    "dead_letter_effects": 0,
+                    "legacy_pending_proofs": 0,
+                    "sqlite_integrity": "ok",
+                    "invalid_effect_bindings": 0,
+                    "invalid_exported_artifacts": 0,
+                    "errors": [
+                        "proof_export:OSError",
+                        "private:secret=bearer-value",
+                    ],
+                    "rows": ["private"],
+                },
             },
         },
     )
@@ -790,7 +834,11 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
     encoded = json.dumps(body, sort_keys=True)
     assert "/data/" not in encoded
     assert "private-worker-identity" not in encoded
+    assert "bearer-value" not in encoded
     assert '"rows"' not in encoded
+    assert body["persistence"]["drain"]["last_report"]["errors"] == [
+        "proof_export:OSError"
+    ]
     assert body["persistence"]["storage"]["sqlite_integrity"] == "ok"
 
 
