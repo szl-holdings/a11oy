@@ -32,16 +32,21 @@ def delete_exported_artifact(task: Dict[str, Any]) -> Dict[str, Any]:
 
     kind = str(task.get("kind") or "")
     if kind == "proof_export":
-        root = Path(os.environ.get("GDW_PROOF_DIR", "output/proofs")).resolve()
+        configured_root = Path(
+            os.environ.get("GDW_PROOF_DIR", "output/proofs")
+        )
     elif kind == "receipt_projection":
-        root = Path(
+        configured_root = Path(
             os.environ.get(
                 "GDW_RECEIPT_PROJECTION_DIR",
                 "output/gdw/receipts",
             )
-        ).resolve()
+        )
     else:
         raise ValueError("unsupported artifact GC kind")
+    if _is_reparse_point(configured_root):
+        raise ValueError("artifact GC refuses symlink or reparse root")
+    root = configured_root.resolve()
 
     identity = str(task.get("idempotency_key") or "")
     expected_digest = str(task.get("artifact_sha256") or "")

@@ -966,6 +966,25 @@ def test_artifact_gc_claim_token_fences_stale_worker(tmp_path, monkeypatch):
     )
 
 
+def test_artifact_gc_refuses_path_escape(tmp_path, monkeypatch):
+    import pytest
+
+    from gdw_proofs import delete_exported_artifact
+
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    identity = "a" * 64
+    with pytest.raises(ValueError, match="owner- and effect-bound"):
+        delete_exported_artifact(
+            {
+                "kind": "proof_export",
+                "idempotency_key": identity,
+                "owner_id": "owner-a",
+                "artifact_path": str(tmp_path / "outside.json"),
+                "artifact_sha256": "b" * 64,
+            }
+        )
+
+
 def test_health_uses_bounded_readiness_not_full_ledger_scan(
     tmp_path, monkeypatch
 ):
