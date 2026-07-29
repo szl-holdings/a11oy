@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -123,6 +124,42 @@ def test_competing_credential_registry_blocks_before_mutation(location: str) -> 
             repo_id=config.CANONICAL_SPACE,
             current_variables=variables,
             current_secret_names=secret_names,
+            operator_token="x" * 48,
+        )
+    assert calls == []
+
+
+def test_managed_variable_secret_collision_blocks_before_auth_mutation(
+    monkeypatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+    api = SimpleNamespace(
+        space_info=lambda **kwargs: SimpleNamespace(
+            runtime=SimpleNamespace(
+                volumes=[
+                    SimpleNamespace(
+                        type="bucket",
+                        source="SZLHOLDINGS/szl-evidence",
+                        mount_path="/data",
+                        read_only=False,
+                    )
+                ]
+            )
+        ),
+        get_space_secrets=lambda **kwargs: ["GDW_DB_PATH"],
+        get_space_variables=lambda **kwargs: {},
+        add_space_secret=lambda **kwargs: calls.append(kwargs),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(HfApi=lambda **kwargs: api),
+    )
+
+    with pytest.raises(config.RuntimeConfigError, match="collide"):
+        config.configure(
+            repo_id=config.CANONICAL_SPACE,
+            hf_token="hf-control-token",
             operator_token="x" * 48,
         )
     assert calls == []

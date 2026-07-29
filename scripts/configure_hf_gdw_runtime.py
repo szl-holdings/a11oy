@@ -204,17 +204,17 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
     volume = require_data_mount(api, repo_id=repo_id)
     current_secret_names = set(api.get_space_secrets(repo_id=repo_id))
     current_variables = api.get_space_variables(repo_id=repo_id)
+    changes = plan_variables(
+        current_variables,
+        current_secret_names,
+        desired,
+    )
     secret_names = converge_principal_registry(
         api,
         repo_id=repo_id,
         current_variables=current_variables,
         current_secret_names=current_secret_names,
         operator_token=operator_token,
-    )
-    changes = plan_variables(
-        current_variables,
-        secret_names,
-        desired,
     )
     for name, value in sorted(changes.items()):
         api.add_space_variable(

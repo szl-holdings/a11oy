@@ -52,7 +52,9 @@ LOCAL_SCRIPT_CALL = re.compile(
     re.MULTILINE,
 )
 LOCAL_MODULE_CALL = re.compile(
-    r"(?:^|\s)python(?:3)?(?:\s+-[A-Za-z]+)*\s+-m\s+"
+    r"\bpython(?:3)?\b"
+    r"(?:(?:[ \t]+(?!-m(?:[ \t]|$))[^ \t;&|]+))*"
+    r"[ \t]+-m[ \t]+"
     r"(?P<module>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)"
 )
 LOCAL_ACTION_CALL = re.compile(
@@ -391,7 +393,7 @@ on:
 jobs:
     mutate:
         steps:
-            - run: python -m scripts.hf_writer
+            - run: python -W error -X dev -m scripts.hf_writer
               env:
                   SPACE_ID: SZLHOLDINGS/a11oy
 """
