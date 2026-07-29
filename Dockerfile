@@ -521,7 +521,7 @@ COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js stati
 
 # --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---
 # … (full rationale: docs/DOCKERFILE_NOTES.md §67)
-COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co ./policy/colang/
+COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co policy/colang/gdw_enforcement_contract.json ./policy/colang/
 # GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
 # … (full rationale: docs/DOCKERFILE_NOTES.md §68)
 COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py
@@ -612,7 +612,7 @@ COPY szl_spend_cap.py ./szl_spend_cap.py
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # … (full rationale: docs/DOCKERFILE_NOTES.md §91)
 COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py szl_compute_pool_contract.py szl_estateconstitution.py ./
-COPY gdw_attention.py gdw_workspace.py gdw_telemetry.py gdw_proofs.py ./
+COPY gdw_attention.py gdw_workspace.py gdw_telemetry.py gdw_proofs.py gdw_drain.py ./
 COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
 
 # FORGE-FAMILY WALL (2026-07-14): /api/forge/family — server-side ed25519

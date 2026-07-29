@@ -61,6 +61,9 @@ _PII_SIGS = ["ssn", "social security", "card number", "full card", "pan ",
 _EFFECTOR_TOOLS = {"issue_refund", "send_email", "reset_password", "assign_seat",
                    "apply_change", "run_sql", "engage", "release", "execute"}
 _PAYLOAD_CEILING = 1_000_000
+_ENFORCEMENT_CONTRACT_SCHEMA = "szl.colang-enforcement-contract/v1"
+_ENFORCEMENT_EVALUATOR = "szl.colang-python-evaluator/v1"
+_ENFORCEMENT_CONTRACT_FILENAME = "gdw_enforcement_contract.json"
 
 
 def _resolve_dir() -> Optional[Path]:
@@ -296,6 +299,144 @@ class ColangPolicy:
                 out.append({**fl, "file": f["name"], "policy_id": f["policy_id"],
                             "policy_version": f["policy_version"]})
         return out
+
+    def enforcement_contract_status(self) -> dict:
+        """Bind the hard-coded evaluator to exact reviewed Colang source bytes.
+
+        The legacy evaluator dispatches by flow name. It therefore cannot safely
+        interpret a new flow or changed Colang expression. Strict callers must
+        fail closed unless the loaded files exactly match this reviewed contract
+        and every declared flow has a local evaluator.
+        """
+        reasons: list[str] = []
+        contract_path = (
+            self.directory / _ENFORCEMENT_CONTRACT_FILENAME
+            if self.directory
+            else None
+        )
+        contract: dict[str, Any] = {}
+        if contract_path is None or not contract_path.is_file():
+            reasons.append("ENFORCEMENT_CONTRACT_MISSING")
+        else:
+            try:
+                contract = json.loads(contract_path.read_text(encoding="utf-8"))
+            except Exception:
+                reasons.append("ENFORCEMENT_CONTRACT_INVALID")
+
+        if contract.get("schema") != _ENFORCEMENT_CONTRACT_SCHEMA:
+            reasons.append("ENFORCEMENT_CONTRACT_SCHEMA_MISMATCH")
+        if contract.get("evaluator") != _ENFORCEMENT_EVALUATOR:
+            reasons.append("ENFORCEMENT_EVALUATOR_MISMATCH")
+
+        expected_files = contract.get("files")
+        if not isinstance(expected_files, dict):
+            expected_files = {}
+            reasons.append("ENFORCEMENT_FILE_LOCK_INVALID")
+        actual_files = {item["name"]: item["sha256"] for item in self.files}
+        if expected_files != actual_files:
+            reasons.append("ENFORCEMENT_FILE_LOCK_MISMATCH")
+
+        unsupported_flows = sorted(
+            flow["name"]
+            for flow in self.all_flows()
+            if flow["name"] not in _FLOW_LOGIC
+        )
+        if unsupported_flows:
+            reasons.append("UNSUPPORTED_POLICY_FLOW")
+
+        return {
+            "valid": not reasons,
+            "schema": _ENFORCEMENT_CONTRACT_SCHEMA,
+            "evaluator": _ENFORCEMENT_EVALUATOR,
+            "contract_path": str(contract_path) if contract_path else None,
+            "contract_sha256": (
+                hashlib.sha256(contract_path.read_bytes()).hexdigest()
+                if contract_path and contract_path.is_file()
+                else None
+            ),
+            "reason_codes": sorted(set(reasons)),
+            "unsupported_flows": unsupported_flows,
+            "files": actual_files,
+        }
+
+    def evaluate_strict(self, action: dict) -> dict:
+        """Evaluate only an exact, supported, byte-locked policy generation."""
+        enforcement = self.enforcement_contract_status()
+        if not enforcement["valid"]:
+            return {
+                "allow": False,
+                "decision": "deny",
+                "fired_flows": [
+                    {
+                        "flow": "strict_enforcement_contract",
+                        "reason": reason,
+                        "file": _ENFORCEMENT_CONTRACT_FILENAME,
+                        "policy_id": "GDW_STRICT",
+                        "policy_version": _ENFORCEMENT_EVALUATOR,
+                    }
+                    for reason in enforcement["reason_codes"]
+                ],
+                "fired_count": len(enforcement["reason_codes"]),
+                "flows_evaluated": [
+                    flow["name"] for flow in self.all_flows()
+                ],
+                "matched_count": len(enforcement["reason_codes"]),
+                "policy_files": [
+                    {
+                        "name": item["name"],
+                        "sha256": item["sha256"],
+                        "policy_id": item["policy_id"],
+                        "policy_version": item["policy_version"],
+                    }
+                    for item in self.files
+                ],
+                "enforcement_contract": enforcement,
+            }
+        action = action or {}
+        fired: list[dict] = []
+        evaluated: list[str] = []
+        evaluator_errors: list[str] = []
+        for flow in self.all_flows():
+            name = flow["name"]
+            logic = _FLOW_LOGIC[name]
+            evaluated.append(name)
+            try:
+                violated = bool(logic(action))
+            except Exception:
+                violated = True
+                evaluator_errors.append(name)
+            if violated:
+                fired.append({
+                    "flow": name,
+                    "reason": (
+                        "POLICY_EVALUATOR_ERROR"
+                        if name in evaluator_errors
+                        else flow.get("reason") or name
+                    ),
+                    "file": flow["file"],
+                    "policy_id": flow["policy_id"],
+                    "policy_version": flow["policy_version"],
+                })
+        allow = not fired
+        return {
+            "allow": allow,
+            "decision": "allow" if allow else "deny",
+            "fired_flows": fired,
+            "fired_count": len(fired),
+            "flows_evaluated": evaluated,
+            "matched_count": len(fired),
+            "policy_files": [
+                {
+                    "name": item["name"],
+                    "sha256": item["sha256"],
+                    "policy_id": item["policy_id"],
+                    "policy_version": item["policy_version"],
+                }
+                for item in self.files
+            ],
+            "evaluator_errors": evaluator_errors,
+            "enforcement_contract": enforcement,
+        }
 
     def evaluate(self, action: dict) -> dict:
         """Evaluate a proposed action against EVERY loaded flow. Returns which
