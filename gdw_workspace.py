@@ -1058,13 +1058,6 @@ class GDWWorkspace:
         ).fetchone()
         if row is None or row["lifecycle"] != "ACTIVE" or row["state_json"] is None:
             return None
-        connection.execute(
-            """
-            UPDATE session_state SET last_accessed_at = ?
-            WHERE namespace = ? AND owner_id = ? AND session_id = ?
-            """,
-            (_text_time(), ns, owner, session_id),
-        )
         return {
             "namespace": ns,
             "owner_id": owner,
@@ -2548,9 +2541,12 @@ class GDWWorkspace:
         namespace: Optional[str] = None,
         owner_id: Optional[str] = None,
         global_scope: bool = False,
+        connection: Optional[sqlite3.Connection] = None,
     ) -> Dict[str, Any]:
         ns, owner = self._identity(namespace, owner_id)
-        connection = self._connect()
+        owns_connection = connection is None
+        if connection is None:
+            connection = self._connect()
         try:
             check = connection.execute("PRAGMA integrity_check").fetchone()[0]
             predicate = "" if global_scope else " WHERE namespace = ? AND owner_id = ?"
@@ -2626,6 +2622,87 @@ class GDWWorkspace:
                     params,
                 ).fetchone()[0]
             )
+            digest_violations = {
+                "invalid_state_digests": 0,
+                "invalid_request_digests": 0,
+                "invalid_receipt_digests": 0,
+                "invalid_proof_digests": 0,
+            }
+            scoped_suffix = (
+                ""
+                if global_scope
+                else " WHERE namespace = ? AND owner_id = ?"
+            )
+            for row in connection.execute(
+                "SELECT state_json, state_hash FROM session_state"
+                + scoped_suffix,
+                params,
+            ):
+                if row["state_json"] is None:
+                    continue
+                try:
+                    state = json.loads(row["state_json"])
+                    observed = hashlib.sha256(
+                        _json_text(state).encode("utf-8")
+                    ).hexdigest()
+                    if observed != row["state_hash"]:
+                        raise ValueError("state digest mismatch")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    digest_violations["invalid_state_digests"] += 1
+            for row in connection.execute(
+                "SELECT response_json, response_hash FROM requests"
+                + scoped_suffix,
+                params,
+            ):
+                if row["response_json"] is None:
+                    continue
+                try:
+                    response = json.loads(row["response_json"])
+                    observed = hashlib.sha256(
+                        _json_text(response).encode("utf-8")
+                    ).hexdigest()
+                    if observed != row["response_hash"]:
+                        raise ValueError("request digest mismatch")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    digest_violations["invalid_request_digests"] += 1
+            for row in connection.execute(
+                "SELECT receipt_json, receipt_hash FROM receipts"
+                + scoped_suffix,
+                params,
+            ):
+                if row["receipt_json"] is None:
+                    continue
+                try:
+                    receipt = json.loads(row["receipt_json"])
+                    claimed = str(receipt.pop("receipt_hash", ""))
+                    observed = hashlib.sha256(
+                        _json_text(receipt).encode("utf-8")
+                    ).hexdigest()
+                    if claimed != row["receipt_hash"] or observed != row["receipt_hash"]:
+                        raise ValueError("receipt digest mismatch")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    digest_violations["invalid_receipt_digests"] += 1
+            for row in connection.execute(
+                "SELECT payload_json, payload_sha256 FROM proof_outbox"
+                + scoped_suffix,
+                params,
+            ):
+                if row["payload_json"] is None:
+                    continue
+                try:
+                    payload = json.loads(row["payload_json"])
+                    observed = self._effect_payload_digest(
+                        "proof_export", payload
+                    )
+                    if observed != row["payload_sha256"]:
+                        raise ValueError("proof digest mismatch")
+                except (
+                    GDWConfigurationError,
+                    TypeError,
+                    ValueError,
+                    json.JSONDecodeError,
+                ):
+                    digest_violations["invalid_proof_digests"] += 1
             effect_rows = connection.execute(
                 """
                 SELECT namespace, owner_id, idempotency_key,
@@ -2670,6 +2747,7 @@ class GDWWorkspace:
                 "ok": (
                     check == "ok"
                     and orphan_receipts == 0
+                    and not any(digest_violations.values())
                     and invalid_effect_bindings == 0
                     and invalid_exported_artifacts == 0
                 ),
@@ -2683,6 +2761,7 @@ class GDWWorkspace:
                 "dead_letter_effects": dead_letter_effects,
                 "invalid_effect_bindings": invalid_effect_bindings,
                 "invalid_exported_artifacts": invalid_exported_artifacts,
+                **digest_violations,
                 "counts": counts,
                 "scope": "global" if global_scope else "owner",
                 "journal_mode": str(
@@ -2697,4 +2776,5 @@ class GDWWorkspace:
                 result["owner_id"] = owner
             return result
         finally:
-            connection.close()
+            if owns_connection:
+                connection.close()

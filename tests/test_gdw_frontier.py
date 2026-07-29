@@ -6,7 +6,7 @@ import sys
 import threading
 import types
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -96,6 +96,41 @@ def headers(request_id):
         "Authorization": "Bearer test-token",
         "X-Request-Id": request_id,
     }
+
+
+def test_step_collects_expired_requests_before_quota_admission(
+    tmp_path,
+    monkeypatch,
+):
+    import gdw_runtime
+    import gdw_workspace
+    from gdw_workspace import GDWWorkspace
+
+    monkeypatch.setenv("GDW_OWNER_MAX_ACTIVE_REQUESTS", "1")
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "1")
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="quota-session-1"),
+            headers=headers("quota-request-1"),
+        )
+        assert first.status_code == 200
+        workspace = GDWWorkspace(
+            str(tmp_path / "gdw.sqlite3"),
+            namespace="a11oy",
+            owner_id="owner-a",
+        )
+        assert gdw_runtime.drain_once(workspace=workspace)["failed"] == 0
+        future = datetime.now(timezone.utc) + timedelta(seconds=2)
+        monkeypatch.setattr(gdw_workspace, "_utc_now", lambda: future)
+        second = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="quota-session-2"),
+            headers=headers("quota-request-2"),
+        )
+
+    assert second.status_code == 200
 
 
 def test_auth_state_receipt_and_proof_flow(tmp_path, monkeypatch):
@@ -247,6 +282,8 @@ def test_same_session_concurrency_is_monotonic(tmp_path, monkeypatch):
 def test_replay_does_not_mint_another_policy_receipt(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
     calls = []
+    collections = []
+    original_collect = gdw_frontier.GDWWorkspace.collect_garbage
 
     def evaluate(action):
         calls.append(action)
@@ -260,7 +297,12 @@ def test_replay_does_not_mint_another_policy_receipt(tmp_path, monkeypatch):
             "receipts_in_eq_out": True,
         }
 
+    def collect(workspace, *args, **kwargs):
+        collections.append((args, kwargs))
+        return original_collect(workspace, *args, **kwargs)
+
     monkeypatch.setattr(gdw_frontier, "_canonical_policy_evaluate", evaluate)
+    monkeypatch.setattr(gdw_frontier.GDWWorkspace, "collect_garbage", collect)
     with TestClient(app) as client:
         first = client.post(
             "/api/a11oy/v1/gdw/step",
@@ -276,6 +318,7 @@ def test_replay_does_not_mint_another_policy_receipt(tmp_path, monkeypatch):
     assert first.status_code == replay.status_code == 200
     assert replay.json()["replayed"] is True
     assert len(calls) == 1
+    assert len(collections) == 1
 
 
 def test_unrelated_sessions_evaluate_policy_concurrently(tmp_path, monkeypatch):

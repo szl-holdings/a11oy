@@ -544,3 +544,54 @@ def test_supervisor_retries_when_legacy_proofs_remain(monkeypatch):
 
     assert drain["last_outcome"] == "RETRY_SCHEDULED"
     assert "unmigrated legacy proofs" in drain["last_error"]
+
+
+def test_supervisor_never_marks_dead_lettered_effects_healthy(monkeypatch):
+    monkeypatch.setattr(
+        gdw_runtime,
+        "_STATE",
+        {
+            "startup_state": "READY",
+            "evidence_label": "VERIFIED",
+            "storage": {"database_generation_id": "d" * 32},
+            "drain": {
+                "enabled": False,
+                "running": False,
+                "last_outcome": "NOT_RUN",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        gdw_runtime,
+        "drain_once",
+        lambda **_kwargs: {
+            "attempted": 0,
+            "exported": 0,
+            "failed": 0,
+            "pending_effects": 0,
+            "dead_letter_effects": 1,
+            "legacy_pending_proofs": 0,
+            "sqlite_integrity": "ok",
+            "errors": [],
+        },
+    )
+    supervisor = gdw_runtime.OutboxSupervisor(
+        enabled=True,
+        interval_seconds=5,
+        retry_max_seconds=60,
+        batch_size=10,
+        lease_seconds=30,
+    )
+    waits = iter((False, True))
+    supervisor._stop = type(
+        "TwoPassStop",
+        (),
+        {"wait": lambda _self, _delay: next(waits)},
+    )()
+
+    supervisor._run()
+    drain = gdw_runtime.runtime_health()["drain"]
+
+    assert drain["last_outcome"] == "RETRY_SCHEDULED"
+    assert "dead-letter effects" in drain["last_error"]
+    assert drain["success_run_generation_id"] is None

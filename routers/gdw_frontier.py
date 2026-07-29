@@ -919,8 +919,57 @@ def register(app, ns: str = "a11oy"):
         )
         await _acquire_step_write_locks(step_write_locks)
         try:
+            with workspace.transaction() as connection:
+                integrity = workspace.integrity(
+                    global_scope=True,
+                    connection=connection,
+                )
+                if not integrity["ok"]:
+                    raise GDWConfigurationError(
+                        "GDW workspace integrity gate is closed"
+                    )
+                cached = workspace.cached_request(connection, request_id)
+                if cached is not None:
+                    cached_digest, cached_response = cached
+                    if cached_digest != request_digest:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="X-Request-Id was already used with different content",
+                        )
+                    current_bundle = _policy_bundle_sha256()
+                    cached_bundle = (
+                        cached_response.get("audit", {})
+                        .get("governance", {})
+                        .get("colang", {})
+                        .get("bundle_sha256")
+                    )
+                    if not current_bundle or cached_bundle != current_bundle:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="policy snapshot changed; replay refused",
+                        )
+                    cached_response["replayed"] = True
+                    selected_mode = cached_response["scheduler_mode"]
+                    decision = cached_response["decision"]
+                    receipt_hash = cached_response.get("receipt_hash") or ""
+                    _TELEMETRY.observe(
+                        (time.perf_counter() - started) * 1000.0,
+                        decision,
+                        selected_mode,
+                        False,
+                    )
+                    return cached_response
+            workspace.collect_garbage(limit=10_000)
             authorised_generation_id = workspace.database_generation_id
             with workspace.transaction() as connection:
+                integrity = workspace.integrity(
+                    global_scope=True,
+                    connection=connection,
+                )
+                if not integrity["ok"]:
+                    raise GDWConfigurationError(
+                        "GDW workspace integrity gate is closed"
+                    )
                 cached = workspace.cached_request(connection, request_id)
                 if cached is not None:
                     cached_digest, cached_response = cached
@@ -978,6 +1027,14 @@ def register(app, ns: str = "a11oy"):
                 authorised_state_hash,
             )
             with workspace.transaction() as connection:
+                integrity = workspace.integrity(
+                    global_scope=True,
+                    connection=connection,
+                )
+                if not integrity["ok"]:
+                    raise GDWConfigurationError(
+                        "GDW workspace integrity gate is closed"
+                    )
                 previous = workspace.session_state(connection, payload.session_id)
                 if previous is None:
                     before_step = 0
