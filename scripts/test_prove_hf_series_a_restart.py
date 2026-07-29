@@ -70,9 +70,15 @@ class Session:
             status(source, receipts=1, head="2" * 64),
             status(
                 source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
                 receipts=2,
                 head="3" * 64,
-                boot="boot_" + ("2" * 32),
+                boot="boot_" + ("3" * 32),
             ),
         ]
         self.headers = {}
@@ -105,12 +111,23 @@ class StartupReceiptSession(Session):
         super().__init__(source)
         self.statuses = [
             status(source, receipts=0, head=None),
-            status(source, receipts=1, head="2" * 64),
+            status(
+                source,
+                receipts=0,
+                head=None,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
             status(
                 source,
                 receipts=2,
                 head="3" * 64,
-                boot="boot_" + ("2" * 32),
+                boot="boot_" + ("3" * 32),
             ),
         ]
         self.posts = 0
@@ -128,9 +145,21 @@ class DrainingSession(Session):
             status(source, receipts=1, head="2" * 64),
             status(
                 source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
                 receipts=2,
                 head="3" * 64,
-                boot="boot_" + ("2" * 32),
+                boot="boot_" + ("3" * 32),
             ),
         ]
 
@@ -146,6 +175,19 @@ class TransientStartupSession(StartupReceiptSession):
             if self.status_calls == 2:
                 raise TimeoutError("transient startup status timeout")
         return super().get(url, **kwargs)
+
+
+class PreActivationSession(Session):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.statuses.insert(
+            0,
+            {
+                "ok": False,
+                "label": "UNAVAILABLE",
+                "reason": "DatabaseError: database disk image is malformed",
+            },
+        )
 
 
 class Api:
@@ -180,8 +222,28 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
     assert report["proof"]["database_instance_stable"] is True
     assert report["proof"]["pre_restart_chain_head_recovered"] is True
     assert api.calls == [
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False},
         {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False}
     ]
+
+
+def test_prove_polls_past_pre_activation_runtime(monkeypatch) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=Api(),
+        session=PreActivationSession(source),
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert report["activation_restart_requested"] is True
+    assert report["durability_restart_requested"] is True
 
 
 def test_prove_waits_for_startup_receipt_without_direct_refresh(
@@ -212,7 +274,7 @@ def test_prove_rejects_successful_capture_from_same_runtime(monkeypatch) -> None
     source = "a" * 40
     api = Api()
     session = Session(source)
-    session.statuses[1]["runtime_boot_id"] = session.statuses[0][
+    session.statuses[2]["runtime_boot_id"] = session.statuses[1][
         "runtime_boot_id"
     ]
     monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
@@ -247,8 +309,9 @@ def test_prove_polls_past_draining_old_runtime(monkeypatch) -> None:
     )
 
     assert report["ok"] is True
-    assert report["before"]["runtime_boot_id"] == "boot_" + ("1" * 32)
-    assert report["after"]["runtime_boot_id"] == "boot_" + ("2" * 32)
+    assert report["pre_activation_runtime_boot_id"] == "boot_" + ("1" * 32)
+    assert report["before"]["runtime_boot_id"] == "boot_" + ("2" * 32)
+    assert report["after"]["runtime_boot_id"] == "boot_" + ("3" * 32)
 
 
 def test_prove_retries_transient_startup_capture(monkeypatch) -> None:
