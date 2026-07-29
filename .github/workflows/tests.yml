@@ -73,6 +73,24 @@ jobs:
           scripts/test_prove_hf_gdw_runtime.py
           -q
 
+  python-wave26-lambda-attnres:
+    name: Wave 26 MODELED Lambda-AttnRes and replay contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: web/packages/a11oy-core/py/requirements.txt
+      - name: Install Wave 26 research dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r web/packages/a11oy-core/py/requirements.txt
+      - name: Prove numerical, kernel, replay, and API contracts
+        run: pytest web/packages/a11oy-core/py/szl_gdw/tests -q
+
   python-operator-reason:
     name: Operator & reason endpoint tests (pytest)
     runs-on: ubuntu-latest
