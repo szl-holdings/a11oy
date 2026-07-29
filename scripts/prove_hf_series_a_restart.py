@@ -25,7 +25,7 @@ STORE_ID = re.compile(r"^store_[0-9a-f]{32}$")
 BOOT_ID = re.compile(r"^boot_[0-9a-f]{32}$")
 RECEIPT_HASH = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_SIGNER = "persistent:env:SZL_COSIGN_PRIVATE_PEM"
-EXPECTED_DATABASE = "/data/a11oy/series-a/control-plane.sqlite3"
+EXPECTED_DATABASE = "/data/a11oy/series-a/control-plane-v2.sqlite3"
 DEFAULT_DEADLINE_SECONDS = 20 * 60
 
 
