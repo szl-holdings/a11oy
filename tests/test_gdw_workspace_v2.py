@@ -198,23 +198,39 @@ def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
         with workspace.transaction() as connection:
             state = {
                 "marker": marker,
+                "namespace": workspace.namespace,
+                "owner_id": workspace.owner_id,
+                "session_id": "same-session",
                 "database_generation_id": workspace.database_generation_id,
+                "step": 1,
             }
             workspace.save_state(
                 connection,
                 "same-session",
                 1,
                 state,
-                hashlib.sha256(marker.encode()).hexdigest(),
+                _canonical_hash(state),
                 timestamp,
             )
+            response = {
+                "marker": marker,
+                "request_id": "same-request",
+                "request_digest": f"digest-{marker}",
+                "session_id": "same-session",
+                "database_generation_id": workspace.database_generation_id,
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+                "receipt_hash": None,
+            }
             workspace.save_request(
                 connection,
                 "same-request",
                 f"digest-{marker}",
                 "same-session",
-                {"marker": marker},
-                _canonical_hash({"marker": marker}),
+                response,
+                _canonical_hash(response),
                 timestamp,
             )
 
@@ -222,10 +238,9 @@ def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
     assert owner_b.read_session("same-session")["state"]["marker"] == "b"
     assert owner_c.read_session("same-session")["state"]["marker"] == "c"
     with owner_b.transaction() as connection:
-        assert owner_b.cached_request(connection, "same-request") == (
-            "digest-b",
-            {"marker": "b"},
-        )
+        digest, response = owner_b.cached_request(connection, "same-request")
+        assert digest == "digest-b"
+        assert response["marker"] == "b"
     assert owner_a.integrity()["counts"]["session_state"] == 1
     assert owner_a.integrity(global_scope=True)["counts"]["session_state"] == 3
     assert "path" not in owner_a.integrity()
@@ -1173,3 +1188,156 @@ def test_mutating_proof_requires_its_persisted_receipt_anchor(tmp_path):
     integrity = _workspace(path).integrity()
     assert integrity["ok"] is False
     assert integrity["invalid_effect_bindings"] == 1
+
+
+def test_integrity_rejects_corrupt_state_digest_and_reads_do_not_write(tmp_path):
+    workspace = _workspace(tmp_path / "state-integrity.sqlite3")
+    timestamp = "2026-07-28T00:00:00+00:00"
+    state = {
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "session_id": "session",
+        "database_generation_id": workspace.database_generation_id,
+        "step": 1,
+    }
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session",
+            1,
+            state,
+            _canonical_hash(state),
+            timestamp,
+        )
+    connection = workspace._connect()
+    try:
+        before = connection.execute(
+            """
+            SELECT last_accessed_at FROM session_state
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()["last_accessed_at"]
+    finally:
+        connection.close()
+
+    assert workspace.read_session("session")["state"] == state
+    connection = workspace._connect()
+    try:
+        after = connection.execute(
+            """
+            SELECT last_accessed_at FROM session_state
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()["last_accessed_at"]
+        connection.execute(
+            """
+            UPDATE session_state SET state_hash = ?
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            ("0" * 64, workspace.namespace, workspace.owner_id),
+        )
+    finally:
+        connection.close()
+
+    integrity = workspace.integrity()
+    assert after == before
+    assert integrity["ok"] is False
+    assert integrity["invalid_state_digests"] == 1
+
+
+def test_integrity_rejects_state_bound_to_another_session(tmp_path):
+    workspace = _workspace(tmp_path / "state-identity.sqlite3")
+    timestamp = "2026-07-28T00:00:00+00:00"
+
+    def state_for(session_id):
+        return {
+            "namespace": workspace.namespace,
+            "owner_id": workspace.owner_id,
+            "session_id": session_id,
+            "database_generation_id": workspace.database_generation_id,
+            "step": 1,
+        }
+
+    state_a = state_for("session-a")
+    state_b = state_for("session-b")
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session-a",
+            1,
+            state_a,
+            _canonical_hash(state_a),
+            timestamp,
+        )
+        workspace.save_state(
+            connection,
+            "session-b",
+            1,
+            state_b,
+            _canonical_hash(state_b),
+            timestamp,
+        )
+        connection.execute(
+            """
+            UPDATE session_state
+            SET state_json = ?, state_hash = ?
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session-a'
+            """,
+            (
+                json.dumps(state_b, sort_keys=True, separators=(",", ":")),
+                _canonical_hash(state_b),
+                workspace.namespace,
+                workspace.owner_id,
+            ),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_state_digests"] == 1
+    with pytest.raises(
+        GDWConfigurationError,
+        match="session state digest or identity is invalid",
+    ):
+        workspace.read_session("session-a")
+
+
+def test_integrity_reports_non_object_receipt_and_proof_json(tmp_path):
+    workspace = _workspace(tmp_path / "non-object-integrity.sqlite3")
+    _queue_proof(workspace)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    with workspace.transaction() as connection:
+        connection.execute(
+            """
+            INSERT INTO receipts(
+                namespace, owner_id, receipt_hash, request_id, session_id,
+                step, receipt_json, created_at
+            ) VALUES (?, ?, ?, 'request', 'session', 0, '1', ?)
+            """,
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                "c" * 64,
+                timestamp,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO proof_outbox(
+                namespace, owner_id, proposal_id, payload_json,
+                payload_sha256, status, created_at
+            ) VALUES (?, ?, 'corrupt-proof', '1', ?, 'PENDING', ?)
+            """,
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                "d" * 64,
+                timestamp,
+            ),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_receipt_digests"] == 1
+    assert integrity["invalid_proof_digests"] == 1
