@@ -4,8 +4,12 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Dict
+
+
+_ARTIFACT_QUOTA_LOCK = threading.RLock()
 
 
 def canonical_json(value: Any) -> str:
@@ -20,8 +24,9 @@ def build_proof_payload(
     proposal_id: str,
     request_id: str,
     request_digest: str,
+    namespace: str,
     owner_id: str,
-    generation_id: str,
+    database_generation_id: str,
     step: int,
     before_hash: str,
     after_hash: str,
@@ -38,8 +43,9 @@ def build_proof_payload(
         "proposal_id": proposal_id,
         "request_id": request_id,
         "request_digest": request_digest,
+        "namespace": namespace,
         "owner_id": owner_id,
-        "generation_id": generation_id,
+        "database_generation_id": database_generation_id,
         "step_id": step,
         "state_before_hash": before_hash,
         "state_after_hash": after_hash,
@@ -64,46 +70,52 @@ def build_proof_payload(
     return payload
 
 
-def _export_json_artifact(
+def _export_json_artifact_unlocked(
     root: Path,
     filename: str,
     payload: Dict[str, Any],
     owner_id: str,
 ) -> Dict[str, Any]:
-    if not owner_id:
+    if type(owner_id) is not str or not owner_id:
         raise ValueError("owner_id is required for artifact isolation")
+    root.mkdir(parents=True, exist_ok=True)
+    root = root.resolve()
     owner_scope = hashlib.sha256(owner_id.encode("utf-8")).hexdigest()[:32]
-    owner_root = root / owner_scope
-    owner_root.mkdir(parents=True, exist_ok=True)
+    owner_candidate = root / owner_scope
+    owner_candidate.mkdir(parents=True, exist_ok=True)
+    owner_root = owner_candidate.resolve()
+    if owner_root.parent != root or owner_root.name != owner_scope:
+        raise ValueError("artifact owner scope escapes the configured root")
     destination = owner_root / filename
     encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     expected_sha256 = hashlib.sha256(encoded).hexdigest()
-
     if destination.exists():
-        existing = destination.read_bytes()
-        if existing != encoded:
+        if destination.read_bytes() != encoded:
             raise FileExistsError(
-                f"immutable artifact identity collision: {destination.name}"
+                "refusing to overwrite an existing non-identical GDW artifact"
             )
         return {
-            "status": "EXISTS_IDENTICAL",
+            "status": "EXPORTED",
             "path": str(destination),
             "sha256": expected_sha256,
+            "reused": True,
             "immutable": True,
             "owner_scope": owner_scope,
         }
-
-    owner_limit = int(os.environ.get("GDW_OWNER_MAX_ARTIFACTS", "10000"))
-    global_limit = int(os.environ.get("GDW_GLOBAL_MAX_ARTIFACTS", "100000"))
-    if owner_limit < 1 or owner_limit > 100000:
-        raise RuntimeError("GDW owner artifact quota is invalid")
-    if global_limit < owner_limit or global_limit > 1000000:
-        raise RuntimeError("GDW global artifact quota is invalid")
+    owner_limit = _bounded_artifact_limit(
+        "GDW_OWNER_MAX_ARTIFACTS", default=10_000, maximum=100_000
+    )
+    global_limit = _bounded_artifact_limit(
+        "GDW_GLOBAL_MAX_ARTIFACTS", default=100_000, maximum=1_000_000
+    )
+    if global_limit < owner_limit:
+        raise ValueError(
+            "GDW_GLOBAL_MAX_ARTIFACTS must be at least GDW_OWNER_MAX_ARTIFACTS"
+        )
     if sum(1 for _ in owner_root.glob("*.json")) >= owner_limit:
         raise RuntimeError("per-owner artifact quota exceeded")
     if sum(1 for _ in root.glob("*/*.json")) >= global_limit:
         raise RuntimeError("global artifact quota exceeded")
-
     handle, temporary = tempfile.mkstemp(
         prefix=".gdw-artifact-", suffix=".tmp", dir=owner_root
     )
@@ -115,10 +127,10 @@ def _export_json_artifact(
         try:
             os.link(temporary, destination)
         except FileExistsError:
-            existing = destination.read_bytes()
-            if existing != encoded:
+            if destination.read_bytes() != encoded:
                 raise FileExistsError(
-                    f"immutable artifact identity collision: {destination.name}"
+                    "refusing to overwrite a concurrently created "
+                    "non-identical GDW artifact"
                 )
     finally:
         if os.path.exists(temporary):
@@ -127,14 +139,50 @@ def _export_json_artifact(
         "status": "EXPORTED",
         "path": str(destination),
         "sha256": expected_sha256,
+        "reused": False,
         "immutable": True,
         "owner_scope": owner_scope,
     }
 
 
+def _bounded_artifact_limit(name: str, *, default: int, maximum: int) -> int:
+    raw = os.environ.get(name)
+    try:
+        value = int(raw) if raw not in (None, "") else default
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if value < 1 or value > maximum:
+        raise ValueError(f"{name} must be between 1 and {maximum}")
+    return value
+
+
+def _export_json_artifact(
+    root: Path,
+    filename: str,
+    payload: Dict[str, Any],
+    owner_id: str,
+) -> Dict[str, Any]:
+    with _ARTIFACT_QUOTA_LOCK:
+        return _export_json_artifact_unlocked(
+            root,
+            filename,
+            payload,
+            owner_id,
+        )
+
+
+def _validate_artifact_id(artifact_id: str) -> None:
+    if (
+        len(artifact_id) != 64
+        or any(ch not in "0123456789abcdef" for ch in artifact_id)
+    ):
+        raise ValueError("artifact_id must be a lowercase SHA-256 digest")
+
+
 def export_proof_payload(
     payload: Dict[str, Any],
-    artifact_identity: str | None = None,
+    *,
+    artifact_id: str | None = None,
     owner_id: str | None = None,
 ) -> Dict[str, Any]:
     root = Path(os.environ.get("GDW_PROOF_DIR", "output/proofs")).resolve()
@@ -146,36 +194,28 @@ def export_proof_payload(
     unsigned_payload.pop("payload_sha256", None)
     if claimed_digest != sha256_json(unsigned_payload):
         raise ValueError("proof payload_sha256 does not match canonical payload")
-    identity = artifact_identity or proposal_id
-    if (
-        len(identity) != 64
-        or any(ch not in "0123456789abcdef" for ch in identity)
-    ):
-        raise ValueError("artifact_identity must be a lowercase SHA-256 digest")
+    resolved_artifact_id = artifact_id or claimed_digest
+    _validate_artifact_id(resolved_artifact_id)
     artifact = _export_json_artifact(
         root,
-        f"{identity}.json",
+        f"{resolved_artifact_id}.json",
         payload,
         owner_id or str(payload.get("owner_id") or ""),
     )
-    artifact["artifact_identity"] = identity
+    artifact["artifact_identity"] = resolved_artifact_id
     artifact.update({"status": "INPUT_EXPORTED", "formal_status": "NOT_RUN"})
     return artifact
 
 
 def export_receipt_projection(
     payload: Dict[str, Any],
-    idempotency_key: str,
+    artifact_id: str,
     owner_id: str | None = None,
 ) -> Dict[str, Any]:
     root = Path(
         os.environ.get("GDW_RECEIPT_PROJECTION_DIR", "output/gdw/receipts")
     ).resolve()
-    if (
-        len(idempotency_key) != 64
-        or any(ch not in "0123456789abcdef" for ch in idempotency_key)
-    ):
-        raise ValueError("idempotency_key must be a lowercase SHA-256 digest")
+    _validate_artifact_id(artifact_id)
     claimed_digest = payload.get("receipt_hash")
     unsigned_payload = dict(payload)
     unsigned_payload.pop("receipt_hash", None)
@@ -183,11 +223,11 @@ def export_receipt_projection(
         raise ValueError("receipt_hash does not match canonical receipt")
     artifact = _export_json_artifact(
         root,
-        f"{idempotency_key}.json",
+        f"{artifact_id}.json",
         payload,
         owner_id or str(payload.get("owner_id") or ""),
     )
-    artifact["artifact_identity"] = idempotency_key
+    artifact["artifact_identity"] = artifact_id
     artifact.update(
         {
             "status": "RECEIPT_PROJECTED",

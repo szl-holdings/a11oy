@@ -38,6 +38,28 @@ SERIES_A_VARIABLES = {
     "SZL_ENERGY_LEDGER_PATH": "/data/a11oy/energy/ledger.jsonl",
     "SZL_LAKE_DIR": "/data/a11oy/khipu",
 }
+GDW_VARIABLES = {
+    "GDW_PRODUCTION_MODE": "1",
+    "GDW_NAMESPACE": "a11oy",
+    "GDW_SERVICE_OWNER_ID": "gdw-runtime",
+    "GDW_DB_PATH": "/data/a11oy/gdw/gdw.sqlite3",
+    "GDW_PROOF_DIR": "/data/a11oy/gdw/proofs",
+    "GDW_RECEIPT_PROJECTION_DIR": "/data/a11oy/gdw/receipts",
+    "GDW_REQUIRE_PERSISTENT_STORAGE": "1",
+    "GDW_REQUIRED_MOUNT": DATA_MOUNT,
+    "GDW_SQLITE_JOURNAL": "DELETE",
+    "GDW_SQLITE_SYNCHRONOUS": "FULL",
+    "GDW_PROOF_EXPORT_MODE": "outbox",
+    "GDW_OUTBOX_ENABLED": "1",
+    "GDW_OUTBOX_INTERVAL_SECONDS": "5",
+    "GDW_OUTBOX_RETRY_MAX_SECONDS": "60",
+    "GDW_OUTBOX_BATCH_SIZE": "100",
+    "GDW_OUTBOX_LEASE_SECONDS": "300",
+}
+RUNTIME_VARIABLES = {
+    **SERIES_A_VARIABLES,
+    **GDW_VARIABLES,
+}
 
 
 class RuntimeConfigError(RuntimeError):
@@ -109,7 +131,7 @@ def plan_volumes(
 def plan_variables(
     current: Mapping[str, Any],
     secret_names: Iterable[str],
-    desired: Mapping[str, str] = SERIES_A_VARIABLES,
+    desired: Mapping[str, str] = RUNTIME_VARIABLES,
 ) -> dict[str, str]:
     """Return only drifted variables after checking secret-name collisions."""
 
@@ -180,7 +202,7 @@ def await_readback(
     if attempts < 1 or delay_seconds < 0:
         raise RuntimeConfigError("readback bounds must be non-negative")
     missing_volume = True
-    remaining_variables: dict[str, str] = dict(SERIES_A_VARIABLES)
+    remaining_variables: dict[str, str] = dict(RUNTIME_VARIABLES)
     observed_volumes: list[Any] = []
     for attempt in range(1, attempts + 1):
         observed_volumes = read_space_volumes(api, repo_id=repo_id)
@@ -246,7 +268,7 @@ def configure(
             value=value,
             description=(
                 "Protected deployment contract for persistent A11oy Series-A "
-                "signing and receipt storage."
+                "and GDW runtime storage."
             ),
         )
 
@@ -266,7 +288,7 @@ def configure(
         "volumes": [volume_record(item) for item in observed_volumes],
         "volume_changed": volume_change,
         "readback_attempts": readback_attempts,
-        "variables_managed": sorted(SERIES_A_VARIABLES),
+        "variables_managed": sorted(RUNTIME_VARIABLES),
         "variables_changed": sorted(variable_changes),
         "converged": True,
         "secret_values_read": False,

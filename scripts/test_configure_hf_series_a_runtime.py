@@ -123,7 +123,7 @@ class EventuallyConsistentApi:
 def exact_variables() -> dict:
     return {
         name: SimpleNamespace(value=value)
-        for name, value in config.SERIES_A_VARIABLES.items()
+        for name, value in config.RUNTIME_VARIABLES.items()
     }
 
 
@@ -132,6 +132,27 @@ def test_managed_runtime_enables_periodic_freshness_before_ttl() -> None:
     assert int(
         config.SERIES_A_VARIABLES["A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS"]
     ) < 300
+
+
+def test_managed_runtime_sets_durable_outbox_only_gdw_contract() -> None:
+    assert config.GDW_VARIABLES == {
+        "GDW_PRODUCTION_MODE": "1",
+        "GDW_NAMESPACE": "a11oy",
+        "GDW_SERVICE_OWNER_ID": "gdw-runtime",
+        "GDW_DB_PATH": "/data/a11oy/gdw/gdw.sqlite3",
+        "GDW_PROOF_DIR": "/data/a11oy/gdw/proofs",
+        "GDW_RECEIPT_PROJECTION_DIR": "/data/a11oy/gdw/receipts",
+        "GDW_REQUIRE_PERSISTENT_STORAGE": "1",
+        "GDW_REQUIRED_MOUNT": "/data",
+        "GDW_SQLITE_JOURNAL": "DELETE",
+        "GDW_SQLITE_SYNCHRONOUS": "FULL",
+        "GDW_PROOF_EXPORT_MODE": "outbox",
+        "GDW_OUTBOX_ENABLED": "1",
+        "GDW_OUTBOX_INTERVAL_SECONDS": "5",
+        "GDW_OUTBOX_RETRY_MAX_SECONDS": "60",
+        "GDW_OUTBOX_BATCH_SIZE": "100",
+        "GDW_OUTBOX_LEASE_SECONDS": "300",
+    }
 
 
 def test_await_readback_accepts_bounded_eventual_consistency() -> None:
