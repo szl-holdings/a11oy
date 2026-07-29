@@ -610,6 +610,7 @@ def test_transient_link_retry_bound_uses_locked_atomic_rename(
     monkeypatch.setattr("gdw_proofs.os.link", unsupported)
     monkeypatch.setattr("gdw_proofs.time.sleep", lambda _seconds: None)
     monkeypatch.setattr("gdw_proofs._LINK_MAX_ATTEMPTS", 3)
+    monkeypatch.setattr("gdw_proofs._rename_noreplace", os.replace)
 
     artifact = export_proof_payload(payload)
 
@@ -660,13 +661,12 @@ def test_locked_rename_unknown_result_is_reused_without_rebinding(
         raise OSError(errno.EIO, "rename result was not acknowledged")
 
     monkeypatch.setattr(
-        "gdw_proofs.os.replace",
+        "gdw_proofs._rename_noreplace",
         replace_then_report_io_error,
     )
     with pytest.raises(OSError, match="rename result was not acknowledged"):
         export_proof_payload(payload)
 
-    monkeypatch.setattr("gdw_proofs.os.replace", real_replace)
     artifact = export_proof_payload(payload)
 
     assert artifact["reused"] is True
@@ -675,6 +675,58 @@ def test_locked_rename_unknown_result_is_reused_without_rebinding(
         json.dumps(payload, indent=2, sort_keys=True) + "\n"
     )
     assert not any((tmp_path / "proofs").rglob("*.tmp"))
+
+
+def test_locked_rename_never_overwrites_uncooperative_concurrent_artifact(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    if gdw_proofs.fcntl is None:
+        class FakeFcntl:
+            LOCK_EX = 1
+            LOCK_UN = 2
+
+            @staticmethod
+            def flock(_descriptor, _operation):
+                return None
+
+        monkeypatch.setattr(gdw_proofs, "fcntl", FakeFcntl)
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "c" * 64,
+        "request_id": "uncooperative-publisher",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    concurrent_bytes = b'{"external":true}\n'
+    published_path = None
+
+    monkeypatch.setattr(
+        "gdw_proofs.os.link",
+        lambda *_args: (_ for _ in ()).throw(
+            OSError(errno.ENOTSUP, "hard links unsupported")
+        ),
+    )
+    monkeypatch.setattr("gdw_proofs._LINK_MAX_ATTEMPTS", 1)
+
+    def concurrent_publish(_staging, destination):
+        nonlocal published_path
+        published_path = Path(destination)
+        published_path.write_bytes(concurrent_bytes)
+        raise FileExistsError(errno.EEXIST, "destination exists")
+
+    monkeypatch.setattr(
+        "gdw_proofs._rename_noreplace",
+        concurrent_publish,
+    )
+
+    with pytest.raises(FileExistsError, match="refusing to overwrite"):
+        export_proof_payload(payload)
+
+    assert published_path is not None
+    assert published_path.read_bytes() == concurrent_bytes
 
 
 def test_directory_fsync_is_capability_aware_but_propagates_io_errors(

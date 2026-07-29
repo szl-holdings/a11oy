@@ -1,5 +1,6 @@
 """Structured theorem-input export for asynchronous Lean checking."""
 
+import ctypes
 import errno
 import hashlib
 import json
@@ -31,6 +32,8 @@ _UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS = {
 }
 _LINK_MAX_ATTEMPTS = 61
 _LINK_RETRY_SECONDS = 0.5
+_AT_FDCWD = -100
+_RENAME_NOREPLACE = 1
 
 
 def canonical_json(value: Any) -> str:
@@ -105,6 +108,52 @@ def _owner_publication_lock(owner_root: Path) -> Iterator[None]:
             os.close(descriptor)
 
 
+def _rename_noreplace(staging: str, destination: Path) -> None:
+    """Atomically publish without replacing an existing destination."""
+
+    if os.name != "posix":
+        raise OSError(
+            errno.ENOTSUP,
+            "atomic no-replace rename requires a POSIX runtime",
+        )
+    try:
+        renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+    except (AttributeError, OSError):
+        raise OSError(
+            errno.ENOTSUP,
+            "atomic no-replace rename is unavailable",
+        ) from None
+    renameat2.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    renameat2.restype = ctypes.c_int
+    result = renameat2(
+        _AT_FDCWD,
+        os.fsencode(staging),
+        _AT_FDCWD,
+        os.fsencode(destination),
+        _RENAME_NOREPLACE,
+    )
+    if result == 0:
+        return
+    error_number = ctypes.get_errno() or errno.EIO
+    if error_number == errno.EEXIST:
+        raise FileExistsError(
+            error_number,
+            os.strerror(error_number),
+            os.fspath(destination),
+        )
+    raise OSError(
+        error_number,
+        os.strerror(error_number),
+        os.fspath(destination),
+    )
+
+
 def _publish_with_locked_rename(
     staging: str,
     destination: Path,
@@ -125,7 +174,15 @@ def _publish_with_locked_rename(
                 "non-identical GDW artifact"
             )
         return True, "REUSED"
-    os.replace(staging, destination)
+    try:
+        _rename_noreplace(staging, destination)
+    except FileExistsError:
+        if _read_existing_regular(destination) != encoded:
+            raise FileExistsError(
+                "refusing to overwrite a concurrently created "
+                "non-identical GDW artifact"
+            ) from None
+        return True, "REUSED"
     _fsync_directory(owner_root)
     return False, "ATOMIC_RENAME_LOCKED"
 
