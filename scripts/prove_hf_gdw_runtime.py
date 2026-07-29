@@ -116,7 +116,13 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         drain.get("failed") != 0
         or drain.get("integrity_ok") is not True
     ):
-        raise RuntimeError("GDW protected drain contract failed")
+        raise RuntimeError(
+            "GDW protected drain contract failed: "
+            f"failed={drain.get('failed')}, "
+            f"pending={drain.get('pending_effects')}, "
+            f"integrity_ok={drain.get('integrity_ok')}, "
+            f"errors={drain.get('errors')}"
+        )
     integrity = None
     last_integrity = None
     for _attempt in range(1, 61):

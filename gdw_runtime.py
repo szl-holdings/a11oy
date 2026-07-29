@@ -555,7 +555,11 @@ class OutboxSupervisor:
                         lease_seconds=self.lease_seconds,
                         worker_id=self.worker_id,
                     )
-                    if report["failed"] or report["legacy_pending_proofs"]:
+                    if (
+                        report["failed"]
+                        or report["pending_effects"]
+                        or report["legacy_pending_proofs"]
+                    ):
                         retry_delay = min(
                             self.retry_max_seconds,
                             max(self.interval_seconds, retry_delay * 2),
@@ -564,8 +568,8 @@ class OutboxSupervisor:
                         _set_drain_state(
                             last_outcome="RETRY_SCHEDULED",
                             last_error=(
-                                "bounded drain pass reported failures or "
-                                "unmigrated legacy proofs"
+                                "bounded drain pass reported failures, "
+                                "pending effects, or unmigrated legacy proofs"
                             ),
                             last_report=report,
                         )

@@ -376,6 +376,21 @@ def _public_runtime_health(runtime: dict) -> dict:
             )
             if key in drain
         }
+        last_report = drain.get("last_report")
+        if isinstance(last_report, dict):
+            public_drain["last_report"] = {
+                key: last_report.get(key)
+                for key in (
+                    "attempted",
+                    "exported",
+                    "failed",
+                    "pending_effects",
+                    "legacy_pending_proofs",
+                    "sqlite_integrity",
+                    "errors",
+                )
+                if key in last_report
+            }
     return {
         "startup_state": runtime.get("startup_state"),
         "evidence_label": runtime.get("evidence_label"),
