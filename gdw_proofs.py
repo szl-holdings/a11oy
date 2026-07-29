@@ -17,6 +17,12 @@ _TRANSIENT_LINK_ERRNOS = {
     errno.ENOTSUP,
     getattr(errno, "EOPNOTSUPP", errno.ENOTSUP),
 }
+_UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS = {
+    errno.ENOSYS,
+    errno.EINVAL,
+    errno.ENOTSUP,
+    getattr(errno, "EOPNOTSUPP", errno.ENOTSUP),
+}
 _LINK_MAX_ATTEMPTS = 61
 _LINK_RETRY_SECONDS = 0.5
 
@@ -60,7 +66,11 @@ def _fsync_directory(path: Path) -> None:
         os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
     )
     try:
-        os.fsync(descriptor)
+        try:
+            os.fsync(descriptor)
+        except OSError as exc:
+            if exc.errno not in _UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS:
+                raise
     finally:
         os.close(descriptor)
 

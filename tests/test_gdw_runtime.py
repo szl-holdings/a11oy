@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import gdw_proofs
 import gdw_runtime
 from gdw_proofs import (
     build_proof_payload,
@@ -607,6 +608,38 @@ def test_transient_link_retry_bound_fails_without_exposing_final(
     assert attempts == 3
     assert not any((tmp_path / "proofs").rglob("*.json"))
     assert not any((tmp_path / "proofs").rglob("*.tmp"))
+
+
+def test_directory_fsync_is_capability_aware_but_propagates_io_errors(
+    monkeypatch,
+    tmp_path,
+):
+    closed = []
+    monkeypatch.setattr(gdw_proofs.os, "name", "posix")
+    monkeypatch.setattr(gdw_proofs.os, "open", lambda *_args: 41)
+    monkeypatch.setattr(gdw_proofs.os, "close", closed.append)
+    monkeypatch.setattr(
+        gdw_proofs.os,
+        "fsync",
+        lambda _descriptor: (_ for _ in ()).throw(
+            OSError(errno.ENOTSUP, "directory fsync unsupported")
+        ),
+    )
+
+    gdw_proofs._fsync_directory(tmp_path)
+    assert closed == [41]
+
+    monkeypatch.setattr(
+        gdw_proofs.os,
+        "fsync",
+        lambda _descriptor: (_ for _ in ()).throw(
+            OSError(errno.EIO, "directory sync failed")
+        ),
+    )
+    with pytest.raises(OSError) as exc_info:
+        gdw_proofs._fsync_directory(tmp_path)
+    assert exc_info.value.errno == errno.EIO
+    assert closed == [41, 41]
 
 
 def test_existing_artifact_symlink_is_rejected(monkeypatch, tmp_path):
