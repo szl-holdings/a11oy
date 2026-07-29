@@ -77,9 +77,9 @@ async def fire(client, index, token, shared_session, retries):
 
 
 async def run(args):
-    token = args.token or os.environ.get("GDW_AUTH_TOKEN", "")
+    token = args.token or os.environ.get("GDW_BENCH_TOKEN", "")
     if not token:
-        raise SystemExit("GDW_AUTH_TOKEN or --token is required")
+        raise SystemExit("GDW_BENCH_TOKEN or --token is required")
     limits = httpx.Limits(
         max_keepalive_connections=args.concurrency,
         max_connections=args.concurrency,

@@ -16,7 +16,7 @@ class GDWUser(HttpUser):
             os.environ.get("GDW_LOCUST_SHARED_SESSION")
             or "locust-" + uuid.uuid4().hex
         )
-        token = os.environ.get("GDW_AUTH_TOKEN", "")
+        token = os.environ.get("GDW_BENCH_TOKEN", "")
         with self.client.post(
             "/api/a11oy/v1/gdw/step",
             json={
