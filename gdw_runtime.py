@@ -567,11 +567,11 @@ class OutboxSupervisor:
                         or report["invalid_effect_bindings"]
                         or report["invalid_exported_artifacts"]
                     )
-                    retryable_work = (
+                    retryable_failure = (
                         report["failed"]
-                        or report["pending_effects"]
                         or report["legacy_pending_proofs"]
                     )
+                    pending_work = report["pending_effects"]
                     if terminal_failure:
                         delay = self.retry_max_seconds
                         _set_drain_state(
@@ -582,12 +582,22 @@ class OutboxSupervisor:
                             ),
                             last_report=report,
                         )
-                    elif retryable_work:
+                    elif retryable_failure:
                         retry_delay = min(
                             self.retry_max_seconds,
                             max(self.interval_seconds, retry_delay * 2),
                         )
                         delay = retry_delay
+                        _set_drain_state(
+                            last_outcome="RETRY_SCHEDULED",
+                            last_error=(
+                                "bounded drain pass remains non-quiescent"
+                            ),
+                            last_report=report,
+                        )
+                    elif pending_work:
+                        retry_delay = self.interval_seconds
+                        delay = self.interval_seconds
                         _set_drain_state(
                             last_outcome="RETRY_SCHEDULED",
                             last_error=(

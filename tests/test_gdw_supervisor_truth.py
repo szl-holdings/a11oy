@@ -45,10 +45,16 @@ def test_supervisor_does_not_report_success_with_pending_effects(
         lease_seconds=30,
     )
     waits = iter((False, True))
+    observed_delays = []
+
+    def wait(_self, delay):
+        observed_delays.append(delay)
+        return next(waits)
+
     supervisor._stop = type(
         "TwoPassStop",
         (),
-        {"wait": lambda _self, _delay: next(waits)},
+        {"wait": wait},
     )()
 
     supervisor._run()
@@ -57,6 +63,7 @@ def test_supervisor_does_not_report_success_with_pending_effects(
     assert drain["last_outcome"] == "RETRY_SCHEDULED"
     assert drain["last_error"] == "bounded drain pass remains non-quiescent"
     assert drain["success_run_generation_id"] is None
+    assert observed_delays == [0, 5]
 
 
 def test_public_health_exposes_only_sanitized_drain_report() -> None:
