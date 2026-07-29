@@ -919,7 +919,6 @@ def register(app, ns: str = "a11oy"):
         )
         await _acquire_step_write_locks(step_write_locks)
         try:
-            workspace.collect_garbage(limit=10_000)
             authorised_generation_id = workspace.database_generation_id
             with workspace.transaction() as connection:
                 cached = workspace.cached_request(connection, request_id)

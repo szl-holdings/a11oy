@@ -2323,9 +2323,127 @@ class GDWWorkspace:
         finally:
             connection.close()
 
+    def lifecycle_identities(self) -> list[Tuple[str, str]]:
+        """Return principals whose retained state may need supervised cleanup."""
+
+        connection = self._connect()
+        try:
+            rows = connection.execute(
+                """
+                SELECT namespace, owner_id FROM session_state
+                UNION SELECT namespace, owner_id FROM requests
+                UNION SELECT namespace, owner_id FROM receipts
+                UNION SELECT namespace, owner_id FROM proof_outbox
+                UNION SELECT namespace, owner_id FROM effect_outbox
+                ORDER BY namespace, owner_id
+                """
+            ).fetchall()
+            return [(row["namespace"], row["owner_id"]) for row in rows]
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _reconcile_identity_usage(
+        connection: sqlite3.Connection,
+        namespace: str,
+        owner_id: str,
+    ) -> None:
+        timestamp = _text_time()
+        sessions = int(
+            connection.execute(
+                """
+                SELECT COUNT(*) FROM session_state
+                WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
+                """,
+                (namespace, owner_id),
+            ).fetchone()[0]
+        )
+        requests = int(
+            connection.execute(
+                """
+                SELECT COUNT(*) FROM requests
+                WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
+                """,
+                (namespace, owner_id),
+            ).fetchone()[0]
+        )
+        pending = int(
+            connection.execute(
+                """
+                SELECT
+                  (SELECT COUNT(*) FROM effect_outbox
+                   WHERE namespace = ? AND owner_id = ?
+                     AND status IN ('PENDING', 'CLAIMED')) +
+                  (SELECT COUNT(*) FROM proof_outbox
+                   WHERE namespace = ? AND owner_id = ? AND status = 'PENDING')
+                """,
+                (namespace, owner_id, namespace, owner_id),
+            ).fetchone()[0]
+        )
+        stored = int(
+            connection.execute(
+                """
+                SELECT
+                  COALESCE((SELECT SUM(LENGTH(CAST(state_json AS BLOB)))
+                            FROM session_state
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(LENGTH(CAST(response_json AS BLOB)))
+                            FROM requests
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(LENGTH(CAST(receipt_json AS BLOB)))
+                            FROM receipts
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(
+                              LENGTH(CAST(payload_json AS BLOB)) +
+                              COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
+                            FROM proof_outbox
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(
+                              LENGTH(CAST(payload_json AS BLOB)) +
+                              COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
+                            FROM effect_outbox
+                            WHERE namespace = ? AND owner_id = ?), 0)
+                """,
+                (
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                    namespace,
+                    owner_id,
+                ),
+            ).fetchone()[0]
+        )
+        connection.execute(
+            """
+            INSERT INTO usage(
+                namespace, owner_id, active_sessions, active_requests,
+                pending_effects, stored_bytes, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(namespace, owner_id) DO UPDATE SET
+                active_sessions = excluded.active_sessions,
+                active_requests = excluded.active_requests,
+                pending_effects = excluded.pending_effects,
+                stored_bytes = excluded.stored_bytes,
+                updated_at = excluded.updated_at
+            """,
+            (
+                namespace,
+                owner_id,
+                sessions,
+                requests,
+                pending,
+                stored,
+                timestamp,
+            ),
+        )
+
     @staticmethod
     def _reconcile_usage(connection: sqlite3.Connection) -> None:
-        timestamp = _text_time()
         identities = connection.execute(
             """
             SELECT namespace, owner_id FROM session_state
@@ -2337,73 +2455,10 @@ class GDWWorkspace:
         ).fetchall()
         connection.execute("DELETE FROM usage")
         for identity in identities:
-            ns, owner = identity["namespace"], identity["owner_id"]
-            sessions = int(
-                connection.execute(
-                    """
-                    SELECT COUNT(*) FROM session_state
-                    WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
-                    """,
-                    (ns, owner),
-                ).fetchone()[0]
-            )
-            requests = int(
-                connection.execute(
-                    """
-                    SELECT COUNT(*) FROM requests
-                    WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
-                    """,
-                    (ns, owner),
-                ).fetchone()[0]
-            )
-            pending = int(
-                connection.execute(
-                    """
-                    SELECT
-                      (SELECT COUNT(*) FROM effect_outbox
-                       WHERE namespace = ? AND owner_id = ?
-                         AND status IN ('PENDING', 'CLAIMED')) +
-                      (SELECT COUNT(*) FROM proof_outbox
-                       WHERE namespace = ? AND owner_id = ? AND status = 'PENDING')
-                    """,
-                    (ns, owner, ns, owner),
-                ).fetchone()[0]
-            )
-            stored = int(
-                connection.execute(
-                    """
-                    SELECT
-                      COALESCE((SELECT SUM(LENGTH(CAST(state_json AS BLOB)))
-                                FROM session_state
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(LENGTH(CAST(response_json AS BLOB)))
-                                FROM requests
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(LENGTH(CAST(receipt_json AS BLOB)))
-                                FROM receipts
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(
-                                  LENGTH(CAST(payload_json AS BLOB)) +
-                                  COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
-                                FROM proof_outbox
-                                WHERE namespace = ? AND owner_id = ?), 0) +
-                      COALESCE((SELECT SUM(
-                                  LENGTH(CAST(payload_json AS BLOB)) +
-                                  COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
-                                FROM effect_outbox
-                                WHERE namespace = ? AND owner_id = ?), 0)
-                    """,
-                    (ns, owner, ns, owner, ns, owner, ns, owner, ns, owner),
-                ).fetchone()[0]
-            )
-            connection.execute(
-                """
-                INSERT INTO usage(
-                    namespace, owner_id, active_sessions, active_requests,
-                    pending_effects, stored_bytes, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (ns, owner, sessions, requests, pending, stored, timestamp),
+            GDWWorkspace._reconcile_identity_usage(
+                connection,
+                identity["namespace"],
+                identity["owner_id"],
             )
 
     def reconcile_usage(self) -> Dict[str, int]:
@@ -2605,7 +2660,7 @@ class GDWWorkspace:
                 (ns, owner, purge_before),
             ).rowcount
             result["tombstones_purged"] = purged
-            self._reconcile_usage(connection)
+            self._reconcile_identity_usage(connection, ns, owner)
         return result
 
     def integrity(

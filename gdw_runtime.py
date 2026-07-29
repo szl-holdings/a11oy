@@ -318,10 +318,17 @@ def drain_once(
     exported = 0
     failed = 0
     errors = []
+    garbage_collected = {
+        "sessions_tombstoned": 0,
+        "requests_tombstoned": 0,
+        "effects_compacted": 0,
+        "proofs_compacted": 0,
+        "tombstones_purged": 0,
+    }
     identities = (
         [(store.namespace, store.owner_id)]
         if workspace is not None
-        else store.pending_effect_identities()
+        else store.lifecycle_identities()
     )
 
     for namespace, owner_id in identities:
@@ -398,6 +405,14 @@ def drain_once(
                 failed += 1
                 errors.append(f"{row['kind']}:{type(exc).__name__}")
 
+        collected = store.collect_garbage(
+            limit=bounded,
+            namespace=namespace,
+            owner_id=owner_id,
+        )
+        for key in garbage_collected:
+            garbage_collected[key] += collected[key]
+
     integrity = store.integrity(global_scope=True)
     return {
         "attempted": exported + failed,
@@ -407,6 +422,7 @@ def drain_once(
         "dead_letter_effects": integrity["dead_letter_effects"],
         "legacy_pending_proofs": integrity["pending_proofs"],
         "sqlite_integrity": integrity["sqlite_integrity"],
+        "garbage_collected": garbage_collected,
         "errors": errors,
     }
 
