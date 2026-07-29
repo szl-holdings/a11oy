@@ -113,7 +113,7 @@ def converge_principal_registry(
     current_variables: Mapping[str, Any],
     secret_names: set[str],
     operator_token: str,
-) -> bool:
+) -> tuple[set[str], bool]:
     if PRINCIPAL_REGISTRY_SECRET in current_variables:
         raise RuntimeConfigError(
             "GDW principal registry collides with an existing Space variable"
@@ -126,7 +126,7 @@ def converge_principal_registry(
             "GDW credential registry conflicts with the principal registry"
         )
     if PRINCIPAL_REGISTRY_SECRET in secret_names:
-        return False
+        return set(secret_names), False
     api.add_space_secret(
         repo_id=repo_id,
         key=PRINCIPAL_REGISTRY_SECRET,
@@ -136,7 +136,12 @@ def converge_principal_registry(
             "GitHub Actions operator credential."
         ),
     )
-    return True
+    converged_secret_names = set(api.get_space_secrets(repo_id=repo_id))
+    if PRINCIPAL_REGISTRY_SECRET not in converged_secret_names:
+        raise RuntimeConfigError(
+            "GDW principal registry secret did not converge"
+        )
+    return converged_secret_names, True
 
 
 def require_data_mount(api: Any, *, repo_id: str) -> dict[str, Any]:
@@ -196,20 +201,19 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
     desired = desired_variables(operator_token)
     api = HfApi(token=hf_token)
     volume = require_data_mount(api, repo_id=repo_id)
-    secret_names = set(api.get_space_secrets(repo_id=repo_id))
+    current_secret_names = set(api.get_space_secrets(repo_id=repo_id))
     current_variables = api.get_space_variables(repo_id=repo_id)
-    principal_registry_changed = converge_principal_registry(
+    changes = plan_variables(
+        current_variables,
+        current_secret_names,
+        desired,
+    )
+    secret_names, principal_registry_changed = converge_principal_registry(
         api,
         repo_id=repo_id,
         current_variables=current_variables,
-        secret_names=secret_names,
+        secret_names=current_secret_names,
         operator_token=operator_token,
-    )
-    secret_names.add(PRINCIPAL_REGISTRY_SECRET)
-    changes = plan_variables(
-        current_variables,
-        secret_names,
-        desired,
     )
     for name, value in sorted(changes.items()):
         api.add_space_variable(

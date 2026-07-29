@@ -27,6 +27,7 @@ MUTATION_PATTERNS = (
     re.compile(
         r"\.\s*(?:create_commit|upload_file|upload_folder|"
         r"add_space_variable|set_space_variable|delete_space_variable|"
+        r"add_space_secret|set_space_secret|delete_space_secret|"
         r"restart_space)\s*\(",
         re.IGNORECASE,
     ),
@@ -38,14 +39,25 @@ MUTATION_METHODS = {
     "add_space_variable",
     "set_space_variable",
     "delete_space_variable",
+    "add_space_secret",
+    "set_space_secret",
+    "delete_space_secret",
     "restart_space",
 }
 LOCAL_SCRIPT_CALL = re.compile(
-    r"(?:^|\s)(?:python(?:3)?(?:\s+-[A-Za-z]+)*|bash|sh|node)\s+"
+    r"(?:^|\s)(?:"
+    r"python(?:3(?:\.\d+)?)?(?:\s+-[A-Za-z]+)*|bash|sh|node"
+    r")\s+"
     r"(?!-m(?:\s|$))"
     r"(?P<path>(?:\./)?(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+"
     r"\.(?:py|sh|js|mjs|cjs|ts))",
     re.MULTILINE,
+)
+LOCAL_MODULE_CALL = re.compile(
+    r"\bpython(?:3(?:\.\d+)?)?\b"
+    r"(?:(?:[ \t]+(?!-m(?:[ \t]|$))[^ \t;&|]+))*"
+    r"[ \t]+-m[ \t]+"
+    r"(?P<module>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)"
 )
 LOCAL_ACTION_CALL = re.compile(
     r"(?m)^\s*(?:-\s*)?uses:\s*[\"']?\./(?P<path>[^#\s\"']+)"
@@ -90,10 +102,23 @@ def _trigger_events(text: str) -> set[str]:
             }
         return {inline.strip("'\"")}
 
-    return {
-        match.group(1)
+    entries = [
+        (len(match.group("indent")), match.group("name"))
         for line in nested
-        if (match := re.fullmatch(r" {2}([A-Za-z_][\w-]*):.*", line))
+        if (
+            match := re.fullmatch(
+                r"(?P<indent> +)(?P<name>[A-Za-z_][\w-]*):.*",
+                line,
+            )
+        )
+    ]
+    if not entries:
+        return set()
+    event_indent = min(indent for indent, _ in entries)
+    return {
+        name
+        for indent, name in entries
+        if indent == event_indent
     }
 
 
@@ -171,6 +196,14 @@ def _referenced_sources(
         references = {
             match.group("path") for match in LOCAL_SCRIPT_CALL.finditer(current)
         }
+        for match in LOCAL_MODULE_CALL.finditer(current):
+            module_path = match.group("module").replace(".", "/")
+            references.update(
+                {
+                    f"{module_path}.py",
+                    f"{module_path}/__main__.py",
+                }
+            )
 
         for match in LOCAL_ACTION_CALL.finditer(current):
             action_dir = match.group("path").rstrip("/")
@@ -286,6 +319,21 @@ class HuggingFaceSingleWriterTests(unittest.TestCase):
             (directory / "ignored.txt").write_text("not a workflow\n", encoding="utf-8")
             self.assertEqual(set(load_workflows(directory)), {"one.yml", "two.yaml"})
 
+    def test_trigger_parser_accepts_consistent_nonstandard_indentation(self) -> None:
+        workflow = """
+name: indented
+on:
+    schedule:
+        - cron: "0 * * * *"
+    workflow_dispatch: {}
+jobs: {}
+"""
+        self.assertEqual(
+            _trigger_events(workflow),
+            {"schedule", "workflow_dispatch"},
+        )
+        self.assertTrue(_has_automatic_trigger(workflow))
+
     def test_canonical_writer_is_serialized_and_source_bound(self) -> None:
         text = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
         self.assertTrue(_has_main_push(text))
@@ -335,6 +383,69 @@ jobs:
                 repo_files,
             ),
             [CANONICAL_WORKFLOW, "unsafe-duplicate.yaml"],
+        )
+
+    def test_repo_local_python_module_writer_is_detected(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe module writer
+on:
+    schedule:
+        - cron: "0 * * * *"
+jobs:
+    mutate:
+        steps:
+            - run: python3.12 -W error -X dev -m scripts.hf_writer
+              env:
+                  SPACE_ID: SZLHOLDINGS/a11oy
+"""
+        repo_files = {
+            "scripts/hf_writer.py": (
+                "from huggingface_hub import HfApi\n"
+                "HfApi().create_commit(repo_id='target', operations=[])\n"
+            )
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-module.yaml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-module.yaml"],
+        )
+
+    def test_secret_only_writer_is_detected(self) -> None:
+        canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
+        competing = """
+name: unsafe secret writer
+on:
+  schedule:
+    - cron: "0 * * * *"
+jobs:
+  mutate:
+    steps:
+      - run: python3 scripts/hf_secret_writer.py
+        env:
+          SPACE_ID: SZLHOLDINGS/a11oy
+"""
+        repo_files = {
+            "scripts/hf_secret_writer.py": (
+                "from huggingface_hub import HfApi\n"
+                "HfApi().add_space_secret("
+                "repo_id='target', key='K', value='digest')\n"
+            )
+        }
+        self.assertEqual(
+            find_automatic_writers(
+                {
+                    CANONICAL_WORKFLOW: canonical,
+                    "unsafe-secret.yaml": competing,
+                },
+                repo_files,
+            ),
+            [CANONICAL_WORKFLOW, "unsafe-secret.yaml"],
         )
 
 
