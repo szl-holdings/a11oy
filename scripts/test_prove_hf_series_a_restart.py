@@ -70,9 +70,15 @@ class Session:
             status(source, receipts=1, head="2" * 64),
             status(
                 source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
                 receipts=2,
                 head="3" * 64,
-                boot="boot_" + ("2" * 32),
+                boot="boot_" + ("3" * 32),
             ),
         ]
         self.headers = {}
@@ -105,12 +111,23 @@ class StartupReceiptSession(Session):
         super().__init__(source)
         self.statuses = [
             status(source, receipts=0, head=None),
-            status(source, receipts=1, head="2" * 64),
+            status(
+                source,
+                receipts=0,
+                head=None,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
             status(
                 source,
                 receipts=2,
                 head="3" * 64,
-                boot="boot_" + ("2" * 32),
+                boot="boot_" + ("3" * 32),
             ),
         ]
         self.posts = 0
@@ -128,9 +145,21 @@ class DrainingSession(Session):
             status(source, receipts=1, head="2" * 64),
             status(
                 source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
+                receipts=1,
+                head="2" * 64,
+                boot="boot_" + ("2" * 32),
+            ),
+            status(
+                source,
                 receipts=2,
                 head="3" * 64,
-                boot="boot_" + ("2" * 32),
+                boot="boot_" + ("3" * 32),
             ),
         ]
 
@@ -245,7 +274,7 @@ def test_prove_rejects_successful_capture_from_same_runtime(monkeypatch) -> None
     source = "a" * 40
     api = Api()
     session = Session(source)
-    session.statuses[1]["runtime_boot_id"] = session.statuses[0][
+    session.statuses[2]["runtime_boot_id"] = session.statuses[1][
         "runtime_boot_id"
     ]
     monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
@@ -280,8 +309,9 @@ def test_prove_polls_past_draining_old_runtime(monkeypatch) -> None:
     )
 
     assert report["ok"] is True
-    assert report["before"]["runtime_boot_id"] == "boot_" + ("1" * 32)
-    assert report["after"]["runtime_boot_id"] == "boot_" + ("2" * 32)
+    assert report["pre_activation_runtime_boot_id"] == "boot_" + ("1" * 32)
+    assert report["before"]["runtime_boot_id"] == "boot_" + ("2" * 32)
+    assert report["after"]["runtime_boot_id"] == "boot_" + ("3" * 32)
 
 
 def test_prove_retries_transient_startup_capture(monkeypatch) -> None:

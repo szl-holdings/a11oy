@@ -212,6 +212,24 @@ def capture(
     }
 
 
+def observe_boot_id(
+    session: HttpSession,
+    origin: str,
+    deadline: float,
+) -> str | None:
+    """Observe the current boot identity even when its contract is unavailable."""
+
+    status = _json(
+        session.get(
+            origin + "/api/a11oy/v1/series-a/status",
+            timeout=_remaining_timeout(deadline, 45),
+        )
+    )
+    _check_deadline(deadline)
+    boot_id = str(status.get("runtime_boot_id") or "")
+    return boot_id if BOOT_ID.fullmatch(boot_id) is not None else None
+
+
 def await_capture(
     session: HttpSession,
     origin: str,
@@ -221,13 +239,22 @@ def await_capture(
     attempts: int,
     retry_seconds: int,
     context: str,
+    previous_boot_id: str | None = None,
 ) -> dict[str, Any]:
     """Poll until the restarted public runtime exposes the required contract."""
 
     last_error: Exception | None = None
     for attempt in range(max(1, attempts)):
         try:
-            return capture(session, origin, expected_source, deadline)
+            candidate = capture(session, origin, expected_source, deadline)
+            if (
+                previous_boot_id is not None
+                and candidate["runtime_boot_id"] == previous_boot_id
+            ):
+                raise RestartProofError(
+                    "activation restart boot identity did not change"
+                )
+            return candidate
         except Exception as exc:  # noqa: BLE001 - bounded runtime polling
             last_error = exc
             if attempt + 1 < max(1, attempts):
@@ -289,9 +316,12 @@ def prove(
         raise RestartProofError("polling bounds must be positive and finite")
     deadline = time.monotonic() + deadline_seconds
 
+    pre_activation_boot_id = observe_boot_id(session, origin, deadline)
     # Hub variable writes are configuration-plane state. Explicitly restart
     # before sampling so the public process is proved against the just-converged
-    # configuration instead of a retiring replica with stale environment.
+    # configuration instead of a retiring replica with stale environment. When
+    # the old guarded contract has no boot ID, the new full contract's valid boot
+    # is itself the observed transition.
     activation_restart = api.restart_space(
         repo_id=repo_id,
         factory_reboot=False,
@@ -312,6 +342,7 @@ def prove(
         attempts=attempts,
         retry_seconds=retry_seconds,
         context="configured runtime was not observed after activation restart",
+        previous_boot_id=pre_activation_boot_id,
     )
     startup_error: Exception | None = None
     if before["storage"]["receipt_count"] == 0:
@@ -406,6 +437,8 @@ def prove(
         "activation_restart_response_stage": str(
             activation_stage or "UNKNOWN"
         ),
+        "pre_activation_runtime_boot_id": pre_activation_boot_id,
+        "activation_runtime_boot_identity_observed": True,
         "durability_restart_requested": True,
         "durability_restart_response_stage": str(
             durability_stage or "UNKNOWN"
@@ -414,6 +447,7 @@ def prove(
         "after": after,
         "proof": {
             "source_stable": True,
+            "activation_runtime_transition_observed": True,
             "runtime_boot_identity_changed": True,
             "public_signing_identity_stable": True,
             "database_instance_stable": True,
