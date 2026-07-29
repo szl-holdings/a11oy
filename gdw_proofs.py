@@ -8,8 +8,14 @@ import stat
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterator
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - exercised only on non-POSIX hosts
+    fcntl = None
 
 
 _ARTIFACT_QUOTA_LOCK = threading.RLock()
@@ -73,6 +79,55 @@ def _fsync_directory(path: Path) -> None:
                 raise
     finally:
         os.close(descriptor)
+
+
+@contextmanager
+def _owner_publication_lock(owner_root: Path) -> Iterator[None]:
+    """Serialize publishers across processes on the durable POSIX mount."""
+
+    if fcntl is None:
+        yield
+        return
+    lock_path = owner_root / ".gdw-publication.lock"
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise FileExistsError(
+                "GDW publication lock is not a regular file"
+            )
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
+
+def _publish_with_locked_rename(
+    staging: str,
+    destination: Path,
+    encoded: bytes,
+    owner_root: Path,
+) -> tuple[bool, str]:
+    """Atomically publish when the durable mount rejects hard links."""
+
+    if fcntl is None:
+        raise OSError(
+            errno.ENOTSUP,
+            "atomic rename fallback requires POSIX advisory locking",
+        )
+    if os.path.lexists(destination):
+        if _read_existing_regular(destination) != encoded:
+            raise FileExistsError(
+                "refusing to overwrite a concurrently created "
+                "non-identical GDW artifact"
+            )
+        return True, "REUSED"
+    os.replace(staging, destination)
+    _fsync_directory(owner_root)
+    return False, "ATOMIC_RENAME_LOCKED"
 
 
 def build_proof_payload(
@@ -142,80 +197,96 @@ def _export_json_artifact_unlocked(
     if owner_root.parent != root or owner_root.name != owner_scope:
         raise ValueError("artifact owner scope escapes the configured root")
     destination = owner_root / filename
-    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    encoded = (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
     expected_sha256 = hashlib.sha256(encoded).hexdigest()
-    if os.path.lexists(destination):
-        if _read_existing_regular(destination) != encoded:
-            raise FileExistsError(
-                "refusing to overwrite an existing non-identical GDW artifact"
-            )
-        _fsync_directory(owner_root)
-        return {
-            "status": "EXPORTED",
-            "path": str(destination),
-            "sha256": expected_sha256,
-            "reused": True,
-            "immutable": True,
-            "owner_scope": owner_scope,
-            "publication_mode": "REUSED",
-        }
-    owner_limit = _bounded_artifact_limit(
-        "GDW_OWNER_MAX_ARTIFACTS", default=10_000, maximum=100_000
-    )
-    global_limit = _bounded_artifact_limit(
-        "GDW_GLOBAL_MAX_ARTIFACTS", default=100_000, maximum=1_000_000
-    )
-    if global_limit < owner_limit:
-        raise ValueError(
-            "GDW_GLOBAL_MAX_ARTIFACTS must be at least GDW_OWNER_MAX_ARTIFACTS"
+    with _owner_publication_lock(owner_root):
+        if os.path.lexists(destination):
+            if _read_existing_regular(destination) != encoded:
+                raise FileExistsError(
+                    "refusing to overwrite an existing non-identical "
+                    "GDW artifact"
+                )
+            _fsync_directory(owner_root)
+            return {
+                "status": "EXPORTED",
+                "path": str(destination),
+                "sha256": expected_sha256,
+                "reused": True,
+                "immutable": True,
+                "owner_scope": owner_scope,
+                "publication_mode": "REUSED",
+            }
+        owner_limit = _bounded_artifact_limit(
+            "GDW_OWNER_MAX_ARTIFACTS",
+            default=10_000,
+            maximum=100_000,
         )
-    if sum(1 for _ in owner_root.glob("*.json")) >= owner_limit:
-        raise RuntimeError("per-owner artifact quota exceeded")
-    if sum(1 for _ in root.glob("*/*.json")) >= global_limit:
-        raise RuntimeError("global artifact quota exceeded")
-    # A unique stage is owned only by this publisher. Process death can leave
-    # that hidden file unreferenced, but no retry or replica may delete an
-    # unknown concurrent stage or expose it as the final JSON artifact.
-    handle, staging = tempfile.mkstemp(
-        prefix=".gdw-artifact-",
-        suffix=".tmp",
-        dir=owner_root,
-    )
-    reused = False
-    publication_mode = "HARD_LINK"
-    try:
-        with os.fdopen(handle, "wb") as stream:
-            stream.write(encoded)
-            stream.flush()
-            os.fsync(stream.fileno())
-        for attempt in range(_LINK_MAX_ATTEMPTS):
-            try:
-                os.link(staging, destination)
-            except FileExistsError:
-                if _read_existing_regular(destination) != encoded:
-                    raise FileExistsError(
-                        "refusing to overwrite a concurrently created "
-                        "non-identical GDW artifact"
-                    )
-                reused = True
-                publication_mode = "REUSED"
-                break
-            except OSError as exc:
-                if (
-                    exc.errno not in _TRANSIENT_LINK_ERRNOS
-                    or attempt + 1 >= _LINK_MAX_ATTEMPTS
-                ):
-                    raise
-                publication_mode = "HARD_LINK_AFTER_FLUSH"
-                time.sleep(_LINK_RETRY_SECONDS)
-            else:
-                break
-        _fsync_directory(owner_root)
-    finally:
+        global_limit = _bounded_artifact_limit(
+            "GDW_GLOBAL_MAX_ARTIFACTS",
+            default=100_000,
+            maximum=1_000_000,
+        )
+        if global_limit < owner_limit:
+            raise ValueError(
+                "GDW_GLOBAL_MAX_ARTIFACTS must be at least "
+                "GDW_OWNER_MAX_ARTIFACTS"
+            )
+        if sum(1 for _ in owner_root.glob("*.json")) >= owner_limit:
+            raise RuntimeError("per-owner artifact quota exceeded")
+        if sum(1 for _ in root.glob("*/*.json")) >= global_limit:
+            raise RuntimeError("global artifact quota exceeded")
+        # A unique stage is owned only by this publisher. Process death can
+        # leave that hidden file unreferenced, but no retry or replica may
+        # delete an unknown concurrent stage or expose it as final JSON.
+        handle, staging = tempfile.mkstemp(
+            prefix=".gdw-artifact-",
+            suffix=".tmp",
+            dir=owner_root,
+        )
+        reused = False
+        publication_mode = "HARD_LINK"
         try:
-            os.unlink(staging)
-        except FileNotFoundError:
-            pass
+            with os.fdopen(handle, "wb") as stream:
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
+            for attempt in range(_LINK_MAX_ATTEMPTS):
+                try:
+                    os.link(staging, destination)
+                except FileExistsError:
+                    if _read_existing_regular(destination) != encoded:
+                        raise FileExistsError(
+                            "refusing to overwrite a concurrently created "
+                            "non-identical GDW artifact"
+                        )
+                    reused = True
+                    publication_mode = "REUSED"
+                    break
+                except OSError as exc:
+                    if exc.errno not in _TRANSIENT_LINK_ERRNOS:
+                        raise
+                    if attempt + 1 >= _LINK_MAX_ATTEMPTS:
+                        reused, publication_mode = (
+                            _publish_with_locked_rename(
+                                staging,
+                                destination,
+                                encoded,
+                                owner_root,
+                            )
+                        )
+                        break
+                    publication_mode = "HARD_LINK_AFTER_FLUSH"
+                    time.sleep(_LINK_RETRY_SECONDS)
+                else:
+                    break
+            _fsync_directory(owner_root)
+        finally:
+            try:
+                os.unlink(staging)
+            except FileNotFoundError:
+                pass
     return {
         "status": "EXPORTED",
         "path": str(destination),
