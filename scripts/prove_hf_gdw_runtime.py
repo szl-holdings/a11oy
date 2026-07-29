@@ -32,6 +32,193 @@ def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
         return json.loads(response.read().decode("utf-8"))
 
 
+def _drain_is_complete(drain: dict, database_generation_id: str) -> bool:
+    return (
+        drain.get("failed") == 0
+        and drain.get("pending_effects") == 0
+        and drain.get("legacy_pending_proofs") == 0
+        and drain.get("integrity_ok") is True
+        and drain.get("database_generation_id") == database_generation_id
+    )
+
+
+def _global_integrity_is_complete(
+    integrity: dict,
+    database_generation_id: str,
+) -> bool:
+    return (
+        integrity.get("ok") is True
+        and integrity.get("database_generation_id") == database_generation_id
+        and integrity.get("journal_mode") == "DELETE"
+        and integrity.get("pending_proofs") == 0
+        and integrity.get("pending_effects") == 0
+        and integrity.get("claimed_effects") == 0
+        and integrity.get("dead_letter_effects") == 0
+        and integrity.get("invalid_effect_bindings") == 0
+        and integrity.get("invalid_exported_artifacts") == 0
+    )
+
+
+def _health_is_write_ready(health: dict, database_generation_id: str) -> bool:
+    return (
+        health.get("status") == "REAL"
+        and health.get("write_ready") is True
+        and not health.get("write_blockers")
+        and (
+            (health.get("persistence") or {})
+            .get("storage", {})
+            .get("database_generation_id")
+            == database_generation_id
+        )
+        and (
+            (health.get("persistence") or {})
+            .get("drain", {})
+            .get("last_outcome")
+            == "SUCCEEDED"
+        )
+    )
+
+
+def _safe_convergence_state(
+    *,
+    reason: str,
+    health: dict | None,
+    drain: dict | None,
+    global_integrity: dict | None,
+) -> dict:
+    health = health or {}
+    persistence = health.get("persistence") or {}
+    supervisor = persistence.get("drain") or {}
+    drain = drain or {}
+    global_integrity = global_integrity or {}
+    return {
+        "reason": reason,
+        "health_status": health.get("status"),
+        "write_ready": health.get("write_ready"),
+        "write_blockers": health.get("write_blockers"),
+        "supervisor_outcome": supervisor.get("last_outcome"),
+        "drain_failed": drain.get("failed"),
+        "drain_pending_effects": drain.get("pending_effects"),
+        "drain_legacy_pending_proofs": drain.get(
+            "legacy_pending_proofs"
+        ),
+        "global_pending_proofs": global_integrity.get("pending_proofs"),
+        "global_pending_effects": global_integrity.get("pending_effects"),
+        "global_claimed_effects": global_integrity.get("claimed_effects"),
+        "global_dead_letter_effects": global_integrity.get(
+            "dead_letter_effects"
+        ),
+        "global_invalid_effect_bindings": global_integrity.get(
+            "invalid_effect_bindings"
+        ),
+        "global_invalid_exported_artifacts": global_integrity.get(
+            "invalid_exported_artifacts"
+        ),
+    }
+
+
+def _prove_drain_convergence(
+    *,
+    base: str,
+    operator_token: str,
+    database_generation_id: str,
+    attempts: int = 120,
+    delay_seconds: float = 5,
+) -> tuple[dict, dict]:
+    """Prove a protected drain after the supervised outbox reaches quiescence."""
+
+    drain_url = f"{base}/api/a11oy/v1/gdw/drain?limit=100"
+    global_integrity_url = (
+        f"{base}/api/a11oy/v1/gdw/integrity/global"
+    )
+    health_url = f"{base}/api/a11oy/v1/gdw/healthz"
+    last_error = "NOT_ATTEMPTED"
+    last_health = None
+    last_drain = None
+    last_global_integrity = None
+
+    try:
+        initial_drain = request_json(
+            "POST",
+            drain_url,
+            token=operator_token,
+        )
+        last_drain = initial_drain
+        if _drain_is_complete(initial_drain, database_generation_id):
+            global_integrity = request_json(
+                "GET",
+                global_integrity_url,
+                token=operator_token,
+            )
+            last_global_integrity = global_integrity
+            if _global_integrity_is_complete(
+                global_integrity,
+                database_generation_id,
+            ):
+                return initial_drain, global_integrity
+        last_error = "INITIAL_DRAIN_INCOMPLETE"
+    except Exception as exc:
+        last_error = f"INITIAL_DRAIN_{type(exc).__name__}"
+
+    for _attempt in range(1, attempts + 1):
+        try:
+            health = request_json("GET", health_url)
+            last_health = health
+            global_integrity = request_json(
+                "GET",
+                global_integrity_url,
+                token=operator_token,
+            )
+            last_global_integrity = global_integrity
+            if not (
+                _health_is_write_ready(health, database_generation_id)
+                and _global_integrity_is_complete(
+                    global_integrity,
+                    database_generation_id,
+                )
+            ):
+                last_error = "SUPERVISOR_NOT_QUIESCENT"
+                time.sleep(delay_seconds)
+                continue
+
+            confirmed_drain = request_json(
+                "POST",
+                drain_url,
+                token=operator_token,
+            )
+            last_drain = confirmed_drain
+            if _drain_is_complete(
+                confirmed_drain,
+                database_generation_id,
+            ):
+                confirmed_integrity = request_json(
+                    "GET",
+                    global_integrity_url,
+                    token=operator_token,
+                )
+                last_global_integrity = confirmed_integrity
+                if _global_integrity_is_complete(
+                    confirmed_integrity,
+                    database_generation_id,
+                ):
+                    return confirmed_drain, confirmed_integrity
+            last_error = "CONFIRMATION_DRAIN_INCOMPLETE"
+        except Exception as exc:
+            last_error = f"CONVERGENCE_{type(exc).__name__}"
+        time.sleep(delay_seconds)
+
+    safe_state = _safe_convergence_state(
+        reason=last_error,
+        health=last_health,
+        drain=last_drain,
+        global_integrity=last_global_integrity,
+    )
+    raise RuntimeError(
+        "GDW protected drain did not converge: "
+        + json.dumps(safe_state, sort_keys=True)
+    )
+
+
 def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     if len(source_sha) != 40 or any(ch not in "0123456789abcdef" for ch in source_sha):
         raise RuntimeError("source SHA must be canonical lowercase hexadecimal")
@@ -98,17 +285,25 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     ):
         raise RuntimeError("GDW protected transition contract failed")
 
-    drain = request_json(
-        "POST",
-        f"{base}/api/a11oy/v1/gdw/drain?limit=100",
-        token=operator_token,
+    database_generation_id = (
+        (health.get("persistence") or {})
+        .get("storage", {})
+        .get("database_generation_id")
     )
     if (
-        drain.get("failed") != 0
-        or drain.get("pending_effects") != 0
-        or drain.get("integrity_ok") is not True
+        not isinstance(database_generation_id, str)
+        or len(database_generation_id) != 32
+        or any(
+            ch not in "0123456789abcdef"
+            for ch in database_generation_id
+        )
     ):
-        raise RuntimeError("GDW protected drain contract failed")
+        raise RuntimeError("GDW database generation is not canonical")
+    drain, global_integrity = _prove_drain_convergence(
+        base=base,
+        operator_token=operator_token,
+        database_generation_id=database_generation_id,
+    )
     integrity = request_json(
         "GET",
         f"{base}/api/a11oy/v1/gdw/integrity",
@@ -141,6 +336,20 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             "replayed": bool(step.get("replayed")),
         },
         "drain": drain,
+        "global_integrity": {
+            "ok": True,
+            "journal_mode": global_integrity["journal_mode"],
+            "pending_proofs": global_integrity["pending_proofs"],
+            "pending_effects": global_integrity["pending_effects"],
+            "claimed_effects": global_integrity["claimed_effects"],
+            "dead_letter_effects": global_integrity["dead_letter_effects"],
+            "invalid_effect_bindings": global_integrity[
+                "invalid_effect_bindings"
+            ],
+            "invalid_exported_artifacts": global_integrity[
+                "invalid_exported_artifacts"
+            ],
+        },
         "integrity": {
             "ok": True,
             "journal_mode": integrity["journal_mode"],
