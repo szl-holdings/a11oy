@@ -32,7 +32,7 @@ jobs:
     name: Converge persistent signer, receipt storage, and GDW successor
     needs: deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
@@ -76,6 +76,7 @@ jobs:
           python scripts/prove_hf_gdw_runtime.py
           --origin "$CANONICAL_ORIGIN"
           --source-sha "${{ github.sha }}"
+          --restart-repo-id "$CANONICAL_SPACE"
           --output "$GDW_LIVE_REPORT"
 
       - name: Upload secret-free runtime configuration evidence

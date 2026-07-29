@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -184,6 +185,9 @@ def test_live_proof_rejects_persistent_supervisor_failure(monkeypatch):
             body["write_ready"] = False
             body["write_blockers"] = ["OUTBOX_SUPERVISOR_NOT_HEALTHY"]
             body["persistence"]["drain"]["last_outcome"] = "RETRY_SCHEDULED"
+            body["persistence"]["drain"]["last_report"] = {
+                "errors": ["proof_export:OSError", operator_token],
+            }
             return body
         if url.endswith("/gdw/integrity/global"):
             return {
@@ -205,6 +209,7 @@ def test_live_proof_rejects_persistent_supervisor_failure(monkeypatch):
     error = str(exc_info.value)
     assert '"global_dead_letter_effects": 1' in error
     assert '"global_pending_effects": 2' in error
+    assert '"supervisor_errors": ["proof_export:OSError"]' in error
     assert operator_token not in error
 
 
@@ -225,3 +230,55 @@ def test_live_proof_rejects_missing_database_generation(monkeypatch):
             source_sha=SOURCE_SHA,
             operator_token="x" * 48,
         )
+
+
+def test_restart_proof_preserves_generation_session_and_artifacts(monkeypatch):
+    restarted = False
+
+    class Api:
+        def restart_space(self, **kwargs):
+            nonlocal restarted
+            restarted = True
+            assert kwargs == {
+                "repo_id": "SZLHOLDINGS/a11oy",
+                "factory_reboot": False,
+            }
+            return SimpleNamespace(
+                runtime=SimpleNamespace(
+                    stage=SimpleNamespace(value="RESTARTING")
+                )
+            )
+
+    def response(method: str, url: str, **kwargs):
+        body = _live_response(method, url, **kwargs)
+        if url.endswith("/gdw/healthz"):
+            body["persistence"]["prepared_at"] = (
+                "after-restart" if restarted else "before-restart"
+            )
+        if url.endswith("/gdw/sessions/protected-promotion"):
+            return {
+                "session_id": "protected-promotion",
+                "database_generation_id": GENERATION_ID,
+                "step": 1,
+                "state_hash": "c" * 64,
+            }
+        return body
+
+    monkeypatch.setattr(proof, "request_json", response)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove_restart(
+        api=Api(),
+        repo_id="SZLHOLDINGS/a11oy",
+        base="https://example.invalid",
+        source_sha=SOURCE_SHA,
+        operator_token="x" * 48,
+        attempts=5,
+        delay_seconds=0,
+    )
+
+    assert report["restart_requested"] is True
+    assert report["before_prepared_at"] == "before-restart"
+    assert report["after_prepared_at"] == "after-restart"
+    assert report["global_integrity"]["pending_effects"] == 0
+    assert report["credential_values_recorded"] is False

@@ -1,13 +1,18 @@
-import errno
 import hashlib
 import json
+import os
 import sqlite3
 from pathlib import Path
 
 import pytest
 
 import gdw_runtime
-from gdw_proofs import build_proof_payload, export_proof_payload, sha256_json
+from gdw_proofs import (
+    build_proof_payload,
+    export_proof_payload,
+    export_receipt_projection,
+    sha256_json,
+)
 from gdw_workspace import GDWConfigurationError, GDWWorkspace
 
 
@@ -369,15 +374,19 @@ def test_artifact_export_is_content_addressed_and_refuses_rebinding(
     assert distinct["path"] != first["path"]
 
 
-def test_artifact_export_falls_back_when_hard_links_are_unsupported(
+def test_both_artifact_kinds_use_exclusive_create_without_hard_links(
     monkeypatch,
     tmp_path,
 ):
     monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    monkeypatch.setenv(
+        "GDW_RECEIPT_PROJECTION_DIR",
+        str(tmp_path / "receipts"),
+    )
     monkeypatch.setattr(
         "gdw_proofs.os.link",
         lambda *_args: (_ for _ in ()).throw(
-            OSError(errno.EOPNOTSUPP, "hard links unsupported")
+            AssertionError("hard links must not be used")
         ),
     )
     payload = {
@@ -390,39 +399,114 @@ def test_artifact_export_falls_back_when_hard_links_are_unsupported(
     payload["payload_sha256"] = sha256_json(payload)
 
     artifact = export_proof_payload(payload)
+    receipt = {
+        "schema": "szl.gdw.delta-update-receipt/v1",
+        "request_id": "network-mount",
+        "owner_id": "owner-a",
+    }
+    receipt["receipt_hash"] = sha256_json(receipt)
+    projected = export_receipt_projection(
+        receipt,
+        "e" * 64,
+        owner_id="owner-a",
+    )
 
     assert artifact["publication_mode"] == "EXCLUSIVE_CREATE"
+    assert projected["publication_mode"] == "EXCLUSIVE_CREATE"
     assert Path(artifact["path"]).read_text(encoding="utf-8") == (
         json.dumps(payload, indent=2, sort_keys=True) + "\n"
     )
     assert export_proof_payload(payload)["reused"] is True
 
 
-def test_artifact_fallback_never_overwrites_a_concurrent_mismatch(
+def test_artifact_exclusive_create_reuses_a_concurrent_identical_file(
     monkeypatch,
     tmp_path,
 ):
     monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
-
-    def unsupported_after_mismatch(_temporary, destination):
-        Path(destination).write_text("concurrent-mismatch", encoding="utf-8")
-        raise OSError(errno.EOPNOTSUPP, "hard links unsupported")
-
-    monkeypatch.setattr("gdw_proofs.os.link", unsupported_after_mismatch)
     payload = {
         "schema": "szl.gdw.proof-input/v1",
         "proposal_id": "d" * 64,
+        "request_id": "concurrent-identical",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    encoded = (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+
+    def concurrent_identical(destination, _flags, _mode):
+        Path(destination).write_bytes(encoded)
+        raise FileExistsError
+
+    monkeypatch.setattr("gdw_proofs.os.open", concurrent_identical)
+
+    artifact = export_proof_payload(payload)
+
+    assert artifact["reused"] is True
+    assert artifact["publication_mode"] == "REUSED"
+
+
+def test_artifact_exclusive_create_never_overwrites_a_concurrent_mismatch(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "e" * 64,
         "request_id": "concurrent-mismatch",
         "owner_id": "owner-a",
         "formal_status": "NOT_RUN",
     }
     payload["payload_sha256"] = sha256_json(payload)
 
+    def concurrent_mismatch(destination, _flags, _mode):
+        Path(destination).write_text("concurrent-mismatch", encoding="utf-8")
+        raise FileExistsError
+
+    monkeypatch.setattr("gdw_proofs.os.open", concurrent_mismatch)
+
     with pytest.raises(FileExistsError, match="refusing to overwrite"):
         export_proof_payload(payload)
 
     destination = next((tmp_path / "proofs").rglob("*.json"))
     assert destination.read_text(encoding="utf-8") == "concurrent-mismatch"
+
+
+def test_artifact_exclusive_create_cleans_its_partial_before_retry(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "f" * 64,
+        "request_id": "partial-write",
+        "owner_id": "owner-a",
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = sha256_json(payload)
+    real_fsync = os.fsync
+    failures = 0
+
+    def fail_once(descriptor):
+        nonlocal failures
+        failures += 1
+        if failures == 1:
+            raise OSError("injected fsync failure")
+        return real_fsync(descriptor)
+
+    monkeypatch.setattr("gdw_proofs.os.fsync", fail_once)
+
+    with pytest.raises(OSError, match="injected fsync failure"):
+        export_proof_payload(payload)
+    assert not any((tmp_path / "proofs").rglob("*.json"))
+
+    artifact = export_proof_payload(payload)
+    assert artifact["reused"] is False
+    assert Path(artifact["path"]).is_file()
 
 
 def test_lost_claim_does_not_crash_the_bounded_drain(

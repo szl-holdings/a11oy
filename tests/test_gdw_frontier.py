@@ -437,6 +437,40 @@ def test_proof_outbox_is_durable_and_drainable(tmp_path, monkeypatch):
     assert workspace.integrity()["pending_effects"] == 0
 
 
+def test_bounded_drain_exports_both_effect_kinds_without_hard_links(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "gdw_proofs.os.link",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("hard links must not be used")
+        ),
+    )
+    app = make_app(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        result = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(),
+            headers=headers("exclusive-drain-1"),
+        ).json()
+    assert result["proof"]["status"] == "OUTBOX_PENDING"
+
+    import gdw_runtime
+    from gdw_workspace import GDWWorkspace
+
+    workspace = GDWWorkspace(namespace="a11oy", owner_id="owner-a")
+    report = gdw_runtime.drain_once(
+        workspace=workspace,
+        worker_id="exclusive-drain-worker",
+    )
+
+    assert report["exported"] == 2
+    assert report["failed"] == 0
+    assert report["pending_effects"] == 0
+    assert report["dead_letter_effects"] == 0
+
+
 def test_governance_denial_and_unavailable_policy_never_mutate(
     tmp_path, monkeypatch
 ):

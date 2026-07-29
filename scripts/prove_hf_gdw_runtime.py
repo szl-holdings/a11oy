@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import time
@@ -99,6 +100,15 @@ def _safe_convergence_state(
         "write_blockers": health.get("write_blockers"),
         "supervisor_outcome": supervisor.get("last_outcome"),
         "supervisor_attempt_at": supervisor.get("last_attempt_at"),
+        "supervisor_errors": [
+            value
+            for value in (
+                (supervisor.get("last_report") or {}).get("errors") or []
+            )
+            if isinstance(value, str)
+            and len(value) <= 96
+            and all(ch.isalnum() or ch in "_:" for ch in value)
+        ],
         "stable_samples": stable_samples,
         "drain_failed": drain.get("failed"),
         "drain_errors": [
@@ -248,6 +258,166 @@ def _prove_drain_convergence(
         "GDW protected drain did not converge: "
         + json.dumps(safe_state, sort_keys=True)
     )
+
+
+def _session_sha256(session: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            session,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def prove_restart(
+    *,
+    api,
+    repo_id: str,
+    base: str,
+    source_sha: str,
+    operator_token: str,
+    attempts: int = 120,
+    delay_seconds: float = 5,
+) -> dict:
+    """Restart the Space and prove GDW state and artifacts survived."""
+
+    health_url = f"{base}/api/a11oy/v1/gdw/healthz"
+    global_integrity_url = (
+        f"{base}/api/a11oy/v1/gdw/integrity/global"
+    )
+    owner_integrity_url = f"{base}/api/a11oy/v1/gdw/integrity"
+    session_url = (
+        f"{base}/api/a11oy/v1/gdw/sessions/protected-promotion"
+    )
+    before_health = request_json("GET", health_url)
+    before_global = request_json(
+        "GET",
+        global_integrity_url,
+        token=operator_token,
+    )
+    before_session = request_json(
+        "GET",
+        session_url,
+        token=operator_token,
+    )
+    before_persistence = before_health.get("persistence") or {}
+    before_storage = before_persistence.get("storage") or {}
+    database_generation_id = before_storage.get("database_generation_id")
+    before_prepared_at = str(
+        before_persistence.get("prepared_at") or ""
+    )
+    if (
+        not before_prepared_at
+        or not _health_is_write_ready(
+            before_health,
+            database_generation_id,
+        )
+        or not _global_integrity_is_complete(
+            before_global,
+            database_generation_id,
+        )
+        or before_session.get("database_generation_id")
+        != database_generation_id
+    ):
+        raise RuntimeError("GDW pre-restart contract is incomplete")
+    before_session_sha256 = _session_sha256(before_session)
+
+    restart = api.restart_space(repo_id=repo_id, factory_reboot=False)
+    stage = getattr(getattr(restart, "runtime", None), "stage", None)
+    stage = getattr(stage, "value", stage)
+    time.sleep(max(10, delay_seconds))
+
+    after_health = None
+    last_error = "NOT_OBSERVED"
+    for _attempt in range(1, attempts + 1):
+        try:
+            build_info = request_json("GET", f"{base}/api/build-info")
+            revision = str(
+                (build_info.get("build") or {}).get("revision") or ""
+            ).lower()
+            candidate = request_json("GET", health_url)
+            persistence = candidate.get("persistence") or {}
+            storage = persistence.get("storage") or {}
+            if (
+                revision == source_sha
+                and str(persistence.get("prepared_at") or "")
+                and persistence.get("prepared_at") != before_prepared_at
+                and storage.get("database_generation_id")
+                == database_generation_id
+            ):
+                after_health = candidate
+                break
+            last_error = "RESTART_IDENTITY_NOT_CHANGED"
+        except Exception as exc:
+            last_error = type(exc).__name__
+        time.sleep(delay_seconds)
+    if after_health is None:
+        raise RuntimeError(
+            f"GDW restart was not observed: {last_error}"
+        )
+
+    _drain, after_global = _prove_drain_convergence(
+        base=base,
+        operator_token=operator_token,
+        database_generation_id=database_generation_id,
+        attempts=attempts,
+        delay_seconds=delay_seconds,
+    )
+    after_owner = request_json(
+        "GET",
+        owner_integrity_url,
+        token=operator_token,
+    )
+    after_session = request_json(
+        "GET",
+        session_url,
+        token=operator_token,
+    )
+    after_session_sha256 = _session_sha256(after_session)
+    if (
+        after_owner.get("ok") is not True
+        or after_owner.get("database_generation_id")
+        != database_generation_id
+        or after_owner.get("journal_mode") != "DELETE"
+        or after_owner.get("pending_effects") != 0
+        or after_owner.get("invalid_effect_bindings") != 0
+        or after_owner.get("invalid_exported_artifacts") != 0
+        or after_session.get("database_generation_id")
+        != database_generation_id
+        or after_session_sha256 != before_session_sha256
+    ):
+        raise RuntimeError("GDW post-restart persistence contract failed")
+
+    return {
+        "schema": "szl.hf-gdw-restart-proof/v1",
+        "restart_requested": True,
+        "restart_response_stage": str(stage or "UNKNOWN"),
+        "source_revision": source_sha,
+        "database_generation_id": database_generation_id,
+        "before_prepared_at": before_prepared_at,
+        "after_prepared_at": (
+            (after_health.get("persistence") or {}).get("prepared_at")
+        ),
+        "session_sha256": after_session_sha256,
+        "global_integrity": {
+            "ok": True,
+            "pending_proofs": after_global["pending_proofs"],
+            "pending_effects": after_global["pending_effects"],
+            "claimed_effects": after_global["claimed_effects"],
+            "dead_letter_effects": after_global[
+                "dead_letter_effects"
+            ],
+            "invalid_effect_bindings": after_global[
+                "invalid_effect_bindings"
+            ],
+            "invalid_exported_artifacts": after_global[
+                "invalid_exported_artifacts"
+            ],
+        },
+        "credential_values_recorded": False,
+    }
 
 
 def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
@@ -401,12 +571,26 @@ def main() -> int:
     parser.add_argument("--origin", required=True)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output")
+    parser.add_argument("--restart-repo-id")
     args = parser.parse_args()
     report = prove(
         origin=args.origin,
         source_sha=args.source_sha,
         operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
     )
+    if args.restart_repo_id:
+        hf_token = os.environ.get("HF_TOKEN", "")
+        if not hf_token:
+            raise RuntimeError("HF_TOKEN is unavailable for restart proof")
+        from huggingface_hub import HfApi
+
+        report["restart"] = prove_restart(
+            api=HfApi(token=hf_token),
+            repo_id=args.restart_repo_id,
+            base=args.origin.rstrip("/"),
+            source_sha=args.source_sha,
+            operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
+        )
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         output = Path(args.output)

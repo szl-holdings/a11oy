@@ -1,22 +1,14 @@
 """Structured theorem-input export for asynchronous Lean checking."""
 
-import errno
 import hashlib
 import json
 import os
-import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Dict
 
 
 _ARTIFACT_QUOTA_LOCK = threading.RLock()
-_HARD_LINK_UNSUPPORTED = {
-    errno.EPERM,
-    errno.EXDEV,
-    errno.ENOSYS,
-    errno.EOPNOTSUPP,
-}
 
 
 def canonical_json(value: Any) -> str:
@@ -108,6 +100,7 @@ def _export_json_artifact_unlocked(
             "reused": True,
             "immutable": True,
             "owner_scope": owner_scope,
+            "publication_mode": "REUSED",
         }
     owner_limit = _bounded_artifact_limit(
         "GDW_OWNER_MAX_ARTIFACTS", default=10_000, maximum=100_000
@@ -123,55 +116,46 @@ def _export_json_artifact_unlocked(
         raise RuntimeError("per-owner artifact quota exceeded")
     if sum(1 for _ in root.glob("*/*.json")) >= global_limit:
         raise RuntimeError("global artifact quota exceeded")
-    handle, temporary = tempfile.mkstemp(
-        prefix=".gdw-artifact-", suffix=".tmp", dir=owner_root
-    )
-    publication_mode = "HARD_LINK"
+    reused = False
     try:
-        with os.fdopen(handle, "wb") as stream:
-            stream.write(encoded)
-            stream.flush()
-            os.fsync(stream.fileno())
+        destination_handle = os.open(
+            destination,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+    except FileExistsError:
+        if destination.read_bytes() != encoded:
+            raise FileExistsError(
+                "refusing to overwrite a concurrently created "
+                "non-identical GDW artifact"
+            )
+        reused = True
+    else:
+        stream = None
         try:
-            os.link(temporary, destination)
-        except FileExistsError:
-            if destination.read_bytes() != encoded:
-                raise FileExistsError(
-                    "refusing to overwrite a concurrently created "
-                    "non-identical GDW artifact"
-                )
-        except OSError as exc:
-            if exc.errno not in _HARD_LINK_UNSUPPORTED:
-                raise
-            publication_mode = "EXCLUSIVE_CREATE"
+            stream = os.fdopen(destination_handle, "wb")
+            with stream:
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
+        except BaseException:
+            if stream is None:
+                os.close(destination_handle)
             try:
-                destination_handle = os.open(
-                    destination,
-                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                    0o600,
-                )
-            except FileExistsError:
-                if destination.read_bytes() != encoded:
-                    raise FileExistsError(
-                        "refusing to overwrite a concurrently created "
-                        "non-identical GDW artifact"
-                    )
-            else:
-                with os.fdopen(destination_handle, "wb") as stream:
-                    stream.write(encoded)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+                os.unlink(destination)
+            except FileNotFoundError:
+                pass
+            raise
     return {
         "status": "EXPORTED",
         "path": str(destination),
         "sha256": expected_sha256,
-        "reused": False,
+        "reused": reused,
         "immutable": True,
         "owner_scope": owner_scope,
-        "publication_mode": publication_mode,
+        "publication_mode": (
+            "REUSED" if reused else "EXCLUSIVE_CREATE"
+        ),
     }
 
 
