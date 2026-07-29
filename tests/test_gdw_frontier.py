@@ -1181,7 +1181,7 @@ def test_replay_telemetry_does_not_count_a_new_receipt(tmp_path, monkeypatch):
     assert snapshot["receipts"] == 1
 
 
-def test_step_collects_expired_requests_before_quota_admission(
+def test_supervisor_collects_expired_requests_before_quota_admission(
     tmp_path,
     monkeypatch,
 ):
@@ -1207,6 +1207,8 @@ def test_step_collects_expired_requests_before_quota_admission(
         assert gdw_runtime.drain_once(workspace=workspace)["failed"] == 0
         future = datetime.now(timezone.utc) + timedelta(seconds=2)
         monkeypatch.setattr(gdw_workspace, "_utc_now", lambda: future)
+        cleanup = gdw_runtime.drain_once(workspace=workspace)
+        assert cleanup["garbage_collected"]["requests_tombstoned"] == 1
         second = client.post(
             "/api/a11oy/v1/gdw/step",
             json=payload(session_id="quota-session-2"),
@@ -1214,6 +1216,28 @@ def test_step_collects_expired_requests_before_quota_admission(
         )
 
     assert second.status_code == 200
+
+
+def test_step_never_runs_lifecycle_cleanup(tmp_path, monkeypatch):
+    from gdw_workspace import GDWWorkspace
+
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        GDWWorkspace,
+        "collect_garbage",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("lifecycle cleanup reached request path")
+        ),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/a11oy/v1/gdw/step",
+            json=payload(session_id="denied-session", risk=0.95),
+            headers=headers("denied-request"),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["decision"] == "REJECT"
 
 
 def test_step_uses_bounded_row_checks_not_global_integrity_scan(
