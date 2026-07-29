@@ -5,6 +5,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = (
     ROOT / ".github" / "workflows" / "nemo-v3-isolated-owner-dispatch.yml"
 ).read_text(encoding="utf-8")
+VALIDATOR = (
+    ROOT / "scripts" / "validate_nemo_v3_owner_dispatch.py"
+).read_text(encoding="utf-8")
 
 
 def _step(name: str, next_name: str) -> str:
@@ -21,6 +24,48 @@ def test_dispatch_requires_protected_default_branch_and_same_owner_on_rerun() ->
     assert "github.triggering_actor == 'stephenlutar2-hash'" in admission
 
 
+def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> None:
+    checkout = WORKFLOW.index(
+        "- name: Check out the exact dispatched default-branch revision"
+    )
+    selection = WORKFLOW.index(
+        "- name: Validate explicit owner dispatch selection"
+    )
+    bridge = WORKFLOW.index(
+        "- name: Prepare exact public source and trusted control runtime"
+    )
+    assert checkout < selection < bridge
+    selection_step = WORKFLOW[selection:bridge]
+    assert "OWNER_DISPATCH_JSON" in WORKFLOW
+    assert "toJson(github.event.client_payload)" in WORKFLOW
+    assert "validate_nemo_v3_owner_dispatch.py" in selection_step
+    assert "select `" in selection_step
+    assert '--github-sha "${{ github.sha }}"' in selection_step
+    assert "rev-parse (" in selection_step
+    assert "--workflow-blob $workflowBlob" in selection_step
+    assert "--github-env $env:GITHUB_ENV" in selection_step
+    assert "job-2026-nemo-v3-governed-attempt-1" not in WORKFLOW
+    assert "38ba3100b2e20075b6ac0c3e62745c0f811de370" not in WORKFLOW
+
+
+def test_exact_bridge_and_signed_envelope_verify_before_image_pull() -> None:
+    prepare = _step(
+        "Prepare exact public source and trusted control runtime",
+        "Prefetch exact authenticated inputs without executing model code",
+    )
+    assert "fetch `" in prepare
+    assert "$env:BRIDGE_REVISION" in prepare
+    assert "checkout `" in prepare
+    assert "--detach `" in prepare
+    assert "$observed -cne $env:BRIDGE_REVISION" in prepare
+    envelope = prepare.index("verify-envelope `")
+    image_pull = prepare.index("& $docker pull $env:TRAINING_IMAGE")
+    assert envelope < image_pull
+    assert "--bridge-source $source" in prepare
+    assert '--github-sha "${{ github.sha }}"' in prepare
+    assert "--workflow-blob $env:EXPECTED_WORKFLOW_BLOB" in prepare
+
+
 def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
     prefetch = WORKFLOW.index(
         "- name: Prefetch exact authenticated inputs without executing model code"
@@ -31,10 +76,14 @@ def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
     )
     assert prefetch < claim < execute
     claim_step = WORKFLOW[claim:execute]
-    assert "[IO.FileMode]::CreateNew" in claim_step
-    assert "envelopeSha256 = $specDigest" in claim_step
-    assert '"${{ github.sha }}"' in claim_step
-    assert '"${{ github.run_attempt }}"' in claim_step
+    assert "create-claim `" in claim_step
+    assert "--bridge-source $env:BRIDGE_SOURCE" in claim_step
+    assert "--bridge-root $env:BRIDGE_ROOT" in claim_step
+    assert '--run-id "${{ github.run_id }}"' in claim_step
+    assert '--run-attempt "${{ github.run_attempt }}"' in claim_step
+    assert "os.O_EXCL" in VALIDATOR
+    assert "os.O_CREAT" in VALIDATOR
+    assert "os.fsync(descriptor)" in VALIDATOR
 
 
 def test_remote_code_step_has_no_token_or_signing_input() -> None:
@@ -65,11 +114,21 @@ def test_finalizer_binds_allowed_receipt_name_to_exact_intent_name() -> None:
     assert '--ledger (Join-Path $env:BRIDGE_ROOT "jobs\\seen.txt")' in finalizer
 
 
-def test_workflow_pins_the_merged_attempt_claim_bridge() -> None:
+def test_workflow_pins_image_and_never_dispatches_or_publishes_candidates() -> None:
     assert (
-        "BRIDGE_REVISION: 38ba3100b2e20075b6ac0c3e62745c0f811de370"
+        "unsloth/unsloth@sha256:"
+        "9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123"
         in WORKFLOW
     )
+    assert "workflow_dispatch:" not in WORKFLOW
+    assert "repository_dispatch:" in WORKFLOW
+    assert "candidateUpload" not in WORKFLOW
+    assert "modelCardUpload" not in WORKFLOW
+    assert "datasetUpload" not in WORKFLOW
+    assert "candidateUpload" in VALIDATOR
+    assert "modelCardUpload" in VALIDATOR
+    assert "datasetUpload" in VALIDATOR
+    assert "SZLHOLDINGS/szl-training-receipts" in VALIDATOR
 
 
 def test_cleanup_is_always_run_and_confined_to_runner_temp() -> None:
