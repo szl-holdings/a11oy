@@ -1,5 +1,6 @@
 """Authenticated Governed Delta Workspace API and benchmark surfaces."""
 
+import asyncio
 import hashlib
 import json
 import os
@@ -8,6 +9,8 @@ import threading
 import time
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 from fastapi import Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
@@ -37,8 +40,56 @@ _TELEMETRY = GDWTelemetry()
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _EXPERTS = {"planner", "retriever", "auditor", "verifier", "operator"}
 _AUTH_LOCK = threading.RLock()
+_SESSION_LOCKS_GUARD = threading.RLock()
+_SESSION_LOCKS = {}
 _AUTH_REGISTRY = None
 _AUTH_FINGERPRINT = None
+
+
+def _register_session_lock(key: str) -> threading.Lock:
+    with _SESSION_LOCKS_GUARD:
+        entry = _SESSION_LOCKS.get(key)
+        if entry is None:
+            entry = {"lock": threading.Lock(), "users": 0}
+            _SESSION_LOCKS[key] = entry
+        entry["users"] += 1
+        return entry["lock"]
+
+
+def _unregister_session_lock(key: str, lock: threading.Lock) -> None:
+    with _SESSION_LOCKS_GUARD:
+        entry = _SESSION_LOCKS.get(key)
+        if entry is None or entry["lock"] is not lock:
+            return
+        entry["users"] -= 1
+        if entry["users"] == 0 and not lock.locked():
+            _SESSION_LOCKS.pop(key, None)
+
+
+async def _acquire_session_lock(
+    principal: Principal,
+    session_id: str,
+) -> tuple[str, threading.Lock]:
+    key = _sha(
+        {
+            "namespace": principal.namespace,
+            "owner_id": principal.owner_id,
+            "session_id": session_id,
+        }
+    )
+    lock = _register_session_lock(key)
+    try:
+        while not lock.acquire(blocking=False):
+            await asyncio.sleep(0.01)
+    except BaseException:
+        _unregister_session_lock(key, lock)
+        raise
+    return key, lock
+
+
+def _release_session_lock(key: str, lock: threading.Lock) -> None:
+    lock.release()
+    _unregister_session_lock(key, lock)
 
 
 class GDWStepRequest(BaseModel):
@@ -267,6 +318,10 @@ def _write_readiness(
     governance_ready = _governance_ready()
     if not governance_ready:
         blockers.append("GOVERNANCE_SOURCE_UNREADY")
+    try:
+        _probe_policy_gateway()
+    except RuntimeError:
+        blockers.append("CANONICAL_POLICY_GATEWAY_UNAVAILABLE")
     return (
         not blockers,
         sorted(set(blockers)),
@@ -357,11 +412,77 @@ def _decision(payload: GDWStepRequest) -> str:
     return "ACCEPT"
 
 
-def _governance_gate(
+def _policy_gateway_origin() -> str:
+    origin = os.environ.get("GDW_POLICY_ORIGIN", "").strip().rstrip("/")
+    if not origin.startswith("https://"):
+        raise RuntimeError("GDW_POLICY_ORIGIN must be an HTTPS origin")
+    return origin
+
+
+def _probe_policy_gateway() -> None:
+    request = UrlRequest(
+        _policy_gateway_origin() + "/api/a11oy/healthz",
+        headers={"Accept": "application/json"},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=2) as response:
+            if response.status != 200:
+                raise RuntimeError("canonical policy gateway health is non-200")
+            body = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        raise RuntimeError("canonical policy gateway is unavailable") from exc
+    if not isinstance(body, dict):
+        raise RuntimeError("canonical policy gateway health is invalid")
+
+
+def _canonical_policy_evaluate(action: dict) -> dict:
+    request = UrlRequest(
+        _policy_gateway_origin() + "/api/a11oy/v1/policy/evaluate",
+        data=json.dumps(
+            {"action": action},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=10) as response:
+        if response.status != 200:
+            raise RuntimeError("canonical policy gateway returned non-200")
+        result = json.loads(response.read().decode("utf-8"))
+    receipt_hash = str(result.get("receipt_hash") or "")
+    if (
+        result.get("gate") != "ThresholdPolicySeverity"
+        or len(receipt_hash) != 64
+        or any(ch not in "0123456789abcdef" for ch in receipt_hash)
+        or result.get("receipt_signed") is not True
+        or result.get("receipts_in_eq_out") is not True
+        or result.get("receipt_error")
+    ):
+        raise RuntimeError("canonical policy response is not verifiable")
+    return result
+
+
+def _risk_severity(risk_budget: float) -> str:
+    if risk_budget < 0.25:
+        return "low"
+    if risk_budget < 0.50:
+        return "medium"
+    if risk_budget < 0.75:
+        return "high"
+    if risk_budget < 0.90:
+        return "critical"
+    return "capital"
+
+
+async def _governance_gate(
     payload_data: dict,
     request_id: str,
     request_digest: str,
     principal: Principal,
+    database_generation_id: str,
+    state_before_hash: str,
 ) -> dict:
     action = {
         "tool": "execute",
@@ -393,7 +514,8 @@ def _governance_gate(
             "decision": "DENY",
             "reason_codes": ["DOCTRINE_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
-            "writer_is_judge": True,
+            "writer_is_judge": False,
+            "enforcement_mode": "LOCAL_PRECONDITIONS_PLUS_CANONICAL_POLICY_GATEWAY",
             "principal": {
                 "owner_id": principal.owner_id,
                 "namespace": principal.namespace,
@@ -416,7 +538,8 @@ def _governance_gate(
             "decision": "DENY",
             "reason_codes": ["CODENAME_GATE_UNAVAILABLE"],
             "detail": type(exc).__name__,
-            "writer_is_judge": True,
+            "writer_is_judge": False,
+            "enforcement_mode": "LOCAL_PRECONDITIONS_PLUS_CANONICAL_POLICY_GATEWAY",
             "principal": {
                 "owner_id": principal.owner_id,
                 "namespace": principal.namespace,
@@ -436,11 +559,85 @@ def _governance_gate(
         reasons.append("DOCTRINE_POLICY_DENY")
     if codename_hits:
         reasons.append("CODENAME_POLICY_DENY")
+    policy_gateway = None
+    if not reasons:
+        source_revision = os.environ.get("SZL_GIT_SHA", "").strip()
+        if (
+            len(source_revision) != 40
+            or any(ch not in "0123456789abcdef" for ch in source_revision)
+        ):
+            reasons.append("RUNTIME_IDENTITY_UNAVAILABLE")
+        else:
+            binding = {
+                "schema": "szl.gdw.authorization-binding/v1",
+                "action_type": "gdw.step",
+                "database_generation_id": database_generation_id,
+                "namespace": principal.namespace,
+                "owner_id": principal.owner_id,
+                "credential_key_id": principal.key_id,
+                "request_id": request_id,
+                "request_digest": request_digest,
+                "session_id": payload_data["session_id"],
+                "state_before_hash": state_before_hash,
+            }
+            binding_sha256 = _sha(binding)
+            gateway_action = {
+                "actionId": f"gdw:{binding_sha256}",
+                "severity": _risk_severity(float(payload_data["risk_budget"])),
+                "decisionClass": "ordinary",
+                "confidence": 1.0,
+                "witnesses": [
+                    {
+                        "id": (
+                            f"principal:{principal.namespace}:"
+                            f"{principal.owner_id}:{principal.key_id}"
+                        ),
+                        "role": "operator",
+                        "attested": True,
+                    },
+                    {
+                        "id": (
+                            "workload:szl-holdings/a11oy@"
+                            f"{source_revision}"
+                        ),
+                        "role": "workload",
+                        "attested": True,
+                    },
+                ],
+            }
+            try:
+                result = await asyncio.to_thread(
+                    _canonical_policy_evaluate,
+                    gateway_action,
+                )
+                policy_gateway = {
+                    "decision": str(result.get("decision") or "").upper(),
+                    "gate": result["gate"],
+                    "receipt_hash": result["receipt_hash"],
+                    "receipt_signed": True,
+                    "receipts_in_eq_out": True,
+                    "binding_sha256": binding_sha256,
+                    "action_id": gateway_action["actionId"],
+                    "source_revision": source_revision,
+                    "witnesses": gateway_action["witnesses"],
+                }
+                if result.get("decision") != "allow":
+                    reasons.append("CANONICAL_POLICY_DENY")
+            except Exception as exc:
+                reasons.append("CANONICAL_POLICY_GATEWAY_UNAVAILABLE")
+                policy_gateway = {
+                    "decision": "UNAVAILABLE",
+                    "detail": type(exc).__name__,
+                }
     return {
         "allowed": not reasons,
         "decision": "ALLOW" if not reasons else "DENY",
-        "reason_codes": reasons or ["FILE_BACKED_GOVERNANCE_PASS"],
-        "writer_is_judge": True,
+        "reason_codes": reasons or [
+            "FILE_BACKED_GOVERNANCE_PASS",
+            "CANONICAL_POLICY_GATEWAY_PASS",
+        ],
+        "writer_is_judge": False,
+        "enforcement_mode": "LOCAL_PRECONDITIONS_PLUS_CANONICAL_POLICY_GATEWAY",
         "principal": {
             "owner_id": principal.owner_id,
             "namespace": principal.namespace,
@@ -457,6 +654,7 @@ def _governance_gate(
             "clean": not codename_hits,
             "hits": codename_hits,
         },
+        "policy_gateway": policy_gateway,
     }
 
 
@@ -663,9 +861,96 @@ def register(app, ns: str = "a11oy"):
         decision = "ERROR"
         receipt_hash = ""
 
+        lock_key, session_lock = await _acquire_session_lock(
+            principal, payload.session_id
+        )
         try:
             workspace = _workspace(principal)
             with workspace.transaction() as connection:
+                integrity = workspace.integrity(
+                    global_scope=True,
+                    connection=connection,
+                )
+                if not integrity["ok"]:
+                    raise GDWConfigurationError(
+                        "GDW workspace integrity gate is closed"
+                    )
+            workspace.collect_garbage(limit=10_000)
+            authorised_generation_id = workspace.database_generation_id
+            with workspace.transaction() as connection:
+                integrity = workspace.integrity(
+                    global_scope=True,
+                    connection=connection,
+                )
+                if not integrity["ok"]:
+                    raise GDWConfigurationError(
+                        "GDW workspace integrity gate is closed"
+                    )
+                cached = workspace.cached_request(connection, request_id)
+                if cached is not None:
+                    cached_digest, cached_response = cached
+                    if cached_digest != request_digest:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="X-Request-Id was already used with different content",
+                        )
+                    current_bundle = _policy_bundle_sha256()
+                    cached_bundle = (
+                        cached_response.get("audit", {})
+                        .get("governance", {})
+                        .get("colang", {})
+                        .get("bundle_sha256")
+                    )
+                    if not current_bundle or cached_bundle != current_bundle:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="policy snapshot changed; replay refused",
+                        )
+                    cached_response["replayed"] = True
+                    selected_mode = cached_response["scheduler_mode"]
+                    decision = cached_response["decision"]
+                    receipt_hash = cached_response.get("receipt_hash") or ""
+                    _TELEMETRY.observe(
+                        (time.perf_counter() - started) * 1000.0,
+                        decision,
+                        selected_mode,
+                        False,
+                    )
+                    return cached_response
+                authorised_previous = workspace.session_state(
+                    connection,
+                    payload.session_id,
+                )
+                if authorised_previous is None:
+                    authorised_state_hash = _sha(
+                        {
+                            "namespace": principal.namespace,
+                            "owner_id": principal.owner_id,
+                            "session_id": payload.session_id,
+                            "step": 0,
+                            "state": "GENESIS",
+                        }
+                    )
+                else:
+                    authorised_state_hash = authorised_previous["state_hash"]
+            precondition_decision = _decision(payload)
+            governance = await _governance_gate(
+                payload_data,
+                request_id,
+                request_digest,
+                principal,
+                authorised_generation_id,
+                authorised_state_hash,
+            )
+            with workspace.transaction() as connection:
+                integrity = workspace.integrity(
+                    global_scope=True,
+                    connection=connection,
+                )
+                if not integrity["ok"]:
+                    raise GDWConfigurationError(
+                        "GDW workspace integrity gate is closed"
+                    )
                 cached = workspace.cached_request(connection, request_id)
                 if cached is not None:
                     cached_digest, cached_response = cached
@@ -713,6 +998,15 @@ def register(app, ns: str = "a11oy"):
                 else:
                     before_step = previous["step"]
                     before_hash = previous["state_hash"]
+                if (
+                    workspace.database_generation_id
+                    != authorised_generation_id
+                    or before_hash != authorised_state_hash
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="state changed after governance authorization",
+                    )
 
                 features = AttentionFeatures(
                     novelty=payload.novelty
@@ -729,10 +1023,6 @@ def register(app, ns: str = "a11oy"):
                 )
                 routing = choose_attention_mode(features, payload.mode_hint)
                 selected_mode = routing["mode"]
-                precondition_decision = _decision(payload)
-                governance = _governance_gate(
-                    payload_data, request_id, request_digest, principal
-                )
                 decision = precondition_decision
                 if decision == "ACCEPT" and not governance["allowed"]:
                     decision = "REJECT"
@@ -960,6 +1250,8 @@ def register(app, ns: str = "a11oy"):
                 status_code=500,
                 detail=f"GDW transition failed closed: {type(exc).__name__}",
             ) from exc
+        finally:
+            _release_session_lock(lock_key, session_lock)
 
     return {
         "ok": True,
