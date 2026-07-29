@@ -2003,6 +2003,56 @@ class GDWWorkspace:
                 )
         return claimed
 
+    def requeue_legacy_link_failures(
+        self,
+        *,
+        limit: int = 1_000,
+        now: Optional[Any] = None,
+    ) -> int:
+        """Make only legacy unsupported-hard-link failures eligible now."""
+
+        bounded = max(1, min(int(limit), 10_000))
+        current = _text_time(now)
+        # Before the locked-rename publisher existed, Linux durable mounts
+        # stored the exhausted os.link() error with the hidden stage name.
+        # The new renameat2 failure path never includes that stage name, so a
+        # broken replacement capability retains normal exponential backoff.
+        legacy_error = "OSError: [Errno 95]%.gdw-artifact-%"
+        with self.transaction() as connection:
+            rows = connection.execute(
+                """
+                SELECT namespace, owner_id, idempotency_key
+                FROM effect_outbox
+                WHERE status = 'PENDING' AND attempts < max_attempts
+                  AND next_attempt_at > ? AND last_error LIKE ?
+                ORDER BY next_attempt_at, created_at, idempotency_key
+                LIMIT ?
+                """,
+                (current, legacy_error, bounded),
+            ).fetchall()
+            requeued = 0
+            for row in rows:
+                updated = connection.execute(
+                    """
+                    UPDATE effect_outbox
+                    SET next_attempt_at = ?
+                    WHERE namespace = ? AND owner_id = ?
+                      AND idempotency_key = ? AND status = 'PENDING'
+                      AND attempts < max_attempts AND next_attempt_at > ?
+                      AND last_error LIKE ?
+                    """,
+                    (
+                        current,
+                        row["namespace"],
+                        row["owner_id"],
+                        row["idempotency_key"],
+                        current,
+                        legacy_error,
+                    ),
+                )
+                requeued += int(updated.rowcount)
+        return requeued
+
     def assert_effect_claim(
         self,
         idempotency_key: str,

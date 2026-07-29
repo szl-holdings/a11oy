@@ -233,6 +233,9 @@ def prepare_runtime(
                 )
         finally:
             connection.close()
+        legacy_link_failures_requeued = (
+            workspace.requeue_legacy_link_failures(now=_now())
+        )
         observed = {
             **contract,
             "journal_mode_observed": selected,
@@ -241,6 +244,9 @@ def prepare_runtime(
             "schema_version": workspace.schema_version(),
             "database_generation_id": workspace.database_generation_id,
             "workspace_path": str(workspace.path),
+            "legacy_link_failures_requeued": (
+                legacy_link_failures_requeued
+            ),
         }
     except GDWRuntimeError:
         raise
