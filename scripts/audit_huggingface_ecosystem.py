@@ -366,16 +366,27 @@ def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     """Return the stable public-estate contract used by ``--check``.
 
     ``observedAt``, ``sha``, and ``lastModified`` remain truthful snapshot
-    evidence in the checked-in file. ``cardSemanticSha256`` remains in this
-    comparison, so a card-only claim change fails closed even when the estate
-    membership is unchanged. Later source-only revisions do not make unrelated
-    pull requests flaky. A write refreshes the snapshot fields.
+    evidence in the checked-in file. Hugging Face's content-derived dataset
+    ``size_categories:*`` and ``modality:*`` tags are also excluded because
+    append-only source revisions can change them without changing repository
+    governance. ``cardSemanticSha256`` and all curated tags remain in this
+    comparison, so claim or policy drift still fails closed. A write refreshes
+    every snapshot field.
     """
     stable = json.loads(json.dumps(manifest))
     for repo_type in ("models", "datasets", "spaces"):
         for item in stable.get("inventory", {}).get(repo_type, []):
             item.pop("sha", None)
             item.pop("lastModified", None)
+            if repo_type == "datasets" and isinstance(item.get("tags"), list):
+                item["tags"] = [
+                    tag
+                    for tag in item["tags"]
+                    if not (
+                        isinstance(tag, str)
+                        and tag.startswith(("size_categories:", "modality:"))
+                    )
+                ]
     return stable
 
 
@@ -450,7 +461,13 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "authenticated": False,
             "privateAssetsIncluded": False,
             "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-            "revisionFields": "Every item has sha and lastModified snapshot evidence plus a cardSemanticSha256 claim digest at observedAt; --check verifies retained revisions, rejects card drift, and ignores only complete, valid later source-only revision changes.",
+            "revisionFields": (
+                "Every item has sha and lastModified snapshot evidence plus a "
+                "cardSemanticSha256 claim digest at observedAt; --check verifies "
+                "retained revisions, rejects card and curated-tag drift, and "
+                "ignores only complete, valid later source-only revision changes "
+                "and Hugging Face-generated dataset size/modality tags."
+            ),
         },
         "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",
         "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",

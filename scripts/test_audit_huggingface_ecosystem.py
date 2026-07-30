@@ -213,6 +213,11 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "spaces": [item("SZLHOLDINGS/space")],
         }
         audit.api_items = lambda kind: fixtures[kind]
+        fixtures["datasets"][0]["tags"] = [
+            "size_categories:n<1K",
+            "modality:text",
+            "governed-live",
+        ]
         audit.fetch_revision = lambda item_id, repo_type, revision: {
             "id": item_id,
             "sha": revision,
@@ -226,7 +231,15 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             self.assertEqual(self.run_check(output)[0], 0)
             fixtures["datasets"][0]["sha"] = "b" * 40
             fixtures["datasets"][0]["lastModified"] = "2026-07-26T00:30:00Z"
+            fixtures["datasets"][0]["tags"] = [
+                "size_categories:1K<n<10K",
+                "modality:tabular",
+                "governed-live",
+            ]
             self.assertEqual(self.run_check(output)[0], 0)
+            fixtures["datasets"][0]["tags"][-1] = "unreviewed"
+            self.assertEqual(self.run_check(output)[0], 1)
+            fixtures["datasets"][0]["tags"][-1] = "governed-live"
             fixtures["models"].append(item("SZLHOLDINGS/new-model"))
             self.assertEqual(self.run_check(output)[0], 1)
 

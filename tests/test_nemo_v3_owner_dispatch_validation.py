@@ -27,6 +27,17 @@ BRIDGE_SHA = "b" * 40
 ENVELOPE_HASH = "c" * 64
 PAYLOAD_HASH = "d" * 64
 JOB_ID = "job-2026-nemo-v3-governed-attempt-2"
+ACTIVE_OWNER_KEY_ID = "b8041281c81c4caa"
+ACTIVE_OWNER_SPKI_BASE64 = (
+    "MCowBQYDK2VwAyEAstuDm9wVQ7BrOuBRmIyEHsOtyOutChFfRvCDenCDB6c="
+)
+ACTIVE_OWNER_SPKI_SHA256 = (
+    "b8041281c81c4caaea18112df5e8c99ea8472f0711fc796fc3072c27398af2cf"
+)
+RETIRED_OWNER_KEY_ID = "5c6cf59741ade920"
+RETIRED_OWNER_SPKI_BASE64 = (
+    "MCowBQYDK2VwAyEArBOmZZSDK+n7Qq1HJYbqNuX9YymnsRWbzSGHHnhsERM="
+)
 
 
 def _workflow(tmp_path: Path) -> Path:
@@ -209,6 +220,20 @@ def _verify(
     )
 
 
+def test_active_owner_key_pin_is_exact_and_self_authenticating() -> None:
+    spki = base64.b64decode(ACTIVE_OWNER_SPKI_BASE64, validate=True)
+
+    assert dispatch_validator.OWNER_KEY_ID == ACTIVE_OWNER_KEY_ID
+    assert (
+        dispatch_validator.OWNER_PUBLIC_KEY_SPKI_BASE64
+        == ACTIVE_OWNER_SPKI_BASE64
+    )
+    assert spki.startswith(dispatch_validator.ED25519_SPKI_PREFIX)
+    assert len(spki) == len(dispatch_validator.ED25519_SPKI_PREFIX) + 32
+    assert hashlib.sha256(spki).hexdigest() == ACTIVE_OWNER_SPKI_SHA256
+    assert ACTIVE_OWNER_SPKI_SHA256[:16] == ACTIVE_OWNER_KEY_ID
+
+
 def test_valid_owner_dispatch_verifies_exact_signature_and_hashes(
     tmp_path: Path,
 ) -> None:
@@ -230,6 +255,43 @@ def test_valid_owner_dispatch_verifies_exact_signature_and_hashes(
     assert evidence.envelope_sha256 == selection.envelope_sha256
     assert evidence.payload_sha256 == selection.payload_sha256
     assert evidence.workflow_blob == selection.workflow_blob
+
+
+def test_retired_owner_key_is_rejected_by_default(tmp_path: Path) -> None:
+    (
+        _workflow_path,
+        bridge_source,
+        _dispatch_payload,
+        selection,
+        _private_key,
+        _spki_base64,
+        _key_id,
+    ) = _valid_case(tmp_path)
+    envelope_path = (
+        bridge_source / "queue" / "pending" / f"{JOB_ID}.json"
+    )
+    envelope = json.loads(envelope_path.read_text(encoding="utf-8"))
+    envelope["publicKeySpkiBase64"] = RETIRED_OWNER_SPKI_BASE64
+    envelope["signatures"][0]["keyid"] = RETIRED_OWNER_KEY_ID
+    envelope_bytes = (
+        json.dumps(envelope, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    envelope_path.write_bytes(envelope_bytes)
+    selection = dispatch_validator.DispatchSelection(
+        **{
+            **selection.__dict__,
+            "envelope_sha256": hashlib.sha256(envelope_bytes).hexdigest(),
+        }
+    )
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="public key is not the pinned owner key",
+    ):
+        dispatch_validator.verify_owner_envelope(
+            selection,
+            bridge_source=bridge_source,
+        )
 
 
 @pytest.mark.parametrize("missing", sorted(dispatch_validator._DISPATCH_FIELDS))

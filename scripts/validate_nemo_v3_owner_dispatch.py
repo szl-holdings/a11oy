@@ -44,10 +44,14 @@ RECEIPTS_REPOSITORY = "SZLHOLDINGS/szl-training-receipts"
 QUARANTINED_JOB_ID = "job-2026-nemo-v3-governed-attempt-1"
 QUARANTINED_BRIDGE_REVISION = "38ba3100b2e20075b6ac0c3e62745c0f811de370"
 
-# This is the public Ed25519 owner-engine key already pinned by the bridge.
-OWNER_KEY_ID = "5c6cf59741ade920"
+# This is the active public Ed25519 owner-engine key. Its private key remains
+# outside the repository under the owner-controlled offline credential
+# boundary. The prior key is intentionally not admitted for new dispatches
+# after its signing material became unavailable; historical verification is a
+# bridge-ledger concern.
+OWNER_KEY_ID = "b8041281c81c4caa"
 OWNER_PUBLIC_KEY_SPKI_BASE64 = (
-    "MCowBQYDK2VwAyEArBOmZZSDK+n7Qq1HJYbqNuX9YymnsRWbzSGHHnhsERM="
+    "MCowBQYDK2VwAyEAstuDm9wVQ7BrOuBRmIyEHsOtyOutChFfRvCDenCDB6c="
 )
 ED25519_SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
