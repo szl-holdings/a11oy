@@ -480,6 +480,51 @@ def test_passport_blocks_unknown_evidence_and_writes_signed_or_honestly_unsigned
     }
 
 
+def test_receipt_readback_honors_bounded_limit_without_caching(
+    tmp_path: Path,
+) -> None:
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    appended = [
+        service.store.append_receipt(
+            "test.receipt",
+            {"index": index},
+            service.signer,
+        )
+        for index in range(60)
+    ]
+
+    with TestClient(value) as client:
+        default = client.get("/api/a11oy/v1/series-a/receipts")
+        expanded = client.get(
+            "/api/a11oy/v1/series-a/receipts?limit=200"
+        )
+        head = client.head(
+            "/api/a11oy/v1/series-a/receipts?limit=200"
+        )
+        duplicate = client.get(
+            "/api/a11oy/v1/series-a/receipts?limit=50&limit=200"
+        )
+        invalid = client.get(
+            "/api/a11oy/v1/series-a/receipts?limit=201"
+        )
+
+    assert default.status_code == 200
+    assert default.json()["limit"] == 50
+    assert len(default.json()["items"]) == 50
+    assert expanded.status_code == 200
+    assert expanded.headers["cache-control"] == "no-store"
+    assert expanded.json()["limit"] == 200
+    assert len(expanded.json()["items"]) == 60
+    assert appended[0]["receipt_hash"] in {
+        item["receipt_hash"] for item in expanded.json()["items"]
+    }
+    assert head.status_code == 200
+    assert head.headers["cache-control"] == "no-store"
+    assert duplicate.status_code == 400
+    assert invalid.status_code == 422
+
+
 def test_allow_passport_is_one_attempt(tmp_path: Path) -> None:
     value = app(tmp_path)
     service = value.state.szl_series_a_service
