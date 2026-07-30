@@ -282,6 +282,8 @@ def validate_restart(
         raise RestartProofError("signing source changed across restart")
     if before.get("public_key_sha256") != after.get("public_key_sha256"):
         raise RestartProofError("public signing identity changed across restart")
+    if before.get("database") != after.get("database"):
+        raise RestartProofError("database path changed across restart")
     before_storage = before.get("storage")
     after_storage = after.get("storage")
     if not isinstance(before_storage, Mapping) or not isinstance(
@@ -305,54 +307,57 @@ def validate_restart(
         raise RestartProofError("pre-restart receipt-chain head was not recovered")
 
 
-def receipt_hashes(
+def recovery_capture(
     payload: Mapping[str, Any],
     *,
+    expected_source: str,
     expected_head: str,
     expected_sequence: int,
-) -> set[str]:
-    if payload.get("schema") != "szl.series-a-receipts/v1":
-        raise RestartProofError("receipt recovery schema is invalid")
-    if payload.get("limit") != 200:
-        raise RestartProofError("receipt recovery did not honor the bounded limit")
-    items = payload.get("items")
-    if not isinstance(items, list) or len(items) > 200:
-        raise RestartProofError("receipt recovery page is invalid")
-
-    hashes: set[str] = set()
-    recovered: Mapping[str, Any] | None = None
-    for item in items:
-        if not isinstance(item, Mapping):
-            raise RestartProofError("receipt recovery item is invalid")
-        digest = str(item.get("receipt_hash") or "")
-        if RECEIPT_HASH.fullmatch(digest) is None or digest in hashes:
-            raise RestartProofError("receipt recovery hash set is invalid")
-        hashes.add(digest)
-        if digest == expected_head:
-            recovered = item
-
-    if recovered is not None:
-        if recovered.get("sequence") != expected_sequence:
-            raise RestartProofError(
-                "recovered receipt sequence does not match the pre-restart head"
-            )
-        envelope = recovered.get("envelope")
-        if not isinstance(envelope, Mapping):
-            raise RestartProofError("recovered receipt envelope is absent")
-        envelope_hash = hashlib.sha256(
-            json.dumps(
-                envelope,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            ).encode("utf-8")
-        ).hexdigest()
-        if envelope_hash != expected_head:
-            raise RestartProofError(
-                "recovered receipt envelope does not match its hash"
-            )
-    return hashes
+) -> dict[str, Any]:
+    if payload.get("schema") != "szl.series-a-receipt-recovery/v1":
+        raise RestartProofError("exact receipt recovery schema is invalid")
+    if str(payload.get("source_revision") or "").lower() != expected_source:
+        raise RestartProofError("exact receipt recovery source is invalid")
+    if payload.get("signing_key_source") != EXPECTED_SIGNER:
+        raise RestartProofError("exact receipt recovery signer is invalid")
+    if RECEIPT_HASH.fullmatch(
+        str(payload.get("public_key_sha256") or "")
+    ) is None:
+        raise RestartProofError("exact receipt recovery key hash is invalid")
+    storage = payload.get("storage")
+    item = payload.get("item")
+    if not isinstance(storage, Mapping) or not isinstance(item, Mapping):
+        raise RestartProofError("exact receipt recovery record is incomplete")
+    if item.get("receipt_hash") != expected_head:
+        raise RestartProofError("exact receipt recovery returned the wrong hash")
+    if item.get("sequence") != expected_sequence:
+        raise RestartProofError(
+            "recovered receipt sequence does not match the pre-restart head"
+        )
+    envelope = item.get("envelope")
+    if not isinstance(envelope, Mapping):
+        raise RestartProofError("recovered receipt envelope is absent")
+    envelope_hash = hashlib.sha256(
+        json.dumps(
+            envelope,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    if envelope_hash != expected_head:
+        raise RestartProofError(
+            "recovered receipt envelope does not match its hash"
+        )
+    return {
+        "source_revision": expected_source,
+        "runtime_boot_id": payload.get("runtime_boot_id"),
+        "signing_key_source": payload.get("signing_key_source"),
+        "public_key_sha256": payload.get("public_key_sha256"),
+        "database": payload.get("database"),
+        "storage": dict(storage),
+    }
 
 
 def await_receipt_recovery(
@@ -383,26 +388,22 @@ def await_receipt_recovery(
     current_after = dict(after)
     for attempt in range(max(1, attempts)):
         try:
-            if attempt:
-                current_after = capture(
-                    session,
-                    origin,
-                    source_sha,
-                    deadline,
-                )
             payload = _json(
                 session.get(
-                    origin + "/api/a11oy/v1/series-a/receipts?limit=200",
+                    origin
+                    + "/api/a11oy/v1/series-a/receipts/"
+                    + expected_head,
                     timeout=_remaining_timeout(deadline, 60),
                 )
             )
             _check_deadline(deadline)
-            hashes = receipt_hashes(
+            current_after = recovery_capture(
                 payload,
+                expected_source=source_sha,
                 expected_head=expected_head,
                 expected_sequence=expected_sequence,
             )
-            validate_restart(before, current_after, hashes)
+            validate_restart(before, current_after, {expected_head})
             return current_after
         except Exception as exc:  # noqa: BLE001 - bounded recovery polling
             last_error = exc

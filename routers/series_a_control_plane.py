@@ -482,6 +482,62 @@ class Store:
             for row in rows
         ]
 
+    def receipt_recovery_snapshot(
+        self,
+        receipt_hash: str,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        # Keep status and exact-hash lookup in one SQLite read transaction so a
+        # restart proof cannot combine evidence from different storage views.
+        with self.lock, self.connect() as db:
+            db.execute("BEGIN")
+            metadata = {
+                row["key"]: row["value"]
+                for row in db.execute(
+                    "SELECT key,value FROM metadata ORDER BY key"
+                ).fetchall()
+            }
+            receipt = db.execute(
+                """SELECT COUNT(*) AS count,
+                          COALESCE(MAX(sequence), 0) AS last_sequence
+                   FROM receipts"""
+            ).fetchone()
+            head = db.execute(
+                "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
+            ).fetchone()
+            row = db.execute(
+                """SELECT sequence,kind,payload,envelope,receipt_hash,created_at
+                   FROM receipts
+                   WHERE receipt_hash=?""",
+                (receipt_hash,),
+            ).fetchone()
+        storage = {
+            "persistence_required": self.persistent_required,
+            "required_mount": self.required_mount or None,
+            "mount_verified": bool(
+                self.required_mount
+                and os.path.ismount(str(Path(self.required_mount).resolve()))
+            ),
+            "journal_mode": self.journal_mode,
+            "instance_id": metadata.get("storage_instance_id"),
+            "created_at": metadata.get("storage_created_at"),
+            "receipt_count": int(receipt["count"]),
+            "last_receipt_sequence": int(receipt["last_sequence"]),
+            "chain_head": head["receipt_hash"] if head else None,
+        }
+        item = (
+            {
+                "sequence": row["sequence"],
+                "kind": row["kind"],
+                "receipt": json.loads(row["payload"]),
+                "envelope": json.loads(row["envelope"]),
+                "receipt_hash": row["receipt_hash"],
+                "created_at": row["created_at"],
+            }
+            if row is not None
+            else None
+        )
+        return storage, item
+
     def save_snapshot(self, manifest: Mapping[str, Any], envelope: Mapping[str, Any]) -> str:
         digest = _sha(manifest)
         with self.lock, self.connect() as db:
@@ -1777,6 +1833,42 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
             headers={"cache-control": "no-store"},
         )
 
+    async def receipt_recovery(request: Request) -> Response:
+        digest = str(request.path_params.get("receipt_hash") or "")
+        if len(digest) != 64 or any(
+            char not in "0123456789abcdef" for char in digest
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="receipt hash must be 64 lowercase hex characters",
+            )
+        storage, item = service.store.receipt_recovery_snapshot(digest)
+        if item is None:
+            raise HTTPException(
+                status_code=404,
+                detail="receipt hash is not present in this storage view",
+            )
+        if request.method == "HEAD":
+            return Response(
+                status_code=200,
+                media_type="application/json",
+                headers={"cache-control": "no-store"},
+            )
+        public_key = (service.signer.public_pem or "").encode("utf-8")
+        return JSONResponse(
+            {
+                "schema": "szl.series-a-receipt-recovery/v1",
+                "source_revision": _git_revision(),
+                "runtime_boot_id": service.runtime_boot_id,
+                "signing_key_source": service.signer.source,
+                "public_key_sha256": hashlib.sha256(public_key).hexdigest(),
+                "database": service.store.path,
+                "storage": storage,
+                "item": item,
+            },
+            headers={"cache-control": "no-store"},
+        )
+
     async def trust(request: Request) -> Response:
         if request.method == "HEAD":
             return Response(status_code=200, media_type="application/json")
@@ -1833,6 +1925,11 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
             ["GET", "HEAD"],
         ),
         (f"{prefix}/receipts", receipts, ["GET", "HEAD"]),
+        (
+            f"{prefix}/receipts/{{receipt_hash}}",
+            receipt_recovery,
+            ["GET", "HEAD"],
+        ),
         (f"{prefix}/trust", trust, ["GET", "HEAD"]),
         (f"{prefix}/public-key", public_key, ["GET", "HEAD"]),
         (f"{prefix}/events", events, ["GET"]),
