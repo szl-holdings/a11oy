@@ -23,8 +23,8 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 
-DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v2"
-WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v2"
+DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v3"
+WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v3"
 WORKFLOW_RELATIVE_PATH = (
     ".github/workflows/nemo-v3-isolated-owner-dispatch.yml"
 )
@@ -66,7 +66,7 @@ _POSITIVE_INTEGER = re.compile(r"^[1-9][0-9]*$")
 _DISPATCH_FIELDS = {
     "contractVersion",
     "jobId",
-    "bridgeRevision",
+    "envelopeRevision",
     "envelopeSha256",
     "payloadSha256",
     "sourceRevision",
@@ -113,7 +113,7 @@ class DispatchValidationError(ValueError):
 class DispatchSelection:
     contract_version: str
     job_id: str
-    bridge_revision: str
+    envelope_revision: str
     envelope_sha256: str
     payload_sha256: str
     source_revision: str
@@ -127,7 +127,8 @@ class DispatchSelection:
 @dataclass(frozen=True)
 class EnvelopeEvidence:
     job_id: str
-    bridge_revision: str
+    envelope_revision: str
+    execution_bridge_revision: str
     source_revision: str
     envelope_sha256: str
     payload_sha256: str
@@ -255,12 +256,12 @@ def validate_dispatch(
     if job_id == QUARANTINED_JOB_ID:
         raise DispatchValidationError("quarantined attempt-1 cannot be selected")
 
-    bridge_revision = _full_sha(
-        dispatch["bridgeRevision"], "client_payload.bridgeRevision"
+    envelope_revision = _full_sha(
+        dispatch["envelopeRevision"], "client_payload.envelopeRevision"
     )
-    if bridge_revision == QUARANTINED_BRIDGE_REVISION:
+    if envelope_revision == QUARANTINED_BRIDGE_REVISION:
         raise DispatchValidationError(
-            "the quarantined attempt-1 bridge revision cannot be selected"
+            "the quarantined attempt-1 envelope revision cannot be selected"
         )
 
     if (
@@ -304,7 +305,7 @@ def validate_dispatch(
     return DispatchSelection(
         contract_version=DISPATCH_CONTRACT_VERSION,
         job_id=job_id,
-        bridge_revision=bridge_revision,
+        envelope_revision=envelope_revision,
         envelope_sha256=_sha256(
             dispatch["envelopeSha256"], "client_payload.envelopeSha256"
         ),
@@ -377,10 +378,10 @@ def _verify_ed25519(
 
 
 def _envelope_path(
-    bridge_source: pathlib.Path,
+    envelope_source: pathlib.Path,
     job_id: str,
 ) -> pathlib.Path:
-    source = bridge_source.resolve(strict=True)
+    source = envelope_source.resolve(strict=True)
     pending = (source / "queue" / "pending").resolve(strict=True)
     try:
         pending.relative_to(source)
@@ -409,11 +410,11 @@ def _envelope_path(
 def verify_owner_envelope(
     selection: DispatchSelection,
     *,
-    bridge_source: pathlib.Path,
+    envelope_source: pathlib.Path,
     owner_key_id: str = OWNER_KEY_ID,
     owner_spki_base64: str = OWNER_PUBLIC_KEY_SPKI_BASE64,
 ) -> EnvelopeEvidence:
-    envelope_path = _envelope_path(bridge_source, selection.job_id)
+    envelope_path = _envelope_path(envelope_source, selection.job_id)
     envelope_bytes = envelope_path.read_bytes()
     observed_envelope_hash = hashlib.sha256(envelope_bytes).hexdigest()
     if observed_envelope_hash != selection.envelope_sha256:
@@ -548,9 +549,24 @@ def verify_owner_envelope(
             "signed successor lineage does not bind the retired attempt"
         )
 
+    authorization = spec.get("authorization")
+    if not isinstance(authorization, dict):
+        raise DispatchValidationError(
+            "signed successor payload must carry execution authorization"
+        )
+    execution_bridge_revision = _full_sha(
+        authorization.get("correctedBridgeRevision"),
+        "signed payload authorization.correctedBridgeRevision",
+    )
+    if execution_bridge_revision == QUARANTINED_BRIDGE_REVISION:
+        raise DispatchValidationError(
+            "signed payload selects the quarantined attempt-1 bridge revision"
+        )
+
     return EnvelopeEvidence(
         job_id=selection.job_id,
-        bridge_revision=selection.bridge_revision,
+        envelope_revision=selection.envelope_revision,
+        execution_bridge_revision=execution_bridge_revision,
         source_revision=selection.source_revision,
         envelope_sha256=observed_envelope_hash,
         payload_sha256=observed_payload_hash,
@@ -561,17 +577,10 @@ def verify_owner_envelope(
     )
 
 
-def write_github_env(
-    selection: DispatchSelection,
+def _append_github_env(
+    values: dict[str, str],
     destination: pathlib.Path,
 ) -> None:
-    values = {
-        "JOB_ID": selection.job_id,
-        "BRIDGE_REVISION": selection.bridge_revision,
-        "EXPECTED_ENVELOPE_SHA256": selection.envelope_sha256,
-        "EXPECTED_PAYLOAD_SHA256": selection.payload_sha256,
-        "EXPECTED_WORKFLOW_BLOB": selection.workflow_blob,
-    }
     for key, value in values.items():
         if "\r" in value or "\n" in value:
             raise DispatchValidationError(
@@ -580,6 +589,35 @@ def write_github_env(
     with destination.open("a", encoding="utf-8", newline="\n") as handle:
         for key, value in values.items():
             handle.write(f"{key}={value}\n")
+
+
+def write_github_env(
+    selection: DispatchSelection,
+    destination: pathlib.Path,
+) -> None:
+    _append_github_env(
+        {
+        "JOB_ID": selection.job_id,
+        "ENVELOPE_REVISION": selection.envelope_revision,
+        "EXPECTED_ENVELOPE_SHA256": selection.envelope_sha256,
+        "EXPECTED_PAYLOAD_SHA256": selection.payload_sha256,
+        "EXPECTED_WORKFLOW_BLOB": selection.workflow_blob,
+        },
+        destination,
+    )
+
+
+def write_verified_github_env(
+    evidence: EnvelopeEvidence,
+    destination: pathlib.Path,
+) -> None:
+    _append_github_env(
+        {
+            "EXECUTION_BRIDGE_REVISION": evidence.execution_bridge_revision,
+            "ENGINE_KEY_ID": evidence.owner_key_id,
+        },
+        destination,
+    )
 
 
 def create_new_claim(
@@ -599,8 +637,9 @@ def create_new_claim(
     control_root.mkdir(parents=True, exist_ok=True)
     claim_path = control_root / f"{selection.job_id}-attempt.claim.json"
     claim = {
-        "bridgeRevision": selection.bridge_revision,
+        "bridgeRevision": evidence.execution_bridge_revision,
         "dispatchedRevision": selection.source_revision,
+        "envelopeRevision": selection.envelope_revision,
         "envelopeSha256": evidence.envelope_sha256,
         "jobId": selection.job_id,
         "payloadSha256": evidence.payload_sha256,
@@ -674,11 +713,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify = subparsers.add_parser("verify-envelope")
     _add_selection_arguments(verify)
-    verify.add_argument("--bridge-source", type=pathlib.Path, required=True)
+    verify.add_argument("--envelope-source", type=pathlib.Path, required=True)
+    verify.add_argument("--github-env", type=pathlib.Path, required=True)
 
     claim = subparsers.add_parser("create-claim")
     _add_selection_arguments(claim)
-    claim.add_argument("--bridge-source", type=pathlib.Path, required=True)
+    claim.add_argument("--envelope-source", type=pathlib.Path, required=True)
     claim.add_argument("--bridge-root", type=pathlib.Path, required=True)
     claim.add_argument("--run-id", required=True)
     claim.add_argument("--run-attempt", required=True)
@@ -695,10 +735,12 @@ def main(argv: list[str] | None = None) -> int:
         else:
             evidence = verify_owner_envelope(
                 selection,
-                bridge_source=args.bridge_source,
+                envelope_source=args.envelope_source,
             )
             report = {"selection": asdict(selection), "evidence": asdict(evidence)}
-            if args.command == "create-claim":
+            if args.command == "verify-envelope":
+                write_verified_github_env(evidence, args.github_env)
+            else:
                 claim_path = create_new_claim(
                     selection,
                     evidence,

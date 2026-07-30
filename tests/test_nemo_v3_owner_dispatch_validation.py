@@ -24,6 +24,7 @@ SPEC.loader.exec_module(dispatch_validator)
 
 SOURCE_SHA = "a" * 40
 BRIDGE_SHA = "b" * 40
+ENVELOPE_SHA = "e" * 40
 ENVELOPE_HASH = "c" * 64
 PAYLOAD_HASH = "d" * 64
 JOB_ID = "job-2026-nemo-v3-governed-attempt-2"
@@ -56,7 +57,7 @@ def _dispatch(workflow: Path, **overrides: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "contractVersion": dispatch_validator.DISPATCH_CONTRACT_VERSION,
         "jobId": JOB_ID,
-        "bridgeRevision": BRIDGE_SHA,
+        "envelopeRevision": ENVELOPE_SHA,
         "envelopeSha256": ENVELOPE_HASH,
         "payloadSha256": PAYLOAD_HASH,
         "sourceRevision": SOURCE_SHA,
@@ -101,6 +102,9 @@ def _payload(dispatch: dict[str, Any]) -> dict[str, Any]:
             "receiptsRepoId": dispatch["receiptsRepoId"],
         },
         "ownerDispatch": _owner_binding(dispatch),
+        "authorization": {
+            "correctedBridgeRevision": BRIDGE_SHA,
+        },
         "lineage": {
             "predecessorJobId": dispatch_validator.QUARANTINED_JOB_ID,
             "automaticRetry": False,
@@ -214,7 +218,7 @@ def _verify(
 ) -> Any:
     return dispatch_validator.verify_owner_envelope(
         selection,
-        bridge_source=bridge_source,
+        envelope_source=bridge_source,
         owner_spki_base64=spki_base64,
         owner_key_id=key_id,
     )
@@ -250,7 +254,8 @@ def test_valid_owner_dispatch_verifies_exact_signature_and_hashes(
     evidence = _verify(selection, bridge_source, spki_base64, key_id)
 
     assert evidence.job_id == JOB_ID
-    assert evidence.bridge_revision == BRIDGE_SHA
+    assert evidence.envelope_revision == ENVELOPE_SHA
+    assert evidence.execution_bridge_revision == BRIDGE_SHA
     assert evidence.source_revision == SOURCE_SHA
     assert evidence.envelope_sha256 == selection.envelope_sha256
     assert evidence.payload_sha256 == selection.payload_sha256
@@ -290,7 +295,7 @@ def test_retired_owner_key_is_rejected_by_default(tmp_path: Path) -> None:
     ):
         dispatch_validator.verify_owner_envelope(
             selection,
-            bridge_source=bridge_source,
+            envelope_source=bridge_source,
         )
 
 
@@ -337,14 +342,14 @@ def test_extra_dispatch_field_fails_closed(tmp_path: Path) -> None:
             "new governed attempt",
         ),
         ({"jobId": "../attempt-2"}, "new governed attempt"),
-        ({"bridgeRevision": "main"}, "immutable full lowercase Git SHA"),
+        ({"envelopeRevision": "main"}, "immutable full lowercase Git SHA"),
         (
             {
-                "bridgeRevision": (
+                "envelopeRevision": (
                     dispatch_validator.QUARANTINED_BRIDGE_REVISION
                 )
             },
-            "quarantined attempt-1 bridge revision",
+            "quarantined attempt-1 envelope revision",
         ),
         ({"sourceRevision": "e" * 40}, "does not equal github.sha"),
         ({"workflowBlob": "f" * 40}, "does not match checked-out bytes"),
@@ -461,6 +466,16 @@ def _resign_mutated_payload(
         (
             lambda payload: payload["lineage"].update({"automaticRetry": True}),
             "retired attempt",
+        ),
+        (
+            lambda payload: payload["authorization"].update(
+                {
+                    "correctedBridgeRevision": (
+                        dispatch_validator.QUARANTINED_BRIDGE_REVISION
+                    )
+                }
+            ),
+            "quarantined attempt-1 bridge revision",
         ),
     ],
 )
@@ -593,7 +608,7 @@ def test_envelope_path_must_be_regular_and_job_controlled(
     ):
         dispatch_validator.verify_owner_envelope(
             selection,
-            bridge_source=bridge_source,
+            envelope_source=bridge_source,
         )
 
 
@@ -621,6 +636,7 @@ def test_atomic_claim_rejects_replay_without_overwrite(tmp_path: Path) -> None:
     claim = json.loads(original)
     assert claim["jobId"] == JOB_ID
     assert claim["bridgeRevision"] == BRIDGE_SHA
+    assert claim["envelopeRevision"] == ENVELOPE_SHA
     assert claim["dispatchedRevision"] == SOURCE_SHA
     assert claim["envelopeSha256"] == selection.envelope_sha256
     assert claim["payloadSha256"] == selection.payload_sha256
@@ -693,10 +709,57 @@ def test_select_cli_writes_only_validated_environment(
     lines = github_env.read_text(encoding="utf-8").splitlines()
     assert lines == [
         f"JOB_ID={JOB_ID}",
-        f"BRIDGE_REVISION={BRIDGE_SHA}",
+        f"ENVELOPE_REVISION={ENVELOPE_SHA}",
         f"EXPECTED_ENVELOPE_SHA256={ENVELOPE_HASH}",
         f"EXPECTED_PAYLOAD_SHA256={PAYLOAD_HASH}",
         f"EXPECTED_WORKFLOW_BLOB={dispatch['workflowBlob']}",
+    ]
+
+
+def test_verify_cli_writes_only_signed_execution_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        workflow,
+        bridge_source,
+        dispatch,
+        _selection,
+        _private_key,
+        spki_base64,
+        key_id,
+    ) = _valid_case(tmp_path)
+    github_env = tmp_path / "verified.env"
+    monkeypatch.setenv("OWNER_DISPATCH_JSON", json.dumps(dispatch))
+    monkeypatch.setattr(dispatch_validator, "OWNER_KEY_ID", key_id)
+    monkeypatch.setattr(
+        dispatch_validator,
+        "OWNER_PUBLIC_KEY_SPKI_BASE64",
+        spki_base64,
+    )
+
+    result = dispatch_validator.main(
+        [
+            "verify-envelope",
+            "--dispatch-json-env",
+            "OWNER_DISPATCH_JSON",
+            "--github-sha",
+            SOURCE_SHA,
+            "--workflow-path",
+            str(workflow),
+            "--workflow-blob",
+            dispatch["workflowBlob"],
+            "--envelope-source",
+            str(bridge_source),
+            "--github-env",
+            str(github_env),
+        ]
+    )
+
+    assert result == 0
+    assert github_env.read_text(encoding="utf-8").splitlines() == [
+        f"EXECUTION_BRIDGE_REVISION={BRIDGE_SHA}",
+        f"ENGINE_KEY_ID={key_id}",
     ]
 
 

@@ -121,57 +121,67 @@ jobs:
           "HOST_PYTHON=$python" |
             Add-Content -LiteralPath $env:GITHUB_ENV
 
-      - name: Prepare exact public source and trusted control runtime
+      - name: Verify exact signed envelope as data
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
 
-          $source = Join-Path $env:RUNNER_TEMP (
-            "szl-gpu-bridge-" + $env:GITHUB_RUN_ID
+          $envelopeSource = Join-Path $env:RUNNER_TEMP (
+            "szl-gpu-bridge-envelope-" + $env:GITHUB_RUN_ID
           )
           $control = Join-Path $env:RUNNER_TEMP (
             "szl-nemo-control-" + $env:GITHUB_RUN_ID
           )
           if (
-            (Test-Path -LiteralPath $source) -or
+            (Test-Path -LiteralPath $envelopeSource) -or
             (Test-Path -LiteralPath $control)
           ) {
-            throw "Per-run trusted source or control path already exists."
+            throw "Per-run envelope or control path already exists."
           }
 
+          $remoteMain = (
+            & $env:GIT_EXECUTABLE ls-remote `
+              https://github.com/szl-holdings/szl-gpu-bridge.git `
+              refs/heads/main
+          ).Split("`t")[0].Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $remoteMain -cne $env:ENVELOPE_REVISION
+          ) {
+            throw "Envelope revision is not exact current Bridge main."
+          }
           & $env:GIT_EXECUTABLE clone `
             --filter=blob:none `
             --no-checkout `
             https://github.com/szl-holdings/szl-gpu-bridge.git `
-            $source
+            $envelopeSource
           if ($LASTEXITCODE -ne 0) {
-            throw "Bridge clone failed."
+            throw "Envelope-source clone failed."
           }
-          & $env:GIT_EXECUTABLE -C $source fetch `
-            --depth=1 `
+          & $env:GIT_EXECUTABLE -C $envelopeSource fetch `
             origin `
-            $env:BRIDGE_REVISION
+            main
           if ($LASTEXITCODE -ne 0) {
-            throw "Exact bridge revision fetch failed."
+            throw "Exact Bridge main fetch failed."
           }
-          & $env:GIT_EXECUTABLE -C $source checkout `
+          & $env:GIT_EXECUTABLE -C $envelopeSource checkout `
             --detach `
-            $env:BRIDGE_REVISION
+            $env:ENVELOPE_REVISION
           if ($LASTEXITCODE -ne 0) {
-            throw "Exact bridge revision checkout failed."
+            throw "Exact envelope revision checkout failed."
           }
           $observed = (
-            & $env:GIT_EXECUTABLE -C $source rev-parse HEAD
+            & $env:GIT_EXECUTABLE -C $envelopeSource rev-parse HEAD
           ).Trim()
-          if ($observed -cne $env:BRIDGE_REVISION) {
-            throw "Bridge source revision mismatch: $observed"
+          if ($observed -cne $env:ENVELOPE_REVISION) {
+            throw "Envelope source revision mismatch: $observed"
           }
           if (
-            & $env:GIT_EXECUTABLE -C $source status `
+            & $env:GIT_EXECUTABLE -C $envelopeSource status `
               --porcelain `
               --untracked-files=no
           ) {
-            throw "Exact bridge source is dirty."
+            throw "Exact envelope source is dirty."
           }
 
           $controlLock = Join-Path $env:GITHUB_WORKSPACE (
@@ -212,9 +222,74 @@ jobs:
               )
             ) `
             --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
-            --bridge-source $source
+            --envelope-source $envelopeSource `
+            --github-env $env:GITHUB_ENV
           if ($LASTEXITCODE -ne 0) {
             throw "Owner signature or exact envelope binding was rejected."
+          }
+
+          "ENVELOPE_SOURCE=$envelopeSource" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+          "CONTROL_PYTHON=$controlPython" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Prepare signed execution source and GPU image
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $source = Join-Path $env:RUNNER_TEMP (
+            "szl-gpu-bridge-runtime-" + $env:GITHUB_RUN_ID
+          )
+          if (Test-Path -LiteralPath $source) {
+            throw "Per-run execution source already exists."
+          }
+          & $env:GIT_EXECUTABLE -C $env:ENVELOPE_SOURCE fetch `
+            origin `
+            $env:EXECUTION_BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signed execution revision fetch failed."
+          }
+          & $env:GIT_EXECUTABLE -C $env:ENVELOPE_SOURCE merge-base `
+            --is-ancestor `
+            $env:EXECUTION_BRIDGE_REVISION `
+            $env:ENVELOPE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signed execution revision is not protected Bridge history."
+          }
+          & $env:GIT_EXECUTABLE clone `
+            --filter=blob:none `
+            --no-checkout `
+            https://github.com/szl-holdings/szl-gpu-bridge.git `
+            $source
+          if ($LASTEXITCODE -ne 0) {
+            throw "Execution-source clone failed."
+          }
+          & $env:GIT_EXECUTABLE -C $source fetch `
+            --depth=1 `
+            origin `
+            $env:EXECUTION_BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact execution revision fetch failed."
+          }
+          & $env:GIT_EXECUTABLE -C $source checkout `
+            --detach `
+            $env:EXECUTION_BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact execution revision checkout failed."
+          }
+          $observed = (
+            & $env:GIT_EXECUTABLE -C $source rev-parse HEAD
+          ).Trim()
+          if ($observed -cne $env:EXECUTION_BRIDGE_REVISION) {
+            throw "Execution source revision mismatch: $observed"
+          }
+          if (
+            & $env:GIT_EXECUTABLE -C $source status `
+              --porcelain `
+              --untracked-files=no
+          ) {
+            throw "Exact execution source is dirty."
           }
 
           $docker = (Get-Command docker.exe -ErrorAction Stop).Source
@@ -234,7 +309,6 @@ jobs:
           }
 
           "BRIDGE_SOURCE=$source" | Add-Content -LiteralPath $env:GITHUB_ENV
-          "CONTROL_PYTHON=$controlPython" | Add-Content -LiteralPath $env:GITHUB_ENV
 
       - name: Prefetch exact authenticated inputs without executing model code
         shell: powershell
@@ -253,10 +327,12 @@ jobs:
               New-Item -ItemType Directory -Path $directory | Out-Null
             }
           }
-          $spec = Join-Path $env:BRIDGE_SOURCE (
+          $spec = Join-Path $env:ENVELOPE_SOURCE (
             "queue\pending\" + $env:JOB_ID + ".json"
           )
-          $engineKey = Join-Path $env:BRIDGE_SOURCE "keys\engine_pubkey.json"
+          $engineKey = Join-Path $env:BRIDGE_SOURCE (
+            "keys\engine_pubkey_" + $env:ENGINE_KEY_ID + ".json"
+          )
           $receipt = Join-Path $inputCache ($env:JOB_ID + "-prefetch.json")
 
           & $env:CONTROL_PYTHON `
@@ -288,7 +364,7 @@ jobs:
               )
             ) `
             --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
-            --bridge-source $env:BRIDGE_SOURCE `
+            --envelope-source $env:ENVELOPE_SOURCE `
             --bridge-root $env:BRIDGE_ROOT `
             --run-id "${{ github.run_id }}" `
             --run-attempt "${{ github.run_attempt }}"
@@ -308,9 +384,14 @@ jobs:
               Join-Path $env:BRIDGE_SOURCE "laptop\run_nemo_v3_isolated.ps1"
             ) `
             -JobId $env:JOB_ID `
-            -BridgeRevision $env:BRIDGE_REVISION `
+            -BridgeRevision $env:EXECUTION_BRIDGE_REVISION `
             -Image $env:TRAINING_IMAGE `
             -BridgeSource $env:BRIDGE_SOURCE `
+            -EnvelopePath (
+              Join-Path $env:ENVELOPE_SOURCE (
+                "queue\pending\" + $env:JOB_ID + ".json"
+              )
+            ) `
             -BridgeRoot $env:BRIDGE_ROOT `
             -HfCache (Join-Path $env:CACHE_ROOT "huggingface\hub") `
             -InputCache (Join-Path $env:CACHE_ROOT "inputs")
@@ -361,7 +442,7 @@ jobs:
           & $env:CONTROL_PYTHON `
             (Join-Path $env:BRIDGE_SOURCE "laptop\finalize_nemo_v3_receipt.py") `
             --spec (
-              Join-Path $env:BRIDGE_SOURCE (
+              Join-Path $env:ENVELOPE_SOURCE (
                 "queue\pending\" + $env:JOB_ID + ".json"
               )
             ) `
@@ -406,7 +487,9 @@ jobs:
                 $runnerTemp,
                 [StringComparison]::OrdinalIgnoreCase
               ) -or
-              $leaf -notmatch "^szl-(gpu-bridge|nemo-control)-[0-9]+$"
+              $leaf -notmatch (
+                "^szl-(gpu-bridge-(envelope|runtime)|nemo-control)-[0-9]+$"
+              )
             ) {
               throw "Refusing to clean an unexpected path: $resolved"
             }

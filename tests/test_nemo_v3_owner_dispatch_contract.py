@@ -31,11 +31,11 @@ def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> Non
     selection = WORKFLOW.index(
         "- name: Validate explicit owner dispatch selection"
     )
-    bridge = WORKFLOW.index(
-        "- name: Prepare exact public source and trusted control runtime"
+    envelope = WORKFLOW.index(
+        "- name: Verify exact signed envelope as data"
     )
-    assert checkout < selection < bridge
-    selection_step = WORKFLOW[selection:bridge]
+    assert checkout < selection < envelope
+    selection_step = WORKFLOW[selection:envelope]
     assert "OWNER_DISPATCH_JSON" in WORKFLOW
     assert "toJson(github.event.client_payload)" in WORKFLOW
     assert "validate_nemo_v3_owner_dispatch.py" in selection_step
@@ -48,22 +48,26 @@ def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> Non
     assert "38ba3100b2e20075b6ac0c3e62745c0f811de370" not in WORKFLOW
 
 
-def test_exact_bridge_and_signed_envelope_verify_before_image_pull() -> None:
+def test_exact_main_envelope_verifies_before_signed_runtime_and_image_pull() -> None:
+    envelope = _step(
+        "Verify exact signed envelope as data",
+        "Prepare signed execution source and GPU image",
+    )
     prepare = _step(
-        "Prepare exact public source and trusted control runtime",
+        "Prepare signed execution source and GPU image",
         "Prefetch exact authenticated inputs without executing model code",
     )
-    assert "fetch `" in prepare
-    assert "$env:BRIDGE_REVISION" in prepare
-    assert "checkout `" in prepare
-    assert "--detach `" in prepare
-    assert "$observed -cne $env:BRIDGE_REVISION" in prepare
-    envelope = prepare.index("verify-envelope `")
-    image_pull = prepare.index("& $docker pull $env:TRAINING_IMAGE")
-    assert envelope < image_pull
-    assert "--bridge-source $source" in prepare
-    assert '--github-sha "${{ github.sha }}"' in prepare
-    assert "--workflow-blob $env:EXPECTED_WORKFLOW_BLOB" in prepare
+    assert "ls-remote `" in envelope
+    assert "$remoteMain -cne $env:ENVELOPE_REVISION" in envelope
+    assert "verify-envelope `" in envelope
+    assert "--envelope-source $envelopeSource" in envelope
+    assert "--github-env $env:GITHUB_ENV" in envelope
+    assert "$env:EXECUTION_BRIDGE_REVISION" in prepare
+    assert "merge-base `" in prepare
+    assert "--is-ancestor `" in prepare
+    assert prepare.index("merge-base `") < prepare.index(
+        "& $docker pull $env:TRAINING_IMAGE"
+    )
 
 
 def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
@@ -77,7 +81,7 @@ def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
     assert prefetch < claim < execute
     claim_step = WORKFLOW[claim:execute]
     assert "create-claim `" in claim_step
-    assert "--bridge-source $env:BRIDGE_SOURCE" in claim_step
+    assert "--envelope-source $env:ENVELOPE_SOURCE" in claim_step
     assert "--bridge-root $env:BRIDGE_ROOT" in claim_step
     assert '--run-id "${{ github.run_id }}"' in claim_step
     assert '--run-attempt "${{ github.run_attempt }}"' in claim_step
@@ -93,7 +97,8 @@ def test_remote_code_step_has_no_token_or_signing_input() -> None:
     )
     assert "HF_TOKEN" not in execute
     assert "laptop_key.pem" not in execute
-    assert "-BridgeRevision $env:BRIDGE_REVISION" in execute
+    assert "-BridgeRevision $env:EXECUTION_BRIDGE_REVISION" in execute
+    assert "-EnvelopePath (" in execute
     assert "-Image $env:TRAINING_IMAGE" in execute
 
 
@@ -138,5 +143,5 @@ def test_cleanup_is_always_run_and_confined_to_runner_temp() -> None:
     assert "if: ${{ always() }}" in cleanup
     assert "[IO.Path]::GetFullPath" in cleanup
     assert "[StringComparison]::OrdinalIgnoreCase" in cleanup
-    assert '^szl-(gpu-bridge|nemo-control)-[0-9]+$' in cleanup
+    assert "gpu-bridge-(envelope|runtime)" in cleanup
     assert "Remove-Item -LiteralPath $resolved -Recurse -Force" in cleanup
