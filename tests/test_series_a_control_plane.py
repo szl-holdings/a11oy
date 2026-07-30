@@ -508,6 +508,20 @@ def test_receipt_readback_honors_bounded_limit_without_caching(
         invalid = client.get(
             "/api/a11oy/v1/series-a/receipts?limit=201"
         )
+        recovered = client.get(
+            "/api/a11oy/v1/series-a/receipts/"
+            + appended[0]["receipt_hash"]
+        )
+        recovered_head = client.head(
+            "/api/a11oy/v1/series-a/receipts/"
+            + appended[0]["receipt_hash"]
+        )
+        missing = client.get(
+            "/api/a11oy/v1/series-a/receipts/" + ("f" * 64)
+        )
+        malformed = client.get(
+            "/api/a11oy/v1/series-a/receipts/not-a-hash"
+        )
 
     assert default.status_code == 200
     assert default.json()["limit"] == 50
@@ -523,6 +537,19 @@ def test_receipt_readback_honors_bounded_limit_without_caching(
     assert head.headers["cache-control"] == "no-store"
     assert duplicate.status_code == 400
     assert invalid.status_code == 422
+    assert recovered.status_code == 200
+    assert recovered.headers["cache-control"] == "no-store"
+    assert recovered.json()["schema"] == (
+        "szl.series-a-receipt-recovery/v1"
+    )
+    assert recovered.json()["item"]["receipt_hash"] == (
+        appended[0]["receipt_hash"]
+    )
+    assert recovered.json()["storage"]["receipt_count"] == 60
+    assert recovered_head.status_code == 200
+    assert recovered_head.headers["cache-control"] == "no-store"
+    assert missing.status_code == 404
+    assert malformed.status_code == 422
 
 
 def test_allow_passport_is_one_attempt(tmp_path: Path) -> None:

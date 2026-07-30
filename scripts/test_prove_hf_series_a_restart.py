@@ -36,6 +36,8 @@ def envelope_hash(value: dict) -> str:
 
 BEFORE_HASH = envelope_hash(BEFORE_ENVELOPE)
 AFTER_HASH = envelope_hash(AFTER_ENVELOPE)
+PUBLIC_KEY = b"-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----\n"
+PUBLIC_KEY_HASH = proof.hashlib.sha256(PUBLIC_KEY).hexdigest()
 
 
 class Response:
@@ -111,23 +113,25 @@ class Session:
         ]
         self.headers = {}
 
-    @staticmethod
-    def receipt_page() -> dict:
+    def recovery_record(self) -> dict:
         return {
-            "schema": "szl.series-a-receipts/v1",
-            "limit": 200,
-            "items": [
-                {
-                    "sequence": 2,
-                    "receipt_hash": AFTER_HASH,
-                    "envelope": AFTER_ENVELOPE,
-                },
-                {
-                    "sequence": 1,
-                    "receipt_hash": BEFORE_HASH,
-                    "envelope": BEFORE_ENVELOPE,
-                },
-            ],
+            "schema": "szl.series-a-receipt-recovery/v1",
+            "source_revision": self.source,
+            "runtime_boot_id": "boot_" + ("3" * 32),
+            "signing_key_source": proof.EXPECTED_SIGNER,
+            "public_key_sha256": PUBLIC_KEY_HASH,
+            "database": proof.EXPECTED_DATABASE,
+            "storage": status(
+                self.source,
+                receipts=2,
+                head=AFTER_HASH,
+                boot="boot_" + ("3" * 32),
+            )["storage"],
+            "item": {
+                "sequence": 1,
+                "receipt_hash": BEFORE_HASH,
+                "envelope": BEFORE_ENVELOPE,
+            },
         }
 
     def get(self, url: str, **_kwargs):
@@ -138,10 +142,10 @@ class Session:
         if url.endswith("/series-a/public-key"):
             return Response(
                 url,
-                content=b"-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----\n",
+                content=PUBLIC_KEY,
             )
-        if "/series-a/receipts?" in url:
-            return Response(url, value=self.receipt_page())
+        if url.endswith("/series-a/receipts/" + BEFORE_HASH):
+            return Response(url, value=self.recovery_record())
         raise AssertionError(url)
 
 
@@ -234,33 +238,14 @@ class LaggingReceiptSession(Session):
         super().__init__(source)
         self.recover = recover
         self.receipt_calls = 0
-        self.statuses.extend(
-            [
-                status(
-                    source,
-                    receipts=2,
-                    head=AFTER_HASH,
-                    boot="boot_" + ("3" * 32),
-                )
-                for _ in range(3)
-            ]
-        )
 
-    def receipt_page(self) -> dict:
+    def recovery_record(self) -> dict:
         self.receipt_calls += 1
         if self.receipt_calls == 1 or not self.recover:
-            return {
-                "schema": "szl.series-a-receipts/v1",
-                "limit": 200,
-                "items": [
-                    {
-                        "sequence": 2,
-                        "receipt_hash": AFTER_HASH,
-                        "envelope": AFTER_ENVELOPE,
-                    }
-                ],
-            }
-        return super().receipt_page()
+            raise proof.RestartProofError(
+                "exact receipt recovery returned HTTP 404"
+            )
+        return super().recovery_record()
 
 
 class Api:
