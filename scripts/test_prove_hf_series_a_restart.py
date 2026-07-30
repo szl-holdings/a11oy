@@ -20,15 +20,43 @@ assert SPEC and SPEC.loader
 proof = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(proof)
 
+BEFORE_ENVELOPE = {"payload": "before"}
+AFTER_ENVELOPE = {"payload": "after"}
+
+
+def envelope_hash(value: dict) -> str:
+    return proof.hashlib.sha256(
+        proof.json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+
+
+BEFORE_HASH = envelope_hash(BEFORE_ENVELOPE)
+AFTER_HASH = envelope_hash(AFTER_ENVELOPE)
+
 
 class Response:
-    def __init__(self, url: str, *, value=None, content: bytes = b"") -> None:
+    def __init__(
+        self,
+        url: str,
+        *,
+        value=None,
+        content: bytes = b"",
+        status_code: int = 200,
+    ) -> None:
         self.url = url
         self.value = value
         self.content = content
+        self.status = status_code
 
     def raise_for_status(self) -> None:
-        return None
+        if not 200 <= self.status < 300:
+            raise proof.RestartProofError(
+                f"{self.url} returned HTTP {self.status}"
+            )
 
     def json(self):
         return self.value
@@ -67,21 +95,40 @@ class Session:
     def __init__(self, source: str) -> None:
         self.source = source
         self.statuses = [
-            status(source, receipts=1, head="2" * 64),
+            status(source, receipts=1, head=BEFORE_HASH),
             status(
                 source,
                 receipts=1,
-                head="2" * 64,
+                head=BEFORE_HASH,
                 boot="boot_" + ("2" * 32),
             ),
             status(
                 source,
                 receipts=2,
-                head="3" * 64,
+                head=AFTER_HASH,
                 boot="boot_" + ("3" * 32),
             ),
         ]
         self.headers = {}
+
+    @staticmethod
+    def receipt_page() -> dict:
+        return {
+            "schema": "szl.series-a-receipts/v1",
+            "limit": 200,
+            "items": [
+                {
+                    "sequence": 2,
+                    "receipt_hash": AFTER_HASH,
+                    "envelope": AFTER_ENVELOPE,
+                },
+                {
+                    "sequence": 1,
+                    "receipt_hash": BEFORE_HASH,
+                    "envelope": BEFORE_ENVELOPE,
+                },
+            ],
+        }
 
     def get(self, url: str, **_kwargs):
         if url.endswith("/series-a/status"):
@@ -94,15 +141,7 @@ class Session:
                 content=b"-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----\n",
             )
         if "/series-a/receipts?" in url:
-            return Response(
-                url,
-                value={
-                    "items": [
-                        {"receipt_hash": "3" * 64},
-                        {"receipt_hash": "2" * 64},
-                    ]
-                },
-            )
+            return Response(url, value=self.receipt_page())
         raise AssertionError(url)
 
 
@@ -120,13 +159,13 @@ class StartupReceiptSession(Session):
             status(
                 source,
                 receipts=1,
-                head="2" * 64,
+                head=BEFORE_HASH,
                 boot="boot_" + ("2" * 32),
             ),
             status(
                 source,
                 receipts=2,
-                head="3" * 64,
+                head=AFTER_HASH,
                 boot="boot_" + ("3" * 32),
             ),
         ]
@@ -141,24 +180,24 @@ class DrainingSession(Session):
     def __init__(self, source: str) -> None:
         super().__init__(source)
         self.statuses = [
-            status(source, receipts=1, head="2" * 64),
-            status(source, receipts=1, head="2" * 64),
+            status(source, receipts=1, head=BEFORE_HASH),
+            status(source, receipts=1, head=BEFORE_HASH),
             status(
                 source,
                 receipts=1,
-                head="2" * 64,
+                head=BEFORE_HASH,
                 boot="boot_" + ("2" * 32),
             ),
             status(
                 source,
                 receipts=1,
-                head="2" * 64,
+                head=BEFORE_HASH,
                 boot="boot_" + ("2" * 32),
             ),
             status(
                 source,
                 receipts=2,
-                head="3" * 64,
+                head=AFTER_HASH,
                 boot="boot_" + ("3" * 32),
             ),
         ]
@@ -188,6 +227,40 @@ class PreActivationSession(Session):
                 "reason": "DatabaseError: database disk image is malformed",
             },
         )
+
+
+class LaggingReceiptSession(Session):
+    def __init__(self, source: str, *, recover: bool) -> None:
+        super().__init__(source)
+        self.recover = recover
+        self.receipt_calls = 0
+        self.statuses.extend(
+            [
+                status(
+                    source,
+                    receipts=2,
+                    head=AFTER_HASH,
+                    boot="boot_" + ("3" * 32),
+                )
+                for _ in range(3)
+            ]
+        )
+
+    def receipt_page(self) -> dict:
+        self.receipt_calls += 1
+        if self.receipt_calls == 1 or not self.recover:
+            return {
+                "schema": "szl.series-a-receipts/v1",
+                "limit": 200,
+                "items": [
+                    {
+                        "sequence": 2,
+                        "receipt_hash": AFTER_HASH,
+                        "envelope": AFTER_ENVELOPE,
+                    }
+                ],
+            }
+        return super().receipt_page()
 
 
 class Api:
@@ -330,6 +403,49 @@ def test_prove_retries_transient_startup_capture(monkeypatch) -> None:
     )
 
     assert report["ok"] is True
+
+
+def test_prove_polls_until_pre_restart_head_is_recovered(monkeypatch) -> None:
+    source = "a" * 40
+    session = LaggingReceiptSession(source, recover=True)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=Api(),
+        session=session,
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert session.receipt_calls == 2
+    assert report["proof"]["pre_restart_chain_head_recovered"] is True
+
+
+def test_prove_fails_closed_when_pre_restart_head_never_recovers(
+    monkeypatch,
+) -> None:
+    source = "a" * 40
+    session = LaggingReceiptSession(source, recover=False)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(
+        proof.RestartProofError,
+        match="not recovered after bounded polling",
+    ):
+        proof.prove(
+            api=Api(),
+            session=session,
+            repo_id="SZLHOLDINGS/a11oy",
+            origin="https://a-11-oy.com",
+            source_sha=source,
+            attempts=3,
+            retry_seconds=0,
+        )
+    assert session.receipt_calls == 3
 
 
 def test_prove_uses_one_shared_deadline(monkeypatch) -> None:

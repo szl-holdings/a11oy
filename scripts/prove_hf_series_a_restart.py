@@ -296,9 +296,122 @@ def validate_restart(
         before_storage.get("receipt_count") or 0
     ):
         raise RestartProofError("receipt count regressed across restart")
+    if int(after_storage.get("last_receipt_sequence") or 0) < int(
+        before_storage.get("last_receipt_sequence") or 0
+    ):
+        raise RestartProofError("receipt sequence regressed across restart")
     previous_head = before_storage.get("chain_head")
     if previous_head and previous_head not in receipt_hashes:
         raise RestartProofError("pre-restart receipt-chain head was not recovered")
+
+
+def receipt_hashes(
+    payload: Mapping[str, Any],
+    *,
+    expected_head: str,
+    expected_sequence: int,
+) -> set[str]:
+    if payload.get("schema") != "szl.series-a-receipts/v1":
+        raise RestartProofError("receipt recovery schema is invalid")
+    if payload.get("limit") != 200:
+        raise RestartProofError("receipt recovery did not honor the bounded limit")
+    items = payload.get("items")
+    if not isinstance(items, list) or len(items) > 200:
+        raise RestartProofError("receipt recovery page is invalid")
+
+    hashes: set[str] = set()
+    recovered: Mapping[str, Any] | None = None
+    for item in items:
+        if not isinstance(item, Mapping):
+            raise RestartProofError("receipt recovery item is invalid")
+        digest = str(item.get("receipt_hash") or "")
+        if RECEIPT_HASH.fullmatch(digest) is None or digest in hashes:
+            raise RestartProofError("receipt recovery hash set is invalid")
+        hashes.add(digest)
+        if digest == expected_head:
+            recovered = item
+
+    if recovered is not None:
+        if recovered.get("sequence") != expected_sequence:
+            raise RestartProofError(
+                "recovered receipt sequence does not match the pre-restart head"
+            )
+        envelope = recovered.get("envelope")
+        if not isinstance(envelope, Mapping):
+            raise RestartProofError("recovered receipt envelope is absent")
+        envelope_hash = hashlib.sha256(
+            json.dumps(
+                envelope,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+        if envelope_hash != expected_head:
+            raise RestartProofError(
+                "recovered receipt envelope does not match its hash"
+            )
+    return hashes
+
+
+def await_receipt_recovery(
+    session: HttpSession,
+    origin: str,
+    source_sha: str,
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+    deadline: float,
+    *,
+    attempts: int,
+    retry_seconds: int,
+) -> dict[str, Any]:
+    before_storage = before.get("storage")
+    if not isinstance(before_storage, Mapping):
+        raise RestartProofError("pre-restart storage evidence is absent")
+    expected_head = str(before_storage.get("chain_head") or "")
+    expected_sequence = before_storage.get("last_receipt_sequence")
+    if (
+        RECEIPT_HASH.fullmatch(expected_head) is None
+        or not isinstance(expected_sequence, int)
+        or isinstance(expected_sequence, bool)
+        or expected_sequence < 1
+    ):
+        raise RestartProofError("pre-restart receipt head evidence is invalid")
+
+    last_error: Exception | None = None
+    current_after = dict(after)
+    for attempt in range(max(1, attempts)):
+        try:
+            if attempt:
+                current_after = capture(
+                    session,
+                    origin,
+                    source_sha,
+                    deadline,
+                )
+            payload = _json(
+                session.get(
+                    origin + "/api/a11oy/v1/series-a/receipts?limit=200",
+                    timeout=_remaining_timeout(deadline, 60),
+                )
+            )
+            _check_deadline(deadline)
+            hashes = receipt_hashes(
+                payload,
+                expected_head=expected_head,
+                expected_sequence=expected_sequence,
+            )
+            validate_restart(before, current_after, hashes)
+            return current_after
+        except Exception as exc:  # noqa: BLE001 - bounded recovery polling
+            last_error = exc
+            if attempt + 1 < max(1, attempts):
+                _sleep_with_deadline(deadline, retry_seconds)
+    raise RestartProofError(
+        "pre-restart receipt-chain head was not recovered after bounded polling: "
+        f"{type(last_error).__name__}: {str(last_error)[:180]}"
+    )
 
 
 def prove(
@@ -408,22 +521,16 @@ def prove(
             f"{type(last_error).__name__}: {str(last_error)[:180]}"
         )
 
-    receipts = _json(
-        session.get(
-            origin + "/api/a11oy/v1/series-a/receipts?limit=200",
-            timeout=_remaining_timeout(deadline, 60),
-        )
+    after = await_receipt_recovery(
+        session,
+        origin,
+        source_sha,
+        before,
+        after,
+        deadline,
+        attempts=attempts,
+        retry_seconds=retry_seconds,
     )
-    _check_deadline(deadline)
-    items = receipts.get("items")
-    if not isinstance(items, list):
-        raise RestartProofError("receipt recovery endpoint is incomplete")
-    hashes = {
-        str(item.get("receipt_hash"))
-        for item in items
-        if isinstance(item, Mapping)
-    }
-    validate_restart(before, after, hashes)
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),

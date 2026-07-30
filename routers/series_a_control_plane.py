@@ -1632,6 +1632,29 @@ def _event_cursor(request: Request) -> int:
     return cursor
 
 
+def _receipt_limit(request: Request) -> int:
+    values = request.query_params.getlist("limit")
+    if len(values) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="receipt limit must be supplied at most once",
+        )
+    raw = values[0] if values else "50"
+    try:
+        limit = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="receipt limit must be an integer",
+        ) from exc
+    if limit < 1 or limit > 200:
+        raise HTTPException(
+            status_code=422,
+            detail="receipt limit must be between 1 and 200",
+        )
+    return limit
+
+
 def _asset_cache_control(request: Request, content: bytes) -> str:
     if request.query_params.get("v") == hashlib.sha256(content).hexdigest():
         return "public,max-age=31536000,immutable"
@@ -1738,9 +1761,21 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         return JSONResponse(value, headers={"cache-control": "no-store"})
 
     async def receipts(request: Request) -> Response:
+        limit = _receipt_limit(request)
         if request.method == "HEAD":
-            return Response(status_code=200, media_type="application/json")
-        return JSONResponse({"schema": "szl.series-a-receipts/v1", "items": service.store.list_receipts(50)})
+            return Response(
+                status_code=200,
+                media_type="application/json",
+                headers={"cache-control": "no-store"},
+            )
+        return JSONResponse(
+            {
+                "schema": "szl.series-a-receipts/v1",
+                "limit": limit,
+                "items": service.store.list_receipts(limit),
+            },
+            headers={"cache-control": "no-store"},
+        )
 
     async def trust(request: Request) -> Response:
         if request.method == "HEAD":
