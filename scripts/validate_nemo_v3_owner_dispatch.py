@@ -23,8 +23,9 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 
-DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v2"
-WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v2"
+DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v3"
+WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v3"
+GITHUB_CLIENT_PAYLOAD_PROPERTY_LIMIT = 10
 WORKFLOW_RELATIVE_PATH = (
     ".github/workflows/nemo-v3-isolated-owner-dispatch.yml"
 )
@@ -63,7 +64,8 @@ _NEW_JOB_ID = re.compile(
 )
 _POSITIVE_INTEGER = re.compile(r"^[1-9][0-9]*$")
 
-_DISPATCH_FIELDS = {
+_CLIENT_PAYLOAD_FIELDS = {"selection"}
+_SELECTION_FIELDS = {
     "contractVersion",
     "jobId",
     "bridgeRevision",
@@ -233,30 +235,45 @@ def validate_dispatch(
     workflow_path: pathlib.Path,
     workflow_blob: str | None = None,
 ) -> DispatchSelection:
-    dispatch = _exact_object(
+    if (
+        isinstance(payload, dict)
+        and len(payload) > GITHUB_CLIENT_PAYLOAD_PROPERTY_LIMIT
+    ):
+        raise DispatchValidationError(
+            "client_payload exceeds GitHub's repository-dispatch property limit"
+        )
+    client_payload = _exact_object(
         payload,
         field="client_payload",
-        required=_DISPATCH_FIELDS,
+        required=_CLIENT_PAYLOAD_FIELDS,
+    )
+    dispatch = _exact_object(
+        client_payload["selection"],
+        field="client_payload.selection",
+        required=_SELECTION_FIELDS,
     )
     source_revision = _full_sha(
-        dispatch["sourceRevision"], "client_payload.sourceRevision"
+        dispatch["sourceRevision"], "client_payload.selection.sourceRevision"
     )
     expected_source = _full_sha(github_sha, "github.sha")
     if source_revision != expected_source:
         raise DispatchValidationError(
-            "client_payload source revision does not equal github.sha"
+            "client_payload.selection source revision does not equal github.sha"
         )
 
-    job_id = _string(dispatch["jobId"], "client_payload.jobId")
+    job_id = _string(
+        dispatch["jobId"], "client_payload.selection.jobId"
+    )
     if _NEW_JOB_ID.fullmatch(job_id) is None:
         raise DispatchValidationError(
-            "client_payload.jobId must identify a new governed attempt"
+            "client_payload.selection.jobId must identify a new governed attempt"
         )
     if job_id == QUARANTINED_JOB_ID:
         raise DispatchValidationError("quarantined attempt-1 cannot be selected")
 
     bridge_revision = _full_sha(
-        dispatch["bridgeRevision"], "client_payload.bridgeRevision"
+        dispatch["bridgeRevision"],
+        "client_payload.selection.bridgeRevision",
     )
     if bridge_revision == QUARANTINED_BRIDGE_REVISION:
         raise DispatchValidationError(
@@ -268,11 +285,11 @@ def validate_dispatch(
         or dispatch["workflowVersion"] != WORKFLOW_VERSION
     ):
         raise DispatchValidationError(
-            "client_payload contract or workflow version is not admitted"
+            "client_payload.selection contract or workflow version is not admitted"
         )
     if dispatch["workflowIdentity"] != WORKFLOW_IDENTITY:
         raise DispatchValidationError(
-            "client_payload workflow identity is not the protected main workflow"
+            "client_payload.selection workflow identity is not the protected main workflow"
         )
     if not workflow_path.is_file() or workflow_path.is_symlink():
         raise DispatchValidationError(
@@ -284,21 +301,23 @@ def validate_dispatch(
         else _full_sha(workflow_blob, "checked-out workflow blob")
     )
     workflow_blob = _full_sha(
-        dispatch["workflowBlob"], "client_payload.workflowBlob"
+        dispatch["workflowBlob"], "client_payload.selection.workflowBlob"
     )
     if workflow_blob != observed_blob:
         raise DispatchValidationError(
-            "client_payload workflow blob does not match checked-out bytes"
+            "client_payload.selection workflow blob does not match checked-out bytes"
         )
     if dispatch["trainingImage"] != TRAINING_IMAGE:
         raise DispatchValidationError(
-            "client_payload training image is not the immutable approved digest"
+            "client_payload.selection training image is not the immutable approved digest"
         )
     for field in ("candidateUpload", "modelCardUpload", "datasetUpload"):
-        _must_be_false(dispatch[field], f"client_payload.{field}")
+        _must_be_false(
+            dispatch[field], f"client_payload.selection.{field}"
+        )
     if dispatch["receiptsRepoId"] != RECEIPTS_REPOSITORY:
         raise DispatchValidationError(
-            "client_payload receipt repository is not admitted"
+            "client_payload.selection receipt repository is not admitted"
         )
 
     return DispatchSelection(
@@ -306,10 +325,12 @@ def validate_dispatch(
         job_id=job_id,
         bridge_revision=bridge_revision,
         envelope_sha256=_sha256(
-            dispatch["envelopeSha256"], "client_payload.envelopeSha256"
+            dispatch["envelopeSha256"],
+            "client_payload.selection.envelopeSha256",
         ),
         payload_sha256=_sha256(
-            dispatch["payloadSha256"], "client_payload.payloadSha256"
+            dispatch["payloadSha256"],
+            "client_payload.selection.payloadSha256",
         ),
         source_revision=source_revision,
         workflow_identity=WORKFLOW_IDENTITY,
