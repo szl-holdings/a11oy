@@ -18,13 +18,14 @@ import os
 import pathlib
 import re
 import stat
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from typing import Any
 
 
 DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v3"
-WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v3"
+WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v4"
 GITHUB_CLIENT_PAYLOAD_PROPERTY_LIMIT = 10
 WORKFLOW_RELATIVE_PATH = (
     ".github/workflows/nemo-v3-isolated-owner-dispatch.yml"
@@ -42,8 +43,20 @@ TRAINING_IMAGE = (
     "sha256:9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123"
 )
 RECEIPTS_REPOSITORY = "SZLHOLDINGS/szl-training-receipts"
-QUARANTINED_JOB_ID = "job-2026-nemo-v3-governed-attempt-1"
-QUARANTINED_BRIDGE_REVISION = "38ba3100b2e20075b6ac0c3e62745c0f811de370"
+BRIDGE_REPOSITORY_URL = (
+    "https://github.com/szl-holdings/szl-gpu-bridge.git"
+)
+QUARANTINED_JOB_ID = "job-2026-nemo-v3-governed-attempt-4"
+QUARANTINED_JOB_IDS = {
+    "job-2026-nemo-v3-governed-attempt-1",
+    "job-2026-nemo-v3-governed-attempt-2",
+    "job-2026-nemo-v3-governed-attempt-4",
+}
+QUARANTINED_BRIDGE_REVISIONS = {
+    "38ba3100b2e20075b6ac0c3e62745c0f811de370",
+    "2237bb3f36663343ace29d98cda6c32e165450a0",
+    "7045fe223703ba8fb2d710a59989f971080e7702",
+}
 
 # This is the active public Ed25519 owner-engine key. Its private key remains
 # outside the repository under the owner-controlled offline credential
@@ -68,7 +81,7 @@ _CLIENT_PAYLOAD_FIELDS = {"selection"}
 _SELECTION_FIELDS = {
     "contractVersion",
     "jobId",
-    "bridgeRevision",
+    "envelopeRevision",
     "envelopeSha256",
     "payloadSha256",
     "sourceRevision",
@@ -105,6 +118,21 @@ _OUTPUT_FIELDS = {
     "publishCandidate",
     "receiptsRepoId",
 }
+_AUTHORIZATION_FIELDS = {
+    "coordinationMode",
+    "correctedBridgeRevision",
+    "cryptographicContinuityClaimed",
+    "decisionAt",
+    "engineKeyId",
+    "enginePublicKeySpkiSha256",
+    "oldKeyStatus",
+    "previousEngineKeyId",
+    "provisionalEngineKeyId",
+    "provisionalKeyStatus",
+    "recoveryIssueUrl",
+    "rotationMode",
+    "settledA11oyRelockRunUrl",
+}
 
 
 class DispatchValidationError(ValueError):
@@ -115,7 +143,7 @@ class DispatchValidationError(ValueError):
 class DispatchSelection:
     contract_version: str
     job_id: str
-    bridge_revision: str
+    envelope_revision: str
     envelope_sha256: str
     payload_sha256: str
     source_revision: str
@@ -129,11 +157,15 @@ class DispatchSelection:
 @dataclass(frozen=True)
 class EnvelopeEvidence:
     job_id: str
-    bridge_revision: str
+    envelope_revision: str
+    execution_bridge_revision: str
     source_revision: str
     envelope_sha256: str
     payload_sha256: str
     owner_key_id: str
+    engine_key_id: str
+    engine_public_key_spki_sha256: str
+    envelope_path: str
     workflow_identity: str
     workflow_blob: str
     workflow_version: str
@@ -268,16 +300,18 @@ def validate_dispatch(
         raise DispatchValidationError(
             "client_payload.selection.jobId must identify a new governed attempt"
         )
-    if job_id == QUARANTINED_JOB_ID:
-        raise DispatchValidationError("quarantined attempt-1 cannot be selected")
-
-    bridge_revision = _full_sha(
-        dispatch["bridgeRevision"],
-        "client_payload.selection.bridgeRevision",
-    )
-    if bridge_revision == QUARANTINED_BRIDGE_REVISION:
+    if job_id in QUARANTINED_JOB_IDS:
         raise DispatchValidationError(
-            "the quarantined attempt-1 bridge revision cannot be selected"
+            "quarantined or stale governed attempt cannot be selected"
+        )
+
+    envelope_revision = _full_sha(
+        dispatch["envelopeRevision"],
+        "client_payload.selection.envelopeRevision",
+    )
+    if envelope_revision in QUARANTINED_BRIDGE_REVISIONS:
+        raise DispatchValidationError(
+            "a quarantined Bridge revision cannot publish the selected envelope"
         )
 
     if (
@@ -323,7 +357,7 @@ def validate_dispatch(
     return DispatchSelection(
         contract_version=DISPATCH_CONTRACT_VERSION,
         job_id=job_id,
-        bridge_revision=bridge_revision,
+        envelope_revision=envelope_revision,
         envelope_sha256=_sha256(
             dispatch["envelopeSha256"],
             "client_payload.selection.envelopeSha256",
@@ -430,11 +464,15 @@ def _envelope_path(
 def verify_owner_envelope(
     selection: DispatchSelection,
     *,
-    bridge_source: pathlib.Path,
-    owner_key_id: str = OWNER_KEY_ID,
-    owner_spki_base64: str = OWNER_PUBLIC_KEY_SPKI_BASE64,
+    envelope_source: pathlib.Path,
+    owner_key_id: str | None = None,
+    owner_spki_base64: str | None = None,
 ) -> EnvelopeEvidence:
-    envelope_path = _envelope_path(bridge_source, selection.job_id)
+    if owner_key_id is None:
+        owner_key_id = OWNER_KEY_ID
+    if owner_spki_base64 is None:
+        owner_spki_base64 = OWNER_PUBLIC_KEY_SPKI_BASE64
+    envelope_path = _envelope_path(envelope_source, selection.job_id)
     envelope_bytes = envelope_path.read_bytes()
     observed_envelope_hash = hashlib.sha256(envelope_bytes).hexdigest()
     if observed_envelope_hash != selection.envelope_sha256:
@@ -569,13 +607,51 @@ def verify_owner_envelope(
             "signed successor lineage does not bind the retired attempt"
         )
 
+    authorization = _exact_object(
+        spec.get("authorization"),
+        field="signed payload authorization",
+        required=_AUTHORIZATION_FIELDS,
+    )
+    execution_bridge_revision = _full_sha(
+        authorization["correctedBridgeRevision"],
+        "signed payload authorization.correctedBridgeRevision",
+    )
+    if execution_bridge_revision in QUARANTINED_BRIDGE_REVISIONS:
+        raise DispatchValidationError(
+            "signed payload selects a quarantined Bridge runtime revision"
+        )
+    if execution_bridge_revision == selection.envelope_revision:
+        raise DispatchValidationError(
+            "envelope publication revision must remain data-only"
+        )
+    engine_key_id = _string(
+        authorization["engineKeyId"],
+        "signed payload authorization.engineKeyId",
+    )
+    engine_spki_sha256 = _sha256(
+        authorization["enginePublicKeySpkiSha256"],
+        "signed payload authorization.enginePublicKeySpkiSha256",
+    )
+    expected_spki_sha256 = hashlib.sha256(observed_spki).hexdigest()
+    if (
+        engine_key_id != owner_key_id
+        or engine_spki_sha256 != expected_spki_sha256
+    ):
+        raise DispatchValidationError(
+            "signed payload engine identity does not match the verified owner key"
+        )
+
     return EnvelopeEvidence(
         job_id=selection.job_id,
-        bridge_revision=selection.bridge_revision,
+        envelope_revision=selection.envelope_revision,
+        execution_bridge_revision=execution_bridge_revision,
         source_revision=selection.source_revision,
         envelope_sha256=observed_envelope_hash,
         payload_sha256=observed_payload_hash,
         owner_key_id=owner_key_id,
+        engine_key_id=engine_key_id,
+        engine_public_key_spki_sha256=engine_spki_sha256,
+        envelope_path=str(envelope_path),
         workflow_identity=selection.workflow_identity,
         workflow_blob=selection.workflow_blob,
         workflow_version=selection.workflow_version,
@@ -588,7 +664,7 @@ def write_github_env(
 ) -> None:
     values = {
         "JOB_ID": selection.job_id,
-        "BRIDGE_REVISION": selection.bridge_revision,
+        "ENVELOPE_REVISION": selection.envelope_revision,
         "EXPECTED_ENVELOPE_SHA256": selection.envelope_sha256,
         "EXPECTED_PAYLOAD_SHA256": selection.payload_sha256,
         "EXPECTED_WORKFLOW_BLOB": selection.workflow_blob,
@@ -601,6 +677,180 @@ def write_github_env(
     with destination.open("a", encoding="utf-8", newline="\n") as handle:
         for key, value in values.items():
             handle.write(f"{key}={value}\n")
+
+
+def write_verified_github_env(
+    evidence: EnvelopeEvidence,
+    destination: pathlib.Path,
+) -> None:
+    values = {
+        "EXECUTION_BRIDGE_REVISION": evidence.execution_bridge_revision,
+        "ENGINE_KEY_ID": evidence.engine_key_id,
+        "VERIFIED_ENVELOPE_PATH": evidence.envelope_path,
+    }
+    for key, value in values.items():
+        if "\r" in value or "\n" in value:
+            raise DispatchValidationError(
+                f"verified environment value contains a newline: {key}"
+            )
+    with destination.open("a", encoding="utf-8", newline="\n") as handle:
+        for key, value in values.items():
+            handle.write(f"{key}={value}\n")
+
+
+def _git_output(
+    git_executable: pathlib.Path,
+    repository: pathlib.Path,
+    *arguments: str,
+) -> str:
+    try:
+        result = subprocess.run(
+            [str(git_executable), "-C", str(repository), *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError, UnicodeError) as exc:
+        raise DispatchValidationError(
+            f"Bridge history verification could not run git {' '.join(arguments)}"
+        ) from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()[:180]
+        raise DispatchValidationError(
+            f"Bridge history verification rejected git {' '.join(arguments)}: "
+            f"{detail or 'nonzero exit'}"
+        )
+    return result.stdout.strip()
+
+
+def verify_bridge_history(
+    selection: DispatchSelection,
+    evidence: EnvelopeEvidence,
+    *,
+    envelope_source: pathlib.Path,
+    execution_source: pathlib.Path,
+    remote_main: str,
+    git_executable: pathlib.Path,
+) -> None:
+    remote_revision = _full_sha(
+        remote_main,
+        "protected Bridge remote main",
+    )
+    if remote_revision != selection.envelope_revision:
+        raise DispatchValidationError(
+            "envelope revision is not exact protected Bridge main"
+        )
+
+    if envelope_source.is_symlink() or execution_source.is_symlink():
+        raise DispatchValidationError(
+            "Bridge envelope and execution checkouts cannot be symlinks"
+        )
+    try:
+        envelope_root = envelope_source.resolve(strict=True)
+        execution_root = execution_source.resolve(strict=True)
+    except OSError as exc:
+        raise DispatchValidationError(
+            "Bridge envelope or execution checkout is absent"
+        ) from exc
+    if (
+        not envelope_root.is_dir()
+        or not execution_root.is_dir()
+        or envelope_root.is_symlink()
+        or execution_root.is_symlink()
+        or envelope_root == execution_root
+    ):
+        raise DispatchValidationError(
+            "Bridge envelope and execution checkouts must be distinct directories"
+        )
+    expected_envelope_path = _envelope_path(
+        envelope_root,
+        selection.job_id,
+    ).resolve(strict=True)
+    try:
+        observed_envelope_path = pathlib.Path(
+            evidence.envelope_path
+        ).resolve(strict=True)
+    except OSError as exc:
+        raise DispatchValidationError(
+            "verified envelope path is absent"
+        ) from exc
+    if observed_envelope_path != expected_envelope_path:
+        raise DispatchValidationError(
+            "verified envelope path is not bound to the envelope checkout"
+        )
+
+    envelope_head = _git_output(
+        git_executable,
+        envelope_root,
+        "rev-parse",
+        "HEAD",
+    )
+    protected_head = _git_output(
+        git_executable,
+        envelope_root,
+        "rev-parse",
+        "refs/remotes/origin/main",
+    )
+    execution_head = _git_output(
+        git_executable,
+        execution_root,
+        "rev-parse",
+        "HEAD",
+    )
+    origin_url = _git_output(
+        git_executable,
+        envelope_root,
+        "remote",
+        "get-url",
+        "origin",
+    )
+    if (
+        envelope_head != selection.envelope_revision
+        or protected_head != selection.envelope_revision
+        or origin_url.rstrip("/") != BRIDGE_REPOSITORY_URL.rstrip("/")
+    ):
+        raise DispatchValidationError(
+            "envelope checkout is not exact protected Bridge main"
+        )
+    if execution_head != evidence.execution_bridge_revision:
+        raise DispatchValidationError(
+            "execution checkout does not equal the signed Bridge revision"
+        )
+
+    for label, source in (
+        ("envelope", envelope_root),
+        ("execution", execution_root),
+    ):
+        dirty = _git_output(
+            git_executable,
+            source,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+        )
+        if dirty:
+            raise DispatchValidationError(
+                f"{label} Bridge checkout is dirty"
+            )
+
+    _git_output(
+        git_executable,
+        envelope_root,
+        "rev-parse",
+        "--verify",
+        f"{evidence.execution_bridge_revision}^{{commit}}",
+    )
+    _git_output(
+        git_executable,
+        envelope_root,
+        "merge-base",
+        "--is-ancestor",
+        evidence.execution_bridge_revision,
+        selection.envelope_revision,
+    )
 
 
 def create_new_claim(
@@ -620,9 +870,11 @@ def create_new_claim(
     control_root.mkdir(parents=True, exist_ok=True)
     claim_path = control_root / f"{selection.job_id}-attempt.claim.json"
     claim = {
-        "bridgeRevision": selection.bridge_revision,
+        "bridgeRevision": evidence.execution_bridge_revision,
         "dispatchedRevision": selection.source_revision,
+        "envelopeRevision": selection.envelope_revision,
         "envelopeSha256": evidence.envelope_sha256,
+        "executionBridgeRevision": evidence.execution_bridge_revision,
         "jobId": selection.job_id,
         "payloadSha256": evidence.payload_sha256,
         "runAttempt": run_attempt,
@@ -695,11 +947,50 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify = subparsers.add_parser("verify-envelope")
     _add_selection_arguments(verify)
-    verify.add_argument("--bridge-source", type=pathlib.Path, required=True)
+    verify.add_argument(
+        "--envelope-source",
+        type=pathlib.Path,
+        required=True,
+    )
+    verify.add_argument("--github-env", type=pathlib.Path, required=True)
+
+    history = subparsers.add_parser("verify-history")
+    _add_selection_arguments(history)
+    history.add_argument(
+        "--envelope-source",
+        type=pathlib.Path,
+        required=True,
+    )
+    history.add_argument(
+        "--execution-source",
+        type=pathlib.Path,
+        required=True,
+    )
+    history.add_argument("--remote-main", required=True)
+    history.add_argument(
+        "--git-executable",
+        type=pathlib.Path,
+        required=True,
+    )
 
     claim = subparsers.add_parser("create-claim")
     _add_selection_arguments(claim)
-    claim.add_argument("--bridge-source", type=pathlib.Path, required=True)
+    claim.add_argument(
+        "--envelope-source",
+        type=pathlib.Path,
+        required=True,
+    )
+    claim.add_argument(
+        "--execution-source",
+        type=pathlib.Path,
+        required=True,
+    )
+    claim.add_argument("--remote-main", required=True)
+    claim.add_argument(
+        "--git-executable",
+        type=pathlib.Path,
+        required=True,
+    )
     claim.add_argument("--bridge-root", type=pathlib.Path, required=True)
     claim.add_argument("--run-id", required=True)
     claim.add_argument("--run-attempt", required=True)
@@ -716,10 +1007,36 @@ def main(argv: list[str] | None = None) -> int:
         else:
             evidence = verify_owner_envelope(
                 selection,
-                bridge_source=args.bridge_source,
+                envelope_source=args.envelope_source,
             )
             report = {"selection": asdict(selection), "evidence": asdict(evidence)}
-            if args.command == "create-claim":
+            if args.command == "verify-envelope":
+                write_verified_github_env(evidence, args.github_env)
+            elif args.command == "verify-history":
+                verify_bridge_history(
+                    selection,
+                    evidence,
+                    envelope_source=args.envelope_source,
+                    execution_source=args.execution_source,
+                    remote_main=args.remote_main,
+                    git_executable=args.git_executable,
+                )
+                report["history"] = {
+                    "envelopeRevision": selection.envelope_revision,
+                    "executionBridgeRevision": (
+                        evidence.execution_bridge_revision
+                    ),
+                    "protected": True,
+                }
+            elif args.command == "create-claim":
+                verify_bridge_history(
+                    selection,
+                    evidence,
+                    envelope_source=args.envelope_source,
+                    execution_source=args.execution_source,
+                    remote_main=args.remote_main,
+                    git_executable=args.git_executable,
+                )
                 claim_path = create_new_claim(
                     selection,
                     evidence,

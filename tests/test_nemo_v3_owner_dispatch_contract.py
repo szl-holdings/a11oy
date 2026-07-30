@@ -32,7 +32,7 @@ def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> Non
         "- name: Validate explicit owner dispatch selection"
     )
     bridge = WORKFLOW.index(
-        "- name: Prepare exact public source and trusted control runtime"
+        "- name: Verify exact signed envelope as data"
     )
     assert checkout < selection < bridge
     selection_step = WORKFLOW[selection:bridge]
@@ -48,26 +48,40 @@ def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> Non
     assert "job-2026-nemo-v3-governed-attempt-1" not in WORKFLOW
     assert "38ba3100b2e20075b6ac0c3e62745c0f811de370" not in WORKFLOW
     assert 'DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v3"' in VALIDATOR
-    assert 'WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v3"' in VALIDATOR
+    assert 'WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v4"' in VALIDATOR
     assert '_CLIENT_PAYLOAD_FIELDS = {"selection"}' in VALIDATOR
 
 
-def test_exact_bridge_and_signed_envelope_verify_before_image_pull() -> None:
-    prepare = _step(
-        "Prepare exact public source and trusted control runtime",
+def test_envelope_data_and_signed_execution_source_are_separate() -> None:
+    envelope = _step(
+        "Verify exact signed envelope as data",
+        "Prepare signed execution source and GPU image",
+    )
+    runtime = _step(
+        "Prepare signed execution source and GPU image",
         "Prefetch exact authenticated inputs without executing model code",
     )
-    assert "fetch `" in prepare
-    assert "$env:BRIDGE_REVISION" in prepare
-    assert "checkout `" in prepare
-    assert "--detach `" in prepare
-    assert "$observed -cne $env:BRIDGE_REVISION" in prepare
-    envelope = prepare.index("verify-envelope `")
-    image_pull = prepare.index("& $docker pull $env:TRAINING_IMAGE")
-    assert envelope < image_pull
-    assert "--bridge-source $source" in prepare
-    assert '--github-sha "${{ github.sha }}"' in prepare
-    assert "--workflow-blob $env:EXPECTED_WORKFLOW_BLOB" in prepare
+    assert "ls-remote `" in envelope
+    assert "$remoteMain -cne $env:ENVELOPE_REVISION" in envelope
+    assert "--envelope-source $envelopeSource" in envelope
+    assert "--github-env $env:GITHUB_ENV" in envelope
+    assert "EXECUTION_BRIDGE_REVISION" not in envelope.split(
+        "verify-envelope `", 1
+    )[0]
+    assert "szl-gpu-bridge-envelope-" in envelope
+    assert "szl-gpu-bridge-runtime-" in runtime
+    assert "verify-history `" in runtime
+    assert "--remote-main $confirmedMain" in runtime
+    assert "--execution-source $source" in runtime
+    assert "--envelope-source $env:ENVELOPE_SOURCE" in runtime
+    assert "--untracked-files=all" in WORKFLOW
+    assert "merge-base" in VALIDATOR
+    assert "--is-ancestor" in VALIDATOR
+    assert "refs/remotes/origin/main" in VALIDATOR
+    assert "BRIDGE_REPOSITORY_URL" in VALIDATOR
+    assert runtime.index("verify-history `") < runtime.index(
+        "& $docker pull $env:TRAINING_IMAGE"
+    )
 
 
 def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
@@ -81,7 +95,11 @@ def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
     assert prefetch < claim < execute
     claim_step = WORKFLOW[claim:execute]
     assert "create-claim `" in claim_step
-    assert "--bridge-source $env:BRIDGE_SOURCE" in claim_step
+    assert "--envelope-source $env:ENVELOPE_SOURCE" in claim_step
+    assert "--execution-source $env:BRIDGE_SOURCE" in claim_step
+    assert "$claimMain -cne $env:PROTECTED_BRIDGE_MAIN" in claim_step
+    assert "--remote-main $claimMain" in claim_step
+    assert "--git-executable $env:GIT_EXECUTABLE" in claim_step
     assert "--bridge-root $env:BRIDGE_ROOT" in claim_step
     assert '--run-id "${{ github.run_id }}"' in claim_step
     assert '--run-attempt "${{ github.run_attempt }}"' in claim_step
@@ -97,8 +115,25 @@ def test_remote_code_step_has_no_token_or_signing_input() -> None:
     )
     assert "HF_TOKEN" not in execute
     assert "laptop_key.pem" not in execute
-    assert "-BridgeRevision $env:BRIDGE_REVISION" in execute
+    assert "-BridgeRevision $env:EXECUTION_BRIDGE_REVISION" in execute
+    assert "-EnvelopePath $env:VERIFIED_ENVELOPE_PATH" in execute
     assert "-Image $env:TRAINING_IMAGE" in execute
+
+
+def test_helpers_consume_verified_envelope_and_signed_engine_key() -> None:
+    prefetch = _step(
+        "Prefetch exact authenticated inputs without executing model code",
+        "Atomically claim the single governed attempt",
+    )
+    finalizer = _step(
+        "Sign, upload, and immutably read back the fresh receipt",
+        "Remove per-run trusted source and control runtime",
+    )
+    for step in (prefetch, finalizer):
+        assert "$env:VERIFIED_ENVELOPE_PATH" in step
+        assert '"keys\\engine_pubkey_" + $env:ENGINE_KEY_ID + ".json"' in step
+    assert '"queue\\pending\\" + $env:JOB_ID' not in prefetch
+    assert '"queue\\pending\\" + $env:JOB_ID' not in finalizer
 
 
 def test_finalizer_binds_allowed_receipt_name_to_exact_intent_name() -> None:
@@ -142,5 +177,8 @@ def test_cleanup_is_always_run_and_confined_to_runner_temp() -> None:
     assert "if: ${{ always() }}" in cleanup
     assert "[IO.Path]::GetFullPath" in cleanup
     assert "[StringComparison]::OrdinalIgnoreCase" in cleanup
-    assert '^szl-(gpu-bridge|nemo-control)-[0-9]+$' in cleanup
+    assert (
+        "^szl-(gpu-bridge-(envelope|runtime)|nemo-control)-[0-9]+$"
+        in cleanup
+    )
     assert "Remove-Item -LiteralPath $resolved -Recurse -Force" in cleanup
