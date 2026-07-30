@@ -411,9 +411,13 @@ def verify_owner_envelope(
     selection: DispatchSelection,
     *,
     envelope_source: pathlib.Path,
-    owner_key_id: str = OWNER_KEY_ID,
-    owner_spki_base64: str = OWNER_PUBLIC_KEY_SPKI_BASE64,
+    owner_key_id: str | None = None,
+    owner_spki_base64: str | None = None,
 ) -> EnvelopeEvidence:
+    if owner_key_id is None:
+        owner_key_id = OWNER_KEY_ID
+    if owner_spki_base64 is None:
+        owner_spki_base64 = OWNER_PUBLIC_KEY_SPKI_BASE64
     envelope_path = _envelope_path(envelope_source, selection.job_id)
     envelope_bytes = envelope_path.read_bytes()
     observed_envelope_hash = hashlib.sha256(envelope_bytes).hexdigest()
