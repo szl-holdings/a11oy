@@ -53,7 +53,7 @@ def _workflow(tmp_path: Path) -> Path:
 
 
 def _dispatch(workflow: Path, **overrides: Any) -> dict[str, Any]:
-    payload: dict[str, Any] = {
+    selection: dict[str, Any] = {
         "contractVersion": dispatch_validator.DISPATCH_CONTRACT_VERSION,
         "jobId": JOB_ID,
         "bridgeRevision": BRIDGE_SHA,
@@ -69,36 +69,44 @@ def _dispatch(workflow: Path, **overrides: Any) -> dict[str, Any]:
         "datasetUpload": False,
         "receiptsRepoId": dispatch_validator.RECEIPTS_REPOSITORY,
     }
-    payload.update(overrides)
-    return payload
+    selection.update(overrides)
+    return {"selection": selection}
+
+
+def _selection_payload(dispatch: dict[str, Any]) -> dict[str, Any]:
+    value = dispatch["selection"]
+    assert isinstance(value, dict)
+    return value
 
 
 def _owner_binding(dispatch: dict[str, Any]) -> dict[str, Any]:
+    selection = _selection_payload(dispatch)
     return {
-        "workflowIdentity": dispatch["workflowIdentity"],
-        "workflowBlob": dispatch["workflowBlob"],
-        "workflowVersion": dispatch["workflowVersion"],
-        "trainingImage": dispatch["trainingImage"],
-        "candidateUpload": dispatch["candidateUpload"],
-        "modelCardUpload": dispatch["modelCardUpload"],
-        "datasetUpload": dispatch["datasetUpload"],
-        "receiptsRepoId": dispatch["receiptsRepoId"],
+        "workflowIdentity": selection["workflowIdentity"],
+        "workflowBlob": selection["workflowBlob"],
+        "workflowVersion": selection["workflowVersion"],
+        "trainingImage": selection["trainingImage"],
+        "candidateUpload": selection["candidateUpload"],
+        "modelCardUpload": selection["modelCardUpload"],
+        "datasetUpload": selection["datasetUpload"],
+        "receiptsRepoId": selection["receiptsRepoId"],
     }
 
 
 def _payload(dispatch: dict[str, Any]) -> dict[str, Any]:
+    selection = _selection_payload(dispatch)
     return {
-        "jobId": dispatch["jobId"],
+        "jobId": selection["jobId"],
         "source": {
             "repoId": "szl-holdings/a11oy",
-            "revision": dispatch["sourceRevision"],
+            "revision": selection["sourceRevision"],
             "licenseId": "apache-2.0",
         },
         "outputs": {
             "candidateId": "SZL-Nemo-v3-Nemotron-4B-Adapter",
             "private": True,
             "publishCandidate": False,
-            "receiptsRepoId": dispatch["receiptsRepoId"],
+            "receiptsRepoId": selection["receiptsRepoId"],
         },
         "ownerDispatch": _owner_binding(dispatch),
         "lineage": {
@@ -128,6 +136,7 @@ def _write_envelope(
     spki_base64: str,
     key_id: str,
 ) -> Path:
+    selection = _selection_payload(dispatch)
     payload_bytes = json.dumps(
         payload,
         sort_keys=True,
@@ -158,12 +167,12 @@ def _write_envelope(
         bridge_source
         / "queue"
         / "pending"
-        / f"{dispatch['jobId']}.json"
+        / f"{selection['jobId']}.json"
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(envelope_bytes)
-    dispatch["payloadSha256"] = hashlib.sha256(payload_bytes).hexdigest()
-    dispatch["envelopeSha256"] = hashlib.sha256(envelope_bytes).hexdigest()
+    selection["payloadSha256"] = hashlib.sha256(payload_bytes).hexdigest()
+    selection["envelopeSha256"] = hashlib.sha256(envelope_bytes).hexdigest()
     return path
 
 
@@ -294,14 +303,30 @@ def test_retired_owner_key_is_rejected_by_default(tmp_path: Path) -> None:
         )
 
 
-@pytest.mark.parametrize("missing", sorted(dispatch_validator._DISPATCH_FIELDS))
+def test_transport_v3_uses_one_exact_top_level_property(tmp_path: Path) -> None:
+    dispatch = _dispatch(_workflow(tmp_path))
+
+    assert set(dispatch) == dispatch_validator._CLIENT_PAYLOAD_FIELDS
+    assert len(dispatch) == 1
+    assert (
+        len(dispatch)
+        <= dispatch_validator.GITHUB_CLIENT_PAYLOAD_PROPERTY_LIMIT
+        == 10
+    )
+    assert (
+        set(_selection_payload(dispatch))
+        == dispatch_validator._SELECTION_FIELDS
+    )
+
+
+@pytest.mark.parametrize("missing", sorted(dispatch_validator._SELECTION_FIELDS))
 def test_missing_dispatch_field_fails_closed(
     tmp_path: Path,
     missing: str,
 ) -> None:
     workflow = _workflow(tmp_path)
     dispatch = _dispatch(workflow)
-    dispatch.pop(missing)
+    _selection_payload(dispatch).pop(missing)
 
     with pytest.raises(
         dispatch_validator.DispatchValidationError,
@@ -329,15 +354,92 @@ def test_extra_dispatch_field_fails_closed(tmp_path: Path) -> None:
         )
 
 
+def test_legacy_direct_v2_payload_fails_closed(tmp_path: Path) -> None:
+    workflow = _workflow(tmp_path)
+    dispatch = _dispatch(workflow)
+    legacy = _selection_payload(dispatch)
+    legacy["contractVersion"] = "szl-nemo-owner-dispatch.v2"
+    legacy["workflowVersion"] = "nemo-v3-owner-dispatch.v2"
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="repository-dispatch property limit",
+    ):
+        dispatch_validator.validate_dispatch(
+            legacy,
+            github_sha=SOURCE_SHA,
+            workflow_path=workflow,
+        )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        [],
+        "selection",
+        {},
+        {"selection": []},
+        {"selection": {}, "extra": "not admitted"},
+    ],
+)
+def test_wrong_wrapper_shape_fails_closed(
+    tmp_path: Path,
+    payload: Any,
+) -> None:
+    workflow = _workflow(tmp_path)
+
+    with pytest.raises(dispatch_validator.DispatchValidationError):
+        dispatch_validator.validate_dispatch(
+            payload,
+            github_sha=SOURCE_SHA,
+            workflow_path=workflow,
+        )
+
+
+def test_transport_over_github_property_limit_fails_closed(
+    tmp_path: Path,
+) -> None:
+    workflow = _workflow(tmp_path)
+    dispatch = _dispatch(workflow)
+    dispatch.update({f"extra{index}": index for index in range(10)})
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="repository-dispatch property limit",
+    ):
+        dispatch_validator.validate_dispatch(
+            dispatch,
+            github_sha=SOURCE_SHA,
+            workflow_path=workflow,
+        )
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
+        (
+            {"contractVersion": "szl-nemo-owner-dispatch.v2"},
+            "version is not admitted",
+        ),
+        (
+            {"contractVersion": "szl-nemo-owner-dispatch.v99"},
+            "version is not admitted",
+        ),
+        (
+            {"workflowVersion": "nemo-v3-owner-dispatch.v2"},
+            "version is not admitted",
+        ),
+        ({"contractVersion": 3}, "version is not admitted"),
+        ({"jobId": 4}, "non-empty string"),
         (
             {"jobId": dispatch_validator.QUARANTINED_JOB_ID},
             "new governed attempt",
         ),
         ({"jobId": "../attempt-2"}, "new governed attempt"),
         ({"bridgeRevision": "main"}, "immutable full lowercase Git SHA"),
+        ({"envelopeSha256": None}, "lowercase SHA-256 hex"),
+        ({"payloadSha256": []}, "lowercase SHA-256 hex"),
         (
             {
                 "bridgeRevision": (
@@ -352,9 +454,11 @@ def test_extra_dispatch_field_fails_closed(tmp_path: Path) -> None:
         ({"workflowVersion": "mutable"}, "version is not admitted"),
         ({"trainingImage": "unsloth/unsloth:latest"}, "immutable approved"),
         ({"candidateUpload": True}, "candidateUpload must remain false"),
+        ({"candidateUpload": 0}, "candidateUpload must remain false"),
         ({"modelCardUpload": True}, "modelCardUpload must remain false"),
         ({"datasetUpload": True}, "datasetUpload must remain false"),
         ({"receiptsRepoId": "SZLHOLDINGS/other"}, "not admitted"),
+        ({"receiptsRepoId": []}, "not admitted"),
     ],
 )
 def test_malformed_or_weakened_dispatch_fails_closed(
@@ -522,7 +626,9 @@ def test_wrong_owner_signature_fails_closed(tmp_path: Path) -> None:
         json.dumps(envelope, indent=2, sort_keys=True) + "\n"
     ).encode("utf-8")
     envelope_path.write_bytes(envelope_bytes)
-    dispatch["envelopeSha256"] = hashlib.sha256(envelope_bytes).hexdigest()
+    _selection_payload(dispatch)["envelopeSha256"] = hashlib.sha256(
+        envelope_bytes
+    ).hexdigest()
     selection = dispatch_validator.validate_dispatch(
         dispatch,
         github_sha=SOURCE_SHA,
@@ -557,7 +663,7 @@ def test_exact_hash_mismatch_fails_closed(
         spki_base64,
         key_id,
     ) = _valid_case(tmp_path)
-    dispatch[field] = "0" * 64
+    _selection_payload(dispatch)[field] = "0" * 64
     selection = dispatch_validator.validate_dispatch(
         dispatch,
         github_sha=SOURCE_SHA,
@@ -650,6 +756,23 @@ def test_strict_json_rejects_duplicate_fields() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"selection":{},"selection":{}}',
+        '{"selection":{"jobId":"one","jobId":"two"}}',
+    ],
+)
+def test_strict_json_rejects_duplicate_wrapper_or_selection_fields(
+    raw: str,
+) -> None:
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="duplicate JSON field",
+    ):
+        dispatch_validator.strict_json_loads(raw, "fixture")
+
+
 def test_selection_does_not_mutate_input(tmp_path: Path) -> None:
     workflow = _workflow(tmp_path)
     dispatch = _dispatch(workflow)
@@ -671,19 +794,19 @@ def test_select_cli_writes_only_validated_environment(
     workflow = _workflow(tmp_path)
     dispatch = _dispatch(workflow)
     github_env = tmp_path / "github.env"
-    monkeypatch.setenv("OWNER_DISPATCH_JSON", json.dumps(dispatch))
+    monkeypatch.setenv("OWNER_DISPATCH_V3_JSON", json.dumps(dispatch))
 
     result = dispatch_validator.main(
         [
             "select",
             "--dispatch-json-env",
-            "OWNER_DISPATCH_JSON",
+            "OWNER_DISPATCH_V3_JSON",
             "--github-sha",
             SOURCE_SHA,
             "--workflow-path",
             str(workflow),
             "--workflow-blob",
-            dispatch["workflowBlob"],
+            _selection_payload(dispatch)["workflowBlob"],
             "--github-env",
             str(github_env),
         ]
@@ -696,7 +819,10 @@ def test_select_cli_writes_only_validated_environment(
         f"BRIDGE_REVISION={BRIDGE_SHA}",
         f"EXPECTED_ENVELOPE_SHA256={ENVELOPE_HASH}",
         f"EXPECTED_PAYLOAD_SHA256={PAYLOAD_HASH}",
-        f"EXPECTED_WORKFLOW_BLOB={dispatch['workflowBlob']}",
+        (
+            "EXPECTED_WORKFLOW_BLOB="
+            f"{_selection_payload(dispatch)['workflowBlob']}"
+        ),
     ]
 
 
@@ -705,13 +831,13 @@ def test_select_cli_rejects_missing_payload_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workflow = _workflow(tmp_path)
-    monkeypatch.delenv("OWNER_DISPATCH_JSON", raising=False)
+    monkeypatch.delenv("OWNER_DISPATCH_V3_JSON", raising=False)
 
     result = dispatch_validator.main(
         [
             "select",
             "--dispatch-json-env",
-            "OWNER_DISPATCH_JSON",
+            "OWNER_DISPATCH_V3_JSON",
             "--github-sha",
             SOURCE_SHA,
             "--workflow-path",

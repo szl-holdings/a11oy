@@ -36,8 +36,9 @@ def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> Non
     )
     assert checkout < selection < bridge
     selection_step = WORKFLOW[selection:bridge]
-    assert "OWNER_DISPATCH_JSON" in WORKFLOW
+    assert "OWNER_DISPATCH_V3_JSON" in WORKFLOW
     assert "toJson(github.event.client_payload)" in WORKFLOW
+    assert "client_payload.selection" in WORKFLOW
     assert "validate_nemo_v3_owner_dispatch.py" in selection_step
     assert "select `" in selection_step
     assert '--github-sha "${{ github.sha }}"' in selection_step
@@ -46,6 +47,9 @@ def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> Non
     assert "--github-env $env:GITHUB_ENV" in selection_step
     assert "job-2026-nemo-v3-governed-attempt-1" not in WORKFLOW
     assert "38ba3100b2e20075b6ac0c3e62745c0f811de370" not in WORKFLOW
+    assert 'DISPATCH_CONTRACT_VERSION = "szl-nemo-owner-dispatch.v3"' in VALIDATOR
+    assert 'WORKFLOW_VERSION = "nemo-v3-owner-dispatch.v3"' in VALIDATOR
+    assert '_CLIENT_PAYLOAD_FIELDS = {"selection"}' in VALIDATOR
 
 
 def test_exact_bridge_and_signed_envelope_verify_before_image_pull() -> None:

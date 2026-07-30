@@ -1,7 +1,9 @@
 name: Nemo v3 isolated owner GPU dispatch
 
 # repository_dispatch always loads this workflow from the protected default
-# branch. The managed Hub credential is scoped to two trusted helper steps and
+# branch. Transport v3 admits one exact nested client_payload.selection object
+# so the complete immutable binding remains below GitHub's top-level property
+# limit. The managed Hub credential is scoped to two trusted helper steps and
 # never enters the networkless remote-code execution container.
 
 on:
@@ -26,7 +28,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
     timeout-minutes: 330
     env:
-      OWNER_DISPATCH_JSON: ${{ toJson(github.event.client_payload) }}
+      OWNER_DISPATCH_V3_JSON: ${{ toJson(github.event.client_payload) }}
       TRAINING_IMAGE: unsloth/unsloth@sha256:9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123
       BRIDGE_ROOT: C:\szl-bridge
       CACHE_ROOT: C:\szl-bridge-cache
@@ -103,7 +105,7 @@ jobs:
               "scripts\validate_nemo_v3_owner_dispatch.py"
             )) `
             select `
-            --dispatch-json-env OWNER_DISPATCH_JSON `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
             --github-sha "${{ github.sha }}" `
             --workflow-path (
               Join-Path $env:GITHUB_WORKSPACE (
@@ -204,7 +206,7 @@ jobs:
               "scripts\validate_nemo_v3_owner_dispatch.py"
             )) `
             verify-envelope `
-            --dispatch-json-env OWNER_DISPATCH_JSON `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
             --github-sha "${{ github.sha }}" `
             --workflow-path (
               Join-Path $env:GITHUB_WORKSPACE (
@@ -280,7 +282,7 @@ jobs:
               "scripts\validate_nemo_v3_owner_dispatch.py"
             )) `
             create-claim `
-            --dispatch-json-env OWNER_DISPATCH_JSON `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
             --github-sha "${{ github.sha }}" `
             --workflow-path (
               Join-Path $env:GITHUB_WORKSPACE (
