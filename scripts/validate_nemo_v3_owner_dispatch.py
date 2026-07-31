@@ -46,11 +46,12 @@ RECEIPTS_REPOSITORY = "SZLHOLDINGS/szl-training-receipts"
 BRIDGE_REPOSITORY_URL = (
     "https://github.com/szl-holdings/szl-gpu-bridge.git"
 )
-QUARANTINED_JOB_ID = "job-2026-nemo-v3-governed-attempt-4"
 QUARANTINED_JOB_IDS = {
     "job-2026-nemo-v3-governed-attempt-1",
     "job-2026-nemo-v3-governed-attempt-2",
     "job-2026-nemo-v3-governed-attempt-4",
+    "job-2026-nemo-v3-governed-attempt-5",
+    "job-2026-nemo-v3-governed-attempt-6",
 }
 QUARANTINED_BRIDGE_REVISIONS = {
     "38ba3100b2e20075b6ac0c3e62745c0f811de370",
@@ -73,7 +74,7 @@ _FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _NEW_JOB_ID = re.compile(
     r"^job-[0-9]{4}-nemo-v3-governed-attempt-"
-    r"(?:[2-9]|[1-9][0-9]+)$"
+    r"(?P<generation>[2-9]|[1-9][0-9]+)$"
 )
 _POSITIVE_INTEGER = re.compile(r"^[1-9][0-9]*$")
 
@@ -133,6 +134,63 @@ _AUTHORIZATION_FIELDS = {
     "rotationMode",
     "settledA11oyRelockRunUrl",
 }
+_LINEAGE_FIELDS = {
+    "automaticRetry",
+    "candidateProduced",
+    "claimCreated",
+    "eventCreated",
+    "failurePhase",
+    "holdoutsAccessed",
+    "modelRepositoryCodeImported",
+    "predecessorEnvelopeRevision",
+    "predecessorEnvelopeSha256",
+    "predecessorExecutionBridgeRevision",
+    "predecessorJobId",
+    "predecessorPayloadSha256",
+    "receiptIntentProduced",
+    "scienceInputsReused",
+    "successorGeneration",
+    "terminalLedgerWritten",
+    "trainingStarted",
+    "transportEvidenceUrl",
+    "workflowRunCreated",
+}
+_LINEAGE_BOOLEAN_FIELDS = {
+    "automaticRetry",
+    "candidateProduced",
+    "claimCreated",
+    "eventCreated",
+    "holdoutsAccessed",
+    "modelRepositoryCodeImported",
+    "receiptIntentProduced",
+    "scienceInputsReused",
+    "terminalLedgerWritten",
+    "trainingStarted",
+    "workflowRunCreated",
+}
+_QUARANTINE_FIELDS = {
+    "dispatchAuthorized",
+    "engineKeyId",
+    "jobId",
+    "kind",
+    "preserveEnvelope",
+    "queueFileSha256",
+    "queuePath",
+    "reason",
+    "recordedAt",
+    "replacement",
+    "signedPayloadSha256",
+    "sourceRevision",
+    "status",
+    "v",
+}
+_QUARANTINE_REPLACEMENT_FIELDS = {
+    "engineKeyId",
+    "enginePublicKeySpkiSha256",
+    "reviewedJobId",
+    "sourceRevision",
+    "workflowBlob",
+}
 
 
 class DispatchValidationError(ValueError):
@@ -169,6 +227,22 @@ class EnvelopeEvidence:
     workflow_identity: str
     workflow_blob: str
     workflow_version: str
+    predecessor_job_id: str
+    predecessor_envelope_revision: str
+    predecessor_execution_bridge_revision: str
+    predecessor_envelope_sha256: str
+    predecessor_payload_sha256: str
+    predecessor_queue_path: str
+
+
+@dataclass(frozen=True)
+class PredecessorEvidence:
+    job_id: str
+    envelope_revision: str
+    execution_bridge_revision: str
+    envelope_sha256: str
+    payload_sha256: str
+    queue_path: str
 
 
 def _pairs_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -231,6 +305,16 @@ def _string(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value:
         raise DispatchValidationError(f"{field} must be a non-empty string")
     return value
+
+
+def _attempt_generation(value: Any, field: str) -> int:
+    job_id = _string(value, field)
+    match = _NEW_JOB_ID.fullmatch(job_id)
+    if match is None:
+        raise DispatchValidationError(
+            f"{field} must identify a governed attempt"
+        )
+    return int(match.group("generation"))
 
 
 def _full_sha(value: Any, field: str) -> str:
@@ -461,6 +545,344 @@ def _envelope_path(
     return candidate
 
 
+def _quarantine_path(
+    bridge_source: pathlib.Path,
+    job_id: str,
+    *,
+    required: bool,
+) -> pathlib.Path | None:
+    source = bridge_source.resolve(strict=True)
+    quarantine = (source / "queue" / "quarantine").resolve(strict=True)
+    try:
+        quarantine.relative_to(source)
+    except ValueError as exc:
+        raise DispatchValidationError(
+            "bridge quarantine directory escapes the exact checkout"
+        ) from exc
+    candidate = quarantine / f"{job_id}.json"
+    if candidate.parent != quarantine:
+        raise DispatchValidationError(
+            "quarantine path is not controlled by the validated job ID"
+        )
+    try:
+        mode = candidate.lstat().st_mode
+    except FileNotFoundError as exc:
+        if not required:
+            return None
+        raise DispatchValidationError(
+            "signed predecessor has no immutable quarantine record"
+        ) from exc
+    if not stat.S_ISREG(mode) or candidate.is_symlink():
+        raise DispatchValidationError(
+            "quarantine record must be a regular non-symlink file"
+        )
+    return candidate
+
+
+def _verify_predecessor_envelope(
+    *,
+    bridge_source: pathlib.Path,
+    job_id: str,
+    expected_envelope_sha256: str,
+    expected_payload_sha256: str,
+    expected_execution_revision: str,
+    expected_source_revision: str,
+    owner_key_id: str,
+    owner_spki: bytes,
+) -> None:
+    predecessor_path = _envelope_path(bridge_source, job_id)
+    envelope_bytes = predecessor_path.read_bytes()
+    if hashlib.sha256(envelope_bytes).hexdigest() != expected_envelope_sha256:
+        raise DispatchValidationError(
+            "quarantined predecessor envelope bytes do not match lineage"
+        )
+    envelope = _exact_object(
+        strict_json_loads(envelope_bytes, "quarantined predecessor envelope"),
+        field="quarantined predecessor envelope",
+        required=_ENVELOPE_FIELDS,
+    )
+    if envelope["payloadType"] != NEMO_V3_PAYLOAD_TYPE:
+        raise DispatchValidationError(
+            "quarantined predecessor payloadType is not admitted"
+        )
+    observed_spki = _decode_base64(
+        envelope["publicKeySpkiBase64"],
+        "quarantined predecessor publicKeySpkiBase64",
+    )
+    if observed_spki != owner_spki:
+        raise DispatchValidationError(
+            "quarantined predecessor was not signed by the verified owner key"
+        )
+    signatures = envelope["signatures"]
+    if not isinstance(signatures, list) or len(signatures) != 1:
+        raise DispatchValidationError(
+            "quarantined predecessor must contain exactly one owner signature"
+        )
+    signature_row = _exact_object(
+        signatures[0],
+        field="quarantined predecessor signature",
+        required=_SIGNATURE_FIELDS,
+    )
+    if signature_row["keyid"] != owner_key_id:
+        raise DispatchValidationError(
+            "quarantined predecessor key ID is not the verified owner key"
+        )
+    payload_bytes = _decode_base64(
+        envelope["payload"],
+        "quarantined predecessor payload",
+    )
+    if hashlib.sha256(payload_bytes).hexdigest() != expected_payload_sha256:
+        raise DispatchValidationError(
+            "quarantined predecessor payload bytes do not match lineage"
+        )
+    _verify_ed25519(
+        observed_spki[-32:],
+        dsse_pae(envelope["payloadType"], payload_bytes),
+        _decode_base64(
+            signature_row["sig"],
+            "quarantined predecessor signature",
+        ),
+    )
+    spec = strict_json_loads(
+        payload_bytes,
+        "quarantined predecessor signed payload",
+    )
+    if not isinstance(spec, dict) or spec.get("jobId") != job_id:
+        raise DispatchValidationError(
+            "quarantined predecessor payload does not bind its job ID"
+        )
+    source = _exact_object(
+        spec.get("source"),
+        field="quarantined predecessor source",
+        required=_SOURCE_FIELDS,
+    )
+    if (
+        _string(
+            source["repoId"],
+            "quarantined predecessor source.repoId",
+        )
+        != "szl-holdings/a11oy"
+        or _string(
+            source["licenseId"],
+            "quarantined predecessor source.licenseId",
+        ).lower()
+        != "apache-2.0"
+        or source["revision"] != expected_source_revision
+    ):
+        raise DispatchValidationError(
+            "quarantined predecessor source does not match its record"
+        )
+    authorization = _exact_object(
+        spec.get("authorization"),
+        field="quarantined predecessor authorization",
+        required=_AUTHORIZATION_FIELDS,
+    )
+    if (
+        authorization["correctedBridgeRevision"]
+        != expected_execution_revision
+    ):
+        raise DispatchValidationError(
+            "quarantined predecessor runtime revision does not match lineage"
+        )
+    if (
+        authorization["engineKeyId"] != owner_key_id
+        or authorization["enginePublicKeySpkiSha256"]
+        != hashlib.sha256(owner_spki).hexdigest()
+    ):
+        raise DispatchValidationError(
+            "quarantined predecessor engine key is not the verified owner key"
+        )
+
+
+def _verify_predecessor_lineage(
+    selection: DispatchSelection,
+    lineage_value: Any,
+    *,
+    envelope_source: pathlib.Path,
+    owner_key_id: str,
+    owner_spki: bytes,
+) -> PredecessorEvidence:
+    lineage = _exact_object(
+        lineage_value,
+        field="signed payload lineage",
+        required=_LINEAGE_FIELDS,
+    )
+    current_generation = _attempt_generation(
+        selection.job_id,
+        "signed payload jobId",
+    )
+    predecessor_job_id = _string(
+        lineage["predecessorJobId"],
+        "signed payload lineage.predecessorJobId",
+    )
+    predecessor_generation = _attempt_generation(
+        predecessor_job_id,
+        "signed payload lineage.predecessorJobId",
+    )
+    if (
+        predecessor_job_id == selection.job_id
+        or predecessor_generation + 1 != current_generation
+    ):
+        raise DispatchValidationError(
+            "signed successor lineage must bind the immediately preceding attempt"
+        )
+    successor_generation = lineage["successorGeneration"]
+    if (
+        isinstance(successor_generation, bool)
+        or not isinstance(successor_generation, int)
+        or successor_generation != current_generation
+    ):
+        raise DispatchValidationError(
+            "signed successor generation does not match the current attempt"
+        )
+    for field in _LINEAGE_BOOLEAN_FIELDS:
+        if not isinstance(lineage[field], bool):
+            raise DispatchValidationError(
+                f"signed payload lineage.{field} must be boolean"
+            )
+    if (
+        lineage["automaticRetry"] is not False
+        or lineage["scienceInputsReused"] is not True
+    ):
+        raise DispatchValidationError(
+            "signed successor lineage cannot retry or replace science inputs"
+        )
+    _string(
+        lineage["failurePhase"],
+        "signed payload lineage.failurePhase",
+    )
+    _string(
+        lineage["transportEvidenceUrl"],
+        "signed payload lineage.transportEvidenceUrl",
+    )
+    predecessor_envelope_revision = _full_sha(
+        lineage["predecessorEnvelopeRevision"],
+        "signed payload lineage.predecessorEnvelopeRevision",
+    )
+    predecessor_execution_revision = _full_sha(
+        lineage["predecessorExecutionBridgeRevision"],
+        "signed payload lineage.predecessorExecutionBridgeRevision",
+    )
+    if predecessor_envelope_revision == predecessor_execution_revision:
+        raise DispatchValidationError(
+            "predecessor envelope publication must remain data-only"
+        )
+    predecessor_envelope_sha256 = _sha256(
+        lineage["predecessorEnvelopeSha256"],
+        "signed payload lineage.predecessorEnvelopeSha256",
+    )
+    predecessor_payload_sha256 = _sha256(
+        lineage["predecessorPayloadSha256"],
+        "signed payload lineage.predecessorPayloadSha256",
+    )
+
+    if (
+        _quarantine_path(
+            envelope_source,
+            selection.job_id,
+            required=False,
+        )
+        is not None
+    ):
+        raise DispatchValidationError(
+            "current governed attempt already has a quarantine record"
+        )
+    quarantine_path = _quarantine_path(
+        envelope_source,
+        predecessor_job_id,
+        required=True,
+    )
+    assert quarantine_path is not None
+    record = _exact_object(
+        strict_json_loads(
+            quarantine_path.read_bytes(),
+            "predecessor quarantine record",
+        ),
+        field="predecessor quarantine record",
+        required=_QUARANTINE_FIELDS,
+    )
+    statuses = record["status"]
+    if (
+        not isinstance(statuses, list)
+        or not statuses
+        or any(not isinstance(value, str) or not value for value in statuses)
+        or len(set(statuses)) != len(statuses)
+        or "NEVER_DISPATCH" not in statuses
+    ):
+        raise DispatchValidationError(
+            "predecessor quarantine status must be unique and NEVER_DISPATCH"
+        )
+    expected_queue_path = f"queue/pending/{predecessor_job_id}.json"
+    if (
+        record["kind"] != "szl-nemo-v3-queue-quarantine"
+        or isinstance(record["v"], bool)
+        or record["v"] != 1
+        or record["jobId"] != predecessor_job_id
+        or record["queuePath"] != expected_queue_path
+        or record["preserveEnvelope"] is not True
+        or record["dispatchAuthorized"] is not False
+        or record["engineKeyId"] != owner_key_id
+    ):
+        raise DispatchValidationError(
+            "predecessor quarantine record is not immutable dispatch denial"
+        )
+    _string(record["recordedAt"], "predecessor quarantine recordedAt")
+    _string(record["reason"], "predecessor quarantine reason")
+    predecessor_source_revision = _full_sha(
+        record["sourceRevision"],
+        "predecessor quarantine sourceRevision",
+    )
+    if (
+        _sha256(
+            record["queueFileSha256"],
+            "predecessor quarantine queueFileSha256",
+        )
+        != predecessor_envelope_sha256
+        or _sha256(
+            record["signedPayloadSha256"],
+            "predecessor quarantine signedPayloadSha256",
+        )
+        != predecessor_payload_sha256
+    ):
+        raise DispatchValidationError(
+            "signed predecessor hashes do not match immutable quarantine evidence"
+        )
+    replacement = _exact_object(
+        record["replacement"],
+        field="predecessor quarantine replacement",
+        required=_QUARANTINE_REPLACEMENT_FIELDS,
+    )
+    expected_spki_sha256 = hashlib.sha256(owner_spki).hexdigest()
+    if replacement != {
+        "sourceRevision": selection.source_revision,
+        "workflowBlob": selection.workflow_blob,
+        "engineKeyId": owner_key_id,
+        "enginePublicKeySpkiSha256": expected_spki_sha256,
+        "reviewedJobId": selection.job_id,
+    }:
+        raise DispatchValidationError(
+            "predecessor quarantine replacement does not bind this successor"
+        )
+    _verify_predecessor_envelope(
+        bridge_source=envelope_source,
+        job_id=predecessor_job_id,
+        expected_envelope_sha256=predecessor_envelope_sha256,
+        expected_payload_sha256=predecessor_payload_sha256,
+        expected_execution_revision=predecessor_execution_revision,
+        expected_source_revision=predecessor_source_revision,
+        owner_key_id=owner_key_id,
+        owner_spki=owner_spki,
+    )
+    return PredecessorEvidence(
+        job_id=predecessor_job_id,
+        envelope_revision=predecessor_envelope_revision,
+        execution_bridge_revision=predecessor_execution_revision,
+        envelope_sha256=predecessor_envelope_sha256,
+        payload_sha256=predecessor_payload_sha256,
+        queue_path=expected_queue_path,
+    )
+
+
 def verify_owner_envelope(
     selection: DispatchSelection,
     *,
@@ -595,17 +1017,6 @@ def verify_owner_envelope(
         )
 
     lineage = spec.get("lineage")
-    if not isinstance(lineage, dict):
-        raise DispatchValidationError(
-            "signed successor payload must carry predecessor lineage"
-        )
-    if (
-        lineage.get("predecessorJobId") != QUARANTINED_JOB_ID
-        or lineage.get("automaticRetry") is not False
-    ):
-        raise DispatchValidationError(
-            "signed successor lineage does not bind the retired attempt"
-        )
 
     authorization = _exact_object(
         spec.get("authorization"),
@@ -640,6 +1051,13 @@ def verify_owner_envelope(
         raise DispatchValidationError(
             "signed payload engine identity does not match the verified owner key"
         )
+    predecessor = _verify_predecessor_lineage(
+        selection,
+        lineage,
+        envelope_source=envelope_source,
+        owner_key_id=owner_key_id,
+        owner_spki=observed_spki,
+    )
 
     return EnvelopeEvidence(
         job_id=selection.job_id,
@@ -655,6 +1073,14 @@ def verify_owner_envelope(
         workflow_identity=selection.workflow_identity,
         workflow_blob=selection.workflow_blob,
         workflow_version=selection.workflow_version,
+        predecessor_job_id=predecessor.job_id,
+        predecessor_envelope_revision=predecessor.envelope_revision,
+        predecessor_execution_bridge_revision=(
+            predecessor.execution_bridge_revision
+        ),
+        predecessor_envelope_sha256=predecessor.envelope_sha256,
+        predecessor_payload_sha256=predecessor.payload_sha256,
+        predecessor_queue_path=predecessor.queue_path,
     )
 
 
@@ -724,6 +1150,34 @@ def _git_output(
             f"{detail or 'nonzero exit'}"
         )
     return result.stdout.strip()
+
+
+def _git_bytes(
+    git_executable: pathlib.Path,
+    repository: pathlib.Path,
+    *arguments: str,
+) -> bytes:
+    try:
+        result = subprocess.run(
+            [str(git_executable), "-C", str(repository), *arguments],
+            check=False,
+            capture_output=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise DispatchValidationError(
+            f"Bridge history verification could not run git {' '.join(arguments)}"
+        ) from exc
+    if result.returncode != 0:
+        detail = result.stderr.decode(
+            "utf-8",
+            errors="replace",
+        ).strip()[:180]
+        raise DispatchValidationError(
+            f"Bridge history verification rejected git {' '.join(arguments)}: "
+            f"{detail or 'nonzero exit'}"
+        )
+    return result.stdout
 
 
 def verify_bridge_history(
@@ -843,6 +1297,49 @@ def verify_bridge_history(
         "--verify",
         f"{evidence.execution_bridge_revision}^{{commit}}",
     )
+    for revision in (
+        evidence.predecessor_execution_bridge_revision,
+        evidence.predecessor_envelope_revision,
+    ):
+        _git_output(
+            git_executable,
+            envelope_root,
+            "rev-parse",
+            "--verify",
+            f"{revision}^{{commit}}",
+        )
+    _git_output(
+        git_executable,
+        envelope_root,
+        "merge-base",
+        "--is-ancestor",
+        evidence.predecessor_execution_bridge_revision,
+        evidence.predecessor_envelope_revision,
+    )
+    _git_output(
+        git_executable,
+        envelope_root,
+        "merge-base",
+        "--is-ancestor",
+        evidence.predecessor_envelope_revision,
+        selection.envelope_revision,
+    )
+    historical_predecessor_envelope = _git_bytes(
+        git_executable,
+        envelope_root,
+        "show",
+        (
+            f"{evidence.predecessor_envelope_revision}:"
+            f"{evidence.predecessor_queue_path}"
+        ),
+    )
+    if (
+        hashlib.sha256(historical_predecessor_envelope).hexdigest()
+        != evidence.predecessor_envelope_sha256
+    ):
+        raise DispatchValidationError(
+            "protected predecessor envelope history does not match lineage"
+        )
     _git_output(
         git_executable,
         envelope_root,
