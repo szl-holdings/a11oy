@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -124,6 +126,41 @@ def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
     assert "os.O_EXCL" in VALIDATOR
     assert "os.O_CREAT" in VALIDATOR
     assert "os.fsync(descriptor)" in VALIDATOR
+
+
+def test_trusted_prefetch_cannot_dirty_execution_source_with_bytecode(
+    tmp_path: Path,
+) -> None:
+    prefetch = _step(
+        "Prefetch exact authenticated inputs without executing model code",
+        "Atomically claim the single governed attempt",
+    )
+    invocation = (
+        "& $env:CONTROL_PYTHON `\n"
+        "            -B `\n"
+        "            (Join-Path $env:BRIDGE_SOURCE "
+        '"laptop\\prefetch_nemo_v3.py") `'
+    )
+    assert invocation in prefetch
+
+    source = tmp_path / "execution-source"
+    package = source / "laptop"
+    package.mkdir(parents=True)
+    (package / "contract.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (package / "prefetch.py").write_text(
+        "from contract import VALUE\nraise SystemExit(0 if VALUE == 1 else 1)\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-B", str(package / "prefetch.py")],
+        cwd=source,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not list(source.rglob("__pycache__"))
+    assert not list(source.rglob("*.pyc"))
 
 
 def test_remote_code_step_has_no_token_or_signing_input() -> None:
