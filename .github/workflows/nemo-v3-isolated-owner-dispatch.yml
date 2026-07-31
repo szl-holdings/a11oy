@@ -43,7 +43,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate explicit owner dispatch selection
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -126,7 +126,7 @@ jobs:
             Add-Content -LiteralPath $env:GITHUB_ENV
 
       - name: Verify exact signed envelope as data
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -242,7 +242,7 @@ jobs:
             Add-Content -LiteralPath $env:GITHUB_ENV
 
       - name: Prepare signed execution source and GPU image
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -333,7 +333,7 @@ jobs:
           "BRIDGE_SOURCE=$source" | Add-Content -LiteralPath $env:GITHUB_ENV
 
       - name: Prefetch exact authenticated inputs without executing model code
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -367,7 +367,7 @@ jobs:
           }
 
       - name: Atomically claim the single governed attempt
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -408,7 +408,7 @@ jobs:
           }
 
       - name: Execute remote model code without network, credentials, or signing key
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         run: |
           $ErrorActionPreference = "Stop"
           & powershell.exe `
@@ -431,7 +431,7 @@ jobs:
           }
 
       - name: Sign, upload, and immutably read back the fresh receipt
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -493,7 +493,7 @@ jobs:
 
       - name: Remove per-run trusted source and control runtime
         if: ${{ always() }}
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         run: |
           $ErrorActionPreference = "Stop"
 

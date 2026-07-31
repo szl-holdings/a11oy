@@ -24,6 +24,15 @@ def test_dispatch_requires_protected_default_branch_and_same_owner_on_rerun() ->
     assert "github.triggering_actor == 'stephenlutar2-hash'" in admission
 
 
+def test_every_generated_powershell_script_uses_explicit_process_bypass() -> None:
+    shell = (
+        "shell: powershell -NoLogo -NoProfile -NonInteractive "
+        "-ExecutionPolicy Bypass -File {0}"
+    )
+    assert WORKFLOW.count(shell) == 8
+    assert "\n        shell: powershell\n" not in WORKFLOW
+
+
 def test_dispatch_selection_is_explicit_and_validated_before_bridge_use() -> None:
     checkout = WORKFLOW.index(
         "- name: Check out the exact dispatched default-branch revision"
