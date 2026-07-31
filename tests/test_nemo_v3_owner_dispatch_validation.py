@@ -30,8 +30,8 @@ BRIDGE_SHA = "b" * 40
 ENVELOPE_SHA = "e" * 40
 ENVELOPE_HASH = "c" * 64
 PAYLOAD_HASH = "d" * 64
-JOB_ID = "job-2026-nemo-v3-governed-attempt-7"
-PREDECESSOR_JOB_ID = "job-2026-nemo-v3-governed-attempt-6"
+JOB_ID = "job-2026-nemo-v3-governed-attempt-16"
+PREDECESSOR_JOB_ID = "job-2026-nemo-v3-governed-attempt-15"
 PREDECESSOR_SOURCE_SHA = "9" * 40
 PREDECESSOR_ENVELOPE_REVISION = "1" * 40
 PREDECESSOR_EXECUTION_REVISION = "2" * 40
@@ -122,7 +122,7 @@ def _payload(
             "https://github.com/szl-holdings/a11oy/actions/runs/1"
         ),
         "failurePhase": "PRE_DISPATCH_VALIDATOR_REJECTED",
-        "successorGeneration": 7,
+        "successorGeneration": 16,
         "automaticRetry": False,
         "eventCreated": False,
         "workflowRunCreated": False,
@@ -307,11 +307,16 @@ def _write_predecessor_evidence(
         "replacement": {
             "sourceRevision": selection["sourceRevision"],
             "workflowBlob": selection["workflowBlob"],
+            "workflowVersion": selection["workflowVersion"],
+            "settledA11oyRelockRunUrl": (
+                "https://github.com/szl-holdings/a11oy/actions/runs/1"
+            ),
             "engineKeyId": key_id,
             "enginePublicKeySpkiSha256": hashlib.sha256(
                 base64.b64decode(spki_base64, validate=True)
             ).hexdigest(),
             "reviewedJobId": selection["jobId"],
+            "successorGeneration": 16,
         },
         "reason": "The predecessor is immutable never-dispatch evidence.",
     }
@@ -606,7 +611,7 @@ def test_active_owner_key_pin_is_exact_and_self_authenticating() -> None:
     assert ACTIVE_OWNER_SPKI_SHA256[:16] == ACTIVE_OWNER_KEY_ID
 
 
-def test_valid_owner_dispatch_verifies_exact_signature_and_hashes(
+def test_valid_attempt_16_dispatch_verifies_exact_generic_replacement(
     tmp_path: Path,
 ) -> None:
     (
@@ -1036,7 +1041,7 @@ def test_transport_over_github_property_limit_fails_closed(
         ({"contractVersion": 3}, "version is not admitted"),
         ({"jobId": 4}, "non-empty string"),
         (
-            {"jobId": PREDECESSOR_JOB_ID},
+            {"jobId": next(iter(dispatch_validator.QUARANTINED_JOB_IDS))},
             "quarantined or stale governed attempt",
         ),
         ({"jobId": "../attempt-2"}, "new governed attempt"),
@@ -1253,6 +1258,12 @@ def _resign_mutated_payload(
         ),
         (
             lambda payload: payload["authorization"].update(
+                {"settledA11oyRelockRunUrl": "main"}
+            ),
+            "relock must be an immutable A11oy workflow run URL",
+        ),
+        (
+            lambda payload: payload["authorization"].update(
                 {"extraAuthority": "forbidden"}
             ),
             "unsupported fields",
@@ -1314,6 +1325,72 @@ def test_signed_envelope_binding_regressions_fail_closed(
             "replacement does not bind this successor",
         ),
         (
+            lambda record: record["replacement"].update(
+                {"sourceRevision": "7" * 40}
+            ),
+            "replacement does not bind this successor",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"workflowBlob": "6" * 40}
+            ),
+            "replacement does not bind this successor",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"workflowVersion": "nemo-v3-owner-dispatch.v3"}
+            ),
+            "replacement does not bind this successor",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {
+                    "settledA11oyRelockRunUrl": (
+                        "https://github.com/szl-holdings/a11oy/actions/runs/2"
+                    )
+                }
+            ),
+            "replacement does not bind this successor",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"settledA11oyRelockRunUrl": "main"}
+            ),
+            "relock must be an immutable A11oy workflow run URL",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"successorGeneration": 17}
+            ),
+            "does not bind the immediate successor",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"successorGeneration": True}
+            ),
+            "does not bind the immediate successor",
+        ),
+        (
+            lambda record: record["replacement"].pop("workflowVersion"),
+            "missing required fields",
+        ),
+        (
+            lambda record: record["replacement"].pop(
+                "settledA11oyRelockRunUrl"
+            ),
+            "missing required fields",
+        ),
+        (
+            lambda record: record["replacement"].pop("successorGeneration"),
+            "missing required fields",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"ignoredAuthority": "forbidden"}
+            ),
+            "unsupported fields",
+        ),
+        (
             lambda record: record.update({"queueFileSha256": "5" * 64}),
             "hashes do not match immutable quarantine evidence",
         ),
@@ -1352,6 +1429,39 @@ def test_predecessor_quarantine_tampering_fails_closed(
     with pytest.raises(
         dispatch_validator.DispatchValidationError,
         match=message,
+    ):
+        _verify(selection, bridge_source, spki_base64, key_id)
+
+
+def test_duplicate_predecessor_replacement_field_fails_closed(
+    tmp_path: Path,
+) -> None:
+    (
+        _workflow,
+        bridge_source,
+        _dispatch_payload,
+        selection,
+        _private_key,
+        spki_base64,
+        key_id,
+    ) = _valid_case(tmp_path)
+    quarantine_path = _quarantine_record_path(bridge_source)
+    record = json.loads(quarantine_path.read_text(encoding="utf-8"))
+    serialized = json.dumps(record, separators=(",", ":"))
+    field = (
+        '"workflowVersion":"'
+        + dispatch_validator.WORKFLOW_VERSION
+        + '"'
+    )
+    assert serialized.count(field) == 1
+    quarantine_path.write_text(
+        serialized.replace(field, f"{field},{field}", 1),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="duplicate JSON field: workflowVersion",
     ):
         _verify(selection, bridge_source, spki_base64, key_id)
 
