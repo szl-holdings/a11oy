@@ -356,6 +356,7 @@ jobs:
           $receipt = Join-Path $inputCache ($env:JOB_ID + "-prefetch.json")
 
           & $env:CONTROL_PYTHON `
+            -B `
             (Join-Path $env:BRIDGE_SOURCE "laptop\prefetch_nemo_v3.py") `
             --spec $spec `
             --engine-key $engineKey `
