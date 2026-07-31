@@ -30,7 +30,11 @@ BRIDGE_SHA = "b" * 40
 ENVELOPE_SHA = "e" * 40
 ENVELOPE_HASH = "c" * 64
 PAYLOAD_HASH = "d" * 64
-JOB_ID = "job-2026-nemo-v3-governed-attempt-5"
+JOB_ID = "job-2026-nemo-v3-governed-attempt-7"
+PREDECESSOR_JOB_ID = "job-2026-nemo-v3-governed-attempt-6"
+PREDECESSOR_SOURCE_SHA = "9" * 40
+PREDECESSOR_ENVELOPE_REVISION = "1" * 40
+PREDECESSOR_EXECUTION_REVISION = "2" * 40
 ACTIVE_OWNER_KEY_ID = "b8041281c81c4caa"
 ACTIVE_OWNER_SPKI_BASE64 = (
     "MCowBQYDK2VwAyEAstuDm9wVQ7BrOuBRmIyEHsOtyOutChFfRvCDenCDB6c="
@@ -103,8 +107,36 @@ def _payload(
     engine_key_id: str,
     engine_spki_sha256: str,
     execution_bridge_revision: str = BRIDGE_SHA,
+    lineage_overrides: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     selection = _selection_payload(dispatch)
+    lineage: dict[str, Any] = {
+        "predecessorJobId": PREDECESSOR_JOB_ID,
+        "predecessorEnvelopeSha256": "0" * 64,
+        "predecessorPayloadSha256": "0" * 64,
+        "predecessorEnvelopeRevision": PREDECESSOR_ENVELOPE_REVISION,
+        "predecessorExecutionBridgeRevision": (
+            PREDECESSOR_EXECUTION_REVISION
+        ),
+        "transportEvidenceUrl": (
+            "https://github.com/szl-holdings/a11oy/actions/runs/1"
+        ),
+        "failurePhase": "PRE_DISPATCH_VALIDATOR_REJECTED",
+        "successorGeneration": 7,
+        "automaticRetry": False,
+        "eventCreated": False,
+        "workflowRunCreated": False,
+        "claimCreated": False,
+        "trainingStarted": False,
+        "modelRepositoryCodeImported": False,
+        "holdoutsAccessed": False,
+        "candidateProduced": False,
+        "receiptIntentProduced": False,
+        "terminalLedgerWritten": False,
+        "scienceInputsReused": True,
+    }
+    if lineage_overrides:
+        lineage.update(lineage_overrides)
     return {
         "jobId": selection["jobId"],
         "source": {
@@ -140,10 +172,7 @@ def _payload(
                 "https://github.com/szl-holdings/a11oy/actions/runs/1"
             ),
         },
-        "lineage": {
-            "predecessorJobId": dispatch_validator.QUARANTINED_JOB_ID,
-            "automaticRetry": False,
-        },
+        "lineage": lineage,
     }
 
 
@@ -159,15 +188,12 @@ def _test_key() -> tuple[Ed25519PrivateKey, str, str]:
     return private_key, spki_base64, key_id
 
 
-def _write_envelope(
-    bridge_source: Path,
-    dispatch: dict[str, Any],
+def _signed_envelope_bytes(
     payload: dict[str, Any],
     private_key: Ed25519PrivateKey,
     spki_base64: str,
     key_id: str,
-) -> Path:
-    selection = _selection_payload(dispatch)
+) -> tuple[bytes, str]:
     payload_bytes = json.dumps(
         payload,
         sort_keys=True,
@@ -194,6 +220,24 @@ def _write_envelope(
     envelope_bytes = (
         json.dumps(envelope, indent=2, sort_keys=True) + "\n"
     ).encode("utf-8")
+    return envelope_bytes, hashlib.sha256(payload_bytes).hexdigest()
+
+
+def _write_envelope(
+    bridge_source: Path,
+    dispatch: dict[str, Any],
+    payload: dict[str, Any],
+    private_key: Ed25519PrivateKey,
+    spki_base64: str,
+    key_id: str,
+) -> Path:
+    selection = _selection_payload(dispatch)
+    envelope_bytes, payload_hash = _signed_envelope_bytes(
+        payload,
+        private_key,
+        spki_base64,
+        key_id,
+    )
     path = (
         bridge_source
         / "queue"
@@ -202,9 +246,87 @@ def _write_envelope(
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(envelope_bytes)
-    selection["payloadSha256"] = hashlib.sha256(payload_bytes).hexdigest()
+    selection["payloadSha256"] = payload_hash
     selection["envelopeSha256"] = hashlib.sha256(envelope_bytes).hexdigest()
     return path
+
+
+def _write_predecessor_evidence(
+    bridge_source: Path,
+    dispatch: dict[str, Any],
+    private_key: Ed25519PrivateKey,
+    spki_base64: str,
+    key_id: str,
+    *,
+    predecessor_execution_revision: str = PREDECESSOR_EXECUTION_REVISION,
+) -> tuple[str, str]:
+    selection = _selection_payload(dispatch)
+    predecessor_payload = _payload(
+        dispatch,
+        engine_key_id=key_id,
+        engine_spki_sha256=hashlib.sha256(
+            base64.b64decode(spki_base64, validate=True)
+        ).hexdigest(),
+        execution_bridge_revision=predecessor_execution_revision,
+    )
+    predecessor_payload["jobId"] = PREDECESSOR_JOB_ID
+    predecessor_payload["source"]["revision"] = PREDECESSOR_SOURCE_SHA
+    envelope_bytes, payload_hash = _signed_envelope_bytes(
+        predecessor_payload,
+        private_key,
+        spki_base64,
+        key_id,
+    )
+    envelope_hash = hashlib.sha256(envelope_bytes).hexdigest()
+    predecessor_path = (
+        bridge_source
+        / "queue"
+        / "pending"
+        / f"{PREDECESSOR_JOB_ID}.json"
+    )
+    predecessor_path.parent.mkdir(parents=True, exist_ok=True)
+    predecessor_path.write_bytes(envelope_bytes)
+
+    quarantine = {
+        "kind": "szl-nemo-v3-queue-quarantine",
+        "v": 1,
+        "jobId": PREDECESSOR_JOB_ID,
+        "recordedAt": "2026-07-31T00:30:00Z",
+        "status": [
+            "STALE_SOURCE",
+            "PRE_DISPATCH_VALIDATOR_REJECTED",
+            "NEVER_DISPATCH",
+        ],
+        "queuePath": f"queue/pending/{PREDECESSOR_JOB_ID}.json",
+        "queueFileSha256": envelope_hash,
+        "signedPayloadSha256": payload_hash,
+        "engineKeyId": key_id,
+        "sourceRevision": PREDECESSOR_SOURCE_SHA,
+        "preserveEnvelope": True,
+        "dispatchAuthorized": False,
+        "replacement": {
+            "sourceRevision": selection["sourceRevision"],
+            "workflowBlob": selection["workflowBlob"],
+            "engineKeyId": key_id,
+            "enginePublicKeySpkiSha256": hashlib.sha256(
+                base64.b64decode(spki_base64, validate=True)
+            ).hexdigest(),
+            "reviewedJobId": selection["jobId"],
+        },
+        "reason": "The predecessor is immutable never-dispatch evidence.",
+    }
+    quarantine_path = (
+        bridge_source
+        / "queue"
+        / "quarantine"
+        / f"{PREDECESSOR_JOB_ID}.json"
+    )
+    quarantine_path.parent.mkdir(parents=True, exist_ok=True)
+    quarantine_path.write_text(
+        json.dumps(quarantine, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return envelope_hash, payload_hash
 
 
 def _valid_case(
@@ -222,6 +344,15 @@ def _valid_case(
     bridge_source = tmp_path / "bridge"
     dispatch = _dispatch(workflow)
     private_key, spki_base64, key_id = _test_key()
+    predecessor_envelope_hash, predecessor_payload_hash = (
+        _write_predecessor_evidence(
+            bridge_source,
+            dispatch,
+            private_key,
+            spki_base64,
+            key_id,
+        )
+    )
     _write_envelope(
         bridge_source,
         dispatch,
@@ -231,6 +362,10 @@ def _valid_case(
             engine_spki_sha256=hashlib.sha256(
                 base64.b64decode(spki_base64, validate=True)
             ).hexdigest(),
+            lineage_overrides={
+                "predecessorEnvelopeSha256": predecessor_envelope_hash,
+                "predecessorPayloadSha256": predecessor_payload_hash,
+            },
         ),
         private_key,
         spki_base64,
@@ -266,6 +401,13 @@ def _verify(
     )
 
 
+def _quarantine_record_path(
+    bridge_source: Path,
+    job_id: str = PREDECESSOR_JOB_ID,
+) -> Path:
+    return bridge_source / "queue" / "quarantine" / f"{job_id}.json"
+
+
 def _git_executable() -> Path:
     value = shutil.which("git")
     if value is None:
@@ -296,10 +438,7 @@ def _history_case(
         spki_base64,
         key_id,
     ) = _valid_case(tmp_path)
-    envelope_path = (
-        envelope_source / "queue" / "pending" / f"{JOB_ID}.json"
-    )
-    envelope_path.unlink()
+    shutil.rmtree(envelope_source / "queue")
 
     _git(envelope_source, "init")
     _git(envelope_source, "config", "user.name", "Contract Test")
@@ -309,15 +448,63 @@ def _history_case(
         "user.email",
         "contract-test@example.invalid",
     )
+    (envelope_source / "predecessor-runtime.py").write_text(
+        "print('predecessor runtime')\n",
+        encoding="utf-8",
+    )
+    _git(envelope_source, "add", "predecessor-runtime.py")
+    _git(envelope_source, "commit", "-m", "predecessor runtime")
+    predecessor_execution_revision = _git(
+        envelope_source,
+        "rev-parse",
+        "HEAD",
+    )
+
+    _write_predecessor_evidence(
+        envelope_source,
+        dispatch,
+        private_key,
+        spki_base64,
+        key_id,
+        predecessor_execution_revision=predecessor_execution_revision,
+    )
+    predecessor_path = (
+        envelope_source
+        / "queue"
+        / "pending"
+        / f"{PREDECESSOR_JOB_ID}.json"
+    )
+    _git(
+        envelope_source,
+        "add",
+        str(predecessor_path.relative_to(envelope_source)),
+    )
+    _git(envelope_source, "commit", "-m", "publish predecessor envelope")
+    predecessor_envelope_revision = _git(
+        envelope_source,
+        "rev-parse",
+        "HEAD",
+    )
+
     (envelope_source / "runtime.py").write_text(
         "print('signed runtime')\n",
         encoding="utf-8",
     )
     _git(envelope_source, "add", "runtime.py")
-    _git(envelope_source, "commit", "-m", "runtime")
+    _git(envelope_source, "commit", "-m", "current runtime")
     execution_revision = _git(envelope_source, "rev-parse", "HEAD")
 
-    _write_envelope(
+    predecessor_envelope_hash, predecessor_payload_hash = (
+        _write_predecessor_evidence(
+            envelope_source,
+            dispatch,
+            private_key,
+            spki_base64,
+            key_id,
+            predecessor_execution_revision=predecessor_execution_revision,
+        )
+    )
+    envelope_path = _write_envelope(
         envelope_source,
         dispatch,
         _payload(
@@ -327,12 +514,30 @@ def _history_case(
                 base64.b64decode(spki_base64, validate=True)
             ).hexdigest(),
             execution_bridge_revision=execution_revision,
+            lineage_overrides={
+                "predecessorEnvelopeRevision": (
+                    predecessor_envelope_revision
+                ),
+                "predecessorExecutionBridgeRevision": (
+                    predecessor_execution_revision
+                ),
+                "predecessorEnvelopeSha256": predecessor_envelope_hash,
+                "predecessorPayloadSha256": predecessor_payload_hash,
+            },
         ),
         private_key,
         spki_base64,
         key_id,
     )
-    _git(envelope_source, "add", str(envelope_path.relative_to(envelope_source)))
+    _git(
+        envelope_source,
+        "add",
+        str(envelope_path.relative_to(envelope_source)),
+        (
+            "queue/quarantine/"
+            f"{PREDECESSOR_JOB_ID}.json"
+        ),
+    )
     _git(envelope_source, "commit", "-m", "publish envelope")
     envelope_revision = _git(envelope_source, "rev-parse", "HEAD")
     _git(
@@ -426,6 +631,18 @@ def test_valid_owner_dispatch_verifies_exact_signature_and_hashes(
     assert evidence.workflow_blob == selection.workflow_blob
     assert evidence.engine_key_id == key_id
     assert Path(evidence.envelope_path).name == f"{JOB_ID}.json"
+    assert evidence.predecessor_job_id == PREDECESSOR_JOB_ID
+    assert (
+        evidence.predecessor_envelope_revision
+        == PREDECESSOR_ENVELOPE_REVISION
+    )
+    assert (
+        evidence.predecessor_execution_bridge_revision
+        == PREDECESSOR_EXECUTION_REVISION
+    )
+    assert evidence.predecessor_queue_path == (
+        f"queue/pending/{PREDECESSOR_JOB_ID}.json"
+    )
 
 
 def test_signed_runtime_is_distinct_protected_bridge_history(
@@ -531,6 +748,58 @@ def test_unprotected_signed_runtime_revision_is_rejected(
             rogue_evidence,
             envelope_source=envelope_source,
             execution_source=rogue_source,
+            remote_main=selection.envelope_revision,
+            git_executable=git_executable,
+        )
+
+
+def test_unprotected_predecessor_runtime_revision_is_rejected(
+    tmp_path: Path,
+) -> None:
+    (
+        selection,
+        evidence,
+        envelope_source,
+        execution_source,
+        git_executable,
+    ) = _history_case(tmp_path)
+    rogue_source = tmp_path / "rogue-predecessor"
+    rogue_source.mkdir()
+    _git(rogue_source, "init")
+    _git(rogue_source, "config", "user.name", "Contract Test")
+    _git(
+        rogue_source,
+        "config",
+        "user.email",
+        "contract-test@example.invalid",
+    )
+    (rogue_source / "rogue.py").write_text(
+        "print('unprotected predecessor')\n",
+        encoding="utf-8",
+    )
+    _git(rogue_source, "add", "rogue.py")
+    _git(rogue_source, "commit", "-m", "unprotected predecessor")
+    rogue_revision = _git(rogue_source, "rev-parse", "HEAD")
+    _git(
+        envelope_source,
+        "fetch",
+        str(rogue_source),
+        rogue_revision,
+    )
+    rogue_evidence = dataclasses.replace(
+        evidence,
+        predecessor_execution_bridge_revision=rogue_revision,
+    )
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="merge-base --is-ancestor",
+    ):
+        dispatch_validator.verify_bridge_history(
+            selection,
+            rogue_evidence,
+            envelope_source=envelope_source,
+            execution_source=execution_source,
             remote_main=selection.envelope_revision,
             git_executable=git_executable,
         )
@@ -767,7 +1036,7 @@ def test_transport_over_github_property_limit_fails_closed(
         ({"contractVersion": 3}, "version is not admitted"),
         ({"jobId": 4}, "non-empty string"),
         (
-            {"jobId": dispatch_validator.QUARANTINED_JOB_ID},
+            {"jobId": PREDECESSOR_JOB_ID},
             "quarantined or stale governed attempt",
         ),
         ({"jobId": "../attempt-2"}, "new governed attempt"),
@@ -823,12 +1092,12 @@ def _resign_mutated_payload(
     key_id: str,
     mutate: Callable[[dict[str, Any]], None],
 ) -> None:
-    payload = _payload(
-        dispatch,
-        engine_key_id=key_id,
-        engine_spki_sha256=hashlib.sha256(
-            base64.b64decode(spki_base64, validate=True)
-        ).hexdigest(),
+    envelope_path = (
+        bridge_source / "queue" / "pending" / f"{JOB_ID}.json"
+    )
+    envelope = json.loads(envelope_path.read_text(encoding="utf-8"))
+    payload = json.loads(
+        base64.b64decode(envelope["payload"], validate=True).decode("utf-8")
     )
     mutate(payload)
     _write_envelope(
@@ -900,11 +1169,51 @@ def _resign_mutated_payload(
             lambda payload: payload["lineage"].update(
                 {"predecessorJobId": "job-2026-nemo-v3-governed-attempt-9"}
             ),
-            "retired attempt",
+            "immediately preceding attempt",
+        ),
+        (
+            lambda payload: payload["lineage"].update(
+                {"predecessorJobId": "job-2026-nemo-v3-governed-attempt-4"}
+            ),
+            "immediately preceding attempt",
+        ),
+        (
+            lambda payload: payload["lineage"].pop("predecessorJobId"),
+            "missing required fields",
+        ),
+        (
+            lambda payload: payload["lineage"].update(
+                {"predecessorEnvelopeSha256": "3" * 64}
+            ),
+            "hashes do not match immutable quarantine evidence",
+        ),
+        (
+            lambda payload: payload["lineage"].update(
+                {"predecessorPayloadSha256": "4" * 64}
+            ),
+            "hashes do not match immutable quarantine evidence",
+        ),
+        (
+            lambda payload: payload["lineage"].update(
+                {"successorGeneration": 6}
+            ),
+            "generation does not match",
         ),
         (
             lambda payload: payload["lineage"].update({"automaticRetry": True}),
-            "retired attempt",
+            "cannot retry or replace science inputs",
+        ),
+        (
+            lambda payload: payload["lineage"].update(
+                {"scienceInputsReused": False}
+            ),
+            "cannot retry or replace science inputs",
+        ),
+        (
+            lambda payload: payload["lineage"].update(
+                {"unexpected": "not admitted"}
+            ),
+            "unsupported fields",
         ),
         (
             lambda payload: payload["authorization"].update(
@@ -981,6 +1290,128 @@ def test_signed_envelope_binding_regressions_fail_closed(
     with pytest.raises(
         dispatch_validator.DispatchValidationError,
         match=message,
+    ):
+        _verify(selection, bridge_source, spki_base64, key_id)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda record: record.update(
+                {"status": ["PRE_DISPATCH_VALIDATOR_REJECTED"]}
+            ),
+            "status must be unique and NEVER_DISPATCH",
+        ),
+        (
+            lambda record: record.update({"dispatchAuthorized": True}),
+            "not immutable dispatch denial",
+        ),
+        (
+            lambda record: record["replacement"].update(
+                {"reviewedJobId": "job-2026-nemo-v3-governed-attempt-8"}
+            ),
+            "replacement does not bind this successor",
+        ),
+        (
+            lambda record: record.update({"queueFileSha256": "5" * 64}),
+            "hashes do not match immutable quarantine evidence",
+        ),
+        (
+            lambda record: record.update({"sourceRevision": "8" * 40}),
+            "source does not match its record",
+        ),
+        (
+            lambda record: record.update({"v": True}),
+            "not immutable dispatch denial",
+        ),
+    ],
+)
+def test_predecessor_quarantine_tampering_fails_closed(
+    tmp_path: Path,
+    mutate: Callable[[dict[str, Any]], None],
+    message: str,
+) -> None:
+    (
+        _workflow,
+        bridge_source,
+        _dispatch_payload,
+        selection,
+        _private_key,
+        spki_base64,
+        key_id,
+    ) = _valid_case(tmp_path)
+    quarantine_path = _quarantine_record_path(bridge_source)
+    record = json.loads(quarantine_path.read_text(encoding="utf-8"))
+    mutate(record)
+    quarantine_path.write_text(
+        json.dumps(record, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match=message,
+    ):
+        _verify(selection, bridge_source, spki_base64, key_id)
+
+
+def test_missing_predecessor_or_quarantined_current_attempt_fails_closed(
+    tmp_path: Path,
+) -> None:
+    (
+        _workflow,
+        bridge_source,
+        _dispatch_payload,
+        selection,
+        _private_key,
+        spki_base64,
+        key_id,
+    ) = _valid_case(tmp_path)
+    quarantine_path = _quarantine_record_path(bridge_source)
+    preserved_record = quarantine_path.read_bytes()
+    quarantine_path.unlink()
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="no immutable quarantine record",
+    ):
+        _verify(selection, bridge_source, spki_base64, key_id)
+
+    quarantine_path.write_bytes(preserved_record)
+    _quarantine_record_path(bridge_source, JOB_ID).write_bytes(
+        preserved_record
+    )
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="current governed attempt already has a quarantine record",
+    ):
+        _verify(selection, bridge_source, spki_base64, key_id)
+
+
+def test_mutated_predecessor_envelope_fails_closed(
+    tmp_path: Path,
+) -> None:
+    (
+        _workflow,
+        bridge_source,
+        _dispatch_payload,
+        selection,
+        _private_key,
+        spki_base64,
+        key_id,
+    ) = _valid_case(tmp_path)
+    predecessor_path = (
+        bridge_source
+        / "queue"
+        / "pending"
+        / f"{PREDECESSOR_JOB_ID}.json"
+    )
+    predecessor_path.write_bytes(predecessor_path.read_bytes() + b" ")
+
+    with pytest.raises(
+        dispatch_validator.DispatchValidationError,
+        match="envelope bytes do not match lineage",
     ):
         _verify(selection, bridge_source, spki_base64, key_id)
 

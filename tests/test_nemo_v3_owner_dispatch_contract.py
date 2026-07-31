@@ -93,6 +93,15 @@ def test_envelope_data_and_signed_execution_source_are_separate() -> None:
     )
 
 
+def test_successor_lineage_is_bound_to_immutable_predecessor_evidence() -> None:
+    assert "QUARANTINED_JOB_ID =" not in VALIDATOR
+    assert "_verify_predecessor_lineage(" in VALIDATOR
+    assert "predecessor quarantine record" in VALIDATOR
+    assert "predecessor_generation + 1 != current_generation" in VALIDATOR
+    assert '"NEVER_DISPATCH" not in statuses' in VALIDATOR
+    assert "protected predecessor envelope history" in VALIDATOR
+
+
 def test_single_attempt_is_atomically_claimed_after_verified_prefetch() -> None:
     prefetch = WORKFLOW.index(
         "- name: Prefetch exact authenticated inputs without executing model code"
