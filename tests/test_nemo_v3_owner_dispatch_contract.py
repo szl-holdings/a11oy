@@ -142,6 +142,10 @@ def test_trusted_prefetch_cannot_dirty_execution_source_with_bytecode(
         '"laptop\\prefetch_nemo_v3.py") `'
     )
     assert invocation in prefetch
+    assert "--job-id $env:JOB_ID" in prefetch
+    assert '--source-revision "${{ github.sha }}"' in prefetch
+    assert "--workflow-blob $env:EXPECTED_WORKFLOW_BLOB" in prefetch
+    assert "--execution-bridge-revision $env:EXECUTION_BRIDGE_REVISION" in prefetch
 
     source = tmp_path / "execution-source"
     package = source / "laptop"
@@ -187,6 +191,7 @@ def test_helpers_consume_verified_envelope_and_signed_engine_key() -> None:
     for step in (prefetch, finalizer):
         assert "$env:VERIFIED_ENVELOPE_PATH" in step
         assert '"keys\\engine_pubkey_" + $env:ENGINE_KEY_ID + ".json"' in step
+        assert "--execution-bridge-revision $env:EXECUTION_BRIDGE_REVISION" in step
     assert '"queue\\pending\\" + $env:JOB_ID' not in prefetch
     assert '"queue\\pending\\" + $env:JOB_ID' not in finalizer
 
