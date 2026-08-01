@@ -483,6 +483,7 @@ def _page_html(ns: str) -> str:
         </form>
         <div id="brain-result" role="status" aria-live="polite">Loading live Brain and corpus-admission status...</div>
         <div class="brain-links">
+          <a href="/graph-operations">Open Governed Graph Operations &rarr;</a>
           <a href="/holographic#brainquery">Open Brain Query tab &rarr;</a>
           <a href="/formulas">Inspect formula registry &rarr;</a>
           <a href="/api/a11oy/v1/brain/stats">Raw Brain stats &rarr;</a>
@@ -519,6 +520,7 @@ def _page_html(ns: str) -> str:
     <div id="grid"></div>
     <div class="status-line" id="status">fetching /frontier/manifest…</div>
     <div class="status-line"><a class="back" href="/">← back to console</a> &nbsp;·&nbsp;
+      <a class="orbital-link" href="/graph-operations">governed graph operations →</a> &nbsp;·&nbsp;
       <a class="orbital-link" href="/orbital">orbital tier (MODELED) →</a></div>
   </div>
 
