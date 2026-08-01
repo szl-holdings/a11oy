@@ -141,11 +141,11 @@
     'display:none;align-items:center;justify-content:center;padding:0 4px;border:2px solid #0a0f1e;}',
     '[data-unread="true"] .aow-badge{display:flex;}',
     '.aow-panel{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);right:calc(env(safe-area-inset-right,0px) + 16px);width:370px;max-width:calc(100vw - 32px);',
-    'height:540px;max-height:calc(100vh - 120px);background:#0c1322;',
+    'height:540px;max-height:calc(100vh - 120px - env(safe-area-inset-bottom,0px));background:#0c1322;',
     'border:1px solid rgba(201,183,135,0.22);border-radius:16px;display:none;flex-direction:column;',
     'box-shadow:0 8px 40px rgba(0,0,0,0.65);overflow:hidden;}',
     '[data-open="true"] .aow-panel{display:flex;}',
-    '.aow-root[data-dock-has-cop="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-height:calc(100vh - 168px);}',
+    '.aow-root[data-dock-has-cop="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px));}',
     '.aow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;',
     'border-bottom:1px solid rgba(201,183,135,0.16);background:rgba(22,32,58,0.6);}',
     '.aow-head-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
@@ -311,6 +311,10 @@
     syncDockPosition();
     setTimeout(syncDockPosition, 0);
     window.addEventListener('load', syncDockPosition, { once: true });
+    if (typeof window.MutationObserver === 'function') {
+      var dockObserver = new window.MutationObserver(syncDockPosition);
+      dockObserver.observe(document.body, { childList: true, subtree: true });
+    }
     renderThread();
     refreshBadge();
     checkStatus();
