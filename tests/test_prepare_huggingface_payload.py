@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("prepare_huggingface_payload.py")
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "prepare_huggingface_payload.py"
 SPEC = importlib.util.spec_from_file_location("prepare_huggingface_payload", SCRIPT)
 assert SPEC and SPEC.loader
 payload = importlib.util.module_from_spec(SPEC)
