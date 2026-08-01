@@ -11220,7 +11220,7 @@ try:
     from starlette.responses import Response as _OPW_Response
 
     _OPW_TAG = (
-        b'<script src="/vendor/a11oy-operator-widget.js?v=94ce0ff1aadc311b396d26193a670acaacfdce9f53bc907d15c45253d5a3ea12" '
+        b'<script src="/vendor/a11oy-operator-widget.js?v=4278f99b199b8130043ae4ab089f4091add343ecac76091c589cab7a82066fb9" '
         b'data-surface="a11oy" defer></script>'
     )
     _OPW_MARKER = b'a11oy-operator-widget.js'
@@ -11299,7 +11299,7 @@ async def spa_root():
     emits http.response.body bytes that every middleware handles correctly. Idempotent
     + try/except guarded; FileResponse fallback only if no file is readable."""
     from starlette.responses import Response as _SPA_Resp
-    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js?v=94ce0ff1aadc311b396d26193a670acaacfdce9f53bc907d15c45253d5a3ea12" '
+    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js?v=4278f99b199b8130043ae4ab089f4091add343ecac76091c589cab7a82066fb9" '
                 b'data-surface="a11oy" defer></script>')
     # Front door order: the holographic landing first (governed-inference field,
     # vendored Three.js r160, live receipt/mesh weave-ins + in-browser WebCrypto

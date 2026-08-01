@@ -8,8 +8,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_741
-EXPECTED_WIDGET_SHA256 = "94ce0ff1aadc311b396d26193a670acaacfdce9f53bc907d15c45253d5a3ea12"
+EXPECTED_WIDGET_BYTES = 36_599
+EXPECTED_WIDGET_SHA256 = "4278f99b199b8130043ae4ab089f4091add343ecac76091c589cab7a82066fb9"
 
 
 class OperatorControlDockContractTests(unittest.TestCase):
@@ -25,7 +25,8 @@ class OperatorControlDockContractTests(unittest.TestCase):
             "max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px))",
             "new window.MutationObserver(syncDockPosition)",
             "{ childList: true, subtree: true }",
-            '.aow-root[data-dock-has-cop="true"][data-open="true"]',
+            '.aow-root[data-open="true"] .aow-toasts{display:none;}',
+            "pushMsg('op'",
         ):
             self.assertIn(token, source)
 
