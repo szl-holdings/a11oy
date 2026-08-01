@@ -147,7 +147,16 @@
     '[data-open="true"] .aow-panel{display:flex;}',
     '.aow-root[data-dock-has-cop="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px));}',
     '.aow-root[data-dock-has-investor="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px));}',
-    '@media (max-height:480px){.aow-root[data-dock-has-investor="true"] .aow-panel{top:calc(env(safe-area-inset-top,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 176px);height:auto;max-height:none;max-width:calc(100vw - 192px);}}',
+    '@media (max-height:480px) and (min-width:600px){.aow-root[data-dock-has-investor="true"] .aow-panel{top:calc(env(safe-area-inset-top,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 176px);height:auto;max-height:none;max-width:calc(100vw - 192px);}}',
+    '@media (max-height:480px) and (max-width:599px){',
+    '.aow-root[data-open="true"][data-dock-has-investor="true"]{--aow-dock-bottom:8px;right:calc(env(safe-area-inset-right,0px) + 80px);}',
+    '.aow-root[data-dock-has-investor="true"] .aow-panel{top:calc(env(safe-area-inset-top,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 72px);left:calc(env(safe-area-inset-left,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 8px);width:auto;height:auto;max-height:none;max-width:none;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="cop"]{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)!important;right:calc(env(safe-area-inset-right,0px) + 16px)!important;width:56px!important;min-width:56px!important;max-width:56px!important;min-height:56px!important;padding:0!important;justify-content:center!important;font-size:0!important;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)!important;right:calc(env(safe-area-inset-right,0px) + 144px)!important;width:56px!important;min-width:56px!important;max-width:56px!important;min-height:56px!important;padding:0!important;justify-content:center!important;gap:0!important;font-size:0!important;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]>*{display:none!important;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="cop"]::after{content:"COP";font:700 10px/1 ui-monospace,"JetBrains Mono",monospace;letter-spacing:.08em;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]::after{content:"INV";font:700 10px/1 ui-monospace,"JetBrains Mono",monospace;letter-spacing:.08em;}',
+    '}',
     '.aow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;',
     'border-bottom:1px solid rgba(201,183,135,0.16);background:rgba(22,32,58,0.6);}',
     '.aow-head-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
@@ -302,14 +311,17 @@
   root.appendChild(fab);
 
   function syncDockPosition() {
+    var hasInvestor = Boolean(document.querySelector('[data-szl-dock-control="investor"]'));
     root.setAttribute(
       'data-dock-has-cop',
       document.querySelector('[data-szl-dock-control="cop"]') ? 'true' : 'false'
     );
     root.setAttribute(
       'data-dock-has-investor',
-      document.querySelector('[data-szl-dock-control="investor"]') ? 'true' : 'false'
+      hasInvestor ? 'true' : 'false'
     );
+    if (isOpen && hasInvestor) document.documentElement.setAttribute('data-aow-panel-open', 'true');
+    else document.documentElement.removeAttribute('data-aow-panel-open');
   }
 
   function mount() {
@@ -332,6 +344,7 @@
   var isOpen = false;
   function open() {
     isOpen = true;
+    syncDockPosition();
     root.setAttribute('data-open', 'true');
     fab.setAttribute('aria-expanded', 'true');
     state.unread = 0; persist(); refreshBadge();
@@ -341,6 +354,7 @@
   }
   function close() {
     isOpen = false;
+    document.documentElement.removeAttribute('data-aow-panel-open');
     root.setAttribute('data-open', 'false');
     fab.setAttribute('aria-expanded', 'false');
     fab.focus();

@@ -11,8 +11,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 37_373
-EXPECTED_WIDGET_SHA256 = "11ea2344c63e11f19d454df14d3c081b17f3b37af1995a83e70ca40bf270f465"
+EXPECTED_WIDGET_BYTES = 39_419
+EXPECTED_WIDGET_SHA256 = "0c4ad9e285bfcf8783b84c0dec13360f2159aba5f56904bf9454998d2371ec3b"
 
 
 class OperatorControlDockContractTests(unittest.TestCase):
@@ -32,9 +32,15 @@ class OperatorControlDockContractTests(unittest.TestCase):
             "max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px))",
             "document.querySelector('[data-szl-dock-control=\"investor\"]')",
             '.aow-root[data-dock-has-investor="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);}',
-            '@media (max-height:480px)',
+            '@media (max-height:480px) and (min-width:600px)',
             'right:calc(env(safe-area-inset-right,0px) + 176px)',
             'max-width:calc(100vw - 192px)',
+            '@media (max-height:480px) and (max-width:599px)',
+            'bottom:calc(env(safe-area-inset-bottom,0px) + 72px)',
+            'left:calc(env(safe-area-inset-left,0px) + 8px)',
+            'html[data-aow-panel-open="true"] [data-szl-dock-control="cop"]',
+            'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]',
+            "document.documentElement.removeAttribute('data-aow-panel-open')",
             '.aow-root[data-open="true"] .aow-toasts{display:none;}',
             "pushMsg('op'",
         ):
