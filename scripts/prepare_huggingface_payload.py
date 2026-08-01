@@ -7,7 +7,7 @@ import json
 import hashlib
 import shutil
 import subprocess
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from payload_manifest import manifest_bytes
 
@@ -50,9 +50,19 @@ def copy_deploy_manifest_closure() -> None:
     for item in files:
         if not isinstance(item, dict):
             raise ValueError("deploy manifest file entries must be objects")
-        relative = Path(str(item.get("path") or ""))
-        if not relative.parts or relative.is_absolute() or ".." in relative.parts:
-            raise ValueError(f"unsafe deploy manifest path: {relative}")
+        raw_relative = str(item.get("path") or "")
+        relative = Path(raw_relative)
+        windows_relative = PureWindowsPath(raw_relative)
+        if (
+            not relative.parts
+            or relative.anchor
+            or relative.is_absolute()
+            or "\\" in raw_relative
+            or windows_relative.anchor
+            or ".." in relative.parts
+            or ".." in windows_relative.parts
+        ):
+            raise ValueError(f"unsafe deploy manifest path: {raw_relative}")
 
         source = REPO_ROOT / "deploy" / relative
         destination = OUT_DIR / "payloads" / "deploy" / relative
