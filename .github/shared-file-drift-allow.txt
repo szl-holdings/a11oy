@@ -67,8 +67,3 @@ szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sove
 szl_connectors/governance.py  # TEMP: coordinated nested-secret scrub rollout
 szl_connectors/oauth.py       # TEMP: coordinated public OAuth-scope separation
 szl_dsse.py                   # TEMP: coordinated content-address separation
-
-# --- TEMPORARY coordinated operator-dock rollout (A11oy successor + paired Killinchu successor).
-# This entry is removed immediately after the paired Killinchu successor lands and
-# main-to-main equality is proven.
-static-vendor/a11oy-operator-widget.js  # TEMP: paired control-dock synchronization
