@@ -199,6 +199,7 @@
     '.aow-toasts{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);right:calc(env(safe-area-inset-right,0px) + 16px);display:flex;flex-direction:column;gap:8px;',
     'z-index:2147483646;pointer-events:none;width:330px;max-width:calc(100vw - 32px);}',
     '.aow-root[data-dock-has-cop="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);}',
+    '.aow-root[data-dock-has-investor="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);}',
     '.aow-root[data-open="true"] .aow-toasts{display:none;}',
     '.aow-toast{display:flex;align-items:flex-start;gap:10px;background:#0c1322;',
     'border:1px solid rgba(201,183,135,0.22);border-radius:12px;padding:10px 12px;',

@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Focused contracts for the shared operator control dock."""
 
 import hashlib
@@ -8,8 +11,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_965
-EXPECTED_WIDGET_SHA256 = "0e270225adc0ed21de48b9224e3b8f10bcd0c9a78ea9472cd7d4af1cfecff38c"
+EXPECTED_WIDGET_BYTES = 37_080
+EXPECTED_WIDGET_SHA256 = "24481854807822e1e59c6b3774143ac8801d14aa9a49aa7952f22917d29b933b"
 
 
 class OperatorControlDockContractTests(unittest.TestCase):
@@ -28,6 +31,7 @@ class OperatorControlDockContractTests(unittest.TestCase):
             'data-dock-has-investor="true"',
             "max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px))",
             "document.querySelector('[data-szl-dock-control=\"investor\"]')",
+            '.aow-root[data-dock-has-investor="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);}',
             '.aow-root[data-open="true"] .aow-toasts{display:none;}',
             "pushMsg('op'",
         ):
