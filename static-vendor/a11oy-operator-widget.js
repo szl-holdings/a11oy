@@ -146,6 +146,7 @@
     'box-shadow:0 8px 40px rgba(0,0,0,0.65);overflow:hidden;}',
     '[data-open="true"] .aow-panel{display:flex;}',
     '.aow-root[data-dock-has-cop="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px));}',
+    '.aow-root[data-dock-has-investor="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px));}',
     '.aow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;',
     'border-bottom:1px solid rgba(201,183,135,0.16);background:rgba(22,32,58,0.6);}',
     '.aow-head-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
@@ -225,7 +226,8 @@
   // ---- Build the DOM ----
   var root = el('div', {
     class: 'aow-root', 'data-open': 'false', 'data-unread': 'false',
-    'data-dock-has-cop': 'false', 'data-szl-dock-control': 'operator'
+    'data-dock-has-cop': 'false', 'data-dock-has-investor': 'false',
+    'data-szl-dock-control': 'operator'
   });
   root.setAttribute('data-a11oy-operator', 'widget');
 
@@ -301,6 +303,10 @@
     root.setAttribute(
       'data-dock-has-cop',
       document.querySelector('[data-szl-dock-control="cop"]') ? 'true' : 'false'
+    );
+    root.setAttribute(
+      'data-dock-has-investor',
+      document.querySelector('[data-szl-dock-control="investor"]') ? 'true' : 'false'
     );
   }
 

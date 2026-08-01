@@ -8,8 +8,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_599
-EXPECTED_WIDGET_SHA256 = "4278f99b199b8130043ae4ab089f4091add343ecac76091c589cab7a82066fb9"
+EXPECTED_WIDGET_BYTES = 36_965
+EXPECTED_WIDGET_SHA256 = "0e270225adc0ed21de48b9224e3b8f10bcd0c9a78ea9472cd7d4af1cfecff38c"
 
 
 class OperatorControlDockContractTests(unittest.TestCase):
@@ -25,6 +25,9 @@ class OperatorControlDockContractTests(unittest.TestCase):
             "max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px))",
             "new window.MutationObserver(syncDockPosition)",
             "{ childList: true, subtree: true }",
+            'data-dock-has-investor="true"',
+            "max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px))",
+            "document.querySelector('[data-szl-dock-control=\"investor\"]')",
             '.aow-root[data-open="true"] .aow-toasts{display:none;}',
             "pushMsg('op'",
         ):
@@ -36,6 +39,8 @@ class OperatorControlDockContractTests(unittest.TestCase):
             "/vendor/a11oy-operator-widget.js?v=" + EXPECTED_WIDGET_SHA256
         )
         self.assertGreaterEqual(source.count(f'src="{versioned_url}"'), 2)
+        web_shell = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+        self.assertIn(f'src="{versioned_url}"', web_shell)
 
     def test_shared_widget_is_not_allowlisted(self) -> None:
         paths = {
