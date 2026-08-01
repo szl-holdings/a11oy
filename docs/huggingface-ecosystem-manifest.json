@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-08-01T14:45:25Z",
+  "observedAt": "2026-08-01T14:56:24Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -386,9 +386,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "d7a720138294b0108a739bf0cae145317cc944cd",
-        "lastModified": "2026-07-30T20:43:04.000Z",
-        "cardSemanticSha256": "6ee290895ef5d709b624def713d2974b9faee3e24e8dff9b2aabb66e4010fa72",
+        "sha": "6425fbeba756828ea22e3795b1474acd3c42b11f",
+        "lastModified": "2026-08-01T14:48:50.000Z",
+        "cardSemanticSha256": "fc293dacf360bcd35c28a3ca2583d7035f98a30a7ab75210595007e22e70727a",
         "createdAt": "2026-06-24T16:11:54.000Z",
         "tags": [
           "kernels",
@@ -906,8 +906,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "c962f254070bb136717cdf0b5258c05a79af9641",
-        "lastModified": "2026-08-01T14:43:27.000Z",
+        "sha": "0c97173567d18e335cc661be0531b24458e224da",
+        "lastModified": "2026-08-01T14:53:45.000Z",
         "cardSemanticSha256": "4fac5c884d5c8eec1ccb88b639a8dcbd7d2ad6dc848437bafd1034bca5702072",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
