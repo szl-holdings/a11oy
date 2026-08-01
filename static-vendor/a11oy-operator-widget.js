@@ -352,18 +352,23 @@
     setTimeout(function () { input.focus(); }, 60);
     scrollThread();
   }
-  function close() {
+  function close(restoreFocus) {
     isOpen = false;
     document.documentElement.removeAttribute('data-aow-panel-open');
     root.setAttribute('data-open', 'false');
     fab.setAttribute('aria-expanded', 'false');
-    fab.focus();
+    if (restoreFocus !== false) fab.focus();
   }
   function toggle() { isOpen ? close() : open(); }
 
   fab.addEventListener('click', toggle);
   closeBtn.addEventListener('click', close);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen) close(); });
+  document.addEventListener('click', function (e) {
+    var target = e.target;
+    if (!isOpen || !target || typeof target.closest !== 'function') return;
+    if (target.closest('[data-szl-dock-control="investor"]')) close(false);
+  }, true);
 
   // ---- Thread rendering ----
   function refreshBadge() {

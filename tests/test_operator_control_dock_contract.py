@@ -11,8 +11,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 39_419
-EXPECTED_WIDGET_SHA256 = "0c4ad9e285bfcf8783b84c0dec13360f2159aba5f56904bf9454998d2371ec3b"
+EXPECTED_WIDGET_BYTES = 39_702
+EXPECTED_WIDGET_SHA256 = "00110044b9ea8aaef653bc9af9d44ab271b8eebf0d39526aa639c85ec2084f35"
 
 
 class OperatorControlDockContractTests(unittest.TestCase):
@@ -41,6 +41,8 @@ class OperatorControlDockContractTests(unittest.TestCase):
             'html[data-aow-panel-open="true"] [data-szl-dock-control="cop"]',
             'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]',
             "document.documentElement.removeAttribute('data-aow-panel-open')",
+            "target.closest('[data-szl-dock-control=\"investor\"]')",
+            "close(false)",
             '.aow-root[data-open="true"] .aow-toasts{display:none;}',
             "pushMsg('op'",
         ):
