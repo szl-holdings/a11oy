@@ -144,7 +144,7 @@ class Session:
                 url,
                 content=PUBLIC_KEY,
             )
-        if url.endswith("/series-a/receipts/" + BEFORE_HASH):
+        if url.endswith("/series-a/receipts?receipt_hash=" + BEFORE_HASH):
             return Response(url, value=self.recovery_record())
         raise AssertionError(url)
 
