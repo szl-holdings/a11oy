@@ -359,6 +359,28 @@
     fab.setAttribute('aria-expanded', 'false');
     if (restoreFocus !== false) fab.focus();
   }
+  function focusControlledDialog(control) {
+    setTimeout(function () {
+      if (!control || typeof control.getAttribute !== 'function') return;
+      var dialogId = control.getAttribute('aria-controls');
+      var dialog = dialogId && document.getElementById(dialogId);
+      if (
+        !dialog ||
+        control.getAttribute('aria-expanded') !== 'true' ||
+        dialog.getAttribute('aria-modal') !== 'true'
+      ) return;
+      var focusTarget = dialog.querySelector(
+        '[autofocus], [data-szl-initial-focus], button:not([disabled]), ' +
+        '[href], input:not([disabled]), select:not([disabled]), ' +
+        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusTarget) {
+        if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+        focusTarget = dialog;
+      }
+      if (typeof focusTarget.focus === 'function') focusTarget.focus();
+    }, 0);
+  }
   function toggle() { isOpen ? close() : open(); }
 
   fab.addEventListener('click', toggle);
@@ -367,7 +389,10 @@
   document.addEventListener('click', function (e) {
     var target = e.target;
     if (!isOpen || !target || typeof target.closest !== 'function') return;
-    if (target.closest('[data-szl-dock-control="investor"]')) close(false);
+    var investorControl = target.closest('[data-szl-dock-control="investor"]');
+    if (!investorControl) return;
+    close(false);
+    focusControlledDialog(investorControl);
   }, true);
 
   // ---- Thread rendering ----

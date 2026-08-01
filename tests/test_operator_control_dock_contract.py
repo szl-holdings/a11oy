@@ -4,15 +4,66 @@
 """Focused contracts for the shared operator control dock."""
 
 import hashlib
+import os
 from pathlib import Path
+import shutil
+import subprocess
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 39_702
-EXPECTED_WIDGET_SHA256 = "00110044b9ea8aaef653bc9af9d44ab271b8eebf0d39526aa639c85ec2084f35"
+EXPECTED_WIDGET_BYTES = 40_737
+EXPECTED_WIDGET_SHA256 = "50fbf93caba2439d06a5cb340a66166cdf401f91f2ec36104e22364462a09681"
+
+
+def _extract_braced_function(source: str, name: str) -> str:
+    marker = f"  function {name}("
+    start = source.index(marker)
+    brace = source.index("{", start)
+    depth = 0
+    for index in range(brace, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start : index + 1]
+    raise AssertionError(f"unterminated JavaScript function: {name}")
+
+
+def _extract_investor_click_listener(source: str) -> str:
+    marker = "  document.addEventListener('click', function (e) {"
+    start = source.index(marker)
+    terminator = "  }, true);"
+    end = source.index(terminator, start) + len(terminator)
+    return source[start:end]
+
+
+def _run_node(script: str) -> None:
+    node = os.environ.get("SZL_NODE_BINARY") or shutil.which("node")
+    if not node:
+        if os.environ.get("CI", "").lower() == "true":
+            raise AssertionError(
+                "Node.js must be provisioned for the CI behavioral focus contract"
+            )
+        raise unittest.SkipTest(
+            "Node.js unavailable; set SZL_NODE_BINARY to run the focus contract"
+        )
+    result = subprocess.run(
+        [node, "-"],
+        input=script,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    if result.returncode:
+        raise AssertionError(
+            f"JavaScript behavioral contract failed ({result.returncode}):\n"
+            f"{result.stdout}{result.stderr}"
+        )
 
 
 class OperatorControlDockContractTests(unittest.TestCase):
@@ -43,10 +94,68 @@ class OperatorControlDockContractTests(unittest.TestCase):
             "document.documentElement.removeAttribute('data-aow-panel-open')",
             "target.closest('[data-szl-dock-control=\"investor\"]')",
             "close(false)",
+            "focusControlledDialog(investorControl)",
+            "control.getAttribute('aria-expanded') !== 'true'",
+            "dialog.getAttribute('aria-modal') !== 'true'",
+            "[data-szl-initial-focus]",
             '.aow-root[data-open="true"] .aow-toasts{display:none;}',
             "pushMsg('op'",
         ):
             self.assertIn(token, source)
+
+    def test_investor_handoff_moves_focus_into_the_open_modal(self) -> None:
+        source = WIDGET_PATH.read_text(encoding="utf-8")
+        focus_function = _extract_braced_function(source, "focusControlledDialog")
+        click_listener = _extract_investor_click_listener(source)
+        script = r"""
+const timers = [];
+let isOpen = true;
+let expanded = false;
+let closedWith = "not-called";
+let activeElement = null;
+const initialFocus = { focus() { activeElement = this; } };
+const dialog = {
+  getAttribute(name) { return name === "aria-modal" ? "true" : null; },
+  querySelector(selector) {
+    if (!selector.includes("[data-szl-initial-focus]")) throw new Error("missing initial-focus selector");
+    return initialFocus;
+  },
+  hasAttribute() { return false; },
+  setAttribute() {},
+};
+const controlledInvestor = {
+  getAttribute(name) {
+    if (name === "aria-controls") return "szl-ceo";
+    if (name === "aria-expanded") return expanded ? "true" : "false";
+    return null;
+  },
+};
+const document = {
+  clickListener: null,
+  getElementById(id) { return id === "szl-ceo" ? dialog : null; },
+  addEventListener(type, listener, capture) {
+    if (type === "click") this.clickListener = { listener, capture };
+  },
+};
+function setTimeout(callback) { timers.push(callback); }
+function close(restoreFocus) { closedWith = restoreFocus; isOpen = false; }
+""" + focus_function + "\n" + click_listener + r"""
+if (!document.clickListener || document.clickListener.capture !== true) {
+  throw new Error("investor handoff is not capture-phase");
+}
+document.clickListener.listener({
+  target: {
+    closest(selector) {
+      return selector === '[data-szl-dock-control="investor"]' ? controlledInvestor : null;
+    },
+  },
+});
+if (closedWith !== false) throw new Error("operator did not close without stealing focus");
+expanded = true; // The investor target handler opens its controlled modal next.
+while (timers.length) timers.shift()();
+if (activeElement !== initialFocus) throw new Error("focus did not enter the controlled modal");
+"""
+        _run_node(script)
 
     def test_immutable_widget_urls_use_the_payload_hash(self) -> None:
         source = (ROOT / "serve.py").read_text(encoding="utf-8")
