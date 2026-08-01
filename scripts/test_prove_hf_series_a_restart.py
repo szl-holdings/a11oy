@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import pathlib
 import sys
 import types
@@ -96,6 +97,7 @@ def status(
 class Session:
     def __init__(self, source: str) -> None:
         self.source = source
+        self.current_boot = "boot_" + ("1" * 32)
         self.statuses = [
             status(source, receipts=1, head=BEFORE_HASH),
             status(
@@ -114,18 +116,21 @@ class Session:
         self.headers = {}
 
     def recovery_record(self) -> dict:
+        before_restart = self.current_boot != "boot_" + ("3" * 32)
+        receipts = 1 if before_restart else 2
+        head = BEFORE_HASH if before_restart else AFTER_HASH
         return {
             "schema": "szl.series-a-receipt-recovery/v1",
             "source_revision": self.source,
-            "runtime_boot_id": "boot_" + ("3" * 32),
+            "runtime_boot_id": self.current_boot,
             "signing_key_source": proof.EXPECTED_SIGNER,
             "public_key_sha256": PUBLIC_KEY_HASH,
             "database": proof.EXPECTED_DATABASE,
             "storage": status(
                 self.source,
-                receipts=2,
-                head=AFTER_HASH,
-                boot="boot_" + ("3" * 32),
+                receipts=receipts,
+                head=head,
+                boot=self.current_boot,
             )["storage"],
             "item": {
                 "sequence": 1,
@@ -136,7 +141,10 @@ class Session:
 
     def get(self, url: str, **_kwargs):
         if url.endswith("/series-a/status"):
-            return Response(url, value=self.statuses.pop(0))
+            value = self.statuses.pop(0)
+            if isinstance(value, dict) and value.get("runtime_boot_id"):
+                self.current_boot = value["runtime_boot_id"]
+            return Response(url, value=value)
         if url.endswith("/api/build-info"):
             return Response(url, value={"build": {"revision": self.source}})
         if url.endswith("/series-a/public-key"):
@@ -241,11 +249,20 @@ class LaggingReceiptSession(Session):
 
     def recovery_record(self) -> dict:
         self.receipt_calls += 1
-        if self.receipt_calls == 1 or not self.recover:
+        if self.receipt_calls > 1 and (
+            self.receipt_calls == 2 or not self.recover
+        ):
             raise proof.RestartProofError(
                 "exact receipt recovery returned HTTP 404"
             )
         return super().recovery_record()
+
+
+class MissingPreRestartReceiptSession(Session):
+    def recovery_record(self) -> dict:
+        raise proof.RestartProofError(
+            "exact receipt recovery returned HTTP 404"
+        )
 
 
 class Api:
@@ -406,7 +423,7 @@ def test_prove_polls_until_pre_restart_head_is_recovered(monkeypatch) -> None:
     )
 
     assert report["ok"] is True
-    assert session.receipt_calls == 2
+    assert session.receipt_calls == 3
     assert report["proof"]["pre_restart_chain_head_recovered"] is True
 
 
@@ -430,7 +447,99 @@ def test_prove_fails_closed_when_pre_restart_head_never_recovers(
             attempts=3,
             retry_seconds=0,
         )
-    assert session.receipt_calls == 3
+    assert session.receipt_calls == 4
+
+
+def test_prove_refuses_missing_head_before_durability_restart(
+    monkeypatch,
+) -> None:
+    source = "a" * 40
+    api = Api()
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(
+        proof.RestartProofError,
+        match="exact receipt recovery returned HTTP 404",
+    ):
+        proof.prove(
+            api=api,
+            session=MissingPreRestartReceiptSession(source),
+            repo_id="SZLHOLDINGS/a11oy",
+            origin="https://a-11-oy.com",
+            source_sha=source,
+            attempts=3,
+            retry_seconds=0,
+        )
+
+    assert api.calls == [
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False},
+    ]
+
+
+def test_failure_report_preserves_secret_free_restart_evidence() -> None:
+    secret = "hf_example_secret_value"
+    report = proof.failure_report(
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://a-11-oy.com",
+        source_revision="a" * 40,
+        evidence={
+            "phase": "recover_post_restart_head",
+            "before": {
+                "runtime_boot_id": "boot_" + ("1" * 32),
+                "storage": {
+                    "chain_head": BEFORE_HASH,
+                    "last_receipt_sequence": 1,
+                },
+            },
+        },
+        error=proof.RestartProofError(
+            "head unavailable while using " + secret
+        ),
+        secrets=(secret,),
+    )
+
+    encoded = proof.json.dumps(report, sort_keys=True)
+    assert report["ok"] is False
+    assert report["status"] == "FAIL"
+    assert report["secret_values_recorded"] is False
+    assert report["evidence"]["before"]["storage"]["chain_head"] == BEFORE_HASH
+    assert secret not in encoded
+    assert "[REDACTED]" in encoded
+
+
+def test_main_writes_failure_report_and_remains_nonzero(
+    monkeypatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    secret = "hf_example_secret_value"
+    output = tmp_path / "restart-proof.json"
+    monkeypatch.setenv("HF_TOKEN", secret)
+    monkeypatch.setattr(proof, "HfApi", lambda token: Api())
+
+    def refuse(**kwargs):
+        kwargs["evidence"]["phase"] = "verify_pre_restart_head"
+        raise proof.RestartProofError("refused with " + secret)
+
+    monkeypatch.setattr(proof, "prove", refuse)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT),
+            "--source-sha",
+            "a" * 40,
+            "--output",
+            str(output),
+        ],
+    )
+
+    with pytest.raises(proof.RestartProofError, match="refused"):
+        proof.main()
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status"] == "FAIL"
+    assert report["evidence"]["phase"] == "verify_pre_restart_head"
+    assert secret not in output.read_text(encoding="utf-8")
 
 
 def test_prove_uses_one_shared_deadline(monkeypatch) -> None:

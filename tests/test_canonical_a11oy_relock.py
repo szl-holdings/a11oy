@@ -871,6 +871,11 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             "${{ env.SERIES_A_LIVE_REPORT }}",
             self.workflow,
         )
+        self.assertIn(
+            "- name: Upload secret-free runtime configuration evidence\n"
+            "        if: ${{ always() }}",
+            self.workflow,
+        )
         self.assertLess(
             self.workflow.index("python scripts/prove_hf_series_a_restart.py"),
             self.workflow.index(
