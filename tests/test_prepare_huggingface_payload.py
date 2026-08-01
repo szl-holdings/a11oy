@@ -7,6 +7,8 @@ import shutil
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -40,7 +42,6 @@ def test_prepared_payload_closes_deploy_manifest(tmp_path, monkeypatch) -> None:
         assert (output / "payloads" / "deploy" / "uds-package.yaml").is_file()
     finally:
         shutil.rmtree(output, ignore_errors=True)
-
 
 def test_deploy_manifest_copy_canonicalizes_text_and_preserves_binary(
     tmp_path, monkeypatch
@@ -85,3 +86,41 @@ def test_deploy_manifest_copy_canonicalizes_text_and_preserves_binary(
     assert (
         output / "payloads" / "deploy" / "weights.bin"
     ).read_bytes() == source_binary
+
+
+def test_deploy_manifest_copy_rejects_non_posix_relative_paths(
+    tmp_path, monkeypatch
+) -> None:
+    repo = tmp_path / "repo"
+    deploy = repo / "deploy"
+    deploy.mkdir(parents=True)
+    output = tmp_path / "output"
+    monkeypatch.setattr(payload, "REPO_ROOT", repo)
+    monkeypatch.setattr(payload, "OUT_DIR", output)
+
+    unsafe_paths = (
+        r"\Users\me\config.yaml",
+        r"C:\Users\me\config.yaml",
+        r"\\server\share\config.yaml",
+        "/etc/config.yaml",
+        "../config.yaml",
+    )
+    for unsafe in unsafe_paths:
+        (deploy / "MANIFEST.json").write_text(
+            json.dumps(
+                {
+                    "files": [
+                        {
+                            "path": unsafe,
+                            "size": 0,
+                            "sha256": hashlib.sha256(b"").hexdigest(),
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="unsafe deploy manifest path"):
+            payload.copy_deploy_manifest_closure()
+
+    assert not output.exists()
