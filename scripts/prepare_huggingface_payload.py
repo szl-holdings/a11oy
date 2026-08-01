@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import shutil
 import subprocess
 from pathlib import Path
@@ -36,6 +37,31 @@ def copy_tree(source: str, target: str) -> None:
     if destination.exists():
         shutil.rmtree(destination)
     shutil.copytree(REPO_ROOT / source, destination)
+
+
+def copy_deploy_manifest_closure() -> None:
+    manifest = json.loads((REPO_ROOT / "deploy" / "MANIFEST.json").read_text(encoding="utf-8"))
+    files = manifest.get("files")
+    if not isinstance(files, list) or not files:
+        raise ValueError("deploy manifest must declare at least one file")
+
+    for item in files:
+        if not isinstance(item, dict):
+            raise ValueError("deploy manifest file entries must be objects")
+        relative = Path(str(item.get("path") or ""))
+        if not relative.parts or relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"unsafe deploy manifest path: {relative}")
+
+        source = REPO_ROOT / "deploy" / relative
+        destination = OUT_DIR / "payloads" / "deploy" / relative
+        if not source.is_file():
+            raise FileNotFoundError(f"deploy manifest source is missing: {relative}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+
+        payload = destination.read_bytes()
+        if len(payload) != item.get("size") or hashlib.sha256(payload).hexdigest() != item.get("sha256"):
+            raise ValueError(f"deploy manifest evidence does not match source: {relative}")
 
 
 def main() -> int:
@@ -88,6 +114,7 @@ def main() -> int:
         copy_text("NOTICE", "NOTICE")
 
     copy_tree("deploy/manifests", "payloads/deploy/manifests")
+    copy_deploy_manifest_closure()
     copy_tree("huggingface/test-results", "test-results")
 
     metadata = {
