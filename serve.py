@@ -569,6 +569,28 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Governed Graph Operations (2026-08-01): a deterministic, non-effecting
+# topology analyzer for bounded loop nodes, real data/control edges, fan-in
+# completeness, independent verification, hidden resource conflicts, budgets,
+# and external truth anchors. The implementation is REAL; every proposed plan
+# remains MODELED and PLAN_ONLY with zero effectors/writes/provider calls. The
+# router and its broker/operator-friendly page are registered before both
+# catch-alls and fail one additive surface closed without weakening the estate.
+try:
+    from routers import governed_graph_operations as _governed_graph_operations
+
+    _GOVERNED_GRAPH_OPERATIONS_STATUS = _governed_graph_operations.register(
+        app, ns="a11oy"
+    )
+except Exception as _governed_graph_operations_error:  # pragma: no cover
+    _GOVERNED_GRAPH_OPERATIONS_STATUS = {
+        "ok": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_governed_graph_operations_error).__name__,
+        "routes": [],
+    }
+
+
 # External numerical-engine frontier (wave 18). The module accepts only fixed
 # matrix solve, symmetric-eigenvalue, and reference-vector operations. GNU
 # Octave and MATLAB remain external installations; missing engine, offline

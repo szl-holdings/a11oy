@@ -1,0 +1,634 @@
+<!doctype html>
+<!--
+SPDX-License-Identifier: Apache-2.0
+Copyright 2026 Lutar, Stephen P. - SZL Holdings
+Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#070b0f">
+  <title>Governed Graph Operations | A11oy</title>
+  <style>
+    :root {
+      --ink:#f5f3eb;
+      --muted:#9aa6ad;
+      --faint:#67727a;
+      --gold:#c9b787;
+      --gold-bright:#eadca9;
+      --teal:#5fb3a3;
+      --teal-bright:#88d7c7;
+      --red:#ef776d;
+      --amber:#e9b65f;
+      --blue:#79aee8;
+      --violet:#ae8de6;
+      --bg:#070b0f;
+      --panel:#0d1318;
+      --panel-2:#111a21;
+      --line:#243039;
+      --line-hot:#42505a;
+      --shadow:0 24px 80px rgba(0,0,0,.34);
+      --radius:18px;
+      --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html { background:var(--bg); scroll-behavior:smooth; }
+    body {
+      min-width:320px;
+      margin:0;
+      color:var(--ink);
+      background:
+        radial-gradient(circle at 14% 0%,rgba(95,179,163,.09),transparent 28rem),
+        radial-gradient(circle at 88% 5%,rgba(201,183,135,.08),transparent 30rem),
+        linear-gradient(180deg,#080d11 0%,#070b0f 72%);
+      font-family:var(--sans);
+      -webkit-font-smoothing:antialiased;
+    }
+    body::before {
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.18;
+      background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:44px 44px;
+      mask-image:linear-gradient(to bottom,black,transparent 82%);
+    }
+    a { color:inherit; }
+    button,textarea { font:inherit; }
+    button { color:inherit; }
+    :where(a,button,textarea):focus-visible { outline:2px solid var(--gold-bright); outline-offset:3px; }
+    .skip { position:fixed; left:1rem; top:-5rem; z-index:50; padding:.7rem 1rem; background:var(--ink); color:var(--bg); border-radius:8px; }
+    .skip:focus { top:1rem; }
+    .shell { position:relative; width:min(1580px,100%); margin:0 auto; padding:0 24px 48px; }
+    .topbar {
+      min-height:76px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      border-bottom:1px solid rgba(201,183,135,.16);
+    }
+    .brand { display:flex; align-items:center; gap:12px; text-decoration:none; min-width:0; }
+    .brand-mark {
+      width:34px;
+      height:34px;
+      display:grid;
+      place-items:center;
+      border:1px solid rgba(201,183,135,.55);
+      border-radius:10px;
+      color:var(--gold-bright);
+      box-shadow:inset 0 0 18px rgba(201,183,135,.08);
+      font:700 11px/1 var(--mono);
+      letter-spacing:.08em;
+    }
+    .brand-copy { min-width:0; }
+    .brand-name { display:block; font-weight:680; font-size:.91rem; letter-spacing:-.01em; }
+    .brand-sub { display:block; margin-top:2px; color:var(--muted); font:500 .62rem/1.2 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+    .topnav { display:flex; align-items:center; gap:18px; color:var(--muted); font-size:.76rem; }
+    .topnav a { text-decoration:none; }
+    .topnav a:hover { color:var(--ink); }
+    .system-state { display:flex; gap:8px; align-items:center; }
+    .state-pill,.eyebrow,.tag,.role-pill {
+      font-family:var(--mono);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .state-pill { display:inline-flex; align-items:center; gap:7px; min-height:29px; padding:0 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:.6rem; white-space:nowrap; }
+    .state-pill::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--faint); box-shadow:0 0 0 4px rgba(103,114,122,.08); }
+    .state-pill.real { color:var(--teal-bright); border-color:rgba(95,179,163,.32); background:rgba(95,179,163,.05); }
+    .state-pill.real::before { background:var(--teal); box-shadow:0 0 0 4px rgba(95,179,163,.09),0 0 14px rgba(95,179,163,.45); }
+    .state-pill.modeled { color:var(--gold-bright); border-color:rgba(201,183,135,.3); background:rgba(201,183,135,.05); }
+    .state-pill.modeled::before { background:var(--gold); }
+    .hero { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:32px; padding:56px 0 34px; align-items:end; }
+    .eyebrow { color:var(--gold); font-size:.66rem; line-height:1.4; }
+    h1 { max-width:900px; margin:12px 0 16px; font-size:clamp(2.25rem,5vw,5.3rem); line-height:.93; letter-spacing:-.058em; font-weight:660; }
+    h1 span { color:var(--teal-bright); }
+    .lede { max-width:820px; margin:0; color:#b9c2c7; font-size:clamp(.96rem,1.3vw,1.12rem); line-height:1.65; }
+    .truth-card { width:315px; padding:18px; border:1px solid rgba(201,183,135,.22); border-radius:var(--radius); background:linear-gradient(145deg,rgba(201,183,135,.07),rgba(13,19,24,.9)); box-shadow:var(--shadow); }
+    .truth-card strong { display:block; color:var(--gold-bright); font:600 .72rem/1.4 var(--mono); letter-spacing:.07em; text-transform:uppercase; }
+    .truth-card p { margin:10px 0 0; color:var(--muted); font-size:.76rem; line-height:1.55; }
+    .truth-facts { display:grid; grid-template-columns:repeat(3,1fr); margin-top:16px; border-top:1px solid var(--line); padding-top:14px; }
+    .truth-facts b { display:block; color:var(--ink); font:650 1rem/1 var(--mono); }
+    .truth-facts span { display:block; margin-top:6px; color:var(--faint); font:500 .56rem/1.2 var(--mono); text-transform:uppercase; letter-spacing:.06em; }
+    .sample-rail { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px; }
+    .sample-button { border:1px solid var(--line); border-radius:999px; padding:9px 13px; background:#0b1116; cursor:pointer; color:var(--muted); font:600 .65rem/1 var(--mono); letter-spacing:.04em; }
+    .sample-button:hover { border-color:var(--line-hot); color:var(--ink); }
+    .sample-button[aria-pressed="true"] { border-color:rgba(95,179,163,.5); color:var(--teal-bright); background:rgba(95,179,163,.08); }
+    .workspace { display:grid; grid-template-columns:260px minmax(0,1fr) 300px; min-height:690px; border:1px solid rgba(201,183,135,.2); border-radius:22px; overflow:hidden; background:rgba(9,14,18,.88); box-shadow:var(--shadow); }
+    .rail { min-width:0; padding:20px; background:rgba(12,18,23,.86); }
+    .rail.left { border-right:1px solid var(--line); }
+    .rail.right { border-left:1px solid var(--line); }
+    .section-label { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--muted); font:600 .61rem/1.3 var(--mono); text-transform:uppercase; letter-spacing:.09em; }
+    .section-label b { color:var(--ink); font-weight:600; }
+    .goal { margin:13px 0 20px; color:#d7dcde; font-size:.83rem; line-height:1.55; }
+    .metric-stack { display:grid; gap:8px; }
+    .metric { display:flex; justify-content:space-between; gap:12px; align-items:center; min-height:42px; padding:0 12px; border:1px solid var(--line); border-radius:10px; background:rgba(5,9,12,.5); }
+    .metric span { color:var(--muted); font-size:.68rem; }
+    .metric b { font:650 .75rem/1 var(--mono); }
+    .metric b.good { color:var(--teal-bright); }
+    .metric b.warn { color:var(--amber); }
+    .metric b.bad { color:var(--red); }
+    .legend { display:grid; gap:11px; margin-top:24px; }
+    .legend-row { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:.67rem; }
+    .legend-line { width:28px; height:0; border-top:1px solid var(--teal); }
+    .legend-line.control { border-top-style:dashed; border-color:var(--gold); }
+    .legend-line.risk { border-top-color:var(--red); }
+    .rail-note { margin-top:22px; padding:12px; border:1px solid rgba(201,183,135,.18); border-radius:10px; color:var(--muted); font-size:.68rem; line-height:1.55; background:rgba(201,183,135,.035); }
+    .graph-stage { min-width:0; display:grid; grid-template-rows:auto minmax(430px,1fr) auto; background:radial-gradient(circle at 50% 30%,rgba(95,179,163,.04),transparent 25rem); }
+    .stage-head { min-height:58px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:0 18px; border-bottom:1px solid var(--line); }
+    .stage-title { min-width:0; }
+    .stage-title b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem; }
+    .stage-title span { display:block; margin-top:3px; color:var(--faint); font:500 .59rem/1.2 var(--mono); }
+    .stage-actions { display:flex; gap:8px; }
+    .action { min-height:34px; border:1px solid var(--line); border-radius:9px; padding:0 12px; background:#0c1318; color:var(--muted); cursor:pointer; font:600 .62rem/1 var(--mono); }
+    .action:hover { border-color:var(--line-hot); color:var(--ink); }
+    .action.primary { border-color:rgba(95,179,163,.45); color:#06211d; background:var(--teal-bright); }
+    .action.primary:hover { background:#a0e5d7; }
+    .graph-viewport { position:relative; min-width:0; overflow:auto; padding:18px; }
+    #graph-svg { display:block; width:100%; min-width:720px; height:100%; min-height:450px; }
+    .edge { fill:none; stroke:rgba(95,179,163,.5); stroke-width:1.35; vector-effect:non-scaling-stroke; }
+    .edge.control { stroke:rgba(201,183,135,.58); stroke-dasharray:5 5; }
+    .node-box { fill:#101920; stroke:#31404a; stroke-width:1; rx:12; vector-effect:non-scaling-stroke; transition:stroke .15s ease,fill .15s ease; }
+    .node-group { cursor:pointer; }
+    .node-group:hover .node-box,.node-group:focus .node-box { stroke:var(--gold); fill:#142028; }
+    .node-group.verifier .node-box { stroke:rgba(95,179,163,.72); }
+    .node-group.publisher .node-box,.node-group.human_gate .node-box { stroke:rgba(201,183,135,.72); }
+    .node-group.loop .node-box { stroke:rgba(174,141,230,.72); }
+    .node-title { fill:var(--ink); font:600 11px var(--sans); pointer-events:none; }
+    .node-role { fill:var(--muted); font:600 8px var(--mono); letter-spacing:.08em; pointer-events:none; text-transform:uppercase; }
+    .node-index { fill:var(--teal-bright); font:700 9px var(--mono); pointer-events:none; }
+    .node-dot { fill:var(--teal); }
+    .stage-foot { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 18px; border-top:1px solid var(--line); color:var(--muted); font-size:.65rem; }
+    .digest { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--mono); }
+    .decision { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font:600 .62rem/1 var(--mono); white-space:nowrap; }
+    .decision::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--faint); }
+    .decision.ready { color:var(--teal-bright); }
+    .decision.ready::before { background:var(--teal); box-shadow:0 0 12px rgba(95,179,163,.6); }
+    .decision.revise { color:var(--amber); }
+    .decision.revise::before { background:var(--amber); }
+    .gate-hero { margin:14px 0 18px; padding:16px; border:1px solid var(--line); border-radius:13px; background:#0a1014; }
+    .gate-hero strong { display:block; font-size:1.02rem; letter-spacing:-.02em; }
+    .gate-hero span { display:block; margin-top:6px; color:var(--muted); font-size:.68rem; line-height:1.45; }
+    .gate-list { display:grid; gap:8px; }
+    .gate { padding:10px 11px; border:1px solid var(--line); border-radius:10px; }
+    .gate-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .gate-head b { font:600 .65rem/1.3 var(--mono); }
+    .tag { font-size:.53rem; padding:4px 6px; border-radius:5px; border:1px solid var(--line); color:var(--muted); }
+    .tag.pass { color:var(--teal-bright); border-color:rgba(95,179,163,.35); }
+    .tag.block { color:var(--red); border-color:rgba(239,119,109,.35); }
+    .gate p { margin:7px 0 0; color:var(--muted); font-size:.63rem; line-height:1.45; }
+    .node-inspector { margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+    .node-inspector h2 { margin:11px 0 6px; font-size:.9rem; letter-spacing:-.02em; }
+    .node-inspector p { margin:0; color:var(--muted); font-size:.65rem; line-height:1.5; overflow-wrap:anywhere; }
+    .inspector-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:12px; }
+    .inspector-grid div { padding:8px; border:1px solid var(--line); border-radius:8px; }
+    .inspector-grid span { display:block; color:var(--faint); font:500 .52rem/1.2 var(--mono); text-transform:uppercase; }
+    .inspector-grid b { display:block; margin-top:5px; font:600 .62rem/1.2 var(--mono); overflow-wrap:anywhere; }
+    .details-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr); gap:18px; margin-top:18px; }
+    .detail-card { min-width:0; border:1px solid var(--line); border-radius:var(--radius); background:rgba(13,19,24,.8); overflow:hidden; }
+    .detail-head { min-height:56px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 18px; border-bottom:1px solid var(--line); }
+    .detail-head h2 { margin:0; font-size:.82rem; }
+    .detail-head span { color:var(--muted); font:500 .58rem/1.2 var(--mono); }
+    .issues { display:grid; gap:0; }
+    .issue { display:grid; grid-template-columns:96px minmax(0,1fr) auto; gap:14px; align-items:start; padding:14px 18px; border-bottom:1px solid var(--line); }
+    .issue:last-child { border-bottom:0; }
+    .issue-code { color:var(--gold-bright); font:600 .59rem/1.4 var(--mono); overflow-wrap:anywhere; }
+    .issue-copy b { display:block; font-size:.72rem; }
+    .issue-copy p { margin:5px 0 0; color:var(--muted); font-size:.66rem; line-height:1.5; }
+    .issue-nodes { max-width:170px; color:var(--faint); font:500 .56rem/1.5 var(--mono); text-align:right; overflow-wrap:anywhere; }
+    .empty { padding:34px 18px; text-align:center; color:var(--muted); font-size:.72rem; }
+    .contract-wrap { padding:14px; }
+    #contract-editor { width:100%; min-height:330px; resize:vertical; border:1px solid var(--line); border-radius:11px; padding:13px; background:#070c10; color:#cbd4d8; font:500 .65rem/1.55 var(--mono); tab-size:2; }
+    .editor-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
+    #editor-status { min-width:0; color:var(--muted); font:500 .58rem/1.35 var(--mono); overflow-wrap:anywhere; }
+    .method { margin-top:18px; padding:24px; border:1px solid rgba(201,183,135,.18); border-radius:var(--radius); background:linear-gradient(135deg,rgba(201,183,135,.045),rgba(95,179,163,.025)); }
+    .method-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-top:18px; }
+    .method-step { position:relative; padding:14px; border:1px solid var(--line); border-radius:11px; background:rgba(8,13,17,.6); }
+    .method-step b { display:block; color:var(--gold-bright); font:600 .6rem/1.4 var(--mono); text-transform:uppercase; letter-spacing:.06em; }
+    .method-step p { margin:8px 0 0; color:var(--muted); font-size:.67rem; line-height:1.48; }
+    footer { display:flex; justify-content:space-between; gap:24px; padding:32px 2px 0; color:var(--faint); font:500 .6rem/1.5 var(--mono); }
+    footer a { color:var(--muted); text-underline-offset:3px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:1180px) {
+      .workspace { grid-template-columns:220px minmax(0,1fr); }
+      .rail.right { grid-column:1/-1; display:grid; grid-template-columns:220px minmax(0,1fr) minmax(220px,.7fr); gap:18px; border-left:0; border-top:1px solid var(--line); }
+      .gate-hero,.node-inspector { margin:0; }
+      .node-inspector { padding:0; border:0; }
+    }
+    @media (max-width:860px) {
+      .shell { padding-left:14px; padding-right:14px; }
+      .topnav { display:none; }
+      .hero { grid-template-columns:1fr; padding-top:40px; }
+      .truth-card { width:100%; }
+      .workspace { grid-template-columns:1fr; }
+      .rail.left { border-right:0; border-bottom:1px solid var(--line); }
+      .metric-stack { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .metric { display:block; padding:10px; }
+      .metric b { display:block; margin-top:6px; }
+      .graph-stage { min-height:620px; }
+      .rail.right { display:grid; grid-template-columns:1fr; }
+      .details-grid { grid-template-columns:1fr; }
+      .method-grid { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width:560px) {
+      .shell { padding-left:10px; padding-right:10px; }
+      .brand-sub,.system-state .modeled { display:none; }
+      h1 { font-size:2.65rem; }
+      .metric-stack { grid-template-columns:1fr 1fr; }
+      .stage-head { align-items:flex-start; padding:12px; }
+      .stage-actions { flex-direction:column; }
+      .graph-viewport { padding:8px; }
+      .stage-foot { align-items:flex-start; flex-direction:column; }
+      .issue { grid-template-columns:1fr; gap:7px; }
+      .issue-nodes { max-width:none; text-align:left; }
+      .method-grid { grid-template-columns:1fr; }
+      footer { flex-direction:column; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      html { scroll-behavior:auto; }
+      *,*::before,*::after { transition-duration:.01ms !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#workspace">Skip to graph workspace</a>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="A11oy home">
+        <span class="brand-mark">A11</span>
+        <span class="brand-copy"><span class="brand-name">Graph Operations</span><span class="brand-sub">SZL Holdings / A11oy</span></span>
+      </a>
+      <nav class="topnav" aria-label="Product navigation">
+        <a href="/frontier">Frontier</a>
+        <a href="/holographic">Estate map</a>
+        <a href="/code/ide">Code operator</a>
+      </nav>
+      <div class="system-state" aria-label="Surface truth state">
+        <span class="state-pill real" id="implementation-pill">Real analyzer</span>
+        <span class="state-pill modeled">Modeled plan</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <div class="eyebrow">Governed graph engineering / Doctrine v11</div>
+          <h1 id="page-title">Parallel work.<br><span>Provable handoffs.</span></h1>
+          <p class="lede">Design bounded loops as nodes, keep only real dependencies, surface hidden resource conflicts, count every fan-in, and require outside evidence before an outcome can move forward.</p>
+        </div>
+        <aside class="truth-card" aria-label="Truth boundary">
+          <strong>Truth boundary</strong>
+          <p>This surface analyzes and schedules a contract. It does not run agents or authorize writes. Publication remains policy-gated, human-approved, and receipted.</p>
+          <div class="truth-facts"><div><b>0</b><span>Effectors</span></div><div><b>0</b><span>Writes</span></div><div><b>0</b><span>Provider calls</span></div></div>
+        </aside>
+      </section>
+
+      <div class="sample-rail" role="group" aria-label="Example graph contracts">
+        <button class="sample-button" type="button" data-sample="protected-release" aria-pressed="true">Protected release</button>
+        <button class="sample-button" type="button" data-sample="research-diamond" aria-pressed="false">Research diamond</button>
+        <button class="sample-button" type="button" data-sample="bounded-repair" aria-pressed="false">Bounded repair loop</button>
+      </div>
+
+      <section class="workspace" id="workspace" aria-label="Graph operations workspace">
+        <aside class="rail left">
+          <div class="section-label"><span>Contract</span><b id="graph-id">Loading</b></div>
+          <p class="goal" id="graph-goal">Loading the governed sample contract…</p>
+          <div class="metric-stack" aria-label="Topology metrics">
+            <div class="metric"><span>Nodes</span><b id="metric-nodes">—</b></div>
+            <div class="metric"><span>Data edges</span><b id="metric-data-edges">—</b></div>
+            <div class="metric"><span>Control edges</span><b id="metric-control-edges">—</b></div>
+            <div class="metric"><span>Critical path</span><b id="metric-critical">—</b></div>
+            <div class="metric"><span>Parallel peak</span><b id="metric-parallel">—</b></div>
+            <div class="metric"><span>Loop cap</span><b id="metric-loops">—</b></div>
+          </div>
+          <div class="legend" aria-label="Graph legend">
+            <div class="legend-row"><span class="legend-line"></span>Artifact dependency</div>
+            <div class="legend-row"><span class="legend-line control"></span>Control or resource order</div>
+            <div class="legend-row"><span class="legend-line risk"></span>Undeclared shared resource</div>
+          </div>
+          <div class="rail-note"><b>Graph agreement is not truth.</b><br>Required anchors—tests, primary sources, runtime observation, receipts, or a human decision—must cover the terminal outcome.</div>
+        </aside>
+
+        <div class="graph-stage">
+          <div class="stage-head">
+            <div class="stage-title"><b id="plan-id">Awaiting plan</b><span>Deterministic schedule / exact contract digest</span></div>
+            <div class="stage-actions">
+              <button class="action" id="fit-button" type="button">Fit graph</button>
+              <button class="action primary" id="analyse-button" type="button">Analyze contract</button>
+            </div>
+          </div>
+          <div class="graph-viewport" id="graph-viewport" tabindex="0" aria-label="Scrollable graph canvas">
+            <svg id="graph-svg" role="img" aria-labelledby="graph-title graph-desc" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet">
+              <title id="graph-title">Governed execution plan</title>
+              <desc id="graph-desc">Nodes arranged from inputs to terminal outcomes, with data and control dependencies.</desc>
+              <defs>
+                <marker id="arrow-data" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#5fb3a3"></path></marker>
+                <marker id="arrow-control" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#c9b787"></path></marker>
+              </defs>
+              <g id="edge-layer"></g>
+              <g id="node-layer"></g>
+            </svg>
+            <ol class="sr-only" id="accessible-graph"></ol>
+          </div>
+          <div class="stage-foot">
+            <span class="digest" id="contract-digest">Contract digest: —</span>
+            <span class="decision" id="decision">Awaiting analysis</span>
+          </div>
+        </div>
+
+        <aside class="rail right">
+          <div>
+            <div class="section-label"><span>Gate posture</span><b id="gate-count">—</b></div>
+            <div class="gate-hero"><strong id="gate-title">Checking contract</strong><span id="gate-copy">The analyzer fails closed on cycles, unbounded loops, missing artifacts, unsafe concurrency, verifier coupling, and unanchored writes.</span></div>
+          </div>
+          <div class="gate-list" id="gate-list" aria-live="polite"></div>
+          <div class="node-inspector" aria-live="polite">
+            <div class="section-label"><span>Node inspector</span><b id="inspector-role">Select a node</b></div>
+            <h2 id="inspector-title">No node selected</h2>
+            <p id="inspector-copy">Choose a node in the graph to inspect its inputs, outputs, authority, context boundary, and loop cap.</p>
+            <div class="inspector-grid">
+              <div><span>Consumes</span><b id="inspector-consumes">—</b></div>
+              <div><span>Produces</span><b id="inspector-produces">—</b></div>
+              <div><span>Authority</span><b id="inspector-authority">—</b></div>
+              <div><span>Context</span><b id="inspector-context">—</b></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="details-grid" aria-label="Graph detail">
+        <article class="detail-card">
+          <div class="detail-head"><h2>Gate findings</h2><span>Blockers and optimization advisories</span></div>
+          <div class="issues" id="issues" aria-live="polite"><div class="empty">Run an analysis to inspect the graph contract.</div></div>
+        </article>
+        <article class="detail-card">
+          <div class="detail-head"><h2>Contract editor</h2><span>Strict JSON / 96 KiB maximum</span></div>
+          <div class="contract-wrap">
+            <label class="sr-only" for="contract-editor">Graph contract JSON</label>
+            <textarea id="contract-editor" spellcheck="false" autocomplete="off"></textarea>
+            <div class="editor-actions"><span id="editor-status">Loading sample…</span><button class="action" id="format-button" type="button">Format JSON</button></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="method" aria-labelledby="method-title">
+        <div class="section-label"><span>Operating method</span><b id="method-title">From swarm to governed system</b></div>
+        <div class="method-grid">
+          <article class="method-step"><b>01 / Contract</b><p>Freeze scope, authority, structured inputs, outputs, budgets, and expected artifacts.</p></article>
+          <article class="method-step"><b>02 / Fan out</b><p>Parallelize only work that is independent in both data and shared resources.</p></article>
+          <article class="method-step"><b>03 / Reduce</b><p>Count every expected result, preserve dissent, deduplicate deterministically.</p></article>
+          <article class="method-step"><b>04 / Verify</b><p>Use fresh context and outside evidence; never let the maker grade its own work.</p></article>
+          <article class="method-step"><b>05 / Govern</b><p>Require policy, human approval, protected controls, and a receipt before any write.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>A11oy Governed Graph Operations · deterministic analyzer · no runtime CDN</span>
+      <span><a href="/api/a11oy/v1/graph-operations/status">Machine status</a> · <a href="/frontier">Unified frontier</a></span>
+    </footer>
+  </div>
+
+  <script>
+    "use strict";
+    const API = "/api/a11oy/v1/graph-operations";
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const state = { contract:null, analysis:null, sample:"protected-release", selected:null };
+    const el = id => document.getElementById(id);
+
+    function setText(id, value) { el(id).textContent = value == null ? "—" : String(value); }
+    function svgElement(name, attrs = {}) {
+      const node = document.createElementNS(SVG_NS, name);
+      Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+      return node;
+    }
+    function compact(value) {
+      if (!value || !value.length) return "None";
+      return value.join(", ");
+    }
+    function shortLabel(value, maximum = 26) {
+      return value.length > maximum ? value.slice(0, maximum - 1) + "…" : value;
+    }
+    async function requestJSON(url, options = {}) {
+      const response = await fetch(url, { cache:"no-store", ...options });
+      let payload;
+      try { payload = await response.json(); }
+      catch (_error) { throw new Error(`Non-JSON response (${response.status})`); }
+      if (!response.ok || payload.ok === false) throw new Error(payload.error || payload.reason || `Request failed (${response.status})`);
+      return payload;
+    }
+
+    async function loadStatus() {
+      try {
+        const status = await requestJSON(`${API}/status`);
+        setText("implementation-pill", `${status.implementation_status} analyzer`);
+      } catch (_error) {
+        el("implementation-pill").classList.remove("real");
+        setText("implementation-pill", "Status unavailable");
+      }
+    }
+
+    async function loadSample(sample) {
+      state.sample = sample;
+      document.querySelectorAll("[data-sample]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.sample === sample)));
+      setText("editor-status", `Loading ${sample}…`);
+      try {
+        const payload = await requestJSON(`${API}/sample/${encodeURIComponent(sample)}`);
+        state.contract = payload.contract;
+        state.analysis = payload.analysis;
+        el("contract-editor").value = JSON.stringify(payload.contract, null, 2);
+        setText("editor-status", "Loaded from the live backend sample contract.");
+        render();
+      } catch (error) {
+        setText("editor-status", error.message);
+        renderError(error.message);
+      }
+    }
+
+    async function analyseEditor() {
+      setText("editor-status", "Validating exact editor contract…");
+      el("analyse-button").disabled = true;
+      try {
+        const contract = JSON.parse(el("contract-editor").value);
+        const analysis = await requestJSON(`${API}/analyse`, {
+          method:"POST",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify(contract),
+        });
+        state.contract = contract;
+        state.analysis = analysis;
+        setText("editor-status", `Analyzed ${analysis.plan_id}; no effects executed.`);
+        render();
+      } catch (error) {
+        setText("editor-status", error.message);
+        renderError(error.message);
+      } finally {
+        el("analyse-button").disabled = false;
+      }
+    }
+
+    function renderError(message) {
+      const decision = el("decision");
+      decision.className = "decision revise";
+      decision.textContent = "Contract rejected";
+      setText("gate-title", "Input contract rejected");
+      setText("gate-copy", message);
+      const issue = document.createElement("div");
+      issue.className = "issue";
+      const code = document.createElement("div"); code.className = "issue-code"; code.textContent = "CONTRACT_ERROR";
+      const copy = document.createElement("div"); copy.className = "issue-copy";
+      const title = document.createElement("b"); title.textContent = "The backend rejected this graph.";
+      const body = document.createElement("p"); body.textContent = message;
+      copy.append(title, body);
+      issue.append(code, copy);
+      el("issues").replaceChildren(issue);
+    }
+
+    function render() {
+      const a = state.analysis;
+      const c = state.contract;
+      if (!a || !c) return;
+      setText("graph-id", c.graph_id);
+      setText("graph-goal", c.goal);
+      setText("plan-id", a.plan_id);
+      setText("contract-digest", `Contract digest: ${a.contract_digest}`);
+      setText("metric-nodes", a.topology.node_count);
+      setText("metric-data-edges", a.topology.data_edge_count);
+      setText("metric-control-edges", a.topology.control_edge_count);
+      setText("metric-critical", `${a.topology.critical_path_nodes} nodes`);
+      setText("metric-parallel", a.topology.max_declared_parallel);
+      setText("metric-loops", a.contracts.bounded_loop_iterations || "None");
+      const decision = el("decision");
+      decision.className = `decision ${a.decision === "READY_TO_ORCHESTRATE" ? "ready" : "revise"}`;
+      decision.textContent = a.decision.replaceAll("_", " ");
+      setText("gate-count", `${a.gates.blocker_count} blockers`);
+      setText("gate-title", a.gates.pass ? "Contract gates pass" : "Revision required");
+      setText("gate-copy", a.gates.pass ? "The plan is structurally ready for a separately governed orchestrator. No execution was authorized here." : "One or more safety or completeness gates failed. Execution remains unauthorized.");
+      renderGateSummary(a);
+      renderIssues(a);
+      renderGraph(a, c);
+    }
+
+    function renderGateSummary(a) {
+      const gates = [
+        ["Acyclic top level", true, `${a.topology.layer_count} deterministic layers`],
+        ["Fan-in complete", a.contracts.fan_in.every(item => item.complete), `${a.contracts.fan_in.length} reducers checked`],
+        ["Resource isolation", a.contracts.hidden_resource_edges.length === 0, `${a.contracts.hidden_resource_edges.length} hidden conflicts`],
+        ["External anchors", a.contracts.anchor_types.length > 0, compact(a.contracts.anchor_types)],
+        ["Execution boundary", a.execution.effectors === 0 && a.execution.writes === 0, "Plan only · zero writes"],
+      ];
+      const fragment = document.createDocumentFragment();
+      gates.forEach(([name, pass, detail]) => {
+        const item = document.createElement("div"); item.className = "gate";
+        const head = document.createElement("div"); head.className = "gate-head";
+        const title = document.createElement("b"); title.textContent = name;
+        const badge = document.createElement("span"); badge.className = `tag ${pass ? "pass" : "block"}`; badge.textContent = pass ? "Pass" : "Block";
+        const copy = document.createElement("p"); copy.textContent = detail;
+        head.append(title, badge); item.append(head, copy); fragment.append(item);
+      });
+      el("gate-list").replaceChildren(fragment);
+    }
+
+    function renderIssues(a) {
+      const issues = [...a.gates.blockers, ...a.gates.advisories];
+      if (!issues.length) {
+        const empty = document.createElement("div"); empty.className = "empty";
+        empty.textContent = "No blockers or advisories. The graph is structurally ready for a separate governance and execution step.";
+        el("issues").replaceChildren(empty);
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      issues.forEach(item => {
+        const row = document.createElement("div"); row.className = "issue";
+        const code = document.createElement("div"); code.className = "issue-code"; code.textContent = item.code;
+        const copy = document.createElement("div"); copy.className = "issue-copy";
+        const title = document.createElement("b"); title.textContent = item.severity === "BLOCKER" ? "Execution blocked" : "Optimization opportunity";
+        const message = document.createElement("p"); message.textContent = item.message;
+        const nodes = document.createElement("div"); nodes.className = "issue-nodes"; nodes.textContent = compact(item.nodes);
+        copy.append(title, message); row.append(code, copy, nodes); fragment.append(row);
+      });
+      el("issues").replaceChildren(fragment);
+    }
+
+    function renderGraph(a, c) {
+      const layers = a.topology.layers;
+      const nodes = new Map(c.nodes.map(node => [node.id, node]));
+      const layerWidth = 205;
+      const graphWidth = Math.max(820, 110 + layers.length * layerWidth);
+      const maxInLayer = Math.max(1, ...layers.map(layer => layer.length));
+      const graphHeight = Math.max(500, 100 + maxInLayer * 112);
+      const positions = new Map();
+      layers.forEach((layer, layerIndex) => {
+        const spacing = graphHeight / (layer.length + 1);
+        layer.forEach((nodeId, nodeIndex) => positions.set(nodeId, { x:75 + layerIndex * layerWidth, y:spacing * (nodeIndex + 1) - 35 }));
+      });
+      const svg = el("graph-svg");
+      svg.setAttribute("viewBox", `0 0 ${graphWidth} ${graphHeight}`);
+      const edges = document.createDocumentFragment();
+      a.topology.edges.forEach(edge => {
+        const source = positions.get(edge.source); const target = positions.get(edge.target);
+        if (!source || !target) return;
+        const x1 = source.x + 142; const y1 = source.y + 32; const x2 = target.x; const y2 = target.y + 32;
+        const curve = Math.max(42, (x2 - x1) * .45);
+        const path = svgElement("path", { d:`M${x1} ${y1} C${x1 + curve} ${y1},${x2 - curve} ${y2},${x2} ${y2}`, class:`edge ${edge.kind === "control" ? "control" : ""}`, "marker-end":`url(#arrow-${edge.kind})` });
+        edges.append(path);
+      });
+      const renderedNodes = document.createDocumentFragment();
+      const accessible = document.createDocumentFragment();
+      a.topology.layers.flat().forEach((nodeId, index) => {
+        const node = nodes.get(nodeId); const pos = positions.get(nodeId);
+        const group = svgElement("g", { class:`node-group ${node.role}`, transform:`translate(${pos.x} ${pos.y})`, tabindex:"0", role:"button", "aria-label":`${node.label}, ${node.role}` });
+        const box = svgElement("rect", { class:"node-box", width:"142", height:"64" });
+        const dot = svgElement("circle", { class:"node-dot", cx:"14", cy:"15", r:"3" });
+        const idx = svgElement("text", { class:"node-index", x:"24", y:"18" }); idx.textContent = String(index + 1).padStart(2, "0");
+        const title = svgElement("text", { class:"node-title", x:"13", y:"38" }); title.textContent = shortLabel(node.label, 21);
+        const role = svgElement("text", { class:"node-role", x:"13", y:"53" }); role.textContent = node.role.replaceAll("_", " ");
+        group.append(box, dot, idx, title, role);
+        group.addEventListener("click", () => inspectNode(node));
+        group.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); inspectNode(node); } });
+        renderedNodes.append(group);
+        const listItem = document.createElement("li"); listItem.textContent = `${index + 1}. ${node.label}; role ${node.role}; depends on ${compact([...node.depends_on, ...node.control_after])}`; accessible.append(listItem);
+      });
+      el("edge-layer").replaceChildren(edges);
+      el("node-layer").replaceChildren(renderedNodes);
+      el("accessible-graph").replaceChildren(accessible);
+      if (!state.selected || !nodes.has(state.selected)) state.selected = a.topology.layers[0][0];
+      inspectNode(nodes.get(state.selected));
+    }
+
+    function inspectNode(node) {
+      if (!node) return;
+      state.selected = node.id;
+      setText("inspector-role", node.role.replaceAll("_", " "));
+      setText("inspector-title", node.label);
+      const flags = [];
+      if (node.side_effecting) flags.push("side effect declared");
+      if (node.fresh_context) flags.push("fresh verifier context");
+      if (node.max_iterations) flags.push(`bounded at ${node.max_iterations} iterations`);
+      setText("inspector-copy", flags.length ? flags.join(" · ") : "Bounded job with no declared side effect.");
+      setText("inspector-consumes", compact(node.consumes));
+      setText("inspector-produces", compact(node.produces));
+      setText("inspector-authority", node.authority);
+      setText("inspector-context", node.fresh_context ? "Fresh" : "Inherited/ordinary");
+    }
+
+    function fitGraph() {
+      el("graph-viewport").scrollTo({ left:0, top:0, behavior:matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }
+
+    document.querySelectorAll("[data-sample]").forEach(button => button.addEventListener("click", () => loadSample(button.dataset.sample)));
+    el("analyse-button").addEventListener("click", analyseEditor);
+    el("fit-button").addEventListener("click", fitGraph);
+    el("format-button").addEventListener("click", () => {
+      try { el("contract-editor").value = JSON.stringify(JSON.parse(el("contract-editor").value), null, 2); setText("editor-status", "JSON formatted locally; not yet analyzed."); }
+      catch (error) { setText("editor-status", `Cannot format: ${error.message}`); }
+    });
+    loadStatus();
+    loadSample("protected-release");
+  </script>
+</body>
+</html>

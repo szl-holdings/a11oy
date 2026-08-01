@@ -87,6 +87,7 @@ def test_evidence_brain_is_live_grounded_and_makes_no_latency_or_uplift_promise(
         "No generated prose was available; nothing fabricated",
         "NOT MEASURED",
         'href="/formulas"',
+        'href="/graph-operations"',
     ):
         assert marker in html
     assert "answers in 2 seconds" not in html.lower()
