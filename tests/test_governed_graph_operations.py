@@ -178,6 +178,38 @@ def test_verifier_requires_fresh_context() -> None:
     assert result["decision"] == "REVISE"
 
 
+def test_verifier_must_consume_an_artifact_from_every_named_target() -> None:
+    contract = graph_ops.sample_contract("research-diamond")
+    verifier = _node(contract, "verify")
+    verifier["consumes"] = []
+
+    result = graph_ops.analyse_graph(contract)
+
+    assert "VERIFIER_ARTIFACT_NOT_BOUND" in _codes(result, "blockers")
+    assert "FAKE_DATA_EDGE" in _codes(result, "advisories")
+    assert result["decision"] == "REVISE"
+
+
+def test_optional_anchor_does_not_satisfy_terminal_coverage() -> None:
+    contract = graph_ops.sample_contract("research-diamond")
+    contract["anchors"][0]["required"] = False
+    contract["anchors"].append(
+        {
+            "id": "unrelated-required-source",
+            "type": "source",
+            "nodes": ["verify"],
+            "required": True,
+            "description": "Required evidence for a non-terminal node.",
+        }
+    )
+
+    result = graph_ops.analyse_graph(contract)
+
+    assert "TERMINAL_NOT_ANCHORED" in _codes(result, "blockers")
+    assert result["contracts"]["anchored_nodes"] == ["verify"]
+    assert result["decision"] == "REVISE"
+
+
 def test_side_effecting_node_requires_write_authority_and_receipt_anchor() -> None:
     contract = graph_ops.sample_contract("protected-release")
     _node(contract, "publish")["authority"] = "READ_ONLY"

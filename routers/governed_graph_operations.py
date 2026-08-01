@@ -536,7 +536,12 @@ def analyse_graph(payload: Any) -> dict:
                     raise GraphContractError(
                         f"{node['id']} verifies unknown node: {target}"
                     )
-                if target not in node["depends_on"]:
+                target_artifacts = set(by_id[target]["produces"])
+                consumed_artifacts = set(node["consumes"])
+                if (
+                    target not in node["depends_on"]
+                    or not target_artifacts & consumed_artifacts
+                ):
                     blockers.append(
                         _issue(
                             "VERIFIER_ARTIFACT_NOT_BOUND",
@@ -554,9 +559,9 @@ def analyse_graph(payload: Any) -> dict:
                 raise GraphContractError(
                     f"anchor {anchor['id']} references unknown node: {node_id}"
                 )
-            anchor_nodes.add(node_id)
         if anchor["required"]:
             required_anchor_types.add(anchor["type"])
+            anchor_nodes.update(anchor["nodes"])
     terminals = sorted(node_id for node_id, outgoing in children.items() if not outgoing)
     if not required_anchor_types & {"test", "source", "human", "runtime"}:
         blockers.append(
@@ -902,12 +907,17 @@ def register(app, ns: str = "a11oy") -> dict:
                     {"ok": False, "error": "request body exceeds the 96 KiB limit"},
                     status_code=413,
                 )
-        body = await request.body()
-        if len(body) > MAX_BODY_BYTES:
-            return JSONResponse(
-                {"ok": False, "error": "request body exceeds the 96 KiB limit"},
-                status_code=413,
-            )
+        chunks = []
+        body_bytes = 0
+        async for chunk in request.stream():
+            body_bytes += len(chunk)
+            if body_bytes > MAX_BODY_BYTES:
+                return JSONResponse(
+                    {"ok": False, "error": "request body exceeds the 96 KiB limit"},
+                    status_code=413,
+                )
+            chunks.append(chunk)
+        body = b"".join(chunks)
         try:
             payload = json.loads(body.decode("utf-8"))
             result = analyse_graph(payload)
