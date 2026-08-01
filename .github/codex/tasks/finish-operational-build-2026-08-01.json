@@ -1,0 +1,34 @@
+{
+  "schema": "szl.codex-execution-task/v1",
+  "task_id": "codex-finish-a11oy-operational-build-2026-08-01",
+  "created_at": "2026-08-01T20:45:00Z",
+  "target": {
+    "repository": "szl-holdings/a11oy",
+    "base_branch": "main",
+    "task_branch": "codex/finish-operational-build-2026-07-28"
+  },
+  "prompt_file": ".github/codex/prompts/finish-operational-build-2026-08-01.md",
+  "source_provenance": {
+    "name": "PAYLOAD_MASTER_ACTION_ASSURANCE_2026-07-27.py",
+    "status": "RESEARCH-COMPLETE_EXECUTION-PENDING",
+    "owner_supplied": true
+  },
+  "priority": "P0",
+  "required_behavior": [
+    "read root AGENTS.md first",
+    "plan then continue into implementation",
+    "integrate rather than blindly overwrite",
+    "run relevant clean-checkout gates",
+    "preserve honest evidence labels",
+    "write only to the task branch",
+    "do not merge or force-push"
+  ],
+  "definition_of_done": [
+    "integrated implementation",
+    "build and tests pass or unrelated pre-existing failures are reproduced and documented",
+    "no secrets",
+    "machine-readable evidence",
+    "rollback documented",
+    "pull-request branch updated"
+  ]
+}
