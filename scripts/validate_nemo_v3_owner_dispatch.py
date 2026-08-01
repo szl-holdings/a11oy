@@ -386,13 +386,13 @@ def validate_dispatch(
     job_id = _string(
         dispatch["jobId"], "client_payload.selection.jobId"
     )
-    if _NEW_JOB_ID.fullmatch(job_id) is None:
-        raise DispatchValidationError(
-            "client_payload.selection.jobId must identify a new governed attempt"
-        )
     if job_id in QUARANTINED_JOB_IDS:
         raise DispatchValidationError(
             "quarantined or stale governed attempt cannot be selected"
+        )
+    if _NEW_JOB_ID.fullmatch(job_id) is None:
+        raise DispatchValidationError(
+            "client_payload.selection.jobId must identify a new governed attempt"
         )
 
     envelope_revision = _full_sha(

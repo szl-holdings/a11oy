@@ -216,6 +216,8 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         fixtures["datasets"][0]["tags"] = [
             "size_categories:n<1K",
             "modality:text",
+            "format:json",
+            "library:datasets",
             "governed-live",
         ]
         audit.fetch_revision = lambda item_id, repo_type, revision: {
@@ -234,6 +236,8 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             fixtures["datasets"][0]["tags"] = [
                 "size_categories:1K<n<10K",
                 "modality:tabular",
+                "format:parquet",
+                "library:pandas",
                 "governed-live",
             ]
             self.assertEqual(self.run_check(output)[0], 0)

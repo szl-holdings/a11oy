@@ -367,11 +367,11 @@ def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
 
     ``observedAt``, ``sha``, and ``lastModified`` remain truthful snapshot
     evidence in the checked-in file. Hugging Face's content-derived dataset
-    ``size_categories:*`` and ``modality:*`` tags are also excluded because
-    append-only source revisions can change them without changing repository
-    governance. ``cardSemanticSha256`` and all curated tags remain in this
-    comparison, so claim or policy drift still fails closed. A write refreshes
-    every snapshot field.
+    ``size_categories:*``, ``modality:*``, ``format:*``, and ``library:*`` tags
+    are also excluded because Hugging Face derives them from dataset content and
+    may temporarily omit them while metadata is converging. Curated tags and
+    ``cardSemanticSha256`` remain in this comparison, so claim or policy drift
+    still fails closed. A write refreshes every snapshot field.
     """
     stable = json.loads(json.dumps(manifest))
     for repo_type in ("models", "datasets", "spaces"):
@@ -384,7 +384,14 @@ def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
                     for tag in item["tags"]
                     if not (
                         isinstance(tag, str)
-                        and tag.startswith(("size_categories:", "modality:"))
+                        and tag.startswith(
+                            (
+                                "size_categories:",
+                                "modality:",
+                                "format:",
+                                "library:",
+                            )
+                        )
                     )
                 ]
     return stable
@@ -466,7 +473,8 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
                 "cardSemanticSha256 claim digest at observedAt; --check verifies "
                 "retained revisions, rejects card and curated-tag drift, and "
                 "ignores only complete, valid later source-only revision changes "
-                "and Hugging Face-generated dataset size/modality tags."
+                "and Hugging Face-generated dataset size, modality, format, "
+                "or library tags."
             ),
         },
         "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",

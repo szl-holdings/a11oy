@@ -516,6 +516,31 @@ def test_receipt_readback_honors_bounded_limit_without_caching(
             "/api/a11oy/v1/series-a/receipts/"
             + appended[0]["receipt_hash"]
         )
+        recovered_query = client.get(
+            "/api/a11oy/v1/series-a/receipts?receipt_hash="
+            + appended[0]["receipt_hash"]
+        )
+        recovered_query_head = client.head(
+            "/api/a11oy/v1/series-a/receipts?receipt_hash="
+            + appended[0]["receipt_hash"]
+        )
+        duplicate_query = client.get(
+            "/api/a11oy/v1/series-a/receipts?receipt_hash="
+            + appended[0]["receipt_hash"]
+            + "&receipt_hash="
+            + appended[1]["receipt_hash"]
+        )
+        mixed_query = client.get(
+            "/api/a11oy/v1/series-a/receipts?receipt_hash="
+            + appended[0]["receipt_hash"]
+            + "&limit=200"
+        )
+        missing_query = client.get(
+            "/api/a11oy/v1/series-a/receipts?receipt_hash=" + ("f" * 64)
+        )
+        malformed_query = client.get(
+            "/api/a11oy/v1/series-a/receipts?receipt_hash=not-a-hash"
+        )
         missing = client.get(
             "/api/a11oy/v1/series-a/receipts/" + ("f" * 64)
         )
@@ -548,6 +573,15 @@ def test_receipt_readback_honors_bounded_limit_without_caching(
     assert recovered.json()["storage"]["receipt_count"] == 60
     assert recovered_head.status_code == 200
     assert recovered_head.headers["cache-control"] == "no-store"
+    assert recovered_query.status_code == 200
+    assert recovered_query.headers["cache-control"] == "no-store"
+    assert recovered_query.json() == recovered.json()
+    assert recovered_query_head.status_code == 200
+    assert recovered_query_head.headers["cache-control"] == "no-store"
+    assert duplicate_query.status_code == 400
+    assert mixed_query.status_code == 400
+    assert missing_query.status_code == 404
+    assert malformed_query.status_code == 422
     assert missing.status_code == 404
     assert malformed.status_code == 422
 

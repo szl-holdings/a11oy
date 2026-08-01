@@ -918,7 +918,7 @@ def test_all_stale_attempt_ids_are_never_dispatchable(
 
     with pytest.raises(
         dispatch_validator.DispatchValidationError,
-        match="new governed attempt|quarantined or stale governed attempt",
+        match="quarantined or stale governed attempt",
     ):
         dispatch_validator.validate_dispatch(
             dispatch,

@@ -1816,25 +1816,7 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
             return Response(status_code=200, media_type="application/json")
         return JSONResponse(value, headers={"cache-control": "no-store"})
 
-    async def receipts(request: Request) -> Response:
-        limit = _receipt_limit(request)
-        if request.method == "HEAD":
-            return Response(
-                status_code=200,
-                media_type="application/json",
-                headers={"cache-control": "no-store"},
-            )
-        return JSONResponse(
-            {
-                "schema": "szl.series-a-receipts/v1",
-                "limit": limit,
-                "items": service.store.list_receipts(limit),
-            },
-            headers={"cache-control": "no-store"},
-        )
-
-    async def receipt_recovery(request: Request) -> Response:
-        digest = str(request.path_params.get("receipt_hash") or "")
+    async def exact_receipt_response(request: Request, digest: str) -> Response:
         if len(digest) != 64 or any(
             char not in "0123456789abcdef" for char in digest
         ):
@@ -1868,6 +1850,41 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
             },
             headers={"cache-control": "no-store"},
         )
+
+    async def receipts(request: Request) -> Response:
+        receipt_hashes = request.query_params.getlist("receipt_hash")
+        if receipt_hashes:
+            if len(receipt_hashes) != 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="receipt_hash must be supplied at most once",
+                )
+            if request.query_params.getlist("limit"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="receipt_hash cannot be combined with limit",
+                )
+            return await exact_receipt_response(request, receipt_hashes[0])
+
+        limit = _receipt_limit(request)
+        if request.method == "HEAD":
+            return Response(
+                status_code=200,
+                media_type="application/json",
+                headers={"cache-control": "no-store"},
+            )
+        return JSONResponse(
+            {
+                "schema": "szl.series-a-receipts/v1",
+                "limit": limit,
+                "items": service.store.list_receipts(limit),
+            },
+            headers={"cache-control": "no-store"},
+        )
+
+    async def receipt_recovery(request: Request) -> Response:
+        digest = str(request.path_params.get("receipt_hash") or "")
+        return await exact_receipt_response(request, digest)
 
     async def trust(request: Request) -> Response:
         if request.method == "HEAD":

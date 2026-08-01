@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from huggingface_hub import HfApi
@@ -391,8 +391,8 @@ def await_receipt_recovery(
             payload = _json(
                 session.get(
                     origin
-                    + "/api/a11oy/v1/series-a/receipts/"
-                    + expected_head,
+                    + "/api/a11oy/v1/series-a/receipts?"
+                    + urlencode({"receipt_hash": expected_head}),
                     timeout=_remaining_timeout(deadline, 60),
                 )
             )
