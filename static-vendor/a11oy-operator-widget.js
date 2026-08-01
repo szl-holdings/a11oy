@@ -342,6 +342,7 @@
 
   // ---- Open / close ----
   var isOpen = false;
+  var inputFocusTimer = null;
   function open() {
     isOpen = true;
     syncDockPosition();
@@ -349,11 +350,19 @@
     fab.setAttribute('aria-expanded', 'true');
     state.unread = 0; persist(); refreshBadge();
     if (!thread.length) renderThread();
-    setTimeout(function () { input.focus(); }, 60);
+    if (inputFocusTimer !== null) clearTimeout(inputFocusTimer);
+    inputFocusTimer = setTimeout(function () {
+      inputFocusTimer = null;
+      if (isOpen) input.focus();
+    }, 60);
     scrollThread();
   }
   function close(restoreFocus) {
     isOpen = false;
+    if (inputFocusTimer !== null) {
+      clearTimeout(inputFocusTimer);
+      inputFocusTimer = null;
+    }
     document.documentElement.removeAttribute('data-aow-panel-open');
     root.setAttribute('data-open', 'false');
     fab.setAttribute('aria-expanded', 'false');

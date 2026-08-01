@@ -14,8 +14,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 40_737
-EXPECTED_WIDGET_SHA256 = "50fbf93caba2439d06a5cb340a66166cdf401f91f2ec36104e22364462a09681"
+EXPECTED_WIDGET_BYTES = 41_011
+EXPECTED_WIDGET_SHA256 = "a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c"
 
 
 def _extract_braced_function(source: str, name: str) -> str:
@@ -95,6 +95,9 @@ class OperatorControlDockContractTests(unittest.TestCase):
             "target.closest('[data-szl-dock-control=\"investor\"]')",
             "close(false)",
             "focusControlledDialog(investorControl)",
+            "var inputFocusTimer = null",
+            "clearTimeout(inputFocusTimer)",
+            "if (isOpen) input.focus()",
             "control.getAttribute('aria-expanded') !== 'true'",
             "dialog.getAttribute('aria-modal') !== 'true'",
             "[data-szl-initial-focus]",
@@ -105,15 +108,35 @@ class OperatorControlDockContractTests(unittest.TestCase):
 
     def test_investor_handoff_moves_focus_into_the_open_modal(self) -> None:
         source = WIDGET_PATH.read_text(encoding="utf-8")
+        open_function = _extract_braced_function(source, "open")
+        close_function = _extract_braced_function(source, "close")
         focus_function = _extract_braced_function(source, "focusControlledDialog")
         click_listener = _extract_investor_click_listener(source)
         script = r"""
 const timers = [];
-let isOpen = true;
+let now = 0;
+let nextTimerId = 1;
+let isOpen = false;
+let inputFocusTimer = null;
 let expanded = false;
-let closedWith = "not-called";
 let activeElement = null;
+let inputFocusCount = 0;
 const initialFocus = { focus() { activeElement = this; } };
+const root = { setAttribute() {} };
+const fab = {
+  setAttribute() {},
+  focus() { activeElement = this; },
+};
+const input = {
+  focus() { inputFocusCount += 1; activeElement = this; },
+};
+const state = { unread: 1 };
+const thread = [];
+function syncDockPosition() {}
+function persist() {}
+function refreshBadge() {}
+function renderThread() {}
+function scrollThread() {}
 const dialog = {
   getAttribute(name) { return name === "aria-modal" ? "true" : null; },
   querySelector(selector) {
@@ -132,17 +155,42 @@ const controlledInvestor = {
 };
 const document = {
   clickListener: null,
+  documentElement: { removeAttribute() {} },
   getElementById(id) { return id === "szl-ceo" ? dialog : null; },
   addEventListener(type, listener, capture) {
     if (type === "click") this.clickListener = { listener, capture };
   },
 };
-function setTimeout(callback) { timers.push(callback); }
-function close(restoreFocus) { closedWith = restoreFocus; isOpen = false; }
-""" + focus_function + "\n" + click_listener + r"""
+function setTimeout(callback, delay) {
+  const timer = { id: nextTimerId++, due: now + (delay || 0), callback, cancelled: false };
+  timers.push(timer);
+  return timer.id;
+}
+function clearTimeout(id) {
+  const timer = timers.find(item => item.id === id);
+  if (timer) timer.cancelled = true;
+}
+function advanceTo(target) {
+  while (true) {
+    const ready = timers
+      .filter(item => !item.cancelled && item.due <= target)
+      .sort((left, right) => left.due - right.due || left.id - right.id);
+    if (!ready.length) break;
+    const timer = ready[0];
+    timer.cancelled = true;
+    now = timer.due;
+    timer.callback();
+  }
+  now = target;
+}
+""" + open_function + "\n" + close_function + "\n" + focus_function + "\n" + click_listener + r"""
 if (!document.clickListener || document.clickListener.capture !== true) {
   throw new Error("investor handoff is not capture-phase");
 }
+open();
+if (!isOpen || inputFocusTimer === null) throw new Error("open did not queue operator input focus");
+advanceTo(10);
+activeElement = controlledInvestor;
 document.clickListener.listener({
   target: {
     closest(selector) {
@@ -150,10 +198,14 @@ document.clickListener.listener({
     },
   },
 });
-if (closedWith !== false) throw new Error("operator did not close without stealing focus");
+if (isOpen) throw new Error("operator did not close during investor handoff");
+if (inputFocusTimer !== null) throw new Error("operator input focus timer was not cleared");
 expanded = true; // The investor target handler opens its controlled modal next.
-while (timers.length) timers.shift()();
+advanceTo(10);
 if (activeElement !== initialFocus) throw new Error("focus did not enter the controlled modal");
+advanceTo(60);
+if (inputFocusCount !== 0) throw new Error("stale operator timer focused the hidden input");
+if (activeElement !== initialFocus) throw new Error("stale operator timer stole modal focus");
 """
         _run_node(script)
 
