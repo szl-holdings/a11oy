@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
@@ -69,11 +70,18 @@ class HttpSession:
             data = json.dumps(value).encode("utf-8")
             headers["Content-Type"] = "application/json"
         request = Request(url, data=data, headers=headers, method=method)
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310
+        try:
+            with urlopen(request, timeout=timeout) as response:  # noqa: S310
+                return HttpResponse(
+                    url=response.geturl(),
+                    status=response.status,
+                    content=response.read(),
+                )
+        except HTTPError as exc:
             return HttpResponse(
-                url=response.geturl(),
-                status=response.status,
-                content=response.read(),
+                url=exc.geturl(),
+                status=int(exc.code),
+                content=exc.read(),
             )
 
     def get(self, url: str, *, timeout: float) -> HttpResponse:
@@ -264,20 +272,12 @@ def await_capture(
     )
 
 
-def validate_restart(
+def validate_continuity(
     before: Mapping[str, Any],
     after: Mapping[str, Any],
-    receipt_hashes: set[str],
 ) -> None:
     if before.get("source_revision") != after.get("source_revision"):
         raise RestartProofError("source revision changed across restart")
-    if before.get("runtime_boot_id") == after.get("runtime_boot_id"):
-        raise RestartProofError("runtime boot identity did not change across restart")
-    if (
-        BOOT_ID.fullmatch(str(before.get("runtime_boot_id") or "")) is None
-        or BOOT_ID.fullmatch(str(after.get("runtime_boot_id") or "")) is None
-    ):
-        raise RestartProofError("runtime boot identity evidence is invalid")
     if before.get("signing_key_source") != after.get("signing_key_source"):
         raise RestartProofError("signing source changed across restart")
     if before.get("public_key_sha256") != after.get("public_key_sha256"):
@@ -302,6 +302,24 @@ def validate_restart(
         before_storage.get("last_receipt_sequence") or 0
     ):
         raise RestartProofError("receipt sequence regressed across restart")
+
+
+def validate_restart(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+    receipt_hashes: set[str],
+) -> None:
+    validate_continuity(before, after)
+    if before.get("runtime_boot_id") == after.get("runtime_boot_id"):
+        raise RestartProofError("runtime boot identity did not change across restart")
+    if (
+        BOOT_ID.fullmatch(str(before.get("runtime_boot_id") or "")) is None
+        or BOOT_ID.fullmatch(str(after.get("runtime_boot_id") or "")) is None
+    ):
+        raise RestartProofError("runtime boot identity evidence is invalid")
+    before_storage = before.get("storage")
+    if not isinstance(before_storage, Mapping):
+        raise RestartProofError("pre-restart storage evidence is absent")
     previous_head = before_storage.get("chain_head")
     if previous_head and previous_head not in receipt_hashes:
         raise RestartProofError("pre-restart receipt-chain head was not recovered")
@@ -360,6 +378,77 @@ def recovery_capture(
     }
 
 
+def recovery_response_evidence(response: HttpResponse) -> dict[str, Any]:
+    """Return the secret-free storage identity exposed by exact recovery."""
+
+    captured: dict[str, Any] = {"http_status": response.status}
+    try:
+        payload = response.json()
+    except Exception:  # noqa: BLE001 - evidence remains bounded and optional
+        return captured
+    if not isinstance(payload, Mapping):
+        return captured
+    for key in (
+        "schema",
+        "source_revision",
+        "runtime_boot_id",
+        "database",
+        "queried_receipt_hash",
+    ):
+        value = payload.get(key)
+        if isinstance(value, (str, int, bool)) or value is None:
+            captured[key] = value
+    storage = payload.get("storage")
+    if isinstance(storage, Mapping):
+        captured["storage"] = dict(storage)
+    return captured
+
+
+def capture_pre_restart_receipt(
+    session: HttpSession,
+    origin: str,
+    source_sha: str,
+    before: Mapping[str, Any],
+    deadline: float,
+    evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    before_storage = before.get("storage")
+    if not isinstance(before_storage, Mapping):
+        raise RestartProofError("pre-restart storage evidence is absent")
+    expected_head = str(before_storage.get("chain_head") or "")
+    expected_sequence = before_storage.get("last_receipt_sequence")
+    if (
+        RECEIPT_HASH.fullmatch(expected_head) is None
+        or not isinstance(expected_sequence, int)
+        or isinstance(expected_sequence, bool)
+        or expected_sequence < 1
+    ):
+        raise RestartProofError("pre-restart receipt head evidence is invalid")
+    response = session.get(
+        origin
+        + "/api/a11oy/v1/series-a/receipts?"
+        + urlencode({"receipt_hash": expected_head}),
+        timeout=_remaining_timeout(deadline, 60),
+    )
+    if evidence is not None:
+        evidence["pre_restart_exact_recovery_attempt"] = (
+            recovery_response_evidence(response)
+        )
+    payload = _json(response)
+    captured = recovery_capture(
+        payload,
+        expected_source=source_sha,
+        expected_head=expected_head,
+        expected_sequence=expected_sequence,
+    )
+    if captured.get("runtime_boot_id") != before.get("runtime_boot_id"):
+        raise RestartProofError(
+            "pre-restart exact receipt came from a different runtime"
+        )
+    validate_continuity(before, captured)
+    return captured
+
+
 def await_receipt_recovery(
     session: HttpSession,
     origin: str,
@@ -370,6 +459,7 @@ def await_receipt_recovery(
     *,
     attempts: int,
     retry_seconds: int,
+    evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     before_storage = before.get("storage")
     if not isinstance(before_storage, Mapping):
@@ -386,16 +476,22 @@ def await_receipt_recovery(
 
     last_error: Exception | None = None
     current_after = dict(after)
+    validate_continuity(before, current_after)
+    retry_evidence: list[dict[str, Any]] = []
+    if evidence is not None:
+        evidence["post_restart_recovery_attempts"] = retry_evidence
     for attempt in range(max(1, attempts)):
         try:
-            payload = _json(
-                session.get(
-                    origin
-                    + "/api/a11oy/v1/series-a/receipts?"
-                    + urlencode({"receipt_hash": expected_head}),
-                    timeout=_remaining_timeout(deadline, 60),
-                )
+            response = session.get(
+                origin
+                + "/api/a11oy/v1/series-a/receipts?"
+                + urlencode({"receipt_hash": expected_head}),
+                timeout=_remaining_timeout(deadline, 60),
             )
+            attempt_evidence = recovery_response_evidence(response)
+            attempt_evidence["attempt"] = attempt + 1
+            retry_evidence.append(attempt_evidence)
+            payload = _json(response)
             _check_deadline(deadline)
             current_after = recovery_capture(
                 payload,
@@ -404,9 +500,19 @@ def await_receipt_recovery(
                 expected_sequence=expected_sequence,
             )
             validate_restart(before, current_after, {expected_head})
+            retry_evidence[-1]["recovered"] = True
             return current_after
         except Exception as exc:  # noqa: BLE001 - bounded recovery polling
             last_error = exc
+            if not retry_evidence or retry_evidence[-1].get("attempt") != attempt + 1:
+                retry_evidence.append({"attempt": attempt + 1})
+            retry_evidence[-1].update(
+                {
+                    "recovered": False,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc)[:180],
+                }
+            )
             if attempt + 1 < max(1, attempts):
                 _sleep_with_deadline(deadline, retry_seconds)
     raise RestartProofError(
@@ -425,12 +531,23 @@ def prove(
     attempts: int,
     retry_seconds: int,
     deadline_seconds: int = DEFAULT_DEADLINE_SECONDS,
+    evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if attempts < 1 or retry_seconds < 0 or deadline_seconds < 1:
         raise RestartProofError("polling bounds must be positive and finite")
     deadline = time.monotonic() + deadline_seconds
+    trace = evidence if evidence is not None else {}
+    trace.update(
+        {
+            "source_revision": source_sha,
+            "repo_id": repo_id,
+            "origin": origin,
+            "phase": "observe_pre_activation_runtime",
+        }
+    )
 
     pre_activation_boot_id = observe_boot_id(session, origin, deadline)
+    trace["pre_activation_runtime_boot_id"] = pre_activation_boot_id
     # Hub variable writes are configuration-plane state. Explicitly restart
     # before sampling so the public process is proved against the just-converged
     # configuration instead of a retiring replica with stale environment. When
@@ -440,6 +557,7 @@ def prove(
         repo_id=repo_id,
         factory_reboot=False,
     )
+    trace["activation_restart_requested"] = True
     _check_deadline(deadline)
     activation_stage = getattr(
         getattr(activation_restart, "runtime", None),
@@ -458,6 +576,7 @@ def prove(
         context="configured runtime was not observed after activation restart",
         previous_boot_id=pre_activation_boot_id,
     )
+    trace["before"] = before
     startup_error: Exception | None = None
     if before["storage"]["receipt_count"] == 0:
         # Public refresh is passport-only. The canonical startup scheduler owns
@@ -468,6 +587,7 @@ def prove(
             try:
                 candidate = capture(session, origin, source_sha, deadline)
                 before = candidate
+                trace["before"] = before
                 if before["storage"]["receipt_count"] > 0:
                     break
             except Exception as exc:  # noqa: BLE001 - bounded startup polling
@@ -482,11 +602,23 @@ def prove(
             "no receipt exists to recover across restart" + detail
         )
 
+    trace["phase"] = "verify_pre_restart_head"
+    pre_restart_recovery = capture_pre_restart_receipt(
+        session,
+        origin,
+        source_sha,
+        before,
+        deadline,
+        evidence=trace,
+    )
+    trace["pre_restart_exact_recovery"] = pre_restart_recovery
     _check_deadline(deadline)
+    trace["phase"] = "request_durability_restart"
     durability_restart = api.restart_space(
         repo_id=repo_id,
         factory_reboot=False,
     )
+    trace["durability_restart_requested"] = True
     _check_deadline(deadline)
     durability_stage = getattr(
         getattr(durability_restart, "runtime", None),
@@ -512,6 +644,7 @@ def prove(
                     "runtime boot identity did not change across restart"
                 )
             after = candidate
+            trace["after_capture"] = after
             break
         except Exception as exc:  # noqa: BLE001 - bounded restart polling
             last_error = exc
@@ -522,6 +655,7 @@ def prove(
             f"{type(last_error).__name__}: {str(last_error)[:180]}"
         )
 
+    trace["phase"] = "recover_post_restart_head"
     after = await_receipt_recovery(
         session,
         origin,
@@ -531,7 +665,10 @@ def prove(
         deadline,
         attempts=attempts,
         retry_seconds=retry_seconds,
+        evidence=trace,
     )
+    trace["after"] = after
+    trace["phase"] = "complete"
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -567,6 +704,44 @@ def prove(
     }
 
 
+def write_report(path: Path, report: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(dict(report), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def failure_report(
+    *,
+    repo_id: str,
+    origin: str | None,
+    source_revision: str,
+    evidence: Mapping[str, Any],
+    error: Exception,
+    secrets: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    message = str(error)
+    for secret in secrets:
+        if secret:
+            message = message.replace(secret, "[REDACTED]")
+    return {
+        "schema": SCHEMA,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "FAIL",
+        "ok": False,
+        "repo_id": repo_id,
+        "origin": origin or "UNVALIDATED",
+        "source_revision": source_revision,
+        "evidence": dict(evidence),
+        "error": {
+            "type": type(error).__name__,
+            "message": message[:500],
+        },
+        "secret_values_recorded": False,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy")
@@ -582,38 +757,50 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    source = args.source_sha.strip().lower()
-    if SHA40.fullmatch(source) is None:
-        raise RestartProofError("source SHA must be exact 40-character hex")
-    token = os.environ.get("HF_TOKEN", "")
-    if not token:
-        raise RestartProofError("HF_TOKEN is required")
-    origin = normalize_origin(args.origin)
-    session = HttpSession()
-    session.headers.update(
-        {
-            "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
-            "Cache-Control": "no-cache, no-store, max-age=0",
-            "Pragma": "no-cache",
-            "User-Agent": "szl-series-a-restart-proof/1",
-        }
-    )
-    report = prove(
-        api=HfApi(token=token),
-        session=session,
-        repo_id=args.repo_id,
-        origin=origin,
-        source_sha=source,
-        attempts=args.attempts,
-        retry_seconds=args.retry_seconds,
-        deadline_seconds=args.deadline_seconds,
-    )
     output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(report, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    source = args.source_sha.strip().lower()
+    token = os.environ.get("HF_TOKEN", "")
+    origin: str | None = None
+    evidence: dict[str, Any] = {}
+    try:
+        if SHA40.fullmatch(source) is None:
+            raise RestartProofError("source SHA must be exact 40-character hex")
+        if not token:
+            raise RestartProofError("HF_TOKEN is required")
+        origin = normalize_origin(args.origin)
+        session = HttpSession()
+        session.headers.update(
+            {
+                "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
+                "Cache-Control": "no-cache, no-store, max-age=0",
+                "Pragma": "no-cache",
+                "User-Agent": "szl-series-a-restart-proof/1",
+            }
+        )
+        report = prove(
+            api=HfApi(token=token),
+            session=session,
+            repo_id=args.repo_id,
+            origin=origin,
+            source_sha=source,
+            attempts=args.attempts,
+            retry_seconds=args.retry_seconds,
+            deadline_seconds=args.deadline_seconds,
+            evidence=evidence,
+        )
+    except Exception as exc:
+        report = failure_report(
+            repo_id=args.repo_id,
+            origin=origin,
+            source_revision=source,
+            evidence=evidence,
+            error=exc,
+            secrets=(token,),
+        )
+        write_report(output, report)
+        print(json.dumps(report, indent=2, sort_keys=True))
+        raise
+    write_report(output, report)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 

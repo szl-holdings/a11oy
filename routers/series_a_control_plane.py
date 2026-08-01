@@ -1826,9 +1826,18 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
             )
         storage, item = service.store.receipt_recovery_snapshot(digest)
         if item is None:
-            raise HTTPException(
+            return JSONResponse(
+                {
+                    "schema": "szl.series-a-receipt-recovery-miss/v1",
+                    "source_revision": _git_revision(),
+                    "runtime_boot_id": service.runtime_boot_id,
+                    "database": service.store.path,
+                    "storage": storage,
+                    "queried_receipt_hash": digest,
+                    "item": None,
+                },
                 status_code=404,
-                detail="receipt hash is not present in this storage view",
+                headers={"cache-control": "no-store"},
             )
         if request.method == "HEAD":
             return Response(

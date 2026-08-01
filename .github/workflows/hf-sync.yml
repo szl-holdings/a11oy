@@ -89,6 +89,7 @@ jobs:
           --output "$GDW_LIVE_REPORT"
 
       - name: Upload secret-free runtime configuration evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: series-a-runtime-config-${{ github.run_id }}-${{ github.run_attempt }}

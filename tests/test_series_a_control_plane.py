@@ -581,8 +581,17 @@ def test_receipt_readback_honors_bounded_limit_without_caching(
     assert duplicate_query.status_code == 400
     assert mixed_query.status_code == 400
     assert missing_query.status_code == 404
+    assert missing_query.headers["cache-control"] == "no-store"
+    assert missing_query.json()["schema"] == (
+        "szl.series-a-receipt-recovery-miss/v1"
+    )
+    assert missing_query.json()["queried_receipt_hash"] == "f" * 64
+    assert missing_query.json()["storage"]["receipt_count"] == 60
+    assert missing_query.json()["item"] is None
     assert malformed_query.status_code == 422
     assert missing.status_code == 404
+    assert missing.headers["cache-control"] == "no-store"
+    assert missing.json() == missing_query.json()
     assert malformed.status_code == 422
 
 
