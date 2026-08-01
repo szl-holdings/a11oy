@@ -19,6 +19,7 @@ EXPECTED = [
     ("energy-attest-holo", "energy-attest-holo", "Energy Attestation Holo", "static"),
     ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static"),
     ("governed-norm-holo", "governed-norm-holo", "Governed Norms — WILLAY classifiers", "static"),
+    ("governed-agent-bench", "governed-agent-bench", "Governed Agent Benchmark", "gradio"),
     ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
     ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static"),
     ("hatun-mcp", "hatun-mcp", "hatun — MCP Server", "docker"),
@@ -27,7 +28,6 @@ EXPECTED = [
     ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker"),
     ("lambda-gate-holo", "lambda-gate-holo", "Λ Gate — Conjecture 1, never green", "static"),
     ("llm-router-live", "llm-router-live", "SZL LLM Router", "docker"),
-    ("README", "readme", "SZL Holdings — Governed-AI Command Platform", "static"),
     ("receipt-chain-live", "receipt-chain-live", "Receipt Chain Live", "static"),
     ("sda", "sda", "SZL SDA", "docker"),
     ("szl-blocked-live", "szl-blocked-live", "szl-blocked-live", "static"),
@@ -49,6 +49,7 @@ def test_audited_inventory_is_exact_and_in_lockstep():
     assert len(EXPECTED) == 26
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
+    assert proxy.SPACE_INVENTORY is not surface.SPACES
     assert len({row[0] for row in EXPECTED}) == 26
     assert len({row[1] for row in EXPECTED}) == 26
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
@@ -63,8 +64,9 @@ def test_sdk_selects_the_canonical_hugging_face_host():
         assert proxy.hf_url(name) == expected_url
         assert proxy.hf_url(slug) == expected_url
 
-    # Hub API identity is case-sensitive even though the local route is lowercase.
-    assert surface.hf_api_url("readme") == "https://huggingface.co/api/spaces/SZLHOLDINGS/README"
+    assert surface.hf_api_url("governed-agent-bench") == (
+        "https://huggingface.co/api/spaces/SZLHOLDINGS/governed-agent-bench"
+    )
 
 
 def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
@@ -75,7 +77,9 @@ def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
     for name, _slug, _title, _sdk in EXPECTED:
         assert surface.canonical_url(name) == surface.hf_url(name)
         assert surface.proxy_url(name) == surface.hf_url(name)  # compatibility alias
-    assert proxy._canonical_target("readme") == "https://szlholdings-readme.static.hf.space"
+    assert proxy._canonical_target("governed-agent-bench") == (
+        "https://szlholdings-governed-agent-bench.hf.space"
+    )
     assert proxy._canonical_target("immune", "assets/app.js", "v=1&mode=full") == (
         "https://szlholdings-immune.hf.space/assets/app.js?v=1&mode=full"
     )
@@ -133,10 +137,10 @@ def test_registered_shortcuts_redirect_without_proxying_content():
     assert root.headers["cache-control"] == "no-store"
     assert root.headers["referrer-policy"] == "no-referrer"
 
-    nested = client.get("/spaces/readme/assets/app.js?v=1&mode=full")
+    nested = client.get("/spaces/governed-agent-bench/assets/app.js?v=1&mode=full")
     assert nested.status_code == 307
     assert nested.headers["location"] == (
-        "https://szlholdings-readme.static.hf.space/assets/app.js?v=1&mode=full"
+        "https://szlholdings-governed-agent-bench.hf.space/assets/app.js?v=1&mode=full"
     )
     assert client.get("/spaces/a11oy").status_code == 307
     assert client.get("/spaces/killinchu").status_code == 307
@@ -224,6 +228,85 @@ def test_exact_contract_probe_requires_expected_json_marker():
     stale = asyncio.run(surface._probe_contract(Client({"error": "not found"}), contract))
     assert live["state"] == "LIVE"
     assert stale["state"] == "UNAVAILABLE"
+
+
+def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
+    import asyncio
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, names):
+            self._names = names
+
+        def json(self):
+            return [{"id": "SZLHOLDINGS/" + name} for name in self._names]
+
+    class Client:
+        def __init__(self, names):
+            self._names = names
+
+        async def get(self, *_args, **_kwargs):
+            return Response(self._names)
+
+    canonical = [row[0] for row in EXPECTED]
+    exact = asyncio.run(surface._probe_inventory(Client(canonical)))
+    drift = asyncio.run(surface._probe_inventory(Client(canonical[1:] + ["README"])))
+    assert exact["state"] == "LIVE"
+    assert exact["missing"] == exact["unexpected"] == []
+    assert drift["state"] == "DEGRADED"
+    assert drift["missing"] == [canonical[0]]
+    assert drift["unexpected"] == ["README"]
+
+
+def test_contract_retry_and_circuit_are_bounded_and_fail_closed():
+    import asyncio
+
+    contract = {"id": "unit-circuit", "url": "https://invalid.test/health",
+                "expected": {"ok": True}}
+    original_probe = surface._urllib_probe
+    previous = surface._CONTRACT_CIRCUITS.pop(contract["id"], None)
+
+    def timeout(*_args, **_kwargs):
+        raise TimeoutError("simulated")
+
+    surface._urllib_probe = timeout
+    try:
+        first = asyncio.run(surface._probe_contract(None, contract))
+        second = asyncio.run(surface._probe_contract(None, contract))
+        open_result = asyncio.run(surface._probe_contract(None, contract))
+    finally:
+        surface._urllib_probe = original_probe
+        surface._CONTRACT_CIRCUITS.pop(contract["id"], None)
+        if previous is not None:
+            surface._CONTRACT_CIRCUITS[contract["id"]] = previous
+
+    assert first["state"] == "UNAVAILABLE" and first["attempts"] == 2
+    assert first["circuit_state"] == "CLOSED"
+    assert second["state"] == "UNAVAILABLE" and second["circuit_state"] == "OPEN"
+    assert open_result["probe_state"] == "CIRCUIT_OPEN"
+    assert open_result["attempts"] == 0 and open_result["retry_after_s"] > 0
+
+
+def test_hf_pending_custom_domain_stays_degraded():
+    result = {"slug": "a11oy", "stage": "unknown"}
+    surface._apply_hf_runtime(result, {
+        "runtime": {
+            "stage": "RUNNING",
+            "domains": [
+                {"domain": "szlholdings-a11oy.hf.space", "stage": "READY"},
+                {"domain": "a-11-oy.com", "stage": "PENDING"},
+            ],
+        }
+    })
+    assert result["custom_domain"] == {
+        "domain": "a-11-oy.com",
+        "provider_stage": "PENDING",
+        "state": "DEGRADED",
+        "source": "hf-api",
+    }
+    result.update({"app_reachable": True, "contract_state": "LIVE"})
+    assert surface._space_health_state(result) == "DEGRADED"
 
 
 if __name__ == "__main__":

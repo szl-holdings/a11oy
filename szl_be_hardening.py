@@ -187,6 +187,22 @@ _SECURITY_HEADERS = {
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
 
+# Headers that disclose private upstream addressing, proxy paths, or replica identity.
+# Remove app-originated copies at the ASGI boundary. A hosting edge can still append its
+# own headers after this boundary; operators must strip those at that edge as well.
+_INTERNAL_TOPOLOGY_HEADERS = (
+    "x-proxied-host",
+    "x-proxied-path",
+    "x-proxied-replica",
+    "x-replica",
+    "x-replica-id",
+    "x-hf-replica",
+    "x-upstream-host",
+    "x-upstream-address",
+    "x-upstream-addr",
+    "x-backend-server",
+)
+
 # frame-ancestors allow-list: self + Hugging Face (the real embedder). Scopes the
 # embed permission to HF instead of the blanket SAMEORIGIN that broke the embed.
 _FRAME_ANCESTORS_CSP = (
@@ -240,6 +256,9 @@ def _apply_security_headers(resp: Any) -> Any:
     a route that already set its own Content-Security-Policy keeps it. Never
     raises."""
     try:
+        for name in _INTERNAL_TOPOLOGY_HEADERS:
+            if name in resp.headers:
+                del resp.headers[name]
         for k, v in _SECURITY_HEADERS.items():
             if k not in resp.headers:
                 resp.headers[k] = v
