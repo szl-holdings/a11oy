@@ -77,6 +77,9 @@ _NEW_JOB_ID = re.compile(
     r"(?P<generation>[2-9]|[1-9][0-9]+)$"
 )
 _POSITIVE_INTEGER = re.compile(r"^[1-9][0-9]*$")
+_SETTLED_RELOCK_URL = re.compile(
+    r"^https://github\.com/szl-holdings/a11oy/actions/runs/[1-9][0-9]*$"
+)
 
 _CLIENT_PAYLOAD_FIELDS = {"selection"}
 _SELECTION_FIELDS = {
@@ -188,8 +191,11 @@ _QUARANTINE_REPLACEMENT_FIELDS = {
     "engineKeyId",
     "enginePublicKeySpkiSha256",
     "reviewedJobId",
+    "settledA11oyRelockRunUrl",
     "sourceRevision",
+    "successorGeneration",
     "workflowBlob",
+    "workflowVersion",
 }
 
 
@@ -701,6 +707,7 @@ def _verify_predecessor_lineage(
     envelope_source: pathlib.Path,
     owner_key_id: str,
     owner_spki: bytes,
+    settled_a11oy_relock_run_url: str,
 ) -> PredecessorEvidence:
     lineage = _exact_object(
         lineage_value,
@@ -852,13 +859,35 @@ def _verify_predecessor_lineage(
         field="predecessor quarantine replacement",
         required=_QUARANTINE_REPLACEMENT_FIELDS,
     )
+    replacement_generation = replacement["successorGeneration"]
+    if (
+        isinstance(replacement_generation, bool)
+        or not isinstance(replacement_generation, int)
+        or replacement_generation != current_generation
+    ):
+        raise DispatchValidationError(
+            "predecessor quarantine replacement successorGeneration "
+            "does not bind the immediate successor"
+        )
+    replacement_relock_url = _string(
+        replacement["settledA11oyRelockRunUrl"],
+        "predecessor quarantine replacement settledA11oyRelockRunUrl",
+    )
+    if _SETTLED_RELOCK_URL.fullmatch(replacement_relock_url) is None:
+        raise DispatchValidationError(
+            "predecessor quarantine replacement relock must be an immutable "
+            "A11oy workflow run URL"
+        )
     expected_spki_sha256 = hashlib.sha256(owner_spki).hexdigest()
     if replacement != {
         "sourceRevision": selection.source_revision,
         "workflowBlob": selection.workflow_blob,
+        "workflowVersion": selection.workflow_version,
+        "settledA11oyRelockRunUrl": settled_a11oy_relock_run_url,
         "engineKeyId": owner_key_id,
         "enginePublicKeySpkiSha256": expected_spki_sha256,
         "reviewedJobId": selection.job_id,
+        "successorGeneration": current_generation,
     }:
         raise DispatchValidationError(
             "predecessor quarantine replacement does not bind this successor"
@@ -1043,6 +1072,14 @@ def verify_owner_envelope(
         authorization["enginePublicKeySpkiSha256"],
         "signed payload authorization.enginePublicKeySpkiSha256",
     )
+    settled_a11oy_relock_run_url = _string(
+        authorization["settledA11oyRelockRunUrl"],
+        "signed payload authorization.settledA11oyRelockRunUrl",
+    )
+    if _SETTLED_RELOCK_URL.fullmatch(settled_a11oy_relock_run_url) is None:
+        raise DispatchValidationError(
+            "signed payload relock must be an immutable A11oy workflow run URL"
+        )
     expected_spki_sha256 = hashlib.sha256(observed_spki).hexdigest()
     if (
         engine_key_id != owner_key_id
@@ -1057,6 +1094,7 @@ def verify_owner_envelope(
         envelope_source=envelope_source,
         owner_key_id=owner_key_id,
         owner_spki=observed_spki,
+        settled_a11oy_relock_run_url=settled_a11oy_relock_run_url,
     )
 
     return EnvelopeEvidence(
