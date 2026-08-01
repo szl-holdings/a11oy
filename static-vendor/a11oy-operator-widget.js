@@ -147,6 +147,7 @@
     '[data-open="true"] .aow-panel{display:flex;}',
     '.aow-root[data-dock-has-cop="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px));}',
     '.aow-root[data-dock-has-investor="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px));}',
+    '@media (max-height:480px){.aow-root[data-dock-has-investor="true"] .aow-panel{top:calc(env(safe-area-inset-top,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 176px);height:auto;max-height:none;max-width:calc(100vw - 192px);}}',
     '.aow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;',
     'border-bottom:1px solid rgba(201,183,135,0.16);background:rgba(22,32,58,0.6);}',
     '.aow-head-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
