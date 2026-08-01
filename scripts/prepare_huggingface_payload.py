@@ -9,6 +9,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from payload_manifest import manifest_bytes
+
 
 REPO_ROOT = Path.cwd()
 OUT_DIR = REPO_ROOT / "dist" / "huggingface" / "a11oy"
@@ -57,9 +59,9 @@ def copy_deploy_manifest_closure() -> None:
         if not source.is_file():
             raise FileNotFoundError(f"deploy manifest source is missing: {relative}")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, destination)
+        payload = manifest_bytes(source)
+        destination.write_bytes(payload)
 
-        payload = destination.read_bytes()
         if len(payload) != item.get("size") or hashlib.sha256(payload).hexdigest() != item.get("sha256"):
             raise ValueError(f"deploy manifest evidence does not match source: {relative}")
 
