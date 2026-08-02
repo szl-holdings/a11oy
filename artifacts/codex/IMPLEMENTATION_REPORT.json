@@ -1,0 +1,77 @@
+{
+  "schema": "szl.codex.evidence/v1",
+  "artifact_type": "implementation-report",
+  "generated_at": "2026-08-01T20:59:12-04:00",
+  "repository": "szl-holdings/a11oy",
+  "branch": "codex/finish-operational-build-2026-07-28",
+  "commit": "dfddeb73450510622e88d4840d069841c52ff84a",
+  "evidence_label": "MEASURED",
+  "definition_of_done_inputs": [
+    "Operational API and frontend integration updates are present in routers, pages, scripts, and tests.",
+    "CI and workflow touch-points updated in `.github/workflows/tests.yml` and `.github/workflows/hf-sync.yml`.",
+    "Execution handoff contract is present in `.github/codex/prompts` and `.github/codex/tasks`.",
+    "Added machine-readable evidence artifacts requested in prompt."
+  ],
+  "implemented_changes": [
+    {
+      "area": "Governed graph ops",
+      "files": [
+        "routers/governed_graph_operations.py",
+        "pages/graph-operations.html",
+        "docs/governed-graph-operations.md",
+        "research/GRAPH_ENGINEERING_FRONTIER_20260801.md",
+        "tests/test_governed_graph_operations.py"
+      ],
+      "status": "implemented"
+    },
+    {
+      "area": "Series A control plane + signer/gateway behavior",
+      "files": [
+        "routers/series_a_control_plane.py",
+        "tests/test_series_a_control_plane.py"
+      ],
+      "status": "implemented"
+    },
+    {
+      "area": "HF ecosystem evidence and payload prep",
+      "files": [
+        "scripts/audit_huggingface_ecosystem.py",
+        "scripts/prepare_huggingface_payload.py",
+        "scripts/prove_hf_series_a_restart.py",
+        "scripts/test_audit_huggingface_ecosystem.py",
+        "scripts/test_prove_hf_series_a_restart.py",
+        "docs/huggingface-ecosystem-manifest.json",
+        "docs/ecosystem-stage-matrix.json",
+        "tests/test_prepare_huggingface_payload.py"
+      ],
+      "status": "implemented"
+    },
+    {
+      "area": "Frontier / route correctness and evidence labels",
+      "files": [
+        "a11oy_frontier_page.py",
+        "serve.py",
+        "tests/test_frontier_responsive_page.py",
+        "tests/test_canonical_a11oy_relock.py",
+        "tests/test_nemo_v3_owner_dispatch_validation.py"
+      ],
+      "status": "implemented"
+    },
+    {
+      "area": "Contract and execution trail",
+      "files": [
+        "CODEX_FINISH_BUILD_2026-08-01.md",
+        ".github/codex/prompts/finish-operational-build-2026-08-01.md",
+        ".github/codex/tasks/finish-operational-build-2026-08-01.json"
+      ],
+      "status": "implemented"
+    }
+  ],
+  "residual_local_blockers": [
+    {
+      "area": "Node runtime",
+      "status": "blocked",
+      "evidence": "node command is not available in this environment (`node` executable not found)."
+    }
+  ]
+}

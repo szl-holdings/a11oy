@@ -1,0 +1,25 @@
+{
+  "schema": "szl.codex.evidence/v1",
+  "artifact_type": "remote-readback",
+  "generated_at": "2026-08-01T20:59:12-04:00",
+  "repository": "szl-holdings/a11oy",
+  "branch": "codex/finish-operational-build-2026-07-28",
+  "commit": "dfddeb73450510622e88d4840d069841c52ff84a",
+  "readback_status": "UNAVAILABLE",
+  "evidence_label": "UNAVAILABLE",
+  "reason": "No authenticated deployment source/readback credentials or runtime session was provided for authenticated GitHub/Hugging Face deployment verification in this environment.",
+  "attempts": [
+    {
+      "target": "local workspace",
+      "command": "no remote invocation attempted",
+      "status": "SKIPPED",
+      "result": "blocked by authorization / environment scope"
+    }
+  ],
+  "required_next_steps": [
+    "Run authenticated API readback against deploy identity.",
+    "Verify `/api/build-info` source revision matches commit `dfddeb73450510622e88d4840d069841c52ff84a`.",
+    "Verify deployed runtime surface for source/build/runtime revision consistency.",
+    "Verify signer mode and verification status from runtime endpoint and compare against manifest signatures."
+  ]
+}

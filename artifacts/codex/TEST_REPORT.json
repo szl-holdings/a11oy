@@ -1,0 +1,71 @@
+{
+  "schema": "szl.codex.evidence/v1",
+  "artifact_type": "test-report",
+  "generated_at": "2026-08-01T20:59:12-04:00",
+  "repository": "szl-holdings/a11oy",
+  "branch": "codex/finish-operational-build-2026-07-28",
+  "commit": "dfddeb73450510622e88d4840d069841c52ff84a",
+  "commands": [
+    {
+      "command": "python -m compileall -q .",
+      "exit_code": 0,
+      "evidence_label": "MEASURED",
+      "result_summary": "Python sources compile successfully"
+    },
+    {
+      "command": "pytest tests/test_frontier_responsive_page.py tests/test_governed_graph_operations.py tests/test_series_a_control_plane.py tests/test_nemo_v3_owner_dispatch_validation.py tests/test_prepare_huggingface_payload.py -q",
+      "exit_code": 0,
+      "evidence_label": "MEASURED",
+      "result_summary": "179 passed, 1 warning"
+    },
+    {
+      "command": "pytest tests/test_canonical_a11oy_relock.py -q",
+      "exit_code": 1,
+      "evidence_label": "UNAVAILABLE",
+      "result_summary": "203 passed, 5 failed due to missing `node` executable",
+      "failure_details": [
+        {
+          "test": "CanonicalA11oyRelockTests::test_observed_evidence_predicate_fails_closed",
+          "error": "subprocess FileNotFoundError: node missing"
+        },
+        {
+          "test": "CanonicalA11oyRelockTests::test_observed_evidence_rechecks_at_the_freshness_deadline",
+          "error": "subprocess FileNotFoundError: node missing"
+        },
+        {
+          "test": "CanonicalA11oyRelockTests::test_observed_evidence_rechecks_when_a_suspended_page_resumes",
+          "error": "subprocess FileNotFoundError: node missing"
+        },
+        {
+          "test": "CanonicalA11oyRelockTests::test_rejected_verdict_is_visibly_unverified",
+          "error": "subprocess FileNotFoundError: node missing"
+        },
+        {
+          "test": "CanonicalA11oyRelockTests::test_superseded_evidence_fetch_cannot_overwrite_newer_evidence",
+          "error": "subprocess FileNotFoundError: node missing"
+        }
+      ]
+    },
+    {
+      "command": "pnpm test:doctrine",
+      "exit_code": 1,
+      "evidence_label": "UNAVAILABLE",
+      "result_summary": "Failed in local run because `node` executable is unavailable",
+      "error": "'node' is not recognized as an internal or external command"
+    },
+    {
+      "command": "pnpm typecheck:doctrine",
+      "exit_code": 1,
+      "evidence_label": "UNAVAILABLE",
+      "result_summary": "Failed in local run because `node` executable is unavailable",
+      "error": "'node' is not recognized as an internal or external command"
+    },
+    {
+      "command": "pnpm build:doctrine",
+      "exit_code": 1,
+      "evidence_label": "UNAVAILABLE",
+      "result_summary": "Failed in local run because `node` executable is unavailable",
+      "error": "'node' is not recognized as an internal or external command"
+    }
+  ]
+}

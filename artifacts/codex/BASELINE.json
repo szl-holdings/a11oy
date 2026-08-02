@@ -1,0 +1,33 @@
+{
+  "schema": "szl.codex.evidence/v1",
+  "artifact_type": "baseline",
+  "generated_at": "2026-08-01T20:59:12-04:00",
+  "repository": "szl-holdings/a11oy",
+  "branch": "codex/finish-operational-build-2026-07-28",
+  "commit": "dfddeb73450510622e88d4840d069841c52ff84a",
+  "evidence_label": "MEASURED",
+  "environment": {
+    "host": "Windows 10",
+    "python": "3.12",
+    "node_available": false,
+    "pnpm_available": true,
+    "working_tree_clean": true
+  },
+  "observations": [
+    {
+      "command": "git status --short",
+      "exit_code": 0,
+      "notes": "clean working tree before artifact generation"
+    },
+    {
+      "command": "git log -1 --oneline",
+      "exit_code": 0,
+      "notes": "dfddeb73450510622e88d4840d069841c52ff84a chore(codex): add machine-readable P0 execution task"
+    },
+    {
+      "command": "git diff --name-only origin/main..HEAD",
+      "exit_code": 0,
+      "notes": "26 changed files across contracts, API, frontend, scripts, tests, and docs"
+    }
+  ]
+}
