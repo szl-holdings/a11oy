@@ -53,7 +53,7 @@ jobs:
         id: guard
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
         run: |
           set +e
           python3 scripts/check_hf_corpus_freshness.py \

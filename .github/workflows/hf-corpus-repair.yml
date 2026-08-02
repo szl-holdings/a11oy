@@ -63,8 +63,8 @@ jobs:
 
       - name: Run repair (dry-run unless apply+confirm)
         env:
-          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
-          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN || secrets.HF_TOKEN }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
