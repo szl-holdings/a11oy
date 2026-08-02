@@ -125,7 +125,9 @@
 
   // ---- CSS (neutral governed palette: deep navy + signed gold + emerald) ----
   var css = [
-    '.aow-root{position:fixed;bottom:24px;right:24px;z-index:2147483647;font-family:"Inter",system-ui,sans-serif;font-size:14px;line-height:1.5;}',
+    '.aow-root{--aow-dock-bottom:24px;position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + var(--aow-dock-bottom));',
+    'right:calc(env(safe-area-inset-right,0px) + 16px);z-index:2147483647;font-family:"Inter",system-ui,sans-serif;font-size:14px;line-height:1.5;}',
+    '.aow-root[data-dock-has-cop="true"]{--aow-dock-bottom:72px;}',
     '.aow-fab{width:56px;height:56px;border-radius:50%;border:1px solid rgba(201,183,135,0.45);cursor:pointer;',
     'background:linear-gradient(135deg,#16203a 0%,#0a0f1e 100%);',
     'box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;',
@@ -138,11 +140,23 @@
     'border-radius:9px;background:#c8415d;color:#fff;font-size:11px;font-weight:700;',
     'display:none;align-items:center;justify-content:center;padding:0 4px;border:2px solid #0a0f1e;}',
     '[data-unread="true"] .aow-badge{display:flex;}',
-    '.aow-panel{position:fixed;bottom:92px;right:24px;width:370px;max-width:calc(100vw - 48px);',
-    'height:540px;max-height:calc(100vh - 120px);background:#0c1322;',
+    '.aow-panel{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);right:calc(env(safe-area-inset-right,0px) + 16px);width:370px;max-width:calc(100vw - 32px);',
+    'height:540px;max-height:calc(100vh - 120px - env(safe-area-inset-bottom,0px));background:#0c1322;',
     'border:1px solid rgba(201,183,135,0.22);border-radius:16px;display:none;flex-direction:column;',
     'box-shadow:0 8px 40px rgba(0,0,0,0.65);overflow:hidden;}',
     '[data-open="true"] .aow-panel{display:flex;}',
+    '.aow-root[data-dock-has-cop="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px));}',
+    '.aow-root[data-dock-has-investor="true"] .aow-panel{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px));}',
+    '@media (max-height:480px) and (min-width:600px){.aow-root[data-dock-has-investor="true"] .aow-panel{top:calc(env(safe-area-inset-top,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 176px);height:auto;max-height:none;max-width:calc(100vw - 192px);}}',
+    '@media (max-height:480px) and (max-width:599px){',
+    '.aow-root[data-open="true"][data-dock-has-investor="true"]{--aow-dock-bottom:8px;right:calc(env(safe-area-inset-right,0px) + 80px);}',
+    '.aow-root[data-dock-has-investor="true"] .aow-panel{top:calc(env(safe-area-inset-top,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 72px);left:calc(env(safe-area-inset-left,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 8px);width:auto;height:auto;max-height:none;max-width:none;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="cop"]{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)!important;right:calc(env(safe-area-inset-right,0px) + 16px)!important;width:56px!important;min-width:56px!important;max-width:56px!important;min-height:56px!important;padding:0!important;justify-content:center!important;font-size:0!important;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)!important;right:calc(env(safe-area-inset-right,0px) + 144px)!important;width:56px!important;min-width:56px!important;max-width:56px!important;min-height:56px!important;padding:0!important;justify-content:center!important;gap:0!important;font-size:0!important;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]>*{display:none!important;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="cop"]::after{content:"COP";font:700 10px/1 ui-monospace,"JetBrains Mono",monospace;letter-spacing:.08em;}',
+    'html[data-aow-panel-open="true"] [data-szl-dock-control="investor"]::after{content:"INV";font:700 10px/1 ui-monospace,"JetBrains Mono",monospace;letter-spacing:.08em;}',
+    '}',
     '.aow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;',
     'border-bottom:1px solid rgba(201,183,135,0.16);background:rgba(22,32,58,0.6);}',
     '.aow-head-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
@@ -192,9 +206,11 @@
     'font-weight:700;font-size:16px;width:36px;height:36px;cursor:pointer;flex-shrink:0;',
     'display:flex;align-items:center;justify-content:center;transition:background .15s;}',
     '.aow-send:hover{background:#dccca0;}',
-    '.aow-toasts{position:fixed;bottom:92px;right:24px;display:flex;flex-direction:column;gap:8px;',
-    'z-index:2147483646;pointer-events:none;width:330px;max-width:calc(100vw - 48px);}',
-    '.aow-root[data-open="true"] .aow-toasts{bottom:calc(540px + 100px);}',
+    '.aow-toasts{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);right:calc(env(safe-area-inset-right,0px) + 16px);display:flex;flex-direction:column;gap:8px;',
+    'z-index:2147483646;pointer-events:none;width:330px;max-width:calc(100vw - 32px);}',
+    '.aow-root[data-dock-has-cop="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 140px);}',
+    '.aow-root[data-dock-has-investor="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);}',
+    '.aow-root[data-open="true"] .aow-toasts{display:none;}',
     '.aow-toast{display:flex;align-items:flex-start;gap:10px;background:#0c1322;',
     'border:1px solid rgba(201,183,135,0.22);border-radius:12px;padding:10px 12px;',
     'box-shadow:0 4px 16px rgba(0,0,0,0.55);pointer-events:all;animation:aow-toast-in .2s ease-out;}',
@@ -219,7 +235,11 @@
   (document.head || document.documentElement).appendChild(style);
 
   // ---- Build the DOM ----
-  var root = el('div', { class: 'aow-root', 'data-open': 'false', 'data-unread': 'false' });
+  var root = el('div', {
+    class: 'aow-root', 'data-open': 'false', 'data-unread': 'false',
+    'data-dock-has-cop': 'false', 'data-dock-has-investor': 'false',
+    'data-szl-dock-control': 'operator'
+  });
   root.setAttribute('data-a11oy-operator', 'widget');
 
   var fabImg = el('img', { src: PORTRAIT, alt: '', 'aria-hidden': 'true' });
@@ -290,9 +310,30 @@
   root.appendChild(panel);
   root.appendChild(fab);
 
+  function syncDockPosition() {
+    var hasInvestor = Boolean(document.querySelector('[data-szl-dock-control="investor"]'));
+    root.setAttribute(
+      'data-dock-has-cop',
+      document.querySelector('[data-szl-dock-control="cop"]') ? 'true' : 'false'
+    );
+    root.setAttribute(
+      'data-dock-has-investor',
+      hasInvestor ? 'true' : 'false'
+    );
+    if (isOpen && hasInvestor) document.documentElement.setAttribute('data-aow-panel-open', 'true');
+    else document.documentElement.removeAttribute('data-aow-panel-open');
+  }
+
   function mount() {
     if (!document.body) { document.addEventListener('DOMContentLoaded', mount); return; }
     document.body.appendChild(root);
+    syncDockPosition();
+    setTimeout(syncDockPosition, 0);
+    window.addEventListener('load', syncDockPosition, { once: true });
+    if (typeof window.MutationObserver === 'function') {
+      var dockObserver = new window.MutationObserver(syncDockPosition);
+      dockObserver.observe(document.body, { childList: true, subtree: true });
+    }
     renderThread();
     refreshBadge();
     checkStatus();
@@ -301,26 +342,67 @@
 
   // ---- Open / close ----
   var isOpen = false;
+  var inputFocusTimer = null;
   function open() {
     isOpen = true;
+    syncDockPosition();
     root.setAttribute('data-open', 'true');
     fab.setAttribute('aria-expanded', 'true');
     state.unread = 0; persist(); refreshBadge();
     if (!thread.length) renderThread();
-    setTimeout(function () { input.focus(); }, 60);
+    if (inputFocusTimer !== null) clearTimeout(inputFocusTimer);
+    inputFocusTimer = setTimeout(function () {
+      inputFocusTimer = null;
+      if (isOpen) input.focus();
+    }, 60);
     scrollThread();
   }
-  function close() {
+  function close(restoreFocus) {
     isOpen = false;
+    if (inputFocusTimer !== null) {
+      clearTimeout(inputFocusTimer);
+      inputFocusTimer = null;
+    }
+    document.documentElement.removeAttribute('data-aow-panel-open');
     root.setAttribute('data-open', 'false');
     fab.setAttribute('aria-expanded', 'false');
-    fab.focus();
+    if (restoreFocus !== false) fab.focus();
+  }
+  function focusControlledDialog(control) {
+    setTimeout(function () {
+      if (!control || typeof control.getAttribute !== 'function') return;
+      var dialogId = control.getAttribute('aria-controls');
+      var dialog = dialogId && document.getElementById(dialogId);
+      if (
+        !dialog ||
+        control.getAttribute('aria-expanded') !== 'true' ||
+        dialog.getAttribute('aria-modal') !== 'true'
+      ) return;
+      var focusTarget = dialog.querySelector(
+        '[autofocus], [data-szl-initial-focus], button:not([disabled]), ' +
+        '[href], input:not([disabled]), select:not([disabled]), ' +
+        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusTarget) {
+        if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+        focusTarget = dialog;
+      }
+      if (typeof focusTarget.focus === 'function') focusTarget.focus();
+    }, 0);
   }
   function toggle() { isOpen ? close() : open(); }
 
   fab.addEventListener('click', toggle);
   closeBtn.addEventListener('click', close);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen) close(); });
+  document.addEventListener('click', function (e) {
+    var target = e.target;
+    if (!isOpen || !target || typeof target.closest !== 'function') return;
+    var investorControl = target.closest('[data-szl-dock-control="investor"]');
+    if (!investorControl) return;
+    close(false);
+    focusControlledDialog(investorControl);
+  }, true);
 
   // ---- Thread rendering ----
   function refreshBadge() {
