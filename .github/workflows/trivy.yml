@@ -29,7 +29,7 @@ jobs:
           exit-code: '0'  # Don't fail on scan (gate in grype job)
 
       - name: Upload Trivy SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@3434fbbc53af0fe47685ef3897703b39ef77b5cb # v3.28.15
+        uses: github/codeql-action/upload-sarif@1804b211a343d69a6584d26fb3a68a8fe6ca39d4 # v3.28.15
         with:
           sarif_file: trivy-results.sarif
 
@@ -58,7 +58,7 @@ jobs:
           cache-db: true
 
       - name: Upload Grype SARIF
-        uses: github/codeql-action/upload-sarif@3434fbbc53af0fe47685ef3897703b39ef77b5cb # v3.28.15
+        uses: github/codeql-action/upload-sarif@1804b211a343d69a6584d26fb3a68a8fe6ca39d4 # v3.28.15
         if: always()
         continue-on-error: true  # Reporting must not replace the scanner's exit status.
         with:
