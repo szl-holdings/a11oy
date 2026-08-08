@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import time
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -146,11 +147,117 @@ def _safe_convergence_state(
     }
 
 
+def _new_recovery_evidence() -> dict:
+    return {
+        "schema": "szl.hf-gdw-transient-recovery-evidence/v1",
+        "calls": 0,
+        "applied_rounds": 0,
+        "rescheduled_effects": 0,
+        "last_status": "NOT_CALLED",
+        "selection_sha256": [],
+        "attempt_accounting_preserved": True,
+        "credential_values_recorded": False,
+    }
+
+
+def _recover_transient_effects(
+    *,
+    base: str,
+    operator_token: str,
+    source_sha: str,
+    database_generation_id: str,
+    evidence: dict,
+) -> dict:
+    report = request_json(
+        "POST",
+        f"{base}/api/a11oy/v1/gdw/recovery/transient-effects?limit=100",
+        token=operator_token,
+        headers={"X-Expected-Source-Revision": source_sha},
+    )
+    counts = {
+        field: report.get(field)
+        for field in (
+            "inspected_pending_effects",
+            "eligible_effects",
+            "rescheduled_effects",
+            "attempts_before",
+            "attempts_after",
+            "claimed_effects",
+            "dead_letter_effects",
+            "invalid_effect_bindings",
+            "invalid_exported_artifacts",
+        )
+    }
+    if (
+        report.get("schema")
+        != "szl.gdw.transient-effect-recovery/v1"
+        or report.get("status")
+        not in {
+            "RESCHEDULED",
+            "NO_ELIGIBLE_EFFECTS",
+            "DEFERRED_ACTIVE_CLAIM",
+        }
+        or report.get("database_generation_id")
+        != database_generation_id
+        or report.get("sqlite_integrity") != "ok"
+        or any(
+            not isinstance(value, int) or value < 0
+            for value in counts.values()
+        )
+        or counts["rescheduled_effects"] > counts["eligible_effects"]
+        or counts["eligible_effects"]
+        > counts["inspected_pending_effects"]
+        or counts["attempts_before"] != counts["attempts_after"]
+        or counts["dead_letter_effects"] != 0
+        or counts["invalid_effect_bindings"] != 0
+        or counts["invalid_exported_artifacts"] != 0
+        or not isinstance(report.get("selection_sha256"), str)
+        or len(report["selection_sha256"]) != 64
+        or any(
+            ch not in "0123456789abcdef"
+            for ch in report["selection_sha256"]
+        )
+        or (
+            report.get("status") == "RESCHEDULED"
+            and (
+                counts["rescheduled_effects"] == 0
+                or counts["claimed_effects"] != 0
+            )
+        )
+        or (
+            report.get("status") == "NO_ELIGIBLE_EFFECTS"
+            and (
+                counts["eligible_effects"] != 0
+                or counts["rescheduled_effects"] != 0
+                or counts["claimed_effects"] != 0
+            )
+        )
+        or (
+            report.get("status") == "DEFERRED_ACTIVE_CLAIM"
+            and (
+                counts["claimed_effects"] == 0
+                or counts["eligible_effects"] != 0
+                or counts["rescheduled_effects"] != 0
+            )
+        )
+    ):
+        raise RuntimeError("GDW transient recovery contract failed")
+    evidence["calls"] += 1
+    evidence["rescheduled_effects"] += counts["rescheduled_effects"]
+    evidence["last_status"] = report["status"]
+    if counts["rescheduled_effects"]:
+        evidence["applied_rounds"] += 1
+        evidence["selection_sha256"].append(report["selection_sha256"])
+    return report
+
+
 def _prove_drain_convergence(
     *,
     base: str,
     operator_token: str,
     database_generation_id: str,
+    source_sha: str | None = None,
+    recovery_evidence: dict | None = None,
     attempts: int = 120,
     delay_seconds: float = 5,
     required_stable_samples: int = 3,
@@ -197,6 +304,33 @@ def _prove_drain_convergence(
                 token=operator_token,
             )
             last_global_integrity = global_integrity
+            if (
+                source_sha is not None
+                and recovery_evidence is not None
+                and recovery_evidence.get("applied_rounds", 0) < 8
+                and not _global_integrity_is_complete(
+                    global_integrity,
+                    database_generation_id,
+                )
+                and global_integrity.get("pending_effects", 0) > 0
+                and global_integrity.get("claimed_effects") == 0
+                and global_integrity.get("dead_letter_effects") == 0
+                and global_integrity.get("invalid_effect_bindings") == 0
+                and global_integrity.get("invalid_exported_artifacts") == 0
+            ):
+                recovery = _recover_transient_effects(
+                    base=base,
+                    operator_token=operator_token,
+                    source_sha=source_sha,
+                    database_generation_id=database_generation_id,
+                    evidence=recovery_evidence,
+                )
+                if recovery.get("status") == "RESCHEDULED":
+                    stable_samples = 0
+                    last_supervisor_success = None
+                    last_error = "TRANSIENT_EFFECTS_RESCHEDULED"
+                    time.sleep(delay_seconds)
+                    continue
             supervisor_success = str(
                 (
                     (health.get("persistence") or {})
@@ -441,6 +575,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     health = None
     deployed_revision = ""
     last_error = None
+    recovery_evidence = _new_recovery_evidence()
     for attempt in range(1, 121):
         try:
             build_info = request_json("GET", f"{base}/api/build-info")
@@ -454,18 +589,41 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             candidate = request_json(
                 "GET", f"{base}/api/a11oy/v1/gdw/healthz"
             )
+            candidate_persistence = candidate.get("persistence") or {}
+            candidate_storage = candidate_persistence.get("storage") or {}
+            candidate_drain = candidate_persistence.get("drain") or {}
+            candidate_report = candidate_drain.get("last_report") or {}
+            candidate_generation_id = str(
+                candidate_storage.get("database_generation_id") or ""
+            )
             if (
                 candidate.get("status") == "REAL"
                 and candidate.get("write_ready") is True
-                and (
-                    (candidate.get("persistence") or {})
-                    .get("storage", {})
-                    .get("journal_mode_observed")
-                    == "DELETE"
-                )
+                and candidate_storage.get("journal_mode_observed") == "DELETE"
             ):
                 health = candidate
                 break
+            if (
+                recovery_evidence["applied_rounds"] < 8
+                and re.fullmatch(
+                    r"[0-9a-f]{32}",
+                    candidate_generation_id,
+                )
+                is not None
+                and candidate_report.get("pending_effects", 0) > 0
+                and candidate_report.get("claimed_effects") == 0
+                and candidate_report.get("dead_letter_effects") == 0
+                and candidate_report.get("invalid_effect_bindings") == 0
+                and candidate_report.get("invalid_exported_artifacts") == 0
+            ):
+                recovery = _recover_transient_effects(
+                    base=base,
+                    operator_token=operator_token,
+                    source_sha=source_sha,
+                    database_generation_id=candidate_generation_id,
+                    evidence=recovery_evidence,
+                )
+                last_error = f"RECOVERY_{recovery['status']}"
         except Exception as exc:
             last_error = type(exc).__name__
         time.sleep(5)
@@ -516,6 +674,8 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         base=base,
         operator_token=operator_token,
         database_generation_id=database_generation_id,
+        source_sha=source_sha,
+        recovery_evidence=recovery_evidence,
     )
     integrity = request_json(
         "GET",
@@ -563,6 +723,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                 "invalid_exported_artifacts"
             ],
         },
+        "transient_recovery": recovery_evidence,
         "integrity": {
             "ok": True,
             "journal_mode": integrity["journal_mode"],
