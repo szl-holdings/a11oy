@@ -3800,4 +3800,3 @@ class GDWWorkspace:
         finally:
             if owns_connection:
                 connection.close()
-
