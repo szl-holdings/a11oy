@@ -104,10 +104,13 @@ def validate_report(report: object, *, github_ref: str, hf_ref: str) -> None:
     findings = report.get("findings")
     if not isinstance(findings, list):
         raise ParityError("comparator findings must be an array")
+    if len(findings) != 1 or not all(
+        isinstance(finding, dict) for finding in findings
+    ):
+        raise ParityError("comparator findings must contain exactly one object")
     normalized = [
         {key: finding.get(key) for key in ("kind", "path", "severity")}
         for finding in findings
-        if isinstance(finding, dict)
     ]
     if normalized != [EXPECTED_COMPATIBILITY_WARNING]:
         raise ParityError(f"unexpected comparator findings: {normalized!r}")

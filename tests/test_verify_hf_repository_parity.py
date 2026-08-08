@@ -87,6 +87,18 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(MODULE.ParityError):
                 MODULE.validate_report(broken, github_ref=github_ref, hf_ref=hf_ref)
 
+        for findings in (
+            [],
+            [report["findings"][0], "unexpected-malformed-entry"],
+            ["unexpected-malformed-entry"],
+        ):
+            broken = dict(report)
+            broken["findings"] = findings
+            with self.subTest(findings=findings), self.assertRaises(
+                MODULE.ParityError
+            ):
+                MODULE.validate_report(broken, github_ref=github_ref, hf_ref=hf_ref)
+
     def test_leading_dot_source_is_compared_byte_for_byte(self) -> None:
         payload = b"Contact: mailto:security@example.test\n"
         digest = MODULE.verify_leading_dot_copy(
