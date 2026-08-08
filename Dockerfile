@@ -110,7 +110,7 @@ RUN pip install --no-cache-dir \
     "huggingface_hub==1.19.0" \
     "openai==2.43.0" \
     "python-multipart==0.0.32" \
-    "cryptography==49.0.0" \
+    "cryptography==50.0.0" \
     "lmdb==2.2.1" \
     "slowapi==0.1.10" \
     "defusedxml==0.7.1" \
