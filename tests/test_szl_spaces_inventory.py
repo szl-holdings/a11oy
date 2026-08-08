@@ -251,12 +251,20 @@ def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
 
     canonical = [row[0] for row in EXPECTED]
     exact = asyncio.run(surface._probe_inventory(Client(canonical)))
-    drift = asyncio.run(surface._probe_inventory(Client(canonical[1:] + ["README"])))
+    exact_with_profile = asyncio.run(
+        surface._probe_inventory(Client(canonical + ["README"]))
+    )
+    drift = asyncio.run(
+        surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
+    )
     assert exact["state"] == "LIVE"
     assert exact["missing"] == exact["unexpected"] == []
+    assert exact_with_profile["state"] == "LIVE"
+    assert exact_with_profile["observed_count"] == len(canonical)
+    assert exact_with_profile["missing"] == exact_with_profile["unexpected"] == []
     assert drift["state"] == "DEGRADED"
     assert drift["missing"] == [canonical[0]]
-    assert drift["unexpected"] == ["README"]
+    assert drift["unexpected"] == ["rogue-space"]
 
 
 def test_inventory_http_and_schema_failures_are_unavailable():
