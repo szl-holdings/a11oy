@@ -12,7 +12,7 @@ from typing import List, Literal, Optional
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
-from fastapi import Header, HTTPException, Request
+from fastapi import Header, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError
 
@@ -950,11 +950,15 @@ def register(app, ns: str = "a11oy"):
     @app.post(prefix + "/recovery/transient-effects")
     @app.post("/v1/gdw/recovery/transient-effects")
     def gdw_recover_transient_effects(
-        limit: int = 100,
+        limit: int = Query(default=100, ge=1, le=1_000),
         authorization: Optional[str] = Header(default=None, alias="Authorization"),
         expected_source_revision: Optional[str] = Header(
             default=None,
             alias="X-Expected-Source-Revision",
+        ),
+        idempotency_key: Optional[str] = Header(
+            default=None,
+            alias="Idempotency-Key",
         ),
     ):
         principal = _authorise(
@@ -966,6 +970,14 @@ def register(app, ns: str = "a11oy"):
             ns,
             expected_source_revision,
         )
+        if not idempotency_key or not _ID_PATTERN.fullmatch(idempotency_key):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Idempotency-Key must be 1-128 canonical identifier "
+                    "characters"
+                ),
+            )
         workspace = _workspace(principal)
         if workspace.database_generation_id != runtime_generation:
             raise HTTPException(
@@ -974,9 +986,18 @@ def register(app, ns: str = "a11oy"):
             )
         try:
             report = workspace.recover_retry_scheduled_effects(
+                recovery_id=idempotency_key,
+                credential_key_id=principal.key_id,
+                expected_source_revision=str(expected_source_revision),
+                expected_database_generation_id=runtime_generation,
                 limit=limit,
             )
         except GDWConfigurationError as exc:
+            if str(exc) == "recovery_id was already used with different content":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Idempotency-Key was already used with different content",
+                ) from exc
             raise HTTPException(
                 status_code=503,
                 detail="GDW recovery refused by integrity gate",
