@@ -49,6 +49,7 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 """
 from __future__ import annotations
 
+import asyncio
 import sys
 import time
 from typing import Any
@@ -57,11 +58,11 @@ _ORG = "SZLHOLDINGS"
 _ORG_PREFIX = "szlholdings-"
 SPACE_TILE_ORIGIN_MODE = "canonical-isolated-hf/v1"
 
-# Audited 26-Space public estate. Names are exact Hub repository names and titles are
-# the current public card titles observed during the 2026-07-16 alignment audit. Runtime
-# state is deliberately NOT frozen here: /health measures it on every cache refresh and
-# degrades to unknown/false when evidence is unavailable. ``slug`` is the lowercase,
-# same-origin route key; it differs from ``name`` only for the Hub repository ``README``.
+# Canonical 26-Space public application estate. Names are exact regular Space repository
+# names returned by the Hub Spaces API. The special organization README Space is not an
+# application and is intentionally excluded. Runtime state is deliberately NOT frozen
+# here: /health measures it on every cache refresh and degrades to unknown/false when
+# evidence is unavailable. ``slug`` is the lowercase, same-origin route key.
 # a11oy + killinchu retain the historical own-host classification in the health payload,
 # but every tile now opens its canonical isolated Hugging Face application origin.
 SPACES: list[dict[str, str]] = [
@@ -72,6 +73,7 @@ SPACES: list[dict[str, str]] = [
     {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static"},
     {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"},
     {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static"},
+    {"name": "governed-agent-bench", "slug": "governed-agent-bench", "title": "Governed Agent Benchmark", "sdk": "gradio"},
     {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static"},
     {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"},
     {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker"},
@@ -80,7 +82,6 @@ SPACES: list[dict[str, str]] = [
     {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker"},
     {"name": "lambda-gate-holo", "slug": "lambda-gate-holo", "title": "Λ Gate — Conjecture 1, never green", "sdk": "static"},
     {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker"},
-    {"name": "README", "slug": "readme", "title": "SZL Holdings — Governed-AI Command Platform", "sdk": "static"},
     {"name": "receipt-chain-live", "slug": "receipt-chain-live", "title": "Receipt Chain Live", "sdk": "static"},
     {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker"},
     {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static"},
@@ -105,11 +106,17 @@ _DOCTRINE = {
     "trust_ceiling": "never 100%",
 }
 
-_PROBE_TIMEOUT = 6.0
-_HF_API_TIMEOUT = 6.0
+_PROBE_TIMEOUT = 2.0
+_HF_API_TIMEOUT = 2.0
 _HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 26x.
 _HEALTH_CACHE: dict[str, Any] = {"ts": 0.0, "payload": None}
 _RUNNING_STAGES = {"RUNNING"}
+_HF_LIST_URL = f"https://huggingface.co/api/spaces?author={_ORG}&limit=1000&full=true"
+_CUSTOM_DOMAINS = {"a11oy": "a-11-oy.com"}
+_CONTRACT_ATTEMPTS = 2
+_CONTRACT_FAILURE_THRESHOLD = 2
+_CONTRACT_CIRCUIT_COOLDOWN = 30.0
+_CONTRACT_CIRCUITS: dict[str, dict[str, Any]] = {}
 
 
 def _space_record(identifier: str) -> dict[str, str]:
@@ -208,43 +215,202 @@ def _urllib_probe(url: str, timeout: float, want_json: bool = False) -> Any:
 
 
 async def _to_thread(fn, *a, **kw):
-    import asyncio as _asyncio
-    return await _asyncio.get_event_loop().run_in_executor(None, lambda: fn(*a, **kw))
+    return await asyncio.get_event_loop().run_in_executor(None, lambda: fn(*a, **kw))
 
 
-async def _probe_contract(client: Any, contract: dict[str, Any]) -> dict[str, Any]:
-    """Probe one exact public API contract and validate its stable top-level marker."""
+def _apply_hf_runtime(result: dict[str, Any], data: Any) -> None:
+    """Project only public Hub runtime/domain evidence into an honest Space row."""
+    if not isinstance(data, dict):
+        return
+    runtime = data.get("runtime") or {}
+    stage = runtime.get("stage")
+    if isinstance(stage, str) and stage:
+        result["stage"] = stage
+
+    domains = []
+    for item in runtime.get("domains") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("domain"), str):
+            continue
+        domains.append({
+            "domain": item["domain"],
+            "provider_stage": str(item.get("stage") or "unknown").upper(),
+        })
+    if domains:
+        result["domains"] = domains
+
+    expected = _CUSTOM_DOMAINS.get(result["slug"])
+    if expected:
+        observed = next((item for item in domains if item["domain"] == expected), None)
+        provider_stage = observed["provider_stage"] if observed else "UNKNOWN"
+        result["custom_domain"] = {
+            "domain": expected,
+            "provider_stage": provider_stage,
+            "state": "LIVE" if provider_stage == "READY" else (
+                "DEGRADED" if observed else "UNAVAILABLE"
+            ),
+            "source": "hf-api",
+        }
+
+
+async def _probe_inventory(client: Any) -> dict[str, Any]:
+    """Compare the canonical application set with the public Hub Spaces API set."""
     status = None
     data = None
     via = None
     if client is not None:
         try:
-            response = await client.get(contract["url"], timeout=_PROBE_TIMEOUT,
-                                        follow_redirects=True)
+            response = await asyncio.wait_for(
+                client.get(
+                    _HF_LIST_URL,
+                    timeout=_HF_API_TIMEOUT,
+                    headers={"User-Agent": "szl-spaces-surface/1.0"},
+                ),
+                timeout=_HF_API_TIMEOUT,
+            )
             status = response.status_code
-            data = response.json() if 200 <= status < 300 else None
+            data = response.json() if status == 200 else None
             via = "httpx"
         except Exception:
             status = None
     if status is None:
         try:
-            status, data = await _to_thread(
-                _urllib_probe, contract["url"], _PROBE_TIMEOUT, True
+            status, data = await asyncio.wait_for(
+                _to_thread(_urllib_probe, _HF_LIST_URL, _HF_API_TIMEOUT, True),
+                timeout=_HF_API_TIMEOUT,
             )
             via = "urllib"
         except Exception as exc:
-            return {"id": contract["id"], "url": contract["url"],
-                    "state": "UNAVAILABLE", "error": type(exc).__name__}
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(SPACES),
+                "error": type(exc).__name__,
+            }
 
-    expected = contract["expected"]
-    matches = isinstance(data, dict) and all(data.get(k) == v for k, v in expected.items())
+    if status != 200:
+        return {
+            "schema": "szl.hf-space-inventory/v1",
+            "state": "UNAVAILABLE",
+            "canonical_count": len(SPACES),
+            "http_status": status,
+            "source": via,
+            "error": "hub_api_http_status",
+        }
+    if not isinstance(data, list):
+        return {
+            "schema": "szl.hf-space-inventory/v1",
+            "state": "UNAVAILABLE",
+            "canonical_count": len(SPACES),
+            "http_status": status,
+            "source": via,
+            "error": "hub_api_schema",
+        }
+
+    observed = set()
+    for item in data:
+        identity = item.get("id") if isinstance(item, dict) else None
+        if isinstance(identity, str) and identity.startswith(_ORG + "/"):
+            observed.add(identity.split("/", 1)[1])
+    expected = set(_SPACE_BY_NAME)
+    missing = sorted(expected - observed)
+    unexpected = sorted(observed - expected)
+    return {
+        "schema": "szl.hf-space-inventory/v1",
+        "state": "LIVE" if not missing and not unexpected else "DEGRADED",
+        "canonical_count": len(expected),
+        "observed_count": len(observed),
+        "missing": missing,
+        "unexpected": unexpected,
+        "http_status": status,
+        "source": via,
+    }
+
+
+def _contract_circuit(contract_id: str) -> dict[str, Any]:
+    return _CONTRACT_CIRCUITS.setdefault(contract_id, {"failures": 0, "open_until": 0.0})
+
+
+async def _contract_attempt(
+    client: Any, contract: dict[str, Any], attempt: int
+) -> tuple[int, Any, str]:
+    if client is not None and attempt == 1:
+        response = await client.get(
+            contract["url"], timeout=_PROBE_TIMEOUT, follow_redirects=True
+        )
+        return (
+            response.status_code,
+            response.json() if 200 <= response.status_code < 300 else None,
+            "httpx",
+        )
+    status, data = await _to_thread(
+        _urllib_probe, contract["url"], _PROBE_TIMEOUT, True
+    )
+    return int(status), data, "urllib"
+
+
+async def _probe_contract(client: Any, contract: dict[str, Any]) -> dict[str, Any]:
+    """Probe one dependency with bounded retry and a fail-closed local circuit."""
+    now = time.monotonic()
+    circuit = _contract_circuit(contract["id"])
+    if circuit["open_until"] > now:
+        return {
+            "id": contract["id"],
+            "url": contract["url"],
+            "state": "UNAVAILABLE",
+            "probe_state": "CIRCUIT_OPEN",
+            "attempts": 0,
+            "retry_after_s": round(circuit["open_until"] - now, 3),
+        }
+
+    status = None
+    data = None
+    via = None
+    error = None
+    attempts = 0
+    for attempt in range(1, _CONTRACT_ATTEMPTS + 1):
+        attempts = attempt
+        try:
+            status, data, via = await asyncio.wait_for(
+                _contract_attempt(client, contract, attempt),
+                timeout=_PROBE_TIMEOUT,
+            )
+        except Exception as exc:
+            error = type(exc).__name__
+            continue
+
+        expected = contract["expected"]
+        matches = isinstance(data, dict) and all(data.get(k) == v for k, v in expected.items())
+        if 200 <= int(status) < 300 and matches:
+            circuit.update({"failures": 0, "open_until": 0.0})
+            return {
+                "id": contract["id"],
+                "url": contract["url"],
+                "state": "LIVE",
+                "probe_state": "OBSERVED",
+                "http_status": status,
+                "expected": expected,
+                "probe_via": via,
+                "attempts": attempts,
+                "circuit_state": "CLOSED",
+            }
+        error = "ContractMismatch" if 200 <= int(status) < 300 else "HTTPStatus"
+        if int(status) < 500 and int(status) != 429:
+            break
+
+    circuit["failures"] += 1
+    if circuit["failures"] >= _CONTRACT_FAILURE_THRESHOLD:
+        circuit["open_until"] = time.monotonic() + _CONTRACT_CIRCUIT_COOLDOWN
     return {
         "id": contract["id"],
         "url": contract["url"],
-        "state": "LIVE" if 200 <= int(status) < 300 and matches else "UNAVAILABLE",
+        "state": "UNAVAILABLE",
+        "probe_state": "FAILED",
         "http_status": status,
-        "expected": expected,
+        "expected": contract["expected"],
         "probe_via": via,
+        "attempts": attempts,
+        "error": error or "Unavailable",
+        "circuit_state": "OPEN" if circuit["open_until"] > time.monotonic() else "CLOSED",
     }
 
 
@@ -312,9 +478,7 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
                                   headers={"User-Agent": "szl-spaces-surface/1.0"})
             if ra.status_code == 200:
                 data = ra.json()
-                stage = (((data or {}).get("runtime") or {}).get("stage"))
-                if isinstance(stage, str) and stage:
-                    result["stage"] = stage
+                _apply_hf_runtime(result, data)
                 got_stage = True
             else:
                 result["stage_http"] = ra.status_code
@@ -325,9 +489,7 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
         try:
             status, data = await _to_thread(_urllib_probe, hf_api_url(name), _HF_API_TIMEOUT, True)
             if status == 200 and isinstance(data, dict):
-                stage = ((data.get("runtime") or {}).get("stage"))
-                if isinstance(stage, str) and stage:
-                    result["stage"] = stage
+                _apply_hf_runtime(result, data)
             else:
                 result["stage_http"] = status
         except Exception as e:
@@ -352,7 +514,11 @@ def _space_health_state(space: dict[str, Any]) -> str:
     reachable = bool(space.get("app_reachable"))
     stage = str(space.get("stage") or "unknown").upper()
     contract_state = str(space.get("contract_state") or "LIVE").upper()
-    if reachable and stage in _RUNNING_STAGES and contract_state == "LIVE":
+    custom_domain_state = str(
+        (space.get("custom_domain") or {}).get("state") or "LIVE"
+    ).upper()
+    if (reachable and stage in _RUNNING_STAGES and contract_state == "LIVE"
+            and custom_domain_state == "LIVE"):
         return "LIVE"
     if not reachable and stage == "UNKNOWN" and contract_state in {"LIVE", "UNAVAILABLE"}:
         return "UNAVAILABLE"
@@ -388,17 +554,27 @@ async def spaces_health() -> dict[str, Any]:
     # Probe every Space concurrently. _probe_one handles client=None internally by
     # falling back to the stdlib urllib path (the proven outbound path on this box),
     # so we always return REAL reachability, degrading honestly only on true failure.
-    import asyncio as _asyncio
-    spaces = list(await _asyncio.gather(*[_probe_one(client, sp) for sp in SPACES]))
+    results = await asyncio.gather(
+        _probe_inventory(client),
+        *[_probe_one(client, sp) for sp in SPACES],
+    )
+    inventory = results[0]
+    spaces = list(results[1:])
+    aggregate_state = _aggregate_health_state(spaces)
+    if aggregate_state == "LIVE" and inventory["state"] != "LIVE":
+        aggregate_state = "DEGRADED"
 
     payload = {
-        "state": _aggregate_health_state(spaces),
+        "state": aggregate_state,
         "count": len(spaces),
+        "inventory": inventory,
         "spaces": spaces,
         "labels": {
             "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
             "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
             "contract_state": "Anatomy and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
+            "inventory": "LIVE only when the canonical regular-Space set exactly equals the public Hub API set; README is a special organization surface, not an application Space",
+            "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
             "degrade": "stage:'unknown' + app_reachable:false; never fabricated",
@@ -481,7 +657,7 @@ def _tiles_page(ns: str) -> bytes:
         '</style></head>'
         '<body><main class="sp-wrap">'
         '<h1 class="sp-h1">Hugging Face Spaces</h1>'
-        '<p class="sp-sub">All 26 audited Spaces in one evidence-labelled registry. '
+        f'<p class="sp-sub">All {len(SPACES)} audited Spaces in one evidence-labelled registry. '
         'Apps open on their canonical isolated Hugging Face origin; health is probed '
         'server-side. Legacy <code>/spaces/&lt;slug&gt;</code> links are no-store 307 handoffs.</p>'
         '<p class="sp-health">Estate health: '
@@ -655,7 +831,8 @@ if __name__ == "__main__":
     with open(__file__, "r", encoding="utf-8") as _fh:
         _ast.parse(_fh.read())
 
-    assert len(SPACES) == 26, len(SPACES)
+    assert len(SPACES) == 26 and "README" not in _SPACE_BY_NAME, len(SPACES)
+    assert "governed-agent-bench" in _SPACE_BY_NAME
     tp = _tiles_page("a11oy")
     for sp in SPACES:
         assert sp["name"].encode() in tp, "tiles missing %s" % sp["name"]
