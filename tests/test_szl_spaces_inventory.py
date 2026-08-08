@@ -288,6 +288,17 @@ def test_inventory_http_and_schema_failures_are_unavailable():
 
     non_200 = asyncio.run(surface._probe_inventory(Client(503, {"error": "busy"})))
     malformed = asyncio.run(surface._probe_inventory(Client(200, {"spaces": []})))
+    canonical = [{"id": "SZLHOLDINGS/" + row[0]} for row in EXPECTED]
+    malformed_entries = [
+        canonical + [None],
+        canonical + [{}],
+        canonical + [{"id": 7}],
+        canonical + [{"id": "OTHER/rogue-space"}],
+    ]
+    malformed_results = [
+        asyncio.run(surface._probe_inventory(Client(200, payload)))
+        for payload in malformed_entries
+    ]
 
     assert non_200["state"] == "UNAVAILABLE"
     assert non_200["http_status"] == 503
@@ -296,6 +307,12 @@ def test_inventory_http_and_schema_failures_are_unavailable():
     assert malformed["http_status"] == 200
     assert malformed["error"] == "hub_api_schema"
     assert "missing" not in non_200 and "missing" not in malformed
+    for result in malformed_results:
+        assert result["state"] == "UNAVAILABLE"
+        assert result["http_status"] == 200
+        assert result["error"] == "hub_api_schema"
+        assert result["malformed_index"] == len(canonical)
+        assert "missing" not in result and "unexpected" not in result
 
 
 def test_contract_retry_and_circuit_are_bounded_and_fail_closed():
