@@ -267,11 +267,27 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
                 "database_generation_id": "a" * 32,
             }
 
-        def recover_retry_scheduled_effects(self, *, limit):
+        def recover_retry_scheduled_effects(
+            self,
+            *,
+            recovery_id,
+            credential_key_id,
+            expected_source_revision,
+            expected_database_generation_id,
+            limit,
+        ):
             assert limit == 100
+            assert recovery_id == "auth-compat-recovery"
+            assert credential_key_id == "recovery-key"
+            assert expected_source_revision == "b" * 40
+            assert expected_database_generation_id == "a" * 32
             return {
-                "schema": "szl.gdw.transient-effect-recovery/v1",
+                "schema": "szl.gdw.transient-effect-recovery/v2",
                 "status": "NO_ELIGIBLE_EFFECTS",
+                "recovery_id": recovery_id,
+                "source_revision": expected_source_revision,
+                "requested_limit": limit,
+                "failure_class": "hf-hard-link-enotsup/v1",
                 "database_generation_id": "a" * 32,
                 "inspected_pending_effects": 0,
                 "eligible_effects": 0,
@@ -284,6 +300,14 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
                 "dead_letter_effects": 0,
                 "invalid_effect_bindings": 0,
                 "invalid_exported_artifacts": 0,
+                "invalid_recovery_audits": 0,
+                "audit_receipt": {
+                    "schema": (
+                        "szl.gdw.transient-effect-recovery-receipt/v1"
+                    ),
+                    "receipt_sha256": "b" * 64,
+                },
+                "replayed": False,
             }
 
     monkeypatch.setattr(gdw_frontier, "_credential_registry", lambda: registry)
@@ -347,6 +371,38 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
             headers={
                 "Authorization": "Bearer recovery-secret",
                 "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "auth-compat-recovery",
+            },
+        )
+        missing_idempotency = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+            },
+        )
+        malformed_idempotency = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "not canonical",
+            },
+        )
+        zero_limit = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects?limit=0",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "zero-limit",
+            },
+        )
+        excessive_limit = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects?limit=1001",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "excessive-limit",
             },
         )
 
@@ -364,9 +420,35 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
     assert denied_recovery.json()["detail"] == "missing_scopes"
     assert recovery.status_code == 200
     assert recovery.json()["schema"] == (
-        "szl.gdw.transient-effect-recovery/v1"
+        "szl.gdw.transient-effect-recovery/v2"
     )
     assert recovery.json()["status"] == "NO_ELIGIBLE_EFFECTS"
+    assert missing_idempotency.status_code == 422
+    assert malformed_idempotency.status_code == 422
+    assert zero_limit.status_code == 422
+    assert excessive_limit.status_code == 422
+
+    class StaleWorkspace(Workspace):
+        database_generation_id = "c" * 32
+
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_workspace",
+        lambda principal: StaleWorkspace(),
+    )
+    with TestClient(app) as client:
+        stale_generation = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "stale-generation",
+            },
+        )
+    assert stale_generation.status_code == 503
+    assert stale_generation.json()["detail"] == (
+        "GDW recovery database generation changed"
+    )
 
 
 def test_transient_recovery_runtime_requires_exact_source_and_storage(

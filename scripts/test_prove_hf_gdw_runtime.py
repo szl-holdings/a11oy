@@ -24,12 +24,14 @@ def _complete_integrity():
         "ok": True,
         "database_generation_id": GENERATION_ID,
         "journal_mode": "DELETE",
+        "sqlite_integrity": "ok",
         "pending_proofs": 0,
         "pending_effects": 0,
         "claimed_effects": 0,
         "dead_letter_effects": 0,
         "invalid_effect_bindings": 0,
         "invalid_exported_artifacts": 0,
+        "invalid_recovery_audits": 0,
     }
 
 
@@ -39,23 +41,98 @@ def _recovery_report(
     eligible=1,
     rescheduled=1,
     claimed=0,
+    recovery_id=(
+        "gdw-recovery-aaaaaaaaaaaa-bbbbbbbbbbbb-1"
+    ),
 ):
-    return {
-        "schema": "szl.gdw.transient-effect-recovery/v1",
+    selection = [
+        {
+            "namespace": "a11oy",
+            "owner_id": "operator",
+            "idempotency_key": f"effect-{index}",
+            "database_generation_id": GENERATION_ID,
+            "request_id": f"request-{index}",
+            "kind": "proof_export",
+            "receipt_hash": None,
+            "payload_sha256": "1" * 64,
+            "intent_sha256": "2" * 64,
+            "attempts": 1,
+            "max_attempts": 20,
+            "next_attempt_at": "2026-07-29T01:00:00+00:00",
+            "claim_generation": 1,
+            "last_error_sha256": "3" * 64,
+        }
+        for index in range(rescheduled)
+    ]
+    selection_sha256 = proof._canonical_hash(selection)
+    attempts = sum(item["attempts"] for item in selection)
+    outcome = {
+        "schema": "szl.gdw.transient-effect-recovery/v2",
         "status": status,
+        "recovery_id": recovery_id,
+        "source_revision": SOURCE_SHA,
+        "requested_limit": 100,
+        "failure_class": "hf-hard-link-enotsup/v1",
         "database_generation_id": GENERATION_ID,
         "inspected_pending_effects": max(eligible, rescheduled, claimed),
         "eligible_effects": eligible,
         "rescheduled_effects": rescheduled,
-        "attempts_before": eligible,
-        "attempts_after": eligible,
-        "selection_sha256": "d" * 64,
+        "attempts_before": attempts,
+        "attempts_after": attempts,
+        "selection": selection,
+        "selection_sha256": selection_sha256,
         "sqlite_integrity": "ok",
         "claimed_effects": claimed,
         "dead_letter_effects": 0,
         "invalid_effect_bindings": 0,
         "invalid_exported_artifacts": 0,
+        "invalid_recovery_audits": 0,
+        "credential_values_recorded": False,
     }
+    outcome_sha256 = proof._canonical_hash(outcome)
+    operator = {
+        "namespace": "a11oy",
+        "owner_id": "operator",
+        "credential_key_id": "operator-key",
+    }
+    request = {
+        "schema": "szl.gdw.transient-effect-recovery-request/v1",
+        **operator,
+        "recovery_id": recovery_id,
+        "source_revision": SOURCE_SHA,
+        "database_generation_id": GENERATION_ID,
+        "limit": 100,
+        "failure_class": "hf-hard-link-enotsup/v1",
+    }
+    receipt = {
+        "schema": "szl.gdw.transient-effect-recovery-receipt/v1",
+        "receipt_status": "UNSIGNED_ATOMIC",
+        "operator": operator,
+        "recovery_id": recovery_id,
+        "source_revision": SOURCE_SHA,
+        "database_generation_id": GENERATION_ID,
+        "request_sha256": proof._canonical_hash(request),
+        "outcome_sha256": outcome_sha256,
+        "selection_sha256": outcome["selection_sha256"],
+        "rescheduled_effects": rescheduled,
+        "attempts_before": attempts,
+        "attempts_after": attempts,
+        "created_at": "2026-07-29T00:00:00+00:00",
+        "credential_values_recorded": False,
+    }
+    receipt["receipt_sha256"] = proof._canonical_hash(receipt)
+    return {**outcome, "audit_receipt": receipt, "replayed": False}
+
+
+def _reseal_recovery_report(report):
+    outcome = dict(report)
+    receipt = dict(outcome.pop("audit_receipt"))
+    outcome.pop("replayed")
+    receipt.pop("receipt_sha256", None)
+    receipt["outcome_sha256"] = proof._canonical_hash(outcome)
+    receipt["receipt_sha256"] = proof._canonical_hash(receipt)
+    report["audit_receipt"] = receipt
+    return report
 
 
 def _live_response(method: str, url: str, **_kwargs):
@@ -130,9 +207,10 @@ def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
 ):
     events = []
     health_calls = 0
+    global_calls = 0
 
     def response(method: str, url: str, **kwargs):
-        nonlocal health_calls
+        nonlocal global_calls, health_calls
         if url.endswith("/api/build-info"):
             events.append("build")
             return {"build": {"revision": SOURCE_SHA}}
@@ -155,7 +233,7 @@ def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
                             "last_outcome": "RETRY_SCHEDULED",
                             "last_success_at": None,
                             "last_report": {
-                                "pending_effects": 1,
+                                "pending_effects": 0,
                                 "claimed_effects": 0,
                                 "dead_letter_effects": 0,
                                 "invalid_effect_bindings": 0,
@@ -165,10 +243,20 @@ def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
                     },
                 }
             return _live_response(method, url, **kwargs)
+        if url.endswith("/gdw/integrity/global"):
+            global_calls += 1
+            if global_calls == 1:
+                return {
+                    **_complete_integrity(),
+                    "pending_effects": 1,
+                }
         if method == "POST" and "/recovery/transient-effects" in url:
             events.append("recovery")
             assert kwargs["headers"] == {
-                "X-Expected-Source-Revision": SOURCE_SHA
+                "X-Expected-Source-Revision": SOURCE_SHA,
+                "Idempotency-Key": (
+                    "gdw-recovery-aaaaaaaaaaaa-bbbbbbbbbbbb-1"
+                ),
             }
             return _recovery_report()
         if method == "POST" and url.endswith("/gdw/step"):
@@ -192,6 +280,124 @@ def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
     assert report["transient_recovery"][
         "attempt_accounting_preserved"
     ] is True
+
+
+@pytest.mark.parametrize(
+    "invalid_binding",
+    [
+        "operator-shape",
+        "request-sha256",
+        "created-at",
+        "credential-values",
+    ],
+)
+def test_transient_recovery_rejects_self_consistent_invalid_receipt_bindings(
+    monkeypatch,
+    invalid_binding,
+):
+    report = _recovery_report()
+    if invalid_binding == "operator-shape":
+        report["audit_receipt"]["operator"]["extra"] = "unbound"
+    elif invalid_binding == "request-sha256":
+        report["audit_receipt"]["request_sha256"] = "f" * 64
+    elif invalid_binding == "created-at":
+        report["audit_receipt"]["created_at"] = "not-a-timestamp"
+    else:
+        report["credential_values_recorded"] = True
+        report["audit_receipt"]["credential_values_recorded"] = True
+    _reseal_recovery_report(report)
+    monkeypatch.setattr(
+        proof,
+        "request_json",
+        lambda *args, **kwargs: report,
+    )
+
+    with pytest.raises(RuntimeError, match="recovery contract"):
+        proof._recover_transient_effects(
+            base="https://example.invalid",
+            operator_token="x" * 48,
+            source_sha=SOURCE_SHA,
+            database_generation_id=GENERATION_ID,
+            evidence=proof._new_recovery_evidence(),
+        )
+
+
+def test_transient_recovery_accepts_the_authoritative_selection_id_grammar(
+    monkeypatch,
+):
+    report = _recovery_report()
+    report["selection"][0]["request_id"] = ".Recovery.A"
+    report["selection"][0]["idempotency_key"] = "Effect.A"
+    selection_sha256 = proof._canonical_hash(report["selection"])
+    report["selection_sha256"] = selection_sha256
+    report["audit_receipt"]["selection_sha256"] = selection_sha256
+    _reseal_recovery_report(report)
+    monkeypatch.setattr(
+        proof,
+        "request_json",
+        lambda *args, **kwargs: report,
+    )
+
+    observed = proof._recover_transient_effects(
+        base="https://example.invalid",
+        operator_token="x" * 48,
+        source_sha=SOURCE_SHA,
+        database_generation_id=GENERATION_ID,
+        evidence=proof._new_recovery_evidence(),
+    )
+
+    assert observed["selection"][0]["request_id"] == ".Recovery.A"
+    assert observed["selection"][0]["idempotency_key"] == "Effect.A"
+
+
+@pytest.mark.parametrize("numeric_replay", [0, 1])
+def test_transient_recovery_rejects_numeric_replay_flags(
+    monkeypatch,
+    numeric_replay,
+):
+    report = _recovery_report()
+    report["replayed"] = numeric_replay
+    monkeypatch.setattr(
+        proof,
+        "request_json",
+        lambda *args, **kwargs: report,
+    )
+
+    with pytest.raises(RuntimeError, match="recovery contract"):
+        proof._recover_transient_effects(
+            base="https://example.invalid",
+            operator_token="x" * 48,
+            source_sha=SOURCE_SHA,
+            database_generation_id=GENERATION_ID,
+            evidence=proof._new_recovery_evidence(),
+        )
+
+
+def test_transient_recovery_rejects_a_resealed_nonfuture_selection(
+    monkeypatch,
+):
+    report = _recovery_report()
+    report["selection"][0]["next_attempt_at"] = report["audit_receipt"][
+        "created_at"
+    ]
+    selection_sha256 = proof._canonical_hash(report["selection"])
+    report["selection_sha256"] = selection_sha256
+    report["audit_receipt"]["selection_sha256"] = selection_sha256
+    _reseal_recovery_report(report)
+    monkeypatch.setattr(
+        proof,
+        "request_json",
+        lambda *args, **kwargs: report,
+    )
+
+    with pytest.raises(RuntimeError, match="recovery contract"):
+        proof._recover_transient_effects(
+            base="https://example.invalid",
+            operator_token="x" * 48,
+            source_sha=SOURCE_SHA,
+            database_generation_id=GENERATION_ID,
+            evidence=proof._new_recovery_evidence(),
+        )
 
 
 def test_transient_recovery_rejects_attempt_accounting_change(monkeypatch):
