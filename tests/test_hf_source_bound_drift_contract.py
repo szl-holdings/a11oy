@@ -19,32 +19,43 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         cls.drift = DRIFT_WORKFLOW.read_text(encoding="utf-8")
         cls.sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
         cls.dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+        cls.live_job, cls.repository_job = cls.drift.split(
+            "\n  hf-repository-parity:", 1
+        )
 
     def test_pull_requests_keep_the_exact_live_source_bound_controller(self) -> None:
         self.assertIn(
             "uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c",
             self.drift,
         )
-        self.assertIn("source-bound-baseline", self.drift)
-        self.assertIn("source-probe-path: /api/build-info", self.drift)
-        self.assertIn("dockerfile-path: Dockerfile", self.drift)
-        self.assertIn("github.event.pull_request.head.sha", self.drift)
+        self.assertIn("mode: source-bound-baseline", self.live_job)
+        self.assertIn("source-probe-path: /api/build-info", self.live_job)
+        self.assertIn("dockerfile-path: Dockerfile", self.live_job)
+        self.assertIn("github.event.pull_request.head.sha", self.live_job)
+        self.assertNotIn("mode: direct", self.live_job)
 
-    def test_pull_requests_add_exact_repository_parity_without_waiving_live_gate(self) -> None:
+    def test_pull_requests_add_exact_repository_parity_without_waiving_live_gate(
+        self,
+    ) -> None:
         self.assertIn("hf-repository-parity:", self.drift)
-        self.assertIn("mode: direct", self.drift)
-        self.assertIn("github.event.pull_request.base.sha", self.drift)
-        self.assertIn("cannot make the", self.drift)
-        self.assertIn("live-runtime job green", self.drift)
+        self.assertIn("Immutable HF repository byte parity", self.repository_job)
+        self.assertIn("verify_hf_repository_parity.py", self.repository_job)
+        self.assertIn("github.event.pull_request.base.sha", self.repository_job)
+        self.assertIn("github.event.pull_request.head.sha", self.repository_job)
+        self.assertIn(
+            "ref: 96573c9049c0c705072cf51024d5ef12ccbee98c", self.repository_job
+        )
+        self.assertNotIn("mode: direct", self.repository_job)
+        self.assertNotIn("hf-module-drift-allow", self.repository_job)
 
     def test_pr_uses_exact_base_and_manual_schedule_use_exact_main(self) -> None:
-        github_ref = (
-            "github-ref: ${{ github.event_name == 'pull_request' && "
+        source_ref = (
+            "SOURCE_REF: ${{ github.event_name == 'pull_request' && "
             "github.event.pull_request.base.sha || github.sha }}"
         )
-        self.assertIn(github_ref, self.drift)
+        self.assertIn(source_ref, self.repository_job)
         self.assertNotIn("\n  push:", self.drift)
-        self.assertIn("hf-ref: main", self.drift)
+        self.assertIn("hf-ref: main", self.live_job)
         self.assertIn("workflow_dispatch:", self.drift)
         self.assertIn("schedule:", self.drift)
 

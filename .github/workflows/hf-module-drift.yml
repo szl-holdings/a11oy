@@ -33,11 +33,10 @@ jobs:
     uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable source-bound live baseline
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      # PR runs require the exact current live source/HF pair and report the
-      # candidate delta without racing publication. workflow_dispatch and
-      # schedule are strict post-deploy/current-state checks; hf-sync dispatches
-      # only after relock succeeds. A paused or unmeasured runtime stays red.
-      mode: ${{ github.event_name == 'pull_request' && 'source-bound-baseline' || 'direct' }}
+      # Every event requires a running runtime with two stable, exact
+      # /api/build-info observations. PRs also report the candidate delta
+      # without deploying it. A paused or unmeasured runtime stays red.
+      mode: source-bound-baseline
       trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
       candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       source-probe-path: /api/build-info
@@ -46,12 +45,52 @@ jobs:
       hf-ref: main
 
   hf-repository-parity:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable repository byte parity
-    with:
-      hf-repo: SZLHOLDINGS/a11oy
-      # This additional proof is source identity only. It compares a PR's exact
-      # protected base with the immutable HF repository head and cannot make the
-      # required hf-module-drift live-runtime job green.
-      mode: direct
-      github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-      hf-ref: main
+    name: Immutable HF repository byte parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact parity verifier
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: candidate
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Checkout exact reusable tools revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: szl-holdings/.github
+          ref: 96573c9049c0c705072cf51024d5ef12ccbee98c
+          path: tools
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify stable immutable HF revision and every managed byte
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+        run: |
+          python3 candidate/.github/scripts/verify_hf_repository_parity.py \
+            --tools-script tools/.github/scripts/hf_module_drift_check.py \
+            --github-repo "$GITHUB_REPOSITORY" \
+            --github-ref "$SOURCE_REF" \
+            --hf-repo SZLHOLDINGS/a11oy \
+            --report-out hf-repository-parity.out.json
+
+      - name: Upload immutable repository parity report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-repository-parity
+          path: hf-repository-parity.out.json
+          if-no-files-found: error
+          retention-days: 90
