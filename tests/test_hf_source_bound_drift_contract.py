@@ -94,13 +94,11 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self,
     ) -> None:
         self.assertIn("resume-paused-space:", self.sync)
-        self.assertIn("api.get_space_runtime(repo_id=repo_id)", self.sync)
-        self.assertIn('if stage == "PAUSED":', self.sync)
-        self.assertIn("api.restart_space(", self.sync)
-        self.assertIn("factory_reboot=False", self.sync)
-        self.assertIn('elif stage in {"RUNNING", "BUILDING", "RUNNING_BUILDING"}:', self.sync)
-        self.assertIn("needs: resume-paused-space", self.sync)
-        self.assertIn('"allocation_changed": False', self.sync)
+        self.assertIn(".github/scripts/resume_hf_space.py", self.sync)
+        self.assertIn("Checkout exact protected source", self.sync)
+        self.assertNotIn("python - <<'PY'", self.sync)
+        deploy = self.sync.split("\n  deploy:", 1)[1].split("\n  readiness-verdict:", 1)[0]
+        self.assertNotIn("needs:", deploy)
         self.assertNotIn("request_space_hardware", self.sync)
         self.assertNotIn("add_space_secret", self.sync)
         self.assertNotIn("delete_space_secret", self.sync)

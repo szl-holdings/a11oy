@@ -87,6 +87,14 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(MODULE.ParityError):
                 MODULE.validate_report(broken, github_ref=github_ref, hf_ref=hf_ref)
 
+        for counter in ("error_count", "warn_count", "files_compared"):
+            broken = dict(report)
+            broken[counter] = True
+            with self.subTest(counter=counter), self.assertRaisesRegex(
+                MODULE.ParityError, "exact integer"
+            ):
+                MODULE.validate_report(broken, github_ref=github_ref, hf_ref=hf_ref)
+
         for findings in (
             [],
             [report["findings"][0], "unexpected-malformed-entry"],

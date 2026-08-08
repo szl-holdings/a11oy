@@ -89,16 +89,16 @@ def resolve_stable_revision(
 def validate_report(report: object, *, github_ref: str, hf_ref: str) -> None:
     if not isinstance(report, dict):
         raise ParityError("comparator report must be an object")
+    for counter in ("error_count", "warn_count", "files_compared"):
+        if type(report.get(counter)) is not int:
+            raise ParityError(f"comparator {counter} must be an exact integer")
     if report.get("status") != "ok" or report.get("error_count") != 0:
         raise ParityError("comparator did not produce an exact zero-error result")
     if report.get("github_ref") != github_ref or report.get("hf_ref") != hf_ref:
         raise ParityError(
             "comparator report is not bound to the admitted immutable revisions"
         )
-    if (
-        not isinstance(report.get("files_compared"), int)
-        or report["files_compared"] <= 0
-    ):
+    if report["files_compared"] <= 0:
         raise ParityError("comparator did not prove any managed files")
 
     findings = report.get("findings")

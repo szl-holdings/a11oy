@@ -36,6 +36,13 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       RESUME_REPORT: /tmp/canonical-a11oy-resume.json
     steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -47,61 +54,10 @@ jobs:
           "huggingface_hub==1.23.0"
 
       - name: Resume only an explicitly paused canonical runtime
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          from huggingface_hub import HfApi
-
-          repo_id = os.environ["CANONICAL_SPACE"]
-          report_path = Path(os.environ["RESUME_REPORT"])
-          report = {
-              "schema": "szl.hf-space-resume/v1",
-              "repo_id": repo_id,
-              "action": "NOT_RUN",
-              "factory_reboot": False,
-              "allocation_changed": False,
-          }
-
-          try:
-              api = HfApi(token=os.environ["HF_TOKEN"])
-              runtime = api.get_space_runtime(repo_id=repo_id)
-              raw_stage = getattr(runtime, "stage", None)
-              stage = str(getattr(raw_stage, "value", raw_stage) or "UNKNOWN").upper()
-              report["observed_stage"] = stage
-
-              if stage == "PAUSED":
-                  restarted = api.restart_space(
-                      repo_id=repo_id,
-                      factory_reboot=False,
-                  )
-                  response_stage = getattr(
-                      getattr(restarted, "runtime", None),
-                      "stage",
-                      None,
-                  )
-                  report["action"] = "RESTART_REQUESTED"
-                  report["response_stage"] = str(
-                      getattr(response_stage, "value", response_stage) or "UNKNOWN"
-                  ).upper()
-              elif stage in {"RUNNING", "BUILDING", "RUNNING_BUILDING"}:
-                  report["action"] = "ALREADY_ACTIVE"
-              else:
-                  raise RuntimeError(
-                      f"canonical Space is neither paused nor active: {stage}"
-                  )
-          except Exception as exc:
-              report["error"] = f"{type(exc).__name__}: {exc}"
-              raise
-          finally:
-              report_path.write_text(
-                  json.dumps(report, indent=2, sort_keys=True) + "\n",
-                  encoding="utf-8",
-              )
-          PY
+        run: >-
+          python .github/scripts/resume_hf_space.py
+          --repo-id "$CANONICAL_SPACE"
+          --output "$RESUME_REPORT"
 
       - name: Upload immutable resume evidence
         if: ${{ always() }}
@@ -187,7 +143,6 @@ jobs:
 
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    needs: resume-paused-space
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
     with:
       hf-repo: SZLHOLDINGS/a11oy
