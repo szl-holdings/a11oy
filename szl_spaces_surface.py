@@ -320,6 +320,16 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
                 "malformed_index": index,
             }
         name = identity.split("/", 1)[1]
+        if not name or "/" in name:
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(SPACES),
+                "http_status": status,
+                "source": via,
+                "error": "hub_api_schema",
+                "malformed_index": index,
+            }
         if name != "README":
             observed.add(name)
     expected = set(_SPACE_BY_NAME)

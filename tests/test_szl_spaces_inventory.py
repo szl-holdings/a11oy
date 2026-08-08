@@ -294,6 +294,8 @@ def test_inventory_http_and_schema_failures_are_unavailable():
         canonical + [{}],
         canonical + [{"id": 7}],
         canonical + [{"id": "OTHER/rogue-space"}],
+        canonical + [{"id": "SZLHOLDINGS/"}],
+        canonical + [{"id": "SZLHOLDINGS/foo/bar"}],
     ]
     malformed_results = [
         asyncio.run(surface._probe_inventory(Client(200, payload)))
