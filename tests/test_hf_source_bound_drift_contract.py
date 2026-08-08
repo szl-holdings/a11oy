@@ -20,15 +20,22 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         cls.sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
         cls.dockerfile = DOCKERFILE.read_text(encoding="utf-8")
 
-    def test_pull_requests_use_the_exact_repository_parity_controller(self) -> None:
+    def test_pull_requests_keep_the_exact_live_source_bound_controller(self) -> None:
         self.assertIn(
             "uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c",
             self.drift,
         )
+        self.assertIn("source-bound-baseline", self.drift)
+        self.assertIn("source-probe-path: /api/build-info", self.drift)
+        self.assertIn("dockerfile-path: Dockerfile", self.drift)
+        self.assertIn("github.event.pull_request.head.sha", self.drift)
+
+    def test_pull_requests_add_exact_repository_parity_without_waiving_live_gate(self) -> None:
+        self.assertIn("hf-repository-parity:", self.drift)
         self.assertIn("mode: direct", self.drift)
         self.assertIn("github.event.pull_request.base.sha", self.drift)
-        self.assertNotIn("github.event.pull_request.head.sha", self.drift)
-        self.assertNotIn("source-probe-path:", self.drift)
+        self.assertIn("cannot make the", self.drift)
+        self.assertIn("live-runtime job green", self.drift)
 
     def test_pr_uses_exact_base_and_manual_schedule_use_exact_main(self) -> None:
         github_ref = (
@@ -42,10 +49,10 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("schedule:", self.drift)
 
     def test_repository_proof_does_not_overclaim_runtime_readiness(self) -> None:
-        self.assertIn("runtime is paused", self.drift)
-        self.assertIn("Runtime readiness is a separate fail-closed responsibility", self.drift)
+        self.assertIn("A paused or unmeasured runtime stays red", self.drift)
+        self.assertIn("source-identity proof", self.drift)
+        self.assertIn("never waives the live gate", self.drift)
         self.assertIn("hf-sync", self.drift)
-        self.assertNotIn("source-bound-baseline", self.drift)
 
     def test_fixed_revision_lock_and_relock_lane_are_permanently_removed(self) -> None:
         for path in (
