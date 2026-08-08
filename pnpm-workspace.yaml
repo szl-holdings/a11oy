@@ -14,10 +14,10 @@ allowBuilds:
   esbuild@0.28.1: true
   unrs-resolver@1.12.2: true
 
-# pnpm 11 reads workspace-wide overrides here; package.json retains the same
-# constraints for the pnpm 10 CI lane. Keep both declarations in lockstep.
+# pnpm 11 reads workspace-wide overrides here.
 overrides:
   vite: ^6.4.2
   esbuild: 0.28.1
-  js-yaml@<4.3.0: 4.3.0
-  brace-expansion: 5.0.8
+  js-yaml@<4.3.1: 4.3.1
+  brace-expansion: 5.0.9
+  fast-uri@<3.1.5: 3.1.5
