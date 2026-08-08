@@ -38,6 +38,7 @@ _LEGACY_ROLE_SCOPES = {
     "admin": frozenset(
         {
             "bench:read",
+            "effects:recover",
             "integrity:global",
             "integrity:read",
             "metrics:read",

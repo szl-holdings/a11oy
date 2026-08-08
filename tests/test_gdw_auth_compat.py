@@ -4,7 +4,7 @@ import hashlib
 import json
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import gdw_auth
@@ -140,7 +140,12 @@ def test_legacy_principal_roles_map_to_existing_scopes_and_stable_keys():
     )
 
     assert "integrity:global" not in user.scopes
-    assert {"integrity:global", "integrity:read", "step:write"}.issubset(
+    assert {
+        "effects:recover",
+        "integrity:global",
+        "integrity:read",
+        "step:write",
+    }.issubset(
         admin.scopes
     )
     assert admin.key_id == repeated_admin.key_id
@@ -244,10 +249,17 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
                 key_id="admin-key",
                 scopes=["integrity:global"],
             ),
+            _credential(
+                token_sha256=_digest("recovery-secret"),
+                key_id="recovery-key",
+                scopes=["effects:recover", "integrity:global"],
+            ),
         )
     )
 
     class Workspace:
+        database_generation_id = "a" * 32
+
         def integrity(self, *, global_scope=False):
             return {
                 "scope": "global" if global_scope else "owner",
@@ -255,9 +267,33 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
                 "database_generation_id": "a" * 32,
             }
 
+        def recover_retry_scheduled_effects(self, *, limit):
+            assert limit == 100
+            return {
+                "schema": "szl.gdw.transient-effect-recovery/v1",
+                "status": "NO_ELIGIBLE_EFFECTS",
+                "database_generation_id": "a" * 32,
+                "inspected_pending_effects": 0,
+                "eligible_effects": 0,
+                "rescheduled_effects": 0,
+                "attempts_before": 0,
+                "attempts_after": 0,
+                "selection_sha256": hashlib.sha256(b"[]").hexdigest(),
+                "sqlite_integrity": "ok",
+                "claimed_effects": 0,
+                "dead_letter_effects": 0,
+                "invalid_effect_bindings": 0,
+                "invalid_exported_artifacts": 0,
+            }
+
     monkeypatch.setattr(gdw_frontier, "_credential_registry", lambda: registry)
     monkeypatch.setattr(gdw_frontier, "_workspace", lambda principal: Workspace())
     monkeypatch.setattr(gdw_frontier, "_require_write_ready", lambda ns: None)
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_require_transient_recovery_runtime",
+        lambda ns, revision: "a" * 32,
+    )
     monkeypatch.setattr(
         gdw_frontier,
         "drain_once",
@@ -299,6 +335,20 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
             "/api/a11oy/v1/gdw/drain",
             headers={"Authorization": "Bearer admin-secret"},
         )
+        denied_recovery = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer admin-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+            },
+        )
+        recovery = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+            },
+        )
 
     assert owner.status_code == 200
     assert owner.json()["scope"] == "owner"
@@ -310,3 +360,69 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
     assert first_drain.status_code == 200
     assert first_drain.json() == repeated_drain.json()
     assert first_drain.json()["schema"] == "szl.gdw.drain-report/v1"
+    assert denied_recovery.status_code == 403
+    assert denied_recovery.json()["detail"] == "missing_scopes"
+    assert recovery.status_code == 200
+    assert recovery.json()["schema"] == (
+        "szl.gdw.transient-effect-recovery/v1"
+    )
+    assert recovery.json()["status"] == "NO_ELIGIBLE_EFFECTS"
+
+
+def test_transient_recovery_runtime_requires_exact_source_and_storage(
+    monkeypatch,
+):
+    generation = "a" * 32
+    source_sha = "b" * 40
+    monkeypatch.setenv("SZL_GIT_SHA", source_sha)
+    monkeypatch.setattr(gdw_frontier, "_governance_ready", lambda: True)
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_canonical_policy_ready",
+        lambda: True,
+    )
+    runtime = {
+        "startup_state": "READY",
+        "evidence_label": "VERIFIED",
+        "storage": {
+            "persistence_required": True,
+            "mount_verified": True,
+            "journal_mode_requested": "DELETE",
+            "journal_mode_observed": "DELETE",
+            "synchronous_requested": "FULL",
+            "synchronous_observed": 2,
+            "sqlite_integrity": "ok",
+            "proof_export_mode": "outbox",
+            "schema_version": gdw_frontier.GDWWorkspace.schema_version(),
+            "database_generation_id": generation,
+        },
+        "drain": {
+            "enabled": True,
+            "running": True,
+            "last_outcome": "RETRY_SCHEDULED",
+        },
+    }
+    monkeypatch.setattr(
+        gdw_frontier,
+        "runtime_health",
+        lambda: runtime,
+    )
+
+    assert gdw_frontier._require_transient_recovery_runtime(
+        "a11oy",
+        source_sha,
+    ) == generation
+    with pytest.raises(HTTPException) as mismatch:
+        gdw_frontier._require_transient_recovery_runtime(
+            "a11oy",
+            "c" * 40,
+        )
+    assert mismatch.value.status_code == 409
+
+    runtime["storage"]["sqlite_integrity"] = "corrupt"
+    with pytest.raises(HTTPException) as unavailable:
+        gdw_frontier._require_transient_recovery_runtime(
+            "a11oy",
+            source_sha,
+        )
+    assert unavailable.value.status_code == 503

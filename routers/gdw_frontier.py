@@ -352,6 +352,59 @@ def _require_write_ready(namespace: str) -> None:
         )
 
 
+def _require_transient_recovery_runtime(
+    namespace: str,
+    expected_source_revision: Optional[str],
+) -> str:
+    expected = str(expected_source_revision or "").strip().lower()
+    observed_source = os.environ.get("SZL_GIT_SHA", "").strip().lower()
+    if (
+        re.fullmatch(r"[0-9a-f]{40}", expected) is None
+        or observed_source != expected
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="GDW recovery source revision mismatch",
+        )
+    runtime = runtime_health()
+    storage = runtime.get("storage") or {}
+    drain = runtime.get("drain") or {}
+    database_generation_id = str(
+        storage.get("database_generation_id") or ""
+    )
+    runtime_ready = (
+        runtime.get("startup_state") == "READY"
+        and runtime.get("evidence_label") == "VERIFIED"
+        and storage.get("persistence_required") is True
+        and storage.get("mount_verified") is True
+        and storage.get("journal_mode_requested") == "DELETE"
+        and storage.get("journal_mode_observed") == "DELETE"
+        and storage.get("synchronous_requested") == "FULL"
+        and storage.get("synchronous_observed") == 2
+        and storage.get("sqlite_integrity") == "ok"
+        and storage.get("proof_export_mode") == "outbox"
+        and storage.get("schema_version") == GDWWorkspace.schema_version()
+        and re.fullmatch(
+            r"[0-9a-f]{32}",
+            database_generation_id,
+        )
+        is not None
+        and drain.get("enabled") is True
+        and drain.get("running") is True
+        and _governance_ready()
+    )
+    try:
+        policy_ready = _canonical_policy_ready()
+    except Exception:
+        policy_ready = False
+    if not runtime_ready or not policy_ready:
+        raise HTTPException(
+            status_code=503,
+            detail="GDW recovery runtime contract is unavailable",
+        )
+    return database_generation_id
+
+
 def _public_runtime_health(runtime: dict) -> dict:
     storage = runtime.get("storage")
     public_storage = None
@@ -894,6 +947,47 @@ def register(app, ns: str = "a11oy"):
             "database_generation_id": integrity["database_generation_id"],
         }
 
+    @app.post(prefix + "/recovery/transient-effects")
+    @app.post("/v1/gdw/recovery/transient-effects")
+    def gdw_recover_transient_effects(
+        limit: int = 100,
+        authorization: Optional[str] = Header(default=None, alias="Authorization"),
+        expected_source_revision: Optional[str] = Header(
+            default=None,
+            alias="X-Expected-Source-Revision",
+        ),
+    ):
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("effects:recover", "integrity:global"),
+        )
+        runtime_generation = _require_transient_recovery_runtime(
+            ns,
+            expected_source_revision,
+        )
+        workspace = _workspace(principal)
+        if workspace.database_generation_id != runtime_generation:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery database generation changed",
+            )
+        try:
+            report = workspace.recover_retry_scheduled_effects(
+                limit=limit,
+            )
+        except GDWConfigurationError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery refused by integrity gate",
+            ) from exc
+        if report.get("database_generation_id") != runtime_generation:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery database generation changed",
+            )
+        return report
+
     @app.get(prefix + "/integrity/global")
     @app.get("/v1/gdw/integrity/global")
     def gdw_global_integrity(
@@ -1344,6 +1438,7 @@ def register(app, ns: str = "a11oy"):
             prefix + "/integrity",
             prefix + "/integrity/global",
             prefix + "/drain",
+            prefix + "/recovery/transient-effects",
             prefix + "/sessions/{session_id}",
             prefix + "/step",
         ],

@@ -2051,7 +2051,271 @@ class GDWWorkspace:
                     ),
                 )
                 requeued += int(updated.rowcount)
-        return requeued
+            return requeued
+
+    def recover_retry_scheduled_effects(
+        self,
+        *,
+        now: Optional[Any] = None,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        """Make only integrity-bound transient link failures immediately due.
+
+        The recovery never claims, deletes, exports, or resets an effect. It
+        preserves attempt and claim-generation accounting so the ordinary
+        leased worker remains the only publication path.
+        """
+
+        current = _normalise_time(now)
+        now_text = current.isoformat()
+        bounded = max(1, min(int(limit), 1_000))
+        transient_error = (
+            "OSError: [Errno 95] Operation not supported%"
+        )
+        empty_selection_sha256 = hashlib.sha256(b"[]").hexdigest()
+
+        with self.transaction() as connection:
+            before = self.integrity(
+                global_scope=True,
+                connection=connection,
+            )
+            if (
+                before.get("ok") is not True
+                or before.get("sqlite_integrity") != "ok"
+                or before.get("dead_letter_effects") != 0
+                or before.get("pending_proofs") != 0
+                or before.get("invalid_effect_bindings") != 0
+                or before.get("invalid_exported_artifacts") != 0
+            ):
+                raise GDWConfigurationError(
+                    "transient effect recovery refused by global integrity"
+                )
+            if before.get("claimed_effects") != 0:
+                return {
+                    "schema": "szl.gdw.transient-effect-recovery/v1",
+                    "status": "DEFERRED_ACTIVE_CLAIM",
+                    "database_generation_id": self.database_generation_id,
+                    "inspected_pending_effects": before["pending_effects"],
+                    "eligible_effects": 0,
+                    "rescheduled_effects": 0,
+                    "attempts_before": 0,
+                    "attempts_after": 0,
+                    "selection_sha256": empty_selection_sha256,
+                    "sqlite_integrity": before["sqlite_integrity"],
+                    "claimed_effects": before["claimed_effects"],
+                    "dead_letter_effects": before["dead_letter_effects"],
+                    "invalid_effect_bindings": before[
+                        "invalid_effect_bindings"
+                    ],
+                    "invalid_exported_artifacts": before[
+                        "invalid_exported_artifacts"
+                    ],
+                }
+
+            eligibility = """
+                status = 'PENDING'
+                AND attempts > 0
+                AND attempts < max_attempts
+                AND next_attempt_at > ?
+                AND database_generation_id = ?
+                AND kind IN ('receipt_projection', 'proof_export')
+                AND last_error LIKE ?
+                AND lease_owner IS NULL
+                AND lease_until IS NULL
+                AND artifact_json IS NULL
+                AND exported_at IS NULL
+                AND tombstoned_at IS NULL
+            """
+            eligible_total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM effect_outbox WHERE {eligibility}",
+                    (
+                        now_text,
+                        self.database_generation_id,
+                        transient_error,
+                    ),
+                ).fetchone()[0]
+            )
+            if eligible_total > bounded:
+                raise GDWConfigurationError(
+                    "transient effect recovery exceeds the bounded limit"
+                )
+            rows = connection.execute(
+                f"""
+                SELECT namespace, owner_id, idempotency_key,
+                       database_generation_id, request_id, kind, receipt_hash,
+                       payload_json, payload_sha256, intent_sha256,
+                       attempts, max_attempts, next_attempt_at,
+                       claim_generation, last_error
+                FROM effect_outbox
+                WHERE {eligibility}
+                ORDER BY next_attempt_at, created_at, idempotency_key
+                LIMIT ?
+                """,
+                (
+                    now_text,
+                    self.database_generation_id,
+                    transient_error,
+                    bounded,
+                ),
+            ).fetchall()
+            selection = []
+            for row in rows:
+                try:
+                    payload = json.loads(row["payload_json"])
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise GDWConfigurationError(
+                        "transient effect recovery found invalid payload"
+                    ) from exc
+                candidate = dict(row)
+                candidate["payload"] = payload
+                if re.fullmatch(
+                    r"OSError: \[Errno 95\] Operation not supported"
+                    r"(?:: .+)?",
+                    str(row["last_error"] or ""),
+                ) is None:
+                    raise GDWConfigurationError(
+                        "transient effect recovery found unknown error"
+                    )
+                if self._connection_effect_binding_errors(
+                    connection,
+                    candidate,
+                ):
+                    raise GDWConfigurationError(
+                        "transient effect recovery found invalid binding"
+                    )
+                selection.append(
+                    {
+                        "namespace": row["namespace"],
+                        "owner_id": row["owner_id"],
+                        "idempotency_key": row["idempotency_key"],
+                        "attempts": int(row["attempts"]),
+                        "max_attempts": int(row["max_attempts"]),
+                        "next_attempt_at": row["next_attempt_at"],
+                        "claim_generation": int(row["claim_generation"]),
+                    }
+                )
+
+            selection_sha256 = hashlib.sha256(
+                _json_text(selection).encode("utf-8")
+            ).hexdigest()
+            attempts_before = sum(item["attempts"] for item in selection)
+            for row, item in zip(rows, selection):
+                updated = connection.execute(
+                    """
+                    UPDATE effect_outbox
+                    SET next_attempt_at = ?
+                    WHERE namespace = ? AND owner_id = ?
+                          AND idempotency_key = ?
+                          AND status = 'PENDING'
+                          AND attempts = ?
+                          AND max_attempts = ?
+                          AND next_attempt_at = ?
+                          AND claim_generation = ?
+                          AND last_error = ?
+                          AND database_generation_id = ?
+                          AND lease_owner IS NULL
+                          AND lease_until IS NULL
+                          AND artifact_json IS NULL
+                          AND exported_at IS NULL
+                          AND tombstoned_at IS NULL
+                    """,
+                    (
+                        now_text,
+                        item["namespace"],
+                        item["owner_id"],
+                        item["idempotency_key"],
+                        item["attempts"],
+                        item["max_attempts"],
+                        item["next_attempt_at"],
+                        item["claim_generation"],
+                        row["last_error"],
+                        self.database_generation_id,
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "transient effect changed during recovery"
+                    )
+
+            after = self.integrity(
+                global_scope=True,
+                connection=connection,
+            )
+            attempts_after = 0
+            for item in selection:
+                row = connection.execute(
+                    """
+                    SELECT status, attempts, max_attempts, claim_generation,
+                           next_attempt_at, lease_owner, lease_until,
+                           artifact_json, exported_at, tombstoned_at
+                    FROM effect_outbox
+                    WHERE namespace = ? AND owner_id = ?
+                          AND idempotency_key = ?
+                    """,
+                    (
+                        item["namespace"],
+                        item["owner_id"],
+                        item["idempotency_key"],
+                    ),
+                ).fetchone()
+                if (
+                    row is None
+                    or row["status"] != "PENDING"
+                    or int(row["attempts"]) != item["attempts"]
+                    or int(row["max_attempts"]) != item["max_attempts"]
+                    or int(row["claim_generation"])
+                    != item["claim_generation"]
+                    or row["next_attempt_at"] != now_text
+                    or row["lease_owner"] is not None
+                    or row["lease_until"] is not None
+                    or row["artifact_json"] is not None
+                    or row["exported_at"] is not None
+                    or row["tombstoned_at"] is not None
+                ):
+                    raise GDWConfigurationError(
+                        "transient effect accounting changed during recovery"
+                    )
+                attempts_after += int(row["attempts"])
+            if (
+                after.get("ok") is not True
+                or after.get("sqlite_integrity") != "ok"
+                or after.get("pending_effects")
+                != before.get("pending_effects")
+                or after.get("claimed_effects") != 0
+                or after.get("dead_letter_effects") != 0
+                or after.get("invalid_effect_bindings") != 0
+                or after.get("invalid_exported_artifacts") != 0
+                or attempts_after != attempts_before
+            ):
+                raise GDWConfigurationError(
+                    "transient effect recovery changed protected accounting"
+                )
+
+            return {
+                "schema": "szl.gdw.transient-effect-recovery/v1",
+                "status": (
+                    "RESCHEDULED"
+                    if rows
+                    else "NO_ELIGIBLE_EFFECTS"
+                ),
+                "database_generation_id": self.database_generation_id,
+                "inspected_pending_effects": before["pending_effects"],
+                "eligible_effects": eligible_total,
+                "rescheduled_effects": len(rows),
+                "attempts_before": attempts_before,
+                "attempts_after": attempts_after,
+                "selection_sha256": selection_sha256,
+                "sqlite_integrity": after["sqlite_integrity"],
+                "claimed_effects": after["claimed_effects"],
+                "dead_letter_effects": after["dead_letter_effects"],
+                "invalid_effect_bindings": after[
+                    "invalid_effect_bindings"
+                ],
+                "invalid_exported_artifacts": after[
+                    "invalid_exported_artifacts"
+                ],
+            }
 
     def assert_effect_claim(
         self,
@@ -3021,3 +3285,4 @@ class GDWWorkspace:
         finally:
             if owns_connection:
                 connection.close()
+

@@ -33,6 +33,31 @@ def _complete_integrity():
     }
 
 
+def _recovery_report(
+    *,
+    status="RESCHEDULED",
+    eligible=1,
+    rescheduled=1,
+    claimed=0,
+):
+    return {
+        "schema": "szl.gdw.transient-effect-recovery/v1",
+        "status": status,
+        "database_generation_id": GENERATION_ID,
+        "inspected_pending_effects": max(eligible, rescheduled, claimed),
+        "eligible_effects": eligible,
+        "rescheduled_effects": rescheduled,
+        "attempts_before": eligible,
+        "attempts_after": eligible,
+        "selection_sha256": "d" * 64,
+        "sqlite_integrity": "ok",
+        "claimed_effects": claimed,
+        "dead_letter_effects": 0,
+        "invalid_effect_bindings": 0,
+        "invalid_exported_artifacts": 0,
+    }
+
+
 def _live_response(method: str, url: str, **_kwargs):
     global _HEALTH_ATTEMPT
     if url.endswith("/api/build-info"):
@@ -106,6 +131,94 @@ def test_live_proof_binds_source_generation_transition_and_artifacts(
     assert report["integrity"]["invalid_effect_bindings"] == 0
     assert report["integrity"]["invalid_exported_artifacts"] == 0
     assert report["credential_values_recorded"] is False
+
+
+def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
+    monkeypatch,
+):
+    events = []
+    health_calls = 0
+
+    def response(method: str, url: str, **kwargs):
+        nonlocal health_calls
+        if url.endswith("/api/build-info"):
+            events.append("build")
+            return {"build": {"revision": SOURCE_SHA}}
+        if url.endswith("/gdw/healthz"):
+            health_calls += 1
+            events.append(f"health-{health_calls}")
+            if health_calls == 1:
+                return {
+                    "status": "UNAVAILABLE",
+                    "write_ready": False,
+                    "write_blockers": [
+                        "OUTBOX_SUPERVISOR_NOT_QUIESCENT"
+                    ],
+                    "persistence": {
+                        "storage": {
+                            "journal_mode_observed": "DELETE",
+                            "database_generation_id": GENERATION_ID,
+                        },
+                        "drain": {
+                            "last_outcome": "RETRY_SCHEDULED",
+                            "last_success_at": None,
+                            "last_report": {
+                                "pending_effects": 1,
+                                "claimed_effects": 0,
+                                "dead_letter_effects": 0,
+                                "invalid_effect_bindings": 0,
+                                "invalid_exported_artifacts": 0,
+                            },
+                        },
+                    },
+                }
+            return _live_response(method, url, **kwargs)
+        if method == "POST" and "/recovery/transient-effects" in url:
+            events.append("recovery")
+            assert kwargs["headers"] == {
+                "X-Expected-Source-Revision": SOURCE_SHA
+            }
+            return _recovery_report()
+        if method == "POST" and url.endswith("/gdw/step"):
+            events.append("step")
+        return _live_response(method, url, **kwargs)
+
+    monkeypatch.setattr(proof, "request_json", response)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        origin="https://example.invalid",
+        source_sha=SOURCE_SHA,
+        operator_token="x" * 48,
+    )
+
+    assert events.index("health-1") < events.index("recovery")
+    assert events.index("recovery") < events.index("health-2")
+    assert events.index("health-2") < events.index("step")
+    assert report["transient_recovery"]["applied_rounds"] == 1
+    assert report["transient_recovery"]["rescheduled_effects"] == 1
+    assert report["transient_recovery"][
+        "attempt_accounting_preserved"
+    ] is True
+
+
+def test_transient_recovery_rejects_attempt_accounting_change(monkeypatch):
+    report = _recovery_report()
+    report["attempts_after"] = report["attempts_before"] + 1
+    monkeypatch.setattr(
+        proof,
+        "request_json",
+        lambda *args, **kwargs: report,
+    )
+
+    with pytest.raises(RuntimeError, match="recovery contract"):
+        proof._recover_transient_effects(
+            base="https://example.invalid",
+            operator_token="x" * 48,
+            source_sha=SOURCE_SHA,
+            database_generation_id=GENERATION_ID,
+            evidence=proof._new_recovery_evidence(),
+        )
 
 
 def test_live_proof_never_accepts_a_different_runtime_source(monkeypatch):
