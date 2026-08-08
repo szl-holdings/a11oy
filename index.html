@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="300">
+<title>SZL Holdings — Service Status</title>
+<style>
+:root{color-scheme:light dark}
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:880px;margin:2rem auto;padding:0 1rem;line-height:1.55}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #8884;padding:.4rem .7rem;text-align:left}
+th{background:#8881}
+code{background:#8882;padding:.1rem .3rem;border-radius:3px}
+h1,h2{border-bottom:1px solid #8883;padding-bottom:.25rem}
+a{color:#3b82f6}
+footer{margin-top:2.5rem;font-size:.85rem;opacity:.7}
+</style>
+</head>
+<body>
+<div id="content">Loading live status…</div>
+<footer>Renders <a href="STATUS.md">STATUS.md</a>, regenerated every 15 minutes by the
+<code>status-page.yml</code> workflow and force-pushed to the <code>status</code> branch.
+This page auto-refreshes every 5 minutes.</footer>
+<!-- 0 runtime CDN (doctrine): self-contained minimal Markdown renderer,
+     sufficient for STATUS.md (headings, tables, bold, hr, links). No
+     external script is loaded at runtime. -->
+<script>
+function mdToHtml(src){
+  var esc=function(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var inline=function(s){
+    s=esc(s);
+    s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>');
+    s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    s=s.replace(/(^|[^*])\*([^*]+)\*/g,'$1<em>$2</em>');
+    return s;
+  };
+  var lines=src.split(/\r?\n/), out=[], i=0;
+  while(i<lines.length){
+    var ln=lines[i];
+    if(/^\s*\|.*\|\s*$/.test(ln) && i+1<lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
+      var header=ln.split('|').slice(1,-1).map(function(c){return '<th>'+inline(c.trim())+'</th>';}).join('');
+      out.push('<table><thead><tr>'+header+'</tr></thead><tbody>');
+      i+=2;
+      while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){
+        var cells=lines[i].split('|').slice(1,-1).map(function(c){return '<td>'+inline(c.trim())+'</td>';}).join('');
+        out.push('<tr>'+cells+'</tr>'); i++;
+      }
+      out.push('</tbody></table>'); continue;
+    }
+    if(/^###\s+/.test(ln)){out.push('<h3>'+inline(ln.replace(/^###\s+/,''))+'</h3>');}
+    else if(/^##\s+/.test(ln)){out.push('<h2>'+inline(ln.replace(/^##\s+/,''))+'</h2>');}
+    else if(/^#\s+/.test(ln)){out.push('<h1>'+inline(ln.replace(/^#\s+/,''))+'</h1>');}
+    else if(/^\s*---\s*$/.test(ln)){out.push('<hr>');}
+    else if(/^\s*$/.test(ln)){out.push('');}
+    else{out.push('<p>'+inline(ln)+'</p>');}
+    i++;
+  }
+  return out.join('\n');
+}
+fetch('STATUS.md?_=' + Date.now())
+  .then(function (r) { return r.text(); })
+  .then(function (t) { document.getElementById('content').innerHTML = mdToHtml(t); })
+  .catch(function (e) { document.getElementById('content').textContent = 'Failed to load STATUS.md: ' + e; });
+</script>
+</body>
+</html>
