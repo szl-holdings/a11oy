@@ -20,8 +20,8 @@ isolated on Hugging Face. Unknown identifiers fail closed with 404, so these
 routes cannot become an open redirect.
 
 Routes are front-inserted so exact compatibility links beat the application's
-SPA catch-all. The audited 26-Space identity list is static; runtime reachability
-continues to be measured honestly by ``szl_spaces_surface``.
+SPA catch-all. Identity is generated from the canonical regular-Space registry in
+``szl_spaces_surface``; runtime reachability continues to be measured there.
 
 Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 """
@@ -32,40 +32,15 @@ import sys
 from typing import Any
 from urllib.parse import quote
 
+from szl_spaces_surface import SPACES as _CANONICAL_SPACES
+
 _ORG_PREFIX = "szlholdings-"
 _ORG = "SZLHOLDINGS"
 SPACE_HANDOFF_MODE = "canonical-redirect-only/v1"
 
-# Audited 26-Space public estate. Runtime state is deliberately absent here.
-# ``slug`` is the lowercase legacy route key; SDK selects the canonical app host.
-SPACE_INVENTORY: list[dict[str, str]] = [
-    {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker"},
-    {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker"},
-    {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker"},
-    {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker"},
-    {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static"},
-    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"},
-    {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static"},
-    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static"},
-    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"},
-    {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker"},
-    {"name": "holographic", "slug": "holographic", "title": "Holographic Estate", "sdk": "docker"},
-    {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker"},
-    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker"},
-    {"name": "lambda-gate-holo", "slug": "lambda-gate-holo", "title": "Λ Gate — Conjecture 1, never green", "sdk": "static"},
-    {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker"},
-    {"name": "README", "slug": "readme", "title": "SZL Holdings — Governed-AI Command Platform", "sdk": "static"},
-    {"name": "receipt-chain-live", "slug": "receipt-chain-live", "title": "Receipt Chain Live", "sdk": "static"},
-    {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker"},
-    {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static"},
-    {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static"},
-    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"},
-    {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static"},
-    {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static"},
-    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker"},
-    {"name": "szl-provctl-live", "slug": "szl-provctl-live", "title": "szl-provctl-live", "sdk": "static"},
-    {"name": "yarqa", "slug": "yarqa", "title": "yarqa — Plug-Flow Compartments (live or sample, always honest)", "sdk": "docker"},
-]
+# Runtime state is deliberately absent here. Copy records so this compatibility
+# surface cannot mutate the canonical registry by accident.
+SPACE_INVENTORY: list[dict[str, str]] = [dict(record) for record in _CANONICAL_SPACES]
 _SPACE_BY_NAME = {sp["name"]: sp for sp in SPACE_INVENTORY}
 _SPACE_BY_SLUG = {sp["slug"]: sp for sp in SPACE_INVENTORY}
 
@@ -135,7 +110,7 @@ def _fallback_index() -> bytes:
         'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:2rem">'
         '<main style="max-width:760px;margin:0 auto">'
         '<h1 style="color:#e7eef6">Hugging Face Spaces</h1>'
-        '<p style="color:#8a96a3">All 26 audited Spaces open on their canonical isolated '
+        f'<p style="color:#8a96a3">All {len(SPACE_INVENTORY)} audited Spaces open on their canonical isolated '
         'Hugging Face origins. Legacy <code>/spaces/&lt;slug&gt;</code> links are no-store '
         '307 handoffs; no upstream response bytes or cookies cross this application.</p>'
         '<ul style="list-style:none;padding:0">' + "".join(rows) + "</ul>"
@@ -263,7 +238,7 @@ if __name__ == "__main__":
     assert "upstream." + "content" not in source
 
     assert len(ALL_SPACES) == len(HANDOFF_SPACES) == 26
-    assert hf_url("README") == "https://szlholdings-readme.static.hf.space"
+    assert hf_url("governed-agent-bench") == "https://szlholdings-governed-agent-bench.hf.space"
     assert hf_url("immune") == "https://szlholdings-immune.hf.space"
     try:
         hf_url("notreal")

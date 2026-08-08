@@ -38,6 +38,7 @@ pytest.importorskip("starlette.testclient")
 from starlette.testclient import TestClient  # noqa: E402
 
 import serve  # noqa: E402
+import szl_be_hardening  # noqa: E402
 
 ENFORCED_HEADERS = {
     "x-content-type-options": "nosniff",
@@ -105,6 +106,22 @@ def test_resource_csp_is_report_only(client):
     enforced = r.headers.get("content-security-policy", "")
     assert "default-src" not in enforced, \
         "resource directives leaked into the ENFORCED CSP — would break inline scripts"
+
+
+def test_application_boundary_strips_internal_topology_headers():
+    from starlette.responses import Response
+
+    response = Response("ok", headers={
+        "X-Proxied-Host": "http://10.0.0.8",
+        "X-Proxied-Replica": "private-replica",
+        "X-Proxied-Path": "/internal/path",
+        "X-Request-Id": "public-correlation-id",
+    })
+    szl_be_hardening._apply_security_headers(response)
+    assert "x-proxied-host" not in response.headers
+    assert "x-proxied-replica" not in response.headers
+    assert "x-proxied-path" not in response.headers
+    assert response.headers["x-request-id"] == "public-correlation-id"
 
 
 @pytest.mark.parametrize("path", DEMO_PAGES)
