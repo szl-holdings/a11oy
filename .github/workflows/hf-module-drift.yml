@@ -1,14 +1,15 @@
 name: HF Space module-drift guard
 
-# The canonical Space is source-bound at runtime: Hugging Face exposes exact
-# repository/runtime SHAs and /api/build-info exposes the exact protected Git
-# source revision. Pull requests verify that stable live pair byte-for-byte,
-# then report candidate-only changes without deploying them. Pushes do not run
-# this workflow because they race publication. Every protected-main push enters
-# hf-sync without a path filter, so Dockerfile sources such as
-# .well-known/security.txt cannot bypass deployment; hf-sync then dispatches the
-# strict post-deployment parity check. Manual and scheduled runs remain strict.
-# No committed deployment lock or drift allowlist is used in source-bound mode.
+# Pull requests compare the exact protected base SHA with the immutable
+# Hugging Face repository revision and its managed file bytes. This remains
+# measurable while a Space runtime is paused, and it never treats a candidate
+# as deployed. Runtime readiness is a separate fail-closed responsibility of
+# hf-sync, which verifies /api/build-info only after protected-main deployment.
+# Pushes do not run this workflow because they race publication. Every main
+# push enters hf-sync without a path filter, so Dockerfile sources such as
+# .well-known/security.txt cannot bypass deployment; hf-sync then dispatches
+# this strict repository parity check. Manual and scheduled runs compare exact
+# current GitHub source with the immutable Hugging Face repository head.
 
 on:
   pull_request:
@@ -26,18 +27,13 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable source-bound live baseline
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable repository parity
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      # PR runs verify the exact current live source/HF pair and report the
-      # candidate delta without racing publication. workflow_dispatch and
-      # schedule are strict post-deploy/current-state checks; hf-sync dispatches
-      # after relock succeeds.
-      mode: ${{ github.event_name == 'pull_request' && 'source-bound-baseline' || 'direct' }}
-      trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-      candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      source-probe-path: /api/build-info
-      dockerfile-path: Dockerfile
-      # Direct mode compares exact current source to the immutable HF main head.
-      github-ref: ${{ github.sha }}
+      # A PR candidate is intentionally not deployed. Compare its exact
+      # protected base with the immutable HF repository head; candidate changes
+      # remain a source-review concern until the protected merge triggers
+      # hf-sync. Manual/scheduled runs compare exact current main instead.
+      mode: direct
+      github-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
       hf-ref: main
