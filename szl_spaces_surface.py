@@ -310,9 +310,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
     for item in data:
         identity = item.get("id") if isinstance(item, dict) else None
         if isinstance(identity, str) and identity.startswith(_ORG + "/"):
-            name = identity.split("/", 1)[1]
-            if name != "README":
-                observed.add(name)
+            observed.add(identity.split("/", 1)[1])
     expected = set(_SPACE_BY_NAME)
     missing = sorted(expected - observed)
     unexpected = sorted(observed - expected)
