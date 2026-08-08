@@ -98,7 +98,7 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
         )
         self.assertEqual(len(digest), 64)
         with self.assertRaisesRegex(
-            MODULE.ParityError, "leading-dot COPY source drift"
+            MODULE.ParityError, "dot-prefixed COPY source drift"
         ):
             MODULE.verify_leading_dot_copy(
                 github_repo="szl-holdings/a11oy",

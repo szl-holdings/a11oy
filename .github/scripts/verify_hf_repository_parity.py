@@ -4,7 +4,7 @@
 The pinned organization comparator is retained for its Dockerfile COPY
 expansion, but this wrapper removes three unsafe ambiguities from proof mode:
 the HF branch is resolved twice to one immutable commit, no allowlist is
-passed, and the comparator's known leading-dot normalization gap is covered by
+passed, and the comparator's known dot-prefixed normalization gap is covered by
 an explicit byte comparison of ``.well-known/security.txt``.
 """
 
@@ -144,7 +144,7 @@ def verify_github_tree_complete(
     ]
     if len(matches) != 1:
         raise ParityError(
-            "exact GitHub tree does not contain one leading-dot security source"
+            "exact GitHub tree does not contain one dot-prefixed security source"
         )
 
 
@@ -166,10 +166,10 @@ def verify_leading_dot_copy(
         github_bytes = _read_url(github_url, opener=opener)
         hf_bytes = _read_url(hf_url, opener=opener)
     except Exception as exc:
-        raise ParityError(f"cannot read immutable leading-dot sources: {exc}") from exc
+        raise ParityError(f"cannot read immutable dot-prefixed sources: {exc}") from exc
     if github_bytes != hf_bytes:
         raise ParityError(
-            "leading-dot COPY source drift: "
+            "dot-prefixed COPY source drift: "
             f"github={hashlib.sha256(github_bytes).hexdigest()} "
             f"hf={hashlib.sha256(hf_bytes).hexdigest()}"
         )
