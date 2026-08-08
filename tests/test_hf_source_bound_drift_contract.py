@@ -90,6 +90,21 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
             self.sync,
         )
 
+    def test_sync_resumes_only_an_explicitly_paused_space_before_deploy(
+        self,
+    ) -> None:
+        self.assertIn("resume-paused-space:", self.sync)
+        self.assertIn("api.get_space_runtime(repo_id=repo_id)", self.sync)
+        self.assertIn('if stage == "PAUSED":', self.sync)
+        self.assertIn("api.restart_space(", self.sync)
+        self.assertIn("factory_reboot=False", self.sync)
+        self.assertIn('elif stage in {"RUNNING", "BUILDING", "RUNNING_BUILDING"}:', self.sync)
+        self.assertIn("needs: resume-paused-space", self.sync)
+        self.assertIn('"allocation_changed": False', self.sync)
+        self.assertNotIn("request_space_hardware", self.sync)
+        self.assertNotIn("add_space_secret", self.sync)
+        self.assertNotIn("delete_space_secret", self.sync)
+
     def test_every_main_push_enters_deployment_before_strict_parity(self) -> None:
         trigger, _ = self.sync.split("\npermissions:", 1)
         self.assertIn("push:\n    branches: [main]", trigger)
