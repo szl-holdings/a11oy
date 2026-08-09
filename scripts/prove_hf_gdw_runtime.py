@@ -15,6 +15,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+import szl_dsse
+
 
 def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
     headers = dict(kwargs.pop("headers", {}))
@@ -492,12 +494,20 @@ def _recover_transient_effects(
         envelope.get("signed") if type(envelope) is dict else None
     )
     signatures = envelope.get("signatures") if type(envelope) is dict else None
+    signature_verification = (
+        szl_dsse.verify_envelope(envelope)
+        if envelope_signed is True and type(envelope) is dict
+        else {}
+    )
     dsse_status_ok = (
         (
             envelope_signed is True
             and receipt.get("receipt_status") == "SIGNED_KHIPU_DSSE"
             and type(signatures) is list
             and len(signatures) == 1
+            and signature_verification.get("verified") is True
+            and signature_verification.get("payloadType")
+            == szl_dsse.KHIPU_PAYLOAD_TYPE
         )
         or (
             envelope_signed is False
@@ -515,6 +525,8 @@ def _recover_transient_effects(
                 "previous_chain_sha256"
             ),
             "receipt_sha256": observed_receipt_sha256,
+            "receipt_status": receipt.get("receipt_status"),
+            "dsse_envelope_sha256": observed_envelope_sha256,
         }
     )
     observed_selection_sha256 = (

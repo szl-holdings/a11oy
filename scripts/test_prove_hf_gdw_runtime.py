@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
 
 
 SCRIPT = Path(__file__).with_name("prove_hf_gdw_runtime.py")
@@ -191,6 +192,8 @@ def _recovery_report(
             {
                 "previous_chain_sha256": "0" * 64,
                 "receipt_sha256": receipt_sha256,
+                "receipt_status": "UNSIGNED_KHIPU_DSSE",
+                "dsse_envelope_sha256": proof._canonical_hash(envelope),
             }
         ),
         "dsse_envelope": envelope,
@@ -236,6 +239,8 @@ def _reseal_recovery_report(report):
         {
             "previous_chain_sha256": receipt["previous_chain_sha256"],
             "receipt_sha256": receipt["receipt_sha256"],
+            "receipt_status": receipt["receipt_status"],
+            "dsse_envelope_sha256": receipt["dsse_envelope_sha256"],
         }
     )
     report["audit_receipt"] = receipt
@@ -522,6 +527,89 @@ def test_transient_recovery_accepts_the_authoritative_selection_id_grammar(
 
     assert observed["selection"][0]["request_id"] == ".Recovery.A"
     assert observed["selection"][0]["idempotency_key"] == "Effect.A"
+
+
+def test_transient_recovery_cryptographically_rejects_a_forged_pae_signature(
+    monkeypatch,
+):
+    report = _recovery_report()
+    receipt = report["audit_receipt"]
+    receipt_payload = {
+        key: value
+        for key, value in receipt.items()
+        if key
+        not in {
+            "receipt_status",
+            "receipt_sha256",
+            "dsse_envelope_sha256",
+            "chain_sha256",
+            "dsse_envelope",
+        }
+    }
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    monkeypatch.setattr(
+        proof.szl_dsse,
+        "_load_private_key",
+        lambda: private_key,
+    )
+    envelope = proof.szl_dsse.sign_payload(
+        receipt_payload,
+        proof.szl_dsse.KHIPU_PAYLOAD_TYPE,
+    )
+    monkeypatch.setattr(proof.szl_dsse, "_load_private_key", lambda: None)
+    receipt["receipt_status"] = "SIGNED_KHIPU_DSSE"
+    receipt["dsse_envelope"] = envelope
+    receipt["dsse_envelope_sha256"] = proof._canonical_hash(envelope)
+    receipt["chain_sha256"] = proof._canonical_hash(
+        {
+            "previous_chain_sha256": receipt["previous_chain_sha256"],
+            "receipt_sha256": receipt["receipt_sha256"],
+            "receipt_status": receipt["receipt_status"],
+            "dsse_envelope_sha256": receipt["dsse_envelope_sha256"],
+        }
+    )
+    monkeypatch.setattr(proof, "request_json", lambda *args, **kwargs: report)
+
+    observed = proof._recover_transient_effects(
+        base="https://example.invalid",
+        operator_token="x" * 48,
+        source_sha=SOURCE_SHA,
+        database_generation_id=GENERATION_ID,
+        evidence=proof._new_recovery_evidence(),
+    )
+    assert observed["audit_receipt"]["receipt_status"] == "SIGNED_KHIPU_DSSE"
+
+    forged = json.loads(json.dumps(report))
+    forged_receipt = forged["audit_receipt"]
+    forged_signature = bytearray(
+        base64.b64decode(
+            forged_receipt["dsse_envelope"]["signatures"][0]["sig"]
+        )
+    )
+    forged_signature[-1] ^= 1
+    forged_receipt["dsse_envelope"]["signatures"][0]["sig"] = (
+        base64.b64encode(bytes(forged_signature)).decode("ascii")
+    )
+    forged_receipt["dsse_envelope_sha256"] = proof._canonical_hash(
+        forged_receipt["dsse_envelope"]
+    )
+    forged_receipt["chain_sha256"] = proof._canonical_hash(
+        {
+            "previous_chain_sha256": forged_receipt["previous_chain_sha256"],
+            "receipt_sha256": forged_receipt["receipt_sha256"],
+            "receipt_status": forged_receipt["receipt_status"],
+            "dsse_envelope_sha256": forged_receipt["dsse_envelope_sha256"],
+        }
+    )
+    monkeypatch.setattr(proof, "request_json", lambda *args, **kwargs: forged)
+    with pytest.raises(RuntimeError, match="recovery contract"):
+        proof._recover_transient_effects(
+            base="https://example.invalid",
+            operator_token="x" * 48,
+            source_sha=SOURCE_SHA,
+            database_generation_id=GENERATION_ID,
+            evidence=proof._new_recovery_evidence(),
+        )
 
 
 @pytest.mark.parametrize("numeric_replay", [0, 1])

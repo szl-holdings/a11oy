@@ -381,6 +381,8 @@ def _persist_resealed_audit(workspace, recovery_id, report):
         {
             "previous_chain_sha256": receipt["previous_chain_sha256"],
             "receipt_sha256": receipt_sha256,
+            "receipt_status": receipt["receipt_status"],
+            "dsse_envelope_sha256": receipt["dsse_envelope_sha256"],
         }
     )
     report["audit_receipt"] = receipt
@@ -1425,6 +1427,92 @@ def test_recovery_uses_signed_khipu_dsse_and_detects_signature_tamper(
     tampered["audit_receipt"]["dsse_envelope_sha256"] = _canonical_hash(
         tampered["audit_receipt"]["dsse_envelope"]
     )
+    tampered["audit_receipt"]["chain_sha256"] = _canonical_hash(
+        {
+            "previous_chain_sha256": tampered["audit_receipt"][
+                "previous_chain_sha256"
+            ],
+            "receipt_sha256": tampered["audit_receipt"]["receipt_sha256"],
+            "receipt_status": tampered["audit_receipt"]["receipt_status"],
+            "dsse_envelope_sha256": tampered["audit_receipt"][
+                "dsse_envelope_sha256"
+            ],
+        }
+    )
+    connection = sqlite3.connect(workspace.path)
+    try:
+        connection.execute(
+            """
+            UPDATE effect_recovery_audit
+            SET dsse_envelope_sha256 = ?, chain_sha256 = ?, report_json = ?
+            WHERE namespace = ? AND owner_id = ? AND recovery_id = ?
+            """,
+            (
+                tampered["audit_receipt"]["dsse_envelope_sha256"],
+                tampered["audit_receipt"]["chain_sha256"],
+                json.dumps(tampered, sort_keys=True, separators=(",", ":")),
+                workspace.namespace,
+                workspace.owner_id,
+                "signed-khipu-recovery",
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    assert workspace.integrity(global_scope=True)["invalid_recovery_audits"] == 1
+
+
+def test_signed_recovery_receipt_cannot_be_downgraded_to_unsigned(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = _workspace(tmp_path / "signed-downgrade.sqlite3")
+    start = datetime(2026, 7, 29, tzinfo=timezone.utc)
+    key = _queue_proof(workspace, "signed-downgrade", start)
+    _make_retry_scheduled(workspace, key, start)
+
+    def sign_payload(payload, payload_type):
+        return {
+            "payloadType": payload_type,
+            "payload": base64.b64encode(
+                json.dumps(
+                    payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).decode("ascii"),
+            "signatures": [{"keyid": "test-khipu", "sig": "valid"}],
+            "signed": True,
+            "honesty": "REAL test-only signature fixture",
+        }
+
+    monkeypatch.setattr(workspace_module.szl_dsse, "sign_payload", sign_payload)
+    monkeypatch.setattr(
+        workspace_module.szl_dsse,
+        "verify_envelope",
+        lambda envelope: {
+            "verified": envelope.get("signatures")
+            == [{"keyid": "test-khipu", "sig": "valid"}]
+        },
+    )
+    _recover(
+        workspace,
+        start + timedelta(seconds=1),
+        recovery_id="signed-downgrade-recovery",
+    )
+    assert workspace.integrity(global_scope=True)["invalid_recovery_audits"] == 0
+
+    downgraded = json.loads(_audit_rows(workspace)[0]["report_json"])
+    receipt = downgraded["audit_receipt"]
+    receipt["dsse_envelope"]["signatures"] = []
+    receipt["dsse_envelope"]["signed"] = False
+    receipt["dsse_envelope"]["honesty"] = (
+        "UNSIGNED - forged downgrade; no signature present"
+    )
+    receipt["receipt_status"] = "UNSIGNED_KHIPU_DSSE"
+    receipt["dsse_envelope_sha256"] = _canonical_hash(
+        receipt["dsse_envelope"]
+    )
     connection = sqlite3.connect(workspace.path)
     try:
         connection.execute(
@@ -1434,11 +1522,11 @@ def test_recovery_uses_signed_khipu_dsse_and_detects_signature_tamper(
             WHERE namespace = ? AND owner_id = ? AND recovery_id = ?
             """,
             (
-                tampered["audit_receipt"]["dsse_envelope_sha256"],
-                json.dumps(tampered, sort_keys=True, separators=(",", ":")),
+                receipt["dsse_envelope_sha256"],
+                json.dumps(downgraded, sort_keys=True, separators=(",", ":")),
                 workspace.namespace,
                 workspace.owner_id,
-                "signed-khipu-recovery",
+                "signed-downgrade-recovery",
             ),
         )
         connection.commit()

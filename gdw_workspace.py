@@ -2360,6 +2360,8 @@ class GDWWorkspace:
                     {
                         "previous_chain_sha256": receipt["previous_chain_sha256"],
                         "receipt_sha256": observed_receipt_sha256,
+                        "receipt_status": receipt["receipt_status"],
+                        "dsse_envelope_sha256": observed_envelope_sha256,
                     }
                 ).encode("utf-8")
             ).hexdigest()
@@ -2842,6 +2844,8 @@ class GDWWorkspace:
                         {
                             "previous_chain_sha256": previous_chain_sha256,
                             "receipt_sha256": receipt_sha256,
+                            "receipt_status": receipt_status,
+                            "dsse_envelope_sha256": dsse_envelope_sha256,
                         }
                     ).encode("utf-8")
                 ).hexdigest()
