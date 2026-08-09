@@ -12,7 +12,7 @@ from typing import List, Literal, Optional
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
-from fastapi import Header, HTTPException, Request
+from fastapi import Header, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError
 
@@ -352,6 +352,59 @@ def _require_write_ready(namespace: str) -> None:
         )
 
 
+def _require_transient_recovery_runtime(
+    namespace: str,
+    expected_source_revision: Optional[str],
+) -> str:
+    expected = str(expected_source_revision or "").strip().lower()
+    observed_source = os.environ.get("SZL_GIT_SHA", "").strip().lower()
+    if (
+        re.fullmatch(r"[0-9a-f]{40}", expected) is None
+        or observed_source != expected
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="GDW recovery source revision mismatch",
+        )
+    runtime = runtime_health()
+    storage = runtime.get("storage") or {}
+    drain = runtime.get("drain") or {}
+    database_generation_id = str(
+        storage.get("database_generation_id") or ""
+    )
+    runtime_ready = (
+        runtime.get("startup_state") == "READY"
+        and runtime.get("evidence_label") == "VERIFIED"
+        and storage.get("persistence_required") is True
+        and storage.get("mount_verified") is True
+        and storage.get("journal_mode_requested") == "DELETE"
+        and storage.get("journal_mode_observed") == "DELETE"
+        and storage.get("synchronous_requested") == "FULL"
+        and storage.get("synchronous_observed") == 2
+        and storage.get("sqlite_integrity") == "ok"
+        and storage.get("proof_export_mode") == "outbox"
+        and storage.get("schema_version") == GDWWorkspace.schema_version()
+        and re.fullmatch(
+            r"[0-9a-f]{32}",
+            database_generation_id,
+        )
+        is not None
+        and drain.get("enabled") is True
+        and drain.get("running") is True
+        and _governance_ready()
+    )
+    try:
+        policy_ready = _canonical_policy_ready()
+    except Exception:
+        policy_ready = False
+    if not runtime_ready or not policy_ready:
+        raise HTTPException(
+            status_code=503,
+            detail="GDW recovery runtime contract is unavailable",
+        )
+    return database_generation_id
+
+
 def _public_runtime_health(runtime: dict) -> dict:
     storage = runtime.get("storage")
     public_storage = None
@@ -565,6 +618,70 @@ def _canonical_policy_evaluate(action: dict) -> dict:
     ):
         raise RuntimeError("canonical policy response is not verifiable")
     return result
+
+
+def _transient_recovery_governance(
+    *,
+    principal: Principal,
+    recovery_id: str,
+    source_revision: str,
+    database_generation_id: str,
+    limit: int,
+) -> dict:
+    """Obtain an explicit signed canonical-policy allow for one recovery call."""
+
+    binding = {
+        "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+        "action_type": "gdw.transient-effect-recovery",
+        "namespace": principal.namespace,
+        "owner_id": principal.owner_id,
+        "credential_key_id": principal.key_id,
+        "recovery_id": recovery_id,
+        "source_revision": source_revision,
+        "database_generation_id": database_generation_id,
+        "limit": limit,
+        "failure_class": "hf-hard-link-enotsup/v1",
+    }
+    binding_sha256 = _sha(binding)
+    action = {
+        "actionId": f"gdw-recovery:{binding_sha256}",
+        "severity": "high",
+        "decisionClass": "ordinary",
+        "confidence": 1.0,
+        "witnesses": [
+            {
+                "id": (
+                    f"principal:{principal.namespace}:"
+                    f"{principal.owner_id}:{principal.key_id}"
+                ),
+                "role": "operator",
+                "attested": True,
+            },
+            {
+                "id": f"workload:szl-holdings/a11oy@{source_revision}",
+                "role": "workload",
+                "attested": True,
+            },
+        ],
+    }
+    result = _canonical_policy_evaluate(action)
+    if result.get("decision") != "allow":
+        raise PermissionError("canonical policy denied transient recovery")
+    return {
+        "schema": "szl.gdw.transient-effect-recovery-governance/v1",
+        "decision": "ALLOW",
+        "binding": binding,
+        "binding_sha256": binding_sha256,
+        "policy_gateway": {
+            "decision": "ALLOW",
+            "gate": result["gate"],
+            "receipt_hash": result["receipt_hash"],
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+            "action_id": action["actionId"],
+            "witnesses": action["witnesses"],
+        },
+    }
 
 
 def _risk_severity(risk_budget: float) -> str:
@@ -893,6 +1010,87 @@ def register(app, ns: str = "a11oy"):
             "integrity_ok": integrity["ok"],
             "database_generation_id": integrity["database_generation_id"],
         }
+
+    @app.post(prefix + "/recovery/transient-effects")
+    @app.post("/v1/gdw/recovery/transient-effects")
+    def gdw_recover_transient_effects(
+        limit: int = Query(default=100, ge=1, le=1_000),
+        authorization: Optional[str] = Header(default=None, alias="Authorization"),
+        expected_source_revision: Optional[str] = Header(
+            default=None,
+            alias="X-Expected-Source-Revision",
+        ),
+        idempotency_key: Optional[str] = Header(
+            default=None,
+            alias="Idempotency-Key",
+        ),
+    ):
+        principal = _authorise(
+            authorization,
+            namespace=ns,
+            required_scopes=("effects:recover", "integrity:global"),
+        )
+        runtime_generation = _require_transient_recovery_runtime(
+            ns,
+            expected_source_revision,
+        )
+        if not idempotency_key or not _ID_PATTERN.fullmatch(idempotency_key):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Idempotency-Key must be 1-128 canonical identifier "
+                    "characters"
+                ),
+            )
+        workspace = _workspace(principal)
+        if workspace.database_generation_id != runtime_generation:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery database generation changed",
+            )
+        try:
+            governance = _transient_recovery_governance(
+                principal=principal,
+                recovery_id=idempotency_key,
+                source_revision=str(expected_source_revision),
+                database_generation_id=runtime_generation,
+                limit=limit,
+            )
+        except PermissionError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail="GDW recovery denied by canonical policy",
+            ) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery canonical policy unavailable",
+            ) from exc
+        try:
+            report = workspace.recover_retry_scheduled_effects(
+                recovery_id=idempotency_key,
+                credential_key_id=principal.key_id,
+                expected_source_revision=str(expected_source_revision),
+                expected_database_generation_id=runtime_generation,
+                governance=governance,
+                limit=limit,
+            )
+        except GDWConfigurationError as exc:
+            if str(exc) == "recovery_id was already used with different content":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Idempotency-Key was already used with different content",
+                ) from exc
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery refused by integrity gate",
+            ) from exc
+        if report.get("database_generation_id") != runtime_generation:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery database generation changed",
+            )
+        return report
 
     @app.get(prefix + "/integrity/global")
     @app.get("/v1/gdw/integrity/global")
@@ -1344,6 +1542,7 @@ def register(app, ns: str = "a11oy"):
             prefix + "/integrity",
             prefix + "/integrity/global",
             prefix + "/drain",
+            prefix + "/recovery/transient-effects",
             prefix + "/sessions/{session_id}",
             prefix + "/step",
         ],

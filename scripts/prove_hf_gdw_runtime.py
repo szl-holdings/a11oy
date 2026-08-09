@@ -4,13 +4,26 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
+import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+
+import sys
+from pathlib import Path
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPOSITORY_ROOT))
+
+import szl_dsse
 
 
 def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
@@ -38,6 +51,26 @@ def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
         raise RuntimeError(
             f"HTTP {exc.code} {method} {url}: {response_body[:2048]}"
         ) from exc
+
+
+def _canonical_hash(value) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _canonical_utc_timestamp(value) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return False
+    return (
+        parsed.tzinfo is not None
+        and parsed.utcoffset() == timezone.utc.utcoffset(parsed)
+        and parsed.isoformat() == value
+    )
 
 
 def _drain_converged(candidate: dict) -> bool:
@@ -72,6 +105,7 @@ def _global_integrity_is_complete(
         and integrity.get("pending_proofs") == 0
         and integrity.get("invalid_effect_bindings") == 0
         and integrity.get("invalid_exported_artifacts") == 0
+        and integrity.get("invalid_recovery_audits") == 0
     )
 
 
@@ -150,7 +184,474 @@ def _safe_convergence_state(
         "global_invalid_exported_artifacts": global_integrity.get(
             "invalid_exported_artifacts"
         ),
+        "global_invalid_recovery_audits": global_integrity.get(
+            "invalid_recovery_audits"
+        ),
     }
+
+
+def _new_recovery_evidence() -> dict:
+    return {
+        "schema": "szl.hf-gdw-transient-recovery-evidence/v1",
+        "calls": 0,
+        "applied_rounds": 0,
+        "rescheduled_effects": 0,
+        "last_status": "NOT_CALLED",
+        "selection_sha256": [],
+        "receipt_sha256": [],
+        "replayed_calls": 0,
+        "attempt_accounting_preserved": True,
+        "credential_values_recorded": False,
+    }
+
+
+def _recover_transient_effects(
+    *,
+    base: str,
+    operator_token: str,
+    source_sha: str,
+    database_generation_id: str,
+    evidence: dict,
+) -> dict:
+    call_number = evidence["calls"] + 1
+    evidence["calls"] = call_number
+    recovery_id = (
+        f"gdw-recovery-{source_sha[:12]}-"
+        f"{database_generation_id[:12]}-{call_number}"
+    )
+    report = request_json(
+        "POST",
+        f"{base}/api/a11oy/v1/gdw/recovery/transient-effects?limit=100",
+        token=operator_token,
+        headers={
+            "X-Expected-Source-Revision": source_sha,
+            "Idempotency-Key": recovery_id,
+        },
+    )
+    outcome_fields = {
+        "schema",
+        "status",
+        "recovery_id",
+        "source_revision",
+        "requested_limit",
+        "failure_class",
+        "database_generation_id",
+        "inspected_pending_effects",
+        "eligible_effects",
+        "rescheduled_effects",
+        "attempts_before",
+        "attempts_after",
+        "selection",
+        "selection_sha256",
+        "sqlite_integrity",
+        "claimed_effects",
+        "dead_letter_effects",
+        "invalid_effect_bindings",
+        "invalid_exported_artifacts",
+        "invalid_recovery_audits",
+        "credential_values_recorded",
+    }
+    receipt_payload_fields = {
+        "schema",
+        "operator",
+        "recovery_id",
+        "source_revision",
+        "database_generation_id",
+        "request_sha256",
+        "outcome_sha256",
+        "governance_sha256",
+        "selection_sha256",
+        "rescheduled_effects",
+        "attempts_before",
+        "attempts_after",
+        "sequence",
+        "previous_receipt_sha256",
+        "previous_chain_sha256",
+        "atomic_with_mutation",
+        "created_at",
+        "credential_values_recorded",
+    }
+    receipt_fields = receipt_payload_fields | {
+        "receipt_status",
+        "receipt_sha256",
+        "dsse_envelope_sha256",
+        "chain_sha256",
+        "dsse_envelope",
+    }
+    report_is_object = type(report) is dict
+    report_shape_ok = report_is_object and set(report) == outcome_fields | {
+        "governance",
+        "audit_receipt",
+        "replayed",
+    }
+    outcome = (
+        {field: report[field] for field in outcome_fields}
+        if report_shape_ok
+        else {}
+    )
+    replayed = report.get("replayed") if report_is_object else None
+    receipt = report.get("audit_receipt") if report_is_object else None
+    receipt = dict(receipt) if type(receipt) is dict else {}
+    receipt_shape_ok = set(receipt) == receipt_fields
+    claimed_receipt_sha256 = receipt.get("receipt_sha256")
+    receipt_payload = (
+        {field: receipt[field] for field in receipt_payload_fields}
+        if receipt_shape_ok
+        else {}
+    )
+    governance = report.get("governance") if report_is_object else None
+    counts = {
+        field: outcome.get(field)
+        for field in (
+            "inspected_pending_effects",
+            "eligible_effects",
+            "rescheduled_effects",
+            "attempts_before",
+            "attempts_after",
+            "claimed_effects",
+            "dead_letter_effects",
+            "invalid_effect_bindings",
+            "invalid_exported_artifacts",
+            "invalid_recovery_audits",
+        )
+    }
+    selection = outcome.get("selection")
+    operator = receipt_payload.get("operator")
+    operator_pattern = re.compile(r"[a-z0-9][a-z0-9._:-]{0,127}")
+    selection_identifier_pattern = re.compile(r"[A-Za-z0-9._:-]{1,128}")
+    receipt_created_at = (
+        datetime.fromisoformat(receipt_payload["created_at"])
+        if _canonical_utc_timestamp(receipt_payload.get("created_at"))
+        else None
+    )
+    operator_ok = (
+        type(operator) is dict
+        and set(operator) == {"namespace", "owner_id", "credential_key_id"}
+        and operator.get("namespace") == "a11oy"
+        and all(
+            type(value) is str and operator_pattern.fullmatch(value) is not None
+            for value in operator.values()
+        )
+    )
+    expected_governance_binding = (
+        {
+            "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+            "action_type": "gdw.transient-effect-recovery",
+            "namespace": operator["namespace"],
+            "owner_id": operator["owner_id"],
+            "credential_key_id": operator["credential_key_id"],
+            "recovery_id": recovery_id,
+            "source_revision": source_sha,
+            "database_generation_id": database_generation_id,
+            "limit": 100,
+            "failure_class": "hf-hard-link-enotsup/v1",
+        }
+        if operator_ok
+        else None
+    )
+    governance_binding_sha256 = (
+        _canonical_hash(expected_governance_binding)
+        if expected_governance_binding is not None
+        else None
+    )
+    gateway = governance.get("policy_gateway") if type(governance) is dict else None
+    governance_ok = (
+        operator_ok
+        and type(governance) is dict
+        and set(governance) == {
+            "schema",
+            "decision",
+            "binding",
+            "binding_sha256",
+            "policy_gateway",
+        }
+        and governance.get("schema")
+        == "szl.gdw.transient-effect-recovery-governance/v1"
+        and governance.get("decision") == "ALLOW"
+        and governance.get("binding") == expected_governance_binding
+        and governance.get("binding_sha256") == governance_binding_sha256
+        and type(gateway) is dict
+        and set(gateway) == {
+            "decision",
+            "gate",
+            "receipt_hash",
+            "receipt_signed",
+            "receipts_in_eq_out",
+            "action_id",
+            "witnesses",
+        }
+        and gateway.get("decision") == "ALLOW"
+        and gateway.get("gate") == "ThresholdPolicySeverity"
+        and re.fullmatch(r"[0-9a-f]{64}", str(gateway.get("receipt_hash") or ""))
+        is not None
+        and gateway.get("receipt_signed") is True
+        and gateway.get("receipts_in_eq_out") is True
+        and gateway.get("action_id")
+        == f"gdw-recovery:{governance_binding_sha256}"
+        and gateway.get("witnesses")
+        == [
+            {
+                "id": (
+                    f"principal:{operator['namespace']}:"
+                    f"{operator['owner_id']}:{operator['credential_key_id']}"
+                ),
+                "role": "operator",
+                "attested": True,
+            },
+            {
+                "id": f"workload:szl-holdings/a11oy@{source_sha}",
+                "role": "workload",
+                "attested": True,
+            },
+        ]
+    )
+    expected_request = (
+        {
+            "schema": "szl.gdw.transient-effect-recovery-request/v1",
+            "namespace": operator["namespace"],
+            "owner_id": operator["owner_id"],
+            "credential_key_id": operator["credential_key_id"],
+            "recovery_id": recovery_id,
+            "source_revision": source_sha,
+            "database_generation_id": database_generation_id,
+            "limit": 100,
+            "failure_class": "hf-hard-link-enotsup/v1",
+            "governance_binding_sha256": governance_binding_sha256,
+        }
+        if operator_ok
+        else None
+    )
+    selection_fields = {
+        "namespace",
+        "owner_id",
+        "idempotency_key",
+        "database_generation_id",
+        "request_id",
+        "kind",
+        "receipt_hash",
+        "payload_sha256",
+        "intent_sha256",
+        "attempts",
+        "max_attempts",
+        "next_attempt_at",
+        "claim_generation",
+        "last_error_sha256",
+    }
+
+    def is_digest(value, length=64):
+        return type(value) is str and re.fullmatch(
+            rf"[0-9a-f]{{{length}}}", value
+        ) is not None
+
+    selection_ok = type(selection) is list
+    if selection_ok:
+        for item in selection:
+            if (
+                type(item) is not dict
+                or set(item) != selection_fields
+                or item.get("database_generation_id") != database_generation_id
+                or item.get("kind") not in {"receipt_projection", "proof_export"}
+                or any(
+                    type(item.get(field)) is not str
+                    or selection_identifier_pattern.fullmatch(item[field])
+                    is None
+                    for field in (
+                        "namespace",
+                        "owner_id",
+                        "idempotency_key",
+                        "request_id",
+                    )
+                )
+                or (
+                    item.get("receipt_hash") is not None
+                    and not is_digest(item.get("receipt_hash"))
+                )
+                or any(
+                    not is_digest(item.get(field))
+                    for field in (
+                        "payload_sha256",
+                        "intent_sha256",
+                        "last_error_sha256",
+                    )
+                )
+                or type(item.get("attempts")) is not int
+                or type(item.get("max_attempts")) is not int
+                or not 0 < item["attempts"] < item["max_attempts"]
+                or type(item.get("claim_generation")) is not int
+                or item["claim_generation"] < 0
+                or not _canonical_utc_timestamp(item.get("next_attempt_at"))
+                or receipt_created_at is None
+                or datetime.fromisoformat(item["next_attempt_at"])
+                <= receipt_created_at
+            ):
+                selection_ok = False
+                break
+    observed_outcome_sha256 = _canonical_hash(outcome)
+    observed_receipt_sha256 = _canonical_hash(receipt_payload)
+    envelope = receipt.get("dsse_envelope") if receipt_shape_ok else None
+    try:
+        decoded_envelope_payload = json.loads(
+            base64.b64decode(
+                str(envelope.get("payload") or ""),
+                validate=True,
+            ).decode("utf-8")
+        )
+    except (AttributeError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        decoded_envelope_payload = None
+    envelope_signed = (
+        envelope.get("signed") if type(envelope) is dict else None
+    )
+    signatures = envelope.get("signatures") if type(envelope) is dict else None
+    signature_verification = (
+        szl_dsse.verify_envelope(envelope)
+        if envelope_signed is True and type(envelope) is dict
+        else {}
+    )
+    dsse_status_ok = (
+        (
+            envelope_signed is True
+            and receipt.get("receipt_status") == "SIGNED_KHIPU_DSSE"
+            and type(signatures) is list
+            and len(signatures) == 1
+            and signature_verification.get("verified") is True
+            and signature_verification.get("payloadType")
+            == szl_dsse.KHIPU_PAYLOAD_TYPE
+        )
+        or (
+            envelope_signed is False
+            and receipt.get("receipt_status") == "UNSIGNED_KHIPU_DSSE"
+            and signatures == []
+            and "UNSIGNED" in str(envelope.get("honesty") or "")
+        )
+    )
+    observed_envelope_sha256 = (
+        _canonical_hash(envelope) if type(envelope) is dict else None
+    )
+    observed_chain_sha256 = _canonical_hash(
+        {
+            "previous_chain_sha256": receipt_payload.get(
+                "previous_chain_sha256"
+            ),
+            "receipt_sha256": observed_receipt_sha256,
+            "receipt_status": receipt.get("receipt_status"),
+            "dsse_envelope_sha256": observed_envelope_sha256,
+        }
+    )
+    observed_selection_sha256 = (
+        _canonical_hash(selection) if type(selection) is list else None
+    )
+    if (
+        not report_shape_ok
+        or not receipt_shape_ok
+        or not operator_ok
+        or not governance_ok
+        or not selection_ok
+        or outcome.get("schema")
+        != "szl.gdw.transient-effect-recovery/v2"
+        or outcome.get("status")
+        not in {
+            "RESCHEDULED",
+            "NO_ELIGIBLE_EFFECTS",
+            "DEFERRED_ACTIVE_CLAIM",
+        }
+        or outcome.get("database_generation_id")
+        != database_generation_id
+        or outcome.get("recovery_id") != recovery_id
+        or outcome.get("source_revision") != source_sha
+        or outcome.get("requested_limit") != 100
+        or outcome.get("failure_class") != "hf-hard-link-enotsup/v1"
+        or outcome.get("sqlite_integrity") != "ok"
+        or outcome.get("credential_values_recorded") is not False
+        or any(
+            type(value) is not int or value < 0
+            for value in counts.values()
+        )
+        or counts["rescheduled_effects"] > counts["eligible_effects"]
+        or counts["eligible_effects"]
+        > counts["inspected_pending_effects"]
+        or counts["attempts_before"] != counts["attempts_after"]
+        or counts["dead_letter_effects"] != 0
+        or counts["invalid_effect_bindings"] != 0
+        or counts["invalid_exported_artifacts"] != 0
+        or counts["invalid_recovery_audits"] != 0
+        or not is_digest(outcome.get("selection_sha256"))
+        or outcome.get("selection_sha256") != observed_selection_sha256
+        or len(selection) != counts["rescheduled_effects"]
+        or counts["attempts_before"]
+        != sum(item["attempts"] for item in selection)
+        or type(replayed) is not bool
+        or receipt_payload.get("schema")
+        != "szl.gdw.transient-effect-recovery-receipt/v2"
+        or receipt_payload.get("recovery_id") != recovery_id
+        or receipt_payload.get("source_revision") != source_sha
+        or receipt_payload.get("database_generation_id")
+        != database_generation_id
+        or receipt_payload.get("operator") != operator
+        or receipt_payload.get("request_sha256")
+        != _canonical_hash(expected_request)
+        or not _canonical_utc_timestamp(receipt_payload.get("created_at"))
+        or receipt_payload.get("credential_values_recorded") is not False
+        or receipt_payload.get("atomic_with_mutation") is not True
+        or type(receipt_payload.get("sequence")) is not int
+        or receipt_payload["sequence"] < 0
+        or not is_digest(receipt_payload.get("previous_receipt_sha256"))
+        or not is_digest(receipt_payload.get("previous_chain_sha256"))
+        or receipt_payload.get("governance_sha256")
+        != _canonical_hash(governance)
+        or receipt_payload.get("selection_sha256")
+        != outcome.get("selection_sha256")
+        or receipt_payload.get("rescheduled_effects")
+        != counts["rescheduled_effects"]
+        or receipt_payload.get("attempts_before")
+        != counts["attempts_before"]
+        or receipt_payload.get("attempts_after")
+        != counts["attempts_after"]
+        or receipt_payload.get("outcome_sha256")
+        != observed_outcome_sha256
+        or receipt.get("receipt_sha256") != observed_receipt_sha256
+        or receipt.get("dsse_envelope_sha256")
+        != observed_envelope_sha256
+        or receipt.get("chain_sha256") != observed_chain_sha256
+        or type(envelope) is not dict
+        or envelope.get("payloadType") != "application/vnd.szl.khipu+json"
+        or decoded_envelope_payload != receipt_payload
+        or not dsse_status_ok
+        or (
+            outcome.get("status") == "RESCHEDULED"
+            and (
+                counts["rescheduled_effects"] == 0
+                or counts["eligible_effects"]
+                != counts["rescheduled_effects"]
+                or counts["claimed_effects"] != 0
+            )
+        )
+        or (
+            outcome.get("status") == "NO_ELIGIBLE_EFFECTS"
+            and (
+                counts["eligible_effects"] != 0
+                or counts["rescheduled_effects"] != 0
+                or counts["claimed_effects"] != 0
+            )
+        )
+        or (
+            outcome.get("status") == "DEFERRED_ACTIVE_CLAIM"
+            and (
+                counts["claimed_effects"] == 0
+                or counts["eligible_effects"] != 0
+                or counts["rescheduled_effects"] != 0
+            )
+        )
+    ):
+        raise RuntimeError("GDW transient recovery contract failed")
+    evidence["rescheduled_effects"] += counts["rescheduled_effects"]
+    evidence["last_status"] = report["status"]
+    evidence["receipt_sha256"].append(claimed_receipt_sha256)
+    if replayed:
+        evidence["replayed_calls"] += 1
+    if counts["rescheduled_effects"]:
+        evidence["applied_rounds"] += 1
+        evidence["selection_sha256"].append(report["selection_sha256"])
+    return report
 
 
 def _prove_drain_convergence(
@@ -158,6 +659,8 @@ def _prove_drain_convergence(
     base: str,
     operator_token: str,
     database_generation_id: str,
+    source_sha: str | None = None,
+    recovery_evidence: dict | None = None,
     attempts: int = 120,
     delay_seconds: float = 5,
     required_stable_samples: int = 3,
@@ -204,6 +707,33 @@ def _prove_drain_convergence(
                 token=operator_token,
             )
             last_global_integrity = global_integrity
+            if (
+                source_sha is not None
+                and recovery_evidence is not None
+                and recovery_evidence.get("calls", 0) < 8
+                and not _global_integrity_is_complete(
+                    global_integrity,
+                    database_generation_id,
+                )
+                and global_integrity.get("pending_effects", 0) > 0
+                and global_integrity.get("claimed_effects") == 0
+                and global_integrity.get("dead_letter_effects") == 0
+                and global_integrity.get("invalid_effect_bindings") == 0
+                and global_integrity.get("invalid_exported_artifacts") == 0
+            ):
+                recovery = _recover_transient_effects(
+                    base=base,
+                    operator_token=operator_token,
+                    source_sha=source_sha,
+                    database_generation_id=database_generation_id,
+                    evidence=recovery_evidence,
+                )
+                if recovery.get("status") == "RESCHEDULED":
+                    stable_samples = 0
+                    last_supervisor_success = None
+                    last_error = "TRANSIENT_EFFECTS_RESCHEDULED"
+                    time.sleep(delay_seconds)
+                    continue
             supervisor_success = str(
                 (
                     (health.get("persistence") or {})
@@ -443,6 +973,9 @@ def prove_restart(
             "invalid_exported_artifacts": after_global[
                 "invalid_exported_artifacts"
             ],
+            "invalid_recovery_audits": after_global[
+                "invalid_recovery_audits"
+            ],
         },
         "credential_values_recorded": False,
     }
@@ -457,6 +990,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     health = None
     deployed_revision = ""
     last_error = None
+    recovery_evidence = _new_recovery_evidence()
     for attempt in range(1, 121):
         try:
             build_info = request_json("GET", f"{base}/api/build-info")
@@ -467,21 +1001,79 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                 last_error = "SOURCE_REVISION_MISMATCH"
                 time.sleep(5)
                 continue
-            candidate = request_json(
-                "GET", f"{base}/api/a11oy/v1/gdw/healthz"
+            try:
+                candidate = request_json(
+                    "GET", f"{base}/api/a11oy/v1/gdw/healthz"
+                )
+            except Exception:
+                candidate = {}
+            candidate_global = request_json(
+                "GET",
+                f"{base}/api/a11oy/v1/gdw/integrity/global",
+                token=operator_token,
             )
+            candidate_persistence = candidate.get("persistence") or {}
+            candidate_storage = candidate_persistence.get("storage") or {}
+            health_generation_id = str(
+                candidate_storage.get("database_generation_id") or ""
+            )
+            candidate_generation_id = str(
+                candidate_global.get("database_generation_id") or ""
+            )
+            if health_generation_id and (
+                health_generation_id != candidate_generation_id
+            ):
+                last_error = "DATABASE_GENERATION_MISMATCH"
+                time.sleep(5)
+                continue
             if (
                 candidate.get("status") == "REAL"
                 and candidate.get("write_ready") is True
-                and (
-                    (candidate.get("persistence") or {})
-                    .get("storage", {})
-                    .get("journal_mode_observed")
-                    == "DELETE"
+                and candidate_storage.get("journal_mode_observed") == "DELETE"
+                and _global_integrity_is_complete(
+                    candidate_global,
+                    candidate_generation_id,
                 )
             ):
                 health = candidate
                 break
+            if (
+                recovery_evidence["calls"] < 8
+                and re.fullmatch(
+                    r"[0-9a-f]{32}",
+                    candidate_generation_id,
+                )
+                is not None
+                and candidate_global.get("ok") is True
+                and candidate_global.get("sqlite_integrity") == "ok"
+                and candidate_global.get("journal_mode") == "DELETE"
+                and candidate_global.get("pending_proofs") == 0
+                and candidate_global.get("pending_effects", 0) > 0
+                and candidate_global.get("claimed_effects") == 0
+                and candidate_global.get("dead_letter_effects") == 0
+                and candidate_global.get("invalid_effect_bindings") == 0
+                and candidate_global.get("invalid_exported_artifacts") == 0
+                and candidate_global.get("invalid_recovery_audits") == 0
+            ):
+                recovery = _recover_transient_effects(
+                    base=base,
+                    operator_token=operator_token,
+                    source_sha=source_sha,
+                    database_generation_id=candidate_generation_id,
+                    evidence=recovery_evidence,
+                )
+                last_error = f"RECOVERY_{recovery['status']}"
+            else:
+                last_error = json.dumps(
+                    _safe_convergence_state(
+                        reason="INITIAL_READINESS_NOT_CONVERGED",
+                        health=candidate,
+                        drain=None,
+                        global_integrity=candidate_global,
+                        stable_samples=0,
+                    ),
+                    sort_keys=True,
+                )
         except Exception as exc:
             last_error = type(exc).__name__
         time.sleep(5)
@@ -533,6 +1125,8 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         base=base,
         operator_token=operator_token,
         database_generation_id=database_generation_id,
+        source_sha=source_sha,
+        recovery_evidence=recovery_evidence,
     )
     integrity = request_json(
         "GET",
@@ -580,7 +1174,11 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             "invalid_exported_artifacts": global_integrity[
                 "invalid_exported_artifacts"
             ],
+            "invalid_recovery_audits": global_integrity[
+                "invalid_recovery_audits"
+            ],
         },
+        "transient_recovery": recovery_evidence,
         "integrity": {
             "ok": True,
             "journal_mode": integrity["journal_mode"],
@@ -590,6 +1188,9 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             ],
             "invalid_exported_artifacts": integrity[
                 "invalid_exported_artifacts"
+            ],
+            "invalid_recovery_audits": integrity[
+                "invalid_recovery_audits"
             ],
         },
         "credential_values_recorded": False,
