@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -202,9 +203,11 @@ def _recover_transient_effects(
     database_generation_id: str,
     evidence: dict,
 ) -> dict:
+    call_number = evidence["calls"] + 1
+    evidence["calls"] = call_number
     recovery_id = (
         f"gdw-recovery-{source_sha[:12]}-"
-        f"{database_generation_id[:12]}-{evidence['calls'] + 1}"
+        f"{database_generation_id[:12]}-{call_number}"
     )
     report = request_json(
         "POST",
@@ -238,24 +241,36 @@ def _recover_transient_effects(
         "invalid_recovery_audits",
         "credential_values_recorded",
     }
-    receipt_fields = {
+    receipt_payload_fields = {
         "schema",
-        "receipt_status",
         "operator",
         "recovery_id",
         "source_revision",
         "database_generation_id",
         "request_sha256",
         "outcome_sha256",
+        "governance_sha256",
         "selection_sha256",
         "rescheduled_effects",
         "attempts_before",
         "attempts_after",
+        "sequence",
+        "previous_receipt_sha256",
+        "previous_chain_sha256",
+        "atomic_with_mutation",
         "created_at",
         "credential_values_recorded",
     }
+    receipt_fields = receipt_payload_fields | {
+        "receipt_status",
+        "receipt_sha256",
+        "dsse_envelope_sha256",
+        "chain_sha256",
+        "dsse_envelope",
+    }
     report_is_object = type(report) is dict
     report_shape_ok = report_is_object and set(report) == outcome_fields | {
+        "governance",
         "audit_receipt",
         "replayed",
     }
@@ -266,9 +281,15 @@ def _recover_transient_effects(
     )
     replayed = report.get("replayed") if report_is_object else None
     receipt = report.get("audit_receipt") if report_is_object else None
-    receipt_payload = dict(receipt) if type(receipt) is dict else {}
-    claimed_receipt_sha256 = receipt_payload.pop("receipt_sha256", None)
-    receipt_shape_ok = set(receipt_payload) == receipt_fields
+    receipt = dict(receipt) if type(receipt) is dict else {}
+    receipt_shape_ok = set(receipt) == receipt_fields
+    claimed_receipt_sha256 = receipt.get("receipt_sha256")
+    receipt_payload = (
+        {field: receipt[field] for field in receipt_payload_fields}
+        if receipt_shape_ok
+        else {}
+    )
+    governance = report.get("governance") if report_is_object else None
     counts = {
         field: outcome.get(field)
         for field in (
@@ -302,6 +323,78 @@ def _recover_transient_effects(
             for value in operator.values()
         )
     )
+    expected_governance_binding = (
+        {
+            "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+            "action_type": "gdw.transient-effect-recovery",
+            "namespace": operator["namespace"],
+            "owner_id": operator["owner_id"],
+            "credential_key_id": operator["credential_key_id"],
+            "recovery_id": recovery_id,
+            "source_revision": source_sha,
+            "database_generation_id": database_generation_id,
+            "limit": 100,
+            "failure_class": "hf-hard-link-enotsup/v1",
+        }
+        if operator_ok
+        else None
+    )
+    governance_binding_sha256 = (
+        _canonical_hash(expected_governance_binding)
+        if expected_governance_binding is not None
+        else None
+    )
+    gateway = governance.get("policy_gateway") if type(governance) is dict else None
+    governance_ok = (
+        operator_ok
+        and type(governance) is dict
+        and set(governance) == {
+            "schema",
+            "decision",
+            "binding",
+            "binding_sha256",
+            "policy_gateway",
+        }
+        and governance.get("schema")
+        == "szl.gdw.transient-effect-recovery-governance/v1"
+        and governance.get("decision") == "ALLOW"
+        and governance.get("binding") == expected_governance_binding
+        and governance.get("binding_sha256") == governance_binding_sha256
+        and type(gateway) is dict
+        and set(gateway) == {
+            "decision",
+            "gate",
+            "receipt_hash",
+            "receipt_signed",
+            "receipts_in_eq_out",
+            "action_id",
+            "witnesses",
+        }
+        and gateway.get("decision") == "ALLOW"
+        and gateway.get("gate") == "ThresholdPolicySeverity"
+        and re.fullmatch(r"[0-9a-f]{64}", str(gateway.get("receipt_hash") or ""))
+        is not None
+        and gateway.get("receipt_signed") is True
+        and gateway.get("receipts_in_eq_out") is True
+        and gateway.get("action_id")
+        == f"gdw-recovery:{governance_binding_sha256}"
+        and gateway.get("witnesses")
+        == [
+            {
+                "id": (
+                    f"principal:{operator['namespace']}:"
+                    f"{operator['owner_id']}:{operator['credential_key_id']}"
+                ),
+                "role": "operator",
+                "attested": True,
+            },
+            {
+                "id": f"workload:szl-holdings/a11oy@{source_sha}",
+                "role": "workload",
+                "attested": True,
+            },
+        ]
+    )
     expected_request = (
         {
             "schema": "szl.gdw.transient-effect-recovery-request/v1",
@@ -313,6 +406,7 @@ def _recover_transient_effects(
             "database_generation_id": database_generation_id,
             "limit": 100,
             "failure_class": "hf-hard-link-enotsup/v1",
+            "governance_binding_sha256": governance_binding_sha256,
         }
         if operator_ok
         else None
@@ -384,6 +478,45 @@ def _recover_transient_effects(
                 break
     observed_outcome_sha256 = _canonical_hash(outcome)
     observed_receipt_sha256 = _canonical_hash(receipt_payload)
+    envelope = receipt.get("dsse_envelope") if receipt_shape_ok else None
+    try:
+        decoded_envelope_payload = json.loads(
+            base64.b64decode(
+                str(envelope.get("payload") or ""),
+                validate=True,
+            ).decode("utf-8")
+        )
+    except (AttributeError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        decoded_envelope_payload = None
+    envelope_signed = (
+        envelope.get("signed") if type(envelope) is dict else None
+    )
+    signatures = envelope.get("signatures") if type(envelope) is dict else None
+    dsse_status_ok = (
+        (
+            envelope_signed is True
+            and receipt.get("receipt_status") == "SIGNED_KHIPU_DSSE"
+            and type(signatures) is list
+            and len(signatures) == 1
+        )
+        or (
+            envelope_signed is False
+            and receipt.get("receipt_status") == "UNSIGNED_KHIPU_DSSE"
+            and signatures == []
+            and "UNSIGNED" in str(envelope.get("honesty") or "")
+        )
+    )
+    observed_envelope_sha256 = (
+        _canonical_hash(envelope) if type(envelope) is dict else None
+    )
+    observed_chain_sha256 = _canonical_hash(
+        {
+            "previous_chain_sha256": receipt_payload.get(
+                "previous_chain_sha256"
+            ),
+            "receipt_sha256": observed_receipt_sha256,
+        }
+    )
     observed_selection_sha256 = (
         _canonical_hash(selection) if type(selection) is list else None
     )
@@ -391,6 +524,7 @@ def _recover_transient_effects(
         not report_shape_ok
         or not receipt_shape_ok
         or not operator_ok
+        or not governance_ok
         or not selection_ok
         or outcome.get("schema")
         != "szl.gdw.transient-effect-recovery/v2"
@@ -427,8 +561,7 @@ def _recover_transient_effects(
         != sum(item["attempts"] for item in selection)
         or type(replayed) is not bool
         or receipt_payload.get("schema")
-        != "szl.gdw.transient-effect-recovery-receipt/v1"
-        or receipt_payload.get("receipt_status") != "UNSIGNED_ATOMIC"
+        != "szl.gdw.transient-effect-recovery-receipt/v2"
         or receipt_payload.get("recovery_id") != recovery_id
         or receipt_payload.get("source_revision") != source_sha
         or receipt_payload.get("database_generation_id")
@@ -438,6 +571,13 @@ def _recover_transient_effects(
         != _canonical_hash(expected_request)
         or not _canonical_utc_timestamp(receipt_payload.get("created_at"))
         or receipt_payload.get("credential_values_recorded") is not False
+        or receipt_payload.get("atomic_with_mutation") is not True
+        or type(receipt_payload.get("sequence")) is not int
+        or receipt_payload["sequence"] < 0
+        or not is_digest(receipt_payload.get("previous_receipt_sha256"))
+        or not is_digest(receipt_payload.get("previous_chain_sha256"))
+        or receipt_payload.get("governance_sha256")
+        != _canonical_hash(governance)
         or receipt_payload.get("selection_sha256")
         != outcome.get("selection_sha256")
         or receipt_payload.get("rescheduled_effects")
@@ -448,7 +588,14 @@ def _recover_transient_effects(
         != counts["attempts_after"]
         or receipt_payload.get("outcome_sha256")
         != observed_outcome_sha256
-        or claimed_receipt_sha256 != observed_receipt_sha256
+        or receipt.get("receipt_sha256") != observed_receipt_sha256
+        or receipt.get("dsse_envelope_sha256")
+        != observed_envelope_sha256
+        or receipt.get("chain_sha256") != observed_chain_sha256
+        or type(envelope) is not dict
+        or envelope.get("payloadType") != "application/vnd.szl.khipu+json"
+        or decoded_envelope_payload != receipt_payload
+        or not dsse_status_ok
         or (
             outcome.get("status") == "RESCHEDULED"
             and (
@@ -476,7 +623,6 @@ def _recover_transient_effects(
         )
     ):
         raise RuntimeError("GDW transient recovery contract failed")
-    evidence["calls"] += 1
     evidence["rescheduled_effects"] += counts["rescheduled_effects"]
     evidence["last_status"] = report["status"]
     evidence["receipt_sha256"].append(claimed_receipt_sha256)

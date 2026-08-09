@@ -141,13 +141,13 @@ def test_legacy_principal_roles_map_to_existing_scopes_and_stable_keys():
 
     assert "integrity:global" not in user.scopes
     assert {
-        "effects:recover",
         "integrity:global",
         "integrity:read",
         "step:write",
     }.issubset(
         admin.scopes
     )
+    assert "effects:recover" not in admin.scopes
     assert admin.key_id == repeated_admin.key_id
     with pytest.raises(gdw_auth.AuthenticationError) as exc_info:
         first.authenticate(
@@ -156,6 +156,13 @@ def test_legacy_principal_roles_map_to_existing_scopes_and_stable_keys():
             required_scopes=("integrity:global",),
         )
     assert exc_info.value.code == "missing_scopes"
+    with pytest.raises(gdw_auth.AuthenticationError) as recovery_exc:
+        first.authenticate(
+            "Bearer admin-secret",
+            namespace="a11oy",
+            required_scopes=("effects:recover",),
+        )
+    assert recovery_exc.value.code == "missing_scopes"
 
 
 def test_legacy_principal_registry_rejects_digest_collisions():
@@ -257,6 +264,8 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
         )
     )
 
+    workspace_recoveries = []
+
     class Workspace:
         database_generation_id = "a" * 32
 
@@ -274,6 +283,7 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
             credential_key_id,
             expected_source_revision,
             expected_database_generation_id,
+            governance,
             limit,
         ):
             assert limit == 100
@@ -281,6 +291,9 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
             assert credential_key_id == "recovery-key"
             assert expected_source_revision == "b" * 40
             assert expected_database_generation_id == "a" * 32
+            assert governance["decision"] == "ALLOW"
+            assert governance["binding"]["recovery_id"] == recovery_id
+            workspace_recoveries.append(recovery_id)
             return {
                 "schema": "szl.gdw.transient-effect-recovery/v2",
                 "status": "NO_ELIGIBLE_EFFECTS",
@@ -317,6 +330,17 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
         gdw_frontier,
         "_require_transient_recovery_runtime",
         lambda ns, revision: "a" * 32,
+    )
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_canonical_policy_evaluate",
+        lambda action: {
+            "decision": "allow",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": "c" * 64,
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+        },
     )
     monkeypatch.setattr(
         gdw_frontier,
@@ -449,6 +473,55 @@ def test_global_integrity_requires_global_scope_and_preserves_owner_view(
     assert stale_generation.json()["detail"] == (
         "GDW recovery database generation changed"
     )
+
+    monkeypatch.setattr(gdw_frontier, "_workspace", lambda principal: Workspace())
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_canonical_policy_evaluate",
+        lambda action: {
+            "decision": "deny",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": "d" * 64,
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+        },
+    )
+    with TestClient(app) as client:
+        denied_by_policy = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "policy-denied-recovery",
+            },
+        )
+    assert denied_by_policy.status_code == 403
+    assert denied_by_policy.json()["detail"] == (
+        "GDW recovery denied by canonical policy"
+    )
+
+    def unavailable(_action):
+        raise RuntimeError("policy gateway unavailable")
+
+    monkeypatch.setattr(
+        gdw_frontier,
+        "_canonical_policy_evaluate",
+        unavailable,
+    )
+    with TestClient(app) as client:
+        unavailable_policy = client.post(
+            "/api/a11oy/v1/gdw/recovery/transient-effects",
+            headers={
+                "Authorization": "Bearer recovery-secret",
+                "X-Expected-Source-Revision": "b" * 40,
+                "Idempotency-Key": "policy-unavailable-recovery",
+            },
+        )
+    assert unavailable_policy.status_code == 503
+    assert unavailable_policy.json()["detail"] == (
+        "GDW recovery canonical policy unavailable"
+    )
+    assert workspace_recoveries == ["auth-compat-recovery"]
 
 
 def test_transient_recovery_runtime_requires_exact_source_and_storage(

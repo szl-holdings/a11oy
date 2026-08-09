@@ -620,6 +620,70 @@ def _canonical_policy_evaluate(action: dict) -> dict:
     return result
 
 
+def _transient_recovery_governance(
+    *,
+    principal: Principal,
+    recovery_id: str,
+    source_revision: str,
+    database_generation_id: str,
+    limit: int,
+) -> dict:
+    """Obtain an explicit signed canonical-policy allow for one recovery call."""
+
+    binding = {
+        "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+        "action_type": "gdw.transient-effect-recovery",
+        "namespace": principal.namespace,
+        "owner_id": principal.owner_id,
+        "credential_key_id": principal.key_id,
+        "recovery_id": recovery_id,
+        "source_revision": source_revision,
+        "database_generation_id": database_generation_id,
+        "limit": limit,
+        "failure_class": "hf-hard-link-enotsup/v1",
+    }
+    binding_sha256 = _sha(binding)
+    action = {
+        "actionId": f"gdw-recovery:{binding_sha256}",
+        "severity": "high",
+        "decisionClass": "ordinary",
+        "confidence": 1.0,
+        "witnesses": [
+            {
+                "id": (
+                    f"principal:{principal.namespace}:"
+                    f"{principal.owner_id}:{principal.key_id}"
+                ),
+                "role": "operator",
+                "attested": True,
+            },
+            {
+                "id": f"workload:szl-holdings/a11oy@{source_revision}",
+                "role": "workload",
+                "attested": True,
+            },
+        ],
+    }
+    result = _canonical_policy_evaluate(action)
+    if result.get("decision") != "allow":
+        raise PermissionError("canonical policy denied transient recovery")
+    return {
+        "schema": "szl.gdw.transient-effect-recovery-governance/v1",
+        "decision": "ALLOW",
+        "binding": binding,
+        "binding_sha256": binding_sha256,
+        "policy_gateway": {
+            "decision": "ALLOW",
+            "gate": result["gate"],
+            "receipt_hash": result["receipt_hash"],
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+            "action_id": action["actionId"],
+            "witnesses": action["witnesses"],
+        },
+    }
+
+
 def _risk_severity(risk_budget: float) -> str:
     if risk_budget < 0.25:
         return "low"
@@ -985,11 +1049,30 @@ def register(app, ns: str = "a11oy"):
                 detail="GDW recovery database generation changed",
             )
         try:
+            governance = _transient_recovery_governance(
+                principal=principal,
+                recovery_id=idempotency_key,
+                source_revision=str(expected_source_revision),
+                database_generation_id=runtime_generation,
+                limit=limit,
+            )
+        except PermissionError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail="GDW recovery denied by canonical policy",
+            ) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="GDW recovery canonical policy unavailable",
+            ) from exc
+        try:
             report = workspace.recover_retry_scheduled_effects(
                 recovery_id=idempotency_key,
                 credential_key_id=principal.key_id,
                 expected_source_revision=str(expected_source_revision),
                 expected_database_generation_id=runtime_generation,
+                governance=governance,
                 limit=limit,
             )
         except GDWConfigurationError as exc:
