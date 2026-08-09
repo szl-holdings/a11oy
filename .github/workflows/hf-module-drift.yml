@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@96573c9049c0c705072cf51024d5ef12ccbee98c  # .github PR #307: immutable source-bound live baseline
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@0816263f1e83734658d6e5a8a7cd3834f36a2054  # .github PR #307: immutable source-bound live baseline
     with:
       hf-repo: SZLHOLDINGS/a11oy
       # Every event requires a running runtime with two stable, exact
@@ -65,7 +65,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: szl-holdings/.github
-          ref: 96573c9049c0c705072cf51024d5ef12ccbee98c
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
           path: tools
           persist-credentials: false
 
@@ -77,7 +77,7 @@ jobs:
       - name: Verify stable immutable HF revision and every managed byte
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          SOURCE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           python3 candidate/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
