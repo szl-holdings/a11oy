@@ -768,6 +768,30 @@ def test_health_requires_live_canonical_policy_and_signer(tmp_path, monkeypatch)
     ]
 
 
+def test_policy_gateway_origin_allows_only_exact_http_loopback(monkeypatch):
+    monkeypatch.setenv(
+        "GDW_POLICY_ORIGIN",
+        "http://127.0.0.1:7860",
+    )
+    assert (
+        gdw_frontier._policy_gateway_origin()
+        == "http://127.0.0.1:7860"
+    )
+
+    for insecure_origin in (
+        "http://policy.example.test",
+        "http://localhost:7860",
+        "http://127.0.0.1:7861",
+    ):
+        monkeypatch.setenv("GDW_POLICY_ORIGIN", insecure_origin)
+        try:
+            gdw_frontier._policy_gateway_origin()
+        except RuntimeError as exc:
+            assert "HTTPS or the exact local" in str(exc)
+        else:
+            raise AssertionError(f"insecure policy origin accepted: {insecure_origin}")
+
+
 def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
     monkeypatch.setenv("GDW_PRODUCTION_MODE", "1")

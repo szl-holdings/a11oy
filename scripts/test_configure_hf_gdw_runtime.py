@@ -34,7 +34,7 @@ def test_desired_variables_digest_token_without_recording_it() -> None:
     assert variables["GDW_OUTBOX_ENABLED"] == "1"
     assert variables["GDW_OWNER_MAX_PENDING_EFFECTS"] == "2000"
     assert variables["GDW_EFFECT_MAX_ATTEMPTS"] == "20"
-    assert variables["GDW_POLICY_ORIGIN"].startswith("https://")
+    assert variables["GDW_POLICY_ORIGIN"] == "http://127.0.0.1:7860"
 
 
 def test_desired_variables_rejects_weak_operator_token() -> None:

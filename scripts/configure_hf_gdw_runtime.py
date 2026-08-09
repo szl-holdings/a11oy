@@ -50,7 +50,9 @@ STATIC_VARIABLES = {
     "GDW_OUTBOX_RETRY_MAX_SECONDS": "60",
     "GDW_OUTBOX_BATCH_SIZE": "100",
     "GDW_OUTBOX_LEASE_SECONDS": "300",
-    "GDW_POLICY_ORIGIN": "https://szlholdings-a11oy.hf.space",
+    # The policy gateway is co-resident in the canonical container. Exact
+    # loopback avoids an external same-Space hairpin after singleton locking.
+    "GDW_POLICY_ORIGIN": "http://127.0.0.1:7860",
 }
 
 
