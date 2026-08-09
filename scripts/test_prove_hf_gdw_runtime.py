@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -95,6 +97,44 @@ def _recovery_report(
         "owner_id": "operator",
         "credential_key_id": "operator-key",
     }
+    binding = {
+        "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+        "action_type": "gdw.transient-effect-recovery",
+        **operator,
+        "recovery_id": recovery_id,
+        "source_revision": SOURCE_SHA,
+        "database_generation_id": GENERATION_ID,
+        "limit": 100,
+        "failure_class": "hf-hard-link-enotsup/v1",
+    }
+    binding_sha256 = proof._canonical_hash(binding)
+    witnesses = [
+        {
+            "id": "principal:a11oy:operator:operator-key",
+            "role": "operator",
+            "attested": True,
+        },
+        {
+            "id": f"workload:szl-holdings/a11oy@{SOURCE_SHA}",
+            "role": "workload",
+            "attested": True,
+        },
+    ]
+    governance = {
+        "schema": "szl.gdw.transient-effect-recovery-governance/v1",
+        "decision": "ALLOW",
+        "binding": binding,
+        "binding_sha256": binding_sha256,
+        "policy_gateway": {
+            "decision": "ALLOW",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": "c" * 64,
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+            "action_id": f"gdw-recovery:{binding_sha256}",
+            "witnesses": witnesses,
+        },
+    }
     request = {
         "schema": "szl.gdw.transient-effect-recovery-request/v1",
         **operator,
@@ -103,34 +143,101 @@ def _recovery_report(
         "database_generation_id": GENERATION_ID,
         "limit": 100,
         "failure_class": "hf-hard-link-enotsup/v1",
+        "governance_binding_sha256": binding_sha256,
     }
-    receipt = {
-        "schema": "szl.gdw.transient-effect-recovery-receipt/v1",
-        "receipt_status": "UNSIGNED_ATOMIC",
+    receipt_payload = {
+        "schema": "szl.gdw.transient-effect-recovery-receipt/v2",
         "operator": operator,
         "recovery_id": recovery_id,
         "source_revision": SOURCE_SHA,
         "database_generation_id": GENERATION_ID,
         "request_sha256": proof._canonical_hash(request),
         "outcome_sha256": outcome_sha256,
+        "governance_sha256": proof._canonical_hash(governance),
         "selection_sha256": outcome["selection_sha256"],
         "rescheduled_effects": rescheduled,
         "attempts_before": attempts,
         "attempts_after": attempts,
+        "sequence": 0,
+        "previous_receipt_sha256": "0" * 64,
+        "previous_chain_sha256": "0" * 64,
+        "atomic_with_mutation": True,
         "created_at": "2026-07-29T00:00:00+00:00",
         "credential_values_recorded": False,
     }
-    receipt["receipt_sha256"] = proof._canonical_hash(receipt)
-    return {**outcome, "audit_receipt": receipt, "replayed": False}
+    envelope = {
+        "payloadType": "application/vnd.szl.khipu+json",
+        "payload": base64.b64encode(
+            json.dumps(
+                receipt_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).decode("ascii"),
+        "_dsse": "DSSEv1",
+        "_pae_sha256": "d" * 64,
+        "_signed_at": "2026-07-29T00:00:00+00:00",
+        "signatures": [],
+        "honesty": "UNSIGNED - no signature fabricated",
+        "signed": False,
+    }
+    receipt_sha256 = proof._canonical_hash(receipt_payload)
+    receipt = {
+        **receipt_payload,
+        "receipt_status": "UNSIGNED_KHIPU_DSSE",
+        "receipt_sha256": receipt_sha256,
+        "dsse_envelope_sha256": proof._canonical_hash(envelope),
+        "chain_sha256": proof._canonical_hash(
+            {
+                "previous_chain_sha256": "0" * 64,
+                "receipt_sha256": receipt_sha256,
+            }
+        ),
+        "dsse_envelope": envelope,
+    }
+    return {
+        **outcome,
+        "governance": governance,
+        "audit_receipt": receipt,
+        "replayed": False,
+    }
 
 
 def _reseal_recovery_report(report):
     outcome = dict(report)
     receipt = dict(outcome.pop("audit_receipt"))
     outcome.pop("replayed")
-    receipt.pop("receipt_sha256", None)
+    outcome.pop("governance")
     receipt["outcome_sha256"] = proof._canonical_hash(outcome)
-    receipt["receipt_sha256"] = proof._canonical_hash(receipt)
+    receipt_payload = {
+        key: value
+        for key, value in receipt.items()
+        if key
+        not in {
+            "receipt_status",
+            "receipt_sha256",
+            "dsse_envelope_sha256",
+            "chain_sha256",
+            "dsse_envelope",
+        }
+    }
+    receipt["receipt_sha256"] = proof._canonical_hash(receipt_payload)
+    envelope = dict(receipt["dsse_envelope"])
+    envelope["payload"] = base64.b64encode(
+        json.dumps(
+            receipt_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).decode("ascii")
+    receipt["dsse_envelope"] = envelope
+    receipt["dsse_envelope_sha256"] = proof._canonical_hash(envelope)
+    receipt["chain_sha256"] = proof._canonical_hash(
+        {
+            "previous_chain_sha256": receipt["previous_chain_sha256"],
+            "receipt_sha256": receipt["receipt_sha256"],
+        }
+    )
     report["audit_receipt"] = receipt
     return report
 
@@ -280,6 +387,65 @@ def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
     assert report["transient_recovery"][
         "attempt_accounting_preserved"
     ] is True
+
+
+def test_failed_recovery_requests_consume_the_eight_call_budget(monkeypatch):
+    recovery_ids = []
+
+    def response(method: str, url: str, **kwargs):
+        if method == "POST" and "/gdw/drain" in url:
+            return {
+                "failed": 0,
+                "pending_effects": 1,
+                "legacy_pending_proofs": 0,
+                "integrity_ok": True,
+                "database_generation_id": GENERATION_ID,
+            }
+        if url.endswith("/gdw/healthz"):
+            return {
+                "status": "UNAVAILABLE",
+                "write_ready": False,
+                "write_blockers": ["OUTBOX_SUPERVISOR_NOT_QUIESCENT"],
+                "persistence": {
+                    "storage": {
+                        "database_generation_id": GENERATION_ID,
+                    },
+                    "drain": {
+                        "last_outcome": "RETRY_SCHEDULED",
+                        "last_success_at": None,
+                    },
+                },
+            }
+        if url.endswith("/gdw/integrity/global"):
+            return {
+                **_complete_integrity(),
+                "pending_effects": 1,
+            }
+        if method == "POST" and "/recovery/transient-effects" in url:
+            recovery_ids.append(kwargs["headers"]["Idempotency-Key"])
+            raise RuntimeError("recovery request refused")
+        raise AssertionError(f"unexpected request: {method} {url}")
+
+    monkeypatch.setattr(proof, "request_json", response)
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    evidence = proof._new_recovery_evidence()
+
+    with pytest.raises(RuntimeError, match="did not converge"):
+        proof._prove_drain_convergence(
+            base="https://example.invalid",
+            operator_token="x" * 48,
+            database_generation_id=GENERATION_ID,
+            source_sha=SOURCE_SHA,
+            recovery_evidence=evidence,
+            attempts=12,
+            delay_seconds=0,
+        )
+
+    assert evidence["calls"] == 8
+    assert recovery_ids == [
+        f"gdw-recovery-aaaaaaaaaaaa-bbbbbbbbbbbb-{number}"
+        for number in range(1, 9)
+    ]
 
 
 @pytest.mark.parametrize(

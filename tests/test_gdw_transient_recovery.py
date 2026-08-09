@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 
+import base64
 import hashlib
 import json
 import multiprocessing
@@ -13,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import gdw_runtime
+import gdw_workspace as workspace_module
 from gdw_proofs import build_proof_payload
 from gdw_workspace import (
     GDWConfigurationError,
@@ -33,6 +35,60 @@ def _canonical_hash(payload):
             separators=(",", ":"),
         ).encode("utf-8")
     ).hexdigest()
+
+
+def _recovery_governance(
+    workspace,
+    recovery_id,
+    *,
+    limit=100,
+    source_revision=RECOVERY_SOURCE_REVISION,
+    database_generation_id=None,
+):
+    generation_id = database_generation_id or workspace.database_generation_id
+    binding = {
+        "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+        "action_type": "gdw.transient-effect-recovery",
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "credential_key_id": RECOVERY_CREDENTIAL_KEY_ID,
+        "recovery_id": recovery_id,
+        "source_revision": source_revision,
+        "database_generation_id": generation_id,
+        "limit": limit,
+        "failure_class": "hf-hard-link-enotsup/v1",
+    }
+    binding_sha256 = _canonical_hash(binding)
+    witnesses = [
+        {
+            "id": (
+                f"principal:{workspace.namespace}:{workspace.owner_id}:"
+                f"{RECOVERY_CREDENTIAL_KEY_ID}"
+            ),
+            "role": "operator",
+            "attested": True,
+        },
+        {
+            "id": f"workload:szl-holdings/a11oy@{source_revision}",
+            "role": "workload",
+            "attested": True,
+        },
+    ]
+    return {
+        "schema": "szl.gdw.transient-effect-recovery-governance/v1",
+        "decision": "ALLOW",
+        "binding": binding,
+        "binding_sha256": binding_sha256,
+        "policy_gateway": {
+            "decision": "ALLOW",
+            "gate": "ThresholdPolicySeverity",
+            "receipt_hash": "c" * 64,
+            "receipt_signed": True,
+            "receipts_in_eq_out": True,
+            "action_id": f"gdw-recovery:{binding_sha256}",
+            "witnesses": witnesses,
+        },
+    }
 
 
 def _workspace(path, owner="owner-a"):
@@ -304,23 +360,43 @@ def _persist_resealed_audit(workspace, recovery_id, report):
     outcome = dict(report)
     receipt = dict(outcome.pop("audit_receipt"))
     outcome.pop("replayed")
-    receipt.pop("receipt_sha256", None)
+    outcome.pop("governance")
     outcome_sha256 = _canonical_hash(outcome)
     receipt["outcome_sha256"] = outcome_sha256
-    receipt_sha256 = _canonical_hash(receipt)
+    receipt_payload = {
+        key: value
+        for key, value in receipt.items()
+        if key
+        not in {
+            "receipt_status",
+            "receipt_sha256",
+            "dsse_envelope_sha256",
+            "chain_sha256",
+            "dsse_envelope",
+        }
+    }
+    receipt_sha256 = _canonical_hash(receipt_payload)
     receipt["receipt_sha256"] = receipt_sha256
+    receipt["chain_sha256"] = _canonical_hash(
+        {
+            "previous_chain_sha256": receipt["previous_chain_sha256"],
+            "receipt_sha256": receipt_sha256,
+        }
+    )
     report["audit_receipt"] = receipt
     connection = sqlite3.connect(workspace.path)
     try:
         connection.execute(
             """
             UPDATE effect_recovery_audit
-            SET outcome_sha256 = ?, receipt_sha256 = ?, report_json = ?
+            SET outcome_sha256 = ?, receipt_sha256 = ?, chain_sha256 = ?,
+                report_json = ?
             WHERE namespace = ? AND owner_id = ? AND recovery_id = ?
             """,
             (
                 outcome_sha256,
                 receipt_sha256,
+                receipt["chain_sha256"],
                 json.dumps(report, sort_keys=True, separators=(",", ":")),
                 workspace.namespace,
                 workspace.owner_id,
@@ -340,16 +416,23 @@ def _recover(
     limit=100,
     expected_database_generation_id=None,
 ):
+    generation_id = (
+        expected_database_generation_id
+        if expected_database_generation_id is not None
+        else workspace.database_generation_id
+    )
     return workspace.recover_retry_scheduled_effects(
         now=now,
         limit=limit,
         recovery_id=recovery_id,
         credential_key_id=RECOVERY_CREDENTIAL_KEY_ID,
         expected_source_revision=RECOVERY_SOURCE_REVISION,
-        expected_database_generation_id=(
-            expected_database_generation_id
-            if expected_database_generation_id is not None
-            else workspace.database_generation_id
+        expected_database_generation_id=generation_id,
+        governance=_recovery_governance(
+            workspace,
+            recovery_id,
+            limit=limit,
+            database_generation_id=generation_id,
         ),
     )
 
@@ -358,7 +441,7 @@ def _assert_audit_receipt(report):
     assert report["replayed"] is False
     receipt = report["audit_receipt"]
     assert receipt["schema"] == (
-        "szl.gdw.transient-effect-recovery-receipt/v1"
+        "szl.gdw.transient-effect-recovery-receipt/v2"
     )
     assert len(receipt["receipt_sha256"]) == 64
     assert len(receipt["outcome_sha256"]) == 64
@@ -368,10 +451,23 @@ def _assert_audit_receipt(report):
     outcome = dict(report)
     outcome.pop("audit_receipt")
     outcome.pop("replayed")
+    outcome.pop("governance")
     assert receipt["outcome_sha256"] == _canonical_hash(outcome)
-    receipt_body = dict(receipt)
-    claimed_receipt_sha256 = receipt_body.pop("receipt_sha256")
-    assert claimed_receipt_sha256 == _canonical_hash(receipt_body)
+    receipt_payload = {
+        key: value
+        for key, value in receipt.items()
+        if key
+        not in {
+            "receipt_status",
+            "receipt_sha256",
+            "dsse_envelope_sha256",
+            "chain_sha256",
+            "dsse_envelope",
+        }
+    }
+    assert receipt["receipt_sha256"] == _canonical_hash(receipt_payload)
+    assert receipt["dsse_envelope"]["signed"] in {True, False}
+    assert receipt["atomic_with_mutation"] is True
     return receipt
 
 
@@ -396,6 +492,11 @@ def _recover_process(
             credential_key_id=RECOVERY_CREDENTIAL_KEY_ID,
             expected_source_revision=RECOVERY_SOURCE_REVISION,
             expected_database_generation_id=expected_generation,
+            governance=_recovery_governance(
+                workspace,
+                recovery_id,
+                database_generation_id=expected_generation,
+            ),
         )
         output_queue.put(("ok", report))
     except Exception as exc:  # pragma: no cover - asserted in parent process
@@ -1075,10 +1176,12 @@ def test_recovery_is_idempotent_across_real_processes(tmp_path):
     ]
     for process in processes:
         process.start()
+    # Drain before join: the DSSE audit envelope can exceed a Windows pipe's
+    # small buffer, and Queue feeder threads must flush before child exit.
+    results = [output.get(timeout=30) for _ in processes]
     for process in processes:
         process.join(timeout=30)
         assert process.exitcode == 0
-    results = [output.get(timeout=10) for _ in processes]
 
     assert all(result[0] == "ok" for result in results), results
     reports = [result[1] for result in results]
@@ -1134,13 +1237,13 @@ def test_recovery_serializes_with_claim_from_a_separate_process(tmp_path):
 
     recovery.start()
     claimant.start()
+    recovery_result = recovery_output.get(timeout=30)
+    claim_result = claim_output.get(timeout=30)
     recovery.join(timeout=30)
     claimant.join(timeout=30)
 
     assert recovery.exitcode == 0
     assert claimant.exitcode == 0
-    recovery_result = recovery_output.get(timeout=10)
-    claim_result = claim_output.get(timeout=10)
     assert recovery_result[0] == "ok", recovery_result
     assert claim_result[0] == "ok", claim_result
     assert recovery_result[1]["status"] in {
@@ -1266,3 +1369,145 @@ def test_recovery_then_supervisor_claim_and_export_converges(
     )
     assert tombstone_report["status"] == "NO_ELIGIBLE_EFFECTS"
     assert tombstone_report["rescheduled_effects"] == 0
+
+
+def test_recovery_uses_signed_khipu_dsse_and_detects_signature_tamper(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = _workspace(tmp_path / "signed-khipu.sqlite3")
+    start = datetime(2026, 7, 29, tzinfo=timezone.utc)
+    key = _queue_proof(workspace, "signed-khipu", start)
+    _make_retry_scheduled(workspace, key, start)
+
+    def sign_payload(payload, payload_type):
+        return {
+            "payloadType": payload_type,
+            "payload": base64.b64encode(
+                json.dumps(
+                    payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).decode("ascii"),
+            "signatures": [{"keyid": "test-khipu", "sig": "valid"}],
+            "signed": True,
+            "honesty": "REAL test-only signature fixture",
+        }
+
+    def verify_envelope(envelope):
+        return {
+            "verified": envelope.get("signatures")
+            == [{"keyid": "test-khipu", "sig": "valid"}]
+        }
+
+    monkeypatch.setattr(
+        workspace_module.szl_dsse,
+        "sign_payload",
+        sign_payload,
+    )
+    monkeypatch.setattr(
+        workspace_module.szl_dsse,
+        "verify_envelope",
+        verify_envelope,
+    )
+    report = _recover(
+        workspace,
+        start + timedelta(seconds=1),
+        recovery_id="signed-khipu-recovery",
+    )
+    receipt = report["audit_receipt"]
+    assert receipt["receipt_status"] == "SIGNED_KHIPU_DSSE"
+    assert workspace.integrity(global_scope=True)["invalid_recovery_audits"] == 0
+
+    tampered = json.loads(_audit_rows(workspace)[0]["report_json"])
+    tampered["audit_receipt"]["dsse_envelope"]["signatures"][0]["sig"] = "forged"
+    tampered["audit_receipt"]["dsse_envelope_sha256"] = _canonical_hash(
+        tampered["audit_receipt"]["dsse_envelope"]
+    )
+    connection = sqlite3.connect(workspace.path)
+    try:
+        connection.execute(
+            """
+            UPDATE effect_recovery_audit
+            SET dsse_envelope_sha256 = ?, report_json = ?
+            WHERE namespace = ? AND owner_id = ? AND recovery_id = ?
+            """,
+            (
+                tampered["audit_receipt"]["dsse_envelope_sha256"],
+                json.dumps(tampered, sort_keys=True, separators=(",", ":")),
+                workspace.namespace,
+                workspace.owner_id,
+                "signed-khipu-recovery",
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    assert workspace.integrity(global_scope=True)["invalid_recovery_audits"] == 1
+
+
+def test_recovery_unsigned_khipu_envelope_is_honestly_labelled(
+    tmp_path,
+    monkeypatch,
+):
+    workspace = _workspace(tmp_path / "unsigned-khipu.sqlite3")
+    start = datetime(2026, 7, 29, tzinfo=timezone.utc)
+    key = _queue_proof(workspace, "unsigned-khipu", start)
+    _make_retry_scheduled(workspace, key, start)
+
+    def unsigned(payload, payload_type):
+        return {
+            "payloadType": payload_type,
+            "payload": base64.b64encode(
+                json.dumps(
+                    payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).decode("ascii"),
+            "signatures": [],
+            "signed": False,
+            "honesty": "UNSIGNED - no signer available; no signature fabricated",
+        }
+
+    monkeypatch.setattr(workspace_module.szl_dsse, "sign_payload", unsigned)
+    report = _recover(
+        workspace,
+        start + timedelta(seconds=1),
+        recovery_id="unsigned-khipu-recovery",
+    )
+    assert report["audit_receipt"]["receipt_status"] == "UNSIGNED_KHIPU_DSSE"
+    assert report["audit_receipt"]["dsse_envelope"]["signatures"] == []
+
+
+def test_recovery_khipu_chain_detects_predecessor_deletion(tmp_path):
+    workspace = _workspace(tmp_path / "khipu-chain.sqlite3")
+    start = datetime(2026, 7, 29, tzinfo=timezone.utc)
+    key = _queue_proof(workspace, "khipu-chain", start)
+    _make_retry_scheduled(workspace, key, start)
+    _recover(
+        workspace,
+        start + timedelta(seconds=1),
+        recovery_id="khipu-chain-first",
+    )
+    _recover(
+        workspace,
+        start + timedelta(seconds=2),
+        recovery_id="khipu-chain-second",
+    )
+    assert workspace.integrity(global_scope=True)["invalid_recovery_audits"] == 0
+
+    connection = sqlite3.connect(workspace.path)
+    try:
+        connection.execute(
+            """
+            DELETE FROM effect_recovery_audit
+            WHERE namespace = ? AND owner_id = ? AND recovery_id = ?
+            """,
+            (workspace.namespace, workspace.owner_id, "khipu-chain-first"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    assert workspace.integrity(global_scope=True)["invalid_recovery_audits"] == 1

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Converge GDW variables and the digest-only principal registry."""
+"""Converge GDW variables and the explicit-scope credential registry."""
 
 from __future__ import annotations
 
@@ -17,6 +17,16 @@ DATA_MOUNT = "/data"
 PRINCIPAL_ID = "gdw-operator"
 PRINCIPAL_REGISTRY_SECRET = "GDW_PRINCIPALS_JSON"
 CREDENTIAL_REGISTRY_SECRET = "GDW_CREDENTIALS_JSON"
+CREDENTIAL_KEY_ID = "gdw-operator-v1"
+OPERATOR_SCOPES = [
+    "bench:read",
+    "effects:recover",
+    "integrity:global",
+    "integrity:read",
+    "metrics:read",
+    "session:read",
+    "step:write",
+]
 STATIC_VARIABLES = {
     "GDW_PRODUCTION_MODE": "1",
     "GDW_NAMESPACE": "a11oy",
@@ -70,19 +80,26 @@ def desired_variables(operator_token: str) -> dict[str, str]:
     return dict(STATIC_VARIABLES)
 
 
-def principal_registry_value(operator_token: str) -> str:
+def credential_registry_value(operator_token: str) -> str:
     if len(operator_token.encode("utf-8")) < 32:
         raise RuntimeConfigError("GDW_OPERATOR_TOKEN must contain at least 32 bytes")
-    principal_registry = {
-        PRINCIPAL_ID: {
-            "token_sha256": hashlib.sha256(
-                operator_token.encode("utf-8")
-            ).hexdigest(),
-            "roles": ["admin", "user"],
-        }
+    credential_registry = {
+        "version": 1,
+        "credentials": [
+            {
+                "owner_id": PRINCIPAL_ID,
+                "namespace": STATIC_VARIABLES["GDW_NAMESPACE"],
+                "key_id": CREDENTIAL_KEY_ID,
+                "token_sha256": hashlib.sha256(
+                    operator_token.encode("utf-8")
+                ).hexdigest(),
+                "scopes": OPERATOR_SCOPES,
+                "revoked": False,
+            }
+        ],
     }
     return json.dumps(
-        principal_registry,
+        credential_registry,
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -106,7 +123,7 @@ def plan_variables(
     }
 
 
-def converge_principal_registry(
+def converge_credential_registry(
     api: Any,
     *,
     repo_id: str,
@@ -114,32 +131,43 @@ def converge_principal_registry(
     secret_names: set[str],
     operator_token: str,
 ) -> tuple[set[str], bool]:
+    if CREDENTIAL_REGISTRY_SECRET in current_variables:
+        raise RuntimeConfigError(
+            "GDW credential registry collides with an existing Space variable"
+        )
     if PRINCIPAL_REGISTRY_SECRET in current_variables:
         raise RuntimeConfigError(
             "GDW principal registry collides with an existing Space variable"
         )
-    if (
-        CREDENTIAL_REGISTRY_SECRET in current_variables
-        or CREDENTIAL_REGISTRY_SECRET in secret_names
-    ):
-        raise RuntimeConfigError(
-            "GDW credential registry conflicts with the principal registry"
-        )
+    # Legacy roles cannot express the recovery capability as an explicit opt-in.
+    # Retire the old registry first so the runtime always fails closed instead
+    # of accepting two competing sources of authorization truth.
     if PRINCIPAL_REGISTRY_SECRET in secret_names:
-        return set(secret_names), False
+        api.delete_space_secret(
+            repo_id=repo_id,
+            key=PRINCIPAL_REGISTRY_SECRET,
+        )
+        secret_names = set(api.get_space_secrets(repo_id=repo_id))
+        if PRINCIPAL_REGISTRY_SECRET in secret_names:
+            raise RuntimeConfigError(
+                "legacy GDW principal registry secret did not retire"
+            )
     api.add_space_secret(
         repo_id=repo_id,
-        key=PRINCIPAL_REGISTRY_SECRET,
-        value=principal_registry_value(operator_token),
+        key=CREDENTIAL_REGISTRY_SECRET,
+        value=credential_registry_value(operator_token),
         description=(
-            "Digest-only GDW principal registry converged from the masked "
-            "GitHub Actions operator credential."
+            "Digest-only explicit-scope GDW credential registry converged "
+            "from the masked GitHub Actions operator credential."
         ),
     )
     converged_secret_names = set(api.get_space_secrets(repo_id=repo_id))
-    if PRINCIPAL_REGISTRY_SECRET not in converged_secret_names:
+    if (
+        CREDENTIAL_REGISTRY_SECRET not in converged_secret_names
+        or PRINCIPAL_REGISTRY_SECRET in converged_secret_names
+    ):
         raise RuntimeConfigError(
-            "GDW principal registry secret did not converge"
+            "GDW credential registry secret did not converge exclusively"
         )
     return converged_secret_names, True
 
@@ -208,7 +236,7 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         current_secret_names,
         desired,
     )
-    secret_names, principal_registry_changed = converge_principal_registry(
+    secret_names, credential_registry_changed = converge_credential_registry(
         api,
         repo_id=repo_id,
         current_variables=current_variables,
@@ -235,13 +263,14 @@ def configure(*, repo_id: str, hf_token: str, operator_token: str) -> dict[str, 
         "schema": "szl.hf-gdw-runtime-config/v1",
         "repo_id": repo_id,
         "principal_id": PRINCIPAL_ID,
+        "credential_key_id": CREDENTIAL_KEY_ID,
         "data_volume": volume,
         "variables_managed": sorted(desired),
         "variables_changed": sorted(changes),
-        "secret_names_required": [PRINCIPAL_REGISTRY_SECRET],
+        "secret_names_required": [CREDENTIAL_REGISTRY_SECRET],
         "secret_values_read": False,
-        "secret_values_mutated": principal_registry_changed,
-        "principal_registry_converged": True,
+        "secret_values_mutated": credential_registry_changed,
+        "credential_registry_converged": True,
         "readback_attempts": attempts,
         "converged": True,
         "operator_token_present": True,
