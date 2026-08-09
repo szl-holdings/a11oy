@@ -96,7 +96,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("resume-paused-space:", self.sync)
         self.assertIn(".github/scripts/resume_hf_space.py", self.sync)
         self.assertIn(
-            "CAPACITY_DONOR_SPACE: SZLHOLDINGS/governed-agent-bench",
+            "CAPACITY_DONOR_SPACE: SZLHOLDINGS/cosmos",
             self.sync,
         )
         self.assertIn('--capacity-donor "$CAPACITY_DONOR_SPACE"', self.sync)
