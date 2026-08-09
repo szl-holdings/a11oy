@@ -32,6 +32,9 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
                 },
             }
         if method == "POST" and url.endswith("/gdw/step"):
+            assert _kwargs["json"]["session_id"] == (
+                f"protected-promotion-{source_sha[:16]}"
+            )
             return {
                 "decision": "ACCEPT",
                 "receipt_status": "UNSIGNED_ATOMIC",
@@ -73,7 +76,7 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
                 "invalid_exported_artifacts": 0,
             }
         if method == "GET" and url.endswith(
-            "/gdw/sessions/protected-promotion"
+            "/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa"
         ):
             return {"database_generation_id": database_generation_id}
         raise AssertionError(f"unexpected request: {method} {url}")

@@ -9,6 +9,7 @@ import json
 import os
 import time
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -29,8 +30,14 @@ def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
         headers=headers,
         method=method,
     )
-    with urlopen(request, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        response_body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"HTTP {exc.code} {method} {url}: {response_body[:2048]}"
+        ) from exc
 
 
 def _drain_converged(candidate: dict) -> bool:
@@ -473,13 +480,14 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         raise RuntimeError(f"GDW health did not converge: {last_error}")
 
     request_id = f"promotion-{source_sha[:32]}"
+    session_id = f"protected-promotion-{source_sha[:16]}"
     step = request_json(
         "POST",
         f"{base}/api/a11oy/v1/gdw/step",
         token=operator_token,
         headers={"X-Request-Id": request_id},
         json={
-            "session_id": "protected-promotion",
+            "session_id": session_id,
             "request": "verify durable governed successor",
             "allowed_experts": ["planner", "auditor", "verifier"],
             "risk_budget": 0.1,
@@ -524,7 +532,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     )
     session = request_json(
         "GET",
-        f"{base}/api/a11oy/v1/gdw/sessions/protected-promotion",
+        f"{base}/api/a11oy/v1/gdw/sessions/{session_id}",
         token=operator_token,
     )
     if (
