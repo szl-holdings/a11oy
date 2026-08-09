@@ -98,6 +98,9 @@ def test_live_proof_binds_source_generation_transition_and_artifacts(
 
     assert report["source_revision"] == SOURCE_SHA
     assert report["runtime_source_revision"] == SOURCE_SHA
+    assert report["transition"]["session_id"] == (
+        "protected-promotion-aaaaaaaaaaaaaaaa"
+    )
     assert report["transition"]["receipt_status"] == "UNSIGNED_ATOMIC"
     assert report["global_integrity"]["pending_effects"] == 0
     assert report["integrity"]["invalid_effect_bindings"] == 0
@@ -342,6 +345,7 @@ def test_restart_proof_preserves_generation_session_and_artifacts(monkeypatch):
         base="https://example.invalid",
         source_sha=SOURCE_SHA,
         operator_token="x" * 48,
+        session_id="protected-promotion",
         attempts=5,
         delay_seconds=0,
     )

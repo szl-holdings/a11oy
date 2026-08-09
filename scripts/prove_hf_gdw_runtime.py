@@ -297,19 +297,28 @@ def prove_restart(
     base: str,
     source_sha: str,
     operator_token: str,
+    session_id: str,
     attempts: int = 120,
     delay_seconds: float = 5,
 ) -> dict:
     """Restart the Space and prove GDW state and artifacts survived."""
+
+    if (
+        not session_id
+        or len(session_id) > 128
+        or any(
+            ch not in "abcdefghijklmnopqrstuvwxyz0123456789-_."
+            for ch in session_id
+        )
+    ):
+        raise RuntimeError("GDW restart session identity is invalid")
 
     health_url = f"{base}/api/a11oy/v1/gdw/healthz"
     global_integrity_url = (
         f"{base}/api/a11oy/v1/gdw/integrity/global"
     )
     owner_integrity_url = f"{base}/api/a11oy/v1/gdw/integrity"
-    session_url = (
-        f"{base}/api/a11oy/v1/gdw/sessions/protected-promotion"
-    )
+    session_url = f"{base}/api/a11oy/v1/gdw/sessions/{session_id}"
     before_health = request_json("GET", health_url)
     before_global = request_json(
         "GET",
@@ -551,6 +560,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         "runtime_source_revision": deployed_revision,
         "health": health,
         "transition": {
+            "session_id": session_id,
             "decision": step["decision"],
             "receipt_status": step["receipt_status"],
             "proof_status": step["proof"]["status"],
@@ -610,6 +620,7 @@ def main() -> int:
             base=args.origin.rstrip("/"),
             source_sha=args.source_sha,
             operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
+            session_id=report["transition"]["session_id"],
         )
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
