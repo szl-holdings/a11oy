@@ -75,7 +75,7 @@ def _live_response(method: str, url: str, **_kwargs):
         return _complete_integrity()
     if url.endswith("/gdw/integrity"):
         return _complete_integrity()
-    if url.endswith("/gdw/sessions/protected-promotion"):
+    if url.endswith("/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa"):
         return {"database_generation_id": GENERATION_ID}
     raise AssertionError(f"unexpected request: {method} {url}")
 
@@ -319,9 +319,9 @@ def test_restart_proof_preserves_generation_session_and_artifacts(monkeypatch):
             body["persistence"]["prepared_at"] = (
                 "after-restart" if restarted else "before-restart"
             )
-        if url.endswith("/gdw/sessions/protected-promotion"):
+        if url.endswith("/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa"):
             return {
-                "session_id": "protected-promotion",
+                "session_id": "protected-promotion-aaaaaaaaaaaaaaaa",
                 "database_generation_id": GENERATION_ID,
                 "step": 1,
                 "state_hash": "c" * 64,
