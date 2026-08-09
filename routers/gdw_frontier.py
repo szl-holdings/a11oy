@@ -449,10 +449,18 @@ def _decision(payload: GDWStepRequest) -> str:
     return "ACCEPT"
 
 
+_LOOPBACK_POLICY_GATEWAY_ORIGIN = "http://127.0.0.1:7860"
+
+
 def _policy_gateway_origin() -> str:
     origin = os.environ.get("GDW_POLICY_ORIGIN", "").strip().rstrip("/")
-    if not origin.startswith("https://"):
-        raise RuntimeError("GDW_POLICY_ORIGIN must be an HTTPS origin")
+    if (
+        origin != _LOOPBACK_POLICY_GATEWAY_ORIGIN
+        and not origin.startswith("https://")
+    ):
+        raise RuntimeError(
+            "GDW_POLICY_ORIGIN must be HTTPS or the exact local gateway"
+        )
     return origin
 
 

@@ -24,10 +24,52 @@ env:
   GH_TOKEN: ${{ github.token }}
   CANONICAL_SPACE: SZLHOLDINGS/a11oy
   CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
+  CAPACITY_DONOR_SPACE: SZLHOLDINGS/holographic
   RELOCK_ISSUE: "1043"
   REPORT_PATH: reports/canonical-a11oy-relock-v4.json
 
 jobs:
+  resume-paused-space:
+    name: Resume the canonical Space without changing its allocation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      RESUME_REPORT: /tmp/canonical-a11oy-resume.json
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact Hugging Face control client
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+
+      - name: Resume only an explicitly paused canonical runtime
+        run: >-
+          python .github/scripts/resume_hf_space.py
+          --repo-id "$CANONICAL_SPACE"
+          --capacity-donor "$CAPACITY_DONOR_SPACE"
+          --output "$RESUME_REPORT"
+
+      - name: Upload immutable resume evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-a11oy-resume-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.RESUME_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
   runtime-config:
     name: Converge persistent signer, receipt storage, and GDW successor
     needs: deploy
