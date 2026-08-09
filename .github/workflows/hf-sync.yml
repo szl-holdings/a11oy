@@ -145,7 +145,7 @@ jobs:
 
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
     with:
       hf-repo: SZLHOLDINGS/a11oy
       ref: ${{ github.sha }}
