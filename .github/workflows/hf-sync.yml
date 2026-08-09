@@ -24,6 +24,7 @@ env:
   GH_TOKEN: ${{ github.token }}
   CANONICAL_SPACE: SZLHOLDINGS/a11oy
   CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
+  CAPACITY_DONOR_SPACE: SZLHOLDINGS/governed-agent-bench
   RELOCK_ISSUE: "1043"
   REPORT_PATH: reports/canonical-a11oy-relock-v4.json
 
@@ -57,6 +58,7 @@ jobs:
         run: >-
           python .github/scripts/resume_hf_space.py
           --repo-id "$CANONICAL_SPACE"
+          --capacity-donor "$CAPACITY_DONOR_SPACE"
           --output "$RESUME_REPORT"
 
       - name: Upload immutable resume evidence

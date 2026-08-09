@@ -95,6 +95,11 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
     ) -> None:
         self.assertIn("resume-paused-space:", self.sync)
         self.assertIn(".github/scripts/resume_hf_space.py", self.sync)
+        self.assertIn(
+            "CAPACITY_DONOR_SPACE: SZLHOLDINGS/governed-agent-bench",
+            self.sync,
+        )
+        self.assertIn('--capacity-donor "$CAPACITY_DONOR_SPACE"', self.sync)
         self.assertIn("Checkout exact protected source", self.sync)
         self.assertNotIn("python - <<'PY'", self.sync)
         deploy = self.sync.split("\n  deploy:", 1)[1].split("\n  readiness-verdict:", 1)[0]

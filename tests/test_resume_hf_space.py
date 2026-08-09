@@ -32,6 +32,46 @@ class RecordingApi:
         )
 
 
+class QuotaError(RuntimeError):
+    def __init__(self) -> None:
+        super().__init__("403 Forbidden: cpu-basic quota limit")
+        self.response = SimpleNamespace(status_code=403)
+
+
+class CapacityApi:
+    def __init__(self) -> None:
+        self.runtimes = {
+            "SZLHOLDINGS/a11oy": {"stage": "PAUSED", "hardware": None},
+            "SZLHOLDINGS/governed-agent-bench": {
+                "stage": "RUNNING",
+                "hardware": "cpu-basic",
+            },
+        }
+        self.restart_calls: list[dict[str, object]] = []
+        self.pause_calls: list[dict[str, object]] = []
+
+    def get_space_runtime(self, *, repo_id: str):
+        runtime = self.runtimes[repo_id]
+        return SimpleNamespace(
+            stage=SimpleNamespace(value=runtime["stage"]),
+            hardware=runtime["hardware"],
+        )
+
+    def restart_space(self, **kwargs):
+        self.restart_calls.append(kwargs)
+        if len(self.restart_calls) == 1:
+            raise QuotaError()
+        return SimpleNamespace(
+            runtime=SimpleNamespace(stage=SimpleNamespace(value="BUILDING"))
+        )
+
+    def pause_space(self, **kwargs):
+        self.pause_calls.append(kwargs)
+        donor = self.runtimes[str(kwargs["repo_id"])]
+        donor["stage"] = "PAUSED"
+        donor["hardware"] = None
+
+
 class ResumeHfSpaceTests(unittest.TestCase):
     def test_paused_space_is_restarted_without_factory_reboot(self) -> None:
         api = RecordingApi("PAUSED")
@@ -74,6 +114,51 @@ class ResumeHfSpaceTests(unittest.TestCase):
 
         self.assertEqual(report["observed_stage"], "RUNTIME_ERROR")
         self.assertEqual(api.restart_calls, [])
+
+    def test_exact_quota_failure_releases_allowlisted_capacity_then_restarts(self) -> None:
+        api = CapacityApi()
+        report: dict[str, object] = {}
+
+        MODULE.resume_if_paused(
+            api,
+            repo_id="SZLHOLDINGS/a11oy",
+            capacity_donor="SZLHOLDINGS/governed-agent-bench",
+            report=report,
+            sleep=lambda _: None,
+        )
+
+        self.assertEqual(
+            api.pause_calls,
+            [{"repo_id": "SZLHOLDINGS/governed-agent-bench"}],
+        )
+        self.assertEqual(len(api.restart_calls), 2)
+        self.assertEqual(report["initial_restart_blocker"], "CPU_BASIC_QUOTA")
+        self.assertEqual(
+            report["action"],
+            "RESTART_REQUESTED_AFTER_CAPACITY_RELEASE",
+        )
+        donor = report["capacity_donor"]
+        self.assertEqual(donor["observed_stage"], "RUNNING")
+        self.assertEqual(donor["observed_hardware"], "cpu-basic")
+        self.assertEqual(donor["final_stage"], "PAUSED")
+        self.assertIsNone(donor["final_hardware"])
+
+    def test_non_quota_restart_failure_never_pauses_capacity_donor(self) -> None:
+        api = CapacityApi()
+
+        def denied_restart(**_kwargs):
+            raise RuntimeError("403 Forbidden: unrelated policy")
+
+        api.restart_space = denied_restart
+        with self.assertRaisesRegex(RuntimeError, "unrelated policy"):
+            MODULE.resume_if_paused(
+                api,
+                repo_id="SZLHOLDINGS/a11oy",
+                capacity_donor="SZLHOLDINGS/governed-agent-bench",
+                report={},
+                sleep=lambda _: None,
+            )
+        self.assertEqual(api.pause_calls, [])
 
 
 if __name__ == "__main__":
