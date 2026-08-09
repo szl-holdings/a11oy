@@ -814,7 +814,7 @@ def test_health_redacts_internal_runtime_paths(tmp_path, monkeypatch):
                 "synchronous_observed": 2,
                 "sqlite_integrity": "ok",
                 "proof_export_mode": "outbox",
-                "schema_version": 3,
+                "schema_version": gdw_frontier.GDWWorkspace.schema_version(),
                 "database_generation_id": "a" * 32,
             },
             "drain": {
@@ -889,7 +889,7 @@ def test_health_refuses_real_when_outbox_supervisor_is_retrying(
                 "synchronous_observed": 2,
                 "sqlite_integrity": "ok",
                 "proof_export_mode": "outbox",
-                "schema_version": 3,
+                "schema_version": gdw_frontier.GDWWorkspace.schema_version(),
                 "database_generation_id": "a" * 32,
             },
             "drain": {
@@ -934,7 +934,7 @@ def test_health_requires_persistent_verified_storage_in_production(
                 "synchronous_observed": 2,
                 "sqlite_integrity": "ok",
                 "proof_export_mode": "outbox",
-                "schema_version": 3,
+                "schema_version": gdw_frontier.GDWWorkspace.schema_version(),
                 "database_generation_id": "a" * 32,
             },
             "drain": {

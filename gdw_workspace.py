@@ -1,5 +1,6 @@
 """Tenant-safe SQLite state, idempotency, quota, and outbox storage for GDW."""
 
+import base64
 import contextlib
 import hashlib
 import json
@@ -13,8 +14,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
+import szl_dsse
 
-SCHEMA_VERSION = 3
+
+SCHEMA_VERSION = 4
 _SCHEMA_LOCK = threading.RLock()
 _PROCESS_WRITE_LOCK = threading.RLock()
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -278,6 +281,28 @@ _SCHEMA_STATEMENTS = (
     )
     """,
     """
+    CREATE TABLE effect_recovery_audit (
+        namespace TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        recovery_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK(sequence >= 0),
+        credential_key_id TEXT NOT NULL,
+        database_generation_id TEXT NOT NULL,
+        request_sha256 TEXT NOT NULL,
+        outcome_sha256 TEXT NOT NULL,
+        governance_sha256 TEXT NOT NULL,
+        receipt_sha256 TEXT NOT NULL,
+        previous_receipt_sha256 TEXT NOT NULL,
+        previous_chain_sha256 TEXT NOT NULL,
+        chain_sha256 TEXT NOT NULL,
+        dsse_envelope_sha256 TEXT NOT NULL,
+        report_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY(namespace, owner_id, recovery_id),
+        UNIQUE(namespace, owner_id, sequence)
+    )
+    """,
+    """
     CREATE INDEX idx_sessions_lifecycle
         ON session_state(namespace, owner_id, lifecycle, expires_at)
     """,
@@ -500,6 +525,7 @@ class GDWWorkspace:
                 "ALTER TABLE effect_outbox RENAME TO effect_outbox_v2"
             )
             connection.execute(_SCHEMA_STATEMENTS[6])
+            connection.execute(_SCHEMA_STATEMENTS[7])
             connection.execute(
                 "ALTER TABLE schema_meta "
                 "ADD COLUMN database_generation_id TEXT"
@@ -795,6 +821,32 @@ class GDWWorkspace:
             connection.execute("PRAGMA foreign_keys=ON")
 
     @staticmethod
+    def _migrate_v3(connection: sqlite3.Connection) -> None:
+        """Add atomically bound recovery audit records without rebinding data."""
+
+        timestamp = _text_time()
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            version = connection.execute(
+                "SELECT schema_version FROM schema_meta WHERE schema_name = 'gdw'"
+            ).fetchone()
+            if version is None or int(version[0]) != 3:
+                raise GDWSchemaError("GDW v3 migration source changed under lock")
+            connection.execute(_SCHEMA_STATEMENTS[7])
+            connection.execute(
+                """
+                UPDATE schema_meta
+                SET schema_version = ?, upgraded_at = ?
+                WHERE schema_name = 'gdw'
+                """,
+                (SCHEMA_VERSION, timestamp),
+            )
+            connection.execute("COMMIT")
+        except Exception:
+            connection.execute("ROLLBACK")
+            raise
+
+    @staticmethod
     def _validate_schema(connection: sqlite3.Connection) -> str:
         row = connection.execute(
             """
@@ -816,6 +868,7 @@ class GDWWorkspace:
             "receipts",
             "proof_outbox",
             "effect_outbox",
+            "effect_recovery_audit",
         }
         missing = required - GDWWorkspace._table_names(connection)
         if missing:
@@ -833,6 +886,24 @@ class GDWWorkspace:
                 "database_generation_id",
                 "intent_sha256",
                 "claim_generation",
+            },
+            "effect_recovery_audit": {
+                "namespace",
+                "owner_id",
+                "recovery_id",
+                "sequence",
+                "credential_key_id",
+                "database_generation_id",
+                "request_sha256",
+                "outcome_sha256",
+                "governance_sha256",
+                "receipt_sha256",
+                "previous_receipt_sha256",
+                "previous_chain_sha256",
+                "chain_sha256",
+                "dsse_envelope_sha256",
+                "report_json",
+                "created_at",
             },
         }
         for table, expected in expected_columns.items():
@@ -895,6 +966,9 @@ class GDWWorkspace:
                     ).fetchone()
                     if version is not None and int(version[0]) == 2:
                         self._migrate_v2(connection)
+                        version = (SCHEMA_VERSION,)
+                    if version is not None and int(version[0]) == 3:
+                        self._migrate_v3(connection)
                 self.database_generation_id = self._validate_schema(connection)
             finally:
                 connection.close()
@@ -2051,7 +2125,1033 @@ class GDWWorkspace:
                     ),
                 )
                 requeued += int(updated.rowcount)
-        return requeued
+            return requeued
+
+    @staticmethod
+    def _recoverable_publication_error(
+        value: Any,
+        *,
+        expected_intent_sha256: str,
+    ) -> bool:
+        match = re.fullmatch(
+            r"OSError: \[Errno 95\] Operation not supported: "
+            r"'(?P<stage>[^']*[\\/]\.gdw-artifact-[^'\\/]+\.tmp)' -> "
+            r"'(?P<final>[^']*[\\/](?P<digest>[0-9a-f]{64})\.json)'",
+            str(value or ""),
+        )
+        if match is None or match.group("digest") != expected_intent_sha256:
+            return False
+        stage = match.group("stage").replace("\\", "/")
+        final = match.group("final").replace("\\", "/")
+        return stage.rsplit("/", 1)[0] == final.rsplit("/", 1)[0]
+
+    @staticmethod
+    def _validated_recovery_governance(
+        governance: Any,
+        *,
+        namespace: str,
+        owner_id: str,
+        credential_key_id: str,
+        recovery_id: str,
+        source_revision: str,
+        database_generation_id: str,
+        limit: int,
+    ) -> Tuple[Dict[str, Any], str, str]:
+        try:
+            canonical = json.loads(_json_text(governance))
+            if type(canonical) is not dict or set(canonical) != {
+                "schema",
+                "decision",
+                "binding",
+                "binding_sha256",
+                "policy_gateway",
+            }:
+                raise ValueError("recovery governance shape mismatch")
+            expected_binding = {
+                "schema": "szl.gdw.transient-effect-recovery-authorization/v1",
+                "action_type": "gdw.transient-effect-recovery",
+                "namespace": namespace,
+                "owner_id": owner_id,
+                "credential_key_id": credential_key_id,
+                "recovery_id": recovery_id,
+                "source_revision": source_revision,
+                "database_generation_id": database_generation_id,
+                "limit": limit,
+                "failure_class": "hf-hard-link-enotsup/v1",
+            }
+            binding_sha256 = hashlib.sha256(
+                _json_text(expected_binding).encode("utf-8")
+            ).hexdigest()
+            expected_witnesses = [
+                {
+                    "id": f"principal:{namespace}:{owner_id}:{credential_key_id}",
+                    "role": "operator",
+                    "attested": True,
+                },
+                {
+                    "id": f"workload:szl-holdings/a11oy@{source_revision}",
+                    "role": "workload",
+                    "attested": True,
+                },
+            ]
+            gateway = canonical["policy_gateway"]
+            if (
+                canonical["schema"]
+                != "szl.gdw.transient-effect-recovery-governance/v1"
+                or canonical["decision"] != "ALLOW"
+                or canonical["binding"] != expected_binding
+                or canonical["binding_sha256"] != binding_sha256
+                or type(gateway) is not dict
+                or set(gateway) != {
+                    "decision",
+                    "gate",
+                    "receipt_hash",
+                    "receipt_signed",
+                    "receipts_in_eq_out",
+                    "action_id",
+                    "witnesses",
+                }
+                or gateway["decision"] != "ALLOW"
+                or gateway["gate"] != "ThresholdPolicySeverity"
+                or re.fullmatch(
+                    r"[0-9a-f]{64}", str(gateway["receipt_hash"] or "")
+                )
+                is None
+                or gateway["receipt_signed"] is not True
+                or gateway["receipts_in_eq_out"] is not True
+                or gateway["action_id"] != f"gdw-recovery:{binding_sha256}"
+                or gateway["witnesses"] != expected_witnesses
+            ):
+                raise ValueError("recovery governance binding mismatch")
+            governance_sha256 = hashlib.sha256(
+                _json_text(canonical).encode("utf-8")
+            ).hexdigest()
+            return canonical, binding_sha256, governance_sha256
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise GDWConfigurationError(
+                "transient effect recovery governance is invalid"
+            ) from exc
+
+    @staticmethod
+    def _validated_recovery_audit(row: sqlite3.Row) -> Dict[str, Any]:
+        try:
+            report = json.loads(row["report_json"])
+            if type(report) is not dict:
+                raise ValueError("recovery report must be an object")
+            outcome_fields = {
+                "schema",
+                "status",
+                "recovery_id",
+                "source_revision",
+                "requested_limit",
+                "failure_class",
+                "database_generation_id",
+                "inspected_pending_effects",
+                "eligible_effects",
+                "rescheduled_effects",
+                "attempts_before",
+                "attempts_after",
+                "selection",
+                "selection_sha256",
+                "sqlite_integrity",
+                "claimed_effects",
+                "dead_letter_effects",
+                "invalid_effect_bindings",
+                "invalid_exported_artifacts",
+                "invalid_recovery_audits",
+                "credential_values_recorded",
+            }
+            if set(report) != outcome_fields | {
+                "governance",
+                "audit_receipt",
+                "replayed",
+            }:
+                raise ValueError("recovery report shape mismatch")
+            if (
+                type(report["governance"]) is not dict
+                or type(report["audit_receipt"]) is not dict
+            ):
+                raise ValueError("recovery receipt must be an object")
+            outcome = {field: report[field] for field in outcome_fields}
+            receipt = dict(report["audit_receipt"])
+            receipt_payload_fields = {
+                "schema",
+                "operator",
+                "recovery_id",
+                "source_revision",
+                "database_generation_id",
+                "request_sha256",
+                "outcome_sha256",
+                "governance_sha256",
+                "selection_sha256",
+                "rescheduled_effects",
+                "attempts_before",
+                "attempts_after",
+                "sequence",
+                "previous_receipt_sha256",
+                "previous_chain_sha256",
+                "atomic_with_mutation",
+                "created_at",
+                "credential_values_recorded",
+            }
+            receipt_fields = receipt_payload_fields | {
+                "receipt_status",
+                "receipt_sha256",
+                "dsse_envelope_sha256",
+                "chain_sha256",
+                "dsse_envelope",
+            }
+            if set(receipt) != receipt_fields:
+                raise ValueError("recovery receipt shape mismatch")
+            receipt_payload = {
+                field: receipt[field] for field in receipt_payload_fields
+            }
+            if (
+                type(receipt.get("created_at")) is not str
+                or _text_time(receipt["created_at"]) != receipt["created_at"]
+            ):
+                raise ValueError("recovery receipt timestamp mismatch")
+            recovery_created_at = _normalise_time(receipt["created_at"])
+
+            def is_digest(value: Any, length: int = 64) -> bool:
+                return type(value) is str and re.fullmatch(
+                    rf"[0-9a-f]{{{length}}}", value
+                ) is not None
+
+            observed_outcome_sha256 = hashlib.sha256(
+                _json_text(outcome).encode("utf-8")
+            ).hexdigest()
+            observed_receipt_sha256 = hashlib.sha256(
+                _json_text(receipt_payload).encode("utf-8")
+            ).hexdigest()
+            envelope = receipt["dsse_envelope"]
+            if type(envelope) is not dict:
+                raise ValueError("recovery DSSE envelope shape mismatch")
+            observed_envelope_sha256 = hashlib.sha256(
+                _json_text(envelope).encode("utf-8")
+            ).hexdigest()
+            decoded_payload = json.loads(
+                base64.b64decode(
+                    str(envelope.get("payload") or ""),
+                    validate=True,
+                ).decode("utf-8")
+            )
+            if (
+                envelope.get("payloadType") != szl_dsse.KHIPU_PAYLOAD_TYPE
+                or decoded_payload != receipt_payload
+            ):
+                raise ValueError("recovery DSSE payload binding mismatch")
+            signed = envelope.get("signed") is True
+            if signed:
+                if (
+                    receipt["receipt_status"] != "SIGNED_KHIPU_DSSE"
+                    or szl_dsse.verify_envelope(envelope).get("verified") is not True
+                ):
+                    raise ValueError("recovery DSSE signature is invalid")
+            elif (
+                receipt["receipt_status"] != "UNSIGNED_KHIPU_DSSE"
+                or envelope.get("signed") is not False
+                or envelope.get("signatures") != []
+                or "UNSIGNED" not in str(envelope.get("honesty") or "")
+            ):
+                raise ValueError("recovery unsigned DSSE evidence is dishonest")
+            observed_chain_sha256 = hashlib.sha256(
+                _json_text(
+                    {
+                        "previous_chain_sha256": receipt["previous_chain_sha256"],
+                        "receipt_sha256": observed_receipt_sha256,
+                        "receipt_status": receipt["receipt_status"],
+                        "dsse_envelope_sha256": observed_envelope_sha256,
+                    }
+                ).encode("utf-8")
+            ).hexdigest()
+            expected_operator = {
+                "namespace": row["namespace"],
+                "owner_id": row["owner_id"],
+                "credential_key_id": row["credential_key_id"],
+            }
+            expected_request = {
+                "schema": "szl.gdw.transient-effect-recovery-request/v1",
+                "namespace": row["namespace"],
+                "owner_id": row["owner_id"],
+                "credential_key_id": row["credential_key_id"],
+                "recovery_id": row["recovery_id"],
+                "source_revision": outcome.get("source_revision"),
+                "database_generation_id": row["database_generation_id"],
+                "limit": outcome.get("requested_limit"),
+                "failure_class": outcome.get("failure_class"),
+                "governance_binding_sha256": report["governance"].get(
+                    "binding_sha256"
+                ),
+            }
+            observed_request_sha256 = hashlib.sha256(
+                _json_text(expected_request).encode("utf-8")
+            ).hexdigest()
+            (
+                canonical_governance,
+                _,
+                observed_governance_sha256,
+            ) = GDWWorkspace._validated_recovery_governance(
+                report["governance"],
+                namespace=row["namespace"],
+                owner_id=row["owner_id"],
+                credential_key_id=row["credential_key_id"],
+                recovery_id=row["recovery_id"],
+                source_revision=outcome.get("source_revision"),
+                database_generation_id=row["database_generation_id"],
+                limit=outcome.get("requested_limit"),
+            )
+            if canonical_governance != report["governance"]:
+                raise ValueError("recovery governance is not canonical")
+            selection = outcome["selection"]
+            count_fields = (
+                "inspected_pending_effects",
+                "eligible_effects",
+                "rescheduled_effects",
+                "attempts_before",
+                "attempts_after",
+                "claimed_effects",
+                "dead_letter_effects",
+                "invalid_effect_bindings",
+                "invalid_exported_artifacts",
+                "invalid_recovery_audits",
+            )
+            counts = {field: outcome[field] for field in count_fields}
+            if (
+                type(selection) is not list
+                or any(type(value) is not int or value < 0 for value in counts.values())
+            ):
+                raise ValueError("recovery accounting is invalid")
+            selection_fields = {
+                "namespace",
+                "owner_id",
+                "idempotency_key",
+                "database_generation_id",
+                "request_id",
+                "kind",
+                "receipt_hash",
+                "payload_sha256",
+                "intent_sha256",
+                "attempts",
+                "max_attempts",
+                "next_attempt_at",
+                "claim_generation",
+                "last_error_sha256",
+            }
+            for item in selection:
+                if type(item) is not dict or set(item) != selection_fields:
+                    raise ValueError("recovery selection shape mismatch")
+                if any(
+                    _IDENTIFIER.fullmatch(str(item.get(field) or "")) is None
+                    for field in (
+                        "namespace",
+                        "owner_id",
+                        "idempotency_key",
+                        "request_id",
+                    )
+                ):
+                    raise ValueError("recovery selection identity mismatch")
+                if (
+                    item.get("database_generation_id")
+                    != row["database_generation_id"]
+                    or item.get("kind")
+                    not in {"receipt_projection", "proof_export"}
+                    or (
+                        item.get("receipt_hash") is not None
+                        and not is_digest(item.get("receipt_hash"))
+                    )
+                    or any(
+                        not is_digest(item.get(field))
+                        for field in (
+                            "payload_sha256",
+                            "intent_sha256",
+                            "last_error_sha256",
+                        )
+                    )
+                    or type(item.get("attempts")) is not int
+                    or type(item.get("max_attempts")) is not int
+                    or not 0 < item["attempts"] < item["max_attempts"]
+                    or type(item.get("claim_generation")) is not int
+                    or item["claim_generation"] < 0
+                    or type(item.get("next_attempt_at")) is not str
+                    or _text_time(item["next_attempt_at"])
+                    != item["next_attempt_at"]
+                    or _normalise_time(item["next_attempt_at"])
+                    <= recovery_created_at
+                ):
+                    raise ValueError("recovery selection binding mismatch")
+            observed_selection_sha256 = hashlib.sha256(
+                _json_text(selection).encode("utf-8")
+            ).hexdigest()
+            status = outcome["status"]
+            status_contract = (
+                (
+                    status == "RESCHEDULED"
+                    and counts["rescheduled_effects"] > 0
+                    and counts["eligible_effects"]
+                    == counts["rescheduled_effects"]
+                    and counts["claimed_effects"] == 0
+                )
+                or (
+                    status == "NO_ELIGIBLE_EFFECTS"
+                    and counts["eligible_effects"] == 0
+                    and counts["rescheduled_effects"] == 0
+                    and counts["claimed_effects"] == 0
+                )
+                or (
+                    status == "DEFERRED_ACTIVE_CLAIM"
+                    and counts["eligible_effects"] == 0
+                    and counts["rescheduled_effects"] == 0
+                    and counts["claimed_effects"] > 0
+                )
+            )
+            if (
+                report["replayed"] is not False
+                or outcome.get("schema")
+                != "szl.gdw.transient-effect-recovery/v2"
+                or receipt.get("schema")
+                != "szl.gdw.transient-effect-recovery-receipt/v2"
+                or receipt.get("operator") != expected_operator
+                or any(
+                    _IDENTIFIER.fullmatch(str(value or "")) is None
+                    for value in expected_operator.values()
+                )
+                or receipt.get("recovery_id") != row["recovery_id"]
+                or outcome.get("recovery_id") != row["recovery_id"]
+                or re.fullmatch(
+                    r"[0-9a-f]{40}",
+                    str(outcome.get("source_revision") or ""),
+                )
+                is None
+                or receipt.get("source_revision")
+                != outcome.get("source_revision")
+                or receipt.get("database_generation_id")
+                != row["database_generation_id"]
+                or outcome.get("database_generation_id")
+                != row["database_generation_id"]
+                or outcome.get("failure_class") != "hf-hard-link-enotsup/v1"
+                or type(outcome.get("requested_limit")) is not int
+                or not 1 <= outcome["requested_limit"] <= 1_000
+                or outcome.get("sqlite_integrity") != "ok"
+                or outcome.get("credential_values_recorded") is not False
+                or receipt.get("credential_values_recorded") is not False
+                or receipt.get("atomic_with_mutation") is not True
+                or type(receipt.get("sequence")) is not int
+                or receipt["sequence"] < 0
+                or receipt["sequence"] != row["sequence"]
+                or not is_digest(receipt.get("previous_receipt_sha256"))
+                or receipt.get("previous_receipt_sha256")
+                != row["previous_receipt_sha256"]
+                or not is_digest(receipt.get("previous_chain_sha256"))
+                or receipt.get("previous_chain_sha256")
+                != row["previous_chain_sha256"]
+                or counts["inspected_pending_effects"]
+                < max(counts["eligible_effects"], counts["claimed_effects"])
+                or counts["attempts_before"] != counts["attempts_after"]
+                or counts["attempts_before"]
+                != sum(item["attempts"] for item in selection)
+                or len(selection) != counts["rescheduled_effects"]
+                or any(
+                    counts[field] != 0
+                    for field in (
+                        "dead_letter_effects",
+                        "invalid_effect_bindings",
+                        "invalid_exported_artifacts",
+                        "invalid_recovery_audits",
+                    )
+                )
+                or not status_contract
+                or observed_selection_sha256 != outcome.get("selection_sha256")
+                or receipt.get("created_at") != row["created_at"]
+                or receipt.get("request_sha256") != row["request_sha256"]
+                or observed_request_sha256 != row["request_sha256"]
+                or receipt.get("outcome_sha256") != row["outcome_sha256"]
+                or observed_outcome_sha256 != row["outcome_sha256"]
+                or receipt.get("governance_sha256")
+                != row["governance_sha256"]
+                or observed_governance_sha256 != row["governance_sha256"]
+                or receipt.get("selection_sha256")
+                != outcome.get("selection_sha256")
+                or receipt.get("rescheduled_effects")
+                != outcome.get("rescheduled_effects")
+                or receipt.get("attempts_before")
+                != outcome.get("attempts_before")
+                or receipt.get("attempts_after")
+                != outcome.get("attempts_after")
+                or receipt.get("receipt_sha256") != row["receipt_sha256"]
+                or observed_receipt_sha256 != row["receipt_sha256"]
+                or receipt.get("dsse_envelope_sha256")
+                != row["dsse_envelope_sha256"]
+                or observed_envelope_sha256 != row["dsse_envelope_sha256"]
+                or receipt.get("chain_sha256") != row["chain_sha256"]
+                or observed_chain_sha256 != row["chain_sha256"]
+            ):
+                raise ValueError("recovery audit binding mismatch")
+            report["audit_receipt"] = receipt
+            report["replayed"] = False
+            return report
+        except (
+            AttributeError,
+            KeyError,
+            OverflowError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+        ) as exc:
+            raise GDWConfigurationError(
+                "transient effect recovery audit is invalid"
+            ) from exc
+
+    def _recovery_audit_chain_errors(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        namespace: Optional[str] = None,
+        owner_id: Optional[str] = None,
+    ) -> int:
+        predicate = ""
+        params: Tuple[Any, ...] = ()
+        if namespace is not None or owner_id is not None:
+            if namespace is None or owner_id is None:
+                raise GDWConfigurationError(
+                    "recovery audit chain scope must include namespace and owner"
+                )
+            predicate = " WHERE namespace = ? AND owner_id = ?"
+            params = (namespace, owner_id)
+        rows = connection.execute(
+            "SELECT * FROM effect_recovery_audit"
+            + predicate
+            + " ORDER BY namespace, owner_id, sequence",
+            params,
+        ).fetchall()
+        errors = 0
+        identity: Optional[Tuple[str, str]] = None
+        expected_sequence = 0
+        previous_receipt_sha256 = "0" * 64
+        previous_chain_sha256 = "0" * 64
+        for row in rows:
+            row_identity = (row["namespace"], row["owner_id"])
+            if row_identity != identity:
+                identity = row_identity
+                expected_sequence = 0
+                previous_receipt_sha256 = "0" * 64
+                previous_chain_sha256 = "0" * 64
+            row_invalid = False
+            try:
+                self._validated_recovery_audit(row)
+            except GDWConfigurationError:
+                row_invalid = True
+            if (
+                row["sequence"] != expected_sequence
+                or row["previous_receipt_sha256"]
+                != previous_receipt_sha256
+                or row["previous_chain_sha256"] != previous_chain_sha256
+            ):
+                row_invalid = True
+            errors += int(row_invalid)
+            expected_sequence += 1
+            previous_receipt_sha256 = str(row["receipt_sha256"])
+            previous_chain_sha256 = str(row["chain_sha256"])
+        return errors
+
+    def recover_retry_scheduled_effects(
+        self,
+        *,
+        recovery_id: str,
+        credential_key_id: str,
+        expected_source_revision: str,
+        expected_database_generation_id: str,
+        governance: Dict[str, Any],
+        now: Optional[Any] = None,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        """Make only integrity-bound legacy HF publication failures due now."""
+
+        canonical_recovery_id = _checked_identity(recovery_id, "recovery_id")
+        canonical_key_id = _checked_identity(
+            credential_key_id,
+            "credential_key_id",
+        )
+        source_revision = str(expected_source_revision or "").strip().lower()
+        generation_id = str(
+            expected_database_generation_id or ""
+        ).strip().lower()
+        if re.fullmatch(r"[0-9a-f]{40}", source_revision) is None:
+            raise GDWConfigurationError(
+                "expected_source_revision must be a full Git SHA"
+            )
+        if (
+            re.fullmatch(r"[0-9a-f]{32}", generation_id) is None
+            or generation_id != self.database_generation_id
+        ):
+            raise GDWConfigurationError(
+                "transient effect recovery database generation mismatch"
+            )
+        if type(limit) is not int or not 1 <= limit <= 1_000:
+            raise GDWConfigurationError(
+                "transient effect recovery limit must be between 1 and 1000"
+            )
+
+        current = _normalise_time(now)
+        now_text = current.isoformat()
+        (
+            canonical_governance,
+            governance_binding_sha256,
+            governance_sha256,
+        ) = self._validated_recovery_governance(
+            governance,
+            namespace=self.namespace,
+            owner_id=self.owner_id,
+            credential_key_id=canonical_key_id,
+            recovery_id=canonical_recovery_id,
+            source_revision=source_revision,
+            database_generation_id=generation_id,
+            limit=limit,
+        )
+        request = {
+            "schema": "szl.gdw.transient-effect-recovery-request/v1",
+            "namespace": self.namespace,
+            "owner_id": self.owner_id,
+            "credential_key_id": canonical_key_id,
+            "recovery_id": canonical_recovery_id,
+            "source_revision": source_revision,
+            "database_generation_id": generation_id,
+            "limit": limit,
+            "failure_class": "hf-hard-link-enotsup/v1",
+            "governance_binding_sha256": governance_binding_sha256,
+        }
+        request_sha256 = hashlib.sha256(
+            _json_text(request).encode("utf-8")
+        ).hexdigest()
+        empty_selection_sha256 = hashlib.sha256(b"[]").hexdigest()
+        transient_error = (
+            "OSError: [Errno 95] Operation not supported: "
+            "'%/.gdw-artifact-%.tmp' -> '%"
+        )
+
+        with self.transaction() as connection:
+            cached = connection.execute(
+                """
+                SELECT * FROM effect_recovery_audit
+                WHERE namespace = ? AND owner_id = ? AND recovery_id = ?
+                """,
+                (self.namespace, self.owner_id, canonical_recovery_id),
+            ).fetchone()
+            if cached is not None:
+                if cached["request_sha256"] != request_sha256:
+                    raise GDWConfigurationError(
+                        "recovery_id was already used with different content"
+                    )
+                report = self._validated_recovery_audit(cached)
+                if self._recovery_audit_chain_errors(
+                    connection,
+                    namespace=self.namespace,
+                    owner_id=self.owner_id,
+                ):
+                    raise GDWConfigurationError(
+                        "transient effect recovery audit chain is invalid"
+                    )
+                report["replayed"] = True
+                return report
+
+            before = self.integrity(
+                global_scope=True,
+                connection=connection,
+            )
+            if (
+                before.get("ok") is not True
+                or before.get("sqlite_integrity") != "ok"
+                or before.get("dead_letter_effects") != 0
+                or before.get("pending_proofs") != 0
+                or before.get("invalid_effect_bindings") != 0
+                or before.get("invalid_exported_artifacts") != 0
+                or before.get("invalid_recovery_audits") != 0
+            ):
+                raise GDWConfigurationError(
+                    "transient effect recovery refused by global integrity"
+                )
+
+            def record(outcome: Dict[str, Any]) -> Dict[str, Any]:
+                outcome_sha256 = hashlib.sha256(
+                    _json_text(outcome).encode("utf-8")
+                ).hexdigest()
+                previous = connection.execute(
+                    """
+                    SELECT sequence, receipt_sha256, chain_sha256
+                    FROM effect_recovery_audit
+                    WHERE namespace = ? AND owner_id = ?
+                    ORDER BY sequence DESC
+                    LIMIT 1
+                    """,
+                    (self.namespace, self.owner_id),
+                ).fetchone()
+                sequence = 0 if previous is None else int(previous["sequence"]) + 1
+                previous_receipt_sha256 = (
+                    "0" * 64 if previous is None else previous["receipt_sha256"]
+                )
+                previous_chain_sha256 = (
+                    "0" * 64 if previous is None else previous["chain_sha256"]
+                )
+                receipt_payload = {
+                    "schema": "szl.gdw.transient-effect-recovery-receipt/v2",
+                    "operator": {
+                        "namespace": self.namespace,
+                        "owner_id": self.owner_id,
+                        "credential_key_id": canonical_key_id,
+                    },
+                    "recovery_id": canonical_recovery_id,
+                    "source_revision": source_revision,
+                    "database_generation_id": generation_id,
+                    "request_sha256": request_sha256,
+                    "outcome_sha256": outcome_sha256,
+                    "governance_sha256": governance_sha256,
+                    "selection_sha256": outcome["selection_sha256"],
+                    "rescheduled_effects": outcome["rescheduled_effects"],
+                    "attempts_before": outcome["attempts_before"],
+                    "attempts_after": outcome["attempts_after"],
+                    "sequence": sequence,
+                    "previous_receipt_sha256": previous_receipt_sha256,
+                    "previous_chain_sha256": previous_chain_sha256,
+                    "atomic_with_mutation": True,
+                    "created_at": now_text,
+                    "credential_values_recorded": False,
+                }
+                receipt_sha256 = hashlib.sha256(
+                    _json_text(receipt_payload).encode("utf-8")
+                ).hexdigest()
+                dsse_envelope = szl_dsse.sign_payload(
+                    receipt_payload,
+                    szl_dsse.KHIPU_PAYLOAD_TYPE,
+                )
+                signed = dsse_envelope.get("signed") is True
+                signatures = dsse_envelope.get("signatures")
+                if (
+                    type(signatures) is not list
+                    or (signed and len(signatures) != 1)
+                    or (not signed and signatures != [])
+                ):
+                    raise GDWConfigurationError(
+                        "transient recovery DSSE signer returned invalid evidence"
+                    )
+                receipt_status = (
+                    "SIGNED_KHIPU_DSSE" if signed else "UNSIGNED_KHIPU_DSSE"
+                )
+                dsse_envelope_sha256 = hashlib.sha256(
+                    _json_text(dsse_envelope).encode("utf-8")
+                ).hexdigest()
+                chain_sha256 = hashlib.sha256(
+                    _json_text(
+                        {
+                            "previous_chain_sha256": previous_chain_sha256,
+                            "receipt_sha256": receipt_sha256,
+                            "receipt_status": receipt_status,
+                            "dsse_envelope_sha256": dsse_envelope_sha256,
+                        }
+                    ).encode("utf-8")
+                ).hexdigest()
+                receipt = {
+                    **receipt_payload,
+                    "receipt_status": receipt_status,
+                    "receipt_sha256": receipt_sha256,
+                    "dsse_envelope_sha256": dsse_envelope_sha256,
+                    "chain_sha256": chain_sha256,
+                    "dsse_envelope": dsse_envelope,
+                }
+                report = {
+                    **outcome,
+                    "governance": canonical_governance,
+                    "audit_receipt": receipt,
+                    "replayed": False,
+                }
+                report_text = _json_text(report)
+                self._reserve_usage(
+                    connection,
+                    self.namespace,
+                    self.owner_id,
+                    stored_bytes=_byte_len(report_text),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO effect_recovery_audit(
+                        namespace, owner_id, recovery_id, sequence,
+                        credential_key_id, database_generation_id,
+                        request_sha256, outcome_sha256, governance_sha256,
+                        receipt_sha256, previous_receipt_sha256,
+                        previous_chain_sha256, chain_sha256,
+                        dsse_envelope_sha256, report_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        self.namespace,
+                        self.owner_id,
+                        canonical_recovery_id,
+                        sequence,
+                        canonical_key_id,
+                        generation_id,
+                        request_sha256,
+                        outcome_sha256,
+                        governance_sha256,
+                        receipt_sha256,
+                        previous_receipt_sha256,
+                        previous_chain_sha256,
+                        chain_sha256,
+                        dsse_envelope_sha256,
+                        report_text,
+                        now_text,
+                    ),
+                )
+                return report
+
+            if before.get("claimed_effects") != 0:
+                return record(
+                    {
+                        "schema": "szl.gdw.transient-effect-recovery/v2",
+                        "status": "DEFERRED_ACTIVE_CLAIM",
+                        "recovery_id": canonical_recovery_id,
+                        "source_revision": source_revision,
+                        "requested_limit": limit,
+                        "failure_class": "hf-hard-link-enotsup/v1",
+                        "database_generation_id": generation_id,
+                        "inspected_pending_effects": before["pending_effects"],
+                        "eligible_effects": 0,
+                        "rescheduled_effects": 0,
+                        "attempts_before": 0,
+                        "attempts_after": 0,
+                        "selection": [],
+                        "selection_sha256": empty_selection_sha256,
+                        "sqlite_integrity": before["sqlite_integrity"],
+                        "claimed_effects": before["claimed_effects"],
+                        "dead_letter_effects": before["dead_letter_effects"],
+                        "invalid_effect_bindings": before[
+                            "invalid_effect_bindings"
+                        ],
+                        "invalid_exported_artifacts": before[
+                            "invalid_exported_artifacts"
+                        ],
+                        "invalid_recovery_audits": before[
+                            "invalid_recovery_audits"
+                        ],
+                        "credential_values_recorded": False,
+                    }
+                )
+
+            eligibility = """
+                status = 'PENDING'
+                AND attempts > 0
+                AND attempts < max_attempts
+                AND next_attempt_at > ?
+                AND database_generation_id = ?
+                AND kind IN ('receipt_projection', 'proof_export')
+                AND last_error LIKE ?
+                AND lease_owner IS NULL
+                AND lease_until IS NULL
+                AND artifact_json IS NULL
+                AND exported_at IS NULL
+                AND tombstoned_at IS NULL
+            """
+            eligible_total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM effect_outbox WHERE {eligibility}",
+                    (now_text, generation_id, transient_error),
+                ).fetchone()[0]
+            )
+            if eligible_total > limit:
+                raise GDWConfigurationError(
+                    "transient effect recovery exceeds the bounded limit"
+                )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM effect_outbox
+                WHERE {eligibility}
+                ORDER BY next_attempt_at, created_at, idempotency_key
+                LIMIT ?
+                """,
+                (now_text, generation_id, transient_error, limit),
+            ).fetchall()
+            selection = []
+            original_rows = {}
+            for row in rows:
+                try:
+                    payload = json.loads(row["payload_json"])
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise GDWConfigurationError(
+                        "transient effect recovery found invalid payload"
+                    ) from exc
+                candidate = dict(row)
+                candidate["payload"] = payload
+                if not self._recoverable_publication_error(
+                    row["last_error"],
+                    expected_intent_sha256=row["intent_sha256"],
+                ):
+                    raise GDWConfigurationError(
+                        "transient effect recovery found unknown error"
+                    )
+                if self._connection_effect_binding_errors(connection, candidate):
+                    raise GDWConfigurationError(
+                        "transient effect recovery found invalid binding"
+                    )
+                original_rows[
+                    (row["namespace"], row["owner_id"], row["idempotency_key"])
+                ] = dict(row)
+                selection.append(
+                    {
+                        "namespace": row["namespace"],
+                        "owner_id": row["owner_id"],
+                        "idempotency_key": row["idempotency_key"],
+                        "database_generation_id": row[
+                            "database_generation_id"
+                        ],
+                        "request_id": row["request_id"],
+                        "kind": row["kind"],
+                        "receipt_hash": row["receipt_hash"],
+                        "payload_sha256": row["payload_sha256"],
+                        "intent_sha256": row["intent_sha256"],
+                        "attempts": int(row["attempts"]),
+                        "max_attempts": int(row["max_attempts"]),
+                        "next_attempt_at": row["next_attempt_at"],
+                        "claim_generation": int(row["claim_generation"]),
+                        "last_error_sha256": hashlib.sha256(
+                            str(row["last_error"]).encode("utf-8")
+                        ).hexdigest(),
+                    }
+                )
+
+            selection_sha256 = hashlib.sha256(
+                _json_text(selection).encode("utf-8")
+            ).hexdigest()
+            attempts_before = sum(item["attempts"] for item in selection)
+            for row, item in zip(rows, selection):
+                updated = connection.execute(
+                    """
+                    UPDATE effect_outbox
+                    SET next_attempt_at = ?
+                    WHERE namespace = ? AND owner_id = ?
+                          AND idempotency_key = ?
+                          AND database_generation_id = ?
+                          AND request_id = ? AND kind = ?
+                          AND receipt_hash IS ?
+                          AND payload_json = ? AND payload_sha256 = ?
+                          AND intent_sha256 = ?
+                          AND status = 'PENDING'
+                          AND attempts = ? AND max_attempts = ?
+                          AND next_attempt_at = ? AND claim_generation = ?
+                          AND last_error = ?
+                          AND lease_owner IS NULL AND lease_until IS NULL
+                          AND artifact_json IS NULL AND exported_at IS NULL
+                          AND tombstoned_at IS NULL
+                    """,
+                    (
+                        now_text,
+                        item["namespace"],
+                        item["owner_id"],
+                        item["idempotency_key"],
+                        item["database_generation_id"],
+                        item["request_id"],
+                        item["kind"],
+                        item["receipt_hash"],
+                        row["payload_json"],
+                        item["payload_sha256"],
+                        item["intent_sha256"],
+                        item["attempts"],
+                        item["max_attempts"],
+                        item["next_attempt_at"],
+                        item["claim_generation"],
+                        row["last_error"],
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "transient effect changed during recovery"
+                    )
+
+            after = self.integrity(global_scope=True, connection=connection)
+            attempts_after = 0
+            for item in selection:
+                persisted = connection.execute(
+                    """
+                    SELECT * FROM effect_outbox
+                    WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+                    """,
+                    (
+                        item["namespace"],
+                        item["owner_id"],
+                        item["idempotency_key"],
+                    ),
+                ).fetchone()
+                if persisted is None:
+                    raise GDWConfigurationError(
+                        "transient effect disappeared during recovery"
+                    )
+                original = original_rows[
+                    (
+                        item["namespace"],
+                        item["owner_id"],
+                        item["idempotency_key"],
+                    )
+                ]
+                changed = {
+                    field
+                    for field in persisted.keys()
+                    if field != "next_attempt_at"
+                    and persisted[field] != original[field]
+                }
+                if (
+                    changed
+                    or persisted["next_attempt_at"] != now_text
+                    or persisted["status"] != "PENDING"
+                ):
+                    raise GDWConfigurationError(
+                        "transient effect accounting changed during recovery"
+                    )
+                attempts_after += int(persisted["attempts"])
+            if (
+                after.get("ok") is not True
+                or after.get("sqlite_integrity") != "ok"
+                or after.get("pending_effects") != before.get("pending_effects")
+                or after.get("claimed_effects") != 0
+                or after.get("dead_letter_effects") != 0
+                or after.get("invalid_effect_bindings") != 0
+                or after.get("invalid_exported_artifacts") != 0
+                or after.get("invalid_recovery_audits") != 0
+                or attempts_after != attempts_before
+            ):
+                raise GDWConfigurationError(
+                    "transient effect recovery changed protected accounting"
+                )
+
+            return record(
+                {
+                    "schema": "szl.gdw.transient-effect-recovery/v2",
+                    "status": (
+                        "RESCHEDULED" if rows else "NO_ELIGIBLE_EFFECTS"
+                    ),
+                    "recovery_id": canonical_recovery_id,
+                    "source_revision": source_revision,
+                    "requested_limit": limit,
+                    "failure_class": "hf-hard-link-enotsup/v1",
+                    "database_generation_id": generation_id,
+                    "inspected_pending_effects": before["pending_effects"],
+                    "eligible_effects": eligible_total,
+                    "rescheduled_effects": len(rows),
+                    "attempts_before": attempts_before,
+                    "attempts_after": attempts_after,
+                    "selection": selection,
+                    "selection_sha256": selection_sha256,
+                    "sqlite_integrity": after["sqlite_integrity"],
+                    "claimed_effects": after["claimed_effects"],
+                    "dead_letter_effects": after["dead_letter_effects"],
+                    "invalid_effect_bindings": after[
+                        "invalid_effect_bindings"
+                    ],
+                    "invalid_exported_artifacts": after[
+                        "invalid_exported_artifacts"
+                    ],
+                    "invalid_recovery_audits": after[
+                        "invalid_recovery_audits"
+                    ],
+                    "credential_values_recorded": False,
+                }
+            )
 
     def assert_effect_claim(
         self,
@@ -2393,6 +3493,7 @@ class GDWWorkspace:
                 UNION SELECT namespace, owner_id FROM receipts
                 UNION SELECT namespace, owner_id FROM proof_outbox
                 UNION SELECT namespace, owner_id FROM effect_outbox
+                UNION SELECT namespace, owner_id FROM effect_recovery_audit
                 ORDER BY namespace, owner_id
                 """
             ).fetchall()
@@ -2460,9 +3561,14 @@ class GDWWorkspace:
                               LENGTH(CAST(payload_json AS BLOB)) +
                               COALESCE(LENGTH(CAST(artifact_json AS BLOB)), 0))
                             FROM effect_outbox
+                            WHERE namespace = ? AND owner_id = ?), 0) +
+                  COALESCE((SELECT SUM(LENGTH(CAST(report_json AS BLOB)))
+                            FROM effect_recovery_audit
                             WHERE namespace = ? AND owner_id = ?), 0)
                 """,
                 (
+                    namespace,
+                    owner_id,
                     namespace,
                     owner_id,
                     namespace,
@@ -2509,6 +3615,7 @@ class GDWWorkspace:
             UNION SELECT namespace, owner_id FROM receipts
             UNION SELECT namespace, owner_id FROM proof_outbox
             UNION SELECT namespace, owner_id FROM effect_outbox
+            UNION SELECT namespace, owner_id FROM effect_recovery_audit
             """
         ).fetchall()
         connection.execute("DELETE FROM usage")
@@ -2745,6 +3852,12 @@ class GDWWorkspace:
                 )
                 for table in _V1_TABLES
             }
+            counts["effect_recovery_audit"] = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM effect_recovery_audit" + predicate,
+                    params,
+                ).fetchone()[0]
+            )
             effect_predicate = (
                 "status IN ('PENDING', 'CLAIMED')"
                 if global_scope
@@ -2813,6 +3926,7 @@ class GDWWorkspace:
                 "invalid_request_digests": 0,
                 "invalid_receipt_digests": 0,
                 "invalid_proof_digests": 0,
+                "invalid_recovery_audits": 0,
             }
             scoped_suffix = (
                 ""
@@ -2946,6 +4060,13 @@ class GDWWorkspace:
                     json.JSONDecodeError,
                 ):
                     digest_violations["invalid_proof_digests"] += 1
+            digest_violations["invalid_recovery_audits"] += (
+                self._recovery_audit_chain_errors(
+                    connection,
+                    namespace=None if global_scope else ns,
+                    owner_id=None if global_scope else owner,
+                )
+            )
             effect_rows = connection.execute(
                 """
                 SELECT namespace, owner_id, idempotency_key,

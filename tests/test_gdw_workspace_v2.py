@@ -1053,7 +1053,7 @@ def test_historical_export_timestamp_cannot_extend_an_expired_lease(tmp_path):
         )
 
 
-def test_v2_effects_migrate_transactionally_to_generation_bound_v3(tmp_path):
+def test_v2_effects_migrate_transactionally_to_generation_bound_schema(tmp_path):
     path = tmp_path / "v2.sqlite3"
     workspace = _workspace(path)
     _queue_proof(workspace)
@@ -1061,6 +1061,7 @@ def test_v2_effects_migrate_transactionally_to_generation_bound_v3(tmp_path):
     connection = sqlite3.connect(path)
     try:
         connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("DROP TABLE effect_recovery_audit")
         connection.execute("DROP INDEX idx_effect_outbox_status")
         connection.execute(
             "ALTER TABLE effect_outbox RENAME TO effect_outbox_v3"
@@ -1129,7 +1130,7 @@ def test_v2_effects_migrate_transactionally_to_generation_bound_v3(tmp_path):
 
     assert migrated.database_generation_id != old_generation
     assert migrated.integrity()["ok"] is True
-    assert migrated.integrity()["schema_version"] == 3
+    assert migrated.integrity()["schema_version"] == SCHEMA_VERSION
     claim = migrated.claim_effects("migrated-worker")
     assert len(claim) == 1
     assert (
@@ -1137,6 +1138,36 @@ def test_v2_effects_migrate_transactionally_to_generation_bound_v3(tmp_path):
         == migrated.database_generation_id
     )
     assert claim[0]["claim_generation"] == 1
+
+
+def test_v3_schema_migrates_audit_table_without_rebinding_generation(tmp_path):
+    path = tmp_path / "v3.sqlite3"
+    workspace = _workspace(path)
+    generation = workspace.database_generation_id
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("DROP TABLE effect_recovery_audit")
+        connection.execute(
+            "UPDATE schema_meta SET schema_version = 3 WHERE schema_name = 'gdw'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    migrated = _workspace(path)
+
+    assert migrated.database_generation_id == generation
+    assert migrated.integrity()["ok"] is True
+    assert migrated.integrity()["schema_version"] == SCHEMA_VERSION
+    connection = sqlite3.connect(path)
+    try:
+        table = connection.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'effect_recovery_audit'"
+        ).fetchone()
+    finally:
+        connection.close()
+    assert table == ("effect_recovery_audit",)
 
 
 def test_receipt_identity_fields_are_bound_before_persistence(tmp_path):

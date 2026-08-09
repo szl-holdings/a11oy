@@ -20,12 +20,25 @@ SPEC.loader.exec_module(config)
 def test_desired_variables_digest_token_without_recording_it() -> None:
     token = "x" * 48
     variables = config.desired_variables(token)
-    registry_text = config.principal_registry_value(token)
+    registry_text = config.credential_registry_value(token)
     registry = __import__("json").loads(registry_text)
 
-    assert registry[config.PRINCIPAL_ID]["roles"] == ["admin", "user"]
+    assert registry == {
+        "version": 1,
+        "credentials": [
+            {
+                "owner_id": config.PRINCIPAL_ID,
+                "namespace": "a11oy",
+                "key_id": config.CREDENTIAL_KEY_ID,
+                "token_sha256": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+                "scopes": config.OPERATOR_SCOPES,
+                "revoked": False,
+            }
+        ],
+    }
+    assert "effects:recover" in registry["credentials"][0]["scopes"]
     assert token not in registry_text
-    assert config.PRINCIPAL_REGISTRY_SECRET not in variables
+    assert config.CREDENTIAL_REGISTRY_SECRET not in variables
     assert variables["GDW_SQLITE_JOURNAL"] == "DELETE"
     assert variables["GDW_DB_PATH"].startswith("/data/")
     assert variables["GDW_PRODUCTION_MODE"] == "1"
@@ -52,42 +65,44 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
         config.plan_variables({}, {"GDW_DB_PATH"}, desired)
 
 
-def test_principal_registry_converges_digest_without_bearer_material() -> None:
+def test_credential_registry_converges_explicit_scope_without_bearer_material() -> None:
     token = "operator-token-" + ("x" * 48)
     calls: list[dict[str, object]] = []
     api = SimpleNamespace(
         add_space_secret=lambda **kwargs: calls.append(kwargs),
-        get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
+        delete_space_secret=lambda **kwargs: calls.append(kwargs),
+        get_space_secrets=lambda **kwargs: [config.CREDENTIAL_REGISTRY_SECRET],
     )
 
-    secret_names, changed = config.converge_principal_registry(
+    secret_names, changed = config.converge_credential_registry(
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
         secret_names=set(),
         operator_token=token,
     )
-    assert secret_names == {config.PRINCIPAL_REGISTRY_SECRET}
+    assert secret_names == {config.CREDENTIAL_REGISTRY_SECRET}
     assert changed is True
     assert len(calls) == 1
-    assert calls[0]["key"] == config.PRINCIPAL_REGISTRY_SECRET
+    assert calls[0]["key"] == config.CREDENTIAL_REGISTRY_SECRET
     registry_text = str(calls[0]["value"])
     assert token not in registry_text
-    assert json.loads(registry_text) == {
-        config.PRINCIPAL_ID: {
-            "roles": ["admin", "user"],
-            "token_sha256": hashlib.sha256(token.encode("utf-8")).hexdigest(),
-        }
-    }
+    credential = json.loads(registry_text)["credentials"][0]
+    assert credential["owner_id"] == config.PRINCIPAL_ID
+    assert credential["scopes"] == config.OPERATOR_SCOPES
+    assert credential["token_sha256"] == hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
 
 
-def test_principal_registry_convergence_fails_closed() -> None:
+def test_credential_registry_convergence_fails_closed() -> None:
     api = SimpleNamespace(
         add_space_secret=lambda **kwargs: None,
+        delete_space_secret=lambda **kwargs: None,
         get_space_secrets=lambda **kwargs: [],
     )
     with pytest.raises(config.RuntimeConfigError, match="did not converge"):
-        config.converge_principal_registry(
+        config.converge_credential_registry(
             api,
             repo_id=config.CANONICAL_SPACE,
             current_variables={},
@@ -95,7 +110,7 @@ def test_principal_registry_convergence_fails_closed() -> None:
             operator_token="x" * 48,
         )
     with pytest.raises(config.RuntimeConfigError, match="collides"):
-        config.converge_principal_registry(
+        config.converge_credential_registry(
             api,
             repo_id=config.CANONICAL_SPACE,
             current_variables={
@@ -106,26 +121,24 @@ def test_principal_registry_convergence_fails_closed() -> None:
         )
 
 
-@pytest.mark.parametrize("location", ["variable", "secret"])
-def test_competing_credential_registry_blocks_before_mutation(location: str) -> None:
+@pytest.mark.parametrize(
+    "variable_name",
+    [config.CREDENTIAL_REGISTRY_SECRET, config.PRINCIPAL_REGISTRY_SECRET],
+)
+def test_registry_variable_collisions_block_before_mutation(
+    variable_name: str,
+) -> None:
     calls: list[dict[str, object]] = []
     api = SimpleNamespace(
         add_space_secret=lambda **kwargs: calls.append(kwargs),
-        get_space_secrets=lambda **kwargs: [config.PRINCIPAL_REGISTRY_SECRET],
+        delete_space_secret=lambda **kwargs: calls.append(kwargs),
+        get_space_secrets=lambda **kwargs: [config.CREDENTIAL_REGISTRY_SECRET],
     )
-    variables = (
-        {"GDW_CREDENTIALS_JSON": SimpleNamespace(value="hidden")}
-        if location == "variable"
-        else {}
-    )
-    secret_names = (
-        {config.CREDENTIAL_REGISTRY_SECRET}
-        if location == "secret"
-        else set()
-    )
+    variables = {variable_name: SimpleNamespace(value="hidden")}
+    secret_names = set()
 
-    with pytest.raises(config.RuntimeConfigError, match="conflicts"):
-        config.converge_principal_registry(
+    with pytest.raises(config.RuntimeConfigError, match="collides"):
+        config.converge_credential_registry(
             api,
             repo_id=config.CANONICAL_SPACE,
             current_variables=variables,
@@ -171,12 +184,26 @@ def test_managed_variable_secret_collision_blocks_before_auth_mutation(
     assert calls == []
 
 
-def test_existing_principal_registry_is_preserved() -> None:
-    calls = []
+def test_legacy_registry_is_retired_before_explicit_registry_is_published() -> None:
+    calls: list[tuple[str, str]] = []
+    secret_names = {config.PRINCIPAL_REGISTRY_SECRET}
+
+    def delete_space_secret(*, repo_id, key):
+        del repo_id
+        calls.append(("delete", key))
+        secret_names.remove(key)
+
+    def add_space_secret(*, repo_id, key, value, description):
+        del repo_id, value, description
+        calls.append(("add", key))
+        secret_names.add(key)
+
     api = SimpleNamespace(
-        add_space_secret=lambda **kwargs: calls.append(kwargs),
+        add_space_secret=add_space_secret,
+        delete_space_secret=delete_space_secret,
+        get_space_secrets=lambda **kwargs: sorted(secret_names),
     )
-    secret_names, changed = config.converge_principal_registry(
+    converged, changed = config.converge_credential_registry(
         api,
         repo_id=config.CANONICAL_SPACE,
         current_variables={},
@@ -184,9 +211,12 @@ def test_existing_principal_registry_is_preserved() -> None:
         operator_token="x" * 48,
     )
 
-    assert secret_names == {config.PRINCIPAL_REGISTRY_SECRET}
-    assert changed is False
-    assert calls == []
+    assert converged == {config.CREDENTIAL_REGISTRY_SECRET}
+    assert changed is True
+    assert calls == [
+        ("delete", config.PRINCIPAL_REGISTRY_SECRET),
+        ("add", config.CREDENTIAL_REGISTRY_SECRET),
+    ]
 
 
 def test_require_data_mount_is_fail_closed() -> None:

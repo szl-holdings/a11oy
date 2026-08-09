@@ -643,9 +643,9 @@
       "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
       "pin_compliant": true,
       "pin_policy": "full_commit_sha",
-      "ref": "9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+      "ref": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
       "resolution": "literal_full_sha",
-      "resolved_sha": "9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+      "resolved_sha": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
       "workflow": ".github/workflows/hf-sync.yml"
     },
     {
