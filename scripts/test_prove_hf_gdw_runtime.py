@@ -319,9 +319,9 @@ def test_restart_proof_preserves_generation_session_and_artifacts(monkeypatch):
             body["persistence"]["prepared_at"] = (
                 "after-restart" if restarted else "before-restart"
             )
-        if url.endswith("/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa"):
+        if url.endswith("/gdw/sessions/protected-promotion"):
             return {
-                "session_id": "protected-promotion-aaaaaaaaaaaaaaaa",
+                "session_id": "protected-promotion",
                 "database_generation_id": GENERATION_ID,
                 "step": 1,
                 "state_hash": "c" * 64,
