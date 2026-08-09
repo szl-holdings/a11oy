@@ -594,7 +594,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
     # not this capability; additions require an explicit guard review.
-    "9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+    "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
 })
 
 
