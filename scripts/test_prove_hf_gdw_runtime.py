@@ -75,7 +75,12 @@ def _live_response(method: str, url: str, **_kwargs):
         return _complete_integrity()
     if url.endswith("/gdw/integrity"):
         return _complete_integrity()
-    if url.endswith("/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa"):
+    if url.endswith(
+        (
+            "/gdw/sessions/protected-promotion",
+            "/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa",
+        )
+    ):
         return {"database_generation_id": GENERATION_ID}
     raise AssertionError(f"unexpected request: {method} {url}")
 
