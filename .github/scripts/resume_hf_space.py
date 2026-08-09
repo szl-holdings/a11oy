@@ -48,6 +48,8 @@ def resume_if_paused(
     capacity_donor: str | None = None,
     sleep: Callable[[float], None] = time.sleep,
     capacity_wait_attempts: int = 30,
+    capacity_restart_attempts: int = 24,
+    capacity_restart_delay: float = 5.0,
 ) -> None:
     runtime = api.get_space_runtime(repo_id=repo_id)
     stage = _stage(getattr(runtime, "stage", None))
@@ -95,7 +97,18 @@ def resume_if_paused(
                 f"capacity donor did not become unallocated: {capacity_donor}"
             )
 
-        _request_restart(api, repo_id=repo_id, report=report)
+        for restart_attempt in range(1, capacity_restart_attempts + 1):
+            donor_report["canonical_restart_attempts"] = restart_attempt
+            try:
+                _request_restart(api, repo_id=repo_id, report=report)
+                break
+            except Exception as exc:
+                if (
+                    restart_attempt == capacity_restart_attempts
+                    or not _is_cpu_basic_quota_error(exc)
+                ):
+                    raise
+                sleep(capacity_restart_delay)
         report["action"] = "RESTART_REQUESTED_AFTER_CAPACITY_RELEASE"
         return
 

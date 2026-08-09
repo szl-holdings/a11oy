@@ -39,7 +39,7 @@ class QuotaError(RuntimeError):
 
 
 class CapacityApi:
-    def __init__(self) -> None:
+    def __init__(self, quota_failures: int = 1) -> None:
         self.runtimes = {
             "SZLHOLDINGS/a11oy": {"stage": "PAUSED", "hardware": None},
             "SZLHOLDINGS/governed-agent-bench": {
@@ -49,6 +49,7 @@ class CapacityApi:
         }
         self.restart_calls: list[dict[str, object]] = []
         self.pause_calls: list[dict[str, object]] = []
+        self.quota_failures = quota_failures
 
     def get_space_runtime(self, *, repo_id: str):
         runtime = self.runtimes[repo_id]
@@ -59,7 +60,7 @@ class CapacityApi:
 
     def restart_space(self, **kwargs):
         self.restart_calls.append(kwargs)
-        if len(self.restart_calls) == 1:
+        if len(self.restart_calls) <= self.quota_failures:
             raise QuotaError()
         return SimpleNamespace(
             runtime=SimpleNamespace(stage=SimpleNamespace(value="BUILDING"))
@@ -142,6 +143,33 @@ class ResumeHfSpaceTests(unittest.TestCase):
         self.assertEqual(donor["observed_hardware"], "cpu-basic")
         self.assertEqual(donor["final_stage"], "PAUSED")
         self.assertIsNone(donor["final_hardware"])
+        self.assertEqual(donor["canonical_restart_attempts"], 1)
+
+    def test_quota_release_propagation_is_retried_within_a_bound(self) -> None:
+        api = CapacityApi(quota_failures=3)
+        report: dict[str, object] = {}
+        sleeps: list[float] = []
+
+        MODULE.resume_if_paused(
+            api,
+            repo_id="SZLHOLDINGS/a11oy",
+            capacity_donor="SZLHOLDINGS/governed-agent-bench",
+            report=report,
+            sleep=sleeps.append,
+            capacity_restart_attempts=4,
+            capacity_restart_delay=5.0,
+        )
+
+        self.assertEqual(len(api.restart_calls), 4)
+        self.assertEqual(sleeps, [5.0, 5.0])
+        self.assertEqual(
+            report["capacity_donor"]["canonical_restart_attempts"],
+            3,
+        )
+        self.assertEqual(
+            report["action"],
+            "RESTART_REQUESTED_AFTER_CAPACITY_RELEASE",
+        )
 
     def test_non_quota_restart_failure_never_pauses_capacity_donor(self) -> None:
         api = CapacityApi()
