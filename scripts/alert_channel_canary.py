@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 VALID_MODES = {"auto", "slack", "ntfy", "generic-json"}
+NTFY_RELAY_HOSTS = {"ntfy.sh", "a11oy.net"}
 FAILURE_STATES = {
     "MISSING",
     "INVALID_CONFIGURATION",
@@ -75,7 +76,7 @@ def infer_mode(url: str) -> str:
     hostname = (urllib.parse.urlsplit(url).hostname or "").lower()
     if hostname == "hooks.slack.com" or hostname.endswith(".hooks.slack.com"):
         return "slack"
-    if hostname == "ntfy.sh" or hostname.endswith(".ntfy.sh"):
+    if hostname in NTFY_RELAY_HOSTS:
         return "ntfy"
     return "generic-json"
 
