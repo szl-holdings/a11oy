@@ -21,6 +21,17 @@ def test_pull_requests_run_only_the_secret_free_contract() -> None:
     assert "SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}" in watch
 
 
+def test_protected_merge_triggers_a_real_canary() -> None:
+    value = workflow()
+    trigger, _ = value.split("\npermissions:", 1)
+    assert "push:\n    branches: [main]" in trigger
+    plan = value.split("Decide whether this run performs a real delivery canary", 1)[1].split(
+        "Run one bounded, protocol-aware canary", 1
+    )[0]
+    assert 'if [ "${EVENT_NAME}" = \'push\' ]; then' in plan
+    assert "send=true" in plan
+
+
 def test_presence_only_state_cannot_close_the_incident() -> None:
     value = workflow()
     assert "if (state === 'PRESENT_UNPROBED')" in value
