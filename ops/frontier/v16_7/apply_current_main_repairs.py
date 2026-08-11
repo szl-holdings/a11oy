@@ -213,18 +213,17 @@ def repair_root_console(text: str, changes: list[str]) -> str:
 
 
 def repair_readme(text: str, changes: list[str]) -> str:
-    old = "Signed receipts on every governed action  | LIVE"
     new = (
-        "Signed receipts on every governed action  | CONFIGURATION-BOUND · SIGNED only "
-        "when the persistent production key is present; otherwise explicitly UNSIGNED"
+        "| Signed receipts on every governed action | **CONFIGURATION-BOUND** · SIGNED only "
+        "when the persistent production key is present; otherwise explicitly UNSIGNED |"
     )
-    if old in text or new in text:
-        return exact(text, old, new, "README receipt claim is configuration-bound", changes)
-
     pattern = re.compile(
-        r"(?m)^Signed receipts on every governed action\s*\|\s*LIVE\s*$"
+        r"(?m)^\s*\|?\s*Signed receipts on every governed action\s*\|\s*"
+        r"(?:\*\*)?LIVE(?:\*\*)?\s*\|?\s*$"
     )
     matches = list(pattern.finditer(text))
+    if not matches and text.count(new) == 1:
+        return text
     if len(matches) != 1:
         raise RepairError(
             "README receipt claim: expected one unconditional LIVE line or the repaired line"

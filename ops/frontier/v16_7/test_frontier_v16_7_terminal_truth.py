@@ -5,9 +5,16 @@ failed browser fetch never advertise an in-progress state forever, and that the
 FastAPI route modules obey the repository's annotation rule.
 """
 from pathlib import Path
+import importlib.util
 import re
 
-ROOT = Path(__file__).resolve().parents[1]
+HERE = Path(__file__).resolve()
+ROOT = next(parent for parent in HERE.parents if (parent / "AGENTS.md").is_file())
+REPAIR_SCRIPT = ROOT / "ops" / "frontier" / "v16_7" / "apply_current_main_repairs.py"
+SPEC = importlib.util.spec_from_file_location("frontier_v16_7_repairs", REPAIR_SCRIPT)
+assert SPEC and SPEC.loader
+REPAIRS = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(REPAIRS)
 
 
 def text(relative: str) -> str:
@@ -56,6 +63,23 @@ def test_readme_does_not_unconditionally_claim_live_signing() -> None:
     )
     assert "CONFIGURATION-BOUND" in readme
     assert "otherwise explicitly UNSIGNED" in readme
+
+
+def test_repair_oracle_matches_the_actual_markdown_status_row() -> None:
+    source = "| Signed receipts on every governed action | **LIVE** |\n"
+    changes: list[str] = []
+    repaired = REPAIRS.repair_readme(source, changes)
+    assert changes == ["README receipt claim is configuration-bound"]
+    assert "**CONFIGURATION-BOUND**" in repaired
+    assert "**LIVE**" not in repaired
+    assert REPAIRS.repair_readme(repaired, []) == repaired
+
+
+def test_qualification_requires_ruleset_bound_workflow_identity() -> None:
+    guide = text("ops/frontier/v16_7/README.md")
+    assert "ruleset-bound identity" in guide
+    assert "mutable status-context" in guide
+    assert "status context or this workflow" not in guide
 
 
 def test_global_console_server_render_is_terminal_before_javascript() -> None:

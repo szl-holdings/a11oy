@@ -37,9 +37,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       EVENT_NAME: ${{ github.event_name }}
-      CONTRACT_SHA256: ebcab48a80890deaadfdb0c54fb1b3ea391a168273e8ff67a05c7df5b865563d
-      REPAIR_SCRIPT_SHA256: e8b6093a3c13baf8442825c1a53035d81cb4f6feee610718cea3d66083c7ebc5
-      SOURCE_TEST_SHA256: 42b9e0f6e876d57bb27c040315d053a1fa60ec98c6d571d618adf46313c396ae
+      CONTRACT_SHA256: f451c3b34944a8d0210c9ed4b177a3fb32978639b6f111e03686efdf49faa8a3
+      REPAIR_SCRIPT_SHA256: b9466515c06589073204bb7daa4c25470190cd2f3f83364d032ceb59d05941a7
+      SOURCE_TEST_SHA256: f828202c4ee518a112d3caea22ba3a6b87307ede7107d51ebd9d5b15e576c4f4
     steps:
       - name: Validate exact signed head and deterministic bounded source set
         shell: bash
