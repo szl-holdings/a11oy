@@ -49,9 +49,22 @@ Implement every current source-level gap you can reproduce in these areas:
 
 When current source is already correct, add no cosmetic churn. Prove the contract with focused regressions instead.
 
+### 2a. Qualify state and ingress efficiency after the baseline is stable
+
+Implement these only where the current repository lacks them and each claim can be reproduced:
+
+- use tokenizer throughput and cache warmth as bounded routing signals for prefix-heavy, corpus-heavy, and prefill-heavy work;
+- build a Prefix Foundry for canonical system prompts, personas, tools, enterprise headers, and recurring code-analysis scaffolds;
+- perform repository ingestion as a file-native batch path rather than a per-file interpreter loop;
+- refresh retrieval indexes only from measured ingestion headroom;
+- track prefix reuse and KV reuse together;
+- reinvest measured token, prefix, and KV savings into branch scoring, static checks, policy checks, replay, counterexamples, and code verification rather than claiming speed alone.
+
+Do not promote an alternate tokenizer, zero-copy token-ID path, or cache contract unless token IDs, normalization, special-token behavior, document separators, and chat-template behavior match the declared semantic oracle on representative repository data. Record mismatches and fail closed.
+
 ### 3. Qualification
 
-Run the exact applicable commands from `AGENTS.md` and the repository workflows. At minimum cover:
+Use the deterministic environment contract in `.codex/CODEX_CLOUD_ENVIRONMENT_20260811.md`, then run the exact applicable commands from `AGENTS.md` and the repository workflows. At minimum cover:
 
 - Python compilation for changed Python files;
 - focused Python tests for changed routes/services;
