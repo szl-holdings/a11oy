@@ -1,0 +1,44 @@
+name: PR1260 runtime identity review apply
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply-runtime-review-fixes:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/frontdoor-truth-mobile-clean-2026-08-11'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/frontdoor-truth-mobile-clean-2026-08-11
+          fetch-depth: 0
+      - name: Apply canonical runtime identity and readiness repairs
+        run: python3 scripts/apply_runtime_identity_review_fixes.py
+      - name: Verify focused contracts
+        run: |
+          python3 -m py_compile serve.py szl_runtime_contracts.py scripts/repair_readiness_soft_revision.py scripts/apply_runtime_identity_review_fixes.py
+          python3 scripts/repair_readiness_soft_revision.py tools/readiness-harness/probe_runner.mjs --check
+          python3 -m pytest -q tests/test_runtime_contracts.py -k build_info
+      - name: Commit branch-only repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- serve.py szl_runtime_contracts.py tests/test_runtime_contracts.py scripts/repair_readiness_soft_revision.py; then
+            echo 'Canonical runtime identity repairs already materialized.'
+            exit 0
+          fi
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git add serve.py szl_runtime_contracts.py tests/test_runtime_contracts.py scripts/repair_readiness_soft_revision.py
+          git commit -m 'fix(runtime): make build identity source-bound and fail closed' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:fix/frontdoor-truth-mobile-clean-2026-08-11
