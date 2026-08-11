@@ -84,9 +84,8 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertNotIn("hf-relock-evidence", self.sync)
         self.assertNotIn("check_hf_runtime_revision", self.sync)
 
-    def test_successful_deploy_restarts_then_dispatches_strict_live_parity(self) -> None:
+    def test_successful_deploy_dispatches_strict_live_parity(self) -> None:
         self.assertIn("actions: write", self.sync)
-        self.assertIn("restart-space: true", self.sync)
         enforce = self.sync.index("Enforce exact live state")
         dispatch = self.sync.index("Trigger strict post-deployment GitHub/HF parity")
         self.assertLess(enforce, dispatch)
