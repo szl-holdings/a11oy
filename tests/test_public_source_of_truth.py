@@ -52,6 +52,27 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         self.assertEqual(metric["value"], 58)
         self.assertEqual(metric["label"], "MEASURED")
 
+    def test_metric_without_nonblank_source_fails_closed(self):
+        for source in (None, "", "   "):
+            with self.subTest(source=source):
+                snapshot = self.build(
+                    {
+                        "inventory": {
+                            "github": {
+                                "public_repositories": {
+                                    "value": 58,
+                                    "label": "MEASURED",
+                                    "observed_at": "2026-08-11T00:00:00Z",
+                                    "source": source,
+                                }
+                            }
+                        }
+                    }
+                )
+                metric = snapshot["inventory"]["github"]["public_repositories"]
+                self.assertEqual(metric["label"], "UNAVAILABLE")
+                self.assertIsNone(metric["value"])
+
     def test_metric_without_timestamp_fails_closed(self):
         snapshot = self.build(
             {
@@ -185,6 +206,7 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         snapshot = self.build()
         self.assertEqual(snapshot["doctrine"]["lambda_uniqueness"]["label"], "CONJECTURE")
         self.assertEqual(snapshot["doctrine"]["lambda_uniqueness"]["name"], "Conjecture 1")
+        self.assertEqual(snapshot["doctrine"]["lambda_uniqueness"]["limitation"], MODULE.LAMBDA_LIMITATION)
 
     def test_validator_enforces_locked_doctrine(self):
         for field, value, error in (
@@ -196,6 +218,15 @@ class PublicSourceOfTruthTests(unittest.TestCase):
                 snapshot["doctrine"][field] = value
                 snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
                 self.assertIn(error, MODULE.validate_snapshot(snapshot))
+
+    def test_validator_enforces_lambda_limitation(self):
+        snapshot = self.build()
+        snapshot["doctrine"]["lambda_uniqueness"]["limitation"] = "Verified theorem."
+        snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
+        self.assertIn("lambda_uniqueness_limitation", MODULE.validate_snapshot(snapshot))
+
+    def test_verified_state_requires_public_contract_evidence(self):
+        self.assertEqual(MODULE.expected_aggregate_state({}, {}, "a" * 40), "DEGRADED")
 
     def test_verified_state_requires_source_revision(self):
         snapshot = self.build()

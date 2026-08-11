@@ -23,6 +23,7 @@ from typing import Any, Mapping
 from jsonschema import Draft202012Validator, FormatChecker
 
 SCHEMA = "szl.public-source-of-truth/v1"
+LAMBDA_LIMITATION = "Never render as a theorem or verified trust state."
 TERMINAL_STATES = {
     "VERIFIED",
     "REACHABLE",
@@ -112,13 +113,14 @@ def normalize_metric(raw: Any, *, source: str, generated_at: dt.datetime) -> dic
     label = str(raw.get("label", "UNAVAILABLE")).upper()
     value = raw.get("value")
     observed_at = fresh_timestamp(raw.get("observed_at"), generated_at=generated_at)
-    observed_source = str(raw.get("source") or source)
+    provided_source = raw.get("source")
+    observed_source = provided_source.strip() if isinstance(provided_source, str) else ""
     if label not in METRIC_LABELS:
         return unavailable_metric(source)
     if label == "UNAVAILABLE":
-        return unavailable_metric(observed_source)
-    if value is None or not observed_at or not is_finite_json_value(value):
-        return unavailable_metric(observed_source)
+        return unavailable_metric(observed_source or source)
+    if not observed_source or value is None or not observed_at or not is_finite_json_value(value):
+        return unavailable_metric(source)
     return {"value": value, "label": label, "observed_at": observed_at, "source": observed_source}
 
 
@@ -170,6 +172,9 @@ def expected_aggregate_state(
     if not isinstance(source_revision, str) or not SHA_PATTERN.fullmatch(source_revision):
         return "DEGRADED"
     if not isinstance(inventory, Mapping) or not isinstance(runtime, Mapping):
+        return "DEGRADED"
+    public_contract = runtime.get("public_contract")
+    if not isinstance(public_contract, Mapping) or public_contract.get("state") != "VERIFIED":
         return "DEGRADED"
     for section in inventory.values():
         if not isinstance(section, Mapping):
@@ -236,7 +241,7 @@ def build_snapshot(*, observations: Mapping[str, Any], generated_at: str, source
         "doctrine": {
             "version": "v11",
             "state": "LOCKED",
-            "lambda_uniqueness": {"label": "CONJECTURE", "name": "Conjecture 1", "limitation": "Never render as a theorem or verified trust state."},
+            "lambda_uniqueness": {"label": "CONJECTURE", "name": "Conjecture 1", "limitation": LAMBDA_LIMITATION},
         },
         "claim_classes": ["PROVED", "MEASURED", "REPORTED", "MODELED", "CONJECTURE", "ROADMAP", "UNAVAILABLE"],
         "remote_mutations": 0,
@@ -278,6 +283,8 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
         errors.append("doctrine_state")
     if lambda_info.get("label") != "CONJECTURE" or lambda_info.get("name") != "Conjecture 1":
         errors.append("lambda_uniqueness")
+    if lambda_info.get("limitation") != LAMBDA_LIMITATION:
+        errors.append("lambda_uniqueness_limitation")
     digest = str(snapshot.get("digest_sha3_256", ""))
     if not DIGEST_PATTERN.fullmatch(digest) or digest != digest_snapshot(snapshot):
         errors.append("digest_sha3_256")
