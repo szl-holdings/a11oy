@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a11oy.net/specs/szl.public-source-of-truth.v1.schema.json",
+  "title": "SZL Public Source of Truth v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "generated_at",
+    "source_revision",
+    "inventory",
+    "runtime",
+    "doctrine",
+    "claim_classes",
+    "remote_mutations",
+    "secret_values_read",
+    "state",
+    "digest_sha3_256"
+  ],
+  "properties": {
+    "schema": {"const": "szl.public-source-of-truth/v1"},
+    "generated_at": {"type": "string", "minLength": 1},
+    "source_revision": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      ]
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["github", "huggingface"],
+      "properties": {
+        "github": {
+          "type": "object",
+          "required": ["public_repositories", "active_repositories", "archived_repositories"],
+          "additionalProperties": {"$ref": "#/$defs/metric"}
+        },
+        "huggingface": {
+          "type": "object",
+          "required": ["spaces_total", "spaces_public", "models", "datasets", "kernels", "collections", "buckets"],
+          "additionalProperties": {"$ref": "#/$defs/metric"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/observation"}
+    },
+    "doctrine": {
+      "type": "object",
+      "required": ["version", "state", "lambda_uniqueness"],
+      "properties": {
+        "version": {"const": "v11"},
+        "state": {"const": "LOCKED"},
+        "lambda_uniqueness": {
+          "type": "object",
+          "required": ["label", "name", "limitation"],
+          "properties": {
+            "label": {"const": "CONJECTURE"},
+            "name": {"const": "Conjecture 1"},
+            "limitation": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "claim_classes": {
+      "type": "array",
+      "const": ["PROVED", "MEASURED", "REPORTED", "MODELED", "CONJECTURE", "ROADMAP", "UNAVAILABLE"]
+    },
+    "remote_mutations": {"const": 0},
+    "secret_values_read": {"const": false},
+    "state": {"enum": ["VERIFIED", "DEGRADED", "FAILED"]},
+    "digest_sha3_256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "required": ["value", "label", "observed_at", "source"],
+      "properties": {
+        "value": {},
+        "label": {"enum": ["MEASURED", "REPORTED", "UNAVAILABLE"]},
+        "observed_at": {"type": ["string", "null"]},
+        "source": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"label": {"const": "UNAVAILABLE"}}},
+          "then": {"properties": {"value": {"type": "null"}, "observed_at": {"type": "null"}}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "observation": {
+      "type": "object",
+      "required": ["state", "observed_at", "source", "detail"],
+      "properties": {
+        "state": {"enum": ["VERIFIED", "REACHABLE", "DEGRADED", "STALE", "FAILED", "BLOCKED", "UNAVAILABLE"]},
+        "observed_at": {"type": ["string", "null"]},
+        "source": {"type": "string", "minLength": 1},
+        "detail": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
