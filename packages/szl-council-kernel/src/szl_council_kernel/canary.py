@@ -50,21 +50,28 @@ def build_deterministic_council(
     correlated: bool = False,
     session_time: str = FIXED_TIME,
     expiry: str = FIXED_EXPIRY,
+    evidence_manifest_digest: str | None = None,
 ) -> tuple[CouncilCase, dict[str, Any]]:
+    default_evidence_manifest_digest = digest_object(
+        {
+            "schema": "szl.evidence-manifest/v1",
+            "evidence": [
+                {"id": "policy", "tier": "VERIFIED", "digest": policy.digest},
+                {
+                    "id": "target",
+                    "tier": "SAMPLE",
+                    "target": envelope.exact_targets[0],
+                    "limitation": "Target identifier only; no fresh measurement is claimed.",
+                },
+            ],
+        }
+    )
     case = CouncilCase(
         case_id=envelope.case_id,
         subject=envelope.subject,
         risk_class=risk_class,
         value_claimed=value_claimed,
-        evidence_manifest_digest=digest_object(
-            {
-                "schema": "szl.evidence-manifest/v1",
-                "evidence": [
-                    {"id": "policy", "tier": "VERIFIED", "digest": policy.digest},
-                    {"id": "target", "tier": "MEASURED", "target": envelope.exact_targets[0]},
-                ],
-            }
-        ),
+        evidence_manifest_digest=evidence_manifest_digest or default_evidence_manifest_digest,
         policy_digest=policy.digest,
         envelope_digest=envelope.digest,
         epochs_digest=envelope.epochs.digest,
@@ -161,14 +168,7 @@ def run_canary(workdir: str | Path) -> dict[str, Any]:
         risk_class=RiskClass.LOW,
         blast_radius=BlastRadius.SANDBOX,
         autonomy_level=AutonomyLevel.A2_REVERSIBLE,
-        budgets=BudgetLimits(
-            max_cost_usd=0,
-            max_duration_seconds=30,
-            max_tool_calls=1,
-            max_mutations=1,
-            max_branches=1,
-            max_recursion=0,
-        ),
+        budgets=BudgetLimits(max_cost_usd=0, max_duration_seconds=30, max_tool_calls=1, max_mutations=1, max_branches=1, max_recursion=0),
         preconditions=(ConditionSpec("FILE_ABSENT", target, True),),
         postconditions=(ConditionSpec("TEXT_CONTAINS", target, "proof-carrying-autonomy"),),
         idempotency_key="canary-write-0001",
@@ -182,64 +182,14 @@ def run_canary(workdir: str | Path) -> dict[str, Any]:
         issued_at=FIXED_TIME,
         expires_at=FIXED_EXPIRY,
     )
-    grant = CapabilityGrant(
-        grant_id="grant-canary-0001",
-        principal=envelope.principal,
-        capabilities=envelope.capabilities,
-        target_patterns=("workspace/**",),
-        tools=envelope.tools,
-        budgets=envelope.budgets,
-        issued_at=FIXED_TIME,
-        expires_at=FIXED_EXPIRY,
-    )
+    grant = CapabilityGrant(grant_id="grant-canary-0001", principal=envelope.principal, capabilities=envelope.capabilities, target_patterns=("workspace/**",), tools=envelope.tools, budgets=envelope.budgets, issued_at=FIXED_TIME, expires_at=FIXED_EXPIRY)
     case, settlement = build_deterministic_council(envelope=envelope, policy=policy)
-    gate_input = GateInput(
-        council_state="QUORUM_VERIFIED",
-        risk_class=RiskClass.LOW,
-        effective_diversity=settlement["result"]["diversity"]["joint_effective_size"],
-        evidence_completeness=0.98,
-        proof_completeness=0.98,
-        novelty_score=0.05,
-        ambiguity_score=0.03,
-        irreversibility_score=0.02,
-        drift_score=0.0,
-        expected_blast_radius=0.02,
-        historical_false_green_rate=0.0,
-        calibration_sample_size=200,
-    )
-    action = ActionRequest(
-        action_id="action-canary-write-0001",
-        case_id=case.case_id,
-        grant_id=grant.grant_id,
-        kind=ActionKind.FILE_WRITE,
-        tool="sandbox_fs",
-        target=target,
-        content=marker,
-        expected_before_digest=None,
-        idempotency_key=envelope.idempotency_key,
-        postconditions=envelope.postconditions,
-        metadata={"task_class": "file_mutation", "domain": "local-canary"},
-    )
-    kernel = CouncilKernel(
-        db_path=str(db),
-        sandbox_root=str(sandbox),
-        receipt_signer=_signer("receipt"),
-    )
-    run = kernel.run_case(
-        case=case,
-        envelope=envelope,
-        grant=grant,
-        settlement=settlement,
-        gate_input=gate_input,
-        action=action,
-        now=FIXED_TIME,
-    )
+    gate_input = GateInput(council_state="QUORUM_VERIFIED", risk_class=RiskClass.LOW, effective_diversity=settlement["result"]["diversity"]["joint_effective_size"], evidence_completeness=0.98, proof_completeness=0.98, novelty_score=0.05, ambiguity_score=0.03, irreversibility_score=0.02, drift_score=0.0, expected_blast_radius=0.02, historical_false_green_rate=0.0, calibration_sample_size=200)
+    action = ActionRequest(action_id="action-canary-write-0001", case_id=case.case_id, grant_id=grant.grant_id, kind=ActionKind.FILE_WRITE, tool="sandbox_fs", target=target, content=marker, expected_before_digest=None, idempotency_key=envelope.idempotency_key, postconditions=envelope.postconditions, metadata={"task_class": "file_mutation", "domain": "local-canary"})
+    kernel = CouncilKernel(db_path=str(db), sandbox_root=str(sandbox), receipt_signer=_signer("receipt"))
+    run = kernel.run_case(case=case, envelope=envelope, grant=grant, settlement=settlement, gate_input=gate_input, action=action, now=FIXED_TIME)
     target_path = sandbox / target
-    signed_receipt_payload = verify_signed_object(
-        run["signed_receipt"],
-        kernel.receipt_signer.verifier(),
-        expected_payload_type=ACTION_RECEIPT_CONTENT_TYPE,
-    )
+    signed_receipt_payload = verify_signed_object(run["signed_receipt"], kernel.receipt_signer.verifier(), expected_payload_type=ACTION_RECEIPT_CONTENT_TYPE)
     checks = {
         "council_settlement": verify_settlement(settlement)["status"] == "PASS",
         "council_state": settlement["result"]["state"] == "QUORUM_VERIFIED",
