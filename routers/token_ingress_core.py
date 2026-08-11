@@ -10,6 +10,7 @@ model training, signing, or secret access occurs here.
 from __future__ import annotations
 
 import hashlib
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
@@ -33,15 +34,15 @@ class TokenizerNodeSignal:
     def validate(self) -> None:
         if not self.node_id.strip():
             raise ValueError("node_id is required")
-        if self.tokenizer_tokens_per_sec < 0:
-            raise ValueError("tokenizer_tokens_per_sec must be non-negative")
+        if not math.isfinite(self.tokenizer_tokens_per_sec) or self.tokenizer_tokens_per_sec < 0:
+            raise ValueError("tokenizer_tokens_per_sec must be finite and non-negative")
         for name, value in (
             ("tokenizer_cache_warmth", self.tokenizer_cache_warmth),
             ("prefix_cache_hit_rate", self.prefix_cache_hit_rate),
             ("kv_cache_hit_rate", self.kv_cache_hit_rate),
         ):
-            if not 0.0 <= value <= 1.0:
-                raise ValueError(f"{name} must be between 0 and 1")
+            if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} must be finite and between 0 and 1")
 
 
 @dataclass(frozen=True)
@@ -149,6 +150,8 @@ class PrefixFoundry:
         return h.hexdigest()
 
     def put(self, namespace: str, content: bytes) -> str:
+        if self.max_entries < 1 or self.max_bytes < 1:
+            raise ValueError("foundry budgets must be positive")
         if not content:
             raise ValueError("prefix content must not be empty")
         if len(content) > self.max_bytes:
@@ -196,6 +199,8 @@ def ingest_repository_files(
     root = root.resolve()
     if not root.is_dir():
         raise ValueError("root must be an existing directory")
+    if max_file_bytes < 1 or max_total_bytes < 1:
+        raise ValueError("ingest byte budgets must be positive")
     total = 0
     manifest: list[IngestedFile] = []
     text_payloads: dict[str, str] = {}
@@ -247,8 +252,8 @@ def verifier_reinvestment(
     measured: bool = False,
     weights: Mapping[str, float] | None = None,
 ) -> dict[str, object]:
-    if saved_milliseconds < 0:
-        raise ValueError("saved_milliseconds must be non-negative")
+    if not math.isfinite(saved_milliseconds) or saved_milliseconds < 0:
+        raise ValueError("saved_milliseconds must be finite and non-negative")
     allocation = dict(weights or {
         "branch_scoring": 0.30,
         "static_analysis": 0.25,
@@ -256,8 +261,8 @@ def verifier_reinvestment(
         "replay": 0.15,
         "counterexamples": 0.10,
     })
-    if not allocation or any(value < 0 for value in allocation.values()):
-        raise ValueError("verification weights must be non-negative")
+    if not allocation or any(not math.isfinite(value) or value < 0 for value in allocation.values()):
+        raise ValueError("verification weights must be finite and non-negative")
     total = sum(allocation.values())
     if total <= 0:
         raise ValueError("verification weights must have positive total")
