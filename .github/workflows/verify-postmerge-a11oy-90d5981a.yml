@@ -30,7 +30,7 @@ jobs:
             series="$(curl --fail --silent --show-error --max-time 15 "$ORIGIN/api/a11oy/v1/series-a/status" || true)"
             readiness="$(curl --fail --silent --show-error --max-time 15 "$ORIGIN/api/a11oy/v1/readiness/tab-matrix?view=summary" || true)"
             relock="$(curl --fail --silent --show-error --max-time 15 "$RELOCK_API" || true)"
-            BUILD_JSON="$build" HF_JSON="$hf" SERIES_JSON="$series" READINESS_JSON="$readiness" RELOCK_JSON="$relock" python3 - <<'PY'
+            if BUILD_JSON="$build" HF_JSON="$hf" SERIES_JSON="$series" READINESS_JSON="$readiness" RELOCK_JSON="$relock" python3 - <<'PY'
           import json, os, sys
           expected = os.environ['EXPECTED_SHA']
           def load(name):
@@ -83,6 +83,7 @@ jobs:
               series_revision == expected
               and storage.get('mount_verified') is True
               and storage.get('persistence_required') is True
+              and signature_status == 'SIGNED'
               and isinstance(signing_source, str)
               and signing_source.startswith('persistent:')
           )
@@ -90,8 +91,7 @@ jobs:
           relock_ok = expected in issue_body and '"status": "PASS"' in issue_body and issue_state == 'closed'
           sys.exit(0 if source_ok and hf_ok and series_ok and readiness_ok and relock_ok else 1)
           PY
-            rc=$?
-            if [ "$rc" -eq 0 ]; then
+            then
               echo "POSTMERGE_TERMINAL_RELOCK_PASS"
               exit 0
             fi
