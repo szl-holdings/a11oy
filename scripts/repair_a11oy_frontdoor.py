@@ -9,7 +9,7 @@ SPEC_PATH = Path(__file__).resolve().parents[1] / "config" / "a11oy-frontdoor" /
 
 MEASURED_INTERMEDIATE = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, separately reported signer state, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>'
 MEASURED_FINAL = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>'
-MOBILE_BLOCK = '''  @media(max-width:560px){
+MOBILE_INTERMEDIATE_BLOCK = '''  @media(max-width:560px){
     .wrap{padding-inline:16px}
     section.band{padding:64px 0}
     .hero{min-height:auto}
@@ -19,7 +19,20 @@ MOBILE_BLOCK = '''  @media(max-width:560px){
     .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
   }
 '''
-MOBILE_FINAL = "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n" + MOBILE_BLOCK
+MOBILE_FINAL_BLOCK = '''  @media(max-width:560px){
+    .wrap{padding-inline:16px}
+    section.band{padding-block:64px}
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
+    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
+  }
+'''
+MOBILE_FINAL = (
+    "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n"
+    + MOBILE_FINAL_BLOCK
+)
 
 REVIEWED_SUCCESSORS = {
     "measured_legend": MEASURED_FINAL,
@@ -42,12 +55,21 @@ def _converge_reviewed_successors(text: str) -> str:
         text = text.replace(MEASURED_INTERMEDIATE, MEASURED_FINAL, 1)
 
     if MOBILE_FINAL not in text:
-        if text.count(MOBILE_BLOCK) != 1:
+        late_intermediate = (
+            "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n"
+            + MOBILE_INTERMEDIATE_BLOCK
+        )
+        if late_intermediate in text:
+            if text.count(late_intermediate) != 1:
+                raise PatchError("mobile_layout_hardening: intermediate successor is duplicated")
+            text = text.replace(late_intermediate, MOBILE_FINAL, 1)
+        elif text.count(MOBILE_INTERMEDIATE_BLOCK) == 1:
+            text = text.replace(MOBILE_INTERMEDIATE_BLOCK, "", 1)
+            if text.count("</style>") != 1:
+                raise PatchError("mobile_layout_hardening: expected exactly one </style> insertion anchor")
+            text = text.replace("</style>", MOBILE_FINAL + "</style>", 1)
+        else:
             raise PatchError("mobile_layout_hardening: reviewed successor anchor is absent or ambiguous")
-        text = text.replace(MOBILE_BLOCK, "", 1)
-        if text.count("</style>") != 1:
-            raise PatchError("mobile_layout_hardening: expected exactly one </style> insertion anchor")
-        text = text.replace("</style>", MOBILE_FINAL + "</style>", 1)
 
     return text
 
@@ -96,6 +118,7 @@ def validate_truth(text: str) -> list[str]:
         '<div class="estate-cell"><b>26</b><span>Spaces</span></div>',
         '<div class="estate-cell"><b>22</b><span>Collections</span></div>',
         MEASURED_INTERMEDIATE,
+        MOBILE_INTERMEDIATE_BLOCK,
     ]
     for token in banned:
         if token in text:
