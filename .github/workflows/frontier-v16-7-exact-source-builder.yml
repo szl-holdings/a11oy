@@ -31,7 +31,7 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       OWNER_LOGIN: stephenlutar2-hash
       CONTRACT_SHA256: bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae
-      REPAIR_SCRIPT_SHA256: 27ee06fd37e952b27a9fa6acfe2e9b157bba65abf4db1f5bedf571de54be814f
+$1003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59
       SOURCE_TEST_SHA256: 4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f
     steps:
       - name: Create one exact GitHub-signed Frontier source commit
@@ -70,8 +70,8 @@ jobs:
           fetch_file() {
             local ref="$1" rel="$2" output="$3"
             mkdir -p "$(dirname "$output")"
-            gh api "repos/${REPOSITORY}/contents/${rel}?ref=${ref}" --jq '.content' \
-              | tr -d '\n' | base64 --decode >"$output"
+            gh api -H 'Accept: application/vnd.github.raw+json' \
+              "repos/${REPOSITORY}/contents/${rel}?ref=${ref}" >"$output"
           }
 
           repair_script="$work/apply_current_main_repairs.py"

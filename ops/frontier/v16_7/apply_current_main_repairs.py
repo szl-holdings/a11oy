@@ -221,11 +221,17 @@ def repair_readme(text: str, changes: list[str]) -> str:
         r"(?m)^\s*\|?\s*Signed receipts on every governed action\s*\|\s*"
         r"(?:\*\*)?LIVE(?:\*\*)?\s*\|?\s*$"
     )
+    repaired_pattern = re.compile(
+        r"(?m)^\s*\|?\s*Signed receipts on every governed action\s*\|\s*"
+        r"(?:\*\*)?CONFIGURATION-BOUND(?:\*\*)?\s*·\s*SIGNED\s+only\s+"
+        r"when\s+the\s+persistent\s+production\s+key\s+is\s+present;\s*"
+        r"otherwise\s+explicitly\s+UNSIGNED\s*\|?\s*$"
+    )
     matches = list(pattern.finditer(text))
-    repaired_count = text.count(new)
-    if not matches and repaired_count == 1:
+    repaired_matches = list(repaired_pattern.finditer(text))
+    if not matches and len(repaired_matches) == 1:
         return text
-    if len(matches) != 1 or repaired_count != 0:
+    if len(matches) != 1 or repaired_matches:
         raise RepairError(
             "README receipt claim: expected one unconditional LIVE line or the repaired line"
         )

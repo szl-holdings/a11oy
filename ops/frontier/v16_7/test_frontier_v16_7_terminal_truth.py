@@ -90,6 +90,20 @@ def test_repair_oracle_rejects_mixed_old_and_repaired_rows() -> None:
         raise AssertionError("mixed unconditional and repaired receipt rows must fail closed")
 
 
+def test_repair_oracle_rejects_mixed_old_and_reformatted_repaired_rows() -> None:
+    old = "| Signed receipts on every governed action | **LIVE** |\n"
+    variant = (
+        "  |  Signed receipts on every governed action  |  CONFIGURATION-BOUND  ·  SIGNED  only  "
+        "when  the  persistent  production  key  is  present;  otherwise  explicitly  UNSIGNED  |\n"
+    )
+    try:
+        REPAIRS.repair_readme(old + variant, [])
+    except REPAIRS.RepairError:
+        pass
+    else:
+        raise AssertionError("mixed unconditional and reformatted repaired receipt rows must fail closed")
+
+
 def test_qualification_requires_ruleset_bound_workflow_identity() -> None:
     guide = text("ops/frontier/v16_7/README.md")
     assert "ruleset-bound identity" in guide
