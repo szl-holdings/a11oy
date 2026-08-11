@@ -1,0 +1,32 @@
+name: frontier-spin
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+  pull_request:
+    paths:
+      - "governance-evidence-plane/**"
+
+jobs:
+  frontier_spin:
+    name: frontier-operational-probe
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run frontier spin-up probe
+        run: |
+          python -I -B governance-evidence-plane/scripts/frontier_spin.py
+
+      - name: Archive frontier evidence artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontier-evidence-plane-${{ github.run_id }}
+          path: |
+            outputs/frontier_snapshot_*.json
+            outputs/frontier_report_*.md
+          if-no-files-found: warn
