@@ -79,6 +79,9 @@ def main() -> int:
     original = args.path.read_text(encoding="utf-8")
     patched, state = apply(original)
     validate(patched)
+    if args.check and state == "APPLIED":
+        print(f"build-info route FAIL_UNAPPLIED: {args.path}")
+        return 1
     if not args.check:
         args.path.write_text(patched, encoding="utf-8")
     print(f"build-info route {state}: {args.path}")
