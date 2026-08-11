@@ -1,0 +1,336 @@
+#!/usr/bin/env python3
+"""Build and validate the public a11oy/SZL source-of-truth contract.
+
+External observations are optional and never inherited from an earlier output.
+When a fresh observation is absent or malformed, the corresponding metric is
+rendered as ``value: null`` and ``label: UNAVAILABLE``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import json
+import os
+import re
+import subprocess
+from pathlib import Path
+from typing import Any, Mapping
+
+SCHEMA = "szl.public-source-of-truth/v1"
+TERMINAL_STATES = {
+    "VERIFIED",
+    "REACHABLE",
+    "DEGRADED",
+    "STALE",
+    "FAILED",
+    "BLOCKED",
+    "UNAVAILABLE",
+}
+METRIC_LABELS = {"MEASURED", "REPORTED", "UNAVAILABLE"}
+SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+
+
+def utc_now() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def canonical_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def digest_snapshot(snapshot: Mapping[str, Any]) -> str:
+    unsigned = dict(snapshot)
+    unsigned.pop("digest_sha3_256", None)
+    return hashlib.sha3_256(canonical_bytes(unsigned)).hexdigest()
+
+
+def unavailable_metric(source: str) -> dict[str, Any]:
+    return {
+        "value": None,
+        "label": "UNAVAILABLE",
+        "observed_at": None,
+        "source": source,
+    }
+
+
+def normalize_metric(raw: Any, *, source: str) -> dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        return unavailable_metric(source)
+
+    label = str(raw.get("label", "UNAVAILABLE")).upper()
+    value = raw.get("value")
+    observed_at = raw.get("observed_at")
+    observed_source = str(raw.get("source") or source)
+
+    if label not in METRIC_LABELS:
+        return unavailable_metric(source)
+    if label == "UNAVAILABLE":
+        return unavailable_metric(observed_source)
+    if value is None or not observed_at:
+        return unavailable_metric(observed_source)
+
+    return {
+        "value": value,
+        "label": label,
+        "observed_at": str(observed_at),
+        "source": observed_source,
+    }
+
+
+def normalize_observation(raw: Any, *, source: str) -> dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        return {
+            "state": "UNAVAILABLE",
+            "observed_at": None,
+            "source": source,
+            "detail": "No fresh observation was supplied.",
+        }
+
+    state = str(raw.get("state", "UNAVAILABLE")).upper()
+    observed_at = raw.get("observed_at")
+    if state not in TERMINAL_STATES or not observed_at:
+        return {
+            "state": "UNAVAILABLE",
+            "observed_at": None,
+            "source": str(raw.get("source") or source),
+            "detail": "Observation was missing a terminal state or timestamp.",
+        }
+
+    return {
+        "state": state,
+        "observed_at": str(observed_at),
+        "source": str(raw.get("source") or source),
+        "detail": str(raw.get("detail") or ""),
+    }
+
+
+def nested(mapping: Mapping[str, Any], *parts: str) -> Any:
+    value: Any = mapping
+    for part in parts:
+        if not isinstance(value, Mapping):
+            return None
+        value = value.get(part)
+    return value
+
+
+def load_json(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("observations root must be a JSON object")
+    return data
+
+
+def git_revision() -> str | None:
+    candidate = os.getenv("GITHUB_SHA")
+    if candidate and SHA_PATTERN.fullmatch(candidate):
+        return candidate
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    candidate = completed.stdout.strip()
+    return candidate if SHA_PATTERN.fullmatch(candidate) else None
+
+
+def build_snapshot(
+    *,
+    observations: Mapping[str, Any],
+    generated_at: str,
+    source_revision: str | None,
+    contract_verified: bool,
+) -> dict[str, Any]:
+    def inventory_metric(section: str, name: str) -> dict[str, Any]:
+        return normalize_metric(
+            nested(observations, "inventory", section, name),
+            source=f"observations.inventory.{section}.{name}",
+        )
+
+    runtime_raw = nested(observations, "runtime")
+    runtime_raw = runtime_raw if isinstance(runtime_raw, Mapping) else {}
+    runtime = {
+        str(name): normalize_observation(value, source=f"observations.runtime.{name}")
+        for name, value in sorted(runtime_raw.items())
+    }
+    runtime["public_contract"] = {
+        "state": "VERIFIED" if contract_verified else "UNAVAILABLE",
+        "observed_at": generated_at if contract_verified else None,
+        "source": "packages/public-evidence-ui + tests",
+        "detail": (
+            "Contract tests passed in the current run."
+            if contract_verified
+            else "Contract verification was not asserted for this build."
+        ),
+    }
+
+    snapshot: dict[str, Any] = {
+        "schema": SCHEMA,
+        "generated_at": generated_at,
+        "source_revision": source_revision,
+        "inventory": {
+            "github": {
+                "public_repositories": inventory_metric("github", "public_repositories"),
+                "active_repositories": inventory_metric("github", "active_repositories"),
+                "archived_repositories": inventory_metric("github", "archived_repositories"),
+            },
+            "huggingface": {
+                "spaces_total": inventory_metric("huggingface", "spaces_total"),
+                "spaces_public": inventory_metric("huggingface", "spaces_public"),
+                "models": inventory_metric("huggingface", "models"),
+                "datasets": inventory_metric("huggingface", "datasets"),
+                "kernels": inventory_metric("huggingface", "kernels"),
+                "collections": inventory_metric("huggingface", "collections"),
+                "buckets": inventory_metric("huggingface", "buckets"),
+            },
+        },
+        "runtime": runtime,
+        "doctrine": {
+            "version": "v11",
+            "state": "LOCKED",
+            "lambda_uniqueness": {
+                "label": "CONJECTURE",
+                "name": "Conjecture 1",
+                "limitation": "Never render as a theorem or verified trust state.",
+            },
+        },
+        "claim_classes": [
+            "PROVED",
+            "MEASURED",
+            "REPORTED",
+            "MODELED",
+            "CONJECTURE",
+            "ROADMAP",
+            "UNAVAILABLE",
+        ],
+        "remote_mutations": 0,
+        "secret_values_read": False,
+        "state": "DEGRADED",
+    }
+
+    unavailable = []
+    for section in snapshot["inventory"].values():
+        for name, metric in section.items():
+            if metric["label"] == "UNAVAILABLE":
+                unavailable.append(name)
+    for name, item in runtime.items():
+        if item["state"] in {"FAILED", "BLOCKED", "UNAVAILABLE"}:
+            unavailable.append(name)
+
+    snapshot["state"] = "VERIFIED" if not unavailable else "DEGRADED"
+    snapshot["digest_sha3_256"] = digest_snapshot(snapshot)
+    return snapshot
+
+
+def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if snapshot.get("schema") != SCHEMA:
+        errors.append("schema")
+    source_revision = snapshot.get("source_revision")
+    if source_revision is not None and not SHA_PATTERN.fullmatch(str(source_revision)):
+        errors.append("source_revision")
+    if snapshot.get("remote_mutations") != 0:
+        errors.append("remote_mutations")
+    if snapshot.get("secret_values_read") is not False:
+        errors.append("secret_values_read")
+    doctrine = snapshot.get("doctrine", {})
+    lambda_info = doctrine.get("lambda_uniqueness", {}) if isinstance(doctrine, Mapping) else {}
+    if lambda_info.get("label") != "CONJECTURE" or lambda_info.get("name") != "Conjecture 1":
+        errors.append("lambda_uniqueness")
+    digest = str(snapshot.get("digest_sha3_256", ""))
+    if not DIGEST_PATTERN.fullmatch(digest) or digest != digest_snapshot(snapshot):
+        errors.append("digest_sha3_256")
+
+    inventory = snapshot.get("inventory", {})
+    if not isinstance(inventory, Mapping):
+        errors.append("inventory")
+    else:
+        for section in inventory.values():
+            if not isinstance(section, Mapping):
+                errors.append("inventory_section")
+                continue
+            for metric in section.values():
+                if not isinstance(metric, Mapping):
+                    errors.append("metric")
+                    continue
+                if metric.get("label") == "UNAVAILABLE" and metric.get("value") is not None:
+                    errors.append("stale_unavailable_metric")
+                if metric.get("label") not in METRIC_LABELS:
+                    errors.append("metric_label")
+
+    runtime = snapshot.get("runtime", {})
+    if not isinstance(runtime, Mapping):
+        errors.append("runtime")
+    else:
+        for item in runtime.values():
+            if not isinstance(item, Mapping) or item.get("state") not in TERMINAL_STATES:
+                errors.append("runtime_state")
+
+    return sorted(set(errors))
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--observations", type=Path)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("artifacts/public/SOURCE_OF_TRUTH.json"),
+    )
+    parser.add_argument("--source-revision")
+    parser.add_argument("--generated-at")
+    parser.add_argument("--contract-verified", action="store_true")
+    parser.add_argument("--check", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if args.check:
+        snapshot = json.loads(args.output.read_text(encoding="utf-8"))
+    else:
+        revision = args.source_revision or git_revision()
+        if revision is not None and not SHA_PATTERN.fullmatch(revision):
+            raise SystemExit("--source-revision must be a 40-character lowercase SHA")
+        snapshot = build_snapshot(
+            observations=load_json(args.observations),
+            generated_at=args.generated_at or utc_now(),
+            source_revision=revision,
+            contract_verified=args.contract_verified,
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
+
+    errors = validate_snapshot(snapshot)
+    if errors:
+        print(json.dumps({"state": "FAILED", "errors": errors}, indent=2))
+        return 1
+    print(
+        json.dumps(
+            {
+                "state": "VERIFIED",
+                "output": str(args.output),
+                "snapshot_state": snapshot["state"],
+                "digest_sha3_256": snapshot["digest_sha3_256"],
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
