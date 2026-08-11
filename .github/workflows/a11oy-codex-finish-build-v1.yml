@@ -1,0 +1,250 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: A11oy — repository-native Codex whole-thread wave
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Protected base branch to read; must remain main
+        required: true
+        default: main
+        type: string
+      effort:
+        description: Codex reasoning effort
+        required: true
+        default: xhigh
+        type: choice
+        options: [high, xhigh]
+      draft_pr:
+        description: Open the generated pull request as a draft
+        required: true
+        default: false
+        type: boolean
+      enable_container_gates:
+        description: Run Docker build after Codex when approved
+        required: true
+        default: false
+        type: boolean
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  packages: read
+
+concurrency:
+  group: a11oy-codex-whole-thread-wave
+  cancel-in-progress: false
+
+jobs:
+  finish-build:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      (
+        (
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.base_ref == 'main'
+        ) ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.number == 1266 &&
+          github.event.comment.body == '/codex-finish whole-thread' &&
+          github.event.comment.user.login == 'stephenlutar2-hash'
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      CODEX_BRANCH: codex/whole-thread-wave-${{ github.run_id }}-${{ github.run_attempt }}
+      CODEX_OUTPUT_DIR: .codex-output
+      CODEX_GATE_OUTPUT_DIR: .codex-output/gates
+      CODEX_ENABLE_CONTAINER_GATES: ${{ github.event.inputs.enable_container_gates == 'true' && '1' || '0' }}
+      CODEX_EFFORT: ${{ github.event.inputs.effort || 'xhigh' }}
+      DRAFT_PR: ${{ github.event.inputs.draft_pr || 'false' }}
+    steps:
+      - name: Checkout exact protected base without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .github/requirements/ci-core.txt
+
+      - name: Require managed Codex API secret
+        env:
+          OPENAI_API_KEY_PRESENT: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p .codex-input .codex-output
+          if [[ "$OPENAI_API_KEY_PRESENT" != "true" ]]; then
+            printf '%s\n' \
+              '{"schema_version":"a11oy.codex.preflight.v1","status":"BLOCKED_MANAGED_PREREQUISITE","reason":"OPENAI_API_KEY repository secret is not configured","secret_values_recorded":false}' \
+              > .codex-output/preflight.json
+            echo "::error::OPENAI_API_KEY is not configured as a managed repository or organization Actions secret."
+            exit 78
+          fi
+
+      - name: Install lockfile dependencies before the no-network Codex phase
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack install -g pnpm@10.33.3
+          npm ci
+          python -m pip install --disable-pip-version-check --require-hashes \
+            -r .github/requirements/ci-core.txt
+          if [[ -f packages/policy/package.json ]]; then
+            (
+              cd packages/policy
+              npm install --no-save --no-package-lock
+            )
+          fi
+          unset NODE_AUTH_TOKEN
+
+      - name: Capture immutable source and public prestate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "szl-holdings/a11oy"
+          test -z "$(git status --porcelain)"
+          mkdir -p .codex-input .codex-output
+          git rev-parse HEAD > .codex-input/base-sha.txt
+          python3 .github/codex/a11oy-github-snapshot-v1.py \
+            --output .codex-input/current-state.json
+          unset GITHUB_TOKEN
+
+      - name: Run Codex in workspace-only mode
+        id: codex
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11 runtime commit
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/a11oy-finish-build-v1.md
+          output-file: .codex-output/final-result.json
+          output-schema-file: .github/codex/a11oy-finish-build-output.schema.json
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          effort: ${{ env.CODEX_EFFORT }}
+          codex-args: '["--ephemeral"]'
+
+      - name: Validate Codex result and repository changes without credentials
+        run: |
+          set -euo pipefail
+          test -f .codex-output/final-result.json
+          python3 - <<'PY_RESULT'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path(".codex-output/final-result.json").read_text(encoding="utf-8"))
+          if payload.get("schema_version") != "a11oy.codex.finish-build.result.v1":
+              raise SystemExit("invalid result schema version")
+          if payload.get("external_actions", {}).get("secret_value_access") is not False:
+              raise SystemExit("result did not preserve secret-value boundary")
+          if payload.get("external_actions", {}).get("git_push") is not False:
+              raise SystemExit("Codex, rather than the trusted workflow, claimed a git push")
+          if payload.get("status") != "PATCH_READY":
+              raise SystemExit(f"Codex did not produce a patch-ready result: {payload.get('status')}")
+          print("structured result status=PATCH_READY")
+          PY_RESULT
+          chmod +x .github/codex/a11oy-run-gates-v1.sh
+          .github/codex/a11oy-run-gates-v1.sh
+          test -n "$(git status --porcelain --untracked-files=all | grep -v '^?? \.codex-' || true)"
+
+      - name: Commit, push, and open protected-review pull request
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base_sha="$(cat .codex-input/base-sha.txt)"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$base_sha"
+          test "$(git merge-base HEAD origin/main)" = "$base_sha"
+
+          git switch -c "$CODEX_BRANCH"
+          rm -rf .codex-input .codex-output
+          git add -A
+          python3 .github/codex/a11oy-secret-diff-scan-v1.py
+          python3 .github/codex/a11oy-action-pin-scan-v1.py
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+
+          git config user.name "A11oy Codex Automation"
+          git config user.email "a11oy-codex[bot]@users.noreply.github.com"
+          git commit \
+            -m "fix(codex): execute whole-thread A11oy wave" \
+            -m "Signed-off-by: A11oy Codex Automation <a11oy-codex[bot]@users.noreply.github.com>"
+
+          askpass="$(mktemp)"
+          cat > "$askpass" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "$1" in
+            *Username*) printf '%s\n' 'x-access-token' ;;
+            *Password*) printf '%s\n' "$GITHUB_TOKEN" ;;
+            *) printf '\n' ;;
+          esac
+          ASKPASS
+          chmod 700 "$askpass"
+          GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 git push -u origin "$CODEX_BRANCH"
+          rm -f "$askpass"
+          unset GITHUB_TOKEN
+
+          draft_args=()
+          if [[ "$DRAFT_PR" == "true" ]]; then draft_args+=(--draft); fi
+          pr_url="$(gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$CODEX_BRANCH" \
+            --title "fix(codex): execute whole-thread A11oy wave" \
+            --body $'## Satisfies\n\nSatisfies: C-1266\n\n## Root cause\n\nCodex selected and repaired the highest-priority current A11oy defect supported by the immutable prestate and repository evidence.\n\n## Labels\n\nLabels: MEASURED local tests and source evidence only; no deployment, provider, database, certification, customer, or production claim.\n\n## Rollback\n\nRollback: close this PR before merge, or submit a protected revert PR after merge. No automatic provider or database mutation occurred.\n\n## Risk\n\nRisk: C — Codex-authored source change requiring full protected review and exact-head gates.\n\n## Evidence\n\nThe branch contains the truth-labeled receipt and regression tests. The workflow used no provider credential beyond the Codex Responses proxy, did not deploy, and did not mutate Hugging Face, databases, rulesets, or another repository.\n\nSigned-off-by: A11oy Codex Automation <a11oy-codex[bot]@users.noreply.github.com>' \
+            "${draft_args[@]}")"
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+          printf 'Created %s\n' "$pr_url"
+
+      - name: Publish run result to the primary coordination issue
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ steps.publish.outputs.pr_url }}
+          CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo '<!-- a11oy-codex-whole-thread-run -->'
+            echo "Codex workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "- Codex step: ${CODEX_OUTCOME:-not-run}"
+            echo "- Publish step: ${PUBLISH_OUTCOME:-not-run}"
+            if [[ -n "${PR_URL:-}" ]]; then echo "- Generated PR: ${PR_URL}"; fi
+          } > /tmp/codex-run-comment.md
+          gh issue comment 1266 --repo "$GITHUB_REPOSITORY" --body-file /tmp/codex-run-comment.md
+
+      - name: Upload immutable Codex and gate evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-codex-whole-thread-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .codex-output/
+            .codex-input/
+          if-no-files-found: warn
+          retention-days: 90
