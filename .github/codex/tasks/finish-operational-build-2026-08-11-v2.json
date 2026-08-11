@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.1",
+  "task_id": "a11oy-operational-completion-2026-08-11-v2",
+  "repository": "szl-holdings/a11oy",
+  "base_branch": "main",
+  "work_branch": "codex/finish-operational-build-2026-08-11-v2",
+  "prompt": ".github/codex/prompts/finish-operational-build-2026-08-11-v2.md",
+  "state": "EXECUTION_REQUIRED",
+  "priority": "P0",
+  "supersedes": {
+    "pull_requests": [1228, 1265],
+    "trust_policy": "REFERENCE_ONLY_REPRODUCE_BEFORE_ACCEPTANCE"
+  },
+  "authority": {
+    "branch_write": true,
+    "merge": false,
+    "force_push": false,
+    "branch_protection_changes": false,
+    "permission_changes": false,
+    "secret_discovery": false,
+    "provider_mutation_without_scoped_auth": false,
+    "production_claim_without_live_readback": false
+  },
+  "required_inputs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/rules/",
+    "KNOWN_GOTCHAS.md",
+    "docs/architecture.md",
+    "package manifests",
+    "Dockerfiles",
+    ".github/workflows/"
+  ],
+  "toolchain": {
+    "node": "22",
+    "pnpm": "10.33.3",
+    "python": "3.12",
+    "python_core_requirements": ".github/requirements/ci-core.txt",
+    "require_hashes": true
+  },
+  "required_domains": [
+    "python_api",
+    "governed_agent_execution",
+    "typescript_doctrine",
+    "frontend_backend_routes",
+    "container_runtime_inclusion",
+    "receipts_and_provenance",
+    "authority_and_policy",
+    "ci_and_security",
+    "rollback",
+    "provider_activation_boundaries",
+    "tokenizer_and_state_efficiency"
+  ],
+  "performance_controls": [
+    "tokenizer_aware_routing",
+    "prefix_foundry",
+    "file_native_repository_ingestion",
+    "retrieval_refresh_from_measured_headroom",
+    "verifier_first_savings_reinvestment",
+    "semantic_token_contract"
+  ],
+  "minimum_commands": [
+    "corepack enable",
+    "corepack install -g pnpm@10.33.3",
+    "npm ci",
+    "python -m pip install --require-hashes -r .github/requirements/ci-core.txt",
+    "npm run test:policy-gates",
+    "pnpm install --frozen-lockfile",
+    "pnpm test:doctrine",
+    "pnpm typecheck:doctrine",
+    "pnpm build:doctrine",
+    "npx jest __tests__/",
+    "npx tsx packages/qec-integrity/src/qec_lineage.test.ts",
+    "pnpm --dir web/packages/a11oy-core run test:standalone",
+    "python -m compileall -q .",
+    "pytest -q"
+  ],
+  "required_evidence": [
+    "artifacts/codex/BASELINE-2026-08-11-v2.json",
+    "artifacts/codex/IMPLEMENTATION-2026-08-11-v2.json",
+    "artifacts/codex/TESTS-2026-08-11-v2.json",
+    "artifacts/codex/REMOTE-READBACK-2026-08-11-v2.json",
+    "artifacts/codex/ROLLBACK-2026-08-11-v2.md"
+  ],
+  "allowed_statuses": [
+    "PASS",
+    "FAIL",
+    "BLOCKED",
+    "UNAVAILABLE",
+    "SAMPLE",
+    "MODELED",
+    "ROADMAP",
+    "MEASURED"
+  ],
+  "acceptance": {
+    "clean_checkout": true,
+    "deterministic_dependency_setup": true,
+    "all_locally_executable_required_gates_pass": true,
+    "unresolved_p0_findings": 0,
+    "unresolved_p1_findings": 0,
+    "existing_architecture_integration": true,
+    "ci_security_gates_not_weakened": true,
+    "rollback_documented": true,
+    "exact_head_ci_green_or_precisely_blocked": true,
+    "remote_success_requires_authenticated_live_readback": true,
+    "dco_on_every_commit": true,
+    "commits_pushed_to_work_branch": true,
+    "pr_updated_with_exact_evidence": true
+  }
+}
