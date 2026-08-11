@@ -92,10 +92,10 @@ jobs:
 
           The tracked source-labelled manifest did not match the current public Hub observation, or the observation was unavailable.
 
-          - Protected source: `${GITHUB_SHA}`
+          - Protected source: ${GITHUB_SHA}
           - Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - State: `${STATE:-UNKNOWN}`
-          - Candidate artifact: `huggingface-ecosystem-manifest-candidate-${GITHUB_RUN_ID}` when generation succeeds
+          - State: ${STATE:-UNKNOWN}
+          - Candidate artifact: huggingface-ecosystem-manifest-candidate-${GITHUB_RUN_ID} when generation succeeds
 
           No model, dataset, Space, collection, bucket, visibility, hardware, or secret state was changed by this controller.
           EOF
