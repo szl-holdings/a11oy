@@ -8,6 +8,7 @@ on:
       - "routers/token_ingress_core.py"
       - "routers/frontier_reads.py"
       - "tests/test_token_ingress.py"
+      - "tests/test_demo_critical_routes.py"
       - ".github/workflows/token-ingress.yml"
 
 permissions:
@@ -33,8 +34,9 @@ jobs:
           routers/token_ingress.py
           routers/frontier_reads.py
           tests/test_token_ingress.py
-      - name: Run ingress contract tests
-        run: pytest tests/test_token_ingress.py -q
+          tests/test_demo_critical_routes.py
+      - name: Run ingress and assembled-route contract tests
+        run: pytest tests/test_token_ingress.py tests/test_demo_critical_routes.py -q
       - name: Reject whitespace errors in ingress changes
         run: >-
           git diff --check origin/main...HEAD --
@@ -42,4 +44,5 @@ jobs:
           routers/token_ingress.py
           routers/frontier_reads.py
           tests/test_token_ingress.py
+          tests/test_demo_critical_routes.py
           .github/workflows/token-ingress.yml
