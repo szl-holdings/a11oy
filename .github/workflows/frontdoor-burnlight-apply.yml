@@ -1,9 +1,8 @@
 name: A11oy front-door Burn-Light apply
 
 on:
-  push:
-    branches:
-      - fix/frontdoor-truth-mobile-2026-08-11
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - a11oy_landing.html
       - config/a11oy-frontdoor/PATCH_SPEC.json
@@ -14,14 +13,17 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   apply-and-verify:
-    if: github.ref_name == 'fix/frontdoor-truth-mobile-2026-08-11'
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/frontdoor-truth-mobile-2026-08-11'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Checkout exact branch
+      - name: Checkout exact PR branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: fix/frontdoor-truth-mobile-2026-08-11
