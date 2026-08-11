@@ -1,0 +1,16 @@
+{
+  "name": "@szl/public-evidence-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fail-closed public evidence-state contracts for a11oy interfaces.",
+  "exports": {
+    ".": "./src/index.js",
+    "./terminal-state": "./src/terminal-state.js",
+    "./readiness": "./src/readiness.js"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "license": "Apache-2.0"
+}
