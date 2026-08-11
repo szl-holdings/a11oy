@@ -1,0 +1,74 @@
+name: Verify A11oy post-merge deployment 90d5981a
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/verify-postmerge-a11oy-90d5981a.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-source-binding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_SHA: 90d5981a6dc4223d4053fc970468e26ae191fa99
+      ORIGIN: https://szlholdings-a11oy.hf.space
+      HF_API: https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy
+    steps:
+      - name: Poll exact public deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            echo "attempt=${attempt}"
+            build="$(curl --fail --silent --show-error --max-time 15 "$ORIGIN/api/build-info" || true)"
+            hf="$(curl --fail --silent --show-error --max-time 15 "$HF_API" || true)"
+            BUILD_JSON="$build" HF_JSON="$hf" python3 - <<'PY'
+          import json, os, sys
+          expected = os.environ['EXPECTED_SHA']
+          build_raw = os.environ.get('BUILD_JSON', '')
+          hf_raw = os.environ.get('HF_JSON', '')
+          try:
+              build = json.loads(build_raw)
+          except Exception:
+              build = {}
+          try:
+              hf = json.loads(hf_raw)
+          except Exception:
+              hf = {}
+          revision = ((build.get('build') or {}).get('revision'))
+          source = ((build.get('build') or {}).get('revision_source'))
+          status = build.get('status')
+          hf_sha = hf.get('sha')
+          runtime = hf.get('runtime') or {}
+          runtime_sha = runtime.get('sha') or (runtime.get('raw') or {}).get('sha')
+          stage = runtime.get('stage')
+          print(json.dumps({
+              'expected_source_sha': expected,
+              'build_status': status,
+              'build_revision': revision,
+              'build_revision_source': source,
+              'hf_repository_sha': hf_sha,
+              'hf_runtime_sha': runtime_sha,
+              'hf_runtime_stage': stage,
+          }, sort_keys=True))
+          source_ok = status == 'OBSERVED' and revision == expected and source == 'env:SZL_GIT_SHA'
+          # HF repository/runtime SHA is a Space commit and need not equal GitHub SHA; require
+          # a real immutable 40-char HF SHA and RUNNING runtime while build-info binds GitHub source.
+          hf_ok = isinstance(hf_sha, str) and len(hf_sha) == 40 and stage == 'RUNNING'
+          if source_ok and hf_ok:
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "POSTMERGE_SOURCE_BINDING_PASS"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "POSTMERGE_SOURCE_BINDING_TIMEOUT" >&2
+          exit 1
