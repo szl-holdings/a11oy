@@ -90,6 +90,21 @@ def main() -> int:
         print(json.dumps({"status": "FAIL", "errors": errors, "results": results}, indent=2))
         return 1
 
+    pending = [item["name"] for item in results if item["state"] == "APPLIED"]
+    if args.check and pending:
+        print(
+            json.dumps(
+                {
+                    "status": "FAIL_UNAPPLIED",
+                    "target": str(args.path),
+                    "pending_replacements": pending,
+                    "results": results,
+                },
+                indent=2,
+            )
+        )
+        return 1
+
     if not args.check:
         out = args.output or args.path
         out.write_text(patched, encoding="utf-8")
