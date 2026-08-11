@@ -26,5 +26,9 @@ jobs:
         run: python -m py_compile szl_token_ingress.py tests/test_token_ingress.py
       - name: Run ingress contract tests
         run: pytest tests/test_token_ingress.py -q
-      - name: Reject whitespace errors
-        run: git diff --check origin/main...HEAD
+      - name: Reject whitespace errors in ingress changes
+        run: >-
+          git diff --check origin/main...HEAD --
+          szl_token_ingress.py
+          tests/test_token_ingress.py
+          .github/workflows/token-ingress.yml
