@@ -124,17 +124,27 @@ def _primary_label(*values: Any) -> str | None:
 
 
 def _extract_label(payload: dict) -> str | None:
-    """Pull the honest label a backend response declares, checking the conventional keys
-    (label / claim / data_label / doctrine.label_top) in priority order."""
+    """Resolve label-bearing evidence in the backend's document order."""
     if not isinstance(payload, dict):
         return None
-    doctrine = payload.get("doctrine") if isinstance(payload.get("doctrine"), dict) else {}
-    return _primary_label(
-        payload.get("label"),
-        payload.get("data_label"),
-        payload.get("claim"),
-        doctrine.get("label_top") if isinstance(doctrine, dict) else None,
-    )
+    values: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if (
+                    isinstance(key, str)
+                    and key.lower() in {"label", "data_label", "claim", "label_top"}
+                    and isinstance(value, str)
+                ):
+                    values.append(value)
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(payload)
+    return _primary_label(*values)
 
 
 def _extract_citations(payload: Any, limit: int = 12) -> list[str]:

@@ -26,12 +26,12 @@
     "changed_path_max": 8,
     "repair_oracle": {
       "path": "ops/frontier/v16_7/apply_current_main_repairs.py",
-      "sha256": "b9466515c06589073204bb7daa4c25470190cd2f3f83364d032ceb59d05941a7"
+      "sha256": "27ee06fd37e952b27a9fa6acfe2e9b157bba65abf4db1f5bedf571de54be814f"
     },
     "regression": {
       "protected_template_path": "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py",
       "source_path": "tests/test_frontier_v16_7_terminal_truth.py",
-      "sha256": "f828202c4ee518a112d3caea22ba3a6b87307ede7107d51ebd9d5b15e576c4f4"
+      "sha256": "4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f"
     }
   },
   "trusted_workflows": {
@@ -56,7 +56,7 @@
     "administrator_bypass": false,
     "gate_weakening": false,
     "native_auto_merge_or_merge_queue_only": true,
-    "required_check": "platform-solo-qualification",
+    "required_workflow_path": ".github/workflows/frontier-solo-qualification.yml",
     "current_main_must_equal_pr_base": true,
     "merge_group_requalification_required_when_active": true
   },

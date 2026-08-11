@@ -222,9 +222,10 @@ def repair_readme(text: str, changes: list[str]) -> str:
         r"(?:\*\*)?LIVE(?:\*\*)?\s*\|?\s*$"
     )
     matches = list(pattern.finditer(text))
-    if not matches and text.count(new) == 1:
+    repaired_count = text.count(new)
+    if not matches and repaired_count == 1:
         return text
-    if len(matches) != 1:
+    if len(matches) != 1 or repaired_count != 0:
         raise RepairError(
             "README receipt claim: expected one unconditional LIVE line or the repaired line"
         )

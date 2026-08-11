@@ -6,6 +6,7 @@ FastAPI route modules obey the repository's annotation rule.
 """
 from pathlib import Path
 import importlib.util
+import json
 import re
 
 HERE = Path(__file__).resolve()
@@ -75,11 +76,29 @@ def test_repair_oracle_matches_the_actual_markdown_status_row() -> None:
     assert REPAIRS.repair_readme(repaired, []) == repaired
 
 
+def test_repair_oracle_rejects_mixed_old_and_repaired_rows() -> None:
+    repaired = REPAIRS.repair_readme(
+        "| Signed receipts on every governed action | **LIVE** |\n",
+        [],
+    )
+    mixed = "| Signed receipts on every governed action | **LIVE** |\n" + repaired
+    try:
+        REPAIRS.repair_readme(mixed, [])
+    except REPAIRS.RepairError:
+        pass
+    else:
+        raise AssertionError("mixed unconditional and repaired receipt rows must fail closed")
+
+
 def test_qualification_requires_ruleset_bound_workflow_identity() -> None:
     guide = text("ops/frontier/v16_7/README.md")
     assert "ruleset-bound identity" in guide
     assert "mutable status-context" in guide
     assert "status context or this workflow" not in guide
+    contract = json.loads(text("ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json"))
+    promotion = contract["promotion"]
+    assert promotion["required_workflow_path"] == ".github/workflows/frontier-solo-qualification.yml"
+    assert "required_check" not in promotion
 
 
 def test_global_console_server_render_is_terminal_before_javascript() -> None:
