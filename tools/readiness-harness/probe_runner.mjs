@@ -72,6 +72,16 @@ async function fetchBuildRevision() {
   }
 }
 
+async function observeBuildRevision(fetcher = fetchBuildRevision, soft = SOFT) {
+  try {
+    return { status: "OBSERVED", revision: await fetcher(), error: null };
+  } catch (error) {
+    if (!soft) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    return { status: "UNAVAILABLE", revision: null, error: message };
+  }
+}
+
 function percentile(arr, p) {
   if (!arr.length) return null;
   const s = [...arr].sort((a, b) => a - b);
@@ -349,14 +359,25 @@ async function pool(items, n, fn) {
 async function main() {
   const paths = Object.keys(ENDPOINTS);
   console.error(`[probe] base=${BASE} endpoints=${paths.length} samples=${SAMPLES} conc=${CONCURRENCY}`);
-  const sourceRevisionBefore = await fetchBuildRevision();
+  const sourceBefore = await observeBuildRevision();
   const results = await pool(paths, CONCURRENCY, (p) => probeEndpoint(p, ENDPOINTS[p]));
-  const sourceRevisionAfter = await fetchBuildRevision();
-  if (sourceRevisionAfter !== sourceRevisionBefore) {
-    throw new Error(
-      `deployment revision changed during probe: ${sourceRevisionBefore} -> ${sourceRevisionAfter}`,
-    );
+  const sourceAfter = await observeBuildRevision();
+  let sourceRevisionStatus =
+    sourceBefore.status === "OBSERVED" && sourceAfter.status === "OBSERVED"
+      ? "OBSERVED"
+      : "UNAVAILABLE";
+  let sourceRevisionError = sourceBefore.error || sourceAfter.error || null;
+  if (
+    sourceRevisionStatus === "OBSERVED" &&
+    sourceBefore.revision !== sourceAfter.revision
+  ) {
+    const message = `deployment revision changed during probe: ${sourceBefore.revision} -> ${sourceAfter.revision}`;
+    if (!SOFT) throw new Error(message);
+    sourceRevisionStatus = "DIVERGENT";
+    sourceRevisionError = message;
   }
+  const sourceRevision =
+    sourceRevisionStatus === "OBSERVED" ? sourceAfter.revision : null;
 
   const lies = results.filter((r) => r.lie);
   const unreachable = results.filter((r) => r.unreachable && !r.lie);
@@ -367,7 +388,9 @@ async function main() {
     doctrine: "v11",
     base: BASE,
     checkedAt: new Date().toISOString(),
-    sourceRevision: sourceRevisionAfter,
+    sourceRevision,
+    sourceRevisionStatus,
+    sourceRevisionError,
     summary: {
       endpoints: results.length,
       ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable && !r.throttled).length,
@@ -398,4 +421,4 @@ if (fileURLToPath(import.meta.url) === resolve(process.argv[1] || "")) {
   main();
 }
 
-export { findTimestamp, validateSchema };
+export { findTimestamp, observeBuildRevision, validateSchema };
