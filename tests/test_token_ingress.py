@@ -153,6 +153,29 @@ def test_http_route_never_accepts_public_measured_claim() -> None:
     assert payload["telemetry_authority"] == "CALLER_SUPPLIED_NOT_MEASURED"
 
 
+def test_http_route_preserves_blocked_no_node_disposition() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/route",
+        json={
+            "nodes": [
+                {
+                    "node_id": "offline",
+                    "tokenizer_tokens_per_sec": 1000,
+                    "tokenizer_cache_warmth": 0.5,
+                    "prefix_cache_hit_rate": 0.5,
+                    "kv_cache_hit_rate": 0.5,
+                    "available": False,
+                }
+            ]
+        },
+    )
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["accepted"] is False
+    assert payload["status"] == "BLOCKED"
+    assert payload["node"] is None
+
+
 def test_http_route_rejects_non_finite_json_number() -> None:
     response = _client().post(
         "/api/a11oy/v1/token-ingress/route",
