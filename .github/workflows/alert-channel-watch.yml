@@ -16,6 +16,13 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_workflow_contract.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/alert-channel-watch.yml'
+      - 'scripts/alert_channel_canary.py'
+      - 'tests/test_alert_channel_canary.py'
+      - 'tests/test_alert_channel_workflow_contract.py'
   schedule:
     - cron: '37 7 * * *'
   workflow_dispatch:
@@ -90,7 +97,9 @@ jobs:
         run: |
           set -euo pipefail
           send=false
-          if [ "${DISPATCH_CANARY}" = 'true' ]; then
+          if [ "${EVENT_NAME}" = 'push' ]; then
+            send=true
+          elif [ "${DISPATCH_CANARY}" = 'true' ]; then
             send=true
           elif [ "${EVENT_NAME}" = 'schedule' ] && [ "$(date -u +%u)" = '1' ]; then
             send=true
