@@ -1,0 +1,399 @@
+name: Frontier solo platform qualification
+
+# This trusted workflow must already exist on protected main before a Frontier
+# source PR is opened. It never checks out, imports, or executes candidate code
+# and performs no review or merge mutation. Candidate files are fetched as inert
+# data and compared byte-for-byte with the output of a deterministic validator
+# whose exact bytes are already protected on main. The merge_group path reruns
+# the same protected-base proof against GitHub's synthetic queue commit.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: frontier-solo-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  platform-solo-qualification:
+    name: platform-solo-qualification
+    if: >-
+      github.event_name == 'merge_group' ||
+      (github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+       startsWith(github.head_ref, 'frontier/v16-7-solo-'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EVENT_NAME: ${{ github.event_name }}
+      CONTRACT_SHA256: bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae
+$1003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59
+      SOURCE_TEST_SHA256: 4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f
+    steps:
+      - name: Validate exact signed head and deterministic bounded source set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+
+          work="$(mktemp -d)"
+          allowed="$work/allowed"
+          repairs="$work/repairs"
+          repair_script="$work/apply_current_main_repairs.py"
+          test_file="$work/test_frontier_v16_7_terminal_truth.py"
+          trap 'rm -rf "$work"' EXIT
+
+          cat >"$allowed" <<'EOF'
+          README.md
+          console/index.html
+          pages/console.html
+          routers/frontier_reads.py
+          routers/series_a_control_plane.py
+          routers/series_a_web/app.js
+          routers/series_a_web/index.html
+          tests/test_frontier_v16_7_terminal_truth.py
+          EOF
+          cat >"$repairs" <<'EOF'
+          README.md
+          console/index.html
+          pages/console.html
+          routers/frontier_reads.py
+          routers/series_a_control_plane.py
+          routers/series_a_web/app.js
+          routers/series_a_web/index.html
+          EOF
+          sed -i 's/^          //' "$allowed" "$repairs"
+          sort -u -o "$allowed" "$allowed"
+          sort -u -o "$repairs" "$repairs"
+
+          fetch_file() {
+            local ref="$1" rel="$2" output="$3"
+            mkdir -p "$(dirname "$output")"
+            gh api -H 'Accept: application/vnd.github.raw+json' \
+              "repos/${REPOSITORY}/contents/${rel}?ref=${ref}" >"$output"
+          }
+
+          fetch_optional_file() {
+            local ref="$1" rel="$2" output="$3"
+            local response="$work/optional-response.json" error="$work/optional-error.txt"
+            mkdir -p "$(dirname "$output")"
+            set +e
+            gh api "repos/${REPOSITORY}/contents/${rel}?ref=${ref}" >"$response" 2>"$error"
+            local rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              if grep -Eqi 'HTTP 404|Not Found' "$error"; then
+                rm -f "$output"
+                return 1
+              fi
+              cat "$error" >&2
+              return 2
+            fi
+            jq -er '.content' "$response" | tr -d '\n' | base64 --decode >"$output"
+            return 0
+          }
+
+          verify_protected_material() {
+            local base_sha="$1"
+            local repair_rel="ops/frontier/v16_7/apply_current_main_repairs.py"
+            fetch_file "$base_sha" "$repair_rel" "$repair_script"
+            local observed_repair_digest
+            observed_repair_digest="$(sha256sum "$repair_script" | awk '{print $1}')"
+            test "$observed_repair_digest" = "$REPAIR_SCRIPT_SHA256"
+            chmod 0500 "$repair_script"
+
+            local contract_json contract_digest
+            contract_json="$(gh api "repos/${REPOSITORY}/contents/ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json?ref=${base_sha}")"
+            contract_digest="$(jq -r '.content' <<<"$contract_json" | tr -d '\n' | base64 --decode | sha256sum | awk '{print $1}')"
+            test "$contract_digest" = "$CONTRACT_SHA256"
+            printf '%s\n' "$observed_repair_digest" >"$work/observed-repair-digest"
+          }
+
+          validate_pull_request() {
+            local event_json pr_number pr_json head_sha base_sha head_ref head_repo base_ref author draft body
+            event_json="$(cat "$GITHUB_EVENT_PATH")"
+            pr_number="$(jq -er '.pull_request.number' <<<"$event_json")"
+            pr_json="$(gh api "repos/${REPOSITORY}/pulls/${pr_number}")"
+            head_sha="$(jq -er '.head.sha' <<<"$pr_json")"
+            base_sha="$(jq -er '.base.sha' <<<"$pr_json")"
+            head_ref="$(jq -er '.head.ref' <<<"$pr_json")"
+            head_repo="$(jq -er '.head.repo.full_name' <<<"$pr_json")"
+            base_ref="$(jq -er '.base.ref' <<<"$pr_json")"
+            author="$(jq -er '.user.login' <<<"$pr_json")"
+            draft="$(jq -r '.draft' <<<"$pr_json")"
+            body="$(jq -r '.body // ""' <<<"$pr_json")"
+
+            test "$head_sha" = "$(jq -er '.pull_request.head.sha' <<<"$event_json")"
+            test "$base_sha" = "$(jq -er '.pull_request.base.sha' <<<"$event_json")"
+            test "$head_repo" = "$REPOSITORY"
+            test "$base_ref" = "main"
+            test "$author" = "stephenlutar2-hash"
+            test "$draft" = "false"
+            [[ "$head_ref" == frontier/v16-7-solo-* ]]
+            [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$base_sha" =~ ^[0-9a-f]{40}$ ]]
+
+            local current_main commit_json commit_message parent_count parent_sha commit_count
+            current_main="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            test "$current_main" = "$base_sha"
+
+            commit_json="$(gh api "repos/${REPOSITORY}/commits/${head_sha}")"
+            jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
+            commit_message="$(jq -r '.commit.message' <<<"$commit_json")"
+            grep -Eq '^Signed-off-by: .+ <[^>]+>$' <<<"$commit_message"
+
+            parent_count="$(jq -er '.parents | length' <<<"$commit_json")"
+            parent_sha="$(jq -er '.parents[0].sha' <<<"$commit_json")"
+            test "$parent_count" = "1"
+            test "$parent_sha" = "$base_sha"
+
+            commit_count="$(gh api --paginate "repos/${REPOSITORY}/pulls/${pr_number}/commits?per_page=100" --jq '.[].sha' | wc -l | tr -d ' ')"
+            test "$commit_count" = "1"
+
+            local files_tsv="$work/files.tsv" changed="$work/changed" changed_count
+            gh api --paginate "repos/${REPOSITORY}/pulls/${pr_number}/files?per_page=100" \
+              --jq '.[] | [.filename, .status] | @tsv' >"$files_tsv"
+            cut -f1 "$files_tsv" | sort -u >"$changed"
+            changed_count="$(wc -l <"$changed" | tr -d ' ')"
+            test "$changed_count" -ge 1
+            test "$changed_count" -le 8
+            if awk -F '\t' '$2 != "added" && $2 != "modified" { print; bad=1 } END { exit bad ? 0 : 1 }' "$files_tsv" | grep -q .; then
+              echo "Removed, renamed, or otherwise unsupported file status:" >&2
+              awk -F '\t' '$2 != "added" && $2 != "modified" { print }' "$files_tsv" >&2
+              exit 1
+            fi
+            if comm -23 "$changed" "$allowed" | grep -q .; then
+              echo "Unapproved changed paths:" >&2
+              comm -23 "$changed" "$allowed" >&2
+              exit 1
+            fi
+
+            verify_protected_material "$base_sha"
+            while IFS= read -r rel; do
+              fetch_file "$base_sha" "$rel" "$work/expected/$rel"
+              fetch_file "$head_sha" "$rel" "$work/head/$rel"
+            done <"$repairs"
+
+            python3 "$repair_script" --repo "$work/expected" --apply --report "$work/repair-report.json" >/dev/null
+            jq -e '.status == "APPLIED" or .status == "ALREADY_COMPLIANT"' "$work/repair-report.json" >/dev/null
+            while IFS= read -r rel; do
+              if ! cmp -s "$work/expected/$rel" "$work/head/$rel"; then
+                echo "Candidate does not equal the deterministic protected-base repair: $rel" >&2
+                exit 1
+              fi
+            done <"$repairs"
+
+            fetch_file "$head_sha" "tests/test_frontier_v16_7_terminal_truth.py" "$test_file"
+            local test_digest
+            test_digest="$(sha256sum "$test_file" | awk '{print $1}')"
+            test "$test_digest" = "$SOURCE_TEST_SHA256"
+            grep -Fq "Base-SHA: \`${base_sha}\`" <<<"$body"
+            grep -Fq "Head-SHA: \`${head_sha}\`" <<<"$body"
+            grep -Fq "Solo-Contract-SHA256: \`${CONTRACT_SHA256}\`" <<<"$body"
+
+            {
+              echo "### Frontier solo pull-request qualification"
+              echo "- exact head: \`${head_sha}\`"
+              echo "- exact protected base: \`${base_sha}\`"
+              echo "- signature: GitHub verified"
+              echo "- DCO: present"
+              echo "- commits: 1"
+              echo "- source files: ${changed_count}/8 bounded subset"
+              echo "- deterministic protected-base repair: byte-for-byte match"
+              echo "- repair validator: \`$(cat "$work/observed-repair-digest")\`"
+              echo "- terminal-truth regression: \`${test_digest}\`"
+              echo "- protected contract: \`${CONTRACT_SHA256}\`"
+              echo "- checkout/import/execution of candidate code: none"
+              echo "- review or merge mutation performed by this workflow: none"
+            } >>"$GITHUB_STEP_SUMMARY"
+          }
+
+          validate_merge_group() {
+            local event_json head_sha base_sha head_ref base_ref current_main commit_json compare_json
+            event_json="$(cat "$GITHUB_EVENT_PATH")"
+            head_sha="$(jq -er '.merge_group.head_sha' <<<"$event_json")"
+            base_sha="$(jq -er '.merge_group.base_sha' <<<"$event_json")"
+            head_ref="$(jq -er '.merge_group.head_ref' <<<"$event_json")"
+            base_ref="$(jq -er '.merge_group.base_ref' <<<"$event_json")"
+            [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$base_sha" =~ ^[0-9a-f]{40}$ ]]
+            test "$base_ref" = "refs/heads/main"
+            [[ "$head_ref" == refs/heads/gh-readonly-queue/main/* ]]
+
+            current_main="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            test "$current_main" = "$base_sha"
+            commit_json="$(gh api "repos/${REPOSITORY}/commits/${head_sha}")"
+            jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
+
+            compare_json="$(gh api "repos/${REPOSITORY}/compare/${base_sha}...${head_sha}")"
+            mapfile -t candidate_pr_numbers < <(
+              {
+                grep -oE 'pr-[0-9]+' <<<"$head_ref" | sed 's/^pr-//' || true
+                while IFS= read -r commit_sha; do
+                  gh api "repos/${REPOSITORY}/commits/${commit_sha}/pulls?per_page=100" --jq '.[].number' 2>/dev/null || true
+                done < <(jq -r '.commits[].sha' <<<"$compare_json")
+                gh api --paginate "repos/${REPOSITORY}/pulls?state=open&base=main&per_page=100" \
+                  --jq '.[] | select(.head.ref | startswith("frontier/v16-7-solo-")) | .number'
+              } | grep -E '^[0-9]+$' | sort -n -u
+            )
+
+            local frontier_pr_found=0 matched_pr_number="" matched_pr_head=""
+            local pr_number pr_json pr_head pr_branch pr_author pr_repo pr_base pr_draft pr_body checks_json ancestry
+            for pr_number in "${candidate_pr_numbers[@]}"; do
+              pr_json="$(gh api "repos/${REPOSITORY}/pulls/${pr_number}")"
+              pr_head="$(jq -er '.head.sha' <<<"$pr_json")"
+              pr_branch="$(jq -er '.head.ref' <<<"$pr_json")"
+              pr_author="$(jq -er '.user.login' <<<"$pr_json")"
+              pr_repo="$(jq -er '.head.repo.full_name' <<<"$pr_json")"
+              pr_base="$(jq -er '.base.ref' <<<"$pr_json")"
+              pr_draft="$(jq -r '.draft' <<<"$pr_json")"
+              pr_body="$(jq -r '.body // ""' <<<"$pr_json")"
+              if [[ "$pr_branch" != frontier/v16-7-solo-* ]]; then
+                continue
+              fi
+              ancestry="$(gh api "repos/${REPOSITORY}/compare/${pr_head}...${head_sha}" --jq '.status' 2>/dev/null || true)"
+              if [ "$ancestry" != "ahead" ] && [ "$ancestry" != "identical" ]; then
+                continue
+              fi
+
+              frontier_pr_found=$((frontier_pr_found + 1))
+              matched_pr_number="$pr_number"
+              matched_pr_head="$pr_head"
+              test "$pr_author" = "stephenlutar2-hash"
+              test "$pr_repo" = "$REPOSITORY"
+              test "$pr_base" = "main"
+              test "$pr_draft" = "false"
+              [[ "$pr_head" =~ ^[0-9a-f]{40}$ ]]
+              grep -Fq "Head-SHA: \`${pr_head}\`" <<<"$pr_body"
+              grep -Fq "Solo-Contract-SHA256: \`${CONTRACT_SHA256}\`" <<<"$pr_body"
+
+              checks_json="$(
+                gh api --paginate -H 'Accept: application/vnd.github+json' \
+                  "repos/${REPOSITORY}/commits/${pr_head}/check-runs?per_page=100" \
+                  --jq '.check_runs[]' | jq -s '.'
+              )"
+              jq -e '[.[] | select(
+                .name == "platform-solo-qualification" and
+                .status == "completed" and
+                .conclusion == "success" and
+                .app.slug == "github-actions"
+              )] | length >= 1' <<<"$checks_json" >/dev/null
+            done
+
+            if [ "$frontier_pr_found" -eq 0 ]; then
+              {
+                echo "### Frontier solo merge-group qualification"
+                echo "- queue head: \`${head_sha}\`"
+                echo "- protected base: \`${base_sha}\`"
+                echo "- Frontier v16.7 PRs in group: 0 (not applicable)"
+                echo "- checkout/import/execution of candidate code: none"
+              } >>"$GITHUB_STEP_SUMMARY"
+              return 0
+            fi
+            test "$frontier_pr_found" -eq 1
+
+            verify_protected_material "$base_sha"
+
+            local matched_files_tsv="$work/matched-files.tsv"
+            local matched_changed="$work/matched-changed"
+            local matched_changed_count
+            gh api --paginate "repos/${REPOSITORY}/pulls/${matched_pr_number}/files?per_page=100" \
+              --jq '.[] | [.filename, .status] | @tsv' >"$matched_files_tsv"
+            cut -f1 "$matched_files_tsv" | sort -u >"$matched_changed"
+            matched_changed_count="$(wc -l <"$matched_changed" | tr -d ' ')"
+            test "$matched_changed_count" -ge 1
+            test "$matched_changed_count" -le 8
+            if awk -F '\t' '$2 != "added" && $2 != "modified" { print; bad=1 } END { exit bad ? 0 : 1 }' "$matched_files_tsv" | grep -q .; then
+              echo "Managed PR has a removed, renamed, or unsupported file status" >&2
+              exit 1
+            fi
+            if comm -23 "$matched_changed" "$allowed" | grep -q .; then
+              echo "Managed PR has paths outside the Frontier source allowlist" >&2
+              comm -23 "$matched_changed" "$allowed" >&2
+              exit 1
+            fi
+
+            local rel queue_effective_changes=0
+            while IFS= read -r rel; do
+              fetch_file "$base_sha" "$rel" "$work/base/$rel"
+              mkdir -p "$(dirname "$work/expected/$rel")"
+              cp "$work/base/$rel" "$work/expected/$rel"
+              fetch_file "$head_sha" "$rel" "$work/head/$rel"
+            done <"$repairs"
+
+            python3 "$repair_script" --repo "$work/expected" --apply --report "$work/merge-group-repair-report.json" >/dev/null
+            jq -e '.status == "APPLIED" or .status == "ALREADY_COMPLIANT"' "$work/merge-group-repair-report.json" >/dev/null
+            while IFS= read -r rel; do
+              if grep -Fxq "$rel" "$matched_changed"; then
+                if ! cmp -s "$work/expected/$rel" "$work/head/$rel"; then
+                  echo "Managed Frontier path was lost or overwritten in the queue result: $rel" >&2
+                  exit 1
+                fi
+              elif ! cmp -s "$work/base/$rel" "$work/head/$rel"; then
+                echo "Another queued change modified an unmanaged Frontier path: $rel" >&2
+                exit 1
+              fi
+              if ! cmp -s "$work/base/$rel" "$work/head/$rel"; then
+                queue_effective_changes=$((queue_effective_changes + 1))
+              fi
+            done <"$repairs"
+
+            local test_rel="tests/test_frontier_v16_7_terminal_truth.py"
+            local base_test_present=0 head_test_present=0 test_digest=""
+            if fetch_optional_file "$base_sha" "$test_rel" "$work/base/$test_rel"; then
+              base_test_present=1
+            fi
+            if fetch_optional_file "$head_sha" "$test_rel" "$work/head/$test_rel"; then
+              head_test_present=1
+            fi
+            if grep -Fxq "$test_rel" "$matched_changed"; then
+              test "$head_test_present" -eq 1
+              test_digest="$(sha256sum "$work/head/$test_rel" | awk '{print $1}')"
+              test "$test_digest" = "$SOURCE_TEST_SHA256"
+              if [ "$base_test_present" -eq 0 ] || ! cmp -s "$work/base/$test_rel" "$work/head/$test_rel"; then
+                queue_effective_changes=$((queue_effective_changes + 1))
+              fi
+            else
+              test "$base_test_present" -eq "$head_test_present"
+              if [ "$base_test_present" -eq 1 ] && ! cmp -s "$work/base/$test_rel" "$work/head/$test_rel"; then
+                echo "Another queued change modified the unmanaged Frontier regression test" >&2
+                exit 1
+              fi
+              if [ "$head_test_present" -eq 1 ]; then
+                test_digest="$(sha256sum "$work/head/$test_rel" | awk '{print $1}')"
+              fi
+            fi
+            {
+              echo "### Frontier solo merge-group qualification"
+              echo "- queue head: \`${head_sha}\`"
+              echo "- exact protected base: \`${base_sha}\`"
+              echo "- synthetic commit signature: GitHub verified"
+              echo "- managed PR: #${matched_pr_number} @ \`${matched_pr_head}\`"
+              echo "- exact PR-head qualification: completed/success by github-actions"
+              echo "- managed PR source files: ${matched_changed_count}/8"
+              echo "- queue-effective Frontier changes: ${queue_effective_changes}/8"
+              echo "- deterministic protected-base repair: byte-for-byte match after queue synthesis"
+              echo "- repair validator: \`$(cat "$work/observed-repair-digest")\`"
+              echo "- terminal-truth regression: \`${test_digest:-unchanged-on-protected-base}\`"
+              echo "- protected contract: \`${CONTRACT_SHA256}\`"
+              echo "- checkout/import/execution of candidate code: none"
+              echo "- review or merge mutation performed by this workflow: none"
+            } >>"$GITHUB_STEP_SUMMARY"
+          }
+
+          case "$EVENT_NAME" in
+            pull_request) validate_pull_request ;;
+            merge_group) validate_merge_group ;;
+            *) echo "unsupported event: $EVENT_NAME" >&2; exit 2 ;;
+          esac
