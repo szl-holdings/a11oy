@@ -12,6 +12,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -74,7 +75,13 @@ def fresh_timestamp(value: Any, *, generated_at: dt.datetime) -> str | None:
 
 
 def canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
 
 
 def digest_snapshot(snapshot: Mapping[str, Any]) -> str:
@@ -85,6 +92,18 @@ def digest_snapshot(snapshot: Mapping[str, Any]) -> str:
 
 def unavailable_metric(source: str) -> dict[str, Any]:
     return {"value": None, "label": "UNAVAILABLE", "observed_at": None, "source": source}
+
+
+def is_finite_json_value(value: Any) -> bool:
+    if value is None or isinstance(value, (bool, str, int)):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, list):
+        return all(is_finite_json_value(item) for item in value)
+    if isinstance(value, Mapping):
+        return all(isinstance(key, str) and is_finite_json_value(item) for key, item in value.items())
+    return False
 
 
 def normalize_metric(raw: Any, *, source: str, generated_at: dt.datetime) -> dict[str, Any]:
@@ -98,7 +117,7 @@ def normalize_metric(raw: Any, *, source: str, generated_at: dt.datetime) -> dic
         return unavailable_metric(source)
     if label == "UNAVAILABLE":
         return unavailable_metric(observed_source)
-    if value is None or not observed_at:
+    if value is None or not observed_at or not is_finite_json_value(value):
         return unavailable_metric(observed_source)
     return {"value": value, "label": label, "observed_at": observed_at, "source": observed_source}
 
@@ -141,6 +160,26 @@ def git_revision() -> str | None:
         return None
     candidate = completed.stdout.strip()
     return candidate if SHA_PATTERN.fullmatch(candidate) else None
+
+
+def expected_aggregate_state(
+    inventory: Any,
+    runtime: Any,
+    source_revision: Any,
+) -> str:
+    if not isinstance(source_revision, str) or not SHA_PATTERN.fullmatch(source_revision):
+        return "DEGRADED"
+    if not isinstance(inventory, Mapping) or not isinstance(runtime, Mapping):
+        return "DEGRADED"
+    for section in inventory.values():
+        if not isinstance(section, Mapping):
+            return "DEGRADED"
+        for metric in section.values():
+            if not isinstance(metric, Mapping) or metric.get("label") == "UNAVAILABLE":
+                return "DEGRADED"
+    if any(not isinstance(item, Mapping) or item.get("state") != "VERIFIED" for item in runtime.values()):
+        return "DEGRADED"
+    return "VERIFIED"
 
 
 def build_snapshot(*, observations: Mapping[str, Any], generated_at: str, source_revision: str | None, contract_verified: bool) -> dict[str, Any]:
@@ -205,16 +244,7 @@ def build_snapshot(*, observations: Mapping[str, Any], generated_at: str, source
         "state": "DEGRADED",
     }
 
-    unavailable = []
-    for section in snapshot["inventory"].values():
-        for name, metric in section.items():
-            if metric["label"] == "UNAVAILABLE":
-                unavailable.append(name)
-    for name, item in runtime.items():
-        if item["state"] != "VERIFIED":
-            unavailable.append(name)
-
-    snapshot["state"] = "VERIFIED" if not unavailable else "DEGRADED"
+    snapshot["state"] = expected_aggregate_state(snapshot["inventory"], runtime, source_revision)
     snapshot["digest_sha3_256"] = digest_snapshot(snapshot)
     return snapshot
 
@@ -242,6 +272,10 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
         errors.append("secret_values_read")
     doctrine = snapshot.get("doctrine", {})
     lambda_info = doctrine.get("lambda_uniqueness", {}) if isinstance(doctrine, Mapping) else {}
+    if not isinstance(doctrine, Mapping) or doctrine.get("version") != "v11":
+        errors.append("doctrine_version")
+    if not isinstance(doctrine, Mapping) or doctrine.get("state") != "LOCKED":
+        errors.append("doctrine_state")
     if lambda_info.get("label") != "CONJECTURE" or lambda_info.get("name") != "Conjecture 1":
         errors.append("lambda_uniqueness")
     digest = str(snapshot.get("digest_sha3_256", ""))
@@ -263,6 +297,8 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
                     errors.append("stale_unavailable_metric")
                 if metric.get("label") not in METRIC_LABELS:
                     errors.append("metric_label")
+                if not is_finite_json_value(metric.get("value")):
+                    errors.append("non_finite_metric")
     runtime = snapshot.get("runtime", {})
     if not isinstance(runtime, Mapping):
         errors.append("runtime")
@@ -289,6 +325,9 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
                     continue
                 if fresh_timestamp(item.get("observed_at"), generated_at=generated_at) is None:
                     errors.append("runtime_freshness")
+    expected_state = expected_aggregate_state(inventory, runtime, source_revision)
+    if snapshot.get("state") != expected_state:
+        errors.append("aggregate_state")
     return sorted(set(errors))
 
 

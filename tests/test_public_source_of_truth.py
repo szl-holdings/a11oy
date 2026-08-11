@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -68,6 +69,26 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         metric = snapshot["inventory"]["huggingface"]["spaces_total"]
         self.assertEqual(metric["label"], "UNAVAILABLE")
         self.assertIsNone(metric["value"])
+
+    def test_non_finite_metric_fails_closed(self):
+        for value in (math.nan, math.inf, -math.inf, {"nested": math.nan}):
+            with self.subTest(value=value):
+                snapshot = self.build(
+                    {
+                        "inventory": {
+                            "github": {
+                                "public_repositories": {
+                                    "value": value,
+                                    "label": "MEASURED",
+                                    "observed_at": "2026-08-11T00:00:00Z",
+                                    "source": "github-api",
+                                }
+                            }
+                        }
+                    }
+                )
+                metric = snapshot["inventory"]["github"]["public_repositories"]
+                self.assertEqual(metric["label"], "UNAVAILABLE")
 
     def test_stale_future_and_malformed_metrics_fail_closed(self):
         for observed_at in (
@@ -164,6 +185,31 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         snapshot = self.build()
         self.assertEqual(snapshot["doctrine"]["lambda_uniqueness"]["label"], "CONJECTURE")
         self.assertEqual(snapshot["doctrine"]["lambda_uniqueness"]["name"], "Conjecture 1")
+
+    def test_validator_enforces_locked_doctrine(self):
+        for field, value, error in (
+            ("state", "UNLOCKED", "doctrine_state"),
+            ("version", "v10", "doctrine_version"),
+        ):
+            with self.subTest(field=field):
+                snapshot = self.build()
+                snapshot["doctrine"][field] = value
+                snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
+                self.assertIn(error, MODULE.validate_snapshot(snapshot))
+
+    def test_verified_state_requires_source_revision(self):
+        snapshot = self.build()
+        snapshot["source_revision"] = None
+        snapshot["state"] = "VERIFIED"
+        snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
+        self.assertIn("aggregate_state", MODULE.validate_snapshot(snapshot))
+
+    def test_validator_recomputes_runtime_aggregate(self):
+        snapshot = self.build()
+        snapshot["runtime"]["public_contract"]["state"] = "STALE"
+        snapshot["state"] = "VERIFIED"
+        snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
+        self.assertIn("aggregate_state", MODULE.validate_snapshot(snapshot))
 
     def test_digest_is_deterministic(self):
         first = self.build()

@@ -52,8 +52,8 @@ export async function observeJson(
     requestInit = {},
   } = {},
 ) {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    throw new TypeError("timeoutMs must be a positive finite number");
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 8_000) {
+    throw new TypeError("timeoutMs must be a positive finite number no greater than 8000");
   }
 
   if (typeof fetchImpl !== "function") {
