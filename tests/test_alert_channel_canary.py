@@ -84,14 +84,14 @@ def test_presence_only_cannot_claim_delivery_health() -> None:
 def test_protocol_auto_detection() -> None:
     assert infer_mode("https://hooks.slack.com/services/a/b/c") == "slack"
     assert infer_mode("https://ntfy.sh/a11oy-uptime") == "ntfy"
-    assert infer_mode("https://alerts.example.com/hook") == "generic-json"
+    assert infer_mode("https://alerts.invalid/hook") == "generic-json"
 
 
 def test_non_https_production_and_embedded_credentials_are_rejected() -> None:
     with pytest.raises(EndpointContractError):
-        validate_endpoint("http://example.com/hook")
+        validate_endpoint("http://alerts.invalid/hook")
     with pytest.raises(EndpointContractError):
-        validate_endpoint("https://user:pass@example.com/hook")
+        validate_endpoint("https://user:pass@alerts.invalid/hook")
 
 
 def test_slack_request_is_json() -> None:
