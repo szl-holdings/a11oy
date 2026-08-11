@@ -1,0 +1,47 @@
+name: A11oy build-info bootstrap apply
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - serve.py
+      - scripts/ensure_build_info_route.py
+      - .github/workflows/build-info-bootstrap-apply.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply-build-info:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/frontdoor-truth-mobile-clean-2026-08-11'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/frontdoor-truth-mobile-clean-2026-08-11
+          fetch-depth: 0
+      - name: Materialize fail-closed build-info route
+        run: python3 scripts/ensure_build_info_route.py serve.py
+      - name: Verify route is idempotent and source compiles
+        run: |
+          python3 scripts/ensure_build_info_route.py serve.py --check
+          python3 -m py_compile serve.py scripts/ensure_build_info_route.py
+      - name: Commit branch-only runtime evidence route when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- serve.py; then
+            echo 'Build-info route already materialized.'
+            exit 0
+          fi
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git add serve.py
+          git commit -m 'feat(runtime): expose immutable build identity' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:fix/frontdoor-truth-mobile-clean-2026-08-11
