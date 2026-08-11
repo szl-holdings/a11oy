@@ -120,6 +120,40 @@ app = FastAPI(
     redoc_url=None,
 )
 
+
+# Immutable deployment identity. This endpoint is deliberately read-only and
+# receipt-free: it exposes only source/build metadata already supplied by the
+# canonical deployment workflow. A missing or malformed source revision fails
+# closed as UNAVAILABLE rather than inventing provenance.
+def _a11oy_build_info_payload() -> tuple[dict[str, object], int]:
+    revision = (os.environ.get("SZL_GIT_SHA") or os.environ.get("A11OY_GIT_SHA") or "").strip().lower()
+    valid_revision = len(revision) == 40 and all(ch in "0123456789abcdef" for ch in revision)
+    payload: dict[str, object] = {
+        "build": {
+            "state": "OBSERVED" if valid_revision else "UNAVAILABLE",
+            "revision": revision if valid_revision else None,
+            "version": (os.environ.get("A11OY_VERSION") or "").strip() or None,
+            "built_at": (os.environ.get("A11OY_BUILD_DATE") or "").strip() or None,
+        },
+        "receipt_minted": False,
+    }
+    return payload, 200 if valid_revision else 503
+
+
+@app.get("/api/build-info", include_in_schema=False)
+async def a11oy_build_info() -> JSONResponse:
+    payload, status_code = _a11oy_build_info_payload()
+    return JSONResponse(
+        payload,
+        status_code=status_code,
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 # Waqay Security Loop (wave 15): expose only the deterministic, read-only
 # contract.  The implementation has no deployment, recall, repository, signing,
 # model, or other external effector.  Mutation endpoints stay deliberately
