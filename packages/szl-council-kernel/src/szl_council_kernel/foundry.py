@@ -137,6 +137,23 @@ class ResearchArtifact:
     def digest(self) -> str:
         return digest_object(self.to_dict())
 
+    @property
+    def promotion_evidence_manifest_digest(self) -> str:
+        """Bind a promotion decision to this exact reviewed artifact prestate."""
+        return digest_object(
+            {
+                "schema": "szl.evidence-manifest/v1",
+                "evidence": [
+                    {
+                        "id": "foundry-artifact",
+                        "tier": "VERIFIED",
+                        "digest": self.digest,
+                        "stage": self.stage.value,
+                    }
+                ],
+            }
+        )
+
 
 class ResearchFoundry:
     def __init__(self, manifest_path: str | Path) -> None:
@@ -355,13 +372,18 @@ class ResearchFoundry:
                     raise FoundryError("promotion requires a complete signed Fourfold settlement")
                 verification = verify_settlement(settlement)
                 result = settlement.get("result")
+                case = settlement.get("case")
                 if (
                     verification.get("status") != "PASS"
                     or not isinstance(result, Mapping)
+                    or not isinstance(case, Mapping)
                     or result.get("state") != CouncilState.QUORUM_VERIFIED.value
                     or result.get("verified") is not True
+                    or case.get("evidence_manifest_digest") != current.promotion_evidence_manifest_digest
                 ):
-                    raise FoundryError("promotion settlement is invalid or not QUORUM_VERIFIED")
+                    raise FoundryError(
+                        "promotion settlement is invalid, not QUORUM_VERIFIED, or not bound to the exact artifact"
+                    )
                 changes["promotion_council_digest"] = require_digest(
                     str(settlement.get("settlement_digest", "")),
                     field="settlement_digest",

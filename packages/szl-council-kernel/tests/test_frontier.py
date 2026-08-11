@@ -7,7 +7,7 @@ from szl_council_kernel.adapters.mcp import MCPGovernor
 from szl_council_kernel.adapters.spiffe import SpiffeIdentity
 from szl_council_kernel.adapters.temporal import temporal_capability_report
 from szl_council_kernel.branches import branch_score,rank_branches
-from szl_council_kernel.canary import FIXED_TIME
+from szl_council_kernel.canary import FIXED_TIME,build_deterministic_council
 from szl_council_kernel.canonical import digest_object
 from szl_council_kernel.deliberation import DeliberationGraph,GraphEdge,GraphNode,MinorityTruthVault
 from szl_council_kernel.diversity import effective_size
@@ -71,7 +71,7 @@ def test_minority_vault_chain():
     v=MinorityTruthVault();v.preserve(case_id='case-g',role='VALUE',vote='OPPOSE',assessment_digest=D,counterevidence_digests=(D,),reason_codes=('NO',),observed_at=FIXED_TIME);assert v.verify()['status']=='PASS'
 
 
-def test_foundry_full_promotion(tmp_path,case_settlement):
+def test_foundry_full_promotion(tmp_path,envelope,policy):
     f=ResearchFoundry(tmp_path/'f.json');f.register(artifact_id='a',title='A',source_url='https://example.com/a',source_type='PUBLICATION',discovered_at=FIXED_TIME)
     scan=f.scan_text('ordinary public research text')
     f.advance('a',FoundryStage.QUARANTINED,evidence={'safety_scan':scan},updated_at=FIXED_TIME)
@@ -81,8 +81,8 @@ def test_foundry_full_promotion(tmp_path,case_settlement):
     f.advance('a',FoundryStage.CLAIMS_EXTRACTED,evidence={'claims':['claim']},updated_at=FIXED_TIME)
     f.advance('a',FoundryStage.REPRODUCED,evidence={'reproduction_digest':D},updated_at=FIXED_TIME)
     f.advance('a',FoundryStage.BENCHMARKED,evidence={'benchmark_digest':D},updated_at=FIXED_TIME)
-    f.advance('a',FoundryStage.DESIGN_REVIEWED,evidence={'design_review_digest':D,'modified_summary':'adapter only'},updated_at=FIXED_TIME)
-    _,settlement=case_settlement
+    reviewed=f.advance('a',FoundryStage.DESIGN_REVIEWED,evidence={'design_review_digest':D,'modified_summary':'adapter only'},updated_at=FIXED_TIME)
+    _,settlement=build_deterministic_council(envelope=envelope,policy=policy,evidence_manifest_digest=reviewed.promotion_evidence_manifest_digest)
     a=f.advance('a',FoundryStage.PROMOTED,evidence={'council_settlement':settlement},updated_at=FIXED_TIME)
     assert a.stage==FoundryStage.PROMOTED
 
@@ -110,6 +110,24 @@ def test_foundry_promotion_rejects_tampered_settlement(tmp_path,case_settlement)
     for stage,evidence in steps:f.advance('a',stage,evidence=evidence,updated_at=FIXED_TIME)
     _,settlement=case_settlement;bad=copy.deepcopy(settlement);bad['result']['verified']=False
     with pytest.raises(FoundryError):f.advance('a',FoundryStage.PROMOTED,evidence={'council_settlement':bad},updated_at=FIXED_TIME)
+
+
+def test_foundry_promotion_rejects_unrelated_valid_settlement(tmp_path,case_settlement):
+    f=ResearchFoundry(tmp_path/'f.json');f.register(artifact_id='a',title='A',source_url='https://example.com/a',source_type='PUBLICATION',discovered_at=FIXED_TIME)
+    scan=f.scan_text('ordinary public research text')
+    steps=[
+      (FoundryStage.QUARANTINED,{'safety_scan':scan}),
+      (FoundryStage.RIGHTS_REVIEWED,{'license_id':'Apache-2.0'}),
+      (FoundryStage.REVISION_PINNED,{'revision':'abc','content_digest':D}),
+      (FoundryStage.SAFETY_REVIEWED,{'safety_scan':scan}),
+      (FoundryStage.CLAIMS_EXTRACTED,{'claims':['claim']}),
+      (FoundryStage.REPRODUCED,{'reproduction_digest':D}),
+      (FoundryStage.BENCHMARKED,{'benchmark_digest':D}),
+      (FoundryStage.DESIGN_REVIEWED,{'design_review_digest':D,'modified_summary':'adapter only'}),
+    ]
+    for stage,evidence in steps:f.advance('a',stage,evidence=evidence,updated_at=FIXED_TIME)
+    _,settlement=case_settlement
+    with pytest.raises(FoundryError):f.advance('a',FoundryStage.PROMOTED,evidence={'council_settlement':settlement},updated_at=FIXED_TIME)
 
 
 def test_foundry_injection_rejected(tmp_path):
