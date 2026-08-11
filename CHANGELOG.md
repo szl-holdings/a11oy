@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added - runtime evidence hardening
+- Added the responsive `/frontier-now` and `/now` read-only estate cockpit with
+  no-store summary/inventory projections, explicit unavailable capability and
+  source/runtime binding states, and held public claims while equivalence proof
+  is absent.
 - Added separate process liveness, fail-closed dependency readiness, build
   identity, and OpenTelemetry posture endpoints. Unknown file-like and
   discovery paths now return a real 404 instead of the SPA shell.
