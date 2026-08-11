@@ -24,11 +24,12 @@ classifiers = [
 dependencies = [
   "cryptography>=42",
   "jsonschema>=4.21",
+  "rfc3339-validator>=0.1.4",
 ]
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110", "uvicorn>=0.29"]
-test = ["pytest>=8"]
+test = ["pytest>=8", "httpx2>=0.28"]
 
 [project.scripts]
 alloy-council = "szl_council_kernel.cli:main"
