@@ -1,0 +1,55 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema_version": "a11oy.codex.finish-build.task.v2",
+  "payload_version": "2.0.0",
+  "generated_at_utc": "2026-08-11T00:00:00Z",
+  "target_repository": "szl-holdings/a11oy",
+  "base_branch": "main",
+  "coordination": {
+    "organization_issue": "szl-holdings/.github#415",
+    "organization_pull_request": "szl-holdings/.github#416",
+    "a11oy_issue": "szl-holdings/a11oy#1266",
+    "authority": "RECAPTURE_AT_RUNTIME"
+  },
+  "objective": "Execute the A11oy lane of the whole-thread workcell: recapture current source and public state, select the highest-impact still-unsatisfied coherent repair, implement it in canonical modules, prove it with deterministic tests, and leave a truth-labeled receipt for protected review.",
+  "priority_order": [
+    "eliminate indefinite CHECKING, LOADING, PROBING, blank, or spinner-only public states",
+    "replace binary Killinchu deployment claims with capability-axis evidence",
+    "preserve exact GitHub/Hugging Face/runtime source binding and fail-closed drift",
+    "add deny-by-default model admission and clean-room behavior-profile foundations only where current architecture has a canonical seam",
+    "repair the next current A11oy blocker from the runtime snapshot when earlier priorities are already satisfied"
+  ],
+  "governing_sources": [
+    "AGENTS.md",
+    "applicable nested AGENTS.md or AGENTS.override.md files",
+    "CLAUDE.md",
+    ".claude/rules/**",
+    "KNOWN_GOTCHAS.md",
+    ".github/codex/prompts/a11oy-finish-build-v1.md",
+    ".codex-input/current-state.json"
+  ],
+  "prohibitions": [
+    "no protected-main write",
+    "no force push or history rewrite",
+    "no branch-protection or ruleset weakening",
+    "no automatic merge",
+    "no production deployment",
+    "no Hugging Face or database mutation",
+    "no cross-repository mutation",
+    "no credential discovery or secret-value handling",
+    "no test or gate deletion to obtain green status",
+    "no duplicate runtime, ledger, deployment writer, or MCP authority",
+    "no invented formula semantics or theorem claims",
+    "no copied proprietary prompts, model code, datasets, or weights",
+    "no completion claim without matching evidence"
+  ],
+  "required_truth_labels": ["MEASURED", "PROVED", "REPORTED", "MODELED", "HEURISTIC", "UNKNOWN", "UNAVAILABLE", "BLOCKED", "ROADMAP"],
+  "required_deliverables": [
+    "one coherent root-cause source repair in existing taxonomy",
+    "regression and negative tests through real application wiring",
+    "operator or architecture documentation where behavior changes",
+    "artifacts/codex-finish-build/<run-id>/receipt.json",
+    "terminal result conforming to the output schema"
+  ],
+  "terminal_statuses": ["PATCH_READY", "BLOCKED_MANAGED_PREREQUISITE", "TERMINAL_FAILURE"]
+}
