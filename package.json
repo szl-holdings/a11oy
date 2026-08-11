@@ -41,6 +41,11 @@
     "ecosystem:readiness:write": "python3 scripts/build_ecosystem_readiness.py",
     "hf:ecosystem:audit": "python3 scripts/audit_huggingface_ecosystem.py --check",
     "hf:ecosystem:write": "python3 scripts/audit_huggingface_ecosystem.py",
+    "frontier:lexicon": "python3 tools/lexicon_gate.py --check",
+    "frontier:bootstrap": "python3 tools/szl_convergence_bootstrap.py --run",
+    "frontier:bootstrap:verify": "python3 tools/szl_convergence_bootstrap.py --verify",
+    "frontier:release-gate": "python3 tools/release_gate.py --run",
+    "frontier:release-gate:verify": "python3 tools/release_gate.py --verify",
     "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py",
     "operation:inventory": "python3 scripts/generate_operation_inventory.py",
     "operation:reports": "python3 scripts/generate_operation_reports.py"

@@ -31,6 +31,22 @@ jobs:
           test_provider_http.py
           test_sovereign_registry_dev2.py
           tests/test_sovereign_backend.py
+      - name: Run Round-5 convergence gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release_gate.py --run --report audit/release-gate.json
+      - name: Upload round-5 release-gate artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.0.0
+        with:
+          name: frontier-release-gate
+          path: |
+            audit/release-gate.json
+            audit/release-gate-logs/*
+            audit/frontier-lexicon-gate.json
+            docs/huggingface-ecosystem-manifest.json
+          if-no-files-found: error
+          retention-days: 14
 
   attach:
     needs: [provider-gate, public-claim-gate]
