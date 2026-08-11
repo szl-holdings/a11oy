@@ -1,0 +1,65 @@
+{
+  "$id": "https://a-11-oy.com/schemas/codex/a11oy-finish-build-output-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "A11oy Codex whole-thread execution result",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "a11oy.codex.finish-build.result.v1"},
+    "status": {"enum": ["PATCH_READY", "BLOCKED_MANAGED_PREREQUISITE", "TERMINAL_FAILURE"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "head_sha": {"type": "string", "pattern": "^(WORKTREE|[0-9a-f]{40})$"},
+    "changed_files": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "command": {"type": "string", "minLength": 1},
+          "status": {"enum": ["PASS", "FAIL", "NOT_RUN", "BLOCKED"]},
+          "exit_code": {"type": ["integer", "null"]},
+          "evidence": {"type": "string", "minLength": 1, "maxLength": 2000}
+        },
+        "required": ["name", "command", "status", "exit_code", "evidence"]
+      }
+    },
+    "truth_labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "MEASURED": {"type": "array", "items": {"type": "string"}},
+        "PROVED": {"type": "array", "items": {"type": "string"}},
+        "REPORTED": {"type": "array", "items": {"type": "string"}},
+        "MODELED": {"type": "array", "items": {"type": "string"}},
+        "HEURISTIC": {"type": "array", "items": {"type": "string"}},
+        "UNKNOWN": {"type": "array", "items": {"type": "string"}},
+        "UNAVAILABLE": {"type": "array", "items": {"type": "string"}},
+        "BLOCKED": {"type": "array", "items": {"type": "string"}},
+        "ROADMAP": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["MEASURED", "PROVED", "REPORTED", "MODELED", "HEURISTIC", "UNKNOWN", "UNAVAILABLE", "BLOCKED", "ROADMAP"]
+    },
+    "external_actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "git_push": {"const": false},
+        "merge": {"const": false},
+        "deployment": {"const": false},
+        "huggingface_mutation": {"const": false},
+        "database_mutation": {"const": false},
+        "cross_repository_mutation": {"const": false},
+        "secret_value_access": {"const": false}
+      },
+      "required": ["git_push", "merge", "deployment", "huggingface_mutation", "database_mutation", "cross_repository_mutation", "secret_value_access"]
+    },
+    "remaining_blockers": {"type": "array", "items": {"type": "string"}},
+    "receipt_path": {"type": "string", "minLength": 1},
+    "next_action": {"type": "string", "maxLength": 2000}
+  },
+  "required": ["schema_version", "status", "summary", "base_sha", "head_sha", "changed_files", "tests", "truth_labels", "external_actions", "remaining_blockers", "receipt_path", "next_action"]
+}
