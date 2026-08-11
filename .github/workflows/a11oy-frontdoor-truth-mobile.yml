@@ -1,0 +1,36 @@
+name: A11oy front-door truth and mobile contract
+
+on:
+  pull_request:
+    paths:
+      - a11oy_landing.html
+      - config/a11oy-frontdoor/PATCH_SPEC.json
+      - scripts/repair_a11oy_frontdoor.py
+      - scripts/check_a11oy_frontdoor_truth.py
+      - tests/test_a11oy_frontdoor_truth.py
+      - .github/workflows/a11oy-frontdoor-truth-mobile.yml
+  push:
+    branches: [main]
+    paths:
+      - a11oy_landing.html
+      - scripts/check_a11oy_frontdoor_truth.py
+      - tests/test_a11oy_frontdoor_truth.py
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify truth and mobile contract
+        run: python3 scripts/check_a11oy_frontdoor_truth.py a11oy_landing.html
+      - name: Verify patch is fully applied and idempotent
+        run: python3 scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
+      - name: Run regression tests
+        run: python3 -m unittest -v tests/test_a11oy_frontdoor_truth.py
