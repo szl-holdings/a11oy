@@ -4,8 +4,11 @@
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from szl_token_ingress import (
+from routers.token_ingress import register
+from routers.token_ingress_core import (
     IngressWorkload,
     PrefixFoundry,
     TokenizerNodeSignal,
@@ -95,3 +98,70 @@ def test_verifier_reinvestment_preserves_honest_evidence_label() -> None:
     assert modeled["evidence"] == "MODELED"
     assert measured["evidence"] == "MEASURED"
     assert sum(modeled["verification_budget_ms"].values()) == pytest.approx(100.0)
+
+
+def _client() -> TestClient:
+    app = FastAPI()
+    registration = register(app, ns="a11oy")
+    assert registration["ok"] is True
+    return TestClient(app)
+
+
+def test_http_status_is_read_only_and_honest() -> None:
+    response = _client().get("/api/a11oy/v1/token-ingress/status")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["implementation"] == "REAL"
+    assert payload["telemetry"] == "CALLER_SAMPLE_ONLY"
+    assert payload["effectors"] == 0
+    assert payload["provider_calls"] == 0
+
+
+def test_http_route_never_accepts_public_measured_claim() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/route",
+        json={
+            "nodes": [
+                {
+                    "node_id": "sample",
+                    "tokenizer_tokens_per_sec": 1000,
+                    "tokenizer_cache_warmth": 0.9,
+                    "prefix_cache_hit_rate": 0.8,
+                    "kv_cache_hit_rate": 0.7,
+                    "measured": True,
+                }
+            ],
+            "workload": {"prefix_heavy": True},
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["evidence"] == "SAMPLE"
+    assert payload["telemetry_authority"] == "CALLER_SUPPLIED_NOT_MEASURED"
+
+
+def test_http_qualification_fails_closed_on_semantic_mismatch() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/qualify",
+        json={
+            "oracle": "hf",
+            "candidate": "candidate",
+            "cases": [{"name": "mismatch", "oracle_ids": [1, 2], "candidate_ids": [1, 3]}],
+        },
+    )
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["status"] == "FAIL"
+    assert payload["eligible"] is False
+    assert payload["effectors"] == 0
+
+
+def test_http_verification_budget_is_modeled_only() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/verification-budget",
+        json={"saved_milliseconds": 25, "measured": True},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["evidence"] == "MODELED"
+    assert payload["measurement_authority"] == "NOT_ACCEPTED_FROM_PUBLIC_CALLER"
