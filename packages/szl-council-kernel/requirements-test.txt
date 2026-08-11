@@ -4,4 +4,4 @@ rfc3339-validator>=0.1.4
 pytest>=8
 fastapi>=0.110
 uvicorn>=0.29
-httpx2>=0.28
+httpx>=0.28

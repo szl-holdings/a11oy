@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110", "uvicorn>=0.29"]
-test = ["pytest>=8", "httpx2>=0.28"]
+test = ["pytest>=8", "httpx>=0.28"]
 
 [project.scripts]
 alloy-council = "szl_council_kernel.cli:main"

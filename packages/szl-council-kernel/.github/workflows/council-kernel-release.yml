@@ -43,6 +43,7 @@ jobs:
           alloy-council canary --output /tmp/canary-a.json --workdir /tmp/canary-a
           alloy-council canary --output /tmp/canary-b.json --workdir /tmp/canary-b
           cmp /tmp/canary-a.json /tmp/canary-b.json
+          cmp evidence/COUNCIL_CANARY.json /tmp/canary-a.json
           alloy-council bench --output /tmp/bench-a.json
           alloy-council bench --output /tmp/bench-b.json
           cmp /tmp/bench-a.json /tmp/bench-b.json

@@ -15,12 +15,11 @@ PATTERNS = {
     "generic_secret_assignment": re.compile(r"(?i)(api[_-]?key|secret|access[_-]?token)\s*[=:]\s*['\"][A-Za-z0-9_\-]{24,}['\"]"),
 }
 SKIP_DIRS={".git",".venv","build","dist","dist-repeat","__pycache__",".pytest_cache","run"}
-TEXT_SUFFIXES={".py",".md",".json",".yml",".yaml",".toml",".txt",".html",".js",".css",".rego",".in"}
 
 def scan(root: Path):
     findings=[]
     for path in sorted(root.rglob('*')):
-        if not path.is_file() or set(path.relative_to(root).parts)&SKIP_DIRS or path.suffix.lower() not in TEXT_SUFFIXES:
+        if not path.is_file() or set(path.relative_to(root).parts)&SKIP_DIRS:
             continue
         try:text=path.read_text(encoding='utf-8')
         except UnicodeDecodeError:continue
