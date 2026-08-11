@@ -39,6 +39,14 @@ def test_ingress_routing_blocks_without_available_node() -> None:
     assert result == {"status": "BLOCKED", "reason": "no available ingress nodes", "node": None}
 
 
+def test_ingress_routing_rejects_non_finite_signal() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        choose_ingress_node(
+            [TokenizerNodeSignal("nan-node", float("nan"), 0.5, 0.5, 0.5)],
+            IngressWorkload(),
+        )
+
+
 def test_tokenizer_parity_fails_closed_on_token_mismatch() -> None:
     cases = [
         TokenizerParityCase("same", (1, 2), (1, 2), ("<eos>",), ("<eos>",), "abc", "abc"),
@@ -100,6 +108,11 @@ def test_verifier_reinvestment_preserves_honest_evidence_label() -> None:
     assert sum(modeled["verification_budget_ms"].values()) == pytest.approx(100.0)
 
 
+def test_verifier_reinvestment_rejects_non_finite_budget() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        verifier_reinvestment(float("inf"))
+
+
 def _client() -> TestClient:
     app = FastAPI()
     registration = register(app, ns="a11oy")
@@ -140,6 +153,26 @@ def test_http_route_never_accepts_public_measured_claim() -> None:
     assert payload["telemetry_authority"] == "CALLER_SUPPLIED_NOT_MEASURED"
 
 
+def test_http_route_rejects_non_finite_json_number() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/route",
+        content=b'{"nodes":[{"node_id":"n","tokenizer_tokens_per_sec":NaN,"tokenizer_cache_warmth":0.5,"prefix_cache_hit_rate":0.5,"kv_cache_hit_rate":0.5}]}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 422
+    assert response.json()["accepted"] is False
+
+
+def test_http_route_rejects_duplicate_json_fields() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/route",
+        content=b'{"nodes":[],"nodes":[]}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 422
+    assert response.json()["accepted"] is False
+
+
 def test_http_qualification_fails_closed_on_semantic_mismatch() -> None:
     response = _client().post(
         "/api/a11oy/v1/token-ingress/qualify",
@@ -154,6 +187,19 @@ def test_http_qualification_fails_closed_on_semantic_mismatch() -> None:
     assert payload["status"] == "FAIL"
     assert payload["eligible"] is False
     assert payload["effectors"] == 0
+
+
+def test_http_qualification_rejects_boolean_token_ids() -> None:
+    response = _client().post(
+        "/api/a11oy/v1/token-ingress/qualify",
+        json={
+            "oracle": "hf",
+            "candidate": "candidate",
+            "cases": [{"name": "bad", "oracle_ids": [True], "candidate_ids": [1]}],
+        },
+    )
+    assert response.status_code == 422
+    assert response.json()["accepted"] is False
 
 
 def test_http_verification_budget_is_modeled_only() -> None:
