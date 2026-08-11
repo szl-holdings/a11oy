@@ -1,0 +1,50 @@
+name: PR1260 final review apply
+
+on:
+  pull_request:
+    types: [synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply-final-review-fixes:
+    if: >-
+      github.event.pull_request.number == 1260 &&
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/frontdoor-truth-mobile-clean-2026-08-11' &&
+      github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/frontdoor-truth-mobile-clean-2026-08-11
+          fetch-depth: 0
+      - name: Bind event head to checked out head
+        env:
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EVENT_HEAD"
+      - name: Apply exact review repairs
+        run: python3 scripts/apply_pr1260_final_review_fixes.py
+      - name: Verify deterministic contracts
+        run: |
+          python3 -m py_compile szl_brain_capabilities.py scripts/apply_pr1260_final_review_fixes.py tests/test_pr1260_final_review_contracts.py
+          python3 -m pytest -q tests/test_pr1260_final_review_contracts.py
+      - name: Commit exact branch repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- a11oy_landing.html szl_brain_capabilities.py tests/test_pr1260_final_review_contracts.py; then
+            echo 'Final review repairs already materialized.'
+            exit 0
+          fi
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git add a11oy_landing.html szl_brain_capabilities.py tests/test_pr1260_final_review_contracts.py
+          git commit -m 'fix(frontdoor): close final HEAD and mobile review gaps' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:fix/frontdoor-truth-mobile-clean-2026-08-11
