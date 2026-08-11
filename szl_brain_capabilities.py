@@ -304,7 +304,19 @@ def register(
 
     @app.head("/api/build-info", include_in_schema=False)
     def _build_info_head():
-        return Response(status_code=200, headers={"Cache-Control": "no-store"})
+        import os
+        import re
+
+        revision = (
+            os.environ.get("SZL_GIT_SHA")
+            or os.environ.get("A11OY_GIT_SHA")
+            or ""
+        ).strip().lower()
+        source_bound = bool(re.fullmatch(r"[0-9a-f]{40}", revision))
+        return Response(
+            status_code=200 if source_bound else 503,
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.head(f"/api/{ns}/v1/readiness/tab-matrix", include_in_schema=False)
     def _readiness_head():

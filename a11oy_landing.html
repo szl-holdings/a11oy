@@ -9,7 +9,7 @@
   (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
   never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
-  Receipts are signed on write, never on GET. Every claim deep-links a live surface to check.
+  Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
   DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
   preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
@@ -19,13 +19,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>a11oy — Governed Inference · AI that signs its work and refuses to lie</title>
-<meta name="description" content="Governed Inference: AI that signs its work and refuses to lie. Every answer arrives with a signed receipt you can verify yourself — offline, in your own browser. When the model is not sure, it refuses rather than guesses. 8 Lean-proven theorems back the kernel; a 144-entry genome is graded across 4 honest tiers." />
+<title>a11oy — Governed Inference · AI that proves its receipt state and refuses to lie</title>
+<meta name="description" content="Governed Inference: AI that exposes receipt integrity, signer state, evidence, and refusal behavior. State-changing actions produce hash-chained receipts; DSSE signing is claimed only when persistent signer evidence is active and independently verified." />
 <link rel="canonical" href="https://a-11-oy.com/" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://a-11-oy.com/" />
 <meta property="og:title" content="a11oy — Governed Inference" />
-<meta property="og:description" content="AI that signs its work, exposes its evidence, and refuses when it cannot support an answer." />
+<meta property="og:description" content="AI that exposes receipt integrity and signer state, shows its evidence, and refuses when it cannot support an answer." />
 <meta property="og:image" content="https://a-11-oy.com/social-preview-v5.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1280" />
@@ -100,7 +100,7 @@
     background:var(--ink);color:var(--void);font-weight:700;transform:translateY(-150%)}
   .skip-link:focus{transform:translateY(0)}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
-  .mono{font-family:var(--mono)}
+  .mono{font-family:var(--mono);overflow-wrap:anywhere;word-break:break-word}
   h1,h2,h3,.brand{font-family:var(--head)}
 
   /* ---- nav ---- */
@@ -134,8 +134,8 @@
   }
 
   /* ---- buttons ---- */
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 21px;border-radius:9px;
-    font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 21px;border-radius:9px;
+    min-height:44px;max-width:100%;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
     transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
   /* restrained "holographic glass" buttons — luminous hairline + soft fill, never a neon block */
   .btn-primary{background:linear-gradient(180deg,rgba(58,244,200,0.13),rgba(58,244,200,0.04));
@@ -319,6 +319,8 @@
     background:linear-gradient(155deg,rgba(17,30,50,.72),rgba(8,16,29,.88))}
   .estate-cell b{display:block;color:var(--proof);font:600 1.45rem var(--mono);margin-bottom:4px}
   .estate-cell span{color:var(--ghost);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  a.estate-cell{transition:border-color .16s,transform .16s,background .16s}
+  a.estate-cell:hover{border-color:rgba(58,244,200,.45);transform:translateY(-1px);background:linear-gradient(155deg,rgba(17,40,55,.82),rgba(8,16,29,.92))}
   .estate-links{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
   @media(max-width:900px){.estate-grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:520px){.estate-grid{grid-template-columns:repeat(2,1fr)}}
@@ -359,6 +361,16 @@
   .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
   @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
+  /* Mobile overrides intentionally follow all equal-specificity base rules. */
+  @media(max-width:560px){
+    .wrap{padding-inline:16px}
+    section.band{padding-block:64px}
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
+    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
+  }
 </style>
 </head>
 <body>
@@ -400,10 +412,12 @@
   <div class="wrap">
     <div class="hero-inner">
       <span class="eyebrow"><span class="dot"></span> Governed Inference · verifiable by anyone, offline</span>
-      <h1 class="title">AI that <span class="grad">signs its work</span><br>and refuses to lie.</h1>
-      <p class="lede">Every answer arrives with a signed receipt you can check yourself —
-        <b>offline, in your own browser</b>, with no server round-trip. When the model is not
-        sure, it returns an honest <b>BLOCKED</b> instead of a confident guess.</p>
+      <h1 class="title">AI that <span class="grad">proves its receipt state</span><br>and refuses to lie.</h1>
+      <p class="lede">Every governed state change produces a hash-chained receipt you can inspect
+        <b>offline, in your own browser</b>. The interface says <b>SIGNED</b> only when persistent
+        signer evidence is active and verification passes; otherwise it reports HASH-LINKED,
+        UNSIGNED, DISABLED, or UNAVAILABLE. When the model is not sure, it returns an honest
+        <b>BLOCKED</b> instead of a confident guess.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="/console">Open the command center →</a>
         <a class="btn btn-lattice" href="/ecosystem">Explore the ecosystem</a>
@@ -438,7 +452,7 @@
     <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
     <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
     <div class="legend">
-      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — signed-receipt count, advisory Λ posture, chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>
+      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>
       <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
       <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
       <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Λ lives here.</p></div>
@@ -471,7 +485,7 @@
   <h2>Nine surfaces. One governed core.</h2>
   <p class="intro">Every surface reads the same live endpoints and the same honesty doctrine. Jump straight in — the full working console is one click away.</p>
   <div class="grid g3">
-    <a class="card surface-card" href="/console"><div class="ic">⌘</div><h3>Command Center</h3><p>The full working console — signed receipts, the self-doubt gate, the genome registry and live organ vitals.</p><div class="golinks"><span class="go">Open /console →</span></div></a>
+    <a class="card surface-card" href="/console"><div class="ic">⌘</div><h3>Command Center</h3><p>The working console — receipt integrity, separately disclosed signer state, the self-doubt gate, the genome registry, and live organ vitals.</p><div class="golinks"><span class="go">Open /console →</span></div></a>
     <a class="card surface-card" href="/superpowers"><div class="ic">✦</div><h3>Five Superpowers</h3><p>The five things governed inference does that ungoverned models can't — each linked to the live check that backs it.</p><div class="golinks"><span class="go">Open /superpowers →</span></div></a>
     <a class="card surface-card" href="/console#arena"><div class="ic">⚔</div><h3>Adversarial assurance</h3><p>Run governed evaluations, inspect refusals, and trace every verdict to its evidence. The archived Warhacker route now resolves here.</p><div class="golinks"><span class="go">Open the eval arena →</span></div></a>
     <a class="card surface-card" href="/observability"><div class="ic">◎</div><h3>Observability</h3><p>OpenTelemetry-style traces and health summaries across the organs — live, read-only, no sign-on-GET.</p><div class="golinks"><span class="go">Open /observability →</span></div></a>
@@ -490,16 +504,18 @@
   <p class="kick">The thesis</p>
   <h2>Governed AI you can prove — not AI you're asked to trust.</h2>
   <p class="intro">Most AI asks for trust. a11oy earns it the way auditable systems do: every
-    governed decision is sealed into a signed, hash-chained receipt; a trust gate can only
-    tighten an answer, never wave it through; and the kernel rests on machine-checked theorems
-    you can read. The honest part is the product — when a claim isn't proven, we label it, and
-    you can open the check yourself.</p>
+    governed state change is recorded in a hash-chained receipt, while signer state and signature
+    verification are disclosed separately and never inferred; a trust gate can only tighten an
+    answer, never wave it through; and the kernel rests on machine-checked theorems you can read.
+    The honest part is the product — when a claim isn't proven, we label it, and you can open the
+    check yourself.</p>
   <div class="pillars">
     <div class="pillar">
-      <div class="pk">01 · SIGNS</div>
-      <h3>It signs its work</h3>
-      <p>DSSE receipts, ECDSA-P256 signed and SHA3-256 hash-chained into an append-only ledger.
-        Signed on write, never on a read. Verify them in your own browser.</p>
+      <div class="pk">01 · RECEIPTS</div>
+      <h3>It proves receipt integrity and signer state</h3>
+      <p>Every governed state change enters a SHA3-256 hash chain. DSSE / ECDSA-P256 is a separate
+        cryptographic state and is labeled SIGNED only when persistent signer evidence is active
+        and independent verification passes. Verify the disclosed state in your own browser.</p>
     </div>
     <div class="pillar">
       <div class="pk">02 · REFUSES</div>
@@ -574,14 +590,14 @@
         <div class="pmark">a11</div>
         <h3>a11oy</h3>
         <div class="tag">Core · governed inference</div>
-        <p>The platform itself — command center, signed receipts, the self-doubt gate.</p>
+        <p>The platform itself — command center, receipt integrity, disclosed signer state, and the self-doubt gate.</p>
         <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
       </div>
       <div class="vcard">
         <div class="pmark">kil</div>
         <h3>killinchu</h3>
         <div class="tag">Defense · counter-UAS</div>
-        <p>Auditable interdiction: signed receipt per decision, 3-of-4 BFT consensus.</p>
+        <p>Auditable interdiction: receipt per decision, separately disclosed signing state, and 3-of-4 BFT consensus.</p>
         <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
       </div>
       <div class="vcard">
@@ -595,7 +611,7 @@
         <div class="pmark">fin</div>
         <h3>Finance</h3>
         <div class="tag">Governed decisioning</div>
-        <p>Decision paths that have to be reconstructable and signed after the fact.</p>
+        <p>Decision paths that must be reconstructable, receipt-bound, and conditionally signed only when verified signer evidence is active.</p>
         <div class="lam"><span class="val" id="v-finance">—</span><span class="cap">advisory Λ</span><span id="v-finance-chip"></span></div>
       </div>
       <div class="vcard">
@@ -621,9 +637,9 @@
   <p class="kick">The living body</p>
   <h2>Watch the governed organism breathe.</h2>
   <p class="intro">The same live endpoints render as a 3D anatomical organism — organs glow when
-    their probes are healthy and dim when they're not, and signed receipts travel the vessels as
-    pulses. It's the operational state of the platform, shown as a body. Nothing decorative: every
-    pulse is a real receipt.</p>
+    their probes are healthy and dim when they're not, and receipt events travel the vessels as
+    pulses. It is an operational projection of the platform state. Every pulse links to a real
+    receipt event; its signing state remains separately disclosed.</p>
   <div class="body-embed" id="body-embed">
     <div class="poster" id="body-poster">
       <div class="pulse-ring" aria-hidden="true"></div>
@@ -645,16 +661,16 @@
 <!-- ====================== PUBLIC ECOSYSTEM ATLAS ====================== -->
 <section class="band" id="ecosystem">
   <div class="wrap">
-    <p class="kick">Public estate · snapshot observed 2026-07-16</p>
+    <p class="kick">Public estate · canonical live sources</p>
     <h2>Models, kernels, data, and Spaces — one evidence-labelled map.</h2>
-    <p class="sub" style="max-width:790px">The atlas joins Hugging Face artifacts to their GitHub producers without pretending that a reachable URL proves alignment. Counts below are the dated public inventory snapshot; the atlas API upgrades them to LIVE or CACHED when its versioned source answers.</p>
-    <div class="estate-grid" aria-label="Public ecosystem snapshot counts">
-      <div class="estate-cell"><b>15</b><span>Models</span></div>
-      <div class="estate-cell"><b>10</b><span>Governed kernels</span></div>
-      <div class="estate-cell"><b>24</b><span>Datasets</span></div>
-      <div class="estate-cell"><b>26</b><span>Spaces</span></div>
-      <div class="estate-cell"><b>22</b><span>Collections</span></div>
-      <div class="estate-cell"><b>1</b><span>Public bucket</span></div>
+    <p class="sub" style="max-width:790px">The front door no longer hardcodes organization totals. Open each canonical source for its current inventory; a reachable URL establishes reachability only, not source/runtime alignment or model quality.</p>
+    <div class="estate-grid" aria-label="Canonical public ecosystem sources">
+      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/models" target="_blank" rel="noopener"><b>OPEN</b><span>Models</span></a>
+      <a class="estate-cell" href="/kernels"><b>OPEN</b><span>Governed kernels</span></a>
+      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/datasets" target="_blank" rel="noopener"><b>OPEN</b><span>Datasets</span></a>
+      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/spaces" target="_blank" rel="noopener"><b>OPEN</b><span>Spaces</span></a>
+      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/collections" target="_blank" rel="noopener"><b>OPEN</b><span>Collections</span></a>
+      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener"><b>OPEN</b><span>Organization</span></a>
     </div>
     <div class="estate-links">
       <a class="btn btn-primary" href="/ecosystem">Open ecosystem atlas →</a>
@@ -676,7 +692,7 @@
     <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
       fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.</p>
     <div class="chainrow">
-      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Signed receipts</div></div>
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
       <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Chain depth (a11oy)</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
@@ -716,9 +732,9 @@
             <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
             <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
           <span>a11oy<span class="sub" style="margin-left:9px">Alloy by SZL Holdings</span></span></a>
-        <p class="muted" style="margin:6px 0 0">Governed Inference — AI that signs its work and
-          refuses to lie. Signed receipts, the Λ trust gate, a self-doubt gate, and a sha3_256
-          receipt ledger anyone can verify, offline.</p>
+        <p class="muted" style="margin:6px 0 0">Governed Inference — AI that exposes receipt
+          integrity, signer state, evidence, and refusal behavior. The sha3_256 receipt ledger is
+          independently inspectable; DSSE signing is claimed only when verification proves it.</p>
         <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
           <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
       </div>
@@ -751,8 +767,10 @@
     <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven Lean kernel is exactly <b>8</b>
       theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
       set graded across four honesty tiers. The Λ trust gate is <b>Conjecture&nbsp;1</b> — an
-      advisory bound, never a theorem and never 1.0. Receipts are signed on state changes, never on
-      reads. Energy is MEASURED only with a live exporter delta, otherwise honest SAMPLE. Supply
+      advisory bound, never a theorem and never 1.0. Receipt-chain integrity and DSSE signing are
+      distinct states; signing is claimed only when persistent signer evidence is active and verification
+      passes. Read-only routes never mint receipts. Energy is MEASURED only with a live exporter delta,
+      otherwise honest SAMPLE. Supply
       chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.
       <b style="color:var(--sub)">Alloy by SZL Holdings.</b>
       © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
@@ -862,15 +880,12 @@
     }
   }
 
-  // pass/fail chip for an advisory Λ vs the 0.90 floor (advisory ONLY — never an oracle)
+  // Advisory Λ is Conjecture 1: report its relation to the floor, never render pass/fail or green.
   function lamChip(elId, v){
     const el = $(elId); if(!el) return;
     if(num(v) === null){ el.innerHTML = downChip("N/A"); return; }
-    const pass = v >= 0.90;
-    el.innerHTML = '<span class="pass-chip" style="margin-left:8px;'
-      + (pass ? 'color:var(--ok);background:rgba(58,244,200,0.08);border:1px solid rgba(58,244,200,0.3)'
-              : 'color:var(--warn);background:rgba(215,185,107,0.08);border:1px solid rgba(215,185,107,0.3)')
-      + '">'+(pass?'≥ floor':'below floor')+'</span>';
+    const relation = v >= 0.90 ? "≥ advisory floor" : "below advisory floor";
+    el.innerHTML = grayChip(relation + " · CONJECTURE");
   }
 
   function setTiers(t){
@@ -894,7 +909,7 @@
   function setChain(receipts, alg, depth, head){
     $("chain-receipts").textContent = (num(receipts)===null) ? "UNAVAILABLE" : receipts.toLocaleString();
     $("hs-receipts").textContent    = (num(receipts)===null) ? "—"           : receipts.toLocaleString();
-    $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : liveChip(alg || "sha3_256");
+    $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : grayChip((alg || "sha3_256") + " · CHAIN");
     if(alg) $("chain-alg").textContent = alg;
     $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
     // Normalize head to the receipt id STRING. Some feeds (e.g. org/overview)
@@ -963,7 +978,7 @@
          if(Array.isArray(l.receipts) && l.receipts.length){ head = l.receipts[l.receipts.length-1].receipt_id; }
          if(receipts === null) receipts = depth; ok = true; }catch(e){}
     setChain(receipts, alg, depth, head);
-    $("chain-src").innerHTML = ok ? liveChip(alg) : downChip("UNAVAILABLE");
+    $("chain-src").innerHTML = ok ? grayChip((alg || "sha3_256") + " · CHAIN") : downChip("UNAVAILABLE");
   }
 
   // ---- live estate pulse: reachability is reported separately from correctness ----

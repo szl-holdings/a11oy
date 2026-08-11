@@ -1,0 +1,52 @@
+name: A11oy front-door truth and mobile contract
+
+on:
+  pull_request:
+    paths:
+      - a11oy_landing.html
+      - serve.py
+      - szl_runtime_contracts.py
+      - config/a11oy-frontdoor/PATCH_SPEC.json
+      - scripts/repair_a11oy_frontdoor.py
+      - scripts/check_a11oy_frontdoor_truth.py
+      - tests/test_a11oy_frontdoor_truth.py
+      - tests/test_runtime_contracts.py
+      - .github/workflows/a11oy-frontdoor-truth-mobile.yml
+  push:
+    branches: [main]
+    paths:
+      - a11oy_landing.html
+      - serve.py
+      - szl_runtime_contracts.py
+      - scripts/check_a11oy_frontdoor_truth.py
+      - tests/test_a11oy_frontdoor_truth.py
+      - tests/test_runtime_contracts.py
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned focused-test dependencies
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify truth and mobile contract
+        run: python3 scripts/check_a11oy_frontdoor_truth.py a11oy_landing.html
+      - name: Verify front-door patch is fully applied and idempotent
+        run: python3 scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
+      - name: Verify canonical fail-closed build identity
+        run: |
+          python3 -m py_compile serve.py szl_runtime_contracts.py
+          python3 -m pytest -q tests/test_runtime_contracts.py -k build_info
+      - name: Run front-door regression tests
+        run: python3 -m unittest -v tests/test_a11oy_frontdoor_truth.py

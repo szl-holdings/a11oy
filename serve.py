@@ -120,6 +120,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
+
 # Waqay Security Loop (wave 15): expose only the deterministic, read-only
 # contract.  The implementation has no deployment, recall, repository, signing,
 # model, or other external effector.  Mutation endpoints stay deliberately
