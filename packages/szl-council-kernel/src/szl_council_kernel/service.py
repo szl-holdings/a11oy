@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Read-mostly FastAPI service and local operator console."""
 
 import hmac
