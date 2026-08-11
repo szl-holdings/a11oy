@@ -54,11 +54,11 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout exact parity verifier
+      - name: Checkout exact protected-base parity verifier
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: candidate
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
 
       - name: Checkout exact reusable tools revision
@@ -74,10 +74,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify stable immutable HF revision and every managed byte
+      - name: Verify stable immutable HF revision and every managed protected-base byte
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          SOURCE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
         run: |
           python3 candidate/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
