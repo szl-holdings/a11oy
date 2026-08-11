@@ -10,6 +10,7 @@ closed unless explicit oracle/candidate token cases are supplied.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import Request
@@ -28,6 +29,8 @@ from routers.token_ingress_core import (
 MAX_BODY = 64 * 1024
 MAX_NODES = 64
 MAX_CASES = 256
+MAX_TOKEN_IDS_PER_CASE = 8192
+MAX_SPECIAL_TOKENS_PER_CASE = 256
 _FOUNDRY = PrefixFoundry()
 
 
@@ -42,6 +45,19 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
         },
         status_code=status,
     )
+
+
+def _closed_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON field: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number is forbidden: {value}")
 
 
 async def _body(request: Request) -> dict[str, Any]:
@@ -60,11 +76,13 @@ async def _body(request: Request) -> dict[str, Any]:
     if len(raw) > MAX_BODY:
         raise ValueError("request body exceeds 64 KiB")
     try:
-        import json
-
-        value = json.loads(raw)
-    except Exception as exc:
-        raise ValueError("request body must be valid JSON") from exc
+        value = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_closed_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError("request body must be strict JSON with unique fields") from exc
     if not isinstance(value, dict):
         raise ValueError("request body must be one JSON object")
     return value
@@ -72,6 +90,30 @@ async def _body(request: Request) -> dict[str, Any]:
 
 def _bool(value: Any) -> bool:
     return value is True
+
+
+def _token_ids(value: Any, field: str) -> tuple[int, ...]:
+    if not isinstance(value, list) or len(value) > MAX_TOKEN_IDS_PER_CASE:
+        raise ValueError(f"{field} must be an array with at most {MAX_TOKEN_IDS_PER_CASE} entries")
+    if any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in value):
+        raise ValueError(f"{field} must contain non-negative integer token IDs")
+    return tuple(value)
+
+
+def _special_tokens(value: Any, field: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or len(value) > MAX_SPECIAL_TOKENS_PER_CASE:
+        raise ValueError(f"{field} must be an array with at most {MAX_SPECIAL_TOKENS_PER_CASE} entries")
+    if any(not isinstance(item, str) for item in value):
+        raise ValueError(f"{field} must contain strings")
+    return tuple(value)
+
+
+def _optional_text(value: Any, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string or null")
+    return value
 
 
 def register(app, ns: str = "a11oy") -> dict[str, Any]:
@@ -107,9 +149,12 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
             for item in raw_nodes:
                 if not isinstance(item, dict):
                     raise ValueError("every node must be an object")
+                node_id = item.get("node_id")
+                if not isinstance(node_id, str):
+                    raise ValueError("node_id must be a string")
                 nodes.append(
                     TokenizerNodeSignal(
-                        node_id=str(item.get("node_id") or ""),
+                        node_id=node_id,
                         tokenizer_tokens_per_sec=float(item.get("tokenizer_tokens_per_sec", 0)),
                         tokenizer_cache_warmth=float(item.get("tokenizer_cache_warmth", 0)),
                         prefix_cache_hit_rate=float(item.get("prefix_cache_hit_rate", 0)),
@@ -137,8 +182,10 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
     async def qualify(request: Request) -> JSONResponse:
         try:
             payload = await _body(request)
-            oracle = str(payload.get("oracle") or "")
-            candidate = str(payload.get("candidate") or "")
+            oracle = payload.get("oracle")
+            candidate = payload.get("candidate")
+            if not isinstance(oracle, str) or not isinstance(candidate, str):
+                raise ValueError("oracle and candidate must be strings")
             raw_cases = payload.get("cases")
             if not isinstance(raw_cases, list) or len(raw_cases) > MAX_CASES:
                 raise ValueError(f"cases must be a list with at most {MAX_CASES} entries")
@@ -146,19 +193,28 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
             for item in raw_cases:
                 if not isinstance(item, dict):
                     raise ValueError("every parity case must be an object")
-                oracle_ids = item.get("oracle_ids")
-                candidate_ids = item.get("candidate_ids")
-                if not isinstance(oracle_ids, list) or not isinstance(candidate_ids, list):
-                    raise ValueError("oracle_ids and candidate_ids must be arrays")
+                name = item.get("name")
+                if name is None:
+                    name = f"case-{len(cases)+1}"
+                if not isinstance(name, str) or not name:
+                    raise ValueError("case name must be a non-empty string")
                 cases.append(
                     TokenizerParityCase(
-                        name=str(item.get("name") or f"case-{len(cases)+1}"),
-                        oracle_ids=tuple(int(value) for value in oracle_ids),
-                        candidate_ids=tuple(int(value) for value in candidate_ids),
-                        oracle_special_tokens=tuple(str(v) for v in item.get("oracle_special_tokens", [])),
-                        candidate_special_tokens=tuple(str(v) for v in item.get("candidate_special_tokens", [])),
-                        oracle_normalized_text=item.get("oracle_normalized_text"),
-                        candidate_normalized_text=item.get("candidate_normalized_text"),
+                        name=name,
+                        oracle_ids=_token_ids(item.get("oracle_ids"), "oracle_ids"),
+                        candidate_ids=_token_ids(item.get("candidate_ids"), "candidate_ids"),
+                        oracle_special_tokens=_special_tokens(
+                            item.get("oracle_special_tokens", []), "oracle_special_tokens"
+                        ),
+                        candidate_special_tokens=_special_tokens(
+                            item.get("candidate_special_tokens", []), "candidate_special_tokens"
+                        ),
+                        oracle_normalized_text=_optional_text(
+                            item.get("oracle_normalized_text"), "oracle_normalized_text"
+                        ),
+                        candidate_normalized_text=_optional_text(
+                            item.get("candidate_normalized_text"), "candidate_normalized_text"
+                        ),
                     )
                 )
             result = qualify_tokenizer_candidate(oracle, candidate, cases)
