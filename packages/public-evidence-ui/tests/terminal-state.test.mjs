@@ -115,6 +115,27 @@ test("readiness verifies only when all gates pass", () => {
   assert.equal(result.state, "VERIFIED");
 });
 
+test("readiness accepts the live producer's exact HF match state", () => {
+  const result = assessReadiness({
+    summary: { endpoints_reachable: 4, endpoints_total: 4 },
+    sections: [
+      {
+        id: "identity",
+        raw_version: {
+          release_state: "VERIFIED",
+          verify: { release_assets_status: "VERIFIED" },
+        },
+      },
+      {
+        id: "parity",
+        build: { status: "aligned" },
+        hf_space: { status: "match" },
+      },
+    ],
+  });
+  assert.equal(result.state, "VERIFIED");
+});
+
 test("honesty contract requires locked doctrine and Conjecture 1", () => {
   assert.equal(
     assessHonesty({ doctrine_lock: { state: "LOCKED", lambda: "Conjecture 1" } })

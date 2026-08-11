@@ -18,7 +18,7 @@
   ],
   "properties": {
     "schema": {"const": "szl.public-source-of-truth/v1"},
-    "generated_at": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
     "source_revision": {
       "oneOf": [
         {"type": "null"},
@@ -81,7 +81,12 @@
       "properties": {
         "value": {},
         "label": {"enum": ["MEASURED", "REPORTED", "UNAVAILABLE"]},
-        "observed_at": {"type": ["string", "null"]},
+        "observed_at": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "format": "date-time"}
+          ]
+        },
         "source": {"type": "string", "minLength": 1}
       },
       "allOf": [
@@ -97,10 +102,22 @@
       "required": ["state", "observed_at", "source", "detail"],
       "properties": {
         "state": {"enum": ["VERIFIED", "REACHABLE", "DEGRADED", "STALE", "FAILED", "BLOCKED", "UNAVAILABLE"]},
-        "observed_at": {"type": ["string", "null"]},
+        "observed_at": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "format": "date-time"}
+          ]
+        },
         "source": {"type": "string", "minLength": 1},
         "detail": {"type": "string"}
       },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "UNAVAILABLE"}}},
+          "then": {"properties": {"observed_at": {"type": "null"}}},
+          "else": {"properties": {"observed_at": {"type": "string", "format": "date-time"}}}
+        }
+      ],
       "additionalProperties": false
     }
   },

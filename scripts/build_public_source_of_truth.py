@@ -15,8 +15,11 @@ import json
 import os
 import re
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping
+
+from jsonschema import Draft202012Validator, FormatChecker
 
 SCHEMA = "szl.public-source-of-truth/v1"
 TERMINAL_STATES = {
@@ -31,10 +34,43 @@ TERMINAL_STATES = {
 METRIC_LABELS = {"MEASURED", "REPORTED", "UNAVAILABLE"}
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "v1" / "public-source-of-truth.schema.json"
+MAX_OBSERVATION_AGE = dt.timedelta(minutes=15)
+MAX_FUTURE_SKEW = dt.timedelta(minutes=1)
 
 
 def utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def parse_timestamp(value: Any) -> dt.datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    candidate = value.strip()
+    if candidate.endswith("Z"):
+        candidate = candidate[:-1] + "+00:00"
+    try:
+        parsed = dt.datetime.fromisoformat(candidate)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(dt.timezone.utc)
+
+
+def canonical_timestamp(value: dt.datetime) -> str:
+    return value.astimezone(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def fresh_timestamp(value: Any, *, generated_at: dt.datetime) -> str | None:
+    observed_at = parse_timestamp(value)
+    if observed_at is None:
+        return None
+    if observed_at < generated_at - MAX_OBSERVATION_AGE:
+        return None
+    if observed_at > generated_at + MAX_FUTURE_SKEW:
+        return None
+    return canonical_timestamp(observed_at)
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -51,12 +87,12 @@ def unavailable_metric(source: str) -> dict[str, Any]:
     return {"value": None, "label": "UNAVAILABLE", "observed_at": None, "source": source}
 
 
-def normalize_metric(raw: Any, *, source: str) -> dict[str, Any]:
+def normalize_metric(raw: Any, *, source: str, generated_at: dt.datetime) -> dict[str, Any]:
     if not isinstance(raw, Mapping):
         return unavailable_metric(source)
     label = str(raw.get("label", "UNAVAILABLE")).upper()
     value = raw.get("value")
-    observed_at = raw.get("observed_at")
+    observed_at = fresh_timestamp(raw.get("observed_at"), generated_at=generated_at)
     observed_source = str(raw.get("source") or source)
     if label not in METRIC_LABELS:
         return unavailable_metric(source)
@@ -64,17 +100,17 @@ def normalize_metric(raw: Any, *, source: str) -> dict[str, Any]:
         return unavailable_metric(observed_source)
     if value is None or not observed_at:
         return unavailable_metric(observed_source)
-    return {"value": value, "label": label, "observed_at": str(observed_at), "source": observed_source}
+    return {"value": value, "label": label, "observed_at": observed_at, "source": observed_source}
 
 
-def normalize_observation(raw: Any, *, source: str) -> dict[str, Any]:
+def normalize_observation(raw: Any, *, source: str, generated_at: dt.datetime) -> dict[str, Any]:
     if not isinstance(raw, Mapping):
         return {"state": "UNAVAILABLE", "observed_at": None, "source": source, "detail": "No fresh observation was supplied."}
     state = str(raw.get("state", "UNAVAILABLE")).upper()
-    observed_at = raw.get("observed_at")
+    observed_at = fresh_timestamp(raw.get("observed_at"), generated_at=generated_at)
     if state not in TERMINAL_STATES or not observed_at:
         return {"state": "UNAVAILABLE", "observed_at": None, "source": str(raw.get("source") or source), "detail": "Observation was missing a terminal state or timestamp."}
-    return {"state": state, "observed_at": str(observed_at), "source": str(raw.get("source") or source), "detail": str(raw.get("detail") or "")}
+    return {"state": state, "observed_at": observed_at, "source": str(raw.get("source") or source), "detail": str(raw.get("detail") or "")}
 
 
 def nested(mapping: Mapping[str, Any], *parts: str) -> Any:
@@ -108,22 +144,38 @@ def git_revision() -> str | None:
 
 
 def build_snapshot(*, observations: Mapping[str, Any], generated_at: str, source_revision: str | None, contract_verified: bool) -> dict[str, Any]:
+    generated_time = parse_timestamp(generated_at)
+    if generated_time is None:
+        raise ValueError("generated_at must be a timezone-aware ISO 8601 timestamp")
+    normalized_generated_at = canonical_timestamp(generated_time)
+
     def inventory_metric(section: str, name: str) -> dict[str, Any]:
-        return normalize_metric(nested(observations, "inventory", section, name), source=f"observations.inventory.{section}.{name}")
+        return normalize_metric(
+            nested(observations, "inventory", section, name),
+            source=f"observations.inventory.{section}.{name}",
+            generated_at=generated_time,
+        )
 
     runtime_raw = nested(observations, "runtime")
     runtime_raw = runtime_raw if isinstance(runtime_raw, Mapping) else {}
-    runtime = {str(name): normalize_observation(value, source=f"observations.runtime.{name}") for name, value in sorted(runtime_raw.items())}
+    runtime = {
+        str(name): normalize_observation(
+            value,
+            source=f"observations.runtime.{name}",
+            generated_at=generated_time,
+        )
+        for name, value in sorted(runtime_raw.items())
+    }
     runtime["public_contract"] = {
         "state": "VERIFIED" if contract_verified else "UNAVAILABLE",
-        "observed_at": generated_at if contract_verified else None,
+        "observed_at": normalized_generated_at if contract_verified else None,
         "source": "packages/public-evidence-ui + tests",
         "detail": "Contract tests passed in the current run." if contract_verified else "Contract verification was not asserted for this build.",
     }
 
     snapshot: dict[str, Any] = {
         "schema": SCHEMA,
-        "generated_at": generated_at,
+        "generated_at": normalized_generated_at,
         "source_revision": source_revision,
         "inventory": {
             "github": {
@@ -159,7 +211,7 @@ def build_snapshot(*, observations: Mapping[str, Any], generated_at: str, source
             if metric["label"] == "UNAVAILABLE":
                 unavailable.append(name)
     for name, item in runtime.items():
-        if item["state"] in {"FAILED", "BLOCKED", "UNAVAILABLE"}:
+        if item["state"] != "VERIFIED":
             unavailable.append(name)
 
     snapshot["state"] = "VERIFIED" if not unavailable else "DEGRADED"
@@ -167,8 +219,18 @@ def build_snapshot(*, observations: Mapping[str, Any], generated_at: str, source
     return snapshot
 
 
+@lru_cache(maxsize=1)
+def schema_validator() -> Draft202012Validator:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema, format_checker=FormatChecker())
+
+
 def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
     errors: list[str] = []
+    for violation in schema_validator().iter_errors(snapshot):
+        path = ".".join(str(part) for part in violation.absolute_path) or "root"
+        errors.append(f"json_schema:{path}")
     if snapshot.get("schema") != SCHEMA:
         errors.append("schema")
     source_revision = snapshot.get("source_revision")
@@ -208,6 +270,25 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> list[str]:
         for item in runtime.values():
             if not isinstance(item, Mapping) or item.get("state") not in TERMINAL_STATES:
                 errors.append("runtime_state")
+    generated_at = parse_timestamp(snapshot.get("generated_at"))
+    if generated_at is None:
+        errors.append("generated_at")
+    else:
+        if isinstance(inventory, Mapping):
+            for section in inventory.values():
+                if not isinstance(section, Mapping):
+                    continue
+                for metric in section.values():
+                    if not isinstance(metric, Mapping) or metric.get("label") == "UNAVAILABLE":
+                        continue
+                    if fresh_timestamp(metric.get("observed_at"), generated_at=generated_at) is None:
+                        errors.append("metric_freshness")
+        if isinstance(runtime, Mapping):
+            for item in runtime.values():
+                if not isinstance(item, Mapping) or item.get("state") == "UNAVAILABLE":
+                    continue
+                if fresh_timestamp(item.get("observed_at"), generated_at=generated_at) is None:
+                    errors.append("runtime_freshness")
     return sorted(set(errors))
 
 

@@ -46,7 +46,7 @@ export function assessReadiness(payload, context = {}) {
       },
     });
   }
-  if (!["aligned", "current", "equal"].includes(hfState)) {
+  if (!["aligned", "current", "equal", "match"].includes(hfState)) {
     reasons.push({
       id: "HF_SERVED_SOURCE_DRIFT",
       detail: parity?.hf_space ?? null,

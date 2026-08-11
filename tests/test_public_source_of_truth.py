@@ -69,6 +69,32 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         self.assertEqual(metric["label"], "UNAVAILABLE")
         self.assertIsNone(metric["value"])
 
+    def test_stale_future_and_malformed_metrics_fail_closed(self):
+        for observed_at in (
+            "2026-08-10T23:44:59Z",
+            "2026-08-11T00:01:01Z",
+            "not-a-timestamp",
+            "2026-08-11T00:00:00",
+        ):
+            with self.subTest(observed_at=observed_at):
+                snapshot = self.build(
+                    {
+                        "inventory": {
+                            "github": {
+                                "public_repositories": {
+                                    "value": 58,
+                                    "label": "MEASURED",
+                                    "observed_at": observed_at,
+                                    "source": "github-api",
+                                }
+                            }
+                        }
+                    }
+                )
+                metric = snapshot["inventory"]["github"]["public_repositories"]
+                self.assertEqual(metric["label"], "UNAVAILABLE")
+                self.assertIsNone(metric["value"])
+
     def test_nonterminal_runtime_observation_fails_closed(self):
         snapshot = self.build(
             {
@@ -82,6 +108,57 @@ class PublicSourceOfTruthTests(unittest.TestCase):
             }
         )
         self.assertEqual(snapshot["runtime"]["a11oy"]["state"], "UNAVAILABLE")
+
+    def test_only_verified_runtime_observations_allow_verified_aggregate(self):
+        inventory = {
+            "github": {
+                name: {
+                    "value": 1,
+                    "label": "MEASURED",
+                    "observed_at": "2026-08-11T00:00:00Z",
+                    "source": "github-api",
+                }
+                for name in ("public_repositories", "active_repositories", "archived_repositories")
+            },
+            "huggingface": {
+                name: {
+                    "value": 1,
+                    "label": "MEASURED",
+                    "observed_at": "2026-08-11T00:00:00Z",
+                    "source": "hf-api",
+                }
+                for name in ("spaces_total", "spaces_public", "models", "datasets", "kernels", "collections", "buckets")
+            },
+        }
+        for state in ("REACHABLE", "DEGRADED", "STALE", "FAILED", "BLOCKED", "UNAVAILABLE"):
+            with self.subTest(state=state):
+                snapshot = self.build(
+                    {
+                        "inventory": inventory,
+                        "runtime": {
+                            "a11oy": {
+                                "state": state,
+                                "observed_at": "2026-08-11T00:00:00Z",
+                                "source": "runtime-probe",
+                            }
+                        },
+                    }
+                )
+                self.assertEqual(snapshot["state"], "DEGRADED")
+
+        snapshot = self.build(
+            {
+                "inventory": inventory,
+                "runtime": {
+                    "a11oy": {
+                        "state": "VERIFIED",
+                        "observed_at": "2026-08-11T00:00:00Z",
+                        "source": "runtime-probe",
+                    }
+                },
+            }
+        )
+        self.assertEqual(snapshot["state"], "VERIFIED")
 
     def test_lambda_contract_is_fixed(self):
         snapshot = self.build()
@@ -104,6 +181,17 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         snapshot["inventory"]["github"]["public_repositories"]["value"] = 58
         snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
         self.assertIn("stale_unavailable_metric", MODULE.validate_snapshot(snapshot))
+
+    def test_validator_executes_canonical_json_schema(self):
+        snapshot = self.build()
+        snapshot["state"] = "BOGUS"
+        snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
+        self.assertIn("json_schema:state", MODULE.validate_snapshot(snapshot))
+
+        snapshot = self.build()
+        del snapshot["claim_classes"]
+        snapshot["digest_sha3_256"] = MODULE.digest_snapshot(snapshot)
+        self.assertIn("json_schema:root", MODULE.validate_snapshot(snapshot))
 
     def test_cli_round_trip_contract(self):
         snapshot = self.build()
