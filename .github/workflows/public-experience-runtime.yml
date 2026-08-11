@@ -1,0 +1,83 @@
+name: Public Experience Runtime Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/public-evidence-ui/**'
+      - 'scripts/build_public_source_of_truth.py'
+      - 'schemas/v1/public-source-of-truth.schema.json'
+      - 'tests/test_public_source_of_truth.py'
+      - 'docs/public-experience/**'
+      - 'docs/workcells/1258/**'
+      - '.github/workflows/public-experience-runtime.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/public-evidence-ui/**'
+      - 'scripts/build_public_source_of_truth.py'
+      - 'schemas/v1/public-source-of-truth.schema.json'
+      - 'tests/test_public_source_of_truth.py'
+      - 'docs/public-experience/**'
+      - 'docs/workcells/1258/**'
+      - '.github/workflows/public-experience-runtime.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Validate JSON Schema syntax
+        run: python -m json.tool schemas/v1/public-source-of-truth.schema.json >/dev/null
+
+      - name: Run source-of-truth tests
+        run: python -m unittest -v tests/test_public_source_of_truth.py
+
+      - name: Run terminal-state and readiness tests
+        run: node --test packages/public-evidence-ui/tests/*.test.mjs
+
+      - name: Generate fail-closed public source of truth
+        run: >-
+          python scripts/build_public_source_of_truth.py
+          --output artifacts/public/SOURCE_OF_TRUTH.json
+          --source-revision "${GITHUB_SHA}"
+          --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          --contract-verified
+
+      - name: Verify generated digest and contract
+        run: >-
+          python scripts/build_public_source_of_truth.py
+          --check
+          --output artifacts/public/SOURCE_OF_TRUTH.json
+
+      - name: Upload immutable contract evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-source-of-truth-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/public/SOURCE_OF_TRUTH.json
+          if-no-files-found: error
+          retention-days: 90
