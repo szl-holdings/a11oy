@@ -14,7 +14,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'fix/frontdoor-truth-mobile-clean-2026-08-11'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout exact PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,6 +23,8 @@ jobs:
           fetch-depth: 0
       - name: Apply canonical runtime identity and readiness repairs
         run: python3 scripts/apply_runtime_identity_review_fixes.py
+      - name: Install pinned focused-test dependencies
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
       - name: Verify focused contracts
         run: |
           python3 -m py_compile serve.py szl_runtime_contracts.py scripts/repair_readiness_soft_revision.py scripts/apply_runtime_identity_review_fixes.py
