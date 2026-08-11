@@ -55,6 +55,7 @@ def check(path: Path) -> dict:
         "unconditional finance signing": "signed after the fact",
         "unconditional receipt signing doctrine": "Receipts are signed on",
         "unconditional DSSE state": "DSSE receipts, ECDSA-P256 signed",
+        "unmeasured signer state in measured legend": "receipt count, separately reported signer state, advisory Λ posture",
     }
     for name, token in banned.items():
         if token in text:
@@ -81,10 +82,28 @@ def check(path: Path) -> dict:
         if "CONJECTURE" not in block or "grayChip" not in block:
             errors.append({"check": "lambda-chip", "detail": "advisory/conjecture gray rendering missing"})
 
+    mobile_marker = "/* Mobile overrides intentionally follow all equal-specificity base rules. */"
+    mobile_index = text.find(mobile_marker)
+    if mobile_index < 0:
+        errors.append({"check": "mobile-cascade-order", "detail": "late mobile override marker missing"})
+    else:
+        for token in (
+            ".hero{position:relative;min-height:92vh",
+            ".hero .wrap{position:relative;z-index:2;padding-top:54px",
+            ".cta-row{display:flex;gap:12px",
+            "section.band{padding:88px 0;position:relative}",
+        ):
+            base_index = text.find(token)
+            if base_index < 0:
+                errors.append({"check": "mobile-cascade-order", "detail": f"base rule missing: {token}"})
+            elif mobile_index <= base_index:
+                errors.append({"check": "mobile-cascade-order", "detail": f"mobile override precedes base rule: {token}"})
+
     required = [
         "min-height:44px",
         "overflow-wrap:anywhere",
         "Receipt records · signer state separate",
+        "Signer state is disclosed separately only where an actual signer-status read is present.",
     ]
     for token in required:
         if token not in text:
