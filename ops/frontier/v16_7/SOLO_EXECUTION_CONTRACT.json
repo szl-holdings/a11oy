@@ -1,0 +1,113 @@
+{
+  "schema": "szl.frontier.solo-execution-contract/v16.7.1",
+  "version": "16.7.1",
+  "repository": "szl-holdings/a11oy",
+  "formal_doctrine": "v11 LOCKED",
+  "agent_dependency": "NONE",
+  "purpose": "Current-main-bound solo promotion of deterministic terminal-truth repairs without direct protected-main writes, candidate-code execution in the qualification workflow, self-review, direct merge mutation, or a false production claim.",
+  "source": {
+    "branch_prefix": "frontier/v16-7-solo-",
+    "base": "current protected main at branch creation",
+    "commit_count": 1,
+    "parent_count": 1,
+    "github_verified_signature_required": true,
+    "dco_required": true,
+    "allowed_paths": [
+      "README.md",
+      "console/index.html",
+      "pages/console.html",
+      "routers/frontier_reads.py",
+      "routers/series_a_control_plane.py",
+      "routers/series_a_web/app.js",
+      "routers/series_a_web/index.html",
+      "tests/test_frontier_v16_7_terminal_truth.py"
+    ],
+    "changed_path_min": 1,
+    "changed_path_max": 8,
+    "repair_oracle": {
+      "path": "ops/frontier/v16_7/apply_current_main_repairs.py",
+      "sha256": "27ee06fd37e952b27a9fa6acfe2e9b157bba65abf4db1f5bedf571de54be814f"
+    },
+    "regression": {
+      "protected_template_path": "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py",
+      "source_path": "tests/test_frontier_v16_7_terminal_truth.py",
+      "sha256": "4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f"
+    }
+  },
+  "trusted_workflows": {
+    "builder": ".github/workflows/frontier-v16-7-exact-source-builder.yml",
+    "qualification": ".github/workflows/frontier-solo-qualification.yml",
+    "builder_event": "owner-created exact-contract issue on the protected default branch",
+    "qualification_events": [
+      "pull_request",
+      "merge_group"
+    ],
+    "candidate_checkout": false,
+    "candidate_import": false,
+    "candidate_execution": false,
+    "project_secret_access": false,
+    "review_submission": false,
+    "direct_merge_endpoint": false
+  },
+  "promotion": {
+    "direct_main_push": false,
+    "force_push": false,
+    "self_approval": false,
+    "administrator_bypass": false,
+    "gate_weakening": false,
+    "native_auto_merge_or_merge_queue_only": true,
+    "required_workflow_path": ".github/workflows/frontier-solo-qualification.yml",
+    "current_main_must_equal_pr_base": true,
+    "merge_group_requalification_required_when_active": true
+  },
+  "deployment": {
+    "canonical_space_writer": ".github/workflows/hf-sync.yml",
+    "second_automatic_hf_writer_forbidden": true,
+    "merge_is_not_deployment": true,
+    "running_badge_is_not_commit_proof": true,
+    "exact_merged_sha_readback_required": true,
+    "persistent_signer_continuity_required_for_signed_claim": true,
+    "rollback_and_restoration_evidence_required_for_production_verified": true
+  },
+  "terminal_truth_repairs": [
+    "series_a_terminal_server_render",
+    "series_a_complete_fetch_failure_terminalization",
+    "series_a_event_stream_terminal_states",
+    "global_console_terminal_server_render",
+    "root_console_terminal_server_render",
+    "fastapi_route_annotation_compatibility",
+    "readme_configuration_bound_receipt_claim"
+  ],
+  "allowed_terminal_states": [
+    "GOVERNANCE_PR_OPEN",
+    "GOVERNANCE_MERGED",
+    "SOURCE_COMMIT_CREATED",
+    "SOURCE_PR_OPEN",
+    "SOURCE_AUTO_MERGE_PENDING",
+    "SOURCE_MERGED",
+    "DEPLOYMENT_PENDING",
+    "PRODUCTION_VERIFIED",
+    "BLOCKED_EXTERNAL",
+    "FAILED_WITH_RECEIPT"
+  ],
+  "production_verified_requires": [
+    "protected source merge readback",
+    "all required exact-head and merge-group checks terminal and passing",
+    "canonical hf-sync deployment of the merged SHA",
+    "direct and public build-info agreement with the merged SHA",
+    "terminal public status states",
+    "persistent P-256 signing identity continuity",
+    "signed receipt positive verification",
+    "tamper and wrong-key negative verification",
+    "persistent state restart proof",
+    "rollback to a source-verified prior revision",
+    "restoration to merged main",
+    "temporary rollback tag cleanup"
+  ],
+  "secret_policy": {
+    "read_secret_values": false,
+    "print_secret_values": false,
+    "commit_keys_or_tokens": false,
+    "name_only_inventory_when_required": true
+  }
+}
