@@ -9,6 +9,7 @@ Environment name: a11oy-p0-current-main-20260811
 Repository:       szl-holdings/a11oy
 Default branch:   main
 Task PR:          #1261
+PR title:         feat(codex): execute current-main production completion
 Work branch:      codex/p0-a11oy-work-20260811
 Task contract:    .codex/tasks/P0_CURRENT_MAIN_PRODUCTION_COMPLETION_20260811.md
 ```
@@ -34,6 +35,7 @@ python3 -m pip install --disable-pip-version-check --require-hashes \
   -r .github/requirements/ci-core.txt
 
 python3 -m compileall -q .
+git diff --check
 ```
 
 The pinned pnpm version and hashed Python dependency set mirror the current repository workflows. When a gate requires a separate `pnpm install --frozen-lockfile`, run it in a clean worktree or clean-clone directory so one package-manager install does not invalidate another gate's baseline.
