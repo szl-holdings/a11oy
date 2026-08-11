@@ -14,9 +14,10 @@ Shared serve.py module-scope state referenced (unchanged, via `import serve`):
 this group, so it moves here with the routes. Registered BEFORE the /api/a11oy/
 {path:path} Node proxy + SPA catch-all, identical to the pre-refactor inline block.
 
-The additive Series-A controller is registered at this same pre-catch-all seam. It
-keeps GET/HEAD read-only, uses explicit POSTs for refresh/evaluate/execute, and
-fails one surface closed without taking down the existing frontier reads.
+The additive Series-A controller and bounded token-ingress controller are
+registered at this same pre-catch-all seam.  Token ingress exposes computation
+only: public callers cannot mark telemetry MEASURED, persist foundry entries, read
+arbitrary repository files, or invoke providers/effectors.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -44,7 +45,7 @@ _A11OY_VERTICALS = [
 
 
 def register(app) -> dict:
-    """Attach frontier reads and the additive Series-A control plane."""
+    """Attach frontier reads plus additive governed control surfaces."""
     import serve  # shared module-scope state lives at serve module scope
 
     @app.get("/api/a11oy/v1/forecast-baseline")
@@ -101,15 +102,32 @@ def register(app) -> dict:
             "effectors": [],
         }
 
+    try:
+        from routers import token_ingress as _token_ingress
+
+        token_ingress = _token_ingress.register(app, ns="a11oy")
+    except Exception as exc:  # fail the additive surface closed
+        token_ingress = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": 0,
+        }
+
     return {
         "ok": True,
         "ns": "a11oy",
         "group": "frontier-reads",
         "series_a": series_a,
+        "token_ingress": token_ingress,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
             "/api/a11oy/v1/observability/business", "/v1/observability/business",
             "/series-a", "/api/a11oy/v1/series-a/status",
+            "/api/a11oy/v1/token-ingress/status",
+            "/api/a11oy/v1/token-ingress/route",
+            "/api/a11oy/v1/token-ingress/qualify",
+            "/api/a11oy/v1/token-ingress/verification-budget",
         ],
     }
