@@ -1,0 +1,74 @@
+name: A11oy front-door Burn-Light clean branch
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - a11oy_landing.html
+      - config/a11oy-frontdoor/PATCH_SPEC.json
+      - scripts/repair_a11oy_frontdoor.py
+      - scripts/check_a11oy_frontdoor_truth.py
+      - tests/test_a11oy_frontdoor_truth.py
+      - docs/A11OY_FRONTDOOR_TRUTH_MOBILE.md
+      - .github/workflows/a11oy-frontdoor-truth-mobile.yml
+      - .github/workflows/frontdoor-burnlight-clean-branch.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  materialize-clean-branch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/frontdoor-truth-mobile-2026-08-11'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/frontdoor-truth-mobile-2026-08-11
+          fetch-depth: 0
+      - name: Snapshot final payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/frontdoor-payload/config/a11oy-frontdoor
+          mkdir -p /tmp/frontdoor-payload/scripts
+          mkdir -p /tmp/frontdoor-payload/tests
+          mkdir -p /tmp/frontdoor-payload/docs
+          mkdir -p /tmp/frontdoor-payload/.github/workflows
+          cp config/a11oy-frontdoor/PATCH_SPEC.json /tmp/frontdoor-payload/config/a11oy-frontdoor/PATCH_SPEC.json
+          cp scripts/repair_a11oy_frontdoor.py /tmp/frontdoor-payload/scripts/repair_a11oy_frontdoor.py
+          cp scripts/check_a11oy_frontdoor_truth.py /tmp/frontdoor-payload/scripts/check_a11oy_frontdoor_truth.py
+          cp tests/test_a11oy_frontdoor_truth.py /tmp/frontdoor-payload/tests/test_a11oy_frontdoor_truth.py
+          cp docs/A11OY_FRONTDOOR_TRUTH_MOBILE.md /tmp/frontdoor-payload/docs/A11OY_FRONTDOOR_TRUTH_MOBILE.md
+          cp .github/workflows/a11oy-frontdoor-truth-mobile.yml /tmp/frontdoor-payload/.github/workflows/a11oy-frontdoor-truth-mobile.yml
+      - name: Materialize one DCO-signed commit from current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLEAN_BRANCH='fix/frontdoor-truth-mobile-clean-2026-08-11'
+          if git ls-remote --exit-code --heads origin "$CLEAN_BRANCH" >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing $CLEAN_BRANCH"
+            exit 2
+          fi
+          git fetch origin main
+          git checkout --detach origin/main
+          mkdir -p config/a11oy-frontdoor scripts tests docs .github/workflows
+          cp /tmp/frontdoor-payload/config/a11oy-frontdoor/PATCH_SPEC.json config/a11oy-frontdoor/PATCH_SPEC.json
+          cp /tmp/frontdoor-payload/scripts/repair_a11oy_frontdoor.py scripts/repair_a11oy_frontdoor.py
+          cp /tmp/frontdoor-payload/scripts/check_a11oy_frontdoor_truth.py scripts/check_a11oy_frontdoor_truth.py
+          cp /tmp/frontdoor-payload/tests/test_a11oy_frontdoor_truth.py tests/test_a11oy_frontdoor_truth.py
+          cp /tmp/frontdoor-payload/docs/A11OY_FRONTDOOR_TRUTH_MOBILE.md docs/A11OY_FRONTDOOR_TRUTH_MOBILE.md
+          cp /tmp/frontdoor-payload/.github/workflows/a11oy-frontdoor-truth-mobile.yml .github/workflows/a11oy-frontdoor-truth-mobile.yml
+          python3 scripts/repair_a11oy_frontdoor.py a11oy_landing.html
+          python3 scripts/check_a11oy_frontdoor_truth.py a11oy_landing.html
+          python3 -m unittest -v tests/test_a11oy_frontdoor_truth.py
+          git switch -c "$CLEAN_BRANCH"
+          git add a11oy_landing.html config/a11oy-frontdoor/PATCH_SPEC.json scripts/repair_a11oy_frontdoor.py scripts/check_a11oy_frontdoor_truth.py tests/test_a11oy_frontdoor_truth.py docs/A11OY_FRONTDOOR_TRUTH_MOBILE.md .github/workflows/a11oy-frontdoor-truth-mobile.yml
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git commit -m 'fix(frontdoor): truth-bound receipts and universal mobile layout' -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin "$CLEAN_BRANCH"
