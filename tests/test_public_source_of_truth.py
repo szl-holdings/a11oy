@@ -33,19 +33,54 @@ class PublicSourceOfTruthTests(unittest.TestCase):
         self.assertEqual(snapshot["state"], "DEGRADED")
 
     def test_fresh_measured_metric_is_preserved(self):
-        snapshot = self.build({"inventory": {"github": {"public_repositories": {"value": 58, "label": "MEASURED", "observed_at": "2026-08-11T00:00:00Z", "source": "github-api"}}}})
+        snapshot = self.build(
+            {
+                "inventory": {
+                    "github": {
+                        "public_repositories": {
+                            "value": 58,
+                            "label": "MEASURED",
+                            "observed_at": "2026-08-11T00:00:00Z",
+                            "source": "github-api",
+                        }
+                    }
+                }
+            }
+        )
         metric = snapshot["inventory"]["github"]["public_repositories"]
         self.assertEqual(metric["value"], 58)
         self.assertEqual(metric["label"], "MEASURED")
 
     def test_metric_without_timestamp_fails_closed(self):
-        snapshot = self.build({"inventory": {"huggingface": {"spaces_total": {"value": 27, "label": "MEASURED", "source": "hf-api"}}}})
+        snapshot = self.build(
+            {
+                "inventory": {
+                    "huggingface": {
+                        "spaces_total": {
+                            "value": 27,
+                            "label": "MEASURED",
+                            "source": "hf-api",
+                        }
+                    }
+                }
+            }
+        )
         metric = snapshot["inventory"]["huggingface"]["spaces_total"]
         self.assertEqual(metric["label"], "UNAVAILABLE")
         self.assertIsNone(metric["value"])
 
     def test_nonterminal_runtime_observation_fails_closed(self):
-        snapshot = self.build({"runtime": {"a11oy": {"state": "CHECKING", "observed_at": "2026-08-11T00:00:00Z", "source": "test"}}})
+        snapshot = self.build(
+            {
+                "runtime": {
+                    "a11oy": {
+                        "state": "CHECKING",
+                        "observed_at": "2026-08-11T00:00:00Z",
+                        "source": "test",
+                    }
+                }
+            }
+        )
         self.assertEqual(snapshot["runtime"]["a11oy"]["state"], "UNAVAILABLE")
 
     def test_lambda_contract_is_fixed(self):
