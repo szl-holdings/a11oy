@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:szl:governance:claim:v1",
+  "title": "Governance Claim v1",
+  "type": "object",
+  "required": ["claim_id", "model", "policy", "evidence_schema", "test_obligation", "expires_at_utc"],
+  "properties": {
+    "claim_id": {"type": "string"},
+    "model": {"type": "string"},
+    "policy": {"type": "string"},
+    "evidence_schema": {"type": "string"},
+    "test_obligation": {"type": "string"},
+    "retention_days": {"type": "integer"},
+    "expires_at_utc": {"type": "string"},
+    "counterexample_artifact": {"type": "string"},
+    "patent_trademark_review": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}
