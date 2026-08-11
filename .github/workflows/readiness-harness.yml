@@ -69,7 +69,9 @@ jobs:
       - name: Probe runner syntax check
         run: node -c "$HARNESS/probe_runner.mjs"
       - name: Probe runner contract regressions
-        run: node --test --test-force-exit "$HARNESS/probe_runner.test.mjs"
+        run: |
+          node --test --test-force-exit "$HARNESS/probe_runner.test.mjs"
+          node --test --test-force-exit "$HARNESS/probe_runner_revision.test.mjs"
       - name: Live-feed readiness regressions
         run: python -m pytest -q tests/test_readiness_blocker_repairs.py
 
@@ -82,9 +84,9 @@ jobs:
         with:
           node-version: 22
       - name: Probe live endpoints (soft — reports lies, never fakes a pass)
-        # --soft: the build does not go red on a pre-existing broken tab (those
-        # are reported honestly in the verdict + summary). Endpoint implementation
-        # is out of scope for the harness; the verdict is the deliverable.
+        # --soft: the build does not go red on a pre-existing broken tab or
+        # unavailable pre-deploy build identity. Those conditions are written
+        # to the verdict as evidence; strict post-deploy workflows remain red.
         run: |
           BASE="${{ github.event.inputs.base || 'https://a-11-oy.com' }}"
           node "$HARNESS/probe_runner.mjs" --base "$BASE" --samples 1 --concurrency 2 --retries 2 --soft
@@ -98,6 +100,7 @@ jobs:
               const s=v.summary||{};
               let o="## Readiness probe — \"is every tab real?\"\n\n";
               o+=`base \`${v.base}\` · ${v.checkedAt}\n\n`;
+              o+=`source revision: ${v.sourceRevisionStatus||"UNAVAILABLE"}${v.sourceRevision?" `"+v.sourceRevision+"`":""}\n\n`;
               o+=`| real | lies | unreachable | throttled | endpoints |\n|--:|--:|--:|--:|--:|\n`;
               o+=`| ${s.ok} | ${s.lies} | ${s.unreachable||0} | ${s.throttled||0} | ${s.endpoints} |\n\n`;
               const flagged=(v.results||[]).filter(r=>r.lie||r.unreachable);
