@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a11oy.net/specs/szl.tokenizer-promotion-decision.v1.schema.json",
+  "title": "SZL Tokenizer Promotion Decision v1",
+  "type": "object",
+  "required": ["schema", "state", "promotable", "stage", "reasons"],
+  "properties": {
+    "schema": {"const": "szl.tokenizer-promotion-decision/v1"},
+    "state": {"enum": ["VERIFIED", "BLOCKED"]},
+    "promotable": {"type": "boolean"},
+    "stage": {"enum": ["corpus_prep", "retrieval_indexing", "batch_prefill", "interactive"]},
+    "reasons": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"promotable": {"const": true}}},
+      "then": {"properties": {"state": {"const": "VERIFIED"}, "reasons": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"promotable": {"const": false}}},
+      "then": {"properties": {"state": {"const": "BLOCKED"}, "reasons": {"minItems": 1}}}
+    }
+  ],
+  "additionalProperties": false
+}
