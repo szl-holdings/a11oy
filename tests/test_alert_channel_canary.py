@@ -137,7 +137,7 @@ def test_502_remains_failing_and_receipt_omits_url_path() -> None:
     assert url not in payload
 
 
-def test_timeout_is_terminal_and_one_attempt() -> None:
+def test_timeout_is_terminal_with_one_attempt() -> None:
     with _server(delay=0.3) as (url, _):
         result = evaluate(
             url=url,
