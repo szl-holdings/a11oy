@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 <!-- SZL-CODEX-WHOLE-THREAD-FINISH-V1 -->
 # Codex Primary Handoff — Whole SZL Thread
 
@@ -7,7 +9,7 @@ The canonical cross-repository execution contract is published in:
 - Canonical organization PR: https://github.com/szl-holdings/.github/pull/416
 - Canonical workcell: `szl-holdings/.github/coordination/codex/whole-thread-finish-2026-08-11/WORKCELL.md`
 - Coordination branch: `codex/whole-thread-finish-2026-08-11-v2`
-- Exact coordination payload head: `ccdc4a73c6504c1ae72368e5669971473be82b42`
+- Exact coordination payload head: `2d6101c8ef9ba766fa668c016ae827049206a990`
 - Superseded organization PR: #414, replaced solely to satisfy exact DCO author identity.
 
 Use A11oy as the primary control plane for executing the workcell. Begin by recapturing current state and writing the required coordination evidence. Then execute the A11oy public-truth and terminal-health lane, followed by the dependency-linked Hugging Face, model/Forge, database, MCP, responsive presentation, deployment, and final-proof workstreams through separate protected repository branches and pull requests.
