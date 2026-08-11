@@ -19,53 +19,57 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         cls.drift = DRIFT_WORKFLOW.read_text(encoding="utf-8")
         cls.sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
         cls.dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-        cls.live_job, cls.repository_job = cls.drift.split(
+        cls.pr_job, remainder = cls.drift.split("\n  hf-runtime-live:", 1)
+        cls.live_job, cls.repository_job = remainder.split(
             "\n  hf-repository-parity:", 1
         )
 
-    def test_pull_requests_keep_the_exact_live_source_bound_controller(self) -> None:
+    def test_pull_requests_prove_the_exact_protected_base_without_live_queue_dependency(
+        self,
+    ) -> None:
+        self.assertIn("name: Source in sync with the live HF Space", self.pr_job)
+        self.assertIn("if: github.event_name == 'pull_request'", self.pr_job)
+        self.assertIn("github.event.pull_request.base.sha", self.pr_job)
+        self.assertIn("verify_hf_repository_parity.py", self.pr_job)
+        self.assertIn("hf-current-base-parity.out.json", self.pr_job)
+        self.assertNotIn("source-probe-path", self.pr_job)
+        self.assertNotIn("/api/build-info", self.pr_job)
+
+    def test_scheduled_manual_and_post_deploy_checks_keep_the_strict_live_controller(
+        self,
+    ) -> None:
+        self.assertIn("if: github.event_name != 'pull_request'", self.live_job)
         self.assertIn(
             "uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@0816263f1e83734658d6e5a8a7cd3834f36a2054",
-            self.drift,
+            self.live_job,
         )
         self.assertIn("mode: source-bound-baseline", self.live_job)
         self.assertIn("source-probe-path: /api/build-info", self.live_job)
-        self.assertIn("dockerfile-path: Dockerfile", self.live_job)
-        self.assertIn("github.event.pull_request.head.sha", self.live_job)
-        self.assertNotIn("mode: direct", self.live_job)
+        self.assertIn("trusted-base-ref: ${{ github.sha }}", self.live_job)
+        self.assertIn("candidate-ref: ${{ github.sha }}", self.live_job)
 
-    def test_pull_requests_add_exact_repository_parity_without_waiving_live_gate(
-        self,
-    ) -> None:
-        self.assertIn("hf-repository-parity:", self.drift)
+    def test_pull_requests_also_prove_candidate_managed_byte_parity(self) -> None:
         self.assertIn("Immutable HF repository byte parity", self.repository_job)
+        self.assertIn("if: github.event_name == 'pull_request'", self.repository_job)
+        self.assertIn("github.event.pull_request.head.sha", self.repository_job)
         self.assertIn("verify_hf_repository_parity.py", self.repository_job)
-        self.assertIn("github.event.pull_request.head.sha", self.repository_job)
-        self.assertIn("github.event.pull_request.head.sha", self.repository_job)
         self.assertIn(
-            "ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054", self.repository_job
+            "ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054",
+            self.repository_job,
         )
         self.assertNotIn("mode: direct", self.repository_job)
         self.assertNotIn("hf-module-drift-allow", self.repository_job)
 
-    def test_pr_uses_exact_candidate_and_manual_schedule_use_exact_main(self) -> None:
-        source_ref = (
-            "SOURCE_REF: ${{ github.event_name == 'pull_request' && "
-            "github.event.pull_request.head.sha || github.sha }}"
-        )
-        self.assertIn(source_ref, self.repository_job)
-        self.assertNotIn("\n  push:", self.drift)
-        self.assertIn("hf-ref: main", self.live_job)
-        self.assertIn("workflow_dispatch:", self.drift)
-        self.assertIn("schedule:", self.drift)
+    def test_runtime_reachability_is_not_overclaimed_by_pr_repository_proof(
+        self,
+    ) -> None:
+        self.assertIn("separate lifecycle proofs", self.drift)
+        self.assertIn("does not depend on an", self.drift)
+        self.assertIn("live request queue", self.drift)
+        self.assertIn("stays red at the release/runtime boundary", self.drift)
+        self.assertIn("hf-sync deploys, restarts, relocks", self.drift)
 
-    def test_repository_proof_does_not_overclaim_runtime_readiness(self) -> None:
-        self.assertIn("A paused or unmeasured runtime stays red", self.drift)
-        self.assertIn("source-identity proof", self.drift)
-        self.assertIn("never waives the live gate", self.drift)
-        self.assertIn("hf-sync", self.drift)
-
-    def test_fixed_revision_lock_and_relock_lane_are_permanently_removed(self) -> None:
+    def test_fixed_revision_lock_and_legacy_relock_lane_remain_removed(self) -> None:
         for path in (
             LEGACY_LOCK,
             LEGACY_RELOCK_WORKFLOW,
@@ -80,8 +84,9 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertNotIn("hf-relock-evidence", self.sync)
         self.assertNotIn("check_hf_runtime_revision", self.sync)
 
-    def test_successful_deploy_dispatches_strict_repository_parity(self) -> None:
+    def test_successful_deploy_restarts_then_dispatches_strict_live_parity(self) -> None:
         self.assertIn("actions: write", self.sync)
+        self.assertIn("restart-space: true", self.sync)
         enforce = self.sync.index("Enforce exact live state")
         dispatch = self.sync.index("Trigger strict post-deployment GitHub/HF parity")
         self.assertLess(enforce, dispatch)
@@ -90,25 +95,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
             self.sync,
         )
 
-    def test_sync_resumes_only_an_explicitly_paused_space_before_deploy(
-        self,
-    ) -> None:
-        self.assertIn("resume-paused-space:", self.sync)
-        self.assertIn(".github/scripts/resume_hf_space.py", self.sync)
-        self.assertIn(
-            "CAPACITY_DONOR_SPACE: SZLHOLDINGS/holographic",
-            self.sync,
-        )
-        self.assertIn('--capacity-donor "$CAPACITY_DONOR_SPACE"', self.sync)
-        self.assertIn("Checkout exact protected source", self.sync)
-        self.assertNotIn("python - <<'PY'", self.sync)
-        deploy = self.sync.split("\n  deploy:", 1)[1].split("\n  readiness-verdict:", 1)[0]
-        self.assertNotIn("needs:", deploy)
-        self.assertNotIn("request_space_hardware", self.sync)
-        self.assertNotIn("add_space_secret", self.sync)
-        self.assertNotIn("delete_space_secret", self.sync)
-
-    def test_every_main_push_enters_deployment_before_strict_parity(self) -> None:
+    def test_every_main_push_enters_deployment_before_strict_live_parity(self) -> None:
         trigger, _ = self.sync.split("\npermissions:", 1)
         self.assertIn("push:\n    branches: [main]", trigger)
         self.assertNotIn("\n    paths:", trigger)
@@ -116,7 +103,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("COPY .well-known/security.txt", self.dockerfile)
         self.assertIn("hf-sync without a path filter", self.drift)
 
-    def test_no_custom_credential_enters_the_drift_guard(self) -> None:
+    def test_no_custom_credential_enters_the_pr_drift_guard(self) -> None:
         self.assertIn("permissions:\n  contents: read", self.drift)
         self.assertNotIn("secrets.", self.drift)
         self.assertNotIn("GH_TOKEN", self.drift)
