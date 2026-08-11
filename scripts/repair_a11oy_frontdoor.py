@@ -7,6 +7,25 @@ from pathlib import Path
 
 SPEC_PATH = Path(__file__).resolve().parents[1] / "config" / "a11oy-frontdoor" / "PATCH_SPEC.json"
 
+MEASURED_INTERMEDIATE = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, separately reported signer state, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>'
+MEASURED_FINAL = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>'
+MOBILE_BLOCK = '''  @media(max-width:560px){
+    .wrap{padding-inline:16px}
+    section.band{padding:64px 0}
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
+    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
+  }
+'''
+MOBILE_FINAL = "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n" + MOBILE_BLOCK
+
+REVIEWED_SUCCESSORS = {
+    "measured_legend": MEASURED_FINAL,
+    "mobile_layout_hardening": MOBILE_FINAL,
+}
+
 
 class PatchError(RuntimeError):
     pass
@@ -16,10 +35,35 @@ def load_spec() -> dict:
     return json.loads(SPEC_PATH.read_text(encoding="utf-8"))
 
 
+def _converge_reviewed_successors(text: str) -> str:
+    if MEASURED_FINAL not in text:
+        if text.count(MEASURED_INTERMEDIATE) != 1:
+            raise PatchError("measured_legend: reviewed successor anchor is absent or ambiguous")
+        text = text.replace(MEASURED_INTERMEDIATE, MEASURED_FINAL, 1)
+
+    if MOBILE_FINAL not in text:
+        if text.count(MOBILE_BLOCK) != 1:
+            raise PatchError("mobile_layout_hardening: reviewed successor anchor is absent or ambiguous")
+        text = text.replace(MOBILE_BLOCK, "", 1)
+        if text.count("</style>") != 1:
+            raise PatchError("mobile_layout_hardening: expected exactly one </style> insertion anchor")
+        text = text.replace("</style>", MOBILE_FINAL + "</style>", 1)
+
+    return text
+
+
 def apply_text(text: str, spec: dict) -> tuple[str, list[dict]]:
     results: list[dict] = []
     for item in spec["replacements"]:
         old, new, name = item["old"], item["new"], item["name"]
+        successor = REVIEWED_SUCCESSORS.get(name)
+        successor_count = text.count(successor) if successor else 0
+        if successor_count == 1:
+            results.append({"name": name, "state": "REVIEWED_SUCCESSOR"})
+            continue
+        if successor_count > 1:
+            raise PatchError(f"{name}: reviewed successor is duplicated ({successor_count})")
+
         old_count = text.count(old)
         new_count = text.count(new)
         if new_count == 1:
@@ -29,9 +73,11 @@ def apply_text(text: str, spec: dict) -> tuple[str, list[dict]]:
             results.append({"name": name, "state": "APPLIED"})
         else:
             raise PatchError(
-                f"{name}: expected one old anchor or one new anchor; "
-                f"old={old_count} new={new_count}"
+                f"{name}: expected one old anchor, one new anchor, or one reviewed successor; "
+                f"old={old_count} new={new_count} successor={successor_count}"
             )
+
+    text = _converge_reviewed_successors(text)
     return text, results
 
 
@@ -49,6 +95,7 @@ def validate_truth(text: str) -> list[str]:
         '<div class="estate-cell"><b>24</b><span>Datasets</span></div>',
         '<div class="estate-cell"><b>26</b><span>Spaces</span></div>',
         '<div class="estate-cell"><b>22</b><span>Collections</span></div>',
+        MEASURED_INTERMEDIATE,
     ]
     for token in banned:
         if token in text:
@@ -63,6 +110,8 @@ def validate_truth(text: str) -> list[str]:
         "min-height:44px",
         "overflow-wrap:anywhere",
         "The front door no longer hardcodes organization totals",
+        MEASURED_FINAL,
+        MOBILE_FINAL,
     ]
     for token in required:
         if token not in text:
@@ -90,14 +139,16 @@ def main() -> int:
         print(json.dumps({"status": "FAIL", "errors": errors, "results": results}, indent=2))
         return 1
 
+    changed = patched != original
     pending = [item["name"] for item in results if item["state"] == "APPLIED"]
-    if args.check and pending:
+    if args.check and (pending or changed):
         print(
             json.dumps(
                 {
                     "status": "FAIL_UNAPPLIED",
                     "target": str(args.path),
                     "pending_replacements": pending,
+                    "review_successor_change_required": changed,
                     "results": results,
                 },
                 indent=2,
