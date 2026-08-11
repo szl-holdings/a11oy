@@ -1,0 +1,141 @@
+name: Codex operational completion
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  packages: read
+  pull-requests: write
+
+concurrency:
+  group: codex-operational-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  finish-operational-build:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.pull_request.head.repo.full_name == github.repository &&
+           github.event.pull_request.head.ref == 'codex/finish-operational-build-2026-08-11-v2' &&
+           github.actor == 'stephenlutar2-hash') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out the governed work branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install deterministic baseline dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack install -g pnpm@10.33.3
+          node --version
+          npm --version
+          pnpm --version
+          python --version
+          npm ci
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          mkdir -p artifacts/codex
+
+      - name: Require a scoped Codex API credential
+        shell: bash
+        env:
+          CODEX_ACTION_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CODEX_ACTION_KEY:-}" ]; then
+            echo "::error::Configure CODEX_API_KEY or OPENAI_API_KEY as a repository or organization Actions secret before running this governed Codex workflow."
+            exit 1
+          fi
+
+      - name: Execute the A11oy completion contract with Codex
+        id: codex
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56
+        with:
+          openai-api-key: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/finish-operational-build-2026-08-11-v2.md
+          output-file: artifacts/codex/CODEX-FINAL-2026-08-11-v2.md
+          codex-version: 0.144.4
+          working-directory: ${{ github.workspace }}
+          sandbox: workspace-write
+          effort: high
+          safety-strategy: drop-sudo
+          allow-users: stephenlutar2-hash
+
+      - name: Validate the Codex diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          python -m json.tool .github/codex/tasks/finish-operational-build-2026-08-11-v2.json >/dev/null
+          test -s artifacts/codex/CODEX-FINAL-2026-08-11-v2.md
+          git status --short
+
+      - name: Commit and push Codex implementation
+        id: persist
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -s -m "fix(codex): complete operational build"
+          new_head="$(git rev-parse HEAD)"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "HEAD:${HEAD_BRANCH}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "head_sha=${new_head}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the exact Codex result to the pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RESULT_HEAD: ${{ steps.persist.outputs.head_sha }}
+          CHANGED: ${{ steps.persist.outputs.changed }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Codex execution result"
+            echo
+            echo "- Workflow: \`${GITHUB_WORKFLOW}\`"
+            echo "- Run: \`${GITHUB_RUN_ID}\`"
+            echo "- Persisted changes: \`${CHANGED}\`"
+            echo "- Result head: \`${RESULT_HEAD}\`"
+            echo "- Full agent report: \`artifacts/codex/CODEX-FINAL-2026-08-11-v2.md\`"
+            echo
+            echo "The final branch and CI evidence remain authoritative. This comment does not claim merge, deployment, provider mutation, or live readback."
+          } > /tmp/codex-pr-result.md
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file /tmp/codex-pr-result.md
