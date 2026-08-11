@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=82"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "szl-council-kernel"
+version = "0.5.0rc1"
+description = "Proof-carrying autonomy kernel with Fourfold commit-reveal assurance, capability-bounded execution, durable state, and verifiable receipts"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{name = "SZL Holdings"}]
+keywords = ["agents", "governance", "autonomy", "proof", "fourfold", "a11oy", "alloy"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+  "cryptography>=42",
+  "jsonschema>=4.21",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+test = ["pytest>=8"]
+
+[project.scripts]
+alloy-council = "szl_council_kernel.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+szl_council_kernel = ["schemas/*.json", "web/*.html", "web/*.js", "web/*.css"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["szl_council_kernel"]

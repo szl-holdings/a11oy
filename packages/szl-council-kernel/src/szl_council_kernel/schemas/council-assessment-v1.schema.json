@@ -1,0 +1,154 @@
+{
+  "$id": "urn:szl:schema:council-assessment:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "vote": {
+            "const": "SUPPORT"
+          }
+        },
+        "required": [
+          "vote"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_digests": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "vote": {
+            "enum": [
+              "OPPOSE",
+              "VETO"
+            ]
+          }
+        },
+        "required": [
+          "vote"
+        ]
+      },
+      "then": {
+        "properties": {
+          "counterevidence_digests": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "counterevidence_digests": {
+      "items": {
+        "maxLength": 72,
+        "minLength": 1,
+        "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "evidence_digests": {
+      "items": {
+        "maxLength": 72,
+        "minLength": 1,
+        "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "member_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "policy_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reason_codes": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "role": {
+      "enum": [
+        "AUTHORITY",
+        "SENTINEL",
+        "VERIFIER",
+        "VALUE"
+      ]
+    },
+    "schema": {
+      "const": "szl.council-assessment/v1"
+    },
+    "subject_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "vote": {
+      "enum": [
+        "SUPPORT",
+        "OPPOSE",
+        "ABSTAIN",
+        "VETO"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "case_id",
+    "role",
+    "member_id",
+    "vote",
+    "confidence",
+    "reason_codes",
+    "evidence_digests",
+    "counterevidence_digests",
+    "policy_digest",
+    "subject_digest",
+    "issued_at",
+    "expires_at"
+  ],
+  "title": "SZL Council Assessment v1",
+  "type": "object"
+}

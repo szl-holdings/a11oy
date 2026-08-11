@@ -1,0 +1,156 @@
+{
+  "assurance_scope": "DETERMINISTIC_LOCAL_CONFORMANCE_ONLY",
+  "failed": 0,
+  "passed": 24,
+  "release": "0.5.0rc1",
+  "report_digest": "sha256:48391b546eadcdfb1b0b700e3b7a45549f51cfc95d0654540ba5c194317bd4f2",
+  "scenario_count": 24,
+  "scenarios": [
+    {
+      "expected": "QUORUM_VERIFIED",
+      "observed": "QUORUM_VERIFIED",
+      "passed": true,
+      "scenario_id": "fourfold_quorum_verified"
+    },
+    {
+      "expected": "BLOCKED",
+      "observed": "BLOCKED",
+      "passed": true,
+      "scenario_id": "sentinel_veto_blocks"
+    },
+    {
+      "expected": "BLOCKED",
+      "observed": "BLOCKED",
+      "passed": true,
+      "scenario_id": "verifier_veto_blocks"
+    },
+    {
+      "expected": "BLOCKED",
+      "observed": "BLOCKED",
+      "passed": true,
+      "scenario_id": "authority_denial_blocks"
+    },
+    {
+      "expected": "CONFLICT",
+      "observed": "CONFLICT",
+      "passed": true,
+      "scenario_id": "minority_opposition_preserved_as_conflict"
+    },
+    {
+      "expected": "REQUIRE_HUMAN",
+      "observed": "REQUIRE_HUMAN",
+      "passed": true,
+      "scenario_id": "abstention_requires_human"
+    },
+    {
+      "expected": "INSUFFICIENT",
+      "observed": "INSUFFICIENT",
+      "passed": true,
+      "scenario_id": "correlated_replicas_insufficient"
+    },
+    {
+      "expected": "REQUIRE_HUMAN",
+      "observed": "REQUIRE_HUMAN",
+      "passed": true,
+      "scenario_id": "high_risk_requires_unanimity"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "duplicate_signing_key_rejected"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "capability_expansion_rejected"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "path_traversal_rejected"
+    },
+    {
+      "expected": "True and outside unchanged",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "symlink_target_rejected"
+    },
+    {
+      "expected": "True and target absent",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "failed_postcondition_compensates"
+    },
+    {
+      "expected": "SETTLED replay",
+      "observed": "SETTLED",
+      "passed": true,
+      "scenario_id": "idempotency_replay_returns_original"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "idempotency_conflict_rejected"
+    },
+    {
+      "expected": "FAIL",
+      "observed": "FAIL",
+      "passed": true,
+      "scenario_id": "ledger_tamper_detected"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "negative_capability_blocks_router"
+    },
+    {
+      "expected": "1",
+      "observed": "1",
+      "passed": true,
+      "scenario_id": "branch_budget_prunes_counterfactuals"
+    },
+    {
+      "expected": "ESCALATE",
+      "observed": "ESCALATE",
+      "passed": true,
+      "scenario_id": "novel_context_escalates"
+    },
+    {
+      "expected": "BLOCK",
+      "observed": "BLOCK",
+      "passed": true,
+      "scenario_id": "blocked_council_never_acts"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "merkle_inclusion_verifies"
+    },
+    {
+      "expected": "FAIL and promotion rejected",
+      "observed": "FAIL",
+      "passed": true,
+      "scenario_id": "research_prompt_injection_quarantined"
+    },
+    {
+      "expected": "True",
+      "observed": "True",
+      "passed": true,
+      "scenario_id": "private_reasoning_not_protocol_state"
+    },
+    {
+      "expected": "PASS",
+      "observed": "PASS",
+      "passed": true,
+      "scenario_id": "full_kernel_canary"
+    }
+  ],
+  "schema": "szl.councilbench/v1",
+  "status": "PASS"
+}

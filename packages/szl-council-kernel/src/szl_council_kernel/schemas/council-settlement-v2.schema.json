@@ -1,0 +1,1903 @@
+{
+  "$defs": {
+    "assessment": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "vote": {
+                "const": "SUPPORT"
+              }
+            },
+            "required": [
+              "vote"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_digests": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "vote": {
+                "enum": [
+                  "OPPOSE",
+                  "VETO"
+                ]
+              }
+            },
+            "required": [
+              "vote"
+            ]
+          },
+          "then": {
+            "properties": {
+              "counterevidence_digests": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "case_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "counterevidence_digests": {
+          "items": {
+            "maxLength": 72,
+            "minLength": 1,
+            "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "evidence_digests": {
+          "items": {
+            "maxLength": 72,
+            "minLength": 1,
+            "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "member_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "policy_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "reason_codes": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "role": {
+          "enum": [
+            "AUTHORITY",
+            "SENTINEL",
+            "VERIFIER",
+            "VALUE"
+          ]
+        },
+        "schema": {
+          "const": "szl.council-assessment/v1"
+        },
+        "subject_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "vote": {
+          "enum": [
+            "SUPPORT",
+            "OPPOSE",
+            "ABSTAIN",
+            "VETO"
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "case_id",
+        "role",
+        "member_id",
+        "vote",
+        "confidence",
+        "reason_codes",
+        "evidence_digests",
+        "counterevidence_digests",
+        "policy_digest",
+        "subject_digest",
+        "issued_at",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "case": {
+      "additionalProperties": false,
+      "properties": {
+        "case_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "envelope_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "epochs_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "evidence_manifest_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "policy_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "risk_class": {
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH",
+            "CRITICAL"
+          ]
+        },
+        "schema": {
+          "const": "szl.council-case/v1"
+        },
+        "subject": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "value_claimed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema",
+        "case_id",
+        "subject",
+        "risk_class",
+        "value_claimed",
+        "evidence_manifest_digest",
+        "policy_digest",
+        "envelope_digest",
+        "epochs_digest",
+        "created_at"
+      ],
+      "type": "object"
+    },
+    "commitment": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment_commitment": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "case_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "member_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "policy_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "AUTHORITY",
+            "SENTINEL",
+            "VERIFIER",
+            "VALUE"
+          ]
+        },
+        "schema": {
+          "const": "szl.council-commitment/v1"
+        },
+        "subject_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "case_id",
+        "member_id",
+        "role",
+        "policy_digest",
+        "subject_digest",
+        "assessment_commitment",
+        "issued_at",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "diversity": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "failed_requirements": {
+                "minItems": 1
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "requirements_met": {
+                "const": true
+              }
+            },
+            "required": [
+              "requirements_met"
+            ]
+          },
+          "then": {
+            "properties": {
+              "failed_requirements": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "cluster_assignments": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "implementation_digest": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "key_id": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "model_family": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "operator_id": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "provider_account": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "retrieval_path": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "trust_domain": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            }
+          },
+          "required": [
+            "trust_domain",
+            "key_id",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account"
+          ],
+          "type": "object"
+        },
+        "distinct": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "implementation_digest": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "key_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "model_family": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "operator_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "provider_account": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "retrieval_path": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "trust_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "trust_domain",
+            "key_id",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account"
+          ],
+          "type": "object"
+        },
+        "effective_by_axis": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "implementation_digest": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "key_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "model_family": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "operator_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "provider_account": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "retrieval_path": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "trust_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "trust_domain",
+            "key_id",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account"
+          ],
+          "type": "object"
+        },
+        "failed_requirements": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 9,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "joint_effective_size": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "number"
+        },
+        "minimum_effective_size": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "number"
+        },
+        "participant_count": {
+          "const": 4
+        },
+        "requirements_met": {
+          "type": "boolean"
+        },
+        "schema": {
+          "const": "szl.epistemic-diversity-report/v1"
+        }
+      },
+      "required": [
+        "schema",
+        "participant_count",
+        "distinct",
+        "effective_by_axis",
+        "joint_effective_size",
+        "minimum_effective_size",
+        "requirements_met",
+        "failed_requirements",
+        "cluster_assignments"
+      ],
+      "type": "object"
+    },
+    "dsse": {
+      "additionalProperties": false,
+      "properties": {
+        "envelope": {
+          "additionalProperties": false,
+          "properties": {
+            "payload": {
+              "maxLength": 16777216,
+              "minLength": 2,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            },
+            "payloadType": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "signatures": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "keyid": {
+                    "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "sig": {
+                    "maxLength": 86,
+                    "minLength": 86,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "keyid",
+                  "sig"
+                ],
+                "type": "object"
+              },
+              "maxItems": 1,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "payloadType",
+            "payload",
+            "signatures"
+          ],
+          "type": "object"
+        },
+        "envelope_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "szl.dsse-envelope/v1"
+        },
+        "signer_state": {
+          "enum": [
+            "SIGNED_TEST",
+            "SIGNED_PERSISTENT"
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "envelope",
+        "envelope_digest",
+        "signer_state"
+      ],
+      "type": "object"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_domain": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "implementation_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "key_id": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "member_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "model_family": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "not_after": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "not_before": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "operator_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider_account": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "public_key": {
+          "maxLength": 43,
+          "minLength": 43,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "type": "string"
+        },
+        "retrieval_path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "AUTHORITY",
+            "SENTINEL",
+            "VERIFIER",
+            "VALUE"
+          ]
+        },
+        "schema": {
+          "const": "szl.council-identity/v1"
+        },
+        "trust_domain": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "member_id",
+        "role",
+        "key_id",
+        "public_key",
+        "trust_domain",
+        "implementation_digest",
+        "model_family",
+        "evidence_domain",
+        "operator_id",
+        "retrieval_path",
+        "provider_account",
+        "not_before",
+        "not_after",
+        "schema"
+      ],
+      "type": "object"
+    },
+    "minority_entry": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "case_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "counterevidence_digests": {
+          "items": {
+            "maxLength": 72,
+            "minLength": 1,
+            "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "entry_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "prior_entry_digest": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason_codes": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "role": {
+          "enum": [
+            "AUTHORITY",
+            "SENTINEL",
+            "VERIFIER",
+            "VALUE"
+          ]
+        },
+        "schema": {
+          "const": "szl.minority-truth-entry/v1"
+        },
+        "vote": {
+          "enum": [
+            "OPPOSE",
+            "VETO"
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "case_id",
+        "role",
+        "vote",
+        "assessment_digest",
+        "counterevidence_digests",
+        "reason_codes",
+        "observed_at",
+        "prior_entry_digest",
+        "entry_digest"
+      ],
+      "type": "object"
+    },
+    "policy": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "low_medium_support_threshold": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "low_medium_support_threshold",
+              "high_critical_support_threshold"
+            ]
+          },
+          "then": {
+            "properties": {
+              "high_critical_support_threshold": {
+                "maximum": 4,
+                "minimum": 1,
+                "type": "integer"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "high_critical_support_threshold": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "low_medium_support_threshold": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_evidence_domains": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_implementations": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_keys": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_model_families": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_operators": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_provider_accounts": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_retrieval_paths": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_distinct_trust_domains": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "minimum_effective_size": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "number"
+        },
+        "policy_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "preserve_minority_truth": {
+          "type": "boolean"
+        },
+        "require_authority_support": {
+          "type": "boolean"
+        },
+        "require_value_support_when_claimed": {
+          "type": "boolean"
+        },
+        "require_verifier_support": {
+          "type": "boolean"
+        },
+        "schema": {
+          "const": "szl.council-policy/v1"
+        },
+        "sentinel_veto_categorical": {
+          "type": "boolean"
+        },
+        "verifier_veto_categorical": {
+          "type": "boolean"
+        },
+        "version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "min_distinct_trust_domains",
+        "min_distinct_keys",
+        "min_distinct_implementations",
+        "min_distinct_model_families",
+        "min_distinct_evidence_domains",
+        "min_distinct_operators",
+        "min_distinct_retrieval_paths",
+        "min_distinct_provider_accounts",
+        "low_medium_support_threshold",
+        "high_critical_support_threshold",
+        "minimum_effective_size",
+        "require_authority_support",
+        "require_verifier_support",
+        "require_value_support_when_claimed",
+        "preserve_minority_truth",
+        "sentinel_veto_categorical",
+        "verifier_veto_categorical",
+        "schema"
+      ],
+      "type": "object"
+    },
+    "registry": {
+      "$defs": {
+        "identity": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "implementation_digest": {
+              "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "key_id": {
+              "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "member_id": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+              "type": "string"
+            },
+            "model_family": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "not_after": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "not_before": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "operator_id": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider_account": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "public_key": {
+              "maxLength": 43,
+              "minLength": 43,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            },
+            "retrieval_path": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "role": {
+              "enum": [
+                "AUTHORITY",
+                "SENTINEL",
+                "VERIFIER",
+                "VALUE"
+              ]
+            },
+            "schema": {
+              "const": "szl.council-identity/v1"
+            },
+            "trust_domain": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "member_id",
+            "role",
+            "key_id",
+            "public_key",
+            "trust_domain",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account",
+            "not_before",
+            "not_after",
+            "schema"
+          ],
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "identities": {
+          "allOf": [
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "AUTHORITY"
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "type": "object"
+              },
+              "maxContains": 1,
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "SENTINEL"
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "type": "object"
+              },
+              "maxContains": 1,
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "VERIFIER"
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "type": "object"
+              },
+              "maxContains": 1,
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "VALUE"
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "type": "object"
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/identity"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "registry_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "szl.council-registry/v1"
+        }
+      },
+      "required": [
+        "schema",
+        "identities",
+        "registry_digest"
+      ],
+      "type": "object"
+    },
+    "result": {
+      "$defs": {
+        "diversity": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "failed_requirements": {
+                    "minItems": 1
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "requirements_met": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "requirements_met"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "failed_requirements": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "cluster_assignments": {
+              "additionalProperties": false,
+              "properties": {
+                "evidence_domain": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "implementation_digest": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "key_id": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "model_family": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "operator_id": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "provider_account": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "retrieval_path": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                },
+                "trust_domain": {
+                  "items": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "trust_domain",
+                "key_id",
+                "implementation_digest",
+                "model_family",
+                "evidence_domain",
+                "operator_id",
+                "retrieval_path",
+                "provider_account"
+              ],
+              "type": "object"
+            },
+            "distinct": {
+              "additionalProperties": false,
+              "properties": {
+                "evidence_domain": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "implementation_digest": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "key_id": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "model_family": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "operator_id": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "provider_account": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "retrieval_path": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "trust_domain": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "trust_domain",
+                "key_id",
+                "implementation_digest",
+                "model_family",
+                "evidence_domain",
+                "operator_id",
+                "retrieval_path",
+                "provider_account"
+              ],
+              "type": "object"
+            },
+            "effective_by_axis": {
+              "additionalProperties": false,
+              "properties": {
+                "evidence_domain": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "implementation_digest": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "key_id": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "model_family": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "operator_id": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "provider_account": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "retrieval_path": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "trust_domain": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "trust_domain",
+                "key_id",
+                "implementation_digest",
+                "model_family",
+                "evidence_domain",
+                "operator_id",
+                "retrieval_path",
+                "provider_account"
+              ],
+              "type": "object"
+            },
+            "failed_requirements": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 9,
+              "minItems": 0,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "joint_effective_size": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "minimum_effective_size": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "participant_count": {
+              "const": 4
+            },
+            "requirements_met": {
+              "type": "boolean"
+            },
+            "schema": {
+              "const": "szl.epistemic-diversity-report/v1"
+            }
+          },
+          "required": [
+            "schema",
+            "participant_count",
+            "distinct",
+            "effective_by_axis",
+            "joint_effective_size",
+            "minimum_effective_size",
+            "requirements_met",
+            "failed_requirements",
+            "cluster_assignments"
+          ],
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "verified": {
+                "const": false
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "const": "QUORUM_VERIFIED"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "abstain_roles": {
+                "maxItems": 0
+              },
+              "diversity": {
+                "properties": {
+                  "requirements_met": {
+                    "const": true
+                  }
+                }
+              },
+              "missing_roles": {
+                "maxItems": 0
+              },
+              "oppose_roles": {
+                "maxItems": 0
+              },
+              "verified": {
+                "const": true
+              },
+              "veto_roles": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "abstain_roles": {
+          "items": {
+            "enum": [
+              "AUTHORITY",
+              "SENTINEL",
+              "VERIFIER",
+              "VALUE"
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "case_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "diversity": {
+          "$ref": "#/$defs/diversity"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "minority_evidence_digests": {
+          "items": {
+            "maxLength": 72,
+            "minLength": 1,
+            "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "missing_roles": {
+          "items": {
+            "enum": [
+              "AUTHORITY",
+              "SENTINEL",
+              "VERIFIER",
+              "VALUE"
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "oppose_roles": {
+          "items": {
+            "enum": [
+              "AUTHORITY",
+              "SENTINEL",
+              "VERIFIER",
+              "VALUE"
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "policy_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "reason_codes": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "received_support": {
+          "maximum": 4,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "required_support": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "schema": {
+          "const": "szl.council-result/v1"
+        },
+        "state": {
+          "enum": [
+            "QUORUM_VERIFIED",
+            "REQUIRE_HUMAN",
+            "BLOCKED",
+            "CONFLICT",
+            "INSUFFICIENT",
+            "INVALID"
+          ]
+        },
+        "subject_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "support_roles": {
+          "items": {
+            "enum": [
+              "AUTHORITY",
+              "SENTINEL",
+              "VERIFIER",
+              "VALUE"
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "transcript_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "veto_roles": {
+          "items": {
+            "enum": [
+              "AUTHORITY",
+              "SENTINEL",
+              "VERIFIER",
+              "VALUE"
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema",
+        "case_id",
+        "state",
+        "verified",
+        "support_roles",
+        "oppose_roles",
+        "abstain_roles",
+        "veto_roles",
+        "missing_roles",
+        "reason_codes",
+        "minority_evidence_digests",
+        "received_support",
+        "required_support",
+        "diversity",
+        "policy_digest",
+        "subject_digest",
+        "transcript_digest",
+        "issued_at"
+      ],
+      "type": "object"
+    },
+    "reveal": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "$ref": "#/$defs/assessment"
+        },
+        "salt": {
+          "maxLength": 256,
+          "minLength": 16,
+          "type": "string"
+        },
+        "signed_assessment": {
+          "$ref": "#/$defs/dsse"
+        }
+      },
+      "required": [
+        "assessment",
+        "salt",
+        "signed_assessment"
+      ],
+      "type": "object"
+    },
+    "vault_verification": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "errors": {
+                "minItems": 1
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PASS"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "errors": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "entry_count": {
+          "maximum": 4,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "errors": {
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "head_digest": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "const": "szl.minority-truth-vault-verification/v1"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "status",
+        "entry_count",
+        "head_digest",
+        "errors"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:szl:schema:council-settlement:v2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "aggregator": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "public_key": {
+          "maxLength": 43,
+          "minLength": 43,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "algorithm",
+        "key_id",
+        "public_key"
+      ],
+      "type": "object"
+    },
+    "case": {
+      "$ref": "#/$defs/case"
+    },
+    "commitment_set_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "commitments": {
+      "additionalProperties": false,
+      "properties": {
+        "AUTHORITY": {
+          "$ref": "#/$defs/dsse"
+        },
+        "SENTINEL": {
+          "$ref": "#/$defs/dsse"
+        },
+        "VALUE": {
+          "$ref": "#/$defs/dsse"
+        },
+        "VERIFIER": {
+          "$ref": "#/$defs/dsse"
+        }
+      },
+      "required": [
+        "AUTHORITY",
+        "SENTINEL",
+        "VERIFIER",
+        "VALUE"
+      ],
+      "type": "object"
+    },
+    "minority_truth_vault": {
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/minority_entry"
+          },
+          "maxItems": 4,
+          "minItems": 0,
+          "type": "array"
+        },
+        "verification": {
+          "$ref": "#/$defs/vault_verification"
+        }
+      },
+      "required": [
+        "entries",
+        "verification"
+      ],
+      "type": "object"
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "private_reasoning_included": {
+      "const": false
+    },
+    "raw_evidence_included": {
+      "const": false
+    },
+    "registry": {
+      "$ref": "#/$defs/registry"
+    },
+    "result": {
+      "$ref": "#/$defs/result"
+    },
+    "result_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reveal_order": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "reveals": {
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "minProperties": 0,
+      "properties": {
+        "AUTHORITY": {
+          "$ref": "#/$defs/reveal"
+        },
+        "SENTINEL": {
+          "$ref": "#/$defs/reveal"
+        },
+        "VALUE": {
+          "$ref": "#/$defs/reveal"
+        },
+        "VERIFIER": {
+          "$ref": "#/$defs/reveal"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "schema": {
+      "const": "szl.council-settlement/v2"
+    },
+    "session_time": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "settlement_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "signed_result": {
+      "$ref": "#/$defs/dsse"
+    }
+  },
+  "required": [
+    "schema",
+    "session_time",
+    "case",
+    "policy",
+    "result",
+    "result_digest",
+    "signed_result",
+    "aggregator",
+    "registry",
+    "commitment_set_digest",
+    "commitments",
+    "reveal_order",
+    "reveals",
+    "minority_truth_vault",
+    "private_reasoning_included",
+    "raw_evidence_included",
+    "settlement_digest"
+  ],
+  "title": "SZL Portable Council Settlement v2",
+  "type": "object"
+}

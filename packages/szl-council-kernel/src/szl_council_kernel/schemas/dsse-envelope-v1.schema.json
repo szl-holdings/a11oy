@@ -1,0 +1,75 @@
+{
+  "$id": "urn:szl:schema:dsse-envelope:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "envelope": {
+      "additionalProperties": false,
+      "properties": {
+        "payload": {
+          "maxLength": 16777216,
+          "minLength": 2,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "type": "string"
+        },
+        "payloadType": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "signatures": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "keyid": {
+                "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "sig": {
+                "maxLength": 86,
+                "minLength": 86,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "keyid",
+              "sig"
+            ],
+            "type": "object"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "payloadType",
+        "payload",
+        "signatures"
+      ],
+      "type": "object"
+    },
+    "envelope_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "szl.dsse-envelope/v1"
+    },
+    "signer_state": {
+      "enum": [
+        "SIGNED_TEST",
+        "SIGNED_PERSISTENT"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "envelope",
+    "envelope_digest",
+    "signer_state"
+  ],
+  "title": "SZL DSSE Envelope v1",
+  "type": "object"
+}

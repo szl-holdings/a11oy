@@ -1,0 +1,12 @@
+{
+  "schema": "szl.local-action-spec/v1",
+  "case_id": "case-correlated-local-0001",
+  "subject": "Demonstrate that four aliases from one failure cluster cannot manufacture quorum.",
+  "target": "workspace/should-not-exist.txt",
+  "content": "This write must remain blocked.\n",
+  "expected_text": "blocked",
+  "risk_class": "LOW",
+  "correlated_test_council": true,
+  "value_claimed": false,
+  "calibration_sample_size": 200
+}

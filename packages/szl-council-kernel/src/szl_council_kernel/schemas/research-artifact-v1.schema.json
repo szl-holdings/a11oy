@@ -1,0 +1,162 @@
+{
+  "$id": "urn:szl:schema:research-artifact:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "benchmark_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "content_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "design_review_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "discovered_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "license_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "modified_summary": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "promotion_council_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rejection_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "reproduction_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schema": {
+      "const": "szl.research-artifact/v1"
+    },
+    "source_claims": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "source_type": {
+      "enum": [
+        "GITHUB",
+        "GITLAB",
+        "ARXIV",
+        "PUBLICATION",
+        "STANDARD",
+        "LOCAL"
+      ]
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "stage": {
+      "enum": [
+        "DISCOVERED",
+        "QUARANTINED",
+        "RIGHTS_REVIEWED",
+        "REVISION_PINNED",
+        "SAFETY_REVIEWED",
+        "CLAIMS_EXTRACTED",
+        "REPRODUCED",
+        "BENCHMARKED",
+        "DESIGN_REVIEWED",
+        "PROMOTED",
+        "REJECTED"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "artifact_id",
+    "title",
+    "source_url",
+    "source_type",
+    "stage",
+    "license_id",
+    "revision",
+    "content_digest",
+    "source_claims",
+    "reproduction_digest",
+    "benchmark_digest",
+    "design_review_digest",
+    "promotion_council_digest",
+    "modified_summary",
+    "discovered_at",
+    "updated_at",
+    "rejection_reasons"
+  ],
+  "title": "SZL Research Artifact v1",
+  "type": "object"
+}

@@ -1,0 +1,62 @@
+{
+  "$id": "urn:szl:schema:act-escalate-gate-result:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "calibration_method": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "ACT",
+        "ESCALATE",
+        "BLOCK"
+      ]
+    },
+    "empirical_false_green_upper": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "formal_coverage_claimed": {
+      "const": false
+    },
+    "issued_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "reason_codes": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "risk_score": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "schema": {
+      "const": "szl.act-escalate-gate-result/v1"
+    }
+  },
+  "required": [
+    "decision",
+    "risk_score",
+    "empirical_false_green_upper",
+    "reason_codes",
+    "calibration_method",
+    "formal_coverage_claimed",
+    "issued_at",
+    "schema"
+  ],
+  "title": "SZL Act/Escalate/Block Gate Result v1",
+  "type": "object"
+}

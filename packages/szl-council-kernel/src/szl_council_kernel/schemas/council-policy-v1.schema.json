@@ -1,0 +1,142 @@
+{
+  "$id": "urn:szl:schema:council-policy:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "low_medium_support_threshold": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "low_medium_support_threshold",
+          "high_critical_support_threshold"
+        ]
+      },
+      "then": {
+        "properties": {
+          "high_critical_support_threshold": {
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "high_critical_support_threshold": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "low_medium_support_threshold": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_evidence_domains": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_implementations": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_keys": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_model_families": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_operators": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_provider_accounts": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_retrieval_paths": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_distinct_trust_domains": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "minimum_effective_size": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "number"
+    },
+    "policy_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "preserve_minority_truth": {
+      "type": "boolean"
+    },
+    "require_authority_support": {
+      "type": "boolean"
+    },
+    "require_value_support_when_claimed": {
+      "type": "boolean"
+    },
+    "require_verifier_support": {
+      "type": "boolean"
+    },
+    "schema": {
+      "const": "szl.council-policy/v1"
+    },
+    "sentinel_veto_categorical": {
+      "type": "boolean"
+    },
+    "verifier_veto_categorical": {
+      "type": "boolean"
+    },
+    "version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "policy_id",
+    "version",
+    "min_distinct_trust_domains",
+    "min_distinct_keys",
+    "min_distinct_implementations",
+    "min_distinct_model_families",
+    "min_distinct_evidence_domains",
+    "min_distinct_operators",
+    "min_distinct_retrieval_paths",
+    "min_distinct_provider_accounts",
+    "low_medium_support_threshold",
+    "high_critical_support_threshold",
+    "minimum_effective_size",
+    "require_authority_support",
+    "require_verifier_support",
+    "require_value_support_when_claimed",
+    "preserve_minority_truth",
+    "sentinel_veto_categorical",
+    "verifier_veto_categorical",
+    "schema"
+  ],
+  "title": "SZL Council Policy v1",
+  "type": "object"
+}

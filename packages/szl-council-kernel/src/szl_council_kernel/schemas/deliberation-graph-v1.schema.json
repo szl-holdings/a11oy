@@ -1,0 +1,41 @@
+{
+  "$id": "urn:szl:schema:deliberation-graph:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "edges": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "graph_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "nodes": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "szl.proof-carrying-deliberation-graph/v1"
+    }
+  },
+  "required": [
+    "schema",
+    "case_id",
+    "nodes",
+    "edges",
+    "graph_digest"
+  ],
+  "title": "SZL Proof-Carrying Deliberation Graph v1",
+  "type": "object"
+}

@@ -1,0 +1,66 @@
+{
+  "$id": "urn:szl:schema:council-case:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "envelope_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "epochs_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "evidence_manifest_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "policy_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "risk_class": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "schema": {
+      "const": "szl.council-case/v1"
+    },
+    "subject": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+    },
+    "value_claimed": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "case_id",
+    "subject",
+    "risk_class",
+    "value_claimed",
+    "evidence_manifest_digest",
+    "policy_digest",
+    "envelope_digest",
+    "epochs_digest",
+    "created_at"
+  ],
+  "title": "SZL Council Case v1",
+  "type": "object"
+}

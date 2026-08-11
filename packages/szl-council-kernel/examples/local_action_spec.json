@@ -1,0 +1,18 @@
+{
+  "schema": "szl.local-action-spec/v1",
+  "case_id": "case-frontier-local-0001",
+  "subject": "Create one reversible, verified frontier marker inside the configured sandbox.",
+  "principal": "spiffe://local.szl.test/owner",
+  "target": "workspace/frontier.txt",
+  "content": "A11oy Council Kernel: proof-carrying autonomy is operational in this local sandbox.\n",
+  "expected_text": "proof-carrying autonomy",
+  "risk_class": "LOW",
+  "value_claimed": false,
+  "calibration_sample_size": 200,
+  "historical_false_green_rate": 0.0,
+  "novelty_score": 0.05,
+  "ambiguity_score": 0.02,
+  "drift_score": 0.0,
+  "task_class": "file_mutation",
+  "domain": "local"
+}

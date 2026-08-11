@@ -1,0 +1,97 @@
+name: Council Kernel Attested Release Candidate
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  release-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install test and API dependencies
+        run: python -m pip install --disable-pip-version-check -e '.[test,api]'
+
+      - name: Run source and protocol gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q src tests tools
+          python tools/generate_protocol_schemas.py
+          git diff --exit-code -- src/szl_council_kernel/schemas
+          python tools/validate_schemas.py
+          pytest -q
+          alloy-council canary --output /tmp/canary-a.json --workdir /tmp/canary-a
+          alloy-council canary --output /tmp/canary-b.json --workdir /tmp/canary-b
+          cmp /tmp/canary-a.json /tmp/canary-b.json
+          alloy-council bench --output /tmp/bench-a.json
+          alloy-council bench --output /tmp/bench-b.json
+          cmp /tmp/bench-a.json /tmp/bench-b.json
+          python tools/static_secret_scan.py . --output /tmp/secret-scan.json
+          python tools/verify_action_pins.py .github/workflows --output /tmp/action-pins.json
+          node --check src/szl_council_kernel/web/app.js
+          git diff --check
+
+      - name: Build byte-repeatable release artifacts
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: "1785758400"
+        run: |
+          set -euo pipefail
+          rm -rf release-out /tmp/wheel-a /tmp/wheel-b /tmp/source-a.zip /tmp/source-b.zip
+          mkdir -p release-out /tmp/wheel-a /tmp/wheel-b
+          python -m pip wheel . --no-deps --no-build-isolation -w /tmp/wheel-a
+          python -m pip wheel . --no-deps --no-build-isolation -w /tmp/wheel-b
+          cmp /tmp/wheel-a/*.whl /tmp/wheel-b/*.whl
+          cp /tmp/wheel-a/*.whl release-out/
+          python tools/build_release.py . --output /tmp/source-a.zip --report /tmp/source-a.json
+          python tools/build_release.py . --output /tmp/source-b.zip --report /tmp/source-b.json
+          cmp /tmp/source-a.zip /tmp/source-b.zip
+          cp /tmp/source-a.zip release-out/SZL_COUNCIL_KERNEL_FRONTIER_SOURCE.zip
+          cp /tmp/source-a.json release-out/SOURCE_ARCHIVE_VERIFICATION.json
+          python tools/build_sbom.py \
+            --source-revision "${GITHUB_SHA}" \
+            --source-tree "$(git rev-parse "${GITHUB_SHA}^{tree}")" \
+            --output release-out/szl-council-kernel.cdx.json
+          (
+            cd release-out
+            sha256sum ./* > SHA256SUMS
+          )
+
+      - name: Attest release provenance
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-checksums: release-out/SHA256SUMS
+
+      - name: Attest wheel SBOM
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: release-out/szl_council_kernel-0.5.0rc1-py3-none-any.whl
+          sbom-path: release-out/szl-council-kernel.cdx.json
+
+      - name: Upload verified release candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: szl-council-kernel-${{ github.ref_name }}
+          path: release-out/
+          if-no-files-found: error
+          retention-days: 30

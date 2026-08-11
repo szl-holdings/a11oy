@@ -1,0 +1,63 @@
+{
+  "$id": "urn:szl:schema:council-commitment:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assessment_commitment": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "member_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "policy_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "role": {
+      "enum": [
+        "AUTHORITY",
+        "SENTINEL",
+        "VERIFIER",
+        "VALUE"
+      ]
+    },
+    "schema": {
+      "const": "szl.council-commitment/v1"
+    },
+    "subject_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "case_id",
+    "member_id",
+    "role",
+    "policy_digest",
+    "subject_digest",
+    "assessment_commitment",
+    "issued_at",
+    "expires_at"
+  ],
+  "title": "SZL Council Commitment v1",
+  "type": "object"
+}

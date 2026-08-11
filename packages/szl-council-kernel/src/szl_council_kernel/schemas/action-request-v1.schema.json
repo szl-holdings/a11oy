@@ -1,0 +1,91 @@
+{
+  "$id": "urn:szl:schema:action-request:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "content": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "expected_before_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "grant_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "FILE_WRITE",
+        "FILE_APPEND",
+        "FILE_DELETE"
+      ]
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "postconditions": {
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "szl.action-request/v1"
+    },
+    "target": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "tool": {
+      "const": "sandbox_fs"
+    }
+  },
+  "required": [
+    "schema",
+    "action_id",
+    "case_id",
+    "grant_id",
+    "kind",
+    "tool",
+    "target",
+    "content",
+    "expected_before_digest",
+    "idempotency_key",
+    "postconditions",
+    "metadata"
+  ],
+  "title": "SZL Action Request v1",
+  "type": "object"
+}

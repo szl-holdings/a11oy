@@ -1,0 +1,15 @@
+{
+  "schema": "szl.outcome-contract/v1",
+  "outcome_id": "outcome-example-0001",
+  "case_id": "case-frontier-local-0001",
+  "action_receipt_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "metric": "verified_operator_minutes_saved",
+  "baseline": 0,
+  "expected_direction": "INCREASE",
+  "effect_window_start": "2026-08-03T12:00:00Z",
+  "effect_window_end": "2026-08-10T12:00:00Z",
+  "observation_schedule": ["2026-08-04T12:00:00Z", "2026-08-10T12:00:00Z"],
+  "attribution_method": "before-after with confounder register",
+  "stop_loss": -1,
+  "confounders": ["workflow volume", "operator availability"]
+}

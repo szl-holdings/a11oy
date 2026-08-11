@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Read-only A11oy Council Kernel operations console">
+  <title>A11oy Council Kernel</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to kernel status</a>
+  <header class="nav">
+    <div>
+      <div class="eyebrow">SZL HOLDINGS · A11OY</div>
+      <h1>Council Kernel</h1>
+    </div>
+    <span id="health" class="chip neutral" role="status" aria-live="polite">CHECKING</span>
+  </header>
+  <main id="main" tabindex="-1">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">PROOF-CARRYING AUTONOMY</div>
+        <h2>Models propose.<br>The kernel authorizes.</h2>
+        <p>Fourfold commit-reveal assurance, exact capability boundaries, durable state, automatic verification, compensating rollback, and signed receipts.</p>
+      </div>
+      <div class="truth-card">
+        <div class="label">ASSURANCE BOUNDARY</div>
+        <strong>LOCAL KERNEL</strong>
+        <p>This console is read-only. It does not claim independent production operators, hosted transparency, or external deployment.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><div><div class="eyebrow">LIVE STATE</div><h3>Kernel posture</h3><p class="updated">Last checked: <span id="lastUpdated">not yet</span></p></div><button id="refresh" type="button">Refresh</button></div>
+      <div class="metrics">
+        <article><span>Cases</span><strong id="caseCount">—</strong></article>
+        <article><span>Ledger</span><strong id="ledgerState">—</strong></article>
+        <article><span>Events</span><strong id="eventCount">—</strong></article>
+        <article><span>Production independence</span><strong id="independence">FALSE</strong></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><div><div class="eyebrow">CASE LEDGER</div><h3>Recent governed actions</h3></div></div>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">Recent governed Council Kernel cases</caption>
+          <thead><tr><th>Case</th><th>State</th><th>Envelope</th><th>Updated</th></tr></thead>
+          <tbody id="cases"><tr><td colspan="4">No cases loaded.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="laws">
+      <div class="eyebrow">NON-NEGOTIABLE LAWS</div>
+      <h3>Authority is deterministic and bounded.</h3>
+      <div class="law-grid">
+        <article><b>01</b><span>No model self-authorizes.</span></article>
+        <article><b>02</b><span>No mutation without an exact target and capability.</span></article>
+        <article><b>03</b><span>Sentinel and Verifier vetoes cannot be outvoted.</span></article>
+        <article><b>04</b><span>Dissent and counterevidence remain discoverable.</span></article>
+        <article><b>05</b><span>The UI cannot write “verified.”</span></article>
+        <article><b>06</b><span>Production claims require external read-back evidence.</span></article>
+      </div>
+    </section>
+  </main>
+  <footer>Read-only projection · v0.5.0rc1 · Evidence before claims</footer>
+  <noscript><p class="noscript">JavaScript is disabled. The read-only JSON status remains available at <code>/api/v1/status</code>.</p></noscript>
+  <script src="/app.js" defer></script>
+</body>
+</html>

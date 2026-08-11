@@ -1,0 +1,346 @@
+{
+  "$defs": {
+    "condition": {
+      "additionalProperties": false,
+      "properties": {
+        "expected": {},
+        "kind": {
+          "enum": [
+            "FILE_EXISTS",
+            "FILE_ABSENT",
+            "SHA256_EQUALS",
+            "TEXT_CONTAINS",
+            "JSON_POINTER_EQUALS"
+          ]
+        },
+        "target": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "target",
+        "expected"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:szl:schema:autonomy-envelope:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "autonomy_level": {
+      "enum": [
+        "A0_OBSERVE",
+        "A1_PROPOSE",
+        "A2_REVERSIBLE",
+        "A3_BOUNDED_PRODUCTION",
+        "A4_CROSS_SYSTEM",
+        "A5_SELF_MODIFYING"
+      ]
+    },
+    "blast_radius": {
+      "enum": [
+        "SANDBOX",
+        "SINGLE_TARGET",
+        "MULTI_TARGET",
+        "CROSS_SYSTEM"
+      ]
+    },
+    "budgets": {
+      "additionalProperties": false,
+      "properties": {
+        "max_branches": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_cost_usd": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "max_duration_seconds": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_mutations": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_recursion": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_tool_calls": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_cost_usd",
+        "max_duration_seconds",
+        "max_tool_calls",
+        "max_mutations",
+        "max_branches",
+        "max_recursion"
+      ],
+      "type": "object"
+    },
+    "capabilities": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "epochs": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "model": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "policy": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "prompt": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "retrieval": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tokenizer": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tool": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "tool",
+        "policy",
+        "evidence",
+        "state",
+        "retrieval",
+        "prompt",
+        "tokenizer"
+      ],
+      "type": "object"
+    },
+    "exact_targets": {
+      "items": {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "postconditions": {
+      "items": {
+        "$ref": "#/$defs/condition"
+      },
+      "type": "array"
+    },
+    "preconditions": {
+      "items": {
+        "$ref": "#/$defs/condition"
+      },
+      "type": "array"
+    },
+    "principal": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "receipt_required": {
+      "type": "boolean"
+    },
+    "required_council_state": {
+      "const": "QUORUM_VERIFIED"
+    },
+    "required_roles": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "retry_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "ambiguous_external_retry": {
+          "const": false
+        },
+        "backoff_seconds": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "max_attempts": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "retry_on": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "max_attempts",
+        "backoff_seconds",
+        "retry_on",
+        "ambiguous_external_retry"
+      ],
+      "type": "object"
+    },
+    "revocation_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "risk_class": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "rollback_plan": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_capability": {
+          "type": "string"
+        },
+        "max_seconds": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "strategy": {
+          "enum": [
+            "RESTORE_PREIMAGE",
+            "DELETE_CREATED",
+            "NONE"
+          ]
+        }
+      },
+      "required": [
+        "required",
+        "strategy",
+        "authority_capability",
+        "max_seconds"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "szl.autonomy-envelope/v1"
+    },
+    "subject": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+    },
+    "tools": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "transparency_required": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "case_id",
+    "principal",
+    "subject",
+    "exact_targets",
+    "capabilities",
+    "tools",
+    "risk_class",
+    "blast_radius",
+    "autonomy_level",
+    "budgets",
+    "preconditions",
+    "postconditions",
+    "idempotency_key",
+    "retry_policy",
+    "rollback_plan",
+    "epochs",
+    "required_roles",
+    "required_council_state",
+    "receipt_required",
+    "transparency_required",
+    "issued_at",
+    "expires_at",
+    "revocation_ref"
+  ],
+  "title": "SZL Autonomy Envelope v1",
+  "type": "object"
+}

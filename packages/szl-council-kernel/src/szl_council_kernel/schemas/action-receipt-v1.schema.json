@@ -1,0 +1,139 @@
+{
+  "$id": "urn:szl:schema:action-receipt:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "action_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "after_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "before_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "council_result_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "event_hash": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "gate_result_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "postconditions_passed": {
+      "type": "boolean"
+    },
+    "previous_receipt_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "receipt_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "rollback_digest": {
+      "anyOf": [
+        {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rolled_back": {
+      "type": "boolean"
+    },
+    "schema": {
+      "const": "szl.action-receipt/v1"
+    },
+    "signer_state": {
+      "enum": [
+        "SIGNED_TEST",
+        "SIGNED_PERSISTENT",
+        "UNSIGNED"
+      ]
+    },
+    "status": {
+      "enum": [
+        "VERIFIED",
+        "ROLLED_BACK",
+        "BLOCKED",
+        "FAILED",
+        "REPLAYED"
+      ]
+    },
+    "target": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "receipt_id",
+    "case_id",
+    "action_id",
+    "action_digest",
+    "status",
+    "target",
+    "before_digest",
+    "after_digest",
+    "postconditions_passed",
+    "rolled_back",
+    "rollback_digest",
+    "council_result_digest",
+    "gate_result_digest",
+    "event_hash",
+    "previous_receipt_digest",
+    "issued_at",
+    "signer_state"
+  ],
+  "title": "SZL Action Receipt v1",
+  "type": "object"
+}

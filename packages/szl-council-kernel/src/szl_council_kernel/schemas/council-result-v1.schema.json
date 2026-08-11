@@ -1,0 +1,505 @@
+{
+  "$defs": {
+    "diversity": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "failed_requirements": {
+                "minItems": 1
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "requirements_met": {
+                "const": true
+              }
+            },
+            "required": [
+              "requirements_met"
+            ]
+          },
+          "then": {
+            "properties": {
+              "failed_requirements": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "cluster_assignments": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "implementation_digest": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "key_id": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "model_family": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "operator_id": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "provider_account": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "retrieval_path": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "trust_domain": {
+              "items": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            }
+          },
+          "required": [
+            "trust_domain",
+            "key_id",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account"
+          ],
+          "type": "object"
+        },
+        "distinct": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "implementation_digest": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "key_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "model_family": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "operator_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "provider_account": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "retrieval_path": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "trust_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "trust_domain",
+            "key_id",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account"
+          ],
+          "type": "object"
+        },
+        "effective_by_axis": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "implementation_digest": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "key_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "model_family": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "operator_id": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "provider_account": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "retrieval_path": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            "trust_domain": {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "trust_domain",
+            "key_id",
+            "implementation_digest",
+            "model_family",
+            "evidence_domain",
+            "operator_id",
+            "retrieval_path",
+            "provider_account"
+          ],
+          "type": "object"
+        },
+        "failed_requirements": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 9,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "joint_effective_size": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "number"
+        },
+        "minimum_effective_size": {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "number"
+        },
+        "participant_count": {
+          "const": 4
+        },
+        "requirements_met": {
+          "type": "boolean"
+        },
+        "schema": {
+          "const": "szl.epistemic-diversity-report/v1"
+        }
+      },
+      "required": [
+        "schema",
+        "participant_count",
+        "distinct",
+        "effective_by_axis",
+        "joint_effective_size",
+        "minimum_effective_size",
+        "requirements_met",
+        "failed_requirements",
+        "cluster_assignments"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:szl:schema:council-result:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "verified": {
+            "const": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "state": {
+            "const": "QUORUM_VERIFIED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "abstain_roles": {
+            "maxItems": 0
+          },
+          "diversity": {
+            "properties": {
+              "requirements_met": {
+                "const": true
+              }
+            }
+          },
+          "missing_roles": {
+            "maxItems": 0
+          },
+          "oppose_roles": {
+            "maxItems": 0
+          },
+          "verified": {
+            "const": true
+          },
+          "veto_roles": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "abstain_roles": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "case_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+      "type": "string"
+    },
+    "diversity": {
+      "$ref": "#/$defs/diversity"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "minority_evidence_digests": {
+      "items": {
+        "maxLength": 72,
+        "minLength": 1,
+        "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "missing_roles": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "oppose_roles": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "policy_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reason_codes": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "received_support": {
+      "maximum": 4,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "required_support": {
+      "maximum": 4,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "szl.council-result/v1"
+    },
+    "state": {
+      "enum": [
+        "QUORUM_VERIFIED",
+        "REQUIRE_HUMAN",
+        "BLOCKED",
+        "CONFLICT",
+        "INSUFFICIENT",
+        "INVALID"
+      ]
+    },
+    "subject_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "support_roles": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "transcript_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "veto_roles": {
+      "items": {
+        "enum": [
+          "AUTHORITY",
+          "SENTINEL",
+          "VERIFIER",
+          "VALUE"
+        ]
+      },
+      "maxItems": 4,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schema",
+    "case_id",
+    "state",
+    "verified",
+    "support_roles",
+    "oppose_roles",
+    "abstain_roles",
+    "veto_roles",
+    "missing_roles",
+    "reason_codes",
+    "minority_evidence_digests",
+    "received_support",
+    "required_support",
+    "diversity",
+    "policy_digest",
+    "subject_digest",
+    "transcript_digest",
+    "issued_at"
+  ],
+  "title": "SZL Council Result v1",
+  "type": "object"
+}

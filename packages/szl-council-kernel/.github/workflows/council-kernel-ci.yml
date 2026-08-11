@@ -1,0 +1,41 @@
+name: Council Kernel CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --disable-pip-version-check -e '.[test,api]'
+      - run: python -m compileall -q src tests tools
+      - run: python tools/generate_protocol_schemas.py
+      - run: git diff --exit-code -- src/szl_council_kernel/schemas
+      - run: python tools/validate_schemas.py
+      - run: pytest -q
+      - name: Repeatability gates
+        run: |
+          alloy-council canary --output /tmp/canary-a.json --workdir /tmp/canary-a
+          alloy-council canary --output /tmp/canary-b.json --workdir /tmp/canary-b
+          cmp /tmp/canary-a.json /tmp/canary-b.json
+          alloy-council bench --output /tmp/bench-a.json
+          alloy-council bench --output /tmp/bench-b.json
+          cmp /tmp/bench-a.json /tmp/bench-b.json
+      - run: python tools/static_secret_scan.py . --output /tmp/secret-scan.json
+      - run: python tools/verify_action_pins.py .github/workflows --output /tmp/action-pins.json
+      - run: git diff --check

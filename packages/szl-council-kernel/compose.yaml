@@ -1,0 +1,16 @@
+services:
+  council-kernel:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - council-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  council-data:

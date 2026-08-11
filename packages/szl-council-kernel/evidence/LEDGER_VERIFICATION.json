@@ -1,0 +1,22 @@
+{
+  "assurance_scope": "LOCAL_SQLITE_AND_MERKLE_CONSISTENCY_ONLY",
+  "case_count": 1,
+  "errors": [],
+  "event_count": 10,
+  "genesis_hash": "sha256:7cf2f3bfe866bf5a56d889b1b0aa15ad8b4cf7128ee4b4695488260d199bbcac",
+  "head_hash": "sha256:ef389de1ccbe983267221f035cfa2dc98fa5502709b91b95d55d3144951be0a2",
+  "idempotency_count": 1,
+  "object_count": 17,
+  "receipt_count": 1,
+  "schema": "szl.state-bus-verification/v2",
+  "status": "PASS",
+  "transparency": {
+    "assurance_scope": "LOCAL_MERKLE_REFERENCE_ONLY",
+    "errors": [],
+    "root_hash": "sha256:cc1a3785ac6e0eb9cb355bd3d6ca9bf74b97e22d622c97eb2cb69fa3505b5e3c",
+    "schema": "szl.local-transparency-verification/v1",
+    "status": "PASS",
+    "tree_size": 1,
+    "valid_leaf_count": 1
+  }
+}

@@ -1,0 +1,185 @@
+{
+  "$defs": {
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_domain": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "implementation_digest": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "key_id": {
+          "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "member_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,255}$",
+          "type": "string"
+        },
+        "model_family": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "not_after": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "not_before": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "operator_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider_account": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "public_key": {
+          "maxLength": 43,
+          "minLength": 43,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "type": "string"
+        },
+        "retrieval_path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "AUTHORITY",
+            "SENTINEL",
+            "VERIFIER",
+            "VALUE"
+          ]
+        },
+        "schema": {
+          "const": "szl.council-identity/v1"
+        },
+        "trust_domain": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "member_id",
+        "role",
+        "key_id",
+        "public_key",
+        "trust_domain",
+        "implementation_digest",
+        "model_family",
+        "evidence_domain",
+        "operator_id",
+        "retrieval_path",
+        "provider_account",
+        "not_before",
+        "not_after",
+        "schema"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:szl:schema:council-registry:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "identities": {
+      "allOf": [
+        {
+          "contains": {
+            "properties": {
+              "role": {
+                "const": "AUTHORITY"
+              }
+            },
+            "required": [
+              "role"
+            ],
+            "type": "object"
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "role": {
+                "const": "SENTINEL"
+              }
+            },
+            "required": [
+              "role"
+            ],
+            "type": "object"
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "role": {
+                "const": "VERIFIER"
+              }
+            },
+            "required": [
+              "role"
+            ],
+            "type": "object"
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "role": {
+                "const": "VALUE"
+              }
+            },
+            "required": [
+              "role"
+            ],
+            "type": "object"
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/identity"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "registry_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "szl.council-registry/v1"
+    }
+  },
+  "required": [
+    "schema",
+    "identities",
+    "registry_digest"
+  ],
+  "title": "SZL Council Registry v1",
+  "type": "object"
+}

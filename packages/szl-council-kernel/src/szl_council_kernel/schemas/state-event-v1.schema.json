@@ -1,0 +1,55 @@
+{
+  "$id": "urn:szl:schema:state-event:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "event_hash": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string"
+    },
+    "payload_digest": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "previous_hash": {
+      "pattern": "^(sha256|sha3-256):[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "szl.state-event/v1"
+    },
+    "seq": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema",
+    "seq",
+    "event_id",
+    "case_id",
+    "event_type",
+    "payload_digest",
+    "previous_hash",
+    "created_at",
+    "event_hash"
+  ],
+  "title": "SZL State Event v1",
+  "type": "object"
+}

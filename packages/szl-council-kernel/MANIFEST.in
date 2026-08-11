@@ -1,0 +1,10 @@
+include LICENSE
+include NOTICE
+recursive-include src/szl_council_kernel/schemas *.json
+recursive-include src/szl_council_kernel/web *.html *.js *.css
+include README.md LICENSE SECURITY.md CHANGELOG.md
+
+recursive-include docs *.md
+recursive-include research *.json
+recursive-include policies *.rego
+recursive-include examples *.json
