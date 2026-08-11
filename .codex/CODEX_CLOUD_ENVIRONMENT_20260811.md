@@ -23,25 +23,22 @@ set -euo pipefail
 python3 --version
 git --version
 node --version
+npm --version
 
 corepack enable
-corepack prepare pnpm@10.26.1 --activate
+corepack install -g pnpm@10.33.3
 pnpm --version
 
-pnpm install --frozen-lockfile
-
-if [ -f requirements.txt ]; then
-  python3 -m pip install --disable-pip-version-check -r requirements.txt
-fi
-
-if [ -f requirements-dev.txt ]; then
-  python3 -m pip install --disable-pip-version-check -r requirements-dev.txt
-fi
+npm ci
+python3 -m pip install --disable-pip-version-check --require-hashes \
+  -r .github/requirements/ci-core.txt
 
 python3 -m compileall -q .
 ```
 
-Do not weaken lockfile or supply-chain policy to make setup pass. When a dependency install fails, record the exact failure and repair the repository contract rather than bypassing it.
+The pinned pnpm version and hashed Python dependency set mirror the current repository workflows. When a gate requires a separate `pnpm install --frozen-lockfile`, run it in a clean worktree or clean-clone directory so one package-manager install does not invalidate another gate's baseline.
+
+Do not weaken lockfile, hash, doctrine, or supply-chain policy to make setup pass. When dependency installation fails, record the exact failure and repair the repository contract rather than bypassing it.
 
 ## Agent internet policy
 
@@ -74,4 +71,4 @@ After creating this environment, invoke Codex on PR #1261 with:
 
 ## Completion boundary
 
-Codex completion on PR #1261 means tested source changes and a proof-backed disposition are present on the work branch. It does not authorize merging this unsigned seed lineage. Promotion remains a separate signed+DCO successor PR with exact-head checks, independent review, protected merge, deployment, and immutable readback.
+Codex completion on PR #1261 means tested source changes and a proof-backed disposition are present on the work branch. It does not authorize merging this seed lineage. Promotion remains a separate signed+DCO successor PR with exact-head checks, independent review, protected merge, deployment, and immutable readback.
