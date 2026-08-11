@@ -1,0 +1,49 @@
+name: A11oy readiness soft revision apply
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - tools/readiness-harness/probe_runner.mjs
+      - tools/readiness-harness/probe_runner_revision.test.mjs
+      - scripts/repair_readiness_soft_revision.py
+      - .github/workflows/readiness-soft-revision-apply.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply-readiness-repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/frontdoor-truth-mobile-clean-2026-08-11'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/frontdoor-truth-mobile-clean-2026-08-11
+          fetch-depth: 0
+      - name: Apply soft revision evidence repair
+        run: python3 scripts/repair_readiness_soft_revision.py tools/readiness-harness/probe_runner.mjs
+      - name: Verify patch and contract tests
+        run: |
+          python3 scripts/repair_readiness_soft_revision.py tools/readiness-harness/probe_runner.mjs --check
+          node -c tools/readiness-harness/probe_runner.mjs
+          node --test --test-force-exit tools/readiness-harness/probe_runner_revision.test.mjs
+      - name: Commit branch-only repair when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- tools/readiness-harness/probe_runner.mjs; then
+            echo 'Readiness soft revision repair already materialized.'
+            exit 0
+          fi
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git add tools/readiness-harness/probe_runner.mjs
+          git commit -m 'fix(readiness): report unavailable build identity in soft mode' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:fix/frontdoor-truth-mobile-clean-2026-08-11
