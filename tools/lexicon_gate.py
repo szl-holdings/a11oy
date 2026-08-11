@@ -25,8 +25,24 @@ ROOT = Path(__file__).resolve().parents[1]
 AUDIT_DIR = ROOT / "audit"
 DEFAULT_REPORT = AUDIT_DIR / "frontier-lexicon-gate.json"
 LANDING = ROOT / "a11oy_landing.html"
-DOCS_DIR = ROOT / "docs"
-SCAN_DEFAULT_ROOTS = [LANDING, DOCS_DIR, ROOT / "scripts", ROOT / "tools"]
+PAGES_DIR = ROOT / "pages"
+
+SCAN_DEFAULT_ROOTS = [
+    LANDING,
+    ROOT / "govern_showcase.html",
+    ROOT / "cathedral.html",
+    ROOT / "cathedral_genius.html",
+    ROOT / "pages_console.html",
+    ROOT / "index.html",
+    ROOT / "agent.html",
+    ROOT / "a11oy_code_ide.html",
+    ROOT / "live_wires.html",
+] + [path for path in sorted(PAGES_DIR.glob("*.html"))]
+
+_KNOWN_EXTS = {
+    ".html",
+}
+
 
 
 BANNED_PATTERNS: dict[str, str] = {
@@ -39,7 +55,7 @@ BANNED_PATTERNS: dict[str, str] = {
 }
 
 
-ALLOWED_EXTS = {".md", ".html", ".txt", ".json", ".yml", ".yaml", ".py", ".ts", ".js", ".mjs", ".sh", ".toml", ".c", ".cpp", ".h", ".hpp"}
+ALLOWED_EXTS = _KNOWN_EXTS
 SKIP_DIRS = {
     ".git",
     "node_modules",
@@ -69,22 +85,27 @@ def _iter_candidates(base_paths: list[Path]) -> list[Path]:
         if base.is_file():
             discovered.append(base)
             continue
-        for path in base.rglob("*"):
-            if not path.is_file():
-                continue
-            if any(part in SKIP_DIRS for part in path.relative_to(ROOT).parts):
-                continue
-            if path.suffix.lower() not in ALLOWED_EXTS and not path.suffix == "":
-                continue
-            discovered.append(path)
+        try:
+            for path in base.rglob("*"):
+                if not path.is_file():
+                    continue
+                if any(part in SKIP_DIRS for part in path.relative_to(ROOT).parts):
+                    continue
+                if path.suffix.lower() not in ALLOWED_EXTS and not path.suffix == "":
+                    continue
+                discovered.append(path)
+        except OSError as exc:
+            discovered.append(base)
     return sorted(set(discovered))
 
 
-def _read_lines(path: Path) -> list[str]:
+def _read_lines(path: Path) -> tuple[list[str], str | None]:
     try:
-        return path.read_text(encoding="utf-8").splitlines()
+        return path.read_text(encoding="utf-8").splitlines(), None
     except UnicodeDecodeError:
-        return []
+        return [], f"{path}: Unicode decode error"
+    except OSError as exc:
+        return [], f"{path}: {exc}"
 
 
 def run_lexicon_gate(scan_paths: list[Path]) -> list[Hit]:
@@ -94,7 +115,17 @@ def run_lexicon_gate(scan_paths: list[Path]) -> list[Hit]:
     }
     hits: list[Hit] = []
     for path in scan_paths:
-        lines = _read_lines(path)
+        lines, read_error = _read_lines(path)
+        if read_error:
+            hits.append(
+                Hit(
+                    token="unreadable_file",
+                    path=str(path.relative_to(ROOT)),
+                    line=0,
+                    line_text=read_error,
+                )
+            )
+            continue
         if not lines:
             continue
         for idx, line in enumerate(lines, start=1):

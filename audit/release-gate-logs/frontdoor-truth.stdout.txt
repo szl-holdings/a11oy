@@ -1,0 +1,5 @@
+{
+  "schema": "a11oy.frontdoor-truth-mobile-check/v1",
+  "status": "PASS",
+  "errors": []
+}

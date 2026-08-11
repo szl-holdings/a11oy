@@ -1,0 +1,45 @@
+[
+  {
+    "contradiction_id": "B-01",
+    "statement": "Flagship vs full-space publication claims must not mix 26-space registry with 5-space doctrine.",
+    "status": "OPEN",
+    "refutes_claim_ids": [
+      "C-01",
+      "C-04"
+    ],
+    "blocks_release": true,
+    "evidence_uri": "a11oy_landing.html",
+    "severity": "CRITICAL",
+    "notes": [
+      "Keep both public claims and doctrine true; classify 26-space registry with explicit tiers instead of flattening."
+    ]
+  },
+  {
+    "contradiction_id": "B-02",
+    "statement": "Stale operational counts must remain SNAPSHOT(2026-05-12) until new public evidence is re-probed.",
+    "status": "OPEN",
+    "refutes_claim_ids": [
+      "C-03"
+    ],
+    "blocks_release": true,
+    "evidence_uri": "docs/huggingface-ecosystem-manifest.json",
+    "severity": "MEDIUM",
+    "notes": [
+      "If the count is re-probed and stored with fresh timestamp, this can resolve."
+    ]
+  },
+  {
+    "contradiction_id": "B-03",
+    "statement": "Legacy names (e.g., discontinued product labels) must not be presented as current doctrine.",
+    "status": "OPEN",
+    "refutes_claim_ids": [
+      "C-05"
+    ],
+    "blocks_release": false,
+    "evidence_uri": "docs/doctrine-v11.md",
+    "severity": "LOW",
+    "notes": [
+      "Resolved by lexicon gate and phrase cleanup in claim materials."
+    ]
+  }
+]

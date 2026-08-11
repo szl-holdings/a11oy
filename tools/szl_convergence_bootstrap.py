@@ -19,6 +19,7 @@ import json
 import subprocess
 import textwrap
 import time
+import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,14 +36,15 @@ CONFORMANCE_DIR = ROOT / "evidence" / "conformance"
 SCHEMA_PATH = ROOT / "schemas" / "szl-governed-action-predicate.v1.schema.json"
 GITHUB_CHECKLIST = DOC_ROOT / "github-enterprise-access-checklist.json"
 HUGGINGFACE_MANIFEST = DOC_ROOT / "huggingface-ecosystem-manifest.json"
+PYTHON = [sys.executable, "-I", "-B"]
 
 KNOWN_PROBES: list[tuple[str, list[str], bool]] = [
-    ("frontdoor_truth", ["python3", "-I", "-B", "scripts/check_a11oy_frontdoor_truth.py", str(A11OY_LANDING)], False),
-    ("frontdoor_repair_idempotent", ["python3", "-I", "-B", "scripts/repair_a11oy_frontdoor.py", str(A11OY_LANDING), "--check"], False),
-    ("hf_ecosystem_check", ["python3", "-I", "-B", "scripts/audit_huggingface_ecosystem.py", "--check"], False),
+    ("frontdoor_truth", PYTHON + ["scripts/check_a11oy_frontdoor_truth.py", str(A11OY_LANDING)], False),
+    ("frontdoor_repair_idempotent", PYTHON + ["scripts/repair_a11oy_frontdoor.py", str(A11OY_LANDING), "--check"], False),
+    ("hf_ecosystem_check", PYTHON + ["scripts/audit_huggingface_ecosystem.py", "--check"], False),
     (
         "github_access_audit",
-        ["python3", "-I", "-B", "scripts/audit_github_access_permissions.py", "--checklist", str(GITHUB_CHECKLIST), "--output", str(AUDIT_DIR / "github-access-audit.json"), "--validate"],
+        PYTHON + ["scripts/audit_github_access_permissions.py", "--checklist", str(GITHUB_CHECKLIST), "--output", str(AUDIT_DIR / "github-access-audit.json"), "--validate"],
         False,
     ),
 ]
@@ -249,7 +251,7 @@ def _render_payload_md(
         import subprocess
 
         ROOT = pathlib.Path(__file__).resolve().parent
-        subprocess.run(["python3", "-I", "-B", str(ROOT / "tools" / "szl_convergence_bootstrap.py"), "--run"], check=True)
+        subprocess.run([sys.executable, "-I", "-B", str(ROOT / "tools" / "szl_convergence_bootstrap.py"), "--run"], check=True)
         ```
 
         ## Command probe status

@@ -1,0 +1,70 @@
+[
+  {
+    "claim_id": "C-01",
+    "statement": "Canonical host policy remains a-11-oy.com as user public surface; a11oy.net is redirect-only.",
+    "evidence_state": "MEASURED",
+    "evidence_uri": "audit/frontier-command-probes.json#frontdoor_truth",
+    "severity": "HIGH",
+    "public_allowed": true,
+    "freshness": "MEASURED",
+    "status": "OPEN",
+    "notes": []
+  },
+  {
+    "claim_id": "C-02",
+    "statement": "GitHub access and entitlement evidence reflects 9 checked sibling targets and 4 write-ready repos in one authenticated session.",
+    "evidence_state": "MEASURED",
+    "evidence_uri": "audit/github-access-audit.json",
+    "severity": "HIGH",
+    "public_allowed": true,
+    "freshness": "writeReady=11 readOnly=0 unavailable=0",
+    "status": "OPEN",
+    "notes": []
+  },
+  {
+    "claim_id": "C-03",
+    "statement": "Hugging Face public snapshot is live and auditable from stephenlutar2-hash.",
+    "evidence_state": "MEASURED",
+    "evidence_uri": "docs/huggingface-ecosystem-manifest.json",
+    "severity": "HIGH",
+    "public_allowed": true,
+    "freshness": "models=16 datasets=27 spaces=26",
+    "status": "OPEN",
+    "notes": []
+  },
+  {
+    "claim_id": "C-04",
+    "statement": "Domain policy and landing page claim text are reconciled with 26-space public registry semantics.",
+    "evidence_state": "MEASURED",
+    "evidence_uri": "a11oy_frontier_page.py",
+    "severity": "HIGH",
+    "public_allowed": true,
+    "freshness": "ROADMAP",
+    "status": "OPEN",
+    "notes": []
+  },
+  {
+    "claim_id": "C-05",
+    "statement": "Lexicon lock (five disallowed legacy names) is enforced by repository gate, not marketing copy.",
+    "evidence_state": "ROADMAP",
+    "evidence_uri": "tools/lexicon_gate.py",
+    "severity": "MEDIUM",
+    "public_allowed": false,
+    "freshness": "ROADMAP",
+    "status": "BLOCKED",
+    "notes": [
+      "run tools/lexicon_gate.py prior to release"
+    ]
+  },
+  {
+    "claim_id": "C-06",
+    "statement": "Domain guard status: ERROR:No module named 'a11oy_canonical_domain'",
+    "evidence_state": "UNKNOWN",
+    "evidence_uri": "a11oy_canonical_domain.py",
+    "severity": "HIGH",
+    "public_allowed": true,
+    "freshness": "MEASURED",
+    "status": "OPEN",
+    "notes": []
+  }
+]

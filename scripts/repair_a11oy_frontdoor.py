@@ -151,6 +151,20 @@ def main() -> int:
 
     spec = load_spec()
     original = args.path.read_text(encoding="utf-8")
+    if args.check:
+        baseline_errors = validate_truth(original)
+        if not baseline_errors:
+            print(
+                json.dumps(
+                    {
+                        "status": "PASS",
+                        "target": str(args.path),
+                        "notes": "frontdoor truth contract already current",
+                    },
+                    indent=2,
+                )
+            )
+            return 0
     try:
         patched, results = apply_text(original, spec)
     except PatchError as exc:
