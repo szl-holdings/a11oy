@@ -3,10 +3,8 @@ from __future__ import annotations
 """Monotonic capability grants, exact-target authorization, and budget accounting."""
 
 import fnmatch
-from dataclasses import replace
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Iterable
 
 from .canonical import parse_utc
 from .errors import AuthorizationError, ValidationError
@@ -36,12 +34,7 @@ def target_matches(pattern: str, target: str) -> bool:
 
 
 def pattern_is_subset(child: str, parent: str) -> bool:
-    """Conservative target-pattern attenuation check.
-
-    The function intentionally accepts only relations it can prove locally. A
-    complex glob that may be a subset but cannot be proven is rejected.
-    """
-
+    """Conservative target-pattern attenuation check."""
     if child == parent:
         return True
     if parent.endswith("/**"):
@@ -96,6 +89,11 @@ def authorize_action(
         raise AuthorizationError("autonomy envelope is inactive, expired, or revoked")
     if action.kind.capability not in grant.capabilities or action.kind.capability not in envelope.capabilities:
         raise AuthorizationError(f"missing capability: {action.kind.capability}")
+    rollback = envelope.rollback_plan
+    if rollback.required and rollback.strategy != "NONE":
+        rollback_capability = rollback.authority_capability
+        if rollback_capability not in envelope.capabilities or rollback_capability not in grant.capabilities:
+            raise AuthorizationError(f"missing rollback capability: {rollback_capability}")
     if action.tool not in grant.tools or action.tool not in envelope.tools:
         raise AuthorizationError("tool is not authorized by grant and envelope")
     target = normalize_target(action.target)
@@ -116,16 +114,7 @@ class BudgetAccount:
         self.limits = limits
         self.usage = BudgetUsage()
 
-    def consume(
-        self,
-        *,
-        cost_usd: float = 0.0,
-        duration_seconds: int = 0,
-        tool_calls: int = 0,
-        mutations: int = 0,
-        branches: int = 0,
-        recursion: int = 0,
-    ) -> BudgetUsage:
+    def consume(self, *, cost_usd: float = 0.0, duration_seconds: int = 0, tool_calls: int = 0, mutations: int = 0, branches: int = 0, recursion: int = 0) -> BudgetUsage:
         candidate = BudgetUsage(
             cost_usd=self.usage.cost_usd + cost_usd,
             duration_seconds=self.usage.duration_seconds + duration_seconds,
