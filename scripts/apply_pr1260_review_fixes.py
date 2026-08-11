@@ -15,17 +15,8 @@ EARLY_MOBILE = '''  @media(max-width:560px){
   }
 '''
 
-LATE_MOBILE = '''  /* Mobile overrides intentionally follow all equal-specificity base rules. */
-  @media(max-width:560px){
-    .wrap{padding-inline:16px}
-    section.band{padding:64px 0}
-    .hero{min-height:auto}
-    .hero .wrap{padding-top:44px;padding-bottom:44px}
-    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
-    .cta-row .btn{width:100%;white-space:normal;text-align:center}
-    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
-  }
-'''
+LATE_MARKER = "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n"
+LATE_MOBILE = LATE_MARKER + EARLY_MOBILE
 
 MEASURED_OLD = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, separately reported signer state, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>'
 MEASURED_NEW = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>'
@@ -44,8 +35,8 @@ def apply(text: str) -> tuple[str, list[str]]:
             raise RuntimeError(f"expected one </style> anchor; found {text.count('</style>')}")
         text = text.replace("</style>", LATE_MOBILE + "</style>", 1)
         changes.append("mobile-cascade-order")
-    elif EARLY_MOBILE in text:
-        raise RuntimeError("both early and late mobile override blocks are present")
+    elif text.count(LATE_MOBILE) != 1 or text.count(EARLY_MOBILE) != 1:
+        raise RuntimeError("mobile override migration is duplicated or ambiguous")
 
     if MEASURED_NEW not in text:
         if text.count(MEASURED_OLD) != 1:
@@ -60,10 +51,10 @@ def apply(text: str) -> tuple[str, list[str]]:
 
 
 def validate(text: str) -> None:
-    if EARLY_MOBILE in text:
-        raise RuntimeError("mobile overrides remain before base rules")
-    if text.count(LATE_MOBILE) != 1:
+    if text.count(LATE_MOBILE) != 1 or text.count(EARLY_MOBILE) != 1:
         raise RuntimeError("late mobile override block must exist exactly once")
+    if text.find(EARLY_MOBILE) != text.find(LATE_MOBILE) + len(LATE_MARKER):
+        raise RuntimeError("an early mobile override remains outside the late guarded block")
     if MEASURED_OLD in text or text.count(MEASURED_NEW) != 1:
         raise RuntimeError("measured signer-state wording is not truthful")
 
