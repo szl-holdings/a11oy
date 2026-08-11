@@ -1,7 +1,9 @@
 name: Operational Validation
 
-# Runtime gate for the non-doc operational surfaces: receipt chaining and
-# UDS payload manifest/attestation generation.
+# Runtime gate for non-doc operational surfaces. Pull requests prove the
+# deterministic repository contracts. Live public Hugging Face drift remains a
+# mandatory protected-main/scheduled concern in hf-ecosystem-drift.yml instead
+# of deadlocking unrelated PRs when public inventory changes independently.
 
 on:
   push:
@@ -31,6 +33,7 @@ on:
       - 'package.json'
       - '.github/workflows/huggingface.yml'
       - '.github/workflows/operational.yml'
+      - '.github/workflows/hf-ecosystem-drift.yml'
   pull_request:
     branches: [main]
     paths:
@@ -58,6 +61,7 @@ on:
       - 'package.json'
       - '.github/workflows/huggingface.yml'
       - '.github/workflows/operational.yml'
+      - '.github/workflows/hf-ecosystem-drift.yml'
 
 permissions:
   contents: read
@@ -77,7 +81,7 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Setup pnpm
@@ -90,22 +94,19 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Verify live tracked Hugging Face ecosystem manifest
+        if: github.event_name != 'pull_request'
+        run: pnpm hf:ecosystem:audit
       - name: Validate operational surfaces
         run: |
           bash scripts/validate-operational.sh
           python3 scripts/test_audit_huggingface_ecosystem.py
           python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
-          pnpm hf:ecosystem:audit
           python3 scripts/build_ecosystem_stage_matrix.py --check
           node scripts/test_validate_huggingface_ecosystem_schema.mjs
           node scripts/validate_huggingface_ecosystem_schema.mjs
           npm run payload:verify
           npm run payload:huggingface
-          # Build the operational payload bundle in CI before verifying it. The
-          # tarball is a deterministic build artifact (it embeds dist/, the
-          # lockfile, and generated manifests) and is intentionally not
-          # committed to the repo, so the verify step has nothing to check
-          # unless we generate it here first.
           npm run payload:bundle
           npm run payload:bundle:verify
 
