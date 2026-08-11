@@ -132,15 +132,6 @@
     .nav .brand .sub{display:none}
     .nav nav .btn{padding-inline:10px}
   }
-  @media(max-width:560px){
-    .wrap{padding-inline:16px}
-    section.band{padding:64px 0}
-    .hero{min-height:auto}
-    .hero .wrap{padding-top:44px;padding-bottom:44px}
-    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
-    .cta-row .btn{width:100%;white-space:normal;text-align:center}
-    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
-  }
 
   /* ---- buttons ---- */
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 21px;border-radius:9px;
@@ -370,6 +361,16 @@
   .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
   @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
+  /* Mobile overrides intentionally follow all equal-specificity base rules. */
+  @media(max-width:560px){
+    .wrap{padding-inline:16px}
+    section.band{padding:64px 0}
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
+    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
+  }
 </style>
 </head>
 <body>
@@ -451,7 +452,7 @@
     <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
     <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
     <div class="legend">
-      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, separately reported signer state, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>
+      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>
       <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
       <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
       <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Λ lives here.</p></div>
