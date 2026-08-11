@@ -107,3 +107,56 @@ Create or update a concise Proof Packet under the repository’s existing audit/
 ## Definition of done for this Codex task
 
 The branch contains tested source changes or a proof-backed `ALREADY_SATISFIED` result; this task file and Proof Packet are updated; no actionable reproducible source defect in scope is left as a roadmap item; and all unavailable production/provider facts are named as external blockers rather than painted green.
+
+---
+
+## Execution update — 2026-08-11
+
+### Exact work now applied
+
+- `migrations/20260811_memory_covenant_v2.sql` — initial PostgreSQL-authoritative Memory Covenant v2 schema.
+- `migrations/20260811_memory_covenant_v2_security_hardening.sql` — explicit non-bypass runtime role, dedicated worker capability, bounded outbox leasing, and public-execute revocation.
+- `audit/P0-2026-08-11-memory-covenant-proof.md` — real isolated Neon acceptance evidence with no credential material.
+
+### Root cause fixed
+
+The provider-managed Neon migration owner has `rolbypassrls=true`, so an owner-session cross-domain probe returned one row even with forced RLS. That result was not accepted as runtime isolation proof. A dedicated `a11oy_memory_app` role was added as `NOBYPASSRLS`, permissions were reduced to the runtime contract, and isolation was rerun under that role.
+
+### Real acceptance outcomes
+
+On isolated Neon project `young-snow-70923323`, branch `br-bitter-block-a6kuzqxt`, database `neondb`:
+
+- seven governed memory tables created;
+- RLS enabled on every memory table;
+- intended forced-RLS posture observed;
+- append-only triggers observed on receipts, query audit, and idempotency;
+- dedicated app and worker roles observed as non-superuser and non-RLS-bypass;
+- same-domain application-role visibility: `1` row;
+- cross-domain application-role visibility: `0` rows;
+- cross-domain write rejected;
+- receipt mutation intercepted and original value preserved;
+- acceptance rows rolled back; residue: `0`.
+
+Database-side disposition: `APPLIED_AND_VERIFIED`.
+
+### Payload dispositions established so far
+
+- Memory Covenant PostgreSQL schema: `APPLIED_AND_VERIFIED` on the isolated acceptance database.
+- Memory Covenant role/RLS hardening: `APPLIED_AND_VERIFIED` on the isolated acceptance database.
+- Older owner-session RLS assumption: `SUPERSEDED_BY_NEWER_SOURCE` because provider-owner `BYPASSRLS` is not a valid runtime test identity.
+- Codex Cloud handoff: `BLOCKED_EXTERNAL_AUTHORITY` until a repository Codex environment exists; this does not block direct repository work through the authenticated GitHub connector.
+
+### Remaining exact blockers
+
+The overall P0 task is not complete yet. Remaining work is source/runtime and protected-release authority, specifically:
+
+- bind the application runtime to a non-bypass PostgreSQL login/member of `a11oy_memory_app` without committing credentials;
+- wire the Memory Covenant runtime API before the SPA catch-all;
+- include the runtime database dependency and all changed modules in the canonical container;
+- implement/qualify the bounded index-worker path against a declared embedding/index generation rather than claiming derived-index completion;
+- run final exact-head repository gates and responsive route checks for any changed public surface;
+- promote through a separately signed+DCO successor lineage, independent review, protected merge, canonical Hugging Face writer, and immutable deployed-SHA readback.
+
+### Explicit non-claims
+
+No protected-main merge, production deployment, Hugging Face publication, signing-key operation, model training, GPU inference, measured-energy claim, or live production-parity claim is made by this execution update.
