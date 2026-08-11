@@ -126,6 +126,9 @@ def main() -> int:
     original = args.path.read_text(encoding="utf-8")
     patched = patch(original)
     validate(patched)
+    if args.check and patched != original:
+        print(f"readiness soft revision contract FAIL_UNAPPLIED: {args.path}")
+        return 1
     if not args.check:
         args.path.write_text(patched, encoding="utf-8")
     print(f"readiness soft revision contract PASS: {args.path}")

@@ -463,6 +463,33 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
 
     @app.get("/api/build-info", tags=["runtime"], include_in_schema=True)
     async def _build_info():
+        revision = str(build_identity.get("revision") or "")
+        revision_source = str(build_identity.get("revision_source") or "")
+        source_bound = bool(re.fullmatch(r"[0-9a-f]{40}", revision)) and revision_source in {
+            "env:SZL_GIT_SHA",
+            "env:A11OY_GIT_SHA",
+        }
+        if not source_bound:
+            unavailable = dict(build_identity)
+            unavailable["state"] = "UNAVAILABLE"
+            unavailable["revision"] = None
+            unavailable["revision_source"] = "UNAVAILABLE"
+            field_evidence = dict(unavailable.get("field_evidence") or {})
+            field_evidence["revision"] = "UNAVAILABLE"
+            unavailable["field_evidence"] = field_evidence
+            return _no_store_json(
+                {
+                    "status": "UNAVAILABLE",
+                    "service": ns,
+                    "build": unavailable,
+                    "runtime": {
+                        "python": platform.python_version(),
+                        "platform": sys.platform,
+                    },
+                    "receipt_minted": False,
+                },
+                status_code=503,
+            )
         return _no_store_json(
             {
                 "status": "OBSERVED",
