@@ -174,7 +174,11 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
             result = choose_ingress_node(nodes, workload)
             result["evidence"] = "SAMPLE"
             result["telemetry_authority"] = "CALLER_SUPPLIED_NOT_MEASURED"
-            return JSONResponse({"ready": True, "accepted": True, **result})
+            accepted = result["status"] == "PASS"
+            return JSONResponse(
+                {"ready": True, "accepted": accepted, **result},
+                status_code=200 if accepted else 409,
+            )
         except (TypeError, ValueError) as exc:
             return _error(422, "invalid_ingress_route", str(exc))
 
