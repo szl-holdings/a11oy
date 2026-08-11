@@ -1,24 +1,21 @@
 name: HF Space module-drift guard
 
-# Pull requests require two independent proofs. The existing hf-module-drift
-# job remains the fail-closed live source-bound gate: the runtime must be
-# running and /api/build-info must stably expose an exact protected Git SHA.
-# The additional repository-parity job compares the exact protected base SHA
-# with the immutable Hugging Face repository revision and its managed bytes;
-# that source-identity proof remains measurable while a runtime is paused, but
-# it never waives the live gate or treats a candidate as deployed.
+# Pull requests require two independent proofs before deployment:
+# 1) exact protected-base GitHub bytes equal the immutable live HF repository;
+# 2) the candidate's Dockerfile-managed source graph resolves without introducing
+#    a new unresolved COPY source. The candidate is never treated as deployed.
 #
-# Pushes do not run this workflow because they race publication. Every main
-# push enters hf-sync without a path filter, so Dockerfile sources such as
-# .well-known/security.txt cannot bypass deployment; hf-sync then dispatches
-# both strict proofs after deployment and relock. Manual and scheduled runs
-# remain strict current-state checks.
+# Strict source-bound runtime proof requires the same-host /api/build-info route
+# and therefore runs on manual/scheduled checks and after protected deployment.
+# Every main push enters hf-sync without a path filter; hf-sync deploys the exact
+# protected SHA, smokes /api/build-info, relocks runtime identity, then dispatches
+# this workflow on main for the strict source-bound proof.
 
 on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '37 6 * * 1'  # Mondays 06:37 UTC (HF-side edits land with no GitHub push)
+    - cron: '37 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -30,15 +27,12 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@0816263f1e83734658d6e5a8a7cd3834f36a2054  # .github PR #307: immutable source-bound live baseline
+    if: github.event_name != 'pull_request'
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@0816263f1e83734658d6e5a8a7cd3834f36a2054
     with:
       hf-repo: SZLHOLDINGS/a11oy
-      # Every event requires a running runtime with two stable, exact
-      # /api/build-info observations. PRs also report the candidate delta
-      # without deploying it. A paused or unmeasured runtime stays red.
       mode: source-bound-baseline
-      trusted-base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-      candidate-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      trusted-base-ref: ${{ github.sha }}
       source-probe-path: /api/build-info
       dockerfile-path: Dockerfile
       github-ref: ${{ github.sha }}
@@ -92,5 +86,74 @@ jobs:
         with:
           name: hf-repository-parity
           path: hf-repository-parity.out.json
+          if-no-files-found: error
+          retention-days: 90
+
+  pr-candidate-managed-sources:
+    if: github.event_name == 'pull_request'
+    name: Candidate managed COPY sources resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact reusable tools revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: szl-holdings/.github
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          path: tools
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify candidate managed-source closure without deployment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "tools/.github/scripts")
+          import hf_module_drift_check as drift
+
+          base = drift.require_full_sha(os.environ["BASE_SHA"], "pull request base SHA")
+          candidate = drift.require_full_sha(os.environ["CANDIDATE_SHA"], "pull request candidate SHA")
+          report = drift.candidate_managed_delta(
+              os.environ["GITHUB_REPOSITORY"], base, candidate, "Dockerfile"
+          )
+          Path("hf-managed-candidate-plan.out.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          unresolved = report.get("new_unresolved_sources")
+          if not isinstance(unresolved, list):
+              raise SystemExit("candidate report omitted new_unresolved_sources")
+          if unresolved:
+              for path in unresolved:
+                  print(f"::error title=Candidate COPY source unresolved::{path}")
+              raise SystemExit(1)
+          print(
+              f"Candidate managed-source closure PASS: {base} -> {candidate}; "
+              f"deltas={report.get('delta_count')} new_unresolved=0"
+          )
+          PY
+
+      - name: Upload candidate managed-source plan
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-managed-candidate-plan
+          path: hf-managed-candidate-plan.out.json
           if-no-files-found: error
           retention-days: 90
