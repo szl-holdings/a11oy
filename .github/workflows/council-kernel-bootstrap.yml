@@ -1,0 +1,48 @@
+name: Council Kernel One-Shot Materializer
+
+on:
+  push:
+    branches:
+      - feat/council-kernel-v0.5.0rc1
+    paths:
+      - ".payload/council-kernel/**"
+      - ".github/workflows/council-kernel-bootstrap.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: council-kernel-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/feat/council-kernel-v0.5.0rc1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/council-kernel-v0.5.0rc1
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Verify and materialize payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .payload/council-kernel/part-* > /tmp/council.tar.xz
+          echo "3d83276b9025b3d58045ac9ddbc05a95decbe652146ca835b64d74a6f63a492f  /tmp/council.tar.xz" | sha256sum -c -
+          test ! -e packages/szl-council-kernel
+          mkdir -p packages/szl-council-kernel
+          tar -xJf /tmp/council.tar.xz -C packages/szl-council-kernel
+          (cd packages/szl-council-kernel && sha256sum -c MANIFEST.sha256)
+          test "$(find packages/szl-council-kernel -type f | wc -l)" -eq 104
+          test -f .github/workflows/council-kernel-ci.yml
+          test -f .github/workflows/council-kernel-release.yml
+          git diff --check
+          git config user.name "SZL Council Materializer"
+          git config user.email "stephenlutar2-hash@users.noreply.github.com"
+          git add packages/szl-council-kernel
+          git commit -s -m "feat(council): integrate proof-carrying autonomy kernel v0.5.0rc1"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

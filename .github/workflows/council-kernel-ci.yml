@@ -1,0 +1,66 @@
+name: Council Kernel CI
+
+on:
+  pull_request:
+    paths:
+      - "packages/szl-council-kernel/**"
+      - ".github/workflows/council-kernel-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/szl-council-kernel/**"
+      - ".github/workflows/council-kernel-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: packages/szl-council-kernel
+    steps:
+      - name: Checkout exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package and gates
+        run: python -m pip install --disable-pip-version-check -e '.[test,api]'
+      - name: Compile source
+        run: python -m compileall -q src tests tools
+      - name: Regenerate protocol schemas
+        run: python tools/generate_protocol_schemas.py
+      - name: Prove generated schemas are source-identical
+        run: git diff --exit-code -- src/szl_council_kernel/schemas
+      - name: Validate schemas
+        run: python tools/validate_schemas.py
+      - name: Run test suite
+        run: pytest -q
+      - name: Repeatability gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          alloy-council canary --output /tmp/canary-a.json --workdir /tmp/canary-a
+          alloy-council canary --output /tmp/canary-b.json --workdir /tmp/canary-b
+          cmp /tmp/canary-a.json /tmp/canary-b.json
+          alloy-council bench --output /tmp/bench-a.json
+          alloy-council bench --output /tmp/bench-b.json
+          cmp /tmp/bench-a.json /tmp/bench-b.json
+      - name: Scan payload source for credential material
+        run: python tools/static_secret_scan.py . --output /tmp/secret-scan.json
+      - name: Verify source workflow action pins
+        run: python tools/verify_action_pins.py .github/workflows --output /tmp/action-pins.json
+      - name: Validate browser JavaScript syntax
+        run: node --check src/szl_council_kernel/web/app.js
+      - name: Check patch whitespace
+        run: git diff --check
