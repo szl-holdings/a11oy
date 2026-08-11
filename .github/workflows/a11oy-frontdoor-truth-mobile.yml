@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - a11oy_landing.html
+      - serve.py
       - config/a11oy-frontdoor/PATCH_SPEC.json
       - scripts/repair_a11oy_frontdoor.py
       - scripts/check_a11oy_frontdoor_truth.py
+      - scripts/ensure_build_info_route.py
       - tests/test_a11oy_frontdoor_truth.py
       - .github/workflows/a11oy-frontdoor-truth-mobile.yml
   push:
     branches: [main]
     paths:
       - a11oy_landing.html
+      - serve.py
       - scripts/check_a11oy_frontdoor_truth.py
+      - scripts/ensure_build_info_route.py
       - tests/test_a11oy_frontdoor_truth.py
 
 permissions:
@@ -30,7 +34,11 @@ jobs:
           persist-credentials: false
       - name: Verify truth and mobile contract
         run: python3 scripts/check_a11oy_frontdoor_truth.py a11oy_landing.html
-      - name: Verify patch is fully applied and idempotent
+      - name: Verify front-door patch is fully applied and idempotent
         run: python3 scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
+      - name: Verify immutable build-info route is present and idempotent
+        run: |
+          python3 scripts/ensure_build_info_route.py serve.py --check
+          python3 -m py_compile serve.py scripts/ensure_build_info_route.py
       - name: Run regression tests
         run: python3 -m unittest -v tests/test_a11oy_frontdoor_truth.py
