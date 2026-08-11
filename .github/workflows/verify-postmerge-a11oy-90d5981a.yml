@@ -10,65 +10,92 @@ permissions:
   contents: read
 
 jobs:
-  verify-live-source-binding:
+  verify-terminal-relock:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 22
     env:
       EXPECTED_SHA: 90d5981a6dc4223d4053fc970468e26ae191fa99
       ORIGIN: https://szlholdings-a11oy.hf.space
       HF_API: https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy
+      RELOCK_API: https://api.github.com/repos/szl-holdings/a11oy/issues/1043
     steps:
-      - name: Poll exact public deployment
+      - name: Poll exact terminal public state
         shell: bash
         run: |
-          set -euo pipefail
-          for attempt in $(seq 1 60); do
+          set -uo pipefail
+          for attempt in $(seq 1 72); do
             echo "attempt=${attempt}"
             build="$(curl --fail --silent --show-error --max-time 15 "$ORIGIN/api/build-info" || true)"
             hf="$(curl --fail --silent --show-error --max-time 15 "$HF_API" || true)"
-            BUILD_JSON="$build" HF_JSON="$hf" python3 - <<'PY'
+            series="$(curl --fail --silent --show-error --max-time 15 "$ORIGIN/api/a11oy/v1/series-a/status" || true)"
+            readiness="$(curl --fail --silent --show-error --max-time 15 "$ORIGIN/api/a11oy/v1/readiness/tab-matrix?view=summary" || true)"
+            relock="$(curl --fail --silent --show-error --max-time 15 "$RELOCK_API" || true)"
+            BUILD_JSON="$build" HF_JSON="$hf" SERIES_JSON="$series" READINESS_JSON="$readiness" RELOCK_JSON="$relock" python3 - <<'PY'
           import json, os, sys
           expected = os.environ['EXPECTED_SHA']
-          build_raw = os.environ.get('BUILD_JSON', '')
-          hf_raw = os.environ.get('HF_JSON', '')
-          try:
-              build = json.loads(build_raw)
-          except Exception:
-              build = {}
-          try:
-              hf = json.loads(hf_raw)
-          except Exception:
-              hf = {}
+          def load(name):
+              try:
+                  return json.loads(os.environ.get(name, ''))
+              except Exception:
+                  return {}
+          build = load('BUILD_JSON')
+          hf = load('HF_JSON')
+          series = load('SERIES_JSON')
+          readiness = load('READINESS_JSON')
+          relock = load('RELOCK_JSON')
           revision = ((build.get('build') or {}).get('revision'))
           source = ((build.get('build') or {}).get('revision_source'))
-          status = build.get('status')
           hf_sha = hf.get('sha')
           runtime = hf.get('runtime') or {}
           runtime_sha = runtime.get('sha') or (runtime.get('raw') or {}).get('sha')
           stage = runtime.get('stage')
+          storage = series.get('storage') or {}
+          series_revision = series.get('source_revision')
+          signing_source = series.get('signing_key_source')
+          signature_status = series.get('signature_status')
+          readiness_revision = readiness.get('verdict_source_revision')
+          if not readiness_revision:
+              verdict = readiness.get('verdict') or {}
+              readiness_revision = verdict.get('source_revision')
+          issue_body = relock.get('body') or ''
+          issue_state = relock.get('state')
           print(json.dumps({
               'expected_source_sha': expected,
-              'build_status': status,
+              'build_status': build.get('status'),
               'build_revision': revision,
               'build_revision_source': source,
               'hf_repository_sha': hf_sha,
               'hf_runtime_sha': runtime_sha,
               'hf_runtime_stage': stage,
+              'series_a_source_revision': series_revision,
+              'series_a_signature_status': signature_status,
+              'series_a_signing_key_source': signing_source,
+              'series_a_mount_verified': storage.get('mount_verified'),
+              'series_a_persistence_required': storage.get('persistence_required'),
+              'readiness_source_revision': readiness_revision,
+              'relock_issue_state': issue_state,
+              'relock_contains_expected_sha': expected in issue_body,
+              'relock_contains_pass': '"status": "PASS"' in issue_body,
           }, sort_keys=True))
-          source_ok = status == 'OBSERVED' and revision == expected and source == 'env:SZL_GIT_SHA'
-          # HF repository/runtime SHA is a Space commit and need not equal GitHub SHA; require
-          # a real immutable 40-char HF SHA and RUNNING runtime while build-info binds GitHub source.
-          hf_ok = isinstance(hf_sha, str) and len(hf_sha) == 40 and stage == 'RUNNING'
-          if source_ok and hf_ok:
-              sys.exit(0)
-          sys.exit(1)
+          source_ok = build.get('status') == 'OBSERVED' and revision == expected and source == 'env:SZL_GIT_SHA'
+          hf_ok = isinstance(hf_sha, str) and len(hf_sha) == 40 and runtime_sha == hf_sha and stage == 'RUNNING'
+          series_ok = (
+              series_revision == expected
+              and storage.get('mount_verified') is True
+              and storage.get('persistence_required') is True
+              and isinstance(signing_source, str)
+              and signing_source.startswith('persistent:')
+          )
+          readiness_ok = readiness_revision == expected
+          relock_ok = expected in issue_body and '"status": "PASS"' in issue_body and issue_state == 'closed'
+          sys.exit(0 if source_ok and hf_ok and series_ok and readiness_ok and relock_ok else 1)
           PY
             rc=$?
             if [ "$rc" -eq 0 ]; then
-              echo "POSTMERGE_SOURCE_BINDING_PASS"
+              echo "POSTMERGE_TERMINAL_RELOCK_PASS"
               exit 0
             fi
             sleep 15
           done
-          echo "POSTMERGE_SOURCE_BINDING_TIMEOUT" >&2
+          echo "POSTMERGE_TERMINAL_RELOCK_TIMEOUT" >&2
           exit 1
