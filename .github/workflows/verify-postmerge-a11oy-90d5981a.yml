@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 22
     env:
-      EXPECTED_SHA: 90d5981a6dc4223d4053fc970468e26ae191fa99
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
       ORIGIN: https://szlholdings-a11oy.hf.space
       HF_API: https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy
       RELOCK_API: https://api.github.com/repos/szl-holdings/a11oy/issues/1043
