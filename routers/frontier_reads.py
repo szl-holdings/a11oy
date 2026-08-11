@@ -16,7 +16,9 @@ this group, so it moves here with the routes. Registered BEFORE the /api/a11oy/
 
 The additive Series-A controller is registered at this same pre-catch-all seam. It
 keeps GET/HEAD read-only, uses explicit POSTs for refresh/evaluate/execute, and
-fails one surface closed without taking down the existing frontier reads.
+fails one surface closed without taking down the existing frontier reads. Frontier
+Now is a read-only projection over that controller: no second store, signer,
+credential, scheduler, passport authority, or effector.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -101,15 +103,31 @@ def register(app) -> dict:
             "effectors": [],
         }
 
+    try:
+        from routers import frontier_now_control_plane as _frontier_now
+
+        frontier_now = _frontier_now.register(app, ns="a11oy")
+    except Exception as exc:  # one read projection must never take down A11oy
+        frontier_now = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": [],
+        }
+
     return {
         "ok": True,
         "ns": "a11oy",
         "group": "frontier-reads",
         "series_a": series_a,
+        "frontier_now": frontier_now,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
             "/api/a11oy/v1/observability/business", "/v1/observability/business",
             "/series-a", "/api/a11oy/v1/series-a/status",
+            "/frontier-now", "/now",
+            "/api/a11oy/v1/frontier-now/summary",
+            "/api/a11oy/v1/frontier-now/inventory",
         ],
     }

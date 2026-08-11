@@ -24,6 +24,10 @@ Action Passports, signed receipts, and bounded one-attempt effectors. It is expo
 here so invocation and package-integrity checks can prove the production module is
 intentional rather than an orphaned source file.
 
+`frontier_now_control_plane` is an additive GET/HEAD-only projection over that
+existing Series-A seam. It intentionally owns no database, signer, credentials,
+scheduler, passport authority, or effectors.
+
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
 
@@ -34,5 +38,6 @@ __all__ = [
     "lambda_bounty",
     "research_3d",
     "frontier_reads",
+    "frontier_now_control_plane",
     "series_a_control_plane",
 ]

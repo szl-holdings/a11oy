@@ -67,6 +67,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/frontier-index/catalog",    # Wave-Q honest ecosystem catalog the status aggregate is built on (drift-proof source)
     "/api/a11oy/v1/models/frontier-adoption",  # Wave-26 pinned model-admission contract
     "/api/a11oy/v1/models/estate",             # Wave-26 fail-closed live HF estate merge
+    "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
+    "/frontier-now",                           # responsive Frontier Now PAGE
 ]
 
 
@@ -134,3 +136,48 @@ def test_no_demo_critical_route_dropped_as_a_set():
 def test_investor_facing_pages_support_get_and_head(path):
     """Public demo links must work in browsers and HEAD-based link monitors."""
     assert {"GET", "HEAD"}.issubset(_methods(path))
+
+
+def test_frontier_now_routes_are_owned_and_precede_production_catchalls():
+    """The assembled app must route the cockpit to its owning module, not a fallback."""
+    intended = (
+        "/frontier-now",
+        "/frontier-now/",
+        "/now",
+        "/now/",
+        "/frontier-now/app.js",
+        "/frontier-now/app.js/",
+        "/frontier-now/styles.css",
+        "/frontier-now/styles.css/",
+        "/api/a11oy/v1/frontier-now/summary",
+        "/api/a11oy/v1/frontier-now/summary/",
+        "/api/a11oy/v1/frontier-now/inventory",
+        "/api/a11oy/v1/frontier-now/inventory/",
+    )
+    routes = list(serve.app.router.routes)
+    spa_index = next(
+        index
+        for index, route in enumerate(routes)
+        if getattr(route, "path", None) == "/{full_path:path}"
+    )
+    api_proxy_index = next(
+        index
+        for index, route in enumerate(routes)
+        if getattr(route, "path", None) == "/api/a11oy/{path:path}"
+    )
+
+    for path in intended:
+        owned = [
+            (index, route)
+            for index, route in enumerate(routes)
+            if getattr(route, "path", None) == path
+        ]
+        assert len(owned) == 1, f"expected one owning route for {path}, got {len(owned)}"
+        index, route = owned[0]
+        assert getattr(route.endpoint, "__module__", None) == (
+            "routers.frontier_now_control_plane"
+        )
+        assert {"GET", "HEAD"}.issubset(getattr(route, "methods", set()))
+        assert index < spa_index
+        if path.startswith("/api/a11oy/"):
+            assert index < api_proxy_index
