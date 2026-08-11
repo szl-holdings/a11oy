@@ -1,0 +1,52 @@
+name: Tokenizer Frontier Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/tokenizer-frontier/**'
+      - 'docs/workcells/1258/W2_PROOF_PACKET.md'
+      - '.github/workflows/tokenizer-frontier.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/tokenizer-frontier/**'
+      - 'docs/workcells/1258/W2_PROOF_PACKET.md'
+      - '.github/workflows/tokenizer-frontier.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Validate promotion schema
+        run: python -m json.tool packages/tokenizer-frontier/tokenizer-promotion.schema.json >/dev/null
+
+      - name: Compile package
+        run: python -m compileall -q packages/tokenizer-frontier/szl_tokenizer_frontier
+
+      - name: Run exact semantic and Prefix Foundry tests
+        env:
+          PYTHONPATH: packages/tokenizer-frontier
+        run: >-
+          python -m unittest -v
+          packages/tokenizer-frontier/tests/test_tokenizer_frontier.py

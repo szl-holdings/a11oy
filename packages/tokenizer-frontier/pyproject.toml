@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "szl-tokenizer-frontier"
+version = "0.1.0"
+description = "Exact semantic promotion gates and immutable prefix objects for a11oy."
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Stephen P. Lutar Jr."}]
+
+[tool.setuptools]
+packages = ["szl_tokenizer_frontier"]
