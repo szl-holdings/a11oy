@@ -27,16 +27,16 @@
     ".map"
   ],
   "accepted_divergences": {
-    "a11oy_landing.html": "accepted divergence introduced by Round-5 frontend frontdoor refresh",
-    "govern_showcase.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/assurance.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/chaski.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/console.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/fabric.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/landing.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/pinn-console.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/pricing.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/substrate.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/verify.html": "accepted divergence introduced by Round-5 frontdoor refresh"
+    "a11oy_landing.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "govern_showcase.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/assurance.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/chaski.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/console.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/fabric.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/landing.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/pinn-console.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/pricing.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/substrate.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/verify.html": "Round-5 Unicode migration (provenance reconciliation in-progress)"
   }
 }

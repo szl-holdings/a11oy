@@ -2,10 +2,11 @@
 """Fail-closed GitHub/Hugging Face repository parity orchestration.
 
 The pinned organization comparator is retained for its Dockerfile COPY
-expansion, but this wrapper removes three unsafe ambiguities from proof mode:
-the HF branch is resolved twice to one immutable commit, no allowlist is
-passed, and the comparator's known dot-prefixed normalization gap is covered by
-an explicit byte comparison of ``.well-known/security.txt``.
+expansion. Protected-base proof remains strict. A candidate may pass one
+explicit, same-checkout allowlist whose bytes are snapshotted once and whose
+warning set must exactly match the comparator report. The comparator's known
+dot-prefixed normalization gap is always covered by an independent byte
+comparison of ``.well-known/security.txt``.
 """
 
 from __future__ import annotations
@@ -17,13 +18,18 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 import urllib.request
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ALLOWLIST_RELATIVE_PATH = Path(".github/hf-module-drift-allow.json")
+MAX_ALLOW_PATH_LENGTH = 512
+MAX_ALLOW_REASON_LENGTH = 500
 EXPECTED_COMPATIBILITY_WARNING = {
     "kind": "missing-both",
     "path": "well-known/security.txt",
@@ -33,6 +39,113 @@ EXPECTED_COMPATIBILITY_WARNING = {
 
 class ParityError(RuntimeError):
     """Raised when immutable repository parity cannot be proved."""
+
+
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ParityError(f"duplicate JSON key is forbidden: {key}")
+        result[key] = value
+    return result
+
+
+def _parse_json_bytes(raw: bytes, *, label: str) -> object:
+    if raw.startswith(b"\xef\xbb\xbf"):
+        raise ParityError(f"{label} must not contain a UTF-8 BOM")
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ParityError(f"{label} is not strict UTF-8: {exc}") from exc
+    try:
+        return json.loads(text, object_pairs_hook=_unique_object)
+    except json.JSONDecodeError as exc:
+        raise ParityError(f"{label} is not valid JSON: {exc}") from exc
+
+
+def parse_allowlist_snapshot(raw: bytes) -> dict[str, str]:
+    payload = _parse_json_bytes(raw, label="HF parity allowlist")
+    if not isinstance(payload, dict):
+        raise ParityError("HF parity allowlist must be one JSON object")
+    accepted = payload.get("accepted_divergences")
+    if not isinstance(accepted, dict):
+        raise ParityError("accepted_divergences must be one JSON object")
+
+    normalized: dict[str, str] = {}
+    forbidden = {".well-known/security.txt", "well-known/security.txt"}
+    for path, reason in accepted.items():
+        if not isinstance(path, str) or not path or len(path) > MAX_ALLOW_PATH_LENGTH:
+            raise ParityError("allowlist paths must be non-empty bounded strings")
+        if "\\" in path or any(ord(character) < 32 or ord(character) == 127 for character in path):
+            raise ParityError(f"allowlist path is not normalized POSIX text: {path!r}")
+        parsed = PurePosixPath(path)
+        if (
+            parsed.is_absolute()
+            or parsed.as_posix() != path
+            or any(part in {"", ".", ".."} for part in parsed.parts)
+        ):
+            raise ParityError(f"allowlist path is not a normalized relative path: {path!r}")
+        if path in forbidden:
+            raise ParityError("the mandatory security.txt byte proof cannot be allowlisted")
+        if (
+            not isinstance(reason, str)
+            or not reason.strip()
+            or len(reason) > MAX_ALLOW_REASON_LENGTH
+            or any(ord(character) < 32 and character not in "\t\n\r" for character in reason)
+        ):
+            raise ParityError(f"allowlist reason must be a non-empty bounded string: {path}")
+        normalized[path] = reason
+    return normalized
+
+
+def _checkout_head(root: Path) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def load_candidate_allowlist(
+    path: Path,
+    *,
+    github_ref: str,
+    head_resolver: Callable[[Path], str] = _checkout_head,
+) -> tuple[bytes, dict[str, str]]:
+    expected = (REPO_ROOT / ALLOWLIST_RELATIVE_PATH).resolve()
+    supplied = path.resolve()
+    if supplied != expected:
+        raise ParityError(
+            "candidate allowlist must be .github/hf-module-drift-allow.json "
+            "from the wrapper's own checkout"
+        )
+    if not supplied.is_file():
+        raise ParityError("candidate HF parity allowlist is absent")
+    if head_resolver(REPO_ROOT) != github_ref:
+        raise ParityError("candidate checkout HEAD is not the admitted github-ref")
+    try:
+        raw = supplied.read_bytes()
+    except OSError as exc:
+        raise ParityError(f"cannot read candidate allowlist: {exc}") from exc
+    return raw, parse_allowlist_snapshot(raw)
+
+
+def run_comparator(
+    command: list[str],
+    *,
+    allow_bytes: bytes | None,
+    runner: Callable[..., Any] = subprocess.run,
+) -> None:
+    if allow_bytes is None:
+        runner(command, check=True)
+        return
+    with tempfile.TemporaryDirectory(prefix="a11oy-hf-allow-") as temp_dir:
+        snapshot = Path(temp_dir) / "hf-module-drift-allow.json"
+        snapshot.write_bytes(allow_bytes)
+        snapshot.chmod(0o400)
+        runner([*command, "--allow", str(snapshot)], check=True)
 
 
 def _read_url(
@@ -86,7 +199,13 @@ def resolve_stable_revision(
     return first
 
 
-def validate_report(report: object, *, github_ref: str, hf_ref: str) -> None:
+def validate_report(
+    report: object,
+    *,
+    github_ref: str,
+    hf_ref: str,
+    accepted_divergences: dict[str, str] | None = None,
+) -> None:
     if not isinstance(report, dict):
         raise ParityError("comparator report must be an object")
     for counter in ("error_count", "warn_count", "files_compared"):
@@ -104,20 +223,42 @@ def validate_report(report: object, *, github_ref: str, hf_ref: str) -> None:
     findings = report.get("findings")
     if not isinstance(findings, list):
         raise ParityError("comparator findings must be an array")
-    if len(findings) != 1 or not all(
-        isinstance(finding, dict) for finding in findings
-    ):
-        raise ParityError("comparator findings must contain exactly one object")
-    normalized = [
-        {key: finding.get(key) for key in ("kind", "path", "severity")}
-        for finding in findings
-    ]
-    if normalized != [EXPECTED_COMPATIBILITY_WARNING]:
-        raise ParityError(f"unexpected comparator findings: {normalized!r}")
-    if report.get("warn_count") != 1:
+    if not all(isinstance(finding, dict) for finding in findings):
+        raise ParityError("every comparator finding must be one object")
+
+    accepted = accepted_divergences or {}
+    observed_allowed: dict[str, str] = {}
+    observed_paths: set[str] = set()
+    compatibility_count = 0
+    for finding in findings:
+        path = finding.get("path")
+        if not isinstance(path, str) or path in observed_paths:
+            raise ParityError("comparator finding paths must be unique strings")
+        observed_paths.add(path)
+        normalized = {
+            key: finding.get(key) for key in ("kind", "path", "severity")
+        }
+        if normalized == EXPECTED_COMPATIBILITY_WARNING:
+            compatibility_count += 1
+            continue
+        if finding.get("kind") != "drift" or finding.get("severity") != "warn":
+            raise ParityError(f"unexpected comparator finding: {normalized!r}")
+        expected_reason = accepted.get(path)
+        if expected_reason is None or finding.get("reason") != expected_reason:
+            raise ParityError(f"unbound comparator warning: {path}")
+        observed_allowed[path] = expected_reason
+
+    if compatibility_count != 1:
+        raise ParityError("the guarded security.txt compatibility warning is not exact")
+    if observed_allowed != accepted:
+        missing = sorted(set(accepted) - set(observed_allowed))
+        extra = sorted(set(observed_allowed) - set(accepted))
         raise ParityError(
-            "comparator warning count does not match the guarded compatibility gap"
+            f"allowlist/report warning set mismatch: missing={missing!r} extra={extra!r}"
         )
+    expected_warn_count = len(accepted) + 1
+    if report.get("warn_count") != expected_warn_count or len(findings) != expected_warn_count:
+        raise ParityError("comparator warning count does not match the exact admitted set")
 
 
 def verify_github_tree_complete(
@@ -185,6 +326,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--github-repo", required=True)
     parser.add_argument("--github-ref", required=True)
     parser.add_argument("--hf-repo", required=True)
+    parser.add_argument("--allow", type=Path)
     parser.add_argument("--report-out", type=Path, required=True)
     args = parser.parse_args(argv)
 
@@ -192,6 +334,14 @@ def main(argv: list[str] | None = None) -> int:
         raise ParityError("github-ref must be an exact lowercase 40-character SHA")
     if not args.tools_script.is_file():
         raise ParityError("pinned comparator script is absent")
+
+    allow_bytes: bytes | None = None
+    accepted_divergences: dict[str, str] = {}
+    if args.allow is not None:
+        allow_bytes, accepted_divergences = load_candidate_allowlist(
+            args.allow,
+            github_ref=args.github_ref,
+        )
 
     hf_ref = resolve_stable_revision(args.hf_repo)
     verify_github_tree_complete(args.github_repo, github_ref=args.github_ref)
@@ -210,9 +360,18 @@ def main(argv: list[str] | None = None) -> int:
         "--report-out",
         str(args.report_out),
     ]
-    subprocess.run(command, check=True)
-    report = json.loads(args.report_out.read_text(encoding="utf-8"))
-    validate_report(report, github_ref=args.github_ref, hf_ref=hf_ref)
+    run_comparator(command, allow_bytes=allow_bytes)
+    try:
+        report_bytes = args.report_out.read_bytes()
+    except OSError as exc:
+        raise ParityError(f"cannot read comparator report: {exc}") from exc
+    report = _parse_json_bytes(report_bytes, label="comparator report")
+    validate_report(
+        report,
+        github_ref=args.github_ref,
+        hf_ref=hf_ref,
+        accepted_divergences=accepted_divergences,
+    )
     dot_sha256 = verify_leading_dot_copy(
         github_repo=args.github_repo,
         github_ref=args.github_ref,

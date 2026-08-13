@@ -1,13 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>a11oy â€” AI Assurance for WDP-era Agentic AI</title>
+<title>a11oy — AI Assurance for WDP-era Agentic AI</title>
 <style>
   /* =====================================================================
-     a11oy Assurance Surface â€” elite showcase aesthetic
-     Dark palette Â· Cabinet Grotesk / JetBrains Mono Â· honest-label chips
+     a11oy Assurance Surface — elite showcase aesthetic
+     Dark palette · Cabinet Grotesk / JetBrains Mono · honest-label chips
      ===================================================================== */
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap');
 
@@ -403,7 +403,7 @@
   <nav class="nav-links">
     <a href="/verify" class="nav-back">Verify Receipt</a>
     <a href="/willay" class="nav-back">WILLAY</a>
-    <a href="/console" class="nav-back">â† Console</a>
+    <a href="/console" class="nav-back">← Console</a>
   </nav>
 </header>
 
@@ -411,39 +411,39 @@
 <main class="page">
 
   <!-- =====================================================================
-       A â€” HERO
+       A — HERO
        ===================================================================== -->
   <section class="section">
     <div class="hero">
-      <div class="hero-eyebrow">WDP Â· Advana Â· CDAO Â· Agentic AI</div>
+      <div class="hero-eyebrow">WDP · Advana · CDAO · Agentic AI</div>
       <h1>Verifiable AI Assurance<br>for the <span class="hl">War Data Platform</span> era.</h1>
       <p class="hero-sub">
         The Jan-2026 DoD memo restructuring Advana into WDP calls for
         <strong>agentic AI</strong> + <strong>enhanced auditability</strong>.
         a11oy is the governance + verifiable-provenance overlay that produces
-        the auditability evidence CDAO/RMF demands â€” one cryptographically
+        the auditability evidence CDAO/RMF demands — one cryptographically
         signed receipt per AI decision, buyer-verifiable offline.
       </p>
       <div class="hero-honest">
-        <span class="hero-honest-icon">âš </span>
+        <span class="hero-honest-icon">⚠</span>
         <span>
-          <strong>Honest status:</strong> a11oy is the assurance overlay â€” NOT an ATO-authorized system.
+          <strong>Honest status:</strong> a11oy is the assurance overlay — NOT an ATO-authorized system.
           ATO / IL5 / FedRAMP-High accreditation: <span class="chip chip-roadmap">ROADMAP</span>.
-          Stated plainly â€” the honesty is the sell to an auditor audience.
+          Stated plainly — the honesty is the sell to an auditor audience.
         </span>
       </div>
       <div class="hero-chips">
-        <span class="chip chip-live">DSSE Signed Receipts Â· LIVE</span>
-        <span class="chip chip-live">WebCrypto Verify Â· LIVE</span>
-        <span class="chip chip-live">Policy Gates Â· LIVE</span>
-        <span class="chip chip-roadmap">ATO / IL5 / FedRAMP Â· ROADMAP</span>
-        <span class="chip chip-info">a11oy = Overlay Â· NOT Replacement</span>
+        <span class="chip chip-live">DSSE Signed Receipts · LIVE</span>
+        <span class="chip chip-live">WebCrypto Verify · LIVE</span>
+        <span class="chip chip-live">Policy Gates · LIVE</span>
+        <span class="chip chip-roadmap">ATO / IL5 / FedRAMP · ROADMAP</span>
+        <span class="chip chip-info">a11oy = Overlay · NOT Replacement</span>
       </div>
     </div>
   </section>
 
   <!-- =====================================================================
-       B â€” ASSURANCE MATRIX
+       B — ASSURANCE MATRIX
        ===================================================================== -->
   <section class="section" id="section-matrix">
     <div class="section-head">
@@ -451,24 +451,24 @@
       <div>
         <div class="section-title">CDAO / DoD AI Assurance Requirements Matrix</div>
         <div class="section-desc">
-          Each row: a real CDAO/DoD/OMB requirement â†’ the a11oy artifact that satisfies it,
-          with honest status. ROADMAP items are labeled plainly â€” no fabricated compliance.
+          Each row: a real CDAO/DoD/OMB requirement → the a11oy artifact that satisfies it,
+          with honest status. ROADMAP items are labeled plainly — no fabricated compliance.
         </div>
       </div>
     </div>
 
     <div id="matrix-container">
       <div class="matrix-loading">
-        <span class="spinner"></span> Loading assurance matrix from /api/a11oy/v1/assurance/matrixâ€¦
+        <span class="spinner"></span> Loading assurance matrix from /api/a11oy/v1/assurance/matrix…
       </div>
     </div>
 
     <div style="margin-top:14px; font-size:12px; color:var(--text-mute);">
       Status key:
-      <span class="chip chip-live">LIVE</span> operational today Â·
-      <span class="chip chip-measured">MEASURED</span> real data Â·
-      <span class="chip chip-sample">SAMPLE</span> demo only Â·
-      <span class="chip chip-modeled">MODELED</span> model-derived Â·
+      <span class="chip chip-live">LIVE</span> operational today ·
+      <span class="chip chip-measured">MEASURED</span> real data ·
+      <span class="chip chip-sample">SAMPLE</span> demo only ·
+      <span class="chip chip-modeled">MODELED</span> model-derived ·
       <span class="chip chip-roadmap">ROADMAP</span> planned / not yet delivered
     </div>
 
@@ -480,29 +480,29 @@
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
         One signed, offline-verifiable JSON bundling the assurance matrix, khipu chain heads
         (re-walked <code>links_intact</code>), the lake health snapshot, and the doctrine
-        snapshot â€” self-hashed with <strong>sha3_256</strong> so an auditor re-verifies offline.
+        snapshot — self-hashed with <strong>sha3_256</strong> so an auditor re-verifies offline.
         Honest: integrity is COMPUTED, not asserted; signature is the demo key (NOT production cosign).
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" id="evidence-pack-btn" onclick="downloadEvidencePack()">
           Download Evidence Pack
         </button>
-        <a class="btn" href="/api/a11oy/v1/assurance/evidence-pack" target="_blank">View JSON â†’</a>
+        <a class="btn" href="/api/a11oy/v1/assurance/evidence-pack" target="_blank">View JSON →</a>
       </div>
       <div id="evidence-pack-status" class="status-line"></div>
     </div>
   </section>
 
   <!-- =====================================================================
-       C â€” LIVE PROOF WIDGET (run governed decision â†’ sign â†’ verify)
+       C — LIVE PROOF WIDGET (run governed decision → sign → verify)
        ===================================================================== -->
   <section class="section" id="section-proof">
     <div class="section-head">
       <div class="section-letter">C</div>
       <div>
-        <div class="section-title">Live Proof: Run â†’ Sign â†’ Verify Yourself</div>
+        <div class="section-title">Live Proof: Run → Sign → Verify Yourself</div>
         <div class="section-desc">
-          Run a governed execution â†’ receive a DSSE-signed Khipu receipt â†’
+          Run a governed inference → receive a DSSE-signed Khipu receipt →
           verify the ECDSA-P256 signature in-browser via WebCrypto (zero server round-trip for verification).
         </div>
       </div>
@@ -523,31 +523,31 @@
       <div class="proof-body">
         <div class="btn-row">
           <button class="btn btn-primary" id="proof-run-btn" onclick="runProof()">
-            Run Governed Decision â†’ Get Signed Receipt â†’ Verify
+            Run Governed Decision → Get Signed Receipt → Verify
           </button>
         </div>
         <div id="proof-status" class="status-line"></div>
         <div id="proof-verdict" style="display:none"></div>
         <div id="proof-output" class="output" style="display:none"></div>
         <div style="margin-top:14px; font-size:12px; color:var(--text-mute);">
-          <span class="conj">Î› Conjecture 1 â€” advisory, NOT a theorem</span>
-          &nbsp;Â·&nbsp;
-          <a href="/verify" style="font-size:12px">Open full /verify page â†’</a>
+          <span class="conj">Λ Conjecture 1 — advisory, NOT a theorem</span>
+          &nbsp;·&nbsp;
+          <a href="/verify" style="font-size:12px">Open full /verify page →</a>
         </div>
       </div>
     </div>
   </section>
 
   <!-- =====================================================================
-       D â€” WILLAY FOR DEFENSE
+       D — WILLAY FOR DEFENSE
        ===================================================================== -->
   <section class="section" id="section-willay">
     <div class="section-head">
       <div class="section-letter">D</div>
       <div>
-        <div class="section-title">WILLAY â€” Signed Refusals for Defense</div>
+        <div class="section-title">WILLAY — Signed Refusals for Defense</div>
         <div class="section-desc">
-          An agent that can refuse â€” and prove why, signed.
+          An agent that can refuse — and prove why, signed.
           Critical for agentic AI in defense: every denial is a
           cryptographically-signed, auditable artifact.
         </div>
@@ -555,7 +555,7 @@
     </div>
 
     <div class="willay-card">
-      <div class="willay-icon">âš¡</div>
+      <div class="willay-icon">⚡</div>
       <div class="willay-content">
         <h3>What Makes a Signed Refusal Different</h3>
         <div class="willay-quote">
@@ -564,23 +564,23 @@
           WILLAY produces a DSSE-signed denial receipt that any auditor can verify.
         </div>
         <p>
-          Every WILLAY denial embeds: the triggering gate name, the Î› advisory score
-          (Conjecture 1 label), the hash-chain link (prevâ†’digest), and the timestamp â€”
+          Every WILLAY denial embeds: the triggering gate name, the Λ advisory score
+          (Conjecture 1 label), the hash-chain link (prev→digest), and the timestamp —
           all under ECDSA-P256 signature. The authorization package has a machine-verifiable
           TEVV artifact for every denied call, not just allowed ones.
         </p>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px">
-          <span class="chip chip-live">Signed denial receipts Â· LIVE</span>
-          <span class="conj">Î› Conjecture 1 â€” advisory</span>
+          <span class="chip chip-live">Signed denial receipts · LIVE</span>
+          <span class="conj">Λ Conjecture 1 — advisory</span>
           <span class="chip chip-info">Auditor-verifiable offline</span>
         </div>
-        <a href="/willay" class="btn-willay">Open WILLAY â€” Signed Refusals â†’</a>
+        <a href="/willay" class="btn-willay">Open WILLAY — Signed Refusals →</a>
       </div>
     </div>
   </section>
 
   <!-- =====================================================================
-       E â€” WHERE A11OY FITS (honest diagram)
+       E — WHERE A11OY FITS (honest diagram)
        ===================================================================== -->
   <section class="section" id="section-fit">
     <div class="section-head">
@@ -603,16 +603,16 @@
           <rect x="20" y="12" width="600" height="70" rx="10" fill="#0c1a33" stroke="#1e3a8a" stroke-width="1.5"/>
           <text x="36" y="36" font-family="'JetBrains Mono', monospace" font-size="10" fill="#6c8ef5" font-weight="700" letter-spacing="1">GOVERNANCE + TRUST OVERLAY</text>
           <text x="36" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="16" fill="#e8eaf0" font-weight="800">a11oy</text>
-          <text x="100" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8">signed receipts Â· policy gates Â· honest labels Â· WILLAY refusals</text>
-          <text x="36" y="73" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">DSSE Â· ECDSA-P256 Â· WebCrypto-verifiable Â· Î› advisory (Conjecture 1)</text>
+          <text x="100" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8">signed receipts · policy gates · honest labels · WILLAY refusals</text>
+          <text x="36" y="73" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">DSSE · ECDSA-P256 · WebCrypto-verifiable · Λ advisory (Conjecture 1)</text>
           <!-- Arrow -->
-          <text x="280" y="103" font-family="monospace" font-size="12" fill="#4a5068" text-anchor="middle">sits on top of â†“</text>
+          <text x="280" y="103" font-family="monospace" font-size="12" fill="#4a5068" text-anchor="middle">sits on top of ↓</text>
           <!-- Platform layer -->
           <rect x="20" y="116" width="600" height="70" rx="10" fill="#0d1a0d" stroke="#2a3a1a" stroke-width="1.5"/>
           <text x="36" y="136" font-family="'JetBrains Mono', monospace" font-size="10" fill="#86efac" font-weight="700" letter-spacing="1">SYSTEM OF RECORD</text>
           <text x="36" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="14" fill="#86efac" font-weight="800">WDP / Advana</text>
-          <text x="150" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8"> Â· Palantir Foundry Â· Databricks Unity Catalog</text>
-          <text x="36" y="175" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">data Â· ontology Â· lineage Â· column governance â†’ stays authoritative</text>
+          <text x="150" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8"> · Palantir Foundry · Databricks Unity Catalog</text>
+          <text x="36" y="175" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">data · ontology · lineage · column governance → stays authoritative</text>
         </svg>
 
         <div class="fit-list">
@@ -630,7 +630,7 @@
           </div>
           <div class="fit-item fit-item-yes">
             <div class="fit-item-label yes">a11oy IS</div>
-            Signed refusal explainer (WILLAY) â€” not a black-box boolean gate
+            Signed refusal explainer (WILLAY) — not a black-box boolean gate
           </div>
           <div class="fit-item fit-item-no">
             <div class="fit-item-label no">a11oy IS NOT</div>
@@ -642,11 +642,11 @@
           </div>
           <div class="fit-item fit-item-no">
             <div class="fit-item-label no">a11oy IS NOT</div>
-            An accredited system (ATO / IL5 / FedRAMP-High: ROADMAP â€” stated plainly)
+            An accredited system (ATO / IL5 / FedRAMP-High: ROADMAP — stated plainly)
           </div>
           <div class="fit-item fit-item-no">
             <div class="fit-item-label no">a11oy IS NOT</div>
-            A certified classifier â€” Î› is Conjecture 1 (advisory; NOT a theorem)
+            A certified classifier — Λ is Conjecture 1 (advisory; NOT a theorem)
           </div>
         </div>
 
@@ -655,7 +655,7 @@
           The Jan-2026 DoD memo explicitly calls for <em>agentic AI</em> + <em>enhanced auditability</em>
           toward a clean FY27/FY28 audit.
           Foundry shows data lineage. Unity Catalog shows column provenance.
-          a11oy gives you a cryptographic signature on the <em>AI decision itself</em> â€”
+          a11oy gives you a cryptographic signature on the <em>AI decision itself</em> —
           something the buyer can verify offline, without trusting the provider.
         </div>
       </div>
@@ -664,7 +664,7 @@
       <div style="background:var(--bg-panel); border-top:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <span style="font-size:11px; color:var(--text-mute); font-weight:700; text-transform:uppercase; letter-spacing:.07em">API</span>
         <a href="/api/a11oy/v1/assurance/fit" style="font-size:12px; font-family:var(--mono);" target="_blank">/api/a11oy/v1/assurance/fit</a>
-        <span style="font-size:11px; color:var(--text-mute)">â†’ full machine-readable fit statement</span>
+        <span style="font-size:11px; color:var(--text-mute)">→ full machine-readable fit statement</span>
         <span id="fit-status" style="font-size:11px; color:var(--text-mute); margin-left:auto"></span>
       </div>
     </div>
@@ -675,17 +675,17 @@
 <!-- ===== FOOTER ===== -->
 <footer class="footer">
   <p>
-    SZL Holdings Â· a11oy Â· Doctrine v11 Â· 8 kernel-proven formulas @ c7c0ba17 Â·
-    Î› = Conjecture 1 (advisory) Â· Khipu BFT = Conjecture 2 Â·
-    ATO/IL5/FedRAMP = ROADMAP (not accredited) Â·
-    <a href="/api/a11oy/v1/assurance/matrix" target="_blank">Assurance Matrix API</a> Â·
-    <a href="/verify" target="_blank">Verify a Receipt</a> Â·
+    SZL Holdings · a11oy · Doctrine v11 · 8 kernel-proven formulas @ c7c0ba17 ·
+    Λ = Conjecture 1 (advisory) · Khipu BFT = Conjecture 2 ·
+    ATO/IL5/FedRAMP = ROADMAP (not accredited) ·
+    <a href="/api/a11oy/v1/assurance/matrix" target="_blank">Assurance Matrix API</a> ·
+    <a href="/verify" target="_blank">Verify a Receipt</a> ·
     <a href="/cosign.pub" target="_blank">cosign.pub</a>
   </p>
 </footer>
 
 <!-- ===================================================================
-     JAVASCRIPT â€” all in-browser, 0 CDN
+     JAVASCRIPT — all in-browser, 0 CDN
      =================================================================== -->
 <script>
 "use strict";
@@ -717,7 +717,7 @@ function statusChip(status) {
 }
 
 /* ==================================================================
-   SECTION B â€” Load assurance matrix
+   SECTION B — Load assurance matrix
    ================================================================== */
 async function loadMatrix() {
   var container = el('matrix-container');
@@ -729,8 +729,8 @@ async function loadMatrix() {
     data = await resp.json();
   } catch(e) {
     container.innerHTML = '<div class="matrix-loading" style="color:var(--amber)">'+
-      'âš  Could not load matrix: '+escHTML(e.message)+'<br>'+
-      '<a href="/api/a11oy/v1/assurance/matrix" target="_blank" style="font-size:12px">Try API directly â†’</a>'+
+      '⚠ Could not load matrix: '+escHTML(e.message)+'<br>'+
+      '<a href="/api/a11oy/v1/assurance/matrix" target="_blank" style="font-size:12px">Try API directly →</a>'+
       '</div>';
     return;
   }
@@ -751,7 +751,7 @@ async function loadMatrix() {
       : '';
     var sourceLink = r.source_url
       ? '<a class="source-link" href="'+escHTML(r.source_url)+'" target="_blank" rel="noopener">'+escHTML(r.source)+'</a>'
-      : escHTML(r.source || 'â€”');
+      : escHTML(r.source || '—');
 
     html += '<tr>'+
       '<td class="status-col"><span class="req-id-badge">'+escHTML(r.req_id)+'</span></td>'+
@@ -769,7 +769,7 @@ async function loadMatrix() {
   // Honest note banner
   if (data.honest_note) {
     html += '<div style="margin-top:12px;background:var(--amber-dark);border:1px solid var(--amber-mid);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--amber)">'+
-      'âš  '+escHTML(data.honest_note)+'</div>';
+      '⚠ '+escHTML(data.honest_note)+'</div>';
   }
 
   container.innerHTML = html;
@@ -825,14 +825,14 @@ async function importPubKeyFromPEM(pem) {
 }
 
 /* ==================================================================
-   SECTION C â€” Run governed decision â†’ verify receipt
+   SECTION C — Run governed decision → verify receipt
    ================================================================== */
 async function runProof() {
   var btn = el('proof-run-btn');
   btn.disabled = true;
   hide('proof-verdict');
   hide('proof-output');
-  setStatus('proof-status', 'Calling /api/a11oy/v1/govern/infer â€¦', true);
+  setStatus('proof-status', 'Calling /api/a11oy/v1/govern/infer …', true);
 
   var data;
   try {
@@ -847,7 +847,7 @@ async function runProof() {
     btn.disabled = false; return;
   }
 
-  setStatus('proof-status', 'Fetching cosign.pub and verifying signature via WebCrypto â€¦', true);
+  setStatus('proof-status', 'Fetching cosign.pub and verifying signature via WebCrypto …', true);
 
   var dsse    = data.dsse    || {};
   var receipt = data.receipt || {};
@@ -876,7 +876,7 @@ async function runProof() {
   var verified = false, verifyError = '', sigKeyid = '';
 
   if (!dsse.signed) {
-    verifyError = 'UNSIGNED envelope â€” private key not in runtime. Receipt chain still valid.';
+    verifyError = 'UNSIGNED envelope — private key not in runtime. Receipt chain still valid.';
   } else if (!sigs.length) {
     verifyError = 'No signatures in envelope.';
   } else {
@@ -884,7 +884,7 @@ async function runProof() {
     try {
       var sigBytes = b64Decode(sigEntry.sig||'');
       var rawSig = sigBytes;
-      if(sigBytes[0]===0x30){try{rawSig=derToRaw(sigBytes);}catch(e2){verifyError='DERâ†’raw failed: '+e2.message;}}
+      if(sigBytes[0]===0x30){try{rawSig=derToRaw(sigBytes);}catch(e2){verifyError='DER→raw failed: '+e2.message;}}
       if(!verifyError){
         verified = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'}, pubKey, rawSig.buffer, paeBytes.buffer);
         if(!verified && sigBytes[0]===0x30){
@@ -901,29 +901,29 @@ async function runProof() {
 
   var verdictHTML = '';
   if(verified){
-    verdictHTML='<div class="verdict-banner verdict-ok">âœ“ VERIFIED â€” WebCrypto ECDSA-P256 signature valid <span class="chip chip-ok">keyid: '+escHTML(sigKeyid)+'</span></div>';
+    verdictHTML='<div class="verdict-banner verdict-ok">✓ VERIFIED — WebCrypto ECDSA-P256 signature valid <span class="chip chip-ok">keyid: '+escHTML(sigKeyid)+'</span></div>';
   } else if(!dsse.signed){
-    verdictHTML='<div class="verdict-banner verdict-dim">âš  UNSIGNED â€” private key not in runtime; receipt chain still valid</div>';
+    verdictHTML='<div class="verdict-banner verdict-dim">⚠ UNSIGNED — private key not in runtime; receipt chain still valid</div>';
   } else {
-    verdictHTML='<div class="verdict-banner verdict-fail">âœ— VERIFICATION FAILED â€” '+escHTML(verifyError)+'</div>';
+    verdictHTML='<div class="verdict-banner verdict-fail">✗ VERIFICATION FAILED — '+escHTML(verifyError)+'</div>';
   }
 
   var digestMatch = payloadDigestComputed===receiptDigest.substring(0,64);
   verdictHTML += '<div style="margin-bottom:12px">'+
     '<div class="hash-row"><span class="hash-label">Payload digest:</span>'+
-    '<span class="hash-val '+(digestMatch?'hash-match':'hash-mismatch')+'">'+payloadDigestComputed.substring(0,32)+'â€¦</span>'+
+    '<span class="hash-val '+(digestMatch?'hash-match':'hash-mismatch')+'">'+payloadDigestComputed.substring(0,32)+'…</span>'+
     '<span class="chip '+(digestMatch?'chip-ok':'chip-err')+'">'+(digestMatch?'MATCH':'MISMATCH')+'</span></div>'+
     '<div class="hash-row"><span class="hash-label">PAE SHA-256:</span>'+
-    '<span class="hash-val">'+paeSHA.substring(0,32)+'â€¦</span></div>'+
+    '<span class="hash-val">'+paeSHA.substring(0,32)+'…</span></div>'+
     '<div class="hash-row"><span class="hash-label">Chain prev:</span>'+
-    '<span class="hash-val">'+escHTML(String(chainPrev).substring(0,32))+'â€¦</span></div>'+
+    '<span class="hash-val">'+escHTML(String(chainPrev).substring(0,32))+'…</span></div>'+
     '<div class="hash-row"><span class="hash-label">Chain digest:</span>'+
-    '<span class="hash-val">'+escHTML(String(chainDigest).substring(0,32))+'â€¦</span></div>'+
+    '<span class="hash-val">'+escHTML(String(chainDigest).substring(0,32))+'…</span></div>'+
     '</div>'+
     '<div style="font-size:12px;color:var(--text-dim)">'+
-    '<span class="conj">Î› Conjecture 1 â€” advisory</span>'+
-    ' Î› = '+escHTML(String((data.governance||{}).lambda ?? 'N/A'))+
-    ' &nbsp;Â·&nbsp; Energy: <span class="chip chip-dim">'+escHTML(((data.energy||{}).label)||'UNAVAILABLE')+'</span>'+
+    '<span class="conj">Λ Conjecture 1 — advisory</span>'+
+    ' Λ = '+escHTML(String((data.governance||{}).lambda ?? 'N/A'))+
+    ' &nbsp;·&nbsp; Energy: <span class="chip chip-dim">'+escHTML(((data.energy||{}).label)||'UNAVAILABLE')+'</span>'+
     '</div>';
 
   el('proof-verdict').innerHTML = verdictHTML;
@@ -934,13 +934,13 @@ async function runProof() {
     'governance.lambda':      (data.governance||{}).lambda,
     'governance.lambda_kind': (data.governance||{}).lambda_kind,
     'receipt.seq':    receipt.seq,
-    'receipt.prev':   String(chainPrev).substring(0,32)+'â€¦',
-    'receipt.digest': String(chainDigest).substring(0,32)+'â€¦',
+    'receipt.prev':   String(chainPrev).substring(0,32)+'…',
+    'receipt.digest': String(chainDigest).substring(0,32)+'…',
     'dsse.signed':        dsse.signed,
     'dsse.payloadType':   dsse.payloadType,
-    'verify.payload_sha256': payloadDigestComputed.substring(0,32)+'â€¦',
-    'verify.pae_sha256':     paeSHA.substring(0,32)+'â€¦',
-    'verify.result': verified ? 'VERIFIED âœ“' : (dsse.signed===false ? 'UNSIGNED (no key in runtime)' : 'FAILED: '+verifyError),
+    'verify.payload_sha256': payloadDigestComputed.substring(0,32)+'…',
+    'verify.pae_sha256':     paeSHA.substring(0,32)+'…',
+    'verify.result': verified ? 'VERIFIED ✓' : (dsse.signed===false ? 'UNSIGNED (no key in runtime)' : 'FAILED: '+verifyError),
     'energy.label':   (data.energy||{}).label,
     'honesty':        data.honesty,
   };
@@ -949,14 +949,14 @@ async function runProof() {
   show('proof-output');
 
   setStatus('proof-status',
-    verified ? 'âœ“ WebCrypto verified â€” real ECDSA-P256 signature over DSSE PAE.' :
+    verified ? '✓ WebCrypto verified — real ECDSA-P256 signature over DSSE PAE.' :
     (dsse.signed===false ? 'Unsigned receipt (key absent from runtime). Chain valid.' :
     'Verification result: '+verifyError));
   btn.disabled = false;
 }
 
 /* ==================================================================
-   SECTION E â€” Load fit data and mark live
+   SECTION E — Load fit data and mark live
    ================================================================== */
 async function checkFit() {
   var s = el('fit-status'); if(!s) return;
@@ -973,12 +973,12 @@ async function checkFit() {
 }
 
 /* ==================================================================
-   SECTION B' â€” Download Auditor Evidence Pack (sha3_256 self-verifiable)
+   SECTION B' — Download Auditor Evidence Pack (sha3_256 self-verifiable)
    ================================================================== */
 async function downloadEvidencePack() {
   var btn = el('evidence-pack-btn');
   if (btn) btn.disabled = true;
-  setStatus('evidence-pack-status', 'Assembling evidence pack from live surfacesâ€¦', true);
+  setStatus('evidence-pack-status', 'Assembling evidence pack from live surfaces…', true);
   try {
     var resp = await fetch('/api/a11oy/v1/assurance/evidence-pack');
     var data = await resp.json();
@@ -996,16 +996,16 @@ async function downloadEvidencePack() {
     setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
 
     // We do NOT recompute sha3_256 in-browser (WebCrypto has no SHA3, and shipping a
-    // hand-rolled hash would risk a false result â€” honesty over a fake green check).
+    // hand-rolled hash would risk a false result — honesty over a fake green check).
     // The digest + exact canonicalization are in the pack so an auditor re-verifies
     // offline with a trusted sha3_256 tool. We only surface what the server reported.
     var sig = (data.signature || {});
-    var sigMsg = sig.signed ? (' Â· signed [' + (sig.keyid || 'demo') + ']') : ' Â· honest-unsigned (DSSE_PLACEHOLDER)';
+    var sigMsg = sig.signed ? (' · signed [' + (sig.keyid || 'demo') + ']') : ' · honest-unsigned (DSSE_PLACEHOLDER)';
     setStatus('evidence-pack-status',
-      'âœ“ Downloaded. sha3_256=' + String(data.pack_sha3_256 || '').substring(0, 24) + 'â€¦' + sigMsg +
-      ' Â· re-verify offline per the packâ€™s digest_canonicalization note.', false);
+      '✓ Downloaded. sha3_256=' + String(data.pack_sha3_256 || '').substring(0, 24) + '…' + sigMsg +
+      ' · re-verify offline per the pack’s digest_canonicalization note.', false);
   } catch(e) {
-    setStatus('evidence-pack-status', 'âš  Could not assemble evidence pack: ' + e.message, false);
+    setStatus('evidence-pack-status', '⚠ Could not assemble evidence pack: ' + e.message, false);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -1020,4 +1020,3 @@ window.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
