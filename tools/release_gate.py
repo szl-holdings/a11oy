@@ -16,6 +16,7 @@ forces fail-closed behavior for:
 from __future__ import annotations
 
 import argparse
+import sys
 import hashlib
 import json
 import subprocess
@@ -31,6 +32,7 @@ REPORT_PATH = AUDIT_DIR / "release-gate.json"
 GITHUB_AUDIT_PATH = AUDIT_DIR / "github-access-audit.json"
 LEXICON_REPORT_PATH = AUDIT_DIR / "frontier-lexicon-gate.json"
 CHECKLIST_PATH = ROOT / "docs" / "github-enterprise-access-checklist.json"
+PYTHON = [sys.executable, "-I", "-B"]
 
 
 @dataclass
@@ -142,24 +144,28 @@ def main() -> int:
         args.run = True
 
     command_plan = [
-        ("szl-convergence-bootstrap", ["python3", "-I", "-B", "tools/szl_convergence_bootstrap.py", "--run"]),
+        ("szl-convergence-bootstrap", PYTHON + ["tools/szl_convergence_bootstrap.py", "--run"]),
         (
             "round5-lexicon-gate",
-            [
-                "python3",
-                "-I",
-                "-B",
+            PYTHON
+            + [
                 "tools/lexicon_gate.py",
                 "--check",
                 "--report",
                 str(LEXICON_REPORT_PATH),
             ],
         ),
-        ("frontdoor-truth", ["python3", "-I", "-B", "scripts/check_a11oy_frontdoor_truth.py", "a11oy_landing.html"]),
-        ("frontdoor-repair-check", ["python3", "-I", "-B", "scripts/repair_a11oy_frontdoor.py", "a11oy_landing.html", "--check"]),
-        ("hf-ecosystem-check", ["python3", "-I", "-B", "scripts/audit_huggingface_ecosystem.py", "--check"]),
-        ("github-access-check", ["python3", "-I", "-B", "scripts/audit_github_access_permissions.py", "--checklist", str(CHECKLIST_PATH), "--output", str(GITHUB_AUDIT_PATH), "--validate"]),
-        ("szl-convergence-verify", ["python3", "-I", "-B", "tools/szl_convergence_bootstrap.py", "--verify"]),
+        ("frontdoor-truth", PYTHON + ["scripts/check_a11oy_frontdoor_truth.py", "a11oy_landing.html"]),
+        (
+            "frontdoor-repair-check",
+            PYTHON + ["scripts/repair_a11oy_frontdoor.py", "a11oy_landing.html", "--check"],
+        ),
+        ("hf-ecosystem-check", PYTHON + ["scripts/audit_huggingface_ecosystem.py", "--check"]),
+        (
+            "github-access-check",
+            PYTHON + ["scripts/audit_github_access_permissions.py", "--checklist", str(CHECKLIST_PATH), "--output", str(GITHUB_AUDIT_PATH), "--validate"],
+        ),
+        ("szl-convergence-verify", PYTHON + ["tools/szl_convergence_bootstrap.py", "--verify"]),
     ]
 
     if args.run:
