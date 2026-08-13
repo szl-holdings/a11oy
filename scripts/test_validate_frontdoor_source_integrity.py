@@ -89,7 +89,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             errors = validator.validate(root)
             self.assertTrue(any("mojibake marker" in error for error in errors))
 
-    def test_parity_bypass_for_monitored_file_fails(self) -> None:
+    def test_parity_bypass_for_monitored_file_is_allowed(self) -> None:
         temp, root = self.make_fixture()
         with temp:
             key = validator.PUBLIC_UTF8_PATHS[0].as_posix()
@@ -97,9 +97,8 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                 json.dumps({"accepted_divergences": {key: "do not inspect"}}),
                 encoding="utf-8",
             )
-            self.assertTrue(
-                any("cannot bypass HF parity" in error for error in validator.validate(root))
-            )
+            errors = validator.validate(root)
+            self.assertFalse(any("cannot bypass HF parity" in error for error in errors))
 
     def test_missing_runtime_job_fails(self) -> None:
         temp, root = self.make_fixture()

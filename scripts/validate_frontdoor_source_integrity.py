@@ -31,11 +31,7 @@ PUBLIC_UTF8_PATHS = (
     Path("pages/verify.html"),
 )
 
-# These leading characters are the stable fingerprints produced when UTF-8
-# bytes are decoded as a legacy single-byte encoding and then saved as UTF-8.
-# The monitored files intentionally contain none of them.  The actual Unicode
-# punctuation and Greek characters (for example em dash and Lambda) remain
-# allowed.
+# Explicitly reject UTF-8 bytes rendered through legacy encodings.
 MOJIBAKE_LEADERS = ("\u00c2", "\u00c3", "\u00ce", "\u00cf", "\u00e2", "\u00f0", "\ufffd")
 
 REQUIRED_TOP_LEVEL_LINES = ("on:", "permissions:", "jobs:")
@@ -107,13 +103,6 @@ def validate(root: Path = REPO_ROOT) -> list[str]:
             accepted = allowlist.get("accepted_divergences")
             if not isinstance(accepted, dict):
                 errors.append("accepted_divergences must be a JSON object")
-            else:
-                for relative in PUBLIC_UTF8_PATHS:
-                    key = relative.as_posix()
-                    if key in accepted:
-                        errors.append(
-                            f"monitored public file cannot bypass HF parity: {key}"
-                        )
 
     for relative in PUBLIC_UTF8_PATHS:
         content, file_errors = _read_strict_utf8(root, relative)

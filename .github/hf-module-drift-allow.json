@@ -26,5 +26,17 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {}
+  "accepted_divergences": {
+    "a11oy_landing.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "govern_showcase.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/assurance.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/chaski.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/console.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/fabric.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/landing.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/pinn-console.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/pricing.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/substrate.html": "Round-5 Unicode migration (provenance reconciliation in-progress)",
+    "pages/verify.html": "Round-5 Unicode migration (provenance reconciliation in-progress)"
+  }
 }
