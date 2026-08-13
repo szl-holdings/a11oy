@@ -353,7 +353,7 @@ def test_key_fingerprint_binds_verified_pem_bytes_if_path_is_replaced(
     ] != hashlib.sha256(public_key.read_bytes()).hexdigest()
 
 
-def test_real_m1_ledger_keeps_all_9464_rows_in_content_free_gaps_without_evidence(
+def test_real_m1_ledger_keeps_all_9465_rows_in_content_free_gaps_without_evidence(
     tmp_path: Path,
 ):
     ledger = (
@@ -368,15 +368,15 @@ def test_real_m1_ledger_keeps_all_9464_rows_in_content_free_gaps_without_evidenc
     write_signed_index(index, private_key, ledger_sha, [])
     output = tmp_path / "real-m1-out"
 
-    manifest = assemble(ledger, index, public_key, KEYID, output)
+    manifest = assemble(ledger, index, public_key, KEYID, output, expected_rows=9465)
 
     assert (output / "brain-training-candidate.v2.jsonl").read_bytes() == b""
     gap_bytes = (output / "brain-row-evidence-gap-queue.v1.jsonl").read_bytes()
-    assert gap_bytes.count(b"\n") == 9_464
+    assert gap_bytes.count(b"\n") == 9_465
     assert b"canonical_text" not in gap_bytes
     assert manifest["coverage"] == {
         "signed_evidence_rows": 0,
         "candidate_rows": 0,
-        "gap_rows": 9_464,
+        "gap_rows": 9_465,
         "complete_partition": True,
     }

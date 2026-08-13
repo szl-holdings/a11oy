@@ -102,6 +102,10 @@ def compact_verdict(
         raise VerdictError("probe summary outcomes are inconsistent")
     if summary["lies"] != 0:
         raise VerdictError("probe summary contains doctrine lies")
+    if summary["unreachable"] != 0:
+        raise VerdictError("probe summary contains unreachable required endpoints")
+    if summary["throttled"] != 0:
+        raise VerdictError("probe summary contains throttled required endpoints")
     p95_worst = summary.get("p95_worst")
     if (
         not isinstance(p95_worst, (int, float))

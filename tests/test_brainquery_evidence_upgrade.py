@@ -20,9 +20,9 @@ def _tiny_index(monkeypatch):
     idx.by_id = {"node:1": idx.nodes[0]}
     idx.links = []
     idx.graph = {
-        "node_count": 9464,
+        "node_count": 9465,
         "link_count": 14234,
-        "distinct_artifacts": 4229,
+        "distinct_artifacts": 4230,
         "person_node_count": 5235,
         "artifact_note": "fixture counts are separate dimensions",
     }
@@ -71,10 +71,10 @@ def test_index_status_keeps_raw_distinct_and_person_counts_separate(monkeypatch)
     idx = _tiny_index(monkeypatch)
     status = idx.index_status()
 
-    assert status["raw_node_count"] == 9464
-    assert status["node_count"] == 9464
+    assert status["raw_node_count"] == 9465
+    assert status["node_count"] == 9465
     assert status["link_count"] == 14234
-    assert status["distinct_artifacts"] == 4229
+    assert status["distinct_artifacts"] == 4230
     assert status["person_node_count"] == 5235
     assert status["distinct_artifacts"] + status["person_node_count"] == status["raw_node_count"]
     assert "do not imply training admission" in status["note"]

@@ -44,8 +44,8 @@ class SZLForgeFamilyTests(unittest.TestCase):
 
     def test_brain_and_external_inference_remain_fail_closed(self) -> None:
         brain = self.registry["brain_policy"]
-        self.assertEqual(brain["raw_nodes_observed"], 9464)
-        self.assertEqual(brain["raw_nodes_available_to_retrieval_and_evaluation"], 9464)
+        self.assertEqual(brain["raw_nodes_observed"], 9465)
+        self.assertEqual(brain["raw_nodes_available_to_retrieval_and_evaluation"], 9465)
         self.assertEqual(brain["raw_nodes_admitted_to_gradients"], 0)
         self.assertEqual(brain["admission_engine"], "szl_brain_training_admission.py")
         self.assertEqual(

@@ -22,6 +22,8 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_REGISTRY = HERE / "frontier-adoption.json"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REPO_ROOT = HERE.parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 EVIDENCE_PAYLOAD_TYPE = "application/vnd.szl.frontier-operation-evidence.v1+json"
 UNSIGNED_OPERATION_ALLOWLIST = frozenset({"READ_METADATA"})
 HARD_DENIED_OPERATIONS = frozenset({
@@ -72,8 +74,13 @@ def load_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
     brain = registry.get("brain_model_truth")
     if not isinstance(brain, dict):
         raise FrontierAdmissionError("registry brain_model_truth is missing")
-    if brain.get("raw_nodes_observed") != 9464:
+    from a11oy_brain_graph import get_brain_graph
+
+    expected_raw_nodes = len((get_brain_graph(refresh=True)).get("nodes") or [])
+    if brain.get("raw_nodes_observed") != expected_raw_nodes:
         raise FrontierAdmissionError("registry Brain node observation changed")
+    if brain.get("raw_nodes_available_to_retrieval_and_evaluation") != expected_raw_nodes:
+        raise FrontierAdmissionError("registry retrieval/evaluation Brain count changed")
     if brain.get("raw_nodes_admitted_to_gradients") != 0:
         raise FrontierAdmissionError("registry reports unadmitted Brain gradient rows")
     github_estate = registry.get("github_estate_strategy")

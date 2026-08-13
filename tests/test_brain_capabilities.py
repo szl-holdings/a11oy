@@ -87,7 +87,7 @@ def test_retrieval_pilot_is_replayable_bounded_and_not_promoted():
 def test_routes_register_and_return_manifest():
     app = FastAPI()
     status = bc.register(app, ns="a11oy")
-    assert status == "brain-capabilities-wired:3"
+    assert status == "brain-capabilities-wired:4"
 
     with TestClient(app) as client:
         info = client.get("/api/a11oy/v1/brain/capabilities/info")

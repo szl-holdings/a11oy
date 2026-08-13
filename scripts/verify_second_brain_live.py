@@ -39,7 +39,7 @@ SCHEMA = "szl.khipu.second-brain-live-verification.v1"
 SECOND_BRAIN_SCHEMA = "szl.khipu.compound-second-brain.v1"
 RECEIPT_PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 VERIFY_KEY_PATH = "/api/a11oy/cosign.pub"
-EXPECTED_BRAIN_HANDLE_COUNT = 9464
+EXPECTED_BRAIN_HANDLE_COUNT = 9465
 MAX_HTTP_BODY_BYTES = 8 * 1024 * 1024
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -569,7 +569,7 @@ def verify_live(
     training = second_brain.get("training_boundary")
     _require(isinstance(training, dict), "Second Brain training boundary is missing")
     _require(training.get("raw_brain_nodes_observed") == EXPECTED_BRAIN_HANDLE_COUNT,
-             "Second Brain raw-node inventory is not 9,464")
+             f"Second Brain raw-node inventory is not {EXPECTED_BRAIN_HANDLE_COUNT}")
     _require(isinstance(training.get("raw_brain_nodes_admitted_to_gradients"), int),
              "Second Brain gradient admission count is missing")
 

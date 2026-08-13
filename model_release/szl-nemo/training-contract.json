@@ -58,7 +58,7 @@
     "minimum_eval_rows": 8
   },
   "excluded_from_gradients": [
-    {"path": "model_release/m1/brain-ingest-ledger.jsonl", "reason": "The 9464-node Brain remains retrieval/evaluation-only until row-level rights and provenance are admitted."},
+    {"path": "model_release/m1/brain-ingest-ledger.jsonl", "reason": "The 9465-node Brain remains retrieval/evaluation-only until row-level rights and provenance are admitted."},
     {"path": "model_release/m1/formula-curriculum-ledger.jsonl", "reason": "Formula rows remain holdout-only and must not contaminate evaluation."},
     {"path": "research/formula-training-admission/admission-tranche.jsonl", "reason": "Current formula admission records are holdout records, not training authority."},
     {"path": "training/szl_seed.jsonl", "reason": "Historical rows lack a complete rights/privacy/contamination review."},

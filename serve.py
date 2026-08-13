@@ -1377,7 +1377,7 @@ except Exception as _szl_fb_e:  # pragma: no cover
 # supplychain returns the MODEL supply chain (weights → build → attestation → deploy) as a
 # governed, honestly-labeled surface: each stage names its provenance evidence (in-toto
 # Statement, SLSA provenance predicate, DSSE envelope + Rekor inclusion proof, C2PA manifest)
-# and its HONEST SLSA maturity — L1 honest / L2 attested / L3 roadmap, NEVER upgraded past
+# and its HONEST SLSA maturity — L1 established; L2/L3 not established, NEVER upgraded past
 # what is earned. Includes ONE real in-toto→DSSE(PAE)→Merkle-inclusion micro-artifact computed
 # in-process (MEASURED for that narrow claim only; HONEST-STUB on failure; the signature slot is
 # the honest UNSIGNED-LOCAL placeholder — never fabricated). Top label MODELED (NOT VERIFIED).
@@ -3769,7 +3769,7 @@ except Exception as _th_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest; L2 .att emitted (not independently verified): cosign keyless-verified image (L1) + signed SLSA build-provenance attestation via actions/attest-build-provenance@v2 (L2), Sigstore keyless Fulcio+Rekor, verifiable via gh attestation verify / cosign verify-attestation; L3 roadmap, not claimed)
+#   GET  /api/a11oy/provenance     — canonical honest board (SLSA L1 only; L2/L3 not established)
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
@@ -3786,6 +3786,13 @@ except Exception as _prov_e:
     import sys as _sys_pv, traceback as _tb_pv
     print(f"[a11oy] Provenance Hardening NOT registered: {_prov_e}", file=_sys_pv.stderr)
     _tb_pv.print_exc()
+_A11OY_SLSA_LEVEL = getattr(globals().get("_prov"), "SLSA_LEVEL", "UNAVAILABLE")
+_A11OY_SLSA_TEXT = (
+    f"SLSA {_A11OY_SLSA_LEVEL} established by /api/a11oy/provenance; "
+    "L2/L3 are not established. No Iron Bank, FedRAMP, CMMC, or ATO claim."
+    if _A11OY_SLSA_LEVEL == "L1"
+    else "SLSA posture UNAVAILABLE; canonical provenance module did not register."
+)
 # ── end Provenance Hardening ─────────────────────────────────────────────────
 
 # ===========================================================================
@@ -4317,10 +4324,8 @@ for _organ_mod, _organ_label in (
 # and win ordering. The package root /app/src is added to sys.path so
 # `import a11oy.formulas` resolves under WORKDIR /app (per-file COPY in Dockerfile).
 # try/except guarded — a missing optional dep can NEVER take down the SPA + API.
-# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-signed image,
-# public Sigstore + Rekor verified (L1) + signed SLSA build-provenance attestation
-# via actions/attest-build-provenance@v2 (L2), verifiable via gh attestation verify
-# / cosign verify-attestation); L3 roadmap, not claimed. See .compliance/SLSA_LEVEL.md.
+# Λ = Conjecture 1 (NEVER a theorem). Canonical provenance establishes SLSA L1;
+# L2/L3 are not established. See /api/a11oy/provenance and .compliance/SLSA_LEVEL.md.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
@@ -4600,6 +4605,16 @@ async def startup() -> None:
     global _node_proc, _http_client
     load_gates()
     _http_client = httpx.AsyncClient(timeout=30.0)
+    # The eval history worker is lifecycle-owned.  Starting it here (after the
+    # application has finished importing) avoids import-time background work
+    # and lets shutdown join it cleanly.
+    try:
+        _a11oy_eval_autorun_start()
+    except Exception as _eval_start_error:
+        print(
+            f"[a11oy] eval-arena autorun failed honestly: {_eval_start_error!r}",
+            file=sys.stderr,
+        )
     try:
         from routers.series_a_control_plane import start_registered_service
 
@@ -4662,6 +4677,13 @@ async def startup() -> None:
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    try:
+        _a11oy_eval_autorun_stop()
+    except Exception as _eval_stop_error:
+        print(
+            f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
+            file=sys.stderr,
+        )
     if _node_proc:
         _node_proc.terminate()
     if _http_client:
@@ -5208,7 +5230,7 @@ async def v1_healthz() -> JSONResponse:
                 "error": "Node serve on :8081 is not running",
                 "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                              "version": "v11", "replay_hash": "c7c0ba17"},
-                "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+                "slsa": _A11OY_SLSA_TEXT,
             },
             status_code=503,
         )
@@ -5226,7 +5248,7 @@ async def v1_healthz() -> JSONResponse:
         "routes": ["/v1/ledger", "/v1/ledger/{hash}", "/v1/verify", "/v1/policy/evaluate"],
         "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                      "version": "v11", "replay_hash": "c7c0ba17"},
-        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": _A11OY_SLSA_TEXT,
     }, status_code=200 if backend["alive"] else 503)
 
 
@@ -6774,16 +6796,14 @@ async def _a11oy_pr_honest_v2():
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
-        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": _A11OY_SLSA_TEXT,
         "slsa_evidence": {
-            "level": "L2",
-            "image_tag": "uds-v0.2.0",
-            "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
-            "builder": "GitHub-hosted Actions (isolated build service, cosign keyless)",
-            "fulcio_issuer": "sigstore.dev (public-good)",
-            "rekor_log_index": 1710578865,
-            "verified_via": "cosign verify + live public Rekor inclusion (HTTP 200) for the image SIGNATURE + signed slsa.dev/provenance/v0.2 attestation",
-            "l3_status": "NOT claimed (no hermetic, fully-isolated reproducible build attestation).",
+            "level": _A11OY_SLSA_LEVEL,
+            "source": "/api/a11oy/provenance",
+            "evidence_state": "SOURCE_DECLARED" if _A11OY_SLSA_LEVEL == "L1" else "UNAVAILABLE",
+            "l2_status": "NOT_ESTABLISHED",
+            "l3_status": "NOT_ESTABLISHED",
+            "note": "This compatibility view never upgrades the canonical provenance response.",
         },
         "formulas_wired": _wired,
         "formulas_count": len(_wired),
@@ -6796,7 +6816,7 @@ async def _a11oy_pr_honest_v2():
             "No Iron Bank / FedRAMP / CMMC certification claimed",
             "Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)",
             "HNSW formula endpoint is an HONEST in-process retrieval stub; BLS returns an honest backend-availability flag (real verify only when py_ecc present).",
-            "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs (cosign-signed images + signed SLSA build-provenance attestation, Sigstore keyless Fulcio+Rekor verifiable via gh attestation verify / cosign verify-attestation). L3 not claimed. NOT Iron Bank, NOT FedRAMP, NOT CMMC, NOT ATO without roadmap.",
+            _A11OY_SLSA_TEXT,
         ],
         "role": "Brand Orchestration / gates",
     })
@@ -6935,9 +6955,8 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # shape the scene's normalizeStats() consumes. Registered at BOTH the root path
 # (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
 # proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
-# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-
-# signed GHCR image + signed SLSA build-provenance attestation, Sigstore + Rekor
-# verifiable via gh attestation verify / cosign verify-attestation); L3 roadmap
+# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 established;
+# L2/L3 are not established and must not be inferred from artifact inventory.
 # (NOT claimed); never FedRAMP/Iron Bank/CMMC/ATO without roadmap — unchanged.
 # ===========================================================================
 import time as _rtr_time
@@ -7341,7 +7360,7 @@ async def a11oy_mcp_tools_inline():
         "flagship": "a11oy",  # host flagship (backward-compatible field)
         "flagships": _flagships,  # every flagship that contributed live tools
         "sources": _sources,
-        "kernel_commit": "c7c0ba17", "slsa_level": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "kernel_commit": "c7c0ba17", "slsa_level": _A11OY_SLSA_TEXT,
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     })
 
@@ -8706,7 +8725,7 @@ try:
                           "launch_at": "/api/a11oy/v1/warhacker/launch/" + d["key"]}
                          for d in _WH_DEMOS],
             "lambda_status": "Conjecture 1 (advisory, not a pass/fail oracle)",
-            "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+            "slsa": _A11OY_SLSA_TEXT,
         })
 
     # Map the launch keys to the REAL exhaustive-demo engine keys (the demos
@@ -8859,7 +8878,8 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
 # pack registry, business observability. Registered BEFORE the SPA catch-all.
 #
 # HONESTY: Λ = Conjecture 1 (advisory, never a pass/fail oracle). 8 proven
-# formulas {F1,F4,F7,F11,F12,F18,F19,F22}. SLSA L1 honest; L2 .att emitted (not independently verified); L3 build-provenance roadmap
+# formulas {F1,F4,F7,F11,F12,F18,F19,F22}. SLSA L1 is the only
+# current claim; L2/L3 remain roadmap until independently verifiable evidence exists.
 # (not yet claimed); NOT FedRAMP/Iron Bank/CMMC/ATO without roadmap. No
 # cross-origin organ dependencies — a11oy is fully self-contained.
 # The DSSE key below is loaded by the shared ECDSA P-256 key loader. A
@@ -9045,17 +9065,19 @@ async def a11oy_demo_cosign_pub() -> Response:
                                  status_code=503)
 
 
-# ---- Receipt chain (in-image, hash-chained, signed) ----
+# ---- Deterministic sample chain (in-image, structurally hash-linked, unsigned) ----
 def _a11oy_build_chain(n: int = 24) -> dict:
-    """Build a deterministic in-image receipt hash-chain. Each receipt commits
-    a governed decision; chain[i].chain = SHA256(prev). Honest, self-contained."""
+    """Build a deterministic SAMPLE chain for UI/layout and verifier exercises.
+
+    These records are not runtime decisions, approvals, signatures, customer
+    events, or an operational Khipu ledger. Only the SHA-256 linkage structure is
+    exercised, and every consumer receives the SAMPLE/UNSIGNED boundary.
+    """
     acts = [
-        ("gate.evaluate", "policy gate evaluated action plan"),
-        ("lambda.score", "trust score computed across 13 axes"),
-        ("decision.recommend", "governed recommendation emitted with rollback path"),
-        ("receipt.sign", "decision receipt DSSE-signed (in-image key)"),
-        ("replay.verify", "deterministic replay produced byte-identical root"),
-        ("operator.approve", "human approval recorded for high-consequence action"),
+        ("sample.observe", "deterministic sample input normalized"),
+        ("sample.gate", "deterministic sample policy condition evaluated"),
+        ("sample.act", "deterministic sample action staged; no external effect"),
+        ("sample.prove", "deterministic sample digest linked; no signature minted"),
     ]
     receipts = []
     prev = "GENESIS"
@@ -9068,12 +9090,20 @@ def _a11oy_build_chain(n: int = 24) -> dict:
         prev = h
     return {
         "depth": len(receipts),
-        "chain_verified": True,
+        "state": "SAMPLE",
+        "data_kind": "sample",
+        "operational": False,
+        "structure_verified": True,
+        "chain_verified": False,
+        "signed": False,
+        "signature_state": "UNSIGNED",
         "genesis_hash": receipts[0]["hash"] if receipts else "",
         "final_hash": receipts[-1]["hash"] if receipts else "",
         "receipts": receipts,
-        "signing": "in-image ECDSA P-256 (ephemeral, generated at boot)",
-        "key_fingerprint": _a11oy_pubkey_fpr(),
+        "signing": "UNSIGNED sample; no signer invoked",
+        "key_fingerprint": None,
+        "honesty": ("Deterministic SAMPLE records for hash-link and UI exercises. "
+                    "They are excluded from operational receipt, approval, and ROI counts."),
     }
 
 
@@ -9090,11 +9120,11 @@ async def a11oy_command_log_v2() -> JSONResponse:
 # already consumed (so the frontend is a URL swap, not a rewrite) and carries a
 # server-attested `data_kind` provenance field:
 #     live   -> derived from a real in-process producer (live router catalog)
-#     proxy  -> a clearly-labelled structural heuristic over REAL receipts
-#     sample -> derived, no live per-receipt telemetry in this image
+#     proxy  -> a clearly-labelled structural heuristic over observed receipts
+#     sample -> deterministic sample structure; no operational receipt telemetry
 # NO fabricated data. Lambda = Conjecture 1; Khipu BFT = Conjecture 2; locked-
 # proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. The deterministic
-# in-image receipt chain carries no loop_depth / vote / round metadata, so the
+# in-image SAMPLE chain carries no loop_depth / vote / round metadata, so the
 # loop-depth + consensus endpoints serve an HONEST proxy that AUTO-UPGRADES to
 # `live` the moment those fields are emitted. Registered BEFORE the SPA/proxy
 # catch-all (/{full_path:path}); stdlib-only; fail-safe.
@@ -9105,7 +9135,9 @@ def _r3d_chain(n: int = 50) -> dict:
     try:
         return _a11oy_build_chain(n)
     except Exception:
-        return {"depth": 0, "chain_verified": False, "receipts": []}
+        return {"depth": 0, "state": "UNAVAILABLE", "data_kind": "sample",
+                "operational": False, "structure_verified": False,
+                "chain_verified": False, "receipts": []}
 
 def _r3d_loop_meta(r: dict):
     for k in ("loop_depth", "loop", "R", "ut_step"):
@@ -9155,20 +9187,24 @@ def _r3d_routing_graph_payload() -> dict:
         "edges": edges,
         "routes": routes,
         "receipts": ch.get("receipts", []),
+        "receipt_state": ch.get("state", "SAMPLE"),
+        "receipt_data_kind": ch.get("data_kind", "sample"),
+        "operational_receipts": ch.get("operational", False),
         "source": rs.get("source", ""),
         "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
                     "is a DERIVED heuristic, never a measured loss"),
         "doctrine": "v11",
         "honesty": ("Routing nodes/edges use the /router/stats catalog; catalog_state distinguishes "
                     "the live brain catalog from the honest fallback. Throughput remains MODELED, never "
-                    "traffic or QPS. The organ -> tier -> model escalation path is catalog data; receipts are the real in-image "
-                    "chain. The manifold surface is a derived heuristic, never a measured loss. "
+                    "traffic or QPS. The organ -> tier -> model escalation path is catalog data; attached receipts are "
+                    "deterministic SAMPLE hash-link records, not operational events. The manifold surface is a derived heuristic, never a measured loss. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
 
 def _r3d_loop_depth_payload() -> dict:
     ch = _r3d_chain(50)
     recs = ch.get("receipts", [])
+    sample_chain = ch.get("data_kind") == "sample" or ch.get("operational") is False
     has_meta = any(_r3d_loop_meta(r) is not None for r in recs)
     agg = {}
     for r in recs:
@@ -9185,20 +9221,24 @@ def _r3d_loop_depth_payload() -> dict:
         tracks.append({
             "agent": k,
             "depth": slot["meta"] if live_track else slot["count"],
-            "source": "loop_depth metadata" if live_track else "receipt-density proxy",
+            "source": ("sample receipt density" if sample_chain else
+                       ("loop_depth metadata" if live_track else "receipt-density proxy")),
         })
     return {
-        "data_kind": "live" if has_meta else "proxy",
+        "state": "SAMPLE" if sample_chain else ("LIVE" if has_meta else "PROXY"),
+        "data_kind": "sample" if sample_chain else ("live" if has_meta else "proxy"),
+        "operational": False if sample_chain else True,
         "hasMeta": has_meta,
         "tracks": tracks,
         "receipts": recs,
         "depth": ch.get("depth", len(recs)),
+        "structure_verified": ch.get("structure_verified", False),
         "chain_verified": ch.get("chain_verified", False),
         "doctrine": "v11",
         "honesty": ("Reasoning loop-depth R is read from receipt loop_depth metadata when "
-                    "present (live); receipts in this image carry none, so R is a clearly-"
-                    "labelled DEPTH PROXY from per-track receipt density -- a structural "
-                    "heuristic, never a measured latent-reasoning depth. Auto-upgrades to live "
+                    "present in an operational source; this image supplies only SAMPLE hash-link "
+                    "records with no loop metadata, so R is a SAMPLE density visualization, never "
+                    "a measured latent-reasoning depth. It may upgrade only from non-sample evidence "
                     "when loop_depth is emitted. Lambda = Conjecture 1; locked-proven stays "
                     "exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -9206,6 +9246,7 @@ def _r3d_loop_depth_payload() -> dict:
 def _r3d_consensus_votes_payload() -> dict:
     ch = _r3d_chain(50)
     recs = ch.get("receipts", [])
+    sample_chain = ch.get("data_kind") == "sample" or ch.get("operational") is False
     has_votes = any((r.get("votes") is not None or r.get("round") is not None) for r in recs)
     n = len(recs)
     out = []
@@ -9218,18 +9259,22 @@ def _r3d_consensus_votes_payload() -> dict:
             "prev_hash": r.get("prev_hash", ""),
             "converged": idx >= n - 1,
             "z": round(z, 4),
-            "source": "vote/round metadata" if has_votes else "chain-depth proxy",
+            "source": ("sample chain depth" if sample_chain else
+                       ("vote/round metadata" if has_votes else "chain-depth proxy")),
         })
     return {
-        "data_kind": "live" if has_votes else "sample",
+        "state": "SAMPLE" if sample_chain else ("LIVE" if has_votes else "SAMPLE"),
+        "data_kind": "sample" if sample_chain else ("live" if has_votes else "sample"),
+        "operational": False if sample_chain else True,
+        "structure_verified": ch.get("structure_verified", False),
         "chain_verified": ch.get("chain_verified", False),
         "receipts": out,
         "quorum": {"n": 4, "f": 1, "rule": "3-of-4 (n >= 3f+1)",
                    "status": "Conjecture 2 (Khipu BFT) -- structural heuristic, NOT a BFT proof"},
         "doctrine": "v11",
-        "honesty": ("Receipts in this image carry no per-receipt vote/round metadata, so the "
-                    "convergence Z is a clearly-labelled chain-depth PROXY over the REAL "
-                    "prev_hash chain (F4 acyclicity, F22 layer order). Auto-upgrades to live "
+        "honesty": ("This image supplies deterministic SAMPLE hash-link records with no "
+                    "per-receipt vote/round metadata, so convergence Z is a SAMPLE chain-depth "
+                    "visualization, not BFT observation. It may upgrade only from non-sample "
                     "vote/round when emitted. Khipu BFT = Conjecture 2; Lambda = Conjecture 1; "
                     "locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -9257,33 +9302,65 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
 async def a11oy_ledger_v2() -> JSONResponse:
     ch = _a11oy_build_chain(24)
     return JSONResponse({"count": ch["depth"],
+                         "state": "SAMPLE",
+                         "data_kind": "sample",
+                         "operational": False,
+                         "hash_algorithm": "sha256-hex",
+                         "structure_verified": bool(ch.get("structure_verified")),
+                         "chain_verified": False,
+                         "signed": False,
+                         "signature_state": "UNSIGNED",
+                         "receipt_minted": False,
+                         "honesty": ("Deterministic SAMPLE SHA-256 linkage only. These are not "
+                                     "runtime decisions, approvals, signed receipts, customer "
+                                     "events, or operational Khipu records."),
                          "receipts": [{"seq": r["seq"], "action": r["kind"],
-                                       "receipt_id": r["hash"]} for r in ch["receipts"]]})
+                                        "receipt_id": r["hash"]} for r in ch["receipts"]]})
 
 
-# ---- /receipt/export — one signed receipt envelope for offline verification ----
-@app.get("/api/a11oy/v1/receipt/export")
-@app.get("/receipt/export")
-async def a11oy_receipt_export_v2() -> JSONResponse:
+# ---- /receipt/export — read-only, prebuilt signed-or-unsigned SAMPLE envelope ----
+def _a11oy_build_sample_export() -> dict:
+    """Build once at service initialization; GET only reads this immutable sample."""
     ch = _a11oy_build_chain(24)
     head = ch["receipts"][-1] if ch["receipts"] else {"seq": 0, "kind": "genesis"}
     payload = {
         "receipt_id": head.get("hash", ""),
         "seq": head.get("seq", 0),
         "kind": head.get("kind", ""),
-        "decision": "ALLOW",
-        "lambda_advisory": 0.919,
-        "lambda_status": "Conjecture 1 (advisory — NOT a pass/fail oracle)",
+        "state": "SAMPLE",
+        "data_kind": "sample",
+        "operational": False,
+        "decision": "SAMPLE_ONLY",
+        "lambda_advisory": None,
+        "lambda_status": "not evaluated for the deterministic sample",
         "chain_depth": ch["depth"],
         "chain_final_hash": ch["final_hash"],
-        "issued_at": _dtv2.now(_tzv2.utc).isoformat(),
-        "issuer": "a11oy",
+        "issuer": "a11oy-sample-chain",
     }
     env = _a11oy_sign_receipt(payload)
-    env["verify_hint"] = ("Fetch /cosign.pub, rebuild PAE = 'DSSEv1 '+len(type)+' '"
-                          "+type+' '+len(body)+' '+body over base64-decoded payload, "
-                          "verify ECDSA-P256-SHA256. Flip one payload byte -> FAIL.")
-    return JSONResponse(env)
+    env.update({
+        "state": "SAMPLE",
+        "data_kind": "sample",
+        "operational": False,
+        "receipt_minted": False,
+        "signature_state": "SIGNED_SAMPLE" if env.get("signed") else "UNSIGNED",
+        "honesty": ("Prebuilt deterministic SAMPLE envelope. A signature, when present, "
+                    "only authenticates this sample artifact; it is not a runtime decision, "
+                    "approval, customer event, operational receipt, or correctness proof. "
+                    "GET serves the same envelope and never invokes the signer."),
+        "verify_hint": ("Fetch /cosign.pub and verify the DSSE signature when signed=true. "
+                        "Successful verification authenticates only the SAMPLE payload."),
+    })
+    return env
+
+
+_A11OY_SAMPLE_EXPORT = _a11oy_build_sample_export()
+
+
+@app.get("/api/a11oy/v1/receipt/export")
+@app.get("/receipt/export")
+async def a11oy_receipt_export_v2() -> JSONResponse:
+    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_SAMPLE_EXPORT)))
 
 
 # ---- /receipt/{rid}/canonical — exact preimage bytes so a browser can re-hash & MATCH (B2) ----
@@ -9344,34 +9421,50 @@ async def a11oy_receipt_canonical_v2(rid: str, request: Request) -> Response:
 # internal functions. Always returns instantly (no network) so a canvas is
 # never black waiting on a dead organ.
 _A11OY_CAPS = [
-    {"id": "reasoning",  "name": "Reasoning",      "status": "ok", "latency_ms": 7,  "kind": "cognitive"},
-    {"id": "policy",     "name": "Policy / Safety", "status": "ok", "latency_ms": 5,  "kind": "governance"},
-    {"id": "operator",   "name": "Operator",       "status": "ok", "latency_ms": 4,  "kind": "interface"},
-    {"id": "receipts",   "name": "Receipts",       "status": "ok", "latency_ms": 3,  "kind": "provenance"},
-    {"id": "knowledge",  "name": "Knowledge",      "status": "ok", "latency_ms": 6,  "kind": "memory"},
+    {"id": "reasoning", "name": "Reasoning", "status": "inventory",
+     "observed": False, "latency_ms": None, "kind": "cognitive"},
+    {"id": "policy", "name": "Policy / Safety", "status": "inventory",
+     "observed": False, "latency_ms": None, "kind": "governance"},
+    {"id": "operator", "name": "Operator", "status": "inventory",
+     "observed": False, "latency_ms": None, "kind": "interface"},
+    {"id": "receipts", "name": "Receipts", "status": "inventory",
+     "observed": False, "latency_ms": None, "kind": "provenance"},
+    {"id": "knowledge", "name": "Knowledge", "status": "inventory",
+     "observed": False, "latency_ms": None, "kind": "memory"},
 ]
 
 
 @app.get("/api/a11oy/v1/observability/summary")
 @app.get("/v1/observability/summary")
 async def a11oy_observability_summary_v2() -> JSONResponse:
-    mesh = {"a11oy": {"status": "ok", "latency_ms": 2, "url": "in-image core",
+    mesh = {"a11oy": {"status": "inventory", "observed": False,
+                      "latency_ms": None, "url": "in-image core",
                       "name": "a11oy"}}
     for c in _A11OY_CAPS:
-        mesh[c["id"]] = {"status": c["status"], "latency_ms": c["latency_ms"],
-                         "url": "in-image capability", "name": c["name"], "kind": c["kind"]}
+        mesh[c["id"]] = {"status": c["status"], "observed": c["observed"],
+                         "latency_ms": c["latency_ms"],
+                         "url": "in-image capability", "name": c["name"],
+                         "kind": c["kind"]}
     ch = _a11oy_build_chain(24)
     return JSONResponse({
         "self_contained": True,
         "brain": "a11oy",
         "capabilities": _A11OY_CAPS,
         "mesh_reach": mesh,
-        "signed_spans": ch["depth"],
+        "signed_spans": None,
         "dag_depth": ch["depth"],
         "melt": {"metrics": {"dag_depth": ch["depth"]},
-                 "events": {"signed_spans": ch["depth"]}},
-        "note": "Self-contained capability map. Nodes are a11oy internal functions, "
-                "not external services. Λ = Conjecture 1 (advisory).",
+                 "events": {"signed_spans": None}},
+        "receipt_evidence": {
+            "state": "inventory",
+            "hash_chain_depth": ch["depth"],
+            "signed_spans_observed": None,
+            "chain_verified_observed": None,
+        },
+        "observation_state": "inventory",
+        "note": "Self-contained capability inventory. Nodes are named a11oy internal "
+                "functions, not runtime health or provenance observations. No latency, "
+                "signature, or attestation state is inferred. Λ = Conjecture 1 (advisory).",
     })
 
 
@@ -9617,11 +9710,22 @@ def _a11oy_arena_lambda_geo(vals):
 # in-memory ring is seeded from this file at boot.
 import collections as _aeh_collections
 import threading as _aeh_threading
+from datetime import datetime as _aeh_datetime
 from pathlib import Path as _aeh_Path
 
 _A11OY_EVAL_HIST_MAX = 50
 _A11OY_EVAL_HIST = _aeh_collections.deque(maxlen=_A11OY_EVAL_HIST_MAX)
 _A11OY_EVAL_HIST_LOCK = _aeh_threading.Lock()
+_A11OY_EVAL_HIST_SLA_SEC = 86400
+_A11OY_EVAL_HIST_MAX_FUTURE_SKEW_SEC = 300
+_A11OY_EVAL_HIST_STORAGE_LAST_ERROR = None
+_A11OY_EVAL_HIST_STORAGE_DURABILITY = "unavailable"
+_A11OY_EVAL_HIST_STORAGE_REQUESTED_DURABILITY = (
+    "durable"
+    if (os.environ.get("A11OY_EVAL_HIST_DIR") or "").strip()
+    else "ephemeral"
+)
+_A11OY_EVAL_HIST_STORAGE_FALLBACK_REASON = None
 
 
 def _a11oy_eval_hist_resolve_dir():
@@ -9639,7 +9743,7 @@ def _a11oy_eval_hist_resolve_dir():
     for d in cands:
         try:
             d.mkdir(parents=True, exist_ok=True)
-            _probe = d / ".write_test"
+            _probe = d / (".write_test.%s" % os.getpid())
             _probe.write_text("ok", "utf-8")
             _probe.unlink()
             return d
@@ -9649,31 +9753,71 @@ def _a11oy_eval_hist_resolve_dir():
 
 
 try:
+    _A11OY_EVAL_HIST_REQUESTED_DIR = (
+        _aeh_Path((os.environ.get("A11OY_EVAL_HIST_DIR") or "").strip())
+        if (os.environ.get("A11OY_EVAL_HIST_DIR") or "").strip()
+        else None
+    )
     _A11OY_EVAL_HIST_DIR = _a11oy_eval_hist_resolve_dir()
     _A11OY_EVAL_HIST_PATH = (
         (_A11OY_EVAL_HIST_DIR / "eval_arena_history.ndjson")
         if _A11OY_EVAL_HIST_DIR else None)
+    if _A11OY_EVAL_HIST_PATH:
+        _A11OY_EVAL_HIST_STORAGE_DURABILITY = (
+            "durable"
+            if (
+                _A11OY_EVAL_HIST_REQUESTED_DIR is not None
+                and _A11OY_EVAL_HIST_DIR == _A11OY_EVAL_HIST_REQUESTED_DIR
+            )
+            else "ephemeral"
+        )
+        if (
+            _A11OY_EVAL_HIST_REQUESTED_DIR is not None
+            and _A11OY_EVAL_HIST_DIR != _A11OY_EVAL_HIST_REQUESTED_DIR
+        ):
+            _A11OY_EVAL_HIST_STORAGE_FALLBACK_REASON = (
+                "configured durable history directory unavailable; "
+                "using ephemeral fallback"
+            )
 except Exception:
     _A11OY_EVAL_HIST_PATH = None
 
 
 def _a11oy_eval_hist_load():
     """Best-effort: seed the in-memory ring from the on-disk NDJSON once."""
+    global _A11OY_EVAL_HIST_STORAGE_LAST_ERROR
     if not _A11OY_EVAL_HIST_PATH:
+        _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = "no writable history directory"
         return
     try:
         if _A11OY_EVAL_HIST_PATH.is_file():
             lines = _A11OY_EVAL_HIST_PATH.read_text("utf-8").splitlines()
+            invalid_records = 0
             for ln in lines[-_A11OY_EVAL_HIST_MAX:]:
                 ln = ln.strip()
                 if not ln:
                     continue
                 try:
-                    _A11OY_EVAL_HIST.append(json.loads(ln))
+                    record = json.loads(ln)
+                    if not isinstance(record, dict):
+                        raise ValueError("history record is not an object")
+                    if str(record.get("mode") or "").lower() != "live":
+                        raise ValueError("history record is not a live run")
+                    timestamp = record.get("timestamp")
+                    if not timestamp:
+                        raise ValueError("history record has no timestamp")
+                    _aeh_datetime.fromisoformat(
+                        str(timestamp).replace("Z", "+00:00")
+                    )
+                    _A11OY_EVAL_HIST.append(record)
                 except Exception:
-                    pass
-    except Exception:
-        pass
+                    invalid_records += 1
+            if invalid_records:
+                _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = (
+                    "history load skipped %d invalid record(s)" % invalid_records
+                )
+    except Exception as exc:
+        _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = "history load failed: %r" % exc
 
 
 _a11oy_eval_hist_load()
@@ -9681,13 +9825,18 @@ _a11oy_eval_hist_load()
 
 def _a11oy_eval_hist_append(run: dict) -> dict:
     """Append a PII-free, secret-free summary of a live run to the rolling
-    ledger and persist the (capped) ring best-effort to disk. Never raises."""
+    ledger and persist the (capped) ring best-effort to disk. Persistence
+    failures remain visible through the history endpoint. Never raises."""
+    global _A11OY_EVAL_HIST_STORAGE_LAST_ERROR
     try:
+        if not isinstance(run, dict) or str(run.get("mode") or "").lower() != "live":
+            raise ValueError("only live eval-arena runs may enter live history")
         rcpt = run.get("receipt") or {}
         summary = {
             "run_id": run.get("run_id"),
             "timestamp": run.get("timestamp"),
             "mode": run.get("mode"),
+            "triggered_by": run.get("triggered_by"),
             "scenarios_total": run.get("scenarios_total"),
             "scenarios_passed": run.get("scenarios_passed"),
             "scenarios_failed": run.get("scenarios_failed"),
@@ -9710,21 +9859,43 @@ def _a11oy_eval_hist_append(run: dict) -> dict:
             _A11OY_EVAL_HIST.append(summary)
             if _A11OY_EVAL_HIST_PATH:
                 try:
-                    _A11OY_EVAL_HIST_PATH.write_text(
+                    _tmp_path = _A11OY_EVAL_HIST_PATH.with_suffix(".ndjson.tmp")
+                    _tmp_path.write_text(
                         "\n".join(json.dumps(r) for r in _A11OY_EVAL_HIST) + "\n",
                         "utf-8")
-                except Exception:
-                    pass
+                    os.replace(_tmp_path, _A11OY_EVAL_HIST_PATH)
+                    _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = None
+                except Exception as exc:
+                    _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = (
+                        "history persist failed: %r" % exc
+                    )
+            else:
+                _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = "no writable history directory"
         return summary
-    except Exception:
+    except Exception as exc:
+        _A11OY_EVAL_HIST_STORAGE_LAST_ERROR = "history append failed: %r" % exc
         return {}
 
 
-def _a11oy_eval_run_live() -> dict:
+def _a11oy_eval_run_live(triggered_by=None) -> dict:
     """Run the governance eval harness LIVE, in-image, deriving every score from
     a real operation performed now. Never fabricates numbers."""
     from datetime import datetime, timezone
     import time
+    if isinstance(triggered_by, dict):
+        actor = {
+            "actor_type": str(triggered_by.get("actor_type") or "credential")[:32],
+            "owner_id": str(triggered_by.get("owner_id") or "unknown")[:128],
+            "namespace": str(triggered_by.get("namespace") or "a11oy")[:64],
+            "key_id": str(triggered_by.get("key_id") or "unknown")[:128],
+        }
+    else:
+        actor = {
+            "actor_type": "scheduler",
+            "owner_id": "a11oy-eval-scheduler",
+            "namespace": "a11oy",
+            "key_id": "lifecycle",
+        }
     have_pub = bool(_A11OY_PUB_PEM)
     have_key = _A11OY_PRIV is not None
     results = []
@@ -9781,12 +9952,14 @@ def _a11oy_eval_run_live() -> dict:
     now = datetime.now(timezone.utc)
     run_id = "arena-live-" + str(int(time.time() * 1000))
     run_receipt = _a11oy_sign_receipt({"run_id": run_id, "results": results,
-                                       "dimensions": _A11OY_ARENA_DIMS})
+                                       "dimensions": _A11OY_ARENA_DIMS,
+                                       "triggered_by": actor})
     sigs = run_receipt.get("signatures") or []
     out = {
         "run_id": run_id,
         "timestamp": now.isoformat(),
         "mode": "live",
+        "triggered_by": actor,
         "scenarios_total": len(results),
         "scenarios_passed": passed,
         "scenarios_failed": len(results) - passed,
@@ -9818,78 +9991,219 @@ def _a11oy_eval_run_live() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# ADDITIVE (auto-fill eval-arena history): a small in-image background
-# scheduler that periodically runs the SAME live eval path the "Re-run live"
-# button uses (_a11oy_eval_run_live), so /api/a11oy/v1/eval-arena/history is
-# never empty and the console trend strip renders a real sparkline WITHOUT a
-# human clicking the button. Honest: these are LIVE in-image runs (no
-# fabrication); the ring buffer + best-effort on-disk NDJSON still reset on
-# Space rebuild (already disclosed in the endpoint honesty note) and the run is
-# deterministic by design, so the trend only moves when governance state moves.
-# Daemon thread, fail-soft -- a run error is swallowed and retried next cycle;
-# it can never block startup or take down the app. The image is single-process
-# (CMD ["python","serve.py"] -> one uvicorn worker), so exactly one scheduler
-# runs; a module-level guard also prevents a double-start. Cadence + warm-up
-# are env-tunable:
-#   A11OY_EVAL_AUTORUN_INTERVAL_SEC      (default 86400 = daily; <=0 disables)
-#   A11OY_EVAL_AUTORUN_INITIAL_DELAY_SEC (default 45 -> seeds one run shortly
-#                                         after boot so the trend is never empty)
+# Lifecycle-owned eval history refresh. The SAME live eval path used by the
+# operator action produces every entry. Startup seeds only absent/stale
+# history, then refreshes every six hours by default -- comfortably inside the
+# 24-hour readiness SLA. No work begins at module import, and shutdown can
+# signal and join the worker.
+#   A11OY_EVAL_AUTORUN_INTERVAL_SEC      (default 21600 = six hours; <=0 disables)
+#   A11OY_EVAL_AUTORUN_INITIAL_DELAY_SEC (default 0; optional operator delay)
 # ---------------------------------------------------------------------------
 _A11OY_EVAL_AUTORUN_STARTED = False
+_A11OY_EVAL_AUTORUN_THREAD = None
+_A11OY_EVAL_AUTORUN_STOP = _aeh_threading.Event()
+_A11OY_EVAL_AUTORUN_LOCK = _aeh_threading.Lock()
+_A11OY_EVAL_AUTORUN_RUN_LOCK = _aeh_threading.Lock()
+_A11OY_EVAL_AUTORUN_DEDUP_SEC = 60
+
+
+def _a11oy_eval_run_live_serialized(triggered_by=None) -> dict:
+    """Serialize operator and scheduler runs without blocking the event loop."""
+    with _A11OY_EVAL_AUTORUN_RUN_LOCK:
+        return _a11oy_eval_run_live(triggered_by=triggered_by)
+
+
+def _a11oy_eval_hist_freshness(now=None) -> dict:
+    """Return explicit, fail-closed freshness for the newest live run."""
+    from datetime import datetime, timezone
+
+    with _A11OY_EVAL_HIST_LOCK:
+        latest = _A11OY_EVAL_HIST[-1] if _A11OY_EVAL_HIST else None
+        latest = dict(latest) if isinstance(latest, dict) else None
+    if latest is None:
+        return {
+            "status": "unavailable",
+            "sla_s": _A11OY_EVAL_HIST_SLA_SEC,
+            "age_s": None,
+            "latest_run_at": None,
+            "reason": "no valid eval-arena run has been recorded",
+        }
+    if str(latest.get("mode") or "").lower() != "live":
+        return {
+            "status": "unavailable",
+            "sla_s": _A11OY_EVAL_HIST_SLA_SEC,
+            "age_s": None,
+            "latest_run_at": latest.get("timestamp"),
+            "reason": "latest eval-arena record is not a live run",
+        }
+    latest_at = (latest or {}).get("timestamp")
+    if not latest_at:
+        return {
+            "status": "unavailable",
+            "sla_s": _A11OY_EVAL_HIST_SLA_SEC,
+            "age_s": None,
+            "latest_run_at": None,
+            "reason": "no eval-arena run has been recorded",
+        }
+    try:
+        parsed = datetime.fromisoformat(str(latest_at).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        observed = now or datetime.now(timezone.utc)
+        raw_age_s = int(
+            (observed - parsed.astimezone(timezone.utc)).total_seconds()
+        )
+        if raw_age_s < -_A11OY_EVAL_HIST_MAX_FUTURE_SKEW_SEC:
+            return {
+                "status": "unavailable",
+                "sla_s": _A11OY_EVAL_HIST_SLA_SEC,
+                "age_s": None,
+                "latest_run_at": latest_at,
+                "reason": "latest run timestamp exceeds allowed future clock skew",
+            }
+        age_s = max(0, raw_age_s)
+    except Exception as exc:
+        return {
+            "status": "unavailable",
+            "sla_s": _A11OY_EVAL_HIST_SLA_SEC,
+            "age_s": None,
+            "latest_run_at": latest_at,
+            "reason": "invalid latest run timestamp: %r" % exc,
+        }
+    return {
+        "status": "live" if age_s <= _A11OY_EVAL_HIST_SLA_SEC else "stale",
+        "sla_s": _A11OY_EVAL_HIST_SLA_SEC,
+        "age_s": age_s,
+        "latest_run_at": latest_at,
+        "reason": None if age_s <= _A11OY_EVAL_HIST_SLA_SEC else "latest run exceeds SLA",
+    }
+
+
+def _a11oy_eval_hist_storage() -> dict:
+    """Disclose whether history persistence is durable, ephemeral, or failed."""
+    configured = _A11OY_EVAL_HIST_STORAGE_DURABILITY
+    last_error = _A11OY_EVAL_HIST_STORAGE_LAST_ERROR
+    return {
+        "durability": "unavailable" if last_error else configured,
+        "configured_durability": _A11OY_EVAL_HIST_STORAGE_REQUESTED_DURABILITY,
+        "resolved_durability": configured,
+        "fallback_reason": _A11OY_EVAL_HIST_STORAGE_FALLBACK_REASON,
+        "last_error": last_error,
+    }
 
 
 def _a11oy_eval_autorun_interval() -> int:
     try:
-        return int(os.environ.get("A11OY_EVAL_AUTORUN_INTERVAL_SEC", "86400"))
+        return int(os.environ.get("A11OY_EVAL_AUTORUN_INTERVAL_SEC", "21600"))
     except Exception:
-        return 86400
+        return 21600
 
 
-def _a11oy_eval_autorun_loop() -> None:
-    import time as _t
+def _a11oy_eval_autorun_loop(stop_event=None) -> None:
+    stop_event = stop_event or _A11OY_EVAL_AUTORUN_STOP
     try:
-        initial = int(os.environ.get("A11OY_EVAL_AUTORUN_INITIAL_DELAY_SEC", "45"))
+        initial = int(os.environ.get("A11OY_EVAL_AUTORUN_INITIAL_DELAY_SEC", "0"))
     except Exception:
-        initial = 45
-    _t.sleep(max(0, initial))
-    while True:
-        interval = _a11oy_eval_autorun_interval()
-        if interval <= 0:
+        initial = 0
+    if stop_event.wait(max(0, initial)):
+        return
+    interval = _a11oy_eval_autorun_interval()
+    if interval <= 0:
+        return
+    refresh_interval = min(
+        interval,
+        max(1, _A11OY_EVAL_HIST_SLA_SEC - 300),
+    )
+
+    # A fresh persisted run needs no duplicate startup write. Wait for the
+    # lesser of the normal cadence and its remaining SLA budget.
+    initial_freshness = _a11oy_eval_hist_freshness()
+    if initial_freshness["status"] == "live":
+        remaining = max(
+            1,
+            _A11OY_EVAL_HIST_SLA_SEC
+            - int(initial_freshness.get("age_s") or 0)
+            - 300,
+        )
+        if stop_event.wait(min(refresh_interval, remaining)):
             return
-        try:
-            run = _a11oy_eval_run_live()
+
+    while not stop_event.is_set():
+        with _A11OY_EVAL_AUTORUN_RUN_LOCK:
+            if stop_event.is_set():
+                return
+            # If a prior lifecycle generation finished while this one waited
+            # for the run lock, do not duplicate that just-recorded live run.
+            current = _a11oy_eval_hist_freshness()
+            current_age = current.get("age_s")
+            recently_recorded = (
+                current.get("status") == "live"
+                and current_age is not None
+                and current_age < _A11OY_EVAL_AUTORUN_DEDUP_SEC
+            )
             try:
-                print("[a11oy] eval-arena autorun: appended %s" % (run.get("run_id")),
-                      file=sys.stderr)
-            except Exception:
-                pass
-        except Exception as _e:  # pragma: no cover - fail-soft, retry next cycle
-            try:
-                print("[a11oy] eval-arena autorun skipped: %r" % _e, file=sys.stderr)
-            except Exception:
-                pass
-        _t.sleep(interval)
+                if recently_recorded:
+                    run = None
+                else:
+                    run = _a11oy_eval_run_live()
+                if run:
+                    print("[a11oy] eval-arena autorun: appended %s" % (run.get("run_id")),
+                          file=sys.stderr)
+            except Exception as _e:  # pragma: no cover - fail-soft, retry next cycle
+                try:
+                    print("[a11oy] eval-arena autorun skipped: %r" % _e,
+                          file=sys.stderr)
+                except Exception:
+                    pass
+        if stop_event.wait(refresh_interval):
+            return
 
 
 def _a11oy_eval_autorun_start() -> None:
-    global _A11OY_EVAL_AUTORUN_STARTED
-    if _A11OY_EVAL_AUTORUN_STARTED:
-        return
-    if _a11oy_eval_autorun_interval() <= 0:
-        print("[a11oy] eval-arena autorun disabled (interval<=0)", file=sys.stderr)
-        return
-    try:
-        import threading as _th
-        _th.Thread(target=_a11oy_eval_autorun_loop, name="a11oy-eval-autorun",
-                   daemon=True).start()
+    global _A11OY_EVAL_AUTORUN_STARTED, _A11OY_EVAL_AUTORUN_THREAD
+    global _A11OY_EVAL_AUTORUN_STOP
+    with _A11OY_EVAL_AUTORUN_LOCK:
+        if (
+            _A11OY_EVAL_AUTORUN_THREAD
+            and _A11OY_EVAL_AUTORUN_THREAD.is_alive()
+            and not _A11OY_EVAL_AUTORUN_STOP.is_set()
+        ):
+            return
+        if _a11oy_eval_autorun_interval() <= 0:
+            print("[a11oy] eval-arena autorun disabled (interval<=0)", file=sys.stderr)
+            return
+        # A stopped prior generation may still be draining a live evaluation
+        # after shutdown's bounded join. Give the replacement its own event;
+        # the run lock serializes the overlap and the loop de-duplicates the
+        # just-recorded result.
+        _A11OY_EVAL_AUTORUN_STOP = _aeh_threading.Event()
+        _A11OY_EVAL_AUTORUN_THREAD = _aeh_threading.Thread(
+            target=_a11oy_eval_autorun_loop,
+            args=(_A11OY_EVAL_AUTORUN_STOP,),
+            name="a11oy-eval-autorun",
+            daemon=True,
+        )
+        _A11OY_EVAL_AUTORUN_THREAD.start()
         _A11OY_EVAL_AUTORUN_STARTED = True
-        print("[a11oy] eval-arena autorun scheduler started "
-              "(interval=%ss)" % _a11oy_eval_autorun_interval(), file=sys.stderr)
-    except Exception as _e:  # pragma: no cover
-        print("[a11oy] eval-arena autorun failed to start: %r" % _e, file=sys.stderr)
+    print("[a11oy] eval-arena autorun scheduler started "
+          "(interval=%ss)" % _a11oy_eval_autorun_interval(), file=sys.stderr)
 
 
-_a11oy_eval_autorun_start()
+def _a11oy_eval_autorun_stop() -> None:
+    global _A11OY_EVAL_AUTORUN_STARTED, _A11OY_EVAL_AUTORUN_THREAD
+    with _A11OY_EVAL_AUTORUN_LOCK:
+        thread = _A11OY_EVAL_AUTORUN_THREAD
+        stop_event = _A11OY_EVAL_AUTORUN_STOP
+        stop_event.set()
+    if thread and thread.is_alive():
+        thread.join(timeout=5.0)
+    with _A11OY_EVAL_AUTORUN_LOCK:
+        if (
+            _A11OY_EVAL_AUTORUN_THREAD is thread
+            and (not thread or not thread.is_alive())
+        ):
+            _A11OY_EVAL_AUTORUN_THREAD = None
+            _A11OY_EVAL_AUTORUN_STARTED = False
 
 
 @app.get("/api/a11oy/v1/eval-arena/history")
@@ -9911,11 +10225,16 @@ async def a11oy_eval_arena_history_v2(limit: int = 20) -> JSONResponse:
         n = 20
     with _A11OY_EVAL_HIST_LOCK:
         runs = list(_A11OY_EVAL_HIST)[-n:]
+    freshness = _a11oy_eval_hist_freshness()
     return JSONResponse({
         "count": len(runs),
         "max_retained": _A11OY_EVAL_HIST_MAX,
         "dimensions": _A11OY_ARENA_DIMS,
         "runs": runs,
+        "latest_run_at": freshness.get("latest_run_at"),
+        "latest_run_age_s": freshness.get("age_s"),
+        "freshness": freshness,
+        "storage": _a11oy_eval_hist_storage(),
         "honesty": (
             "Rolling history of LIVE in-image eval-arena runs (newest last). Each "
             "entry is a PII-free, secret-free summary appended when \u201cRe-run "
@@ -9928,18 +10247,176 @@ async def a11oy_eval_arena_history_v2(limit: int = 20) -> JSONResponse:
     })
 
 
-@app.get("/api/a11oy/v1/eval-arena/rerun")
-@app.get("/v1/eval-arena/rerun")
+_A11OY_EVAL_AUTH_LOCK = _aeh_threading.Lock()
+_A11OY_EVAL_AUTH_REGISTRY = None
+_A11OY_EVAL_AUTH_FINGERPRINT = None
+_A11OY_EVAL_RERUN_RATE_LOCK = _aeh_threading.Lock()
+_A11OY_EVAL_RERUN_LAST: dict[tuple[str, str], float] = {}
+_A11OY_EVAL_RERUN_PENDING: set[tuple[str, str]] = set()
+
+
+def _a11oy_eval_credential_registry():
+    """Load the immutable operator registry, failing closed when unconfigured."""
+    from gdw_auth import load_credential_registry
+
+    global _A11OY_EVAL_AUTH_REGISTRY, _A11OY_EVAL_AUTH_FINGERPRINT
+    registry_json = os.environ.get("A11OY_EVAL_CREDENTIALS_JSON")
+    principal_json = os.environ.get("A11OY_EVAL_PRINCIPALS_JSON")
+    if registry_json is None:
+        registry_json = os.environ.get("GDW_CREDENTIALS_JSON")
+    if principal_json is None:
+        principal_json = os.environ.get("GDW_PRINCIPALS_JSON")
+    namespace = (
+        os.environ.get("A11OY_EVAL_NAMESPACE")
+        or os.environ.get("GDW_NAMESPACE")
+        or "a11oy"
+    )
+    fingerprint = _hashv2.sha256(
+        json.dumps(
+            {
+                "registry": registry_json,
+                "principals": principal_json,
+                "namespace": namespace,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    with _A11OY_EVAL_AUTH_LOCK:
+        if (
+            _A11OY_EVAL_AUTH_REGISTRY is not None
+            and _A11OY_EVAL_AUTH_FINGERPRINT == fingerprint
+        ):
+            return _A11OY_EVAL_AUTH_REGISTRY, namespace
+        registry = load_credential_registry(
+            registry_json,
+            principal_registry_json=principal_json,
+            principal_registry_namespace=namespace,
+        )
+        _A11OY_EVAL_AUTH_REGISTRY = registry
+        _A11OY_EVAL_AUTH_FINGERPRINT = fingerprint
+        return registry, namespace
+
+
+def _a11oy_eval_authorise(authorization):
+    """Require a constant-time bearer principal with the dedicated eval scope."""
+    from gdw_auth import (
+        AuthConfigurationError,
+        AuthenticationError,
+        authenticate_bearer,
+    )
+
+    try:
+        registry, namespace = _a11oy_eval_credential_registry()
+        principal = authenticate_bearer(
+            authorization,
+            registry,
+            namespace=namespace,
+            required_scopes=("eval:run",),
+        )
+        return principal, None
+    except AuthConfigurationError:
+        return None, JSONResponse(
+            {
+                "state": "unavailable",
+                "error": "eval operator credential registry is unavailable",
+            },
+            status_code=503,
+        )
+    except AuthenticationError as exc:
+        status = 403 if exc.code in {
+            "credential_revoked",
+            "foreign_namespace",
+            "missing_scopes",
+        } else 401
+        headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+        return None, JSONResponse(
+            {"state": "denied", "error": exc.code},
+            status_code=status,
+            headers=headers,
+        )
+
+
+def _a11oy_eval_rerun_interval_s() -> int:
+    try:
+        value = int(os.environ.get("A11OY_EVAL_RERUN_MIN_INTERVAL_SEC", "60"))
+    except Exception:
+        value = 60
+    return max(1, min(3600, value))
+
+
+def _a11oy_eval_rerun_claim(principal):
+    """Allow one queued/running operator eval and rate-limit each key identity."""
+    import time
+
+    identity = (principal.owner_id, principal.key_id)
+    interval = _a11oy_eval_rerun_interval_s()
+    now = time.monotonic()
+    with _A11OY_EVAL_RERUN_RATE_LOCK:
+        last = _A11OY_EVAL_RERUN_LAST.get(identity)
+        if _A11OY_EVAL_RERUN_PENDING:
+            return None, max(1, interval)
+        if last is not None and now - last < interval:
+            return None, max(1, int(interval - (now - last) + 0.999))
+        _A11OY_EVAL_RERUN_LAST[identity] = now
+        _A11OY_EVAL_RERUN_PENDING.add(identity)
+        return identity, None
+
+
+def _a11oy_eval_rerun_release(identity) -> None:
+    with _A11OY_EVAL_RERUN_RATE_LOCK:
+        _A11OY_EVAL_RERUN_PENDING.discard(identity)
+
+
 @app.post("/api/a11oy/v1/eval-arena/rerun")
 @app.post("/v1/eval-arena/rerun")
-async def a11oy_eval_arena_rerun_v2() -> JSONResponse:
+async def a11oy_eval_arena_rerun_v2(request: Request) -> JSONResponse:
+    principal, denial = _a11oy_eval_authorise(request.headers.get("authorization"))
+    if denial is not None:
+        return denial
+    identity, retry_after = _a11oy_eval_rerun_claim(principal)
+    if identity is None:
+        return JSONResponse(
+            {
+                "state": "rate_limited",
+                "error": "an eval rerun is already active or this principal is inside its cooldown",
+                "retry_after_s": retry_after,
+            },
+            status_code=429,
+            headers={"Retry-After": str(retry_after)},
+        )
     try:
-        return JSONResponse(_a11oy_eval_run_live())
+        import anyio
+        actor = {
+            "actor_type": "credential",
+            "owner_id": principal.owner_id,
+            "namespace": principal.namespace,
+            "key_id": principal.key_id,
+        }
+        run = await anyio.to_thread.run_sync(
+            _a11oy_eval_run_live_serialized,
+            actor,
+        )
+        return JSONResponse(run)
     except Exception as e:  # pragma: no cover - fall back to recorded, never fabricate
         rec = dict(_A11OY_ARENA)
         rec["mode"] = "recorded"
+        rec["state"] = "unavailable"
         rec["live_error"] = "live re-run unavailable: %r" % e
-        return JSONResponse(rec, status_code=200)
+        return JSONResponse(rec, status_code=503)
+    finally:
+        _a11oy_eval_rerun_release(identity)
+
+
+@app.get("/api/a11oy/v1/eval-arena/rerun", include_in_schema=False)
+@app.get("/v1/eval-arena/rerun", include_in_schema=False)
+async def a11oy_eval_arena_rerun_get_not_allowed_v2() -> JSONResponse:
+    """Keep read attempts local and side-effect free instead of proxying them."""
+    return JSONResponse(
+        {"detail": "Method Not Allowed"},
+        status_code=405,
+        headers={"Allow": "POST"},
+    )
 
 
 # ---- Forecast baseline (GAP-4): calibrated PI bands, deterministic ----
@@ -11503,7 +11980,7 @@ async def proof_replay_page() -> Response:
 # the four honesty tiers with LIVE counts from /api/a11oy/v1/genome, the locked-8 with
 # TRUTHFUL labels (F18=Reed-Solomon parity NOT "DSSE seal", F19=Bekenstein additive, etc.)
 # + real lean_ref, the SEMANTIC-VERIFIED theorems, Theorem U (PROVEN conditional, teal) vs
-# Conjecture 1 (Λ-uniqueness, OPEN, gray — NEVER green), SLSA L1+L2 attested / L3 ROADMAP
+# Conjecture 1 (Λ-uniqueness, OPEN, gray — NEVER green), SLSA L1 only; L2/L3 unavailable
 # linking /api/a11oy/v1/honest, and a "verify a receipt yourself" panel that POSTs
 # /api/a11oy/v1/govern/infer and re-verifies the DSSE ECDSA-P256 signature in-browser
 # against /cosign.pub (no sign-on-read). Every claim links to its check. 0 runtime CDN.
@@ -12432,7 +12909,7 @@ async def api_health() -> JSONResponse:
         "lean_sha": "c7c0ba17",
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": _A11OY_SLSA_TEXT,
     })
 
 
@@ -13586,7 +14063,7 @@ except Exception as _devb_e:
 #                     over a freshly DSSE-signed decision (szl_ietf_receipt) —
 #                     reuses _a11oy_sign_receipt; ECDSA-P256 envelope INTACT.
 #   /gov/lean         Lean4Agent workflow-invariant scaffold status (ROADMAP).
-# DOCTRINE v11; Λ=Conjecture 1; SLSA L1/L2 (L3 roadmap); trust<100%; 0 CDN;
+# DOCTRINE v11; Λ=Conjecture 1; SLSA L1 only (L2/L3 unavailable); trust<100%; 0 CDN;
 # every score measured or honestly "not_measured".
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
@@ -13662,7 +14139,7 @@ except Exception as _fs_e:
 # / interrupt-rate / flap-rate are MEASURED from the live decision log (labelled
 # ROADMAP until enough real runs accrue) — never fabricated. Effectors SIMULATED.
 # Pattern credit: https://cursor.com/blog/agent-autonomy-auto-review
-# DOCTRINE v11; Lambda=Conjecture 1; SLSA L1/L2 (L3 roadmap); trust<100%; 0 CDN.
+# DOCTRINE v11; Lambda=Conjecture 1; SLSA L1 only (L2/L3 unavailable); trust<100%; 0 CDN.
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:

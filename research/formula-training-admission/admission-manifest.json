@@ -35,7 +35,7 @@
     "executable_formula_records": 23,
     "formula_crosswalk_rows": 146,
     "holdout_rows": 148,
-    "raw_brain_nodes_quarantined": 9464,
+    "raw_brain_nodes_quarantined": 9465,
     "raw_brain_rows_emitted": 0,
     "resolved_status_counts": {
       "CONDITIONAL": 28,
@@ -48,32 +48,32 @@
     "training_admission": "BLOCKED_PENDING_NAMESPACE_AND_SOURCE_RECONCILIATION",
     "tranche_rows": 148
   },
-  "manifest_receipt_sha256": "6a2f6ff3a29184f6b9e3acd359cb4a447656ce648dbf3244b6168c74225df406",
+  "manifest_receipt_sha256": "c2c5feac57683fe75a06eebf52cca2938ff8ea6fcdd13913a877e9ffb06721f4",
   "schema_version": "szl.formula-training-admission-manifest.v1",
   "source_snapshot": {
     "brain": {
-      "distinct_artifact_count": 4229,
+      "distinct_artifact_count": 4230,
       "formula_node_count": 23,
-      "graph_content_sha256": "536f73f051baf0a99b75c1bb204388e8b7398f00250b47f332dd95488371924a",
-      "inventory_sha256": "d3980630b0f60d2ab0b7d64d41ea1f2d9c7664ea8c030426a7f4c8008bd04dc7",
+      "graph_content_sha256": "933c3a41ef6f9d5a49401be67948786a55b9c58d0e9762f9b619c6a800ce2cc7",
+      "inventory_sha256": "0dc8d914089e4e8fecbc7e2d4623ec92449f6a8de64a5064e30b985fd379cf9b",
       "person_metadata_count": 5235,
-      "quarantined_node_count": 9464,
-      "raw_node_count": 9464,
+      "quarantined_node_count": 9465,
+      "raw_node_count": 9465,
       "reason_counts": {
         "DUPLICATE_CANONICAL_KEY": 3747,
-        "FRESHNESS_UNKNOWN": 9430,
-        "LICENSE_UNKNOWN": 9464,
-        "PROVENANCE_UNKNOWN": 185,
-        "REVISION_UNKNOWN": 9464
+        "FRESHNESS_UNKNOWN": 9431,
+        "LICENSE_UNKNOWN": 9465,
+        "PROVENANCE_UNKNOWN": 186,
+        "REVISION_UNKNOWN": 9465
       },
       "training_text_rows_emitted": 0
     },
     "canonical_query_context": {
       "canonical_rows_observed": 8,
       "evidence_manifest_path": "research/brain-evidence-admission/evidence-manifest.json",
-      "evidence_manifest_sha256": "7629111e688c4780b90f66b958a4d15c66bcbed2959b8f46714ec07f7fcc070e",
+      "evidence_manifest_sha256": "cd8b54309015bb41cad30e35ccf42f397ebc0b7773ea1b30c78282cc95c5aebc",
       "index_path": "research/brain-evidence-admission/canonical-index.json",
-      "index_sha256": "342f28c5f718c4a0dd3f1f0f1c1e47e0345bb98bed84359af0151b2ffbef0031",
+      "index_sha256": "1ecbdfe79f16963e3edbce990160e19938785ca40b3dfe0a82968d003781b1ff",
       "latency_status": "NOT_EVALUATED",
       "status": "COMPLETE_LOCAL_PILOT",
       "unique_document_count": 5
@@ -112,13 +112,13 @@
       "admission": "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED",
       "aligned": true,
       "brain_ledger_path": "model_release/m1/brain-ingest-ledger.jsonl",
-      "brain_ledger_rows": 9464,
-      "brain_ledger_sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d",
+      "brain_ledger_rows": 9465,
+      "brain_ledger_sha256": "d2946716f30ae6705f5f6b75ffbac862a42eefb55f2787ec320ed4f0992df8d0",
       "current_only_node_ids": [],
-      "current_raw_nodes": 9464,
+      "current_raw_nodes": 9465,
       "m1_only_node_ids": [],
       "manifest_path": "model_release/m1/corpus-ingestion-manifest.json",
-      "manifest_sha256": "6f5e0d9ecb60d8aa52fc229a42ad37d62fc7fa7406993a0b8352b2b574fb40a4",
+      "manifest_sha256": "7305f93e5592bd94f1681e23ddb0f819d258db23dfe5fbc1180da6180a3259f7",
       "raw_training_eligible_rows": 0,
       "training_state": "NOT_RUN"
     },
@@ -146,7 +146,7 @@
     "stages": [
       {
         "decision": "QUARANTINE_AGGREGATE_ONLY",
-        "record_count": 9464,
+        "record_count": 9465,
         "stage": "DORMANT_RAW",
         "training_text_rows_emitted": 0
       },
@@ -162,7 +162,7 @@
       },
       {
         "holdout_rows": 148,
-        "quarantined_raw_nodes": 9464,
+        "quarantined_raw_nodes": 9465,
         "stage": "ADMISSION_DECISION",
         "train_rows": 0
       },

@@ -187,13 +187,61 @@ ENDPOINTS = {
 
     # ── Vertical packs / deva (finance, live external) ──
     "/api/a11oy/v1/vertical-packs": ep(schema="generic_obj", sla=None),
-    "/api/a11oy/v1/vert/finance/feed": ep(schema="generic_obj", sla=HOUR, citations=True,
+    "/api/a11oy/v1/vert/defense/feed": ep(
+        schema="vert_defense_feed", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "reference"),
+        note="Canonical Defense / Gov renderer feed: CISA KEV + NVD with cited leaders."),
+    "/api/a11oy/v1/vert/finance/feed": ep(
+        schema="vert_finance_feed", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "reference", "unofficial-fallback"),
         note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
-    "/api/a11oy/v1/deva/healthz": ep(schema="deva_health", sla=5 * MIN,
-        note="deva feed health — lists the live tabs[]; warm before judging deep tabs."),
+    "/api/a11oy/v1/vert/legal/feed": ep(
+        schema="vert_legal_feed", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "reference"),
+        note="Canonical Legal renderer feed: Federal Register + CourtListener."),
+    "/api/a11oy/v1/vert/cyber/feed": ep(
+        schema="vert_cyber_feed", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "reference"),
+        note="Canonical Cyber renderer feed: KEV/NVD + GitHub/Hugging Face signals."),
+    "/api/a11oy/v1/vert/realestate/feed": ep(
+        schema="vert_realestate_feed", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "reference"),
+        note="Canonical Real Estate renderer feed: NYC HPD/DOB + Treasury rates."),
+    "/api/a11oy/v1/deva/healthz": ep(schema="deva_health", sla=None,
+        note="Static deva capability descriptor; deep vertical routes carry the freshness evidence."),
+
+    # Real-estate operations. The command surface and every active child tab are
+    # backed by the route the console actually calls, never by healthz alone.
+    "/api/a11oy/v1/deva/re/pulse": ep(schema="deva_re_pulse", sla=HOUR,
+        note="NYC HPD/DOB distress plus Treasury rates; source timestamps are mandatory."),
+    "/api/a11oy/v1/deva/re/distress?limit=1": ep(schema="deva_re_distress", sla=HOUR,
+        note="Bounded NYC HPD operational probe for the distress radar."),
+    "/api/a11oy/v1/deva/re/ownership": ep(schema="deva_re_ownership", sla=HOUR,
+        note="SEC real-estate search and fixed public-REIT ownership panel."),
+    "/api/a11oy/v1/deva/re/deal?violations=0&class_c=0": ep(
+        schema="deva_re_deal", sla=HOUR,
+        note="Deterministic deal forecast over a timestamped Treasury-rate observation."),
+    "/api/a11oy/v1/deva/re/brokeredge": ep(schema="deva_re_brokeredge", sla=None,
+        note="Modeled broker-maturity aggregate over live HPD coverage; response has no source clock, so schema is enforced without inventing freshness."),
 
     # ── devb (legal + enterprise, live external) ──
-    "/api/a11oy/v1/devb/healthz": ep(schema="generic_obj", sla=5 * MIN),
+    "/api/a11oy/v1/devb/healthz": ep(schema="devb_health", sla=None,
+        note="Static devb capability descriptor; deep legal routes carry the freshness evidence."),
+    "/api/a11oy/v1/devb/legal/matter?limit=1": ep(
+        schema="devb_legal_matter", sla=HOUR, citations=True,
+        note="Bounded CourtListener matter probe; returned opinions carry authority URLs."),
+    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1": ep(
+        schema="devb_legal_matter", sla=HOUR, citations=True,
+        note="Bounded CourtListener authority probe for the defense-builder alias."),
+    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1": ep(
+        schema="devb_legal_matter", sla=HOUR, citations=True,
+        note="Bounded CourtListener authority probe for the insurance-review alias."),
+    "/api/a11oy/v1/devb/legal/regulatory?limit=1": ep(
+        schema="devb_legal_regulatory", sla=HOUR, citations=True,
+        note="Federal Register documents and agency catalog with source URLs."),
+    "/api/a11oy/v1/devb/legal/exposure?limit=1": ep(
+        schema="devb_legal_exposure", sla=HOUR, citations=True,
+        note="SEC/CourtListener exposure graph; case nodes retain CourtListener URLs."),
 
     # ── seismic ──
     "/api/a11oy/v1/seismic/forecast": ep(schema="generic_obj", sla=HOUR, citations=True),
@@ -382,7 +430,237 @@ SCHEMAS = {
     "arena_history": {"type": "object", "anyKey": ["runs", "history", "items"]},
     "mesh": {"type": "object",
              "anyKey": ["nodes", "state", "quorum", "health", "mesh_organs", "wires", "khipu_nodes"]},
+    "vert_defense_feed": {
+        "type": "object",
+        "required": ["vertical", "kev", "nvd", "sources_cited", "doctrine"],
+        "properties": {"vertical": {"const": "defense"}},
+        "requiredPaths": [
+            "kev.value.items", "kev.freshness.status", "kev.freshness.fetched_at",
+            "nvd.value.items", "nvd.freshness.status", "nvd.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "kev.value.items": "array", "kev.freshness.status": "string",
+            "kev.freshness.fetched_at": "timestamp", "nvd.value.items": "array",
+            "nvd.freshness.status": "string", "nvd.freshness.fetched_at": "timestamp",
+            "sources_cited": "array", "doctrine": "object",
+        },
+    },
+    "vert_finance_feed": {
+        "type": "object",
+        "required": [
+            "vertical", "equities_official", "equities", "equities_note",
+            "crypto", "fx", "fintech_cve", "sources_cited", "doctrine",
+        ],
+        "properties": {"vertical": {"const": "finance"}},
+        "requiredPaths": [
+            "equities_official.SPY.freshness.status",
+            "equities_official.SPY.freshness.fetched_at",
+            "equities.SPY.freshness.status", "equities.SPY.freshness.fetched_at",
+            "crypto.BTC-USD.freshness.status", "crypto.BTC-USD.freshness.fetched_at",
+            "fx.freshness.status", "fx.freshness.fetched_at",
+            "fintech_cve.freshness.status", "fintech_cve.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "equities_official": "object", "equities": "object", "crypto": "object",
+            "equities_official.SPY.freshness.status": "string",
+            "equities_official.SPY.freshness.fetched_at": "timestamp",
+            "equities.SPY.freshness.status": "string",
+            "equities.SPY.freshness.fetched_at": "timestamp",
+            "crypto.BTC-USD.freshness.status": "string",
+            "crypto.BTC-USD.freshness.fetched_at": "timestamp",
+            "fx.freshness.status": "string", "fx.freshness.fetched_at": "timestamp",
+            "fintech_cve.freshness.status": "string",
+            "fintech_cve.freshness.fetched_at": "timestamp",
+            "equities_note": "string", "sources_cited": "array",
+            "doctrine": "object",
+        },
+    },
+    "vert_legal_feed": {
+        "type": "object",
+        "required": ["vertical", "federal_register", "court_filings", "sources_cited", "doctrine"],
+        "properties": {"vertical": {"const": "legal"}},
+        "requiredPaths": [
+            "federal_register.value.items", "federal_register.freshness.status",
+            "federal_register.freshness.fetched_at", "court_filings.value.items",
+            "court_filings.freshness.status", "court_filings.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "federal_register.value.items": "array",
+            "federal_register.freshness.status": "string",
+            "federal_register.freshness.fetched_at": "timestamp",
+            "court_filings.value.items": "array",
+            "court_filings.freshness.status": "string",
+            "court_filings.freshness.fetched_at": "timestamp",
+            "sources_cited": "array", "doctrine": "object",
+        },
+    },
+    "vert_cyber_feed": {
+        "type": "object",
+        "required": [
+            "vertical", "kev", "nvd", "github", "gh_events", "hf",
+            "sources_cited", "doctrine",
+        ],
+        "properties": {"vertical": {"const": "cyber"}},
+        "requiredPaths": [
+            "kev.value.items", "kev.freshness.status", "kev.freshness.fetched_at",
+            "nvd.value.items", "nvd.freshness.status", "nvd.freshness.fetched_at",
+            "gh_events.value.items", "gh_events.freshness.status",
+            "gh_events.freshness.fetched_at", "hf.value.items", "hf.freshness.status",
+            "hf.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "kev.value.items": "array", "kev.freshness.status": "string",
+            "kev.freshness.fetched_at": "timestamp", "nvd.value.items": "array",
+            "nvd.freshness.status": "string", "nvd.freshness.fetched_at": "timestamp",
+            "github": "object", "gh_events.value.items": "array",
+            "gh_events.freshness.status": "string",
+            "gh_events.freshness.fetched_at": "timestamp", "hf.value.items": "array",
+            "hf.freshness.status": "string", "hf.freshness.fetched_at": "timestamp",
+            "sources_cited": "array", "doctrine": "object",
+        },
+    },
+    "vert_realestate_feed": {
+        "type": "object",
+        "required": [
+            "vertical", "hpd_litigations", "dob_violations", "rates",
+            "sources_cited", "doctrine",
+        ],
+        "properties": {"vertical": {"const": "realestate"}},
+        "requiredPaths": [
+            "hpd_litigations.value.items", "hpd_litigations.freshness.status",
+            "hpd_litigations.freshness.fetched_at", "dob_violations.value.items",
+            "dob_violations.freshness.status", "dob_violations.freshness.fetched_at",
+            "rates.value.items", "rates.freshness.status", "rates.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "hpd_litigations.value.items": "array",
+            "hpd_litigations.freshness.status": "string",
+            "hpd_litigations.freshness.fetched_at": "timestamp",
+            "dob_violations.value.items": "array",
+            "dob_violations.freshness.status": "string",
+            "dob_violations.freshness.fetched_at": "timestamp",
+            "rates.value.items": "array", "rates.freshness.status": "string",
+            "rates.freshness.fetched_at": "timestamp", "sources_cited": "array",
+            "doctrine": "object",
+        },
+    },
     "deva_health": {"type": "object", "required": ["tabs"]},
+    "devb_health": {"type": "object", "required": ["ok", "module", "surfaces", "doctrine"],
+                    "properties": {"ok": {"const": True}},
+                    "requiredPathTypes": {"surfaces": "array", "doctrine": "object"}},
+    "deva_re_pulse": {
+        "type": "object",
+        "required": ["tab", "hpd", "dob", "rates", "doctrine"],
+        "properties": {"tab": {"const": "pulse"}},
+        "requiredPaths": [
+            "hpd.value.items", "hpd.freshness.status", "hpd.freshness.fetched_at",
+            "dob.value.items", "dob.freshness.status", "dob.freshness.fetched_at",
+            "rates.value.items", "rates.freshness.status", "rates.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "hpd.value.items": "array", "hpd.freshness.status": "string",
+            "hpd.freshness.fetched_at": "timestamp",
+            "dob.value.items": "array", "dob.freshness.status": "string",
+            "dob.freshness.fetched_at": "timestamp",
+            "rates.value.items": "array", "rates.freshness.status": "string",
+            "rates.freshness.fetched_at": "timestamp", "doctrine": "object",
+        },
+    },
+    "deva_re_distress": {
+        "type": "object",
+        "required": ["tab", "hpd", "doctrine"],
+        "properties": {"tab": {"const": "distress"}},
+        "requiredPaths": ["hpd.value.items", "hpd.freshness.status", "hpd.freshness.fetched_at"],
+        "requiredPathTypes": {
+            "hpd.value.items": "array", "hpd.freshness.status": "string",
+            "hpd.freshness.fetched_at": "timestamp", "doctrine": "object",
+        },
+    },
+    "deva_re_ownership": {
+        "type": "object",
+        "required": ["tab", "sec_fts", "reits", "doctrine"],
+        "properties": {"tab": {"const": "ownership"}},
+        "requiredPaths": [
+            "sec_fts.value.items", "sec_fts.freshness.status",
+            "sec_fts.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "sec_fts.value.items": "array", "sec_fts.freshness.status": "string",
+            "sec_fts.freshness.fetched_at": "timestamp", "reits": "object",
+            "doctrine": "object",
+        },
+    },
+    "deva_re_deal": {
+        "type": "object",
+        "required": ["tab", "rates", "forecast", "doctrine"],
+        "properties": {"tab": {"const": "deal"}},
+        "requiredPaths": [
+            "rates.value.items", "rates.freshness.status", "rates.freshness.fetched_at",
+            "forecast.days_on_market", "forecast.confidence", "forecast.label",
+            "forecast.drivers",
+        ],
+        "requiredPathTypes": {
+            "rates.value.items": "array", "rates.freshness.status": "string",
+            "rates.freshness.fetched_at": "timestamp",
+            "forecast.days_on_market": "number", "forecast.confidence": "number",
+            "forecast.label": "string", "forecast.drivers": "object",
+            "doctrine": "object",
+        },
+    },
+    "deva_re_brokeredge": {
+        "type": "object",
+        "required": ["tab", "domains", "label", "doctrine"],
+        "properties": {"tab": {"const": "brokeredge"}},
+        "requiredPathTypes": {
+            "domains": "array", "label": "string", "doctrine": "object",
+        },
+    },
+    "devb_legal_matter": {
+        "type": "object",
+        "required": ["surface", "term", "opinions", "doctrine"],
+        "properties": {"surface": {"const": "matter"}},
+        "requiredPaths": [
+            "opinions.value.items", "opinions.freshness.status",
+            "opinions.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "term": "string", "opinions.value.items": "array",
+            "opinions.freshness.status": "string",
+            "opinions.freshness.fetched_at": "timestamp", "doctrine": "object",
+        },
+    },
+    "devb_legal_regulatory": {
+        "type": "object",
+        "required": ["surface", "federal_register", "agencies", "doctrine"],
+        "properties": {"surface": {"const": "regulatory"}},
+        "requiredPaths": [
+            "federal_register.value.items", "federal_register.freshness.status",
+            "federal_register.freshness.fetched_at", "agencies.value.items",
+            "agencies.freshness.status", "agencies.freshness.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "federal_register.value.items": "array",
+            "federal_register.freshness.status": "string",
+            "federal_register.freshness.fetched_at": "timestamp",
+            "agencies.value.items": "array", "agencies.freshness.status": "string",
+            "agencies.freshness.fetched_at": "timestamp", "doctrine": "object",
+        },
+    },
+    "devb_legal_exposure": {
+        "type": "object",
+        "required": ["nodes", "links", "freshness", "note", "doctrine"],
+        "requiredPaths": [
+            "freshness.status", "freshness.litigation.status",
+            "freshness.litigation.fetched_at",
+        ],
+        "requiredPathTypes": {
+            "nodes": "array", "links": "array", "freshness": "object",
+            "freshness.status": "string", "freshness.litigation": "object",
+            "freshness.litigation.status": "string",
+            "freshness.litigation.fetched_at": "timestamp", "note": "string",
+            "doctrine": "object",
+        },
+    },
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
     "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
     "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
@@ -464,36 +742,71 @@ TAB_ENDPOINTS = {
     "knowledge": ["/api/a11oy/v1/formulas/selftest"],
     "readiness": ["/api/a11oy/v1/readiness", "/api/a11oy/v1/readiness/tab-matrix"],
     # Vertical command + deep tabs
-    "vfinance": ["/api/a11oy/v1/vert/finance/feed", "/api/a11oy/v1/deva/healthz"],
+    "vfinance": ["/api/a11oy/v1/vert/finance/feed"],
     "finq": ["/api/a11oy/v1/vert/finance/feed", "/api/a11oy/v1/deva/healthz"],
     "finc": ["/api/a11oy/v1/deva/healthz"],
     "finm": ["/api/a11oy/v1/deva/healthz"],
     "finp": ["/api/a11oy/v1/deva/healthz"],
     "finr": ["/api/a11oy/v1/deva/healthz"],
-    "vrealestate": ["/api/a11oy/v1/deva/healthz"],
-    "rem": ["/api/a11oy/v1/deva/healthz"],
-    "red": ["/api/a11oy/v1/deva/healthz"],
-    "reo": ["/api/a11oy/v1/deva/healthz"],
-    "redeal": ["/api/a11oy/v1/deva/healthz"],
-    "rebe": ["/api/a11oy/v1/deva/healthz"],
-    "vlegal": ["/api/a11oy/v1/devb/healthz"],
-    "legMatter": ["/api/a11oy/v1/devb/healthz"],
-    "legDefense": ["/api/a11oy/v1/devb/healthz"],
-    "legReg": ["/api/a11oy/v1/devb/healthz"],
-    "legInsure": ["/api/a11oy/v1/devb/healthz"],
-    "legExposure": ["/api/a11oy/v1/devb/healthz"],
+    "vrealestate": [
+        "/api/a11oy/v1/vert/realestate/feed",
+        "/api/a11oy/v1/deva/re/pulse",
+        "/api/a11oy/v1/deva/re/distress?limit=1",
+        "/api/a11oy/v1/deva/re/ownership",
+    ],
+    "rem": [
+        "/api/a11oy/v1/vert/realestate/feed",
+        "/api/a11oy/v1/deva/re/pulse",
+    ],
+    "red": ["/api/a11oy/v1/deva/re/distress?limit=1"],
+    "reo": ["/api/a11oy/v1/deva/re/ownership"],
+    "redeal": [
+        "/api/a11oy/v1/vert/realestate/feed",
+        "/api/a11oy/v1/deva/re/deal?violations=0&class_c=0",
+    ],
+    "rebe": [
+        "/api/a11oy/v1/vert/realestate/feed",
+        "/api/a11oy/v1/deva/re/brokeredge",
+    ],
+    "vlegal": [
+        "/api/a11oy/v1/vert/legal/feed",
+        "/api/a11oy/v1/devb/legal/matter?limit=1",
+        "/api/a11oy/v1/devb/legal/regulatory?limit=1",
+        "/api/a11oy/v1/devb/legal/exposure?limit=1",
+    ],
+    "legMatter": [
+        "/api/a11oy/v1/vert/legal/feed",
+        "/api/a11oy/v1/devb/legal/matter?limit=1",
+    ],
+    "legDefense": [
+        "/api/a11oy/v1/vert/legal/feed",
+        "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1",
+    ],
+    "legReg": [
+        "/api/a11oy/v1/vert/legal/feed",
+        "/api/a11oy/v1/devb/legal/regulatory?limit=1",
+    ],
+    "legInsure": [
+        "/api/a11oy/v1/vert/legal/feed",
+        "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1",
+    ],
+    "legExposure": ["/api/a11oy/v1/devb/legal/exposure?limit=1"],
     "entCockpit": ["/api/a11oy/v1/devb/healthz", "/api/a11oy/v1/observability/summary"],
     "entComms": ["/api/a11oy/v1/devb/healthz"],
     "entRevenue": ["/api/a11oy/v1/devb/healthz"],
     "entIncident": ["/api/a11oy/v1/devb/healthz"],
     "entForecast": ["/api/a11oy/v1/devb/healthz"],
-    "vcyber": ["/api/a11oy/v1/sec/threats", "/api/a11oy/v1/sec/threatgraph"],
+    "vcyber": [
+        "/api/a11oy/v1/vert/cyber/feed",
+        "/api/a11oy/v1/sec/threats",
+        "/api/a11oy/v1/sec/threatgraph",
+    ],
     "cybThreat": ["/api/a11oy/v1/sec/threats", "/api/a11oy/v1/sec/cve"],
     "cybSurface": ["/api/a11oy/v1/sec/threatgraph", "/api/a11oy/v1/sec/attack"],
     "cybZero": ["/api/a11oy/v1/mesh/state"],
     "cybPosture": ["/api/a11oy/v1/policy/compliance"],
     "cybIncident": ["/api/a11oy/provenance"],
-    "vdefense": ["/api/a11oy/v1/mesh/state"],
+    "vdefense": ["/api/a11oy/v1/vert/defense/feed", "/api/a11oy/v1/mesh/state"],
     "fltTopo": ["/api/a11oy/v1/mesh/state"],
     "fltObs": ["/api/a11oy/v1/observability/summary"],
     "fltOrch": ["/api/a11oy/v1/llm/registry"],
@@ -649,8 +962,8 @@ def extract_tabs(html: str):
 
 FAMILY_PREFIX = [
     ("fin", ["/api/a11oy/v1/deva/healthz"]),
-    ("re", ["/api/a11oy/v1/deva/healthz"]),
-    ("leg", ["/api/a11oy/v1/devb/healthz"]),
+    ("re", ["/api/a11oy/v1/deva/re/pulse"]),
+    ("leg", ["/api/a11oy/v1/devb/legal/matter?limit=1"]),
     ("ent", ["/api/a11oy/v1/devb/healthz"]),
     ("cyb", ["/api/a11oy/v1/sec/threats"]),
     ("flt", ["/api/a11oy/v1/mesh/state"]),
@@ -675,6 +988,21 @@ def build():
     if not os.path.exists(CONSOLE):
         print("FATAL: console.html not found at %s" % CONSOLE, file=sys.stderr)
         sys.exit(2)
+    linked_endpoints = {
+        endpoint
+        for endpoints in list(TAB_ENDPOINTS.values()) + [entry[1] for entry in FAMILY_PREFIX]
+        for endpoint in endpoints
+    }
+    missing_contracts = sorted(linked_endpoints.difference(ENDPOINTS))
+    if missing_contracts:
+        raise RuntimeError("tab mappings lack endpoint contracts: %s" % missing_contracts)
+    missing_schemas = sorted({
+        spec.get("schema")
+        for spec in ENDPOINTS.values()
+        if spec.get("schema") and spec.get("schema") not in SCHEMAS
+    })
+    if missing_schemas:
+        raise RuntimeError("endpoint contracts lack schemas: %s" % missing_schemas)
     with open(CONSOLE, "r", encoding="utf-8", errors="replace") as f:
         html = f.read()
 

@@ -1,45 +1,45 @@
-﻿<!doctype html>
+<!doctype html>
 <!-- SPDX-License-Identifier: Apache-2.0
      (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 <!--
-  a11oy â€” front door (scroll narrative). Served at the Space root "/" by serve.py.
+  a11oy — front door (scroll narrative). Served at the Space root "/" by serve.py.
   SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
   Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.
-  HONESTY DOCTRINE v11 LOCKED â€” every figure is fetched live and labelled honestly
-  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Î› = Conjecture 1 (advisory, NOT a theorem,
+  HONESTY DOCTRINE v11 LOCKED — every dynamic figure is source-bound and labelled honestly
+  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
   never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
-  The genome registry (144 entries) is grouped into 4 honesty tiers â€” a different, larger set.
+  The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
   Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
-  DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 â€”
+  DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
   preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
-  Â© Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) Â· Apache-2.0
+  © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>a11oy â€” AI that can demonstrate its work Â· AI that proves its receipt state and refuses to lie</title>
-<meta name="description" content="AI that can demonstrate its work: AI that exposes receipt integrity, signer state, evidence, and refusal behavior. State-changing actions produce hash-chained receipts; DSSE signing is claimed only when persistent signer evidence is active and independently verified." />
+<title>a11oy — Evidence and control for consequential AI</title>
+<meta name="description" content="A11oy is the portable evidence and control plane for consequential AI actions. Observe model and agent activity, apply policy, execute or stop it, and produce independently verifiable receipts across regulated workflows." />
 <link rel="canonical" href="https://a-11-oy.com/" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://a-11-oy.com/" />
-<meta property="og:title" content="a11oy â€” AI that can demonstrate its work" />
-<meta property="og:description" content="AI that exposes receipt integrity and signer state, shows its evidence, and refuses when it cannot support an answer." />
-<meta property="og:image" content="https://a-11-oy.com/social-preview-v5.png" />
+<meta property="og:title" content="a11oy — Evidence and control for consequential AI" />
+<meta property="og:description" content="Observe. Gate. Act. Prove. One governed operating layer across models, agents, tools, and regulated workflows." />
+<meta property="og:image" content="https://a-11-oy.com/social-preview-series-a.png" />
 <meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="1280" />
-<meta property="og:image:height" content="640" />
-<meta property="og:image:alt" content="a11oy AI that can demonstrate its work â€” evidence-labelled ecosystem and Anatomy v5" />
+<meta property="og:image:width" content="1774" />
+<meta property="og:image:height" content="887" />
+<meta property="og:image:alt" content="a11oy — evidence and control for consequential AI" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:image" content="https://a-11-oy.com/social-preview-v5.png" />
-<meta name="twitter:image:alt" content="a11oy AI that can demonstrate its work â€” evidence-labelled ecosystem and Anatomy v5" />
+<meta name="twitter:image" content="https://a-11-oy.com/social-preview-series-a.png" />
+<meta name="twitter:image:alt" content="a11oy — evidence and control for consequential AI" />
 <link rel="icon" type="image/svg+xml" href="/social-preview-v5.svg" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "a11oy AI that can demonstrate its work",
+  "name": "a11oy Evidence and Control Plane",
   "url": "https://a-11-oy.com/",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web",
@@ -61,21 +61,21 @@
     font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2')}
 
   :root{
-    /* KANCHAY palette (canonical, org-wide â€” RECONCILE.md). Purple is BANNED. */
+    /* KANCHAY palette (canonical, org-wide — RECONCILE.md). Purple is BANNED. */
     --void:#080c14;            /* deep near-black ground */
     --deep:#0a1019;            /* raised ground */
     --surface:#0e1626;         /* card surface */
     --border:#1c2942;          /* hairline */
-    --proof:#3af4c8;           /* proof teal â€” the one bright accent */
+    --proof:#3af4c8;           /* proof teal — the one bright accent */
     --proof-soft:rgba(58,244,200,0.12);
     --proof-dim:rgba(58,244,200,0.06);
-    --lattice:#5b8dee;         /* lattice blue â€” secondary (NOT purple) */
+    --lattice:#5b8dee;         /* lattice blue — secondary (NOT purple) */
     --lattice-soft:rgba(91,141,238,0.12);
     --gold:#d7b96b;            /* warm accent / conjecture-adjacent */
     --ink:#eef4fb;             /* near-white heading */
-    --sub:#aebccf;             /* body copy â€” WCAG AA on --void */
+    --sub:#aebccf;             /* body copy — WCAG AA on --void */
     --ghost:#65788f;           /* muted labels */
-    --gray:#7d8aa0;            /* CONJECTURE / advisory â€” never green */
+    --gray:#7d8aa0;            /* CONJECTURE / advisory — never green */
     --ok:#3af4c8; --warn:#d7b96b; --down:#e8746e;
     --r:16px; --maxw:1180px;
     --head:'Space Grotesk',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -137,7 +137,7 @@
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 21px;border-radius:9px;
     min-height:44px;max-width:100%;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
     transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
-  /* restrained "holographic glass" buttons â€” luminous hairline + soft fill, never a neon block */
+  /* restrained "holographic glass" buttons — luminous hairline + soft fill, never a neon block */
   .btn-primary{background:linear-gradient(180deg,rgba(58,244,200,0.13),rgba(58,244,200,0.04));
     color:var(--proof);border-color:rgba(58,244,200,0.42);
     box-shadow:inset 0 1px 0 rgba(58,244,200,0.10),0 1px 14px -8px rgba(58,244,200,0.45)}
@@ -153,7 +153,7 @@
     border-color:rgba(91,141,238,0.6);color:#c5d8ff;
     box-shadow:0 6px 24px -12px rgba(91,141,238,0.32);transform:translateY(-1px)}
 
-  /* ---- hero (canvas owned by Dev 2 â€” markup preserved) ---- */
+  /* ---- hero (canvas owned by Dev 2 — markup preserved) ---- */
   .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
   #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
   .hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
@@ -258,6 +258,38 @@
   .vcard .lam .val{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--ink)}
   .vcard .lam .cap{font-size:11px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px}
 
+  /* investor architecture: one product loop, then six solution views on the same substrate */
+  .operating-loop{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:30px;
+    border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--border)}
+  .loop-step{position:relative;min-width:0;padding:24px;background:linear-gradient(155deg,#101a2c,#0b1220)}
+  .loop-step .step-no{display:block;color:var(--proof);font:600 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;margin-bottom:12px}
+  .loop-step h3{margin:0 0 8px;font-size:1.12rem}.loop-step p{margin:0;color:var(--sub);font-size:.91rem}
+  .loop-step a{display:inline-block;margin-top:14px;color:var(--proof);font:11.5px var(--mono)}
+  .loop-step:not(:last-child)::after{content:"→";position:absolute;right:-12px;top:50%;z-index:2;
+    width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;
+    background:var(--void);color:var(--proof);font-family:var(--mono);transform:translateY(-50%)}
+  .platform-boundary{margin-top:18px;padding:14px 16px;border-left:2px solid var(--lattice);
+    background:var(--lattice-soft);color:var(--sub);font-size:.9rem;border-radius:0 10px 10px 0}
+  .platform-boundary b{color:var(--ink)}
+  @media(max-width:900px){.operating-loop{grid-template-columns:repeat(2,1fr)}.loop-step::after{display:none!important}}
+  @media(max-width:520px){.operating-loop{grid-template-columns:1fr}}
+
+  .solution-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
+  .solution-card{display:flex;min-width:0;flex-direction:column;gap:10px;padding:22px;border:1px solid var(--border);
+    border-radius:var(--r);background:linear-gradient(155deg,rgba(16,27,46,.92),rgba(9,16,29,.96));
+    transition:border-color .18s,transform .18s}
+  .solution-card:hover{border-color:rgba(58,244,200,.42);transform:translateY(-2px)}
+  .solution-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .solution-code{color:var(--lattice);font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+  .solution-card h3{margin:0;font-size:1.18rem}.solution-card p{margin:0;color:var(--sub);font-size:.92rem;line-height:1.55}
+  .solution-flow{margin-top:auto;padding-top:12px;border-top:1px solid var(--border);color:var(--ghost);
+    font:10.5px var(--mono);letter-spacing:.03em}
+  .solution-go{color:var(--proof);font:12px var(--mono)}
+  .solution-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px;color:var(--ghost);font:11px var(--mono)}
+  .anchor-alias{display:block;position:relative;top:-70px;visibility:hidden}
+  @media(max-width:900px){.solution-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.solution-grid{grid-template-columns:1fr}.solution-card{padding:19px}}
+
   /* living body */
   .body-embed{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);
     background:radial-gradient(ellipse 70% 80% at 50% 30%, rgba(91,141,238,0.12), transparent 70%), var(--deep);
@@ -313,15 +345,14 @@
   .muted{color:var(--ghost)}
   .skel{color:var(--ghost);font-family:var(--mono)}
 
-  /* ecosystem atlas â€” public estate snapshot, never implied live until API reads */
+  /* ecosystem atlas — public estate snapshot, never implied live until API reads */
   .estate-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:24px 0}
   .estate-cell{border:1px solid var(--border);border-radius:13px;padding:15px;
     background:linear-gradient(155deg,rgba(17,30,50,.72),rgba(8,16,29,.88))}
   .estate-cell b{display:block;color:var(--proof);font:600 1.45rem var(--mono);margin-bottom:4px}
   .estate-cell span{color:var(--ghost);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
-  a.estate-cell{transition:border-color .16s,transform .16s,background .16s}
-  a.estate-cell:hover{border-color:rgba(58,244,200,.45);transform:translateY(-1px);background:linear-gradient(155deg,rgba(17,40,55,.82),rgba(8,16,29,.92))}
   .estate-links{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+  .estate-observed{color:var(--ghost);font:11px var(--mono);margin:12px 0 0}
   @media(max-width:900px){.estate-grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:520px){.estate-grid{grid-template-columns:repeat(2,1fr)}}
 
@@ -387,58 +418,55 @@
         <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
         <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
       </svg>
-      <span>a11oy<span class="sub" style="margin-left:9px">AI that can demonstrate its work</span></span>
+      <span>a11oy<span class="sub" style="margin-left:9px">Evidence + Control</span></span>
     </a>
     <nav>
-      <a class="hide-sm" href="#surfaces">Surfaces</a>
-      <a class="hide-sm" href="/ecosystem">Ecosystem</a>
-      <a class="hide-sm" href="/anatomy-v5">Anatomy v5</a>
-      <a class="hide-sm" href="#proof">The proof</a>
-      <a class="hide-sm" href="#honesty">Honesty</a>
-      <a class="hide-sm" href="/console#arena">Eval arena</a>
-      <a class="hide-sm" href="/observability">Observability</a>
-      <a href="/trust">Evidence</a>
-    <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
+      <a class="hide-sm" href="#product">Product</a>
+      <a class="hide-sm" href="#estate-pulse">Live proof</a>
+      <a class="hide-sm" href="#solutions">Solutions</a>
+      <a class="hide-sm" href="/docs">Developers</a>
+      <a class="hide-sm" href="/company">Company</a>
+      <a href="/trust">Trust</a>
+      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
   </div>
 </header>
 <main id="main">
 
-<!-- ====================== (1) HERO â€” canvas + boot owned by Dev 2 ====================== -->
+<!-- ====================== (1) HERO — canvas + boot owned by Dev 2 ====================== -->
 <section class="hero">
   <canvas id="hero-canvas"></canvas>
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
     <div class="hero-inner">
-      <span class="eyebrow"><span class="dot"></span> AI that can demonstrate its work Â· verifiable by anyone, offline</span>
-      <h1 class="title">AI that <span class="grad">proves its receipt state</span><br>and refuses to lie.</h1>
-      <p class="lede">Every governed state change produces a hash-chained receipt you can inspect
-        <b>offline, in your own browser</b>. The interface says <b>SIGNED</b> only when persistent
-        signer evidence is active and verification passes; otherwise it reports HASH-LINKED,
-        UNSIGNED, DISABLED, or UNAVAILABLE. When the model is not sure, it returns an honest
-        <b>BLOCKED</b> instead of a confident guess.</p>
+      <span class="eyebrow"><span class="dot"></span> Evidence + control · Observe → Gate → Act → Prove</span>
+      <h1 class="title">Control consequential AI.<br><span class="grad">Prove every action.</span></h1>
+      <p class="lede">A11oy is the portable operating layer between models, agents, tools, and
+        high-stakes workflows. It observes what happened, applies policy before execution,
+        stops what is not allowed, and emits evidence an outside party can verify.
+        It proves its receipt state without inferring signer status from a digest or chain link.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/console">Open the command center â†’</a>
-        <a class="btn btn-lattice" href="/ecosystem">Explore the ecosystem</a>
-        <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
+        <a class="btn btn-primary" href="/console?investor=1">Open the investor view →</a>
+        <a class="btn btn-lattice" href="#solutions">Explore working solutions</a>
+        <a class="btn btn-ghost" href="/company#contact">Request a pilot</a>
       </div>
       <div class="hero-stats">
         <div class="stat">
-          <div class="k proof" id="hs-receipts">â€”</div>
-          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth â€” a mechanism check, not customer traction</span></div>
+          <div class="k proof" id="hs-receipts">—</div>
+          <div class="l">Source-labelled chain records <span id="hs-receipts-chip"></span><br><span class="stat-note">sample records are excluded from operational receipt and traction counts</span></div>
         </div>
         <div class="stat">
           <div class="k gray" id="hs-lambda">Conjecture 1</div>
-          <div class="l">Î› trust gate Â· advisory bound</div>
+          <div class="l">Λ trust gate · advisory bound</div>
         </div>
         <div class="stat">
           <div class="k" id="hs-proven">8</div>
           <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
         </div>
         <div class="stat" id="overclaim-counter">
-          <div class="k gray" id="hs-overclaims">â€”</div>
-          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE Â· SNAPSHOT 2026-07-25 Â· SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">â€”</span> Â· <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
+          <div class="k gray" id="hs-overclaims">—</div>
+          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
         </div>
       </div>
     </div>
@@ -448,20 +476,20 @@
 <!-- ====================== (1b) HONESTY STRIP ====================== -->
 <section class="honesty" id="honesty">
   <div class="wrap">
-    <p class="kick">The honesty doctrine Â· v11 LOCKED</p>
-    <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled â€” or it isn't shown.</h2>
+    <p class="kick">The honesty doctrine · v11 LOCKED</p>
+    <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
     <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
     <div class="legend">
       <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>
-      <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name â€” the locked-8 Lean kernel, the 144-entry genome registry â€” cited here, not independently re-derived on this page.</p></div>
-      <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A Â· UNAVAILABLE Â· BLOCKED â€” never a confident guess and never a fabricated number.</p></div>
-      <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Î› lives here.</p></div>
+      <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
+      <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
+      <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Λ lives here.</p></div>
     </div>
     <div class="lambda-line">
-      <span class="chip gray"><span class="dot"></span>Î› = Conjecture 1</span>
-      <span class="muted">an advisory trust bound â€” never proven, never 1.0, and never rendered green. Theorem&nbsp;U is the proven <i>conditional</i> alternative; the unconditional claim is machine-checked false as stated.</span>
+      <span class="chip gray"><span class="dot"></span>Λ = Conjecture 1</span>
+      <span class="muted">an advisory trust bound — never proven, never 1.0, and never rendered green. Theorem&nbsp;U is the proven <i>conditional</i> alternative; the unconditional claim is machine-checked false as stated.</span>
     </div>
-    <p class="free-energy"><b style="color:var(--ink)">No free energy.</b> Joules are MEASURED only from a live exporter delta; with no live meter we label the reading SAMPLE or UNAVAILABLE and fabricate nothing. a11oy never claims over-unity, perpetual output, or free-energy efficiency â€” only what a real meter reports.</p>
+    <p class="free-energy"><b style="color:var(--ink)">No free energy.</b> Joules are MEASURED only from a live exporter delta; with no live meter we label the reading SAMPLE or UNAVAILABLE and fabricate nothing. a11oy never claims over-unity, perpetual output, or free-energy efficiency — only what a real meter reports.</p>
   </div>
 </section>
 
@@ -471,30 +499,29 @@
   <h2 id="estate-pulse-title">What is actually reachable right now.</h2>
   <p class="intro">Four read-only checks connect the product story to the running system. REACHABLE means the source answered this browser session; evidence mode (LIVE, SNAPSHOT, MODELED, or UNAVAILABLE) remains separate and never certifies model truth.</p>
   <div class="pulse-grid" aria-live="polite">
-    <article class="pulse-card"><div class="pulse-head"><h3>Platform health</h3><span class="data-state" id="pulse-health-state">CHECKING</span></div><p id="pulse-health-detail">Checking the deployed runtime.</p><a href="/healthz">Source /healthz â†’</a></article>
-    <article class="pulse-card"><div class="pulse-head"><h3>Tab contract</h3><span class="data-state" id="pulse-contract-state">CHECKING</span></div><p id="pulse-contract-detail">Checking the published tab inventory.</p><a href="/api/a11oy/v1/readiness/tab-matrix">Source tab matrix â†’</a></article>
-    <article class="pulse-card"><div class="pulse-head"><h3>Receipt ledger</h3><span class="data-state" id="pulse-ledger-state">CHECKING</span></div><p id="pulse-ledger-detail">Checking the append-only evidence read.</p><a href="/api/a11oy/v1/ledger">Source receipt ledger â†’</a></article>
-    <article class="pulse-card"><div class="pulse-head"><h3>Sovereign mesh</h3><span class="data-state" id="pulse-mesh-state">CHECKING</span></div><p id="pulse-mesh-detail">Checking the current mesh posture.</p><a href="/api/a11oy/v1/mesh/state">Source mesh state â†’</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Platform health</h3><span class="data-state" id="pulse-health-state">CHECKING</span></div><p id="pulse-health-detail">Checking the deployed runtime.</p><a href="/healthz">Source /healthz →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Tab contract</h3><span class="data-state" id="pulse-contract-state">CHECKING</span></div><p id="pulse-contract-detail">Checking the published tab inventory.</p><a href="/api/a11oy/v1/readiness/tab-matrix">Source tab matrix →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Receipt / sample-chain read</h3><span class="data-state" id="pulse-ledger-state">CHECKING</span></div><p id="pulse-ledger-detail">Checking the source-labelled chain read.</p><a href="/api/a11oy/v1/ledger">Inspect chain source →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Sovereign mesh</h3><span class="data-state" id="pulse-mesh-state">CHECKING</span></div><p id="pulse-mesh-detail">Checking the current mesh posture.</p><a href="/api/a11oy/v1/mesh/state">Source mesh state →</a></article>
   </div>
   <p class="pulse-time" id="pulse-checked">Checks have not completed.</p>
 </section>
 
-<!-- ====================== (1c) EXPLORE THE SURFACES ====================== -->
-<section class="band wrap" id="surfaces">
-  <p class="kick">Explore the estate</p>
-  <h2>Nine surfaces. One governed core.</h2>
-  <p class="intro">Every surface reads the same live endpoints and the same honesty doctrine. Jump straight in â€” the full working console is one click away.</p>
-  <div class="grid g3">
-    <a class="card surface-card" href="/console"><div class="ic">âŒ˜</div><h3>Command Center</h3><p>The working console â€” receipt integrity, separately disclosed signer state, the self-doubt gate, the genome registry, and live organ vitals.</p><div class="golinks"><span class="go">Open /console â†’</span></div></a>
-    <a class="card surface-card" href="/superpowers"><div class="ic">âœ¦</div><h3>Five Superpowers</h3><p>The five things governed execution does that ungoverned models can't â€” each linked to the live check that backs it.</p><div class="golinks"><span class="go">Open /superpowers â†’</span></div></a>
-    <a class="card surface-card" href="/console#arena"><div class="ic">âš”</div><h3>Adversarial assurance</h3><p>Run governed evaluations, inspect refusals, and trace every verdict to its evidence. The archived Warhacker route now resolves here.</p><div class="golinks"><span class="go">Open the eval arena â†’</span></div></a>
-    <a class="card surface-card" href="/observability"><div class="ic">â—Ž</div><h3>Observability</h3><p>OpenTelemetry-style traces and health summaries across the organs â€” live, read-only, no sign-on-GET.</p><div class="golinks"><span class="go">Open /observability â†’</span></div></a>
-    <a class="card surface-card" href="/wires"><div class="ic">ã€œ</div><h3>Wires</h3><p>The live wiring between organs â€” which probe feeds which surface, and whether it is up right now.</p><div class="golinks"><span class="go">Open /wires â†’</span></div></a>
-    <a class="card surface-card" href="/console#mesh"><div class="ic">â—‡</div><h3>Mesh</h3><p>The BFT-quorum mesh graph â€” 3-of-4 consensus, live state read from <span class="mono">/api/a11oy/v1/mesh/state</span>.</p><div class="golinks"><span class="go">Open the mesh â†’</span></div></a>
-    <a class="card surface-card" href="/formulas"><div class="ic">Î£</div><h3>Formulas</h3><p>The PURIQ agentic formula genome â€” live-recomputed values, each carrying its own Khipu receipt.</p><div class="golinks"><span class="go">Open /formulas â†’</span></div></a>
-    <a class="card surface-card" href="/trust"><div class="ic">âœ“</div><h3>Evidence</h3><p>The trust center: the locked-8 with truthful Lean refs, Theorem&nbsp;U vs Conjecture&nbsp;1, the receipt ledger, offline verify.</p><div class="golinks"><span class="go">Open the evidence â†’</span></div></a>
-    <a class="card surface-card" href="/static/viz/router/"><div class="ic mono">â‡„</div><h3>LLM Router</h3><p>The LLM-Router Live scene â€” per-tier routing stats polled every second, otherwise an honest DEMO MODE.</p><div class="golinks"><span class="go">Open the router â†’</span></div></a>
+<!-- ====================== (1d) THE PRODUCT ====================== -->
+<section class="band wrap" id="product">
+  <span id="surfaces" class="anchor-alias" aria-hidden="true"></span>
+  <p class="kick">One governed operating layer</p>
+  <h2>Four steps. One inspectable decision trail.</h2>
+  <p class="intro">A11oy turns a fragmented AI stack into one control loop. The same policy,
+    evidence model, and receipt chain follows an action from first observation to external review.</p>
+  <div class="operating-loop">
+    <article class="loop-step"><span class="step-no">01 · Observe</span><h3>See the whole action</h3><p>Join model calls, agent plans, tool use, data lineage, and runtime health into one operating picture.</p><a href="/observability">Open observability →</a></article>
+    <article class="loop-step"><span class="step-no">02 · Gate</span><h3>Apply policy before impact</h3><p>Evaluate permissions, risk, uncertainty, and human-approval requirements before a write can proceed.</p><a href="/console#govern">Open governance →</a></article>
+    <article class="loop-step"><span class="step-no">03 · Act</span><h3>Execute or stop</h3><p>Run an allowed action through the governed path, or return an explicit blocked state with a reason.</p><a href="/console#decision">Run a governed decision →</a></article>
+    <article class="loop-step"><span class="step-no">04 · Prove</span><h3>Produce portable evidence</h3><p>Emit a typed receipt. It is signed and chained only when the returned signer and ledger evidence verifies that state; otherwise it remains explicitly unsigned or digest-only.</p><a href="/verify">Verify a receipt →</a></article>
   </div>
+  <p class="platform-boundary"><b>One substrate, not six separate products.</b> Solutions below are
+    buyer-specific views over the same object graph: actor → policy → decision → action → outcome → receipt.</p>
 </section>
 
 <div class="wrap"><div class="divider"></div></div>
@@ -502,133 +529,122 @@
 <!-- ====================== (2) THE THESIS ====================== -->
 <section class="band wrap" id="thesis">
   <p class="kick">The thesis</p>
-  <h2>Governed AI you can prove â€” not AI you're asked to trust.</h2>
-  <p class="intro">Most AI asks for trust. a11oy earns it the way auditable systems do: every
-    governed state change is recorded in a hash-chained receipt, while signer state and signature
-    verification are disclosed separately and never inferred; a trust gate can only tighten an
-    answer, never wave it through; and the kernel rests on machine-checked theorems you can read.
-    The honest part is the product â€” when a claim isn't proven, we label it, and you can open the
-    check yourself.</p>
+  <h2>Governed AI you can prove — not AI you're asked to trust.</h2>
+  <p class="intro">Most AI asks for trust. A11oy applies the pattern used by auditable systems:
+    a governed write can emit a signed, hash-chained receipt; policy can block an action before
+    impact; and machine-checked obligations can be inspected independently. If a signer, source,
+    or meter is unavailable, that state must remain explicit instead of being upgraded to proof.</p>
   <div class="pillars">
     <div class="pillar">
-      <div class="pk">01 Â· RECEIPTS</div>
-      <h3>It proves receipt integrity and signer state</h3>
-      <p>Every governed state change enters a SHA3-256 hash chain. DSSE / ECDSA-P256 is a separate
-        cryptographic state and is labeled SIGNED only when persistent signer evidence is active
-        and independent verification passes. Verify the disclosed state in your own browser.</p>
+      <div class="pk">01 · SIGNS</div>
+      <h3>It signs its work</h3>
+      <p>When the configured signer and ledger verify successfully, a write can return a DSSE
+        ECDSA-P256 signature and a SHA3-256 chain reference. Without that evidence, the receipt is
+        labelled unsigned or digest-only. Reads never mint signatures.</p>
     </div>
     <div class="pillar">
-      <div class="pk">02 Â· REFUSES</div>
+      <div class="pk">02 · REFUSES</div>
       <h3>It refuses when unsure</h3>
       <p>A self-doubt gate measures uncertainty against a bound and returns a truthful
         <b>BLOCKED</b> rather than a confident wrong answer. A refusal beats a fabrication.</p>
     </div>
     <div class="pillar">
-      <div class="pk">03 Â· PROVES</div>
+      <div class="pk">03 · PROVES</div>
       <h3>It is formally backed</h3>
-      <p>8 locked, axiom-free Lean&nbsp;4 theorems back the kernel. The Î› trust gate is
-        <b>Conjecture&nbsp;1</b> â€” an advisory bound, never dressed up as a theorem.</p>
+      <p>8 locked, axiom-free Lean&nbsp;4 theorems back the kernel. The Λ trust gate is
+        <b>Conjecture&nbsp;1</b> — an advisory bound, never dressed up as a theorem.</p>
     </div>
   </div>
 </section>
 
 <div class="wrap"><div class="divider"></div></div>
 
-<!-- ====================== (3) THE PROOF â€” 4 honest tiers (live) ====================== -->
+<!-- ====================== (3) THE PROOF — 4 honest tiers (live) ====================== -->
 <section class="band wrap" id="proof">
-  <p class="kick">The proof Â· four honest tiers <span id="proof-src"></span></p>
+  <p class="kick">The proof · four honest tiers <span id="proof-src"></span></p>
   <h2>Every claim carries exactly one honesty tier.</h2>
-  <p class="intro">The 144-entry formula genome is graded across four tiers â€” and the rarest,
+  <p class="intro">The 144-entry formula genome is graded across four tiers — and the rarest,
     strongest tiers are the smallest on purpose. Counts below are read live from the genome
     registry. A conjecture is shown in gray and is <b>never</b> rendered as proven.</p>
   <div class="grid g4">
     <div class="tier locked">
-      <div class="tnum" id="pt-locked">â€”</div>
+      <div class="tnum" id="pt-locked">—</div>
       <div class="tname">LOCKED-PROVEN</div>
-      <p>Truthful labels for what each Lean obligation actually proves â€” e.g. F18 = Reed-Solomon
+      <p>Truthful labels for what each Lean obligation actually proves — e.g. F18 = Reed-Solomon
         parity (erasure tolerance), not "DSSE seal". Conservative and defensible.</p>
     </div>
     <div class="tier semantic">
-      <div class="tnum" id="pt-semantic">â€”</div>
+      <div class="tnum" id="pt-semantic">—</div>
       <div class="tname">SEMANTIC-VERIFIED</div>
-      <p>Sorry-free real theorems outside the frozen locked-8: the Î› minâ‰¤Î›â‰¤max bounds, Theorem U
+      <p>Sorry-free real theorems outside the frozen locked-8: the Λ min≤Λ≤max bounds, Theorem U
         (conditional uniqueness), DSSE verifiability. Where the real trust math lives.</p>
     </div>
     <div class="tier evidence">
-      <div class="tnum" id="pt-evidence">â€”</div>
+      <div class="tnum" id="pt-evidence">—</div>
       <div class="tname">EVIDENCE-BACKED</div>
       <p>Runtime / algorithmic rules backed by real code and live endpoints, with no proof claim
-        attached. Honest operational tier â€” not dressed up as proven.</p>
+        attached. Honest operational tier — not dressed up as proven.</p>
     </div>
     <div class="tier conjecture">
-      <div class="tnum" id="pt-conjecture">â€”</div>
-      <div class="tname">CONJECTURE Â· ADVISORY</div>
-      <p>Î› unconditional uniqueness = Conjecture&nbsp;1 (machine-checked false as stated). Gray,
+      <div class="tnum" id="pt-conjecture">—</div>
+      <div class="tname">CONJECTURE · ADVISORY</div>
+      <p>Λ unconditional uniqueness = Conjecture&nbsp;1 (machine-checked false as stated). Gray,
         advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
     </div>
   </div>
   <div class="cta-row" style="margin-top:34px">
-    <a class="btn btn-primary" href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">See it run live Â· IMMUNE demo â†’</a>
-    <a class="btn btn-ghost" href="/console#genome">Browse the genome â†’</a>
-    <a class="btn btn-ghost" href="/trust">Read the trust center â†’</a>
+    <a class="btn btn-primary" href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">Open the IMMUNE evidence demo →</a>
+    <a class="btn btn-ghost" href="/console#genome">Browse the genome →</a>
+    <a class="btn btn-ghost" href="/trust">Read the trust center →</a>
   </div>
-  <p class="intro" style="margin-top:16px;opacity:.85">IMMUNE is a live, interactive demo of the same thesis you can drive yourself â€” a
-    real hash-chained receipt ledger, a live Sigstore&nbsp;Rekor transparency anchor, and honest
-    <b>BLOCKED</b> / <b>UNAVAILABLE</b> states instead of confident guesses. Nothing on that page is fabricated.</p>
+  <p class="intro" style="margin-top:16px;opacity:.85">IMMUNE is a separate interactive evidence
+    demo. Its own interface must disclose the current runtime, signer, ledger, and Rekor state;
+    opening the link from A11oy does not establish current reachability or source parity.</p>
 </section>
 
-<!-- ====================== (4) THE VERTICALS â€” live /lambda/org ====================== -->
-<section class="band" id="verticals" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
+<!-- ====================== (4) SOLUTIONS — working views on one substrate ====================== -->
+<section class="band" id="solutions" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
   <div class="wrap">
-    <p class="kick">The verticals Â· live Î› posture <span id="verticals-src"></span></p>
-    <h2>One governed core. Five places it earns its keep.</h2>
-    <p class="intro">The same governed execution core runs across five verticals. Each card reads
-      its live advisory Î› posture from the org-wide 13-axis gate (canonical floor 0.90). Î› is
-      Conjecture&nbsp;1 â€” advisory, never a pass/fail oracle.</p>
-    <div class="grid g3">
-      <div class="vcard">
-        <div class="pmark">a11</div>
-        <h3>a11oy</h3>
-        <div class="tag">Core Â· governed execution</div>
-        <p>The platform itself â€” command center, receipt integrity, disclosed signer state, and the self-doubt gate.</p>
-        <div class="lam"><span class="val" id="v-core">â€”</span><span class="cap">advisory Î›</span><span id="v-core-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">kil</div>
-        <h3>killinchu</h3>
-        <div class="tag">Defense Â· counter-UAS</div>
-        <p>Auditable interdiction: receipt per decision, separately disclosed signing state, and 3-of-4 BFT consensus.</p>
-        <div class="lam"><span class="val" id="v-defense">â€”</span><span class="cap">advisory Î›</span><span id="v-defense-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">ins</div>
-        <h3>Insurance</h3>
-        <div class="tag">David Leads Â· lead scoring</div>
-        <p>Faithful David Leads scorer behind an F12 non-compensatory consent gate.</p>
-        <div class="lam"><span class="val" id="v-insurance">â€”</span><span class="cap">advisory Î›</span><span id="v-insurance-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">fin</div>
-        <h3>Finance</h3>
-        <div class="tag">Governed decisioning</div>
-        <p>Decision paths that must be reconstructable, receipt-bound, and conditionally signed only when verified signer evidence is active.</p>
-        <div class="lam"><span class="val" id="v-finance">â€”</span><span class="cap">advisory Î›</span><span id="v-finance-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">re</div>
-        <h3>Real estate</h3>
-        <div class="tag">Governed workflows</div>
-        <p>Workflow decisions captured into the same one-chain receipt ledger.</p>
-        <div class="lam"><span class="val" id="v-realestate">â€”</span><span class="cap">advisory Î›</span><span id="v-realestate-chip"></span></div>
-      </div>
-      <div class="vcard" style="border-style:dashed;align-items:flex-start;justify-content:center">
-        <div class="pmark" style="background:rgba(58,244,200,0.08);border-color:rgba(58,244,200,0.25);color:var(--proof)">Î›</div>
-        <h3>Org-wide Î›</h3>
-        <div class="tag">13-axis weighted geomean</div>
-        <p>The composite advisory posture across all verticals, with minâ‰¤Î›â‰¤max SEMANTIC-VERIFIED.</p>
-        <div class="lam"><span class="val" id="v-org">â€”</span><span class="cap">floor 0.90</span><span id="v-org-chip"></span></div>
-      </div>
+    <span id="verticals" class="anchor-alias" aria-hidden="true"></span>
+    <p class="kick">Solutions · live source checks</p>
+    <h2>Six buyer workflows. One governed core.</h2>
+    <p class="intro">Each card opens an operational console view and checks its read-only source
+      in this browser session. A reachable source proves the route answered—not that its data is
+      correct, current, compliant, or customer-validated.</p>
+    <div class="solution-grid" aria-label="A11oy solution views">
+      <a class="solution-card" href="/console#vcyber" data-solution-probe="/api/a11oy/v1/vert/cyber/feed?limit=1" data-solution-contract="cyber">
+        <div class="solution-head"><span class="solution-code">Cybersecurity</span><span class="data-state">CHECKING</span></div>
+        <h3>Threat-to-action control</h3><p>Bring threat signals, policy gates, incident context, and evidence receipts into one response view.</p>
+        <span class="solution-flow">signal → gate → response → receipt</span><span class="solution-go">Open cyber operations →</span>
+      </a>
+      <a class="solution-card" href="/console#vfinance" data-solution-probe="/api/a11oy/v1/vert/finance/feed" data-solution-contract="finance">
+        <div class="solution-head"><span class="solution-code">Finance</span><span class="data-state">CHECKING</span></div>
+        <h3>Governed market and risk decisions</h3><p>Inspect source-backed signals, apply decision policy, and retain the exact evidence behind an outcome.</p>
+        <span class="solution-flow">market data → policy → decision → receipt</span><span class="solution-go">Open finance operations →</span>
+      </a>
+      <a class="solution-card" href="/console#lineage" data-solution-probe="/api/a11oy/provenance" data-solution-contract="provenance">
+        <div class="solution-head"><span class="solution-code">Data governance</span><span class="data-state">CHECKING</span></div>
+        <h3>Lineage that survives the dashboard</h3><p>Trace assets, transformations, policy decisions, and downstream use through portable provenance evidence.</p>
+        <span class="solution-flow">asset → lineage → control → evidence</span><span class="solution-go">Open data lineage →</span>
+      </a>
+      <a class="solution-card" href="/console#entCockpit" data-solution-probe="/api/a11oy/v1/observability/summary" data-solution-contract="enterprise">
+        <div class="solution-head"><span class="solution-code">Enterprise</span><span class="data-state">CHECKING</span></div>
+        <h3>AI operations and incident command</h3><p>See runtime health, governed actions, exceptions, and receipts without stitching together separate control rooms.</p>
+        <span class="solution-flow">observe → prioritize → intervene → prove</span><span class="solution-go">Open enterprise cockpit →</span>
+      </a>
+      <a class="solution-card" href="/console#vrealestate" data-solution-probe="/api/a11oy/v1/deva/re/pulse" data-solution-contract="realestate">
+        <div class="solution-head"><span class="solution-code">Real estate</span><span class="data-state">CHECKING</span></div>
+        <h3>Governed asset workflows</h3><p>Connect property signals to reviewable actions while preserving source, approval, and outcome history.</p>
+        <span class="solution-flow">asset signal → review → action → receipt</span><span class="solution-go">Open real-estate operations →</span>
+      </a>
+      <a class="solution-card" href="/console#vlegal" data-solution-probe="/api/a11oy/v1/devb/legal/matter?limit=1" data-solution-contract="legal">
+        <div class="solution-head"><span class="solution-code">Legal</span><span class="data-state">CHECKING</span></div>
+        <h3>Evidence-bound matter workflows</h3><p>Keep source material, policy constraints, review gates, and action history attached to the matter.</p>
+        <span class="solution-flow">matter → authority → review → evidence</span><span class="solution-go">Open legal operations →</span>
+      </a>
     </div>
+    <div class="solution-summary" aria-live="polite"><span class="data-state" id="solutions-state">CHECKING</span><span id="solutions-checked">Checking six read-only source contracts.</span></div>
+    <div class="cta-row" style="margin-top:24px"><a class="btn btn-primary" href="/company#contact">Request a governed-workflow pilot →</a><a class="btn btn-ghost" href="/console#launcher">Browse every operator view</a></div>
   </div>
 </section>
 
@@ -636,23 +652,22 @@
 <section class="band wrap" id="body">
   <p class="kick">The living body</p>
   <h2>Watch the governed organism breathe.</h2>
-  <p class="intro">The same live endpoints render as a 3D anatomical organism â€” organs glow when
-    their probes are healthy and dim when they're not, and receipt events travel the vessels as
-    pulses. It is an operational projection of the platform state. Every pulse links to a real
-    receipt event; its signing state remains separately disclosed.</p>
+  <p class="intro">The anatomical views translate named platform probes into a spatial operating
+    map. An organ can glow only when its source answers; missing sources remain dim or unavailable.
+    Receipt animations are evidence-bearing only when the underlying read returns a current receipt.</p>
   <div class="body-embed" id="body-embed">
     <div class="poster" id="body-poster">
       <div class="pulse-ring" aria-hidden="true"></div>
-      <h3>The Living Brain &amp; Body Â· Anatomy v5</h3>
-      <p>Two live 3D views of the same governed organism: a <b>moldable brain</b> whose eight lobes
-        are wired to live public reads (Hub assets, GitHub repos, proved theorems, organ vitals,
+      <h3>The Living Brain &amp; Body · Anatomy v5</h3>
+      <p>Two source-labelled 3D views of the same governed organism: a <b>moldable brain</b> whose eight lobes
+        are wired to public reads (Hub assets, GitHub repos, proved theorems, organ vitals,
         the harnessed open-weights frontier) &mdash; sculpt its cortex with your pointer &mdash;
         and the full <b>living body</b> wired to the same probes as the console.</p>
       <div class="cta-row" style="justify-content:center">
-        <button class="btn btn-lattice" id="brain-load" type="button">ðŸ§  Mold the brain in-frame</button>
+        <button class="btn btn-lattice" id="brain-load" type="button">🧠 Mold the brain in-frame</button>
         <button class="btn btn-ghost" id="body-load" type="button">Load the living body</button>
-        <a class="btn btn-primary" href="/anatomy-v5">Open the live digital twin â†’</a>
-        <a class="btn btn-ghost" href="/living-anatomy" target="_blank" rel="noopener">Open full-screen â†’</a>
+        <a class="btn btn-primary" href="/anatomy-v5">Open the source-labelled twin →</a>
+        <a class="btn btn-ghost" href="/living-anatomy" target="_blank" rel="noopener">Open full-screen →</a>
       </div>
     </div>
   </div>
@@ -661,19 +676,20 @@
 <!-- ====================== PUBLIC ECOSYSTEM ATLAS ====================== -->
 <section class="band" id="ecosystem">
   <div class="wrap">
-    <p class="kick">Public estate Â· canonical live sources</p>
-    <h2>Models, kernels, data, and Spaces â€” one evidence-labelled map.</h2>
-    <p class="sub" style="max-width:790px">The front door no longer hardcodes organization totals. Open each canonical source for its current inventory; a reachable URL establishes reachability only, not source/runtime alignment or model quality.</p>
-    <div class="estate-grid" aria-label="Canonical public ecosystem sources">
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/models" target="_blank" rel="noopener"><b>OPEN</b><span>Models</span></a>
-      <a class="estate-cell" href="/kernels"><b>OPEN</b><span>Governed kernels</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/datasets" target="_blank" rel="noopener"><b>OPEN</b><span>Datasets</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/spaces" target="_blank" rel="noopener"><b>OPEN</b><span>Spaces</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/collections" target="_blank" rel="noopener"><b>OPEN</b><span>Collections</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener"><b>OPEN</b><span>Organization</span></a>
+    <p class="kick">Public estate · versioned inventory <span id="estate-source-state"></span></p>
+    <h2>Models, kernels, data, and Spaces — one evidence-labelled map.</h2>
+    <p class="sub" style="max-width:790px">The front door no longer hardcodes organization totals. The atlas joins Hugging Face artifacts to their GitHub producers without pretending that a reachable URL proves source alignment. Counts render only after the versioned inventory API answers and retain its LIVE, CACHED, STALE_CACHE, or SNAPSHOT label.</p>
+    <div class="estate-grid" aria-label="Public ecosystem inventory counts" aria-live="polite">
+      <div class="estate-cell"><b id="estate-models">—</b><span>Models</span></div>
+      <div class="estate-cell"><b id="estate-kernels">—</b><span>Governed kernels</span></div>
+      <div class="estate-cell"><b id="estate-datasets">—</b><span>Datasets</span></div>
+      <div class="estate-cell"><b id="estate-spaces">—</b><span>Spaces</span></div>
+      <div class="estate-cell"><b id="estate-collections">—</b><span>Collections</span></div>
+      <div class="estate-cell"><b id="estate-buckets">—</b><span>Public buckets</span></div>
     </div>
+    <p class="estate-observed" id="estate-observed">Inventory source has not answered this session.</p>
     <div class="estate-links">
-      <a class="btn btn-primary" href="/ecosystem">Open ecosystem atlas â†’</a>
+      <a class="btn btn-primary" href="/ecosystem">Open ecosystem atlas →</a>
       <a class="btn btn-lattice" href="/anatomy-v5">Open Anatomy v5</a>
       <a class="btn btn-ghost" href="/models">Models</a>
       <a class="btn btn-ghost" href="/kernels">Kernels</a>
@@ -684,21 +700,22 @@
   </div>
 </section>
 
-<!-- ====================== (6) ONE CHAIN â€” live receipts/ledger ====================== -->
+<!-- ====================== (6) ONE CHAIN — live receipts/ledger ====================== -->
 <section class="band" id="chain" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
   <div class="wrap">
-    <p class="kick">One chain Â· live ledger <span id="chain-src"></span></p>
-    <h2>One ledger. Every decision. Replayable to the byte.</h2>
-    <p class="intro">Every vertical emits into a single SHA3-256 hash-chain â€” append-only,
-      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.</p>
+    <p class="kick">One chain · current ledger read <span id="chain-src"></span></p>
+    <h2>One evidence contract. Independently inspectable.</h2>
+    <p class="intro">The current ledger read reports its algorithm, depth, and receipt identifiers.
+      Durability, signer mode, chain verification, and replayability must be established by the
+      returned evidence and deployment configuration—not inferred from this dashboard.</p>
     <div class="chainrow">
-      <div class="cstat"><div class="ck" id="chain-receipts">â€”</div><div class="cl">Receipt records · signer state separate</div></div>
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl" id="chain-receipts-label">Receipt records · signer state separate</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
-      <div class="cstat"><div class="ck" id="chain-depth">â€”</div><div class="cl">Chain depth (a11oy)</div></div>
-      <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">â€”</div><div class="cl">Last receipt id</div></div>
+      <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Source-labelled chain depth</div></div>
+      <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
     </div>
     <div class="cta-row" style="margin-top:32px">
-      <a class="btn btn-primary" href="/api/a11oy/v1/ledger">Open the receipt ledger â†’</a>
+      <a class="btn btn-primary" href="/api/a11oy/v1/ledger">Open the receipt ledger →</a>
       <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
     </div>
   </div>
@@ -715,7 +732,7 @@
         Every claim links to its check.</p>
     </div>
     <div class="tcbtns">
-      <a class="btn btn-primary" href="/trust">Open the trust center â†’</a>
+      <a class="btn btn-primary" href="/trust">Open the trust center →</a>
       <a class="btn btn-ghost" href="/api/a11oy/v1/honest">Honest status (JSON)</a>
     </div>
   </div>
@@ -732,52 +749,49 @@
             <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
             <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
           <span>a11oy<span class="sub" style="margin-left:9px">Alloy by SZL Holdings</span></span></a>
-        <p class="muted" style="margin:6px 0 0">AI that can demonstrate its work â€” AI that exposes receipt
-          integrity, signer state, evidence, and refusal behavior. The sha3_256 receipt ledger is
-          independently inspectable; DSSE signing is claimed only when verification proves it.</p>
-        <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate Â·
+        <p class="muted" style="margin:6px 0 0">The portable evidence and control plane for
+          consequential AI actions. Observe, gate, act, and prove across models, agents, tools,
+          and regulated workflows.</p>
+        <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
           <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
       </div>
       <div class="lk"><strong style="color:var(--ink)">Product</strong>
-        <a href="/console">Command center</a>
+        <a href="/console?investor=1">Investor view</a>
+        <a href="/console">Operator command center</a>
+        <a href="#solutions">Solutions</a>
+        <a href="/docs">Developer documentation</a>
         <a href="/ecosystem">Ecosystem atlas</a>
-        <a href="/anatomy-v5">Anatomy v5 Â· digital twin</a>
-        <a href="/console#genome">Genome registry</a>
-        <a href="/verify">Verify a receipt</a>
-        <a href="/living-anatomy">Living anatomy Â· 3D</a>
-        <a href="/elite">killinchu Â· counter-UAS</a>
-        <a href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">IMMUNE Â· live investor demo</a></div>
+        <a href="/company#contact">Request a pilot</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
         <a href="/trust">Trust center</a>
         <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
         <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
         <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a></div>
       <div class="lk"><strong style="color:var(--ink)">Router &amp; org</strong>
-        <a href="/static/viz/router/">LLM-Router Live Â· 3D</a>
-        <a href="https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live" target="_blank" rel="noopener">Status Space (live, drift-checked)</a>
-        <a href="https://github.com/szl-holdings/szl-router" target="_blank" rel="noopener">SZL Router Â· OpenAI-compatible</a>
-        <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">SZL Holdings Â· GitHub org</a>
-        <a href="#surfaces">All nine surfaces</a></div>
-      <div class="lk"><strong style="color:var(--ink)">Estate Â· open source</strong>
-        <a href="https://github.com/szl-holdings/ouroboros" target="_blank" rel="noopener">ouroboros Â· self-referential loop</a>
-        <a href="https://github.com/szl-holdings/szl-formula-ledger" target="_blank" rel="noopener">szl-formula-ledger Â· formula genome</a>
-        <a href="https://github.com/szl-holdings/szl-energy-attest" target="_blank" rel="noopener">szl-energy-attest Â· grid_context (REPORTED)</a>
-        <a href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener">Hugging Face org Â· SZLHOLDINGS</a></div>
+        <a href="/static/viz/router/">LLM router visualization · 3D</a>
+        <a href="https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live" target="_blank" rel="noopener">External router Space</a>
+        <a href="https://github.com/szl-holdings/szl-router" target="_blank" rel="noopener">SZL Router · OpenAI-compatible</a>
+        <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">SZL Holdings · GitHub org</a>
+        <a href="/console#launcher">All operator views</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Estate · open source</strong>
+        <a href="https://github.com/szl-holdings/ouroboros" target="_blank" rel="noopener">ouroboros · self-referential loop</a>
+        <a href="https://github.com/szl-holdings/szl-formula-ledger" target="_blank" rel="noopener">szl-formula-ledger · formula genome</a>
+        <a href="https://github.com/szl-holdings/szl-energy-attest" target="_blank" rel="noopener">szl-energy-attest · grid_context (REPORTED)</a>
+        <a href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener">Hugging Face org · SZLHOLDINGS</a></div>
     </div>
     <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven Lean kernel is exactly <b>8</b>
       theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
-      set graded across four honesty tiers. The Î› trust gate is <b>Conjecture&nbsp;1</b> â€” an
-      advisory bound, never a theorem and never 1.0. Receipt-chain integrity and DSSE signing are
-      distinct states; signing is claimed only when persistent signer evidence is active and verification
-      passes. Read-only routes never mint receipts. Energy is MEASURED only with a live exporter delta,
-      otherwise honest SAMPLE. Supply
-      chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.
+      set graded across four honesty tiers. The Λ trust gate is <b>Conjecture&nbsp;1</b> — an
+      advisory bound, never a theorem and never 1.0. State changes emit typed receipts; only a
+      returned, verifiable signer state counts as signed, and reads never mint signatures. Energy is
+      MEASURED only with a live exporter delta, otherwise honest SAMPLE. Supply
+      chain is SLSA L1 established; L2/L3 are not established. FedRAMP / IL5 / ATO accreditation is ROADMAP.
       <b style="color:var(--sub)">Alloy by SZL Holdings.</b>
-      Â© Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) Â· Apache-2.0.</p>
+      © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
   </div>
 </footer>
 
-<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) â€” Dev 2 ===================== -->
+<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) — Dev 2 ===================== -->
 <script type="importmap">
 { "imports": {
   "three": "/hero/vendor3d/three.module.min.js",
@@ -785,7 +799,7 @@
 } }
 </script>
 
-<!-- ===================== HERO BOOT (Three.js holographic field) â€” Dev 2 ===================== -->
+<!-- ===================== HERO BOOT (Three.js holographic field) — Dev 2 ===================== -->
 <script type="module">
   import { mountHero } from "/landing/app.js";
   const canvas = document.getElementById("hero-canvas");
@@ -833,12 +847,12 @@
 
   function showUnavailableOverclaimMetrics(){
     const count = $("hs-overclaims");
-    count.textContent = "â€”";
+    count.textContent = "—";
     count.classList.remove("proof");
     count.classList.add("gray");
-    $("hs-overclaim-time").textContent = "â€”";
+    $("hs-overclaim-time").textContent = "—";
     $("hs-overclaim-sample").textContent = "source unavailable";
-    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE Â· SNAPSHOT 2026-07-25 Â· SOURCE UNAVAILABLE");
+    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
   }
 
   async function loadOverclaimMetrics(){
@@ -874,13 +888,13 @@
       countElement.classList.add("proof");
       $("hs-overclaim-time").textContent = correctionTime;
       $("hs-overclaim-sample").textContent = "n="+sampleSize;
-      $("hs-overclaims-chip").innerHTML = grayChip("MEASURED Â· SNAPSHOT "+observed+" Â· DIGEST OK");
+      $("hs-overclaims-chip").innerHTML = grayChip("MEASURED · SNAPSHOT "+observed+" · DIGEST OK");
     } catch (_) {
       showUnavailableOverclaimMetrics();
     }
   }
 
-  // Advisory Î› is Conjecture 1: report its relation to the floor, never render pass/fail or green.
+  // Advisory Λ is Conjecture 1: report its relation to the floor, never render pass/fail or green.
   function lamChip(elId, v){
     const el = $(elId); if(!el) return;
     if(num(v) === null){ el.innerHTML = downChip("N/A"); return; }
@@ -896,21 +910,20 @@
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
   }
 
-  function setVerticals(v){
-    // v: {core,defense,insurance,finance,realestate} advisory Î› (numbers or null)
-    [["core","v-core"],["defense","v-defense"],["insurance","v-insurance"],
-     ["finance","v-finance"],["realestate","v-realestate"]].forEach(([k,id])=>{
-      const val = fmtLam(v[k]);
-      $(id).textContent = (val===null) ? "N/A" : val;
-      lamChip(id+"-chip", num(v[k]));
-    });
-  }
-
-  function setChain(receipts, alg, depth, head){
+  function setChain(receipts, alg, depth, head, evidence){
+    const sample = !!(evidence && (evidence.operational === false || ["SAMPLE","DEMO"].includes(String(evidence.data_kind||evidence.state||"").toUpperCase())));
     $("chain-receipts").textContent = (num(receipts)===null) ? "UNAVAILABLE" : receipts.toLocaleString();
-    $("hs-receipts").textContent    = (num(receipts)===null) ? "â€”"           : receipts.toLocaleString();
-    $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : grayChip((alg || "sha3_256") + " Â· CHAIN");
-    if(alg) $("chain-alg").textContent = alg;
+    $("hs-receipts").textContent    = (num(receipts)===null) ? "—"           : receipts.toLocaleString();
+    $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : grayChip(sample ? "SAMPLE · "+(alg || "algorithm unreported") : (alg || "algorithm unreported"));
+    $("chain-alg").textContent = alg || "N/A";
+    const signed = !!(evidence && evidence.signed === true);
+    const chained = !!(evidence && evidence.chain_verified === true);
+    const digestOnly = !!(evidence && String(evidence.receipt_type||evidence.signature_state||"").toUpperCase().includes("DIGEST"));
+    $("chain-receipts-label").textContent = sample
+      ? "SAMPLE hash-link records · not operational receipts"
+      : signed && chained
+      ? "Signed receipts · chain verified by source"
+      : (digestOnly ? "UNSIGNED · DIGEST ONLY" : "Ledger receipts · signature unverified");
     $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
     // Normalize head to the receipt id STRING. Some feeds (e.g. org/overview)
     // return last_receipt as an object ({receipt_id, ...}); passing that straight
@@ -918,7 +931,7 @@
     const headId = (head && typeof head === "object")
       ? (head.receipt_id || head.id || head.digest || "")
       : head;
-    if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"â€¦"+h.slice(-4)) : h; }
+    if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
     else { $("chain-head").textContent = "N/A"; }
   }
 
@@ -929,23 +942,17 @@
       if(!o || o.status === "UNAVAILABLE") return false;
       let any = false;
       if(o.proof_tiers){ setTiers(o.proof_tiers); $("proof-src").innerHTML = liveChip("overview"); any = true; }
-      if(Array.isArray(o.verticals)){
-        const vm = {};
-        o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
-        setVerticals(vm); $("verticals-src").innerHTML = liveChip("overview"); any = true;
-      }
       const ts = o.thesis_stats || {};
       const ch = o.chain || {};
       if(ts.signed_receipts !== undefined || ch.depth !== undefined){
-        setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+        setChain(num(ts.signed_receipts), ts.chain_alg || null, num(ch.depth), ch.last_receipt, o.receipt_evidence || null);
         $("chain-src").innerHTML = liveChip("overview"); any = true;
       }
-      if(o.org_lambda !== undefined){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
       return any;
     }catch(e){ return false; }
   }
 
-  // ---- (B) fallbacks â€” each source degrades to honest N/A independently ----
+  // ---- (B) fallbacks — each source degrades to honest N/A independently ----
   async function loadGenomeTiers(){
     try{
       const g = await getJSON("/api/a11oy/v1/genome");
@@ -958,34 +965,20 @@
       setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
     }
   }
-  async function loadLambdaOrg(){
-    try{
-      const d = await getJSON("/api/a11oy/v1/lambda/org");
-      const v = d.verticals || {};
-      setVerticals({ core:v.core, defense:v.defense, insurance:v.insurance,
-                     finance:v.finance, realestate:v.realestate });
-      const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org));
-      $("verticals-src").innerHTML = liveChip("lambda/org");
-    }catch(e){
-      setVerticals({}); $("v-org").textContent = "N/A"; $("v-org-chip").innerHTML = downChip("N/A");
-      $("verticals-src").innerHTML = downChip("UNAVAILABLE");
-    }
-  }
   async function loadChain(){
-    let receipts=null, alg="sha3_256", depth=null, head=null, ok=false;
-    try{ const h = await getJSON("/api/lake/v1/health"); receipts = num(h.total_receipts); alg = h.chain_alg || alg; ok = true; }catch(e){}
+    let receipts=null, alg=null, depth=null, head=null, evidence=null, ok=false;
     try{ const l = await getJSON("/api/a11oy/v1/ledger"); depth = num(l.count);
          if(Array.isArray(l.receipts) && l.receipts.length){ head = l.receipts[l.receipts.length-1].receipt_id; }
-         if(receipts === null) receipts = depth; ok = true; }catch(e){}
-    setChain(receipts, alg, depth, head);
-    $("chain-src").innerHTML = ok ? grayChip((alg || "sha3_256") + " Â· CHAIN") : downChip("UNAVAILABLE");
+         alg = l.hash_algorithm || null; evidence = l; receipts = depth; ok = true; }catch(e){}
+    setChain(receipts, alg, depth, head, evidence);
+    $("chain-src").innerHTML = ok ? grayChip((evidence&&evidence.data_kind?String(evidence.data_kind).toUpperCase()+" · ":"")+(alg || "source answered")) : downChip("UNAVAILABLE");
   }
 
   // ---- live estate pulse: reachability is reported separately from correctness ----
   function pulseState(key, state, detail){
     const chip = $("pulse-"+key+"-state");
     const body = $("pulse-"+key+"-detail");
-    const amberStates = new Set(["CACHED","STALE_CACHE","SNAPSHOT","MODELED","OBSERVED","AVAILABLE","DEGRADED"]);
+    const amberStates = new Set(["CACHED","STALE_CACHE","SNAPSHOT","SAMPLE","MODELED","OBSERVED","AVAILABLE","DEGRADED"]);
     if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE" || state === "REACHABLE") ? "live" : (amberStates.has(state) ? "amber" : "down")); }
     if(body) body.textContent = detail;
   }
@@ -1006,9 +999,12 @@
         const s = d.summary && d.summary.summary || {};
         if(!d.matrix_available) throw new Error("matrix unavailable");
         const checked = Boolean(d.probe_verdict_available);
-        pulseState("contract", checked ? "REACHABLE" : "SNAPSHOT", (s.tabs || "Published")+" tabs Â· "+(s.endpoints || "declared")+" endpoint contracts Â· "+(checked ? "deployment probe attached." : "static contract; deployment probe pending."));
+        pulseState("contract", checked ? "REACHABLE" : "SNAPSHOT", (s.tabs || "Published")+" tabs · "+(s.endpoints || "declared")+" endpoint contracts · "+(checked ? "deployment probe attached." : "static contract; deployment probe pending."));
       }).catch(() => pulseState("contract", "UNAVAILABLE", "Tab contract is not bundled with this deployment.")),
-      pulseJSON("/api/a11oy/v1/ledger").then(d => pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source."))
+      pulseJSON("/api/a11oy/v1/ledger").then(d => {
+        const sample = d && (d.operational === false || String(d.data_kind||d.state||"").toUpperCase() === "SAMPLE");
+        pulseState("ledger", sample ? "SAMPLE" : "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+(sample ? " deterministic sample hash records; excluded from operational receipt and ROI counts." : " receipts returned by the read; verify timestamp and chain state in the source."));
+      })
         .catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),
       pulseJSON("/api/a11oy/v1/mesh/state").then(d => {
         const nodes = Array.isArray(d.nodes) ? d.nodes.length : (Array.isArray(d.peers) ? d.peers.length : null);
@@ -1016,7 +1012,108 @@
       }).catch(() => pulseState("mesh", "UNAVAILABLE", "Mesh state did not answer this session."))
     ];
     await Promise.allSettled(checks);
-    if($("pulse-checked")) $("pulse-checked").textContent = "Checked "+new Date().toLocaleString()+" Â· read-only Â· cache disabled";
+    if($("pulse-checked")) $("pulse-checked").textContent = "Checked "+new Date().toLocaleString()+" · read-only · cache disabled";
+  }
+
+  function solutionProbeState(contract,d){
+    if(!d || typeof d!=="object" || Array.isArray(d)) throw new Error("non-object response");
+    const states=[];
+    function source(node,name){
+      if(!node || typeof node!=="object" || Array.isArray(node) || !("value" in node)) throw new Error(name+" source envelope missing");
+      const f=node.freshness;
+      if(!f || typeof f!=="object" || typeof f.status!=="string") throw new Error(name+" freshness missing");
+      const s=f.status.toUpperCase();
+      if(["LIVE","CACHED","STALE","STALE_CACHE"].includes(s)){
+        const ts=Number(f.fetched_at);
+        if(!Number.isFinite(ts) || ts<=0 || ts>(Date.now()/1000)+300) throw new Error(name+" source clock invalid");
+      }
+      states.push(s);
+    }
+    function sourceMap(map,names,label){
+      if(!map || typeof map!=="object" || Array.isArray(map)) throw new Error(label+" map missing");
+      names.forEach(k => source(map[k],label+"."+k));
+    }
+    if(contract==="cyber"){
+      if(d.vertical!=="cyber") throw new Error("cyber discriminator mismatch");
+      ["kev","nvd","gh_events","hf"].forEach(k => source(d[k],"cyber."+k));
+    }else if(contract==="finance"){
+      if(d.vertical!=="finance") throw new Error("finance discriminator mismatch");
+      sourceMap(d.equities,["SPY","AAPL","MSFT","NVDA","^VIX"],"finance.equities");
+      sourceMap(d.crypto,["BTC-USD","ETH-USD","SOL-USD"],"finance.crypto");
+      source(d.fx,"finance.fx"); source(d.fintech_cve,"finance.fintech_cve");
+    }else if(contract==="provenance"){
+      if(typeof d.slsa!=="string" || !d.khipu_dsse || typeof d.khipu_dsse!=="object") throw new Error("provenance contract mismatch");
+      return {label:"SLSA "+String(d.slsa).toUpperCase()+" SOURCE",kind:"amber",live:false};
+    }else if(contract==="enterprise"){
+      if(!Array.isArray(d.capabilities) || !d.capabilities.length || !d.mesh_reach || typeof d.mesh_reach!=="object") throw new Error("enterprise inventory missing");
+      d.capabilities.forEach((p,i) => {
+        if(!p || typeof p!=="object" || !(p.id||p.name) || typeof p.observed!=="boolean" || typeof p.status!=="string") throw new Error("enterprise capability "+i+" malformed");
+        states.push(p.observed===true ? p.status.toUpperCase() : "INVENTORY");
+      });
+    }else if(contract==="realestate"){
+      if(d.tab!=="pulse") throw new Error("real-estate discriminator mismatch");
+      ["hpd","dob","rates"].forEach(k => source(d[k],"realestate."+k));
+    }else if(contract==="legal"){
+      if(d.surface!=="matter" || typeof d.term!=="string" || !d.term.trim()) throw new Error("legal discriminator mismatch");
+      source(d.opinions,"legal.opinions");
+    }else{
+      throw new Error("unknown response contract");
+    }
+    if(!states.length) throw new Error("required evidence states missing");
+    const bad=new Set(["UNAVAILABLE","ERROR","FAILED","BLOCKED","DOWN","UNHEALTHY"]);
+    const stale=new Set(["CACHED","STALE","STALE_CACHE","SNAPSHOT","MODELED","DEGRADED","INVENTORY"]);
+    const good=new Set(["LIVE","OK","UP","HEALTHY"]);
+    const nBad=states.filter(s=>bad.has(s)).length, nGood=states.filter(s=>good.has(s)).length;
+    if(nBad && nGood) return {label:"DEGRADED",kind:"amber",live:false};
+    if(nBad) return {label:"UNAVAILABLE",kind:"down",live:false};
+    if(states.some(s=>stale.has(s))) return {label:states.find(s=>stale.has(s))||"QUALIFIED",kind:"amber",live:false};
+    if(states.every(s=>good.has(s))) return {label:"LIVE",kind:"live",live:true};
+    return {label:"QUALIFIED",kind:"amber",live:false};
+  }
+
+  // ---- six solution views: validate route schema + evidence state without upgrading HTTP 200 to truth ----
+  async function loadSolutionProbes(){
+    const cards = Array.from(document.querySelectorAll("[data-solution-probe]"));
+    const results = await Promise.all(cards.map(async card => {
+      const chip = card.querySelector(".data-state");
+      const url = card.getAttribute("data-solution-probe");
+      const contract = card.getAttribute("data-solution-contract");
+      try{
+        const d = await pulseJSON(url);
+        const state = solutionProbeState(contract,d);
+        chip.textContent = state.label;
+        chip.className = "data-state "+state.kind;
+        card.title = "Read-only workflow contract validated this session: "+url+". Evidence state: "+state.label+". This is not a correctness, compliance, or customer claim.";
+        return {valid:true,live:state.live};
+      }catch(_){
+        chip.textContent = "UNAVAILABLE"; chip.className = "data-state down";
+        card.title = "Read-only workflow source did not answer with its expected contract inside this session's bounded probe: "+url;
+        return {valid:false,live:false};
+      }
+    }));
+    const valid = results.filter(r=>r.valid).length, live=results.filter(r=>r.live).length;
+    const state = $("solutions-state");
+    if(state){ state.textContent = valid+"/"+cards.length+" CONTRACTS · "+live+" LIVE"; state.className = "data-state "+(live===cards.length ? "live" : (valid ? "amber" : "down")); }
+    if($("solutions-checked")) $("solutions-checked").textContent = "Checked "+new Date().toLocaleString()+" · read-only · schema and evidence-state validation.";
+  }
+
+  // ---- public estate: never freeze inventory counts into marketing copy ----
+  async function loadEstateInventory(){
+    const keys = ["models","kernels","datasets","spaces","collections","buckets"];
+    try{
+      const d = await pulseJSON("/api/a11oy/v1/ecosystem/atlas");
+      const counts = d && d.counts || {};
+      keys.forEach(key => { const node = $("estate-"+key); if(node) node.textContent = num(counts[key])===null ? "N/A" : counts[key].toLocaleString(); });
+      const stateName = String(d && d.state || "UNAVAILABLE").toUpperCase();
+      const state = $("estate-source-state");
+      const qualified = new Set(["CACHED","STALE_CACHE","SNAPSHOT"]);
+      if(state){ state.innerHTML = '<span class="data-state '+(stateName==="LIVE" ? "live" : (qualified.has(stateName) ? "amber" : "down"))+'">'+esc(stateName)+'</span>'; }
+      if($("estate-observed")) $("estate-observed").textContent = "Inventory observed "+(d.observed_at || "at an unreported time")+" · source state "+stateName+" · reachability does not prove GitHub/Hugging Face revision parity.";
+    }catch(_){
+      keys.forEach(key => { const node = $("estate-"+key); if(node) node.textContent = "N/A"; });
+      if($("estate-source-state")) $("estate-source-state").innerHTML = '<span class="data-state down">UNAVAILABLE</span>';
+      if($("estate-observed")) $("estate-observed").textContent = "Versioned inventory source did not answer this session; no stale count is promoted to current.";
+    }
   }
 
   // ---- (C) living body: load the anatomy Space in-frame only on click (perf + reduced-motion) ----
@@ -1025,7 +1122,7 @@
     const wrap = $("body-embed");
     const f = document.createElement("iframe");
     f.src = "https://szlholdings-anatomy.hf.space#estate";
-    f.title = "a11oy living body â€” 3D governed organism (V10 Â· Estate + Ayllu wirings)";
+    f.title = "a11oy living body — 3D governed organism (V10 · Estate + Ayllu wirings)";
     f.loading = "lazy"; f.referrerPolicy = "no-referrer";
     f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
     wrap.innerHTML = ""; wrap.appendChild(f);
@@ -1037,7 +1134,7 @@
     const wrap = $("body-embed");
     const f = document.createElement("iframe");
     f.src = "/static/3d/brain.html";
-    f.title = "The a11oy Brain â€” moldable 3D cortex, eight lobes wired to live public reads";
+    f.title = "The a11oy Brain — moldable 3D cortex, eight lobes wired to live public reads";
     f.loading = "lazy"; f.referrerPolicy = "no-referrer";
     f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
     wrap.innerHTML = ""; wrap.appendChild(f);
@@ -1046,33 +1143,33 @@
   // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
   (async function(){
     loadEstatePulse();
+    loadSolutionProbes();
+    loadEstateInventory();
     loadOverclaimMetrics();
     const ov = await loadOverview();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",
-      verts: $("verticals-src").innerHTML.trim() !== "",
       chain: $("chain-src").innerHTML.trim() !== "",
     };
     const jobs = [];
     if(!filled.tiers) jobs.push(loadGenomeTiers());
-    if(!filled.verts) jobs.push(loadLambdaOrg());
     if(!filled.chain) jobs.push(loadChain());
     await Promise.allSettled(jobs);
   })();
 })();
 </script>
 
-<!-- SZL-FOURTH-WALL:v1:START â€” the page proves itself to the visitor. Claims-free: integrity & origin only. -->
+<!-- SZL-FOURTH-WALL:v1:START — the page proves itself to the visitor. Claims-free: integrity & origin only. -->
 <section id="fourth-wall" style="background:#060D1F;border-top:1px solid #C9B787;padding:18px 24px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#8FA3BF;line-height:1.7">
   <div style="max-width:980px;margin:0 auto">
-    <span style="color:#C9B787;letter-spacing:2px">âŸ¨ 4TH WALL âŸ©</span>
-    <span> You are reading rendered bytes. Don&rsquo;t trust them â€” hash them:</span>
+    <span style="color:#C9B787;letter-spacing:2px">⟨ 4TH WALL ⟩</span>
+    <span> You are reading rendered bytes. Don&rsquo;t trust them — hash them:</span>
     <button id="fw-hash-btn" style="margin-left:8px;background:transparent;border:1px solid #3AF4C8;color:#3AF4C8;padding:2px 10px;border-radius:3px;font:inherit;cursor:pointer">hash this page in your browser</button>
     <span id="fw-hash-out" style="color:#3AF4C8;word-break:break-all"></span>
-    <div style="margin-top:6px">canonical source: <a href="https://github.com/szl-holdings/a11oy/blob/main/a11oy_landing.html" style="color:#C9B787">szl-holdings/a11oy@main</a><span id="fw-main-sha"></span> Â· verify from outside:
+    <div style="margin-top:6px">canonical source: <a href="https://github.com/szl-holdings/a11oy/blob/main/a11oy_landing.html" style="color:#C9B787">szl-holdings/a11oy@main</a><span id="fw-main-sha"></span> · verify from outside:
       <code style="color:#E8D9AE;background:#0B1F3A;padding:1px 6px;border-radius:3px">curl -s https://raw.githubusercontent.com/szl-holdings/a11oy/main/a11oy_landing.html | sha256sum</code>
     </div>
-    <div style="margin-top:4px;color:#5c6f8a">This proves integrity &amp; origin of this page only â€” never the accuracy of anything written on it. Doctrine v11. Expect the two hashes to differ by exactly the declared deltas: the server injects the operator-widget <code>&lt;script&gt;</code> tag in-memory, and the deployer may rewrite asset paths. In-browser hash = bytes as served; curl hash = canonical source; the attested sync + drift guards bind the two.</div>
+    <div style="margin-top:4px;color:#5c6f8a">This proves integrity &amp; origin of this page only — never the accuracy of anything written on it. Doctrine v11. Expect the two hashes to differ by exactly the declared deltas: the server injects the operator-widget <code>&lt;script&gt;</code> tag in-memory, and the deployer may rewrite asset paths. In-browser hash = bytes as served; curl hash = canonical source; the attested sync + drift guards bind the two.</div>
   </div>
 </section>
 <script>

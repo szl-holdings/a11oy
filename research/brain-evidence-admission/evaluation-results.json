@@ -8,7 +8,7 @@
     "proof_credit": 0,
     "training_triggered": false
   },
-  "index_receipt_sha256": "05de63827271daee11888d0f1e43e558bca30ff6f4d969da807fd7e6e617f658",
+  "index_receipt_sha256": "53dfb57df1e6ddd768c5490be883f9f44c60991255da36de3b7d7f310038180b",
   "metrics": {
     "answerable_abstention_rate": 0.2,
     "answerable_query_count": 10,
@@ -18,7 +18,7 @@
     "ndcg_at_3": 1.0,
     "overall_action_accuracy": 0.866666666667,
     "query_count": 15,
-    "raw_graph_source_timestamp_coverage": 0.003592561285,
+    "raw_graph_source_timestamp_coverage": 0.003592181722,
     "recall_at_1": 1.0,
     "recall_at_3": 1.0,
     "unanswerable_abstention_accuracy": 1.0,
@@ -485,6 +485,6 @@
   "preregistration_content_sha256": "46681a277dc0a5d214669b8fdbcb7d3a813d2b1c31b3803d04200bb7d5f7d31b",
   "protocol_id": "brain-canonical-retrieval-pilot-v1",
   "qrels_content_sha256": "796171b7460bd6b0f543cfd81589e2d2052e3580d1da340ce0cfab471aa26cb2",
-  "results_receipt_sha256": "0c7b6d0ec479a9b5c13062c10f02fd354e38144dca8934bd28cac88b684b3ab3",
+  "results_receipt_sha256": "cec022dffff5ed39d72863dc23dfd090965de8d632c3ecdf61e2cb50126d4923",
   "schema_version": "szl.brain.evidence-evaluation-results.v1"
 }

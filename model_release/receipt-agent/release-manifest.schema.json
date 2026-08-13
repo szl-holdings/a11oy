@@ -86,10 +86,10 @@
       ],
       "properties": {
         "brain_raw_nodes": {
-          "const": 9464
+          "const": 9465
         },
         "brain_raw_nodes_training_quarantined": {
-          "const": 9464
+          "const": 9465
         },
         "brain_raw_rows_admitted_to_train": {
           "const": 0

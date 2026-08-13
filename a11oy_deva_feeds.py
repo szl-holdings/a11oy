@@ -11,8 +11,8 @@ ahead of serve.py's /api/a11oy/{path} Node proxy + the /{full_path} SPA catch-al
 (same proven pattern as dev1's /v1/wow and dev2's /v1/vert).
 
 It REUSES the existing governed machinery from a11oy_vertical_feeds (governed_turn,
-_ledger, roi) when present — never re-implements the gate. If that module is missing
-it degrades to a self-contained sha256 hash-chain (still real, never faked).
+    _ledger, roi) when present — never re-implements the gate. If that module is missing
+    it degrades to an explicitly unsigned sha256 content digest (not a chain proof).
 
 DATA RULES (verified team/LIVE_SOURCES_VERIFIED.md, all HTTP 200 from this egress class):
   - Yahoo v8 chart (equities/indices). On 429 -> cache + honest 'stale'/'degraded' label.
@@ -31,16 +31,19 @@ SLSA L1 honest; no fabricated data; premium feeds = CONNECT-READY (never faked).
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import os
-import time
+import re
 import threading
+import time
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Annotated, Any, Callable, Optional
 
+import anyio
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------------------------
@@ -73,31 +76,331 @@ DOCTRINE = {
     "locked_formula_count": 8,
     "kernel_commit": "c7c0ba17",
     "lambda": "Conjecture 1 (advisory floor 0.90; unconditional uniqueness machine-checked FALSE; conditional axiom-free proven)",
-    "slsa": "L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap",
+    "slsa": "L1 only; this runtime surface makes no SLSA L2 or L3 claim",
     "lambda_floor": 0.90,
 }
 UA = {"User-Agent": "SZL Holdings research contact@szlholdings.com"}
 YF_UA = {"User-Agent": "Mozilla/5.0 (a11oy-mesh governed-feed)"}
+
+
+def _source_http_timeout_s() -> float:
+    if _HAS_VF and hasattr(_vf, "_source_http_timeout_s"):
+        return _vf._source_http_timeout_s()
+    raw = os.environ.get("A11OY_SOURCE_HTTP_TIMEOUT_S", "4")
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = 4.0
+    if not math.isfinite(value):
+        value = 4.0
+    return max(0.25, min(15.0, value))
+
+
+def _source_url_allowed(url: str) -> bool:
+    if _HAS_VF and hasattr(_vf, "_source_url_allowed"):
+        return _vf._source_url_allowed(url)
+    try:
+        parsed = httpx.URL(url)
+    except Exception:
+        return False
+    host = (parsed.host or "").lower().strip("[]")
+    return parsed.scheme == "https" or (
+        parsed.scheme == "http" and host in {"127.0.0.1", "localhost", "::1"}
+    )
+
+
+def _variant_cache_key(source: str, **parameters: Any) -> str:
+    if _HAS_VF and hasattr(_vf, "_variant_cache_key"):
+        return _vf._variant_cache_key(source, **parameters)
+    import hashlib
+    canonical = json.dumps(parameters, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True, default=str).encode("utf-8")
+    return f"{source}|{hashlib.sha256(canonical).hexdigest()[:20]}"
+
+
+def _client(headers: Optional[dict[str, str]] = None) -> httpx.Client:
+    # Do not follow redirects: an allowed HTTPS URL must not downgrade after
+    # the initial source policy check.
+    return httpx.Client(
+        timeout=_source_http_timeout_s(), headers=headers or YF_UA,
+        follow_redirects=False,
+    )
+
+
+def _bounded_limit(value: Any, default: int, maximum: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        parsed = default
+    return max(1, min(maximum, parsed))
+
+
+def _bounded_text(value: Any, default: str, maximum: int) -> str:
+    text = str(value if value is not None else default).strip()
+    return (text or default)[:maximum]
+
+
+class _GovernValidationError(ValueError):
+    def __init__(self, field: str, message: str) -> None:
+        super().__init__(message)
+        self.field = field
+        self.message = message
+
+
+def _validate_govern_body(body: Any) -> dict[str, Any]:
+    if _vf is not None and hasattr(_vf, "_validate_govern_body"):
+        try:
+            return _vf._validate_govern_body(body)
+        except Exception as error:
+            if hasattr(error, "field") and hasattr(error, "message"):
+                raise _GovernValidationError(error.field, error.message)
+            raise
+    if not isinstance(body, dict):
+        raise _GovernValidationError("body", "request body must be a JSON object")
+    text = body.get("text", "")
+    if not isinstance(text, str) or len(text) > 8000:
+        raise _GovernValidationError("text", "text must be a string of at most 8000 characters")
+    severity = body.get("severity", 0.0)
+    if isinstance(severity, bool) or not isinstance(severity, (int, float)):
+        raise _GovernValidationError("severity", "severity must be a finite number from 0 to 10")
+    severity = float(severity)
+    if not math.isfinite(severity) or not 0.0 <= severity <= 10.0:
+        raise _GovernValidationError("severity", "severity must be a finite number from 0 to 10")
+    context = body.get("context", {})
+    if not isinstance(context, dict):
+        raise _GovernValidationError("context", "context must be a bounded JSON object")
+    try:
+        encoded = json.dumps(context, allow_nan=False, separators=(",", ":"))
+    except (TypeError, ValueError):
+        raise _GovernValidationError("context", "context must contain finite JSON values")
+    if len(context) > 32 or len(encoded.encode("utf-8")) > 8192:
+        raise _GovernValidationError("context", "context must be a bounded JSON object")
+    classification = body.get("classification")
+    if classification is not None and (
+        not isinstance(classification, str)
+        or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,32}", classification)
+    ):
+        raise _GovernValidationError("classification", "classification is invalid")
+    action_kind = body.get("action_kind", "decision")
+    if not isinstance(action_kind, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", action_kind):
+        raise _GovernValidationError("action_kind", "action_kind is invalid")
+    return {"text": text, "severity": severity, "context": context,
+            "classification": classification, "action_kind": action_kind}
+
+
+def _govern_validation_response(error: _GovernValidationError) -> JSONResponse:
+    return JSONResponse({"detail": [{
+        "type": "value_error", "loc": ["body", error.field],
+        "msg": error.message,
+    }]}, status_code=422)
+
+
+class _GovernPayloadTooLarge(ValueError):
+    pass
+
+
+def _govern_authorise(authorization: Optional[str]):
+    if _HAS_VF and hasattr(_vf, "_govern_authorise"):
+        return _vf._govern_authorise(authorization)
+    return None, JSONResponse({
+        "state": "unavailable",
+        "error": "shared governance authorization is unavailable in standalone mode",
+    }, status_code=503)
+
+
+async def _read_govern_json(req: Request) -> Any:
+    if _HAS_VF and hasattr(_vf, "_read_govern_json"):
+        try:
+            return await _vf._read_govern_json(req)
+        except Exception as error:
+            if hasattr(_vf, "_GovernPayloadTooLarge") and isinstance(
+                error, _vf._GovernPayloadTooLarge
+            ):
+                raise _GovernPayloadTooLarge
+            if hasattr(error, "field") and hasattr(error, "message"):
+                raise _GovernValidationError(error.field, error.message)
+            raise
+    raise _GovernValidationError("body", "shared bounded governance reader is unavailable")
+
+
+def _canonical_govern_action(surface: str, requested: Any) -> str:
+    if _HAS_VF and hasattr(_vf, "_canonical_govern_action"):
+        try:
+            return _vf._canonical_govern_action(surface, requested)
+        except Exception as error:
+            if hasattr(error, "field") and hasattr(error, "message"):
+                raise _GovernValidationError(error.field, error.message)
+            raise
+    raise _GovernValidationError("action_kind", "shared governance action map is unavailable")
+
+
+def _govern_claim(principal):
+    if _HAS_VF and hasattr(_vf, "_govern_claim"):
+        return _vf._govern_claim(principal)
+    return None, 1
+
+
+def _govern_release(identity) -> None:
+    if _HAS_VF and hasattr(_vf, "_govern_release"):
+        _vf._govern_release(identity)
+
+
+def _govern_actor(principal) -> dict[str, str]:
+    if _HAS_VF and hasattr(_vf, "_govern_actor"):
+        return _vf._govern_actor(principal)
+    return {}
+
+
+class _RefreshFlight:
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.result: Optional[dict[str, Any]] = None
+        self.waiters = 0
+
+
+# Reuse the vertical-feed worker budget when that module is present so a burst
+# across DEV-A and the consolidated verticals cannot create unbounded workers.
+# The local limiter preserves DEV-A's existing honest standalone degradation.
+_LOCAL_UPSTREAM_LIMITER = anyio.CapacityLimiter(8)
+
+
+async def _run_blocking(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    if _HAS_VF and hasattr(_vf, "_run_blocking"):
+        return await _vf._run_blocking(func, *args, **kwargs)
+    call = functools.partial(func, *args, **kwargs)
+    return await anyio.to_thread.run_sync(call, limiter=_LOCAL_UPSTREAM_LIMITER)
+
+
+async def _gather_blocking(
+    calls: list[tuple[Callable[..., Any], tuple[Any, ...], dict[str, Any]]],
+) -> list[Any]:
+    if _HAS_VF and hasattr(_vf, "_gather_blocking"):
+        return await _vf._gather_blocking(calls)
+    results: list[Any] = [None] * len(calls)
+
+    async def _one(index: int, func: Callable[..., Any], args: tuple[Any, ...],
+                   kwargs: dict[str, Any]) -> None:
+        results[index] = await _run_blocking(func, *args, **kwargs)
+
+    async with anyio.create_task_group() as task_group:
+        for index, (func, args, kwargs) in enumerate(calls):
+            task_group.start_soon(_one, index, func, args, kwargs)
+    return results
 
 # ---------------------------------------------------------------------------
 # Warm cache with honest freshness labels (own cache so we never collide w/ _vf).
 # A poll failure keeps the last-good value and marks it 'stale'.
 # ---------------------------------------------------------------------------
 _CACHE: dict[str, dict[str, Any]] = {}
+_INFLIGHT: dict[str, _RefreshFlight] = {}
 _LOCK = threading.Lock()
+try:
+    _CACHE_MAX_ENTRIES = max(16, min(2048, int(os.environ.get(
+        "A11OY_DEVA_CACHE_MAX_ENTRIES",
+        os.environ.get("A11OY_FEED_CACHE_MAX_ENTRIES", "256"),
+    ))))
+except (TypeError, ValueError, OverflowError):
+    _CACHE_MAX_ENTRIES = 256
 
 
-def _cached_fetch(key: str, url: str, ttl: float, parser=None, headers=None,
-                  timeout=12.0) -> dict[str, Any]:
+def _evict_cache_locked(protected_key: str) -> None:
+    while len(_CACHE) > _CACHE_MAX_ENTRIES:
+        candidates = [
+            key for key in _CACHE
+            if key != protected_key and key not in _INFLIGHT
+        ]
+        if not candidates:
+            candidates = [key for key in _CACHE if key != protected_key]
+        if not candidates:
+            candidates = list(_CACHE)
+        victim = min(
+            candidates,
+            key=lambda key: (float(_CACHE[key].get("fetched_at", 0.0)), key),
+        )
+        del _CACHE[victim]
+
+
+def _claim_refresh(key: str) -> tuple[_RefreshFlight, bool]:
+    with _LOCK:
+        flight = _INFLIGHT.get(key)
+        if flight is not None:
+            flight.waiters += 1
+            return flight, False
+        flight = _RefreshFlight()
+        _INFLIGHT[key] = flight
+        return flight, True
+
+
+def _finish_refresh(key: str, flight: _RefreshFlight, result: dict[str, Any]) -> None:
+    with _LOCK:
+        if _INFLIGHT.get(key) is flight:
+            flight.result = result
+            flight.event.set()
+            del _INFLIGHT[key]
+
+
+def _flight_wait_failure(rec: Optional[dict[str, Any]]) -> dict[str, Any]:
+    error = f"single-flight wait exceeded {_source_http_timeout_s():g}s source budget"
+    if rec:
+        return {"value": rec["value"], "freshness": {
+            "status": "stale",
+            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "fetched_at": rec["fetched_at_iso"],
+            "error": error,
+        }}
+    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+
+
+def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[str, Any]:
+    error = f"{type(exc).__name__}: {str(exc)[:140]}"
+    if rec:
+        return {"value": rec["value"], "freshness": {
+            "status": "stale",
+            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "error": error,
+            "fetched_at": rec["fetched_at_iso"],
+        }}
+    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+
+
+def _cached_fetch(key: str, url: str, ttl: float, parser=None,
+                  headers=None) -> dict[str, Any]:
+    if not _source_url_allowed(url):
+        return {"value": None, "freshness": {
+            "status": "unavailable", "error": "external feed URL requires HTTPS",
+        }}
     now = time.time()
     with _LOCK:
         rec = _CACHE.get(key)
+        rec = dict(rec) if rec else None
     if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
         age = now - rec["fetched_at"]
         return {"value": rec["value"], "freshness": {"status": "live", "age_s": round(age, 1),
                 "fetched_at": rec["fetched_at_iso"]}}
+
+    flight, is_leader = _claim_refresh(key)
+    if not is_leader:
+        if not flight.event.wait(_source_http_timeout_s() + 1.0):
+            return _flight_wait_failure(rec)
+        return flight.result if flight.result is not None else _flight_wait_failure(rec)
+
+    current_now = time.time()
+    with _LOCK:
+        current = _CACHE.get(key)
+        current = dict(current) if current else None
+    if (current and current.get("status") == "live"
+            and (current_now - current["fetched_at"]) < current["ttl"]):
+        age = current_now - current["fetched_at"]
+        result = {"value": current["value"], "freshness": {
+            "status": "live", "age_s": round(age, 1),
+            "fetched_at": current["fetched_at_iso"],
+        }}
+        _finish_refresh(key, flight, result)
+        return result
+
+    result: Optional[dict[str, Any]] = None
     try:
-        with httpx.Client(timeout=timeout, headers=headers or YF_UA, follow_redirects=True) as cl:
+        with _client(headers) as cl:
             r = cl.get(url)
         r.raise_for_status()
         try:
@@ -106,17 +409,28 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, headers=None,
             data = r.text
         value = parser(data) if parser else data
         iso = datetime.now(timezone.utc).isoformat()
+        fetched_at = time.time()
         with _LOCK:
-            _CACHE[key] = {"value": value, "fetched_at": now, "fetched_at_iso": iso,
+            _CACHE[key] = {"value": value, "fetched_at": fetched_at, "fetched_at_iso": iso,
                            "ttl": ttl, "status": "live"}
-        return {"value": value, "freshness": {"status": "live", "age_s": 0.0, "fetched_at": iso}}
-    except Exception as e:
-        # serve last-good as 'stale'; never fabricate
+            _evict_cache_locked(key)
+        result = {"value": value, "freshness": {
+            "status": "live", "age_s": 0.0, "fetched_at": iso,
+        }}
+    except BaseException as exc:
         if rec:
-            return {"value": rec["value"], "freshness": {"status": "stale",
-                    "age_s": round(now - rec["fetched_at"], 1), "error": str(e)[:140],
-                    "fetched_at": rec["fetched_at_iso"]}}
-        return {"value": None, "freshness": {"status": "degraded", "error": str(e)[:140]}}
+            with _LOCK:
+                current = _CACHE.get(key)
+                if current and current.get("fetched_at") == rec.get("fetched_at"):
+                    current["status"] = "stale"
+        result = _refresh_failure(rec, exc)
+        if not isinstance(exc, Exception):
+            raise
+    finally:
+        if result is None:
+            result = _refresh_failure(rec, RuntimeError("refresh aborted before publication"))
+        _finish_refresh(key, flight, result)
+    return result
 
 
 # ===========================================================================
@@ -129,13 +443,18 @@ def governed_turn(vertical: str, text: str, **kw) -> dict[str, Any]:
         except Exception as e:
             return {"error": f"governed_turn-unavailable: {e}", "decision": "review",
                     "doctrine": DOCTRINE}
-    # honest minimal fallback (deterministic, sha256-chained, never faked)
+    # Honest deterministic content digest only; not a chain or signature.
     import hashlib
     payload = {"vertical": vertical, "text": text[:200], **{k: kw[k] for k in kw}}
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
     return {"vertical": vertical, "decision": "review", "lambda": 0.95, "lambda_floor": 0.90,
-            "reason": "vertical-feeds module absent; sha256 fallback (honest degrade)",
-            "receipt": {"digest": digest, "chain_verified": True, "note": "fallback"},
+            "reason": "vertical-feeds module absent; digest-only fallback",
+            "receipt": {"digest": digest, "receipt_type": "DIGEST_ONLY",
+                        "signature_state": "UNSIGNED", "signed": False,
+                        "signature": None, "chain_verified": False,
+                        "note": "vertical-feeds module absent; sha256 content digest only"},
+            "dsse": {"signed": False, "signature_state": "UNSIGNED",
+                     "honesty": "DIGEST_ONLY: no signature or chain proof"},
             "doctrine": DOCTRINE, "ts": datetime.now(timezone.utc).isoformat()}
 
 
@@ -152,6 +471,9 @@ def _ledger(vertical: str, n: int = 25) -> dict[str, Any]:
 # FINANCE LIVE FEEDS
 # ===========================================================================
 def feed_yahoo(symbol: str, rng: str = "5d", interval: str = "1d") -> dict[str, Any]:
+    symbol = _bounded_text(symbol, "SPY", 24).upper()
+    rng = _bounded_text(rng, "5d", 12)
+    interval = _bounded_text(interval, "1d", 12)
     url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
            f"?interval={interval}&range={rng}")
     def parse(d):
@@ -166,18 +488,23 @@ def feed_yahoo(symbol: str, rng: str = "5d", interval: str = "1d") -> dict[str, 
                 "dayHigh": m.get("regularMarketDayHigh"), "dayLow": m.get("regularMarketDayLow"),
                 "fiftyTwoHigh": m.get("fiftyTwoWeekHigh"), "fiftyTwoLow": m.get("fiftyTwoWeekLow"),
                 "spark": closes[-60:], "ts": m.get("regularMarketTime")}
-    return _cached_fetch("yh_" + symbol + rng, url, ttl=30, parser=parse, headers=YF_UA)
+    return _cached_fetch(_variant_cache_key("yh_" + symbol, symbol=symbol,
+                                            range=rng, interval=interval),
+                         url, ttl=30, parser=parse, headers=YF_UA)
 
 
 def feed_coinbase_spot(pair: str) -> dict[str, Any]:
+    pair = _bounded_text(pair, "BTC-USD", 24).upper()
     url = f"https://api.coinbase.com/v2/prices/{pair}/spot"
     def parse(d):
         return {"pair": pair, "amount": float(d.get("data", {}).get("amount", 0) or 0),
                 "currency": d.get("data", {}).get("currency")}
-    return _cached_fetch("cb_" + pair, url, ttl=20, parser=parse)
+    return _cached_fetch(_variant_cache_key("cb_" + pair, pair=pair),
+                         url, ttl=20, parser=parse)
 
 
 def feed_coingecko(ids: str = "bitcoin,ethereum,solana,cardano,chainlink") -> dict[str, Any]:
+    ids = _bounded_text(ids, "bitcoin,ethereum,solana,cardano,chainlink", 240)
     url = (f"https://api.coingecko.com/api/v3/simple/price?ids={ids}"
            "&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true")
     def parse(d):
@@ -186,17 +513,22 @@ def feed_coingecko(ids: str = "bitcoin,ethereum,solana,cardano,chainlink") -> di
             out.append({"id": k, "usd": v.get("usd"), "chg24h": v.get("usd_24h_change"),
                         "vol24h": v.get("usd_24h_vol"), "mcap": v.get("usd_market_cap")})
         return {"coins": out}
-    return _cached_fetch("cg_" + ids, url, ttl=45, parser=parse)
+    return _cached_fetch(_variant_cache_key("cg", ids=ids, vs_currency="usd"),
+                         url, ttl=45, parser=parse)
 
 
 def feed_fx(base: str = "USD", symbols: str = "EUR,GBP,JPY,CAD,CHF,AUD") -> dict[str, Any]:
+    base = _bounded_text(base, "USD", 8).upper()
+    symbols = _bounded_text(symbols, "EUR,GBP,JPY,CAD,CHF,AUD", 100).upper()
     url = f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={symbols}"
     def parse(d):
         return {"base": d.get("base"), "date": d.get("date"), "rates": d.get("rates", {})}
-    return _cached_fetch("fx_" + base + symbols, url, ttl=600, parser=parse)
+    return _cached_fetch(_variant_cache_key("fx_" + base, base=base, symbols=symbols),
+                         url, ttl=600, parser=parse)
 
 
 def feed_treasury(limit: int = 12) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 12, 100)
     url = ("https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/"
            "avg_interest_rates?sort=-record_date&page%5Bsize%5D=" + str(limit))
     def parse(d):
@@ -204,10 +536,12 @@ def feed_treasury(limit: int = 12) -> dict[str, Any]:
                            "type": r.get("security_type_desc"),
                            "rate": float(r.get("avg_interest_rate_amt", 0) or 0)}
                           for r in d.get("data", [])]}
-    return _cached_fetch("treasury_deva", url, ttl=3600, parser=parse)
+    return _cached_fetch(_variant_cache_key("treasury_deva", limit=limit),
+                         url, ttl=3600, parser=parse)
 
 
 def feed_polymarket(limit: int = 16) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 16, 100)
     url = ("https://gamma-api.polymarket.com/markets?limit=" + str(limit)
            + "&active=true&closed=false&order=volume24hr&ascending=false")
     def parse(d):
@@ -233,10 +567,13 @@ def feed_polymarket(limit: int = 16) -> dict[str, Any]:
                 "url": "https://polymarket.com/event/" + (m.get("slug") or ""),
             })
         return {"markets": out}
-    return _cached_fetch("polymarket", url, ttl=60, parser=parse)
+    return _cached_fetch(_variant_cache_key("polymarket", limit=limit,
+                                            active=True, closed=False),
+                         url, ttl=60, parser=parse)
 
 
 def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 24, 100)
     """FRONTIER — live public OpenRouter model catalog (keyless /api/v1/models).
 
     Returns the widest-context models plus per-lab rollups (count, max context
@@ -284,9 +621,11 @@ def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
         labs_list = sorted(labs.values(), key=lambda x: (x["count"], x["maxCtx"]), reverse=True)
         return {"models": top, "labs": labs_list, "total": total}
 
-    return _cached_fetch("openrouter_models", url, ttl=900, parser=parse)
+    return _cached_fetch(_variant_cache_key("openrouter_models", limit=limit),
+                         url, ttl=900, parser=parse)
 
 def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 24, 100)
     """FRONTIER — live arXiv AI research feed (keyless Atom API).
 
     Newest submissions across cs.AI / cs.LG / cs.CL / cs.CV / cs.NE rendered as the
@@ -294,7 +633,7 @@ def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
     MEASURED — arXiv's own published titles, authors, categories and timestamps;
     no citation count, no score, no ranking.
     """
-    url = ("http://export.arxiv.org/api/query?search_query="
+    url = ("https://export.arxiv.org/api/query?search_query="
            "cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL+OR+cat:cs.CV+OR+cat:cs.NE"
            "&sortBy=submittedDate&sortOrder=descending&max_results=60")
 
@@ -337,10 +676,13 @@ def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
         cats_list = sorted(cats.values(), key=lambda x: (x["count"], x["latest"]), reverse=True)
         return {"papers": papers[:limit], "cats": cats_list, "total": total}
 
-    return _cached_fetch("arxiv_frontier", url, ttl=900, parser=parse)
+    return _cached_fetch(_variant_cache_key("arxiv_frontier", limit=limit,
+                                            query="cs-ai-frontier"),
+                         url, ttl=900, parser=parse)
 
 
 def feed_hf_trending(limit: int = 24) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 24, 100)
     """FRONTIER — live public Hugging Face Hub trending stream (keyless API).
 
     The open-source model frontier: the models the Hub is trending right now, rolled up
@@ -385,10 +727,13 @@ def feed_hf_trending(limit: int = 24) -> dict[str, Any]:
         orgs_list = sorted(orgs.values(), key=lambda x: (x["likes"], x["count"]), reverse=True)
         return {"models": top, "orgs": orgs_list, "total": total}
 
-    return _cached_fetch("hf_trending", url, ttl=900, parser=parse)
+    return _cached_fetch(_variant_cache_key("hf_trending", limit=limit,
+                                            sort="trendingScore"),
+                         url, ttl=900, parser=parse)
 
 
 def feed_nvd_fintech(limit: int = 16) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 16, 100)
     url = ("https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=financial"
            "&resultsPerPage=" + str(limit))
     def parse(d):
@@ -409,13 +754,16 @@ def feed_nvd_fintech(limit: int = 16) -> dict[str, Any]:
         for o in out:
             sevcount[o["severity"]] = sevcount.get(o["severity"], 0) + 1
         return {"totalResults": d.get("totalResults", 0), "items": out, "sevcount": sevcount}
-    return _cached_fetch("nvd_fintech", url, ttl=300, parser=parse)
+    return _cached_fetch(_variant_cache_key("nvd_fintech", limit=limit,
+                                            keyword="financial"),
+                         url, ttl=300, parser=parse)
 
 
 # ===========================================================================
 # REAL ESTATE LIVE FEEDS
 # ===========================================================================
 def feed_hpd_violations(limit: int = 200) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 200, 1000)
     # wvxf-dwi5 carries lat/lng/bbl/class/rentimpairing — the richest distress feed.
     url = ("https://data.cityofnewyork.us/resource/wvxf-dwi5.json?%24limit=" + str(limit)
            + "&%24order=inspectiondate%20DESC")
@@ -440,10 +788,13 @@ def feed_hpd_violations(limit: int = 200) -> dict[str, Any]:
                 "lat": lat, "lng": lng,
             })
         return {"items": items}
-    return _cached_fetch("hpd_viol", url, ttl=900, parser=parse)
+    return _cached_fetch(_variant_cache_key("hpd_viol", limit=limit,
+                                            order="inspectiondate DESC"),
+                         url, ttl=900, parser=parse)
 
 
 def feed_dob_violations(limit: int = 60) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 60, 1000)
     url = "https://data.cityofnewyork.us/resource/3h2n-5cm9.json?%24limit=" + str(limit)
     def parse(d):
         return {"items": [{"id": r.get("isn_dob_bis_viol"), "type": r.get("violation_type"),
@@ -453,10 +804,12 @@ def feed_dob_violations(limit: int = 60) -> dict[str, Any]:
                            "issued": r.get("issue_date"),
                            "desc": (r.get("description") or "")[:120]}
                           for r in (d if isinstance(d, list) else [])]}
-    return _cached_fetch("dob_viol", url, ttl=1800, parser=parse)
+    return _cached_fetch(_variant_cache_key("dob_viol", limit=limit),
+                         url, ttl=1800, parser=parse)
 
 
 def feed_sec_realestate(limit: int = 12) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 12, 100)
     # SEC EDGAR full-text search across recent filings for real-estate entities/LLCs.
     url = ("https://efts.sec.gov/LATEST/search-index?q=%22real+estate%22&forms=8-K")
     def parse(d):
@@ -468,11 +821,13 @@ def feed_sec_realestate(limit: int = 12) -> dict[str, Any]:
                         "form": s.get("file_type"), "date": s.get("file_date"),
                         "cik": (s.get("ciks") or [""])[0]})
         return {"items": out}
-    return _cached_fetch("sec_re", url, ttl=1800, parser=parse, headers=UA)
+    return _cached_fetch(_variant_cache_key("sec_re", limit=limit,
+                                            query="real estate", forms="8-K"),
+                         url, ttl=1800, parser=parse, headers=UA)
 
 
 def feed_sec_submissions(cik: str) -> dict[str, Any]:
-    cik10 = str(cik).zfill(10)
+    cik10 = re.sub(r"\D", "", _bounded_text(cik, "0", 10)).zfill(10)
     url = f"https://data.sec.gov/submissions/CIK{cik10}.json"
     def parse(d):
         recent = (d.get("filings", {}) or {}).get("recent", {})
@@ -481,7 +836,8 @@ def feed_sec_submissions(cik: str) -> dict[str, Any]:
         return {"name": d.get("name"), "sic": d.get("sicDescription"),
                 "state": d.get("stateOfIncorporation"),
                 "filings": [{"form": forms[i], "date": dates[i]} for i in range(min(len(forms), len(dates)))]}
-    return _cached_fetch("sec_sub_" + cik10, url, ttl=3600, parser=parse, headers=UA)
+    return _cached_fetch(_variant_cache_key("sec_sub_" + cik10, cik=cik10),
+                         url, ttl=3600, parser=parse, headers=UA)
 
 
 # ===========================================================================
@@ -539,84 +895,103 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     @app.get(base + "/finance/quant", include_in_schema=False)
     async def _fin_quant():
         syms = ["SPY", "QQQ", "DIA", "AAPL", "MSFT", "NVDA", "^VIX", "^TNX"]
-        eq = {s: feed_yahoo(s) for s in syms}
+        values = await _gather_blocking([
+            (feed_yahoo, (symbol,), {}) for symbol in syms
+        ])
+        eq = dict(zip(syms, values))
         factors = factor_signals(eq)
         return JSONResponse({"tab": "quant", "equities": eq, "factors": factors, "doctrine": DOCTRINE})
 
     @app.get(base + "/finance/crypto", include_in_schema=False)
     async def _fin_crypto():
-        cg = feed_coingecko()
-        cb = {p: feed_coinbase_spot(p) for p in ["BTC-USD", "ETH-USD", "SOL-USD"]}
+        pairs = ["BTC-USD", "ETH-USD", "SOL-USD"]
+        values = await _gather_blocking(
+            [(feed_coingecko, (), {})]
+            + [(feed_coinbase_spot, (pair,), {}) for pair in pairs]
+        )
+        cg = values[0]
+        cb = dict(zip(pairs, values[1:]))
         return JSONResponse({"tab": "crypto", "coingecko": cg, "coinbase": cb, "doctrine": DOCTRINE})
 
     @app.get(base + "/finance/macro", include_in_schema=False)
     async def _fin_macro():
-        fx = feed_fx()
-        rates = feed_treasury(12)
+        fx, rates = await _gather_blocking([
+            (feed_fx, (), {}),
+            (feed_treasury, (12,), {}),
+        ])
         # build a yield-surface grid (security_type x tenor proxy) from the live rate rows
         return JSONResponse({"tab": "macro", "fx": fx, "rates": rates, "doctrine": DOCTRINE})
 
     @app.get(base + "/finance/predict", include_in_schema=False)
-    async def _fin_predict(limit: int = 16):
-        pm = feed_polymarket(limit)
+    async def _fin_predict(limit: Annotated[int, Query(ge=1, le=100)] = 16):
+        pm = await _run_blocking(feed_polymarket, limit)
         return JSONResponse({"tab": "predict", "polymarket": pm, "doctrine": DOCTRINE})
 
     @app.get(base + "/finance/risk", include_in_schema=False)
-    async def _fin_risk(limit: int = 16):
-        cve = feed_nvd_fintech(limit)
+    async def _fin_risk(limit: Annotated[int, Query(ge=1, le=100)] = 16):
+        cve = await _run_blocking(feed_nvd_fintech, limit)
         return JSONResponse({"tab": "risk", "fintech_cve": cve, "doctrine": DOCTRINE})
 
     # ---------- FRONTIER (live AI model landscape) ----------
     @app.get(base + "/frontier/models", include_in_schema=False)
-    async def _frontier_models(limit: int = 24):
-        orm = feed_openrouter_models(limit)
+    async def _frontier_models(limit: Annotated[int, Query(ge=1, le=100)] = 24):
+        orm = await _run_blocking(feed_openrouter_models, limit)
         return JSONResponse({"tab": "models", "openrouter": orm, "doctrine": DOCTRINE})
 
     @app.get(base + "/frontier/research", include_in_schema=False)
-    async def _frontier_research(limit: int = 24):
-        ax = feed_arxiv_frontier(limit)
+    async def _frontier_research(limit: Annotated[int, Query(ge=1, le=100)] = 24):
+        ax = await _run_blocking(feed_arxiv_frontier, limit)
         return JSONResponse({"tab": "research", "arxiv": ax, "doctrine": DOCTRINE})
 
     @app.get(base + "/frontier/open", include_in_schema=False)
-    async def _frontier_open(limit: int = 24):
-        hf = feed_hf_trending(limit)
+    async def _frontier_open(limit: Annotated[int, Query(ge=1, le=100)] = 24):
+        hf = await _run_blocking(feed_hf_trending, limit)
         return JSONResponse({"tab": "open", "huggingface": hf, "doctrine": DOCTRINE})
 
     # ---------- REAL ESTATE ----------
     @app.get(base + "/re/pulse", include_in_schema=False)
     async def _re_pulse():
-        hpd = feed_hpd_violations(200)
-        dob = feed_dob_violations(60)
-        rates = feed_treasury(8)
+        hpd, dob, rates = await _gather_blocking([
+            (feed_hpd_violations, (200,), {}),
+            (feed_dob_violations, (60,), {}),
+            (feed_treasury, (8,), {}),
+        ])
         return JSONResponse({"tab": "pulse", "hpd": hpd, "dob": dob, "rates": rates, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/distress", include_in_schema=False)
-    async def _re_distress(limit: int = 300):
-        hpd = feed_hpd_violations(limit)
+    async def _re_distress(limit: Annotated[int, Query(ge=1, le=1000)] = 300):
+        hpd = await _run_blocking(feed_hpd_violations, limit)
         return JSONResponse({"tab": "distress", "hpd": hpd, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/ownership", include_in_schema=False)
     async def _re_ownership():
-        sec = feed_sec_realestate(12)
         # well-known publicly-traded REIT/real-estate CIKs (public SEC data, not faked):
         reits = {"Vornado": "0000899689", "Boston Properties": "0001037540",
                  "SL Green": "0001040971", "Realty Income": "0000726728"}
-        subs = {name: feed_sec_submissions(cik) for name, cik in reits.items()}
+        values = await _gather_blocking(
+            [(feed_sec_realestate, (12,), {})]
+            + [(feed_sec_submissions, (cik,), {}) for cik in reits.values()]
+        )
+        sec = values[0]
+        subs = dict(zip(reits.keys(), values[1:]))
         return JSONResponse({"tab": "ownership", "sec_fts": sec, "reits": subs, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/deal", include_in_schema=False)
-    async def _re_deal(violations: int = 0, class_c: int = 0):
-        rates = feed_treasury(4)
+    async def _re_deal(
+        violations: Annotated[int, Query(ge=0, le=1000000)] = 0,
+        class_c: Annotated[int, Query(ge=0, le=1000000)] = 0,
+    ):
+        rates = await _run_blocking(feed_treasury, 4)
         rrows = ((rates.get("value") or {}).get("items") or [])
         rate_pct = rrows[0]["rate"] if rrows else 4.0
-        fc = dom_forecast(violations, class_c, rate_pct)
+        fc = await _run_blocking(dom_forecast, violations, class_c, rate_pct)
         return JSONResponse({"tab": "deal", "rates": rates, "forecast": fc, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/brokeredge", include_in_schema=False)
     async def _re_brokeredge():
         # Boss-Tech 5-domain observability applied to a broker pipeline. Domains scored
         # from LIVE distress coverage; SIMULATED-labeled on the aggregate maturity score.
-        hpd = feed_hpd_violations(200)
+        hpd = await _run_blocking(feed_hpd_violations, 200)
         items = ((hpd.get("value") or {}).get("items") or [])
         geo = sum(1 for x in items if x.get("lat") and x.get("lng"))
         ntas = len({x.get("nta") for x in items if x.get("nta")})
@@ -627,7 +1002,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             {"domain": "Coverage", "score": round(coverage, 2), "basis": f"{len(items)} live HPD violations sampled"},
             {"domain": "Connectivity", "score": round(connectivity, 2), "basis": f"{ntas} NTAs linked in the distress graph"},
             {"domain": "Cognitive", "score": round(cognitive, 2), "basis": f"{geo} geocoded / mapped"},
-            {"domain": "Exec interface", "score": 0.88, "basis": "governed decision surface + signed receipts"},
+            {"domain": "Exec interface", "score": 0.88, "basis": "governed decision surface + typed receipts"},
             {"domain": "Impact", "score": round(0.5 + 0.4 * coverage, 2), "basis": "distress acted-on vs rival brokers (modeled)"},
         ]
         return JSONResponse({"tab": "brokeredge", "domains": domains,
@@ -647,26 +1022,49 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     async def _govern(tab: str, req: Request):
         if tab not in _VALID:
             return JSONResponse({"error": "unknown tab"}, status_code=404)
+        principal, denial = _govern_authorise(req.headers.get("authorization"))
+        if denial is not None:
+            return denial
         try:
-            body = await req.json()
-        except Exception:
-            body = {}
-        result = governed_turn(
-            _ORGAN[tab],
-            str(body.get("text", "") or ""),
-            declared=body.get("classification"),
-            severity=float(body.get("severity", 0) or 0),
-            action_kind=str(body.get("action_kind", tab + "-decision")),
-            context={"tab": tab, **(body.get("context") or {})},
-        )
-        result["tab"] = tab
-        return JSONResponse(result)
+            body = await _read_govern_json(req)
+        except _GovernPayloadTooLarge:
+            return JSONResponse({
+                "detail": "governance request body exceeds the configured byte limit",
+            }, status_code=413)
+        except _GovernValidationError as error:
+            return _govern_validation_response(error)
+        try:
+            clean = _validate_govern_body(body)
+            action_kind = _canonical_govern_action("deva-" + tab, clean["action_kind"])
+        except _GovernValidationError as error:
+            return _govern_validation_response(error)
+        identity, retry_after = _govern_claim(principal)
+        if identity is None:
+            return JSONResponse({
+                "state": "rate_limited",
+                "error": "a governance mutation is already active or this credential is inside its cooldown",
+                "retry_after_s": retry_after,
+            }, status_code=429, headers={"Retry-After": str(retry_after)})
+        try:
+            result = await _run_blocking(
+                governed_turn, _ORGAN[tab], clean["text"],
+                declared=clean["classification"], severity=clean["severity"],
+                action_kind=action_kind,
+                context={**clean["context"], "tab": tab},
+                actor=_govern_actor(principal),
+            )
+            result["tab"] = tab
+            return JSONResponse(result)
+        finally:
+            _govern_release(identity)
 
     @app.get(base + "/{tab}/ledger", include_in_schema=False)
-    async def _ledger_ep(tab: str, n: int = 20):
+    async def _ledger_ep(
+        tab: str, n: Annotated[int, Query(ge=1, le=1000)] = 20,
+    ):
         if tab not in _VALID:
             return JSONResponse({"error": "unknown tab"}, status_code=404)
-        return JSONResponse(_ledger(_ORGAN[tab], n))
+        return JSONResponse(await _run_blocking(_ledger, _ORGAN[tab], n))
 
     @app.get(base + "/healthz", include_in_schema=False)
     async def _health():

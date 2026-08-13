@@ -32,9 +32,9 @@
   "full_corpus_proposal": {
     "relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",
     "manifest_path": "corpus-ingestion-manifest.json",
-    "manifest_sha256": "6f5e0d9ecb60d8aa52fc229a42ad37d62fc7fa7406993a0b8352b2b574fb40a4",
-    "brain_raw_nodes": 9464,
-    "brain_distinct_artifacts": 4229,
+    "manifest_sha256": "7305f93e5592bd94f1681e23ddb0f819d258db23dfe5fbc1180da6180a3259f7",
+    "brain_raw_nodes": 9465,
+    "brain_distinct_artifacts": 4230,
     "formula_records": 123,
     "training_state": "NOT_RUN"
   },

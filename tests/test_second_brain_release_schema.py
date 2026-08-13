@@ -104,10 +104,10 @@ def test_turn_receipt_contract_binds_model_grounding_and_output() -> None:
 def test_live_second_brain_receipt_is_content_addressed_and_privacy_safe() -> None:
     receipt = json.loads(LIVE_RECEIPT_PATH.read_text(encoding="utf-8"))
     assert _sha256(LIVE_RECEIPT_PATH) == (
-        "0cfc363216624561f8faa080908fef4757db8267c40dafe07526b1cc502c9d8a"
+        "b7c1e2144b953b1da4e9c4dab51cc138888707af9272437a82cb3a2191e24583"
     )
     assert receipt["verification_state"] == "PASS"
-    assert receipt["second_brain"]["handle_plane"]["expected_count"] == 9464
+    assert receipt["second_brain"]["handle_plane"]["expected_count"] == 9465
     assert receipt["second_brain"]["handle_plane"]["state"] == "VERIFIED"
     assert receipt["second_brain"]["raw_brain_nodes_admitted_to_gradients"] == 0
     assert set(receipt["privacy"].values()) == {False}

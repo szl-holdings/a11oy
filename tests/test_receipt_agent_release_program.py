@@ -169,8 +169,8 @@ class ReceiptAgentReleaseProgramTests(unittest.TestCase):
         lake_rows = [
             row for row in source_tranche if row["record_kind"] == "SZL_LAKE_EVIDENCE"
         ]
-        self.assertEqual(boundary["brain_raw_nodes"], 9464)
-        self.assertEqual(boundary["brain_raw_nodes_training_quarantined"], 9464)
+        self.assertEqual(boundary["brain_raw_nodes"], 9465)
+        self.assertEqual(boundary["brain_raw_nodes_training_quarantined"], 9465)
         self.assertEqual(boundary["brain_raw_rows_admitted_to_train"], 0)
         self.assertEqual(
             boundary["formula_crosswalk_rows"],

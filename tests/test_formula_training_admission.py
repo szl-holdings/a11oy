@@ -4,9 +4,15 @@ import json
 import pathlib
 
 import szl_formula_training_admission as admission
+from a11oy_brain_graph import get_brain_graph
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _expected_brain_counts() -> tuple[int, int]:
+    graph = get_brain_graph(refresh=True)
+    return int(graph["node_count"]), int(graph["distinct_artifacts"])
 
 
 def test_committed_artifacts_rebuild_byte_for_byte():
@@ -19,11 +25,12 @@ def test_committed_artifacts_rebuild_byte_for_byte():
 
 def test_current_brain_and_m1_are_aligned_and_raw_rows_remain_quarantined():
     artifacts = admission.build_artifacts(ROOT)
+    expected_raw_nodes, _ = _expected_brain_counts()
     source = artifacts["manifest"]["source_snapshot"]
-    assert source["brain"]["raw_node_count"] == 9464
-    assert source["brain"]["quarantined_node_count"] == 9464
+    assert source["brain"]["raw_node_count"] == expected_raw_nodes
+    assert source["brain"]["quarantined_node_count"] == expected_raw_nodes
     assert source["brain"]["training_text_rows_emitted"] == 0
-    assert source["m1_alignment"]["brain_ledger_rows"] == 9464
+    assert source["m1_alignment"]["brain_ledger_rows"] == expected_raw_nodes
     assert source["m1_alignment"]["aligned"] is True
     assert source["m1_alignment"]["current_only_node_ids"] == []
     assert source["m1_alignment"]["m1_only_node_ids"] == []
@@ -88,10 +95,11 @@ def test_tranche_is_holdout_only_and_contains_no_raw_brain_text():
     artifacts = admission.build_artifacts(ROOT)
     rows = artifacts["tranche_rows"]
     summary = artifacts["manifest"]["decision_summary"]
+    expected_raw_nodes, _ = _expected_brain_counts()
     assert len(rows) == 148
     assert summary["train_rows"] == 0
     assert summary["holdout_rows"] == 148
-    assert summary["raw_brain_nodes_quarantined"] == 9464
+    assert summary["raw_brain_nodes_quarantined"] == expected_raw_nodes
     assert summary["raw_brain_rows_emitted"] == 0
     assert all(row["split"] == "HOLDOUT" for row in rows)
     assert all(row["training_eligible"] is False for row in rows)

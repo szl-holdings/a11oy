@@ -31,7 +31,7 @@
   "excluded_from_training": [
     {
       "path": "model_release/m1/brain-ingest-ledger.jsonl",
-      "reason": "All 9464 raw Brain nodes are training-quarantined. The Brain remains a retrieval and evaluation source only."
+      "reason": "All 9465 raw Brain nodes are training-quarantined. The Brain remains a retrieval and evaluation source only."
     },
     {
       "path": "model_release/m1/formula-curriculum-ledger.jsonl",

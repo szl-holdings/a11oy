@@ -41,16 +41,16 @@ def test_social_preview_is_honest_discoverable_and_exact_size() -> None:
     landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     svg = (ROOT / "console" / "social-preview-v5.svg").read_text(encoding="utf-8")
-    png = (ROOT / "console" / "social-preview-v5.png").read_bytes()
+    png = (ROOT / "console" / "social-preview-series-a.png").read_bytes()
 
     assert 'width="1280" height="640" viewBox="0 0 1280 640"' in svg
     assert "Evidence in. Receipts out." in svg
-    assert "https://a-11-oy.com/social-preview-v5.png" in landing
-    assert 'property="og:image:width" content="1280"' in landing
-    assert 'property="og:image:height" content="640"' in landing
+    assert "https://a-11-oy.com/social-preview-series-a.png" in landing
+    assert 'property="og:image:width" content="1774"' in landing
+    assert 'property="og:image:height" content="887"' in landing
     assert '<link rel="icon" type="image/svg+xml" href="/social-preview-v5.svg"' in landing
     assert "COPY console/ ./static/" in dockerfile
 
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
     assert png[12:16] == b"IHDR"
-    assert struct.unpack(">II", png[16:24]) == (1280, 640)
+    assert struct.unpack(">II", png[16:24]) == (1774, 887)
