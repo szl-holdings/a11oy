@@ -24,13 +24,16 @@ VALID_WORKFLOW = r"""name: HF Space module-drift guard
 
 on:
   pull_request:
+    branches: [main]
   schedule:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   hf-module-drift:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
         with:
@@ -60,12 +63,16 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.event.pull_request.base.sha }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
         with:
           path: hf-current-base-parity.out.json
+          if-no-files-found: error
   hf-runtime-live:
     uses: reusable-hf-module-drift-check.yml@0123456789abcdef
   hf-repository-parity:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
         with:
@@ -96,8 +103,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.event.pull_request.head.sha }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
         with:
           path: hf-repository-parity.out.json
+          if-no-files-found: error
 """ + "\n".join(f"# retained workflow line {index}" for index in range(100))
 
 
@@ -276,6 +285,46 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                         for error in validator.validate(root)
                     )
                 )
+
+    def test_parity_jobs_cannot_be_conditionally_skipped(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            workflow = VALID_WORKFLOW.replace(
+                "if: github.event_name == 'pull_request'",
+                "if: false",
+                1,
+            )
+            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+            self.assertTrue(
+                any("exact pull-request predicate" in error for error in validator.validate(root))
+            )
+
+    def test_workflow_level_shell_initialization_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            workflow = VALID_WORKFLOW.replace(
+                "permissions:\n",
+                "env: { BASH_ENV: candidate/shadow.sh }\npermissions:\n",
+                1,
+            )
+            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+            self.assertTrue(
+                any("top-level env" in error for error in validator.validate(root))
+            )
+
+    def test_trigger_and_job_execution_envelope_is_canonical(self) -> None:
+        attacks = (
+            ("branches: [main]", "paths: [never/**]"),
+            ("runs-on: ubuntu-latest", "runs-on: self-hosted"),
+            ('python-version: "3.12"', 'python-version: "pypy"'),
+            ("if-no-files-found: error", "if-no-files-found: ignore"),
+        )
+        for trusted, attacker in attacks:
+            temp, root = self.make_fixture()
+            with temp:
+                workflow = VALID_WORKFLOW.replace(trusted, attacker, 1)
+                (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                self.assertNotEqual(validator.validate(root), [])
 
     def test_security_source_cannot_be_allowlisted(self) -> None:
         temp, root = self.make_fixture()

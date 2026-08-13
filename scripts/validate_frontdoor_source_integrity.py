@@ -237,6 +237,70 @@ def _property_values(block: str, key: str) -> list[str]:
     return values
 
 
+def _job_level_values(block: str, key: str) -> list[str]:
+    values: list[str] = []
+    for line in block.splitlines():
+        active = _strip_unquoted_comment(line)
+        if len(active) - len(active.lstrip()) != 4:
+            continue
+        match = re.fullmatch(rf"\s{{4}}{re.escape(key)}:\s*(.+)", active)
+        if match:
+            values.append(match.group(1).strip())
+    return values
+
+
+def _job_level_has(block: str, key: str) -> bool:
+    return any(
+        re.fullmatch(rf"\s{{4}}{re.escape(key)}:\s*.*", _strip_unquoted_comment(line))
+        for line in block.splitlines()
+    )
+
+
+def _structural_block_lines(document: str, marker: str) -> list[str] | None:
+    lines = document.splitlines()
+    starts = [
+        index
+        for index, line in enumerate(lines)
+        if _strip_unquoted_comment(line).rstrip() == marker
+    ]
+    if len(starts) != 1:
+        return None
+    start = starts[0]
+    marker_line = _strip_unquoted_comment(lines[start]).rstrip()
+    indentation = len(marker_line) - len(marker_line.lstrip())
+    result = [marker_line.strip()]
+    for line in lines[start + 1 :]:
+        active = _strip_unquoted_comment(line).rstrip()
+        if not active.strip():
+            continue
+        current_indent = len(active) - len(active.lstrip())
+        if current_indent <= indentation:
+            break
+        result.append(active.strip())
+    return result
+
+
+def _validate_workflow_envelope(workflow: str) -> list[str]:
+    errors: list[str] = []
+    if _structural_block_lines(workflow, "  pull_request:") != [
+        "pull_request:",
+        "branches: [main]",
+    ]:
+        errors.append("HF drift workflow must use the canonical main pull-request trigger")
+    if _structural_block_lines(workflow, "permissions:") != [
+        "permissions:",
+        "contents: read",
+    ]:
+        errors.append("HF drift workflow permissions must remain read-only")
+    for forbidden in ("env", "defaults"):
+        if any(
+            re.fullmatch(rf"{forbidden}:\s*.*", _strip_unquoted_comment(line))
+            for line in workflow.splitlines()
+        ):
+            errors.append(f"HF drift workflow must not define top-level {forbidden}")
+    return errors
+
+
 def _step_blocks(block: str) -> list[str]:
     lines = block.splitlines()
     try:
@@ -315,12 +379,22 @@ def _validate_checkout_steps(
     label: str,
     source_path: str,
     source_ref: str,
+    report_path: str,
 ) -> list[str]:
     errors: list[str] = []
     steps = _step_blocks(block)
     uses = Counter(value for step in steps for value in _property_values(step, "uses"))
     if len(steps) != 6 or uses != EXPECTED_ACTION_COUNTS:
         errors.append(f"{label} job must contain only the six canonical proof steps")
+    if _job_level_values(block, "if") != ["github.event_name == 'pull_request'"]:
+        errors.append(f"{label} job must use the exact pull-request predicate")
+    if _job_level_values(block, "runs-on") != ["ubuntu-latest"]:
+        errors.append(f"{label} job must use the canonical GitHub-hosted runner")
+    if _job_level_values(block, "timeout-minutes") != ["15"]:
+        errors.append(f"{label} job must retain the canonical timeout")
+    for forbidden in ("env", "defaults", "container", "needs", "strategy", "permissions"):
+        if _job_level_has(block, forbidden):
+            errors.append(f"{label} job must not define job-level {forbidden}")
 
     for path, expected in (
         (
@@ -362,11 +436,33 @@ def _validate_checkout_steps(
         }
         if _nested_mapping(run_steps[0], "env") != expected_env:
             errors.append(f"{label} proof step environment is not canonical")
+        if _property_values(run_steps[0], "if"):
+            errors.append(f"{label} proof run step must not be conditionally skipped")
+    setup_steps = [
+        step
+        for step in steps
+        if _property_values(step, "uses") == [SETUP_PYTHON_ACTION]
+    ]
+    if len(setup_steps) != 1 or _property_values(
+        setup_steps[0], "python-version"
+    ) != ["3.12"]:
+        errors.append(f"{label} job must use the canonical Python runtime")
+    upload_steps = [
+        step
+        for step in steps
+        if _property_values(step, "uses") == [UPLOAD_ARTIFACT_ACTION]
+    ]
+    if len(upload_steps) != 1 or any(
+        _property_values(upload_steps[0], key) != expected
+        for key, expected in (
+            ("if", ["always()"]),
+            ("path", [report_path]),
+            ("if-no-files-found", ["error"]),
+        )
+    ):
+        errors.append(f"{label} job must retain the fail-closed proof upload")
     if _property_values(block, "shell"):
         errors.append(f"{label} job must not override the proof shell")
-    for forbidden in ("env", "defaults", "container"):
-        if any(re.fullmatch(rf"    {forbidden}:.*", line) for line in block.splitlines()):
-            errors.append(f"{label} job must not define job-level {forbidden}")
     return errors
 
 
@@ -398,6 +494,7 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
             label="protected-base",
             source_path="baseline",
             source_ref="${{ github.event.pull_request.base.sha }}",
+            report_path="hf-current-base-parity.out.json",
         )
     )
     errors.extend(
@@ -406,6 +503,7 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
             label="candidate",
             source_path="candidate",
             source_ref="${{ github.event.pull_request.head.sha }}",
+            report_path="hf-repository-parity.out.json",
         )
     )
 
@@ -491,6 +589,7 @@ def validate(root: Path = REPO_ROOT) -> list[str]:
         for required in REQUIRED_WORKFLOW_TOKENS:
             if required not in workflow:
                 errors.append(f"HF drift workflow missing required token: {required}")
+        errors.extend(_validate_workflow_envelope(workflow))
         tool_path_count = workflow.count(
             "--tools-script tools/.github/scripts/hf_module_drift_check.py"
         )
