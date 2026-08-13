@@ -73,7 +73,7 @@ jobs:
       # This job lives outside hf-module-drift.yml so collapse or comment-out of
       # that workflow cannot disable the independent shape guard.
       - name: Prove the guard rejects workflow collapse and encoding corruption
-        run: python3 scripts/test_validate_frontdoor_source_integrity.py
+        run: python3 scripts/frontdoor_source_integrity_selftest.py
       - name: Validate the committed workflow and public source bytes
         run: python3 scripts/validate_frontdoor_source_integrity.py
 

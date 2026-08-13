@@ -98,7 +98,7 @@ th{color:var(--mut);font-weight:600}
   <p class="note" style="margin:0 0 12px">The mesh does not just <i>prove it exists</i> — it does governed, receipted work. Three new capabilities surface here <b>as they go live</b>. Each tile probes its own endpoint independently via <code>Promise.allSettled</code>: a capability that is not yet deployed renders an honest <span style="color:var(--warn);font-weight:700">PENDING</span> with the reason — <b>never a fabricated result</b>.</p>
   <div class="work" id="work">
     <div class="wk" id="wk-kverify">
-      <h3>K-Verify · governed inference</h3>
+      <h3>K-Verify · governed execution</h3>
       <p class="cap">A signed inference run over <code>k-verify-benchmark-v1</code>: N items, pass-rate, joules MEASURED, and a receipt hash you can verify.</p>
       <div class="state" id="kv-state"><span class="pending">PENDING<span class="why">probing live endpoint…</span></span></div>
     </div>
@@ -323,7 +323,7 @@ function renderKVerify(hit){
   var runData = d.run || d.last_run || d.summary || d;
   var hasRun = (d.ran === true) || (d.ran == null && (runData.n!=null || runData.count!=null || runData.items!=null || runData.total!=null || runData.pass!=null));
   if(!hasRun){
-    el.innerHTML = '<div class="sub2"><b>endpoint live</b> '+L('LIVE','GOVERNED INFERENCE')+'</div>'+
+    el.innerHTML = '<div class="sub2"><b>endpoint live</b> '+L('LIVE','EVIDENCE-FIRST AI')+'</div>'+
       '<div class="sub2">no run yet this process — a signed run posts N items, pass-rate, joules MEASURED + a receipt hash. Shown honestly: no fabricated run.</div>';
     return true;
   }
@@ -342,7 +342,7 @@ function renderKVerify(hit){
   html += '<div class="sub2">items run / passed'+rateStr+'</div>';
   html += '<hr><div class="sub2">energy: <b>'+(joules!=null?fmt(joules)+' J':'—')+'</b> '+(jmeas?L('MEASURED'):L('SAMPLE'))+'</div>';
   if(rh){ html += '<div class="receipt">receipt '+shortHash(rh)+'</div>'; html += '<div class="sub2">verify: <code>'+verify+'</code> '+L('LIVE')+'</div>'; }
-  html += '<div class="lbls">'+L('LIVE','GOVERNED INFERENCE')+'</div>';
+  html += '<div class="lbls">'+L('LIVE','EVIDENCE-FIRST AI')+'</div>';
   el.innerHTML = html;
   return true;
 }
@@ -383,7 +383,7 @@ async function askRag(){
   var btn = $('rag-ask'); var el = $('rag-state');
   if(!q){ return; }
   if(!RAG_ASK_URL){ el.innerHTML = pendingHTML('RAG query endpoint not live'); return; }
-  btn.disabled = true; var prev = el.innerHTML; el.innerHTML = '<div class="sub2">asking the governed corpus…</div>';
+  btn.disabled = true; el.innerHTML = '<div class="sub2">asking the governed corpus...</div>';
   try {
     var r = await fetch(RAG_ASK_URL, {method:'POST', headers:{'content-type':'application/json','accept':'application/json'}, body: JSON.stringify({question:q, query:q})});
     if(!r.ok) throw new Error('HTTP '+r.status);

@@ -115,7 +115,7 @@ const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.35,0.9,8,16),mat);scene.ad
 const head=new THREE.Mesh(new THREE.SphereGeometry(0.28,24,24),mat);head.position.y=0.95;scene.add(head);
 const glow=new THREE.Mesh(new THREE.SphereGeometry(0.16,16,16),new THREE.MeshStandardMaterial({color:0x54d18c,emissive:0x54d18c,emissiveIntensity:1.6}));glow.position.set(0.55,1.0,0);scene.add(glow);
 // Five flagship nodes arranged in an arc (the chaskiwasi the messenger runs between)
-const labels=['governed inference','agents','killinchu','observability','a11oy'];const nodes=[];
+const labels=['governed execution','agents','killinchu','observability','a11oy'];const nodes=[];
 labels.forEach((lab,i)=>{const a=(-0.9+i*0.45);const x=Math.sin(a)*3.4,z=Math.cos(a)*-1.0-1.0;
   const n=new THREE.Mesh(new THREE.IcosahedronGeometry(0.26,0),new THREE.MeshStandardMaterial({color:0xffcf5c,emissive:0x6b5410,emissiveIntensity:0.7}));
   n.position.set(x,0.2,z);scene.add(n);nodes.push(n);

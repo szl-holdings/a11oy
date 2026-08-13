@@ -19,7 +19,9 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         cls.drift = DRIFT_WORKFLOW.read_text(encoding="utf-8")
         cls.sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
         cls.dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-        cls.pr_job, remainder = cls.drift.split("\n  hf-runtime-live:", 1)
+        _, jobs = cls.drift.split("\n  hf-module-drift:", 1)
+        pr_body, remainder = jobs.split("\n  hf-runtime-live:", 1)
+        cls.pr_job = "  hf-module-drift:" + pr_body
         cls.live_job, cls.repository_job = remainder.split(
             "\n  hf-repository-parity:", 1
         )
@@ -48,15 +50,17 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("trusted-base-ref: ${{ github.sha }}", self.live_job)
         self.assertIn("candidate-ref: ${{ github.sha }}", self.live_job)
 
-    def test_pull_requests_also_prove_candidate_managed_byte_parity(self) -> None:
-        self.assertIn("Immutable HF repository byte parity", self.repository_job)
+    def test_pull_requests_bind_live_baseline_and_report_candidate_delta(self) -> None:
+        self.assertIn("Immutable live baseline + candidate delta", self.repository_job)
         self.assertIn("if: github.event_name == 'pull_request'", self.repository_job)
+        self.assertIn("github.event.pull_request.base.sha", self.repository_job)
         self.assertIn("github.event.pull_request.head.sha", self.repository_job)
-        self.assertIn("verify_hf_repository_parity.py", self.repository_job)
         self.assertIn(
-            "ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054",
+            "uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@0816263f1e83734658d6e5a8a7cd3834f36a2054",
             self.repository_job,
         )
+        self.assertIn("mode: source-bound-baseline", self.repository_job)
+        self.assertIn("source-probe-path: /api/build-info", self.repository_job)
         self.assertNotIn("mode: direct", self.repository_job)
         self.assertNotIn("hf-module-drift-allow", self.repository_job)
 
@@ -64,8 +68,9 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self,
     ) -> None:
         self.assertIn("separate lifecycle proofs", self.drift)
-        self.assertIn("does not depend on an", self.drift)
-        self.assertIn("live request queue", self.drift)
+        self.assertIn("reports the candidate's managed COPY delta without", self.drift)
+        self.assertIn("deploying it", self.drift)
+        self.assertIn("missing or contradictory live identity evidence", self.drift)
         self.assertIn("stays red at the release/runtime boundary", self.drift)
         self.assertIn("hf-sync deploys, restarts, relocks", self.drift)
 
