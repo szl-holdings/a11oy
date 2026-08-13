@@ -32,32 +32,72 @@ jobs:
   hf-module-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+      - uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: baseline
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: szl-holdings/.github
-          ref: 0123456789abcdef0123456789abcdef01234567
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          path: tools
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
       - run: |
-          python3 baseline/.github/scripts/verify_hf_repository_parity.py \
+          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
-            --github-ref "$SOURCE_REF"
+            --github-repo "$GITHUB_REPOSITORY" \
+            --github-ref "$SOURCE_REF" \
+            --hf-repo SZLHOLDINGS/a11oy \
+            --report-out hf-current-base-parity.out.json
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.event.pull_request.base.sha }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          path: hf-current-base-parity.out.json
   hf-runtime-live:
     uses: reusable-hf-module-drift-check.yml@0123456789abcdef
   hf-repository-parity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+      - uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: szl-holdings/.github
-          ref: 0123456789abcdef0123456789abcdef01234567
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          path: tools
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
       - run: |
-          python3 candidate/.github/scripts/verify_hf_repository_parity.py \
+          "$pythonLocation/bin/python3" candidate/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
+            --github-repo "$GITHUB_REPOSITORY" \
             --github-ref "$SOURCE_REF" \
-            --allow candidate/.github/hf-module-drift-allow.json
+            --hf-repo SZLHOLDINGS/a11oy \
+            --allow candidate/.github/hf-module-drift-allow.json \
+            --report-out hf-repository-parity.out.json
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          path: hf-repository-parity.out.json
 """ + "\n".join(f"# retained workflow line {index}" for index in range(100))
 
 
@@ -98,7 +138,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         with temp:
             workflow = VALID_WORKFLOW.replace(
                 "          python3 baseline/.github/scripts/verify_hf_repository_parity.py \\",
-                "          # python3 baseline/.github/scripts/verify_hf_repository_parity.py \\",
+                '          # "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \\',
                 1,
             ).replace(
                 "            --tools-script tools/.github/scripts/hf_module_drift_check.py \\",
@@ -149,8 +189,9 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             workflow = VALID_WORKFLOW.replace(
-                '--github-ref "$SOURCE_REF"\n        env:',
-                '--github-ref "$SOURCE_REF" \\\n            --allow baseline/.github/hf-module-drift-allow.json\n        env:',
+                "            --report-out hf-current-base-parity.out.json",
+                "            --allow baseline/.github/hf-module-drift-allow.json \\\n"
+                "            --report-out hf-current-base-parity.out.json",
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
@@ -179,6 +220,62 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
             self.assertTrue(any("failure suppressor" in error for error in validator.validate(root)))
+
+    def test_shell_shadowing_and_extra_commands_fail(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            workflow = VALID_WORKFLOW.replace(
+                '          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \\',
+                "          python3() { :; }\n"
+                '          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \\',
+                1,
+            )
+            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+            self.assertTrue(
+                any(
+                    "protected-base job must invoke the baseline wrapper" in error
+                    for error in validator.validate(root)
+                )
+            )
+
+    def test_parity_repositories_are_canonical(self) -> None:
+        attacks = (
+            ("SZLHOLDINGS/a11oy", "attacker/space"),
+            ("$GITHUB_REPOSITORY", "attacker/repo"),
+        )
+        for trusted, attacker in attacks:
+            temp, root = self.make_fixture()
+            with temp:
+                workflow = VALID_WORKFLOW.replace(trusted, attacker)
+                (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                self.assertTrue(
+                    any("exact canonical parity command" in error for error in validator.validate(root))
+                )
+
+    def test_tools_checkout_identity_is_canonical(self) -> None:
+        attacks = (
+            ("repository: szl-holdings/.github", "repository: attacker/tools"),
+            (
+                "ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054",
+                "ref: 0123456789abcdef0123456789abcdef01234567",
+            ),
+            ("path: tools", "path: untrusted-tools"),
+            (
+                "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "actions/checkout@abcdef0123456789abcdef0123456789abcdef01",
+            ),
+        )
+        for trusted, attacker in attacks:
+            temp, root = self.make_fixture()
+            with temp:
+                workflow = VALID_WORKFLOW.replace(trusted, attacker)
+                (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                self.assertTrue(
+                    any(
+                        "checkout" in error or "canonical proof steps" in error
+                        for error in validator.validate(root)
+                    )
+                )
 
     def test_security_source_cannot_be_allowlisted(self) -> None:
         temp, root = self.make_fixture()

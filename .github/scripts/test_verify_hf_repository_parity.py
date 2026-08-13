@@ -119,6 +119,45 @@ class ParityAdmissionTest(unittest.TestCase):
                         head_resolver=lambda _: "c" * 40,
                     )
 
+    def test_candidate_allowlist_must_match_admitted_commit_blob(self) -> None:
+        raw = json.dumps({"accepted_divergences": {}}).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            expected = root / parity.ALLOWLIST_RELATIVE_PATH
+            expected.parent.mkdir(parents=True)
+            expected.write_bytes(raw)
+            with mock.patch.object(parity, "REPO_ROOT", root):
+                observed, accepted = parity.load_candidate_allowlist(
+                    expected,
+                    github_ref=GITHUB_REF,
+                    head_resolver=lambda _: GITHUB_REF,
+                    blob_resolver=lambda _root, _ref, _path: raw,
+                )
+                self.assertEqual(observed, raw)
+                self.assertEqual(accepted, {})
+
+                expected.write_bytes(b'{"accepted_divergences":{"hidden":"drift"}}')
+                with self.assertRaises(parity.ParityError):
+                    parity.load_candidate_allowlist(
+                        expected,
+                        github_ref=GITHUB_REF,
+                        head_resolver=lambda _: GITHUB_REF,
+                        blob_resolver=lambda _root, _ref, _path: raw,
+                    )
+
+    def test_repository_identity_is_canonical(self) -> None:
+        parity.validate_repository_identity(
+            parity.CANONICAL_GITHUB_REPO,
+            parity.CANONICAL_HF_REPO,
+        )
+        for github_repo, hf_repo in (
+            ("attacker/repo", parity.CANONICAL_HF_REPO),
+            (parity.CANONICAL_GITHUB_REPO, "attacker/space"),
+        ):
+            with self.subTest(github_repo=github_repo, hf_repo=hf_repo):
+                with self.assertRaises(parity.ParityError):
+                    parity.validate_repository_identity(github_repo, hf_repo)
+
     def test_comparator_consumes_private_snapshot_not_mutated_source(self) -> None:
         original = b'{"accepted_divergences":{"pages/console.html":"reason"}}'
         observed: dict[str, object] = {}

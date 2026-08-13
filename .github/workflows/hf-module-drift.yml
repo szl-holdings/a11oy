@@ -68,7 +68,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
-          python3 baseline/.github/scripts/verify_hf_repository_parity.py \
+          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
             --github-repo "$GITHUB_REPOSITORY" \
             --github-ref "$SOURCE_REF" \
@@ -134,7 +134,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.event.pull_request.head.sha }}
         run: |
-          python3 candidate/.github/scripts/verify_hf_repository_parity.py \
+          "$pythonLocation/bin/python3" candidate/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
             --github-repo "$GITHUB_REPOSITORY" \
             --github-ref "$SOURCE_REF" \

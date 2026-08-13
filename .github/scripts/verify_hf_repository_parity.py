@@ -28,6 +28,8 @@ from typing import Any, Callable
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ALLOWLIST_RELATIVE_PATH = Path(".github/hf-module-drift-allow.json")
+CANONICAL_GITHUB_REPO = "szl-holdings/a11oy"
+CANONICAL_HF_REPO = "SZLHOLDINGS/a11oy"
 MAX_ALLOW_PATH_LENGTH = 512
 MAX_ALLOW_REASON_LENGTH = 500
 MAX_ALLOW_COMMENT_LENGTH = 2_000
@@ -174,11 +176,24 @@ def _checkout_head(root: Path) -> str:
     return result.stdout.strip()
 
 
+def _committed_blob(root: Path, github_ref: str, relative_path: str) -> bytes:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "show", f"{github_ref}:{relative_path}"],
+            check=True,
+            capture_output=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ParityError(f"cannot read admitted allowlist blob: {exc}") from exc
+    return result.stdout
+
+
 def load_candidate_allowlist(
     path: Path,
     *,
     github_ref: str,
     head_resolver: Callable[[Path], str] = _checkout_head,
+    blob_resolver: Callable[[Path, str, str], bytes] = _committed_blob,
 ) -> tuple[bytes, dict[str, str]]:
     expected = (REPO_ROOT / ALLOWLIST_RELATIVE_PATH).resolve()
     supplied = path.resolve()
@@ -195,7 +210,21 @@ def load_candidate_allowlist(
         raw = supplied.read_bytes()
     except OSError as exc:
         raise ParityError(f"cannot read candidate allowlist: {exc}") from exc
+    committed = blob_resolver(
+        REPO_ROOT,
+        github_ref,
+        ALLOWLIST_RELATIVE_PATH.as_posix(),
+    )
+    if raw != committed:
+        raise ParityError("candidate allowlist bytes do not match the admitted commit blob")
     return raw, parse_allowlist_snapshot(raw)
+
+
+def validate_repository_identity(github_repo: str, hf_repo: str) -> None:
+    if github_repo != CANONICAL_GITHUB_REPO:
+        raise ParityError("github-repo is not the canonical a11oy repository")
+    if hf_repo != CANONICAL_HF_REPO:
+        raise ParityError("hf-repo is not the canonical a11oy Space")
 
 
 def run_comparator(
@@ -398,6 +427,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not SHA_RE.fullmatch(args.github_ref):
         raise ParityError("github-ref must be an exact lowercase 40-character SHA")
+    validate_repository_identity(args.github_repo, args.hf_repo)
     if not args.tools_script.is_file():
         raise ParityError("pinned comparator script is absent")
 

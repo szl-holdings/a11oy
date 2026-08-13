@@ -9,6 +9,7 @@ silence the guard that checks it.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import re
 import shlex
@@ -50,12 +51,37 @@ REQUIRED_WORKFLOW_TOKENS = (
 )
 BASELINE_JOB = "hf-module-drift"
 CANDIDATE_JOB = "hf-repository-parity"
-BASELINE_INVOCATION = "python3 baseline/.github/scripts/verify_hf_repository_parity.py"
-CANDIDATE_INVOCATION = "python3 candidate/.github/scripts/verify_hf_repository_parity.py"
+PYTHON_EXECUTABLE = "$pythonLocation/bin/python3"
+BASELINE_INVOCATION = (
+    f"{PYTHON_EXECUTABLE} baseline/.github/scripts/verify_hf_repository_parity.py"
+)
+CANDIDATE_INVOCATION = (
+    f"{PYTHON_EXECUTABLE} candidate/.github/scripts/verify_hf_repository_parity.py"
+)
 CANDIDATE_ALLOW_ARGUMENT = "--allow candidate/.github/hf-module-drift-allow.json"
 TOOLS_ARGUMENT = "--tools-script tools/.github/scripts/hf_module_drift_check.py"
 FAILURE_SUPPRESSORS = ("continue-on-error", "--warn-only", "|| true")
 SHELL_CONTROL_TOKENS = frozenset({";", "&&", "||", "|", "&", ">", ">>", "<", "<<"})
+CANONICAL_GITHUB_REPO = "$GITHUB_REPOSITORY"
+CANONICAL_HF_REPO = "SZLHOLDINGS/a11oy"
+CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+HARDEN_RUNNER_ACTION = (
+    "step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40"
+)
+SETUP_PYTHON_ACTION = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+UPLOAD_ARTIFACT_ACTION = (
+    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+)
+TOOLS_REPOSITORY = "szl-holdings/.github"
+TOOLS_REVISION = "0816263f1e83734658d6e5a8a7cd3834f36a2054"
+EXPECTED_ACTION_COUNTS = Counter(
+    {
+        HARDEN_RUNNER_ACTION: 1,
+        CHECKOUT_ACTION: 2,
+        SETUP_PYTHON_ACTION: 1,
+        UPLOAD_ARTIFACT_ACTION: 1,
+    }
+)
 ALLOWED_ALLOWLIST_KEYS = frozenset(
     {"_comment", "ignore_paths", "ignore_extensions", "accepted_divergences"}
 )
@@ -199,6 +225,151 @@ def _active_block_lines(block: str) -> list[str]:
     ]
 
 
+def _property_values(block: str, key: str) -> list[str]:
+    values: list[str] = []
+    for line in block.splitlines():
+        active = _strip_unquoted_comment(line).strip()
+        if active.startswith("- "):
+            active = active[2:].lstrip()
+        match = re.fullmatch(rf"{re.escape(key)}:\s*(.+)", active)
+        if match:
+            values.append(match.group(1).strip().strip("\"'"))
+    return values
+
+
+def _step_blocks(block: str) -> list[str]:
+    lines = block.splitlines()
+    try:
+        steps_index = next(index for index, line in enumerate(lines) if line.strip() == "steps:")
+    except StopIteration:
+        return []
+    steps_indent = len(lines[steps_index]) - len(lines[steps_index].lstrip())
+    starts: list[int] = []
+    end = len(lines)
+    for index in range(steps_index + 1, len(lines)):
+        line = lines[index]
+        if not line.strip():
+            continue
+        indentation = len(line) - len(line.lstrip())
+        if indentation <= steps_indent:
+            end = index
+            break
+        if indentation == steps_indent + 2 and line.lstrip().startswith("- "):
+            starts.append(index)
+    return [
+        "\n".join(lines[start : starts[position + 1] if position + 1 < len(starts) else end])
+        for position, start in enumerate(starts)
+    ]
+
+
+def _nested_mapping(block: str, parent: str) -> dict[str, str] | None:
+    lines = block.splitlines()
+    parent_matches: list[tuple[int, int]] = []
+    for index, line in enumerate(lines):
+        active = _strip_unquoted_comment(line)
+        stripped = active.strip()
+        if stripped == f"{parent}:":
+            parent_matches.append((index, len(active) - len(active.lstrip())))
+    if len(parent_matches) != 1:
+        return None
+    start, parent_indent = parent_matches[0]
+    result: dict[str, str] = {}
+    for line in lines[start + 1 :]:
+        active = _strip_unquoted_comment(line)
+        if not active.strip():
+            continue
+        indentation = len(active) - len(active.lstrip())
+        if indentation <= parent_indent:
+            break
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*):\s*(.+)", active.strip())
+        if match is None or match.group(1) in result:
+            return None
+        result[match.group(1)] = match.group(2).strip().strip("\"'")
+    return result
+
+
+def _expected_command(*, candidate: bool) -> list[str]:
+    checkout = "candidate" if candidate else "baseline"
+    report = "hf-repository-parity.out.json" if candidate else "hf-current-base-parity.out.json"
+    command = [
+        PYTHON_EXECUTABLE,
+        f"{checkout}/.github/scripts/verify_hf_repository_parity.py",
+        "--tools-script",
+        "tools/.github/scripts/hf_module_drift_check.py",
+        "--github-repo",
+        CANONICAL_GITHUB_REPO,
+        "--github-ref",
+        "$SOURCE_REF",
+        "--hf-repo",
+        CANONICAL_HF_REPO,
+    ]
+    if candidate:
+        command.extend(["--allow", "candidate/.github/hf-module-drift-allow.json"])
+    command.extend(["--report-out", report])
+    return command
+
+
+def _validate_checkout_steps(
+    block: str,
+    *,
+    label: str,
+    source_path: str,
+    source_ref: str,
+) -> list[str]:
+    errors: list[str] = []
+    steps = _step_blocks(block)
+    uses = Counter(value for step in steps for value in _property_values(step, "uses"))
+    if len(steps) != 6 or uses != EXPECTED_ACTION_COUNTS:
+        errors.append(f"{label} job must contain only the six canonical proof steps")
+
+    for path, expected in (
+        (
+            source_path,
+            {
+                "uses": [CHECKOUT_ACTION],
+                "path": [source_path],
+                "ref": [source_ref],
+                "persist-credentials": ["false"],
+                "repository": [],
+            },
+        ),
+        (
+            "tools",
+            {
+                "uses": [CHECKOUT_ACTION],
+                "path": ["tools"],
+                "ref": [TOOLS_REVISION],
+                "persist-credentials": ["false"],
+                "repository": [TOOLS_REPOSITORY],
+            },
+        ),
+    ):
+        matches = [step for step in steps if _property_values(step, "path") == [path]]
+        if len(matches) != 1:
+            errors.append(f"{label} job must contain one canonical {path} checkout")
+            continue
+        step = matches[0]
+        if any(_property_values(step, key) != value for key, value in expected.items()):
+            errors.append(f"{label} job has an untrusted {path} checkout identity")
+
+    run_steps = [step for step in steps if _property_values(step, "run")]
+    if len(run_steps) != 1:
+        errors.append(f"{label} job must contain exactly one proof run step")
+    else:
+        expected_env = {
+            "GITHUB_TOKEN": "${{ github.token }}",
+            "SOURCE_REF": source_ref,
+        }
+        if _nested_mapping(run_steps[0], "env") != expected_env:
+            errors.append(f"{label} proof step environment is not canonical")
+    if _property_values(block, "shell"):
+        errors.append(f"{label} job must not override the proof shell")
+    for forbidden in ("env", "defaults", "container"):
+        if any(re.fullmatch(rf"    {forbidden}:.*", line) for line in block.splitlines()):
+            errors.append(f"{label} job must not define job-level {forbidden}")
+    return errors
+
+
 def _validate_parity_jobs(workflow: str) -> list[str]:
     errors: list[str] = []
     baseline = _job_block(workflow, BASELINE_JOB)
@@ -221,15 +392,36 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
         errors.append(f"candidate job contains invalid shell syntax: {exc}")
         candidate_commands = []
 
+    errors.extend(
+        _validate_checkout_steps(
+            baseline,
+            label="protected-base",
+            source_path="baseline",
+            source_ref="${{ github.event.pull_request.base.sha }}",
+        )
+    )
+    errors.extend(
+        _validate_checkout_steps(
+            candidate,
+            label="candidate",
+            source_path="candidate",
+            source_ref="${{ github.event.pull_request.head.sha }}",
+        )
+    )
+
     baseline_invocations = _wrapper_invocations(baseline_commands, BASELINE_INVOCATION)
     candidate_invocations = _wrapper_invocations(candidate_commands, CANDIDATE_INVOCATION)
-    if len(baseline_invocations) != 1:
+    if len(baseline_commands) != 1 or len(baseline_invocations) != 1:
         errors.append("protected-base job must invoke the baseline wrapper exactly once")
-    elif _argument_values(baseline_invocations[0], "--allow"):
+    if len(baseline_invocations) == 1 and _argument_values(
+        baseline_invocations[0], "--allow"
+    ):
         errors.append("protected-base job must not receive an HF drift allowlist")
-    if len(candidate_invocations) != 1:
+    if len(candidate_commands) != 1 or len(candidate_invocations) != 1:
         errors.append("candidate job must invoke the candidate wrapper exactly once")
-    elif _argument_values(candidate_invocations[0], "--allow") != [
+    if len(candidate_invocations) == 1 and _argument_values(
+        candidate_invocations[0], "--allow"
+    ) != [
         "candidate/.github/hf-module-drift-allow.json"
     ]:
         errors.append("candidate job must receive exactly its same-checkout allowlist")
@@ -248,6 +440,9 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
         ),
     ):
         command = invocations[0] if len(invocations) == 1 else []
+        expected_command = _expected_command(candidate=label == "candidate")
+        if command != expected_command:
+            errors.append(f"{label} job must use the exact canonical parity command")
         if _argument_values(command, "--tools-script") != [
             "tools/.github/scripts/hf_module_drift_check.py"
         ]:
@@ -255,16 +450,6 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
         if _argument_values(command, "--github-ref") != ["$SOURCE_REF"]:
             errors.append(f"{label} wrapper must receive the admitted SOURCE_REF once")
         active_lines = _active_block_lines(block)
-        source_binding = f"SOURCE_REF: ${{{{ {source_ref} }}}}"
-        if active_lines.count(source_binding) != 1:
-            errors.append(f"{label} job is not bound to its exact pull-request SHA")
-        pinned_refs = [
-            match.group(1)
-            for line in active_lines
-            if (match := re.fullmatch(r"ref:\s*([0-9a-f]{40})", line))
-        ]
-        if len(pinned_refs) != 1:
-            errors.append(f"{label} job must contain one immutable tools revision")
         active_text = "\n".join(active_lines)
         for suppressor in FAILURE_SUPPRESSORS:
             if suppressor in active_text:
