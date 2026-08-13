@@ -1,7 +1,17 @@
 name: Series-A Restart Durability Proof
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact current protected-main source SHA to prove
+        required: true
+        type: string
+      origin:
+        description: Credential-free canonical runtime origin
+        required: true
+        default: https://szlholdings-a11oy.hf.space
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +27,9 @@ jobs:
     timeout-minutes: 25
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      ORIGIN: ${{ inputs.origin }}
       PROOF_PATH: /tmp/series-a-restart-proof.json
     steps:
       - name: Checkout exact protected source
@@ -31,17 +44,31 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Bind requested source to current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::source_sha must be an exact lowercase 40-character SHA"
+            exit 1
+          }
+          observed="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          if [ "$observed" != "$SOURCE_SHA" ]; then
+            echo "::error::protected main moved: expected $SOURCE_SHA, observed $observed"
+            exit 1
+          fi
+
       - name: Install exact restart-proof clients
         run: >-
           python -m pip install --disable-pip-version-check
           "huggingface_hub==1.23.0"
 
-      - name: Restart canonical runtime and prove recovery
+      - name: Restart stalled canonical runtime and prove recovery
         run: >-
           python scripts/prove_hf_series_a_restart.py
           --repo-id "SZLHOLDINGS/a11oy"
-          --origin "https://a-11-oy.com"
-          --source-sha "${GITHUB_SHA}"
+          --origin "$ORIGIN"
+          --source-sha "$SOURCE_SHA"
           --output "$PROOF_PATH"
 
       - name: Upload immutable restart proof
