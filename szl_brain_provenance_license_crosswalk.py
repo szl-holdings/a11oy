@@ -33,7 +33,7 @@ import tempfile
 from typing import Any, Callable, Mapping, Sequence
 
 
-EXPECTED_ROWS = 9_464
+EXPECTED_ROWS = 9_465
 LEDGER_SCHEMA = "szl.m1-brain-ingest-decision/v1"
 SNAPSHOT_SCHEMA = "szl.brain-raw-snapshot.v1"
 CROSSWALK_ROW_SCHEMA = "szl.brain-row-provenance-license-crosswalk.v1"

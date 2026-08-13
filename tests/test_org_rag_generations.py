@@ -141,5 +141,5 @@ def test_m1_release_manifest_reports_all_9464_handles_without_copying_fixture(tm
     # This reads the versioned ledger once; the generation tests above stay tiny.
     verified = rag._verify_m1_ledger(rag._M1_LEDGER_DEFAULT)
     assert verified["manifest_verified"] is True
-    assert verified["rows"] == 9464
+    assert verified["rows"] == 9465
     assert len(verified["sha256"]) == 64

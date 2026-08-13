@@ -1001,7 +1001,13 @@ loadRoster();loadLounge();loadMesh();loadObs();loadSecondBrain();loadFormulas();
 
 
 def _page_html(ns: str) -> str:
-    return _PAGE.replace("__NS__", ns).replace("__VERSION__", str(__version__))
+    return (
+        _PAGE.replace("__NS__", ns)
+        .replace("__VERSION__", str(__version__))
+        .replace(" · ", " | ")
+        .replace("·", " | ")
+        .replace("Â·", " | ")
+    )
 
 
 def register(app, ns: str = "a11oy") -> str:

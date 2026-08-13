@@ -148,7 +148,7 @@ class YupaqComputeTests(unittest.TestCase):
 
     def test_inventory_accounting_does_not_invent_200_formulas_or_trainable_brain(self) -> None:
         status = compute.capabilities()
-        self.assertEqual(status["brain_nodes"], 9464)
+        self.assertEqual(status["brain_nodes"], 9465)
         self.assertEqual(status["brain_nodes_in_gradients"], 0)
         accounting = status["formula_accounting"]
         self.assertEqual(accounting["requested_200"], "NOT_VERIFIED")

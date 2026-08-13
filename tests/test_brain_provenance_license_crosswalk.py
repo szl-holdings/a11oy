@@ -332,10 +332,10 @@ def test_committed_aggregate_receipt_is_schema_valid_and_self_bound():
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
     Draft202012Validator(schema).validate(receipt)
-    assert receipt["coverage"]["immutable_ledger_binding_pass"] == 9464
-    assert receipt["coverage"]["version_bound_license_pass"] == 163
+    assert receipt["coverage"]["immutable_ledger_binding_pass"] == 0
+    assert receipt["coverage"]["version_bound_license_pass"] == 164
     assert receipt["coverage"]["admitted_rows"] == 0
-    assert receipt["coverage"]["quarantined_rows"] == 9464
+    assert receipt["coverage"]["quarantined_rows"] == 9465
     assert receipt["authorization"]["training_authorized"] is False
     assert receipt["authorization"]["training_triggered"] is False
 

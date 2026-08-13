@@ -124,9 +124,9 @@
     }
   ],
   "brain_accounting": {
-    "raw_nodes": 9464,
+    "raw_nodes": 9465,
     "distinct_artifacts": 4229,
-    "retrieval_and_eval_available": 9464,
+    "retrieval_and_eval_available": 9465,
     "gradient_eligible": 0,
     "state": "ALL_RAW_NODES_QUARANTINED_FOR_TRAINING"
   },

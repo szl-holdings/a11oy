@@ -45,7 +45,7 @@
     "turn_output_sha256"
   ],
   "brain_training_policy": {
-    "raw_nodes_observed": 9464,
+    "raw_nodes_observed": 9465,
     "raw_nodes_admitted_to_gradients": 0,
     "current_state": "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
     "admission_engine": "szl_brain_training_admission.py",
@@ -72,29 +72,29 @@
       "explicit_train_admission_switch"
     ],
     "current_inventory_obligations": {
-      "license_or_rights_unknown": 9464,
-      "author_or_rightsholder_permission_unknown": 9464,
-      "privacy_or_pii_clearance_unknown": 9464,
-      "allowlisted_review_unknown": 9464,
-      "immutable_source_revision_unknown": 9464,
+      "license_or_rights_unknown": 9465,
+      "author_or_rightsholder_permission_unknown": 9465,
+      "privacy_or_pii_clearance_unknown": 9465,
+      "allowlisted_review_unknown": 9465,
+      "immutable_source_revision_unknown": 9465,
       "freshness_unknown": 9430,
       "duplicate_candidates": 3747,
       "provenance_unknown": 185
     },
     "current_inventory_evidence": {
-      "source_admission_manifest": {
-        "path": "dataset_release/szl-proof-obligation-queue/data/source-admission-manifest.json",
-        "file_sha256": "7c151850c533e23572d634a75be8c9611bd59c404f7b444f07d205f257013d8f"
-      },
-      "m1_brain_ingest_ledger": {
-        "path": "model_release/m1/brain-ingest-ledger.jsonl",
-        "rows": 9464,
-        "file_sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"
-      },
-      "m1_corpus_manifest": {
-        "path": "model_release/m1/corpus-ingestion-manifest.json",
-        "file_sha256": "6f5e0d9ecb60d8aa52fc229a42ad37d62fc7fa7406993a0b8352b2b574fb40a4"
-      }
+        "source_admission_manifest": {
+          "path": "dataset_release/szl-proof-obligation-queue/data/source-admission-manifest.json",
+          "file_sha256": "37c3ded4d6d5590157f93f7e926ff942e398e46c44c9e277c8ed846bc518bff8"
+        },
+        "m1_brain_ingest_ledger": {
+          "path": "model_release/m1/brain-ingest-ledger.jsonl",
+          "rows": 9465,
+          "file_sha256": "d2946716f30ae6705f5f6b75ffbac862a42eefb55f2787ec320ed4f0992df8d0"
+        },
+        "m1_corpus_manifest": {
+          "path": "model_release/m1/corpus-ingestion-manifest.json",
+          "file_sha256": "7305f93e5592bd94f1681e23ddb0f819d258db23dfe5fbc1180da6180a3259f7"
+        }
     },
     "candidate_schema": "szl.brain-training-candidate.v2",
     "decision_schema": "szl.brain-training-admission-decision.v2",

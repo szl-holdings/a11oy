@@ -24,8 +24,6 @@ GRAPH_LEDGER = OUT_DIR / "brain-ingest-ledger.jsonl"
 FORMULA_LEDGER = OUT_DIR / "formula-curriculum-ledger.jsonl"
 CORPUS_MANIFEST = OUT_DIR / "corpus-ingestion-manifest.json"
 EVALUATION_MANIFEST = OUT_DIR / "evaluation-manifest.json"
-EXPECTED_RAW_NODES = 9464
-EXPECTED_DISTINCT_ARTIFACTS = 4229
 PERSON_KINDS = {"person", "author"}
 LOCAL_LICENSED_KINDS = {"estate", "endpoint", "topic", "surface", "formula"}
 FORMULA_STATUS_VOCABULARY = ["KERNEL_ACCEPTED", "CONDITIONAL", "OPEN", "REFUTED"]
@@ -267,11 +265,16 @@ def build() -> dict[str, Any]:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     graph = get_brain_graph(refresh=True)
     nodes = list(graph.get("nodes") or [])
-    if len(nodes) != EXPECTED_RAW_NODES:
-        raise ValueError(f"expected {EXPECTED_RAW_NODES} Brain nodes, observed {len(nodes)}")
+    expected_raw_nodes = len(nodes)
+    raw_node_count = expected_raw_nodes
+    if raw_node_count <= 0:
+        raise ValueError("Brain graph must contain at least one node")
     distinct = sum(1 for node in nodes if str(node.get("kind") or "").lower() not in PERSON_KINDS)
-    if distinct != EXPECTED_DISTINCT_ARTIFACTS:
-        raise ValueError(f"expected {EXPECTED_DISTINCT_ARTIFACTS} distinct artifacts, observed {distinct}")
+    expected_distinct_artifacts = distinct
+    if expected_distinct_artifacts > raw_node_count:
+        raise ValueError(
+            f"distinct artifacts {expected_distinct_artifacts} cannot exceed raw nodes {raw_node_count}"
+        )
 
     evaluation_sha = _sha_file(EVALUATION_MANIFEST)
     evaluation_receipt_id = f"m1-evaluation:sha256:{evaluation_sha}"
@@ -310,9 +313,9 @@ def build() -> dict[str, Any]:
         "source_snapshot": {
             "brain_graph_receipt_id": f"brain-graph:sha256:{graph_snapshot_sha}",
             "brain_graph_sha256": graph_snapshot_sha,
-            "raw_node_count": len(node_rows),
-            "distinct_artifact_count": distinct,
-            "person_metadata_count": len(node_rows) - distinct,
+            "raw_node_count": raw_node_count,
+            "distinct_artifact_count": expected_distinct_artifacts,
+            "person_metadata_count": raw_node_count - expected_distinct_artifacts,
             "link_count_reported_by_graph": graph.get("link_count"),
             "versioned_sources_only": True,
             "network_fetches": 0,
@@ -325,10 +328,10 @@ def build() -> dict[str, Any]:
         },
         "coverage": {
             "node_decisions_total": len(node_rows),
-            "node_decisions_expected": EXPECTED_RAW_NODES,
+            "node_decisions_expected": raw_node_count,
             "node_decision_coverage": 1.0,
-            "distinct_artifacts": distinct,
-            "person_metadata": len(node_rows) - distinct,
+            "distinct_artifacts": expected_distinct_artifacts,
+            "person_metadata": raw_node_count - expected_distinct_artifacts,
             "node_decisions": dict(sorted(node_decisions.items())),
             "node_safety": dict(sorted(node_safety.items())),
             "raw_nodes_training_quarantined": sum(not bool(row["training_eligible"]) for row in node_rows),

@@ -178,9 +178,9 @@ class ProofObligationDatasetReleaseTests(unittest.TestCase):
     def test_brain_summary_excludes_content_and_preserves_local_scope(self):
         self.assertEqual(self.brain["evidence_label"], "MEASURED_LOCAL_PILOT")
         admission = self.brain["admission_summary"]
-        self.assertEqual(admission["raw_graph_nodes_observed"], 9464)
+        self.assertEqual(admission["raw_graph_nodes_observed"], 9465)
         self.assertEqual(admission["raw_graph_nodes_admitted"], 0)
-        self.assertEqual(admission["raw_graph_nodes_excluded"], 9464)
+        self.assertEqual(admission["raw_graph_nodes_excluded"], 9465)
         self.assertEqual(admission["unique_document_count"], 5)
         self.assertEqual(self.brain["metrics"]["query_count"], 15)
 

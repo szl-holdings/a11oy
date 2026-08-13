@@ -14,8 +14,8 @@
     "evaluation_state": "INCOMPLETE"
   },
   "current_data_boundary": {
-    "brain_raw_nodes": 9464,
-    "brain_raw_nodes_training_quarantined": 9464,
+    "brain_raw_nodes": 9465,
+    "brain_raw_nodes_training_quarantined": 9465,
     "brain_raw_rows_admitted_to_train": 0,
     "formula_crosswalk_rows": 146,
     "formula_holdout_rows": 148,

@@ -92,14 +92,14 @@ def test_real_snapshot_matches_committed_ledger():
     )
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema).validate(snapshot)
-    assert snapshot["counts"]["rows"] == 9464
+    assert snapshot["counts"]["rows"] == 9465
     assert snapshot["counts"]["training_eligible_rows"] == 0
     assert snapshot["facets"]["license_state"] == {
         "UNKNOWN_ITEM_LEVEL_LICENSE": 9301,
-        "VERSIONED_REPOSITORY_LICENSE": 163,
+        "VERSIONED_REPOSITORY_LICENSE": 164,
     }
     assert snapshot["facets"]["freshness_state"] == {
         "CAPTURED_SOURCE_DATE": 34,
         "UNKNOWN_NO_SOURCE_TIMESTAMP": 9267,
-        "VERSION_BOUND_NOT_TIME_FRESH": 163,
+        "VERSION_BOUND_NOT_TIME_FRESH": 164,
     }

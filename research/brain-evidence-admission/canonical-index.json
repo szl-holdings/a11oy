@@ -115,25 +115,25 @@
       "trust_uplift_eligible": false
     }
   ],
-  "index_receipt_sha256": "05de63827271daee11888d0f1e43e558bca30ff6f4d969da807fd7e6e617f658",
+  "index_receipt_sha256": "53dfb57df1e6ddd768c5490be883f9f44c60991255da36de3b7d7f310038180b",
   "preregistration_commit_sha": "3e465d9bc1f5abbdaf37c3aa30e7a08b422a6ab3",
   "preregistration_content_sha256": "46681a277dc0a5d214669b8fdbcb7d3a813d2b1c31b3803d04200bb7d5f7d31b",
   "protocol_id": "brain-canonical-retrieval-pilot-v1",
   "raw_graph": {
     "admitted_to_index": 0,
-    "excluded_from_index": 9464,
-    "observed_node_count": 9464,
-    "quarantined_node_count": 9464,
+    "excluded_from_index": 9465,
+    "observed_node_count": 9465,
+    "quarantined_node_count": 9465,
     "reason_counts": {
       "DUPLICATE_CANONICAL_KEY": 3747,
-      "FRESHNESS_UNKNOWN": 9430,
-      "LICENSE_UNKNOWN": 9464,
-      "PROVENANCE_UNKNOWN": 185,
-      "REVISION_UNKNOWN": 9464
+      "FRESHNESS_UNKNOWN": 9431,
+      "LICENSE_UNKNOWN": 9465,
+      "PROVENANCE_UNKNOWN": 186,
+      "REVISION_UNKNOWN": 9465
     }
   },
   "schema_version": "szl.brain.canonical-index.v1",
   "source_dataset_sha256": "f78d6f7c6c7d7c4afd6031b9a7147d4dbd9e4f19674db55560263831e0770200",
-  "source_inventory_sha256": "d3980630b0f60d2ab0b7d64d41ea1f2d9c7664ea8c030426a7f4c8008bd04dc7",
+  "source_inventory_sha256": "0dc8d914089e4e8fecbc7e2d4623ec92449f6a8de64a5064e30b985fd379cf9b",
   "unique_document_count": 5
 }

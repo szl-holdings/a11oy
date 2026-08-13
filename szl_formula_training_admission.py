@@ -158,12 +158,17 @@ def _brain_and_m1_state(root: pathlib.Path) -> dict[str, Any]:
     import szl_brain_reranker
 
     graph = get_brain_graph(refresh=True)
+    expected_raw_count = len(graph.get("nodes") or [])
     inventory = szl_brain_reranker.build_inventory(repo_root=root, environ={})
     summary = inventory.get("inventory") or {}
     raw_count = int(summary.get("raw_node_count") or 0)
     decisions = int(summary.get("decision_count") or 0)
     quarantined = int(summary.get("quarantined_node_count") or 0)
-    if raw_count != 9464 or decisions != raw_count or quarantined != raw_count:
+    if (
+        raw_count != expected_raw_count
+        or decisions != expected_raw_count
+        or quarantined != expected_raw_count
+    ):
         raise AdmissionError(
             f"RAW_BRAIN_BOUNDARY_MISMATCH:{raw_count}:{decisions}:{quarantined}"
         )

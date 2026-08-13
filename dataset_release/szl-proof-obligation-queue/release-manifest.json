@@ -9,7 +9,7 @@
     "brain_evidence_summary": {
       "bytes": 2593,
       "path": "data/brain-evidence-summary.json",
-      "sha256": "8f3816a067bc992c545ac7f7cb35783942d7613efad01d65148ab3828193131f"
+      "sha256": "c4aafdcc60411ff82d6040ccd787ca8c1e63ac5a3386b914767d105072988593"
     },
     "formula_crosswalk": {
       "bytes": 161227,
@@ -21,17 +21,17 @@
       "bytes": 186321,
       "path": "data/proof-obligation-queue.jsonl",
       "rows": 146,
-      "sha256": "78a5355fc0234c9a74a96f8368ea57ed2676217084a941268d142ed89fe241b7"
+      "sha256": "1726eba8ad2142272d353d0ee1b6805380b9fa9c689fb4db71c8e3ea7becf1f1"
     },
     "source_admission_manifest": {
       "bytes": 6972,
       "path": "data/source-admission-manifest.json",
-      "sha256": "7c151850c533e23572d634a75be8c9611bd59c404f7b444f07d205f257013d8f"
+      "sha256": "37c3ded4d6d5590157f93f7e926ff942e398e46c44c9e277c8ed846bc518bff8"
     },
     "source_artifact_receipt": {
       "bytes": 903,
       "path": "data/source-artifact-receipt.json",
-      "sha256": "2dc8ca13bca4313e7193a5b26e75deb6cd8e9271f5b912eb310eeaa9ae4e706d"
+      "sha256": "b5061b748b31dfb14ccdcef345e0d565fe8b11d30979a71f544aed8623d6dd54"
     }
   },
   "claims_boundary": {
@@ -101,13 +101,13 @@
   "source_snapshots": {
     "brain_evidence": {
       "commit": "706894f52a45f80a5c440aeaafc52eec33fafc23",
-      "manifest_receipt_sha256": "a75ffbfddab45b7fe7b4f8e799cb8740e2d15877d1e9e8d37f3d8de64e9de685",
+      "manifest_receipt_sha256": "f4efeeb9a982459a32fd9ff732bf3f3980156d8b657f20f0ac7b8cec8d88c242",
       "protocol_id": "brain-canonical-retrieval-pilot-v1",
-      "results_receipt_sha256": "0c7b6d0ec479a9b5c13062c10f02fd354e38144dca8934bd28cac88b684b3ab3"
+      "results_receipt_sha256": "cec022dffff5ed39d72863dc23dfd090965de8d632c3ecdf61e2cb50126d4923"
     },
     "formula_admission": {
       "admission_manifest_and_receipt_commit": "b7b0f2996edf674d7365d37112371fa6690e7c0e",
-      "artifact_receipt_sha256": "df27c4ba5d1be785955559c4f760cb06bf6b9bcaf6933116525b3adce33796ba",
+      "artifact_receipt_sha256": "893d0d365e84f936bf263b0e7e435d9ab3641662ebc4a33396e6f41108abcea7",
       "crosswalk_and_tranche_commit": "e4d269b309fe67264f1dfe64a65c3c5fb6ecf570",
       "crosswalk_receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52"
     }

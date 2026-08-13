@@ -17,7 +17,7 @@
   "excluded_from_gradients": [
     {
       "path": "model_release/m1/brain-ingest-ledger.jsonl",
-      "reason": "The 9464-node Brain remains retrieval/evaluation-only until row-level rights and provenance are admitted."
+      "reason": "The 9465-node Brain remains retrieval/evaluation-only until row-level rights and provenance are admitted."
     },
     {
       "path": "model_release/m1/formula-curriculum-ledger.jsonl",

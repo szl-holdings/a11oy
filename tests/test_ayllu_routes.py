@@ -6,7 +6,7 @@ annotations`). FastAPI resolves endpoint annotations with get_type_hints against
 the handler's *module* globals. If `Request` is only imported *inside*
 register() (function-local), FastAPI cannot resolve the forward-ref, fails to
 recognise the special Request parameter, and mis-treats `request` as a REQUIRED
-query param — so every GET route 422s with loc=["query","request"] and the POST
+query param -- so every GET route 422s with loc=["query","request"] and the POST
 handlers never even parse their body. The module-level (guarded) `from fastapi
 import Request` in a11oy_ayllu.py is what keeps these green.
 
@@ -78,7 +78,7 @@ def test_second_brain_route_exposes_compound_runtime_boundary(monkeypatch):
             "built": True,
             "document_count": 12,
             "chunk_count": 34,
-            "brain_handle_count": 9464,
+            "brain_handle_count": 9465,
             "training_authority_rows": 0,
             "integrity_state": "VERIFIED_AT_PUBLISH",
         },
@@ -89,7 +89,7 @@ def test_second_brain_route_exposes_compound_runtime_boundary(monkeypatch):
     assert body["system_type"] == "COMPOUND_MODEL_WITH_EXTERNAL_EVIDENCE_MEMORY"
     assert body["ready_for_grounded_navigation"] is True
     assert body["profile"]["artifact_binding"] == "UNBOUND"
-    assert body["memory"]["brain_handle_count"] == 9464
+    assert body["memory"]["brain_handle_count"] == 9465
     assert body["memory"]["training_authority_rows"] == 0
     assert body["hard_boundaries"]["model_can_read_raw_node_content"] is False
 
@@ -103,7 +103,7 @@ def test_page_and_lounge_are_200():
     # it is reachable both ways — its own space, cleanly linked, not embedded.
     assert 'href="/console"' in page.text, (
         "The /ayllu page must link back to the command centre (/console).")
-    assert "Â·" not in page.text, "Council output must not ship mojibake separators."
+    assert "·" not in page.text, "Council output must not ship mojibake separators."
     assert "@media (max-width:720px)" in page.text
     assert "overflow-wrap:anywhere" in page.text
     assert 'aria-label="Ayllu sections"' in page.text

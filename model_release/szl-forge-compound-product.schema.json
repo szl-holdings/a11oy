@@ -100,7 +100,7 @@
         "receipt_sha256": {"pattern": "^[0-9a-f]{64}$"},
         "verification_state": {"const": "PASS"},
         "verified_exact_tags": {"$ref": "#/$defs/nonEmptyStringSet"},
-        "brain_handle_count": {"const": 9464},
+        "brain_handle_count": {"const": 9465},
         "brain_rows_admitted_to_gradients": {"const": 0},
         "claim_boundary": {"type": "string", "minLength": 120}
       }

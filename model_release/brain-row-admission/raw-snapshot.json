@@ -8,18 +8,18 @@
     "training_triggered": false
   },
   "counts": {
-    "distinct_content_sha256": 9464,
+    "distinct_content_sha256": 9465,
     "duplicate_content_rows": 0,
     "person_rows": 5235,
-    "rows": 9464,
+    "rows": 9465,
     "training_eligible_rows": 0,
-    "unique_node_ids": 9464
+    "unique_node_ids": 9465
   },
   "facets": {
     "freshness_state": {
       "CAPTURED_SOURCE_DATE": 34,
       "UNKNOWN_NO_SOURCE_TIMESTAMP": 9267,
-      "VERSION_BOUND_NOT_TIME_FRESH": 163
+      "VERSION_BOUND_NOT_TIME_FRESH": 164
     },
     "kind": {
       "axis": 25,
@@ -34,18 +34,18 @@
       "person": 5235,
       "repo": 2358,
       "standard": 18,
-      "surface": 130,
+      "surface": 131,
       "topic": 8
     },
     "license_state": {
       "UNKNOWN_ITEM_LEVEL_LICENSE": 9301,
-      "VERSIONED_REPOSITORY_LICENSE": 163
+      "VERSIONED_REPOSITORY_LICENSE": 164
     },
     "safety_decision": {
       "QUARANTINE_LICENSE_UNKNOWN": 4066,
       "QUARANTINE_PERSON_METADATA": 5235,
       "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA": 23,
-      "QUARANTINE_RAW_GRAPH_NOT_ADMITTED": 140
+      "QUARANTINE_RAW_GRAPH_NOT_ADMITTED": 141
     },
     "source": {
       "FORMULA_META.organ": 8,
@@ -63,11 +63,11 @@
       "harvest": 10,
       "pass2-harvest": 6,
       "szl-estate": 3,
-      "versioned-local-graph": 189,
+      "versioned-local-graph": 190,
       "web": 132
     },
     "source_family": {
-      "a11oy-versioned-runtime": 140,
+      "a11oy-versioned-runtime": 141,
       "academic-publication-metadata": 1492,
       "authorship-person-metadata": 5235,
       "brain-raw-formula-index": 23,
@@ -77,22 +77,22 @@
       "research-landscape-metadata": 165
     },
     "training_decision": {
-      "QUARANTINE": 9464
+      "QUARANTINE": 9465
     }
   },
   "integrity": {
     "leaf_domain": "szl.brain.raw-row.v1",
-    "merkle_root_sha256": "71c764b12e0024cd2ed64371b33ff48ce193bba5caf76e6cc002b3069cb7c994",
+    "merkle_root_sha256": "4a21bc37bf68fcc3267c9bfef5003a3adecb4ab0c8cbfd58592ac6f741367af7",
     "node_domain": "szl.brain.merkle-node.v1",
     "odd_leaf_rule": "DUPLICATE_LAST",
     "row_canonicalization": "SORTED_COMPACT_JSON_UTF8_V1"
   },
   "schema_version": "szl.brain-raw-snapshot.v1",
-  "snapshot_sha256": "a021d8c503c6bf71f9e4dd3b32915ce3aa82a22317382d318c6de0aae7cf0f28",
+  "snapshot_sha256": "4eba682e4504b790f905605511ed191fbd5b5f5903711d85001b2adc8c32f152",
   "source": {
-    "bytes": 13368264,
+    "bytes": 13370772,
     "path": "model_release/m1/brain-ingest-ledger.jsonl",
     "schema": "szl.m1-brain-ingest-decision/v1",
-    "sha256": "c9c96e62f047de72c8cfd7daa560bd2bb69e86fd84fbd1635c3cd812b9c5946d"
+    "sha256": "d2946716f30ae6705f5f6b75ffbac862a42eefb55f2787ec320ed4f0992df8d0"
   }
 }

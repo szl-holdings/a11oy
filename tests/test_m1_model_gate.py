@@ -377,14 +377,14 @@ def test_committed_full_corpus_ledgers_are_exact_complete_and_not_promoted():
     evidence = gate._corpus_evidence(manifest)
     assert evidence["state"] == gate.PASS
     coverage = evidence["coverage"]
-    assert coverage["node_decisions_total"] == 9464
+    assert coverage["node_decisions_total"] == 9465
     assert coverage["node_decision_coverage"] == 1.0
-    assert coverage["distinct_artifacts"] == 4229
+    assert coverage["distinct_artifacts"] == 4230
     assert coverage["person_metadata"] == 5235
-    assert coverage["quarantined_or_excluded_nodes"] == 9464
-    assert coverage["raw_nodes_training_quarantined"] == 9464
+    assert coverage["quarantined_or_excluded_nodes"] == 9465
+    assert coverage["raw_nodes_training_quarantined"] == 9465
     assert coverage["training_eligible_nodes"] == 0
-    assert coverage["node_decisions"] == {"QUARANTINE": 9464}
+    assert coverage["node_decisions"] == {"QUARANTINE": 9465}
     assert coverage["formula_records_current_versioned_sources"] == 123
     assert coverage["formula_requested_200_claim"] == "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES"
     assert coverage["formula_status"] == {
@@ -395,6 +395,6 @@ def test_committed_full_corpus_ledgers_are_exact_complete_and_not_promoted():
     assert evidence["training_state"] == "NOT_RUN"
     assert evidence["release_state"] == "NOT_PROMOTED"
     assert evidence["quality_claim"] == "NOT_ESTABLISHED"
-    assert evidence["brain_ledger"]["rows"] == 9464
-    assert evidence["brain_ledger"]["distinct_artifact_rows"] == 4229
+    assert evidence["brain_ledger"]["rows"] == 9465
+    assert evidence["brain_ledger"]["distinct_artifact_rows"] == 4230
     assert evidence["formula_ledger"]["rows"] == 123

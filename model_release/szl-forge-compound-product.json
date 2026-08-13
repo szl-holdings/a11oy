@@ -62,7 +62,7 @@
       "component_type": "EXTERNAL_EVIDENCE_MEMORY",
       "role": "Versioned hybrid retrieval, evidence-set construction, bounded graph expansion, citation checking, and reversible memory admission.",
       "weight_relation": "NOT_MODEL_WEIGHTS",
-      "current_state": "LOCAL_GENERATION_AND_9464_HANDLE_PLANE_VERIFIED_RAW_ROWS_NOT_ADMITTED_TO_GRADIENTS",
+      "current_state": "LOCAL_GENERATION_AND_9465_HANDLE_PLANE_VERIFIED_RAW_ROWS_NOT_ADMITTED_TO_GRADIENTS",
       "source_of_truth": "model_release/szl-khipu-second-brain.json"
     },
     {
@@ -132,13 +132,13 @@
   },
   "local_evidence": {
     "receipt_path": "attestations/forge-second-brain-live-2026-07-15.json",
-    "receipt_sha256": "0cfc363216624561f8faa080908fef4757db8267c40dafe07526b1cc502c9d8a",
+    "receipt_sha256": "b7c1e2144b953b1da4e9c4dab51cc138888707af9272437a82cb3a2191e24583",
     "verification_state": "PASS",
     "verified_exact_tags": [
       "khipu:latest",
       "receiptagent:latest"
     ],
-    "brain_handle_count": 9464,
+    "brain_handle_count": 9465,
     "brain_rows_admitted_to_gradients": 0,
     "claim_boundary": "This receipt verifies two loopback runtime turns and the handle plane. It does not prove training completion, remote Hub publication, remote artifact identity, benchmark quality, or production readiness."
   },
@@ -309,7 +309,7 @@
     {
       "gate_id": "security-rights-and-contamination",
       "state": "BLOCKING",
-      "evidence": "CURRENT_9464_RAW_BRAIN_ROWS_REMAIN_OUTSIDE_GRADIENTS"
+      "evidence": "CURRENT_9465_RAW_BRAIN_ROWS_REMAIN_OUTSIDE_GRADIENTS"
     },
     {
       "gate_id": "resource-restart-and-recovery",

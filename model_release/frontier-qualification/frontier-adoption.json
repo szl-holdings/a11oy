@@ -12,8 +12,8 @@
     "zero_download_policy": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"
   },
   "brain_model_truth": {
-    "raw_nodes_observed": 9464,
-    "raw_nodes_available_to_retrieval_and_evaluation": 9464,
+    "raw_nodes_observed": 9465,
+    "raw_nodes_available_to_retrieval_and_evaluation": 9465,
     "raw_nodes_admitted_to_gradients": 0,
     "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "current_weight_model_relation": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT",
@@ -138,7 +138,7 @@
     "archive_policy": "ARCHIVE_ONLY_AFTER_REPLACEMENT_REDIRECT_HEALTH_AND_PROVENANCE_VERIFICATION",
     "known_alignment_gaps": [
       "The supplied 54-repository attachment is truncated after pitch-collateral, so the machine inventory is explicitly incomplete and unseen repositories remain unclassified.",
-      "The public Brain surfaces do not yet share one signed manifest or retrieval plane: one reports 9,464 raw graph nodes while another exposes a 536-chunk fallback.",
+      "The public Brain surfaces do not yet share one signed manifest or retrieval plane: one reports 9,465 raw graph nodes while another exposes a 536-chunk fallback.",
       "a11oy.net and a-11-oy.com require explicit domain, backend, repository-identity, and flagship-link parity before the estate can be called unified.",
       "The Machine Innovate hardening files described in the working thread are absent from the checked repository and need a recoverable branch, commit, or pull request.",
       "SZL Forge and SZL Mesh documentation contain stale or conflicting readiness language and must be generated from qualified manifests.",

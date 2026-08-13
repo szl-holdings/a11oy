@@ -25,11 +25,11 @@ def valid_verdict(now: datetime) -> dict:
         "sourceRevision": "a" * 40,
         "summary": {
             "endpoints": 5,
-            "ok": 4,
+            "ok": 5,
             "skippedStateChanging": 0,
             "lies": 0,
             "unreachable": 0,
-            "throttled": 1,
+            "throttled": 0,
             "p95_worst": 1806,
         },
         "results": [{"path": "/not-published"}],
@@ -96,8 +96,36 @@ def test_compact_verdict_rejects_future_stale_and_incomplete_results() -> None:
 def test_compact_verdict_rejects_doctrine_lies() -> None:
     now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
     payload = valid_verdict(now)
-    payload["summary"]["ok"] = 3
+    payload["summary"]["ok"] = 4
     payload["summary"]["lies"] = 1
 
     with pytest.raises(publisher.VerdictError, match="doctrine lies"):
+        compact(payload, now)
+
+
+def test_compact_verdict_rejects_all_unreachable_release_evidence() -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    payload = valid_verdict(now)
+    payload["summary"].update({
+        "ok": 0,
+        "lies": 0,
+        "unreachable": payload["summary"]["endpoints"],
+        "throttled": 0,
+    })
+
+    with pytest.raises(publisher.VerdictError, match="unreachable required endpoints"):
+        compact(payload, now)
+
+
+def test_compact_verdict_rejects_all_throttled_release_evidence() -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    payload = valid_verdict(now)
+    payload["summary"].update({
+        "ok": 0,
+        "lies": 0,
+        "unreachable": 0,
+        "throttled": payload["summary"]["endpoints"],
+    })
+
+    with pytest.raises(publisher.VerdictError, match="throttled required endpoints"):
         compact(payload, now)
