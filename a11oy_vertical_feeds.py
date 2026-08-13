@@ -39,6 +39,7 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Any, Callable, Optional
+from urllib.parse import urljoin
 
 import anyio
 import httpx
@@ -114,6 +115,14 @@ def _source_url_allowed(url: str) -> bool:
     if parsed.scheme == "https":
         return True
     return parsed.scheme == "http" and host in {"127.0.0.1", "localhost", "::1"}
+
+
+def _courtlistener_public_url(value: Any) -> str:
+    """Return a CourtListener-owned public URL from an API path."""
+    path = str(value or "").strip()
+    if not path.startswith("/") or path.startswith("//"):
+        return "https://www.courtlistener.com/"
+    return urljoin("https://www.courtlistener.com/", path)
 
 
 def _variant_cache_key(source: str, **parameters: Any) -> str:
@@ -1241,7 +1250,7 @@ def feed_courtlistener(term: str = "artificial intelligence", limit: int = 20) -
         res = d.get("results", [])[:limit]
         return {"count": d.get("count"), "items": [{
             "caseName": r.get("caseName"), "court": r.get("court"), "dateFiled": r.get("dateFiled"),
-            "url": "https://www.courtlistener.com" + (r.get("absolute_url") or ""),
+            "url": _courtlistener_public_url(r.get("absolute_url")),
             "citeCount": r.get("citeCount", 0), "status": r.get("status"),
         } for r in res]}
     return _cached_fetch(key, url, ttl=900, parser=parse)

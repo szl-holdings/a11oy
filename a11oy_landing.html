@@ -9,7 +9,7 @@
   (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
   never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
-  Receipts are produced on governed writes, never on GET. Material mechanism claims link to a check.
+  Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
   DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
   preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
@@ -100,7 +100,7 @@
     background:var(--ink);color:var(--void);font-weight:700;transform:translateY(-150%)}
   .skip-link:focus{transform:translateY(0)}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
-  .mono{font-family:var(--mono)}
+  .mono{font-family:var(--mono);overflow-wrap:anywhere;word-break:break-word}
   h1,h2,h3,.brand{font-family:var(--head)}
 
   /* ---- nav ---- */
@@ -134,8 +134,8 @@
   }
 
   /* ---- buttons ---- */
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 21px;border-radius:9px;
-    font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 21px;border-radius:9px;
+    min-height:44px;max-width:100%;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
     transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
   /* restrained "holographic glass" buttons — luminous hairline + soft fill, never a neon block */
   .btn-primary{background:linear-gradient(180deg,rgba(58,244,200,0.13),rgba(58,244,200,0.04));
@@ -392,6 +392,16 @@
   .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
   @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
+  /* Mobile overrides intentionally follow all equal-specificity base rules. */
+  @media(max-width:560px){
+    .wrap{padding-inline:16px}
+    section.band{padding-block:64px}
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
+    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
+  }
 </style>
 </head>
 <body>
@@ -434,7 +444,8 @@
       <h1 class="title">Control consequential AI.<br><span class="grad">Prove every action.</span></h1>
       <p class="lede">A11oy is the portable operating layer between models, agents, tools, and
         high-stakes workflows. It observes what happened, applies policy before execution,
-        stops what is not allowed, and emits evidence an outside party can verify.</p>
+        stops what is not allowed, and emits evidence an outside party can verify.
+        It proves its receipt state without inferring signer status from a digest or chain link.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="/console?investor=1">Open the investor view →</a>
         <a class="btn btn-lattice" href="#solutions">Explore working solutions</a>
@@ -469,7 +480,7 @@
     <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
     <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
     <div class="legend">
-      <div class="leg measured"><div class="lt">MEASURED</div><p>Read from a named source this session — for example receipt count and chain depth. Shown with a source-state chip; a dead probe degrades to an honest unavailable state.</p></div>
+      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>
       <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
       <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
       <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Λ lives here.</p></div>
@@ -667,7 +678,7 @@
   <div class="wrap">
     <p class="kick">Public estate · versioned inventory <span id="estate-source-state"></span></p>
     <h2>Models, kernels, data, and Spaces — one evidence-labelled map.</h2>
-    <p class="sub" style="max-width:790px">The atlas joins Hugging Face artifacts to their GitHub producers without pretending that a reachable URL proves source alignment. Counts render only after the versioned inventory API answers and retain its LIVE, CACHED, STALE_CACHE, or SNAPSHOT label.</p>
+    <p class="sub" style="max-width:790px">The front door no longer hardcodes organization totals. The atlas joins Hugging Face artifacts to their GitHub producers without pretending that a reachable URL proves source alignment. Counts render only after the versioned inventory API answers and retain its LIVE, CACHED, STALE_CACHE, or SNAPSHOT label.</p>
     <div class="estate-grid" aria-label="Public ecosystem inventory counts" aria-live="polite">
       <div class="estate-cell"><b id="estate-models">—</b><span>Models</span></div>
       <div class="estate-cell"><b id="estate-kernels">—</b><span>Governed kernels</span></div>
@@ -698,7 +709,7 @@
       Durability, signer mode, chain verification, and replayability must be established by the
       returned evidence and deployment configuration—not inferred from this dashboard.</p>
     <div class="chainrow">
-      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl" id="chain-receipts-label">Source-labelled chain records · state pending</div></div>
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl" id="chain-receipts-label">Receipt records · signer state separate</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
       <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Source-labelled chain depth</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
@@ -883,15 +894,12 @@
     }
   }
 
-  // pass/fail chip for an advisory Λ vs the 0.90 floor (advisory ONLY — never an oracle)
+  // Advisory Λ is Conjecture 1: report its relation to the floor, never render pass/fail or green.
   function lamChip(elId, v){
     const el = $(elId); if(!el) return;
     if(num(v) === null){ el.innerHTML = downChip("N/A"); return; }
-    const pass = v >= 0.90;
-    el.innerHTML = '<span class="pass-chip" style="margin-left:8px;'
-      + (pass ? 'color:var(--ok);background:rgba(58,244,200,0.08);border:1px solid rgba(58,244,200,0.3)'
-              : 'color:var(--warn);background:rgba(215,185,107,0.08);border:1px solid rgba(215,185,107,0.3)')
-      + '">'+(pass?'≥ floor':'below floor')+'</span>';
+    const relation = v >= 0.90 ? "≥ advisory floor" : "below advisory floor";
+    el.innerHTML = grayChip(relation + " · CONJECTURE");
   }
 
   function setTiers(t){
