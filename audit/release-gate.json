@@ -1,0 +1,156 @@
+{
+  "generatedAt": "2026-08-11T20:50:41+00:00",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "commands": [
+    {
+      "name": "szl-convergence-bootstrap",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "tools/szl_convergence_bootstrap.py",
+        "--run"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 15180,
+      "stdout_sha256": "9aaeca9abb6ed88f32bd8be6823c8898a21fe1d31f1a0c2693eee398b2f5c14d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\szl-convergence-bootstrap.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\szl-convergence-bootstrap.stderr.txt"
+    },
+    {
+      "name": "round5-lexicon-gate",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "tools/lexicon_gate.py",
+        "--check",
+        "--report",
+        "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\frontier-lexicon-gate.json"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 944,
+      "stdout_sha256": "83a9e35a70fb321fb8bb6b34a7f3c2cc1edad7f54b2929e41bf13e0a6d9cb6fa",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\round5-lexicon-gate.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\round5-lexicon-gate.stderr.txt"
+    },
+    {
+      "name": "frontdoor-truth",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "scripts/check_a11oy_frontdoor_truth.py",
+        "a11oy_landing.html"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 118,
+      "stdout_sha256": "5d00656f7a39d1ede05b48de2df3fed240fbd29c6a48a258dc4902c4a22324ac",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\frontdoor-truth.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\frontdoor-truth.stderr.txt"
+    },
+    {
+      "name": "frontdoor-repair-check",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "scripts/repair_a11oy_frontdoor.py",
+        "a11oy_landing.html",
+        "--check"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 167,
+      "stdout_sha256": "0b979c6822c052bc1cd6c99473e19119fbcaf454a29aeeb7980fb636d7ef8c07",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\frontdoor-repair-check.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\frontdoor-repair-check.stderr.txt"
+    },
+    {
+      "name": "hf-ecosystem-check",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "scripts/audit_huggingface_ecosystem.py",
+        "--check"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 10561,
+      "stdout_sha256": "2c0d8787cdb08b0293cbc3c02877cfcf15d9a45b01b5a91ccd5c06a779c713e1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\hf-ecosystem-check.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\hf-ecosystem-check.stderr.txt"
+    },
+    {
+      "name": "github-access-check",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "scripts/audit_github_access_permissions.py",
+        "--checklist",
+        "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\docs\\github-enterprise-access-checklist.json",
+        "--output",
+        "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\github-access-audit.json",
+        "--validate"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 6854,
+      "stdout_sha256": "270941ebe82306f90c084aa45bfc517bcc86cf0ad687dc2959c6dd367f7b56b6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\github-access-check.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\github-access-check.stderr.txt"
+    },
+    {
+      "name": "szl-convergence-verify",
+      "command": [
+        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-I",
+        "-B",
+        "tools/szl_convergence_bootstrap.py",
+        "--verify"
+      ],
+      "status": "PASS",
+      "return_code": 0,
+      "duration_ms": 121,
+      "stdout_sha256": "ee57a57d11e817a2d1a02b8516ae084c8c4912e33d2ab7f10e4b5d883a9b8706",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "audit\\release-gate-logs\\szl-convergence-verify.stdout.txt",
+      "stderr_path": "audit\\release-gate-logs\\szl-convergence-verify.stderr.txt"
+    }
+  ],
+  "githubAccess": {
+    "status": "PASS",
+    "notes": []
+  },
+  "frontierArtifacts": {
+    "status": "PASS",
+    "notes": []
+  },
+  "requiredArtifacts": {
+    "frontierBootstrap": [
+      "audit/frontier-convergence-manifest.json",
+      "audit/frontier-claims-ledger.json",
+      "audit/frontier-contradictions-ledger.json",
+      "audit/frontier-command-probes.json",
+      "evidence/conformance/eu-ai-act-article-12.yaml"
+    ],
+    "frontierGate": [
+      "audit/frontier-lexicon-gate.json",
+      "audit/release-gate.json"
+    ]
+  },
+  "commandCount": 7,
+  "commandFailures": []
+}

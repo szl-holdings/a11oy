@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "generatedBy": "manual-github-enterprise-access-v1",
-  "observedAt": "2026-05-30",
-  "canonicalRule": "Additional GitHub Enterprise seats solve capacity only. Cross-repo execution requires accepted org membership, repo/team write permission, and token or GitHub App scope for each target repo.",
+  "observedAt": "2026-08-11",
+  "canonicalRule": "Cross-repo execution requires accepted org membership, token or github app scope, and repo/team write permission for each target repository.",
   "seatsAloneGrantWriteAccess": false,
   "currentKnownWritableRepo": "szl-holdings/a11oy",
-  "knownCrossRepoBlocker": "Previous direct pushes to sibling repos returned 403 from this runtime.",
+  "knownCrossRepoBlocker": "Cross-repo writes are limited to active target repos in this list.",
   "requiredTokenScopes": [
     "Contents: Read and write for each target repo",
     "Pull requests: Read and write when PR creation should be direct",
@@ -21,11 +21,17 @@
   "readOnlyChecks": [
     "gh auth status",
     "gh api user -q .login",
-    "gh repo view szl-holdings/a11oy --json viewerPermission",
     "gh repo view szl-holdings/.github --json viewerPermission",
-    "gh repo view szl-holdings/agi-forecast --json viewerPermission",
+    "gh repo view szl-holdings/a11oy --json viewerPermission",
+    "gh repo view szl-holdings/platform --json viewerPermission",
     "gh repo view szl-holdings/lutar-lean --json viewerPermission",
-    "gh repo view szl-holdings/uds-mesh --json viewerPermission"
+    "gh repo view szl-holdings/khipu-sda-core --json viewerPermission",
+    "gh repo view szl-holdings/killinchu --json viewerPermission",
+    "gh repo view szl-holdings/uds-mesh --json viewerPermission",
+    "gh repo view szl-holdings/docs-site --json viewerPermission",
+    "gh repo view szl-holdings/szl-substrate --json viewerPermission",
+    "gh repo view szl-holdings/szl-kernels --json viewerPermission",
+    "gh repo view szl-holdings/a11oy-net --json viewerPermission"
   ],
   "targetRepos": [
     {
@@ -35,52 +41,76 @@
       "currentFallback": "mirror coordination status and proxy instructions in a11oy"
     },
     {
-      "repo": "szl-holdings/lutar-lean",
+      "repo": "szl-holdings/a11oy",
       "minimumPermission": "write",
-      "phaseUnlocked": "direct Lean proof patching and CI repair",
+      "phaseUnlocked": "frontdoor, command surface, and product-level release work",
       "currentFallback": "a11oy proxy patch queue with build logs"
-    },
-    {
-      "repo": "szl-holdings/agi-forecast",
-      "minimumPermission": "write",
-      "phaseUnlocked": "direct competition-math/FG benchmark pipeline implementation",
-      "currentFallback": "a11oy proxy patch queue"
-    },
-    {
-      "repo": "szl-holdings/uds-mesh",
-      "minimumPermission": "write",
-      "phaseUnlocked": "direct mesh pointer and UDS topology updates",
-      "currentFallback": "a11oy UDS frontier docs and proxy status"
-    },
-    {
-      "repo": "szl-holdings/amaru",
-      "minimumPermission": "write",
-      "phaseUnlocked": "receipt minting/anchor component updates",
-      "currentFallback": "a11oy anatomy/formula map and UDS proof-point references"
-    },
-    {
-      "repo": "szl-holdings/sentra",
-      "minimumPermission": "write",
-      "phaseUnlocked": "drift/telemetry component updates",
-      "currentFallback": "a11oy action-contract and controls evidence map"
-    },
-    {
-      "repo": "szl-holdings/rosie",
-      "minimumPermission": "write",
-      "phaseUnlocked": "receipt DAG / CSS ingress updates",
-      "currentFallback": "a11oy receipt substrate and anatomy map"
-    },
-    {
-      "repo": "szl-holdings/vessels",
-      "minimumPermission": "write",
-      "phaseUnlocked": "active vertical demo wedge implementation",
-      "currentFallback": "a11oy investor demo and ecosystem readiness report"
     },
     {
       "repo": "szl-holdings/platform",
       "minimumPermission": "write",
       "phaseUnlocked": "product integration monorepo changes when in scope",
       "currentFallback": "standalone a11oy package and payload validation"
+    },
+    {
+      "repo": "szl-holdings/lutar-lean",
+      "minimumPermission": "write",
+      "phaseUnlocked": "direct Lean proof patching and CI repair",
+      "currentFallback": "a11oy proxy patch queue with build logs"
+    },
+    {
+      "repo": "szl-holdings/khipu-sda-core",
+      "minimumPermission": "write",
+      "phaseUnlocked": "receipt DAG / SDA pipeline updates",
+      "currentFallback": "a11oy action-contract and controls evidence map"
+    },
+    {
+      "repo": "szl-holdings/agi-forecast",
+      "minimumPermission": "write",
+      "phaseUnlocked": "forecast model, prediction, and benchmark experiments",
+      "currentFallback": "a11oy forecast artifacts and live benchmark evidence map"
+    },
+    {
+      "repo": "szl-holdings/killinchu",
+      "minimumPermission": "write",
+      "phaseUnlocked": "active demo wedge implementation",
+      "currentFallback": "a11oy investor demo and ecosystem readiness report"
+    },
+    {
+      "repo": "szl-holdings/uds-mesh",
+      "minimumPermission": "write",
+      "phaseUnlocked": "mesh pointer and UDS topology updates",
+      "currentFallback": "a11oy UDS frontier docs and proxy status"
+    },
+    {
+      "repo": "szl-holdings/docs-site",
+      "minimumPermission": "write",
+      "phaseUnlocked": "governed docs and doctrine publication changes",
+      "currentFallback": "a11oy docs front-door and publishing queue"
+    },
+    {
+      "repo": "szl-holdings/szl-substrate",
+      "minimumPermission": "write",
+      "phaseUnlocked": "substrate package and workflow updates",
+      "currentFallback": "shared-audit and substrate implementation references"
+    },
+    {
+      "repo": "szl-holdings/szl-kernels",
+      "minimumPermission": "write",
+      "phaseUnlocked": "kernel suite and index updates",
+      "currentFallback": "kernel package registry and generated artifact checks"
+    },
+    {
+      "repo": "szl-holdings/vessels",
+      "minimumPermission": "write",
+      "phaseUnlocked": "vertical demo wedge delivery and evidence map",
+      "currentFallback": "a11oy vertical proof map and runtime mirror route"
+    },
+    {
+      "repo": "szl-holdings/a11oy-net",
+      "minimumPermission": "write",
+      "phaseUnlocked": "domain mirror and static frontdoor alignment",
+      "currentFallback": "a11oy-net redirect and DNS validation queue"
     }
   ],
   "doctrineBoundaries": [
