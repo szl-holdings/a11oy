@@ -113,19 +113,105 @@ def test_summary_projects_observation_without_inventing_runtime_parity(
     assert payload["counts"]["github_repositories"] == 58
     assert payload["counts"]["models"] == 16
     assert payload["last_known_counts"]["state"] == "OBSERVED"
-    assert payload["identity"] == {
-        "runtime_reported_source_revision": "a" * 40,
-        "github_default_branch_revision": None,
-        "huggingface_repository_revision": None,
-        "runtime_artifact_digest": None,
-        "equivalence_state": "UNAVAILABLE",
-        "reason": "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+    assert payload["identity"]["runtime_reported_source_revision"] == "a" * 40
+    assert payload["identity"]["github_default_branch_revision"] is None
+    assert payload["identity"]["huggingface_repository_revision"] is None
+    assert payload["identity"]["runtime_artifact_digest"] is None
+    assert payload["identity"]["equivalence_state"] == "UNAVAILABLE"
+    assert payload["identity"]["reason"] == "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT"
+    assert payload["identity"]["platform"] == {
+        "source": {
+            "github_organization": "szl-holdings",
+            "github_repo": "a11oy",
+            "github_default_branch": None,
+            "github_default_branch_revision": None,
+            "github_observation_state": "UNAVAILABLE",
+        },
+        "runtime": {
+            "state": "UNAVAILABLE",
+            "artifact_digest": None,
+            "equivalence_state": "UNAVAILABLE",
+            "equivalence_reason": "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+        },
+        "huggingface": {
+            "organization": "SZLHOLDINGS",
+            "canonical_space": "SZLHOLDINGS/a11oy",
+            "revision": None,
+            "state": "UNAVAILABLE",
+            "observation_state": "UNAVAILABLE",
+            "canonical_scope": "PUBLIC_ONLY",
+        },
+        "web": {
+            "domains": [
+                {"domain": "a-11-oy.com", "state": "UNAVAILABLE", "status": None, "url": "https://a-11-oy.com", "detail": {}},
+                {"domain": "a11oy.net", "state": "UNAVAILABLE", "status": None, "url": "https://a11oy.net", "detail": {}},
+            ],
+            "state": "UNAVAILABLE",
+        },
     }
     assert payload["claim_gate"]["state"] == "FAILED_CLOSED"
     assert payload["claim_gate"]["public_claim_status"] == "HELD"
     assert payload["enforcement"]["effectors"] == []
     assert payload["enforcement"]["external_writes"] == "DISABLED"
     assert payload["private_reasoning_collected"] is False
+
+
+def test_summary_projects_real_platform_identity_when_live_probes_enabled(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = _app(tmp_path, monkeypatch)
+    _seed_observed(value)
+    frontier_now._PLATFORM_PROBE_CACHE.clear()
+    monkeypatch.setattr(frontier_now, "_live_probes_enabled", lambda: True)
+
+    def fake_probe(url: str, timeout_seconds: float = 1.25) -> dict[str, object]:
+        if "api.github.com/repos/" in url and "/branches/" not in url:
+            return {
+                "state": "OBSERVED",
+                "status": 200,
+                "url": url,
+                "detail": {"default_branch": "main"},
+            }
+        if "/branches/" in url:
+            return {
+                "state": "OBSERVED",
+                "status": 200,
+                "url": url,
+                "detail": {"commit": {"sha": "b" * 40}},
+            }
+        if "huggingface.co/api/spaces/" in url:
+            return {
+                "state": "OBSERVED",
+                "status": 200,
+                "url": url,
+                "detail": {"sha": "h" * 32},
+            }
+        if "a-11-oy.com/healthz" in url or "a11oy.net/healthz" in url:
+            return {
+                "state": "OBSERVED",
+                "status": 200,
+                "url": url,
+                "detail": {"ok": True},
+            }
+        return {"state": "UNAVAILABLE", "status": 404, "url": url}
+
+    monkeypatch.setattr(frontier_now, "_http_get_json", fake_probe)
+
+    with TestClient(value) as client:
+        payload = client.get("/api/a11oy/v1/frontier-now/summary").json()
+
+    assert payload["identity"]["github_organization"] == "szl-holdings"
+    assert payload["identity"]["github_repo"] == "a11oy"
+    assert payload["identity"]["github_default_branch"] == "main"
+    assert payload["identity"]["github_default_branch_revision"] == "b" * 40
+    assert payload["identity"]["runtime_artifact_digest"] == "a" * 40
+    assert payload["identity"]["huggingface_repository_revision"] == "h" * 32
+    assert payload["claim_gate"]["state"] == "READY"
+    assert payload["claim_gate"]["public_claim_status"] == "READY"
+    assert payload["claim_gate"]["reason"] == "EXACT_SOURCE_RUNTIME_BINDING_ESTABLISHED"
+    domains = payload["identity"]["platform"]["web"]["domains"]
+    assert {entry["domain"] for entry in domains} == {"a-11-oy.com", "a11oy.net"}
+    assert all(entry["state"] == "OBSERVED" for entry in domains)
 
 
 def test_receipt_read_failure_isolated_from_manifest_and_inventory(

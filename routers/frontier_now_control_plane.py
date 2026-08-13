@@ -11,10 +11,16 @@ until an exact source-to-runtime binding is observed elsewhere.
 """
 
 import hashlib
+import os
 import json
+import ssl
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote_plus
+from urllib.request import Request as URLRequest, urlopen
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -24,6 +30,14 @@ SCHEMA_INVENTORY = "szl.frontier-now-inventory/v1"
 OPERATING_MODE = "OBSERVE_ONLY"
 MAX_INVENTORY_LIMIT = 50
 PROVIDERS = {"all", "github", "huggingface", "runtime", "web"}
+PLATFORM_ORGANIZATION_GITHUB = "szl-holdings"
+PLATFORM_ORGANIZATION_GITHUB_REPO = "a11oy"
+PLATFORM_ORGANIZATION_HUGGINGFACE = "SZLHOLDINGS"
+PLATFORM_CANONICAL_SPACE = f"{PLATFORM_ORGANIZATION_HUGGINGFACE}/a11oy"
+PLATFORM_DOMAINS = ("a-11-oy.com", "a11oy.net")
+PROBE_TIMEOUT_SECONDS = 1.25
+PROBE_CACHE_TTL_SECONDS = 180.0
+_PLATFORM_PROBE_CACHE: dict[str, dict[str, Any]] = {}
 NO_STORE_HEADERS = {
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",
@@ -169,6 +183,250 @@ def _snapshot(
         )
 
 
+def _probe_cache_ttl_remaining(cache_at: float) -> bool:
+    return (time.time() - cache_at) < PROBE_CACHE_TTL_SECONDS
+
+
+def _cache_get(key: str) -> dict[str, Any] | None:
+    cached = _PLATFORM_PROBE_CACHE.get(key)
+    if not cached:
+        return None
+    captured = cached.get("captured_at")
+    if captured is None or not isinstance(captured, (int, float)):
+        _PLATFORM_PROBE_CACHE.pop(key, None)
+        return None
+    if not _probe_cache_ttl_remaining(captured):
+        _PLATFORM_PROBE_CACHE.pop(key, None)
+        return None
+    return cached
+
+
+def _cache_set(key: str, value: dict[str, Any]) -> dict[str, Any]:
+    _PLATFORM_PROBE_CACHE[key] = {**value, "captured_at": time.time()}
+    return _PLATFORM_PROBE_CACHE[key]
+
+
+def _parse_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _live_probes_enabled() -> bool:
+    return _parse_bool(os.getenv("A11OY_FRONTIER_NOW_LIVE_PROBES", "0"))
+
+
+def _http_get_json(url: str, *, timeout_seconds: float = PROBE_TIMEOUT_SECONDS) -> dict[str, Any]:
+    request = URLRequest(
+        url,
+        headers={
+            "accept": "application/json",
+            "user-agent": "szl-a11oy-frontier-now/2.0",
+        },
+    )
+    try:
+        with urlopen(request, timeout=timeout_seconds, context=ssl.create_default_context()) as response:
+            status = int(response.status)
+            payload = response.read().decode("utf-8", errors="replace")
+            detail = {}
+            if payload:
+                try:
+                    detail = _safe_mapping(json.loads(payload))
+                except Exception:
+                    detail = {"body": payload[:240]}
+            return {
+                "state": "OBSERVED" if 200 <= status < 300 else "BLOCKED",
+                "status": status,
+                "url": url,
+                "detail": detail,
+            }
+    except HTTPError as exc:
+        return {
+            "state": "UNAVAILABLE",
+            "status": getattr(exc, "code", None),
+            "url": url,
+            "error": f"HTTP {getattr(exc, 'code', 'unknown')}",
+        }
+    except (URLError, OSError) as exc:
+        return {"state": "UNAVAILABLE", "status": None, "url": url, "error": str(exc)}
+
+
+def _platform_projection() -> dict[str, Any]:
+    return {
+        "source": {
+            "github_organization": PLATFORM_ORGANIZATION_GITHUB,
+            "github_repo": PLATFORM_ORGANIZATION_GITHUB_REPO,
+            "github_default_branch": None,
+            "github_default_branch_revision": None,
+            "github_observation_state": "UNAVAILABLE",
+        },
+        "runtime": {
+            "state": "UNAVAILABLE",
+            "artifact_digest": None,
+            "equivalence_state": "UNAVAILABLE",
+            "equivalence_reason": "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+        },
+        "huggingface": {
+            "organization": PLATFORM_ORGANIZATION_HUGGINGFACE,
+            "canonical_space": PLATFORM_CANONICAL_SPACE,
+            "revision": None,
+            "state": "UNAVAILABLE",
+            "observation_state": "UNAVAILABLE",
+            "canonical_scope": "PUBLIC_ONLY",
+        },
+        "web": {
+            "domains": [
+                {"domain": domain, "state": "UNAVAILABLE", "status": None, "url": f"https://{domain}", "detail": {}}
+                for domain in PLATFORM_DOMAINS
+            ],
+            "state": "UNAVAILABLE",
+        },
+    }
+
+
+def _augment_with_live_probes(
+    manifest: Mapping[str, Any],
+    source_revision: str | None,
+    probe_seed: str | None,
+) -> dict[str, Any]:
+    projection = _platform_projection()
+    if not _live_probes_enabled():
+        return projection
+    if manifest:
+        projection["source"]["github_organization"] = str(
+            manifest.get("organization") or PLATFORM_ORGANIZATION_GITHUB
+        )
+        projection["source"]["github_repo"] = str(
+            manifest.get("github_repo") or PLATFORM_ORGANIZATION_GITHUB_REPO
+        )
+        projection["huggingface"]["organization"] = str(
+            manifest.get("huggingface_organization") or PLATFORM_ORGANIZATION_HUGGINGFACE
+        )
+    cache_key = (
+        f"platform:{probe_seed or 'no-manifest'}"
+        f":{projection['source']['github_organization']}"
+        f":{projection['source']['github_repo']}"
+        f":{projection['huggingface']['organization']}"
+    )
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return {
+            "source": _safe_mapping(cached.get("source")),
+            "runtime": _safe_mapping(cached.get("runtime")),
+            "huggingface": _safe_mapping(cached.get("huggingface")),
+            "web": _safe_mapping(cached.get("web")),
+        }
+
+    github_org = projection["source"]["github_organization"]
+    github_repo = projection["source"]["github_repo"]
+    github_payload = _http_get_json(
+        f"https://api.github.com/repos/{quote_plus(github_org)}/{quote_plus(github_repo)}"
+    )
+    branch = "main"
+    if github_payload.get("state") == "OBSERVED":
+        detail = _safe_mapping(github_payload.get("detail"))
+        branch = str(detail.get("default_branch") or "main")
+        projection["source"]["github_default_branch"] = branch
+        branch_payload = _http_get_json(
+            f"https://api.github.com/repos/{quote_plus(github_org)}/{quote_plus(github_repo)}/branches/{quote_plus(branch)}"
+        )
+        if branch_payload.get("state") == "OBSERVED":
+            branch_detail = _safe_mapping(branch_payload.get("detail"))
+            branch_commit = _safe_mapping(branch_detail.get("commit"))
+            revision = str(branch_commit.get("sha") or "")
+            if revision:
+                projection["source"]["github_default_branch_revision"] = revision
+                projection["source"]["github_observation_state"] = "OBSERVED"
+        else:
+            projection["source"]["github_observation_state"] = (
+                branch_payload.get("state") or "UNAVAILABLE"
+            )
+    else:
+        projection["source"]["github_observation_state"] = github_payload.get(
+            "state", "UNAVAILABLE"
+        )
+
+    hf_org = projection["huggingface"]["organization"]
+    hf_payload = _http_get_json(
+        f"https://huggingface.co/api/spaces/{quote_plus(hf_org)}/a11oy"
+    )
+    if hf_payload.get("state") == "OBSERVED":
+        detail = _safe_mapping(hf_payload.get("detail"))
+        hf_revision = (
+            detail.get("sha")
+            or detail.get("revision")
+            or detail.get("lastModified")
+            or detail.get("id")
+        )
+        if hf_revision:
+            projection["huggingface"]["revision"] = str(hf_revision)
+            projection["huggingface"]["state"] = "OBSERVED"
+            projection["huggingface"]["observation_state"] = "OBSERVED"
+        else:
+            projection["huggingface"]["state"] = "PARTIAL"
+            projection["huggingface"]["observation_state"] = "PARTIAL"
+    else:
+        projection["huggingface"]["state"] = hf_payload.get("state", "UNAVAILABLE")
+        projection["huggingface"]["observation_state"] = (
+            hf_payload.get("state", "UNAVAILABLE")
+        )
+
+    projection["runtime"]["artifact_digest"] = source_revision
+    projection["runtime"]["state"] = (
+        "OBSERVED" if projection["runtime"]["artifact_digest"] else "UNAVAILABLE"
+    )
+    if (
+        projection["source"]["github_observation_state"] == "OBSERVED"
+        and projection["huggingface"]["state"] == "OBSERVED"
+    ):
+        projection["runtime"]["equivalence_state"] = "OBSERVED"
+        projection["runtime"]["equivalence_reason"] = "SOURCE_RUNTIME_BINDING_ESTABLISHED"
+    else:
+        projection["runtime"]["equivalence_state"] = "UNAVAILABLE"
+        projection["runtime"]["equivalence_reason"] = "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT"
+
+    domain_states = []
+    for domain in PLATFORM_DOMAINS:
+        value = _http_get_json(f"https://{domain}/healthz")
+        if value.get("state") == "OBSERVED":
+            state = "OBSERVED"
+            status = int(value.get("status", 0))
+        else:
+            if value.get("status") is not None:
+                status = int(value["status"])
+                state = "PARTIAL" if 200 <= status < 500 else "UNAVAILABLE"
+            else:
+                status = None
+                state = "UNAVAILABLE"
+        domain_states.append(
+            {
+                "domain": domain,
+                "state": state,
+                "status": status,
+                "url": f"https://{domain}",
+                "detail": _safe_mapping(value.get("detail")),
+            }
+        )
+    projection["web"]["domains"] = domain_states
+    projection["web"]["state"] = (
+        "OBSERVED"
+        if any(item.get("state") == "OBSERVED" for item in domain_states)
+        else "UNAVAILABLE"
+    )
+    cached_projection = _cache_set(cache_key, projection)
+    return {
+        "source": _safe_mapping(cached_projection.get("source")),
+        "runtime": _safe_mapping(cached_projection.get("runtime")),
+        "huggingface": _safe_mapping(cached_projection.get("huggingface")),
+        "web": _safe_mapping(cached_projection.get("web")),
+    }
+
+
+def _platform_identity_state(projection: Mapping[str, Any], state: str) -> str:
+    if state != "OBSERVED":
+        return "UNAVAILABLE"
+    return (
+        "HELD" if projection.get("runtime", {}).get("equivalence_state") != "OBSERVED" else "READY"
+    )
+
 def _capability_state(raw: Any, observation_state: str) -> str:
     value = str(raw or "UNAVAILABLE")
     if observation_state == "STALE" and value in {"OBSERVED", "PARTIAL"}:
@@ -177,8 +435,11 @@ def _capability_state(raw: Any, observation_state: str) -> str:
 
 
 def _capabilities(
-    manifest: Mapping[str, Any], observation_state: str
+    manifest: Mapping[str, Any], observation_state: str, projection: Mapping[str, Any] | None = None
 ) -> list[dict[str, Any]]:
+    if projection is None:
+        projection = _platform_projection()
+
     github = _safe_mapping(manifest.get("github"))
     github_value = _safe_mapping(github.get("value"))
     github_detail = _safe_mapping(github.get("detail"))
@@ -250,16 +511,28 @@ def _capabilities(
             {
                 "provider": "runtime",
                 "capability": "source_to_hf_overlay_binding",
-                "state": "UNAVAILABLE",
+                "state": _capability_state(
+                    projection.get("runtime", {}).get("equivalence_state"),
+                    observation_state,
+                ),
                 "count": None,
-                "scope": "NOT_OBSERVED_BY_ESTATE_MANIFEST",
+                "scope": "PUBLIC_OR_PUBLIC_AUDIT",
+            },
+            {
+                "provider": "runtime",
+                "capability": "runtime_artifact_digest",
+                "state": "OBSERVED"
+                if projection.get("runtime", {}).get("state") == "OBSERVED"
+                else "UNAVAILABLE",
+                "count": None,
+                "scope": "PUBLIC_OR_PUBLIC_AUDIT",
             },
             {
                 "provider": "web",
                 "capability": "domain_build_identity",
-                "state": "UNAVAILABLE",
+                "state": projection.get("web", {}).get("state", "UNAVAILABLE"),
                 "count": None,
-                "scope": "NOT_OBSERVED_BY_ESTATE_MANIFEST",
+                "scope": "PUBLIC_ONLY",
             },
         ]
     )
@@ -290,6 +563,20 @@ def build_summary(app: FastAPI) -> dict[str, Any]:
         critical_failures = []
     enforcement = "OBSERVE_ONLY" if state == "OBSERVED" and not critical_failures else "FAILED_CLOSED"
     source_revision = status.get("source_revision") or manifest.get("source_revision")
+    platform_projection = _augment_with_live_probes(
+        manifest, source_revision, digest
+    )
+    identity_state = _platform_identity_state(platform_projection, state)
+    claim_state = "READY" if identity_state == "READY" else "FAILED_CLOSED"
+    claim_reason = (
+        "EXACT_SOURCE_RUNTIME_BINDING_ESTABLISHED"
+        if claim_state == "READY"
+        else "EXACT_SOURCE_RUNTIME_BINDING_UNAVAILABLE"
+    )
+    identity_public_reason = platform_projection.get("runtime", {}).get(
+        "equivalence_reason",
+        "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+    )
 
     raw_counts = _safe_mapping(status.get("counts"))
     current_counts = (
@@ -324,22 +611,39 @@ def build_summary(app: FastAPI) -> dict[str, Any]:
         },
         "identity": {
             "runtime_reported_source_revision": source_revision,
-            "github_default_branch_revision": None,
-            "huggingface_repository_revision": None,
-            "runtime_artifact_digest": None,
-            "equivalence_state": "UNAVAILABLE",
-            "reason": "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+            "github_default_branch_revision": platform_projection["source"].get(
+                "github_default_branch_revision"
+            ),
+            "github_default_branch": platform_projection["source"].get(
+                "github_default_branch"
+            ),
+            "github_organization": platform_projection["source"].get(
+                "github_organization"
+            ),
+            "github_repo": platform_projection["source"].get("github_repo"),
+            "huggingface_repository_revision": platform_projection["huggingface"].get(
+                "revision"
+            ),
+            "huggingface_organization": platform_projection["huggingface"].get(
+                "organization"
+            ),
+            "runtime_artifact_digest": platform_projection["runtime"].get(
+                "artifact_digest"
+            ),
+            "equivalence_state": platform_projection["runtime"].get("equivalence_state"),
+            "reason": identity_public_reason,
+            "platform": platform_projection,
         },
         "counts": current_counts,
         "last_known_counts": {
             "state": state,
             "values": raw_counts,
         },
-        "coverage": _capabilities(manifest, state),
+        "coverage": _capabilities(manifest, state, platform_projection),
         "claim_gate": {
-            "state": "FAILED_CLOSED",
-            "public_claim_status": "HELD",
-            "reason": "EXACT_SOURCE_RUNTIME_BINDING_UNAVAILABLE",
+            "state": claim_state,
+            "public_claim_status": "READY" if claim_state == "READY" else "HELD",
+            "reason": claim_reason,
         },
         "frontiers": [
             {
@@ -385,12 +689,16 @@ def build_inventory(app: FastAPI) -> dict[str, Any]:
         _service(app), include_receipts=False
     )
     state = str(status.get("state") or "UNAVAILABLE")
+    source_revision = status.get("source_revision") or manifest.get("source_revision")
+    platform_projection = _augment_with_live_probes(
+        manifest, source_revision, digest
+    )
     return {
         "manifest_digest": digest,
         "observation_state": state,
         "observed_at": status.get("observed_at"),
         "valid_until": status.get("valid_until"),
-        "items": _capabilities(manifest, state),
+        "items": _capabilities(manifest, state, platform_projection),
     }
 
 

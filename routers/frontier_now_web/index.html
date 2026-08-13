@@ -37,7 +37,10 @@
     <dl class="identity-card" aria-label="Build and observation identity">
       <div><dt>Estate observation</dt><dd><span class="status" id="estate-state" data-state="PENDING">PENDING</span></dd></div>
       <div><dt>Runtime source</dt><dd id="runtime-revision">NOT OBSERVED</dd></div>
-      <div><dt>HF overlay</dt><dd><span class="status" data-state="UNAVAILABLE">UNAVAILABLE</span></dd></div>
+      <div><dt>Platform source</dt><dd id="platform-source">NOT OBSERVED</dd></div>
+      <div><dt>GitHub branch</dt><dd id="github-branch-revision">NOT OBSERVED</dd></div>
+      <div><dt>HF overlay revision</dt><dd id="hf-revision">NOT OBSERVED</dd></div>
+      <div><dt>Runtime artifact</dt><dd id="runtime-artifact">NOT OBSERVED</dd></div>
       <div><dt>Claim gate</dt><dd><span class="status" id="claim-state" data-state="FAILED_CLOSED">FAILED_CLOSED</span></dd></div>
       <div><dt>Observed at</dt><dd id="observed-at">NOT OBSERVED</dd></div>
     </dl>
@@ -119,12 +122,13 @@
         <div class="proof-graph">
           <div class="graph-node unavailable" id="runtime-source-node"><span>Runtime-reported source</span><strong id="graph-source">NOT OBSERVED</strong></div>
           <div class="edge unknown"><span>binding unavailable</span></div>
-          <div class="graph-node unavailable"><span>HF repository overlay</span><strong>UNAVAILABLE</strong></div>
+          <div class="graph-node unavailable"><span>HF repository overlay</span><strong id="graph-hf-overlay">UNAVAILABLE</strong></div>
           <div class="edge unknown"><span>artifact unavailable</span></div>
-          <div class="graph-node unavailable"><span>Domain build identity</span><strong>UNAVAILABLE</strong></div>
+          <div class="graph-node unavailable"><span>Domain build identity</span><strong id="graph-domain-build">UNAVAILABLE</strong></div>
           <div class="edge blocked"><span>claim gate</span></div>
           <div class="graph-node blocked"><span>Public claim</span><strong>HELD</strong></div>
         </div>
+        <ul id="web-domains" class="budget-list" aria-label="Domain build identity state"></ul>
         <p class="boundary-note" id="identity-reason">Waiting for identity evidence.</p>
       </section>
 

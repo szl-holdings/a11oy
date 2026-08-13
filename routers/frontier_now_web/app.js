@@ -179,6 +179,58 @@
     });
   };
 
+  const setGraphState = (id, value) => {
+    const node = byId(id);
+    if (!node) return;
+    const normalized = state(value);
+    node.classList.remove("observed", "reported", "unavailable", "blocked");
+    switch (normalized) {
+      case "OBSERVED":
+        node.classList.add("observed");
+        break;
+      case "BLOCKED":
+      case "FAILED_CLOSED":
+        node.classList.add("blocked");
+        break;
+      case "MODELED":
+      case "STALE":
+      case "PENDING":
+        node.classList.add("reported");
+        break;
+      default:
+        node.classList.add("unavailable");
+    }
+  };
+
+  const renderDomainList = (platformWeb) => {
+    const list = byId("web-domains");
+    if (!list) return;
+    list.replaceChildren();
+    const domains = Array.isArray(platformWeb?.domains) ? platformWeb.domains : [];
+    if (!domains.length) {
+      const row = document.createElement("div");
+      const label = document.createElement("dt");
+      const value = document.createElement("dd");
+      label.textContent = "build domains";
+      value.textContent = "UNAVAILABLE";
+      row.append(label, value);
+      list.append(row);
+      return;
+    }
+    domains.forEach((item) => {
+      const row = document.createElement("div");
+      const domainNode = document.createElement("dt");
+      const value = document.createElement("dd");
+      domainNode.textContent = terminal(item.domain, "UNAVAILABLE");
+      const domainState = state(item.state);
+      const status = item.status === null || item.status === undefined ? "" : ` (${String(item.status)})`;
+      value.textContent = `${domainState}${status}`;
+      value.dataset.state = domainState;
+      row.append(domainNode, value);
+      list.append(row);
+    });
+  };
+
   const renderProof = (items, proofState = "UNAVAILABLE") => {
     const list = byId("proof-rail");
     list.replaceChildren();
@@ -249,8 +301,27 @@
       const revision = summary.identity?.runtime_reported_source_revision;
       setText("runtime-revision", revision, "NOT OBSERVED");
       setText("graph-source", shortHash(revision));
-      byId("runtime-source-node").classList.toggle("reported", Boolean(revision));
-      byId("runtime-source-node").classList.toggle("unavailable", !revision);
+      const platform = summary.identity?.platform || {};
+      const source = platform.source || {};
+      const huggingface = platform.huggingface || {};
+      const runtime = platform.runtime || {};
+      const web = platform.web || {};
+      setText(
+        "platform-source",
+        `${terminal(source.github_organization, "UNKNOWN")}/${terminal(source.github_repo, "UNKNOWN")}`
+      );
+      setText(
+        "github-branch-revision",
+        `${terminal(source.github_default_branch)}:${shortHash(source.github_default_branch_revision)}`
+      );
+      setText("hf-revision", shortHash(huggingface.revision));
+      setText("runtime-artifact", shortHash(runtime.artifact_digest));
+      setText("graph-hf-overlay", shortHash(huggingface.revision));
+      setState("graph-domain-build", web.state);
+      setGraphState("runtime-source-node", runtime.state);
+      setGraphState("graph-hf-overlay", huggingface.state);
+      setGraphState("graph-domain-build", web.state);
+      renderDomainList(web);
       setText("identity-reason", terminal(summary.identity?.reason));
       renderCounts(summary.counts || {});
       renderCoverage(
@@ -276,6 +347,16 @@
       renderProof([], "UNAVAILABLE");
       setText("operating-mode", "OBSERVE_ONLY");
       setText("runtime-revision", "NOT OBSERVED");
+      setText("platform-source", "NOT OBSERVED");
+      setText("github-branch-revision", "NOT OBSERVED");
+      setText("hf-revision", "NOT OBSERVED");
+      setText("runtime-artifact", "NOT OBSERVED");
+      setText("graph-hf-overlay", "UNAVAILABLE");
+      setState("graph-domain-build", "UNAVAILABLE");
+      setGraphState("runtime-source-node", "UNAVAILABLE");
+      setGraphState("graph-hf-overlay", "UNAVAILABLE");
+      setGraphState("graph-domain-build", "UNAVAILABLE");
+      renderDomainList({});
       setText("graph-source", "NOT OBSERVED");
       byId("runtime-source-node").classList.remove("reported");
       byId("runtime-source-node").classList.add("unavailable");

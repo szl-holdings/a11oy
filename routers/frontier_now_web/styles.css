@@ -356,7 +356,7 @@ td:last-child { color: var(--muted); font-size: .72rem; }
 
 .split-panel { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); gap: 2.5rem; }
 .split-panel p:not(.eyebrow) { max-width: 68ch; color: var(--muted); }
-.budget-list { margin: 0; }
+.budget-list { margin: 0; list-style: none; padding: 0; }
 .budget-list div { display: grid; grid-template-columns: 1fr auto; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
 .budget-list dt { color: var(--muted); }
 .budget-list dd { margin: 0; font: 700 .72rem var(--mono); }
