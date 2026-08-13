@@ -21,7 +21,7 @@ def test_frontier_adoption_exposes_truth_without_authority() -> None:
     assert payload["registry"]["github_estate_strategy"]["inventory_complete"] is False
     assert payload["registry"]["github_estate_strategy"]["source_reported_repository_count"] == 54
     registry = payload["registry"]
-    assert registry["brain_model_truth"]["raw_nodes_observed"] == 9464
+    assert registry["brain_model_truth"]["raw_nodes_observed"] == 9465
     assert registry["brain_model_truth"]["raw_nodes_admitted_to_gradients"] == 0
     assert len(registry["candidates"]) == 11
 
@@ -335,3 +335,4 @@ def test_malformed_or_mutated_registry_fails_closed(monkeypatch, tmp_path: Path)
     monkeypatch.setattr(intel, "_FRONTIER_REGISTRY", overclaimed)
     assert intel.get_frontier_adoption()["state"] == "UNAVAILABLE"
     assert intel.get_szl_estate()["state"] == "UNAVAILABLE"
+

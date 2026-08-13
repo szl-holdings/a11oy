@@ -28,7 +28,7 @@ from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 
-EXPECTED_LEDGER_ROWS = 9_464
+EXPECTED_LEDGER_ROWS = 9_465
 LEDGER_SCHEMA = "szl.m1-brain-ingest-decision/v1"
 INDEX_SCHEMA = "szl.brain-row-evidence-index.v1"
 EVIDENCE_ROW_SCHEMA = "szl.brain-row-evidence.v1"

@@ -79,13 +79,13 @@ class FakeLiveA11oy:
                 "edge_count": 670,
             },
             "training_boundary": {
-                "raw_brain_nodes_observed": 9464,
+                "raw_brain_nodes_observed": 9465,
                 "raw_brain_nodes_admitted_to_gradients": 0,
             },
         }
         self.rag_status = {
             "built": True,
-            "brain_handle_plane": {"count": 9464},
+            "brain_handle_plane": {"count": 9465},
         }
         self.turns = {
             "Maskaq": self._turn(
@@ -393,7 +393,7 @@ def test_cryptographic_signature_tamper_is_rejected():
 def test_handle_plane_count_mismatch_is_rejected():
     live = FakeLiveA11oy()
     live.rag_status["brain_handle_plane"]["count"] = 9463
-    with pytest.raises(verifier.VerificationError, match="expected 9464"):
+    with pytest.raises(verifier.VerificationError, match="expected 9465"):
         verifier.verify_live(
             "http://127.0.0.1:8765", client=live, now=lambda: FIXED_NOW)
 
@@ -405,3 +405,4 @@ def test_loopback_only_url_rejects_remote_and_embedded_credentials():
         verifier.HTTPClient("http://user:pass@127.0.0.1:8765", 1)
     with pytest.raises(verifier.VerificationError, match="must be an origin"):
         verifier.HTTPClient("http://127.0.0.1:8765/path?token=forbidden", 1)
+

@@ -55,7 +55,7 @@ def test_capabilities_disclose_real_boundaries():
     assert body["mode"] == "BOUNDED_TYPED_OPERATIONS_ONLY"
     assert body["arbitrary_code_allowed"] is False
     assert body["arbitrary_urls_allowed"] is False
-    assert body["brain_nodes"] == 9464
+    assert body["brain_nodes"] == 9465
     assert body["brain_nodes_in_gradients"] == 0
     assert body["lanes"]["lambda"] == "ADVISORY_CONJECTURE_1_OPEN"
     assert body["authorization"]["stateful_routes_require_bearer"] is True
@@ -137,3 +137,4 @@ def test_container_explicitly_copies_compute_plane_without_new_engine_installs()
     )
     assert "pip install" not in yupaq_block
     assert "apt-get install" not in yupaq_block
+

@@ -16,6 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 M1 = ROOT / "model_release" / "m1"
 
 
+def _expected_graph_counts() -> tuple[int, int]:
+    graph = get_brain_graph(refresh=True)
+    return int(graph["node_count"]), int(graph["distinct_artifacts"])
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -50,33 +55,39 @@ def _ledger_summary() -> dict[str, object]:
 
 
 def test_m1_ledger_exactly_covers_the_current_brain():
+    expected_raw_nodes, expected_distinct = _expected_graph_counts()
     graph = get_brain_graph(refresh=True)
     summary = _ledger_summary()
     current_ids = {str(node.get("id") or "") for node in graph["nodes"]}
-    assert graph["node_count"] == summary["rows"] == 9464
-    assert graph["distinct_artifacts"] == summary["distinct"] == 4229
+    assert graph["node_count"] == expected_raw_nodes == summary["rows"]
+    assert graph["distinct_artifacts"] == expected_distinct == summary["distinct"]
     assert graph["person_node_count"] == 5235
     assert current_ids == summary["node_ids"]
 
 
 def test_every_raw_brain_row_is_training_quarantined():
+    expected_raw_nodes, _ = _expected_graph_counts()
     summary = _ledger_summary()
     assert summary["eligible"] == 0
-    assert summary["decisions"] == {"QUARANTINE": 9464}
+    assert summary["decisions"] == {"QUARANTINE": expected_raw_nodes}
 
 
 def test_m1_manifests_bind_the_exact_reconciled_artifacts():
+    expected_raw_nodes, expected_distinct = _expected_graph_counts()
     corpus = json.loads((M1 / "corpus-ingestion-manifest.json").read_text(encoding="utf-8"))
     candidate = json.loads((M1 / "candidate-manifest.json").read_text(encoding="utf-8"))
     operational = json.loads((M1 / "operational-manifest.json").read_text(encoding="utf-8"))
     brain = M1 / "brain-ingest-ledger.jsonl"
     corpus_path = M1 / "corpus-ingestion-manifest.json"
 
-    assert corpus["coverage"]["raw_nodes_training_quarantined"] == 9464
+    assert corpus["coverage"]["raw_nodes_training_quarantined"] == expected_raw_nodes
     assert corpus["coverage"]["training_eligible_nodes"] == 0
     assert corpus["ledgers"]["brain_nodes"]["sha256"] == _sha256(brain)
     assert candidate["full_corpus_proposal"]["manifest_sha256"] == _sha256(corpus_path)
-    assert candidate["full_corpus_proposal"]["brain_raw_nodes"] == 9464
+    assert candidate["full_corpus_proposal"]["brain_raw_nodes"] == expected_raw_nodes
+    assert candidate["full_corpus_proposal"]["brain_distinct_artifacts"] == expected_distinct
+    assert operational["corpus_policy"]["expected_raw_nodes"] == expected_raw_nodes
+    assert operational["corpus_policy"]["expected_distinct_artifacts"] == expected_distinct
     assert operational["corpus_policy"]["require_raw_brain_training_quarantine"] is True
     assert operational["evidence"]["brain_ingest_ledger"]["sha256"] == _sha256(brain)
     assert operational["evidence"]["corpus_ingestion_manifest"]["sha256"] == _sha256(corpus_path)

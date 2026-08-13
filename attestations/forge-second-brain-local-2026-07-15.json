@@ -1,0 +1,30 @@
+{
+  "schema": "szl.forge.second-brain-verification-summary.v1",
+  "captured_at": "2026-07-15T12:01:00Z",
+  "all_checks_passed": true,
+  "claims_boundary": {
+    "artifact_identity_bound": false,
+    "model_promoted": false,
+    "training_triggered": false
+  },
+  "turns": {
+    "ask_1": {
+      "persona": "Maskaq",
+      "dsse_verified": true,
+      "answer_sha256": "941a87c5acd5f7277542ea173d9c7e87fbbb62f46ba2c740268f8018bf05ad80",
+      "model_binding_sha256": "22ddde25596284b55842f7998dbf867fca872586520856543d3d42ceba2f7f48",
+      "receipt_payload_sha256": "b796b613af3d875bcf7230bd0c8a2f32b91c53ae7ebb8473966d52b9b350b1bb"
+    },
+    "ask_2": {
+      "persona": "Yupaq",
+      "dsse_verified": true,
+      "answer_sha256": "dab33706d5cbcd84c2f15ad823a2a6c045945fe459426358bcab1907971d6a30",
+      "model_binding_sha256": "f88afaa4b7bb52997b5e478a8fb813e0da6e182681f58a362c9571f4a108bbb6",
+      "receipt_payload_sha256": "19dddfcb9886e8d019bc9f600f1be6ebf07d1556d306938148d3625e3826522b"
+    }
+  },
+  "summary": {
+    "result": "local measurement replayed for auditability only",
+    "grounding": "REUSE_LOCAL_MANIFEST_ONLY"
+  }
+}

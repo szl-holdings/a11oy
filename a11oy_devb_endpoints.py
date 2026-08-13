@@ -3,10 +3,10 @@
 # ORCID: 0009-0001-0110-4173
 """
 a11oy DEV B endpoints — LEGAL/COUNSEL + ENTERPRISE live feeds + governed loop
-+ signed receipts + UDS 4/4 quorum.  ADDITIVE module. Mounts under
++ typed receipts + UDS 4/4 quorum.  ADDITIVE module. Mounts under
 /api/a11oy/v1/devb/* BEFORE the SPA catch-all (front-move route pattern).
 
-Verticals (each tab UNIQUE, real LIVE data, governed loop + signed receipt):
+Verticals (each tab UNIQUE, real LIVE data, governed loop + typed receipt):
   LEGAL/COUNSEL
     - matter      : live CourtListener dockets/opinions + obligation timeline
     - regulatory  : live Federal Register documents + agencies (compliance exposure)
@@ -16,7 +16,7 @@ Verticals (each tab UNIQUE, real LIVE data, governed loop + signed receipt):
   ENTERPRISE
     - exec        : unified org KPI rollup (Boss-Tech 5-domain coverage->impact)
     - incident    : live status/incident feeds (public statuspage JSON + GitHub events)
-    - forecast    : governed scenario forecast across the company (signed receipt)
+    - forecast    : governed scenario forecast across the company (typed receipt)
   SHARED
     - uds/quorum  : UDS 4/4 quorum derived LIVE from capabilities mesh node health
 
@@ -27,22 +27,25 @@ OAuth button; this module NEVER fabricates premium data.
 
 DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}@kernel c7c0ba17; Λ=Conjecture 1 (advisory floor 0.90);
 SLSA L1 honest; no fabricated data — synthetic enrichment is SIMULATED-labeled; 0 CDN.
-Reuses a11oy_vertical_feeds.governed_turn + _ledger + _cached_fetch (signed receipts,
+Reuses a11oy_vertical_feeds.governed_turn + _ledger + _cached_fetch (typed receipts,
 DSSE, gateway route) so the governance machinery is identical, never re-implemented.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import math
 import os
 import re
+import threading
 import time
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Annotated, Any, Callable, Optional
 
+import anyio
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 # Reuse the EXISTING governed machinery + cache from the Dev2 vertical feeds.
@@ -60,17 +63,305 @@ DOCTRINE = {
     "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
     "locked_kernel": "c7c0ba17",
     "lambda": "Conjecture 1 (advisory floor 0.90; conditional axiom-free proven)",
-    "slsa": "L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap",
+    "slsa": "L1 only; this runtime surface makes no SLSA L2 or L3 claim",
     "lambda_floor": 0.90,
 }
+
+
+def _source_http_timeout_s() -> float:
+    if _HAS_VF and hasattr(_vf, "_source_http_timeout_s"):
+        return _vf._source_http_timeout_s()
+    raw = os.environ.get("A11OY_SOURCE_HTTP_TIMEOUT_S", "4")
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = 4.0
+    if not math.isfinite(value):
+        value = 4.0
+    return max(0.25, min(15.0, value))
+
+
+def _source_url_allowed(url: str) -> bool:
+    if _HAS_VF and hasattr(_vf, "_source_url_allowed"):
+        return _vf._source_url_allowed(url)
+    try:
+        parsed = httpx.URL(url)
+    except Exception:
+        return False
+    host = (parsed.host or "").lower().strip("[]")
+    return parsed.scheme == "https" or (
+        parsed.scheme == "http" and host in {"127.0.0.1", "localhost", "::1"}
+    )
+
+
+def _variant_cache_key(source: str, **parameters: Any) -> str:
+    if _HAS_VF and hasattr(_vf, "_variant_cache_key"):
+        return _vf._variant_cache_key(source, **parameters)
+    canonical = json.dumps(parameters, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True, default=str).encode("utf-8")
+    return f"{source}|{hashlib.sha256(canonical).hexdigest()[:20]}"
+
+
+def _bounded_limit(value: Any, default: int, maximum: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        parsed = default
+    return max(1, min(maximum, parsed))
+
+
+def _bounded_text(value: Any, default: str, maximum: int) -> str:
+    text = str(value if value is not None else default).strip()
+    return (text or default)[:maximum]
+
+
+def _client(headers: Optional[dict[str, str]] = None) -> httpx.Client:
+    # Keep redirect handling fail-closed: accepted HTTPS sources cannot be
+    # silently followed to an external plaintext target.
+    return httpx.Client(
+        timeout=_source_http_timeout_s(), headers=headers or UA,
+        follow_redirects=False,
+    )
+
+
+def _bounded_float(value: Any, default: float, minimum: float,
+                   maximum: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        parsed = default
+    if not math.isfinite(parsed):
+        parsed = default
+    return max(minimum, min(maximum, parsed))
+
+
+class _GovernValidationError(ValueError):
+    def __init__(self, field: str, message: str) -> None:
+        super().__init__(message)
+        self.field = field
+        self.message = message
+
+
+def _validate_govern_body(body: Any) -> dict[str, Any]:
+    if _vf is not None and hasattr(_vf, "_validate_govern_body"):
+        try:
+            return _vf._validate_govern_body(body)
+        except Exception as error:
+            if hasattr(error, "field") and hasattr(error, "message"):
+                raise _GovernValidationError(error.field, error.message)
+            raise
+    if not isinstance(body, dict):
+        raise _GovernValidationError("body", "request body must be a JSON object")
+    text = body.get("text", "")
+    if not isinstance(text, str) or len(text) > 8000:
+        raise _GovernValidationError("text", "text must be a string of at most 8000 characters")
+    severity = body.get("severity", 0.0)
+    if isinstance(severity, bool) or not isinstance(severity, (int, float)):
+        raise _GovernValidationError("severity", "severity must be a finite number from 0 to 10")
+    severity = float(severity)
+    if not math.isfinite(severity) or not 0.0 <= severity <= 10.0:
+        raise _GovernValidationError("severity", "severity must be a finite number from 0 to 10")
+    context = body.get("context", {})
+    if not isinstance(context, dict):
+        raise _GovernValidationError("context", "context must be a bounded JSON object")
+    try:
+        encoded = json.dumps(context, allow_nan=False, separators=(",", ":"))
+    except (TypeError, ValueError):
+        raise _GovernValidationError("context", "context must contain finite JSON values")
+    if len(context) > 32 or len(encoded.encode("utf-8")) > 8192:
+        raise _GovernValidationError("context", "context must be a bounded JSON object")
+    classification = body.get("classification")
+    if classification is not None and (
+        not isinstance(classification, str)
+        or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,32}", classification)
+    ):
+        raise _GovernValidationError("classification", "classification is invalid")
+    action_kind = body.get("action_kind", "decision")
+    if not isinstance(action_kind, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", action_kind):
+        raise _GovernValidationError("action_kind", "action_kind is invalid")
+    return {"text": text, "severity": severity, "context": context,
+            "classification": classification, "action_kind": action_kind}
+
+
+def _govern_validation_response(error: _GovernValidationError) -> JSONResponse:
+    return JSONResponse({"detail": [{
+        "type": "value_error", "loc": ["body", error.field],
+        "msg": error.message,
+    }]}, status_code=422)
+
+
+class _GovernPayloadTooLarge(ValueError):
+    pass
+
+
+def _govern_authorise(authorization: Optional[str]):
+    if _HAS_VF and hasattr(_vf, "_govern_authorise"):
+        return _vf._govern_authorise(authorization)
+    return None, JSONResponse({
+        "state": "unavailable",
+        "error": "shared governance authorization is unavailable in standalone mode",
+    }, status_code=503)
+
+
+async def _read_govern_json(req: Request) -> Any:
+    if _HAS_VF and hasattr(_vf, "_read_govern_json"):
+        try:
+            return await _vf._read_govern_json(req)
+        except Exception as error:
+            if hasattr(_vf, "_GovernPayloadTooLarge") and isinstance(
+                error, _vf._GovernPayloadTooLarge
+            ):
+                raise _GovernPayloadTooLarge
+            if hasattr(error, "field") and hasattr(error, "message"):
+                raise _GovernValidationError(error.field, error.message)
+            raise
+    raise _GovernValidationError("body", "shared bounded governance reader is unavailable")
+
+
+def _canonical_govern_action(surface: str, requested: Any) -> str:
+    if _HAS_VF and hasattr(_vf, "_canonical_govern_action"):
+        try:
+            return _vf._canonical_govern_action(surface, requested)
+        except Exception as error:
+            if hasattr(error, "field") and hasattr(error, "message"):
+                raise _GovernValidationError(error.field, error.message)
+            raise
+    raise _GovernValidationError("action_kind", "shared governance action map is unavailable")
+
+
+def _govern_claim(principal):
+    if _HAS_VF and hasattr(_vf, "_govern_claim"):
+        return _vf._govern_claim(principal)
+    return None, 1
+
+
+def _govern_release(identity) -> None:
+    if _HAS_VF and hasattr(_vf, "_govern_release"):
+        _vf._govern_release(identity)
+
+
+def _govern_actor(principal) -> dict[str, str]:
+    if _HAS_VF and hasattr(_vf, "_govern_actor"):
+        return _vf._govern_actor(principal)
+    return {}
+
+
+class _RefreshFlight:
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.result: Optional[dict[str, Any]] = None
+        self.waiters = 0
+
+
+# Share the consolidated verticals' bounded worker budget when available.  The
+# local limiter keeps DEV-B operational in its documented standalone-degrade
+# mode without ever running synchronous upstream I/O on the ASGI event loop.
+_LOCAL_UPSTREAM_LIMITER = anyio.CapacityLimiter(8)
+
+
+async def _run_blocking(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    if _HAS_VF and hasattr(_vf, "_run_blocking"):
+        return await _vf._run_blocking(func, *args, **kwargs)
+    call = functools.partial(func, *args, **kwargs)
+    return await anyio.to_thread.run_sync(call, limiter=_LOCAL_UPSTREAM_LIMITER)
+
+
+async def _gather_blocking(
+    calls: list[tuple[Callable[..., Any], tuple[Any, ...], dict[str, Any]]],
+) -> list[Any]:
+    if _HAS_VF and hasattr(_vf, "_gather_blocking"):
+        return await _vf._gather_blocking(calls)
+    results: list[Any] = [None] * len(calls)
+
+    async def _one(index: int, func: Callable[..., Any], args: tuple[Any, ...],
+                   kwargs: dict[str, Any]) -> None:
+        results[index] = await _run_blocking(func, *args, **kwargs)
+
+    async with anyio.create_task_group() as task_group:
+        for index, (func, args, kwargs) in enumerate(calls):
+            task_group.start_soon(_one, index, func, args, kwargs)
+    return results
 
 # ---------------------------------------------------------------------------
 # Cached fetch: reuse Dev2's warm cache if available, else a small local one.
 # ---------------------------------------------------------------------------
 _LOCAL_CACHE: dict[str, dict] = {}
+_LOCAL_INFLIGHT: dict[str, _RefreshFlight] = {}
+_LOCAL_CACHE_LOCK = threading.Lock()
+try:
+    _LOCAL_CACHE_MAX_ENTRIES = max(16, min(2048, int(os.environ.get(
+        "A11OY_DEVB_CACHE_MAX_ENTRIES",
+        os.environ.get("A11OY_FEED_CACHE_MAX_ENTRIES", "256"),
+    ))))
+except (TypeError, ValueError, OverflowError):
+    _LOCAL_CACHE_MAX_ENTRIES = 256
+
+
+def _evict_local_cache_locked(protected_key: str) -> None:
+    while len(_LOCAL_CACHE) > _LOCAL_CACHE_MAX_ENTRIES:
+        candidates = [
+            key for key in _LOCAL_CACHE
+            if key != protected_key and key not in _LOCAL_INFLIGHT
+        ]
+        if not candidates:
+            candidates = [key for key in _LOCAL_CACHE if key != protected_key]
+        if not candidates:
+            candidates = list(_LOCAL_CACHE)
+        victim = min(
+            candidates,
+            key=lambda key: (float(_LOCAL_CACHE[key].get("fetched_at", 0.0)), key),
+        )
+        del _LOCAL_CACHE[victim]
+
+
+def _claim_local_refresh(key: str) -> tuple[_RefreshFlight, bool]:
+    with _LOCAL_CACHE_LOCK:
+        flight = _LOCAL_INFLIGHT.get(key)
+        if flight is not None:
+            flight.waiters += 1
+            return flight, False
+        flight = _RefreshFlight()
+        _LOCAL_INFLIGHT[key] = flight
+        return flight, True
+
+
+def _finish_local_refresh(key: str, flight: _RefreshFlight,
+                          result: dict[str, Any]) -> None:
+    with _LOCAL_CACHE_LOCK:
+        if _LOCAL_INFLIGHT.get(key) is flight:
+            flight.result = result
+            flight.event.set()
+            del _LOCAL_INFLIGHT[key]
+
+
+def _local_flight_wait_failure(rec: Optional[dict[str, Any]]) -> dict[str, Any]:
+    error = f"single-flight wait exceeded {_source_http_timeout_s():g}s source budget"
+    if rec:
+        return {"value": rec["value"], "freshness": {
+            "status": "stale",
+            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "error": error,
+        }}
+    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+
+
+def _local_refresh_failure(rec: Optional[dict[str, Any]],
+                           exc: BaseException) -> dict[str, Any]:
+    error = f"{type(exc).__name__}: {str(exc)[:160]}"
+    if rec:
+        return {"value": rec["value"], "freshness": {
+            "status": "stale",
+            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "error": error,
+        }}
+    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
 
 
 def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = None) -> dict[str, Any]:
+    if not _source_url_allowed(url):
+        return {"value": None, "freshness": {
+            "status": "unavailable", "error": "external feed URL requires HTTPS",
+        }}
     if _HAS_VF and hasattr(_vf, "_cached_fetch"):
         # Dev2's helper does not take custom headers; fall through to local for SEC/UA needs.
         if headers is None:
@@ -79,23 +370,58 @@ def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = 
             except Exception:
                 pass
     now = time.time()
-    rec = _LOCAL_CACHE.get(key)
+    with _LOCAL_CACHE_LOCK:
+        rec = _LOCAL_CACHE.get(key)
+        rec = dict(rec) if rec else None
     if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
         return {"value": rec["value"], "freshness": _fresh(rec)}
+
+    flight, is_leader = _claim_local_refresh(key)
+    if not is_leader:
+        if not flight.event.wait(_source_http_timeout_s() + 1.0):
+            return _local_flight_wait_failure(rec)
+        return flight.result if flight.result is not None else _local_flight_wait_failure(rec)
+
+    current_now = time.time()
+    with _LOCAL_CACHE_LOCK:
+        current = _LOCAL_CACHE.get(key)
+        current = dict(current) if current else None
+    if (current and current.get("status") == "live"
+            and (current_now - current["fetched_at"]) < current["ttl"]):
+        result = {"value": current["value"], "freshness": _fresh(current)}
+        _finish_local_refresh(key, flight, result)
+        return result
+
+    result: Optional[dict[str, Any]] = None
     try:
-        with httpx.Client(timeout=12.0, headers=(headers or UA), follow_redirects=True) as cl:
+        with _client(headers) as cl:
             r = cl.get(url)
             r.raise_for_status()
             data = r.json()
         value = parser(data) if parser else data
-        _LOCAL_CACHE[key] = {"value": value, "fetched_at": now, "ttl": ttl, "status": "live"}
-        return {"value": value, "freshness": {"status": "live", "age_s": 0}}
-    except Exception as e:
+        with _LOCAL_CACHE_LOCK:
+            _LOCAL_CACHE[key] = {"value": value, "fetched_at": time.time(),
+                                 "ttl": ttl, "status": "live"}
+            _evict_local_cache_locked(key)
+        result = {"value": value, "freshness": {"status": "live", "age_s": 0}}
+    except BaseException as exc:
         if rec:
-            rec["status"] = "stale"
-            return {"value": rec["value"], "freshness": {"status": "stale", "age_s": now - rec["fetched_at"],
-                                                          "error": str(e)[:120]}}
-        return {"value": None, "freshness": {"status": "unavailable", "error": str(e)[:160]}}
+            with _LOCAL_CACHE_LOCK:
+                current = _LOCAL_CACHE.get(key)
+                # Do not let a slower failed refresh relabel a newer successful
+                # refresh from another worker as stale.
+                if current and current.get("fetched_at") == rec.get("fetched_at"):
+                    current["status"] = "stale"
+        result = _local_refresh_failure(rec, exc)
+        if not isinstance(exc, Exception):
+            raise
+    finally:
+        if result is None:
+            result = _local_refresh_failure(
+                rec, RuntimeError("refresh aborted before publication")
+            )
+        _finish_local_refresh(key, flight, result)
+    return result
 
 
 def _fresh(rec: dict) -> dict:
@@ -125,14 +451,21 @@ def governed_turn(label: str, text: str, **kw) -> dict[str, Any]:
             passed["action_kind"] = kw["action_kind"]
         if isinstance(kw.get("context"), dict):
             passed["context"] = kw["context"]
+        if isinstance(kw.get("actor"), dict):
+            passed["actor"] = kw["actor"]
+        if "emit_receipt" in kw:
+            passed["emit_receipt"] = bool(kw["emit_receipt"])
         return _vf.governed_turn(label, text, **passed)
-    # honest fallback (sha256 chain) — never fabricates a signature
+    # Honest deterministic content digest only; not a chain or signature.
     body = json.dumps({"label": label, "text": text[:200], **kw}, sort_keys=True).encode()
     return {"vertical": label, "decision": "review", "lambda": 0.9, "lambda_floor": 0.9,
             "gates": [], "route": {"policy": "fallback"},
-            "receipt": {"digest": hashlib.sha256(body).hexdigest(), "chain_verified": True,
-                        "note": "vertical_feeds absent; sha256 fallback"},
-            "dsse": {"signed": False, "honesty": "machinery unavailable"},
+            "receipt": {"digest": hashlib.sha256(body).hexdigest(),
+                        "receipt_type": "DIGEST_ONLY", "signature_state": "UNSIGNED",
+                        "signed": False, "signature": None, "chain_verified": False,
+                        "note": "vertical_feeds absent; sha256 content digest only"},
+            "dsse": {"signed": False, "signature_state": "UNSIGNED",
+                     "honesty": "DIGEST_ONLY: no signature or chain proof"},
             "doctrine": DOCTRINE, "ts": datetime.now(timezone.utc).isoformat()}
 
 
@@ -150,7 +483,12 @@ _CL = "https://www.courtlistener.com/api/rest/v4/search/"
 
 def feed_courtlistener(term: str, limit: int = 20, kind: str = "o") -> dict[str, Any]:
     """Live CourtListener opinions/dockets. kind: o=opinions, r=RECAP dockets."""
-    url = f"{_CL}?q={httpx.QueryParams({'q': term})['q']}&type={kind}&order_by=dateFiled+desc"
+    term = _bounded_text(term, "insurance", 160)
+    limit = _bounded_limit(limit, 20, 100)
+    kind = kind if kind in {"o", "r"} else "o"
+    url = _CL + "?" + str(httpx.QueryParams({
+        "q": term, "type": kind, "order_by": "dateFiled desc", "page_size": limit,
+    }))
 
     def parse(d):
         res = (d.get("results") or [])[:limit]
@@ -168,14 +506,17 @@ def feed_courtlistener(term: str, limit: int = 20, kind: str = "o") -> dict[str,
             })
         return {"count": d.get("count"), "term": term, "items": items}
 
-    return _cached(f"cl:{kind}:{term}:{limit}", url, ttl=180, parser=parse)
+    return _cached(_variant_cache_key("cl", kind=kind, term=term, limit=limit),
+                   url, ttl=180, parser=parse)
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:
+    limit = _bounded_limit(limit, 20, 100)
+    term = _bounded_text(term, "", 160) or None
     base = ("https://www.federalregister.gov/api/v1/documents.json?per_page=" + str(limit)
             + "&order=newest")
     if term:
-        base += "&conditions%5Bterm%5D=" + httpx.QueryParams({"t": term})["t"]
+        base += "&" + str(httpx.QueryParams({"conditions[term]": term}))
 
     def parse(d):
         res = d.get("results", [])
@@ -188,24 +529,35 @@ def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]
         } for r in res]
         return {"count": d.get("count"), "items": items}
 
-    return _cached(f"fr:{limit}:{term}", base, ttl=240, parser=parse)
+    return _cached(_variant_cache_key("fr", limit=limit, term=term or ""),
+                   base, ttl=240, parser=parse)
 
 
 def feed_fr_agencies(limit: int = 14) -> dict[str, Any]:
     """Top Federal Register agencies by recent activity (compliance surface)."""
+    limit = _bounded_limit(limit, 14, 100)
     def parse(d):
         arr = d if isinstance(d, list) else d.get("results", [])
         out = []
         for a in arr:
             out.append({"name": a.get("name"), "slug": a.get("slug"),
                         "short": a.get("short_name"), "id": a.get("id")})
-        return {"count": len(out), "items": out[:limit]}
-    return _cached("fr-agencies", "https://www.federalregister.gov/api/v1/agencies", ttl=3600, parser=parse)
+        return {"count": len(out), "items": out}
+    observed = _cached("fr-agencies", "https://www.federalregister.gov/api/v1/agencies",
+                       ttl=3600, parser=parse)
+    if not isinstance(observed.get("value"), dict):
+        return observed
+    result = dict(observed)
+    value = dict(observed["value"])
+    value["items"] = list(value.get("items") or [])[:limit]
+    value["returned"] = len(value["items"])
+    result["value"] = value
+    return result
 
 
 def feed_sec(cik: str) -> dict[str, Any]:
     """SEC EDGAR submissions for a CIK (requires UA). Used for entity exposure."""
-    cik = cik.zfill(10)
+    cik = re.sub(r"\D", "", _bounded_text(cik, "0", 10)).zfill(10)
     url = f"https://data.sec.gov/submissions/CIK{cik}.json"
 
     def parse(d):
@@ -221,7 +573,8 @@ def feed_sec(cik: str) -> dict[str, Any]:
                 "addresses": (d.get("addresses", {}) or {}).get("business", {}),
                 "filings": filings}
 
-    return _cached(f"sec:{cik}", url, ttl=600, parser=parse, headers=SEC_UA)
+    return _cached(_variant_cache_key("sec", cik=cik), url, ttl=600,
+                   parser=parse, headers=SEC_UA)
 
 
 # A small panel of well-known public companies for the exposure graph (CIKs are public).
@@ -332,6 +685,8 @@ def feed_statuspages() -> dict[str, Any]:
 
 
 def feed_gh_events(repo: str, limit: int = 15) -> dict[str, Any]:
+    repo = _bounded_text(repo, "pytorch/pytorch", 160)
+    limit = _bounded_limit(limit, 15, 100)
     url = f"https://api.github.com/repos/{repo}/events?per_page={limit}"
 
     def parse(d):
@@ -343,7 +698,8 @@ def feed_gh_events(repo: str, limit: int = 15) -> dict[str, Any]:
                         "ref": ((e.get("payload") or {}).get("ref") or "")})
         return {"repo": repo, "events": out}
 
-    return _cached(f"ghe:{repo}", url, ttl=45, parser=parse)
+    return _cached(_variant_cache_key("ghe", repo=repo, limit=limit),
+                   url, ttl=45, parser=parse)
 
 
 def exec_kpis() -> dict[str, Any]:
@@ -387,8 +743,12 @@ def forecast(scenario: str, horizon_q: int = 4, base: float = 100.0,
              growth: float = 0.08, shock: float = 0.0) -> dict[str, Any]:
     """Governed scenario forecast across the company. DETERMINISTIC model
     (transparent compound-growth + optional shock), clearly labeled MODELED —
-    never presented as realised. Emits a signed receipt via governed_turn."""
-    horizon_q = max(1, min(12, int(horizon_q)))
+    never presented as realised. Emits a typed receipt via governed_turn."""
+    scenario = _bounded_text(scenario, "base", 80)
+    horizon_q = _bounded_limit(horizon_q, 4, 12)
+    base = _bounded_float(base, 100.0, 0.0, 1_000_000_000.0)
+    growth = _bounded_float(growth, 0.08, -1.0, 10.0)
+    shock = _bounded_float(shock, 0.0, -1.0, 10.0)
     pts = []
     v = base
     for q in range(1, horizon_q + 1):
@@ -402,7 +762,8 @@ def forecast(scenario: str, horizon_q: int = 4, base: float = 100.0,
                        f"Approve company forecast scenario '{scenario}' over {horizon_q} quarters "
                        f"(base {base}, growth {growth}, shock {shock}).",
                        severity=4.0, action_kind="forecast",
-                       context={"task": "enterprise", "scenario": scenario})
+                       context={"task": "enterprise", "scenario": scenario},
+                       emit_receipt=False)
     return {"scenario": scenario, "horizon_q": horizon_q,
             "assumptions": {"base": base, "growth": growth, "shock_q2": shock,
                             "model": "compound-growth + Q2 shock; bands widen with horizon"},
@@ -482,8 +843,12 @@ def uds_quorum() -> dict[str, Any]:
         bases += ["http://127.0.0.1:7860", "http://localhost:7860",
                   "https://szlholdings-a11oy.hf.space"]
         for b in bases:
+            b = _bounded_text(b, "", 2048).rstrip("/")
+            if not b or not _source_url_allowed(b):
+                last_err = "self-base URL requires HTTPS or local loopback"
+                continue
             try:
-                with httpx.Client(timeout=8.0, headers=UA, follow_redirects=True) as cl:
+                with _client() as cl:
                     rr = cl.get(b + "/api/a11oy/v1/capabilities/mesh")
                     rr.raise_for_status()
                     mesh = rr.json()
@@ -535,43 +900,71 @@ def register(app: FastAPI) -> dict[str, Any]:
 
     # ---- LEGAL ----
     @app.get(base + "/legal/matter", include_in_schema=False)
-    async def _legal_matter(term: str = "insurance", limit: int = 18):
-        op = feed_courtlistener(term, limit, kind="o")
+    async def _legal_matter(
+        term: Annotated[str, Query(min_length=1, max_length=160)] = "insurance",
+        limit: Annotated[int, Query(ge=1, le=100)] = 18,
+    ):
+        op = await _run_blocking(feed_courtlistener, term, limit, kind="o")
         return JSONResponse({"surface": "matter", "term": term, "opinions": op,
                              "doctrine": DOCTRINE})
 
     @app.get(base + "/legal/regulatory", include_in_schema=False)
-    async def _legal_reg(limit: int = 18, term: str | None = None):
-        fr = feed_fedregister(limit, term)
-        ag = feed_fr_agencies(14)
+    async def _legal_reg(
+        limit: Annotated[int, Query(ge=1, le=100)] = 18,
+        term: Annotated[str | None, Query(min_length=1, max_length=160)] = None,
+    ):
+        fr, ag = await _gather_blocking([
+            (feed_fedregister, (limit, term), {}),
+            (feed_fr_agencies, (14,), {}),
+        ])
         return JSONResponse({"surface": "regulatory", "federal_register": fr,
                              "agencies": ag, "doctrine": DOCTRINE})
 
     @app.get(base + "/legal/exposure", include_in_schema=False)
-    async def _legal_exposure(term: str = "securities", limit: int = 18):
-        return JSONResponse(exposure_graph(term, limit))
+    async def _legal_exposure(
+        term: Annotated[str, Query(min_length=1, max_length=160)] = "securities",
+        limit: Annotated[int, Query(ge=1, le=100)] = 18,
+    ):
+        return JSONResponse(await _run_blocking(exposure_graph, term, limit))
 
     # ---- ENTERPRISE ----
     @app.get(base + "/ent/exec", include_in_schema=False)
     async def _ent_exec():
-        return JSONResponse(exec_kpis())
+        return JSONResponse(await _run_blocking(exec_kpis))
 
     @app.get(base + "/ent/incident", include_in_schema=False)
-    async def _ent_incident(repo: str = "pytorch/pytorch"):
-        sp = feed_statuspages()
-        ghe = feed_gh_events(repo, 18)
+    async def _ent_incident(
+        repo: Annotated[str, Query(
+            min_length=3, max_length=160,
+            pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+        )] = "pytorch/pytorch",
+    ):
+        sp, ghe = await _gather_blocking([
+            (feed_statuspages, (), {}),
+            (feed_gh_events, (repo, 18), {}),
+        ])
         return JSONResponse({"surface": "incident", "statuspages": sp,
                              "gh_events": ghe, "doctrine": DOCTRINE})
 
     @app.get(base + "/ent/forecast", include_in_schema=False)
-    async def _ent_forecast(scenario: str = "base", horizon_q: int = 4,
-                            base_v: float = 100.0, growth: float = 0.08, shock: float = 0.0):
-        return JSONResponse(forecast(scenario, horizon_q, base_v, growth, shock))
+    async def _ent_forecast(
+        scenario: Annotated[str, Query(min_length=1, max_length=80)] = "base",
+        horizon_q: Annotated[int, Query(ge=1, le=12)] = 4,
+        base_v: Annotated[float, Query(ge=0.0, le=1000000000.0,
+                                      allow_inf_nan=False)] = 100.0,
+        growth: Annotated[float, Query(ge=-1.0, le=10.0,
+                                      allow_inf_nan=False)] = 0.08,
+        shock: Annotated[float, Query(ge=-1.0, le=10.0,
+                                     allow_inf_nan=False)] = 0.0,
+    ):
+        return JSONResponse(await _run_blocking(
+            forecast, scenario, horizon_q, base_v, growth, shock
+        ))
 
     # ---- UDS quorum ----
     @app.get(base + "/uds/quorum", include_in_schema=False)
     async def _uds_quorum():
-        return JSONResponse(uds_quorum())
+        return JSONResponse(await _run_blocking(uds_quorum))
 
     # ---- SHARED governed turn + ledger (devb namespaces) ----
     _DEVB_LABELS = ("leg-matter", "leg-defense", "leg-insurance", "leg-reg", "leg-exposure",
@@ -579,23 +972,50 @@ def register(app: FastAPI) -> dict[str, Any]:
 
     @app.post(base + "/{label}/govern", include_in_schema=False)
     async def _govern(label: str, req: Request):
+        if label not in _DEVB_LABELS:
+            return JSONResponse({"error": "unknown label"}, status_code=404)
+        principal, denial = _govern_authorise(req.headers.get("authorization"))
+        if denial is not None:
+            return denial
         try:
-            body = await req.json()
-        except Exception:
-            body = {}
+            body = await _read_govern_json(req)
+        except _GovernPayloadTooLarge:
+            return JSONResponse({
+                "detail": "governance request body exceeds the configured byte limit",
+            }, status_code=413)
+        except _GovernValidationError as error:
+            return _govern_validation_response(error)
+        try:
+            clean = _validate_govern_body(body)
+            action_kind = _canonical_govern_action("devb-" + label, clean["action_kind"])
+        except _GovernValidationError as error:
+            return _govern_validation_response(error)
         lab = "devb-" + label
-        result = governed_turn(
-            lab, str(body.get("text", "") or ""),
-            declared=body.get("classification"),
-            severity=float(body.get("severity", 0) or 0),
-            action_kind=str(body.get("action_kind", "decision")),
-            context=body.get("context") or {},
-        )
-        return JSONResponse(result)
+        identity, retry_after = _govern_claim(principal)
+        if identity is None:
+            return JSONResponse({
+                "state": "rate_limited",
+                "error": "a governance mutation is already active or this credential is inside its cooldown",
+                "retry_after_s": retry_after,
+            }, status_code=429, headers={"Retry-After": str(retry_after)})
+        try:
+            result = await _run_blocking(
+                governed_turn, lab, clean["text"],
+                declared=clean["classification"], severity=clean["severity"],
+                action_kind=action_kind, context=clean["context"],
+                actor=_govern_actor(principal),
+            )
+            return JSONResponse(result)
+        finally:
+            _govern_release(identity)
 
     @app.get(base + "/{label}/ledger", include_in_schema=False)
-    async def _ledger_ep(label: str, n: int = 25):
-        return JSONResponse(_ledger("devb-" + label, n))
+    async def _ledger_ep(
+        label: str, n: Annotated[int, Query(ge=1, le=1000)] = 25,
+    ):
+        if label not in _DEVB_LABELS:
+            return JSONResponse({"error": "unknown label"}, status_code=404)
+        return JSONResponse(await _run_blocking(_ledger, "devb-" + label, n))
 
     @app.get(base + "/healthz", include_in_schema=False)
     async def _hz():
