@@ -33,6 +33,7 @@ MONITORED_PATHS = frozenset(
 MOJIBAKE_LEADERS = ("\u00c2", "\u00c3", "\u00ce", "\u00cf", "\u00e2", "\u00f0", "\ufffd")
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_TOTAL_CHANGED_PATHS = 10_000
+GOVERNED_REPOSITORY_URL = "https://github.com/szl-holdings/a11oy.git"
 
 
 class AdmissionError(RuntimeError):
@@ -173,6 +174,8 @@ def verify_live_pr(
 
 
 def _run_git(root: Path, *args: str) -> str:
+    environment = os.environ.copy()
+    environment["GIT_TERMINAL_PROMPT"] = "0"
     completed = subprocess.run(
         ["git", "-C", str(root), *args],
         check=False,
@@ -180,6 +183,7 @@ def _run_git(root: Path, *args: str) -> str:
         stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
+        env=environment,
     )
     if completed.returncode:
         raise AdmissionError(
@@ -189,11 +193,14 @@ def _run_git(root: Path, *args: str) -> str:
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:
+    environment = os.environ.copy()
+    environment["GIT_TERMINAL_PROMPT"] = "0"
     completed = subprocess.run(
         ["git", "-C", str(root), *args],
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=environment,
     )
     if completed.returncode:
         raise AdmissionError(
@@ -211,9 +218,74 @@ def verify_checkout(root: Path, expected: str, label: str) -> None:
         raise AdmissionError(f"{label} checkout is dirty")
 
 
-def exact_delta(base_root: Path, candidate_root: Path) -> list[tuple[str, str]]:
+def prepare_candidate(
+    event: dict[str, object],
+    candidate_root: Path,
+    *,
+    repository_url: str = GOVERNED_REPOSITORY_URL,
+) -> None:
+    """Fetch exact governed refs into a bare repository without a checkout."""
+
+    if candidate_root.exists():
+        raise AdmissionError("candidate destination already exists")
+    candidate_root.mkdir(parents=True)
+    _run_git(candidate_root, "init", "--bare", "--quiet")
+    _run_git(candidate_root, "remote", "add", "origin", repository_url)
+    _run_git(
+        candidate_root,
+        "-c",
+        "protocol.version=2",
+        "-c",
+        "maintenance.auto=false",
+        "fetch",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "origin",
+        "refs/heads/main:refs/codex/protected-base",
+    )
+    observed_base = _run_git(
+        candidate_root, "rev-parse", "refs/codex/protected-base"
+    )
+    if observed_base != event["base_sha"]:
+        raise AdmissionError(
+            f"protected pull-ref base moved: {observed_base} != {event['base_sha']}"
+        )
+    pull_ref = f"refs/pull/{event['number']}/head"
+    _run_git(
+        candidate_root,
+        "-c",
+        "protocol.version=2",
+        "-c",
+        "maintenance.auto=false",
+        "fetch",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "origin",
+        f"{pull_ref}:refs/codex/candidate",
+    )
+    observed_head = _run_git(candidate_root, "rev-parse", "refs/codex/candidate")
+    if observed_head != event["head_sha"]:
+        raise AdmissionError(
+            f"protected pull ref moved: {observed_head} != {event['head_sha']}"
+        )
+
+
+def verify_candidate_repository(root: Path, expected: str) -> None:
+    if _run_git(root, "rev-parse", "--is-bare-repository") != "true":
+        raise AdmissionError("prepared candidate repository is not bare")
+    observed = _run_git(root, "rev-parse", "refs/codex/candidate")
+    if observed != expected:
+        raise AdmissionError(f"candidate repository mismatch: {observed} != {expected}")
+
+
+def exact_delta(
+    base_root: Path,
+    candidate_root: Path,
+    *,
+    candidate_revision: str = "HEAD",
+) -> list[tuple[str, str]]:
     base_sha = _run_git(base_root, "rev-parse", "HEAD")
-    head_sha = _run_git(candidate_root, "rev-parse", "HEAD")
+    head_sha = _run_git(candidate_root, "rev-parse", candidate_revision)
     _run_git(candidate_root, "merge-base", "--is-ancestor", base_sha, head_sha)
     output = _run_git_bytes(
         candidate_root,
@@ -254,9 +326,16 @@ def exact_delta(base_root: Path, candidate_root: Path) -> list[tuple[str, str]]:
 
 
 def classify_delta(
-    base_root: Path, candidate_root: Path
+    base_root: Path,
+    candidate_root: Path,
+    *,
+    candidate_revision: str = "HEAD",
 ) -> tuple[list[str], list[str]]:
-    changes = exact_delta(base_root, candidate_root)
+    changes = exact_delta(
+        base_root,
+        candidate_root,
+        candidate_revision=candidate_revision,
+    )
     monitored = sorted(path for _, path in changes if path in MONITORED_PATHS)
     unmanaged = sorted(path for _, path in changes if path not in MONITORED_PATHS)
     if not monitored:
@@ -274,26 +353,21 @@ def classify_delta(
     return monitored, []
 
 
-def validate_frontdoor(path: Path) -> dict[str, object]:
-    if path.is_symlink() or not path.is_file():
-        raise AdmissionError(f"managed path is not a regular file: {path.as_posix()}")
-    raw = path.read_bytes()
+def validate_frontdoor_bytes(raw: bytes, label: str) -> dict[str, object]:
     if not raw or len(raw) > MAX_FILE_BYTES:
-        raise AdmissionError(f"managed file has invalid size: {path.as_posix()}")
+        raise AdmissionError(f"managed file has invalid size: {label}")
     if raw.startswith(b"\xef\xbb\xbf"):
-        raise AdmissionError(f"UTF-8 BOM is forbidden: {path.as_posix()}")
+        raise AdmissionError(f"UTF-8 BOM is forbidden: {label}")
     try:
         content = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise AdmissionError(f"invalid UTF-8 in {path.as_posix()}: {exc}") from exc
+        raise AdmissionError(f"invalid UTF-8 in {label}: {exc}") from exc
     for marker in MOJIBAKE_LEADERS:
         if marker in content:
-            raise AdmissionError(
-                f"mojibake marker U+{ord(marker):04X} in {path.as_posix()}"
-            )
+            raise AdmissionError(f"mojibake marker U+{ord(marker):04X} in {label}")
     lowered = content.casefold()
     if "<html" not in lowered or "</html>" not in lowered:
-        raise AdmissionError(f"managed front-door file is not complete HTML: {path.as_posix()}")
+        raise AdmissionError(f"managed front-door file is not complete HTML: {label}")
     return {
         "sha256": hashlib.sha256(raw).hexdigest(),
         "bytes": len(raw),
@@ -304,21 +378,79 @@ def validate_frontdoor(path: Path) -> dict[str, object]:
     }
 
 
+def validate_frontdoor(path: Path) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise AdmissionError(f"managed path is not a regular file: {path.as_posix()}")
+    return validate_frontdoor_bytes(path.read_bytes(), path.as_posix())
+
+
+def validate_candidate_blob(
+    candidate_root: Path,
+    candidate_revision: str,
+    relative: str,
+) -> dict[str, object]:
+    tree_entry = _run_git_bytes(
+        candidate_root,
+        "ls-tree",
+        "-z",
+        candidate_revision,
+        "--",
+        relative,
+    )
+    records = [record for record in tree_entry.split(b"\0") if record]
+    if len(records) != 1 or b"\t" not in records[0]:
+        raise AdmissionError(f"managed path has no unique Git tree entry: {relative}")
+    header, raw_path = records[0].split(b"\t", 1)
+    try:
+        mode, object_type, object_id = header.decode("ascii").split(" ")
+        observed_path = raw_path.decode("utf-8")
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise AdmissionError(f"managed path has a malformed Git tree entry: {relative}") from exc
+    if observed_path != relative or mode != "100644" or object_type != "blob":
+        raise AdmissionError(f"managed path is not a regular 100644 Git blob: {relative}")
+    size_text = _run_git(candidate_root, "cat-file", "-s", object_id)
+    if not size_text.isascii() or not size_text.isdecimal():
+        raise AdmissionError(f"managed Git blob has an invalid size: {relative}")
+    size = int(size_text)
+    if size <= 0 or size > MAX_FILE_BYTES:
+        raise AdmissionError(f"managed file has invalid size: {relative}")
+    raw = _run_git_bytes(candidate_root, "cat-file", "blob", object_id)
+    receipt = validate_frontdoor_bytes(raw, relative)
+    if receipt["git_blob"] != object_id:
+        raise AdmissionError(f"managed Git blob identity mismatch: {relative}")
+    return receipt
+
+
 def admit(
     *,
     event_path: Path,
     base_root: Path,
     candidate_root: Path,
+    prepare_candidate_checkout: bool = False,
     opener: Callable[..., Any] = urllib.request.urlopen,
 ) -> dict[str, object]:
     event = parse_event(event_path)
     verify_live_pr(event, opener=opener)
     verify_checkout(base_root, str(event["base_sha"]), "protected base")
-    verify_checkout(candidate_root, str(event["head_sha"]), "candidate")
-    paths, unmanaged = classify_delta(base_root, candidate_root)
+    candidate_revision = "HEAD"
+    if prepare_candidate_checkout:
+        prepare_candidate(event, candidate_root)
+        candidate_revision = "refs/codex/candidate"
+        verify_candidate_repository(candidate_root, str(event["head_sha"]))
+    else:
+        verify_checkout(candidate_root, str(event["head_sha"]), "candidate")
+    paths, unmanaged = classify_delta(
+        base_root,
+        candidate_root,
+        candidate_revision=candidate_revision,
+    )
     admitted: dict[str, object] = {}
     for relative in paths:
-        admitted[relative] = validate_frontdoor(candidate_root / relative)
+        admitted[relative] = validate_candidate_blob(
+            candidate_root,
+            candidate_revision,
+            relative,
+        )
     return {
         "status": "PASS",
         "policy": "protected-base-frontdoor-delta-v1",
@@ -331,6 +463,9 @@ def admit(
         "unmanaged_path_count": len(unmanaged),
         "files": admitted,
         "post_merge_publication_required": bool(paths),
+        "candidate_source": (
+            "protected-pull-ref" if prepare_candidate_checkout else "provided-checkout"
+        ),
     }
 
 
@@ -339,6 +474,7 @@ def main() -> int:
     parser.add_argument("--event-json", type=Path, required=True)
     parser.add_argument("--base-root", type=Path, required=True)
     parser.add_argument("--candidate-root", type=Path, required=True)
+    parser.add_argument("--prepare-candidate", action="store_true")
     parser.add_argument("--report-out", type=Path, required=True)
     parser.add_argument("--github-output", type=Path)
     args = parser.parse_args()
@@ -347,6 +483,7 @@ def main() -> int:
             event_path=args.event_json.resolve(),
             base_root=args.base_root.resolve(),
             candidate_root=args.candidate_root.resolve(),
+            prepare_candidate_checkout=args.prepare_candidate,
         )
     except AdmissionError as exc:
         report = {"status": "FAIL", "error": str(exc)}

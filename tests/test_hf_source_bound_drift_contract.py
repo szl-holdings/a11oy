@@ -54,21 +54,24 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("pull_request_target:", self.admission)
         self.assertIn("types: [opened, synchronize, reopened, edited, ready_for_review]", self.admission)
         self.assertIn("contents: read\n  pull-requests: read", self.admission)
-        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", self.admission)
-        self.assertIn("ref: ${{ github.event.pull_request.head.sha }}", self.admission)
+        self.assertIn("ref: main", self.admission)
+        self.assertIn("--prepare-candidate", self.admission)
         self.assertIn("verify_hf_frontdoor_delta.py", self.admission)
         self.assertNotIn("secrets.", self.admission)
         self.assertNotIn("HF_TOKEN", self.admission)
         self.assertNotIn("pull-requests: write", self.admission)
         self.assertNotIn("actions: write", self.admission)
-        self.assertIn("allow-unsafe-pr-checkout: true", self.admission)
+        self.assertNotIn("allow-unsafe-pr-checkout", self.admission)
+        self.assertNotIn("actions/setup-python", self.admission)
 
     def test_candidate_is_data_and_cannot_supply_the_controller(self) -> None:
         protected_step = "python3 protected-base/.github/scripts/verify_hf_frontdoor_delta.py"
         self.assertIn(protected_step, self.admission)
         self.assertNotIn("python3 candidate/", self.admission)
         self.assertIn("persist-credentials: false", self.admission)
-        self.assertEqual(self.admission.count("allow-unsafe-pr-checkout: true"), 1)
+        self.assertEqual(self.admission.count("actions/checkout@"), 1)
+        self.assertNotIn("github.event.pull_request.head.repo.full_name", self.admission)
+        self.assertIn("fetch_pinned_hf_tool.py", self.admission)
         self.assertNotIn("working-directory: candidate", self.admission)
 
     def test_pull_requests_still_prove_candidate_managed_byte_parity(self) -> None:

@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +47,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
         cls.candidate = cls.root / "candidate"
         cls.base.mkdir()
         git(cls.base, "init")
+        git(cls.base, "branch", "-M", "main")
         git(cls.base, "config", "user.name", "Fixture")
         git(cls.base, "config", "user.email", "fixture@example.test")
         for relative in MODULE.MONITORED_PATHS:
@@ -117,7 +119,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
             ]
         )
 
-    def test_exact_digest_bound_frontdoor_delta_passes(self) -> None:
+    def test_admits_frontdoor(self) -> None:
         report = MODULE.admit(
             event_path=self.event,
             base_root=self.base,
@@ -131,7 +133,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
         self.assertRegex(receipt["sha256"], r"^[0-9a-f]{64}$")
         self.assertRegex(receipt["git_blob"], r"^[0-9a-f]{40}$")
 
-    def test_candidate_controller_or_workflow_change_fails(self) -> None:
+    def test_rejects_mixed_controller(self) -> None:
         target = self.candidate / ".github" / "scripts" / "verify_hf_frontdoor_delta.py"
         target.parent.mkdir(parents=True)
         target.write_text("print('candidate code')\n", encoding="utf-8")
@@ -149,7 +151,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
                 opener=self.opener(),
             )
 
-    def test_ordinary_non_frontdoor_delta_passes_without_publication_claim(self) -> None:
+    def test_admits_ordinary_delta(self) -> None:
         git(self.candidate, "reset", "--hard", self.base_sha)
         ordinary = self.candidate / "docs" / "ordinary.md"
         ordinary.parent.mkdir(parents=True)
@@ -168,7 +170,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
         self.assertEqual(report["unmanaged_path_count"], 1)
         self.assertFalse(report["post_merge_publication_required"])
 
-    def test_mixed_managed_and_ordinary_delta_fails(self) -> None:
+    def test_rejects_mixed_delta(self) -> None:
         ordinary = self.candidate / "docs" / "ordinary.md"
         ordinary.parent.mkdir(parents=True)
         ordinary.write_text("mixed source change\n", encoding="utf-8")
@@ -177,7 +179,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.AdmissionError, "must be isolated"):
             MODULE.classify_delta(self.base, self.candidate)
 
-    def test_more_than_300_paths_cannot_hide_a_managed_delta(self) -> None:
+    def test_scans_large_delta(self) -> None:
         bulk = self.candidate / "bulk"
         bulk.mkdir()
         for index in range(350):
@@ -213,7 +215,27 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
         )
         self.assertEqual(report["head_repo"], "contributor/a11oy")
 
-    def test_stale_shared_or_retargeted_pr_fails(self) -> None:
+    def test_pull_ref_fetch(self) -> None:
+        destination = self.root / "prepared"
+        commands: list[tuple[str, ...]] = []
+
+        def fake_git(_root: Path, *args: str) -> str:
+            commands.append(args)
+            if args == ("rev-parse", "refs/codex/protected-base"):
+                return self.base_sha
+            if args == ("rev-parse", "refs/codex/candidate"):
+                return self.head_sha
+            return ""
+
+        with mock.patch.object(MODULE, "_run_git", side_effect=fake_git):
+            MODULE.prepare_candidate(MODULE.parse_event(self.event), destination)
+        self.assertIn(("init", "--bare", "--quiet"), commands)
+        self.assertTrue(
+            any("refs/pull/17/head:refs/codex/candidate" in command for command in commands)
+        )
+        self.assertTrue(all("checkout" not in command for command in commands))
+
+    def test_live_pr_bindings(self) -> None:
         for broken in (
             self.live_payload(head={"sha": "f" * 40, "repo": {"full_name": "szl-holdings/a11oy"}}),
             self.live_payload(state="closed"),
@@ -227,7 +249,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
                     opener=self.opener(broken),
                 )
 
-    def test_malformed_incomplete_or_wrong_event_fails(self) -> None:
+    def test_event_validation(self) -> None:
         payloads = (
             [],
             {"action": "synchronize"},
@@ -239,7 +261,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
             with self.subTest(payload=payload), self.assertRaises(MODULE.AdmissionError):
                 MODULE.parse_event(self.event)
 
-    def test_invalid_utf8_bom_mojibake_and_incomplete_html_fail(self) -> None:
+    def test_rejects_bad_html(self) -> None:
         target = self.candidate / "pages" / "console.html"
         fixtures = (
             b"\xff<html></html>",
@@ -253,7 +275,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
             with self.subTest(size=len(raw)), self.assertRaises(MODULE.AdmissionError):
                 MODULE.validate_frontdoor(target)
 
-    def test_deletion_and_too_many_paths_fail(self) -> None:
+    def test_rejects_deletion(self) -> None:
         (self.candidate / "pages" / "console.html").unlink()
         git(self.candidate, "add", "-A")
         git(self.candidate, "commit", "-m", "delete")
@@ -270,7 +292,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.AdmissionError, "not a regular file"):
             MODULE.validate_frontdoor(target)
 
-    def test_stale_protected_main_and_shared_head_fail(self) -> None:
+    def test_rejects_stale_or_shared(self) -> None:
         live = self.live_payload()
         for opener in (
             JsonOpener(
@@ -292,7 +314,7 @@ class ProtectedFrontdoorAdmissionTests(unittest.TestCase):
                     opener=opener,
                 )
 
-    def test_incomplete_head_association_page_fails_closed(self) -> None:
+    def test_rejects_full_association_page(self) -> None:
         associations = [{"number": 17, "state": "open"}] + [
             {"number": number, "state": "closed"} for number in range(18, 117)
         ]
