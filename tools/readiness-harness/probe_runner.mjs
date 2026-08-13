@@ -89,7 +89,7 @@ async function fetchBuildRevision() {
   }
 }
 
-async function observeBuildRevision(fetcher = fetchBuildRevision, soft = SOFT) {
+async function observeBuildRevision(fetcher = fetchBuildRevision, soft = REPORT_ONLY) {
   try {
     return { status: "OBSERVED", revision: await fetcher(), error: null };
   } catch (error) {
@@ -620,7 +620,7 @@ async function main() {
     sourceBefore.revision !== sourceAfter.revision
   ) {
     const message = `deployment revision changed during probe: ${sourceBefore.revision} -> ${sourceAfter.revision}`;
-    if (!SOFT) throw new Error(message);
+    if (!REPORT_ONLY) throw new Error(message);
     sourceRevisionStatus = "DIVERGENT";
     sourceRevisionError = message;
   }

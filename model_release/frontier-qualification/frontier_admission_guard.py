@@ -22,6 +22,8 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_REGISTRY = HERE / "frontier-adoption.json"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REPO_ROOT = HERE.parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 EVIDENCE_PAYLOAD_TYPE = "application/vnd.szl.frontier-operation-evidence.v1+json"
 UNSIGNED_OPERATION_ALLOWLIST = frozenset({"READ_METADATA"})
 HARD_DENIED_OPERATIONS = frozenset({
