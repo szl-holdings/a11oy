@@ -5,6 +5,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DRIFT_WORKFLOW = ROOT / ".github" / "workflows" / "hf-module-drift.yml"
+ADMISSION_WORKFLOW = ROOT / ".github" / "workflows" / "hf-frontdoor-admission.yml"
 SYNC_WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 DOCKERFILE = ROOT / "Dockerfile"
 LEGACY_LOCK = ROOT / ".github" / "hf-deployment-lock.json"
@@ -17,6 +18,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.drift = DRIFT_WORKFLOW.read_text(encoding="utf-8")
+        cls.admission = ADMISSION_WORKFLOW.read_text(encoding="utf-8")
         cls.sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
         cls.dockerfile = DOCKERFILE.read_text(encoding="utf-8")
         cls.pr_job, remainder = cls.drift.split("\n  hf-runtime-live:", 1)
@@ -48,7 +50,28 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("trusted-base-ref: ${{ github.sha }}", self.live_job)
         self.assertIn("candidate-ref: ${{ github.sha }}", self.live_job)
 
-    def test_pull_requests_also_prove_candidate_managed_byte_parity(self) -> None:
+    def test_protected_controller_admits_digest_bound_frontdoor_delta(self) -> None:
+        self.assertIn("pull_request_target:", self.admission)
+        self.assertIn("types: [opened, synchronize, reopened, edited, ready_for_review]", self.admission)
+        self.assertIn("contents: read\n  pull-requests: read", self.admission)
+        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", self.admission)
+        self.assertIn("ref: ${{ github.event.pull_request.head.sha }}", self.admission)
+        self.assertIn("verify_hf_frontdoor_delta.py", self.admission)
+        self.assertNotIn("secrets.", self.admission)
+        self.assertNotIn("HF_TOKEN", self.admission)
+        self.assertNotIn("pull-requests: write", self.admission)
+        self.assertNotIn("actions: write", self.admission)
+        self.assertIn("allow-unsafe-pr-checkout: true", self.admission)
+
+    def test_candidate_is_data_and_cannot_supply_the_controller(self) -> None:
+        protected_step = "python3 protected-base/.github/scripts/verify_hf_frontdoor_delta.py"
+        self.assertIn(protected_step, self.admission)
+        self.assertNotIn("python3 candidate/", self.admission)
+        self.assertIn("persist-credentials: false", self.admission)
+        self.assertEqual(self.admission.count("allow-unsafe-pr-checkout: true"), 1)
+        self.assertNotIn("working-directory: candidate", self.admission)
+
+    def test_pull_requests_still_prove_candidate_managed_byte_parity(self) -> None:
         self.assertIn("Immutable HF repository byte parity", self.repository_job)
         self.assertIn("if: github.event_name == 'pull_request'", self.repository_job)
         self.assertIn("github.event.pull_request.head.sha", self.repository_job)
@@ -59,6 +82,16 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         )
         self.assertNotIn("mode: direct", self.repository_job)
         self.assertNotIn("hf-module-drift-allow", self.repository_job)
+
+    def test_protected_controller_does_not_delegate_invocation_to_path_filters(self) -> None:
+        trigger, _ = self.admission.split("\npermissions:", 1)
+        self.assertNotIn("\n    paths:", trigger)
+        self.assertNotIn("\n    paths-ignore:", trigger)
+        self.assertIn("classifies the complete exact Git delta", self.admission)
+
+    def test_controller_is_explicitly_not_merge_queue_evidence(self) -> None:
+        self.assertIn("non-required merge-queue context", self.admission)
+        self.assertNotIn("merge_group:", self.admission)
 
     def test_runtime_reachability_is_not_overclaimed_by_pr_repository_proof(
         self,

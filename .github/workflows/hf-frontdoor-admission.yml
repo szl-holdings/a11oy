@@ -1,0 +1,112 @@
+name: Protected HF front-door admission
+
+# This workflow runs only from protected-base bytes. It never executes candidate
+# code and receives no repository or Hugging Face write credential. The job
+# classifies the complete exact Git delta and admits either no monitored
+# front-door change or one explicit digest-bound front-door-only delta. Only a
+# managed delta then proves that the exact base is deployed. The protected
+# hf-sync workflow must publish admitted bytes after merge.
+#
+# This is intentionally a PR-only, non-required merge-queue context. Managed
+# front-door changes use the normal protected squash path. A future merge-queue
+# requirement must separately attest the aggregate merge_group SHA; this check
+# must never be represented as that evidence.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: protected-hf-frontdoor-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  managed-delta:
+    name: Immutable HF managed delta admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected base controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: protected-base
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Checkout exact candidate as inert data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          # Required by checkout v7 for fork heads under pull_request_target.
+          # Candidate bytes remain inert: no candidate script, action,
+          # dependency, cache, or configuration is ever executed.
+          allow-unsafe-pr-checkout: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Validate exact live PR state and digest-bound front-door delta
+        id: admission
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 protected-base/.github/scripts/verify_hf_frontdoor_delta.py \
+            --event-json "$GITHUB_EVENT_PATH" \
+            --base-root protected-base \
+            --candidate-root candidate \
+            --report-out hf-managed-delta-admission.json \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Checkout exact reusable tools revision for managed delta
+        if: steps.admission.outputs.managed_delta == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          path: tools
+          persist-credentials: false
+
+      - name: Prove exact protected base against one immutable HF revision
+        if: steps.admission.outputs.managed_delta == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 protected-base/.github/scripts/verify_hf_repository_parity.py \
+            --tools-script tools/.github/scripts/hf_module_drift_check.py \
+            --github-repo "$GITHUB_REPOSITORY" \
+            --github-ref "${{ github.event.pull_request.base.sha }}" \
+            --hf-repo SZLHOLDINGS/a11oy \
+            --report-out hf-protected-base-parity.json
+
+      - name: Upload immutable managed-delta admission
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-managed-delta-admission-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: hf-managed-delta-admission.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload protected-base parity proof
+        if: always() && steps.admission.outputs.managed_delta == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-protected-base-parity-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: hf-protected-base-parity.json
+          if-no-files-found: error
+          retention-days: 90
