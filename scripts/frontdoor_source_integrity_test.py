@@ -93,6 +93,32 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             self.assertTrue(any("missing top-level line: on:" in error for error in errors))
             self.assertTrue(any("missing top-level line: jobs:" in error for error in errors))
 
+    def test_commented_wrapper_and_forged_report_do_not_count_as_execution(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            workflow = VALID_WORKFLOW.replace(
+                "          python3 baseline/.github/scripts/verify_hf_repository_parity.py \\",
+                "          # python3 baseline/.github/scripts/verify_hf_repository_parity.py \\",
+                1,
+            ).replace(
+                "            --tools-script tools/.github/scripts/hf_module_drift_check.py \\",
+                "          # --tools-script tools/.github/scripts/hf_module_drift_check.py \\",
+                1,
+            ).replace(
+                '            --github-ref "$SOURCE_REF"\n        env:',
+                '          # --github-ref "$SOURCE_REF"\n'
+                "          echo '{}' > hf-current-base-parity.out.json\n"
+                "        env:",
+                1,
+            )
+            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+            self.assertTrue(
+                any(
+                    "protected-base job must invoke the baseline wrapper" in error
+                    for error in validator.validate(root)
+                )
+            )
+
     def test_bom_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
@@ -124,7 +150,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         with temp:
             workflow = VALID_WORKFLOW.replace(
                 '--github-ref "$SOURCE_REF"\n        env:',
-                '--github-ref "$SOURCE_REF" \\\n+            --allow baseline/.github/hf-module-drift-allow.json\n        env:',
+                '--github-ref "$SOURCE_REF" \\\n            --allow baseline/.github/hf-module-drift-allow.json\n        env:',
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
@@ -164,6 +190,20 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertTrue(any("security.txt cannot bypass" in error for error in validator.validate(root)))
+
+    def test_candidate_cannot_broaden_comparator_exclusions(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            (root / validator.ALLOWLIST_PATH).write_text(
+                json.dumps({"ignore_paths": ["**"], "accepted_divergences": {}}),
+                encoding="utf-8",
+            )
+            self.assertTrue(
+                any(
+                    "ignore_paths broadens protected exclusions" in error
+                    for error in validator.validate(root)
+                )
+            )
 
     def test_missing_runtime_job_fails(self) -> None:
         temp, root = self.make_fixture()

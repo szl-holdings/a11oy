@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 from pathlib import Path
 
 
@@ -54,6 +55,36 @@ CANDIDATE_INVOCATION = "python3 candidate/.github/scripts/verify_hf_repository_p
 CANDIDATE_ALLOW_ARGUMENT = "--allow candidate/.github/hf-module-drift-allow.json"
 TOOLS_ARGUMENT = "--tools-script tools/.github/scripts/hf_module_drift_check.py"
 FAILURE_SUPPRESSORS = ("continue-on-error", "--warn-only", "|| true")
+SHELL_CONTROL_TOKENS = frozenset({";", "&&", "||", "|", "&", ">", ">>", "<", "<<"})
+ALLOWED_ALLOWLIST_KEYS = frozenset(
+    {"_comment", "ignore_paths", "ignore_extensions", "accepted_divergences"}
+)
+PROTECTED_IGNORE_PATHS = frozenset(
+    {"console/assets/**", "console/static/**", "pages/claims/**"}
+)
+PROTECTED_IGNORE_EXTENSIONS = frozenset(
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".ico",
+        ".svg",
+        ".wasm",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".eot",
+        ".mp4",
+        ".mp3",
+        ".pdf",
+        ".zip",
+        ".gz",
+        ".br",
+        ".map",
+    }
+)
 
 
 def _job_block(workflow: str, job_name: str) -> str | None:
@@ -71,6 +102,103 @@ def _job_block(workflow: str, job_name: str) -> str | None:
     return "\n".join(lines[start:end])
 
 
+def _strip_unquoted_comment(line: str) -> str:
+    quote: str | None = None
+    escaped = False
+    for index, character in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+        if character == "\\" and quote != "'":
+            escaped = True
+            continue
+        if character in {"'", '"'}:
+            if quote is None:
+                quote = character
+            elif quote == character:
+                quote = None
+            continue
+        if character == "#" and quote is None:
+            return line[:index].rstrip()
+    return line.rstrip()
+
+
+def _tokenize_shell_command(command: str) -> list[str]:
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|<>")
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    return list(lexer)
+
+
+def _job_commands(block: str) -> list[list[str]]:
+    lines = block.splitlines()
+    commands: list[list[str]] = []
+    index = 0
+    while index < len(lines):
+        match = re.match(r"^(\s*)(-\s+)?run:\s*(.*?)\s*$", lines[index])
+        if match is None:
+            index += 1
+            continue
+        run_indent = len(match.group(1)) + (2 if match.group(2) else 0)
+        marker = _strip_unquoted_comment(match.group(3)).strip()
+        content: list[str] = []
+        index += 1
+        if marker and not re.fullmatch(r"[|>][+-]?", marker):
+            content.append(marker)
+        else:
+            while index < len(lines):
+                line = lines[index]
+                if line.strip():
+                    indentation = len(line) - len(line.lstrip())
+                    if indentation <= run_indent:
+                        break
+                content.append(line.lstrip())
+                index += 1
+
+        fragments: list[str] = []
+        for raw_line in content:
+            active = _strip_unquoted_comment(raw_line).strip()
+            if not active:
+                if fragments:
+                    commands.append(_tokenize_shell_command(" ".join(fragments)))
+                    fragments = []
+                continue
+            continued = active.endswith("\\")
+            fragments.append(active[:-1].rstrip() if continued else active)
+            if not continued:
+                commands.append(_tokenize_shell_command(" ".join(fragments)))
+                fragments = []
+        if fragments:
+            commands.append(_tokenize_shell_command(" ".join(fragments)))
+    return commands
+
+
+def _wrapper_invocations(commands: list[list[str]], invocation: str) -> list[list[str]]:
+    prefix = shlex.split(invocation)
+    return [
+        command
+        for command in commands
+        if command[: len(prefix)] == prefix
+        and not any(token in SHELL_CONTROL_TOKENS for token in command)
+    ]
+
+
+def _argument_values(command: list[str], argument: str) -> list[str | None]:
+    values: list[str | None] = []
+    for index, token in enumerate(command):
+        if token == argument:
+            values.append(command[index + 1] if index + 1 < len(command) else None)
+    return values
+
+
+def _active_block_lines(block: str) -> list[str]:
+    return [
+        active
+        for line in block.splitlines()
+        if (active := _strip_unquoted_comment(line).strip())
+    ]
+
+
 def _validate_parity_jobs(workflow: str) -> list[str]:
     errors: list[str] = []
     baseline = _job_block(workflow, BASELINE_JOB)
@@ -82,32 +210,64 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
     if baseline is None or candidate is None:
         return errors
 
-    if baseline.count(BASELINE_INVOCATION) != 1:
+    try:
+        baseline_commands = _job_commands(baseline)
+    except ValueError as exc:
+        errors.append(f"protected-base job contains invalid shell syntax: {exc}")
+        baseline_commands = []
+    try:
+        candidate_commands = _job_commands(candidate)
+    except ValueError as exc:
+        errors.append(f"candidate job contains invalid shell syntax: {exc}")
+        candidate_commands = []
+
+    baseline_invocations = _wrapper_invocations(baseline_commands, BASELINE_INVOCATION)
+    candidate_invocations = _wrapper_invocations(candidate_commands, CANDIDATE_INVOCATION)
+    if len(baseline_invocations) != 1:
         errors.append("protected-base job must invoke the baseline wrapper exactly once")
-    if "--allow" in baseline:
+    elif _argument_values(baseline_invocations[0], "--allow"):
         errors.append("protected-base job must not receive an HF drift allowlist")
-    if candidate.count(CANDIDATE_INVOCATION) != 1:
+    if len(candidate_invocations) != 1:
         errors.append("candidate job must invoke the candidate wrapper exactly once")
-    allow_lines = [
-        line.strip().removesuffix("\\").rstrip()
-        for line in candidate.splitlines()
-        if line.lstrip().startswith("--allow ")
-    ]
-    if allow_lines != [CANDIDATE_ALLOW_ARGUMENT]:
+    elif _argument_values(candidate_invocations[0], "--allow") != [
+        "candidate/.github/hf-module-drift-allow.json"
+    ]:
         errors.append("candidate job must receive exactly its same-checkout allowlist")
-    for label, block, source_ref in (
-        ("protected-base", baseline, "github.event.pull_request.base.sha"),
-        ("candidate", candidate, "github.event.pull_request.head.sha"),
+    for label, block, invocations, source_ref in (
+        (
+            "protected-base",
+            baseline,
+            baseline_invocations,
+            "github.event.pull_request.base.sha",
+        ),
+        (
+            "candidate",
+            candidate,
+            candidate_invocations,
+            "github.event.pull_request.head.sha",
+        ),
     ):
-        if block.count(TOOLS_ARGUMENT) != 1:
+        command = invocations[0] if len(invocations) == 1 else []
+        if _argument_values(command, "--tools-script") != [
+            "tools/.github/scripts/hf_module_drift_check.py"
+        ]:
             errors.append(f"{label} job must use the pinned organization comparator once")
-        if source_ref not in block:
+        if _argument_values(command, "--github-ref") != ["$SOURCE_REF"]:
+            errors.append(f"{label} wrapper must receive the admitted SOURCE_REF once")
+        active_lines = _active_block_lines(block)
+        source_binding = f"SOURCE_REF: ${{{{ {source_ref} }}}}"
+        if active_lines.count(source_binding) != 1:
             errors.append(f"{label} job is not bound to its exact pull-request SHA")
-        pinned_refs = re.findall(r"(?m)^\s+ref: ([0-9a-f]{40})\s*$", block)
+        pinned_refs = [
+            match.group(1)
+            for line in active_lines
+            if (match := re.fullmatch(r"ref:\s*([0-9a-f]{40})", line))
+        ]
         if len(pinned_refs) != 1:
             errors.append(f"{label} job must contain one immutable tools revision")
+        active_text = "\n".join(active_lines)
         for suppressor in FAILURE_SUPPRESSORS:
-            if suppressor in block:
+            if suppressor in active_text:
                 errors.append(f"{label} job contains failure suppressor: {suppressor}")
     return errors
 
@@ -164,10 +324,32 @@ def validate(root: Path = REPO_ROOT) -> list[str]:
         except json.JSONDecodeError as exc:
             errors.append(f"invalid HF drift allowlist: {exc}")
         else:
-            accepted = allowlist.get("accepted_divergences")
-            if not isinstance(accepted, dict):
-                errors.append("accepted_divergences must be a JSON object")
+            if not isinstance(allowlist, dict):
+                errors.append("HF drift allowlist must be a JSON object")
+                accepted = None
             else:
+                unknown_keys = sorted(set(allowlist) - ALLOWED_ALLOWLIST_KEYS)
+                if unknown_keys:
+                    errors.append(f"HF drift allowlist has unknown policy keys: {unknown_keys!r}")
+                for key, protected in (
+                    ("ignore_paths", PROTECTED_IGNORE_PATHS),
+                    ("ignore_extensions", PROTECTED_IGNORE_EXTENSIONS),
+                ):
+                    values = allowlist.get(key, [])
+                    if not isinstance(values, list) or any(
+                        not isinstance(value, str) for value in values
+                    ):
+                        errors.append(f"{key} must be an array of strings")
+                        continue
+                    if len(values) != len(set(values)):
+                        errors.append(f"{key} must not contain duplicates")
+                    unexpected = sorted(set(values) - protected)
+                    if unexpected:
+                        errors.append(f"{key} broadens protected exclusions: {unexpected!r}")
+                accepted = allowlist.get("accepted_divergences")
+            if accepted is not None and not isinstance(accepted, dict):
+                errors.append("accepted_divergences must be a JSON object")
+            elif isinstance(accepted, dict):
                 if any(
                     path in {".well-known/security.txt", "well-known/security.txt"}
                     for path in accepted

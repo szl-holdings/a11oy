@@ -30,6 +30,36 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ALLOWLIST_RELATIVE_PATH = Path(".github/hf-module-drift-allow.json")
 MAX_ALLOW_PATH_LENGTH = 512
 MAX_ALLOW_REASON_LENGTH = 500
+MAX_ALLOW_COMMENT_LENGTH = 2_000
+ALLOWED_ALLOWLIST_KEYS = frozenset(
+    {"_comment", "ignore_paths", "ignore_extensions", "accepted_divergences"}
+)
+PROTECTED_IGNORE_PATHS = frozenset(
+    {"console/assets/**", "console/static/**", "pages/claims/**"}
+)
+PROTECTED_IGNORE_EXTENSIONS = frozenset(
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".ico",
+        ".svg",
+        ".wasm",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".eot",
+        ".mp4",
+        ".mp3",
+        ".pdf",
+        ".zip",
+        ".gz",
+        ".br",
+        ".map",
+    }
+)
 EXPECTED_COMPATIBILITY_WARNING = {
     "kind": "missing-both",
     "path": "well-known/security.txt",
@@ -63,10 +93,46 @@ def _parse_json_bytes(raw: bytes, *, label: str) -> object:
         raise ParityError(f"{label} is not valid JSON: {exc}") from exc
 
 
+def _validate_exclusion_subset(
+    payload: dict[str, object],
+    *,
+    key: str,
+    protected: frozenset[str],
+) -> None:
+    values = payload.get(key, [])
+    if type(values) is not list or any(type(value) is not str for value in values):
+        raise ParityError(f"{key} must be an array of strings")
+    if len(values) != len(set(values)):
+        raise ParityError(f"{key} must not contain duplicates")
+    unexpected = sorted(set(values) - protected)
+    if unexpected:
+        raise ParityError(f"{key} broadens protected exclusions: {unexpected!r}")
+
+
 def parse_allowlist_snapshot(raw: bytes) -> dict[str, str]:
     payload = _parse_json_bytes(raw, label="HF parity allowlist")
     if not isinstance(payload, dict):
         raise ParityError("HF parity allowlist must be one JSON object")
+    unknown_keys = sorted(set(payload) - ALLOWED_ALLOWLIST_KEYS)
+    if unknown_keys:
+        raise ParityError(f"HF parity allowlist contains unknown policy keys: {unknown_keys!r}")
+    comment = payload.get("_comment")
+    if comment is not None and (
+        type(comment) is not str
+        or len(comment) > MAX_ALLOW_COMMENT_LENGTH
+        or any(ord(character) < 32 and character not in "\t\n\r" for character in comment)
+    ):
+        raise ParityError("HF parity allowlist comment must be bounded text")
+    _validate_exclusion_subset(
+        payload,
+        key="ignore_paths",
+        protected=PROTECTED_IGNORE_PATHS,
+    )
+    _validate_exclusion_subset(
+        payload,
+        key="ignore_extensions",
+        protected=PROTECTED_IGNORE_EXTENSIONS,
+    )
     accepted = payload.get("accepted_divergences")
     if not isinstance(accepted, dict):
         raise ParityError("accepted_divergences must be one JSON object")

@@ -68,6 +68,33 @@ class ParityAdmissionTest(unittest.TestCase):
                 with self.assertRaises(parity.ParityError):
                     parity.parse_allowlist_snapshot(raw)
 
+    def test_candidate_cannot_broaden_comparator_exclusions(self) -> None:
+        safe = json.dumps(
+            {
+                "ignore_paths": ["console/assets/**"],
+                "ignore_extensions": [".png"],
+                "accepted_divergences": {"pages/console.html": REASON},
+            }
+        ).encode("utf-8")
+        self.assertEqual(
+            parity.parse_allowlist_snapshot(safe),
+            {"pages/console.html": REASON},
+        )
+
+        attacks = (
+            {"ignore_paths": ["**"], "accepted_divergences": {}},
+            {"ignore_extensions": [".html"], "accepted_divergences": {}},
+            {
+                "ignore_paths": ["console/assets/**", "console/assets/**"],
+                "accepted_divergences": {},
+            },
+            {"future_exclusion_policy": ["**"], "accepted_divergences": {}},
+        )
+        for attack in attacks:
+            with self.subTest(attack=attack):
+                with self.assertRaises(parity.ParityError):
+                    parity.parse_allowlist_snapshot(json.dumps(attack).encode("utf-8"))
+
     def test_candidate_allowlist_must_be_same_checkout_and_exact_head(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
