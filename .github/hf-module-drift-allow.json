@@ -26,17 +26,5 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {
-    "a11oy_landing.html": "accepted divergence introduced by Round-5 frontend frontdoor refresh",
-    "govern_showcase.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/assurance.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/chaski.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/console.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/fabric.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/landing.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/pinn-console.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/pricing.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/substrate.html": "accepted divergence introduced by Round-5 frontdoor refresh",
-    "pages/verify.html": "accepted divergence introduced by Round-5 frontdoor refresh"
-  }
+  "accepted_divergences": {}
 }
