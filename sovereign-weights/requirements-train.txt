@@ -13,7 +13,7 @@ peft>=0.20.0
 trl>=1.10.0
 datasets>=5.0.1
 accelerate>=1.14.0
-bitsandbytes>=0.50.0
+bitsandbytes>=0.50.1
 sentencepiece>=0.2.2
 # For the GGUF export step (llama.cpp's convert_lora_to_gguf.py):
 gguf>=0.19.0
