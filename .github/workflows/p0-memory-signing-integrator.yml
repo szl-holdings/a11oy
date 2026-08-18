@@ -1,0 +1,153 @@
+name: P0 Memory Covenant signing integrator
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-memory-signing-integrator.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-memory-signing-integrator
+  cancel-in-progress: false
+
+jobs:
+  integrate-signing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Add verified write-receipt signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("routers/memory_covenant.py")
+          text = path.read_text(encoding="utf-8")
+
+          if "import base64\n" not in text:
+              text = text.replace("import hashlib\n", "import base64\nimport hashlib\n", 1)
+
+          if "def _enabled(" not in text:
+              anchor = "\ndef _now() -> str:\n"
+              helper = '''\ndef _enabled(name: str) -> bool:\n    return (os.environ.get(name) or "").strip().lower() in {\n        "1", "true", "yes", "on"\n    }\n\n'''
+              if anchor not in text:
+                  raise SystemExit("missing signing helper anchor")
+              text = text.replace(anchor, helper + anchor, 1)
+
+          signer_class = '''\nclass MemoryReceiptSigner:\n    """Load, sign, and immediately verify one memory write receipt."""\n\n    def __init__(self) -> None:\n        self.required = _enabled("A11OY_MEMORY_REQUIRE_SIGNATURE")\n        self.private_key = None\n        self.public_pem = ""\n        self.source = "unavailable"\n        self.error = ""\n        try:\n            from a11oy_signing_key import load_signing_key\n\n            private_key, public_pem, source, error = load_signing_key()\n            self.private_key = private_key\n            self.public_pem = public_pem or ""\n            self.source = source or "unavailable"\n            self.error = error or ""\n        except Exception as exc:\n            self.error = f"{type(exc).__name__}: {str(exc)[:180]}"\n\n    @property\n    def ready(self) -> bool:\n        return self.private_key is not None and bool(self.public_pem)\n\n    @property\n    def keyid(self) -> str | None:\n        return _sha(self.public_pem.strip().encode("utf-8")) if self.public_pem else None\n\n    def status(self) -> dict[str, Any]:\n        return {\n            "required": self.required,\n            "ready": self.ready,\n            "source": self.source,\n            "keyid": self.keyid,\n            "error": self.error[:180] if self.error else None,\n        }\n\n    def seal(self, payload: dict[str, Any]) -> dict[str, Any]:\n        mode = "SIGNED-AND-VERIFIED" if self.ready else "UNSIGNED-CONTENT-DIGEST"\n        if self.required and not self.ready:\n            raise MemoryUnavailable("memory receipt signing is required but unavailable")\n\n        core = dict(payload)\n        core["integrity"] = {"mode": mode}\n        body = _canonical(core)\n        digest = _sha(body)\n        integrity: dict[str, Any] = {"mode": mode, "digest": digest}\n\n        if self.ready:\n            try:\n                from cryptography.hazmat.primitives import hashes\n                from cryptography.hazmat.primitives.asymmetric import ec\n\n                signature = self.private_key.sign(body, ec.ECDSA(hashes.SHA256()))\n                self.private_key.public_key().verify(\n                    signature, body, ec.ECDSA(hashes.SHA256())\n                )\n                integrity.update(\n                    {\n                        "algorithm": "ECDSA-P256-SHA256",\n                        "keyid": self.keyid,\n                        "signature": base64.b64encode(signature).decode("ascii"),\n                        "verification": "VERIFIED_BEFORE_COMMIT",\n                        "key_source": self.source,\n                    }\n                )\n            except Exception as exc:\n                raise MemoryUnavailable(\n                    f"memory receipt signing or verification failed: {type(exc).__name__}"\n                ) from exc\n\n        core["integrity"] = integrity\n        return core\n\n'''
+          if "class MemoryReceiptSigner:" not in text:
+              anchor = "\ndef _now() -> str:\n"
+              if anchor not in text:
+                  raise SystemExit("missing signer insertion anchor")
+              text = text.replace(anchor, signer_class + anchor, 1)
+
+          build_pattern = re.compile(
+              r"def _build_receipt\(\n    \*,\n    tenant: str,\n    domain: str,\n    sequence: int,\n    previous_digest: str,\n    request_digest: str,\n    record: dict\[str, Any\],\n\) -> dict\[str, Any\]:\n(.*?)    return receipt\n",
+              re.DOTALL,
+          )
+          match = build_pattern.search(text)
+          if not match:
+              raise SystemExit("missing receipt builder")
+          if "signer: MemoryReceiptSigner" not in match.group(0):
+              replacement = '''def _build_receipt(\n    *,\n    tenant: str,\n    domain: str,\n    sequence: int,\n    previous_digest: str,\n    request_digest: str,\n    record: dict[str, Any],\n    signer: MemoryReceiptSigner | None = None,\n) -> dict[str, Any]:\n    receipt = {\n        "schema": "szl.memory-receipt/v1",\n        "receipt_id": f"mrcpt_{uuid.uuid4().hex}",\n        "tenant_id": tenant,\n        "security_domain": domain,\n        "namespace": f"{tenant}:{domain}",\n        "seq": sequence,\n        "prev_digest": previous_digest,\n        "operation": "memory.create",\n        "decision": "ALLOW",\n        "request_digest": request_digest,\n        "subject": {\n            "memory_id": record["memory_id"],\n            "content_sha256": record["content_sha256"],\n            "record_sha256": record["record_sha256"],\n            "generation_id": record["active_index_generation"],\n            "generation_identity_digest": record["index_generation"]["identity_digest"],\n        },\n        "created_at": _now(),\n    }\n    return (signer or MemoryReceiptSigner()).seal(receipt)\n'''
+              text = build_pattern.sub(replacement, text, count=1)
+
+          call_anchor = '''    receipt = _build_receipt(\n        tenant=tenant,\n        domain=domain,\n        sequence=sequence,\n        previous_digest=previous_digest,\n        request_digest=request_digest,\n        record=record,\n    )\n'''
+          call_replacement = '''    signer = MemoryReceiptSigner()\n    receipt = _build_receipt(\n        tenant=tenant,\n        domain=domain,\n        sequence=sequence,\n        previous_digest=previous_digest,\n        request_digest=request_digest,\n        record=record,\n        signer=signer,\n    )\n'''
+          if call_anchor in text:
+              text = text.replace(call_anchor, call_replacement, 1)
+
+          status_anchor = '                    "active_index_generation": generation,\n'
+          if '                    "receipt_signing": signer.status(),\n' not in text:
+              query_anchor = "                    generation = _resolve_active_generation(connection, tenant, domain, None)\n"
+              text = text.replace(
+                  query_anchor,
+                  query_anchor + "                    signer = MemoryReceiptSigner()\n",
+                  1,
+              )
+              text = text.replace(
+                  status_anchor,
+                  status_anchor + '                    "receipt_signing": signer.status(),\n',
+                  1,
+              )
+
+          path.write_text(text, encoding="utf-8")
+
+          test_path = Path("tests/test_memory_covenant_runtime.py")
+          test = test_path.read_text(encoding="utf-8")
+          if "import sys\n" not in test:
+              test = test.replace("import json\n", "import json\nimport sys\nimport types\n", 1)
+          if "from cryptography.hazmat.primitives.asymmetric import ec" not in test:
+              test = test.replace(
+                  "import pytest\n",
+                  "import pytest\nfrom cryptography.hazmat.primitives import serialization\nfrom cryptography.hazmat.primitives.asymmetric import ec\n",
+                  1,
+              )
+          old_receipt_assert = '''    assert receipt["integrity"]["mode"] == "UNSIGNED-CONTENT-DIGEST"\n    unsigned = json.loads(json.dumps(receipt))\n    digest = unsigned["integrity"].pop("digest")\n    assert digest == memory._sha(unsigned)\n'''
+          new_receipt_assert = '''    assert receipt["integrity"]["mode"] == "UNSIGNED-CONTENT-DIGEST"\n    unsigned = json.loads(json.dumps(receipt))\n    digest = unsigned["integrity"].pop("digest")\n    assert digest == memory._sha(unsigned)\n'''
+          if old_receipt_assert in test:
+              test = test.replace(old_receipt_assert, new_receipt_assert, 1)
+
+          if "test_receipt_signer_seals_and_verifies_before_commit" not in test:
+              anchor = "\ndef test_create_record_emits_record_receipt_outbox_and_idempotency_rows() -> None:\n"
+              block = '''\ndef test_receipt_signer_seals_and_verifies_before_commit(monkeypatch) -> None:\n    private_key = ec.generate_private_key(ec.SECP256R1())\n    public_pem = private_key.public_key().public_bytes(\n        serialization.Encoding.PEM,\n        serialization.PublicFormat.SubjectPublicKeyInfo,\n    ).decode("ascii")\n    module = types.SimpleNamespace(\n        load_signing_key=lambda: (private_key, public_pem, "unit-ephemeral", "")\n    )\n    monkeypatch.setitem(sys.modules, "a11oy_signing_key", module)\n    signer = memory.MemoryReceiptSigner()\n    record = memory._build_record(_record_payload(), "tenant-a", "domain-a")\n    record["index_generation"] = {\n        "generation_id": "generation-001",\n        "identity_digest": "e" * 64,\n        "provider": "acceptance",\n        "model": "deterministic-digest",\n        "revision": "v1",\n        "dimension": 1,\n        "metric": "dot",\n        "normalization": "none",\n    }\n    receipt = memory._build_receipt(\n        tenant="tenant-a",\n        domain="domain-a",\n        sequence=1,\n        previous_digest="0" * 64,\n        request_digest="a" * 64,\n        record=record,\n        signer=signer,\n    )\n    assert receipt["integrity"]["mode"] == "SIGNED-AND-VERIFIED"\n    assert receipt["integrity"]["verification"] == "VERIFIED_BEFORE_COMMIT"\n    assert receipt["integrity"]["key_source"] == "unit-ephemeral"\n    assert receipt["integrity"]["keyid"] == signer.keyid\n\n\ndef test_required_receipt_signature_fails_closed_without_key(monkeypatch) -> None:\n    monkeypatch.setenv("A11OY_MEMORY_REQUIRE_SIGNATURE", "1")\n    monkeypatch.setitem(\n        sys.modules,\n        "a11oy_signing_key",\n        types.SimpleNamespace(\n            load_signing_key=lambda: (None, "", "unavailable", "no test key")\n        ),\n    )\n    signer = memory.MemoryReceiptSigner()\n    with pytest.raises(memory.MemoryUnavailable, match="required"):\n        signer.seal({"schema": "test"})\n\n'''
+              if anchor not in test:
+                  raise SystemExit("missing signing test anchor")
+              test = test.replace(anchor, block + anchor, 1)
+          test_path.write_text(test, encoding="utf-8")
+
+          proof_path = Path("artifacts/proof-packets/20260817-memory-covenant-runtime.md")
+          proof = proof_path.read_text(encoding="utf-8")
+          if "A11OY_MEMORY_REQUIRE_SIGNATURE" not in proof:
+              proof += '''\n## Receipt signing mode\n\nThe runtime uses the repository signing-key loader. When a managed key is available, each write receipt is ECDSA-P256 signed and immediately verified before the transaction commits. `A11OY_MEMORY_REQUIRE_SIGNATURE=1` makes missing or failed signing a hard write blocker. Without that production requirement, the runtime retains the honest `UNSIGNED-CONTENT-DIGEST` mode rather than fabricating a signature. Reads remain side-effect free.\n'''
+              proof_path.write_text(proof, encoding="utf-8")
+          PY
+
+          git add \
+            routers/memory_covenant.py \
+            tests/test_memory_covenant_runtime.py \
+            artifacts/proof-packets/20260817-memory-covenant-runtime.md
+          git diff --cached --check
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify signed and unsigned receipt modes
+        run: |
+          set -euo pipefail
+          python -m py_compile routers/memory_covenant.py tests/test_memory_covenant_runtime.py
+          pytest -q tests/test_memory_covenant_runtime.py tests/test_memory_worker_runtime.py tests/test_token_ingress.py tests/test_demo_critical_routes.py
+          git diff --cached --check
+
+      - name: Commit and push signing integration
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "feat(memory): verify write receipts before commit" \
+            -m "Adds managed ECDSA-P256 signing with immediate verification, explicit unsigned fallback, and a production fail-closed signature requirement without adding read-side effects." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
