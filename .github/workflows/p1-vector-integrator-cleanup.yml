@@ -1,0 +1,72 @@
+name: P1 vector integrator cleanup
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p1-vector-integrator-cleanup.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p1-vector-integrator-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TARGET_BRANCH: feat/proof-carrying-vector-settlement-20260818
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Wait for integrated runtime and remove the one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in $(seq 1 120); do
+            git fetch --no-tags origin "$TARGET_BRANCH"
+            git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+            if grep -q 'memory_vector_search.register' routers/frontier_reads.py \
+               && grep -q '10000-row bounded scan contract' migrations/20260818_memory_vector_settlement.sql; then
+              break
+            fi
+            sleep 5
+          done
+          grep -q 'memory_vector_search.register' routers/frontier_reads.py
+          grep -q '10000-row bounded scan contract' migrations/20260818_memory_vector_settlement.sql
+          git rm -f --ignore-unmatch .github/workflows/vector-settlement-integrator.yml
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Requalify cleaned branch
+        run: |
+          set -euo pipefail
+          python -m py_compile routers/memory_vector_worker.py routers/memory_vector_search.py routers/frontier_reads.py tests/test_memory_vector_worker.py tests/test_memory_vector_search.py tests/test_demo_critical_routes.py
+          pytest -q tests/test_memory_vector_worker.py tests/test_memory_vector_search.py tests/test_demo_critical_routes.py
+          git diff --cached --check
+
+      - name: Commit and push cleanup
+        run: |
+          set -euo pipefail
+          if git diff --cached --quiet; then exit 0; fi
+          git commit \
+            -m "chore(memory): remove one-shot vector integrator" \
+            -m "The runtime integration is committed and qualified; the self-mutating scaffold is not part of the product surface." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
