@@ -1,0 +1,113 @@
+name: P0 successor qualification controller
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-successor-controller.yml
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: write
+
+concurrency:
+  group: p0-successor-qualification-controller
+  cancel-in-progress: false
+
+jobs:
+  qualify-successor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Resolve the successor pull request
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$TARGET_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+          test -n "$pr"
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+          echo "Resolved successor PR #$pr"
+
+      - name: Wait for an exact-head terminal check set
+        id: checks
+        shell: bash
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for attempt in $(seq 1 180); do
+            gh pr checks "$PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json name,bucket,state,link,workflow \
+              > artifacts/successor-checks.json
+
+            count="$(jq 'length' artifacts/successor-checks.json)"
+            pending="$(jq '[.[] | select(.bucket == "pending")] | length' artifacts/successor-checks.json)"
+            failed="$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' artifacts/successor-checks.json)"
+
+            echo "attempt=$attempt checks=$count pending=$pending failed=$failed"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              if [ "$failed" -gt 0 ]; then
+                echo "terminal=FAILED" >> "$GITHUB_OUTPUT"
+                exit 2
+              fi
+              echo "terminal=PASSED" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "terminal=TIMED_OUT" >> "$GITHUB_OUTPUT"
+          exit 3
+
+      - name: Publish a failing-check disposition
+        if: failure()
+        shell: bash
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Exact-head qualification is not green'
+            echo
+            echo 'The governed successor controller observed a terminal failure or timed out while waiting for the exact-head check set.'
+            echo
+            echo '| Check | Bucket | State |'
+            echo '|---|---|---|'
+            jq -r '.[] | "| [\(.name)](\(.link)) | \(.bucket) | \(.state) |"' artifacts/successor-checks.json
+            echo
+            echo 'No merge, bypass, deployment, or green production label was performed.'
+          } > /tmp/successor-failure.md
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/successor-failure.md
+
+      - name: Mark the qualified successor ready and request Codex review
+        if: success()
+        shell: bash
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          gh pr ready "$PR" --repo "$GITHUB_REPOSITORY"
+          cat > /tmp/successor-qualified.md <<'EOF'
+          ## Exact-head hosted checks are terminal and green
+
+          The out-of-band staging controller observed the successor PR's exact-head check set as terminal with no failed or cancelled checks and marked the PR ready for review.
+
+          @codex review
+
+          Review the exact current head for P0/P1 correctness, security, doctrine, source/runtime integration, rollback completeness, and claim honesty. Do not implement on a different branch, merge, deploy, expose secrets, weaken checks, or claim production parity.
+
+          Passing checks establish source qualification only. Independent review, protected merge, canonical deployment, and immutable deployed-revision readback remain separate gates.
+          EOF
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/successor-qualified.md
