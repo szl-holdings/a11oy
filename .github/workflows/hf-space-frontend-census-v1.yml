@@ -1,0 +1,193 @@
+name: HF Space frontend census v1
+
+on:
+  push:
+    branches:
+      - main
+      - feat/hf-space-frontend-census-v1-20260817
+    paths:
+      - scripts/audit_hf_space_frontends_v1.py
+      - tests/test_hf_space_frontends_v1.py
+      - docs/HUGGINGFACE_SPACE_FRONTEND_CENSUS_V1.md
+      - docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md
+      - .github/workflows/hf-space-frontend-census-v1.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/audit_hf_space_frontends_v1.py
+      - tests/test_hf_space_frontends_v1.py
+      - docs/HUGGINGFACE_SPACE_FRONTEND_CENSUS_V1.md
+      - docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md
+      - .github/workflows/hf-space-frontend-census-v1.yml
+  schedule:
+    - cron: '17 6 * * 2,5'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-space-frontend-census-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned focused-test dependencies
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Verify census logic offline
+        run: |
+          python3 -m py_compile scripts/audit_hf_space_frontends_v1.py
+          python3 -m pytest -q tests/test_hf_space_frontends_v1.py
+
+  live-census:
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPORT_DIR: evidence/hf-space-frontend-census
+      ISSUE_TITLE: '[HF-SPACE-FRONTENDS] Universal viewport or runtime drift'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install exact browser controller
+        run: python3 -m pip install --disable-pip-version-check 'playwright==1.55.0'
+
+      - name: Resolve system Chromium
+        id: chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$chrome"
+          echo "path=$chrome" >> "$GITHUB_OUTPUT"
+          "$chrome" --version
+
+      - name: Audit every public Space and viewport
+        id: audit
+        shell: bash
+        env:
+          CHROME: ${{ steps.chrome.outputs.path }}
+        run: |
+          set +e
+          python3 scripts/audit_hf_space_frontends_v1.py \
+            --chrome "$CHROME" \
+            --output-dir "$REPORT_DIR"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable census evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-space-frontend-census-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Synchronize deterministic estate drift issue
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          number=$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state all \
+            --limit 100 \
+            --search '"[HF-SPACE-FRONTENDS] Universal viewport or runtime drift" in:title' \
+            --json number,title \
+            --jq '.[] | select(.title == "[HF-SPACE-FRONTENDS] Universal viewport or runtime drift") | .number' \
+            | head -n 1)
+          python3 - <<'PY' > /tmp/hf-space-census.md
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads(Path('evidence/hf-space-frontend-census/report.json').read_text())
+          print('## SZLHOLDINGS public Space frontend census')
+          print()
+          print(f"- Source: `{os.environ['GITHUB_SHA']}`")
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- Status: `{report['summary']['status']}`")
+          print()
+          print('```json')
+          print(json.dumps(report['summary'], indent=2, sort_keys=True))
+          print('```')
+          blocked = [asset for asset in report['spaces'] if asset['status'] != 'PASS']
+          print('\n### Highest-priority blocked assets\n')
+          for asset in blocked[:30]:
+              codes = sorted({failure['code'] for failure in asset['failures']})
+              print(f"- `{asset['space_id']}` — runtime `{asset['runtime_stage']}` — {', '.join(codes)}")
+          if len(blocked) > 30:
+              print(f"- …and {len(blocked) - 30} additional blocked assets in the attached report.")
+          print('\nThis census is read-only. No Space, model, dataset, collection, hardware, secret, signer key, storage, visibility, or source branch was changed.')
+          PY
+          if [ "${EXIT_CODE:-1}" = '0' ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" \
+                --repo "$GITHUB_REPOSITORY" \
+                --reason completed \
+                --comment "All public Space metadata, runtime, and five-viewport gates passed in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}." || true
+            fi
+          elif [ -z "$number" ]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$ISSUE_TITLE" \
+              --body-file /tmp/hf-space-census.md
+          else
+            gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-space-census.md
+          fi
+
+      - name: Enforce protected-main and scheduled estate state
+        if: >-
+          always() &&
+          (github.ref == 'refs/heads/main' ||
+           github.event_name == 'schedule' ||
+           github.event_name == 'workflow_dispatch')
+        env:
+          EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
+        run: |
+          code="${EXIT_CODE:-1}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Public Space frontend census is blocked with exit $code."
+            exit "$code"
+          fi
+          echo 'All public Space frontend gates passed.'
