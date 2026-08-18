@@ -241,6 +241,18 @@ class PreActivationSession(Session):
         )
 
 
+class UnreachablePreActivationSession(Session):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.pre_activation = True
+
+    def get(self, url: str, **kwargs):
+        if self.pre_activation and url.endswith("/series-a/status"):
+            self.pre_activation = False
+            raise TimeoutError("pre-activation runtime returned no bytes")
+        return super().get(url, **kwargs)
+
+
 class LaggingReceiptSession(Session):
     def __init__(self, source: str, *, recover: bool) -> None:
         super().__init__(source)
@@ -319,6 +331,34 @@ def test_prove_polls_past_pre_activation_runtime(monkeypatch) -> None:
     assert report["ok"] is True
     assert report["activation_restart_requested"] is True
     assert report["durability_restart_requested"] is True
+
+
+def test_prove_restarts_before_probe_when_runtime_is_unreachable(
+    monkeypatch,
+) -> None:
+    source = "a" * 40
+    api = Api()
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+
+    report = proof.prove(
+        api=api,
+        session=UnreachablePreActivationSession(source),
+        repo_id="SZLHOLDINGS/a11oy",
+        origin="https://szlholdings-a11oy.hf.space",
+        source_sha=source,
+        attempts=3,
+        retry_seconds=0,
+    )
+
+    assert report["ok"] is True
+    assert report["pre_activation_runtime_boot_id"] is None
+    assert report["pre_activation_runtime_observed"] is False
+    assert report["proof"]["activation_runtime_recovery_observed"] is True
+    assert report["proof"]["activation_boot_identity_change_observed"] is False
+    assert api.calls == [
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False},
+        {"repo_id": "SZLHOLDINGS/a11oy", "factory_reboot": False},
+    ]
 
 
 def test_prove_waits_for_startup_receipt_without_direct_refresh(
