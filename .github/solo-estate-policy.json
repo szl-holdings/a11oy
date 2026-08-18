@@ -1,0 +1,241 @@
+{
+  "schema": "szl.solo-estate-policy/v1",
+  "version": "1.0.0",
+  "repository": "szl-holdings/a11oy",
+  "huggingface_organization": "SZLHOLDINGS",
+  "solo_operator_contract": {
+    "mandatory_second_human_reviewer": false,
+    "owner_is_release_authority": true,
+    "automated_independent_attestation_allowed": true,
+    "exact_head_binding_required": true,
+    "signed_and_dco_history_required": true,
+    "protected_main_required": true,
+    "merge_queue_or_protected_auto_merge_required": true,
+    "force_push_allowed": false,
+    "administrator_merge_bypass_allowed": false,
+    "self_approval_allowed": false,
+    "direct_protected_main_write_allowed": false,
+    "security_alert_auto_dismissal_allowed": false,
+    "issue_auto_close_allowed": false,
+    "secret_value_readback_allowed": false
+  },
+  "security": {
+    "inventory_endpoints": [
+      "dependabot",
+      "code_scanning",
+      "secret_scanning",
+      "repository_advisories"
+    ],
+    "terminal_security_severities": [
+      "critical",
+      "high"
+    ],
+    "secret_scanning_is_terminal": true,
+    "permission_denied_is_green": false,
+    "required_repository_controls": [
+      ".github/dependabot.yml",
+      ".github/workflows/codeql.yml",
+      ".github/workflows/gitleaks.yml",
+      "SECURITY.md"
+    ],
+    "closure_requires": [
+      "exact alert identifier",
+      "exact remediating commit or accepted risk authority",
+      "current-head checks",
+      "post-merge alert readback"
+    ]
+  },
+  "issue_triage": {
+    "control_issue_title": "[SOLO-ESTATE] Security, issues, and Hugging Face closure",
+    "stale_warning_days": 30,
+    "labels": {
+      "solo-build": {
+        "color": "0E8A16",
+        "description": "Work is designed for a protected solo-operator release path."
+      },
+      "priority:p0": {
+        "color": "B60205",
+        "description": "Immediate security, outage, data-loss, or release-integrity risk."
+      },
+      "priority:p1": {
+        "color": "D93F0B",
+        "description": "Material production, deployment, or investor-readiness blocker."
+      },
+      "priority:p2": {
+        "color": "FBCA04",
+        "description": "Planned quality, polish, documentation, or optimization work."
+      },
+      "domain:security": {
+        "color": "D73A4A",
+        "description": "Security control, vulnerability, credential, or trust-boundary work."
+      },
+      "domain:huggingface": {
+        "color": "FFD21E",
+        "description": "Hugging Face model, dataset, Space, collection, kernel, or card work."
+      },
+      "domain:deployment": {
+        "color": "1D76DB",
+        "description": "Deployment, runtime, readiness, rollback, or production-parity work."
+      },
+      "needs:evidence": {
+        "color": "5319E7",
+        "description": "Closure requires current immutable evidence or live readback."
+      },
+      "blocked:external-authority": {
+        "color": "6A737D",
+        "description": "Blocked by a provider, credential owner, legal authority, or external system."
+      },
+      "upgrade:major": {
+        "color": "C5DEF5",
+        "description": "Major-version upgrade requiring isolated compatibility and rollback proof."
+      }
+    },
+    "classifiers": {
+      "security": [
+        "security",
+        "vulnerability",
+        "cve",
+        "secret",
+        "credential",
+        "token",
+        "exploit",
+        "codeql",
+        "dependabot",
+        "gitleaks"
+      ],
+      "huggingface": [
+        "hugging face",
+        "huggingface",
+        "hf ",
+        "space",
+        "model",
+        "dataset",
+        "collection",
+        "kernel",
+        "model card",
+        "dataset card"
+      ],
+      "deployment": [
+        "deploy",
+        "production",
+        "runtime",
+        "readiness",
+        "drift",
+        "relock",
+        "rollback",
+        "incident",
+        "outage"
+      ],
+      "p0": [
+        "critical",
+        "secret leak",
+        "credential leak",
+        "data loss",
+        "outage",
+        "compromise",
+        "production down"
+      ],
+      "p1": [
+        "failing",
+        "blocked",
+        "drift",
+        "deployment",
+        "production",
+        "readiness",
+        "security"
+      ],
+      "external": [
+        "external blocker",
+        "provider blocker",
+        "permission denied",
+        "bad credentials",
+        "legal review",
+        "license unknown"
+      ],
+      "major_upgrade": [
+        "major upgrade",
+        "breaking change",
+        "vite 8",
+        "node 24"
+      ]
+    }
+  },
+  "huggingface": {
+    "safe_write_mode_default": false,
+    "never_infer_license": true,
+    "never_change_visibility_automatically": true,
+    "never_change_hardware_automatically": true,
+    "never_delete_resources_automatically": true,
+    "never_overwrite_existing_cards_automatically": true,
+    "missing_card_safe_creation_allowed_only_by_manual_dispatch": true,
+    "runtime_healthy_stages": [
+      "RUNNING",
+      "SLEEPING"
+    ],
+    "minimum_card_characters": 350,
+    "maximum_mobile_line_characters": 240,
+    "maximum_markdown_table_columns": 6,
+    "required_sections": {
+      "model": [
+        "overview",
+        "status",
+        "usage",
+        "limitations"
+      ],
+      "dataset": [
+        "overview",
+        "data",
+        "license",
+        "limitations"
+      ],
+      "space": [
+        "overview",
+        "status",
+        "evidence",
+        "usage"
+      ],
+      "kernel": [
+        "overview",
+        "contract",
+        "status",
+        "evidence"
+      ]
+    },
+    "kernel_identifiers": [
+      "kernel",
+      "council-kernel",
+      "alloy-kernel",
+      "state-kernel",
+      "proof-kernel"
+    ],
+    "resource_terminal_requirements": {
+      "model": [
+        "immutable_sha",
+        "readme",
+        "declared_license",
+        "pipeline_or_task_metadata"
+      ],
+      "dataset": [
+        "immutable_sha",
+        "readme",
+        "declared_license"
+      ],
+      "space": [
+        "immutable_sha",
+        "readme",
+        "sdk",
+        "runtime_observed"
+      ],
+      "collection": [
+        "title",
+        "non_empty"
+      ]
+    }
+  },
+  "truth_labels": {
+    "PROVED": "Derived from exact source, immutable metadata, or deterministic validation.",
+    "MEASURED": "Observed from a named current API or runtime readback.",
+    "BLOCKED": "A required authority or evidence source is unavailable or failing.",
+    "NOT_CLAIMED": "No production, security, legal, or deployment conclusion is inferred without evidence."
+  }
+}
