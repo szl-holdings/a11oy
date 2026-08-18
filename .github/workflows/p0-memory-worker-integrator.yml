@@ -1,0 +1,257 @@
+name: P0 Memory Covenant worker integrator
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-memory-worker-integrator.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-memory-worker-integrator
+  cancel-in-progress: false
+
+jobs:
+  integrate-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Integrate the reviewed worker control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def read(path: str) -> str:
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path: str, text: str) -> None:
+              Path(path).write_text(text, encoding="utf-8")
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"missing integration anchor: {label}")
+              return text.replace(old, new, 1)
+
+          package_path = "routers/__init__.py"
+          package = read(package_path)
+          if '"memory_worker"' not in package:
+              anchor = '    "memory_covenant",\n' if '"memory_covenant"' in package else '    "frontier_reads",\n'
+              package = replace_once(
+                  package,
+                  anchor,
+                  anchor + '    "memory_worker",\n',
+                  "worker package export",
+              )
+              write(package_path, package)
+
+          frontier_path = "routers/frontier_reads.py"
+          frontier = read(frontier_path)
+          if "memory_worker.register" not in frontier:
+              block = '''\n    try:\n        from routers import memory_worker as _memory_worker\n\n        memory_worker = _memory_worker.register(app, ns="a11oy")\n    except Exception as exc:  # one additive surface must never take down A11oy\n        memory_worker = {\n            "ok": False,\n            "state": "UNAVAILABLE",\n            "reason": type(exc).__name__,\n            "provider_calls": 0,\n        }\n\n'''
+              return_anchor = '\n    return {\n        "ok": True,\n'
+              index = frontier.rfind(return_anchor)
+              if index < 0:
+                  raise SystemExit("missing frontier return anchor")
+              frontier = frontier[:index] + block + frontier[index:]
+              status_anchor = (
+                  '        "memory_covenant": memory_covenant,\n'
+                  if '        "memory_covenant": memory_covenant,\n' in frontier
+                  else '        "token_ingress": token_ingress,\n'
+              )
+              frontier = replace_once(
+                  frontier,
+                  status_anchor,
+                  status_anchor + '        "memory_worker": memory_worker,\n',
+                  "frontier worker status",
+              )
+              route_anchor = '            "/api/a11oy/v1/memory-covenant/query",\n'
+              if route_anchor not in frontier:
+                  route_anchor = '            "/api/a11oy/v1/token-ingress/verification-budget",\n'
+              frontier = replace_once(
+                  frontier,
+                  route_anchor,
+                  route_anchor
+                  + '            "/api/a11oy/v1/memory-covenant/worker/status",\n'
+                  + '            "/api/a11oy/v1/memory-covenant/worker/lease",\n'
+                  + '            "/api/a11oy/v1/memory-covenant/worker/complete",\n'
+                  + '            "/api/a11oy/v1/memory-covenant/worker/fail",\n',
+                  "frontier worker routes",
+              )
+              write(frontier_path, frontier)
+
+          demo_path = "tests/test_demo_critical_routes.py"
+          demo = read(demo_path)
+          if "/api/a11oy/v1/memory-covenant/worker/status" not in demo:
+              anchor = '    "/api/a11oy/v1/memory-covenant/query",\n'
+              if anchor not in demo:
+                  anchor = '    "/api/a11oy/v1/token-ingress/qualify",\n'
+              demo = replace_once(
+                  demo,
+                  anchor,
+                  anchor
+                  + '    "/api/a11oy/v1/memory-covenant/worker/status",\n'
+                  + '    "/api/a11oy/v1/memory-covenant/worker/lease",\n'
+                  + '    "/api/a11oy/v1/memory-covenant/worker/complete",\n'
+                  + '    "/api/a11oy/v1/memory-covenant/worker/fail",\n',
+                  "demo worker routes",
+              )
+              write(demo_path, demo)
+
+          runtime_path = "routers/memory_worker.py"
+          runtime = read(runtime_path)
+          if "from fastapi.encoders import jsonable_encoder" not in runtime:
+              runtime = replace_once(
+                  runtime,
+                  "from fastapi import Request\n",
+                  "from fastapi import Request\nfrom fastapi.encoders import jsonable_encoder\n",
+                  "jsonable encoder import",
+              )
+          runtime = runtime.replace(
+              'if not isinstance(index_uri, str) or len(index_uri) > 1024 or not index_uri.startswith("cas://sha256/"):',
+              'if not isinstance(index_uri, str) or re.fullmatch(r"cas://sha256/[0-9a-f]{64}", index_uri) is None:',
+          )
+          old_query = '''                        SELECT COUNT(*) AS function_count\n                          FROM pg_proc AS p\n                          JOIN pg_namespace AS n ON n.oid=p.pronamespace\n                         WHERE n.nspname='public'\n                           AND p.proname IN (\n                             'memory_lease_outbox',\n                             'memory_complete_outbox',\n                             'memory_fail_outbox'\n                           )\n'''
+          new_query = '''                        SELECT COUNT(*) AS function_count,\n                               COUNT(*) FILTER (WHERE p.prosecdef) AS security_definer_count,\n                               COUNT(*) FILTER (\n                                 WHERE has_function_privilege('public', p.oid, 'EXECUTE')\n                               ) AS public_execute_count\n                          FROM pg_proc AS p\n                          JOIN pg_namespace AS n ON n.oid=p.pronamespace\n                         WHERE n.nspname='public'\n                           AND p.proname IN (\n                             'memory_lease_outbox',\n                             'memory_complete_outbox',\n                             'memory_fail_outbox'\n                           )\n'''
+          if old_query in runtime:
+              runtime = runtime.replace(old_query, new_query, 1)
+          old_ready = '"ready": bool(functions and int(functions["function_count"]) == 3),'
+          new_ready = '''"ready": bool(\n                        functions\n                        and int(functions["function_count"]) == 3\n                        and int(functions["security_definer_count"]) == 3\n                        and int(functions["public_execute_count"]) == 0\n                    ),'''
+          if old_ready in runtime:
+              runtime = runtime.replace(old_ready, new_ready, 1)
+          runtime = runtime.replace(
+              '                    "settlement": "GENERATION_AND_DIGEST_BOUND",\n',
+              '                    "settlement": "GENERATION_AND_DIGEST_BOUND",\n'
+              '                    "function_contract": {\n'
+              '                        "count": int(functions["function_count"]),\n'
+              '                        "security_definer": int(functions["security_definer_count"]),\n'
+              '                        "public_execute": int(functions["public_execute_count"]),\n'
+              '                    },\n',
+              1,
+          )
+          runtime = runtime.replace(
+              "            events = [dict(row) for row in rows]",
+              "            events = [jsonable_encoder(dict(row)) for row in rows]",
+          )
+          runtime = runtime.replace('                    "event": dict(row),', '                    "event": jsonable_encoder(dict(row)),')
+          write(runtime_path, runtime)
+
+          migration_path = "migrations/20260817_memory_covenant_worker_completion.sql"
+          migration = read(migration_path)
+          generation_gate = '''    IF NOT EXISTS (\n        SELECT 1\n          FROM memory_outbox AS event\n          JOIN memory_index_generations AS generation\n            ON generation.tenant_id=event.tenant_id\n           AND generation.security_domain=event.security_domain\n           AND generation.generation_id=event.generation_id\n         WHERE event.event_id=p_event_id\n           AND generation.status='ACTIVE'\n           AND generation.identity_digest=p_result->>'generation_identity_digest'\n    ) THEN\n        RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='active index generation identity is absent or mismatched';\n    END IF;\n\n'''
+          gate_anchor = "    UPDATE memory_outbox AS event\n       SET status='DONE',\n"
+          if "active index generation identity is absent or mismatched" not in migration:
+              migration = replace_once(
+                  migration,
+                  gate_anchor,
+                  generation_gate + gate_anchor,
+                  "active generation settlement gate",
+              )
+              write(migration_path, migration)
+
+          test_path = "tests/test_memory_worker_runtime.py"
+          test = read(test_path)
+          if "from datetime import datetime, timezone" not in test:
+              test = replace_once(
+                  test,
+                  "from contextlib import nullcontext\n",
+                  "from contextlib import nullcontext\nfrom datetime import datetime, timezone\n",
+                  "datetime test import",
+              )
+          test = test.replace(
+              'return _Result({"function_count": 3})',
+              'return _Result({"function_count": 3, "security_definer_count": 3, "public_execute_count": 0})',
+          )
+          test = test.replace(
+              '                        "generation_id": "generation-01",\n',
+              '                        "generation_id": "generation-01",\n'
+              '                        "available_at": datetime(2026, 8, 17, tzinfo=timezone.utc),\n',
+              1,
+          )
+          if "test_completion_result_rejects_non_content_addressed_uri" not in test:
+              insert_anchor = "\ndef test_completion_result_rejects_unknown_fields() -> None:\n"
+              test_block = '''\ndef test_completion_result_rejects_non_content_addressed_uri() -> None:\n    payload = _completion_result()\n    payload["result"]["index_uri"] = "https://example.invalid/index"\n    with pytest.raises(worker.WorkerContractError, match="content-addressed"):\n        worker._completion_result(payload)\n\n'''
+              test = replace_once(
+                  test,
+                  insert_anchor,
+                  test_block + insert_anchor,
+                  "content-addressed URI test",
+              )
+          if 'assert payload["function_contract"]["public_execute"] == 0' not in test:
+              test = replace_once(
+                  test,
+                  '    assert payload["provider_calls"] == 0\n',
+                  '    assert payload["provider_calls"] == 0\n'
+                  '    assert payload["function_contract"]["security_definer"] == 3\n'
+                  '    assert payload["function_contract"]["public_execute"] == 0\n',
+                  "worker function status assertions",
+              )
+          write(test_path, test)
+          PY
+
+          git add \
+            routers/memory_worker.py \
+            routers/frontier_reads.py \
+            routers/__init__.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_demo_critical_routes.py \
+            migrations/20260817_memory_covenant_worker_completion.sql \
+            .github/workflows/memory-worker-runtime.yml \
+            artifacts/proof-packets/20260817-memory-worker-runtime.md
+          git diff --cached --check
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify worker and assembled runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/memory_worker.py \
+            routers/memory_covenant.py \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          pytest -q \
+            tests/test_memory_worker_runtime.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          git diff --cached --check
+
+      - name: Commit and push worker integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "feat(memory): wire bounded index-worker control plane" \
+            -m "Adds authenticated lease/complete/fail routes, generation-identity settlement, serializable evidence, exact route registration, and focused qualification without invoking an embedding provider." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
