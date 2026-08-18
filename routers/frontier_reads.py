@@ -20,6 +20,11 @@ fails one surface closed without taking down the existing frontier reads. Fronti
 Now is a read-only projection over that controller: no second store, signer,
 credential, scheduler, passport authority, or effector.
 
+The token-ingress controller is also registered at this seam. It exposes bounded
+routing, semantic qualification, and verifier-budget computation only. It owns no
+provider call, network effector, model mutation, repository read endpoint, or
+persistent prefix write endpoint.
+
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 from __future__ import annotations
@@ -46,7 +51,7 @@ _A11OY_VERTICALS = [
 
 
 def register(app) -> dict:
-    """Attach frontier reads and the additive Series-A control plane."""
+    """Attach frontier reads and the additive bounded controllers."""
     import serve  # shared module-scope state lives at serve module scope
 
     @app.get("/api/a11oy/v1/forecast-baseline")
@@ -115,12 +120,25 @@ def register(app) -> dict:
             "effectors": [],
         }
 
+    try:
+        from routers import token_ingress as _token_ingress
+
+        token_ingress = _token_ingress.register(app, ns="a11oy")
+    except Exception as exc:  # one bounded controller must never take down A11oy
+        token_ingress = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": 0,
+        }
+
     return {
         "ok": True,
         "ns": "a11oy",
         "group": "frontier-reads",
         "series_a": series_a,
         "frontier_now": frontier_now,
+        "token_ingress": token_ingress,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
@@ -129,5 +147,9 @@ def register(app) -> dict:
             "/frontier-now", "/now",
             "/api/a11oy/v1/frontier-now/summary",
             "/api/a11oy/v1/frontier-now/inventory",
+            "/api/a11oy/v1/token-ingress/status",
+            "/api/a11oy/v1/token-ingress/route",
+            "/api/a11oy/v1/token-ingress/qualify",
+            "/api/a11oy/v1/token-ingress/verification-budget",
         ],
     }
