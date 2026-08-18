@@ -1,0 +1,120 @@
+name: P0 successor bounded retry controller
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-successor-rerun-controller.yml
+
+permissions:
+  actions: write
+  checks: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: p0-successor-bounded-retry-controller
+  cancel-in-progress: false
+
+jobs:
+  bounded-retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Resolve successor PR
+        id: pr
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$TARGET_BRANCH" --state open --json number --jq '.[0].number // empty')"
+          test -n "$pr"
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for first terminal exact-head check set
+        id: first
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for attempt in $(seq 1 120); do
+            gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,bucket,state,link,workflow > artifacts/checks-first.json
+            count="$(jq 'length' artifacts/checks-first.json)"
+            pending="$(jq '[.[] | select(.bucket == "pending")] | length' artifacts/checks-first.json)"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              break
+            fi
+            sleep 10
+          done
+          failed="$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' artifacts/checks-first.json)"
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+
+      - name: Rerun failed workflow jobs once
+        if: steps.first.outputs.failed != '0'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | .link' artifacts/checks-first.json \
+            | sed -nE 's#.*actions/runs/([0-9]+).*#\1#p' \
+            | sort -u > artifacts/failed-run-ids.txt
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            gh run rerun "$run_id" --failed --repo "$GITHUB_REPOSITORY" || true
+          done < artifacts/failed-run-ids.txt
+
+      - name: Wait for final exact-head check set
+        id: final
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 180); do
+            gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,bucket,state,link,workflow > artifacts/checks-final.json
+            count="$(jq 'length' artifacts/checks-final.json)"
+            pending="$(jq '[.[] | select(.bucket == "pending")] | length' artifacts/checks-final.json)"
+            failed="$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' artifacts/checks-final.json)"
+            echo "attempt=$attempt checks=$count pending=$pending failed=$failed"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              echo "failed=$failed" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "failed=-1" >> "$GITHUB_OUTPUT"
+
+      - name: Publish final disposition
+        if: always()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          FAILED: ${{ steps.final.outputs.failed }}
+        run: |
+          set -euo pipefail
+          if [ "${FAILED:--1}" = "0" ]; then
+            gh pr ready "$PR" --repo "$GITHUB_REPOSITORY" || true
+            cat > /tmp/disposition.md <<'EOF'
+          ## Successor exact-head checks are green after bounded qualification
+
+          The external staging controller observed a terminal exact-head check set with no failed or cancelled checks. Any failed workflow jobs were eligible for one bounded rerun only; no check, rule, or protection was weakened.
+
+          @codex review
+
+          Review the exact head for P0/P1 correctness, security, doctrine, runtime integration, rollback, and claim honesty. Passing CI is source qualification, not deployment or production parity.
+          EOF
+          else
+            {
+              echo '## Successor exact-head qualification remains blocked'
+              echo
+              echo 'A bounded retry was attempted for failed workflow jobs where a run ID was available. Remaining failures or timeout are preserved as blockers.'
+              echo
+              echo '| Check | Bucket | State |'
+              echo '|---|---|---|'
+              jq -r '.[] | "| [\(.name)](\(.link)) | \(.bucket) | \(.state) |"' artifacts/checks-final.json 2>/dev/null || true
+              echo
+              echo 'No merge, bypass, deployment, or green production label was performed.'
+            } > /tmp/disposition.md
+          fi
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/disposition.md
