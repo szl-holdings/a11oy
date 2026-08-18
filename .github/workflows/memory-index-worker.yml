@@ -1,0 +1,58 @@
+name: Memory Covenant index worker contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "routers/memory_index_worker.py"
+      - "tests/test_memory_index_worker.py"
+      - "migrations/20260817_memory_covenant_worker_completion.sql"
+      - "migrations/20260817_memory_covenant_worker_generation_access.sql"
+      - "audit/psycopg-runtime-pin.json"
+      - ".github/workflows/memory-index-worker.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  memory-index-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact test and PostgreSQL runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          version=$(python - <<'PY'
+          import json
+          print(json.load(open('audit/psycopg-runtime-pin.json', encoding='utf-8'))['version'])
+          PY
+          )
+          python -m pip install --disable-pip-version-check "psycopg[binary]==$version"
+      - name: Compile worker and tests
+        run: python -m py_compile routers/memory_index_worker.py tests/test_memory_index_worker.py
+      - name: Run bounded worker lifecycle tests
+        run: pytest tests/test_memory_index_worker.py -q
+      - name: Assert completion authority remains narrow
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "SECURITY DEFINER" migrations/20260817_memory_covenant_worker_completion.sql
+          grep -F "lease_owner = p_worker_id" migrations/20260817_memory_covenant_worker_completion.sql
+          grep -F "REVOKE ALL ON FUNCTION memory_complete_outbox" migrations/20260817_memory_covenant_worker_completion.sql
+          grep -F "GRANT SELECT ON memory_index_generations TO a11oy_memory_worker" migrations/20260817_memory_covenant_worker_generation_access.sql
+      - name: Reject whitespace errors in worker changes
+        run: >-
+          git diff --check origin/main...HEAD --
+          routers/memory_index_worker.py
+          tests/test_memory_index_worker.py
+          migrations/20260817_memory_covenant_worker_completion.sql
+          migrations/20260817_memory_covenant_worker_generation_access.sql
+          .github/workflows/memory-index-worker.yml
