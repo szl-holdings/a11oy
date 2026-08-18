@@ -1,0 +1,357 @@
+name: Docs audit exact repair builder
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/docs-audit-repair-builder.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: docs-audit-exact-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  build-repair:
+    name: build signed docs audit successor
+    if: >-
+      github.event.pull_request.number == 1312 &&
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      github.event.pull_request.head.ref == 'chore/docs-audit-diagnostic-20260817'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      TARGET_BRANCH: fix/docs-nanoid-audit-20260818
+      TRACKING_ISSUE: '1309'
+    steps:
+      - name: Verify exact protected-base context
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha='${{ github.event.pull_request.base.sha }}'
+          current_main="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main" = "$base_sha"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact protected base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.context.outputs.base_sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Apply narrow transitive security pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('source/docs/site')
+          package_path = root / 'package.json'
+          package = json.loads(package_path.read_text(encoding='utf-8'))
+          overrides = package.get('overrides')
+          if not isinstance(overrides, dict):
+              raise SystemExit('docs/site package.json has no overrides object')
+          vitepress_override = overrides.get('vitepress')
+          package['overrides'] = {
+              'vite': overrides.get('vite'),
+              'esbuild': overrides.get('esbuild'),
+              'nanoid': '3.3.18',
+              'vitepress': vitepress_override,
+          }
+          if any(value is None for value in package['overrides'].values()):
+              raise SystemExit('existing docs override contract changed')
+          package_path.write_text(json.dumps(package, indent=2) + '\n', encoding='utf-8')
+
+          readme_path = root / 'README.md'
+          readme = readme_path.read_text(encoding='utf-8')
+          old = '''"overrides": {
+            "vite": "^6.4.2",     // VitePress 1.x ships Vite 5; force a maintained line
+            "esbuild": "^0.25.0"  // patches GHSA-67mh-4wv8-2f99
+          }
+          ```
+          '''
+          new = '''"overrides": {
+            "vite": "^6.4.2",     // VitePress 1.x ships Vite 5; force a maintained line
+            "esbuild": "^0.25.0", // patches GHSA-67mh-4wv8-2f99
+            "nanoid": "3.3.18"    // patches GHSA-2v37-7h3g-55p8 via postcss
+          }
+          ```
+
+          The exact `nanoid` override is a temporary transitive security pin for
+          `vitepress -> postcss -> nanoid`. Remove it only after the unoverridden resolved tree
+          selects `nanoid >= 3.3.18` and both `npm ci` and `npm audit` remain clean. The
+          VitePress 2.x exit criteria below remain unchanged.
+          '''
+          if readme.count(old) != 1:
+              raise SystemExit('README override evidence block changed')
+          readme_path.write_text(readme.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Regenerate deterministic docs lockfile
+        working-directory: source/docs/site
+        shell: bash
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Reproduce clean install
+        working-directory: source/docs/site
+        shell: bash
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Require clean machine-readable audit
+        working-directory: source/docs/site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/docs-repair-evidence"
+          npm audit --json > "$RUNNER_TEMP/docs-repair-evidence/npm-audit.json"
+          npm ls nanoid --all --json > "$RUNNER_TEMP/docs-repair-evidence/npm-ls-nanoid.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'docs-repair-evidence'
+          audit = json.loads((root / 'npm-audit.json').read_text(encoding='utf-8'))
+          total = int(audit.get('metadata', {}).get('vulnerabilities', {}).get('total', -1))
+          if total != 0:
+              raise SystemExit(f'npm audit still reports {total} vulnerabilities')
+          tree = json.loads((root / 'npm-ls-nanoid.json').read_text(encoding='utf-8'))
+          versions = set()
+          def walk(node):
+              if not isinstance(node, dict):
+                  return
+              for name, child in (node.get('dependencies') or {}).items():
+                  if name == 'nanoid' and isinstance(child, dict):
+                      versions.add(str(child.get('version')))
+                  walk(child)
+          walk(tree)
+          if versions != {'3.3.18'}:
+              raise SystemExit(f'unexpected nanoid versions: {sorted(versions)}')
+          summary = {
+              'schema': 'szl.docs-audit-repair.v1',
+              'base_sha': '${{ steps.context.outputs.base_sha }}',
+              'advisory': 'GHSA-2v37-7h3g-55p8',
+              'resolved_nanoid_versions': sorted(versions),
+              'vulnerability_total': total,
+          }
+          (root / 'summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Build documentation site
+        working-directory: source/docs/site
+        shell: bash
+        run: npm run docs:build
+
+      - name: Record immutable file digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "base_sha=${{ steps.context.outputs.base_sha }}"
+            sha256sum source/docs/site/package.json
+            sha256sum source/docs/site/package-lock.json
+            sha256sum source/docs/site/README.md
+          } > "$RUNNER_TEMP/docs-repair-evidence/file-digests.txt"
+
+      - name: Upload repair evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-nanoid-audit-repair-evidence
+          path: ${{ runner.temp }}/docs-repair-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Create exact GitHub-signed repair commit and draft PR
+        id: publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          base_sha='${{ steps.context.outputs.base_sha }}'
+
+          if existing="$(gh api "repos/${REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha' 2>/dev/null)"; then
+            test "$existing" = "$base_sha"
+          else
+            gh api --method POST "repos/${REPOSITORY}/git/refs" \
+              -f ref="refs/heads/${TARGET_BRANCH}" \
+              -f sha="$base_sha" >/dev/null
+          fi
+
+          export REPAIR_BASE_SHA="$base_sha"
+          export REPAIR_TOKEN="$GH_TOKEN"
+          export REPAIR_REPOSITORY="$REPOSITORY"
+          export REPAIR_BRANCH="$TARGET_BRANCH"
+          export REPAIR_ROOT="$GITHUB_WORKSPACE/source"
+
+          result="$RUNNER_TEMP/docs-repair-commit.json"
+          python - "$result" <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+          import sys
+          import urllib.error
+          import urllib.request
+
+          output = pathlib.Path(sys.argv[1])
+          root = pathlib.Path(os.environ['REPAIR_ROOT'])
+          repository = os.environ['REPAIR_REPOSITORY']
+          branch = os.environ['REPAIR_BRANCH']
+          base_sha = os.environ['REPAIR_BASE_SHA']
+          token = os.environ['REPAIR_TOKEN']
+          paths = [
+              'docs/site/package.json',
+              'docs/site/package-lock.json',
+              'docs/site/README.md',
+          ]
+          additions = []
+          for rel in paths:
+              additions.append({
+                  'path': rel,
+                  'contents': base64.b64encode((root / rel).read_bytes()).decode('ascii'),
+              })
+          mutation = '''
+          mutation BuildDocsRepair($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) {
+              commit { oid url }
+            }
+          }
+          '''
+          variables = {
+              'input': {
+                  'branch': {
+                      'repositoryNameWithOwner': repository,
+                      'branchName': branch,
+                  },
+                  'expectedHeadOid': base_sha,
+                  'message': {
+                      'headline': 'fix(docs): patch transitive nanoid audit finding',
+                      'body': (
+                          'Pin the VitePress postcss nanoid path to the first patched 3.x '
+                          'release, regenerate the docs lockfile, and record the removal condition.\n\n'
+                          'Audit evidence: GHSA-2v37-7h3g-55p8 resolves with zero npm audit '
+                          'findings and a successful production docs build.\n\n'
+                          'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+                      ),
+                  },
+                  'fileChanges': {'additions': additions},
+              }
+          }
+          request = urllib.request.Request(
+              'https://api.github.com/graphql',
+              data=json.dumps({'query': mutation, 'variables': variables}).encode('utf-8'),
+              method='POST',
+              headers={
+                  'Authorization': f'Bearer {token}',
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'szl-docs-audit-repair-builder',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  payload = json.load(response)
+          except urllib.error.HTTPError as exc:
+              raise SystemExit(f'GitHub GraphQL HTTP {exc.code}') from exc
+          if payload.get('errors'):
+              raise SystemExit('; '.join(str(row.get('message')) for row in payload['errors'])[:1000])
+          commit = (((payload.get('data') or {}).get('createCommitOnBranch') or {}).get('commit') or {})
+          oid = str(commit.get('oid') or '')
+          if len(oid) != 40 or any(ch not in '0123456789abcdef' for ch in oid):
+              raise SystemExit('GitHub did not return a valid commit OID')
+          output.write_text(json.dumps({'commit_oid': oid, 'url': commit.get('url')}) + '\n')
+          PY
+
+          commit_sha="$(jq -er '.commit_oid' "$result")"
+          commit_json="$(gh api "repos/${REPOSITORY}/commits/${commit_sha}")"
+          jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
+          test "$(jq -er '.parents | length' <<<"$commit_json")" = '1'
+          test "$(jq -er '.parents[0].sha' <<<"$commit_json")" = "$base_sha"
+          grep -Eq '^Signed-off-by: .+ <[^>]+>$' <<<"$(jq -r '.commit.message' <<<"$commit_json")"
+          mapfile -t changed < <(jq -r '.files[].filename' <<<"$commit_json" | sort)
+          expected=(docs/site/README.md docs/site/package-lock.json docs/site/package.json)
+          test "${changed[*]}" = "${expected[*]}"
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$commit_sha"
+
+          pr_body="$(cat <<EOF
+          ## Security repair
+
+          Replaces the red docs portion of #1308 with a current-main-native repair for #1309.
+
+          - protected base: \`${base_sha}\`
+          - exact head: \`${commit_sha}\`
+          - finding: \`GHSA-2v37-7h3g-55p8\`
+          - vulnerable path: \`vitepress@1.6.4 -> postcss@8.5.23 -> nanoid@3.3.16\`
+          - repaired resolution: \`nanoid@3.3.18\`
+          - \`npm ci --ignore-scripts\`: passed
+          - \`npm audit --json\`: 0 vulnerabilities
+          - \`npm run docs:build\`: passed
+          - GitHub commit signature: verified
+          - DCO sign-off: present
+
+          The audit workflow is unchanged and remains fail closed. The exact transitive override is documented with a removal condition.
+
+          Refs #1309. PR #1308 must remain unmerged until its safe root updates are split separately.
+          EOF
+          )"
+
+          pr_json="$(gh api --method POST "repos/${REPOSITORY}/pulls" \
+            -f title='fix(docs): patch transitive nanoid audit finding' \
+            -f head="$TARGET_BRANCH" \
+            -f base=main \
+            -f body="$pr_body" \
+            -F draft=true)"
+          pr_number="$(jq -er '.number' <<<"$pr_json")"
+          pr_url="$(jq -er '.html_url' <<<"$pr_json")"
+
+          issue_comment="$(cat <<EOF
+          Exact docs audit repair successor created.
+
+          - PR: ${pr_url}
+          - Base: \`${base_sha}\`
+          - Head: \`${commit_sha}\`
+          - GitHub signature: verified
+          - Finding: \`nanoid < 3.3.18\` via \`vitepress -> postcss\`
+          - Repair: exact \`nanoid@3.3.18\` override with documented removal condition
+          - Local-in-run audit: zero vulnerabilities
+          - Docs production build: passed
+
+          The successor remains draft until the repository's full exact-head matrix passes. #1308 remains held and unmerged.
+          EOF
+          )"
+          gh api "repos/${REPOSITORY}/issues/${TRACKING_ISSUE}/comments" -f body="$issue_comment" >/dev/null
+
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+
+      - name: Report exact successor
+        shell: bash
+        run: |
+          {
+            echo '### Docs audit exact repair successor'
+            echo "- PR: ${{ steps.publish.outputs.pr_url }}"
+            echo "- head: \`${{ steps.publish.outputs.commit_sha }}\`"
+            echo '- GitHub signature: verified'
+            echo '- npm audit: zero vulnerabilities'
+            echo '- docs build: passed'
+          } >> "$GITHUB_STEP_SUMMARY"
