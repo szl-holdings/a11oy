@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -135,7 +135,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.sha }}
           SOURCE_REF: ${{ github.event.pull_request.head.sha }}
         run: |
-          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \
+          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_candidate_admission.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
             --github-repo "$GITHUB_REPOSITORY" \
             --base-ref "$BASE_REF" \
@@ -151,43 +151,3 @@ jobs:
           path: hf-repository-parity.out.json
           if-no-files-found: error
           retention-days: 90
-
-  # TEMP_HF_CONTROLLER_APPLICATOR_START
-  hf-controller-applicator:
-    name: One-shot non-workflow controller wiring applicator
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/hf-candidate-controller-wiring-20260817' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Checkout exact source branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: true
-      - name: Apply validator and adversarial-test wiring
-        run: python3 scripts/_apply_hf_candidate_controller_scripts_only.py
-      - name: Validate generated non-workflow changes
-        run: |
-          python3 -B -m py_compile \
-            scripts/validate_frontdoor_source_integrity.py \
-            scripts/test_frontdoor_source_integrity.py
-          git diff --check -- \
-            scripts/validate_frontdoor_source_integrity.py \
-            scripts/test_frontdoor_source_integrity.py
-      - name: Commit non-workflow implementation
-        env:
-          BRANCH: ${{ github.head_ref }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            scripts/validate_frontdoor_source_integrity.py \
-            scripts/test_frontdoor_source_integrity.py
-          git commit \
-            -m "test(hf): bind candidate controller workflow shape" \
-            -m "Pin distinct protected-base verifier and candidate-controller commands in the source-integrity guard and add adversarial role-separation regressions." \
-            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
-          git push origin "HEAD:$BRANCH"
-  # TEMP_HF_CONTROLLER_APPLICATOR_END
