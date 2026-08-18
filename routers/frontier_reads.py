@@ -14,10 +14,10 @@ Shared serve.py module-scope state referenced (unchanged, via `import serve`):
 this group, so it moves here with the routes. Registered BEFORE the /api/a11oy/
 {path:path} Node proxy + SPA catch-all, identical to the pre-refactor inline block.
 
-The additive Series-A controller and bounded token-ingress controller are
-registered at this same pre-catch-all seam.  Token ingress exposes computation
-only: public callers cannot mark telemetry MEASURED, persist foundry entries, read
-arbitrary repository files, or invoke providers/effectors.
+The additive Series-A controller, token-ingress controller, and Memory Covenant
+controller are registered at this same pre-catch-all seam. Each fails one surface
+closed without taking down the existing frontier reads. GET/HEAD routes stay
+read-only; database and provider mutations require separate explicit authority.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -45,7 +45,7 @@ _A11OY_VERTICALS = [
 
 
 def register(app) -> dict:
-    """Attach frontier reads plus additive governed control surfaces."""
+    """Attach frontier reads plus additive governed runtime controllers."""
     import serve  # shared module-scope state lives at serve module scope
 
     @app.get("/api/a11oy/v1/forecast-baseline")
@@ -106,12 +106,25 @@ def register(app) -> dict:
         from routers import token_ingress as _token_ingress
 
         token_ingress = _token_ingress.register(app, ns="a11oy")
-    except Exception as exc:  # fail the additive surface closed
+    except Exception as exc:  # fail one additive surface closed
         token_ingress = {
             "ok": False,
             "state": "UNAVAILABLE",
             "reason": type(exc).__name__,
             "effectors": 0,
+        }
+
+    try:
+        from routers import memory_covenant as _memory_covenant
+
+        memory_covenant = _memory_covenant.register(app, ns="a11oy")
+    except Exception as exc:  # fail one additive surface closed
+        memory_covenant = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": 0,
+            "writes": 0,
         }
 
     return {
@@ -120,6 +133,7 @@ def register(app) -> dict:
         "group": "frontier-reads",
         "series_a": series_a,
         "token_ingress": token_ingress,
+        "memory_covenant": memory_covenant,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
@@ -129,5 +143,7 @@ def register(app) -> dict:
             "/api/a11oy/v1/token-ingress/route",
             "/api/a11oy/v1/token-ingress/qualify",
             "/api/a11oy/v1/token-ingress/verification-budget",
+            "/api/a11oy/v1/memory-covenant/status",
+            "/api/a11oy/v1/memory-covenant/query",
         ],
     }
