@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/hf-module-drift.yml"
 VALIDATOR = ROOT / "scripts/validate_frontdoor_source_integrity.py"
 TESTS = ROOT / "scripts/test_frontdoor_source_integrity.py"
+TEMP_START = "  # TEMP_HF_CONTROLLER_APPLICATOR_START\n"
+TEMP_END = "  # TEMP_HF_CONTROLLER_APPLICATOR_END\n"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -27,6 +29,14 @@ def patch_candidate_block(text: str, old: str, new: str, label: str) -> str:
     return prefix + marker + candidate
 
 
+def remove_temporary_job(text: str) -> str:
+    if text.count(TEMP_START) != 1 or text.count(TEMP_END) != 1:
+        raise RuntimeError("temporary workflow applicator markers are not unique")
+    prefix, remainder = text.split(TEMP_START, 1)
+    _temporary, suffix = remainder.split(TEMP_END, 1)
+    return prefix + suffix
+
+
 def patch_workflow() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     text = patch_candidate_block(
@@ -35,6 +45,13 @@ def patch_workflow() -> None:
         "baseline/.github/scripts/verify_hf_candidate_admission.py",
         "workflow candidate controller",
     )
+    text = replace_once(
+        text,
+        "permissions:\n  contents: write\n",
+        "permissions:\n  contents: read\n",
+        "restore read-only workflow permissions",
+    )
+    text = remove_temporary_job(text)
     WORKFLOW.write_text(text, encoding="utf-8")
 
 
