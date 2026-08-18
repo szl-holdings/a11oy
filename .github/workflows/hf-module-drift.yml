@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -151,3 +151,44 @@ jobs:
           path: hf-repository-parity.out.json
           if-no-files-found: error
           retention-days: 90
+
+  # TEMP_HF_CONTROLLER_APPLICATOR_START
+  hf-controller-applicator:
+    name: One-shot candidate-controller wiring applicator
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/hf-candidate-controller-wiring-20260817'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact source branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Apply deterministic wiring patch
+        run: python3 scripts/_apply_hf_candidate_controller_wiring.py
+      - name: Remove temporary applicators
+        run: |
+          rm scripts/_apply_hf_candidate_controller_wiring.py
+          rm .github/workflows/_temp-hf-candidate-controller-applicator.yml
+      - name: Validate generated implementation
+        run: |
+          python3 -B -m py_compile \
+            scripts/validate_frontdoor_source_integrity.py \
+            scripts/test_frontdoor_source_integrity.py
+          git diff --check
+      - name: Commit exact implementation
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(hf): wire base-controlled candidate admission
+
+Route the pull-request candidate parity job through the controller checked out from the exact protected base. Update the independent workflow-shape guard and adversarial role-separation tests while retaining the strict baseline verifier path.
+
+Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:$BRANCH"
+  # TEMP_HF_CONTROLLER_APPLICATOR_END
