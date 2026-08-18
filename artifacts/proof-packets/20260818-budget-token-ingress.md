@@ -1,9 +1,9 @@
 # Proof Packet — budget-native semantic token ingress
 
-Date: 2026-08-18  
-Repository: `szl-holdings/a11oy`  
-Pull request: `#1331`  
-Branch: `feat/budget-token-ingress-20260818`  
+Date: 2026-08-18
+Repository: `szl-holdings/a11oy`
+Pull request: `#1331`
+Branch: `feat/budget-token-ingress-20260818`
 Protected base: `b51f66add89755642c97deaa8acaeb2cc94a6bf4`
 
 ## Disposition
