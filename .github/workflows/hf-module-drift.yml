@@ -185,10 +185,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix(hf): wire base-controlled candidate admission
-
-Route the pull-request candidate parity job through the controller checked out from the exact protected base. Update the independent workflow-shape guard and adversarial role-separation tests while retaining the strict baseline verifier path.
-
-Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git commit \
+            -m "fix(hf): wire base-controlled candidate admission" \
+            -m "Route the pull-request candidate parity job through the controller checked out from the exact protected base. Update the independent workflow-shape guard and adversarial role-separation tests while retaining the strict baseline verifier path." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
           git push origin "HEAD:$BRANCH"
   # TEMP_HF_CONTROLLER_APPLICATOR_END
