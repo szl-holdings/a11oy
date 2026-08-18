@@ -1,0 +1,61 @@
+name: Repair P0 normalization quoting
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/p0-stage-normalization.yml"
+      - ".github/workflows/p0-stage-normalization-repair.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-stage-normalization-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.number == 1261 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/p0-a11oy-work-20260811'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/p0-a11oy-work-20260811
+          fetch-depth: 0
+
+      - name: Remove shell command-substitution hazards and retire repair job
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/p0-stage-normalization.yml')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('cat > /tmp/p0-successor.md <<EOF', "cat > /tmp/p0-successor.md <<'EOF'")
+          text = text.replace('`', "'")
+          path.write_text(text, encoding='utf-8')
+          PY
+          git rm .github/workflows/p0-stage-normalization-repair.yml
+          git diff --check
+
+      - name: Commit repaired workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add .github/workflows/p0-stage-normalization.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "fix(ci): quote normalization evidence safely" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:codex/p0-a11oy-work-20260811
