@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/oro/v1/plan.schema.json",
+  "title": "ORO admitted plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "plan_id",
+    "plan_digest",
+    "orbit_kind",
+    "objective",
+    "rank",
+    "expected_participants",
+    "codex",
+    "candidate_author",
+    "evaluator_author",
+    "created_at",
+    "requested_effectors",
+    "source_revision",
+    "theorem_binding"
+  ],
+  "properties": {
+    "schema": {"const": "szl.oro-plan/v1"},
+    "plan_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "plan_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "orbit_kind": {"enum": ["discovery", "evolution", "task"]},
+    "objective": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "rank": {"$ref": "rank.schema.json"},
+    "expected_participants": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 512}
+    },
+    "codex": {"$ref": "codex.schema.json"},
+    "candidate_author": {"type": "string", "minLength": 1, "maxLength": 512},
+    "evaluator_author": {"type": "string", "minLength": 1, "maxLength": 512},
+    "created_at": {"type": "string", "pattern": "Z$"},
+    "requested_effectors": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 512}
+    },
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "theorem_binding": {"type": ["object", "null"]}
+  },
+  "not": {
+    "properties": {
+      "candidate_author": {"const": {"$data": "1/evaluator_author"}}
+    }
+  }
+}
