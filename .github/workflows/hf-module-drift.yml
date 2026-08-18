@@ -189,6 +189,7 @@ jobs:
         with:
           name: hf-candidate-controller-wiring-generated-${{ github.event.pull_request.head.sha }}
           path: generated
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
   # TEMP_HF_CONTROLLER_APPLICATOR_END
