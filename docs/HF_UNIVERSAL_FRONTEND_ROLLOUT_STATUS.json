@@ -1,0 +1,13 @@
+{
+  "schema": "szl.hf-universal-frontend-rollout-status/v1",
+  "release": "2026-08-17",
+  "github_source_state": "PROTECTED_PR_PENDING",
+  "hugging_face_mutations": 0,
+  "complete": false,
+  "production_verified": false,
+  "completion_contract": {
+    "blocked_assets": [],
+    "failed_assets": [],
+    "report_complete": true
+  }
+}
