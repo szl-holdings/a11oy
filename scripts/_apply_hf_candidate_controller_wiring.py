@@ -47,12 +47,17 @@ def patch_workflow() -> None:
         "baseline/.github/scripts/verify_hf_candidate_admission.py",
         "workflow candidate controller",
     )
-    text = replace_once(
-        text,
-        "permissions:\n  contents: write\n",
-        "permissions:\n  contents: read\n",
-        "restore read-only workflow permissions",
-    )
+    write_permissions = "permissions:\n  contents: write\n"
+    read_permissions = "permissions:\n  contents: read\n"
+    if write_permissions in text:
+        text = replace_once(
+            text,
+            write_permissions,
+            read_permissions,
+            "restore read-only workflow permissions",
+        )
+    elif text.count(read_permissions) != 1:
+        raise RuntimeError("workflow must contain exactly one read-only permission block")
     text = remove_temporary_job(text)
     WORKFLOW.write_text(text, encoding="utf-8")
 
