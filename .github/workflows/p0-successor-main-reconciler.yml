@@ -1,0 +1,74 @@
+name: P0 successor current-main reconciler
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-successor-main-reconciler.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-successor-current-main-reconciler
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile without history rewrite
+        id: merge
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git merge --no-ff origin/main \
+            -m "chore(p0): reconcile current protected main" \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Requalify the reconciled source
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m py_compile \
+            routers/memory_covenant.py \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          pytest -q \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          git diff --check origin/main...HEAD
+
+      - name: Push reconciled successor
+        if: steps.merge.outputs.changed == 'true'
+        run: git push origin "$TARGET_BRANCH"
