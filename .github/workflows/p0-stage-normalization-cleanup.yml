@@ -1,0 +1,64 @@
+name: Retire P0 normalization controller
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/p0-stage-normalization-cleanup.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-stage-normalization-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.event.pull_request.number == 1261 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/p0-a11oy-work-20260811'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SOURCE_BRANCH: codex/p0-a11oy-work-20260811
+      STAGE_BRANCH: codex/p0-a11oy-stage-20260811
+    steps:
+      - name: Checkout source lane
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/p0-a11oy-work-20260811
+          fetch-depth: 0
+
+      - name: Remove the one-shot controller from the successor stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$STAGE_BRANCH" "$SOURCE_BRANCH"
+          git switch --detach "origin/$STAGE_BRANCH"
+          git switch -c p0-stage-controller-cleanup
+          if test -f .github/workflows/p0-stage-normalization.yml; then
+            git rm .github/workflows/p0-stage-normalization.yml
+            git config user.name "Stephen Lutar"
+            git config user.email "stephenlutar2@gmail.com"
+            git commit -m "chore(p0): retire one-shot normalization controller" \
+              -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+            git push origin "HEAD:refs/heads/$STAGE_BRANCH"
+          fi
+
+      - name: Retire both one-shot controllers from the source lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          git switch --detach "origin/$SOURCE_BRANCH"
+          git switch -c p0-source-controller-cleanup
+          git rm -f \
+            .github/workflows/p0-stage-normalization.yml \
+            .github/workflows/p0-stage-normalization-cleanup.yml
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -m "chore(p0): retire source normalization controllers" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:refs/heads/$SOURCE_BRANCH"
