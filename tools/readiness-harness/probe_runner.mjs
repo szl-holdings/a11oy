@@ -334,11 +334,12 @@ function findEvidenceLabels(obj, candidateLabels = []) {
       if (typeof child === "string") {
         const normalized = child.trim().toLowerCase();
         const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
-        const freshnessScoped = (insideFreshness || keyIsFreshness)
+        const nestedFreshnessScoped = insideFreshness
           && FRESHNESS_LABEL_KEY.test(key);
+        const scalarFreshness = keyIsFreshness && candidates.has(normalized);
         const rootScoped = depth === 0 && ROOT_LABEL_KEY.test(key)
           && candidates.has(normalized);
-        if (explicit || freshnessScoped || rootScoped) {
+        if (explicit || nestedFreshnessScoped || scalarFreshness || rootScoped) {
           found.push({ path: childPath, value: child, normalized });
         }
       }

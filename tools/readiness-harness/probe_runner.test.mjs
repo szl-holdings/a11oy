@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { findTimestamp, validateSchema } from "./probe_runner.mjs";
+import { findEvidenceLabels, findTimestamp, validateSchema } from "./probe_runner.mjs";
 
 test("freshness prefers response observation time over an idle policy event", () => {
   const body = {
@@ -62,3 +62,51 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
     probe_verdict_available: false,
   }).ok, false);
 });
+
+test("schema freshness metadata is not treated as runtime evidence", () => {
+  const labels = findEvidenceLabels({
+    requiredPathTypes: {
+      freshness: "object",
+      checked_at: "timestamp",
+    },
+  });
+  assert.deepEqual(labels, []);
+});
+
+test("scalar freshness captures canonical negative evidence labels only", () => {
+  for (const value of ["modeled", "degraded", "sample", "unknown"]) {
+    assert.deepEqual(findEvidenceLabels({ freshness: value }), [{
+      path: "freshness",
+      value,
+      normalized: value,
+    }]);
+  }
+  assert.deepEqual(findEvidenceLabels({ freshness: "object" }), []);
+  assert.deepEqual(findEvidenceLabels({ freshness: "string" }), []);
+});
+
+test("real freshness objects retain unknown and negative statuses", () => {
+  const labels = findEvidenceLabels({
+    freshness: {
+      status: "vendor-pending",
+      mode: "modeled",
+      state: "degraded",
+      label: "sample",
+    },
+  });
+  assert.deepEqual(labels.map(({ path, normalized }) => ({ path, normalized })), [
+    { path: "freshness.status", normalized: "vendor-pending" },
+    { path: "freshness.mode", normalized: "modeled" },
+    { path: "freshness.state", normalized: "degraded" },
+    { path: "freshness.label", normalized: "sample" },
+  ]);
+});
+
+test("explicit evidence-kind fields remain fail-closed for unknown values", () => {
+  assert.deepEqual(findEvidenceLabels({ payload: { data_kind: "vendor-pending" } }), [{
+    path: "payload.data_kind",
+    value: "vendor-pending",
+    normalized: "vendor-pending",
+  }]);
+});
+
