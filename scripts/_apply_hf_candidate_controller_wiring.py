@@ -36,7 +36,7 @@ def remove_temporary_job(text: str) -> str:
         raise RuntimeError("temporary workflow applicator markers are not unique")
     prefix, remainder = text.split(TEMP_START, 1)
     _temporary, suffix = remainder.split(TEMP_END, 1)
-    return prefix + suffix
+    return (prefix + suffix).rstrip() + "\n"
 
 
 def patch_workflow() -> None:
