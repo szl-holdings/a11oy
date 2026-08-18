@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - fix/hf-candidate-controller-wiring-20260817
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -14,9 +16,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Checkout exact branch
+      - name: Checkout exact source branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: true
       - name: Apply deterministic wiring patch
@@ -33,7 +36,7 @@ jobs:
           git diff --check
       - name: Commit exact implementation
         env:
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
