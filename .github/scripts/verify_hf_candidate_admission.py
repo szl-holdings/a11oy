@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Base-controlled admission for Hugging Face deployment-contract successors.
+"""Protected-base admission for narrowly reviewed HF contract successors.
 
-Normal pull requests are delegated to the protected-base repository-parity
-verifier. A pull request that changes that verifier cannot execute candidate
-code as its own authority, so this controller admits one narrowly defined
-successor: adding ``.dockerignore`` to ``PROTECTED_CANDIDATE_INPUTS`` together
-with its focused adversarial regression.
-
-The controller itself is always executed from the exact protected-base
-checkout. Candidate source is treated only as untrusted data.
+The controller is intended to run from an exact protected-base checkout.
+Candidate files are fetched at immutable commit SHAs, verified against the Git
+blob identifiers reported by the immutable trees, and then treated as inert
+data. Candidate Python is never imported or executed as admission authority.
 """
 
 from __future__ import annotations
@@ -57,10 +53,11 @@ REQUIRED_TEST_METHODS = frozenset(
 REQUIRED_TEST_ATTRIBUTES = frozenset(
     {"validate_protected_candidate_inputs", "validate_candidate_report"}
 )
+NEGATIVE_ASSERT_ATTRIBUTES = frozenset({"assertRaises", "assertRaisesRegex"})
 
 
 class AdmissionError(RuntimeError):
-    """Raised when a candidate cannot be admitted by protected-base policy."""
+    """Raised when protected-base policy cannot admit a candidate."""
 
 
 def load_verifier(path: Path | None = None) -> ModuleType:
@@ -76,6 +73,16 @@ def load_verifier(path: Path | None = None) -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def git_blob_oid(source: bytes) -> str:
+    """Return the SHA-1 object identifier Git assigns to exact blob bytes."""
+
+    framed = f"blob {len(source)}\0".encode("ascii") + source
+    try:
+        return hashlib.sha1(framed, usedforsecurity=False).hexdigest()
+    except TypeError:  # pragma: no cover - older compatible Python builds
+        return hashlib.sha1(framed).hexdigest()
 
 
 def changed_paths(
@@ -101,11 +108,30 @@ def _require_blob(
     return value
 
 
+def require_bound_blob(
+    tree: dict[str, str],
+    path: str,
+    source: bytes,
+    *,
+    revision: str,
+) -> str:
+    """Bind fetched bytes to the immutable tree entry before parsing them."""
+
+    expected = _require_blob(tree, path, revision=revision)
+    actual = git_blob_oid(source)
+    if actual != expected:
+        raise AdmissionError(
+            f"{revision} bytes for {path!r} do not match immutable tree blob: "
+            f"expected={expected} actual={actual}"
+        )
+    return expected
+
+
 def validate_base_controlled_inputs(
     base_tree: dict[str, str],
     head_tree: dict[str, str],
 ) -> None:
-    """Keep controller and Docker build-context semantics base-controlled."""
+    """Keep the controller and Docker build context base-controlled."""
 
     for path in (CONTROLLER_PATH, ".dockerignore"):
         base_sha = _require_blob(base_tree, path, revision="base")
@@ -117,6 +143,26 @@ def validate_base_controlled_inputs(
             )
 
 
+def _candidate_input_assignments(module: ast.Module) -> list[ast.AST]:
+    assignments: list[ast.AST] = []
+    for statement in module.body:
+        if isinstance(statement, ast.Assign):
+            if any(
+                isinstance(target, ast.Name)
+                and target.id == "PROTECTED_CANDIDATE_INPUTS"
+                for target in statement.targets
+            ):
+                assignments.append(statement.value)
+        elif (
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "PROTECTED_CANDIDATE_INPUTS"
+            and statement.value is not None
+        ):
+            assignments.append(statement.value)
+    return assignments
+
+
 def parse_protected_candidate_inputs(source: bytes) -> tuple[str, ...]:
     try:
         text = source.decode("utf-8", errors="strict")
@@ -126,16 +172,7 @@ def parse_protected_candidate_inputs(source: bytes) -> tuple[str, ...]:
             f"verifier source is not strict valid Python/UTF-8: {exc}"
         ) from exc
 
-    assignments: list[ast.AST] = []
-    for statement in module.body:
-        if not isinstance(statement, ast.Assign):
-            continue
-        if any(
-            isinstance(target, ast.Name)
-            and target.id == "PROTECTED_CANDIDATE_INPUTS"
-            for target in statement.targets
-        ):
-            assignments.append(statement.value)
+    assignments = _candidate_input_assignments(module)
     if len(assignments) != 1:
         raise AdmissionError(
             "verifier must contain exactly one top-level "
@@ -192,7 +229,7 @@ def validate_verifier_transition(
     }
 
 
-def validate_contract_test(source: bytes) -> dict[str, str]:
+def validate_contract_test(source: bytes) -> dict[str, str | int]:
     try:
         text = source.decode("utf-8", errors="strict")
         module = ast.parse(text)
@@ -213,15 +250,18 @@ def validate_contract_test(source: bytes) -> dict[str, str]:
         )
 
     attributes = {
-        node.attr
-        for node in ast.walk(module)
-        if isinstance(node, ast.Attribute)
+        node.attr for node in ast.walk(module) if isinstance(node, ast.Attribute)
     }
     missing_attributes = sorted(REQUIRED_TEST_ATTRIBUTES - attributes)
     if missing_attributes:
         raise AdmissionError(
             "contract test is missing required verifier calls: "
             f"{missing_attributes}"
+        )
+    negative_assertions = len(attributes & NEGATIVE_ASSERT_ATTRIBUTES)
+    if negative_assertions == 0:
+        raise AdmissionError(
+            "contract test lacks a fail-closed negative assertion"
         )
 
     strings = {
@@ -236,6 +276,7 @@ def validate_contract_test(source: bytes) -> dict[str, str]:
         "path": CONTRACT_TEST_PATH,
         "sha256": hashlib.sha256(source).hexdigest(),
         "status": "present-and-parseable",
+        "negative_assertion_kinds": negative_assertions,
     }
 
 
@@ -256,17 +297,26 @@ def validate_contract_successor(
             f"actual={sorted(actual_changed)!r}"
         )
 
-    base_verifier_sha = _require_blob(base_tree, VERIFIER_PATH, revision="base")
-    head_verifier_sha = _require_blob(
+    require_bound_blob(
+        base_tree,
+        VERIFIER_PATH,
+        base_source,
+        revision="base",
+    )
+    require_bound_blob(
         head_tree,
         VERIFIER_PATH,
+        head_source,
         revision="candidate",
     )
-    if base_verifier_sha == head_verifier_sha:
-        raise AdmissionError("candidate verifier blob did not change")
     if CONTRACT_TEST_PATH in base_tree:
         raise AdmissionError("contract regression must be a new candidate file")
-    _require_blob(head_tree, CONTRACT_TEST_PATH, revision="candidate")
+    require_bound_blob(
+        head_tree,
+        CONTRACT_TEST_PATH,
+        test_source,
+        revision="candidate",
+    )
 
     transition = validate_verifier_transition(base_source, head_source)
     test = validate_contract_test(test_source)
@@ -298,6 +348,25 @@ def read_github_file(
             f"cannot read immutable GitHub source {path!r} "
             f"at {github_ref}: {exc}"
         ) from exc
+
+
+def read_bound_github_file(
+    verifier: ModuleType,
+    *,
+    tree: dict[str, str],
+    github_repo: str,
+    github_ref: str,
+    path: str,
+    revision: str,
+) -> bytes:
+    source = read_github_file(
+        verifier,
+        github_repo=github_repo,
+        github_ref=github_ref,
+        path=path,
+    )
+    require_bound_blob(tree, path, source, revision=revision)
+    return source
 
 
 def run_strict_comparator(
@@ -355,23 +424,29 @@ def prove_contract_successor(
     base_tree: dict[str, str],
     head_tree: dict[str, str],
 ) -> dict[str, Any]:
-    base_source = read_github_file(
+    base_source = read_bound_github_file(
         verifier,
+        tree=base_tree,
         github_repo=github_repo,
         github_ref=base_ref,
         path=VERIFIER_PATH,
+        revision="base",
     )
-    head_source = read_github_file(
+    head_source = read_bound_github_file(
         verifier,
+        tree=head_tree,
         github_repo=github_repo,
         github_ref=github_ref,
         path=VERIFIER_PATH,
+        revision="candidate",
     )
-    test_source = read_github_file(
+    test_source = read_bound_github_file(
         verifier,
+        tree=head_tree,
         github_repo=github_repo,
         github_ref=github_ref,
         path=CONTRACT_TEST_PATH,
+        revision="candidate",
     )
     semantic = validate_contract_successor(
         base_tree=base_tree,
