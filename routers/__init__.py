@@ -20,10 +20,15 @@ SAME lexical position the routes used to occupy — i.e. BEFORE the SPA
 
 The additive `series_a_control_plane` module is not a refactor-only route group. It
 is the single governed integration seam for current estate truth, Counterfactual
-Action Passports, signed receipts, and bounded one-attempt effectors. The additive
-`token_ingress` controller is a computation-only ingress seam: it exposes bounded
-routing and semantic-oracle qualification while refusing public MEASURED claims,
-provider calls, repository-file reads, and persistent prefix writes.
+Action Passports, signed receipts, and bounded one-attempt effectors. It is exported
+here so invocation and package-integrity checks can prove the production module is
+intentional rather than an orphaned source file.
+
+The additive token-ingress modules implement bounded routing, semantic-oracle
+qualification, Prefix Foundry state, file-native ingestion, and verifier-budget
+allocation. The Memory Covenant controller adds a fail-closed read-only PostgreSQL
+boundary that refuses provider-owner/BYPASSRLS identities and exposes no secret or
+write path.
 
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
@@ -38,4 +43,5 @@ __all__ = [
     "series_a_control_plane",
     "token_ingress",
     "token_ingress_core",
+    "memory_covenant",
 ]
