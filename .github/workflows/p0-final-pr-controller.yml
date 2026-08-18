@@ -1,0 +1,231 @@
+name: P0 final PR controller
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-final-pr-controller.yml
+
+permissions:
+  actions: write
+  checks: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: p0-final-pr-controller
+  cancel-in-progress: false
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Resolve exact successor PR and head
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          record="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$TARGET_BRANCH" \
+            --state open \
+            --json number,headRefOid,isDraft,url \
+            --jq '.[0] // empty')"
+          test -n "$record"
+          echo "number=$(jq -r '.number' <<<"$record")" >> "$GITHUB_OUTPUT"
+          echo "head=$(jq -r '.headRefOid' <<<"$record")" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.url' <<<"$record")" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the exact-head check set
+        id: first
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for attempt in $(seq 1 210); do
+            current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            if [ "$current" != "$EXPECTED_HEAD" ]; then
+              echo "head_moved=true" >> "$GITHUB_OUTPUT"
+              exit 4
+            fi
+            gh pr checks "$PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json name,bucket,state,link,workflow \
+              > artifacts/checks-first.json
+            count="$(jq 'length' artifacts/checks-first.json)"
+            pending="$(jq '[.[] | select(.bucket == "pending")] | length' artifacts/checks-first.json)"
+            failed="$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' artifacts/checks-first.json)"
+            echo "attempt=$attempt count=$count pending=$pending failed=$failed"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              echo "failed=$failed" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "failed=-1" >> "$GITHUB_OUTPUT"
+          exit 5
+
+      - name: Rerun failed workflow jobs once
+        if: steps.first.outputs.failed != '0'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | .link' artifacts/checks-first.json \
+            | sed -nE 's#.*actions/runs/([0-9]+).*#\1#p' \
+            | sort -u > artifacts/failed-run-ids.txt
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            gh run rerun "$run_id" --failed --repo "$GITHUB_REPOSITORY" || true
+          done < artifacts/failed-run-ids.txt
+
+      - name: Wait for the final exact-head check set
+        id: final
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 210); do
+            current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            if [ "$current" != "$EXPECTED_HEAD" ]; then
+              echo "result=HEAD_MOVED" >> "$GITHUB_OUTPUT"
+              exit 4
+            fi
+            gh pr checks "$PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json name,bucket,state,link,workflow \
+              > artifacts/checks-final.json
+            count="$(jq 'length' artifacts/checks-final.json)"
+            pending="$(jq '[.[] | select(.bucket == "pending")] | length' artifacts/checks-final.json)"
+            failed="$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' artifacts/checks-final.json)"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              if [ "$failed" -eq 0 ]; then
+                echo "result=PASS" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "result=FAIL" >> "$GITHUB_OUTPUT"
+              exit 6
+            fi
+            sleep 10
+          done
+          echo "result=TIMEOUT" >> "$GITHUB_OUTPUT"
+          exit 5
+
+      - name: Publish exact blockers
+        if: failure()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Final exact-head qualification remains blocked'
+            echo
+            echo 'The controller preserved the final check state after one bounded rerun attempt. No rule, check, review requirement, or branch protection was weakened.'
+            echo
+            echo '| Check | Bucket | State |'
+            echo '|---|---|---|'
+            jq -r '.[] | "| [\(.name)](\(.link)) | \(.bucket) | \(.state) |"' artifacts/checks-final.json 2>/dev/null || true
+            echo
+            echo 'No merge, deployment, provider mutation, or production-complete label was performed.'
+          } > /tmp/blockers.md
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/blockers.md
+
+      - name: Mark exact-head source candidate ready and dispatch Codex review
+        if: success()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$current" = "$EXPECTED_HEAD"
+          gh pr ready "$PR" --repo "$GITHUB_REPOSITORY" || true
+          cat > /tmp/review.md <<EOF
+          ## Exact-head source qualification is green
+
+          All observed checks on \`${EXPECTED_HEAD}\` are terminal with no failed or cancelled result after at most one bounded retry. The candidate is marked ready for independent review.
+
+          @codex review
+
+          Review this exact head for P0/P1 correctness, security, doctrine, RLS and authority isolation, receipt integrity, queue settlement, tokenizer semantic safety, runtime registration, rollback completeness, and claim honesty. Do not update another branch, merge, deploy, expose secrets, weaken checks, train models, publish to Hugging Face, or claim production parity.
+
+          Passing CI establishes source qualification only. Protected merge, production secrets, provider/index execution, deployment, and immutable live revision readback remain separate gates.
+          EOF
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/review.md
+
+      - name: Wait for Codex review disposition on the exact head
+        if: success()
+        id: codex
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 120); do
+            current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            test "$current" = "$EXPECTED_HEAD"
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments?per_page=100" > artifacts/pr-comments.json
+            disposition="$(jq -r --arg head "${EXPECTED_HEAD:0:10}" '
+              [ .[]
+                | select(.user.login == "chatgpt-codex-connector[bot]")
+                | select((.body // "") | contains("Codex Review:"))
+                | select((.body // "") | contains($head) or contains("Reviewed commit:"))
+              ] | last | .body // empty
+            ' artifacts/pr-comments.json)"
+            if [ -n "$disposition" ]; then
+              printf '%s\n' "$disposition" > artifacts/codex-disposition.txt
+              if grep -qi "Didn't find any major issues" artifacts/codex-disposition.txt; then
+                echo "result=NO_MAJOR_ISSUES" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "result=FINDINGS" >> "$GITHUB_OUTPUT"
+              exit 7
+            fi
+            sleep 10
+          done
+          echo "result=TIMEOUT" >> "$GITHUB_OUTPUT"
+          exit 8
+
+      - name: Record review outcome and enable protected auto-merge only when independently approved
+        if: success()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$current" = "$EXPECTED_HEAD"
+          review_decision="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json reviewDecision --jq '.reviewDecision // "REVIEW_REQUIRED"')"
+          cat > /tmp/outcome.md <<EOF
+          ## Codex exact-head review found no major issues
+
+          - Reviewed head: \`${EXPECTED_HEAD}\`
+          - Hosted checks: terminal green
+          - Codex disposition: no major issues
+          - Protected review decision: \`${review_decision}\`
+
+          No self-approval or administrator bypass was used. Auto-merge is enabled only if GitHub already reports an independent \`APPROVED\` review decision; otherwise the PR remains ready and blocked on that review authority.
+          EOF
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/outcome.md
+          if [ "$review_decision" = "APPROVED" ]; then
+            gh pr merge "$PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --auto \
+              --squash \
+              --match-head-commit "$EXPECTED_HEAD"
+          fi
