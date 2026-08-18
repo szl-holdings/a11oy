@@ -1,0 +1,241 @@
+name: P1 proof-carrying vector settlement controller
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p1-vector-settlement-controller.yml
+
+permissions:
+  actions: write
+  checks: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: p1-proof-carrying-vector-settlement-controller
+  cancel-in-progress: false
+
+jobs:
+  promote-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PREDECESSOR_PR: "1270"
+      TARGET_BRANCH: feat/proof-carrying-vector-settlement-20260818
+    steps:
+      - name: Wait for protected predecessor merge
+        id: predecessor
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 360); do
+            record="$(gh pr view "$PREDECESSOR_PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json state,mergedAt,mergeCommit,url)"
+            merged="$(jq -r '.mergedAt // empty' <<<"$record")"
+            state="$(jq -r '.state' <<<"$record")"
+            if [ -n "$merged" ]; then
+              sha="$(jq -r '.mergeCommit.oid' <<<"$record")"
+              test -n "$sha" && test "$sha" != "null"
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$state" = "CLOSED" ]; then
+              echo "predecessor closed without merge" >&2
+              exit 4
+            fi
+            sleep 10
+          done
+          echo "timed out waiting for predecessor merge" >&2
+          exit 5
+
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile the feature branch with protected main
+        id: reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge --no-ff origin/main \
+              -m "chore(memory): reconcile protected main" \
+              -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify reconciled vector settlement
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/memory_vector_worker.py \
+            routers/memory_vector_search.py \
+            routers/memory_covenant.py \
+            routers/memory_worker.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_memory_vector_worker.py \
+            tests/test_memory_vector_search.py \
+            tests/test_demo_critical_routes.py
+          pytest -q \
+            tests/test_memory_vector_worker.py \
+            tests/test_memory_vector_search.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          git diff --check origin/main...HEAD
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          required = {
+              "migrations/20260818_memory_vector_settlement.sql": (
+                  "memory_index_receipts",
+                  "memory_vectors",
+                  "memory_fetch_leased_event",
+                  "memory_commit_vector",
+                  "memory_search_vectors",
+                  "10000-row bounded scan contract",
+              ),
+              "routers/memory_vector_worker.py": (
+                  "https://api.fireworks.ai/inference/v1/embeddings",
+                  "FIREWORKS_API_KEY",
+                  "PROVIDER_RESPONSE_VALIDATED",
+                  "DETERMINISTIC_ACCEPTANCE_ONLY",
+                  "raw_content_logged",
+              ),
+              "routers/memory_vector_search.py": (
+                  "EXACT_BOUNDED_POSTGRESQL",
+                  "query_vector_persisted",
+                  "provider_calls",
+              ),
+          }
+          for name, needles in required.items():
+              text = Path(name).read_text(encoding="utf-8")
+              for needle in needles:
+                  assert needle in text, (name, needle)
+          for path in Path(".github/workflows").glob("*.yml"):
+              yaml.safe_load(path.read_text(encoding="utf-8"))
+          PY
+
+      - name: Push reconciled source when needed
+        if: steps.reconcile.outputs.changed == 'true'
+        run: git push origin "$TARGET_BRANCH"
+
+      - name: Retarget the stacked PR to protected main
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$TARGET_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+          test -n "$pr"
+          gh pr edit "$pr" --repo "$GITHUB_REPOSITORY" --base main
+          head="$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the exact-head check set
+        id: checks
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for attempt in $(seq 1 240); do
+            current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            test "$current" = "$EXPECTED_HEAD"
+            gh pr checks "$PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json name,bucket,state,link,workflow \
+              > artifacts/vector-checks.json
+            count="$(jq 'length' artifacts/vector-checks.json)"
+            pending="$(jq '[.[] | select(.bucket == "pending")] | length' artifacts/vector-checks.json)"
+            failed="$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' artifacts/vector-checks.json)"
+            echo "attempt=$attempt count=$count pending=$pending failed=$failed"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              if [ "$failed" -eq 0 ]; then exit 0; fi
+              exit 6
+            fi
+            sleep 10
+          done
+          exit 5
+
+      - name: Mark ready, request exact-head review, and enable protected auto-merge
+        if: success()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          EXPECTED_HEAD: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$current" = "$EXPECTED_HEAD"
+          gh pr ready "$PR" --repo "$GITHUB_REPOSITORY" || true
+          cat > /tmp/vector-review.md <<EOF
+          ## Exact-head vector-settlement qualification is green
+
+          @codex review
+
+          Review \`${EXPECTED_HEAD}\` for P0/P1 correctness, SQL privilege and RLS safety, lease/event/generation binding, Fireworks transport controls, vector canonicalization, receipt integrity, exact-search bounds, route registration, rollback, and claim honesty. Do not modify another branch, merge, deploy, expose secrets, weaken checks, train models, publish to Hugging Face, or claim a live Fireworks call.
+
+          CI establishes source qualification only. Production provider secrets, live embedding execution, vector durability, protected merge, deployment, and immutable readback remain separate gates.
+          EOF
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/vector-review.md
+          gh pr merge "$PR" \
+            --repo "$GITHUB_REPOSITORY" \
+            --auto \
+            --squash \
+            --match-head-commit "$EXPECTED_HEAD"
+
+      - name: Publish preserved blocker state
+        if: failure()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${PR:-}" ]; then
+            {
+              echo '## Vector-settlement promotion remains blocked'
+              echo
+              echo 'No rule, check, review requirement, or protected branch was bypassed.'
+              if [ -f artifacts/vector-checks.json ]; then
+                echo
+                echo '| Check | Bucket | State |'
+                echo '|---|---|---|'
+                jq -r '.[] | "| [\(.name)](\(.link)) | \(.bucket) | \(.state) |"' artifacts/vector-checks.json
+              fi
+              echo
+              echo 'No Fireworks call, provider mutation, merge, deployment, or production-complete label was performed.'
+            } > /tmp/vector-blocked.md
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/vector-blocked.md
+          fi
