@@ -51,6 +51,36 @@ jobs:
             test -f "$file" && cp --parents "$file" /tmp/phase-b-source/
           done
           printf '%s\n' "$(git rev-parse HEAD)" > /tmp/phase-b-source/source-sha.txt
+      - name: Capture live route and runtime identity without mutation
+        shell: bash
+        run: |
+          set -uo pipefail
+          origin='https://szlholdings-a11oy.hf.space'
+          curl --fail --silent --show-error --max-time 20 \
+            "$origin/api/build-info" \
+            > /tmp/phase-b-source/live-build-info.json || printf '{"state":"UNAVAILABLE"}\n' > /tmp/phase-b-source/live-build-info.json
+          curl --fail --silent --show-error --max-time 20 \
+            "$origin/api/a11oy/v1/sec/kevgate" \
+            > /tmp/phase-b-source/live-kevgate.json || printf '{"state":"UNAVAILABLE"}\n' > /tmp/phase-b-source/live-kevgate.json
+          curl --fail --silent --show-error --max-time 30 \
+            "$origin/openapi.json" \
+            > /tmp/phase-b-source/live-openapi.json || printf '{"paths":{}}\n' > /tmp/phase-b-source/live-openapi.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('/tmp/phase-b-source')
+          try:
+              doc = json.loads((root / 'live-openapi.json').read_text())
+          except Exception:
+              doc = {'paths': {}}
+          paths = {
+              path: value for path, value in (doc.get('paths') or {}).items()
+              if 'kev' in path.lower() or 'mesh/state' in path.lower()
+          }
+          (root / 'live-openapi-phase-b.json').write_text(
+              json.dumps({'paths': paths}, indent=2, sort_keys=True) + '\n'
+          )
+          PY
       - name: Upload exact phase-B source snapshot
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
