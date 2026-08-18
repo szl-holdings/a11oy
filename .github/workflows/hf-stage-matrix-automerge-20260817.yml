@@ -1,0 +1,89 @@
+name: HF stage matrix PR auto-merge 2026-08-17
+
+on:
+  push:
+    branches:
+      - ops/hf-stage-matrix-refresh-20260817
+    paths:
+      - .github/workflows/hf-stage-matrix-automerge-20260817.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: hf-stage-matrix-automerge-20260817
+  cancel-in-progress: false
+
+jobs:
+  arm-and-retire:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ops/hf-stage-matrix-refresh-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_BRANCH: ops/hf-stage-matrix-refresh-20260817
+      SELF_PATH: .github/workflows/hf-stage-matrix-automerge-20260817.yml
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Resolve and validate bounded PR
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t numbers < <(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --head "$HEAD_BRANCH" \
+            --base main \
+            --json number \
+            --jq '.[].number')
+          if [ "${#numbers[@]}" -eq 0 ]; then
+            echo 'number=' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "${#numbers[@]}" -eq 1
+          number="${numbers[0]}"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          mapfile -t files < <(gh pr diff "$number" --repo "$GITHUB_REPOSITORY" --name-only)
+          for path in "${files[@]}"; do
+            case "$path" in
+              $SELF_PATH) continue ;;
+              docs/*|reports/*) ;;
+              *) echo "::error::Unexpected PR path: $path"; exit 1 ;;
+            esac
+            lower=$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')
+            case "$lower" in
+              *huggingface*stage*|*huggingface*matrix*|*hf*stage*matrix*) ;;
+              *) echo "::error::Path is outside the HF stage/matrix contract: $path"; exit 1 ;;
+            esac
+          done
+
+      - name: Enable protected squash auto-merge
+        if: steps.pr.outputs.number != ''
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash
+
+      - name: Retire this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "$SELF_PATH"
+          test "$(git diff --cached --name-only)" = "$SELF_PATH"
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git commit \
+            -m 'chore(hf): retire one-shot stage-matrix auto-merge controller' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:$HEAD_BRANCH
