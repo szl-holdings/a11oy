@@ -1,0 +1,161 @@
+name: Docs audit root-cause capture
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/docs-audit-diagnostic.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: npm audit evidence (${{ matrix.label }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: protected-main-9d56cb9
+            ref: 9d56cb9a8639e170a34696f96fb3e91012f9cb1a
+          - label: pr-1308-head-5b0d6d6
+            ref: 5b0d6d6923c95f3a4cb916d2a7546fa3608a6357
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.ref }}
+          path: source
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Capture immutable inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/docs-audit-evidence"
+          {
+            echo "label=${{ matrix.label }}"
+            echo "requested_ref=${{ matrix.ref }}"
+            echo "checked_out_sha=$(git -C source rev-parse HEAD)"
+            echo "node=$(node --version)"
+            echo "npm=$(npm --version)"
+            echo "package_json_sha256=$(sha256sum source/docs/site/package.json | awk '{print $1}')"
+            echo "package_lock_sha256=$(sha256sum source/docs/site/package-lock.json | awk '{print $1}')"
+          } > "$RUNNER_TEMP/docs-audit-evidence/identity.txt"
+
+      - name: Reproduce clean install
+        id: install
+        working-directory: source/docs/site
+        shell: bash
+        run: |
+          set +e
+          npm ci --ignore-scripts --no-audit --no-fund \
+            > "$RUNNER_TEMP/docs-audit-evidence/npm-ci.log" 2>&1
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "$code" > "$RUNNER_TEMP/docs-audit-evidence/npm-ci.exit-code"
+          cat "$RUNNER_TEMP/docs-audit-evidence/npm-ci.log"
+
+      - name: Capture machine-readable audit and dependency tree
+        if: always()
+        working-directory: source/docs/site
+        shell: bash
+        run: |
+          set +e
+          npm audit --json \
+            > "$RUNNER_TEMP/docs-audit-evidence/npm-audit.json" \
+            2> "$RUNNER_TEMP/docs-audit-evidence/npm-audit.stderr"
+          audit_code=$?
+          npm ls --all --json \
+            > "$RUNNER_TEMP/docs-audit-evidence/npm-ls.json" \
+            2> "$RUNNER_TEMP/docs-audit-evidence/npm-ls.stderr"
+          tree_code=$?
+          set -e
+          echo "$audit_code" > "$RUNNER_TEMP/docs-audit-evidence/npm-audit.exit-code"
+          echo "$tree_code" > "$RUNNER_TEMP/docs-audit-evidence/npm-ls.exit-code"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'docs-audit-evidence'
+          audit_path = root / 'npm-audit.json'
+          summary = {
+              'schema': 'szl.docs-audit-evidence.v1',
+              'label': '${{ matrix.label }}',
+              'requested_ref': '${{ matrix.ref }}',
+              'npm_ci_exit_code': int((root / 'npm-ci.exit-code').read_text().strip()),
+              'npm_audit_exit_code': int((root / 'npm-audit.exit-code').read_text().strip()),
+          }
+          try:
+              audit = json.loads(audit_path.read_text(encoding='utf-8'))
+          except Exception as exc:
+              summary['audit_parse_error'] = type(exc).__name__
+              audit = {}
+          metadata = audit.get('metadata') if isinstance(audit, dict) else None
+          if isinstance(metadata, dict):
+              summary['metadata'] = metadata
+          vulns = audit.get('vulnerabilities') if isinstance(audit, dict) else None
+          if isinstance(vulns, dict):
+              compact = {}
+              for name, item in sorted(vulns.items()):
+                  if not isinstance(item, dict):
+                      continue
+                  via = []
+                  for entry in item.get('via', []):
+                      if isinstance(entry, str):
+                          via.append({'dependency': entry})
+                      elif isinstance(entry, dict):
+                          via.append({
+                              'source': entry.get('source'),
+                              'name': entry.get('name'),
+                              'dependency': entry.get('dependency'),
+                              'title': entry.get('title'),
+                              'url': entry.get('url'),
+                              'severity': entry.get('severity'),
+                              'range': entry.get('range'),
+                          })
+                  compact[name] = {
+                      'name': item.get('name'),
+                      'severity': item.get('severity'),
+                      'isDirect': item.get('isDirect'),
+                      'range': item.get('range'),
+                      'nodes': item.get('nodes'),
+                      'fixAvailable': item.get('fixAvailable'),
+                      'via': via,
+                  }
+              summary['vulnerabilities'] = compact
+          (root / 'summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload exact audit evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-audit-${{ matrix.label }}
+          path: ${{ runner.temp }}/docs-audit-evidence
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Diagnostic completion
+        if: always()
+        shell: bash
+        run: |
+          echo "Diagnostic evidence captured for ${{ matrix.label }}."
+          echo "This workflow does not waive or replace the fail-closed docs audit gate."
