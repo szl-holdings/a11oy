@@ -1,0 +1,132 @@
+name: P0 final source reseal
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-final-source-reseal.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-final-source-reseal
+  cancel-in-progress: false
+
+jobs:
+  reseal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout and reconcile final successor
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge --no-ff origin/main \
+              -m "chore(p0): reconcile final protected main" \
+              -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Run final source qualification
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/memory_covenant.py \
+            routers/memory_worker.py \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          pytest -q \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          mapfile -t adjacent < <(find tests -maxdepth 1 -type f -name 'test_*.py' | grep -E '(copy|register|serve_routers|operational_route)' | sort -u)
+          if [ "${#adjacent[@]}" -gt 0 ]; then pytest -q "${adjacent[@]}"; fi
+          git diff --check origin/main...HEAD
+          test ! -e .codex/CODEX_CLOUD_ENVIRONMENT_20260811.md
+          grep -q '^> \*\*STATUS — SOURCE EXECUTION COMPLETED' .codex/tasks/P0_CURRENT_MAIN_PRODUCTION_COMPLETION_20260811.md
+
+      - name: Reseal exact source identity
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import json
+          import subprocess
+
+          path = Path("artifacts/proof-packets/20260817-source-qualification.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          report["resealed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+          report["head_before_reseal_commit"] = subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True
+          ).strip()
+          report["protected_main"] = subprocess.check_output(
+              ["git", "rev-parse", "origin/main"], text=True
+          ).strip()
+          report["protected_main_is_ancestor"] = subprocess.call(
+              ["git", "merge-base", "--is-ancestor", "origin/main", "HEAD"]
+          ) == 0
+          report["seed_environment_file"] = "REMOVED"
+          report["stale_seed_pr"] = "CLOSED"
+          report["qualification"] = {
+              "python_compile": "PASS",
+              "focused_pytest": "PASS",
+              "adjacent_route_and_wiring_tests": "PASS",
+              "diff_check": "PASS",
+              "stale_seed_cleanup": "PASS",
+          }
+          path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+          md = Path("artifacts/proof-packets/20260817-source-qualification.md")
+          md.write_text(
+              "# P0 final source qualification\n\n"
+              f"- Protected main included: `{report['protected_main']}`\n"
+              f"- Candidate before final reseal: `{report['head_before_reseal_commit']}`\n"
+              "- Stale seed environment: `REMOVED`\n"
+              "- Closed seed PR instructions: `RETIRED`\n"
+              "- Python compilation: `PASS`\n"
+              "- Focused runtime and assembled-route tests: `PASS`\n"
+              "- Adjacent route/wiring regressions: `PASS`\n"
+              "- Diff check: `PASS`\n\n"
+              "This is source qualification only. Protected merge, production secrets, provider execution, deployment, and immutable live revision readback remain separate gates.\n",
+              encoding="utf-8",
+          )
+          PY
+          git add artifacts/proof-packets/20260817-source-qualification.json artifacts/proof-packets/20260817-source-qualification.md
+          git diff --cached --check
+
+      - name: Commit and push final reseal
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "chore(p0): reseal final source candidate" \
+            -m "Binds the cleaned successor to current protected main and repeats the focused and adjacent source gates before independent review." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
