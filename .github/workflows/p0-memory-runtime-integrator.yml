@@ -1,0 +1,206 @@
+name: P0 Memory Covenant successor integrator
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-memory-runtime-integrator.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-memory-runtime-integrator
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout integration controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Patch exact successor source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def write(path: str, text: str) -> None:
+              Path(path).write_text(text, encoding="utf-8")
+
+          def require_replace(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"missing integration anchor: {label}")
+              return text.replace(old, new, 1)
+
+          package_path = Path("routers/__init__.py")
+          package = package_path.read_text(encoding="utf-8")
+          if '"memory_covenant"' not in package:
+              package = require_replace(
+                  package,
+                  '    "frontier_reads",\n',
+                  '    "frontier_reads",\n    "memory_covenant",\n',
+                  "routers package export",
+              )
+              write(str(package_path), package)
+
+          frontier_path = Path("routers/frontier_reads.py")
+          frontier = frontier_path.read_text(encoding="utf-8")
+          if "memory_covenant.register" not in frontier:
+              block = '''\n    try:\n        from routers import memory_covenant as _memory_covenant\n\n        memory_covenant = _memory_covenant.register(app, ns="a11oy")\n    except Exception as exc:  # one additive surface must never take down A11oy\n        memory_covenant = {\n            "ok": False,\n            "state": "UNAVAILABLE",\n            "reason": type(exc).__name__,\n            "effectors": [],\n        }\n\n'''
+              anchor = '\n    return {\n        "ok": True,\n'
+              index = frontier.rfind(anchor)
+              if index < 0:
+                  raise SystemExit("missing frontier return anchor")
+              frontier = frontier[:index] + block + frontier[index:]
+              if '        "token_ingress": token_ingress,\n' in frontier:
+                  frontier = require_replace(
+                      frontier,
+                      '        "token_ingress": token_ingress,\n',
+                      '        "token_ingress": token_ingress,\n        "memory_covenant": memory_covenant,\n',
+                      "frontier memory status",
+                  )
+              else:
+                  frontier = require_replace(
+                      frontier,
+                      '        "series_a": series_a,\n',
+                      '        "series_a": series_a,\n        "memory_covenant": memory_covenant,\n',
+                      "frontier series-a status",
+                  )
+              route_anchor = '            "/api/a11oy/v1/token-ingress/verification-budget",\n'
+              memory_routes = (
+                  route_anchor
+                  + '            "/api/a11oy/v1/memory-covenant/status",\n'
+                  + '            "/api/a11oy/v1/memory-covenant/records",\n'
+                  + '            "/api/a11oy/v1/memory-covenant/records/{memory_id}",\n'
+                  + '            "/api/a11oy/v1/memory-covenant/query",\n'
+              )
+              frontier = require_replace(
+                  frontier,
+                  route_anchor,
+                  memory_routes,
+                  "frontier memory routes",
+              )
+              write(str(frontier_path), frontier)
+
+          routes_path = Path("tests/test_demo_critical_routes.py")
+          routes = routes_path.read_text(encoding="utf-8")
+          if "/api/a11oy/v1/memory-covenant/status" not in routes:
+              route_anchor = '    "/api/a11oy/v1/token-ingress/qualify",\n'
+              routes = require_replace(
+                  routes,
+                  route_anchor,
+                  route_anchor
+                  + '    "/api/a11oy/v1/memory-covenant/status",\n'
+                  + '    "/api/a11oy/v1/memory-covenant/records",\n'
+                  + '    "/api/a11oy/v1/memory-covenant/query",\n',
+                  "demo-critical memory routes",
+              )
+              write(str(routes_path), routes)
+
+          docker_path = Path("Dockerfile")
+          dockerfile = docker_path.read_text(encoding="utf-8")
+          if '"psycopg[binary]==3.2.9"' not in dockerfile:
+              dockerfile = require_replace(
+                  dockerfile,
+                  '    "cryptography==50.0.0" \\\n',
+                  '    "cryptography==50.0.0" \\\n    "psycopg[binary]==3.2.9" \\\n',
+                  "Dockerfile psycopg pin",
+              )
+              write(str(docker_path), dockerfile)
+
+          requirements_path = Path("requirements.txt")
+          requirements = requirements_path.read_text(encoding="utf-8")
+          if "psycopg[binary]==3.2.9" not in requirements:
+              if not requirements.endswith("\n"):
+                  requirements += "\n"
+              requirements += (
+                  "# PostgreSQL-authoritative Memory Covenant runtime. Exact pin matches the canonical image.\n"
+                  "psycopg[binary]==3.2.9\n"
+              )
+              write(str(requirements_path), requirements)
+
+          runtime_path = Path("routers/memory_covenant.py")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          replacements = {
+              ") VALUES (%s,%s,%s,%s,%s,%s,%s,'INDEX_PENDING',false,NULL,%s,%s,%s,%s,1)":
+                  ") VALUES (%s,%s,%s,%s,%s,%s,%s,'INDEX_PENDING',false,NULL,%s,%s,%s,%s::jsonb,1)",
+              ") VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)":
+                  ") VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)",
+              ") VALUES (%s,%s,%s,%s,%s,'INDEX_UPSERT',%s)":
+                  ") VALUES (%s,%s,%s,%s,%s,'INDEX_UPSERT',%s::jsonb)",
+              ") VALUES (%s,%s,'memory.create',%s,%s,%s,%s)":
+                  ") VALUES (%s,%s,'memory.create',%s,%s,%s::jsonb,%s)",
+          }
+          for old, new in replacements.items():
+              if old in runtime:
+                  runtime = runtime.replace(old, new, 1)
+          write(str(runtime_path), runtime)
+
+          test_path = Path("tests/test_memory_covenant_runtime.py")
+          test_text = test_path.read_text(encoding="utf-8").replace(
+              "from contextlib import nullcontext\n\n", ""
+          )
+          write(str(test_path), test_text)
+          PY
+
+          git add \
+            routers/memory_covenant.py \
+            routers/frontier_reads.py \
+            routers/__init__.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_demo_critical_routes.py \
+            Dockerfile \
+            requirements.txt \
+            .github/workflows/memory-covenant-runtime.yml \
+            artifacts/proof-packets/20260817-memory-covenant-runtime.md
+          git diff --cached --check
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify Memory Covenant integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/memory_covenant.py \
+            routers/frontier_reads.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_demo_critical_routes.py
+          pytest tests/test_memory_covenant_runtime.py tests/test_demo_critical_routes.py -q
+          python - <<'PY'
+          from pathlib import Path
+          assert '"psycopg[binary]==3.2.9"' in Path("Dockerfile").read_text()
+          assert "psycopg[binary]==3.2.9" in Path("requirements.txt").read_text()
+          PY
+          git diff --cached --check
+
+      - name: Commit and push the integrated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "feat(memory): wire PostgreSQL-authoritative runtime" \
+            -m "Adds the authenticated RLS-bound API, atomic record/receipt/outbox/idempotency write path, exact runtime dependency, pre-catch-all registration, and focused qualification." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
