@@ -1,0 +1,55 @@
+name: Rebuild PR 1295 from current main
+
+on:
+  push:
+    branches:
+      - agent/frontier-now-integrity-after-1292-20260813
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-pr-1295
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+
+      - name: Check out successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/frontier-now-integrity-after-1292-20260813
+          fetch-depth: 0
+
+      - name: Apply only the independent successor commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin \
+            072a97030aaf512af071563155ea87ee9421ca50 \
+            37adbf27ea737d71ec05cb5323824c6fa7432f20
+          git cherry-pick --no-commit \
+            072a97030aaf512af071563155ea87ee9421ca50 \
+            37adbf27ea737d71ec05cb5323824c6fa7432f20
+          git rm .github/workflows/rebuild-pr-1295.yml
+          git diff --cached --check
+
+      - name: Commit the isolated cockpit repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit \
+            -m 'fix(frontier): restore cockpit integrity boundaries' \
+            -m 'Restore workflow digest bindings and keep mutation controls out of the read-only cockpit.' \
+            -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin HEAD:agent/frontier-now-integrity-after-1292-20260813
