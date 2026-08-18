@@ -28,6 +28,11 @@ intentional rather than an orphaned source file.
 existing Series-A seam. It intentionally owns no database, signer, credentials,
 scheduler, passport authority, or effectors.
 
+`token_ingress` and `token_ingress_core` provide a bounded semantic-admission and
+routing surface for tokenizer throughput, cache locality, prefix reuse, and
+verification-budget allocation. Public routes expose no provider, model, network,
+repository-read, or persistent-prefix-write effector.
+
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
 
@@ -40,4 +45,6 @@ __all__ = [
     "frontier_reads",
     "frontier_now_control_plane",
     "series_a_control_plane",
+    "token_ingress",
+    "token_ingress_core",
 ]
