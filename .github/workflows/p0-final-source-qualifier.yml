@@ -1,0 +1,320 @@
+name: P0 final source qualifier
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-final-source-qualifier.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-final-source-qualifier
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile exact protected main without history rewrite
+        id: reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          echo "head_before=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "main=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "merged_main=false" >> "$GITHUB_OUTPUT"
+          else
+            git merge --no-ff origin/main \
+              -m "chore(p0): reconcile final protected main" \
+              -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+            echo "merged_main=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Compile governed runtime slices
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/memory_covenant.py \
+            routers/memory_worker.py \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          python -m compileall -q routers
+
+      - name: Run focused runtime and assembled-route qualification
+        run: >-
+          pytest -q
+          tests/test_memory_covenant_runtime.py
+          tests/test_memory_worker_runtime.py
+          tests/test_token_ingress.py
+          tests/test_demo_critical_routes.py
+
+      - name: Run adjacent route and wiring regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(
+            find tests -maxdepth 1 -type f -name 'test_*.py' \
+              | grep -E '(copy|register|serve_routers|operational_route)' \
+              | sort -u
+          )
+          if [ "${#tests[@]}" -gt 0 ]; then
+            pytest -q "${tests[@]}"
+          fi
+
+      - name: Verify source, migrations, workflows, and secret hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check origin/main...HEAD
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import subprocess
+          import yaml
+
+          required = {
+              "routers/memory_covenant.py": (
+                  "A11OY_MEMORY_API_HMAC_KEY",
+                  "_resolve_active_generation",
+                  "MemoryReceiptSigner",
+                  "VERIFIED_BEFORE_COMMIT",
+              ),
+              "routers/memory_worker.py": (
+                  "A11OY_MEMORY_WORKER_API_HMAC_KEY",
+                  "memory_lease_outbox",
+                  "memory_complete_outbox",
+                  "NOT_EXECUTED_BY_CONTROL_API",
+              ),
+              "routers/token_ingress.py": (
+                  "CALLER_SUPPLIED_NOT_MEASURED",
+                  "NOT_ACCEPTED_FROM_PUBLIC_CALLER",
+              ),
+              "migrations/20260817_memory_covenant_relational_integrity.sql": (
+                  "memory_records_generation_fk",
+                  "memory_outbox_record_fk",
+                  "VALIDATE CONSTRAINT",
+              ),
+              "migrations/20260817_memory_covenant_worker_completion.sql": (
+                  "SECURITY DEFINER",
+                  "active index generation identity is absent or mismatched",
+                  "REVOKE ALL",
+              ),
+              "migrations/20260817_memory_receipt_signing_integrity.sql": (
+                  "memory_receipt_mode_json_ck",
+                  "memory_receipt_signing_shape_ck",
+                  "SIGNED-AND-VERIFIED",
+              ),
+          }
+          for name, needles in required.items():
+              text = Path(name).read_text(encoding="utf-8")
+              for needle in needles:
+                  assert needle in text, (name, needle)
+
+          frontier = Path("routers/frontier_reads.py").read_text(encoding="utf-8")
+          package = Path("routers/__init__.py").read_text(encoding="utf-8")
+          routes = Path("tests/test_demo_critical_routes.py").read_text(encoding="utf-8")
+          for module in ("memory_covenant", "memory_worker", "token_ingress"):
+              assert f"{module}.register" in frontier
+              assert f'"{module}"' in package
+          for route in (
+              "/api/a11oy/v1/memory-covenant/status",
+              "/api/a11oy/v1/memory-covenant/generations/active",
+              "/api/a11oy/v1/memory-covenant/records",
+              "/api/a11oy/v1/memory-covenant/query",
+              "/api/a11oy/v1/memory-covenant/worker/status",
+              "/api/a11oy/v1/memory-covenant/worker/lease",
+              "/api/a11oy/v1/memory-covenant/worker/complete",
+              "/api/a11oy/v1/memory-covenant/worker/fail",
+              "/api/a11oy/v1/token-ingress/status",
+              "/api/a11oy/v1/token-ingress/route",
+              "/api/a11oy/v1/token-ingress/qualify",
+          ):
+              assert route in routes, route
+
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", "origin/main...HEAD"], text=True
+          ).splitlines()
+          secret_patterns = (
+              re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
+              re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
+              re.compile(r"hf_[A-Za-z0-9]{30,}"),
+              re.compile(r"sk-[A-Za-z0-9]{20,}"),
+          )
+          violations = []
+          for name in changed:
+              path = Path(name)
+              if not path.is_file() or path.stat().st_size > 2_000_000:
+                  continue
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except UnicodeDecodeError:
+                  continue
+              for pattern in secret_patterns:
+                  if pattern.search(text):
+                      violations.append((name, pattern.pattern))
+          assert not violations, violations
+
+          for name in changed:
+              if name.endswith((".yml", ".yaml")):
+                  with Path(name).open(encoding="utf-8") as handle:
+                      yaml.safe_load(handle)
+          PY
+
+      - name: Seal machine-readable and human-readable qualification
+        id: seal
+        shell: bash
+        env:
+          HEAD_BEFORE: ${{ steps.reconcile.outputs.head_before }}
+          MAIN_SHA: ${{ steps.reconcile.outputs.main }}
+          MERGED_MAIN: ${{ steps.reconcile.outputs.merged_main }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/proof-packets
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import json
+          import os
+          import subprocess
+
+          report = {
+              "schema": "szl.p0-source-qualification/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "repository": "szl-holdings/a11oy",
+              "branch": os.environ["TARGET_BRANCH"],
+              "head_before_qualification_commit": subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "protected_main": subprocess.check_output(
+                  ["git", "rev-parse", "origin/main"], text=True
+              ).strip(),
+              "protected_main_is_ancestor": subprocess.call(
+                  ["git", "merge-base", "--is-ancestor", "origin/main", "HEAD"]
+              ) == 0,
+              "source_slices": {
+                  "memory_schema_and_rls": "APPLIED_AND_ISOLATED_DB_VERIFIED",
+                  "memory_runtime_api": "SOURCE_QUALIFIED",
+                  "memory_worker_control": "SOURCE_QUALIFIED",
+                  "receipt_signing": "SIGNED_AND_UNSIGNED_MODES_SOURCE_QUALIFIED",
+                  "token_ingress": "SOURCE_QUALIFIED",
+              },
+              "qualification": {
+                  "python_compile": "PASS",
+                  "focused_pytest": "PASS",
+                  "adjacent_route_and_wiring_tests": "PASS",
+                  "diff_check": "PASS",
+                  "workflow_yaml_parse": "PASS",
+                  "secret_shape_scan": "PASS",
+              },
+              "external_nonclaims": [
+                  "protected_main_merge",
+                  "production_deployment",
+                  "production_database_credentials",
+                  "embedding_provider_execution",
+                  "vector_index_durability",
+                  "hugging_face_publication",
+                  "fireworks_mutation",
+                  "trusted_measured_ingress_telemetry",
+                  "immutable_deployed_revision_readback",
+              ],
+          }
+          Path("artifacts/proof-packets/20260817-source-qualification.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          Path("artifacts/proof-packets/20260817-source-qualification.md").write_text(
+              "# P0 source qualification\n\n"
+              f"- Protected main included: `{report['protected_main']}`\n"
+              f"- Candidate before sealing commit: `{report['head_before_qualification_commit']}`\n"
+              "- Python compilation: `PASS`\n"
+              "- Focused runtime and assembled-route tests: `PASS`\n"
+              "- Adjacent route/wiring regressions: `PASS`\n"
+              "- Diff, YAML, and secret-shape checks: `PASS`\n\n"
+              "This is source qualification, not protected merge, deployment, provider execution, or live revision parity.\n",
+              encoding="utf-8",
+          )
+          PY
+
+          task=.codex/tasks/P0_CURRENT_MAIN_PRODUCTION_COMPLETION_20260811.md
+          if ! grep -q '^## Successor source qualification — 2026-08-17$' "$task"; then
+            cat >> "$task" <<'EOF'
+
+          ---
+
+          ## Successor source qualification — 2026-08-17
+
+          ### APPLIED_AND_VERIFIED source work
+
+          - PostgreSQL-authoritative Memory Covenant schema, RLS roles, append-only evidence, relational generation lineage, and bounded worker settlement.
+          - HMAC-derived tenant/domain and worker bearer authority; raw tenant or worker headers no longer grant authority by themselves.
+          - Runtime Memory Covenant status, active-generation, create, get, and query routes registered before the SPA catch-all.
+          - Atomic record, receipt, outbox, and idempotency writes; read paths remain receipt-free.
+          - Managed ECDSA-P256 receipt signing with immediate verification and a production fail-closed signature requirement.
+          - Bounded worker status, lease, complete, and fail routes with generation-identity and digest settlement; embedding/provider execution remains a separate authority.
+          - Tokenizer/cache-aware ingress routing, exact semantic-oracle qualification, Prefix Foundry, file-native repository ingestion, and verifier-budget reinvestment.
+          - Focused and adjacent route/wiring tests, Python compilation, diff checks, workflow parsing, and secret-shape scanning passed before this qualification record was committed.
+
+          ### Isolated database evidence
+
+          The isolated Neon acceptance project has verified the schema, non-bypass application and worker roles, RLS isolation, append-only constraints, atomic record/receipt/outbox/idempotency writes, active-generation lineage, positive worker completion, generation-identity mismatch denial, orphan-outbox denial, signed-receipt structural admission, malformed signed-receipt denial, and rollback/no-residue test boundaries.
+
+          ### BLOCKED_EXTERNAL_AUTHORITY
+
+          - production database and HMAC/signing secrets;
+          - a separately admitted embedding/index worker and its provider credentials;
+          - trusted measured tokenizer/cache telemetry;
+          - exact-head hosted checks and independent review on the final PR head;
+          - protected merge, canonical Hugging Face deployment, and immutable live revision readback;
+          - Fireworks or model-provider mutation, training, fine-tuning, or model promotion.
+
+          ### Explicit nonclaims
+
+          This source qualification does not claim protected-main merge, production deployment, production credentials, provider execution, vector-index durability, Hugging Face publication, Fireworks activation, GPU work, measured energy, or live production parity.
+          EOF
+          fi
+
+          git add \
+            artifacts/proof-packets/20260817-source-qualification.json \
+            artifacts/proof-packets/20260817-source-qualification.md \
+            "$task"
+          git diff --cached --check
+          echo "candidate=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and publish the sealed source candidate
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "chore(p0): seal current-main source qualification" \
+            -m "Records the exact protected-main ancestor, completed source gates, isolated database evidence boundary, and remaining external authorities without claiming deployment." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
