@@ -1,0 +1,169 @@
+name: HF Space source map v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/huggingface-space-source-map-v1.json
+      - docs/HUGGINGFACE_SPACE_SOURCE_MAP_V1.md
+      - scripts/build_hf_space_source_map_v1.py
+      - tests/test_hf_space_source_map_v1.py
+      - .github/workflows/hf-space-source-map-v1.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/huggingface-space-source-map-v1.json
+      - docs/HUGGINGFACE_SPACE_SOURCE_MAP_V1.md
+      - scripts/build_hf_space_source_map_v1.py
+      - tests/test_hf_space_source_map_v1.py
+      - .github/workflows/hf-space-source-map-v1.yml
+  schedule:
+    - cron: '47 6 * * 3'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-space-source-map-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install exact focused-test runtime
+        run: python3 -m pip install --disable-pip-version-check 'pytest==9.0.3'
+
+      - name: Verify source-map logic offline
+        run: |
+          python3 -m py_compile scripts/build_hf_space_source_map_v1.py
+          python3 -m pytest -q tests/test_hf_space_source_map_v1.py
+
+  live-drift:
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_TITLE: '[HF-SPACE-SOURCE-MAP] Public source mapping drift'
+      CANDIDATE: /tmp/huggingface-space-source-map-v1.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Generate current public source map
+        id: drift
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/build_hf_space_source_map_v1.py --output "$CANDIDATE"
+          generate=$?
+          if [ "$generate" -ne 0 ]; then
+            echo 'state=UNAVAILABLE' >> "$GITHUB_OUTPUT"
+            echo "exit_code=$generate" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if cmp -s "$CANDIDATE" docs/huggingface-space-source-map-v1.json; then
+            echo 'state=CURRENT' >> "$GITHUB_OUTPUT"
+            echo 'exit_code=0' >> "$GITHUB_OUTPUT"
+          else
+            echo 'state=DRIFT' >> "$GITHUB_OUTPUT"
+            echo 'exit_code=1' >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Upload source-map candidate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-space-source-map-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.CANDIDATE }}
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Synchronize deterministic mapping-drift issue
+        if: always()
+        shell: bash
+        env:
+          STATE: ${{ steps.drift.outputs.state }}
+        run: |
+          set -euo pipefail
+          number=$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state all \
+            --limit 100 \
+            --search '"[HF-SPACE-SOURCE-MAP] Public source mapping drift" in:title' \
+            --json number,title \
+            --jq '.[] | select(.title == "[HF-SPACE-SOURCE-MAP] Public source mapping drift") | .number' \
+            | head -n 1)
+          python3 - <<'PY' > /tmp/source-map-issue.md
+          import json
+          import os
+          from pathlib import Path
+          candidate = Path('/tmp/huggingface-space-source-map-v1.json')
+          payload = json.loads(candidate.read_text()) if candidate.exists() else {}
+          print('## Hugging Face Space source-map drift')
+          print()
+          print(f"- Protected source: `{os.environ['GITHUB_SHA']}`")
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- State: `{os.environ.get('STATE', 'UNAVAILABLE')}`")
+          if payload:
+              print('\n```json')
+              print(json.dumps(payload.get('summary', {}), indent=2, sort_keys=True))
+              print('```')
+          print('\nThe observer is read-only. No GitHub or Hugging Face resource was changed.')
+          PY
+          if [ "${STATE:-UNAVAILABLE}" = 'CURRENT' ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" \
+                --repo "$GITHUB_REPOSITORY" \
+                --reason completed \
+                --comment "Tracked source map matches current public evidence in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}." || true
+            fi
+          elif [ -z "$number" ]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$ISSUE_TITLE" \
+              --body-file /tmp/source-map-issue.md
+          else
+            gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/source-map-issue.md
+          fi
+
+      - name: Enforce tracked source map
+        if: always()
+        env:
+          STATE: ${{ steps.drift.outputs.state }}
+        run: test "${STATE:-UNAVAILABLE}" = 'CURRENT'
