@@ -546,7 +546,20 @@ def prove(
         }
     )
 
-    pre_activation_boot_id = observe_boot_id(session, origin, deadline)
+    pre_activation_boot_id: str | None = None
+    try:
+        pre_activation_boot_id = observe_boot_id(session, origin, deadline)
+    except Exception as exc:  # noqa: BLE001 - recovery starts from an outage
+        trace["pre_activation_observation"] = {
+            "status": "UNAVAILABLE",
+            "error_type": type(exc).__name__,
+            "error": str(exc)[:180],
+        }
+    else:
+        trace["pre_activation_observation"] = {
+            "status": "OBSERVED",
+            "runtime_boot_id": pre_activation_boot_id,
+        }
     trace["pre_activation_runtime_boot_id"] = pre_activation_boot_id
     # Hub variable writes are configuration-plane state. Explicitly restart
     # before sampling so the public process is proved against the just-converged
@@ -683,6 +696,7 @@ def prove(
             activation_stage or "UNKNOWN"
         ),
         "pre_activation_runtime_boot_id": pre_activation_boot_id,
+        "pre_activation_runtime_observed": pre_activation_boot_id is not None,
         "activation_runtime_boot_identity_observed": True,
         "durability_restart_requested": True,
         "durability_restart_response_stage": str(
@@ -693,6 +707,11 @@ def prove(
         "proof": {
             "source_stable": True,
             "activation_runtime_transition_observed": True,
+            "activation_runtime_recovery_observed": True,
+            "activation_boot_identity_change_observed": (
+                pre_activation_boot_id is not None
+                and before["runtime_boot_id"] != pre_activation_boot_id
+            ),
             "runtime_boot_identity_changed": True,
             "public_signing_identity_stable": True,
             "database_instance_stable": True,
