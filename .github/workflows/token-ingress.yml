@@ -7,8 +7,9 @@ on:
       - "routers/token_ingress.py"
       - "routers/token_ingress_core.py"
       - "routers/frontier_reads.py"
+      - "routers/__init__.py"
       - "tests/test_token_ingress.py"
-      - "tests/test_demo_critical_routes.py"
+      - "tests/test_token_ingress_route_wiring.py"
       - ".github/workflows/token-ingress.yml"
 
 permissions:
@@ -17,7 +18,7 @@ permissions:
 jobs:
   token-ingress:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,15 +35,16 @@ jobs:
           routers/token_ingress.py
           routers/frontier_reads.py
           tests/test_token_ingress.py
-          tests/test_demo_critical_routes.py
+          tests/test_token_ingress_route_wiring.py
       - name: Run ingress and assembled-route contract tests
-        run: pytest tests/test_token_ingress.py tests/test_demo_critical_routes.py -q
+        run: pytest tests/test_token_ingress.py tests/test_token_ingress_route_wiring.py -q
       - name: Reject whitespace errors in ingress changes
         run: >-
           git diff --check origin/main...HEAD --
           routers/token_ingress_core.py
           routers/token_ingress.py
           routers/frontier_reads.py
+          routers/__init__.py
           tests/test_token_ingress.py
-          tests/test_demo_critical_routes.py
+          tests/test_token_ingress_route_wiring.py
           .github/workflows/token-ingress.yml
