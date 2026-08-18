@@ -24,7 +24,128 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator
+
 from fastapi.responses import JSONResponse
+
+# Phase B of the current-main readiness repair. These are the exact mutable
+# read surfaces whose response contract requires a request-time observation
+# clock. The clock says only that this process constructed and observed the
+# response during this request; it does not relabel cached source material as
+# freshly fetched data.
+_PHASE_B_OBSERVATION_PATHS = frozenset(
+    {
+        "/api/a11oy/provenance",
+        "/api/a11oy/v1/energy/sci",
+        "/api/a11oy/v1/observability/summary",
+        "/api/a11oy/v1/observability/business",
+        "/v1/observability/business",
+        "/api/a11oy/v1/mesh/state",
+    }
+)
+_KEVGATE_PATHS = frozenset({"/api/a11oy/v1/sec/kev"})
+_PHASE_B_MUTATED_PATHS = _PHASE_B_OBSERVATION_PATHS | _KEVGATE_PATHS
+
+
+def _utc_observation_clock() -> str:
+    """Return one genuine request-time UTC observation clock."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def normalize_readiness_phase_b_payload(
+    path: str,
+    payload: Any,
+    *,
+    observed_at: str | None = None,
+) -> Any:
+    """Apply the closed Phase-B response vocabulary to one JSON payload.
+
+    The function is intentionally pure when ``observed_at`` is supplied so the
+    contract can be tested without starting the complete application. Unknown
+    paths and non-object JSON values are returned unchanged.
+    """
+    if not isinstance(payload, dict):
+        return payload
+
+    normalized = dict(payload)
+    if path in _PHASE_B_OBSERVATION_PATHS:
+        normalized["observed_at"] = observed_at or _utc_observation_clock()
+
+    if path in _KEVGATE_PATHS:
+        raw_kind = str(normalized.get("data_kind") or "").strip()
+        canonical_kind = raw_kind.casefold()
+        normalized["data_kind"] = "live" if canonical_kind == "live" else "cached"
+
+        detail = normalized.get("detail")
+        if not isinstance(detail, str) or not detail.strip():
+            note = normalized.get("note")
+            if isinstance(note, str) and note.strip():
+                detail = note
+            elif raw_kind and canonical_kind not in {"live", "cached"}:
+                detail = raw_kind
+            else:
+                detail = (
+                    "Bundled CISA KEV snapshot served from the current image; "
+                    "this response is cached source material, not a live catalog fetch."
+                )
+        normalized["detail"] = detail
+
+    return normalized
+
+
+async def _single_body(body: bytes) -> AsyncIterator[bytes]:
+    yield body
+
+
+def install_readiness_phase_b_response_contract(app) -> None:
+    """Install one exact-path JSON normalizer without changing route authority."""
+    state = getattr(app, "state", None)
+    marker = "_readiness_phase_b_response_contract_installed"
+    if state is not None and getattr(state, marker, False):
+        return
+    if state is not None:
+        setattr(state, marker, True)
+
+    @app.middleware("http")
+    async def _readiness_phase_b_contract(request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path not in _PHASE_B_MUTATED_PATHS:
+            return response
+        if "application/json" not in response.headers.get("content-type", "").casefold():
+            return response
+
+        iterator = getattr(response, "body_iterator", None)
+        if iterator is None:
+            return response
+
+        chunks: list[bytes] = []
+        async for chunk in iterator:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk)
+            else:
+                chunks.append(bytes(chunk))
+        raw = b"".join(chunks)
+
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            response.body_iterator = _single_body(raw)
+            response.headers["content-length"] = str(len(raw))
+            return response
+
+        normalized = normalize_readiness_phase_b_payload(path, payload)
+        encoded = json.dumps(
+            normalized,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        response.body_iterator = _single_body(encoded)
+        response.headers["content-length"] = str(len(encoded))
+        return response
+
 
 # ---- Vertical-pack registry (GAP-5): 13 verticals, live/stub. "Cyber Resilience"
 # label avoids the literal forbidden string. NO amaru/sentra/rosie. ----
@@ -48,6 +169,8 @@ _A11OY_VERTICALS = [
 def register(app) -> dict:
     """Attach frontier reads and the additive Series-A control plane."""
     import serve  # shared module-scope state lives at serve module scope
+
+    install_readiness_phase_b_response_contract(app)
 
     @app.get("/api/a11oy/v1/forecast-baseline")
     @app.get("/v1/forecast-baseline")
