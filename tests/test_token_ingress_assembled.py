@@ -17,6 +17,11 @@ _EXPECTED = {
 }
 
 
+def _endpoint_module(route: object) -> str | None:
+    endpoint = getattr(route, "endpoint", None)
+    return getattr(endpoint, "__module__", None)
+
+
 def test_token_ingress_routes_are_owned_and_precede_production_catchalls() -> None:
     routes = list(serve.app.router.routes)
     spa_index = next(
@@ -38,7 +43,7 @@ def test_token_ingress_routes_are_owned_and_precede_production_catchalls() -> No
         ]
         assert len(owned) == 1, f"expected one owning route for {path}, got {len(owned)}"
         index, route = owned[0]
-        assert getattr(route.endpoint, "__module__", None) == "routers.token_ingress"
+        assert _endpoint_module(route) == "routers.token_ingress"
         assert method in getattr(route, "methods", set())
         assert index < api_proxy_index
         assert index < spa_index
@@ -48,7 +53,7 @@ def test_token_ingress_public_surface_has_no_mutating_storage_or_provider_route(
     paths = {
         getattr(route, "path", "")
         for route in serve.app.router.routes
-        if getattr(route.endpoint, "__module__", None) == "routers.token_ingress"
+        if _endpoint_module(route) == "routers.token_ingress"
     }
     assert paths == set(_EXPECTED)
     assert not any(
