@@ -1,0 +1,334 @@
+name: Budget token-ingress signed successor builder
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/budget-token-ingress-signed-builder.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: budget-token-ingress-signed-successor-builder
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build GitHub-verified current-main successor
+    if: >-
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      github.event.pull_request.head.repo.full_name == 'szl-holdings/a11oy' &&
+      github.event.pull_request.head.ref == 'chore/budget-token-ingress-signed-builder-20260818' &&
+      github.event.pull_request.draft == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      TARGET_BRANCH: feat/budget-token-ingress-signed-20260818
+      DONOR_PR: '1331'
+      DONOR_BASE: b51f66add89755642c97deaa8acaeb2cc94a6bf4
+      DONOR_HEAD: cb2dfda3d97169a22bc398c2d68f714b157f2d5b
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Verify exact protected base and donor identity
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha='${{ github.event.pull_request.base.sha }}'
+          current_main="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main" = "$base_sha"
+          test "$base_sha" = 'e9f18874076ab9977651e793bfd083021b79756d'
+
+          donor_json="$RUNNER_TEMP/donor-pr.json"
+          gh api "repos/${REPOSITORY}/pulls/${DONOR_PR}" > "$donor_json"
+          test "$(jq -er '.state' "$donor_json")" = 'open'
+          test "$(jq -er '.draft' "$donor_json")" = 'true'
+          test "$(jq -er '.base.sha' "$donor_json")" = "$DONOR_BASE"
+          test "$(jq -er '.head.sha' "$donor_json")" = "$DONOR_HEAD"
+          test "$(jq -er '.user.login' "$donor_json")" = 'stephenlutar2-hash'
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact donor source as inert bytes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DONOR_HEAD }}
+          path: donor
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify donor scope and terminal hosted evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git -C donor rev-parse HEAD)" = "$DONOR_HEAD"
+          mapfile -t changed < <(git -C donor diff --name-only "${DONOR_BASE}...${DONOR_HEAD}" | sort)
+          expected=(
+            .github/workflows/budget-token-ingress.yml
+            artifacts/proof-packets/20260818-budget-token-ingress.md
+            szl_budget_router.py
+            tests/test_budget_token_ingress.py
+            tests/test_budget_token_ingress_assembled.py
+          )
+          test "${changed[*]}" = "${expected[*]}"
+          test -f donor/szl_budget_router.py
+          test -f donor/tests/test_budget_token_ingress.py
+          test -f donor/tests/test_budget_token_ingress_assembled.py
+
+          gh api "repos/${REPOSITORY}/actions/runs?event=pull_request&head_sha=${DONOR_HEAD}&per_page=100" \
+            > "$RUNNER_TEMP/donor-runs.json"
+          python - "$RUNNER_TEMP/donor-runs.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+          rows = payload.get('workflow_runs')
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit('no donor exact-head workflow runs')
+          latest = {}
+          for row in rows:
+              if not isinstance(row, dict):
+                  continue
+              name = row.get('name')
+              run_id = row.get('id')
+              if not isinstance(name, str) or isinstance(run_id, bool) or not isinstance(run_id, int):
+                  continue
+              if name not in latest or int(latest[name]['id']) < run_id:
+                  latest[name] = row
+          required = {
+              'Action-contract promotion guard',
+              'Budget and token ingress contracts',
+              'CodeQL',
+              'Container build + GHCR push',
+              'DCO',
+              'Doctrine',
+              'Doctrine Overclaim Guard',
+              'HF Space module-drift guard',
+              'Secret Scanning (Gitleaks)',
+              'Tests',
+              'Trivy + Grype container vulnerability scan',
+          }
+          missing = sorted(required - set(latest))
+          if missing:
+              raise SystemExit(f'missing donor workflows: {missing}')
+          blocked = []
+          for name in sorted(required):
+              row = latest[name]
+              if row.get('status') != 'completed' or row.get('conclusion') != 'success':
+                  blocked.append((name, row.get('status'), row.get('conclusion')))
+          if blocked:
+              raise SystemExit(f'non-green donor workflows: {blocked}')
+          pathlib.Path('donor-workflows.json').write_text(
+              json.dumps(
+                  {name: {'id': latest[name]['id'], 'conclusion': latest[name]['conclusion']} for name in sorted(required)},
+                  indent=2,
+                  sort_keys=True,
+              ) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Create or verify GitHub-signed successor commit
+        id: publish
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.context.outputs.base_sha }}
+          DONOR_ROOT: ${{ github.workspace }}/donor
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          export GH_TOKEN REPOSITORY TARGET_BRANCH DONOR_HEAD BASE_SHA DONOR_ROOT
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ['GH_TOKEN']
+          repository = os.environ['REPOSITORY']
+          branch = os.environ['TARGET_BRANCH']
+          donor_head = os.environ['DONOR_HEAD']
+          base_sha = os.environ['BASE_SHA']
+          donor_root = pathlib.Path(os.environ['DONOR_ROOT'])
+          paths = [
+              '.github/workflows/budget-token-ingress.yml',
+              'artifacts/proof-packets/20260818-budget-token-ingress.md',
+              'szl_budget_router.py',
+              'tests/test_budget_token_ingress.py',
+              'tests/test_budget_token_ingress_assembled.py',
+          ]
+
+          def api(method, url, payload=None, *, allow_missing=False, raw=False):
+              data = None if payload is None else json.dumps(payload, separators=(',', ':')).encode()
+              accept = 'application/vnd.github.raw+json' if raw else 'application/vnd.github+json'
+              request = urllib.request.Request(
+                  url,
+                  data=data,
+                  method=method,
+                  headers={
+                      'Authorization': f'Bearer {token}',
+                      'Accept': accept,
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'szl-budget-token-ingress-successor-builder',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      if raw:
+                          return response.read()
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  if allow_missing and exc.code == 404:
+                      return None
+                  raise SystemExit(f'GitHub API HTTP {exc.code}') from exc
+
+          ref_url = f'https://api.github.com/repos/{repository}/git/ref/heads/{branch}'
+          ref = api('GET', ref_url, allow_missing=True)
+          if ref is None:
+              api(
+                  'POST',
+                  f'https://api.github.com/repos/{repository}/git/refs',
+                  {'ref': f'refs/heads/{branch}', 'sha': base_sha},
+              )
+              head = base_sha
+          else:
+              head = str(((ref.get('object') or {}).get('sha') or ''))
+
+          if head == base_sha:
+              additions = [
+                  {
+                      'path': rel,
+                      'contents': base64.b64encode((donor_root / rel).read_bytes()).decode('ascii'),
+                  }
+                  for rel in paths
+              ]
+              mutation = '''
+              mutation BuildSuccessor($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) { commit { oid url } }
+              }
+              '''
+              variables = {
+                  'input': {
+                      'branch': {
+                          'repositoryNameWithOwner': repository,
+                          'branchName': branch,
+                      },
+                      'expectedHeadOid': base_sha,
+                      'message': {
+                          'headline': 'feat(ingress): converge semantic token routing into budget control',
+                          'body': (
+                              'Normalize the exact green source from PR 1331 onto current protected main. '
+                              'The implementation reuses the existing production-copied budget router, '
+                              'preserves fail-closed semantic qualification, and adds no provider, model, '
+                              'deployment, signing, database, or Hugging Face mutation effector.\n\n'
+                              f'Donor-Head: {donor_head}\n'
+                              'Signed-off-by: github-actions[bot] '
+                              '<41898282+github-actions[bot]@users.noreply.github.com>\n'
+                              'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+                          ),
+                      },
+                      'fileChanges': {'additions': additions},
+                  }
+              }
+              payload = api(
+                  'POST',
+                  'https://api.github.com/graphql',
+                  {'query': mutation, 'variables': variables},
+              )
+              if payload.get('errors'):
+                  raise SystemExit('createCommitOnBranch rejected the exact successor')
+              head = str(payload['data']['createCommitOnBranch']['commit']['oid'])
+
+          if len(head) != 40 or any(ch not in '0123456789abcdef' for ch in head):
+              raise SystemExit('invalid successor commit OID')
+          commit = api('GET', f'https://api.github.com/repos/{repository}/commits/{head}')
+          verification = (commit.get('commit') or {}).get('verification') or {}
+          if verification.get('verified') is not True or verification.get('reason') != 'valid':
+              raise SystemExit('successor commit signature is not verified')
+          parents = commit.get('parents') or []
+          if len(parents) != 1 or parents[0].get('sha') != base_sha:
+              raise SystemExit('successor parent mismatch')
+          changed = sorted(row.get('filename') for row in (commit.get('files') or []))
+          if changed != sorted(paths):
+              raise SystemExit(f'successor changed-path mismatch: {changed}')
+          message = str((commit.get('commit') or {}).get('message') or '')
+          required_trailers = (
+              'Signed-off-by: github-actions[bot] '
+              '<41898282+github-actions[bot]@users.noreply.github.com>',
+              'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>',
+          )
+          for trailer in required_trailers:
+              if trailer not in message:
+                  raise SystemExit(f'missing DCO trailer: {trailer}')
+          for rel in paths:
+              encoded = urllib.parse.quote(rel, safe='')
+              target = api(
+                  'GET',
+                  f'https://api.github.com/repos/{repository}/contents/{encoded}?ref={head}',
+                  raw=True,
+              )
+              source = (donor_root / rel).read_bytes()
+              if target != source:
+                  raise SystemExit(f'byte mismatch for {rel}')
+          ref = api('GET', ref_url)
+          if ((ref.get('object') or {}).get('sha')) != head:
+              raise SystemExit('successor branch readback mismatch')
+          pathlib.Path('successor-builder-result.json').write_text(
+              json.dumps(
+                  {
+                      'schema': 'szl.budget-token-ingress-successor-builder/v1',
+                      'base_sha': base_sha,
+                      'donor_head': donor_head,
+                      'branch': branch,
+                      'commit_sha': head,
+                      'paths': paths,
+                      'signature_verified': True,
+                      'dco_verified': True,
+                      'byte_identity_verified': True,
+                      'secret_values_emitted': False,
+                  },
+                  indent=2,
+                  sort_keys=True,
+              ) + '\n',
+              encoding='utf-8',
+          )
+          PY
+          commit_sha="$(jq -er '.commit_sha' successor-builder-result.json)"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload successor evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: budget-token-ingress-signed-successor
+          path: |
+            successor-builder-result.json
+            donor-workflows.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report successor identity
+        shell: bash
+        run: |
+          {
+            echo '### GitHub-signed budget/token-ingress successor'
+            echo "- base: \`${{ steps.context.outputs.base_sha }}\`"
+            echo "- donor head: \`${DONOR_HEAD}\`"
+            echo "- branch: \`${TARGET_BRANCH}\`"
+            echo "- head: \`${{ steps.publish.outputs.commit_sha }}\`"
+            echo '- donor hosted matrix: terminal green'
+            echo '- byte identity: verified'
+            echo '- GitHub signature: verified'
+            echo '- DCO: verified'
+            echo '- secret values emitted: false'
+          } >> "$GITHUB_STEP_SUMMARY"
