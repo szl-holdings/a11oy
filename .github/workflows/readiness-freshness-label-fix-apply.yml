@@ -1,0 +1,50 @@
+name: Readiness freshness-label fix apply
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply-bounded-fix:
+    if: >-
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/readiness-freshness-labels-20260817' &&
+      github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/readiness-freshness-labels-20260817
+          fetch-depth: 0
+      - name: Bind event head to checked out head
+        env:
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EVENT_HEAD"
+      - name: Apply exact freshness-label repair
+        run: python3 scripts/apply_readiness_freshness_label_fix.py
+      - name: Verify Node harness and matrix
+        run: |
+          node --test --test-force-exit tools/readiness-harness/probe_runner.test.mjs
+          node --test --test-force-exit tools/readiness-harness/probe_runner_revision.test.mjs
+          python3 tools/readiness-harness/gen_tabs_matrix.py --check
+      - name: Commit only the reviewed source and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- tools/readiness-harness/probe_runner.mjs tools/readiness-harness/probe_runner.test.mjs; then
+            echo 'Freshness-label repair already materialized.'
+            exit 0
+          fi
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git add tools/readiness-harness/probe_runner.mjs tools/readiness-harness/probe_runner.test.mjs
+          git commit -m 'fix(readiness): scope scalar freshness evidence labels' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:fix/readiness-freshness-labels-20260817
