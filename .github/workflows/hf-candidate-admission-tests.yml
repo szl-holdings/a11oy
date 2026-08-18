@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.14.1
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: audit
       - name: Checkout exact candidate
@@ -43,3 +43,9 @@ jobs:
           python3 -B -m py_compile
           .github/scripts/verify_hf_candidate_admission.py
           tests/test_verify_hf_candidate_admission.py
+      - name: Reject whitespace errors
+        run: >-
+          git diff --check origin/main...HEAD --
+          .github/scripts/verify_hf_candidate_admission.py
+          tests/test_verify_hf_candidate_admission.py
+          .github/workflows/hf-candidate-admission-tests.yml
