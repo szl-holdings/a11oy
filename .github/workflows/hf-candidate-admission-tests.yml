@@ -45,8 +45,30 @@ jobs:
           .github/scripts/verify_hf_candidate_admission.py
           tests/test_verify_hf_candidate_admission.py
       - name: Reject whitespace errors
-        run: >-
-          git diff --check origin/main...HEAD --
-          .github/scripts/verify_hf_candidate_admission.py
-          tests/test_verify_hf_candidate_admission.py
-          .github/workflows/hf-candidate-admission-tests.yml
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT_NAME" in
+            pull_request)
+              base="$PR_BASE_SHA"
+              head="$PR_HEAD_SHA"
+              ;;
+            push)
+              base="$PUSH_BEFORE_SHA"
+              head="$CURRENT_SHA"
+              ;;
+            *)
+              base="$(git rev-parse HEAD^)"
+              head="$(git rev-parse HEAD)"
+              ;;
+          esac
+          git diff --check "$base...$head" -- \
+            .github/scripts/verify_hf_candidate_admission.py \
+            tests/test_verify_hf_candidate_admission.py \
+            .github/workflows/hf-candidate-admission-tests.yml
