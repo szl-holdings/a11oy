@@ -1,0 +1,82 @@
+name: HF stage matrix reconciliation 2026-08-17
+
+on:
+  push:
+    branches:
+      - ops/hf-stage-matrix-refresh-20260817
+    paths:
+      - .github/workflows/hf-stage-matrix-refresh-20260817.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hf-stage-matrix-refresh-20260817
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ops/hf-stage-matrix-refresh-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SELF_PATH: .github/workflows/hf-stage-matrix-refresh-20260817.yml
+      HEAD_BRANCH: ops/hf-stage-matrix-refresh-20260817
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Prove stage-matrix generator contracts
+        run: |
+          python3 -m py_compile scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/build_ecosystem_stage_matrix.py --check || true
+
+      - name: Regenerate derived stage evidence
+        run: python3 scripts/build_ecosystem_stage_matrix.py
+
+      - name: Enforce bounded derived-output mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          for path in "${changed[@]}"; do
+            case "$path" in
+              docs/*|reports/*) ;;
+              *) echo "::error::Unexpected generated path: $path"; exit 1 ;;
+            esac
+            lower=$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')
+            case "$lower" in
+              *huggingface*stage*|*huggingface*matrix*|*hf*stage*matrix*) ;;
+              *) echo "::error::Generated path is outside the HF stage-matrix contract: $path"; exit 1 ;;
+            esac
+          done
+
+      - name: Retire one-shot controller and commit derived evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "$SELF_PATH"
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          if git diff --quiet --cached && git diff --quiet; then
+            echo 'No stage-matrix delta exists.'
+            exit 0
+          fi
+          git add docs reports 2>/dev/null || true
+          git commit \
+            -m 'chore(hf): reconcile ecosystem stage matrix' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:$HEAD_BRANCH
