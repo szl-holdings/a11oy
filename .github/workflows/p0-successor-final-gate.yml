@@ -1,0 +1,145 @@
+name: Gate final P0 successor exact head
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/p0-successor-final-gate.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  actions: read
+
+concurrency:
+  group: p0-successor-final-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  final-gate:
+    if: >-
+      github.event.pull_request.number == 1261 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/p0-a11oy-work-20260811'
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_BRANCH: codex/p0-a11oy-work-20260811
+      STAGE_BRANCH: codex/p0-a11oy-stage-20260811
+      MIN_CHECKS: "25"
+    steps:
+      - name: Checkout source lane for one-shot retirement
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/p0-a11oy-work-20260811
+          fetch-depth: 0
+
+      - name: Wait for stable terminal checks on the latest successor head
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          successor=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --base main \
+            --head "$STAGE_BRANCH" \
+            --json number \
+            --jq '.[0].number // empty')
+          test -n "$successor"
+
+          stable=0
+          previous=''
+          verdict='TIMEOUT'
+          stage_sha=''
+          snapshot='{}'
+          for _ in $(seq 1 120); do
+            observed_sha=$(gh pr view "$successor" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json headRefOid \
+              --jq .headRefOid)
+            if [ "$observed_sha" != "$stage_sha" ]; then
+              stage_sha="$observed_sha"
+              stable=0
+              previous=''
+            fi
+            snapshot=$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/$GITHUB_REPOSITORY/commits/$stage_sha/check-runs?per_page=100")
+            total=$(jq '.check_runs | length' <<<"$snapshot")
+            pending=$(jq '[.check_runs[] | select(.status != "completed")] | length' <<<"$snapshot")
+            failed=$(jq '[.check_runs[] | select(.status == "completed" and (.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length' <<<"$snapshot")
+            fingerprint=$(jq -c '[.check_runs[] | {name,status,conclusion}] | sort_by(.name)' <<<"$snapshot")
+
+            if [ "$total" -ge "$MIN_CHECKS" ] && [ "$pending" -eq 0 ]; then
+              if [ "$fingerprint" = "$previous" ]; then
+                stable=$((stable + 1))
+              else
+                stable=1
+              fi
+              if [ "$stable" -ge 3 ]; then
+                if [ "$failed" -eq 0 ]; then
+                  verdict='PASS'
+                else
+                  verdict='FAIL'
+                fi
+                break
+              fi
+            else
+              stable=0
+            fi
+            previous="$fingerprint"
+            sleep 10
+          done
+
+          report=$(jq -r '[.check_runs[] | select(.status != "completed" or (.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")) | "- " + .name + ": " + .status + "/" + (.conclusion // "pending") + " — " + .details_url] | join("\n")' <<<"$snapshot")
+          if [ -z "$report" ]; then
+            report='- no pending or failing checks observed'
+          fi
+          printf '## Final exact-head gate\n\n- Successor PR: #%s\n- Exact head: %s\n- Check count: %s\n- Verdict: %s\n\n%s\n' \
+            "$successor" "$stage_sha" "$total" "$verdict" "$report" \
+            > /tmp/final-gate.md
+          gh pr comment "$successor" --repo "$GITHUB_REPOSITORY" --body-file /tmp/final-gate.md
+          gh pr comment 1261 --repo "$GITHUB_REPOSITORY" --body-file /tmp/final-gate.md
+          {
+            echo "successor=$successor"
+            echo "stage_sha=$stage_sha"
+            echo "verdict=$verdict"
+          } >> "$GITHUB_OUTPUT"
+          test "$verdict" = 'PASS'
+
+      - name: Mark successor ready and close source lane
+        if: steps.gate.outputs.verdict == 'PASS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          draft=$(gh pr view "${{ steps.gate.outputs.successor }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft \
+            --jq .isDraft)
+          if [ "$draft" = 'true' ]; then
+            gh pr ready "${{ steps.gate.outputs.successor }}" --repo "$GITHUB_REPOSITORY"
+          fi
+          gh pr close 1261 \
+            --repo "$GITHUB_REPOSITORY" \
+            --comment "Current-main successor #${{ steps.gate.outputs.successor }} passed the stable exact-head check set at ${{ steps.gate.outputs.stage_sha }} and is ready for independent review. No merge, deployment, or provider activation is claimed."
+
+      - name: Retire this one-shot gate from the source branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$SOURCE_BRANCH"
+          git switch --detach "origin/$SOURCE_BRANCH"
+          git switch -c p0-final-gate-retirement
+          if test -f .github/workflows/p0-successor-final-gate.yml; then
+            git rm .github/workflows/p0-successor-final-gate.yml
+            git config user.name "Stephen Lutar"
+            git config user.email "stephenlutar2@gmail.com"
+            git commit -m "chore(p0): retire final successor gate" \
+              -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+            git push origin "HEAD:refs/heads/$SOURCE_BRANCH"
+          fi
