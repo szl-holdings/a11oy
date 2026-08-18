@@ -81,8 +81,9 @@ test("scalar freshness captures canonical negative evidence labels only", () => 
       normalized: value,
     }]);
   }
-  assert.deepEqual(findEvidenceLabels({ freshness: "object" }), []);
-  assert.deepEqual(findEvidenceLabels({ freshness: "string" }), []);
+  for (const metadataType of ["object", "string", "OBJECT", "STRING"]) {
+    assert.deepEqual(findEvidenceLabels({ freshness: metadataType }), []);
+  }
 });
 
 test("real freshness objects retain unknown and negative statuses", () => {
@@ -109,4 +110,3 @@ test("explicit evidence-kind fields remain fail-closed for unknown values", () =
     normalized: "vendor-pending",
   }]);
 });
-
