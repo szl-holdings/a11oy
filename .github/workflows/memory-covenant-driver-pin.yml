@@ -1,0 +1,180 @@
+name: Seal Memory Covenant PostgreSQL driver
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/memory-covenant-driver-pin.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: memory-covenant-driver-pin-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/p0-a11oy-stage-20260811'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact stage branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/p0-a11oy-stage-20260811
+          fetch-depth: 0
+
+      - name: Resolve one stable PyPI release and write exact source contracts
+        id: pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime
+          import hashlib
+          import json
+          import re
+          import urllib.request
+          from pathlib import Path
+
+          source = 'https://pypi.org/pypi/psycopg/json'
+          request = urllib.request.Request(
+              source,
+              headers={'User-Agent': 'a11oy-memory-covenant-driver-pin/1.0'},
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              document = json.load(response)
+          version = str(document['info']['version'])
+          if not re.fullmatch(r'3[.]\d+[.]\d+', version):
+              raise SystemExit(f'latest psycopg release is outside the accepted stable v3 contract: {version}')
+          files = document.get('releases', {}).get(version) or []
+          if not files:
+              raise SystemExit('PyPI returned no artifacts for the selected release')
+          artifacts = []
+          for item in files:
+              digest = (item.get('digests') or {}).get('sha256')
+              if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
+                  raise SystemExit('selected release contains an artifact without a SHA-256 digest')
+              artifacts.append({
+                  'filename': item.get('filename'),
+                  'packagetype': item.get('packagetype'),
+                  'python_version': item.get('python_version'),
+                  'requires_python': item.get('requires_python'),
+                  'sha256': digest,
+                  'size': item.get('size'),
+                  'yanked': bool(item.get('yanked')),
+              })
+          if all(item['yanked'] for item in artifacts):
+              raise SystemExit('all selected release artifacts are yanked')
+
+          dockerfile = Path('Dockerfile')
+          docker = dockerfile.read_text(encoding='utf-8')
+          if 'psycopg[binary]==' not in docker:
+              needle = '    "numpy==2.1.3"\n'
+              replacement = f'    "numpy==2.1.3" \\\n    "psycopg[binary]=={version}"\n'
+              if needle not in docker:
+                  raise SystemExit('Dockerfile runtime dependency anchor not found')
+              docker = docker.replace(needle, replacement, 1)
+              dockerfile.write_text(docker, encoding='utf-8')
+          elif f'psycopg[binary]=={version}' not in docker:
+              raise SystemExit('Dockerfile already contains a conflicting psycopg pin')
+
+          requirements = Path('requirements.txt')
+          req = requirements.read_text(encoding='utf-8')
+          if 'psycopg[binary]==' not in req:
+              req += (
+                  '\n# Memory Covenant PostgreSQL runtime. Exact version selected from the '\
+                  'public PyPI release record and sealed in audit/psycopg-runtime-pin.json.\n'
+                  f'psycopg[binary]=={version}\n'
+              )
+              requirements.write_text(req, encoding='utf-8')
+          elif f'psycopg[binary]=={version}' not in req:
+              raise SystemExit('requirements.txt already contains a conflicting psycopg pin')
+
+          audit = {
+              'schema': 'szl.dependency-pin/v1',
+              'package': 'psycopg',
+              'extra': 'binary',
+              'version': version,
+              'source': source,
+              'observed_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'release_artifacts': sorted(artifacts, key=lambda item: str(item['filename'])),
+              'selection_policy': 'latest stable semantic version in major line 3 at observation time',
+              'activation_boundary': 'installing the driver does not supply a database credential or activate a write path',
+          }
+          Path('audit/psycopg-runtime-pin.json').write_text(
+              json.dumps(audit, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+
+          test = f'''# SPDX-License-Identifier: Apache-2.0
+from pathlib import Path
+
+EXPECTED = "{version}"
+
+
+def test_memory_covenant_driver_is_exactly_pinned() -> None:
+    docker = Path("Dockerfile").read_text(encoding="utf-8")
+    requirements = Path("requirements.txt").read_text(encoding="utf-8")
+    assert f"psycopg[binary]=={{EXPECTED}}" in docker
+    assert f"psycopg[binary]=={{EXPECTED}}" in requirements
+
+
+def test_driver_pin_has_public_sha256_provenance() -> None:
+    import json
+    data = json.loads(Path("audit/psycopg-runtime-pin.json").read_text(encoding="utf-8"))
+    assert data["version"] == EXPECTED
+    assert data["source"] == "https://pypi.org/pypi/psycopg/json"
+    assert data["release_artifacts"]
+    assert all(len(item["sha256"]) == 64 for item in data["release_artifacts"])
+    assert any(not item["yanked"] for item in data["release_artifacts"])
+'''
+          Path('tests/test_memory_covenant_dependency_contract.py').write_text(test, encoding='utf-8')
+          Path('/tmp/psycopg-version').write_text(version, encoding='utf-8')
+          PY
+          echo "version=$(cat /tmp/psycopg-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Prove the selected driver installs and imports on Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install and qualify exact driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "psycopg[binary]==${{ steps.pin.outputs.version }}"
+          python - <<'PY'
+          import psycopg
+          from importlib.metadata import version
+          expected = open('/tmp/psycopg-version', encoding='utf-8').read().strip()
+          assert version('psycopg') == expected
+          assert psycopg.__version__ == expected
+          PY
+          python -m pytest \
+            tests/test_memory_covenant_dependency_contract.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_covenant_route_wiring.py \
+            -q
+          git diff --check
+
+      - name: Commit the sealed dependency contract and retire this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/memory-covenant-driver-pin.yml
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add Dockerfile requirements.txt audit/psycopg-runtime-pin.json tests/test_memory_covenant_dependency_contract.py
+          git commit -m "build(memory): pin PostgreSQL runtime driver ${{ steps.pin.outputs.version }}" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:codex/p0-a11oy-stage-20260811
