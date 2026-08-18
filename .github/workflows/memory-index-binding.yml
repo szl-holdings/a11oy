@@ -1,0 +1,42 @@
+name: Memory index adapter-generation binding
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "routers/memory_index_binding.py"
+      - "routers/memory_index_worker.py"
+      - "tests/test_memory_index_binding.py"
+      - ".github/workflows/memory-index-binding.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  memory-index-binding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Compile binding contracts
+        run: >-
+          python -m py_compile
+          routers/memory_index_worker.py
+          routers/memory_index_binding.py
+          tests/test_memory_index_binding.py
+      - name: Run exact adapter-generation binding tests
+        run: pytest tests/test_memory_index_binding.py -q
+      - name: Reject whitespace errors in binding changes
+        run: >-
+          git diff --check origin/main...HEAD --
+          routers/memory_index_worker.py
+          routers/memory_index_binding.py
+          tests/test_memory_index_binding.py
+          .github/workflows/memory-index-binding.yml
