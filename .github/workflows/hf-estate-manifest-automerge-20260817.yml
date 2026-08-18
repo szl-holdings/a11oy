@@ -1,0 +1,85 @@
+name: HF estate manifest PR auto-merge 2026-08-17
+
+on:
+  push:
+    branches:
+      - ops/hf-estate-manifest-refresh-20260817
+    paths:
+      - .github/workflows/hf-estate-manifest-automerge-20260817.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: hf-estate-manifest-automerge-20260817
+  cancel-in-progress: false
+
+jobs:
+  arm-and-retire:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ops/hf-estate-manifest-refresh-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_BRANCH: ops/hf-estate-manifest-refresh-20260817
+      SELF_PATH: .github/workflows/hf-estate-manifest-automerge-20260817.yml
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Resolve the unique manifest PR
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t numbers < <(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --head "$HEAD_BRANCH" \
+            --base main \
+            --json number \
+            --jq '.[].number')
+          test "${#numbers[@]}" -eq 1
+          echo "number=${numbers[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify final review scope
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only)
+          for file in "${files[@]}"; do
+            case "$file" in
+              docs/huggingface-ecosystem-manifest.json|$SELF_PATH) ;;
+              *) echo "::error::Unexpected PR path: $file"; exit 1 ;;
+            esac
+          done
+          printf '%s\n' "${files[@]}" | grep -qx 'docs/huggingface-ecosystem-manifest.json'
+
+      - name: Enable protected squash auto-merge
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash
+
+      - name: Retire this controller from the review tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "$SELF_PATH"
+          test "$(git diff --cached --name-only)" = "$SELF_PATH"
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git commit \
+            -m 'chore(hf): retire one-shot manifest auto-merge controller' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:$HEAD_BRANCH
