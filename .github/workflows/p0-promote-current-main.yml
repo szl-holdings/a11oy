@@ -1,0 +1,119 @@
+name: P0 current-main successor builder
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-promote-current-main.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-current-main-successor-builder
+  cancel-in-progress: false
+
+jobs:
+  build-successor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WORK_BRANCH: codex/p0-a11oy-work-20260811
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout bootstrap lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Create a clean current-main successor tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$WORK_BRANCH"
+
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "Target branch already exists: $TARGET_BRANCH" >&2
+            exit 1
+          fi
+
+          git switch --create "$TARGET_BRANCH" origin/main
+          work_ref="origin/$WORK_BRANCH"
+          merge_base="$(git merge-base origin/main "$work_ref")"
+
+          exact_paths=(
+            .codex/CODEX_CLOUD_ENVIRONMENT_20260811.md
+            .codex/tasks/P0_CURRENT_MAIN_PRODUCTION_COMPLETION_20260811.md
+            .github/workflows/token-ingress.yml
+            artifacts/proof-packets/20260811-memory-covenant-neon.md
+            artifacts/proof-packets/20260811-token-ingress-controls.md
+            audit/P0-2026-08-11-memory-covenant-proof.md
+            migrations/20260811_memory_covenant_v2.sql
+            migrations/20260811_memory_covenant_v2_security_hardening.sql
+            migrations/20260811_memory_covenant_runtime_role.sql
+            routers/token_ingress.py
+            routers/token_ingress_core.py
+            tests/test_token_ingress.py
+          )
+
+          for path in "${exact_paths[@]}"; do
+            git cat-file -e "$work_ref:$path"
+            git checkout "$work_ref" -- "$path"
+          done
+
+          integration_paths=(
+            routers/__init__.py
+            routers/frontier_reads.py
+            tests/test_demo_critical_routes.py
+          )
+          git diff --binary "$merge_base" "$work_ref" -- "${integration_paths[@]}" \
+            > /tmp/p0-current-main-integration.patch
+          test -s /tmp/p0-current-main-integration.patch
+          git apply --3way --index /tmp/p0-current-main-integration.patch
+
+          test ! -e szl_token_ingress.py
+          git diff --cached --check
+          git status --short
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify the integrated runtime tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          pytest tests/test_token_ingress.py tests/test_demo_critical_routes.py -q
+          git diff --cached --check
+
+      - name: Commit and publish the successor branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "feat(runtime): add governed memory and token ingress controls" \
+            -m "Replays the reviewed P0 delta onto the exact current protected main, preserving newer source through a three-way application of modified integration files." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push --set-upstream origin "$TARGET_BRANCH"
+          {
+            echo "### Current-main successor published"
+            echo
+            echo "- Branch: \`$TARGET_BRANCH\`"
+            echo "- Head: \`$(git rev-parse HEAD)\`"
+            echo "- Base: \`$(git rev-parse origin/main)\`"
+            echo "- Work source: \`$(git rev-parse origin/$WORK_BRANCH)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
