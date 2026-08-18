@@ -1,0 +1,94 @@
+name: HF estate manifest refresh 2026-08-17
+
+on:
+  push:
+    branches:
+      - ops/hf-estate-manifest-refresh-20260817
+    paths:
+      - .github/workflows/hf-estate-manifest-refresh-20260817.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hf-estate-manifest-refresh-20260817
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ops/hf-estate-manifest-refresh-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Prove collector contracts before network use
+        run: |
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
+          python3 scripts/test_audit_huggingface_ecosystem.py
+
+      - name: Generate current public estate manifest
+        run: |
+          mkdir -p /tmp/szl-hf-estate
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --output /tmp/szl-hf-estate/huggingface-ecosystem-manifest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          candidate = Path('/tmp/szl-hf-estate/huggingface-ecosystem-manifest.json')
+          data = json.loads(candidate.read_text(encoding='utf-8'))
+          if not isinstance(data, dict):
+              raise SystemExit('manifest root must be an object')
+          if not data.get('schema'):
+              raise SystemExit('manifest schema is absent')
+          candidate.replace(Path('docs/huggingface-ecosystem-manifest.json'))
+          PY
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+
+      - name: Enforce single-file mutation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected=$(git diff --name-only | grep -vx 'docs/huggingface-ecosystem-manifest.json' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::Unexpected changed paths:"
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit refreshed public evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/huggingface-ecosystem-manifest.json; then
+            echo 'Tracked Hugging Face estate manifest is already current.'
+            exit 0
+          fi
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git add docs/huggingface-ecosystem-manifest.json
+          git commit \
+            -m 'chore(hf): refresh public estate manifest' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:ops/hf-estate-manifest-refresh-20260817
