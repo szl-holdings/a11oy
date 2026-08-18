@@ -50,6 +50,7 @@ REQUIRED_WORKFLOW_TOKENS = (
     "  hf-runtime-live:",
     "  hf-repository-parity:",
     "verify_hf_repository_parity.py",
+    "verify_hf_candidate_admission.py",
     "reusable-hf-module-drift-check.yml@",
     "--tools-script tools/.github/scripts/hf_module_drift_check.py",
 )
@@ -86,7 +87,7 @@ BASELINE_INVOCATION = (
     f"{PYTHON_EXECUTABLE} baseline/.github/scripts/verify_hf_repository_parity.py"
 )
 CANDIDATE_INVOCATION = (
-    f"{PYTHON_EXECUTABLE} baseline/.github/scripts/verify_hf_repository_parity.py"
+    f"{PYTHON_EXECUTABLE} baseline/.github/scripts/verify_hf_candidate_admission.py"
 )
 TOOLS_ARGUMENT = "--tools-script tools/.github/scripts/hf_module_drift_check.py"
 FAILURE_SUPPRESSORS = ("continue-on-error", "--warn-only", "|| true")
@@ -671,9 +672,14 @@ def _nested_mapping(block: str, parent: str) -> dict[str, str] | None:
 def _expected_command(*, candidate: bool) -> list[str]:
     checkout = "baseline"
     report = "hf-repository-parity.out.json" if candidate else "hf-current-base-parity.out.json"
+    script = (
+        "verify_hf_candidate_admission.py"
+        if candidate
+        else "verify_hf_repository_parity.py"
+    )
     command = [
         PYTHON_EXECUTABLE,
-        f"{checkout}/.github/scripts/verify_hf_repository_parity.py",
+        f"{checkout}/.github/scripts/{script}",
         "--tools-script",
         "tools/.github/scripts/hf_module_drift_check.py",
         "--github-repo",
@@ -957,7 +963,10 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
     ):
         errors.append("protected-base job must not receive an HF drift allowlist")
     if len(candidate_commands) != 1 or len(candidate_invocations) != 1:
-        errors.append("candidate job must invoke the protected-base wrapper exactly once")
+        errors.append(
+            "candidate job must invoke the protected-base admission controller "
+            "exactly once"
+        )
     if len(candidate_invocations) == 1 and _argument_values(
         candidate_invocations[0], "--allow"
     ):
