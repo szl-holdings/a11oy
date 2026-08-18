@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/v1/oro-rank.v1.schema.json",
+  "title": "ORO obligation rank v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "obligations",
+    "evidence_deficits",
+    "budget_units",
+    "turns"
+  ],
+  "properties": {
+    "schema": {
+      "const": "szl.oro-rank/v1"
+    },
+    "obligations": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "evidence_deficits": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "budget_units": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "turns": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    }
+  }
+}
