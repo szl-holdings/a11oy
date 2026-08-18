@@ -1,0 +1,246 @@
+name: P1 Fireworks embedding admission probe
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p1-fireworks-embedding-probe.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: p1-fireworks-embedding-admission-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+      FIREWORKS_EMBEDDING_MODEL: ${{ vars.FIREWORKS_EMBEDDING_MODEL }}
+      FIREWORKS_EMBEDDING_DIMENSION: ${{ vars.FIREWORKS_EMBEDDING_DIMENSION }}
+      TARGET_BRANCH: feat/proof-carrying-vector-settlement-20260818
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Execute secret-safe bounded probe
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import hashlib
+          import json
+          import math
+          import os
+          import ssl
+          import urllib.error
+          import urllib.request
+
+          output = Path("artifacts/fireworks-embedding-admission.json")
+          api_key = os.environ.get("FIREWORKS_API_KEY", "").strip()
+          model = os.environ.get("FIREWORKS_EMBEDDING_MODEL", "").strip()
+          expected_dimension_raw = os.environ.get("FIREWORKS_EMBEDDING_DIMENSION", "").strip()
+          now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def write(report):
+              output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+          if not api_key or not model:
+              write({
+                  "schema": "szl.fireworks-embedding-admission/v1",
+                  "observed_at": now,
+                  "status": "BLOCKED_EXTERNAL_AUTHORITY",
+                  "missing": [
+                      name for name, present in (
+                          ("FIREWORKS_API_KEY", bool(api_key)),
+                          ("FIREWORKS_EMBEDDING_MODEL repository variable", bool(model)),
+                      ) if not present
+                  ],
+                  "provider_mutations": 0,
+                  "raw_vector_persisted": False,
+                  "secret_value_persisted": False,
+              })
+              raise SystemExit(0)
+
+          expected_dimension = None
+          if expected_dimension_raw:
+              try:
+                  expected_dimension = int(expected_dimension_raw)
+              except ValueError as exc:
+                  raise SystemExit("FIREWORKS_EMBEDDING_DIMENSION must be an integer") from exc
+              if not 1 <= expected_dimension <= 65536:
+                  raise SystemExit("FIREWORKS_EMBEDDING_DIMENSION is outside 1..65536")
+
+          endpoint = "https://api.fireworks.ai/inference/v1/embeddings"
+          payload = {
+              "model": model,
+              "input": ["a11oy proof-carrying vector settlement admission probe"],
+              "encoding_format": "float",
+          }
+          request_bytes = json.dumps(
+              payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+          ).encode("utf-8")
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          opener = urllib.request.build_opener(
+              NoRedirect(), urllib.request.HTTPSHandler(context=ssl.create_default_context())
+          )
+          request = urllib.request.Request(
+              endpoint,
+              data=request_bytes,
+              method="POST",
+              headers={
+                  "Authorization": "Bearer " + api_key,
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "User-Agent": "a11oy-fireworks-admission/1",
+              },
+          )
+          try:
+              with opener.open(request, timeout=30) as response:
+                  body = response.read(8 * 1024 * 1024 + 1)
+                  status = response.status
+                  content_type = response.headers.get("content-type", "")
+                  final_url = response.geturl()
+          except urllib.error.HTTPError as exc:
+              body = exc.read(4096)
+              write({
+                  "schema": "szl.fireworks-embedding-admission/v1",
+                  "observed_at": now,
+                  "status": "PROVIDER_REQUEST_FAILED",
+                  "http_status": exc.code,
+                  "response_body_sha256": hashlib.sha256(body).hexdigest(),
+                  "provider_mutations": 0,
+                  "raw_vector_persisted": False,
+                  "secret_value_persisted": False,
+              })
+              raise SystemExit(2)
+          except Exception as exc:
+              write({
+                  "schema": "szl.fireworks-embedding-admission/v1",
+                  "observed_at": now,
+                  "status": "TRANSPORT_FAILED",
+                  "error_class": type(exc).__name__,
+                  "provider_mutations": 0,
+                  "raw_vector_persisted": False,
+                  "secret_value_persisted": False,
+              })
+              raise SystemExit(2)
+
+          if final_url != endpoint or status != 200 or "json" not in content_type.lower():
+              raise SystemExit("Fireworks admission response violated endpoint/status/content-type contract")
+          if len(body) > 8 * 1024 * 1024:
+              raise SystemExit("Fireworks response exceeded 8 MiB")
+          response_payload = json.loads(body)
+          data = response_payload.get("data") if isinstance(response_payload, dict) else None
+          if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict):
+              raise SystemExit("Fireworks response did not contain exactly one embedding")
+          values = data[0].get("embedding")
+          if not isinstance(values, list) or not values:
+              raise SystemExit("Fireworks embedding was absent")
+          vector = []
+          for value in values:
+              if isinstance(value, bool) or not isinstance(value, (int, float)):
+                  raise SystemExit("Fireworks embedding contains a non-numeric value")
+              number = float(value)
+              if not math.isfinite(number):
+                  raise SystemExit("Fireworks embedding contains a non-finite value")
+              vector.append(number)
+          if expected_dimension is not None and len(vector) != expected_dimension:
+              raise SystemExit(
+                  f"Fireworks dimension mismatch: expected {expected_dimension}, observed {len(vector)}"
+              )
+          vector_text = json.dumps(vector, separators=(",", ":"), allow_nan=False)
+          response_digest_payload = {
+              "model": response_payload.get("model"),
+              "object": response_payload.get("object"),
+              "usage": response_payload.get("usage"),
+              "dimension": len(vector),
+              "vector_digest": hashlib.sha256(vector_text.encode("utf-8")).hexdigest(),
+          }
+          write({
+              "schema": "szl.fireworks-embedding-admission/v1",
+              "observed_at": now,
+              "status": "PROVIDER_RESPONSE_VALIDATED",
+              "endpoint": endpoint,
+              "model": model,
+              "response_model": response_payload.get("model"),
+              "dimension": len(vector),
+              "request_digest": hashlib.sha256(request_bytes).hexdigest(),
+              "response_digest": hashlib.sha256(
+                  json.dumps(response_digest_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+              ).hexdigest(),
+              "vector_digest": hashlib.sha256(vector_text.encode("utf-8")).hexdigest(),
+              "provider_mutations": 0,
+              "raw_vector_persisted": False,
+              "raw_input_persisted": False,
+              "secret_value_persisted": False,
+          })
+          PY
+          status="$(jq -r '.status' artifacts/fireworks-embedding-admission.json)"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload admission evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fireworks-embedding-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/fireworks-embedding-admission.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish the admission disposition to the stacked PR
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$TARGET_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+          test -n "$pr" || exit 0
+          status="$(jq -r '.status // "UNKNOWN"' artifacts/fireworks-embedding-admission.json)"
+          if [ "$status" = "PROVIDER_RESPONSE_VALIDATED" ]; then
+            dimension="$(jq -r '.dimension' artifacts/fireworks-embedding-admission.json)"
+            vector_digest="$(jq -r '.vector_digest' artifacts/fireworks-embedding-admission.json)"
+            request_digest="$(jq -r '.request_digest' artifacts/fireworks-embedding-admission.json)"
+            cat > /tmp/fireworks.md <<EOF
+          ## Fireworks embedding admission passed
+
+          A bounded, non-mutating embeddings request returned one finite vector and passed endpoint, response-type, and dimension admission.
+
+          - Dimension: \`${dimension}\`
+          - Request digest: \`${request_digest}\`
+          - Vector digest: \`${vector_digest}\`
+          - Raw vector persisted: \`false\`
+          - Secret value persisted: \`false\`
+          - Provider mutations: \`0\`
+
+          This proves one admission probe only. It does not prove production index settlement, throughput, training, model promotion, deployment, or live product parity.
+          EOF
+          else
+            missing="$(jq -c '.missing // []' artifacts/fireworks-embedding-admission.json)"
+            cat > /tmp/fireworks.md <<EOF
+          ## Fireworks embedding admission remains blocked
+
+          - Status: \`${status}\`
+          - Missing authority: \`${missing}\`
+          - Provider mutations: \`0\`
+          - Secret value persisted: \`false\`
+
+          Source integration remains valid, but no live Fireworks call is claimed.
+          EOF
+          fi
+          gh pr comment "$pr" --repo "$GITHUB_REPOSITORY" --body-file /tmp/fireworks.md
