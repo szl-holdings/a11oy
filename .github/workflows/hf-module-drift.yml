@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -154,8 +154,8 @@ jobs:
 
   # TEMP_HF_CONTROLLER_APPLICATOR_START
   hf-controller-applicator:
-    name: One-shot candidate-controller wiring artifact builder
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/hf-candidate-controller-wiring-20260817'
+    name: One-shot non-workflow controller wiring applicator
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/hf-candidate-controller-wiring-20260817' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -164,32 +164,30 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          persist-credentials: false
-      - name: Apply deterministic wiring patch
-        run: python3 scripts/_apply_hf_candidate_controller_wiring.py
-      - name: Remove temporary applicators
-        run: |
-          rm scripts/_apply_hf_candidate_controller_wiring.py
-          rm .github/workflows/_temp-hf-candidate-controller-applicator.yml
-      - name: Validate generated implementation
+          persist-credentials: true
+      - name: Apply validator and adversarial-test wiring
+        run: python3 scripts/_apply_hf_candidate_controller_scripts_only.py
+      - name: Validate generated non-workflow changes
         run: |
           python3 -B -m py_compile \
             scripts/validate_frontdoor_source_integrity.py \
             scripts/test_frontdoor_source_integrity.py
-          git diff --check
-      - name: Package clean generated tree
+          git diff --check -- \
+            scripts/validate_frontdoor_source_integrity.py \
+            scripts/test_frontdoor_source_integrity.py
+      - name: Commit non-workflow implementation
+        env:
+          BRANCH: ${{ github.head_ref }}
         run: |
-          mkdir -p generated/.github/workflows generated/scripts
-          cp .github/workflows/hf-module-drift.yml generated/.github/workflows/hf-module-drift.yml
-          cp scripts/validate_frontdoor_source_integrity.py generated/scripts/validate_frontdoor_source_integrity.py
-          cp scripts/test_frontdoor_source_integrity.py generated/scripts/test_frontdoor_source_integrity.py
-          find generated -type f -print0 | sort -z | xargs -0 sha256sum > generated/SHA256SUMS
-      - name: Upload clean generated tree
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: hf-candidate-controller-wiring-generated-${{ github.event.pull_request.head.sha }}
-          path: generated
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 7
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/validate_frontdoor_source_integrity.py \
+            scripts/test_frontdoor_source_integrity.py
+          git commit \
+            -m "test(hf): bind candidate controller workflow shape" \
+            -m "Pin distinct protected-base verifier and candidate-controller commands in the source-integrity guard and add adversarial role-separation regressions." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:$BRANCH"
   # TEMP_HF_CONTROLLER_APPLICATOR_END
