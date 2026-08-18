@@ -1,0 +1,196 @@
+name: P0 current-main stage normalization
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - ".codex/**"
+      - "routers/token_ingress.py"
+      - "routers/token_ingress_core.py"
+      - "routers/memory_covenant.py"
+      - "routers/frontier_reads.py"
+      - "routers/__init__.py"
+      - "migrations/20260811_memory_covenant_v2.sql"
+      - "migrations/20260811_memory_covenant_v2_security_hardening.sql"
+      - "tests/test_token_ingress.py"
+      - "tests/test_token_ingress_route_wiring.py"
+      - "tests/test_memory_covenant_runtime.py"
+      - "tests/test_memory_covenant_route_wiring.py"
+      - "artifacts/proof-packets/20260811-token-ingress-controls.md"
+      - "artifacts/proof-packets/20260811-memory-covenant-neon.md"
+      - "artifacts/proof-packets/20260817-memory-covenant-runtime.md"
+      - "audit/P0-2026-08-11-memory-covenant-proof.md"
+      - ".github/workflows/token-ingress.yml"
+      - ".github/workflows/memory-covenant-runtime.yml"
+      - ".github/workflows/p0-stage-normalization.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: p0-stage-normalization-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  normalize:
+    if: >-
+      github.event.pull_request.number == 1261 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/p0-a11oy-work-20260811'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_BRANCH: codex/p0-a11oy-work-20260811
+      STAGE_BRANCH: codex/p0-a11oy-stage-20260811
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify the source slice before normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/memory_covenant.py \
+            routers/frontier_reads.py \
+            tests/test_token_ingress.py \
+            tests/test_token_ingress_route_wiring.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_covenant_route_wiring.py
+          pytest \
+            tests/test_token_ingress.py \
+            tests/test_token_ingress_route_wiring.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_covenant_route_wiring.py \
+            -q
+          grep -F "ALTER TABLE memory_records FORCE ROW LEVEL SECURITY" migrations/20260811_memory_covenant_v2.sql
+          grep -F "a11oy_memory_app NOLOGIN INHERIT NOBYPASSRLS" migrations/20260811_memory_covenant_v2_security_hardening.sql
+          git diff --check origin/main...HEAD
+
+      - name: Build one current-main DCO staging commit
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git fetch origin main "$STAGE_BRANCH" "$SOURCE_BRANCH"
+          source_sha=$(git rev-parse "origin/$SOURCE_BRANCH")
+          main_sha=$(git rev-parse origin/main)
+          checked_sha=$(git rev-parse HEAD)
+          test "$checked_sha" = "${{ github.event.pull_request.head.sha }}"
+          test "$source_sha" = "$checked_sha"
+
+          git switch --detach origin/main
+          git switch -c p0-current-main-normalization
+          git merge --squash "$source_sha"
+
+          if git diff --cached --quiet; then
+            echo "No source delta remains after current-main normalization."
+            exit 1
+          fi
+
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -m "feat(p0): normalize operational source on current main" \
+            -m "Source-Head: $source_sha" \
+            -m "Base-Main: $main_sha" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          stage_sha=$(git rev-parse HEAD)
+
+          if git show-ref --verify --quiet "refs/remotes/origin/$STAGE_BRANCH"; then
+            git merge-base --is-ancestor "origin/$STAGE_BRANCH" "$stage_sha"
+          fi
+          git push origin "HEAD:refs/heads/$STAGE_BRANCH"
+
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          echo "stage_sha=$stage_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Open or refresh the protected-main successor PR
+        id: successor
+        shell: bash
+        run: |
+          set -euo pipefail
+          number=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --base main \
+            --head "$STAGE_BRANCH" \
+            --json number \
+            --jq '.[0].number // empty')
+
+          cat > /tmp/p0-successor.md <<EOF
+          ## Current-main normalized P0 successor
+
+          This draft contains one DCO-normalized source commit built from:
+
+          - protected main: `${{ steps.stage.outputs.main_sha }}`
+          - implementation source: `${{ steps.stage.outputs.source_sha }}`
+          - normalized stage: `${{ steps.stage.outputs.stage_sha }}`
+
+          ### Included
+
+          - PostgreSQL Memory Covenant schema and non-bypass role/RLS hardening;
+          - isolated Neon acceptance evidence;
+          - fail-closed Memory Covenant status/query runtime adapter;
+          - token-ingress routing, semantic-oracle qualification, Prefix Foundry, file-native ingestion, and verifier-budget controls;
+          - focused and assembled-route regression tests;
+          - immutable-action CI contracts and proof packets.
+
+          ### Non-claims
+
+          This PR does not claim a production DB credential, active index worker, alternate-tokenizer promotion, measured tokenizer performance, model training, Hugging Face publication, protected merge, deployment, or live revision parity. Commit-signature requirements, independent review, protected checks, canonical deployment, and immutable readback remain mandatory.
+
+          Source implementation lane: #1261.
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+          EOF
+
+          if [ -z "$number" ]; then
+            url=$(gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$STAGE_BRANCH" \
+              --draft \
+              --title "feat(p0): normalize operational source on current main" \
+              --body-file /tmp/p0-successor.md)
+            number=${url##*/}
+          else
+            gh pr edit "$number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "feat(p0): normalize operational source on current main" \
+              --body-file /tmp/p0-successor.md
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Record normalization evidence on the source lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr comment 1261 \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "Current-main normalization completed without force push. Stage `${{ steps.stage.outputs.stage_sha }}` was built from main `${{ steps.stage.outputs.main_sha }}` plus source `${{ steps.stage.outputs.source_sha }}`. Draft successor: #${{ steps.successor.outputs.number }}. No protected merge or deployment is claimed."
+          {
+            echo "## P0 normalization"
+            echo "- Source: `${{ steps.stage.outputs.source_sha }}`"
+            echo "- Main: `${{ steps.stage.outputs.main_sha }}`"
+            echo "- Stage: `${{ steps.stage.outputs.stage_sha }}`"
+            echo "- Successor PR: #${{ steps.successor.outputs.number }}"
+          } >> "$GITHUB_STEP_SUMMARY"
