@@ -1,0 +1,208 @@
+name: Normalize final P0 release candidate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/p0-final-normalization.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: p0-final-normalization-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  normalize-final:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/p0-a11oy-stage-20260811'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      STAGE_BRANCH: codex/p0-a11oy-stage-20260811
+      FINAL_BRANCH: codex/p0-a11oy-final-20260817
+    steps:
+      - name: Checkout exact stage head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact qualification dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          version=$(python - <<'PY'
+          import json
+          print(json.load(open('audit/psycopg-runtime-pin.json', encoding='utf-8'))['version'])
+          PY
+          )
+          python -m pip install --disable-pip-version-check "psycopg[binary]==$version"
+
+      - name: Qualify the exact staged implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/memory_covenant.py \
+            routers/memory_index_worker.py \
+            routers/memory_index_binding.py \
+            routers/frontier_reads.py \
+            tests/test_token_ingress.py \
+            tests/test_token_ingress_route_wiring.py \
+            tests/test_memory_covenant_dependency_contract.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_covenant_route_wiring.py \
+            tests/test_memory_index_worker.py \
+            tests/test_memory_index_binding.py
+          pytest \
+            tests/test_token_ingress.py \
+            tests/test_token_ingress_route_wiring.py \
+            tests/test_memory_covenant_dependency_contract.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_covenant_route_wiring.py \
+            tests/test_memory_index_worker.py \
+            tests/test_memory_index_binding.py \
+            -q
+          grep -F "ALTER TABLE memory_records FORCE ROW LEVEL SECURITY" migrations/20260811_memory_covenant_v2.sql
+          grep -F "REVOKE ALL ON FUNCTION memory_complete_outbox" migrations/20260817_memory_covenant_worker_completion.sql
+          git diff --check origin/main...HEAD
+
+      - name: Create one DCO commit from current protected main
+        id: final
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git fetch origin main "$STAGE_BRANCH"
+          stage_sha=$(git rev-parse "origin/$STAGE_BRANCH")
+          checked_sha=$(git rev-parse HEAD)
+          test "$stage_sha" = "$checked_sha"
+          main_sha=$(git rev-parse origin/main)
+
+          git switch --detach origin/main
+          git switch -c p0-final-normalization
+          git merge --squash "$stage_sha"
+
+          rm -f .github/workflows/p0-final-normalization.yml
+          git add -A .github/workflows/p0-final-normalization.yml
+          rm -f \
+            .codex/CODEX_CLOUD_ENVIRONMENT_20260811.md \
+            .codex/tasks/P0_CURRENT_MAIN_PRODUCTION_COMPLETION_20260811.md
+          git add -A .codex
+
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No final source delta remains" >&2
+            exit 1
+          fi
+
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -m "feat(p0): deliver governed memory and ingress runtime" \
+            -m "Stage-Head: $stage_sha" \
+            -m "Base-Main: $main_sha" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          final_sha=$(git rev-parse HEAD)
+
+          if git show-ref --verify --quiet "refs/remotes/origin/$FINAL_BRANCH"; then
+            git merge-base --is-ancestor "origin/$FINAL_BRANCH" "$final_sha"
+          fi
+          git push origin "HEAD:refs/heads/$FINAL_BRANCH"
+
+          echo "stage_sha=$stage_sha" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Open or refresh final protected-main PR
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          number=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --base main \
+            --head "$FINAL_BRANCH" \
+            --json number \
+            --jq '.[0].number // empty')
+          cat > /tmp/final-pr.md <<'EOF'
+          ## Governed memory and ingress runtime
+
+          One current-main DCO commit contains the reviewed source delta:
+
+          - PostgreSQL-authoritative Memory Covenant schema;
+          - non-bypass application and worker roles with RLS isolation;
+          - bounded worker lease and completion functions;
+          - read-only runtime status/query controller;
+          - exact sealed PostgreSQL driver dependency and public artifact hashes;
+          - token-ingress routing, Prefix Foundry, file-native ingestion, and semantic-oracle qualification;
+          - provider-neutral index worker with idempotency, retry, and secret-screened settlement;
+          - immutable adapter-to-generation identity binding;
+          - focused and assembled-route tests plus proof packets.
+
+          The commit excludes one-shot orchestration workflows and stale Codex workspace files.
+
+          ### Non-claims
+
+          No database credential, production migration, embedding provider, model, API key, alternate-tokenizer promotion, measured tokenizer performance, protected merge, Hugging Face publication, deployment, or live revision readback is claimed. Independent review, exact-head protected checks, commit-signature policy, canonical deployment, and immutable readback remain mandatory.
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+          EOF
+          if [ -z "$number" ]; then
+            url=$(gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$FINAL_BRANCH" \
+              --draft \
+              --title "feat(p0): deliver governed memory and ingress runtime" \
+              --body-file /tmp/final-pr.md)
+            number=${url##*/}
+          else
+            gh pr edit "$number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "feat(p0): deliver governed memory and ingress runtime" \
+              --body-file /tmp/final-pr.md
+          fi
+          gh pr comment "$number" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "Final lineage: base ${{ steps.final.outputs.main_sha }}, stage ${{ steps.final.outputs.stage_sha }}, exact final head ${{ steps.final.outputs.final_sha }}. This is a draft pending independent review and protected checks."
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Close the staging PR as superseded
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr close "${{ github.event.pull_request.number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --comment "Superseded by one-commit current-main final PR #${{ steps.pr.outputs.number }} at ${{ steps.final.outputs.final_sha }}. No protected merge or deployment is claimed."
+
+      - name: Remove the one-shot workflow from the retired stage branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$STAGE_BRANCH"
+          git switch --detach "origin/$STAGE_BRANCH"
+          git switch -c p0-stage-final-controller-retirement
+          if test -f .github/workflows/p0-final-normalization.yml; then
+            git rm .github/workflows/p0-final-normalization.yml
+            git config user.name "Stephen Lutar"
+            git config user.email "stephenlutar2@gmail.com"
+            git commit -m "chore(p0): retire final normalization controller" \
+              -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+            git push origin "HEAD:refs/heads/$STAGE_BRANCH"
+          fi
