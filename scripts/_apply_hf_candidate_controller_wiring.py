@@ -11,6 +11,8 @@ VALIDATOR = ROOT / "scripts/validate_frontdoor_source_integrity.py"
 TESTS = ROOT / "scripts/test_frontdoor_source_integrity.py"
 TEMP_START = "  # TEMP_HF_CONTROLLER_APPLICATOR_START\n"
 TEMP_END = "  # TEMP_HF_CONTROLLER_APPLICATOR_END\n"
+FIXTURE_START = 'VALID_WORKFLOW = r"""'
+FIXTURE_END = '""" + "\\n".join'
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -107,12 +109,17 @@ def patch_validator() -> None:
 
 def patch_tests() -> None:
     text = TESTS.read_text(encoding="utf-8")
-    text = patch_candidate_block(
-        text,
+    if text.count(FIXTURE_START) != 1 or text.count(FIXTURE_END) != 1:
+        raise RuntimeError("VALID_WORKFLOW fixture bounds are not unique")
+    prefix, remainder = text.split(FIXTURE_START, 1)
+    fixture, suffix = remainder.split(FIXTURE_END, 1)
+    fixture = patch_candidate_block(
+        fixture,
         "baseline/.github/scripts/verify_hf_repository_parity.py",
         "baseline/.github/scripts/verify_hf_candidate_admission.py",
         "fixture candidate controller",
     )
+    text = prefix + FIXTURE_START + fixture + FIXTURE_END + suffix
     insertion = '''    def test_candidate_requires_base_controlled_admission_controller(self) -> None:\n        temp, root = self.make_fixture()\n        with temp:\n            workflow = VALID_WORKFLOW.replace(\n                "baseline/.github/scripts/verify_hf_candidate_admission.py",\n                "baseline/.github/scripts/verify_hf_repository_parity.py",\n                1,\n            )\n            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")\n            self.assertTrue(\n                any(\n                    "admission controller" in error\n                    or "canonical parity command" in error\n                    for error in validator.validate(root)\n                )\n            )\n\n    def test_protected_base_requires_repository_parity_verifier(self) -> None:\n        temp, root = self.make_fixture()\n        with temp:\n            workflow = VALID_WORKFLOW.replace(\n                "baseline/.github/scripts/verify_hf_repository_parity.py",\n                "baseline/.github/scripts/verify_hf_candidate_admission.py",\n                1,\n            )\n            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")\n            self.assertTrue(\n                any(\n                    "baseline wrapper" in error\n                    or "canonical parity command" in error\n                    for error in validator.validate(root)\n                )\n            )\n\n    def test_candidate_controller_must_execute_from_protected_base_checkout(self) -> None:\n        temp, root = self.make_fixture()\n        with temp:\n            workflow = VALID_WORKFLOW.replace(\n                "baseline/.github/scripts/verify_hf_candidate_admission.py",\n                "candidate/.github/scripts/verify_hf_candidate_admission.py",\n                1,\n            )\n            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")\n            self.assertTrue(\n                any(\n                    "admission controller" in error\n                    or "canonical parity command" in error\n                    for error in validator.validate(root)\n                )\n            )\n\n'''
     text = replace_once(
         text,
