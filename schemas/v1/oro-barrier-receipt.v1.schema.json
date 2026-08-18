@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/v1/oro-barrier-receipt.v1.schema.json",
+  "title": "ORO barrier receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "barrier_id",
+    "orbit_id",
+    "generation",
+    "rank_before",
+    "rank_after",
+    "semantic_hash",
+    "decision",
+    "reason",
+    "invariant_results",
+    "generated_at",
+    "signature"
+  ],
+  "properties": {
+    "schema": {
+      "const": "szl.oro-barrier-receipt/v1"
+    },
+    "barrier_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "orbit_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "rank_before": {
+      "$ref": "oro-rank.v1.schema.json"
+    },
+    "rank_after": {
+      "$ref": "oro-rank.v1.schema.json"
+    },
+    "semantic_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "decision": {
+      "enum": ["CONTINUE", "COMPLETE", "REFUSE"]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "invariant_results": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invariant_id",
+          "version",
+          "passed",
+          "detail",
+          "implementation_digest"
+        ],
+        "properties": {
+          "invariant_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "implementation_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "signature": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "reason"],
+          "properties": {
+            "state": {
+              "const": "UNAVAILABLE"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["state", "keyid", "signature"],
+          "properties": {
+            "state": {
+              "const": "SIGNED"
+            },
+            "keyid": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "signature": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          }
+        }
+      ]
+    }
+  }
+}
