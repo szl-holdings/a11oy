@@ -26,6 +26,8 @@ from __future__ import annotations
 
 from fastapi.responses import JSONResponse
 
+from routers.readiness_phase_b import install_phase_b_response_contract
+
 # ---- Vertical-pack registry (GAP-5): 13 verticals, live/stub. "Cyber Resilience"
 # label avoids the literal forbidden string. NO amaru/sentra/rosie. ----
 _A11OY_VERTICALS = [
@@ -47,6 +49,8 @@ _A11OY_VERTICALS = [
 
 def register(app) -> dict:
     """Attach frontier reads and the additive Series-A control plane."""
+    install_phase_b_response_contract(app)
+
     import serve  # shared module-scope state lives at serve module scope
 
     @app.get("/api/a11oy/v1/forecast-baseline")
