@@ -1,0 +1,62 @@
+name: Memory Covenant runtime contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "routers/memory_covenant.py"
+      - "routers/frontier_reads.py"
+      - "routers/__init__.py"
+      - "tests/test_memory_covenant_runtime.py"
+      - "tests/test_memory_covenant_route_wiring.py"
+      - "migrations/20260811_memory_covenant_v2.sql"
+      - "migrations/20260811_memory_covenant_v2_security_hardening.sql"
+      - ".github/workflows/memory-covenant-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  memory-covenant-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Compile Memory Covenant runtime
+        run: >-
+          python -m py_compile
+          routers/memory_covenant.py
+          routers/frontier_reads.py
+          tests/test_memory_covenant_runtime.py
+          tests/test_memory_covenant_route_wiring.py
+      - name: Run fail-closed runtime and assembled-route tests
+        run: >-
+          pytest
+          tests/test_memory_covenant_runtime.py
+          tests/test_memory_covenant_route_wiring.py
+          -q
+      - name: Assert migration authority remains explicit
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "ALTER TABLE memory_records FORCE ROW LEVEL SECURITY" migrations/20260811_memory_covenant_v2.sql
+          grep -F "a11oy_memory_app NOLOGIN INHERIT NOBYPASSRLS" migrations/20260811_memory_covenant_v2_security_hardening.sql
+          grep -F "REVOKE ALL ON FUNCTION memory_lease_outbox" migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - name: Reject whitespace errors in Memory Covenant changes
+        run: >-
+          git diff --check origin/main...HEAD --
+          routers/memory_covenant.py
+          routers/frontier_reads.py
+          routers/__init__.py
+          tests/test_memory_covenant_runtime.py
+          tests/test_memory_covenant_route_wiring.py
+          migrations/20260811_memory_covenant_v2.sql
+          migrations/20260811_memory_covenant_v2_security_hardening.sql
+          .github/workflows/memory-covenant-runtime.yml
