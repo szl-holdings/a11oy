@@ -1,0 +1,59 @@
+name: Readiness phase-B source snapshot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/readiness-phase-b-source-snapshot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    if: >-
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/readiness-observation-clocks-20260817' &&
+      github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Bind checked-out tree to PR head
+        env:
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EVENT_HEAD"
+      - name: Resolve exact phase-B route owners
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phase-b-source
+          cp --parents \
+            serve.py \
+            szl_provenance.py \
+            szl_energy_live.py \
+            a11oy_warhacker_obs.py \
+            routers/frontier_reads.py \
+            tools/readiness-harness/gen_tabs_matrix.py \
+            tools/readiness-harness/tabs.json \
+            /tmp/phase-b-source/
+          rg -n -C 12 'kevgate|live KEV IDs/dates/vendors|data_kind.*EPSS' . \
+            --glob '!tools/readiness-harness/readiness-verdict.json' \
+            > /tmp/phase-b-source/kevgate-search.txt || true
+          mapfile -t owners < <(rg -l 'kevgate|live KEV IDs/dates/vendors|data_kind.*EPSS' . \
+            --glob '!tools/readiness-harness/readiness-verdict.json' | sort -u)
+          for file in "${owners[@]}"; do
+            test -f "$file" && cp --parents "$file" /tmp/phase-b-source/
+          done
+          printf '%s\n' "$(git rev-parse HEAD)" > /tmp/phase-b-source/source-sha.txt
+      - name: Upload exact phase-B source snapshot
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: readiness-phase-b-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/phase-b-source
+          if-no-files-found: error
+          retention-days: 7
